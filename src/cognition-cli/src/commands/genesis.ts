@@ -8,6 +8,7 @@ import { GenesisOrchestrator } from '../orchestrators/genesis-orchestrator.js';
 interface GenesisOptions {
   source: string;
   workbench: string;
+  projectRoot: string;
 }
 
 export async function genesisCommand(options: GenesisOptions) {
@@ -18,7 +19,7 @@ export async function genesisCommand(options: GenesisOptions) {
   try {
     // Initialize core components
     s.start('Initializing PGC and workbench connection');
-    const pgc = new PGCManager(process.cwd());
+    const pgc = new PGCManager(options.projectRoot);
     const workbench = new WorkbenchClient(options.workbench);
 
     // Verify workbench is alive
@@ -29,7 +30,12 @@ export async function genesisCommand(options: GenesisOptions) {
     const miner = new StructuralMiner(workbench);
 
     // Create genesis orchestrator
-    const orchestrator = new GenesisOrchestrator(pgc, miner, workbench);
+    const orchestrator = new GenesisOrchestrator(
+      pgc,
+      miner,
+      workbench,
+      options.projectRoot
+    );
 
     // Phase I: Bottom-Up Aggregation
     log.info('Phase I: Structural Mining (Bottom-Up)');

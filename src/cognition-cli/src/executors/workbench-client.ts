@@ -1,6 +1,7 @@
-import { ofetch } from 'ofetch';
-import FormData from 'form-data';
-import type { StructuralData } from '../types/structural.js';
+import { fetch, FormData } from 'undici';
+import type { BodyInit } from 'undici';
+import { Blob } from 'node:buffer';
+import type { StructuralData, SummarizeResponse } from '../types/structural.js';
 
 interface SummarizeRequest {
   content: string;
@@ -24,7 +25,6 @@ export class WorkbenchClient {
   constructor(private baseUrl: string) {
     this.apiKey = process.env.WORKBENCH_API_KEY || '';
     if (!this.apiKey) {
-      // Temporarily allow empty key for local dev
       console.warn(
         'WORKBENCH_API_KEY not set. This is required for production.'
       );
@@ -32,46 +32,80 @@ export class WorkbenchClient {
   }
 
   async health() {
-    return await ofetch(`${this.baseUrl}/health`);
+    const response = await fetch(`${this.baseUrl}/health`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+    }
+    return await response.json();
   }
 
-  async summarize(request: SummarizeRequest) {
+  async summarize(request: SummarizeRequest): Promise<SummarizeResponse> {
     const formData = new FormData();
-    formData.append('file', Buffer.from(request.content), request.filename);
+    const fileBuffer = Buffer.from(request.content);
 
-    const params = new URLSearchParams();
-    params.set('persona', request.persona);
-    if (request.goal) params.set('goal', request.goal);
-    if (request.model_name) params.set('model_name', request.model_name);
+    // Create a Blob with filename metadata
+    const blob = new Blob([fileBuffer], { type: 'text/plain' });
+    formData.set('file', blob, request.filename);
+
+    // Append other fields
+    formData.set('persona', request.persona);
+    if (request.goal) formData.set('goal', request.goal);
+    if (request.model_name) formData.set('model_name', request.model_name);
     if (request.max_tokens)
-      params.set('max_tokens', request.max_tokens.toString());
+      formData.set('max_tokens', request.max_tokens.toString());
     if (request.temperature)
-      params.set('temperature', request.temperature.toString());
+      formData.set('temperature', request.temperature.toString());
 
-    return await ofetch(`${this.baseUrl}/summarize?${params}`, {
+    const response = await fetch(`${this.baseUrl}/summarize`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
-        ...formData.getHeaders(),
       },
-      body: formData,
+      body: formData as unknown as BodyInit,
     });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Summarize request failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText,
+      });
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+
+    return (await response.json()) as SummarizeResponse;
   }
 
   async parseAST(request: ASTParseRequest): Promise<StructuralData> {
     const formData = new FormData();
-    formData.append('file', Buffer.from(request.content), request.filename);
+    const fileBuffer = Buffer.from(request.content);
 
-    const params = new URLSearchParams();
-    params.set('language', request.language);
+    // Create a Blob with filename metadata
+    const blob = new Blob([fileBuffer], { type: 'text/x-python' });
+    formData.set('file', blob, request.filename);
 
-    return await ofetch<StructuralData>(`${this.baseUrl}/parse-ast?${params}`, {
+    // Append language field
+    formData.set('language', request.language);
+
+    const response = await fetch(`${this.baseUrl}/parse-ast`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
-        ...formData.getHeaders(),
       },
-      body: formData,
+      body: formData as unknown as BodyInit,
     });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Parse AST request failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText,
+      });
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+
+    return (await response.json()) as StructuralData;
   }
 }

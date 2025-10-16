@@ -24,6 +24,12 @@ export interface StructuralData {
   dependencies: string[];
   extraction_method?: 'ast_native' | 'ast_remote' | 'slm' | 'llm_supervised';
   fidelity?: number;
+  summary?: string;
+}
+
+export interface SummarizeResponse {
+  language: string;
+  summary: string;
 }
 
 export interface ASTParser {

@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import { initCommand } from './commands/init.js';
 import { genesisCommand } from './commands/genesis.js';
+import { initCommand } from './commands/init.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const program = new Command();
 
@@ -18,12 +21,17 @@ program
 
 program
   .command('genesis')
-  .description('Build the foundational knowledge base from source')
-  .option('-s, --source <path>', 'Source directory', './')
+  .description('Builds the verifiable skeleton of a codebase')
+  .option('-s, --source <path>', 'Path to the source code to analyze', 'src')
   .option(
     '-w, --workbench <url>',
-    'egemma workbench URL',
+    'URL of the egemma workbench',
     'http://localhost:8000'
+  )
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project being analyzed',
+    process.cwd()
   )
   .action(genesisCommand);
 

@@ -11,14 +11,16 @@ export class GenesisOrchestrator {
   constructor(
     private pgc: PGCManager,
     private miner: StructuralMiner,
-    private workbench: WorkbenchClient
+    private workbench: WorkbenchClient,
+    private projectRoot: string
   ) {}
 
   async executeBottomUpAggregation(sourcePath: string) {
     const s = spinner();
 
     s.start('Discovering source files');
-    const files = await this.discoverFiles(sourcePath);
+    const actualSourcePath = path.join(this.projectRoot, sourcePath);
+    const files = await this.discoverFiles(actualSourcePath);
     s.stop(`Found ${files.length} files`);
 
     let processed = 0;
@@ -101,7 +103,7 @@ export class GenesisOrchestrator {
             const content = await fs.readFile(fullPath, 'utf-8');
             files.push({
               path: fullPath,
-              relativePath: path.relative(process.cwd(), fullPath),
+              relativePath: path.relative(this.projectRoot, fullPath),
               name: entry.name,
               language: this.detectLanguage(ext),
               content,

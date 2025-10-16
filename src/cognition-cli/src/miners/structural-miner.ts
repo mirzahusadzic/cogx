@@ -46,10 +46,14 @@ export class StructuralMiner {
           extraction_method: 'ast_remote',
           fidelity: 1.0,
         };
-      } catch (e) {
-        console.warn(
-          `Remote AST parsing failed for ${file.path}: ${(e as Error).message}`
-        );
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (e: any) {
+        console.warn(`Remote AST parsing failed for ${file.path}:`);
+        if (e.data) {
+          console.warn('Validation Error:', JSON.stringify(e.data, null, 2));
+        } else {
+          console.warn('Full Error Object:', e);
+        }
       }
     }
 
@@ -61,10 +65,14 @@ export class StructuralMiner {
         extraction_method: 'slm',
         fidelity: 0.85,
       };
-    } catch (e) {
-      console.warn(
-        `SLM extraction failed for ${file.path}: ${(e as Error).message}`
-      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (e: any) {
+      console.warn(`SLM extraction failed for ${file.path}:`);
+      if (e.data) {
+        console.warn('Validation Error:', JSON.stringify(e.data, null, 2));
+      } else {
+        console.warn('Full Error Object:', e);
+      }
     }
 
     // Layer 3: LLM supervisor generates parser and executes
