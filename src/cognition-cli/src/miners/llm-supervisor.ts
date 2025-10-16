@@ -16,7 +16,8 @@ export class LLMSupervisor {
     // that would execute the generated script in a sandbox.
     console.log(`Generated parser for ${file.path}:`, parserScript);
     return {
-      language: file.language,
+      language: file.language as string,
+      docstring: '',
       imports: [],
       classes: [],
       functions: [],

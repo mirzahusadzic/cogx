@@ -8,17 +8,17 @@ This file serves as an audit trail for the development of this project, aligning
 
 ### Phase A: Manual Ground Truth Creation (Current Phase)
 
-1.  **Action:** Manually set up a documentation site using VitePress.
-2.  **Action:** Write the initial, high-quality documentation for the project, covering architecture, concepts, and commands.
-3.  **Purpose:** This provides immediate, necessary documentation for the project while simultaneously creating the "verifiable target" or "ground truth" for the future AI-driven process.
+1. **Action:** Manually set up a documentation site using VitePress.
+2. **Action:** Write the initial, high-quality documentation for the project, covering architecture, concepts, and commands.
+3. **Purpose:** This provides immediate, necessary documentation for the project while simultaneously creating the "verifiable target" or "ground truth" for the future AI-driven process.
 
 ### Phase B: AI-Driven Dogfooding (Future Phase)
 
-1.  **Action:** Create a new `cognition-cli docs:generate` command.
-2.  **Mechanism:** This command will use a `technical_writer` persona to query its own PGC.
-3.  **Process:** It will execute a `Transform` to generate VitePress-compatible Markdown files from the knowledge contained within the PGC.
-4.  **Verification:** An `Oracle` will compare the AI-generated docs against the manually-written "ground truth" docs from Phase A to produce a Fidelity Factor (Phi).
-5.  **Goal:** Achieve a Phi score > 0.95, proving the system can document itself to a human-quality standard.
+1. **Action:** Create a new `cognition-cli docs:generate` command.
+2. **Mechanism:** This command will use a `technical_writer` persona to query its own PGC.
+3. **Process:** It will execute a `Transform` to generate VitePress-compatible Markdown files from the knowledge contained within the PGC.
+4. **Verification:** An `Oracle` will compare the AI-generated docs against the manually-written "ground truth" docs from Phase A to produce a Fidelity Factor (Phi).
+5. **Goal:** Achieve a Phi score > 0.95, proving the system can document itself to a human-quality standard.
 
 ---
 

@@ -15,13 +15,39 @@ export interface SourceFile {
   content: string;
 }
 
+export interface ParameterData {
+  name: string;
+  type: string;
+  optional: boolean;
+  default?: string;
+}
+
+export interface FunctionData {
+  name: string;
+  docstring: string;
+  params: ParameterData[];
+  returns: string;
+  is_async: boolean;
+  decorators: string[];
+}
+
+export interface ClassData {
+  name: string;
+  docstring: string;
+  base_classes: string[];
+  implements_interfaces: string[];
+  methods: FunctionData[];
+  decorators: string[];
+}
+
 export interface StructuralData {
   language: string;
+  docstring: string;
   imports: string[];
-  classes: Array<{ name: string; methods: string[] }>;
-  functions: Array<{ name: string; params: string[] }>;
-  exports: string[];
-  dependencies: string[];
+  classes: ClassData[];
+  functions: FunctionData[];
+  exports: string[]; // Can be enhanced further if needed
+  dependencies?: string[];
   extraction_method?: 'ast_native' | 'ast_remote' | 'slm' | 'llm_supervised';
   fidelity?: number;
   summary?: string;

@@ -50,6 +50,6 @@ A quick reference for project scripts:
 
 - **Source Control:** The `.open_cognition` directory is a generated artifact and **must not** be committed to Git.
 
-- **Commit Messages:** Keep messages lean but descriptive, using the imperative mood (e.g., "Add feature" not "Added feature"). The subject line must not exceed 88 characters.
+- **Commit Messages:** Keep messages lean but descriptive, using the imperative mood (e.g., "Add feature" not "Added feature"). The subject line must not exceed 88 characters. For multiline messages, use `git commit -F <file>` to avoid escaping issues.
 
 - **Dependencies:** The `eGemma` server at `http://localhost:8000` is a required dependency for any tasks involving LLMs or remote parsing.

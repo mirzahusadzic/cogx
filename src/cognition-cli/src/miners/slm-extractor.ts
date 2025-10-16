@@ -1,5 +1,9 @@
 import type { WorkbenchClient } from '../executors/workbench-client.js';
-import type { SourceFile, StructuralData } from '../types/structural.js';
+import type {
+  Language,
+  SourceFile,
+  StructuralData,
+} from '../types/structural.js';
 
 export class SLMExtractor {
   constructor(private workbench: WorkbenchClient) {}
@@ -18,7 +22,7 @@ export class SLMExtractor {
       const structural = JSON.parse(
         response.summary
       ) as Partial<StructuralData>;
-      return this.validateAndNormalize(structural, file.language as string);
+      return this.validateAndNormalize(structural, file.language);
     } catch (e) {
       throw new Error(
         `SLM returned invalid JSON for ${file.path}: ${(e as Error).message}`
@@ -31,16 +35,14 @@ export class SLMExtractor {
     language: string
   ): StructuralData {
     return {
-      language,
-      imports: Array.isArray(data.imports) ? data.imports : [],
-      classes: Array.isArray(data.classes) ? data.classes : [],
-      functions: Array.isArray(data.functions) ? data.functions : [],
-      exports: Array.isArray(data.exports) ? data.exports : [],
-      dependencies: Array.isArray(data.dependencies)
-        ? data.dependencies
-        : Array.isArray(data.imports)
-          ? data.imports
-          : [],
+      language:
+        (data.language as Language) || (language as Language) || 'unknown',
+      docstring: data.docstring || '',
+      imports: data.imports || [],
+      classes: data.classes || [],
+      functions: data.functions || [],
+      exports: data.exports || [],
+      dependencies: data.dependencies || data.imports || [],
     };
   }
 }
