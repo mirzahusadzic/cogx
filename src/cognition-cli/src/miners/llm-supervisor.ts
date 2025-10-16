@@ -1,0 +1,26 @@
+import type { WorkbenchClient } from '../executors/workbench-client.js';
+import type { SourceFile, StructuralData } from '../types/structural.js';
+
+export class LLMSupervisor {
+  constructor(private workbench: WorkbenchClient) {}
+
+  async generateAndExecuteParser(file: SourceFile): Promise<StructuralData> {
+    const parserScript = await this.workbench.summarize({
+      content: file.content,
+      persona: 'parser_generator',
+      goal: 'Generate a tree-sitter query to extract structure',
+    });
+
+    // This is a placeholder for a more complex implementation
+    // that would execute the generated script in a sandbox.
+    console.log(`Generated parser for ${file.path}:`, parserScript);
+    return {
+      language: file.language,
+      imports: [],
+      classes: [],
+      functions: [],
+      exports: [],
+      dependencies: [],
+    };
+  }
+}
