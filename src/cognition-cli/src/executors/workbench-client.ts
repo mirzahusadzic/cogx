@@ -6,6 +6,7 @@ interface SummarizeRequest {
   content: string;
   filename: string;
   persona: string;
+  goal?: string;
   model_name?: string;
   max_tokens?: number;
   temperature?: number;
@@ -40,6 +41,7 @@ export class WorkbenchClient {
 
     const params = new URLSearchParams();
     params.set('persona', request.persona);
+    if (request.goal) params.set('goal', request.goal);
     if (request.model_name) params.set('model_name', request.model_name);
     if (request.max_tokens)
       params.set('max_tokens', request.max_tokens.toString());

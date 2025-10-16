@@ -15,7 +15,9 @@ export class SLMExtractor {
     });
 
     try {
-      const structural = JSON.parse(response.summary);
+      const structural = JSON.parse(
+        response.summary
+      ) as Partial<StructuralData>;
       return this.validateAndNormalize(structural, file.language as string);
     } catch (e) {
       throw new Error(
@@ -25,16 +27,20 @@ export class SLMExtractor {
   }
 
   private validateAndNormalize(
-    data: unknown,
+    data: Partial<StructuralData>,
     language: string
   ): StructuralData {
     return {
       language,
-      imports: data.imports || [],
-      classes: data.classes || [],
-      functions: data.functions || [],
-      exports: data.exports || [],
-      dependencies: data.dependencies || data.imports || [],
+      imports: Array.isArray(data.imports) ? data.imports : [],
+      classes: Array.isArray(data.classes) ? data.classes : [],
+      functions: Array.isArray(data.functions) ? data.functions : [],
+      exports: Array.isArray(data.exports) ? data.exports : [],
+      dependencies: Array.isArray(data.dependencies)
+        ? data.dependencies
+        : Array.isArray(data.imports)
+          ? data.imports
+          : [],
     };
   }
 }

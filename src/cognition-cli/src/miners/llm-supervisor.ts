@@ -6,6 +6,7 @@ export class LLMSupervisor {
 
   async generateAndExecuteParser(file: SourceFile): Promise<StructuralData> {
     const parserScript = await this.workbench.summarize({
+      filename: file.path,
       content: file.content,
       persona: 'parser_generator',
       goal: 'Generate a tree-sitter query to extract structure',

@@ -34,23 +34,23 @@ To build and run the `cognition-cli`, follow these steps:
 
 1. **Navigate to the CLI directory:**
 
-    ```bash
-    cd src/cognition-cli
-    ```
+   ```bash
+   cd src/cognition-cli
+   ```
 
 2. **Install dependencies:**
 
-    ```bash
-    npm install
-    ```
+   ```bash
+   npm install
+   ```
 
 3. **Build the project:**
 
-    ```bash
-    npm run build
-    ```
+   ```bash
+   npm run build
+   ```
 
-    This compiles the TypeScript code into JavaScript, placing the output in the `dist` directory.
+   This compiles the TypeScript code into JavaScript, placing the output in the `dist` directory.
 
 After building, you can run the CLI in several ways:
 

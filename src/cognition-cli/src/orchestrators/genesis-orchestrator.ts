@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import type { PGCManager } from '../core/pgc-manager.js';
 import type { StructuralMiner } from '../miners/structural-miner.js';
 import type { WorkbenchClient } from '../executors/workbench-client.js';
-import type { SourceFile } from '../types/structural.js';
+import type { SourceFile, Language } from '../types/structural.js';
 
 export class GenesisOrchestrator {
   constructor(
@@ -72,7 +72,7 @@ export class GenesisOrchestrator {
       }
     }
 
-    await this.aggregateDirectories(sourcePath);
+    await this.aggregateDirectories();
   }
 
   private async discoverFiles(rootPath: string): Promise<SourceFile[]> {
@@ -115,8 +115,8 @@ export class GenesisOrchestrator {
     return files;
   }
 
-  private detectLanguage(ext: string): string {
-    const map: Record<string, string> = {
+  private detectLanguage(ext: string): Language {
+    const map: Record<string, Language> = {
       '.ts': 'typescript',
       '.js': 'javascript',
       '.py': 'python',
