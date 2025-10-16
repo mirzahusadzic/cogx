@@ -6,5 +6,5 @@ export interface TransformData {
   outputs: string[];
   method?: string;
   fidelity?: number;
-  timestamp: Date;
+  timestamp?: Date;
 }

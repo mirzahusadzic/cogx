@@ -52,7 +52,6 @@ export class GenesisOrchestrator {
           outputs: [structuralHash],
           method: structural.extraction_method,
           fidelity: structural.fidelity,
-          timestamp: new Date(),
         });
 
         await this.pgc.index.set(file.relativePath, {

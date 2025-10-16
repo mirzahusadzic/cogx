@@ -11,6 +11,21 @@ vi.mock('fs-extra', async () => {
       ...promises,
       ensureDir: (path: string) => promises.mkdir(path, { recursive: true }),
       ensureFile: promises.writeFile, // Simplified for this test
+      pathExists: async (path: string) => {
+        try {
+          await promises.stat(path);
+          return true;
+        } catch (error: unknown) {
+          if (
+            error instanceof Error &&
+            'code' in error &&
+            error.code === 'ENOENT'
+          ) {
+            return false;
+          }
+          throw error;
+        }
+      },
     },
   };
 });
