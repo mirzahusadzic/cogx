@@ -14,7 +14,7 @@ cognition-cli init
 
 This command creates the `.open_cognition` directory and its subdirectories (`objects`, `transforms`, `index`, `reverse_deps`, `overlays`), along with a `metadata.json` file and a `.gitignore` entry to prevent committing generated artifacts.
 
-- **Generate Genesis (`genesis` command):** Populates the `.open_cognition` directory by extracting structural metadata from your project's source code. This process involves parsing files, hashing their content, and logging transformations to build the initial knowledge graph.
+- **Generate Genesis (`genesis` command):** Populates the `.open_cognition` directory by extracting structural metadata from your project's source code. This process involves parsing files, hashing their content, logging transformations, and performing a structural verification of the generated knowledge graph to ensure its integrity and coherence.
 
 ### Genesis Command Usage
 
@@ -67,6 +67,10 @@ The system extensively uses TypeScript for type safety, ensuring that all data s
 - `Language`: Enumeration of supported programming languages.
 
 The combination of content-addressable storage, immutable logs, and explicit dependency tracking ensures that the entire knowledge graph is verifiable. Any discrepancy in content or transformation can be detected by re-hashing objects or replaying the transform log.
+
+## Documentation
+
+- [01 - Structural Analysis: Mapping the Codebase](./docs/01_Structural_Analysis.md)
 
 ## Build and Run
 
