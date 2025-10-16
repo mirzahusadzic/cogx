@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitepress';
 
 export default defineConfig({
-  title: 'CogX CLI',
+  title: 'Cognition CLI',
   description: 'A meta-interpreter for verifiable, stateful AI cognition.',
   themeConfig: {
     nav: [
@@ -37,12 +37,16 @@ export default defineConfig({
             text: '05 - Verification and Oracles: Ensuring PGC Integrity',
             link: '/05_Verification_and_Oracles',
           },
+          {
+            text: '06 - Testing and Deployment',
+            link: '/06_Testing_and_Deployment',
+          },
         ],
       },
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/your-repo-link' },
+      { icon: 'github', link: 'https://github.com/mirzahusadzic/cogx' },
     ],
   },
 });

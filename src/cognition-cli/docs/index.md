@@ -10,3 +10,4 @@ Welcome to the documentation for the Cognition Command-Line Interface (CLI). Thi
 - [03 - Commands: Interacting with the Cognition CLI](./03_Commands.md)
 - [04 - Miners and Executors: Extracting and Processing Knowledge](./04_Miners_and_Executors.md)
 - [05 - Verification and Oracles: Ensuring PGC Integrity](./05_Verification_and_Oracles.md)
+- [06 - Testing and Deployment](./06_Testing_and_Deployment.md)
