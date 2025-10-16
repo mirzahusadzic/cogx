@@ -4,6 +4,7 @@ import { PGCManager } from '../core/pgc-manager.js';
 import { StructuralMiner } from '../miners/structural-miner.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
 import { GenesisOrchestrator } from '../orchestrators/genesis-orchestrator.js';
+import { StructuralOracle } from '../core/oracles/structural-oracle.js';
 
 interface GenesisOptions {
   source: string;
@@ -21,6 +22,7 @@ export async function genesisCommand(options: GenesisOptions) {
     s.start('Initializing PGC and workbench connection');
     const pgc = new PGCManager(options.projectRoot);
     const workbench = new WorkbenchClient(options.workbench);
+    const structuralOracle = new StructuralOracle(pgc);
 
     // Verify workbench is alive
     await workbench.health();
@@ -34,6 +36,7 @@ export async function genesisCommand(options: GenesisOptions) {
       pgc,
       miner,
       workbench,
+      structuralOracle,
       options.projectRoot
     );
 

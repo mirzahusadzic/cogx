@@ -9,7 +9,7 @@ export class PGCManager {
   public transformLog: TransformLog;
   public index: Index;
   public reverseDeps: ReverseDeps;
-  private pgcRoot: string;
+  public pgcRoot: string;
 
   constructor(projectRoot: string) {
     this.pgcRoot = path.join(projectRoot, '.open_cognition');

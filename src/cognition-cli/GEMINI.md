@@ -27,7 +27,7 @@ When adding a feature or fixing a bug, I will follow these steps in order:
 
 6. **Update README.md:** If a change impacts the user-facing CLI, I will update the `src/cognition-cli/README.md` file.
 
-7. **Log the Final Action:** I will add a final entry to `../../WORKLOG.md` summarizing the successful completion of the task.
+7. **Log the Final Action:** I will add a final entry to `../../WORKLOG.md` summarizing the successful completion of the task (just one line appended at the top of the logs).
 
 8. **Propose a Commit:** After all steps are complete, I will analyze the changes and propose a clear and descriptive `git commit` message.
 

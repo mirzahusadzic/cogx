@@ -24,6 +24,7 @@ This file serves as an audit trail for the development of this project, aligning
 
 ## Action Log
 
+- **2025-10-17:** Implement Structural Oracle (OStructure) for Genesis verification. 
 - **2025-10-16:** Implemented idempotency for the `genesis` command, preventing `.open_cognition` directory growth on subsequent runs for the same input. Added a dedicated idempotency test. 
 - **2025-10-16:** Refactored `workbench-client.ts` to use `undici` for network requests, improving error handling and type safety. Updated `genesis` command to include `project-root` option and improved error logging in `structural-miner.ts`.
 - **2025-10-16:** Updated `src/cognition-cli/README.md` with a detailed explanation of the Content Addressable Knowledge Graph, including its core infrastructure and how data structures are used to build context. Also fixed markdown linting errors.

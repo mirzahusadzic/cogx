@@ -146,3 +146,46 @@ The invalidation process acts as the trigger, but the subsequent "refinement run
 3. **Verification:** The Oracle (O) verifies the newly generated output against the Goal.
 
 This cycle repeats until all `Invalidated` tags are cleared, ensuring that the system's understanding is once again coherent and sound.
+
+### Roadmap for Oracle Implementation
+
+To progressively build out the robust Oracle system described in the blueprint, we will follow a phased approach, aligning with the overall project roadmap:
+
+#### Phase I: Foundational Structural Verification (`OStructure`)
+
+**Objective:** Implement the initial `Structural Oracle (OStructure)` to verify the integrity and coherence of the Grounded Context Pool (PGC) immediately after its construction via the Genesis process. This ensures the "verifiable skeleton" is structurally sound.
+
+**Milestones:**
+
+1.  **Define `VerificationResult` Type:** Create a standard type to encapsulate the outcome of an oracle's verification, including success status and any messages.
+2.  **Implement `StructuralOracle` Class:**
+    *   Create `src/cognition-cli/src/core/oracles/structural-oracle.ts`.
+    *   This class will take `PGCManager` as a dependency.
+    *   Its `verify()` method will perform checks such as:
+        *   Validating that all `content_hash` and `structural_hash` entries in the `index/` exist in the `objects/` store.
+        *   Verifying that all `inputs` and `outputs` hashes referenced in `transforms/` manifests exist in the `objects/` store.
+        *   Confirming that `objectHash` and `transformId` entries in `reverse_deps/` correspond to existing objects and transforms.
+3.  **Integrate into `GenesisOrchestrator`:**
+    *   After the `executeBottomUpAggregation` completes, the `GenesisOrchestrator` will invoke `OStructure.verify()`.
+    *   The results will be logged, providing immediate feedback on the structural integrity of the newly built PGC.
+
+#### Phase II: Semantic and Goal-Specific Verification (`OGrounding`, `OGoal`, `OContext`, `OOmega`)
+
+**Objective:** Introduce oracles that perform deeper semantic and goal-specific validation, aligning with the "Semantic Core" phase of the overall roadmap.
+
+**Milestones:**
+
+1.  **Implement `OGrounding`:** Verify that generated knowledge elements are factually consistent with their source records.
+2.  **Implement `OGoal`:** Evaluate if the output of a transformation successfully achieved its defined `Goal` criteria.
+3.  **Implement `OContext` and `OOmega`:** Measure the quality of the context provided to LLMs and how effectively that context was utilized.
+4.  **Integrate into `cognition-script` Workflows:** Allow `cognition-script` to explicitly call these oracles as part of transformation pipelines.
+
+#### Phase III: Stateful, Learning Guardians (Letta Agents)
+
+**Objective:** Evolve oracles into persistent, learning "Letta agents" based on MemGPT principles, enabling continuous improvement and specialized, long-running analysis.
+
+**Milestones:**
+
+1.  **Develop MemGPT-based Oracle Framework:** Create a foundation for stateful oracles.
+2.  **Implement Specialized Letta Agents:** Examples include `OSecurityAudit` for persistent threat modeling.
+3.  **Integrate Learning Loops:** Allow oracles to learn from past verifications and refine their own performance.

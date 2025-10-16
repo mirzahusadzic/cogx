@@ -1,47 +1,58 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'fs-extra';
 import path from 'path';
-import { vol } from 'memfs';
+import { vol } from 'memfs'; // Keep this import for vol.reset() in beforeEach/afterEach
 
 import { GenesisOrchestrator } from './genesis-orchestrator.js';
 import { PGCManager } from '../core/pgc-manager.js';
 import { StructuralMiner } from '../miners/structural-miner.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
 import type { StructuralData } from '../types/structural.js';
+import { StructuralOracle } from '../core/oracles/structural-oracle.js';
 
-// Mock fs-extra to use memfs
+// Mock fs-extra to use memfs's vol
 vi.mock('fs-extra', async () => {
-  const memfs = await vi.importActual<typeof import('memfs')>('memfs');
-  const promises = memfs.fs.promises;
+  const actualMemfs = await vi.importActual<typeof import('memfs')>('memfs');
+  const actualVol = actualMemfs.vol; // Get the actual vol from memfs
+
   return {
     default: {
-      ...promises,
-      ensureDir: (path: string) => promises.mkdir(path, { recursive: true }),
-      ensureFile: promises.writeFile, // Simplified for this test
-      pathExists: async (path: string) => {
+      ...actualVol.promises, // Use vol.promises directly
+      ensureDir: (dirPath: string) =>
+        actualVol.promises.mkdir(dirPath, { recursive: true }),
+      pathExists: async (filePath: string) => {
         try {
-          await promises.stat(path);
+          await actualVol.promises.stat(filePath);
           return true;
         } catch (error: unknown) {
-          if (
-            error instanceof Error &&
-            'code' in error &&
-            error.code === 'ENOENT'
-          ) {
+          // Type guard for Node.js system errors
+          const isErrnoException = (e: unknown): e is NodeJS.ErrnoException =>
+            e instanceof Error && 'code' in e;
+
+          if (isErrnoException(error) && error.code === 'ENOENT') {
             return false;
           }
           throw error;
         }
       },
       writeJSON: (
-        path: string,
-        object: object,
+        filePath: string,
+        data: object,
         options?: { spaces?: number }
       ) =>
-        promises.writeFile(
-          path,
-          JSON.stringify(object, null, options?.spaces || 0)
+        actualVol.promises.writeFile(
+          filePath,
+          JSON.stringify(data, null, options?.spaces || 0)
         ),
+      readJSON: (filePath: string) =>
+        actualVol.promises
+          .readFile(filePath, 'utf-8')
+          .then((content) => JSON.parse(content.toString())),
+      readFile: (filePath: string, encoding?: string) =>
+        actualVol.promises.readFile(filePath, encoding),
+      readdir: (dirPath: string, options?: object) =>
+        actualVol.promises.readdir(dirPath, options), // Use 'object' for options
+      stat: (filePath: string) => actualVol.promises.stat(filePath),
     },
   };
 });
@@ -86,10 +97,13 @@ describe('GenesisOrchestrator idempotency', () => {
     workbenchClient = {} as WorkbenchClient;
 
     pgcManager = new PGCManager(projectRoot);
+    const structuralOracleInstance = new StructuralOracle(pgcManager);
+
     orchestrator = new GenesisOrchestrator(
       pgcManager,
       structuralMiner,
       workbenchClient,
+      structuralOracleInstance, // Pass the real structuralOracle instance
       projectRoot
     );
   });

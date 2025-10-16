@@ -6,12 +6,14 @@ import type { PGCManager } from '../core/pgc-manager.js';
 import type { StructuralMiner } from '../miners/structural-miner.js';
 import type { WorkbenchClient } from '../executors/workbench-client.js';
 import type { SourceFile, Language } from '../types/structural.js';
+import { StructuralOracle } from '../core/oracles/structural-oracle.js';
 
 export class GenesisOrchestrator {
   constructor(
     private pgc: PGCManager,
     private miner: StructuralMiner,
     private workbench: WorkbenchClient,
+    private structuralOracle: StructuralOracle,
     private projectRoot: string
   ) {}
 
@@ -74,6 +76,22 @@ export class GenesisOrchestrator {
     }
 
     await this.aggregateDirectories();
+
+    log.info('Running structural oracle verification...');
+    const verificationResult = await this.structuralOracle.verify();
+    if (verificationResult.success) {
+      log.success(
+        chalk.green('Structural Oracle: PGC is structurally coherent.')
+      );
+    } else {
+      log.error(
+        chalk.red('Structural Oracle: PGC has structural inconsistencies:')
+      );
+      verificationResult.messages.forEach((msg) =>
+        log.error(chalk.red(`- ${msg}`))
+      );
+      throw new Error('Structural Oracle verification failed.');
+    }
   }
 
   private async discoverFiles(rootPath: string): Promise<SourceFile[]> {
