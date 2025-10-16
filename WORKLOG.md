@@ -24,6 +24,7 @@ This file serves as an audit trail for the development of this project, aligning
 
 ## Action Log
 
+- **2025-10-16:** Updated `src/cognition-cli/README.md` with a detailed explanation of the Content Addressable Knowledge Graph, including its core infrastructure and how data structures are used to build context. Also fixed markdown linting errors.
 - **2025-10-16:** Resolved TypeScript compilation errors in `cognition-cli` by:
   - Configuring `tsconfig.json` for Vitest globals.
   - Updating `SummarizeRequest` in `workbench-client.ts`.

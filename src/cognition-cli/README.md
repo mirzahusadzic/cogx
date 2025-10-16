@@ -28,6 +28,46 @@ Replace `<path-to-source-code>` with the directory containing the source files y
 
 The overarching goal of the Cognition CLI is to facilitate the creation of a robust, verifiable, and well-tested implementation of the CogX blueprint. By transforming raw source code into a structured, queryable knowledge graph, we aim to enable advanced code analysis, automated reasoning, and intelligent software development workflows.
 
+## Content Addressable Knowledge Graph
+
+The `cognition-cli` implements a Content Addressable Knowledge Graph (CAKG) based on the principles outlined in the CogX blueprint. This system ensures that all extracted structural data is verifiable, immutable, and efficiently stored.
+
+### Core Infrastructure
+
+The CAKG is built upon several key components, each designed for specific roles in maintaining data integrity and accessibility:
+
+- **ObjectStore:** A content-addressable storage system, inspired by Git. It stores all extracted structural data and file contents. Each object is hashed (e.g., SHA-256), and this hash serves as its unique identifier. This ensures data deduplication and immutability; any change to an object results in a new hash and a new object.
+  - **Algorithm:** When a file or structural data is processed, its content is hashed. If an object with that hash already exists in the store, it's not re-stored. Otherwise, the new object is written to a location derived from its hash.
+  - **Data Types:** Raw file content, JSON representations of ASTs, and other structural metadata.
+
+- **TransformLog:** An immutable, append-only log of all operations that modify the knowledge graph. This provides a complete audit trail of how the graph evolved, enabling verifiability and reproducibility.
+  - **Algorithm:** Each transformation (e.g., file parsing, structural extraction) is recorded as an entry in the log, including timestamps, affected object hashes, and the nature of the transformation.
+  - **Data Types:** Log entries containing metadata about transformations.
+
+- **Index:** A semantic path to hash mapping. This allows human-readable file paths to be resolved to their corresponding content-addressable hashes in the ObjectStore. It acts as the system's 'Table of Contents,' enabling the retrieval of specific knowledge elements based on their logical location within the project structure, thereby forming a crucial part of context assembly.
+  - **Algorithm:** When a file is processed, its canonical path is mapped to the hash of its extracted structural data. This index is updated atomically.
+
+  - **Data Types:** Key-value pairs where keys are file paths and values are object hashes.
+
+- **ReverseDeps (Reverse Dependencies):** An efficient mechanism for O(1) reverse lookups, allowing quick identification of all entities that depend on a given object. This component is vital for understanding the relationships between different pieces of knowledge and for efficiently building a comprehensive context by tracing dependencies across the graph.
+  - **Algorithm:** As structural data is extracted (e.g., imports, function calls), dependencies are recorded. The ReverseDeps component stores mappings from a dependent object's hash to the hashes of objects it depends on, and vice-versa.
+
+  - **Data Types:** Graph-like structures mapping object hashes to lists of dependent/dependency hashes.
+
+### Data Types and Verifiability
+
+The system extensively uses TypeScript for type safety, ensuring that all data structures conform to predefined schemas. Key data types include:
+
+- `SourceFile`: Represents a source code file, including its path, content hash, and language.
+- `StructuralData`: The extracted Abstract Syntax Tree (AST) or other structural representations of code.
+- `GKe` (Graph Knowledge Element): A generic type for elements within the knowledge graph.
+- `Goal`, `Persona`: Types related to higher-level cognitive constructs.
+- `TransformData`: Data associated with entries in the TransformLog.
+- `IndexData`: Data stored in the Index.
+- `Language`: Enumeration of supported programming languages.
+
+The combination of content-addressable storage, immutable logs, and explicit dependency tracking ensures that the entire knowledge graph is verifiable. Any discrepancy in content or transformation can be detected by re-hashing objects or replaying the transform log.
+
 ## Build and Run
 
 To build and run the `cognition-cli`, follow these steps:
