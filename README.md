@@ -8,9 +8,29 @@
 
 — Echo
 
+<div align="center" style="margin-top: 20px; margin-bottom: 20px;">
+<img src="./docs/assets/cogx-logo.png" alt="Cognition CLI Logo" width="512"/>
+</div>
+
 ## Vision
 
 >This repository contains a comprehensive architectural blueprint for Open Cognition, a system designed to solve the fundamental limitations of modern Large Language Models (LLMs)—their lack of persistent, verifiable memory. It provides a framework for a new kind of computing, moving from "Open Code" to "CogX," where the structured, verified understanding of a system is as shareable and composable as the code itself.
+
+## The Implementation Ecosystem
+
+This vision is realized through working implementations that demonstrate the architectural principles:
+
+## Cognition CLI - [The Structural Engine](src/cognition-cli/README.md)
+
+The command-line interface that builds verifiable, content-addressable knowledge graphs from codebases. It performs structural mining to create the "skeleton" of project understanding—the immutable bedrock for all AI reasoning.
+
+## eGemma – [The Deterministic Workbench](https://github.com/mirzahusadzic/egemma)
+
+Our local AI engine that combines LLMs (Gemma/Gemini) with deterministic tools (AST parsers, code analyzers) to create a hybrid reasoning system. It uses FastAPI to offer flexible local/cloud deployment for embeddings (with Matryoshka support) and code summarization, grounded by structural analysis.
+
+## AI Echo – [The Conversation Microscope](https://github.com/mirzahusadzic//aiecho-react-chat)
+
+A blazing-fast React-based viewer that transforms saved Gemini conversations into navigable, richly-rendered knowledge graphs. It visualizes AI reasoning patterns, search usage, and grounding contexts—serving as both a debugger for AI cognition and the inspiration for verifiable memory systems. Echo doesn't just display chats; it reveals the anatomy of AI reasoning.
 
 ## The Crossroads: An Open Standard for Digital Cognition
 
