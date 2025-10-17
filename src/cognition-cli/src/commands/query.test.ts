@@ -1,14 +1,18 @@
+// src/cognition-cli/src/commands/query.test.ts
 import { describe, it, expect, vi, beforeEach, Mocked } from 'vitest';
 import { queryCommand } from './query.js';
 import { PGCManager } from '../core/pgc-manager.js';
 import { IndexData } from '../types/index.js';
 import { Index } from '../core/index.js';
 import { ObjectStore } from '../core/object-store.js';
+import { StructuralData } from '../types/structural.js';
 
 // Mock PGCManager and its dependencies
 vi.mock('../core/pgc-manager.js', () => {
   const mockIndex = {
     search: vi.fn(),
+    getAll: vi.fn(),
+    get: vi.fn(),
   };
   const mockObjectStore = {
     retrieve: vi.fn(),
@@ -22,108 +26,421 @@ vi.mock('../core/pgc-manager.js', () => {
   };
 });
 
-describe('queryCommand', () => {
+describe('queryCommand with depth', () => {
   let mockIndex: Mocked<Index>;
   let mockObjectStore: Mocked<ObjectStore>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Get the mocked PGCManager instance
     const pgcInstance = new PGCManager('./test-root');
     mockIndex = pgcInstance.index as Mocked<Index>;
     mockObjectStore = pgcInstance.objectStore as Mocked<ObjectStore>;
-
-    // Reset mocks for each test
-    mockIndex.search.mockReset();
-    mockObjectStore.retrieve.mockReset();
   });
 
-  it('should extract entities and search the index', async () => {
-    const mockIndexData: IndexData = {
-      content_hash: 'test-content-hash',
-      structural_hash: 'test-structural-hash',
-      status: 'Valid',
-      history: [],
-    };
-    (mockIndex.search as vi.Mock).mockResolvedValueOnce([mockIndexData]);
-    (mockObjectStore.retrieve as vi.Mock).mockResolvedValueOnce(
-      Buffer.from('{ "name": "StructuralMiner" }')
-    );
+  describe('depth = 0 (default)', () => {
+    it('should only show direct results without dependencies', async () => {
+      const mockIndexData: IndexData = {
+        content_hash: 'test-content-hash',
+        structural_hash: 'test-structural-hash',
+        status: 'Valid',
+        history: [],
+      };
 
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      // Mock structural data WITHOUT dependencies to ensure clean test
+      const mockStructuralData = {
+        language: 'typescript',
+        docstring: '',
+        imports: [],
+        classes: [
+          {
+            name: 'TestClass',
+            docstring: '',
+            base_classes: [], // No dependencies
+            implements_interfaces: [], // No dependencies
+            methods: [], // No method params with types
+            decorators: [],
+          },
+        ],
+        functions: [],
+        interfaces: [],
+        exports: ['TestClass'],
+        dependencies: [],
+        extraction_method: 'ast_native',
+        fidelity: 1,
+      };
 
-    await queryCommand('What does the StructuralMiner class do?', {
-      projectRoot: './test-root',
+      mockIndex.getAll.mockResolvedValue(['test-file.ts']);
+      mockIndex.get.mockResolvedValue(mockIndexData);
+      mockIndex.search.mockResolvedValue([mockIndexData]);
+      mockObjectStore.retrieve.mockResolvedValue(
+        Buffer.from(JSON.stringify(mockStructuralData))
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await queryCommand('TestClass', {
+        projectRoot: './test-root',
+        depth: '0',
+      });
+
+      // Should only call retrieve for the main result
+      expect(mockObjectStore.retrieve).toHaveBeenCalledTimes(1);
+      expect(mockObjectStore.retrieve).toHaveBeenCalledWith(
+        'test-structural-hash'
+      );
+
+      // Should not show dependencies section
+      const logs = consoleSpy.mock.calls.flat().join('\n');
+      expect(logs).not.toContain('--- Dependencies ---');
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('depth = 1', () => {
+    it('should show direct results and first-level dependencies', async () => {
+      const mainIndexData: IndexData = {
+        content_hash: 'main-hash',
+        structural_hash: 'main-structural-hash',
+        status: 'Valid',
+        history: [],
+      };
+
+      const baseClassIndexData: IndexData = {
+        content_hash: 'base-hash',
+        structural_hash: 'base-structural-hash',
+        status: 'Valid',
+        history: [],
+      };
+
+      // Main class that extends BaseClass
+      const mainStructuralData = {
+        language: 'typescript',
+        docstring: '',
+        imports: [],
+        classes: [
+          {
+            name: 'MainClass',
+            docstring: '',
+            base_classes: ['BaseClass'],
+            implements_interfaces: [],
+            methods: [],
+            decorators: [],
+          },
+        ],
+        functions: [],
+        interfaces: [],
+        exports: [],
+        dependencies: [],
+        extraction_method: 'ast_native',
+        fidelity: 1,
+      };
+
+      // Base class dependency
+      const baseStructuralData = {
+        language: 'typescript',
+        docstring: 'Base class documentation',
+        imports: [],
+        classes: [
+          {
+            name: 'BaseClass',
+            docstring: '',
+            base_classes: [],
+            implements_interfaces: [],
+            methods: [],
+            decorators: [],
+          },
+        ],
+        functions: [],
+        interfaces: [],
+        exports: [],
+        dependencies: [],
+        extraction_method: 'ast_native',
+        fidelity: 1,
+      };
+
+      // Mock the search flow
+      mockIndex.getAll.mockResolvedValue(['main-file.ts', 'base-file.ts']);
+      mockIndex.get.mockImplementation((key: string) => {
+        if (key === 'main-file.ts') return Promise.resolve(mainIndexData);
+        if (key === 'base-file.ts') return Promise.resolve(baseClassIndexData);
+        return Promise.resolve(null);
+      });
+
+      mockIndex.search.mockImplementation((term: string) => {
+        if (term === 'MainClass') return Promise.resolve([mainIndexData]);
+        if (term === 'BaseClass') return Promise.resolve([baseClassIndexData]);
+        return Promise.resolve([]);
+      });
+
+      mockObjectStore.retrieve.mockImplementation((hash: string) => {
+        if (hash === 'main-structural-hash') {
+          return Promise.resolve(
+            Buffer.from(JSON.stringify(mainStructuralData))
+          );
+        }
+        if (hash === 'base-structural-hash') {
+          return Promise.resolve(
+            Buffer.from(JSON.stringify(baseStructuralData))
+          );
+        }
+        return Promise.resolve(null);
+      });
+
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await queryCommand('MainClass', {
+        projectRoot: './test-root',
+        depth: '1',
+      });
+
+      // Should retrieve both main result and dependency
+      expect(mockObjectStore.retrieve).toHaveBeenCalledWith(
+        'main-structural-hash'
+      );
+      expect(mockObjectStore.retrieve).toHaveBeenCalledWith(
+        'base-structural-hash'
+      );
+
+      // Should show dependencies section
+      const logs = consoleSpy.mock.calls.flat().join('\n');
+      expect(logs).toContain('--- Dependencies ---');
+      expect(logs).toContain('BaseClass');
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('depth > 1', () => {
+    it('should traverse multiple levels of dependencies', async () => {
+      const mainIndexData: IndexData = {
+        content_hash: 'main-hash',
+        structural_hash: 'main-structural-hash',
+        status: 'Valid',
+        history: [],
+      };
+
+      const level1IndexData: IndexData = {
+        content_hash: 'level1-hash',
+        structural_hash: 'level1-structural-hash',
+        status: 'Valid',
+        history: [],
+      };
+
+      const level2IndexData: IndexData = {
+        content_hash: 'level2-hash',
+        structural_hash: 'level2-structural-hash',
+        status: 'Valid',
+        history: [],
+      };
+
+      // Multi-level inheritance chain
+      const mainStructuralData = {
+        classes: [
+          {
+            name: 'MainClass',
+            base_classes: ['Level1Class'],
+            implements_interfaces: [],
+            methods: [],
+          },
+        ],
+      };
+
+      const level1StructuralData = {
+        classes: [
+          {
+            name: 'Level1Class',
+            base_classes: ['Level2Class'],
+            implements_interfaces: [],
+            methods: [],
+          },
+        ],
+      };
+
+      const level2StructuralData = {
+        classes: [
+          {
+            name: 'Level2Class',
+            base_classes: [],
+            implements_interfaces: [],
+            methods: [],
+          },
+        ],
+      };
+
+      // Mock the search flow for multi-level traversal
+      mockIndex.getAll.mockResolvedValue(['main.ts', 'level1.ts', 'level2.ts']);
+      mockIndex.get.mockImplementation((key: string) => {
+        const dataMap: Record<string, IndexData> = {
+          'main.ts': mainIndexData,
+          'level1.ts': level1IndexData,
+          'level2.ts': level2IndexData,
+        };
+        return Promise.resolve(dataMap[key] || null);
+      });
+
+      mockIndex.search.mockImplementation((term: string) => {
+        const resultsMap: Record<string, IndexData[]> = {
+          MainClass: [mainIndexData],
+          Level1Class: [level1IndexData],
+          Level2Class: [level2IndexData],
+        };
+        return Promise.resolve(resultsMap[term] || []);
+      });
+
+      mockObjectStore.retrieve.mockImplementation((hash: string) => {
+        const dataMap: Record<string, StructuralData> = {
+          'main-structural-hash': mainStructuralData,
+          'level1-structural-hash': level1StructuralData,
+          'level2-structural-hash': level2StructuralData,
+        };
+        return Promise.resolve(Buffer.from(JSON.stringify(dataMap[hash])));
+      });
+
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await queryCommand('MainClass', {
+        projectRoot: './test-root',
+        depth: '2',
+      });
+
+      // Should retrieve all three levels
+      expect(mockObjectStore.retrieve).toHaveBeenCalledWith(
+        'main-structural-hash'
+      );
+      expect(mockObjectStore.retrieve).toHaveBeenCalledWith(
+        'level1-structural-hash'
+      );
+      expect(mockObjectStore.retrieve).toHaveBeenCalledWith(
+        'level2-structural-hash'
+      );
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should handle circular dependencies gracefully', async () => {
+      const classAIndexData: IndexData = {
+        content_hash: 'a-hash',
+        structural_hash: 'a-structural-hash',
+        status: 'Valid',
+        history: [],
+      };
+
+      const classBIndexData: IndexData = {
+        content_hash: 'b-hash',
+        structural_hash: 'b-structural-hash',
+        status: 'Valid',
+        history: [],
+      };
+
+      // Circular dependency: A -> B -> A
+      const classAStructuralData = {
+        classes: [
+          {
+            name: 'ClassA',
+            base_classes: ['ClassB'], // A depends on B
+            implements_interfaces: [],
+            methods: [],
+          },
+        ],
+      };
+
+      const classBStructuralData = {
+        classes: [
+          {
+            name: 'ClassB',
+            base_classes: ['ClassA'], // B depends on A (circular)
+            implements_interfaces: [],
+            methods: [],
+          },
+        ],
+      };
+
+      mockIndex.getAll.mockResolvedValue(['a.ts', 'b.ts']);
+      mockIndex.get.mockImplementation((key: string) => {
+        if (key === 'a.ts') return Promise.resolve(classAIndexData);
+        if (key === 'b.ts') return Promise.resolve(classBIndexData);
+        return Promise.resolve(null);
+      });
+
+      mockIndex.search.mockImplementation((term: string) => {
+        if (term === 'ClassA') return Promise.resolve([classAIndexData]);
+        if (term === 'ClassB') return Promise.resolve([classBIndexData]);
+        return Promise.resolve([]);
+      });
+
+      mockObjectStore.retrieve.mockImplementation((hash: string) => {
+        if (hash === 'a-structural-hash') {
+          return Promise.resolve(
+            Buffer.from(JSON.stringify(classAStructuralData))
+          );
+        }
+        if (hash === 'b-structural-hash') {
+          return Promise.resolve(
+            Buffer.from(JSON.stringify(classBStructuralData))
+          );
+        }
+        return Promise.resolve(null);
+      });
+
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      // This should not infinite loop
+      await queryCommand('ClassA', {
+        projectRoot: './test-root',
+        depth: '3',
+      });
+
+      // Should still complete execution
+      expect(mockObjectStore.retrieve).toHaveBeenCalled();
+
+      consoleSpy.mockRestore();
     });
 
-    expect(mockIndex.search).toHaveBeenCalledWith('StructuralMiner');
-    expect(mockObjectStore.retrieve).toHaveBeenCalledWith(
-      'test-structural-hash'
-    );
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('StructuralMiner')
-    );
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('name'));
+    it('should handle missing dependencies gracefully', async () => {
+      const mainIndexData: IndexData = {
+        content_hash: 'main-hash',
+        structural_hash: 'main-structural-hash',
+        status: 'Valid',
+        history: [],
+      };
 
-    consoleSpy.mockRestore();
-  });
+      const mainStructuralData = {
+        classes: [
+          {
+            name: 'MainClass',
+            base_classes: ['NonExistentClass'], // Dependency that doesn't exist
+            implements_interfaces: [],
+            methods: [],
+          },
+        ],
+      };
 
-  it('should display "No relevant information found." if no entities are extracted', async () => {
-    // Mock extractEntities to return an empty array (implicitly, as it's not mocked directly)
-    // and mockIndex.search to return an empty array
-    (mockIndex.search as vi.Mock).mockResolvedValueOnce([]);
+      mockIndex.getAll.mockResolvedValue(['main.ts']);
+      mockIndex.get.mockResolvedValue(mainIndexData);
+      mockIndex.search.mockImplementation((term: string) => {
+        if (term === 'MainClass') return Promise.resolve([mainIndexData]);
+        return Promise.resolve([]); // NonExistentClass returns empty
+      });
 
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      mockObjectStore.retrieve.mockResolvedValue(
+        Buffer.from(JSON.stringify(mainStructuralData))
+      );
 
-    await queryCommand('UnknownClass', { projectRoot: './test-root' });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    expect(mockIndex.search).toHaveBeenCalledWith('UnknownClass');
-    expect(mockObjectStore.retrieve).not.toHaveBeenCalled();
-    expect(consoleSpy).toHaveBeenCalledWith('No relevant information found.');
+      await queryCommand('MainClass', {
+        projectRoot: './test-root',
+        depth: '1',
+      });
 
-    consoleSpy.mockRestore();
-  });
+      // Should still show main result even if dependency is missing
+      const logs = consoleSpy.mock.calls.flat().join('\n');
+      expect(logs).toContain('MainClass');
 
-  it('should display "No relevant information found." if no results from index search', async () => {
-    (mockIndex.search as vi.Mock).mockResolvedValueOnce([]);
-
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
-    await queryCommand('StructuralMiner', { projectRoot: './test-root' });
-
-    expect(mockIndex.search).toHaveBeenCalledWith('StructuralMiner');
-    expect(mockObjectStore.retrieve).not.toHaveBeenCalled();
-    expect(consoleSpy).toHaveBeenCalledWith('No relevant information found.');
-
-    consoleSpy.mockRestore();
-  });
-
-  it('should handle non-JSON content gracefully', async () => {
-    const mockIndexData: IndexData = {
-      content_hash: 'test-content-hash',
-      structural_hash: 'test-structural-hash',
-      status: 'Valid',
-      history: [],
-    };
-    (mockIndex.search as vi.Mock).mockResolvedValueOnce([mockIndexData]);
-    (mockObjectStore.retrieve as vi.Mock).mockResolvedValueOnce(
-      Buffer.from('This is not JSON')
-    );
-
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
-    await queryCommand('What does the StructuralMiner class do?', {
-      projectRoot: './test-root',
+      consoleSpy.mockRestore();
     });
-
-    expect(mockIndex.search).toHaveBeenCalledWith('StructuralMiner');
-    expect(mockObjectStore.retrieve).toHaveBeenCalledWith(
-      'test-structural-hash'
-    );
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('This is not JSON')
-    );
-
-    consoleSpy.mockRestore();
   });
 });

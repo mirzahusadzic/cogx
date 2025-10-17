@@ -2,22 +2,7 @@ import { fetch, FormData } from 'undici';
 import type { BodyInit } from 'undici';
 import { Blob } from 'node:buffer';
 import type { StructuralData, SummarizeResponse } from '../types/structural.js';
-
-interface SummarizeRequest {
-  content: string;
-  filename: string;
-  persona: string;
-  goal?: string;
-  model_name?: string;
-  max_tokens?: number;
-  temperature?: number;
-}
-
-interface ASTParseRequest {
-  content: string;
-  language: string;
-  filename: string;
-}
+import type { SummarizeRequest, ASTParseRequest } from '../types/workbench.js';
 
 export class WorkbenchClient {
   private apiKey: string;

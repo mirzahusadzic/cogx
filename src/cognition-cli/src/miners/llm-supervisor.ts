@@ -16,11 +16,12 @@ export class LLMSupervisor {
     // that would execute the generated script in a sandbox.
     console.log(`Generated parser for ${file.path}:`, parserScript);
     return {
-      language: file.language as string,
+      language: 'unknown',
       docstring: '',
       imports: [],
       classes: [],
       functions: [],
+      interfaces: [],
       exports: [],
       dependencies: [],
       extraction_method: 'llm_supervised',

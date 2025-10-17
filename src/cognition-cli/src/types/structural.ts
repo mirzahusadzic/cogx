@@ -60,12 +60,29 @@ export const ClassDataSchema = z.object({
 
 export interface ClassData extends z.infer<typeof ClassDataSchema> {}
 
+export const PropertyDataSchema = z.object({
+  name: z.string(),
+  type: z.string(),
+  optional: z.boolean().optional(),
+});
+
+export interface PropertyData extends z.infer<typeof PropertyDataSchema> {}
+
+export const InterfaceDataSchema = z.object({
+  name: z.string(),
+  docstring: z.string(),
+  properties: z.array(PropertyDataSchema),
+});
+
+export interface InterfaceData extends z.infer<typeof InterfaceDataSchema> {}
+
 export const StructuralDataSchema = z.object({
   language: z.string(),
   docstring: z.string(),
   imports: z.array(z.string()),
   classes: z.array(ClassDataSchema),
   functions: z.array(FunctionDataSchema),
+  interfaces: z.array(InterfaceDataSchema),
   exports: z.array(z.string()).optional(),
   dependencies: z.array(z.string()).optional(),
   extraction_method: z.enum([

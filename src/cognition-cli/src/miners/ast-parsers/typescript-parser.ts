@@ -4,6 +4,8 @@ import type {
   ParameterData,
   FunctionData,
   ClassData,
+  InterfaceData,
+  PropertyData,
 } from '../../types/structural.js';
 
 import ts, {
@@ -136,6 +138,7 @@ export class TypeScriptParser implements ASTParser {
     const imports: string[] = [];
     const classes: ClassData[] = [];
     const functions: FunctionData[] = [];
+    const interfaces: InterfaceData[] = [];
     const exports: string[] = [];
 
     const visit = (node: Node) => {
@@ -152,12 +155,26 @@ export class TypeScriptParser implements ASTParser {
         }
       }
 
-      // FIX: Add handling for exported interfaces
-      if (ts.isInterfaceDeclaration(node)) {
+      if (ts.isInterfaceDeclaration(node) && node.name) {
+        const interfaceName = node.name.text;
+        const properties: PropertyData[] = node.members
+          .filter(ts.isPropertySignature)
+          .map((p) => ({
+            name: p.name.getText(sourceFile),
+            type: p.type?.getText(sourceFile) || 'any',
+            optional: !!p.questionToken,
+          }));
+
+        interfaces.push({
+          name: interfaceName,
+          docstring: getDocstring(node),
+          properties,
+        });
+
         if (
           node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
         ) {
-          exports.push(node.name.text);
+          exports.push(interfaceName);
         }
       }
 
@@ -302,6 +319,7 @@ export class TypeScriptParser implements ASTParser {
       imports,
       classes,
       functions,
+      interfaces,
       exports: [...new Set(exports)],
       dependencies: imports,
       extraction_method: 'ast_native',

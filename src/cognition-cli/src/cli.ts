@@ -44,6 +44,7 @@ program
     'Root directory of the project being queried',
     process.cwd()
   )
+  .option('-d, --depth <level>', 'Depth of dependency traversal', '0')
   .action(queryCommand);
 
 program.parse();

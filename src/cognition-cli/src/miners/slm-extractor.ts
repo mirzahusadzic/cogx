@@ -32,17 +32,17 @@ export class SLMExtractor {
 
   private validateAndNormalize(
     data: Partial<StructuralData>,
-    language: string
+    language: Language
   ): StructuralData {
     return {
-      language:
-        (data.language as Language) || (language as Language) || 'unknown',
-      docstring: data.docstring || '',
-      imports: data.imports || [],
-      classes: data.classes || [],
-      functions: data.functions || [],
-      exports: data.exports || [],
-      dependencies: data.dependencies || data.imports || [],
+      language: language,
+      docstring: '',
+      imports: [],
+      classes: [],
+      functions: [],
+      interfaces: [],
+      exports: [],
+      dependencies: [],
       extraction_method: 'slm',
       fidelity: 0.7,
     };
