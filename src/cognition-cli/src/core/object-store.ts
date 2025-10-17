@@ -37,7 +37,35 @@ export class ObjectStore {
     return await fs.pathExists(this.getObjectPath(hash));
   }
 
-  private computeHash(content: string | Buffer): string {
+  /**
+   * Delete content by hash
+   */
+  async delete(hash: string): Promise<void> {
+    const objectPath = this.getObjectPath(hash);
+    if (await fs.pathExists(objectPath)) {
+      await fs.remove(objectPath);
+    }
+  }
+
+  async removeEmptyShardedDirectories(): Promise<void> {
+    const objectsRoot = path.join(this.rootPath, 'objects');
+    if (!(await fs.pathExists(objectsRoot))) {
+      return;
+    }
+
+    for (let i = 0; i < 256; i++) {
+      const dir = i.toString(16).padStart(2, '0'); // '00', '01', ..., 'ff'
+      const shardedDirPath = path.join(objectsRoot, dir);
+      if (await fs.pathExists(shardedDirPath)) {
+        const files = await fs.readdir(shardedDirPath);
+        if (files.length === 0) {
+          await fs.remove(shardedDirPath);
+        }
+      }
+    }
+  }
+
+  computeHash(content: string | Buffer): string {
     return crypto.createHash('sha256').update(content).digest('hex');
   }
 

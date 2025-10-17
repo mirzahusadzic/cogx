@@ -3,6 +3,13 @@ import fs from 'fs-extra';
 import path from 'path';
 import { vol } from 'memfs'; // Keep this import for vol.reset() in beforeEach/afterEach
 
+// Mock proper-lockfile
+vi.mock('proper-lockfile', () => ({
+  default: {
+    lock: vi.fn(async () => vi.fn(async () => {})),
+  },
+}));
+
 import { GenesisOrchestrator } from './genesis-orchestrator.js';
 import { PGCManager } from '../core/pgc-manager.js';
 import { StructuralMiner } from '../miners/structural-miner.js';
@@ -13,28 +20,28 @@ import { StructuralOracle } from '../core/oracles/structural-oracle.js';
 // Mock fs-extra to use memfs's vol
 vi.mock('fs-extra', async () => {
   const actualMemfs = await vi.importActual<typeof import('memfs')>('memfs');
-  const actualVol = actualMemfs.vol; // Get the actual vol from memfs
+  const actualVol = actualMemfs.vol;
 
   return {
     default: {
-      ...actualVol.promises, // Use vol.promises directly
+      // Explicitly define each function used
       ensureDir: (dirPath: string) =>
         actualVol.promises.mkdir(dirPath, { recursive: true }),
-      pathExists: async (filePath: string) => {
-        try {
-          await actualVol.promises.stat(filePath);
-          return true;
-        } catch (error: unknown) {
-          // Type guard for Node.js system errors
-          const isErrnoException = (e: unknown): e is NodeJS.ErrnoException =>
-            e instanceof Error && 'code' in e;
-
-          if (isErrnoException(error) && error.code === 'ENOENT') {
-            return false;
-          }
-          throw error;
-        }
-      },
+      pathExists: (filePath: string) =>
+        Promise.resolve(actualVol.existsSync(filePath)),
+      writeFile: (filePath: string, content: string | Buffer) =>
+        actualVol.promises.writeFile(filePath, content),
+      readFile: (filePath: string, encoding?: string) =>
+        actualVol.promises.readFile(filePath, encoding),
+      readdir: (dirPath: string, options?: object) =>
+        actualVol.promises.readdir(dirPath, options),
+      stat: (filePath: string) => actualVol.promises.stat(filePath),
+      remove: (path: string) =>
+        actualVol.promises.rm(path, { recursive: true, force: true }),
+      readJSON: (filePath: string) =>
+        actualVol.promises
+          .readFile(filePath, 'utf-8')
+          .then((content) => JSON.parse(content.toString())),
       writeJSON: (
         filePath: string,
         data: object,
@@ -44,15 +51,6 @@ vi.mock('fs-extra', async () => {
           filePath,
           JSON.stringify(data, null, options?.spaces || 0)
         ),
-      readJSON: (filePath: string) =>
-        actualVol.promises
-          .readFile(filePath, 'utf-8')
-          .then((content) => JSON.parse(content.toString())),
-      readFile: (filePath: string, encoding?: string) =>
-        actualVol.promises.readFile(filePath, encoding),
-      readdir: (dirPath: string, options?: object) =>
-        actualVol.promises.readdir(dirPath, options), // Use 'object' for options
-      stat: (filePath: string) => actualVol.promises.stat(filePath),
     },
   };
 });
@@ -66,7 +64,11 @@ describe('GenesisOrchestrator idempotency', () => {
 
   beforeEach(async () => {
     vol.reset();
-    await fs.ensureDir(path.join(projectRoot, 'src'));
+    vol.mkdirSync(projectRoot, { recursive: true }); // Explicitly create projectRoot
+    vol.fromJSON({
+      [path.join(projectRoot, 'src', '.gitkeep')]: '',
+      [path.join(projectRoot, '.open_cognition', '.gitkeep')]: '',
+    });
 
     // Mock StructuralMiner
     structuralMiner = {
@@ -94,16 +96,22 @@ describe('GenesisOrchestrator idempotency', () => {
     } as unknown as StructuralMiner;
 
     // Mock WorkbenchClient
-    workbenchClient = {} as WorkbenchClient;
+    workbenchClient = {
+      health: vi.fn(async () => ({ status: 'ok' })),
+      getBaseUrl: vi.fn(() => 'http://localhost:8000'),
+    } as unknown as WorkbenchClient;
 
     pgcManager = new PGCManager(projectRoot);
-    const structuralOracleInstance = new StructuralOracle(pgcManager);
+    // Mock StructuralOracle to always return success
+    const structuralOracleInstance = {
+      verify: vi.fn(async () => ({ success: true, messages: [] })),
+    } as unknown as StructuralOracle;
 
     orchestrator = new GenesisOrchestrator(
       pgcManager,
       structuralMiner,
       workbenchClient,
-      structuralOracleInstance, // Pass the real structuralOracle instance
+      structuralOracleInstance, // Pass the mocked structuralOracle instance
       projectRoot
     );
   });
