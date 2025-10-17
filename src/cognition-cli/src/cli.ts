@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 import { genesisCommand } from './commands/genesis.js';
 import { initCommand } from './commands/init.js';
+import { queryCommand } from './commands/query.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -34,5 +35,15 @@ program
     process.cwd()
   )
   .action(genesisCommand);
+
+program
+  .command('query <question>')
+  .description('Query the codebase for information')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project being queried',
+    process.cwd()
+  )
+  .action(queryCommand);
 
 program.parse();
