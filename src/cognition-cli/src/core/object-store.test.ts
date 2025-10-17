@@ -25,6 +25,8 @@ vi.mock('fs-extra', async () => {
       // Add the fs-extra specific ones we use
       pathExists: pathExists,
       ensureDir: (path: string) => promises.mkdir(path, { recursive: true }),
+      remove: (path: string) =>
+        promises.rm(path, { recursive: true, force: true }),
     },
   };
 });

@@ -31,6 +31,10 @@ export class WorkbenchClient {
     }
   }
 
+  public getBaseUrl(): string {
+    return this.baseUrl;
+  }
+
   async health() {
     const response = await fetch(`${this.baseUrl}/health`);
     if (!response.ok) {

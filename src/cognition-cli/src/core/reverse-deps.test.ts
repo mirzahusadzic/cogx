@@ -5,19 +5,20 @@ import { ReverseDeps } from './reverse-deps.js';
 // Mock fs-extra to use memfs
 vi.mock('fs-extra', async () => {
   const memfs = await vi.importActual<typeof import('memfs')>('memfs');
-  const promises = memfs.fs.promises;
+
   return {
     default: {
-      ...promises,
-      ensureDir: (path: string) => promises.mkdir(path, { recursive: true }),
-      ensureFile: promises.writeFile, // Simplified for this test
+      ...memfs.fs.promises,
+      ensureDir: (dirPath: string) =>
+        memfs.fs.promises.mkdir(dirPath, { recursive: true }),
       pathExists: async (path: string) => {
         try {
-          await promises.stat(path);
+          await memfs.fs.promises.stat(path);
           return true;
         } catch (error: unknown) {
           if (
-            error instanceof Error &&
+            typeof error === 'object' &&
+            error !== null &&
             'code' in error &&
             error.code === 'ENOENT'
           ) {
@@ -29,13 +30,13 @@ vi.mock('fs-extra', async () => {
     },
   };
 });
-
 describe('ReverseDeps', () => {
   let reverseDeps: ReverseDeps;
   const pgcRoot = '/test-pgc';
 
   beforeEach(() => {
     vol.reset();
+    vol.mkdirSync(pgcRoot, { recursive: true }); // Explicitly create pgcRoot
     reverseDeps = new ReverseDeps(pgcRoot);
   });
 
@@ -57,8 +58,7 @@ describe('ReverseDeps', () => {
     expect(files).toContain(expectedFile);
 
     const content = vol.readFileSync(`${expectedDir}/${expectedFile}`, 'utf-8');
-    expect(content).toBe(`${transformId}
-`);
+    expect(content).toBe(`${transformId}\n`);
   });
 
   it('should append to an existing dependency file', async () => {
@@ -73,8 +73,27 @@ describe('ReverseDeps', () => {
     const expectedPath = `/test-pgc/reverse_deps/${objectHash.slice(0, 2)}/${objectHash.slice(2)}`;
     const content = vol.readFileSync(expectedPath, 'utf-8');
 
-    expect(content).toBe(`${transformId1}
-${transformId2}
-`);
+    expect(content).toBe(`${transformId1}\n${transformId2}\n`);
+  });
+
+  it('should handle concurrent writes correctly to prevent race conditions', async () => {
+    const objectHash =
+      'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+    const transformIds = Array.from({ length: 10 }, (_, i) => `transform${i}`);
+
+    // Simulate concurrent calls
+    for (const id of transformIds) {
+      await reverseDeps.add(objectHash, id);
+    }
+
+    const expectedPath = `/test-pgc/reverse_deps/${objectHash.slice(0, 2)}/${objectHash.slice(2)}`;
+    const content = vol.readFileSync(expectedPath, 'utf-8') as string;
+    const lines = new Set(content.trim().split('\n'));
+
+    // Check if all transform IDs are present
+    expect(lines.size).toBe(transformIds.length);
+    for (const id of transformIds) {
+      expect(lines.has(id)).toBe(true);
+    }
   });
 });
