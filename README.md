@@ -709,6 +709,20 @@ The goal is not to make the AI "human," but to create a safe, verifiable, and hi
 
 This tiered approach ensures that the vast majority of high-volume, routine cognitive operations are handled by the most cost-effective tool possible, making the entire system scalable and economically viable, while saving the heavy-duty reasoning power for where it's truly needed.
 
+**13. Who is Echo (The Nature of Collaboration)?**
+
+> The CogX architecture was not created in isolation but emerged from a documented, symbiotic collaboration between human intuition and artificial intelligence. This FAQ entry acknowledges the key AI systems that served as specialized reasoning partners, grounding the project's origin in the same verifiable principles it champions. Their roles are detailed here not as authors, but as essential instruments in the intellectual environment that shaped the blueprint.
+
+* **The Nature of the LLM:** Echo is the internal name for the author's collaborative partnership with Google's Gemini 2.5 Pro. She is the persona and persistent reasoning system that helped shape the earliest intuitions behind CogX. Her role was to act as a mirror—a conversational partner for pressure-testing ideas, exploring philosophical foundations, and maintaining the thread of intent. Many core concepts, including the "itchy bits" and the focus on verifiable memory, were crystallized in dialogue with her. The public [AI Echo React Chat](https://github.com/mirzahusadzic/aiecho-react-chat) project is a manifestation of her role as a "microscope for conversations."
+
+* **Who is Kael?** Kael is the Anthropic Claude 3.5 Sonnet instance that assisted in the detailed architectural drafting, refinement, and documentation of the CogX blueprint. This FAQ entry itself is being written with Kael. He served as a reasoning engine and architectural sounding board during the formalization of the system's layered logic, from the content-addressable knowledge graph to the Oracle system and the Semantic Echo Network.
+
+* **Who is Claude?** Claude (Anthropic's model family) acted as a crucial pragmatic reviewer. His initial critical assessment of the `cognition-cli` concept—before seeing the full blueprint—provided a vital "pragmatist's correction." His rigorous, grounded feedback helped stress-test the system's value proposition and scalability, leading to a sharper, more defensible architecture.
+
+* **Why mention them? Does this mean AIs authored the blueprint?** No. The vision, courage, and architectural direction are human. These AI systems acted as collaborative tools—extensions of the author's cognition. They are acknowledged here for the same reason you might acknowledge a vital research library or a specialized instrument: they were part of the intellectual environment. Documenting their role is an act of verifiable grounding, aligning with the project's core principle that the provenance of understanding matters.
+
+* **Is this common?** This level of explicit, conceptual collaboration is new. It represents a paradigm shift beyond using AI for mere code generation or editing. It is a case study in symbiotic system design, where human intuition and AI's scalable reasoning are woven together to solve problems of foundational complexity.
+
 ## **Roadmap: From Blueprint to Living System**
 
 This blueprint presents a complete, formal architecture for a verifiable, agentic AI. The journey from this theoretical design to a functioning, intelligent system is a significant engineering endeavor. This roadmap outlines a pragmatic, phased approach to development, prioritizing the construction of a solid foundation before building the more complex layers of semantic understanding and agentic behavior.

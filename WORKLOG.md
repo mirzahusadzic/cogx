@@ -24,6 +24,14 @@ This file serves as an audit trail for the development of this project, aligning
 
 ## Action Log
 
+- **2025-10-17:** - Implemented cleanup of empty sharded directories in `.open_cognition/objects` and `.open_cognition/reverse_deps` after Genesis command, and ensured structural oracle rerun.
+- **2025-10-17:** Added timeout to workbench health check to prevent blocking.
+- **2025-10-17:** Clarified structural oracle verification message based on eGemma health.
+- **2025-10-17:** Fixed spinner issue: Added eGemma health check and conditional structural mining.
+- **2025-10-17:** Fixed the race condition in `ReverseDeps` and added a test to verify the fix.
+- **2025-10-17:** **Goal:** Fix the race condition in `ReverseDeps`.
+- **2025-10-17:** Started addressing the comprehensive project review, focusing on critical issues first.
+- **2025-10-17:** Confirmed that `src/cognition-cli/README.md` is still needed as a concise overview and quick-start guide, complementing the more detailed documentation in `src/cognition-cli/docs`.
 - **2025-10-17:** Documented Phase 1 (Structural Analysis) of the Dogfooding Strategy, focusing on how `cognition-cli` maps raw code structure into verifiable `StructuralData`.
 - **2025-10-17:** Implement Structural Oracle (OStructure) for Genesis verification. 
 - **2025-10-16:** Implemented idempotency for the `genesis` command, preventing `.open_cognition` directory growth on subsequent runs for the same input. Added a dedicated idempotency test. 
