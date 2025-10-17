@@ -24,6 +24,8 @@ This file serves as an audit trail for the development of this project, aligning
 
 ## Action Log
 
+- **2025-10-17:** Improved `genesis` command error handling to explicitly check for PGC initialization and provide a clear message to run `cognition-cli init` if not found.
+- **2025-10-17:** Relaxed `StructuralDataSchema` in `src/cognition-cli/src/types/structural.ts` by making `optional`, `implements_interfaces`, `exports`, and `dependencies` fields optional to accommodate current `eGemma` output for Python AST parsing.
 - **2025-10-17:** - Implemented cleanup of empty sharded directories in `.open_cognition/objects` and `.open_cognition/reverse_deps` after Genesis command, and ensured structural oracle rerun.
 - **2025-10-17:** Added timeout to workbench health check to prevent blocking.
 - **2025-10-17:** Clarified structural oracle verification message based on eGemma health.

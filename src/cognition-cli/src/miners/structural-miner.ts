@@ -52,6 +52,9 @@ export class StructuralMiner {
         console.warn(`Remote AST parsing failed for ${file.path}:`);
         if (e.data) {
           console.warn('Validation Error:', JSON.stringify(e.data, null, 2));
+        } else if (e instanceof Error) {
+          console.warn('Error message:', e.message);
+          console.warn('Error stack:', e.stack);
         } else {
           console.warn('Full Error Object:', e);
         }

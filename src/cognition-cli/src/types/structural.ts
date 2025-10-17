@@ -32,7 +32,7 @@ export interface SourceFile extends z.infer<typeof SourceFileSchema> {}
 export const ParameterDataSchema = z.object({
   name: z.string(),
   type: z.string(),
-  optional: z.boolean(),
+  optional: z.boolean().optional(),
   default: z.string().optional(),
 });
 
@@ -53,7 +53,7 @@ export const ClassDataSchema = z.object({
   name: z.string(),
   docstring: z.string(),
   base_classes: z.array(z.string()),
-  implements_interfaces: z.array(z.string()),
+  implements_interfaces: z.array(z.string()).optional(),
   methods: z.array(FunctionDataSchema),
   decorators: z.array(z.string()),
 });
@@ -66,8 +66,8 @@ export const StructuralDataSchema = z.object({
   imports: z.array(z.string()),
   classes: z.array(ClassDataSchema),
   functions: z.array(FunctionDataSchema),
-  exports: z.array(z.string()),
-  dependencies: z.array(z.string()),
+  exports: z.array(z.string()).optional(),
+  dependencies: z.array(z.string()).optional(),
   extraction_method: z.enum([
     'ast_native',
     'ast_remote',

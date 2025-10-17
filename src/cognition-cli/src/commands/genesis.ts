@@ -1,15 +1,43 @@
 import { intro, outro, spinner, log } from '@clack/prompts';
 import chalk from 'chalk';
+import fs from 'fs-extra';
+import path from 'path';
 import { PGCManager } from '../core/pgc-manager.js';
 import { StructuralMiner } from '../miners/structural-miner.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
 import { GenesisOrchestrator } from '../orchestrators/genesis-orchestrator.js';
 import { StructuralOracle } from '../core/oracles/structural-oracle.js';
 
+class PGCInitializationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PGCInitializationError';
+  }
+}
+
 interface GenesisOptions {
   source: string;
   workbench: string;
   projectRoot: string;
+}
+
+async function validatePgcInitialized(projectRoot: string): Promise<void> {
+  const pgcRoot = path.join(projectRoot, '.open_cognition');
+  const metadataPath = path.join(pgcRoot, 'metadata.json');
+
+  if (!(await fs.pathExists(pgcRoot))) {
+    throw new PGCInitializationError(
+      `PGC not initialized in ${projectRoot}. Please run 'cognition-cli init' first.`
+    );
+  }
+
+  if (!(await fs.pathExists(metadataPath))) {
+    throw new PGCInitializationError(
+      `PGC metadata.json not found in ${pgcRoot}. Please run 'cognition-cli init' first.`
+    );
+  }
+
+  // Optionally, add more checks for other essential directories if needed
 }
 
 export async function genesisCommand(options: GenesisOptions) {
@@ -18,6 +46,11 @@ export async function genesisCommand(options: GenesisOptions) {
   const s = spinner();
 
   try {
+    // Validate PGC initialization
+    s.start('Validating PGC initialization');
+    await validatePgcInitialized(options.projectRoot);
+    s.stop('PGC validated');
+
     // Initialize core components
     s.start('Initializing PGC and workbench connection');
     const pgc = new PGCManager(options.projectRoot);
@@ -57,7 +90,11 @@ export async function genesisCommand(options: GenesisOptions) {
     outro(chalk.green('✓ Genesis complete - Verifiable skeleton constructed'));
   } catch (error) {
     s.stop('Genesis failed');
-    log.error(chalk.red((error as Error).message));
+    if (error instanceof PGCInitializationError) {
+      log.error(chalk.red(error.message));
+    } else {
+      log.error(chalk.red((error as Error).message));
+    }
     throw error;
   } finally {
     s.stop();
