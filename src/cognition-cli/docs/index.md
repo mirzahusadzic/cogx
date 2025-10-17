@@ -2,6 +2,10 @@
 
 Welcome to the documentation for the Cognition Command-Line Interface (CLI). This section provides an in-depth look into the architecture, functionality, and usage of the `cognition-cli`.
 
+<div align="center" style="margin-top: 20px; margin-bottom: 20px;">
+<img src="./assets/cognition-cli-logo.png" alt="Cognition CLI Logo" width="512"/>
+</div>
+
 ## Table of Contents
 
 - [00 - Introduction to Cognition CLI](./00_Introduction.md)

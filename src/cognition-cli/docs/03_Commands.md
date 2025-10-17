@@ -131,15 +131,25 @@ export async function genesisCommand(options: GenesisOptions) {
     // Initialize core components
     s.start('Initializing PGC and workbench connection');
     const pgc = new PGCManager(options.projectRoot);
-    const workbench = new WorkbenchClient(options.workbench);
-    const structuralOracle = new StructuralOracle(pgc);
+    const workbench = new WorkbenchClient(
+      process.env.WORKBENCH_URL || 'http://localhost:8000'
+    );
 
-    // Verify workbench is alive
-    await workbench.health();
-    s.stop('Connected to egemma workbench');
+    try {
+      await workbench.health();
+      s.stop();
+      log.info('Connected to egemma workbench');
+    } catch (error) {
+      s.stop(
+        'eGemma workbench is not running. Please start it before running the genesis command.'
+      );
+      return;
+    }
 
     // Initialize structural miner with three-layer pipeline
     const miner = new StructuralMiner(workbench);
+
+    const structuralOracle = new StructuralOracle(pgc);
 
     // Create genesis orchestrator
     const orchestrator = new GenesisOrchestrator(
@@ -159,6 +169,8 @@ export async function genesisCommand(options: GenesisOptions) {
     s.stop('Genesis failed');
     log.error(chalk.red((error as Error).message));
     throw error;
+  } finally {
+    s.stop();
   }
 }
 ```

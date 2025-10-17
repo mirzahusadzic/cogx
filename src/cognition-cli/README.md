@@ -1,5 +1,9 @@
 # Cognition CLI
 
+<div align="center" style="margin-top: 20px; margin-bottom: 20px;">
+<img src="./docs/assets/cognition-cli-logo.png" alt="Cognition CLI Logo" width="512"/>
+</div>
+
 The Cognition Command-Line Interface (`cognition-cli`) is the primary tool for interacting with the Cognition project's core functionalities. It enables developers to manage and process their codebase to create a verifiable, content-addressable data structure representing the project's knowledge graph.
 
 ## Features
