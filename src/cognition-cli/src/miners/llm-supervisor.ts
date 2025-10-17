@@ -23,6 +23,8 @@ export class LLMSupervisor {
       functions: [],
       exports: [],
       dependencies: [],
+      extraction_method: 'llm_supervised',
+      fidelity: 0.5,
     };
   }
 }

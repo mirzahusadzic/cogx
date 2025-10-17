@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export type Language =
   | 'typescript'
   | 'javascript'
@@ -7,51 +9,76 @@ export type Language =
   | 'go'
   | 'unknown';
 
-export interface SourceFile {
-  path: string;
-  relativePath: string;
-  name: string;
-  language: Language;
-  content: string;
-}
+export const LanguageSchema = z.enum([
+  'typescript',
+  'javascript',
+  'python',
+  'java',
+  'rust',
+  'go',
+  'unknown',
+]);
 
-export interface ParameterData {
-  name: string;
-  type: string;
-  optional: boolean;
-  default?: string;
-}
+export const SourceFileSchema = z.object({
+  path: z.string(),
+  relativePath: z.string(),
+  name: z.string(),
+  language: LanguageSchema,
+  content: z.string(),
+});
 
-export interface FunctionData {
-  name: string;
-  docstring: string;
-  params: ParameterData[];
-  returns: string;
-  is_async: boolean;
-  decorators: string[];
-}
+export interface SourceFile extends z.infer<typeof SourceFileSchema> {}
 
-export interface ClassData {
-  name: string;
-  docstring: string;
-  base_classes: string[];
-  implements_interfaces: string[];
-  methods: FunctionData[];
-  decorators: string[];
-}
+export const ParameterDataSchema = z.object({
+  name: z.string(),
+  type: z.string(),
+  optional: z.boolean(),
+  default: z.string().optional(),
+});
 
-export interface StructuralData {
-  language: string;
-  docstring: string;
-  imports: string[];
-  classes: ClassData[];
-  functions: FunctionData[];
-  exports: string[]; // Can be enhanced further if needed
-  dependencies?: string[];
-  extraction_method?: 'ast_native' | 'ast_remote' | 'slm' | 'llm_supervised';
-  fidelity?: number;
-  summary?: string;
-}
+export interface ParameterData extends z.infer<typeof ParameterDataSchema> {}
+
+export const FunctionDataSchema = z.object({
+  name: z.string(),
+  docstring: z.string(),
+  params: z.array(ParameterDataSchema),
+  returns: z.string(),
+  is_async: z.boolean(),
+  decorators: z.array(z.string()),
+});
+
+export interface FunctionData extends z.infer<typeof FunctionDataSchema> {}
+
+export const ClassDataSchema = z.object({
+  name: z.string(),
+  docstring: z.string(),
+  base_classes: z.array(z.string()),
+  implements_interfaces: z.array(z.string()),
+  methods: z.array(FunctionDataSchema),
+  decorators: z.array(z.string()),
+});
+
+export interface ClassData extends z.infer<typeof ClassDataSchema> {}
+
+export const StructuralDataSchema = z.object({
+  language: z.string(),
+  docstring: z.string(),
+  imports: z.array(z.string()),
+  classes: z.array(ClassDataSchema),
+  functions: z.array(FunctionDataSchema),
+  exports: z.array(z.string()),
+  dependencies: z.array(z.string()),
+  extraction_method: z.enum([
+    'ast_native',
+    'ast_remote',
+    'slm',
+    'llm_supervised',
+  ]),
+  fidelity: z.number(),
+  summary: z.string().optional(),
+});
+
+export interface StructuralData extends z.infer<typeof StructuralDataSchema> {}
 
 export interface SummarizeResponse {
   language: string;

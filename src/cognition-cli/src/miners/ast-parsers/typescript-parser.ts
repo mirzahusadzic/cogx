@@ -304,6 +304,8 @@ export class TypeScriptParser implements ASTParser {
       functions,
       exports: [...new Set(exports)],
       dependencies: imports,
+      extraction_method: 'ast_native',
+      fidelity: 1.0,
     };
   }
 }

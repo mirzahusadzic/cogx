@@ -43,6 +43,8 @@ export class SLMExtractor {
       functions: data.functions || [],
       exports: data.exports || [],
       dependencies: data.dependencies || data.imports || [],
+      extraction_method: 'slm',
+      fidelity: 0.7,
     };
   }
 }
