@@ -50,7 +50,7 @@ vi.mock('fs-extra', async () => {
   };
 });
 
-describe('PGCManager Garbage Collection', () => {
+describe('GenesisOrchestrator Garbage Collection', () => {
   let pgcManager: PGCManager;
   let objectStore: ObjectStore;
   let genesisOrchestrator: GenesisOrchestrator;
@@ -101,12 +101,13 @@ describe('PGCManager Garbage Collection', () => {
     expect(vol.existsSync(emptyReverseDepDir)).toBe(true);
 
     // Run garbage collection
-    await genesisOrchestrator['garbageCollect']([]); // Pass empty array as no processed files
+    const summary = await genesisOrchestrator['garbageCollect']([]); // Pass empty array as no processed files
 
     // Verify empty directories are removed
     expect(vol.existsSync(emptyObjectDir)).toBe(false);
     expect(vol.existsSync(emptyObjectDir2)).toBe(false);
     expect(vol.existsSync(emptyReverseDepDir)).toBe(false);
+    expect(summary.staleEntries).toBe(0);
   });
 
   it('should not remove sharded directories that contain files', async () => {
@@ -154,10 +155,11 @@ describe('PGCManager Garbage Collection', () => {
     expect(await pgcManager.index.get(filePath2)).toBeDefined();
 
     // Simulate garbage collection with only filePath1 being processed
-    await genesisOrchestrator['garbageCollect']([filePath1]);
+    const summary = await genesisOrchestrator['garbageCollect']([filePath1]);
 
     // Verify filePath1 still exists and filePath2 is removed
     expect(await pgcManager.index.get(filePath1)).toBeDefined();
     expect(await pgcManager.index.get(filePath2)).toBeNull();
+    expect(summary.staleEntries).toBe(1);
   });
 });

@@ -57,25 +57,54 @@ export class GenesisOrchestrator {
 
     await this.aggregateDirectories();
 
-    await this.garbageCollect(files.map((f) => f.relativePath));
+    await this.runPGCMaintenance(files.map((f) => f.relativePath));
+  }
 
-    if (isWorkbenchHealthy) {
-      log.info('Running structural oracle verification...');
-    } else {
-      log.warn(
-        'Running local structural oracle verification (workbench not healthy)...'
+  private async runPGCMaintenance(processedFiles: string[]) {
+    log.step('Running PGC Maintenance and Verification');
+
+    // The Goal
+    log.info(
+      'Goal: Achieve a structurally coherent PGC by removing stale entries.'
+    );
+
+    // The Transform
+    const gcSummary = await this.garbageCollect(processedFiles);
+
+    if (gcSummary.staleEntries > 0) {
+      log.success(
+        `Transform: Removed ${gcSummary.staleEntries} stale index entries.`
       );
     }
+    if (gcSummary.cleanedReverseDeps > 0) {
+      log.success(
+        `Transform: Cleaned ${gcSummary.cleanedReverseDeps} stale reverse dependency entries.`
+      );
+    }
+    if (gcSummary.cleanedTransformLogEntries > 0) {
+      log.success(
+        `Transform: Removed ${gcSummary.cleanedTransformLogEntries} stale transform log entries.`
+      );
+    }
+    if (
+      gcSummary.staleEntries === 0 &&
+      gcSummary.cleanedReverseDeps === 0 &&
+      gcSummary.cleanedTransformLogEntries === 0
+    ) {
+      log.info('Transform: No stale entries found. PGC is clean.');
+    }
 
+    // The Oracle
+    log.info('Oracle: Verifying PGC structural coherence after maintenance.');
     const verificationResult = await this.structuralOracle.verify();
 
     if (verificationResult.success) {
       log.success(
-        chalk.green('Structural Oracle: PGC is structurally coherent.')
+        'Oracle: Verification complete. PGC is structurally coherent.'
       );
     } else {
       log.error(
-        chalk.red('Structural Oracle: PGC has structural inconsistencies:')
+        'Oracle: Verification failed. PGC has structural inconsistencies:'
       );
       verificationResult.messages.forEach((msg) =>
         log.error(chalk.red(`- ${msg}`))
@@ -219,39 +248,30 @@ export class GenesisOrchestrator {
   }
 
   private async garbageCollect(processedFiles: string[]) {
-    const s = spinner();
-    s.start('Running garbage collection');
+    let staleEntries = 0;
+    let cleanedReverseDeps = 0;
+    let cleanedTransformLogEntries = 0;
+
+    // Phase 1: Clean up stale index entries
     const allIndexedFiles = await this.pgc.index.getAll();
-
     const normalizedProcessedFiles = processedFiles.map((filePath) =>
-      filePath.replace(/\//g, '_')
+      filePath.replace(/[\\/]/g, '_')
     );
-
     const normalizedAllIndexedFiles = allIndexedFiles.map((filePath) =>
-      filePath.replace(/\//g, '_')
+      filePath.replace(/[\\/]/g, '_')
     );
 
-    console.log(
-      'Garbage Collect: normalizedAllIndexedFiles',
-      normalizedAllIndexedFiles
-    );
-    console.log(
-      'Garbage Collect: normalizedProcessedFiles',
-      normalizedProcessedFiles
-    );
-
-    const staleEntries = normalizedAllIndexedFiles.filter(
+    const staleEntryKeys = normalizedAllIndexedFiles.filter(
       (indexedFile) => !normalizedProcessedFiles.includes(indexedFile)
     );
 
-    for (const staleFile of staleEntries) {
+    for (const staleFile of staleEntryKeys) {
       const indexData = await this.pgc.index.get(staleFile);
       if (indexData) {
         await this.pgc.objectStore.delete(indexData.content_hash);
         await this.pgc.objectStore.delete(indexData.structural_hash);
         for (const transformId of indexData.history) {
           await this.pgc.transformLog.delete(transformId);
-          // Also delete reverse dependencies for content and structural hashes
           await this.pgc.reverseDeps.delete(
             indexData.content_hash,
             transformId
@@ -263,25 +283,20 @@ export class GenesisOrchestrator {
         }
       }
       await this.pgc.index.remove(staleFile);
+      staleEntries++;
     }
 
-    s.stop(`Removed ${staleEntries.length} stale entries`);
-
     // Phase 2: Clean up stale ReverseDeps entries
-    s.start('Cleaning up reverse dependencies');
     const allReverseDepHashes =
       await this.pgc.reverseDeps.getAllReverseDepHashes();
-    let cleanedReverseDeps = 0;
 
     for (const objectHash of allReverseDepHashes) {
-      // Check if the objectHash still exists in the objectStore
       if (!(await this.pgc.objectStore.exists(objectHash))) {
         await this.pgc.reverseDeps.deleteReverseDepFile(objectHash);
         cleanedReverseDeps++;
-        continue; // Move to the next reverse dep hash
+        continue;
       }
 
-      // If the objectHash exists, check its transformIds
       const transformIdsInReverseDep =
         await this.pgc.reverseDeps.getTransformIds(objectHash);
       for (const transformId of transformIdsInReverseDep) {
@@ -291,12 +306,9 @@ export class GenesisOrchestrator {
         }
       }
     }
-    s.stop(`Cleaned up ${cleanedReverseDeps} reverse dependency entries`);
 
     // Phase 3: Validate TransformLog entries
-    s.start('Validating transform log entries');
     const allTransformIds = await this.pgc.transformLog.getAllTransformIds();
-    let cleanedTransformLogEntries = 0;
 
     for (const transformId of allTransformIds) {
       const transformData =
@@ -308,14 +320,13 @@ export class GenesisOrchestrator {
       }
 
       let isValid = true;
-      // Check inputs
       for (const inputHash of transformData.inputs) {
         if (!(await this.pgc.objectStore.exists(inputHash.hash))) {
           isValid = false;
           break;
         }
       }
-      // Check outputs
+
       if (isValid) {
         for (const outputHash of transformData.outputs) {
           if (!(await this.pgc.objectStore.exists(outputHash.hash))) {
@@ -330,15 +341,12 @@ export class GenesisOrchestrator {
         cleanedTransformLogEntries++;
       }
     }
-    s.stop(
-      `Cleaned up ${cleanedTransformLogEntries} stale transform log entries`
-    );
 
     // Phase 4: Clean up empty sharded directories
-    s.start('Cleaning up empty sharded directories');
     await this.pgc.objectStore.removeEmptyShardedDirectories();
     await this.pgc.reverseDeps.removeEmptyShardedDirectories();
-    s.stop('Finished cleaning up empty sharded directories');
+
+    return { staleEntries, cleanedReverseDeps, cleanedTransformLogEntries };
   }
 
   private async rollback(
