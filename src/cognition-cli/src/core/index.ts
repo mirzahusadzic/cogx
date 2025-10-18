@@ -2,7 +2,8 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import { IndexData, IndexDataSchema } from '../types/index.js';
-import { ClassData, FunctionData, InterfaceData } from '../types/structural.js';
+import { StructuralData } from '../types/structural.js';
+import { ObjectStore } from './object-store.js';
 
 function canonicalizeSymbol(symbol: string): string {
   // Convert PascalCase to kebab-case
@@ -75,124 +76,90 @@ export class Index {
     return allData;
   }
 
-  async search(term: string): Promise<IndexData[]> {
+  async search(term: string, objectStore?: ObjectStore): Promise<IndexData[]> {
     const allData = await this.getAllData();
-
-    // Canonicalize the search term using the new helper function
     const canonicalTerm = canonicalizeSymbol(term);
+    const uniqueMatches = new Map<string, IndexData>();
 
-    const directMatches: IndexData[] = [];
-    const otherMatches: IndexData[] = [];
+    // Phase 1: Search within the content of the structural data
+    if (objectStore) {
+      for (const data of allData) {
+        if (data.structural_hash) {
+          try {
+            const structuralDataBuffer = await objectStore.retrieve(
+              data.structural_hash
+            );
+            if (structuralDataBuffer) {
+              const structuralData = JSON.parse(
+                structuralDataBuffer.toString()
+              ) as StructuralData;
 
-    for (const data of allData) {
-      let isDirectMatch = false;
+              // A safe, recursive function to find the symbol
+              const foundInValue = (value: unknown): boolean => {
+                // Base case: not an object, so it can't contain what we want
+                if (typeof value !== 'object' || value === null) {
+                  return false;
+                }
 
-      // Check for direct name match in structuralData (e.g., class name, function name)
-      if (data.structuralData) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const checkDirectNameMatch = (structuralData: any): boolean => {
-          if (typeof structuralData === 'object' && structuralData !== null) {
-            if (
-              structuralData.name &&
-              canonicalizeSymbol(structuralData.name) === canonicalTerm
-            ) {
-              return true;
-            }
-            // Check classes, functions, interfaces, exports directly
-            if (Array.isArray(structuralData.classes)) {
-              if (
-                structuralData.classes.some(
-                  (c: ClassData) => canonicalizeSymbol(c.name) === canonicalTerm
-                )
-              )
-                return true;
-            }
-            if (Array.isArray(structuralData.functions)) {
-              if (
-                structuralData.functions.some(
-                  (f: FunctionData) =>
-                    canonicalizeSymbol(f.name) === canonicalTerm
-                )
-              )
-                return true;
-            }
-            if (Array.isArray(structuralData.interfaces)) {
-              if (
-                structuralData.interfaces.some(
-                  (i: InterfaceData) =>
-                    canonicalizeSymbol(i.name) === canonicalTerm
-                )
-              )
-                return true;
-            }
-            if (Array.isArray(structuralData.exports)) {
-              if (
-                structuralData.exports.some(
-                  (e: string) => canonicalizeSymbol(e) === canonicalTerm
-                )
-              )
-                return true;
-            }
-          }
-          return false;
-        };
-        if (checkDirectNameMatch(data.structuralData)) {
-          isDirectMatch = true;
-        }
-      }
+                // Check if the current object itself has a matching name
+                if (
+                  'name' in value &&
+                  typeof value.name === 'string' &&
+                  canonicalizeSymbol(value.name) === canonicalTerm
+                ) {
+                  return true;
+                }
 
-      if (isDirectMatch) {
-        directMatches.push(data);
-      } else {
-        // Existing logic for path and other structural data matches
-        const dataCanonicalKey = this.getCanonicalKey(data.path).toLowerCase();
-        const components = dataCanonicalKey.split('_');
+                // Check if the current object has a matching export
+                if (
+                  'exports' in value &&
+                  Array.isArray(value.exports) &&
+                  value.exports.some(
+                    (e) =>
+                      typeof e === 'string' &&
+                      canonicalizeSymbol(e) === canonicalTerm
+                  )
+                ) {
+                  return true;
+                }
 
-        const includesResult = components.some((component) => {
-          const lastDotIndex = component.lastIndexOf('.');
-          let componentWithoutExtension = component;
-          if (
-            lastDotIndex > 0 &&
-            component.slice(lastDotIndex).match(/\.[a-z0-9]+$/i)
-          ) {
-            componentWithoutExtension = component.slice(0, lastDotIndex);
-          }
-          return componentWithoutExtension.includes(canonicalTerm);
-        });
+                // Recurse into the contents of the object or array
+                if (Array.isArray(value)) {
+                  return value.some(foundInValue);
+                }
 
-        if (includesResult) {
-          otherMatches.push(data);
-        } else if (data.structuralData) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const searchInStructuralData = (structuralData: any): boolean => {
-            if (typeof structuralData === 'string') {
-              return canonicalizeSymbol(structuralData).includes(canonicalTerm);
-            }
-            if (typeof structuralData === 'object' && structuralData !== null) {
-              // Already checked for direct name match, so skip structuralData.name here
-              for (const key in structuralData) {
-                if (Object.prototype.hasOwnProperty.call(structuralData, key)) {
-                  if (searchInStructuralData(structuralData[key])) {
-                    return true;
-                  }
+                return Object.values(value).some(foundInValue);
+              };
+
+              if (foundInValue(structuralData)) {
+                if (!uniqueMatches.has(data.structural_hash)) {
+                  uniqueMatches.set(data.structural_hash, data);
                 }
               }
             }
-            return false;
-          };
-          if (searchInStructuralData(data.structuralData)) {
-            otherMatches.push(data);
+          } catch (e) {
+            console.warn(
+              `Failed to retrieve or parse structural data for ${data.path}: ${e}`
+            );
           }
         }
       }
     }
 
-    // Prioritize direct matches
-    return [...directMatches, ...otherMatches];
+    // Phase 2: Fallback to searching file paths
+    for (const data of allData) {
+      if (uniqueMatches.has(data.structural_hash)) continue;
+
+      const dataCanonicalKey = this.getCanonicalKey(data.path).toLowerCase();
+      if (dataCanonicalKey.includes(canonicalTerm)) {
+        uniqueMatches.set(data.structural_hash, data);
+      }
+    }
+
+    return Array.from(uniqueMatches.values());
   }
 
   public getCanonicalKey(key: string): string {
-    // Replace path separators with underscores, and underscores in names with hyphens.
     return key
       .split(/[\\/]/)
       .map((segment) => segment.replace(/_/g, '-'))

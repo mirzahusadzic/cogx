@@ -32,7 +32,8 @@ async function searchSymbolInStructuralData(
   pgc: PGCManager,
   symbolName: string
 ): Promise<IndexData | null> {
-  const results = await pgc.index.search(symbolName);
+  // Use the enhanced index.search with objectStore
+  const results = await pgc.index.search(symbolName, pgc.objectStore);
   if (results.length > 0) {
     return results[0]; // Return first match
   }
@@ -45,7 +46,7 @@ export async function queryCommand(question: string, options: QueryOptions) {
   // Stage 1: Simple entity extraction
   const entities = extractEntities(question);
 
-  // Stage 2: Direct index lookup
+  // Stage 2: Enhanced index lookup with ObjectStore access
   const results: IndexData[] = [];
   for (const entity of entities) {
     const result = await searchSymbolInStructuralData(pgc, entity);
@@ -68,10 +69,9 @@ export async function queryCommand(question: string, options: QueryOptions) {
     const dependencies = await getSymbolDependencies(results, pgc, '');
     if (dependencies.length > 0) {
       console.log('\n--- Dependencies ---');
-      await displayResultsWithDependencies(dependencies, pgc, 1, depth); // Add await here
+      await displayResultsWithDependencies(dependencies, pgc, 1, depth);
     }
   } else {
-    // Depth = 0 - only show direct results, no dependency traversal
     const context = await Promise.all(
       results.map((r) => pgc.objectStore.retrieve(r.structural_hash))
     );
@@ -79,7 +79,7 @@ export async function queryCommand(question: string, options: QueryOptions) {
   }
 }
 
-async function getSymbolDependencies(
+export async function getSymbolDependencies(
   results: IndexData[],
 
   pgc: PGCManager,
@@ -187,7 +187,7 @@ async function getSymbolDependencies(
   return dependencies;
 }
 
-async function displayResultsWithDependencies(
+export async function displayResultsWithDependencies(
   context: Dependency[],
   pgc: PGCManager,
   currentDepth: number,
@@ -261,7 +261,7 @@ async function displayResultsWithDependencies(
   }
 }
 
-function displayResults(question: string, context: unknown[]) {
+export function displayResults(question: string, context: unknown[]) {
   console.log(`Query: "${question}"`);
   if (context.length === 0) {
     console.log('No relevant information found.');
