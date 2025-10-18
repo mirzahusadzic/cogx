@@ -120,8 +120,9 @@ export class GenesisOrchestrator {
     const storedHashes: string[] = [];
     let recordedTransformId: string | undefined;
 
-    const contentHash = this.pgc.objectStore.computeHash(file.content);
     const existingIndex = await this.pgc.index.get(file.relativePath);
+
+    const contentHash = this.pgc.objectStore.computeHash(file.content);
 
     if (existingIndex && existingIndex.content_hash === contentHash) {
       s.stop(chalk.gray(`⸟ ${file.relativePath} (unchanged)`));
@@ -165,11 +166,15 @@ export class GenesisOrchestrator {
         fidelity: structural.fidelity,
       });
 
+      const newHistory = existingIndex?.history
+        ? [...existingIndex.history, recordedTransformId]
+        : [recordedTransformId];
+
       await this.pgc.index.set(file.relativePath, {
         content_hash: contentHash,
         structural_hash: structuralHash,
         status: 'Valid',
-        history: [recordedTransformId],
+        history: newHistory,
       });
 
       await this.pgc.reverseDeps.add(contentHash, recordedTransformId);
