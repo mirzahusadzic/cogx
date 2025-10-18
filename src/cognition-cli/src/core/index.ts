@@ -102,11 +102,11 @@ export class Index {
   }
 
   public getCanonicalKey(key: string): string {
-    // Replace path separators with colons, and underscores in names with hyphens.
+    // Replace path separators with underscores, and underscores in names with hyphens.
     return key
       .split(/[\\/]/)
       .map((segment) => segment.replace(/_/g, '-'))
-      .join(':');
+      .join('_');
   }
 
   private getIndexPath(key: string): string {

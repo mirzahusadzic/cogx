@@ -24,6 +24,7 @@ This file serves as an audit trail for the development of this project, aligning
 
 ## Action Log
 
+- **2025-10-18:** **Goal:** - Changed canonicalization to use underscore instead of colon for path separation in `getCanonicalKey` for Windows compatibility.
 - **2025-10-18:** **Goal:** Re-architect indexing mechanism for canonical, unambiguous keys.
 - **2025-10-18:** **Goal:** Refactor garbage collection to follow the Goal-Transform-Oracle pattern.
 - **2025-10-18:** Fix structural inconsistencies caused by `manifest.json` vs `manifest.yaml` mismatch.
