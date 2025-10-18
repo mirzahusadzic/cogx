@@ -130,8 +130,8 @@ export class GenesisOrchestrator {
           ],
           phimin: 0.8,
         },
-        inputs: [contentHash],
-        outputs: [structuralHash],
+        inputs: [{ path: file.relativePath, hash: contentHash }],
+        outputs: [{ path: file.relativePath, hash: structuralHash }],
         method: structural.extraction_method,
         fidelity: structural.fidelity,
       });
@@ -310,7 +310,7 @@ export class GenesisOrchestrator {
       let isValid = true;
       // Check inputs
       for (const inputHash of transformData.inputs) {
-        if (!(await this.pgc.objectStore.exists(inputHash))) {
+        if (!(await this.pgc.objectStore.exists(inputHash.hash))) {
           isValid = false;
           break;
         }
@@ -318,7 +318,7 @@ export class GenesisOrchestrator {
       // Check outputs
       if (isValid) {
         for (const outputHash of transformData.outputs) {
-          if (!(await this.pgc.objectStore.exists(outputHash))) {
+          if (!(await this.pgc.objectStore.exists(outputHash.hash))) {
             isValid = false;
             break;
           }

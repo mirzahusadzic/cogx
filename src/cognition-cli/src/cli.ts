@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { genesisCommand } from './commands/genesis.js';
 import { initCommand } from './commands/init.js';
 import { queryCommand } from './commands/query.js';
+import { auditCommand } from './commands/audit.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -46,5 +47,16 @@ program
   )
   .option('-d, --depth <level>', 'Depth of dependency traversal', '0')
   .action(queryCommand);
+
+program
+  .command('audit:transformations <filePath>')
+  .description('Audit the transformation history of a file')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project being audited',
+    process.cwd()
+  )
+  .option('-l, --limit <number>', 'Number of transformations to show', '5')
+  .action(auditCommand);
 
 program.parse();

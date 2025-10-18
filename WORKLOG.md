@@ -24,6 +24,8 @@ This file serves as an audit trail for the development of this project, aligning
 
 ## Action Log
 
+- **2025-10-18:** Fix structural inconsistencies caused by `manifest.json` vs `manifest.yaml` mismatch.
+- **2025-10-18:** **Goal:** Implement the `audit_transformations` command.
 - **2025-10-18:** **Goal:** Add a test to verify that garbage collector is working.
 - **2025-10-18:** Added `pgc-manager.test.ts` to verify that empty sharded directories are removed during garbage collection.
 - **2025-10-17:** Implement dependency traversal for query command.  Introduces a "depth" option to the `query` command, enabling recursive traversal and display of structural dependencies

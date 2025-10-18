@@ -3,6 +3,9 @@ import { VerificationResult } from '../../types/verification.js';
 import path from 'path';
 import fs from 'fs-extra';
 
+import { TransformData } from '../../types/transform.js';
+import yaml from 'js-yaml';
+
 export class StructuralOracle {
   constructor(private pgcManager: PGCManager) {}
 
@@ -49,27 +52,28 @@ export class StructuralOracle {
     if (await fs.pathExists(transformsPath)) {
       const transformDirs = await fs.readdir(transformsPath);
       for (const dir of transformDirs) {
-        const manifestPath = path.join(transformsPath, dir, 'manifest.json');
+        const manifestPath = path.join(transformsPath, dir, 'manifest.yaml');
         if (await fs.pathExists(manifestPath)) {
-          const transformData = await fs.readJSON(manifestPath);
-          for (const hash of transformData.inputs) {
-            if (!(await this.pgcManager.objectStore.exists(hash))) {
+          const content = await fs.readFile(manifestPath, 'utf-8');
+          const transformData = yaml.load(content) as TransformData;
+          for (const input of transformData.inputs) {
+            if (!(await this.pgcManager.objectStore.exists(input.hash))) {
               messages.push(
-                `Transform ${dir} references non-existent input hash: ${hash}`
+                `Transform ${dir} references non-existent input hash: ${input.hash}`
               );
               success = false;
             }
           }
-          for (const hash of transformData.outputs) {
-            if (!(await this.pgcManager.objectStore.exists(hash))) {
+          for (const output of transformData.outputs) {
+            if (!(await this.pgcManager.objectStore.exists(output.hash))) {
               messages.push(
-                `Transform ${dir} references non-existent output hash: ${hash}`
+                `Transform ${dir} references non-existent output hash: ${output.hash}`
               );
               success = false;
             }
           }
         } else {
-          messages.push(`Transform directory ${dir} is missing manifest.json`);
+          messages.push(`Transform directory ${dir} is missing manifest.yaml`);
           success = false;
         }
       }
@@ -103,7 +107,7 @@ export class StructuralOracle {
               const transformManifestPath = path.join(
                 transformsPath,
                 transformId,
-                'manifest.json'
+                'manifest.yaml'
               );
               if (!(await fs.pathExists(transformManifestPath))) {
                 messages.push(
