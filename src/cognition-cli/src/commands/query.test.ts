@@ -443,4 +443,102 @@ describe('queryCommand with depth', () => {
       consoleSpy.mockRestore();
     });
   });
+
+  describe('search for method names', () => {
+    it('should find a method name within structural data', async () => {
+      const mockStructuralData = {
+        language: 'typescript',
+        docstring: '',
+        imports: [
+          '../executors/workbench-client.js',
+          './ast-parsers/index.js',
+          './slm-extractor.js',
+          './llm-supervisor.js',
+          '../types/structural.js',
+          '../types/structural.js',
+        ],
+        classes: [
+          {
+            name: 'StructuralMiner',
+            docstring: '',
+            base_classes: [],
+            implements_interfaces: [],
+            methods: [
+              {
+                name: 'constructor',
+                docstring: '',
+                params: [
+                  {
+                    name: 'workbench',
+                    type: 'WorkbenchClient',
+                    optional: false,
+                  },
+                ],
+                returns: 'void',
+                is_async: false,
+                decorators: [],
+              },
+              {
+                name: 'extractStructure',
+                docstring: '',
+                params: [
+                  {
+                    name: 'file',
+                    type: 'SourceFile',
+                    optional: false,
+                  },
+                ],
+                returns: 'Promise<StructuralData>',
+                is_async: true,
+                decorators: [],
+              },
+            ],
+            decorators: [],
+          },
+        ],
+        functions: [],
+        interfaces: [],
+        exports: ['StructuralMiner'],
+        dependencies: [
+          '../executors/workbench-client.js',
+          './ast-parsers/index.js',
+          './slm-extractor.js',
+          './llm-supervisor.js',
+          '../types/structural.js',
+          '../types/structural.js',
+        ],
+        extraction_method: 'ast_native',
+        fidelity: 1,
+      };
+
+      const mockIndexData: IndexData = {
+        path: 'src/miners/structural-miner.ts',
+        content_hash: 'test-content-hash',
+        structural_hash: 'test-structural-hash',
+        status: 'Valid',
+        history: [],
+        structuralData: mockStructuralData,
+      };
+
+      mockIndex.getAll.mockResolvedValue(['src/miners/structural-miner.ts']);
+      mockIndex.get.mockResolvedValue(mockIndexData);
+      mockIndex.search.mockResolvedValue([mockIndexData]);
+      mockObjectStore.retrieve.mockResolvedValue(
+        Buffer.from(JSON.stringify(mockIndexData.structuralData))
+      );
+
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await queryCommand('extractStructure', {
+        projectRoot: './test-root',
+        depth: '0',
+      });
+
+      const logs = consoleSpy.mock.calls.flat().join('\n');
+      expect(logs).toContain('extractStructure');
+      expect(logs).toContain('StructuralMiner');
+
+      consoleSpy.mockRestore();
+    });
+  });
 });

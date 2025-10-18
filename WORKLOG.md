@@ -24,6 +24,7 @@ This file serves as an audit trail for the development of this project, aligning
 
 ## Action Log
 
+- **2025-10-18:** **Goal:** Enhanced `Index.search` to include structural data, allowing queries for internal symbols like method names. Updated `IndexDataSchema` to include `structuralData`. Modified `GenesisOrchestrator.processFile` to store `structuralData` in `IndexData`. Added a test case to `query.test.ts` to verify method name search.
 - **2025-10-18:** **Goal:** - Changed canonicalization to use underscore instead of colon for path separation in `getCanonicalKey` for Windows compatibility.
 - **2025-10-18:** **Goal:** Re-architect indexing mechanism for canonical, unambiguous keys.
 - **2025-10-18:** **Goal:** Refactor garbage collection to follow the Goal-Transform-Oracle pattern.

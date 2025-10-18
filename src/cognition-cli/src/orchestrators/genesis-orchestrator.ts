@@ -176,6 +176,7 @@ export class GenesisOrchestrator {
         structural_hash: structuralHash,
         status: 'Valid',
         history: newHistory,
+        structuralData: structural,
       });
 
       await this.pgc.reverseDeps.add(contentHash, recordedTransformId);
