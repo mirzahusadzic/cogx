@@ -11,6 +11,6 @@
     "rootDir": "./src",
     "types": ["vitest/globals"]
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/core/search-worker.ts"],
   "exclude": ["node_modules", "src/**/*.test.ts"]
 }

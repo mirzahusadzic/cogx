@@ -24,6 +24,7 @@ This file serves as an audit trail for the development of this project, aligning
 
 ## Action Log
 
+- **2025-10-18:**Implemented JavaScript AST parser by extending existing TypeScript parser.
 - **2025-10-18:** Repurposed `structural_analyst` persona for eGemma to handle both Python and JavaScript/TypeScript, providing explicit JSON output instructions and examples for both languages.
 - **2025-10-18:** Fixed `genesis` command argument parsing in `cli.ts` to correctly handle positional `sourcePath` and prevent implicit 'src' default.
 - **2025-10-18:** Added robust path existence and directory checks in `GenesisOrchestrator.discoverFiles` to prevent `ENOENT` errors when scanning source paths.
@@ -38,7 +39,7 @@ This file serves as an audit trail for the development of this project, aligning
 - **2025-10-18:** **Goal:** Implement the `audit_transformations` command.
 - **2025-10-18:** **Goal:** Add a test to verify that garbage collector is working.
 - **2025-10-18:** Added `pgc-manager.test.ts` to verify that empty sharded directories are removed during garbage collection.
-- **2025-10-17:** Implement dependency traversal for query command.  Introduces a "depth" option to the `query` command, enabling recursive traversal and display of structural dependencies
+- **2025-10-17:** Implement dependency traversal for query command. Introduces a "depth" option to the `query` command, enabling recursive traversal and display of structural dependencies
 - **2025-10-17:** Implemented the `query` command, including creating `src/cognition-cli/src/commands/query.ts`, adding the `search` method to the `Index` class, and integrating it into the CLI. Ensured all verification steps (format, lint, test, build) passed.
 - **2025-10-17:** Improved `genesis` command error handling to explicitly check for PGC initialization and provide a clear message to run `cognition-cli init` if not found.
 - **2025-10-17:** Relaxed `StructuralDataSchema` in `src/cognition-cli/src/types/structural.ts` by making `optional`, `implements_interfaces`, `exports`, and `dependencies` fields optional to accommodate current `eGemma` output for Python AST parsing.

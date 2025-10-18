@@ -1,4 +1,5 @@
 import { TypeScriptParser } from './typescript-parser.js';
+import { JavaScriptParser } from './javascript-parser.js';
 import type { ASTParser, Language } from '../../types/structural.js';
 
 export class ASTParserRegistry {
@@ -6,6 +7,7 @@ export class ASTParserRegistry {
 
   constructor() {
     this.parsers.set('typescript', new TypeScriptParser());
+    this.parsers.set('javascript', new JavaScriptParser());
 
     this.parsers.set('python', {
       isNative: false,

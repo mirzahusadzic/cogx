@@ -4,6 +4,7 @@ export const SUMMARIZE_RATE_LIMIT_SECONDS = 60;
 export const SUMMARIZE_RATE_LIMIT_CALLS = 2;
 export const DEFAULT_FILE_EXTENSIONS = [
   '.ts',
+  '.d.ts',
   '.js',
   '.py',
   '.java',

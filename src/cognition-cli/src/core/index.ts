@@ -1,20 +1,18 @@
 import fs from 'fs-extra';
 import path from 'path';
+import { Worker } from 'worker_threads';
+import os from 'os';
 
 import { IndexData, IndexDataSchema } from '../types/index.js';
-import { StructuralData } from '../types/structural.js';
 import { ObjectStore } from './object-store.js';
 
 function canonicalizeSymbol(symbol: string): string {
-  // Convert PascalCase to kebab-case
   let canonical = symbol
     .replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, '$1-$2')
     .toLowerCase();
-  // Remove leading hyphen if present (from PascalCase conversion)
   if (canonical.startsWith('-')) {
     canonical = canonical.substring(1);
   }
-  // Replace underscores with hyphens
   canonical = canonical.replace(/_/g, '-');
   return canonical;
 }
@@ -76,84 +74,78 @@ export class Index {
     return allData;
   }
 
+  // This is the new multi-threaded search coordinator.
   async search(term: string, objectStore?: ObjectStore): Promise<IndexData[]> {
-    const allData = await this.getAllData();
-    const canonicalTerm = canonicalizeSymbol(term);
-    const uniqueMatches = new Map<string, IndexData>();
-
-    // Phase 1: Search within the content of the structural data
-    if (objectStore) {
-      for (const data of allData) {
-        if (data.structural_hash) {
-          try {
-            const structuralDataBuffer = await objectStore.retrieve(
-              data.structural_hash
-            );
-            if (structuralDataBuffer) {
-              const structuralData = JSON.parse(
-                structuralDataBuffer.toString()
-              ) as StructuralData;
-
-              // A safe, recursive function to find the symbol
-              const foundInValue = (value: unknown): boolean => {
-                // Base case: not an object, so it can't contain what we want
-                if (typeof value !== 'object' || value === null) {
-                  return false;
-                }
-
-                // Check if the current object itself has a matching name
-                if (
-                  'name' in value &&
-                  typeof value.name === 'string' &&
-                  canonicalizeSymbol(value.name) === canonicalTerm
-                ) {
-                  return true;
-                }
-
-                // Check if the current object has a matching export
-                if (
-                  'exports' in value &&
-                  Array.isArray(value.exports) &&
-                  value.exports.some(
-                    (e) =>
-                      typeof e === 'string' &&
-                      canonicalizeSymbol(e) === canonicalTerm
-                  )
-                ) {
-                  return true;
-                }
-
-                // Recurse into the contents of the object or array
-                if (Array.isArray(value)) {
-                  return value.some(foundInValue);
-                }
-
-                return Object.values(value).some(foundInValue);
-              };
-
-              if (foundInValue(structuralData)) {
-                if (!uniqueMatches.has(data.structural_hash)) {
-                  uniqueMatches.set(data.structural_hash, data);
-                }
-              }
-            }
-          } catch (e) {
-            console.warn(
-              `Failed to retrieve or parse structural data for ${data.path}: ${e}`
-            );
-          }
-        }
-      }
+    if (!objectStore) {
+      console.warn(
+        'Performing a fast, filename-only search. Provide an ObjectStore for a full deep search.'
+      );
+      const allData = await this.getAllData();
+      const canonicalTerm = canonicalizeSymbol(term);
+      const normalizedTerm = canonicalTerm.replace(/[^a-z0-9]/g, '');
+      return allData.filter((data) => {
+        const normalizedKey = this.getCanonicalKey(data.path)
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '');
+        return normalizedKey.includes(normalizedTerm);
+      });
     }
 
-    // Phase 2: Fallback to searching file paths
-    for (const data of allData) {
-      if (uniqueMatches.has(data.structural_hash)) continue;
+    const allData = await this.getAllData();
+    if (allData.length === 0) {
+      return [];
+    }
 
-      const dataCanonicalKey = this.getCanonicalKey(data.path).toLowerCase();
-      if (dataCanonicalKey.includes(canonicalTerm)) {
-        uniqueMatches.set(data.structural_hash, data);
-      }
+    const numWorkers = Math.min(os.cpus().length, allData.length);
+    const chunkSize = Math.ceil(allData.length / numWorkers);
+    const promises: Promise<IndexData[]>[] = [];
+
+    console.log(
+      `[Search] Starting parallel search with ${numWorkers} workers for ${allData.length} files.`
+    );
+
+    for (let i = 0; i < numWorkers; i++) {
+      const chunk = allData.slice(i * chunkSize, (i + 1) * chunkSize);
+      if (chunk.length === 0) continue;
+
+      const promise = new Promise<IndexData[]>((resolve, reject) => {
+        // This path must resolve to the compiled JavaScript worker file at runtime.
+        // Using `import.meta.url` makes this robust.
+        const worker = new Worker(
+          new URL('./search-worker.js', import.meta.url),
+          {
+            workerData: {
+              chunk,
+              term,
+              pgcRoot: this.pgcRoot,
+            },
+          }
+        );
+
+        worker.on('message', (result) => {
+          if (result.error) {
+            reject(new Error(result.error));
+          } else {
+            resolve(result);
+          }
+        });
+
+        worker.on('error', reject);
+
+        worker.on('exit', (code) => {
+          if (code !== 0) {
+            reject(new Error(`Worker stopped with exit code ${code}`));
+          }
+        });
+      });
+      promises.push(promise);
+    }
+
+    const resultsFromWorkers = await Promise.all(promises);
+
+    const uniqueMatches = new Map<string, IndexData>();
+    for (const match of resultsFromWorkers.flat()) {
+      uniqueMatches.set(match.structural_hash, match);
     }
 
     return Array.from(uniqueMatches.values());

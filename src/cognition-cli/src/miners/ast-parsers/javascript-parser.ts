@@ -10,56 +10,24 @@ import type {
 
 import ts, {
   Node,
-  Diagnostic,
-  DiagnosticCategory,
   MethodDeclaration,
   ConstructorDeclaration,
   FunctionDeclaration,
   isMethodDeclaration,
 } from 'typescript';
 
-// The AST Parser Implementation
-export class TypeScriptParser implements ASTParser {
+// The AST Parser Implementation for JavaScript
+export class JavaScriptParser implements ASTParser {
   readonly isNative = true;
-  readonly language = 'typescript';
+  readonly language = 'javascript';
 
   async parse(content: string): Promise<StructuralData> {
-    const transpileResult = ts.transpileModule(content, {
-      reportDiagnostics: true,
-      compilerOptions: {
-        target: ts.ScriptTarget.Latest,
-        noEmit: true,
-      },
-    });
-
-    const syntaxErrors = transpileResult.diagnostics?.filter(
-      (diagnostic: Diagnostic) =>
-        diagnostic.category === DiagnosticCategory.Error
-    );
-
-    if (syntaxErrors && syntaxErrors.length > 0) {
-      const errorMessage = syntaxErrors
-        .map((error: Diagnostic) => {
-          const message = ts.flattenDiagnosticMessageText(
-            error.messageText,
-            '\n'
-          );
-          if (error.file && typeof error.start === 'number') {
-            const { line, character } =
-              error.file.getLineAndCharacterOfPosition(error.start);
-            return `Error at ${line + 1}:${character + 1}: ${message}`;
-          }
-          return `Error: ${message}`;
-        })
-        .join('\n');
-      throw new Error(`TypeScript parsing failed:\n${errorMessage}`);
-    }
-
     const sourceFile = ts.createSourceFile(
-      'temp.ts',
+      'temp.js',
       content,
       ts.ScriptTarget.Latest,
-      true
+      true,
+      ts.ScriptKind.JS
     );
 
     const getDocstring = (node: ts.Node): string => {
@@ -320,7 +288,7 @@ export class TypeScriptParser implements ASTParser {
         : '';
 
     return {
-      language: 'typescript',
+      language: 'javascript',
       docstring: fileDocstring,
       imports,
       classes,
