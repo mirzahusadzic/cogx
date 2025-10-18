@@ -42,7 +42,10 @@ All extracted structural data is meticulously stored and tracked to ensure verif
 
 - **ObjectStore:** Both the raw `SourceFile` content and the extracted `StructuralData` (JSON representation) are hashed (e.g., SHA-256) and stored. The hash serves as a unique, content-addressable identifier, preventing duplication and guaranteeing immutability.
 - **TransformLog:** Every structural extraction is recorded as an entry in an immutable, append-only log. This log details the transformation's goal, input/output hashes, extraction method, and fidelity, providing a complete audit trail.
-- **Index:** A semantic path-to-hash mapping allows human-readable file paths to be resolved to their corresponding `StructuralData` hashes in the `ObjectStore`.
+- **Index:** This component provides a semantic path-to-hash mapping, allowing human-readable file paths to be resolved to their corresponding `StructuralData` hashes in the `ObjectStore`. It now includes advanced search capabilities:
+  - **Symbol Canonicalization:** A `canonicalizeSymbol` helper standardizes search terms (e.g., PascalCase, snake_case) into a consistent kebab-case, ensuring reliable matching.
+  - **Refined Search Logic:** The search mechanism intelligently matches canonicalized symbols against components of canonicalized file paths. It splits the file path into parts, removes file extensions, and checks for inclusion of the canonicalized symbol within these parts.
+  - **Zod Validation:** All `IndexData` entries are validated using Zod, ensuring data integrity and adherence to the defined schema.
 - **ReverseDeps:** This component tracks dependencies between structural elements, mapping dependent objects to the hashes of objects they depend on, and vice-versa.
 
 ### 4. Structural Verification
@@ -57,6 +60,8 @@ The `cognition-cli` uses well-defined TypeScript interfaces to represent the ext
 - **`ParameterData`**: Details function parameters (name, type, optional, default).
 - **`FunctionData`**: Describes functions (name, docstring, parameters, return type, async status, decorators).
 - **`ClassData`**: Represents classes (name, docstring, base classes, implemented interfaces, methods, decorators).
-- **`StructuralData`**: The comprehensive output for each file, encapsulating its language, file-level docstring, imports, lists of `ClassData` and `FunctionData`, exports, dependencies, the `extraction_method`, and `fidelity` score.
+- **`PropertyData`**: Details properties within interfaces (name, type, optional).
+- **`InterfaceData`**: Describes interfaces (name, docstring, properties).
+- **`StructuralData`**: The comprehensive output for each file, encapsulating its language, file-level docstring, imports, lists of `ClassData`, `FunctionData`, and `InterfaceData`, exports, dependencies, the `extraction_method`, and `fidelity` score.
 
 This structured representation, combined with content-addressable storage and auditable transformations, forms the "immutable bedrock" of the CogX project, enabling advanced code analysis and reasoning.

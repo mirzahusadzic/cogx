@@ -6,24 +6,6 @@ The heart of the `cognition-cli` is the Grounded Context Pool (PGC), a content-a
 
 The `PGCManager` (`src/core/pgc-manager.ts`) serves as the central entry point for interacting with the PGC. It is responsible for initializing and providing access to all core PGC components, ensuring a unified interface for knowledge management.
 
-```typescript
-export class PGCManager {
-  public objectStore: ObjectStore;
-  public transformLog: TransformLog;
-  public index: Index;
-  public reverseDeps: ReverseDeps;
-  public pgcRoot: string;
-
-  constructor(projectRoot: string) {
-    this.pgcRoot = path.join(projectRoot, '.open_cognition');
-    this.objectStore = new ObjectStore(this.pgcRoot);
-    this.transformLog = new TransformLog(this.pgcRoot);
-    this.index = new Index(this.pgcRoot);
-    this.reverseDeps = new ReverseDeps(this.pgcRoot);
-  }
-}
-```
-
 The `PGCManager` constructs the `pgcRoot` by appending `.open_cognition` to the provided `projectRoot`, establishing the dedicated location for the PGC.
 
 ## Core Components of the PGC
@@ -36,108 +18,13 @@ The `ObjectStore` (`src/core/object-store.ts`) is a content-addressable storage 
 
 - **Mechanism:** When a file or structural data is processed, its content is hashed (e.g., SHA-256). This hash serves as its unique identifier. If an object with that hash already exists, it's not re-stored, ensuring data deduplication and immutability. New objects are written to a location derived from their hash within the `objects/` directory (e.g., `objects/<first-two-chars-of-hash>/<full-hash>`).
 - **Data Types:** Raw file content, JSON representations of ASTs, and other structural metadata.
-- **Code Reference:**
-
-  ```typescript
-  // src/core/object-store.ts
-  import crypto from 'node:crypto';
-  import fs from 'fs-extra';
-  import path from 'path';
-
-  export class ObjectStore {
-    constructor(private rootPath: string) {}
-
-    /**
-     * Store content in content-addressable storage
-     * Returns the hash of the stored object
-     */
-    async store(content: string | Buffer): Promise<string> {
-      const hash = this.computeHash(content);
-      const objectPath = this.getObjectPath(hash);
-
-      // Only write if it doesn't exist (deduplication)
-      if (!(await fs.pathExists(objectPath))) {
-        await fs.ensureDir(path.dirname(objectPath));
-        await fs.writeFile(objectPath, content);
-      }
-
-      return hash;
-    }
-
-    /**
-     * Retrieve content by hash
-     */
-    async retrieve(hash: string): Promise<Buffer> {
-      const objectPath = this.getObjectPath(hash);
-      return await fs.readFile(objectPath);
-    }
-
-    /**
-     * Check if object exists
-     */
-    async exists(hash: string): Promise<boolean> {
-      return await fs.pathExists(this.getObjectPath(hash));
-    }
-
-    private computeHash(content: string | Buffer): string {
-      return crypto.createHash('sha256').update(content).digest('hex');
-    }
-
-    private getObjectPath(hash: string): string {
-      // Git-style sharding: first 2 chars as directory
-      const dir = hash.slice(0, 2);
-      const file = hash.slice(2);
-      return path.join(this.rootPath, 'objects', dir, file);
-    }
-  }
-  ```
 
 ### 2. TransformLog: The Auditable Thought Process
 
 The `TransformLog` (`src/core/transform-log.ts`) is an immutable, append-only log of all operations that modify the knowledge graph. It provides a complete audit trail of how the graph evolved, enabling verifiability and reproducibility.
 
-- **Mechanism:** Each transformation (e.g., file parsing, structural extraction) is recorded as an entry in the log. This entry includes metadata about the transformation, such as the goal, input object hashes, output object hashes, the method used, and the fidelity of the transformation. These log entries are stored within the `transforms/` directory.
+- **Mechanism:** Each transformation (e.g., file parsing, structural extraction) is recorded as an entry in the log. This entry includes metadata about the transformation, such as the goal, input object hashes, output object hashes, the method used, and the fidelity of the transformation. These log entries are now stored as YAML manifests within the `transforms/` directory.
 - **Data Types:** `TransformData` objects, containing metadata about transformations.
-- **Code Reference:**
-
-  ```typescript
-  // src/core/transform-log.ts
-  import fs from 'fs-extra';
-  import path from 'path';
-  import crypto from 'node:crypto';
-
-  import { TransformData } from '../types/transform.js';
-
-  export class TransformLog {
-    private transformsPath: string;
-
-    constructor(pgcRoot: string) {
-      this.transformsPath = path.join(pgcRoot, 'transforms');
-      fs.ensureDirSync(this.transformsPath); // Ensure the base directory exists
-    }
-
-    async record(transform: TransformData): Promise<string> {
-      const transformId = this.generateTransformId(transform);
-
-      const logPath = path.join(
-        this.transformsPath,
-        transformId, // Directory named after transformId
-        'manifest.json' // File within that directory
-      );
-
-      await fs.ensureDir(path.dirname(logPath)); // Ensure the transformId directory exists
-      await fs.writeJSON(logPath, transform, { spaces: 2 }); // Write JSON directly
-
-      return transformId;
-    }
-
-    private generateTransformId(transform: TransformData): string {
-      const hash = crypto.createHash('sha256');
-      hash.update(JSON.stringify(transform));
-      return hash.digest('hex');
-    }
-  }
-  ```
 
 ### 3. Index: The Conscious Mind
 
@@ -145,35 +32,6 @@ The `Index` (`src/core/index.ts`) is a semantic path-to-hash mapping. It links h
 
 - **Mechanism:** When a file is processed, its canonical path is mapped to the hashes of its raw content and extracted structural data. This index is updated atomically, ensuring that the system's understanding of the codebase is always current. The index data is stored within the `index/` directory.
 - **Data Types:** Key-value pairs where keys are file paths and values are `IndexData` objects (containing content and structural hashes, status, and history).
-- **Code Reference:**
-
-  ```typescript
-  // src/core/index.ts
-  import fs from 'fs-extra';
-  import path from 'path';
-
-  import { IndexData } from '../types/index.js';
-
-  export class Index {
-    private indexPath: string;
-
-    constructor(pgcRoot: string) {
-      this.indexPath = path.join(pgcRoot, 'index');
-      fs.ensureDirSync(this.indexPath); // Ensure the base directory exists
-    }
-
-    async set(filePath: string, data: IndexData): Promise<void> {
-      const indexFilePath = path.join(
-        this.indexPath,
-        filePath.replace(/\//g, '_') + '.json' // Convert path to a valid filename
-      );
-      await fs.ensureDir(path.dirname(indexFilePath));
-      await fs.writeJSON(indexFilePath, data, { spaces: 2 });
-    }
-
-    // ... other methods (if any, not shown in this file)
-  }
-  ```
 
 ### 4. ReverseDeps: The Reflexive Nervous System
 
@@ -181,122 +39,10 @@ The `ReverseDeps` (`src/core/reverse-deps.ts`) component provides an efficient m
 
 - **Mechanism:** As structural data is extracted (e.g., imports, function calls), dependencies are recorded. The `ReverseDeps` component stores mappings from a dependent object's hash to the hashes of objects it depends on, and vice-versa. This data is sharded and stored within the `reverse_deps/` directory.
 - **Data Types:** Graph-like structures mapping object hashes to lists of dependent/dependency hashes.
-- **Code Reference:**
 
-  ```typescript
-  // src/core/reverse-deps.ts
-  import fs from 'fs-extra';
-  import path from 'path';
+### 5. StructuralOracle: The Verifier of Coherence
 
-  export class ReverseDeps {
-    constructor(private pgcRoot: string) {}
+The `StructuralOracle` (`src/core/oracles/structural-oracle.ts`) plays a crucial role in maintaining the integrity and coherence of the PGC. It performs a series of checks to ensure that all references within the PGC are valid and consistent.
 
-    async add(objectHash: string, transformId: string): Promise<void> {
-      const reverseDepPath = this.getReverseDepPath(objectHash);
-      await fs.ensureDir(path.dirname(reverseDepPath));
-
-      const existingDeps: Set<string> = new Set();
-      if (await fs.pathExists(reverseDepPath)) {
-        const content = await fs.readFile(reverseDepPath, 'utf-8');
-        content.split('\n').forEach((dep) => {
-          const trimmedDep = dep.trim();
-          if (trimmedDep) {
-            existingDeps.add(trimmedDep);
-          }
-        });
-      }
-
-      if (!existingDeps.has(transformId)) {
-        existingDeps.add(transformId);
-        const newContent = Array.from(existingDeps).join('\n') + '\n';
-        await fs.writeFile(reverseDepPath, newContent);
-      }
-    }
-
-    async delete(objectHash: string, transformId: string): Promise<void> {
-      const reverseDepPath = this.getReverseDepPath(objectHash);
-
-      if (!(await fs.pathExists(reverseDepPath))) {
-        return;
-      }
-
-      const existingDeps: Set<string> = new Set();
-      const content = await fs.readFile(reverseDepPath, 'utf-8');
-      content.split('\n').forEach((dep) => {
-        const trimmedDep = dep.trim();
-        if (trimmedDep) {
-          existingDeps.add(trimmedDep);
-        }
-      });
-
-      if (existingDeps.has(transformId)) {
-        existingDeps.delete(transformId);
-        const newContent = Array.from(existingDeps).join('\n') + '\n';
-        await fs.writeFile(reverseDepPath, newContent);
-      }
-    }
-
-    async getAllReverseDepHashes(): Promise<string[]> {
-      const reverseDepsRoot = path.join(this.pgcRoot, 'reverse_deps');
-      if (!(await fs.pathExists(reverseDepsRoot))) {
-        return [];
-      }
-
-      const hashes: string[] = [];
-      const level1Dirs = await fs.readdir(reverseDepsRoot);
-      for (const level1Dir of level1Dirs) {
-        const level1Path = path.join(reverseDepsRoot, level1Dir);
-        if ((await fs.stat(level1Path)).isDirectory()) {
-          const files = await fs.readdir(level1Path);
-          for (const file of files) {
-            hashes.push(level1Dir + file);
-          }
-        }
-      }
-      return hashes;
-    }
-
-    async getTransformIds(objectHash: string): Promise<string[]> {
-      const reverseDepPath = this.getReverseDepPath(objectHash);
-      if (!(await fs.pathExists(reverseDepPath))) {
-        return [];
-      }
-      const content = await fs.readFile(reverseDepPath, 'utf-8');
-      return content
-        .split('\n')
-        .map((dep) => dep.trim())
-        .filter(Boolean);
-    }
-
-    async deleteReverseDepFile(objectHash: string): Promise<void> {
-      const reverseDepPath = this.getReverseDepPath(objectHash);
-      if (await fs.pathExists(reverseDepPath)) {
-        await fs.remove(reverseDepPath);
-      }
-    }
-
-    async removeEmptyShardedDirectories(): Promise<void> {
-      const reverseDepsRoot = path.join(this.pgcRoot, 'reverse_deps');
-      if (!(await fs.pathExists(reverseDepsRoot))) {
-        return;
-      }
-
-      for (let i = 0; i < 256; i++) {
-        const dir = i.toString(16).padStart(2, '0'); // '00', '01', ..., 'ff'
-        const shardedDirPath = path.join(reverseDepsRoot, dir);
-        if (await fs.pathExists(shardedDirPath)) {
-          const files = await fs.readdir(shardedDirPath);
-          if (files.length === 0) {
-            await fs.remove(shardedDirPath);
-          }
-        }
-      }
-    }
-
-    private getReverseDepPath(hash: string): string {
-      const dir = hash.slice(0, 2);
-      const file = hash.slice(2);
-      return path.join(this.pgcRoot, 'reverse_deps', dir, file);
-    }
-  }
-  ```
+- **Mechanism:** The oracle verifies that all input and output hashes referenced in `TransformLog` entries actually exist in the `ObjectStore`. It also checks for the existence of `manifest.yaml` files for each transformation. This process ensures that the PGC remains a verifiable and auditable knowledge graph.
+- **Data Types:** `VerificationResult` objects, indicating success or failure and providing detailed messages for any inconsistencies.

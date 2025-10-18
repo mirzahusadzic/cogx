@@ -24,61 +24,6 @@ The `init` command performs the following actions:
 - **Generates `metadata.json`:** Creates a `metadata.json` file within `.open_cognition` to track the PGC's version, initialization timestamp, and current status.
 - **Creates `.gitignore`:** Adds a `.gitignore` file within `.open_cognition` to prevent committing generated artifacts, particularly the `objects/` directory.
 
-### `init` Command Code Reference
-
-```typescript
-// src/commands/init.ts
-import fs from 'fs-extra';
-import path from 'path';
-import { intro, outro, spinner } from '@clack/prompts';
-import chalk from 'chalk';
-
-export async function initCommand(options: { path: string }) {
-  intro(chalk.bold('Initializing Grounded Context Pool'));
-
-  const s = spinner();
-  s.start('Creating PGC directory structure');
-
-  const pgcRoot = path.join(options.path, '.open_cognition');
-
-  try {
-    // Create the four pillars and overlays
-    await fs.ensureDir(path.join(pgcRoot, 'objects'));
-    await fs.ensureDir(path.join(pgcRoot, 'transforms'));
-    await fs.ensureDir(path.join(pgcRoot, 'index'));
-    await fs.ensureDir(path.join(pgcRoot, 'reverse_deps'));
-    await fs.ensureDir(path.join(pgcRoot, 'overlays'));
-
-    // Create system metadata
-    const metadata = {
-      version: '0.1.0',
-      initialized_at: new Date().toISOString(),
-      status: 'empty',
-    };
-    await fs.writeJSON(path.join(pgcRoot, 'metadata.json'), metadata, {
-      spaces: 2,
-    });
-
-    // Create .gitignore for PGC
-    await fs.writeFile(
-      path.join(pgcRoot, '.gitignore'),
-      '# Ignore large object store\nobjects/\n# Keep structure\n!.gitkeep\n'
-    );
-
-    s.stop('PGC initialized successfully');
-
-    outro(
-      chalk.green(
-        `✓ Created ${chalk.bold('.open_cognition/')} at ${options.path}`
-      )
-    );
-  } catch (error) {
-    s.stop('Initialization failed');
-    throw error;
-  }
-}
-```
-
 ## 2. `genesis` Command: Building the Verifiable Skeleton
 
 The `genesis` command (`src/commands/genesis.ts`) populates the `.open_cognition` directory by extracting structural metadata from your project's source code. This process involves parsing files, hashing their content, logging transformations, and performing a structural verification of the generated knowledge graph to ensure its integrity and coherence.
@@ -104,73 +49,44 @@ The `genesis` command orchestrates the "Bottom-Up Aggregation" phase, which incl
 - **Reverse Dependency Tracking:** Begins building reverse dependency information in `ReverseDeps`.
 - **Structural Verification:** After processing all files, the `StructuralOracle` verifies the structural coherence of the entire PGC.
 
-### `genesis` Command Code Reference
+## 3. `query` Command: Exploring the Knowledge Graph
 
-```typescript
-// src/commands/genesis.ts
-import { intro, outro, spinner, log } from '@clack/prompts';
-import chalk from 'chalk';
-import { PGCManager } from '../core/pgc-manager.js';
-import { StructuralMiner } from '../miners/structural-miner.js';
-import { WorkbenchClient } from '../executors/workbench-client.js';
-import { GenesisOrchestrator } from '../orchestrators/genesis-orchestrator.js';
-import { StructuralOracle } from '../core/oracles/structural-oracle.js';
+The `query` command (`src/commands/query.ts`) allows you to explore the structural knowledge graph that has been extracted and stored in the PGC. You can search for symbols (classes, functions, interfaces) and traverse their dependencies.
 
-interface GenesisOptions {
-  source: string;
-  workbench: string;
-  projectRoot: string;
-}
+### `query` Command Usage
 
-export async function genesisCommand(options: GenesisOptions) {
-  intro(chalk.bold('Genesis: Building the Verifiable Skeleton'));
-
-  const s = spinner();
-
-  try {
-    // Initialize core components
-    s.start('Initializing PGC and workbench connection');
-    const pgc = new PGCManager(options.projectRoot);
-    const workbench = new WorkbenchClient(
-      process.env.WORKBENCH_URL || 'http://localhost:8000'
-    );
-
-    try {
-      await workbench.health();
-      s.stop();
-      log.info('Connected to egemma workbench');
-    } catch (error) {
-      s.stop(
-        'eGemma workbench is not running. Please start it before running the genesis command.'
-      );
-      return;
-    }
-
-    // Initialize structural miner with three-layer pipeline
-    const miner = new StructuralMiner(workbench);
-
-    const structuralOracle = new StructuralOracle(pgc);
-
-    // Create genesis orchestrator
-    const orchestrator = new GenesisOrchestrator(
-      pgc,
-      miner,
-      workbench,
-      structuralOracle,
-      options.projectRoot
-    );
-
-    // Phase I: Bottom-Up Aggregation
-    log.info('Phase I: Structural Mining (Bottom-Up)');
-    await orchestrator.executeBottomUpAggregation(options.source);
-
-    outro(chalk.green('✓ Genesis complete - Verifiable skeleton constructed'));
-  } catch (error) {
-    s.stop('Genesis failed');
-    log.error(chalk.red((error as Error).message));
-    throw error;
-  } finally {
-    s.stop();
-  }
-}
+```bash
+cognition-cli query <symbol-name> --projectRoot <path-to-project-root> [--depth <depth>]
 ```
+
+- `<symbol-name>`: The name of the symbol you want to query (e.g., `StructuralMiner`, `extractStructure`).
+- `--projectRoot`: Specifies the root of your project, used to locate the `.open_cognition` directory.
+- `--depth`: (Optional) The depth of dependency traversal. Defaults to `0` (only direct results). Use `1` for first-level dependencies, `2` for second-level, and so on.
+
+### `query` Command Functionality
+
+The `query` command performs the following:
+
+- **Entity Extraction:** Identifies potential symbols from your query string (e.g., PascalCase or camelCase terms).
+- **Index Lookup:** Uses the PGC `Index` to find files whose paths or components match the canonicalized symbol name.
+- **Structural Data Retrieval:** Retrieves the associated `StructuralData` from the `ObjectStore` for matching files.
+- **Dependency Traversal:** If a `--depth` greater than 0 is specified, it recursively traverses the dependencies (base classes, interfaces, parameter types) of the found symbols, providing a broader context.
+
+## 4. `audit` Command: Verifying PGC Integrity
+
+The `audit` command (`src/commands/audit.ts`) allows you to verify the integrity and coherence of the Grounded Context Pool (PGC). It checks the transformation history of files and ensures that all referenced objects and transformations exist.
+
+### `audit` Command Usage
+
+```bash
+cognition-cli audit <file-path> --projectRoot <path-to-project-root> [--limit <number>]
+```
+
+- `<file-path>`: The path to the file whose transformation history you want to audit.
+- `--projectRoot`: Specifies the root of your project, used to locate the `.open_cognition` directory.
+- `--limit`: (Optional) The maximum number of transformation history entries to display. Defaults to `5`.
+
+### `audit` Command Functionality
+
+- **Transformation History Review:** Displays the transformation history for a given file, showing details of each transformation (goal, fidelity, verification result, inputs, outputs).
+- **PGC Coherence Check:** Verifies that all content hashes, structural hashes, and transform IDs referenced in the file's history exist within the PGC.
