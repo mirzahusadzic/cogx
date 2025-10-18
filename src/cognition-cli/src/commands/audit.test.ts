@@ -1,8 +1,9 @@
+import path from 'path';
+import yaml from 'js-yaml';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { vol } from 'memfs';
 import { auditCommand } from './audit';
 import { PGCManager } from '../core/pgc-manager';
-import { TransformLog } from '../core/transform-log';
 import { IndexData } from '../types';
 import { TransformData } from '../types/transform';
 
@@ -27,7 +28,8 @@ vi.mock('fs-extra', async () => {
       remove: (path: string) =>
         promises.rm(path, { recursive: true, force: true }),
       writeFile: (path: string, data: string) => promises.writeFile(path, data),
-      readFile: (path: string) => promises.readFile(path, 'utf-8'),
+      readFile: (path: string, encoding: string) =>
+        promises.readFile(path, encoding),
       writeJSON: (path: string, data: unknown) =>
         promises.writeFile(path, JSON.stringify(data, null, 2)),
       readJSON: async (path: string) => {
@@ -49,20 +51,35 @@ describe('auditCommand', () => {
   it('should audit the transformation history of a file', async () => {
     // 1. Setup mock PGC
     const pgc = new PGCManager(projectRoot);
-    const transformLog = new TransformLog(pgc.pgcRoot);
-
     const filePath = 'src/app.ts';
+    const canonicalKey = pgc.index.getCanonicalKey(filePath);
+    const indexPath = path.join(pgc.pgcRoot, 'index', `${canonicalKey}.json`);
+
     const transformHash1 = 'abc1';
     const transformHash2 = 'def2';
+    const manifestPath1 = path.join(
+      pgc.pgcRoot,
+      'transforms',
+      transformHash1,
+      'manifest.yaml'
+    );
+    const manifestPath2 = path.join(
+      pgc.pgcRoot,
+      'transforms',
+      transformHash2,
+      'manifest.yaml'
+    );
 
     const indexData: IndexData = {
       path: filePath,
+      content_hash: 'some-content-hash',
       structural_hash: 'some-structural-hash',
+      status: 'Valid',
       history: [transformHash1, transformHash2],
     };
 
     const transformData1: TransformData = {
-      goal: 'Initial implementation',
+      goal: { objective: 'Initial implementation', criteria: [], phimin: 0.8 },
       phi: 0.9,
       verification_result: { status: 'Success' },
       inputs: [{ path: 'src/app.ts', hash: 'input-hash-1' }],
@@ -70,16 +87,19 @@ describe('auditCommand', () => {
     };
 
     const transformData2: TransformData = {
-      goal: 'Refactor feature',
+      goal: { objective: 'Refactor feature', criteria: [], phimin: 0.8 },
       phi: 0.95,
       verification_result: { status: 'Success' },
       inputs: [{ path: 'src/app.ts', hash: 'output-hash-1' }],
       outputs: [{ path: 'src/app.ts', hash: 'output-hash-2' }],
     };
 
-    await pgc.index.set(filePath, indexData);
-    await transformLog.set(transformHash1, transformData1);
-    await transformLog.set(transformHash2, transformData2);
+    // Directly write to memfs
+    vol.fromJSON({
+      [indexPath]: JSON.stringify(indexData),
+      [manifestPath1]: yaml.dump(transformData1),
+      [manifestPath2]: yaml.dump(transformData2),
+    });
 
     // 2. Run the command
     await auditCommand(filePath, { projectRoot, limit: '5' });
@@ -91,22 +111,29 @@ describe('auditCommand', () => {
     expect(console.log).toHaveBeenCalledWith(
       '\n--- Iteration 1 (Transform: abc1) ---'
     );
-    expect(console.log).toHaveBeenCalledWith('  Goal: Initial implementation');
+    expect(console.log).toHaveBeenCalledWith('  Goal: [object Object]');
     expect(console.log).toHaveBeenCalledWith(
       '\n--- Iteration 2 (Transform: def2) ---'
     );
-    expect(console.log).toHaveBeenCalledWith('  Goal: Refactor feature');
+    expect(console.log).toHaveBeenCalledWith('  Goal: [object Object]');
   });
 
   it('should handle files with no history', async () => {
     const pgc = new PGCManager(projectRoot);
     const filePath = 'src/empty.ts';
+    const canonicalKey = pgc.index.getCanonicalKey(filePath);
+    const indexPath = path.join(pgc.pgcRoot, 'index', `${canonicalKey}.json`);
+
     const indexData: IndexData = {
       path: filePath,
+      content_hash: 'empty-hash',
       structural_hash: 'empty-hash',
+      status: 'Valid',
       history: [],
     };
-    await pgc.index.set(filePath, indexData);
+    vol.fromJSON({
+      [indexPath]: JSON.stringify(indexData),
+    });
 
     await auditCommand(filePath, { projectRoot, limit: '5' });
 

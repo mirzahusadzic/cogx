@@ -171,6 +171,7 @@ export class GenesisOrchestrator {
         : [recordedTransformId];
 
       await this.pgc.index.set(file.relativePath, {
+        path: file.relativePath,
         content_hash: contentHash,
         structural_hash: structuralHash,
         status: 'Valid',
@@ -258,19 +259,14 @@ export class GenesisOrchestrator {
     let cleanedTransformLogEntries = 0;
 
     // Phase 1: Clean up stale index entries
-    const allIndexedFiles = await this.pgc.index.getAll();
-    const normalizedProcessedFiles = processedFiles.map((filePath) =>
-      filePath.replace(/[\\/]/g, '_')
-    );
-    const normalizedAllIndexedFiles = allIndexedFiles.map((filePath) =>
-      filePath.replace(/[\\/]/g, '_')
+    const allIndexedData = await this.pgc.index.getAllData();
+    const allIndexedPaths = allIndexedData.map((data) => data.path);
+
+    const staleFilePaths = allIndexedPaths.filter(
+      (indexedPath) => !processedFiles.includes(indexedPath)
     );
 
-    const staleEntryKeys = normalizedAllIndexedFiles.filter(
-      (indexedFile) => !normalizedProcessedFiles.includes(indexedFile)
-    );
-
-    for (const staleFile of staleEntryKeys) {
+    for (const staleFile of staleFilePaths) {
       const indexData = await this.pgc.index.get(staleFile);
       if (indexData) {
         await this.pgc.objectStore.delete(indexData.content_hash);

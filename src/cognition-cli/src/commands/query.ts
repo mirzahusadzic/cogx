@@ -32,7 +32,6 @@ async function searchSymbolInStructuralData(
   pgc: PGCManager,
   symbolName: string
 ): Promise<IndexData | null> {
-  // Use the index search directly instead of scanning all files
   const results = await pgc.index.search(symbolName);
   if (results.length > 0) {
     return results[0]; // Return first match

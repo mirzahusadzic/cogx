@@ -138,12 +138,14 @@ describe('GenesisOrchestrator Garbage Collection', () => {
 
     // Add two entries to the index
     await pgcManager.index.set(filePath1, {
+      path: filePath1,
       content_hash: 'hash1',
       structural_hash: 'shash1',
       status: 'Valid',
       history: ['transform1'],
     });
     await pgcManager.index.set(filePath2, {
+      path: filePath2,
       content_hash: 'hash2',
       structural_hash: 'shash2',
       status: 'Valid',

@@ -82,7 +82,7 @@ export const StructuralDataSchema = z.object({
   imports: z.array(z.string()),
   classes: z.array(ClassDataSchema),
   functions: z.array(FunctionDataSchema),
-  interfaces: z.array(InterfaceDataSchema),
+  interfaces: z.array(InterfaceDataSchema).optional(),
   exports: z.array(z.string()).optional(),
   dependencies: z.array(z.string()).optional(),
   extraction_method: z.enum([
