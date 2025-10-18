@@ -41,6 +41,7 @@ export class GenesisOrchestrator {
 
     s.start('Discovering source files');
     const actualSourcePath = path.join(this.projectRoot, sourcePath);
+    log.info(`Scanning for files in: ${actualSourcePath}`);
 
     const files = await this.discoverFiles(actualSourcePath);
 
@@ -193,6 +194,16 @@ export class GenesisOrchestrator {
   private async discoverFiles(rootPath: string): Promise<SourceFile[]> {
     const files: SourceFile[] = [];
     const extensions = DEFAULT_FILE_EXTENSIONS;
+
+    if (!(await fs.pathExists(rootPath))) {
+      log.warn(chalk.yellow(`Source path does not exist: ${rootPath}`));
+      return [];
+    }
+
+    if (!(await fs.lstat(rootPath)).isDirectory()) {
+      log.warn(chalk.yellow(`Source path is not a directory: ${rootPath}`));
+      return [];
+    }
 
     const walk = async (dir: string) => {
       const entries = await fs.readdir(dir, { withFileTypes: true });

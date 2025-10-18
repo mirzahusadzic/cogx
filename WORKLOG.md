@@ -24,6 +24,10 @@ This file serves as an audit trail for the development of this project, aligning
 
 ## Action Log
 
+- **2025-10-18:** Repurposed `structural_analyst` persona for eGemma to handle both Python and JavaScript/TypeScript, providing explicit JSON output instructions and examples for both languages.
+- **2025-10-18:** Fixed `genesis` command argument parsing in `cli.ts` to correctly handle positional `sourcePath` and prevent implicit 'src' default.
+- **2025-10-18:** Added robust path existence and directory checks in `GenesisOrchestrator.discoverFiles` to prevent `ENOENT` errors when scanning source paths.
+- **2025-10-18:** Implemented client-side throttling for `/summarize` endpoint calls in `WorkbenchClient` to respect eGemma rate limits.
 - **2025-10-18:** Enhanced `query` command to leverage `objectStore` for structural data content search, refactored `query.test.ts` for robust testing, and added a troubleshooting guide for Vitest spy issues.
 - **2025-10-18:** Reviewed and confirmed the comprehensive update of `src/cognition-cli/README.md`, detailing the project's research focus, CLI commands, CAKG architecture, and build instructions.
 - **2025-10-18:** **Goal:** Enhanced `Index.search` to include structural data, allowing queries for internal symbols like method names. Updated `IndexDataSchema` to include `structuralData`. Modified `GenesisOrchestrator.processFile` to store `structuralData` in `IndexData`. Added a test case to `query.test.ts` to verify method name search.

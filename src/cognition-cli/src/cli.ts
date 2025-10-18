@@ -22,9 +22,8 @@ program
   .action(initCommand);
 
 program
-  .command('genesis')
+  .command('genesis [sourcePath]')
   .description('Builds the verifiable skeleton of a codebase')
-  .option('-s, --source <path>', 'Path to the source code to analyze', 'src')
   .option(
     '-w, --workbench <url>',
     'URL of the egemma workbench',
@@ -35,7 +34,12 @@ program
     'Root directory of the project being analyzed',
     process.cwd()
   )
-  .action(genesisCommand);
+  .action((sourcePath, options) => {
+    genesisCommand({
+      ...options,
+      source: sourcePath || options.source || 'src',
+    });
+  });
 
 program
   .command('query <question>')

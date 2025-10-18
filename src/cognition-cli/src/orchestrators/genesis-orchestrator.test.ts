@@ -36,6 +36,7 @@ vi.mock('fs-extra', async () => {
       readdir: (dirPath: string, options?: object) =>
         actualVol.promises.readdir(dirPath, options),
       stat: (filePath: string) => actualVol.promises.stat(filePath),
+      lstat: (filePath: string) => actualVol.promises.lstat(filePath),
       remove: (path: string) =>
         actualVol.promises.rm(path, { recursive: true, force: true }),
       readJSON: (filePath: string) =>
