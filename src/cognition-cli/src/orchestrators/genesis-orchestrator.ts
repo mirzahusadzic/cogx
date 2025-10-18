@@ -227,13 +227,20 @@ export class GenesisOrchestrator {
       filePath.replace(/\//g, '_')
     );
 
-    console.log('Garbage Collect: allIndexedFiles', allIndexedFiles);
+    const normalizedAllIndexedFiles = allIndexedFiles.map((filePath) =>
+      filePath.replace(/\//g, '_')
+    );
+
+    console.log(
+      'Garbage Collect: normalizedAllIndexedFiles',
+      normalizedAllIndexedFiles
+    );
     console.log(
       'Garbage Collect: normalizedProcessedFiles',
       normalizedProcessedFiles
     );
 
-    const staleEntries = allIndexedFiles.filter(
+    const staleEntries = normalizedAllIndexedFiles.filter(
       (indexedFile) => !normalizedProcessedFiles.includes(indexedFile)
     );
 

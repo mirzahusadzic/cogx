@@ -33,6 +33,19 @@ vi.mock('fs-extra', async () => {
       readFile: promises.readFile,
       writeFile: promises.writeFile,
       stat: promises.stat,
+      writeJSON: (
+        filePath: string,
+        data: object,
+        options?: { spaces?: number }
+      ) =>
+        promises.writeFile(
+          filePath,
+          JSON.stringify(data, null, options?.spaces || 0)
+        ),
+      readJSON: (filePath: string) =>
+        promises
+          .readFile(filePath, 'utf-8')
+          .then((content) => JSON.parse(content.toString())),
     },
   };
 });
@@ -116,5 +129,35 @@ describe('PGCManager Garbage Collection', () => {
     // Verify the directory and file still exist
     expect(vol.existsSync(shardedDir)).toBe(true);
     expect(vol.existsSync(objectPath)).toBe(true);
+  });
+
+  it('should remove stale index entries during garbage collection', async () => {
+    const filePath1 = 'src_file1.ts';
+    const filePath2 = 'src_file2.ts';
+
+    // Add two entries to the index
+    await pgcManager.index.set(filePath1, {
+      content_hash: 'hash1',
+      structural_hash: 'shash1',
+      status: 'Valid',
+      history: ['transform1'],
+    });
+    await pgcManager.index.set(filePath2, {
+      content_hash: 'hash2',
+      structural_hash: 'shash2',
+      status: 'Valid',
+      history: ['transform2'],
+    });
+
+    // Verify both entries exist
+    expect(await pgcManager.index.get(filePath1)).toBeDefined();
+    expect(await pgcManager.index.get(filePath2)).toBeDefined();
+
+    // Simulate garbage collection with only filePath1 being processed
+    await genesisOrchestrator['garbageCollect']([filePath1]);
+
+    // Verify filePath1 still exists and filePath2 is removed
+    expect(await pgcManager.index.get(filePath1)).toBeDefined();
+    expect(await pgcManager.index.get(filePath2)).toBeNull();
   });
 });
