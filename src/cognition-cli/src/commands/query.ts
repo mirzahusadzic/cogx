@@ -7,6 +7,18 @@ import {
   InterfaceData,
 } from '../types/structural.js';
 
+export interface DependencyResult {
+  path: string;
+  depth: number;
+  structuralData: StructuralData;
+}
+
+export interface QueryResult {
+  question: string;
+  initialContext: StructuralData[];
+  dependencies: DependencyResult[];
+}
+
 interface QueryOptions {
   projectRoot: string;
   depth: string;
@@ -15,9 +27,10 @@ interface QueryOptions {
 // Helper to find the single best file for a symbol (highest fidelity)
 async function findBestResultForSymbol(
   pgc: PGCManager,
-  symbolName: string
+  symbolName: string,
+  context?: string
 ): Promise<IndexData | null> {
-  const results = await pgc.index.search(symbolName, pgc.objectStore);
+  const results = await pgc.index.search(symbolName, pgc.objectStore, context);
   if (results.length === 0) return null;
 
   let bestResult: IndexData | null = null;
@@ -37,34 +50,42 @@ async function findBestResultForSymbol(
   return bestResult;
 }
 
-export async function queryCommand(question: string, options: QueryOptions) {
+export async function queryCommand(
+  question: string,
+  options: QueryOptions
+): Promise<QueryResult> {
   const pgc = new PGCManager(options.projectRoot);
   const entities = extractEntities(question);
 
+  const queryResult: QueryResult = {
+    question,
+    initialContext: [],
+    dependencies: [],
+  };
+
   let currentResults: IndexData[] = [];
   for (const entity of entities) {
-    const result = await findBestResultForSymbol(pgc, entity);
+    const result = await findBestResultForSymbol(
+      pgc,
+      entity,
+      'initial entity search'
+    );
     if (result) {
       currentResults.push(result);
     }
   }
 
-  const initialContext = await Promise.all(
+  const initialContextBuffers = await Promise.all(
     currentResults.map((r) => pgc.objectStore.retrieve(r.structural_hash))
   );
-  displayResults(question, initialContext);
+  queryResult.initialContext = initialContextBuffers
+    .filter((b) => b)
+    .map((b) => JSON.parse(b!.toString()));
 
   const maxDepth = parseInt(options.depth, 10);
   if (maxDepth > 0 && currentResults.length > 0) {
-    console.log('\n--- Dependencies ---');
-
-    // --- START FIX ---
-    // We will track processed SYMBOLS, not file hashes, to allow exploring
-    // multiple dependencies that live in the same file.
     const processedSymbols = new Set<string>(entities);
-    // --- END FIX ---
 
-    // Initialize lineage for the initial results
     for (const result of currentResults) {
       const buffer = await pgc.objectStore.retrieve(result.structural_hash);
       if (buffer) {
@@ -91,7 +112,7 @@ export async function queryCommand(question: string, options: QueryOptions) {
           const structuralData = JSON.parse(
             structuralDataBuffer.toString()
           ) as StructuralData;
-          const parentLineage = result.path;
+          const parentLineage = result.path!;
 
           const processType = (type: string | undefined, lineage: string) => {
             const cleanType = type?.replace('[]', '').split('|')[0].trim();
@@ -142,7 +163,6 @@ export async function queryCommand(question: string, options: QueryOptions) {
         }
       }
 
-      // Search for each symbol, but only if we haven't processed that symbol before.
       for (const [
         symbol,
         parentLineage,
@@ -152,48 +172,34 @@ export async function queryCommand(question: string, options: QueryOptions) {
         }
         processedSymbols.add(symbol);
 
-        const bestResult = await findBestResultForSymbol(pgc, symbol);
+        const bestResult = await findBestResultForSymbol(
+          pgc,
+          symbol,
+          `dependency search at depth ${currentDepth}`
+        );
         if (bestResult) {
-          const displayResult = { ...bestResult };
-          displayResult.path = `${parentLineage} -> ${symbol}`;
-          newDependenciesForNextLevel.push(displayResult);
+          const structuralDataBuffer = await pgc.objectStore.retrieve(
+            bestResult.structural_hash
+          );
+          if (structuralDataBuffer) {
+            const structuralData = JSON.parse(
+              structuralDataBuffer.toString()
+            ) as StructuralData;
+            queryResult.dependencies.push({
+              path: `${parentLineage} -> ${symbol}`,
+              depth: currentDepth,
+              structuralData: structuralData,
+            });
+            bestResult.path = `${parentLineage} -> ${symbol}`;
+            newDependenciesForNextLevel.push(bestResult);
+          }
         }
       }
-
-      if (newDependenciesForNextLevel.length > 0) {
-        await displayDependencies(
-          newDependenciesForNextLevel,
-          pgc,
-          currentDepth
-        );
-      }
-
       currentResults = newDependenciesForNextLevel;
     }
   }
-}
 
-async function displayDependencies(
-  dependencies: IndexData[],
-  pgc: PGCManager,
-  depth: number
-) {
-  const indent = '  '.repeat(depth);
-  for (const dep of dependencies) {
-    const structuralDataBuffer = await pgc.objectStore.retrieve(
-      dep.structural_hash
-    );
-    if (structuralDataBuffer) {
-      console.log(`\n${indent}Lineage: ${dep.path}`);
-      console.log(
-        `${indent}${JSON.stringify(
-          JSON.parse(structuralDataBuffer.toString()),
-          null,
-          2
-        )}`
-      );
-    }
-  }
+  return queryResult;
 }
 
 function extractEntities(question: string): string[] {
@@ -211,21 +217,82 @@ function extractEntities(question: string): string[] {
   return [...new Set(entities)];
 }
 
-export function displayResults(question: string, context: (Buffer | null)[]) {
-  console.log(`Query: "${question}"`);
-  if (context.every((c) => c === null)) {
-    console.log('No relevant information found.');
-    return;
+export function formatAsHumanReadable(queryResult: QueryResult): string {
+  let output = '';
+  output += `Query: "${queryResult.question}"`;
+
+  if (queryResult.initialContext.length === 0) {
+    output += '\nNo relevant information found.';
+    return output;
   }
-  console.log('--- Relevant Context ---');
-  context.forEach((item, index) => {
-    if (item) {
-      console.log(`\nResult ${index + 1}:`);
-      try {
-        console.log(JSON.stringify(JSON.parse(item.toString()), null, 2));
-      } catch (e) {
-        console.log(item.toString());
-      }
-    }
+
+  output += '\n--- Relevant Context ---';
+  queryResult.initialContext.forEach((item, index) => {
+    output += `\n\nResult ${index + 1}:`;
+    output += `\n${JSON.stringify(item, null, 2)}`;
   });
+
+  if (queryResult.dependencies.length > 0) {
+    output += '\n\n--- Dependencies ---';
+    queryResult.dependencies.forEach((dep) => {
+      const indent = '  '.repeat(dep.depth);
+      output += `\n${indent}Lineage: ${dep.path}`;
+      output += `\n${indent}${JSON.stringify(dep.structuralData, null, 2)}`;
+    });
+  }
+
+  return output;
+}
+
+export function formatAsLineageJSON(queryResult: QueryResult): string {
+  const { question, dependencies } = queryResult;
+
+  const rootData = queryResult.initialContext[0];
+  if (!rootData) {
+    return JSON.stringify({ symbol: question, lineage: [] }, null, 2);
+  }
+
+  const lineageItems = dependencies.map((dep) => {
+    const parts = dep.path.split(' -> ');
+    const type = parts[parts.length - 1];
+    const parentType = parts.length > 1 ? parts[parts.length - 2] : question;
+
+    // Find parent data by searching through the whole result
+    const parentData = [
+      ...queryResult.initialContext,
+      ...dependencies.map((d) => d.structuralData),
+    ].find(
+      (d) =>
+        d.classes?.[0]?.name === parentType ||
+        d.functions?.[0]?.name === parentType ||
+        d.interfaces?.[0]?.name === parentType
+    );
+
+    const relationship = parentData
+      ? inferRelationship(parentData, type)
+      : 'uses';
+
+    return { type, relationship, depth: dep.depth };
+  });
+
+  const uniqueLineage = Array.from(
+    new Map(lineageItems.map((item) => [JSON.stringify(item), item])).values()
+  );
+
+  return JSON.stringify({ symbol: question, lineage: uniqueLineage }, null, 2);
+}
+
+function inferRelationship(
+  parent: StructuralData,
+  childSymbol: string
+): string {
+  for (const c of parent.classes || []) {
+    if (c.base_classes?.includes(childSymbol)) return 'extends';
+    if (c.implements_interfaces?.includes(childSymbol)) return 'implements';
+    for (const m of c.methods || []) {
+      if (m.returns?.includes(childSymbol)) return 'returns';
+      if (m.params?.some((p) => p.type.includes(childSymbol))) return 'uses';
+    }
+  }
+  return 'uses'; // Default
 }

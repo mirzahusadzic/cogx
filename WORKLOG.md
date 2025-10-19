@@ -24,6 +24,9 @@ This file serves as an audit trail for the development of this project, aligning
 
 ## Action Log
 
+- **2025-10-19:** Add --lineage flag to query command for JSON output.
+- **2025-10-19:** Start implementing --lineage flag for query command.
+
 - **2025-10-18:**Implemented JavaScript AST parser by extending existing TypeScript parser.
 - **2025-10-18:** Repurposed `structural_analyst` persona for eGemma to handle both Python and JavaScript/TypeScript, providing explicit JSON output instructions and examples for both languages.
 - **2025-10-18:** Fixed `genesis` command argument parsing in `cli.ts` to correctly handle positional `sourcePath` and prevent implicit 'src' default.

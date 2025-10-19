@@ -2,7 +2,11 @@
 import { Command } from 'commander';
 import { genesisCommand } from './commands/genesis.js';
 import { initCommand } from './commands/init.js';
-import { queryCommand } from './commands/query.js';
+import {
+  queryCommand,
+  formatAsHumanReadable,
+  formatAsLineageJSON,
+} from './commands/query.js';
 import { auditCommand } from './commands/audit.js';
 import dotenv from 'dotenv';
 
@@ -41,6 +45,23 @@ program
     });
   });
 
+interface QueryCommandOptions {
+  projectRoot: string;
+  depth: string;
+  lineage: boolean;
+}
+
+async function queryAction(question: string, options: QueryCommandOptions) {
+  const queryResult = await queryCommand(question, options);
+  if (options.lineage) {
+    const jsonOutput = formatAsLineageJSON(queryResult);
+    console.log(jsonOutput);
+  } else {
+    const humanReadableOutput = formatAsHumanReadable(queryResult);
+    console.log(humanReadableOutput);
+  }
+}
+
 program
   .command('query <question>')
   .description('Query the codebase for information')
@@ -50,7 +71,8 @@ program
     process.cwd()
   )
   .option('-d, --depth <level>', 'Depth of dependency traversal', '0')
-  .action(queryCommand);
+  .option('--lineage', 'Output the dependency lineage in JSON format')
+  .action(queryAction);
 
 program
   .command('audit:transformations <filePath>')

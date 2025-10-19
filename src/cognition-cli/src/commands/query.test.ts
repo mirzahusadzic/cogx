@@ -1,4 +1,3 @@
-// src/commands/query.test.ts
 import {
   describe,
   it,
@@ -9,29 +8,22 @@ import {
   Mocked,
 } from 'vitest';
 
-// We import the module directly without mocking it.
-import { queryCommand } from './query.js';
+import { queryCommand, QueryResult } from './query.js';
 import { PGCManager } from '../core/pgc-manager.js';
 import { IndexData } from '../types/index.js';
 import { Index } from '../core/index.js';
 import { ObjectStore } from '../core/object-store.js';
+import { StructuralData } from '../types/structural.js';
 
-// We only mock the external dependency.
 vi.mock('../core/pgc-manager.js');
 
-describe('queryCommand with depth', () => {
+describe('queryCommand', () => {
   let mockIndex: Mocked<Index>;
   let mockObjectStore: Mocked<ObjectStore>;
-  let consoleLogSpy: vi.SpyInstance;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Instead of mocking our own module, we spy on the global `console.log`.
-    // This will capture all output from the command.
-    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
-    // Setup PGCManager mock as before.
     const mockIndexInstance = {
       search: vi.fn(),
       getAll: vi.fn(),
@@ -49,54 +41,66 @@ describe('queryCommand with depth', () => {
   });
 
   afterEach(() => {
-    // Restore the original console.log after each test.
     vi.restoreAllMocks();
   });
 
-  describe('search for method names', () => {
-    it('should find a method name within structural data', async () => {
-      const mockStructuralData = {
-        language: 'typescript',
-        classes: [
-          {
-            name: 'StructuralMiner',
-            methods: [{ name: 'extractStructure' }],
-          },
-        ],
-      };
+  it('should return a QueryResult object with the correct structure', async () => {
+    const mockStructuralData: StructuralData = {
+      language: 'typescript',
+      classes: [
+        {
+          name: 'RootClass',
+          methods: [],
+          base_classes: ['BaseClass'],
+        },
+      ],
+    };
+    const mockDepData: StructuralData = {
+      language: 'typescript',
+      classes: [{ name: 'BaseClass', methods: [] }],
+    };
 
-      const mockIndexData: IndexData = {
-        content_hash: 'test-content-hash',
-        structural_hash: 'test-structural-hash',
-        status: 'Valid',
-        history: [],
-      };
+    const mockIndexData: IndexData = {
+      content_hash: 'test-content-hash',
+      structural_hash: 'test-structural-hash',
+      status: 'Valid',
+      history: [],
+    };
+    const mockDepIndexData: IndexData = {
+      content_hash: 'dep-content-hash',
+      structural_hash: 'dep-structural-hash',
+      status: 'Valid',
+      history: [],
+    };
 
-      // Mock dependency calls
-      mockIndex.search.mockResolvedValue([mockIndexData]);
-      mockObjectStore.retrieve.mockResolvedValue(
-        Buffer.from(JSON.stringify(mockStructuralData))
-      );
-
-      // Execute the real command
-      await queryCommand('extractStructure', {
-        projectRoot: './test-root',
-        depth: '0',
-      });
-
-      // --- The New Assertion Strategy ---
-
-      // 1. Check that console.log was called at all.
-      expect(consoleLogSpy).toHaveBeenCalled();
-
-      // 2. Combine all calls to console.log into a single string for easy searching.
-      const allLogs = consoleLogSpy.mock.calls.flat().join('\n');
-
-      // 3. Assert that the key parts of the expected output are present in the logs.
-      expect(allLogs).toContain('Query: "extractStructure"');
-      expect(allLogs).toContain('--- Relevant Context ---');
-      expect(allLogs).toContain('StructuralMiner');
-      expect(allLogs).toContain('extractStructure');
+    mockIndex.search.mockImplementation(async (symbol: string) => {
+      if (symbol === 'RootClass') return [mockIndexData];
+      if (symbol === 'BaseClass') return [mockDepIndexData];
+      return [];
     });
+
+    mockObjectStore.retrieve.mockImplementation(async (hash: string) => {
+      if (hash === 'test-structural-hash')
+        return Buffer.from(JSON.stringify(mockStructuralData));
+      if (hash === 'dep-structural-hash')
+        return Buffer.from(JSON.stringify(mockDepData));
+      return null;
+    });
+
+    const result: QueryResult = await queryCommand('RootClass', {
+      projectRoot: './test-root',
+      depth: '1',
+    });
+
+    expect(result.question).toBe('RootClass');
+    expect(result.initialContext).toHaveLength(1);
+    expect(result.initialContext[0].classes?.[0].name).toBe('RootClass');
+
+    expect(result.dependencies).toHaveLength(1);
+    expect(result.dependencies[0].depth).toBe(1);
+    expect(result.dependencies[0].path).toBe('RootClass -> BaseClass');
+    expect(result.dependencies[0].structuralData.classes?.[0].name).toBe(
+      'BaseClass'
+    );
   });
 });

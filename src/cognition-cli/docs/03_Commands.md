@@ -56,21 +56,23 @@ The `query` command (`src/commands/query.ts`) allows you to explore the structur
 ### `query` Command Usage
 
 ```bash
-cognition-cli query <symbol-name> --projectRoot <path-to-project-root> [--depth <depth>]
+cognition-cli query <symbol-name> --projectRoot <path-to-project-root> [--depth <depth>] [--lineage]
 ```
 
 - `<symbol-name>`: The name of the symbol you want to query (e.g., `StructuralMiner`, `extractStructure`).
 - `--projectRoot`: Specifies the root of your project, used to locate the `.open_cognition` directory.
 - `--depth`: (Optional) The depth of dependency traversal. Defaults to `0` (only direct results). Use `1` for first-level dependencies, `2` for second-level, and so on.
+- `--lineage`: (Optional) When present, the command will output the full lineage of dependencies, showing the path from the queried symbol to its deepest dependencies.
 
 ### `query` Command Functionality
 
 The `query` command performs the following:
 
 - **Entity Extraction:** Identifies potential symbols from your query string (e.g., PascalCase or camelCase terms).
+- **Contextual Search Logging:** Provides detailed logging for search operations, indicating the context (e.g., "initial entity search", "dependency search at depth X") to clarify the purpose of each search.
 - **Index Lookup:** Uses the PGC `Index` to find files whose paths or components match the canonicalized symbol name.
 - **Structural Data Retrieval:** Retrieves the associated `StructuralData` from the `ObjectStore` for matching files.
-- **Dependency Traversal:** If a `--depth` greater than 0 is specified, it recursively traverses the dependencies (base classes, interfaces, parameter types) of the found symbols, providing a broader context.
+- **Dependency Traversal:** If a `--depth` greater than 0 is specified, it recursively traverses the dependencies (base classes, interfaces, parameter types) of the found symbols, providing a broader context. When `--lineage` is used, the output will include the full dependency path.
 
 ## 4. `audit` Command: Verifying PGC Integrity
 

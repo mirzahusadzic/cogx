@@ -75,7 +75,11 @@ export class Index {
   }
 
   // This is the new multi-threaded search coordinator.
-  async search(term: string, objectStore?: ObjectStore): Promise<IndexData[]> {
+  async search(
+    term: string,
+    objectStore?: ObjectStore,
+    context?: string
+  ): Promise<IndexData[]> {
     if (!objectStore) {
       console.warn(
         'Performing a fast, filename-only search. Provide an ObjectStore for a full deep search.'
@@ -101,7 +105,7 @@ export class Index {
     const promises: Promise<IndexData[]>[] = [];
 
     console.log(
-      `[Search] Starting parallel search with ${numWorkers} workers for ${allData.length} files.`
+      `[Search]${context ? ` (${context})` : ''} Starting parallel search with ${numWorkers} workers for ${allData.length} files.`
     );
 
     for (let i = 0; i < numWorkers; i++) {

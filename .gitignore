@@ -1,3 +1,5 @@
-
 # CogX Generated Knowledge Base
 .open_cognition/
+
+# Gemini related files
+.gemini/
