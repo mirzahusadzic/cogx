@@ -129,9 +129,15 @@ export class LanceVectorStore {
       );
     }
 
+    // ✅ CHECK FOR EXISTING VECTOR WITH SAME ID
+    const existingVector = await this.getVector(id);
+    if (existingVector) {
+      console.log(`🔄 Replacing existing vector: ${id}`);
+      await this.deleteVector(id); // Remove the old one first
+    }
+
     const record: VectorRecord = {
       id: id,
-
       embedding: embedding,
       symbol: metadata.symbol as string,
       structural_signature: metadata.structural_signature as string,
@@ -140,20 +146,15 @@ export class LanceVectorStore {
       lineage_hash: metadata.lineage_hash as string,
     };
 
-    // Use mergeInsert builder pattern
-    await this.table!.mergeInsert('id') // Key column for matching
-      .whenMatchedUpdateAll() // Update all columns if id matches
-      .whenNotMatchedInsertAll() // Insert new record if id does not match
-      .execute([record]); // Execute with the data
+    // After deleting the old one, we can simply add the new record.
+    await this.table!.add([record]);
 
     return id;
   }
 
   async similaritySearch(
     queryEmbedding: number[],
-
     topK: number,
-
     filter?: { symbol?: string; architectural_role?: string }
   ): Promise<
     Array<{
@@ -170,13 +171,12 @@ export class LanceVectorStore {
       );
     }
 
-    let query = this.table!.search(queryEmbedding).limit(topK);
+    let query = this.table!.search(queryEmbedding).limit(topK * 2); // Get extra for deduplication
 
     // Apply filters if provided
     if (filter?.symbol) {
       query = query.where(`symbol = '${filter.symbol}'`);
     }
-
     if (filter?.architectural_role) {
       query = query.where(
         `architectural_role = '${filter.architectural_role}'`
@@ -184,25 +184,34 @@ export class LanceVectorStore {
     }
 
     const records = await query.toArray();
-    return records
 
+    // ✅ DEDUPLICATE RESULTS BY SYMBOL
+    const uniqueResults = new Map();
+    records
       .filter((result): result is LanceDBSearchResult =>
         this.isValidSearchResult(result)
       )
+      .forEach((result) => {
+        // Keep only the first occurrence of each symbol (highest similarity due to sorting)
+        if (!uniqueResults.has(result.symbol)) {
+          uniqueResults.set(result.symbol, result);
+        }
+      });
 
+    // Convert back to array and take topK
+    return Array.from(uniqueResults.values())
       .map((result) => ({
         id: result.id,
-
         similarity: this.calculateSimilarity(result._distance),
-
         metadata: {
-          symbol: result.symbol as string,
-          structural_signature: result.structural_signature as string,
-          architectural_role: result.architectural_role as string,
-          computed_at: result.computed_at as string,
-          lineage_hash: result.lineage_hash as string,
+          symbol: result.symbol,
+          structural_signature: result.structural_signature,
+          architectural_role: result.architectural_role,
+          computed_at: result.computed_at,
+          lineage_hash: result.lineage_hash,
         },
-      }));
+      }))
+      .slice(0, topK); // Ensure we respect the topK limit
   }
 
   async getVector(id: string): Promise<VectorRecord | null> {
@@ -266,6 +275,46 @@ export class LanceVectorStore {
       }
       return isValid && record.id !== 'dummy_record';
     }) as VectorRecord[];
+  }
+
+  async removeDuplicateVectors(): Promise<number> {
+    if (!this.isInitialized) await this.initialize();
+
+    const allVectors = await this.getAllVectors();
+
+    // Group by symbol and find duplicates
+    const symbolMap = new Map();
+    const duplicatesToDelete: string[] = [];
+
+    allVectors.forEach((vec) => {
+      if (!symbolMap.has(vec.symbol)) {
+        // First time seeing this symbol - keep it
+        symbolMap.set(vec.symbol, vec);
+      } else {
+        // Duplicate found - keep the most recent one
+        const existing = symbolMap.get(vec.symbol);
+        const existingTime = new Date(existing.computed_at).getTime();
+        const currentTime = new Date(vec.computed_at).getTime();
+
+        if (currentTime > existingTime) {
+          // Current vector is newer, delete the existing one
+          duplicatesToDelete.push(existing.id);
+          symbolMap.set(vec.symbol, vec);
+        } else {
+          // Existing vector is newer, delete the current one
+          duplicatesToDelete.push(vec.id);
+        }
+      }
+    });
+
+    // Delete all duplicates
+    for (const id of duplicatesToDelete) {
+      await this.deleteVector(id);
+      console.log(`🗑️ Deleted duplicate vector: ${id}`);
+    }
+
+    console.log(`✅ Removed ${duplicatesToDelete.length} duplicate vectors`);
+    return duplicatesToDelete.length;
   }
 
   async close(): Promise<void> {
