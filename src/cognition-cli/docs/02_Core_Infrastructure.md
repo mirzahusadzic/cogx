@@ -40,7 +40,14 @@ The `ReverseDeps` (`src/core/reverse-deps.ts`) component provides an efficient m
 - **Mechanism:** As structural data is extracted (e.g., imports, function calls), dependencies are recorded. The `ReverseDeps` component stores mappings from a dependent object's hash to the hashes of objects it depends on, and vice-versa. This data is sharded and stored within the `reverse_deps/` directory.
 - **Data Types:** Graph-like structures mapping object hashes to lists of dependent/dependency hashes.
 
-### 5. StructuralOracle: The Verifier of Coherence
+### 5. LanceVectorStore: The Semantic Search Engine
+
+The `LanceVectorStore` (`src/lib/patterns/vector-db/lance-vector-store.ts`) is responsible for storing and querying vector embeddings of structural patterns. It enables semantic search capabilities within the PGC, allowing for the discovery of similar code structures based on their embedded representations.
+
+- **Mechanism:** It uses LanceDB to store vector embeddings along with associated metadata (e.g., symbol, structural signature, architectural role). It provides methods for storing new vectors, performing similarity searches, and retrieving individual vectors.
+- **Data Types:** `VectorRecord` objects, containing an ID, embedding (array of numbers), and metadata about the structural pattern.
+
+### 6. StructuralOracle: The Verifier of Coherence
 
 The `StructuralOracle` (`src/core/oracles/structural-oracle.ts`) plays a crucial role in maintaining the integrity and coherence of the PGC. It performs a series of checks to ensure that all references within the PGC are valid and consistent.
 

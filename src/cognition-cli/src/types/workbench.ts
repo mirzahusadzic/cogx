@@ -13,3 +13,12 @@ export interface ASTParseRequest {
   language: string;
   filename: string;
 }
+
+export interface EmbedRequest {
+  signature: string;
+  dimensions: number;
+}
+
+export interface EmbedResponse {
+  [key: string]: number[];
+}

@@ -85,4 +85,8 @@ program
   .option('-l, --limit <number>', 'Number of transformations to show', '5')
   .action(auditCommand);
 
+import { overlayCommand } from './commands/overlay.js';
+
+program.addCommand(overlayCommand);
+
 program.parse();

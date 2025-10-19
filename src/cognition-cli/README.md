@@ -6,7 +6,7 @@
 
 > **Research Focus**: Enhancing LLM Code Understanding Through Structured Knowledge Graphs
 
-The Cognition Command-Line Interface (`cognition-cli`) implements the **Programmable Graph of Code (PGC)** - a verifiable, content-addressable knowledge graph system for codebases. This research explores how structured knowledge graphs can overcome current limitations in AI-based code understanding.
+The Cognition Command-Line Interface (`cognition-cli`) implements the **Grounded Context Pool (PGC)** - a verifiable, content-addressable knowledge graph system for codebases. This research explores how structured knowledge graphs can overcome current limitations in AI-based code understanding.
 
 ## Research Significance
 

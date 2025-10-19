@@ -85,6 +85,9 @@ export const StructuralDataSchema = z.object({
   interfaces: z.array(InterfaceDataSchema).optional(),
   exports: z.array(z.string()).optional(),
   dependencies: z.array(z.string()).optional(),
+  depth: z.number().optional(), // Added depth
+  type: z.string().optional(), // Added type
+  relationship: z.string().optional(), // Added relationship
   extraction_method: z.enum([
     'ast_native',
     'ast_remote',

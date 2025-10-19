@@ -1,5 +1,10 @@
 # CogX Generated Knowledge Base
 .open_cognition/
+src/cognition-cli/patterns.lancedb/
 
 # Gemini related files
 .gemini/
+
+# macOS specific files
+.DS_Store
+

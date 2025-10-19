@@ -24,6 +24,7 @@
     "execa": "^8.0.1",
     "form-data": "^4.0.0",
     "fs-extra": "^11.2.0",
+    "@lancedb/lancedb": "^0.22.2",
     "js-yaml": "^4.1.0",
     "undici": "^7.16.0",
     "upath": "^2.0.1",

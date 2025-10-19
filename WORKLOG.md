@@ -24,9 +24,17 @@ This file serves as an audit trail for the development of this project, aligning
 
 ## Action Log
 
+- **2025-10-19:** Add Structural Pattern Recognition and Similarity Search:
+  - **Functionality:** The `cognition-cli` now possesses the core intelligence to automatically extract, store, and analyze structural patterns within codebases. This enables the identification of recurring architectural elements and the ability to find structurally similar code components.
+  - **Key Components:**
+    - **`OverlayOrchestrator`:** Manages the end-to-end process of generating and updating structural patterns. It iterates through source files, extracts structural data, and orchestrates the pattern generation workflow.
+    - **`StructuralPatternsManager`:** Responsible for generating unique "structural signatures" and inferring "architectural roles" (e.g., 'orchestrator', 'data_access', 'service') for code components. It also facilitates similarity searches.
+    - **`LanceVectorStore`:** A new local vector database integrated to efficiently store and query vector embeddings of these structural patterns.
+    - **`WorkbenchClient Enhancements`:** Extended to interact with an external Workbench service for generating high-dimensional embeddings of structural signatures, including robust client-side rate limiting.
+  - **User Impact:** This lays the foundation for future
+    - Perform similarity searches to discover structurally analogous code components, aiding in code understanding, refactoring, and architectural consistency.
 - **2025-10-19:** Add --lineage flag to query command for JSON output.
 - **2025-10-19:** Start implementing --lineage flag for query command.
-
 - **2025-10-18:**Implemented JavaScript AST parser by extending existing TypeScript parser.
 - **2025-10-18:** Repurposed `structural_analyst` persona for eGemma to handle both Python and JavaScript/TypeScript, providing explicit JSON output instructions and examples for both languages.
 - **2025-10-18:** Fixed `genesis` command argument parsing in `cli.ts` to correctly handle positional `sourcePath` and prevent implicit 'src' default.

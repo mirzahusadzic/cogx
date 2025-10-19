@@ -2,10 +2,17 @@ import { fetch, FormData } from 'undici';
 import type { BodyInit } from 'undici';
 import { Blob } from 'node:buffer';
 import type { StructuralData, SummarizeResponse } from '../types/structural.js';
-import type { SummarizeRequest, ASTParseRequest } from '../types/workbench.js';
+import type {
+  SummarizeRequest,
+  ASTParseRequest,
+  EmbedRequest,
+  EmbedResponse,
+} from '../types/workbench.js';
 import {
   SUMMARIZE_RATE_LIMIT_SECONDS,
   SUMMARIZE_RATE_LIMIT_CALLS,
+  EMBED_RATE_LIMIT_SECONDS,
+  EMBED_RATE_LIMIT_CALLS,
 } from '../config.js';
 
 interface SummarizeQueueItem {
@@ -14,16 +21,26 @@ interface SummarizeQueueItem {
   reject: (reason?: unknown) => void;
 }
 
+interface EmbedQueueItem {
+  request: EmbedRequest;
+  resolve: (value: EmbedResponse | PromiseLike<EmbedResponse>) => void;
+  reject: (reason?: unknown) => void;
+}
+
 export class WorkbenchClient {
   private apiKey: string;
   private summarizeQueue: SummarizeQueueItem[] = [];
+  private embedQueue: EmbedQueueItem[] = [];
   private isProcessingSummarizeQueue: boolean = false;
+  private isProcessingEmbedQueue: boolean = false;
+
+  // Rate limiting state for summarize
   private lastSummarizeCallTime: number = 0;
   private summarizeCallCount: number = 0;
-  private readonly SUMMARIZE_RATE_LIMIT_SECONDS_CONFIG: number =
-    SUMMARIZE_RATE_LIMIT_SECONDS;
-  private readonly SUMMARIZE_RATE_LIMIT_CALLS_CONFIG: number =
-    SUMMARIZE_RATE_LIMIT_CALLS;
+
+  // Rate limiting state for embed
+  private lastEmbedCallTime: number = 0;
+  private embedCallCount: number = 0;
 
   constructor(private baseUrl: string) {
     this.apiKey = process.env.WORKBENCH_API_KEY || '';
@@ -53,6 +70,13 @@ export class WorkbenchClient {
     });
   }
 
+  async embed(request: EmbedRequest): Promise<EmbedResponse> {
+    return new Promise((resolve, reject) => {
+      this.embedQueue.push({ request, resolve, reject });
+      this.processEmbedQueue();
+    });
+  }
+
   private async processSummarizeQueue(): Promise<void> {
     if (this.isProcessingSummarizeQueue) {
       return;
@@ -60,19 +84,7 @@ export class WorkbenchClient {
     this.isProcessingSummarizeQueue = true;
 
     while (this.summarizeQueue.length > 0) {
-      const now = Date.now();
-      const timeElapsed = now - this.lastSummarizeCallTime;
-
-      if (
-        timeElapsed < this.SUMMARIZE_RATE_LIMIT_SECONDS_CONFIG * 1000 &&
-        this.summarizeCallCount >= this.SUMMARIZE_RATE_LIMIT_CALLS_CONFIG
-      ) {
-        const timeToWait =
-          this.SUMMARIZE_RATE_LIMIT_SECONDS_CONFIG * 1000 - timeElapsed;
-        await new Promise((resolve) => setTimeout(resolve, timeToWait));
-        this.summarizeCallCount = 0; // Reset count after waiting
-        this.lastSummarizeCallTime = Date.now();
-      }
+      await this.waitForSummarizeRateLimit();
 
       const { request, resolve, reject } = this.summarizeQueue.shift()!;
       try {
@@ -103,11 +115,6 @@ export class WorkbenchClient {
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('Summarize request failed:', {
-            status: response.status,
-            statusText: response.statusText,
-            body: errorText,
-          });
           throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
 
@@ -119,15 +126,88 @@ export class WorkbenchClient {
     this.isProcessingSummarizeQueue = false;
   }
 
+  private async processEmbedQueue(): Promise<void> {
+    if (this.isProcessingEmbedQueue) {
+      return;
+    }
+    this.isProcessingEmbedQueue = true;
+
+    while (this.embedQueue.length > 0) {
+      await this.waitForEmbedRateLimit();
+
+      const { request, resolve, reject } = this.embedQueue.shift()!;
+      try {
+        // FIX: Send as FormData, not JSON
+        const formData = new FormData();
+        const signatureBuffer = Buffer.from(request.signature);
+        const blob = new Blob([signatureBuffer], { type: 'text/plain' });
+        // The server expects a 'file' field
+        formData.set('file', blob, 'signature.txt');
+
+        const response = await fetch(
+          `${this.baseUrl}/embed?dimensions=${request.dimensions}`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${this.apiKey}`,
+            },
+            body: formData as unknown as BodyInit,
+          }
+        );
+
+        this.embedCallCount++;
+        this.lastEmbedCallTime = Date.now();
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+
+        resolve((await response.json()) as EmbedResponse);
+      } catch (error) {
+        reject(error);
+      }
+    }
+    this.isProcessingEmbedQueue = false;
+  }
+
+  private async waitForSummarizeRateLimit(): Promise<void> {
+    const now = Date.now();
+    const timeElapsed = now - this.lastSummarizeCallTime;
+
+    if (
+      timeElapsed < SUMMARIZE_RATE_LIMIT_SECONDS * 1000 &&
+      this.summarizeCallCount >= SUMMARIZE_RATE_LIMIT_CALLS
+    ) {
+      const timeToWait = SUMMARIZE_RATE_LIMIT_SECONDS * 1000 - timeElapsed;
+      await new Promise((resolve) => setTimeout(resolve, timeToWait));
+      this.summarizeCallCount = 0;
+      this.lastSummarizeCallTime = Date.now();
+    }
+  }
+
+  private async waitForEmbedRateLimit(): Promise<void> {
+    const now = Date.now();
+    const timeElapsed = now - this.lastEmbedCallTime;
+
+    if (
+      timeElapsed < EMBED_RATE_LIMIT_SECONDS * 1000 &&
+      this.embedCallCount >= EMBED_RATE_LIMIT_CALLS
+    ) {
+      const timeToWait = EMBED_RATE_LIMIT_SECONDS * 1000 - timeElapsed;
+      await new Promise((resolve) => setTimeout(resolve, timeToWait));
+      this.embedCallCount = 0;
+      this.lastEmbedCallTime = Date.now();
+    }
+  }
+
   async parseAST(request: ASTParseRequest): Promise<StructuralData> {
     const formData = new FormData();
     const fileBuffer = Buffer.from(request.content);
 
-    // Create a Blob with filename metadata
     const blob = new Blob([fileBuffer], { type: 'text/x-python' });
     formData.set('file', blob, request.filename);
 
-    // Append language field
     formData.set('language', request.language);
 
     const response = await fetch(`${this.baseUrl}/parse-ast`, {
@@ -140,11 +220,6 @@ export class WorkbenchClient {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Parse AST request failed:', {
-        status: response.status,
-        statusText: response.statusText,
-        body: errorText,
-      });
       throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
 
