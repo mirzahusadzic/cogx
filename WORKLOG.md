@@ -24,6 +24,21 @@ This file serves as an audit trail for the development of this project, aligning
 
 ## Action Log
 
+- **2025-10-19:** Implement demo-ready enhancements for `patterns` commands:
+  - **Functionality:**
+    - Enhanced `patterns:find-similar` with rich formatting using `chalk` and added a `--json` option for raw output.
+    - Introduced `patterns:analyze` command to display architectural role distribution.
+    - Introduced `patterns:compare` command to visualize dependency lineage differences between two symbols.
+  - **User Impact:** Provides a more visually appealing and informative CLI experience, making the `cognition-cli` demo-ready with advanced pattern analysis and comparison capabilities.
+- **2025-10-19:** Documented `patterns find-similar` command:
+  - **Functionality:** Updated `src/cognition-cli/docs/03_Commands.md` and `src/cognition-cli/README.md` to include documentation for the newly added `patterns find-similar` command, detailing its usage and functionality.
+  - **User Impact:** Ensures users are aware of and can effectively utilize the new structural pattern similarity search feature.
+- **2025-10-19:** Add `patterns find-similar` command for structural pattern similarity search:
+  - **Functionality:** Implemented a new CLI command `cognition-cli patterns find-similar <symbol> --top-k <number>` that allows users to find code components structurally similar to a given symbol. This command leverages the `StructuralPatternsManager` and `LanceVectorStore` to perform vector-based similarity searches.
+  - **User Impact:** Provides a powerful new capability for code exploration, refactoring, and identifying architectural patterns, enhancing code understanding and maintainability.
+- **2025-10-19:** Optimize Index.search for small datasets:
+  - **Functionality:** Modified the `Index.search` method to dynamically switch between single-threaded and multi-threaded search based on the number of files. For datasets smaller than `WORKER_THRESHOLD` (100 files), it now performs a single-threaded search to avoid the overhead of worker creation and inter-process communication.
+  - **User Impact:** Significantly improves search performance for smaller projects by reducing unnecessary worker overhead, leading to faster response times.  
 - **2025-10-19:** Add Structural Pattern Recognition and Similarity Search:
   - **Functionality:** The `cognition-cli` now possesses the core intelligence to automatically extract, store, and analyze structural patterns within codebases. This enables the identification of recurring architectural elements and the ability to find structurally similar code components.
   - **Key Components:**

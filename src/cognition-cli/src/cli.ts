@@ -8,6 +8,7 @@ import {
   formatAsLineageJSON,
 } from './commands/query.js';
 import { auditCommand } from './commands/audit.js';
+import { addPatternsCommands } from './commands/patterns.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -88,5 +89,6 @@ program
 import { overlayCommand } from './commands/overlay.js';
 
 program.addCommand(overlayCommand);
+addPatternsCommands(program);
 
 program.parse();

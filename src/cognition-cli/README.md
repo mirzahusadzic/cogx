@@ -114,6 +114,141 @@ cognition-cli audit <file-path> --projectRoot <path-to-project-root> [--limit <n
 - **Transformation History Review:** Displays the transformation history for a given file, showing details of each transformation (goal, fidelity, verification result, inputs, outputs).
 - **PGC Coherence Check:** Verifies that all content hashes, structural hashes, and transform IDs referenced in the file's history exist within the PGC.
 
+## 5. `patterns` Command: Managing and Querying Structural Patterns
+
+The `patterns` command (`src/commands/patterns.ts`) provides functionality for working with structural patterns extracted from your codebase. This includes finding similar patterns based on their structural signatures.
+
+### `patterns find-similar` Command Usage
+
+```bash
+cognition-cli patterns find-similar <symbol> --top-k <number> [--json]
+```
+
+- `<symbol>`: The name of the symbol (e.g., a class, function, or interface) for which you want to find similar structural patterns.
+- `--top-k`: (Optional) The number of top similar patterns to return. Defaults to `10`.
+- `--json`: (Optional) When present, the command will output the raw JSON results instead of the human-readable formatted output.
+
+### `patterns find-similar` Command Functionality
+
+The `patterns find-similar` command performs the following:
+
+- **Vector Database Initialization:** Initializes the local LanceDB vector store, which holds the vector embeddings of structural patterns.
+- **Workbench Client Initialization:** Connects to the `eGemma` workbench to potentially generate embeddings or leverage its capabilities for similarity search.
+- **Similarity Search:** Uses the `StructuralPatternsManager` to query the vector database for patterns structurally similar to the provided `<symbol>`. The search is based on the vector embeddings of the structural signatures.
+- **Rich Output Formatting:** By default, results are displayed with rich formatting, including color-coded symbols, architectural roles, similarity bars, and explanations. The `--json` flag can be used to get raw JSON output.
+
+#### Example Output
+
+```bash
+✅ Opened existing LanceDB table: structural_patterns
+
+🔍 Patterns similar to StructuralMiner:
+
+1. SLMExtractor [component]
+   ██████████████████ 91.4%
+   Shared patterns: uses:SummarizeRequest:3.00, uses:WorkbenchClient:1.00, uses:SourceFile:1.00
+
+2. LLMSupervisor [component]
+   ██████████████████ 88.2%
+   Shared patterns: uses:SummarizeRequest:3.00, uses:WorkbenchClient:1.00, uses:SourceFile:1.00
+
+3. GenesisOrchestrator [component]
+   ████████████████ 81.3%
+   Shared patterns: uses:SummarizeRequest:3.00, uses:StructuralMiner:1.00, uses:WorkbenchClient:1.00
+
+4. WorkbenchClient [component]
+   ███████████████ 76.1%
+   Shared patterns: uses:SummarizeRequest:3.00, uses:WorkbenchClient:1.00
+
+5. StructuralPatternsManager [component]
+   ██████████████ 72.2%
+   Shared patterns: uses:SummarizeRequest:3.00, uses:WorkbenchClient:1.00
+
+6. SourceFile [component]
+   ██████████████ 69.3%
+   Shared patterns: uses:SourceFile:1.00, uses:ASTParserRegistry:1.00
+
+7. JavaScriptParser [component]
+   █████████████ 68.1%
+   Shared patterns: uses:SourceFile:1.00, uses:ASTParserRegistry:1.00
+
+8. TypeScriptParser [component]
+   █████████████ 66.1%
+   Shared patterns: uses:SourceFile:1.00, uses:ASTParserRegistry:1.00
+
+9. ASTParserRegistry [component]
+   █████████████ 63.4%
+   Shared patterns:
+
+10. StructuralOracle [component]
+   ████████████ 59.7%
+   Shared patterns:
+```
+
+### `patterns analyze` Command Usage
+
+```bash
+cognition-cli patterns analyze
+```
+
+### `patterns analyze` Command Functionality
+
+The `patterns analyze` command performs the following:
+
+- **Vector Database Initialization:** Initializes the local LanceDB vector store.
+- **Retrieve All Patterns:** Fetches all stored structural patterns from the vector database.
+- **Architectural Role Distribution:** Groups patterns by their inferred architectural role (e.g., 'orchestrator', 'data_access', 'service') and counts the occurrences of each role.
+
+#### `patterns analyze` Example Output
+
+```bash
+✅ Opened existing LanceDB table: structural_patterns
+
+📊 Architectural Pattern Distribution:
+
+component       ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ 25
+```
+
+### `patterns compare` Command Usage
+
+```bash
+cognition-cli patterns compare <symbol1> <symbol2>
+```
+
+- `<symbol1>`: The first symbol to compare.
+- `<symbol2>`: The second symbol to compare.
+
+### `patterns compare` Command Functionality
+
+The `patterns compare` command performs the following:
+
+- **Lineage Retrieval:** Retrieves the dependency lineage for both `<symbol1>` and `<symbol2>` up to a specified depth (currently 3).
+- **Dependency Comparison:** Identifies shared dependencies, as well as dependencies unique to each symbol.
+- **Formatted Output:** Displays a clear comparison of shared and unique dependencies, highlighting the structural similarities and differences between the two symbols.
+
+#### `patterns compare` Example Output
+
+```bash
+🔗 Comparing StructuralMiner vs StructuralPatternsManager:
+
+Shared dependencies:
+  ● WorkbenchClient
+  ● SummarizeRequest
+  ● EmbedRequest
+  ● ASTParseRequest
+
+Unique to StructuralMiner:
+  ● SourceFile
+  ● Language
+
+Unique to StructuralPatternsManager:
+  ● PGCManager
+  ● LanceVectorStore
+  ● StructuralData
+  ● QueryOptions
+  ● QueryResult
+```
+
 ## Research Applications
 
 The PGC architecture enables novel approaches to:

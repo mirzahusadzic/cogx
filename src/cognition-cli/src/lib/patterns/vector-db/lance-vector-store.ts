@@ -217,6 +217,15 @@ export class LanceVectorStore {
 
     const record = records[0];
 
+    // Convert LanceDB Vector object to native JavaScript array
+    if (
+      record.embedding &&
+      typeof record.embedding === 'object' &&
+      record.embedding.constructor.name === 'Vector'
+    ) {
+      record.embedding = Array.from(record.embedding);
+    }
+
     if (!this.isValidVectorRecord(record)) {
       console.warn(`Invalid vector record found for id: ${id}`);
 
@@ -239,10 +248,24 @@ export class LanceVectorStore {
 
     const records = await this.table!.query().toArray();
 
-    return records.filter(
-      (record) =>
-        this.isValidVectorRecord(record) && record.id !== 'dummy_record'
-    ) as VectorRecord[];
+    return records.filter((record) => {
+      // Apply Vector to Array conversion for each record
+      if (
+        record.embedding &&
+        typeof record.embedding === 'object' &&
+        record.embedding.constructor.name === 'Vector'
+      ) {
+        record.embedding = Array.from(record.embedding);
+      }
+      const isValid = this.isValidVectorRecord(record);
+      if (!isValid) {
+        console.warn(
+          `[LanceVectorStore] Invalid vector record found in getAllVectors:`,
+          record
+        );
+      }
+      return isValid && record.id !== 'dummy_record';
+    }) as VectorRecord[];
   }
 
   async close(): Promise<void> {
@@ -260,18 +283,43 @@ export class LanceVectorStore {
   // Type guards for safety
 
   private isValidVectorRecord(record: unknown): record is VectorRecord {
-    return (
-      !!record &&
-      typeof (record as VectorRecord).id === 'string' &&
-      Array.isArray((record as VectorRecord).embedding) &&
-      (record as VectorRecord).embedding.length ===
-        DEFAULT_EMBEDDING_DIMENSIONS &&
-      typeof (record as VectorRecord).symbol === 'string' &&
-      typeof (record as VectorRecord).structural_signature === 'string' &&
-      typeof (record as VectorRecord).architectural_role === 'string' &&
-      typeof (record as VectorRecord).computed_at === 'string' &&
-      typeof (record as VectorRecord).lineage_hash === 'string'
-    );
+    const r = record as VectorRecord;
+
+    if (!r) return false;
+
+    if (typeof r.id !== 'string') {
+      return false;
+    }
+
+    if (!Array.isArray(r.embedding)) {
+      return false;
+    }
+
+    if (r.embedding.length !== DEFAULT_EMBEDDING_DIMENSIONS) {
+      return false;
+    }
+
+    if (typeof r.symbol !== 'string') {
+      return false;
+    }
+
+    if (typeof r.structural_signature !== 'string') {
+      return false;
+    }
+
+    if (typeof r.architectural_role !== 'string') {
+      return false;
+    }
+
+    if (typeof r.computed_at !== 'string') {
+      return false;
+    }
+
+    if (typeof r.lineage_hash !== 'string') {
+      return false;
+    }
+
+    return true;
   }
 
   private isValidSearchResult(result: unknown): result is LanceDBSearchResult {

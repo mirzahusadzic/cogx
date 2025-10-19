@@ -4,6 +4,7 @@ import { Worker } from 'worker_threads';
 import os from 'os';
 
 import { IndexData, IndexDataSchema } from '../types/index.js';
+import { StructuralData } from '../types/structural.js';
 import { ObjectStore } from './object-store.js';
 
 function canonicalizeSymbol(symbol: string): string {
@@ -100,7 +101,20 @@ export class Index {
       return [];
     }
 
-    const numWorkers = Math.min(os.cpus().length, allData.length);
+    // CRITICAL: Don't spawn workers for small datasets
+    const WORKER_THRESHOLD = 100; // Only use workers if >100 files
+    if (allData.length < WORKER_THRESHOLD) {
+      console.log(
+        `[Search]${context ? ` (${context})` : ''} Running single-threaded search for ${allData.length} files.`
+      );
+      return this.searchSingleThreaded(allData, term, objectStore);
+    }
+
+    // For large datasets, use workers
+    const numWorkers = Math.min(
+      os.cpus().length,
+      Math.ceil(allData.length / 20)
+    );
     const chunkSize = Math.ceil(allData.length / numWorkers);
     const promises: Promise<IndexData[]>[] = [];
 
@@ -153,6 +167,59 @@ export class Index {
     }
 
     return Array.from(uniqueMatches.values());
+  }
+
+  // Add single-threaded search method
+  private async searchSingleThreaded(
+    allData: IndexData[],
+    term: string,
+    objectStore: ObjectStore
+  ): Promise<IndexData[]> {
+    const canonicalTerm = canonicalizeSymbol(term);
+    const matches: IndexData[] = [];
+
+    for (const data of allData) {
+      try {
+        const structuralDataBuffer = await objectStore.retrieve(
+          data.structural_hash
+        );
+        if (structuralDataBuffer) {
+          const structuralData = JSON.parse(
+            structuralDataBuffer.toString()
+          ) as StructuralData;
+
+          const foundInValue = (value: unknown): boolean => {
+            if (typeof value !== 'object' || value === null) return false;
+            if (
+              'name' in value &&
+              typeof value.name === 'string' &&
+              canonicalizeSymbol(value.name) === canonicalTerm
+            )
+              return true;
+            if (
+              'exports' in value &&
+              Array.isArray(value.exports) &&
+              value.exports.some(
+                (e) =>
+                  typeof e === 'string' &&
+                  canonicalizeSymbol(e) === canonicalTerm
+              )
+            )
+              return true;
+            if (Array.isArray(value)) return value.some(foundInValue);
+            return Object.values(value).some(foundInValue);
+          };
+
+          if (foundInValue(structuralData)) {
+            matches.push(data);
+          }
+        }
+      } catch (e) {
+        console.warn(`Search failed on file ${data.path}: ${e}`);
+      }
+    }
+
+    return matches;
   }
 
   public getCanonicalKey(key: string): string {

@@ -4,6 +4,7 @@ import { WorkbenchClient } from '../executors/workbench-client.js';
 import { StructuralData } from '../types/structural.js';
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../config.js';
 import { EmbedResponse } from '../types/workbench.js';
+import chalk from 'chalk';
 
 export interface PatternMetadata {
   symbol: string;
@@ -197,7 +198,8 @@ export class StructuralPatternsManager {
       PatternMetadataSchema
     );
     if (!targetMetadata) {
-      throw new Error(`No pattern found for symbol: ${symbol}`);
+      console.log(chalk.yellow(`No pattern found for symbol: ${symbol}`));
+      return [];
     }
 
     // Get target vector
