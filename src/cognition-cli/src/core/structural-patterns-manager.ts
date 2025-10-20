@@ -7,7 +7,10 @@ import {
 } from '../lib/patterns/vector-db/lance-vector-store.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
 import { StructuralData } from '../types/structural.js';
-import { DEFAULT_EMBEDDING_DIMENSIONS } from '../config.js';
+import {
+  DEFAULT_EMBEDDING_DIMENSIONS,
+  DEFAULT_EMBEDDING_MODEL_NAME,
+} from '../config.js';
 import { EmbedResponse } from '../types/workbench.js';
 import chalk from 'chalk';
 
@@ -21,7 +24,7 @@ export interface PatternMetadata {
   vectorId: string;
   validation: {
     sourceHash: string;
-    embeddingModelVersion: string;
+    embeddingModelVersion: typeof DEFAULT_EMBEDDING_MODEL_NAME;
   };
 }
 
@@ -37,7 +40,7 @@ const PatternMetadataSchema = z.object({
   vectorId: z.string(),
   validation: z.object({
     sourceHash: z.string(),
-    embeddingModelVersion: z.string(),
+    embeddingModelVersion: z.literal(DEFAULT_EMBEDDING_MODEL_NAME),
   }),
 });
 
@@ -100,7 +103,7 @@ export class StructuralPatternsManager implements PatternManager {
       computedAt: new Date().toISOString(),
       validation: {
         sourceHash: sourceHash,
-        embeddingModelVersion: 'eGemma-v2-alpha',
+        embeddingModelVersion: DEFAULT_EMBEDDING_MODEL_NAME,
       },
       vectorId: vectorId, // Store reference to vector DB entry
     };
