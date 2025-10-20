@@ -16,10 +16,8 @@ export interface VectorRecord extends Record<string, unknown> {
   id: string;
   symbol: string;
   embedding: number[];
-  structural_signature: string;
-  architectural_role: string;
-  computed_at: string;
-  symbol_structural_data_hash: string;
+  symbol_structural_data_hash?: string;
+  lineage_hash?: string;
 }
 
 interface LanceDBSearchResult extends Record<string, unknown> {
@@ -27,13 +25,15 @@ interface LanceDBSearchResult extends Record<string, unknown> {
   id: string;
   _distance: number;
   symbol: string;
+  embedding: number[];
   structural_signature: string;
   architectural_role: string;
   computed_at: string;
-  symbol_structural_data_hash: string;
+  symbol_structural_data_hash?: string;
+  lineage_hash?: string;
 }
 
-const VECTOR_RECORD_SCHEMA = new Schema([
+export const VECTOR_RECORD_SCHEMA = new Schema([
   new Field('id', new Utf8()),
   new Field('symbol', new Utf8()),
   new Field(
@@ -57,17 +57,20 @@ export class LanceVectorStore {
 
   constructor(private pgcRoot: string) {}
 
-  async initialize(tableName: string = 'structural_patterns'): Promise<void> {
+  async initialize(
+    tableName: string = 'structural_patterns',
+    schema: Schema = VECTOR_RECORD_SCHEMA
+  ): Promise<void> {
     // Prevent multiple simultaneous initializations
     if (this.initializationPromise) {
       return this.initializationPromise;
     }
 
-    this.initializationPromise = this.doInitialize(tableName);
+    this.initializationPromise = this.doInitialize(tableName, schema);
     return this.initializationPromise;
   }
 
-  private async doInitialize(tableName: string): Promise<void> {
+  private async doInitialize(tableName: string, schema: Schema): Promise<void> {
     try {
       const dbPath = path.join(this.pgcRoot, 'patterns.lancedb');
       await fs.ensureDir(path.dirname(dbPath));
@@ -86,7 +89,7 @@ export class LanceVectorStore {
           // Table doesn't exist, create it with a dummy record
           const dummyRecord = this.createDummyRecord();
           this.table = await this.db.createTable(tableName, [dummyRecord], {
-            schema: VECTOR_RECORD_SCHEMA,
+            schema,
           });
           // Remove the dummy record after creation
           await this.table!.delete(`id = '${dummyRecord.id}'`);
@@ -145,6 +148,7 @@ export class LanceVectorStore {
       computed_at: metadata.computed_at as string,
       symbol_structural_data_hash:
         metadata.symbol_structural_data_hash as string,
+      lineage_hash: metadata.lineage_hash as string,
     };
 
     // After deleting the old one, we can simply add the new record.
@@ -210,6 +214,7 @@ export class LanceVectorStore {
           architectural_role: result.architectural_role,
           computed_at: result.computed_at,
           symbol_structural_data_hash: result.symbol_structural_data_hash,
+          lineage_hash: result.lineage_hash,
         },
       }))
       .slice(0, topK); // Ensure we respect the topK limit
@@ -294,8 +299,8 @@ export class LanceVectorStore {
       } else {
         // Duplicate found - keep the most recent one
         const existing = symbolMap.get(vec.symbol);
-        const existingTime = new Date(existing.computed_at).getTime();
-        const currentTime = new Date(vec.computed_at).getTime();
+        const existingTime = new Date(existing.computed_at as string).getTime();
+        const currentTime = new Date(vec.computed_at as string).getTime();
 
         if (currentTime > existingTime) {
           // Current vector is newer, delete the existing one
@@ -353,19 +358,27 @@ export class LanceVectorStore {
       return false;
     }
 
-    if (typeof r.structural_signature !== 'string') {
+    // Optional fields
+    if (r.structural_signature && typeof r.structural_signature !== 'string') {
       return false;
     }
 
-    if (typeof r.architectural_role !== 'string') {
+    if (r.architectural_role && typeof r.architectural_role !== 'string') {
       return false;
     }
 
-    if (typeof r.computed_at !== 'string') {
+    if (r.computed_at && typeof r.computed_at !== 'string') {
       return false;
     }
 
-    if (typeof r.symbol_structural_data_hash !== 'string') {
+    if (
+      r.symbol_structural_data_hash &&
+      typeof r.symbol_structural_data_hash !== 'string'
+    ) {
+      return false;
+    }
+
+    if (r.lineage_hash && typeof r.lineage_hash !== 'string') {
       return false;
     }
 
@@ -373,18 +386,47 @@ export class LanceVectorStore {
   }
 
   private isValidSearchResult(result: unknown): result is LanceDBSearchResult {
-    return (
-      !!result &&
-      typeof (result as LanceDBSearchResult).id === 'string' &&
-      typeof (result as LanceDBSearchResult)._distance === 'number' &&
-      typeof (result as LanceDBSearchResult).symbol === 'string' &&
-      typeof (result as LanceDBSearchResult).structural_signature ===
-        'string' &&
-      typeof (result as LanceDBSearchResult).architectural_role === 'string' &&
-      typeof (result as LanceDBSearchResult).computed_at === 'string' &&
-      typeof (result as LanceDBSearchResult).symbol_structural_data_hash ===
-        'string'
-    );
+    const r = result as LanceDBSearchResult;
+
+    if (!r) return false;
+
+    if (typeof r.id !== 'string') {
+      return false;
+    }
+
+    if (typeof r._distance !== 'number') {
+      return false;
+    }
+
+    if (typeof r.symbol !== 'string') {
+      return false;
+    }
+
+    // Optional fields
+    if (r.structural_signature && typeof r.structural_signature !== 'string') {
+      return false;
+    }
+
+    if (r.architectural_role && typeof r.architectural_role !== 'string') {
+      return false;
+    }
+
+    if (r.computed_at && typeof r.computed_at !== 'string') {
+      return false;
+    }
+
+    if (
+      r.symbol_structural_data_hash &&
+      typeof r.symbol_structural_data_hash !== 'string'
+    ) {
+      return false;
+    }
+
+    if (r.lineage_hash && typeof r.lineage_hash !== 'string') {
+      return false;
+    }
+
+    return true;
   }
 
   private calculateSimilarity(distance: number): number {

@@ -1,5 +1,8 @@
 import { PGCManager } from './pgc-manager.js';
-import { LanceVectorStore } from '../lib/patterns/vector-db/lance-vector-store.js';
+import {
+  LanceVectorStore,
+  VECTOR_RECORD_SCHEMA,
+} from '../lib/patterns/vector-db/lance-vector-store.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
 import { StructuralData } from '../types/structural.js';
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../config.js';
@@ -49,6 +52,7 @@ export class StructuralPatternsManager {
     filePath: string,
     sourceHash: string
   ) {
+    await this.vectorDB.initialize('structural_patterns', VECTOR_RECORD_SCHEMA);
     const signature = this.generateStructuralSignature(symbolStructuralData);
     const architecturalRole = this.inferArchitecturalRole(symbolStructuralData);
 

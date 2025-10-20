@@ -3,8 +3,12 @@ import { PGCManager } from '../core/pgc-manager.js';
 import { LanceVectorStore } from '../lib/patterns/vector-db/lance-vector-store.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
 import { StructuralPatternsManager } from '../core/structural-patterns-manager.js';
-import { LineagePatternsManager } from '../core/lineage-patterns-manager.js';
+import {
+  LineagePatternsManager,
+  LINEAGE_VECTOR_RECORD_SCHEMA,
+} from '../core/lineage-patterns-manager.js';
 import chalk from 'chalk';
+import { VECTOR_RECORD_SCHEMA } from '../lib/patterns/vector-db/lance-vector-store.js';
 
 export function addPatternsCommands(program: Command) {
   const patternsCommand = program
@@ -88,10 +92,20 @@ export function addPatternsCommands(program: Command) {
   patternsCommand
     .command('analyze')
     .description('Analyze architectural patterns across the codebase')
-    .action(async () => {
+    .option(
+      '--type <type>',
+      "The type of patterns to analyze ('structural' or 'lineage')",
+      'structural'
+    )
+    .action(async (options) => {
       const pgc = new PGCManager(process.cwd());
       const vectorDB = new LanceVectorStore(pgc.pgcRoot);
-      await vectorDB.initialize();
+      const tableName = `${options.type}_patterns`;
+      const schema =
+        options.type === 'structural'
+          ? VECTOR_RECORD_SCHEMA
+          : LINEAGE_VECTOR_RECORD_SCHEMA;
+      await vectorDB.initialize(tableName, schema);
 
       const allVectors = await vectorDB.getAllVectors();
 

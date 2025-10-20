@@ -3,7 +3,7 @@ import { OverlayOrchestrator } from '../../orchestrators/overlay-orchestrator.js
 
 const generateCommand = new Command('generate')
   .description(
-    'Generate a specific type of overlay (e.g., structural_patterns).'
+    "Generate a specific type of overlay (e.g., 'structural_patterns', 'lineage_patterns')."
   )
   .argument('<type>', 'The type of overlay to generate')
   .option('-p, --project-root <path>', 'The root of the project.', '.')

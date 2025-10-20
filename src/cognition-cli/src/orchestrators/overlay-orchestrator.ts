@@ -29,28 +29,26 @@ const PatternMetadataSchema = z.object({
 
 export class OverlayOrchestrator {
   private pgc: PGCManager;
-  private vectorDB: LanceVectorStore;
   private workbench: WorkbenchClient;
   private patternManager: StructuralPatternsManager;
   private lineagePatternManager: LineagePatternsManager;
 
-  private constructor(
-    private projectRoot: string,
-    vectorDB: LanceVectorStore
-  ) {
+  private constructor(projectRoot: string) {
     this.pgc = new PGCManager(projectRoot);
-    this.vectorDB = vectorDB;
+    const structuralVectorDB = new LanceVectorStore(this.pgc.pgcRoot);
+    const lineageVectorDB = new LanceVectorStore(this.pgc.pgcRoot);
+
     this.workbench = new WorkbenchClient(
       process.env.WORKBENCH_URL || 'http://localhost:8000'
     );
     this.patternManager = new StructuralPatternsManager(
       this.pgc,
-      this.vectorDB,
+      structuralVectorDB,
       this.workbench
     );
     this.lineagePatternManager = new LineagePatternsManager(
       this.pgc,
-      this.vectorDB,
+      lineageVectorDB,
       this.workbench
     );
   }
@@ -121,10 +119,7 @@ export class OverlayOrchestrator {
   public static async create(
     projectRoot: string
   ): Promise<OverlayOrchestrator> {
-    const pgc = new PGCManager(projectRoot);
-    const vectorDB = new LanceVectorStore(pgc.pgcRoot);
-    await vectorDB.initialize();
-    return new OverlayOrchestrator(projectRoot, vectorDB);
+    return new OverlayOrchestrator(projectRoot);
   }
 
   public async run(

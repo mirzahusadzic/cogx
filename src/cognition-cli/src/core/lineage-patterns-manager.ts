@@ -10,6 +10,30 @@ import { EmbedResponse } from '../types/workbench.js';
 import { formatAsLineageJSON, QueryResult } from '../commands/query.js';
 import chalk from 'chalk';
 import { z } from 'zod';
+import {
+  Field,
+  Schema,
+  Utf8,
+  FixedSizeList,
+  Float,
+  Precision,
+} from 'apache-arrow';
+
+export const LINEAGE_VECTOR_RECORD_SCHEMA = new Schema([
+  new Field('id', new Utf8()),
+  new Field('symbol', new Utf8()),
+  new Field(
+    'embedding',
+    new FixedSizeList(
+      DEFAULT_EMBEDDING_DIMENSIONS,
+      new Field('item', new Float(Precision.DOUBLE))
+    )
+  ),
+  new Field('structural_signature', new Utf8()),
+  new Field('architectural_role', new Utf8()),
+  new Field('computed_at', new Utf8()),
+  new Field('lineage_hash', new Utf8()),
+]);
 
 export class LineagePatternsManager {
   constructor(
@@ -24,6 +48,10 @@ export class LineagePatternsManager {
     queryResult: QueryResult,
     sourceHash: string
   ) {
+    await this.vectorDB.initialize(
+      'lineage_patterns',
+      LINEAGE_VECTOR_RECORD_SCHEMA
+    );
     const lineageSignature = formatAsLineageJSON(queryResult);
 
     const embedResponse: EmbedResponse = await this.workbench.embed({
