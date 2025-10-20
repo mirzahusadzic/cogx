@@ -58,19 +58,38 @@ export class OverlayOrchestrator {
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join('');
 
+    // Strategy 1 (Python-specific): Class or function that matches filename
+    if (data.language === 'python') {
+      const matchingPythonClass = data.classes?.find(
+        (c: ClassData) => c.name === pascalFileName
+      );
+      if (matchingPythonClass) return matchingPythonClass.name;
+
+      const matchingPythonFunction = data.functions?.find(
+        (f: FunctionData) => f.name === fileName
+      );
+      if (matchingPythonFunction) return matchingPythonFunction.name;
+
+      // Fallback for Python: First defined class or function
+      if (data.classes && data.classes.length > 0) return data.classes[0].name;
+      if (data.functions && data.functions.length > 0)
+        return data.functions[0].name;
+    }
+
+    // Strategy 2: Exported class that matches filename (highest confidence)
     const matchingClass = data.classes?.find(
       (c: ClassData) =>
         data.exports?.includes(c.name) && c.name === pascalFileName
     );
     if (matchingClass) return matchingClass.name;
 
-    // Strategy 2: First exported class (common convention)
+    // Strategy 3: First exported class (common convention)
     const firstExportedClass = data.classes?.find((c: ClassData) =>
       data.exports?.includes(c.name)
     );
     if (firstExportedClass) return firstExportedClass.name;
 
-    // Strategy 3: Default export function
+    // Strategy 4: Default export function
     const defaultExport = data.exports?.find((e: string) =>
       e.startsWith('default:')
     );
@@ -81,7 +100,7 @@ export class OverlayOrchestrator {
       if (exportedFunc) return exportedFunc.name;
     }
 
-    // Strategy 4: First exported interface
+    // Strategy 5: First exported interface
     const firstExportedInterface = data.interfaces?.find((i: InterfaceData) =>
       data.exports?.includes(i.name)
     );
