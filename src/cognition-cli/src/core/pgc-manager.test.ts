@@ -8,6 +8,14 @@ import { StructuralMiner } from '../miners/structural-miner.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
 import { StructuralOracle } from './oracles/structural-oracle.js';
 
+vi.mock('fs/promises', async () => {
+  const memfs = await vi.importActual<typeof import('memfs')>('memfs');
+  return {
+    ...memfs.fs.promises,
+    default: memfs.fs.promises,
+  };
+});
+
 // Mock the fs-extra module to use memfs
 vi.mock('fs-extra', async () => {
   const memfs = await vi.importActual<typeof import('memfs')>('memfs');
@@ -163,5 +171,74 @@ describe('GenesisOrchestrator Garbage Collection', () => {
     expect(await pgcManager.index.get(filePath1)).toBeDefined();
     expect(await pgcManager.index.get(filePath2)).toBeNull();
     expect(summary.staleEntries).toBe(1);
+  });
+});
+
+describe('PGCManager Lineage Generation', () => {
+  let pgcManager: PGCManager;
+  const projectRoot = '/project';
+  const pgcRoot = '/project/.open_cognition';
+  const overlayPath = path.join(
+    pgcRoot,
+    'overlays',
+    'structural_patterns',
+    'src'
+  );
+
+  beforeEach(async () => {
+    vol.reset();
+    vol.mkdirSync(overlayPath, { recursive: true });
+
+    pgcManager = new PGCManager(projectRoot);
+    const objectStore = pgcManager.objectStore;
+
+    // Create mock structural data files in the virtual file system
+    const structuralDataA = {
+      classes: [
+        {
+          name: 'A',
+          methods: [
+            {
+              name: 'doSomething',
+              params: [{ name: 'paramB', type: 'B' }],
+            },
+          ],
+        },
+      ],
+    };
+
+    const structuralDataB = {
+      classes: [{ name: 'B', methods: [] }],
+    };
+
+    const dataAContent = JSON.stringify(structuralDataA);
+    const dataBContent = JSON.stringify(structuralDataB);
+
+    vol.writeFileSync(path.join(overlayPath, 'a.ts#A.json'), dataAContent);
+    vol.writeFileSync(path.join(overlayPath, 'b.ts#B.json'), dataBContent);
+
+    // Also store the content in the object store so it can be retrieved by hash
+    await objectStore.store(Buffer.from(dataAContent));
+    await objectStore.store(Buffer.from(dataBContent));
+  });
+
+  it('should generate lineage for a symbol from overlay data', async () => {
+    const structuralDataAContent = vol.readFileSync(
+      path.join(overlayPath, 'a.ts#A.json'),
+      'utf-8'
+    );
+    const structuralDataA = JSON.parse(structuralDataAContent as string);
+
+    const result = await pgcManager.getLineageForStructuralData(
+      structuralDataA,
+      2,
+      overlayPath,
+      'src/a.ts'
+    );
+
+    expect(result.dependencies).toHaveLength(1);
+    const dep = result.dependencies[0];
+    expect(dep.depth).toBe(1);
+    expect(dep.structuralData.classes?.[0].name).toBe('B');
   });
 });

@@ -24,7 +24,7 @@ This file serves as an audit trail for the development of this project, aligning
 
 ## Action Log
 
-2025-10-20: Implemented manifest-driven type lineage generation.
+- **2025-10-20:** Implemented manifest-driven type lineage generation.
 - **2025-10-20:** Refactored vector store to support multiple schemas.
 - **2025-10-20:** Fixed `patterns find-similar` command path resolution.
   - **Functionality:** Corrected `PGCManager` initialization in `src/cognition-cli/src/commands/patterns.ts` to use `process.cwd()`, ensuring `.open_cognition` is located correctly when the command is run from the `cognition-cli` directory. Also ensured `StructuralPatternsManager` correctly resolves overlay keys from the manifest and added missing `path` import.
