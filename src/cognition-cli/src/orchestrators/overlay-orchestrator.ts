@@ -93,118 +93,203 @@ export class OverlayOrchestrator {
     return new OverlayOrchestrator(projectRoot, vectorDB);
   }
 
-  public async run(
-    overlayType: 'structural_patterns' | 'lineage_patterns'
-  ): Promise<void> {
-    await this.vectorDB.initialize(overlayType);
-    const allFiles = await this.pgc.index.getAllData();
+    public async run(
 
-    console.log(`[Overlay] Verifying work for ${allFiles.length} files...`);
-    let processedCount = 0;
-    let skippedCount = 0;
-    const BATCH_SIZE = 50;
+      overlayType: 'structural_patterns' | 'lineage_patterns'
 
-    for (let i = 0; i < allFiles.length; i += BATCH_SIZE) {
-      const batch = allFiles.slice(i, i + BATCH_SIZE);
-      console.log(
-        `[Overlay] Processing batch ${i / BATCH_SIZE + 1}/${Math.ceil(allFiles.length / BATCH_SIZE)}`
-      );
+    ): Promise<void> {
 
-      const processSymbol = async (indexData: IndexData) => {
-        const filePath = indexData.path;
+      if (overlayType === 'lineage_patterns') {
 
-        if (filePath.includes('.test.') || filePath.includes('.spec.')) {
-          skippedCount++;
-          return;
-        }
+        console.log('[Overlay] Generating lineage patterns from manifest...');
 
-        const structuralData = indexData.structuralData;
-        if (!structuralData) {
-          console.warn(
-            `[Overlay] No structural data for ${filePath}, skipping.`
+        await this.lineagePatternManager.generateLineageForAllPatterns();
+
+      } else {
+
+        await this.vectorDB.initialize(overlayType);
+
+        const allFiles = await this.pgc.index.getAllData();
+
+  
+
+        console.log(`[Overlay] Verifying work for ${allFiles.length} files...`);
+
+        let processedCount = 0;
+
+        let skippedCount = 0;
+
+        const BATCH_SIZE = 50;
+
+  
+
+        for (let i = 0; i < allFiles.length; i += BATCH_SIZE) {
+
+          const batch = allFiles.slice(i, i + BATCH_SIZE);
+
+          console.log(
+
+            `[Overlay] Processing batch ${
+
+              i / BATCH_SIZE + 1
+
+            }/${Math.ceil(allFiles.length / BATCH_SIZE)}`
+
           );
-          skippedCount++;
-          return;
+
+  
+
+          const processSymbol = async (indexData: IndexData) => {
+
+            const filePath = indexData.path;
+
+  
+
+            if (filePath.includes('.test.') || filePath.includes('.spec.')) {
+
+              skippedCount++;
+
+              return;
+
+            }
+
+  
+
+            const structuralData = indexData.structuralData;
+
+            if (!structuralData) {
+
+              console.warn(
+
+                `[Overlay] No structural data for ${filePath}, skipping.`
+
+              );
+
+              skippedCount++;
+
+              return;
+
+            }
+
+  
+
+            const symbol = this.findPrimarySymbol(structuralData, filePath);
+
+            if (!symbol) {
+
+              console.warn(
+
+                `[Overlay] No primary symbol found in ${filePath}, skipping.`
+
+              );
+
+              skippedCount++;
+
+              return;
+
+            }
+
+  
+
+            const existingOverlay = await this.pgc.overlays.get(
+
+              overlayType,
+
+              symbol,
+
+              StructuralPatternMetadataSchema
+
+            );
+
+  
+
+            const currentSourceHash = indexData.content_hash;
+
+  
+
+            if (
+
+              existingOverlay &&
+
+              existingOverlay.validation?.sourceHash === currentSourceHash
+
+            ) {
+
+              skippedCount++;
+
+              return;
+
+            }
+
+  
+
+            console.log(
+
+              `[Overlay] Mining pattern for: ${symbol} (from ${filePath})`
+
+            );
+
+  
+
+            try {
+
+              await this.structuralPatternManager.generateAndStorePattern(
+
+                symbol,
+
+                structuralData,
+
+                filePath,
+
+                currentSourceHash
+
+              );
+
+              processedCount++;
+
+            } catch (error) {
+
+              console.error(
+
+                `[Overlay] FAILED to process ${symbol} in ${filePath}: ${
+
+                  error instanceof Error ? error.message : String(error)
+
+                }`
+
+              );
+
+            }
+
+          };
+
+  
+
+          await Promise.all(batch.map(processSymbol));
+
         }
 
-        const symbol = this.findPrimarySymbol(structuralData, filePath);
-        if (!symbol) {
-          console.warn(
-            `[Overlay] No primary symbol found in ${filePath}, skipping.`
-          );
-          skippedCount++;
-          return;
-        }
+  
 
-        let existingOverlay:
-          | LineagePatternMetadata
-          | StructuralPatternMetadata
-          | null;
+        console.log(`\n[Overlay] Processing complete.`);
 
-        if (overlayType === 'lineage_patterns') {
-          existingOverlay = await this.pgc.overlays.get(
-            overlayType,
-            symbol,
-            LineagePatternMetadataSchema
-          );
-        } else {
-          existingOverlay = await this.pgc.overlays.get(
-            overlayType,
-            symbol,
-            StructuralPatternMetadataSchema
-          );
-        }
+        console.log(`- Processed ${processedCount} new/updated files.`);
 
-        const currentSourceHash = indexData.content_hash;
+        console.log(`- Skipped ${skippedCount} up-to-date files.`);
 
-        if (
-          existingOverlay &&
-          existingOverlay.validation?.sourceHash === currentSourceHash
-        ) {
-          skippedCount++;
-          return;
-        }
+  
 
-        console.log(
-          `[Overlay] Mining pattern for: ${symbol} (from ${filePath})`
+        await this.generateManifest(
+
+          allFiles.map((f) => f.path),
+
+          overlayType
+
         );
 
-        try {
-          if (overlayType === 'structural_patterns') {
-            await this.structuralPatternManager.generateAndStorePattern(
-              symbol,
-              structuralData,
-              filePath,
-              currentSourceHash
-            );
-          } else {
-            await this.lineagePatternManager.generateAndStoreLineagePattern(
-              symbol,
-              structuralData,
-              filePath,
-              currentSourceHash
-            );
-          }
-          processedCount++;
-        } catch (error) {
-          console.error(
-            `[Overlay] FAILED to process ${symbol} in ${filePath}: ${error instanceof Error ? error.message : String(error)}`
-          );
-        }
-      };
+      }
 
-      await Promise.all(batch.map(processSymbol));
     }
-
-    console.log(`\n[Overlay] Processing complete.`);
-    console.log(`- Processed ${processedCount} new/updated files.`);
-    console.log(`- Skipped ${skippedCount} up-to-date files.`);
-
-    await this.generateManifest(
-      allFiles.map((f) => f.path),
-      overlayType
-    );
-  }
 
   private async generateManifest(
     filePaths: string[],

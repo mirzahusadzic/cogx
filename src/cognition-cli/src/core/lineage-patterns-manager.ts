@@ -1,4 +1,6 @@
-import { PGCManager } from './pgc-manager.js';
+import path from 'path';
+import fs from 'fs/promises';
+import { PGCManager, LineageQueryResult } from './pgc-manager.js';
 import { PatternManager } from './pattern-manager.js';
 import {
   LanceVectorStore,
@@ -50,20 +52,92 @@ export class LineagePatternsManager implements PatternManager {
     private workbench: WorkbenchClient
   ) {}
 
+  public async generateLineageForAllPatterns(): Promise<void> {
+    const overlayPath = path.join(
+      this.pgc.pgcRoot,
+      'overlays',
+      'structural_patterns'
+    );
+    const manifestPath = path.join(overlayPath, 'manifest.json');
+
+    try {
+      const manifestContent = await fs.readFile(manifestPath, 'utf-8');
+      const manifest = JSON.parse(manifestContent);
+
+      for (const [symbolName, relativeFilePath] of Object.entries(manifest)) {
+        const jsonFileName = `${relativeFilePath}#${symbolName}.json`;
+        const structuralJsonPath = path.join(overlayPath, jsonFileName);
+
+        try {
+          const structuralContent = await fs.readFile(
+            structuralJsonPath,
+            'utf-8'
+          );
+          const structuralData = JSON.parse(
+            structuralContent
+          ) as StructuralData;
+
+          const searchPath = path.dirname(path.join(overlayPath, jsonFileName));
+
+          const sourceHash = '';
+
+          await this.generateAndStoreLineagePattern(
+            symbolName,
+            structuralData,
+            relativeFilePath as string,
+            sourceHash,
+            searchPath
+          );
+        } catch (error) {
+          console.error(
+            chalk.red(
+              `Error processing symbol ${symbolName} from ${structuralJsonPath}:`
+            ),
+            error
+          );
+        }
+      }
+    } catch (error) {
+      console.error(
+        chalk.red(`Error reading or parsing manifest file at ${manifestPath}:`),
+        error
+      );
+    }
+  }
+
+  private _determineMaxDepth(structuralData: StructuralData): number {
+    if (
+      structuralData.classes?.some((c) => (c.methods?.length || 0) > 0) ||
+      structuralData.functions?.some((f) => (f.params?.length || 0) > 0) ||
+      structuralData.interfaces?.some((i) => (i.properties?.length || 0) > 0)
+    ) {
+      return 2;
+    }
+    return 1;
+  }
+
   public async generateAndStoreLineagePattern(
-    symbolName: string, // The name of the symbol (e.g., class name, function name)
-    lineageData: StructuralData, // LineageData for the individual symbol
+    symbolName: string,
+    structuralData: StructuralData,
     filePath: string,
-    sourceHash: string
+    sourceHash: string,
+    searchPath: string
   ) {
     await this.vectorDB.initialize('lineage_patterns');
-    const lineageDataHash = this.pgc.objectStore.computeHash(
-      JSON.stringify(lineageData)
+
+    const maxDepth = this._determineMaxDepth(structuralData);
+
+    const lineageResult = await this.pgc.getLineageForStructuralData(
+      structuralData,
+      maxDepth,
+      searchPath,
+      filePath
     );
-    const signature = this.generateLineageSignature(
-      lineageData,
-      lineageDataHash
-    );
+
+    const lineageJson = this._formatAsLineageJSON(lineageResult);
+    const signature = JSON.stringify(lineageJson, null, 2);
+
+    const lineageDataHash = this.pgc.objectStore.computeHash(signature);
 
     const embedResponse: EmbedResponse = await this.workbench.embed({
       signature,
@@ -83,15 +157,17 @@ export class LineagePatternsManager implements PatternManager {
       JSON.stringify(embedding)
     );
 
-    // Use a combination of filePath and symbolName for vectorId to ensure uniqueness
-    const vectorId = `pattern_${filePath.replace(/[^a-zA-Z0-9]/g, '_')}_${symbolName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    const vectorId = `pattern_${filePath.replace(
+      /[^a-zA-Z0-9]/g,
+      '_'
+    )}_${symbolName.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
     await this.vectorDB.storeVector(vectorId, embedding, {
       symbol: symbolName,
       structural_signature: signature,
-      architectural_role: 'lineage_pattern', // Add a default role
+      architectural_role: 'lineage_pattern',
       computed_at: new Date().toISOString(),
-      lineage_hash: lineageDataHash, // Add this missing field
+      lineage_hash: lineageDataHash,
     });
 
     const metadata: LineagePatternMetadata = {
@@ -105,21 +181,37 @@ export class LineagePatternsManager implements PatternManager {
         sourceHash: sourceHash,
         embeddingModelVersion: DEFAULT_EMBEDDING_MODEL_NAME,
       },
-      vectorId: vectorId, // Store reference to vector DB entry
+      vectorId: vectorId,
     };
 
-    // Use a combination of filePath and symbolName for the overlay key
     const overlayKey = `${filePath}#${symbolName}`;
     await this.pgc.overlays.update('lineage_patterns', overlayKey, metadata);
   }
 
-  private generateLineageSignature(
-    lineageData: StructuralData,
-    lineageDataHash: string
-  ): string {
-    // For now, a simple signature based on the lineage hash
-    // In the future, this could be more sophisticated, incorporating call graph details etc.
-    return `lineage_hash:${lineageDataHash}`;
+  private _formatAsLineageJSON(lineageResult: LineageQueryResult): object {
+    const rootSymbol =
+      lineageResult.initialContext[0]?.classes?.[0]?.name ||
+      lineageResult.initialContext[0]?.functions?.[0]?.name ||
+      lineageResult.initialContext[0]?.interfaces?.[0]?.name ||
+      '';
+
+    const lineage = lineageResult.dependencies.map((dep) => {
+      const depSymbol =
+        dep.structuralData.classes?.[0]?.name ||
+        dep.structuralData.functions?.[0]?.name ||
+        dep.structuralData.interfaces?.[0]?.name ||
+        '';
+      return {
+        type: depSymbol,
+        relationship: 'uses',
+        depth: dep.depth,
+      };
+    });
+
+    return {
+      symbol: rootSymbol,
+      lineage: lineage,
+    };
   }
 
   public async findSimilarPatterns(
@@ -133,7 +225,6 @@ export class LineagePatternsManager implements PatternManager {
       explanation: string;
     }>
   > {
-    // Get target pattern metadata
     const manifest = await this.pgc.overlays.get(
       'lineage_patterns',
       'manifest',
@@ -174,19 +265,16 @@ export class LineagePatternsManager implements PatternManager {
       return [];
     }
 
-    // Get target vector
     const targetVector = await this.vectorDB.getVector(targetMetadata.vectorId);
     if (!targetVector) {
       throw new Error(`Vector not found for symbol: ${symbol}`);
     }
 
-    // Find similar patterns
     const similar = await this.vectorDB.similaritySearch(
       targetVector.embedding,
-      topK + 1 // +1 to exclude self
+      topK + 1
     );
 
-    // Filter out self and format results
     return similar
       .filter((result) => result.id !== targetMetadata.vectorId)
       .map((result) => ({
@@ -195,7 +283,7 @@ export class LineagePatternsManager implements PatternManager {
         architecturalRole: result.metadata.architectural_role as string,
         explanation: this.generateSimilarityExplanation(
           targetMetadata.lineageSignature,
-          result.metadata.structural_signature as string // Compare against structural_signature in DB
+          result.metadata.structural_signature as string
         ),
       }));
   }

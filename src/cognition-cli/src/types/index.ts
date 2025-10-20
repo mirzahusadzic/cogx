@@ -4,6 +4,7 @@ import { StructuralDataSchema } from './structural.js';
 
 export const IndexDataSchema = z.object({
   path: z.string(),
+  symbol: z.string().optional(),
   content_hash: z.string(),
   structural_hash: z.string(),
   status: z.enum(['Valid', 'Invalidated']),

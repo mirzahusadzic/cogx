@@ -1,4 +1,5 @@
 import path from 'path';
+import fs from 'fs/promises';
 
 import { Index } from './index.js';
 import { ObjectStore } from './object-store.js';
@@ -17,6 +18,11 @@ export interface Dependency {
   path: string;
   depth: number;
   structuralData: StructuralData;
+}
+
+export interface LineageQueryResult {
+  dependencies: Dependency[];
+  initialContext: StructuralData[];
 }
 
 export class PGCManager {
@@ -192,6 +198,184 @@ export class PGCManager {
             `dependency search at depth ${currentDepth}`
           );
           if (bestResult) {
+            const structuralDataBuffer = await this.objectStore.retrieve(
+              bestResult.structural_hash
+            );
+            if (structuralDataBuffer) {
+              const structuralData = JSON.parse(
+                structuralDataBuffer.toString()
+              ) as StructuralData;
+              dependencies.push({
+                path: `${parentLineage} -> ${depSymbol}`,
+                depth: currentDepth,
+                structuralData: structuralData,
+              });
+              bestResult.path = `${parentLineage} -> ${depSymbol}`;
+              newDependenciesForNextLevel.push(bestResult);
+            }
+          }
+        }
+        currentResults = newDependenciesForNextLevel;
+      }
+    }
+
+    return { dependencies, initialContext };
+  }
+
+  private async _findOverlaySymbolsInPath(
+    symbolName: string,
+    searchPath: string
+  ): Promise<IndexData[]> {
+    const results: IndexData[] = [];
+    try {
+      const files = await fs.readdir(searchPath);
+      for (const file of files) {
+        if (path.extname(file) === '.json') {
+          const filePath = path.join(searchPath, file);
+          const content = await fs.readFile(filePath, 'utf-8');
+          const data = JSON.parse(content) as StructuralData;
+
+          const isMatch =
+            data.classes?.some((c) => c.name === symbolName) ||
+            data.functions?.some((f) => f.name === symbolName) ||
+            data.interfaces?.some((i) => i.name === symbolName);
+
+          if (isMatch) {
+            // Create a dummy IndexData object
+            const structural_hash = this.objectStore.computeHash(content);
+            const originalPath = file.split('#')[0];
+            results.push({
+              path: originalPath,
+              symbol: symbolName,
+              structural_hash,
+              content_hash: '', // Not available from overlay files
+              status: 'Valid',
+              history: [],
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`Error searching overlay symbols in ${searchPath}:`, error);
+    }
+    return results;
+  }
+
+  public async getLineageForStructuralData(
+    initialStructuralData: StructuralData,
+    maxDepth: number,
+    searchPath: string,
+    filePath: string
+  ): Promise<LineageQueryResult> {
+    const initialSymbol =
+      initialStructuralData.classes?.[0]?.name ||
+      initialStructuralData.functions?.[0]?.name ||
+      initialStructuralData.interfaces?.[0]?.name ||
+      '';
+
+    const initialContext = [initialStructuralData];
+    const dependencies: Dependency[] = [];
+    const processedSymbols = new Set<string>([initialSymbol]);
+
+    // Create a dummy IndexData for the initial symbol to start the process
+    const initialIndexData: IndexData = {
+      path: filePath,
+      symbol: initialSymbol,
+      structural_hash: this.objectStore.computeHash(
+        JSON.stringify(initialStructuralData)
+      ),
+      content_hash: '',
+      status: 'Valid',
+      history: [],
+    };
+    let currentResults = [initialIndexData];
+
+    if (maxDepth > 0 && currentResults.length > 0) {
+      for (let currentDepth = 1; currentDepth <= maxDepth; currentDepth++) {
+        if (currentResults.length === 0) break;
+
+        const newDependenciesForNextLevel: IndexData[] = [];
+        const dependencySymbolToLineage = new Map<string, string>();
+
+        for (const result of currentResults) {
+          const structuralDataBuffer = await this.objectStore.retrieve(
+            result.structural_hash
+          );
+          if (structuralDataBuffer) {
+            const structuralData = JSON.parse(
+              structuralDataBuffer.toString()
+            ) as StructuralData;
+            const parentLineage = result.path!;
+
+            const processType = (type: string | undefined, lineage: string) => {
+              const cleanType = type?.replace('[]', '').split('|')[0].trim();
+              if (
+                cleanType &&
+                ![
+                  'string',
+                  'number',
+                  'boolean',
+                  'any',
+                  'void',
+                  'unknown',
+                ].includes(cleanType)
+              ) {
+                dependencySymbolToLineage.set(cleanType, lineage);
+              }
+            };
+
+            structuralData.classes?.forEach((c: ClassData) => {
+              const classLineage = parentLineage.endsWith(c.name)
+                ? parentLineage
+                : `${parentLineage} -> ${c.name}`;
+              c.base_classes?.forEach((s) =>
+                dependencySymbolToLineage.set(s, classLineage)
+              );
+              c.implements_interfaces?.forEach((s) =>
+                dependencySymbolToLineage.set(s, classLineage)
+              );
+              c.methods?.forEach((m) => {
+                const methodLineage = `${classLineage} -> ${m.name}`;
+                m.params?.forEach((p) => processType(p.type, methodLineage));
+              });
+            });
+
+            structuralData.functions?.forEach((f: FunctionData) => {
+              const funcLineage = parentLineage.endsWith(f.name)
+                ? parentLineage
+                : `${parentLineage} -> ${f.name}`;
+              f.params?.forEach((p) => processType(p.type, funcLineage));
+            });
+
+            structuralData.interfaces?.forEach((i: InterfaceData) => {
+              const interfaceLineage = parentLineage.endsWith(i.name)
+                ? parentLineage
+                : `${parentLineage} -> ${i.name}`;
+              i.properties?.forEach((p) =>
+                processType(p.type, interfaceLineage)
+              );
+            });
+          }
+        }
+
+        for (const [
+          depSymbol,
+          parentLineage,
+        ] of dependencySymbolToLineage.entries()) {
+          if (processedSymbols.has(depSymbol)) {
+            continue;
+          }
+          processedSymbols.add(depSymbol);
+
+          // Use the new overlay-specific search method
+          const searchResults = await this._findOverlaySymbolsInPath(
+            depSymbol,
+            searchPath
+          );
+
+          // For simplicity, we'll take the first result if multiple are found.
+          if (searchResults.length > 0) {
+            const bestResult = searchResults[0];
             const structuralDataBuffer = await this.objectStore.retrieve(
               bestResult.structural_hash
             );
