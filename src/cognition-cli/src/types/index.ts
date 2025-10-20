@@ -9,6 +9,7 @@ export const IndexDataSchema = z.object({
   status: z.enum(['Valid', 'Invalidated']),
   history: z.array(z.string()),
   structuralData: StructuralDataSchema.optional(),
+  lineage_hash: z.string().optional(),
 });
 
 export type IndexData = z.infer<typeof IndexDataSchema>;

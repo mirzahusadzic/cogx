@@ -1,14 +1,13 @@
 import { Command } from 'commander';
 import { PGCManager } from '../core/pgc-manager.js';
-import { LanceVectorStore } from '../lib/patterns/vector-db/lance-vector-store.js';
+import {
+  LanceVectorStore,
+  VectorRecord,
+} from '../lib/patterns/vector-db/lance-vector-store.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
 import { StructuralPatternsManager } from '../core/structural-patterns-manager.js';
-import {
-  LineagePatternsManager,
-  LINEAGE_VECTOR_RECORD_SCHEMA,
-} from '../core/lineage-patterns-manager.js';
+import { LineagePatternsManager } from '../core/lineage-patterns-manager.js';
 import chalk from 'chalk';
-import { VECTOR_RECORD_SCHEMA } from '../lib/patterns/vector-db/lance-vector-store.js';
 
 import { PatternManager } from '../core/pattern-manager.js';
 
@@ -30,11 +29,7 @@ export function addPatternsCommands(program: Command) {
       const pgc = new PGCManager(process.cwd());
       const vectorDB = new LanceVectorStore(pgc.pgcRoot);
       const tableName = `${options.type}_patterns`;
-      const schema =
-        options.type === 'structural'
-          ? VECTOR_RECORD_SCHEMA
-          : LINEAGE_VECTOR_RECORD_SCHEMA;
-      await vectorDB.initialize(tableName, schema);
+      await vectorDB.initialize(tableName);
 
       const workbench = new WorkbenchClient(process.env.WORKBENCH_URL!);
 
@@ -80,21 +75,14 @@ export function addPatternsCommands(program: Command) {
       "The type of patterns to analyze ('structural' or 'lineage')",
       'structural'
     )
-    .action(async (options) => {
+    .action(async () => {
       const pgc = new PGCManager(process.cwd());
       const vectorDB = new LanceVectorStore(pgc.pgcRoot);
-      const tableName = `${options.type}_patterns`;
-      const schema =
-        options.type === 'structural'
-          ? VECTOR_RECORD_SCHEMA
-          : LINEAGE_VECTOR_RECORD_SCHEMA;
-      await vectorDB.initialize(tableName, schema);
-
-      const allVectors = await vectorDB.getAllVectors();
+      const allVectors: VectorRecord[] = await vectorDB.getAllVectors();
 
       // Group by architectural role
       const roleDistribution = allVectors.reduce(
-        (acc, v) => {
+        (acc: Record<string, number>, v: VectorRecord) => {
           const role = v.architectural_role as string;
           acc[role] = (acc[role] || 0) + 1;
           return acc;
@@ -123,11 +111,7 @@ export function addPatternsCommands(program: Command) {
       const pgc = new PGCManager(process.cwd());
       const vectorDB = new LanceVectorStore(pgc.pgcRoot);
       const tableName = `${options.type}_patterns`;
-      const schema =
-        options.type === 'structural'
-          ? VECTOR_RECORD_SCHEMA
-          : LINEAGE_VECTOR_RECORD_SCHEMA;
-      await vectorDB.initialize(tableName, schema);
+      await vectorDB.initialize(tableName);
 
       const workbench = new WorkbenchClient(process.env.WORKBENCH_URL!);
 

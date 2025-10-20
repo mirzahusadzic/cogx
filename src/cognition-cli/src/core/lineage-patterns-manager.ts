@@ -5,39 +5,43 @@ import {
   VectorRecord,
 } from '../lib/patterns/vector-db/lance-vector-store.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
+import { StructuralData } from '../types/structural.js';
 import {
-  LineagePatternMetadata,
-  LineagePatternMetadataSchema,
-} from '../types/lineage.js';
-import { DEFAULT_EMBEDDING_DIMENSIONS } from '../config.js';
+  DEFAULT_EMBEDDING_DIMENSIONS,
+  DEFAULT_EMBEDDING_MODEL_NAME,
+} from '../config.js';
 import { EmbedResponse } from '../types/workbench.js';
-import { formatAsLineageJSON, QueryResult } from '../commands/query.js';
 import chalk from 'chalk';
-import { z } from 'zod';
-import {
-  Field,
-  Schema,
-  Utf8,
-  FixedSizeList,
-  Float,
-  Precision,
-} from 'apache-arrow';
 
-export const LINEAGE_VECTOR_RECORD_SCHEMA = new Schema([
-  new Field('id', new Utf8()),
-  new Field('symbol', new Utf8()),
-  new Field(
-    'embedding',
-    new FixedSizeList(
-      DEFAULT_EMBEDDING_DIMENSIONS,
-      new Field('item', new Float(Precision.DOUBLE))
-    )
-  ),
-  new Field('structural_signature', new Utf8()),
-  new Field('architectural_role', new Utf8()),
-  new Field('computed_at', new Utf8()),
-  new Field('lineage_hash', new Utf8()),
-]);
+export interface LineagePatternMetadata {
+  symbol: string;
+  anchor: string;
+  lineageHash: string;
+  embeddingHash: string;
+  lineageSignature: string;
+  computed_at: string;
+  vectorId: string;
+  validation: {
+    sourceHash: string;
+    embeddingModelVersion: typeof DEFAULT_EMBEDDING_MODEL_NAME;
+  };
+}
+
+import { z } from 'zod';
+
+const LineagePatternMetadataSchema = z.object({
+  symbol: z.string(),
+  anchor: z.string(),
+  lineageHash: z.string(),
+  embeddingHash: z.string(),
+  lineageSignature: z.string(),
+  computedAt: z.string(),
+  vectorId: z.string(),
+  validation: z.object({
+    sourceHash: z.string(),
+    embeddingModelVersion: z.literal(DEFAULT_EMBEDDING_MODEL_NAME),
+  }),
+});
 
 export class LineagePatternsManager implements PatternManager {
   constructor(
@@ -47,19 +51,22 @@ export class LineagePatternsManager implements PatternManager {
   ) {}
 
   public async generateAndStoreLineagePattern(
-    symbolName: string,
+    symbolName: string, // The name of the symbol (e.g., class name, function name)
+    lineageData: StructuralData, // LineageData for the individual symbol
     filePath: string,
-    queryResult: QueryResult,
     sourceHash: string
   ) {
-    await this.vectorDB.initialize(
-      'lineage_patterns',
-      LINEAGE_VECTOR_RECORD_SCHEMA
+    await this.vectorDB.initialize('lineage_patterns');
+    const lineageDataHash = this.pgc.objectStore.computeHash(
+      JSON.stringify(lineageData)
     );
-    const lineageSignature = formatAsLineageJSON(queryResult);
+    const signature = this.generateLineageSignature(
+      lineageData,
+      lineageDataHash
+    );
 
     const embedResponse: EmbedResponse = await this.workbench.embed({
-      signature: lineageSignature,
+      signature,
       dimensions: DEFAULT_EMBEDDING_DIMENSIONS,
     });
 
@@ -68,40 +75,51 @@ export class LineagePatternsManager implements PatternManager {
 
     if (!embedding) {
       console.error(
-        `Could not find embedding for dimension ${DEFAULT_EMBEDDING_DIMENSIONS} in response for lineage of ${symbolName}`
+        `Could not find embedding for dimension ${DEFAULT_EMBEDDING_DIMENSIONS} in response for ${symbolName}`
       );
       return;
     }
-
-    const lineageEmbeddingHash = this.pgc.objectStore.computeHash(
+    const embeddingHash = this.pgc.objectStore.computeHash(
       JSON.stringify(embedding)
     );
 
-    const vectorId = `lineage_pattern_${filePath.replace(/[^a-zA-Z0-9]/g, '_')}_${symbolName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    // Use a combination of filePath and symbolName for vectorId to ensure uniqueness
+    const vectorId = `pattern_${filePath.replace(/[^a-zA-Z0-9]/g, '_')}_${symbolName.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
     await this.vectorDB.storeVector(vectorId, embedding, {
       symbol: symbolName,
-      structural_signature: lineageSignature, // Storing lineageSignature here
-      architectural_role: 'lineage', // A generic role for lineage patterns
+      structural_signature: signature,
+      architectural_role: 'lineage_pattern', // Add a default role
       computed_at: new Date().toISOString(),
-      lineage_hash: lineageEmbeddingHash, // Hash of the embedding itself
+      lineage_hash: lineageDataHash, // Add this missing field
     });
 
     const metadata: LineagePatternMetadata = {
       symbol: symbolName,
       anchor: filePath,
-      lineageSignature,
-      lineageEmbeddingHash,
-      computedAt: new Date().toISOString(),
+      lineageHash: lineageDataHash,
+      embeddingHash,
+      lineageSignature: signature,
+      computed_at: new Date().toISOString(),
       validation: {
         sourceHash: sourceHash,
-        embeddingModelVersion: 'eGemma-v2-alpha',
+        embeddingModelVersion: DEFAULT_EMBEDDING_MODEL_NAME,
       },
-      vectorId: vectorId,
+      vectorId: vectorId, // Store reference to vector DB entry
     };
 
+    // Use a combination of filePath and symbolName for the overlay key
     const overlayKey = `${filePath}#${symbolName}`;
     await this.pgc.overlays.update('lineage_patterns', overlayKey, metadata);
+  }
+
+  private generateLineageSignature(
+    lineageData: StructuralData,
+    lineageDataHash: string
+  ): string {
+    // For now, a simple signature based on the lineage hash
+    // In the future, this could be more sophisticated, incorporating call graph details etc.
+    return `lineage_hash:${lineageDataHash}`;
   }
 
   public async findSimilarPatterns(
@@ -115,6 +133,7 @@ export class LineagePatternsManager implements PatternManager {
       explanation: string;
     }>
   > {
+    // Get target pattern metadata
     const manifest = await this.pgc.overlays.get(
       'lineage_patterns',
       'manifest',
@@ -131,16 +150,14 @@ export class LineagePatternsManager implements PatternManager {
     );
 
     if (matchingKeys.length === 0) {
-      console.log(
-        chalk.yellow(`No lineage pattern found for symbol: ${symbol}`)
-      );
+      console.log(chalk.yellow(`No pattern found for symbol: ${symbol}`));
       return [];
     }
 
     if (matchingKeys.length > 1) {
       console.warn(
         chalk.yellow(
-          `Multiple lineage patterns found for symbol: ${symbol}. Using the first match: ${matchingKeys[0]}`
+          `Multiple patterns found for symbol: ${symbol}. Using the first match: ${matchingKeys[0]}`
         )
       );
     }
@@ -153,22 +170,23 @@ export class LineagePatternsManager implements PatternManager {
       LineagePatternMetadataSchema
     );
     if (!targetMetadata) {
-      console.log(
-        chalk.yellow(`No lineage pattern found for symbol: ${symbol}`)
-      );
+      console.log(chalk.yellow(`No pattern found for symbol: ${symbol}`));
       return [];
     }
 
+    // Get target vector
     const targetVector = await this.vectorDB.getVector(targetMetadata.vectorId);
     if (!targetVector) {
-      throw new Error(`Vector not found for lineage of symbol: ${symbol}`);
+      throw new Error(`Vector not found for symbol: ${symbol}`);
     }
 
+    // Find similar patterns
     const similar = await this.vectorDB.similaritySearch(
       targetVector.embedding,
       topK + 1 // +1 to exclude self
     );
 
+    // Filter out self and format results
     return similar
       .filter((result) => result.id !== targetMetadata.vectorId)
       .map((result) => ({
@@ -177,7 +195,7 @@ export class LineagePatternsManager implements PatternManager {
         architecturalRole: result.metadata.architectural_role as string,
         explanation: this.generateSimilarityExplanation(
           targetMetadata.lineageSignature,
-          result.metadata.structural_signature as string
+          result.metadata.structural_signature as string // Compare against structural_signature in DB
         ),
       }));
   }
@@ -186,14 +204,11 @@ export class LineagePatternsManager implements PatternManager {
     targetSignature: string,
     resultSignature: string
   ): string {
-    // For lineage, a simple comparison of the JSON strings might be too strict.
-    // A more sophisticated comparison would involve parsing the JSON and comparing the lineage items.
-    // For now, we can just indicate if they are identical or not.
-    if (targetSignature === resultSignature) {
-      return 'Identical lineage signature.';
-    } else {
-      return 'Different lineage signature.';
-    }
+    const targetParts = new Set(targetSignature.split(' | '));
+    const resultParts = new Set(resultSignature.split(' | '));
+    const common = [...targetParts].filter((part) => resultParts.has(part));
+
+    return `Shared patterns: ${common.slice(0, 3).join(', ')}`;
   }
 
   public async getVectorForSymbol(
@@ -215,16 +230,14 @@ export class LineagePatternsManager implements PatternManager {
     );
 
     if (matchingKeys.length === 0) {
-      console.log(
-        chalk.yellow(`No lineage pattern found for symbol: ${symbol}`)
-      );
+      console.log(chalk.yellow(`No pattern found for symbol: ${symbol}`));
       return undefined;
     }
 
     if (matchingKeys.length > 1) {
       console.warn(
         chalk.yellow(
-          `Multiple lineage patterns found for symbol: ${symbol}. Using the first match: ${matchingKeys[0]}`
+          `Multiple patterns found for symbol: ${symbol}. Using the first match: ${matchingKeys[0]}`
         )
       );
     }
@@ -237,9 +250,7 @@ export class LineagePatternsManager implements PatternManager {
       LineagePatternMetadataSchema
     );
     if (!targetMetadata) {
-      console.log(
-        chalk.yellow(`No lineage pattern found for symbol: ${symbol}`)
-      );
+      console.log(chalk.yellow(`No pattern found for symbol: ${symbol}`));
       return undefined;
     }
 

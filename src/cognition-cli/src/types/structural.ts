@@ -110,3 +110,20 @@ export interface ASTParser {
   language: Language;
   parse(content: string): Promise<StructuralData>;
 }
+
+export const StructuralPatternMetadataSchema = z.object({
+  symbol: z.string(),
+  anchor: z.string(), // File path of the symbol
+  structuralSignature: z.string(),
+  architecturalRole: z.string(),
+  computedAt: z.string(),
+  symbolStructuralDataHash: z.string(),
+  vectorId: z.string(),
+  validation: z.object({
+    sourceHash: z.string(),
+    embeddingModelVersion: z.string(),
+  }),
+});
+
+export interface StructuralPatternMetadata
+  extends z.infer<typeof StructuralPatternMetadataSchema> {}

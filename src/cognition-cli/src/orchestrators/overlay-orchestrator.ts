@@ -2,53 +2,46 @@ import path from 'path';
 import { PGCManager } from '../core/pgc-manager.js';
 import { LanceVectorStore } from '../lib/patterns/vector-db/lance-vector-store.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
-import { QueryResult } from '../commands/query.js';
 import { StructuralPatternsManager } from '../core/structural-patterns-manager.js';
 import { LineagePatternsManager } from '../core/lineage-patterns-manager.js';
-import { z } from 'zod';
+import { IndexData } from '../types/index.js';
 import {
   ClassData,
   FunctionData,
   InterfaceData,
   StructuralData,
 } from '../types/structural.js';
-
-// Define a Zod schema for the metadata to ensure type safety when reading from disk
-const PatternMetadataSchema = z.object({
-  symbol: z.string(),
-  anchor: z.string(),
-  lineageHash: z.string(),
-  embeddingHash: z.string(),
-  structuralSignature: z.string(),
-  computedAt: z.string(),
-  validation: z.object({
-    sourceHash: z.string(),
-    embeddingModelVersion: z.string(),
-  }),
-});
+import {
+  LineagePatternMetadata,
+  LineagePatternMetadataSchema,
+} from '../types/lineage.js';
+import {
+  StructuralPatternMetadata,
+  StructuralPatternMetadataSchema,
+} from '../types/structural.js';
 
 export class OverlayOrchestrator {
   private pgc: PGCManager;
   private workbench: WorkbenchClient;
-  private patternManager: StructuralPatternsManager;
+  private structuralPatternManager: StructuralPatternsManager;
   private lineagePatternManager: LineagePatternsManager;
 
-  private constructor(projectRoot: string) {
+  private constructor(
+    private projectRoot: string,
+    private vectorDB: LanceVectorStore
+  ) {
     this.pgc = new PGCManager(projectRoot);
-    const structuralVectorDB = new LanceVectorStore(this.pgc.pgcRoot);
-    const lineageVectorDB = new LanceVectorStore(this.pgc.pgcRoot);
-
     this.workbench = new WorkbenchClient(
       process.env.WORKBENCH_URL || 'http://localhost:8000'
     );
-    this.patternManager = new StructuralPatternsManager(
+    this.structuralPatternManager = new StructuralPatternsManager(
       this.pgc,
-      structuralVectorDB,
+      this.vectorDB,
       this.workbench
     );
     this.lineagePatternManager = new LineagePatternsManager(
       this.pgc,
-      lineageVectorDB,
+      this.vectorDB,
       this.workbench
     );
   }
@@ -57,45 +50,23 @@ export class OverlayOrchestrator {
     data: StructuralData,
     filePath: string
   ): string | null {
-    // Strategy 1: Exported class that matches filename (highest confidence)
     const fileName = path.parse(filePath).name;
     const pascalFileName = fileName
       .split(/[-_]/)
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join('');
 
-    // Strategy 1 (Python-specific): Class or function that matches filename
-    if (data.language === 'python') {
-      const matchingPythonClass = data.classes?.find(
-        (c: ClassData) => c.name === pascalFileName
-      );
-      if (matchingPythonClass) return matchingPythonClass.name;
-
-      const matchingPythonFunction = data.functions?.find(
-        (f: FunctionData) => f.name === fileName
-      );
-      if (matchingPythonFunction) return matchingPythonFunction.name;
-
-      // Fallback for Python: First defined class or function
-      if (data.classes && data.classes.length > 0) return data.classes[0].name;
-      if (data.functions && data.functions.length > 0)
-        return data.functions[0].name;
-    }
-
-    // Strategy 2: Exported class that matches filename (highest confidence)
     const matchingClass = data.classes?.find(
       (c: ClassData) =>
         data.exports?.includes(c.name) && c.name === pascalFileName
     );
     if (matchingClass) return matchingClass.name;
 
-    // Strategy 3: First exported class (common convention)
     const firstExportedClass = data.classes?.find((c: ClassData) =>
       data.exports?.includes(c.name)
     );
     if (firstExportedClass) return firstExportedClass.name;
 
-    // Strategy 4: Default export function
     const defaultExport = data.exports?.find((e: string) =>
       e.startsWith('default:')
     );
@@ -106,159 +77,123 @@ export class OverlayOrchestrator {
       if (exportedFunc) return exportedFunc.name;
     }
 
-    // Strategy 5: First exported interface
     const firstExportedInterface = data.interfaces?.find((i: InterfaceData) =>
       data.exports?.includes(i.name)
     );
     if (firstExportedInterface) return firstExportedInterface.name;
 
-    // No clear primary symbol
     return null;
   }
 
   public static async create(
     projectRoot: string
   ): Promise<OverlayOrchestrator> {
-    return new OverlayOrchestrator(projectRoot);
+    const pgc = new PGCManager(projectRoot);
+    const vectorDB = new LanceVectorStore(pgc.pgcRoot);
+    return new OverlayOrchestrator(projectRoot, vectorDB);
   }
 
   public async run(
-    type: 'structural_patterns' | 'lineage_patterns'
+    overlayType: 'structural_patterns' | 'lineage_patterns'
   ): Promise<void> {
+    await this.vectorDB.initialize(overlayType);
     const allFiles = await this.pgc.index.getAllData();
 
     console.log(`[Overlay] Verifying work for ${allFiles.length} files...`);
     let processedCount = 0;
     let skippedCount = 0;
     const BATCH_SIZE = 50;
+
     for (let i = 0; i < allFiles.length; i += BATCH_SIZE) {
       const batch = allFiles.slice(i, i + BATCH_SIZE);
       console.log(
         `[Overlay] Processing batch ${i / BATCH_SIZE + 1}/${Math.ceil(allFiles.length / BATCH_SIZE)}`
       );
 
-      await Promise.all(
-        batch.map(async (indexData) => {
-          const filePath = indexData.path;
+      const processSymbol = async (indexData: IndexData) => {
+        const filePath = indexData.path;
 
-          // Skip test files automatically
-          if (filePath.includes('.test.') || filePath.includes('.spec.')) {
-            skippedCount++;
-            return;
-          }
-          const structuralData = indexData.structuralData;
-          if (!structuralData) {
-            console.warn(
-              `[Overlay] No structural data for ${filePath}, skipping.`
+        if (filePath.includes('.test.') || filePath.includes('.spec.')) {
+          skippedCount++;
+          return;
+        }
+
+        const structuralData = indexData.structuralData;
+        if (!structuralData) {
+          console.warn(
+            `[Overlay] No structural data for ${filePath}, skipping.`
+          );
+          skippedCount++;
+          return;
+        }
+
+        const symbol = this.findPrimarySymbol(structuralData, filePath);
+        if (!symbol) {
+          console.warn(
+            `[Overlay] No primary symbol found in ${filePath}, skipping.`
+          );
+          skippedCount++;
+          return;
+        }
+
+        let existingOverlay:
+          | LineagePatternMetadata
+          | StructuralPatternMetadata
+          | null;
+
+        if (overlayType === 'lineage_patterns') {
+          existingOverlay = await this.pgc.overlays.get(
+            overlayType,
+            symbol,
+            LineagePatternMetadataSchema
+          );
+        } else {
+          existingOverlay = await this.pgc.overlays.get(
+            overlayType,
+            symbol,
+            StructuralPatternMetadataSchema
+          );
+        }
+
+        const currentSourceHash = indexData.content_hash;
+
+        if (
+          existingOverlay &&
+          existingOverlay.validation?.sourceHash === currentSourceHash
+        ) {
+          skippedCount++;
+          return;
+        }
+
+        console.log(
+          `[Overlay] Mining pattern for: ${symbol} (from ${filePath})`
+        );
+
+        try {
+          if (overlayType === 'structural_patterns') {
+            await this.structuralPatternManager.generateAndStorePattern(
+              symbol,
+              structuralData,
+              filePath,
+              currentSourceHash
             );
-            skippedCount++;
-            return;
-          }
-
-          const currentSourceHash = indexData.content_hash;
-
-          const processSymbol = async (
-            symbolName: string,
-            symbolData: ClassData | FunctionData | InterfaceData,
-            kind: 'class' | 'function' | 'interface'
-          ) => {
-            const minimalStructuralData: StructuralData = {
-              language: structuralData.language,
-              docstring: symbolData.docstring || '',
-              imports: [], // Imports are file-level, not symbol-level for this context
-              classes: kind === 'class' ? [symbolData as ClassData] : [],
-              functions:
-                kind === 'function' ? [symbolData as FunctionData] : [],
-              interfaces:
-                kind === 'interface' ? [symbolData as InterfaceData] : [],
-              exports: [], // Exports are file-level
-              dependencies: [], // Dependencies are file-level
-              extraction_method: structuralData.extraction_method,
-              fidelity: structuralData.fidelity,
-            };
-
-            const overlayKey = `${filePath}#${symbolName}`;
-
-            const existingOverlay = await this.pgc.overlays.get(
-              type,
-              overlayKey,
-              PatternMetadataSchema
-            );
-
-            if (
-              existingOverlay &&
-              existingOverlay.validation?.sourceHash === currentSourceHash
-            ) {
-              skippedCount++;
-              return;
-            }
-
-            console.log(
-              `[Overlay] Mining pattern for: ${symbolName} (from ${filePath})`
-            );
-            try {
-              if (type === 'structural_patterns') {
-                await this.patternManager.generateAndStorePattern(
-                  symbolName,
-                  minimalStructuralData,
-                  filePath,
-                  currentSourceHash
-                );
-              } else if (type === 'lineage_patterns') {
-                // Generate and store lineage patterns
-                const { dependencies, initialContext } =
-                  await this.pgc.getLineageForSymbol(symbolName, {
-                    maxDepth: 5,
-                  });
-                const queryResult: QueryResult = {
-                  question: symbolName, // Use symbol name as a dummy question
-                  dependencies,
-                  initialContext,
-                };
-                await this.lineagePatternManager.generateAndStoreLineagePattern(
-                  symbolName,
-                  filePath,
-                  queryResult,
-                  currentSourceHash
-                );
-              }
-              processedCount++;
-            } catch (error) {
-              console.error(
-                `[Overlay] FAILED to process ${symbolName} in ${filePath}:`,
-                error
-              );
-            }
-          };
-
-          // Process classes
-          if (structuralData.classes) {
-            await Promise.all(
-              structuralData.classes.map((cls) =>
-                processSymbol(cls.name, cls, 'class')
-              )
+          } else {
+            await this.lineagePatternManager.generateAndStoreLineagePattern(
+              symbol,
+              structuralData,
+              filePath,
+              currentSourceHash
             );
           }
+          processedCount++;
+        } catch (error) {
+          console.error(
+            `[Overlay] FAILED to process ${symbol} in ${filePath}: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+      };
 
-          // Process functions
-          if (structuralData.functions) {
-            await Promise.all(
-              structuralData.functions.map((func) =>
-                processSymbol(func.name, func, 'function')
-              )
-            );
-          }
-
-          // Process interfaces
-          if (structuralData.interfaces) {
-            await Promise.all(
-              structuralData.interfaces.map((iface) =>
-                processSymbol(iface.name, iface, 'interface')
-              )
-            );
-          }
-        })
-      );
+      await Promise.all(batch.map(processSymbol));
     }
 
     console.log(`\n[Overlay] Processing complete.`);
@@ -267,47 +202,28 @@ export class OverlayOrchestrator {
 
     await this.generateManifest(
       allFiles.map((f) => f.path),
-      type
+      overlayType
     );
   }
 
   private async generateManifest(
     filePaths: string[],
-    type: 'structural_patterns' | 'lineage_patterns'
+    overlayType: 'structural_patterns' | 'lineage_patterns'
   ): Promise<void> {
     console.log('[Overlay] Generating pattern manifest...');
     const manifest: Record<string, string> = {};
+
     for (const filePath of filePaths) {
       const indexData = await this.pgc.index.get(filePath);
       if (!indexData || !indexData.structuralData) continue;
 
-      const structuralData = indexData.structuralData;
-
-      // Add classes to manifest
-      if (structuralData.classes) {
-        structuralData.classes.forEach((cls) => {
-          const overlayKey = `${filePath}#${cls.name}`;
-          manifest[overlayKey] = filePath;
-        });
-      }
-
-      // Add functions to manifest
-      if (structuralData.functions) {
-        structuralData.functions.forEach((func) => {
-          const overlayKey = `${filePath}#${func.name}`;
-          manifest[overlayKey] = filePath;
-        });
-      }
-
-      // Add interfaces to manifest
-      if (structuralData.interfaces) {
-        structuralData.interfaces.forEach((iface) => {
-          const overlayKey = `${filePath}#${iface.name}`;
-          manifest[overlayKey] = filePath;
-        });
+      const symbol = this.findPrimarySymbol(indexData.structuralData, filePath);
+      if (symbol) {
+        manifest[symbol] = filePath;
       }
     }
-    await this.pgc.overlays.update(type, 'manifest', manifest);
+
+    await this.pgc.overlays.update(overlayType, 'manifest', manifest);
     console.log('[Overlay] Manifest generated.');
   }
 }

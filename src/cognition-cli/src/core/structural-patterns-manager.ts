@@ -2,7 +2,6 @@ import { PGCManager } from './pgc-manager.js';
 import { PatternManager } from './pattern-manager.js';
 import {
   LanceVectorStore,
-  VECTOR_RECORD_SCHEMA,
   VectorRecord,
 } from '../lib/patterns/vector-db/lance-vector-store.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
@@ -57,7 +56,7 @@ export class StructuralPatternsManager implements PatternManager {
     filePath: string,
     sourceHash: string
   ) {
-    await this.vectorDB.initialize('structural_patterns', VECTOR_RECORD_SCHEMA);
+    await this.vectorDB.initialize('structural_patterns');
     const signature = this.generateStructuralSignature(symbolStructuralData);
     const architecturalRole = this.inferArchitecturalRole(symbolStructuralData);
 
@@ -76,7 +75,7 @@ export class StructuralPatternsManager implements PatternManager {
       return;
     }
 
-    const structuralDataHash = this.pgc.objectStore.computeHash(
+    const lineageHash = this.pgc.objectStore.computeHash(
       JSON.stringify(symbolStructuralData)
     );
     const embeddingHash = this.pgc.objectStore.computeHash(
@@ -91,13 +90,13 @@ export class StructuralPatternsManager implements PatternManager {
       structural_signature: signature,
       architectural_role: architecturalRole,
       computed_at: new Date().toISOString(),
-      symbol_structural_data_hash: structuralDataHash, // Renamed from lineage_hash
+      lineage_hash: lineageHash,
     });
 
     const metadata: PatternMetadata = {
       symbol: symbolName,
       anchor: filePath,
-      symbolStructuralDataHash: structuralDataHash, // Renamed from lineageHash
+      symbolStructuralDataHash: lineageHash,
       embeddingHash,
       structuralSignature: signature,
       computedAt: new Date().toISOString(),

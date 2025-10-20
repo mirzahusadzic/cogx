@@ -11,12 +11,29 @@ import {
 } from 'apache-arrow';
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../../config.js';
 
+function createLineagePatternSchema(): Schema {
+  return new Schema([
+    new Field('id', new Utf8()),
+    new Field('symbol', new Utf8()),
+    new Field(
+      'embedding',
+      new FixedSizeList(
+        DEFAULT_EMBEDDING_DIMENSIONS,
+        new Field('item', new Float(Precision.DOUBLE))
+      )
+    ),
+    new Field('structural_signature', new Utf8()),
+    new Field('architectural_role', new Utf8()),
+    new Field('computed_at', new Utf8()),
+    new Field('lineage_hash', new Utf8()),
+  ]);
+}
+
 export interface VectorRecord extends Record<string, unknown> {
   [key: string]: unknown; // Explicit index signature
   id: string;
   symbol: string;
   embedding: number[];
-  symbol_structural_data_hash?: string;
   lineage_hash?: string;
 }
 
@@ -29,7 +46,6 @@ interface LanceDBSearchResult extends Record<string, unknown> {
   structural_signature: string;
   architectural_role: string;
   computed_at: string;
-  symbol_structural_data_hash?: string;
   lineage_hash?: string;
 }
 
@@ -46,7 +62,7 @@ export const VECTOR_RECORD_SCHEMA = new Schema([
   new Field('structural_signature', new Utf8()),
   new Field('architectural_role', new Utf8()),
   new Field('computed_at', new Utf8()),
-  new Field('symbol_structural_data_hash', new Utf8()),
+  new Field('lineage_hash', new Utf8()), // Ensure this exists
 ]);
 
 export class LanceVectorStore {
@@ -57,17 +73,55 @@ export class LanceVectorStore {
 
   constructor(private pgcRoot: string) {}
 
-  async initialize(
-    tableName: string = 'structural_patterns',
-    schema: Schema = VECTOR_RECORD_SCHEMA
-  ): Promise<void> {
+  async initialize(tableName: string = 'structural_patterns'): Promise<void> {
     // Prevent multiple simultaneous initializations
     if (this.initializationPromise) {
       return this.initializationPromise;
     }
 
-    this.initializationPromise = this.doInitialize(tableName, schema);
+    let schemaToUse: Schema;
+    if (tableName === 'lineage_patterns') {
+      schemaToUse = createLineagePatternSchema();
+    } else {
+      schemaToUse = VECTOR_RECORD_SCHEMA;
+    }
+
+    this.initializationPromise = this.doInitialize(tableName, schemaToUse);
     return this.initializationPromise;
+  }
+
+  private async forceCreateTable(
+    tableName: string,
+    schema: Schema
+  ): Promise<void> {
+    try {
+      // Try to drop the table if it exists
+      await this.db!.dropTable(tableName).catch(() => {
+        // Ignore errors if table doesn't exist
+      });
+    } catch (error) {
+      // Ignore drop errors
+    }
+
+    // Create the table with the EXACT schema we want
+    const completeDummyRecord = {
+      id: 'schema_test_record',
+      symbol: 'test',
+      embedding: new Array(DEFAULT_EMBEDDING_DIMENSIONS).fill(0.1),
+      structural_signature: 'test',
+      architectural_role: 'test_role',
+      computed_at: new Date().toISOString(),
+      lineage_hash: 'test_hash',
+    };
+
+    this.table = await this.db!.createTable(tableName, [completeDummyRecord], {
+      schema,
+    });
+
+    // Immediately verify the schema
+
+    // Clean up test record
+    await this.table.delete(`id = 'schema_test_record'`);
   }
 
   private async doInitialize(tableName: string, schema: Schema): Promise<void> {
@@ -77,27 +131,8 @@ export class LanceVectorStore {
 
       this.db = await connect(dbPath);
 
-      try {
-        this.table = await this.db.openTable(tableName);
-        console.log(`✅ Opened existing LanceDB table: ${tableName}`);
-      } catch (error: unknown) {
-        if (
-          error instanceof Error &&
-          error.message?.includes('Table') &&
-          error.message?.includes('not found')
-        ) {
-          // Table doesn't exist, create it with a dummy record
-          const dummyRecord = this.createDummyRecord();
-          this.table = await this.db.createTable(tableName, [dummyRecord], {
-            schema,
-          });
-          // Remove the dummy record after creation
-          await this.table!.delete(`id = '${dummyRecord.id}'`);
-          console.log(`✅ Created new LanceDB table: ${tableName}`);
-        } else {
-          throw error;
-        }
-      }
+      // ALWAYS force recreate the table to ensure correct schema
+      await this.forceCreateTable(tableName, schema);
 
       this.isInitialized = true;
     } catch (error: unknown) {
@@ -106,24 +141,22 @@ export class LanceVectorStore {
     }
   }
 
-  private createDummyRecord(): VectorRecord {
-    return {
-      id: 'dummy_record',
-      symbol: 'dummy',
-      embedding: new Array(DEFAULT_EMBEDDING_DIMENSIONS).fill(0),
-      structural_signature: 'dummy',
-      architectural_role: 'dummy',
-      computed_at: new Date().toISOString(),
-      symbol_structural_data_hash: 'dummy',
-    };
-  }
-
   async storeVector(
     id: string,
     embedding: number[],
     metadata: Omit<VectorRecord, 'id' | 'embedding'>
   ): Promise<string> {
     if (!this.isInitialized) await this.initialize();
+
+    // Check for missing required fields
+    const requiredFields = ['architectural_role', 'lineage_hash'];
+    const missingFields = requiredFields.filter(
+      (field) => !(field in metadata)
+    );
+
+    if (missingFields.length > 0) {
+      throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+    }
 
     // Validate embedding dimensions
     if (embedding.length !== DEFAULT_EMBEDDING_DIMENSIONS) {
@@ -135,7 +168,6 @@ export class LanceVectorStore {
     // ✅ CHECK FOR EXISTING VECTOR WITH SAME ID
     const existingVector = await this.getVector(id);
     if (existingVector) {
-      console.log(`🔄 Replacing existing vector: ${id}`);
       await this.deleteVector(id); // Remove the old one first
     }
 
@@ -146,8 +178,6 @@ export class LanceVectorStore {
       structural_signature: metadata.structural_signature as string,
       architectural_role: metadata.architectural_role as string,
       computed_at: metadata.computed_at as string,
-      symbol_structural_data_hash:
-        metadata.symbol_structural_data_hash as string,
       lineage_hash: metadata.lineage_hash as string,
     };
 
@@ -213,7 +243,6 @@ export class LanceVectorStore {
           structural_signature: result.structural_signature,
           architectural_role: result.architectural_role,
           computed_at: result.computed_at,
-          symbol_structural_data_hash: result.symbol_structural_data_hash,
           lineage_hash: result.lineage_hash,
         },
       }))
@@ -316,10 +345,8 @@ export class LanceVectorStore {
     // Delete all duplicates
     for (const id of duplicatesToDelete) {
       await this.deleteVector(id);
-      console.log(`🗑️ Deleted duplicate vector: ${id}`);
     }
 
-    console.log(`✅ Removed ${duplicatesToDelete.length} duplicate vectors`);
     return duplicatesToDelete.length;
   }
 
@@ -371,10 +398,7 @@ export class LanceVectorStore {
       return false;
     }
 
-    if (
-      r.symbol_structural_data_hash &&
-      typeof r.symbol_structural_data_hash !== 'string'
-    ) {
+    if (r.lineage_hash && typeof r.lineage_hash !== 'string') {
       return false;
     }
 
@@ -415,10 +439,7 @@ export class LanceVectorStore {
       return false;
     }
 
-    if (
-      r.symbol_structural_data_hash &&
-      typeof r.symbol_structural_data_hash !== 'string'
-    ) {
+    if (r.lineage_hash && typeof r.lineage_hash !== 'string') {
       return false;
     }
 

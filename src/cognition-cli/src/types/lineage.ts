@@ -7,6 +7,7 @@ export interface LineagePatternMetadata {
   lineageEmbeddingHash: string;
   computedAt: string;
   vectorId: string;
+  lineage_hash: string;
   validation: {
     sourceHash: string;
     embeddingModelVersion: string;
@@ -20,6 +21,7 @@ export const LineagePatternMetadataSchema = z.object({
   lineageEmbeddingHash: z.string(),
   computedAt: z.string(),
   vectorId: z.string(),
+  lineage_hash: z.string(),
   validation: z.object({
     sourceHash: z.string(),
     embeddingModelVersion: z.string(),
