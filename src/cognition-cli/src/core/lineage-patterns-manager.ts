@@ -7,7 +7,11 @@ import {
   VectorRecord,
 } from '../lib/patterns/vector-db/lance-vector-store.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
-import { StructuralData } from '../types/structural.js';
+import {
+  StructuralData,
+  StructuralPatternMetadata,
+  StructuralPatternMetadataSchema,
+} from '../types/structural.js';
 import {
   DEFAULT_EMBEDDING_DIMENSIONS,
   DEFAULT_EMBEDDING_MODEL_NAME,
@@ -65,33 +69,56 @@ export class LineagePatternsManager implements PatternManager {
       const manifest = JSON.parse(manifestContent);
 
       for (const [symbolName, relativeFilePath] of Object.entries(manifest)) {
-        const jsonFileName = `${relativeFilePath}#${symbolName}.json`;
-        const structuralJsonPath = path.join(overlayPath, jsonFileName);
-
+        const overlayKey = `${relativeFilePath}#${symbolName}`;
         try {
-          const structuralContent = await fs.readFile(
-            structuralJsonPath,
-            'utf-8'
+          const structuralPatternMetadata =
+            await this.pgc.overlays.get<StructuralPatternMetadata>(
+              'structural_patterns',
+              overlayKey,
+              StructuralPatternMetadataSchema
+            );
+
+          if (!structuralPatternMetadata) {
+            console.warn(
+              chalk.yellow(
+                `[LineagePatternsManager] No structural pattern metadata found for ${symbolName} in ${relativeFilePath}, skipping.`
+              )
+            );
+            continue;
+          }
+
+          const structuralDataBuffer = await this.pgc.objectStore.retrieve(
+            structuralPatternMetadata.symbolStructuralDataHash
           );
+
+          if (!structuralDataBuffer) {
+            console.warn(
+              chalk.yellow(
+                `[LineagePatternsManager] No structural data found for hash ${structuralPatternMetadata.symbolStructuralDataHash}, skipping.`
+              )
+            );
+            continue;
+          }
+
           const structuralData = JSON.parse(
-            structuralContent
+            structuralDataBuffer.toString()
           ) as StructuralData;
 
-          const searchPath = path.dirname(path.join(overlayPath, jsonFileName));
-
-          const sourceHash = '';
+          const searchPath = path.dirname(
+            path.join(this.pgc.pgcRoot, relativeFilePath as string)
+          );
 
           await this.generateAndStoreLineagePattern(
             symbolName,
             structuralData,
             relativeFilePath as string,
-            sourceHash,
+            structuralPatternMetadata.validation.sourceHash,
             searchPath
           );
         } catch (error) {
           console.error(
             chalk.red(
-              `Error processing symbol ${symbolName} from ${structuralJsonPath}:`
+              `Error processing symbol ${symbolName} from ${relativeFilePath}:`
             ),
             error
           );
