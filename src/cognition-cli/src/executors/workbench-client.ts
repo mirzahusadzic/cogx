@@ -13,6 +13,7 @@ import {
   SUMMARIZE_RATE_LIMIT_CALLS,
   EMBED_RATE_LIMIT_SECONDS,
   EMBED_RATE_LIMIT_CALLS,
+  EMBED_PROMPT_NAME,
 } from '../config.js';
 
 interface SummarizeQueueItem {
@@ -143,9 +144,9 @@ export class WorkbenchClient {
         const blob = new Blob([signatureBuffer], { type: 'text/plain' });
         // The server expects a 'file' field
         formData.set('file', blob, 'signature.txt');
-
+        const promptName = request.prompt_name || EMBED_PROMPT_NAME;
         const response = await fetch(
-          `${this.baseUrl}/embed?dimensions=${request.dimensions}`,
+          `${this.baseUrl}/embed?dimensions=${request.dimensions}&prompt_name=${promptName}`,
           {
             method: 'POST',
             headers: {

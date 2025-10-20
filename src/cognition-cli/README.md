@@ -114,7 +114,37 @@ cognition-cli audit <file-path> --projectRoot <path-to-project-root> [--limit <n
 - **Transformation History Review:** Displays the transformation history for a given file, showing details of each transformation (goal, fidelity, verification result, inputs, outputs).
 - **PGC Coherence Check:** Verifies that all content hashes, structural hashes, and transform IDs referenced in the file's history exist within the PGC.
 
-## 5. `patterns` Command: Managing and Querying Structural Patterns
+## 5. `overlay` Command: Manage and Generate Analytical Overlays
+
+The `overlay` command (`src/commands/overlay.ts`) allows you to manage and generate various analytical overlays on top of your Grounded Context Pool. These overlays provide specialized views or data derived from the core PGC.
+
+### `overlay generate` Command: Generate a Specific Overlay
+
+The `generate` subcommand is used to create or update a specific type of overlay.
+
+#### `overlay generate` Command Usage
+
+```bash
+cognition-cli overlay generate <type> --projectRoot <path-to-project-root>
+```
+
+- `<type>`: The type of overlay to generate. Currently, only `structural_patterns` is supported.
+- `--projectRoot`: (Optional) The root directory of the project. Defaults to the current working directory.
+
+#### `overlay generate` Command Functionality
+
+The `overlay generate` command performs the following actions:
+
+- **Overlay Type Validation:** Checks if the specified `<type>` is supported.
+- **Orchestration:** For `structural_patterns`, it initializes the `OverlayOrchestrator`, which then:
+  - Discovers files in the project's index.
+  - Identifies primary symbols within each file.
+  - Generates structural signatures and infers architectural roles for these symbols.
+  - Stores these patterns, along with their vector embeddings, in a LanceDB vector store.
+  - Updates the PGC overlays with metadata about the generated patterns.
+  - Generates a manifest of the processed patterns.
+
+## 6. `patterns` Command: Managing and Querying Structural Patterns
 
 The `patterns` command (`src/commands/patterns.ts`) provides functionality for working with structural patterns extracted from your codebase. This includes finding similar patterns based on their structural signatures.
 

@@ -24,6 +24,9 @@ This file serves as an audit trail for the development of this project, aligning
 
 ## Action Log
 
+- **2025-10-20:** Added `EMBED_PROMPT_NAME` constant and integrated it into the `embed` function.
+  - **Functionality:** Defined `EMBED_PROMPT_NAME` in `config.ts` and used it as `prompt_name` in the `formData` for the `embed` function in `workbench-client.ts`.
+  - **User Impact:** Ensures consistent and correct prompt naming for embedding requests.
 - **2025-10-19:** Implement demo-ready enhancements for `patterns` commands:
   - **Functionality:**
     - Enhanced `patterns:find-similar` with rich formatting using `chalk` and added a `--json` option for raw output.

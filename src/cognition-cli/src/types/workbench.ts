@@ -17,6 +17,7 @@ export interface ASTParseRequest {
 export interface EmbedRequest {
   signature: string;
   dimensions: number;
+  prompt_name?: string;
 }
 
 export interface EmbedResponse {
