@@ -19,7 +19,7 @@ export interface VectorRecord extends Record<string, unknown> {
   structural_signature: string;
   architectural_role: string;
   computed_at: string;
-  lineage_hash: string;
+  symbol_structural_data_hash: string;
 }
 
 interface LanceDBSearchResult extends Record<string, unknown> {
@@ -30,7 +30,7 @@ interface LanceDBSearchResult extends Record<string, unknown> {
   structural_signature: string;
   architectural_role: string;
   computed_at: string;
-  lineage_hash: string;
+  symbol_structural_data_hash: string;
 }
 
 const VECTOR_RECORD_SCHEMA = new Schema([
@@ -46,7 +46,7 @@ const VECTOR_RECORD_SCHEMA = new Schema([
   new Field('structural_signature', new Utf8()),
   new Field('architectural_role', new Utf8()),
   new Field('computed_at', new Utf8()),
-  new Field('lineage_hash', new Utf8()),
+  new Field('symbol_structural_data_hash', new Utf8()),
 ]);
 
 export class LanceVectorStore {
@@ -111,7 +111,7 @@ export class LanceVectorStore {
       structural_signature: 'dummy',
       architectural_role: 'dummy',
       computed_at: new Date().toISOString(),
-      lineage_hash: 'dummy',
+      symbol_structural_data_hash: 'dummy',
     };
   }
 
@@ -143,7 +143,8 @@ export class LanceVectorStore {
       structural_signature: metadata.structural_signature as string,
       architectural_role: metadata.architectural_role as string,
       computed_at: metadata.computed_at as string,
-      lineage_hash: metadata.lineage_hash as string,
+      symbol_structural_data_hash:
+        metadata.symbol_structural_data_hash as string,
     };
 
     // After deleting the old one, we can simply add the new record.
@@ -208,7 +209,7 @@ export class LanceVectorStore {
           structural_signature: result.structural_signature,
           architectural_role: result.architectural_role,
           computed_at: result.computed_at,
-          lineage_hash: result.lineage_hash,
+          symbol_structural_data_hash: result.symbol_structural_data_hash,
         },
       }))
       .slice(0, topK); // Ensure we respect the topK limit
@@ -364,7 +365,7 @@ export class LanceVectorStore {
       return false;
     }
 
-    if (typeof r.lineage_hash !== 'string') {
+    if (typeof r.symbol_structural_data_hash !== 'string') {
       return false;
     }
 
@@ -381,7 +382,8 @@ export class LanceVectorStore {
         'string' &&
       typeof (result as LanceDBSearchResult).architectural_role === 'string' &&
       typeof (result as LanceDBSearchResult).computed_at === 'string' &&
-      typeof (result as LanceDBSearchResult).lineage_hash === 'string'
+      typeof (result as LanceDBSearchResult).symbol_structural_data_hash ===
+        'string'
     );
   }
 

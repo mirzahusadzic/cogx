@@ -3,8 +3,8 @@ import { PGCManager } from '../core/pgc-manager.js';
 import { LanceVectorStore } from '../lib/patterns/vector-db/lance-vector-store.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
 import { StructuralPatternsManager } from '../core/structural-patterns-manager.js';
+import { LineagePatternsManager } from '../core/lineage-patterns-manager.js';
 import chalk from 'chalk';
-import path from 'path';
 
 export function addPatternsCommands(program: Command) {
   const patternsCommand = program
@@ -32,6 +32,44 @@ export function addPatternsCommands(program: Command) {
       } else {
         console.log(
           chalk.bold(`\n🔍 Patterns similar to ${chalk.cyan(symbol)}:\n`)
+        );
+        results.forEach((r, i) => {
+          const simBar = '█'.repeat(Math.round(r.similarity * 20));
+          console.log(
+            `${i + 1}. ${chalk.green(r.symbol)} ` +
+              `${chalk.gray(`[${r.architecturalRole}]`)}`
+          );
+          console.log(
+            `   ${chalk.yellow(simBar)} ${(r.similarity * 100).toFixed(1)}%`
+          );
+          console.log(`   ${chalk.dim(r.explanation)}\n`);
+        });
+      }
+    });
+
+  patternsCommand
+    .command('find-similar-lineage <symbol>')
+    .option('-k, --top-k <number>', 'Number of similar lineage patterns', '10')
+    .option('--json', 'Output raw JSON')
+    .action(async (symbol, options) => {
+      const pgc = new PGCManager(process.cwd());
+      const vectorDB = new LanceVectorStore(pgc.pgcRoot);
+      await vectorDB.initialize();
+      const workbench = new WorkbenchClient(process.env.WORKBENCH_URL!);
+
+      const manager = new LineagePatternsManager(pgc, vectorDB, workbench);
+      const results = await manager.findSimilarLineagePatterns(
+        symbol,
+        parseInt(options.topK)
+      );
+
+      if (options.json) {
+        console.log(JSON.stringify(results, null, 2));
+      } else {
+        console.log(
+          chalk.bold(
+            `\n🔗 Lineage patterns similar to ${chalk.cyan(symbol)}:\n`
+          )
         );
         results.forEach((r, i) => {
           const simBar = '█'.repeat(Math.round(r.similarity * 20));

@@ -9,7 +9,7 @@ import chalk from 'chalk';
 export interface PatternMetadata {
   symbol: string;
   anchor: string;
-  lineageHash: string;
+  symbolStructuralDataHash: string;
   embeddingHash: string;
   structuralSignature: string;
   computedAt: string;
@@ -25,7 +25,7 @@ import { z } from 'zod';
 const PatternMetadataSchema = z.object({
   symbol: z.string(),
   anchor: z.string(),
-  lineageHash: z.string(),
+  symbolStructuralDataHash: z.string(),
   embeddingHash: z.string(),
   structuralSignature: z.string(),
   computedAt: z.string(),
@@ -82,13 +82,13 @@ export class StructuralPatternsManager {
       structural_signature: signature,
       architectural_role: architecturalRole,
       computed_at: new Date().toISOString(),
-      lineage_hash: structuralDataHash, // lineageHash now refers to the hash of the symbol's structural data
+      symbol_structural_data_hash: structuralDataHash, // Renamed from lineage_hash
     });
 
     const metadata: PatternMetadata = {
       symbol: symbolName,
       anchor: filePath,
-      lineageHash: structuralDataHash, // lineageHash now refers to the hash of the symbol's structural data
+      symbolStructuralDataHash: structuralDataHash, // Renamed from lineageHash
       embeddingHash,
       structuralSignature: signature,
       computedAt: new Date().toISOString(),

@@ -102,7 +102,7 @@ export class Index {
     }
 
     // CRITICAL: Don't spawn workers for small datasets
-    const WORKER_THRESHOLD = 100; // Only use workers if >100 files
+    const WORKER_THRESHOLD = 10; // Only use workers if >10 files
     if (allData.length < WORKER_THRESHOLD) {
       console.log(
         `[Search]${context ? ` (${context})` : ''} Running single-threaded search for ${allData.length} files.`

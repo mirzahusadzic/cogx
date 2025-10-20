@@ -7,16 +7,16 @@ const generateCommand = new Command('generate')
   )
   .argument('<type>', 'The type of overlay to generate')
   .option('-p, --project-root <path>', 'The root of the project.', '.')
-  .action(async (type, options) => {
-    if (type !== 'structural_patterns') {
+  .action(async (type: 'structural_patterns' | 'lineage_patterns', options) => {
+    if (type !== 'structural_patterns' && type !== 'lineage_patterns') {
       console.error(`Unsupported overlay type: ${type}`);
       process.exit(1);
     }
 
-    console.log('[Overlay] Starting generation of structural patterns...');
+    console.log(`[Overlay] Starting generation of ${type}...`);
 
     const orchestrator = await OverlayOrchestrator.create(options.projectRoot);
-    await orchestrator.run();
+    await orchestrator.run(type);
 
     console.log('[Overlay] Generation complete.');
   });

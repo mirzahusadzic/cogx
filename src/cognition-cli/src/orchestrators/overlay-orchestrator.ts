@@ -2,7 +2,9 @@ import path from 'path';
 import { PGCManager } from '../core/pgc-manager.js';
 import { LanceVectorStore } from '../lib/patterns/vector-db/lance-vector-store.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
+import { QueryResult } from '../commands/query.js';
 import { StructuralPatternsManager } from '../core/structural-patterns-manager.js';
+import { LineagePatternsManager } from '../core/lineage-patterns-manager.js';
 import { z } from 'zod';
 import {
   ClassData,
@@ -30,6 +32,7 @@ export class OverlayOrchestrator {
   private vectorDB: LanceVectorStore;
   private workbench: WorkbenchClient;
   private patternManager: StructuralPatternsManager;
+  private lineagePatternManager: LineagePatternsManager;
 
   private constructor(
     private projectRoot: string,
@@ -41,6 +44,11 @@ export class OverlayOrchestrator {
       process.env.WORKBENCH_URL || 'http://localhost:8000'
     );
     this.patternManager = new StructuralPatternsManager(
+      this.pgc,
+      this.vectorDB,
+      this.workbench
+    );
+    this.lineagePatternManager = new LineagePatternsManager(
       this.pgc,
       this.vectorDB,
       this.workbench
@@ -119,7 +127,9 @@ export class OverlayOrchestrator {
     return new OverlayOrchestrator(projectRoot, vectorDB);
   }
 
-  public async run(): Promise<void> {
+  public async run(
+    type: 'structural_patterns' | 'lineage_patterns'
+  ): Promise<void> {
     const allFiles = await this.pgc.index.getAllData();
 
     console.log(`[Overlay] Verifying work for ${allFiles.length} files...`);
@@ -155,18 +165,17 @@ export class OverlayOrchestrator {
           const processSymbol = async (
             symbolName: string,
             symbolData: ClassData | FunctionData | InterfaceData,
-            type: 'class' | 'function' | 'interface'
+            kind: 'class' | 'function' | 'interface'
           ) => {
-            // Create a minimal StructuralData object for the individual symbol
             const minimalStructuralData: StructuralData = {
               language: structuralData.language,
               docstring: symbolData.docstring || '',
               imports: [], // Imports are file-level, not symbol-level for this context
-              classes: type === 'class' ? [symbolData as ClassData] : [],
+              classes: kind === 'class' ? [symbolData as ClassData] : [],
               functions:
-                type === 'function' ? [symbolData as FunctionData] : [],
+                kind === 'function' ? [symbolData as FunctionData] : [],
               interfaces:
-                type === 'interface' ? [symbolData as InterfaceData] : [],
+                kind === 'interface' ? [symbolData as InterfaceData] : [],
               exports: [], // Exports are file-level
               dependencies: [], // Dependencies are file-level
               extraction_method: structuralData.extraction_method,
@@ -176,7 +185,7 @@ export class OverlayOrchestrator {
             const overlayKey = `${filePath}#${symbolName}`;
 
             const existingOverlay = await this.pgc.overlays.get(
-              'structural_patterns',
+              type,
               overlayKey,
               PatternMetadataSchema
             );
@@ -193,12 +202,31 @@ export class OverlayOrchestrator {
               `[Overlay] Mining pattern for: ${symbolName} (from ${filePath})`
             );
             try {
-              await this.patternManager.generateAndStorePattern(
-                symbolName,
-                minimalStructuralData,
-                filePath,
-                currentSourceHash
-              );
+              if (type === 'structural_patterns') {
+                await this.patternManager.generateAndStorePattern(
+                  symbolName,
+                  minimalStructuralData,
+                  filePath,
+                  currentSourceHash
+                );
+              } else if (type === 'lineage_patterns') {
+                // Generate and store lineage patterns
+                const { dependencies, initialContext } =
+                  await this.pgc.getLineageForSymbol(symbolName, {
+                    maxDepth: 5,
+                  });
+                const queryResult: QueryResult = {
+                  question: symbolName, // Use symbol name as a dummy question
+                  dependencies,
+                  initialContext,
+                };
+                await this.lineagePatternManager.generateAndStoreLineagePattern(
+                  symbolName,
+                  filePath,
+                  queryResult,
+                  currentSourceHash
+                );
+              }
               processedCount++;
             } catch (error) {
               console.error(
@@ -242,10 +270,16 @@ export class OverlayOrchestrator {
     console.log(`- Processed ${processedCount} new/updated files.`);
     console.log(`- Skipped ${skippedCount} up-to-date files.`);
 
-    await this.generateManifest(allFiles.map((f) => f.path));
+    await this.generateManifest(
+      allFiles.map((f) => f.path),
+      type
+    );
   }
 
-  private async generateManifest(filePaths: string[]): Promise<void> {
+  private async generateManifest(
+    filePaths: string[],
+    type: 'structural_patterns' | 'lineage_patterns'
+  ): Promise<void> {
     console.log('[Overlay] Generating pattern manifest...');
     const manifest: Record<string, string> = {};
     for (const filePath of filePaths) {
@@ -278,7 +312,7 @@ export class OverlayOrchestrator {
         });
       }
     }
-    await this.pgc.overlays.update('structural_patterns', 'manifest', manifest);
+    await this.pgc.overlays.update(type, 'manifest', manifest);
     console.log('[Overlay] Manifest generated.');
   }
 }

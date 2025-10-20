@@ -2,6 +2,35 @@
 
 The `cognition-cli` provides a set of commands to manage and interact with the Grounded Context Pool and extract structural information from your codebase. This document details the primary commands available.
 
+## General Usage
+
+To see a list of all available commands and their brief descriptions, run `cognition-cli` without any arguments:
+
+```bash
+cognition-cli
+```
+
+This will output:
+
+```bash
+Usage: cognition-cli [options] [command]
+
+A meta-interpreter for verifiable, stateful AI cognition
+
+Options:
+  -V, --version                               output the version number
+  -h, --help                                  display help for command
+
+Commands:
+  init [options]                              Initialize a new Grounded Context Pool (PGC)
+  genesis [options] [sourcePath]              Builds the verifiable skeleton of a codebase
+  query [options] <question>                  Query the codebase for information
+  audit:transformations [options] <filePath>  Audit the transformation history of a file
+  overlay                                     Manage and generate analytical overlays.
+  patterns                                    Commands for managing and querying structural patterns.
+  help [command]                              display help for command
+```
+
 ## 1. `init` Command: Initializing the PGC
 
 The `init` command (`src/commands/init.ts`) sets up the necessary directory structure for the Grounded Context Pool (`.open_cognition`) within your project. This command prepares your repository to store the extracted knowledge graph.
@@ -74,24 +103,50 @@ The `query` command performs the following:
 - **Structural Data Retrieval:** Retrieves the associated `StructuralData` from the `ObjectStore` for matching files.
 - **Dependency Traversal:** If a `--depth` greater than 0 is specified, it recursively traverses the dependencies (base classes, interfaces, parameter types) of the found symbols, providing a broader context. When `--lineage` is used, the output will include the full dependency path.
 
-## 4. `audit` Command: Verifying PGC Integrity
+## 4. `audit:transformations` Command: Verifying PGC Integrity
 
-The `audit` command (`src/commands/audit.ts`) allows you to verify the integrity and coherence of the Grounded Context Pool (PGC). It checks the transformation history of files and ensures that all referenced objects and transformations exist.
+The `audit:transformations` command (`src/commands/audit.ts`) allows you to verify the integrity and coherence of the Grounded Context Pool (PGC) by examining the transformation history of a specific file. It checks that all referenced objects and transformations exist, and notes that transformations are inherently immutable due to the append-only nature of the TransformLog.
 
-### `audit` Command Usage
+### `audit:transformations` Command Usage
 
 ```bash
-cognition-cli audit <file-path> --projectRoot <path-to-project-root> [--limit <number>]
+cognition-cli audit:transformations <file-path> --projectRoot <path-to-project-root> [--limit <number>]
 ```
 
 - `<file-path>`: The path to the file whose transformation history you want to audit.
 - `--projectRoot`: Specifies the root of your project, used to locate the `.open_cognition` directory.
 - `--limit`: (Optional) The maximum number of transformation history entries to display. Defaults to `5`.
 
-### `audit` Command Functionality
+### `audit:transformations` Command Functionality
 
 - **Transformation History Review:** Displays the transformation history for a given file, showing details of each transformation (goal, fidelity, verification result, inputs, outputs).
 - **PGC Coherence Check:** Verifies that all content hashes, structural hashes, and transform IDs referenced in the file's history exist within the PGC.
+- **Immutability Note:** Emphasizes that transformations are append-only, ensuring an immutable and verifiable audit trail.
+
+#### `audit:transformations` Example Output
+
+````bash
+cognition-cli audit:transformations src/core/structural-patterns-manager.ts
+Auditing last 2 transformations for: src/core/structural-patterns-manager.ts
+
+--- Iteration 1 (Transform: 22d4a4bc5c65a9091a36cdf4e58a27fe4bf12f4c8c1c7b50fbe4d915d9b0f214) ---
+  Goal: [object Object]
+  Fidelity (Phi): 1
+  Verification Result: Success
+  Inputs:
+    - src/core/structural-patterns-manager.ts (c0242093e615af60cb589183136fb027f65ac55d9907c82f5973175a7c9c8584)
+  Outputs:
+    - src/core/structural-patterns-manager.ts (cefa774205f9d6e053230c64b96d2d77c98881a1052c084f5c211a6b04bf1d99)
+
+--- Iteration 2 (Transform: d23160d611ac9ede80bea34b8a50d1623e516e1195f6abe03c98a1444e3fdecb) ---
+  Goal: [object Object]
+  Fidelity (Phi): 1
+  Verification Result: Success
+  Inputs:
+    - src/core/structural-patterns-manager.ts (f33c6f78f69634a2c352220eb2fd17b4b2e18d094f6528ce73814f818e8cec91)
+  Outputs:
+    - src/core/structural-patterns-manager.ts (cefa774205f9d6e053230c64b96d2d77c98881a1052c084f5c211a6b04bf1d99)
+
 
 ## 5. `overlay` Command: Manage and Generate Analytical Overlays
 
@@ -105,7 +160,7 @@ The `generate` subcommand is used to create or update a specific type of overlay
 
 ```bash
 cognition-cli overlay generate <type> --projectRoot <path-to-project-root>
-```
+````
 
 - `<type>`: The type of overlay to generate. Currently, only `structural_patterns` is supported.
 - `--projectRoot`: (Optional) The root directory of the project. Defaults to the current working directory.
@@ -146,7 +201,7 @@ The `patterns find-similar` command performs the following:
 - **Similarity Search:** Uses the `StructuralPatternsManager` to query the vector database for patterns structurally similar to the provided `<symbol>`. The search is based on the vector embeddings of the structural signatures.
 - **Rich Output Formatting:** By default, results are displayed with rich formatting, including color-coded symbols, architectural roles, similarity bars, and explanations. The `--json` flag can be used to get raw JSON output.
 
-#### Example Output
+#### `patterns find-similar` Example Output
 
 ```bash
 ✅ Opened existing LanceDB table: structural_patterns
