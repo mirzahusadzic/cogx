@@ -10,6 +10,8 @@ import {
 import chalk from 'chalk';
 import { VECTOR_RECORD_SCHEMA } from '../lib/patterns/vector-db/lance-vector-store.js';
 
+import { PatternManager } from '../core/pattern-manager.js';
+
 export function addPatternsCommands(program: Command) {
   const patternsCommand = program
     .command('patterns')
@@ -18,14 +20,29 @@ export function addPatternsCommands(program: Command) {
   patternsCommand
     .command('find-similar <symbol>')
     .option('-k, --top-k <number>', 'Number of similar patterns', '10')
+    .option(
+      '--type <type>',
+      "The type of patterns to find ('structural' or 'lineage')",
+      'structural'
+    )
     .option('--json', 'Output raw JSON')
     .action(async (symbol, options) => {
       const pgc = new PGCManager(process.cwd());
       const vectorDB = new LanceVectorStore(pgc.pgcRoot);
-      await vectorDB.initialize();
+      const tableName = `${options.type}_patterns`;
+      const schema =
+        options.type === 'structural'
+          ? VECTOR_RECORD_SCHEMA
+          : LINEAGE_VECTOR_RECORD_SCHEMA;
+      await vectorDB.initialize(tableName, schema);
+
       const workbench = new WorkbenchClient(process.env.WORKBENCH_URL!);
 
-      const manager = new StructuralPatternsManager(pgc, vectorDB, workbench);
+      const manager: PatternManager =
+        options.type === 'structural'
+          ? new StructuralPatternsManager(pgc, vectorDB, workbench)
+          : new LineagePatternsManager(pgc, vectorDB, workbench);
+
       const results = await manager.findSimilarPatterns(
         symbol,
         parseInt(options.topK)
@@ -35,44 +52,10 @@ export function addPatternsCommands(program: Command) {
         console.log(JSON.stringify(results, null, 2));
       } else {
         console.log(
-          chalk.bold(`\n🔍 Patterns similar to ${chalk.cyan(symbol)}:\n`)
-        );
-        results.forEach((r, i) => {
-          const simBar = '█'.repeat(Math.round(r.similarity * 20));
-          console.log(
-            `${i + 1}. ${chalk.green(r.symbol)} ` +
-              `${chalk.gray(`[${r.architecturalRole}]`)}`
-          );
-          console.log(
-            `   ${chalk.yellow(simBar)} ${(r.similarity * 100).toFixed(1)}%`
-          );
-          console.log(`   ${chalk.dim(r.explanation)}\n`);
-        });
-      }
-    });
-
-  patternsCommand
-    .command('find-similar-lineage <symbol>')
-    .option('-k, --top-k <number>', 'Number of similar lineage patterns', '10')
-    .option('--json', 'Output raw JSON')
-    .action(async (symbol, options) => {
-      const pgc = new PGCManager(process.cwd());
-      const vectorDB = new LanceVectorStore(pgc.pgcRoot);
-      await vectorDB.initialize();
-      const workbench = new WorkbenchClient(process.env.WORKBENCH_URL!);
-
-      const manager = new LineagePatternsManager(pgc, vectorDB, workbench);
-      const results = await manager.findSimilarLineagePatterns(
-        symbol,
-        parseInt(options.topK)
-      );
-
-      if (options.json) {
-        console.log(JSON.stringify(results, null, 2));
-      } else {
-        console.log(
           chalk.bold(
-            `\n🔗 Lineage patterns similar to ${chalk.cyan(symbol)}:\n`
+            `\n🔍 ${
+              options.type === 'structural' ? 'Structural' : 'Lineage'
+            } patterns similar to ${chalk.cyan(symbol)}:\n`
           )
         );
         results.forEach((r, i) => {
@@ -130,42 +113,59 @@ export function addPatternsCommands(program: Command) {
 
   patternsCommand
     .command('compare <symbol1> <symbol2>')
-    .description('Compare dependency lineages of two symbols')
-    .action(async (symbol1, symbol2) => {
+    .description('Compare the patterns of two symbols')
+    .option(
+      '--type <type>',
+      "The type of patterns to compare ('structural' or 'lineage')",
+      'structural'
+    )
+    .action(async (symbol1, symbol2, options) => {
       const pgc = new PGCManager(process.cwd());
+      const vectorDB = new LanceVectorStore(pgc.pgcRoot);
+      const tableName = `${options.type}_patterns`;
+      const schema =
+        options.type === 'structural'
+          ? VECTOR_RECORD_SCHEMA
+          : LINEAGE_VECTOR_RECORD_SCHEMA;
+      await vectorDB.initialize(tableName, schema);
 
-      const lineage1 = await pgc.getLineageForSymbol(symbol1, { maxDepth: 3 });
-      const lineage2 = await pgc.getLineageForSymbol(symbol2, { maxDepth: 3 });
+      const workbench = new WorkbenchClient(process.env.WORKBENCH_URL!);
+
+      const manager: PatternManager =
+        options.type === 'structural'
+          ? new StructuralPatternsManager(pgc, vectorDB, workbench)
+          : new LineagePatternsManager(pgc, vectorDB, workbench);
+
+      const vector1 = await manager.getVectorForSymbol(symbol1);
+      const vector2 = await manager.getVectorForSymbol(symbol2);
+
+      if (!vector1 || !vector2) {
+        console.error(chalk.red('Could not find patterns for both symbols.'));
+        return;
+      }
+
+      const similarity = vectorDB.cosineSimilarity(
+        vector1.embedding,
+        vector2.embedding
+      );
 
       console.log(
         chalk.bold(
-          `\n🔗 Comparing ${chalk.cyan(symbol1)} vs ${chalk.green(symbol2)}:\n`
+          `\n⚖️ Comparing ${chalk.cyan(symbol1)} vs ${chalk.green(
+            symbol2
+          )} (${options.type} patterns):\n`
         )
       );
-
-      // Find shared dependencies
-      const deps1 = new Set(
-        lineage1.dependencies.map((d) => d.path.split(' -> ').pop())
-      );
-      const deps2 = new Set(
-        lineage2.dependencies.map((d) => d.path.split(' -> ').pop())
+      const simBar = '█'.repeat(Math.round(similarity * 40));
+      console.log(
+        `   Similarity: ${chalk.yellow(simBar)} ${(similarity * 100).toFixed(
+          1
+        )}%`
       );
 
-      const shared = [...deps1].filter((d) => deps2.has(d));
-      const unique1 = [...deps1].filter((d) => !deps2.has(d));
-      const unique2 = [...deps2].filter((d) => !deps1.has(d));
-
-      console.log(chalk.bold('Shared dependencies:'));
-      shared.forEach((d) => console.log(`  ${chalk.yellow('●')} ${d}`));
-
-      console.log(chalk.bold(`\nUnique to ${symbol1}:`));
-      unique1
-        .slice(0, 5)
-        .forEach((d) => console.log(`  ${chalk.cyan('●')} ${d}`));
-
-      console.log(chalk.bold(`\nUnique to ${symbol2}:`));
-      unique2
-        .slice(0, 5)
-        .forEach((d) => console.log(`  ${chalk.green('●')} ${d}`));
+      console.log(chalk.bold(`\nSignature for ${symbol1}:`));
+      console.log(chalk.dim(vector1.structural_signature));
+      console.log(chalk.bold(`\nSignature for ${symbol2}:`));
+      console.log(chalk.dim(vector2.structural_signature));
     });
 }

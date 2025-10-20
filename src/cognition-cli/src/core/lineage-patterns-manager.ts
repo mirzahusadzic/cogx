@@ -1,5 +1,9 @@
 import { PGCManager } from './pgc-manager.js';
-import { LanceVectorStore } from '../lib/patterns/vector-db/lance-vector-store.js';
+import { PatternManager } from './pattern-manager.js';
+import {
+  LanceVectorStore,
+  VectorRecord,
+} from '../lib/patterns/vector-db/lance-vector-store.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
 import {
   LineagePatternMetadata,
@@ -35,7 +39,7 @@ export const LINEAGE_VECTOR_RECORD_SCHEMA = new Schema([
   new Field('lineage_hash', new Utf8()),
 ]);
 
-export class LineagePatternsManager {
+export class LineagePatternsManager implements PatternManager {
   constructor(
     private pgc: PGCManager,
     private vectorDB: LanceVectorStore,
@@ -100,7 +104,7 @@ export class LineagePatternsManager {
     await this.pgc.overlays.update('lineage_patterns', overlayKey, metadata);
   }
 
-  public async findSimilarLineagePatterns(
+  public async findSimilarPatterns(
     symbol: string,
     topK: number = 10
   ): Promise<
@@ -190,5 +194,55 @@ export class LineagePatternsManager {
     } else {
       return 'Different lineage signature.';
     }
+  }
+
+  public async getVectorForSymbol(
+    symbol: string
+  ): Promise<VectorRecord | undefined> {
+    const manifest = await this.pgc.overlays.get(
+      'lineage_patterns',
+      'manifest',
+      z.record(z.string())
+    );
+
+    if (!manifest) {
+      console.log(chalk.yellow(`No lineage patterns manifest found.`));
+      return undefined;
+    }
+
+    const matchingKeys = Object.keys(manifest).filter((key) =>
+      key.endsWith(`#${symbol}`)
+    );
+
+    if (matchingKeys.length === 0) {
+      console.log(
+        chalk.yellow(`No lineage pattern found for symbol: ${symbol}`)
+      );
+      return undefined;
+    }
+
+    if (matchingKeys.length > 1) {
+      console.warn(
+        chalk.yellow(
+          `Multiple lineage patterns found for symbol: ${symbol}. Using the first match: ${matchingKeys[0]}`
+        )
+      );
+    }
+
+    const overlayKey = matchingKeys[0];
+
+    const targetMetadata = await this.pgc.overlays.get(
+      'lineage_patterns',
+      overlayKey,
+      LineagePatternMetadataSchema
+    );
+    if (!targetMetadata) {
+      console.log(
+        chalk.yellow(`No lineage pattern found for symbol: ${symbol}`)
+      );
+      return undefined;
+    }
+
+    return this.vectorDB.getVector(targetMetadata.vectorId);
   }
 }

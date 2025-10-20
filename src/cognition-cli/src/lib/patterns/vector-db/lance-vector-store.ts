@@ -220,7 +220,7 @@ export class LanceVectorStore {
       .slice(0, topK); // Ensure we respect the topK limit
   }
 
-  async getVector(id: string): Promise<VectorRecord | null> {
+  async getVector(id: string): Promise<VectorRecord | undefined> {
     if (!this.isInitialized) await this.initialize();
 
     const records = await this.table!.query()
@@ -228,7 +228,7 @@ export class LanceVectorStore {
       .limit(1)
       .toArray();
 
-    if (records.length === 0) return null;
+    if (records.length === 0) return undefined;
 
     const record = records[0];
 
@@ -244,7 +244,7 @@ export class LanceVectorStore {
     if (!this.isValidVectorRecord(record)) {
       console.warn(`Invalid vector record found for id: ${id}`);
 
-      return null;
+      return undefined;
     }
 
     return record as VectorRecord;
@@ -429,10 +429,35 @@ export class LanceVectorStore {
     return true;
   }
 
-  private calculateSimilarity(distance: number): number {
+  public calculateSimilarity(distance: number): number {
     // LanceDB returns L2 distance, convert to similarity score
 
     // Smaller distance = higher similarity
     return 1 / (1 + Math.max(0, distance)); // Ensure non-negative
+  }
+
+  public cosineSimilarity(vecA: number[], vecB: number[]): number {
+    if (vecA.length !== vecB.length) {
+      throw new Error('Vectors must have the same dimensions');
+    }
+
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+
+    for (let i = 0; i < vecA.length; i++) {
+      dotProduct += vecA[i] * vecB[i];
+      normA += vecA[i] * vecA[i];
+      normB += vecB[i] * vecB[i];
+    }
+
+    if (normA === 0 || normB === 0) {
+      return 0; // Avoid division by zero
+    }
+
+    const similarity = dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    // Cosine similarity can be negative, but for embeddings it's usually [0, 1].
+    // We clamp it here to be safe and consistent with the other similarity score.
+    return (similarity + 1) / 2;
   }
 }

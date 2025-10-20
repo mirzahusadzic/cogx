@@ -1,7 +1,9 @@
 import { PGCManager } from './pgc-manager.js';
+import { PatternManager } from './pattern-manager.js';
 import {
   LanceVectorStore,
   VECTOR_RECORD_SCHEMA,
+  VectorRecord,
 } from '../lib/patterns/vector-db/lance-vector-store.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
 import { StructuralData } from '../types/structural.js';
@@ -39,7 +41,7 @@ const PatternMetadataSchema = z.object({
   }),
 });
 
-export class StructuralPatternsManager {
+export class StructuralPatternsManager implements PatternManager {
   constructor(
     private pgc: PGCManager,
     private vectorDB: LanceVectorStore,
@@ -285,5 +287,51 @@ export class StructuralPatternsManager {
     const common = [...targetParts].filter((part) => resultParts.has(part));
 
     return `Shared patterns: ${common.slice(0, 3).join(', ')}`;
+  }
+
+  public async getVectorForSymbol(
+    symbol: string
+  ): Promise<VectorRecord | undefined> {
+    const manifest = await this.pgc.overlays.get(
+      'structural_patterns',
+      'manifest',
+      z.record(z.string())
+    );
+
+    if (!manifest) {
+      console.log(chalk.yellow(`No structural patterns manifest found.`));
+      return undefined;
+    }
+
+    const matchingKeys = Object.keys(manifest).filter((key) =>
+      key.endsWith(`#${symbol}`)
+    );
+
+    if (matchingKeys.length === 0) {
+      console.log(chalk.yellow(`No pattern found for symbol: ${symbol}`));
+      return undefined;
+    }
+
+    if (matchingKeys.length > 1) {
+      console.warn(
+        chalk.yellow(
+          `Multiple patterns found for symbol: ${symbol}. Using the first match: ${matchingKeys[0]}`
+        )
+      );
+    }
+
+    const overlayKey = matchingKeys[0];
+
+    const targetMetadata = await this.pgc.overlays.get(
+      'structural_patterns',
+      overlayKey,
+      PatternMetadataSchema
+    );
+    if (!targetMetadata) {
+      console.log(chalk.yellow(`No pattern found for symbol: ${symbol}`));
+      return undefined;
+    }
+
+    return this.vectorDB.getVector(targetMetadata.vectorId);
   }
 }
