@@ -150,43 +150,89 @@ export class OverlayOrchestrator {
             return;
           }
 
-          const symbol = this.findPrimarySymbol(structuralData, filePath);
-          if (!symbol) {
-            console.warn(
-              `[Overlay] No primary symbol found in ${filePath}, skipping.`
-            );
-            skippedCount++;
-            return;
-          }
-
-          const existingOverlay = await this.pgc.overlays.get(
-            'structural_patterns',
-            symbol, // Use symbol, not filePath
-            PatternMetadataSchema
-          );
-
           const currentSourceHash = indexData.content_hash;
 
-          if (
-            existingOverlay &&
-            existingOverlay.validation?.sourceHash === currentSourceHash
-          ) {
-            skippedCount++;
-            return;
+          const processSymbol = async (
+            symbolName: string,
+            symbolData: ClassData | FunctionData | InterfaceData,
+            type: 'class' | 'function' | 'interface'
+          ) => {
+            // Create a minimal StructuralData object for the individual symbol
+            const minimalStructuralData: StructuralData = {
+              language: structuralData.language,
+              docstring: symbolData.docstring || '',
+              imports: [], // Imports are file-level, not symbol-level for this context
+              classes: type === 'class' ? [symbolData as ClassData] : [],
+              functions:
+                type === 'function' ? [symbolData as FunctionData] : [],
+              interfaces:
+                type === 'interface' ? [symbolData as InterfaceData] : [],
+              exports: [], // Exports are file-level
+              dependencies: [], // Dependencies are file-level
+              extraction_method: structuralData.extraction_method,
+              fidelity: structuralData.fidelity,
+            };
+
+            const overlayKey = `${filePath}#${symbolName}`;
+
+            const existingOverlay = await this.pgc.overlays.get(
+              'structural_patterns',
+              overlayKey,
+              PatternMetadataSchema
+            );
+
+            if (
+              existingOverlay &&
+              existingOverlay.validation?.sourceHash === currentSourceHash
+            ) {
+              skippedCount++;
+              return;
+            }
+
+            console.log(
+              `[Overlay] Mining pattern for: ${symbolName} (from ${filePath})`
+            );
+            try {
+              await this.patternManager.generateAndStorePattern(
+                symbolName,
+                minimalStructuralData,
+                filePath,
+                currentSourceHash
+              );
+              processedCount++;
+            } catch (error) {
+              console.error(
+                `[Overlay] FAILED to process ${symbolName} in ${filePath}:`,
+                error
+              );
+            }
+          };
+
+          // Process classes
+          if (structuralData.classes) {
+            await Promise.all(
+              structuralData.classes.map((cls) =>
+                processSymbol(cls.name, cls, 'class')
+              )
+            );
           }
 
-          console.log(
-            `[Overlay] Mining lineage for: ${symbol} (from ${filePath})`
-          );
-          try {
-            await this.patternManager.generateAndStorePattern(
-              symbol,
-              filePath,
-              currentSourceHash
+          // Process functions
+          if (structuralData.functions) {
+            await Promise.all(
+              structuralData.functions.map((func) =>
+                processSymbol(func.name, func, 'function')
+              )
             );
-            processedCount++;
-          } catch (error) {
-            console.error(`[Overlay] FAILED to process ${symbol}:`, error);
+          }
+
+          // Process interfaces
+          if (structuralData.interfaces) {
+            await Promise.all(
+              structuralData.interfaces.map((iface) =>
+                processSymbol(iface.name, iface, 'interface')
+              )
+            );
           }
         })
       );
@@ -203,13 +249,33 @@ export class OverlayOrchestrator {
     console.log('[Overlay] Generating pattern manifest...');
     const manifest: Record<string, string> = {};
     for (const filePath of filePaths) {
-      // We need to re-read the structural data to get the symbol
       const indexData = await this.pgc.index.get(filePath);
       if (!indexData || !indexData.structuralData) continue;
 
-      const symbol = this.findPrimarySymbol(indexData.structuralData, filePath);
-      if (symbol) {
-        manifest[symbol] = filePath;
+      const structuralData = indexData.structuralData;
+
+      // Add classes to manifest
+      if (structuralData.classes) {
+        structuralData.classes.forEach((cls) => {
+          const overlayKey = `${filePath}#${cls.name}`;
+          manifest[overlayKey] = filePath;
+        });
+      }
+
+      // Add functions to manifest
+      if (structuralData.functions) {
+        structuralData.functions.forEach((func) => {
+          const overlayKey = `${filePath}#${func.name}`;
+          manifest[overlayKey] = filePath;
+        });
+      }
+
+      // Add interfaces to manifest
+      if (structuralData.interfaces) {
+        structuralData.interfaces.forEach((iface) => {
+          const overlayKey = `${filePath}#${iface.name}`;
+          manifest[overlayKey] = filePath;
+        });
       }
     }
     await this.pgc.overlays.update('structural_patterns', 'manifest', manifest);

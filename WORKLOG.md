@@ -24,6 +24,10 @@ This file serves as an audit trail for the development of this project, aligning
 
 ## Action Log
 
+- **2025-10-20:** Fixed `patterns find-similar` command path resolution.
+  - **Functionality:** Corrected `PGCManager` initialization in `src/cognition-cli/src/commands/patterns.ts` to use `process.cwd()`, ensuring `.open_cognition` is located correctly when the command is run from the `cognition-cli` directory. Also ensured `StructuralPatternsManager` correctly resolves overlay keys from the manifest and added missing `path` import.
+  - **User Impact:** The `patterns find-similar` command now functions reliably from the `cognition-cli` directory, providing accurate structural pattern search results.
+- **2025-10-20:** Implemented per-symbol structural_patterns overlay, updated documentation, and restored `findPrimarySymbol` method.
 - **2025-10-20:** Added `EMBED_PROMPT_NAME` constant and integrated it into the `embed` function.
   - **Functionality:** Defined `EMBED_PROMPT_NAME` in `config.ts` and used it as `prompt_name` in the `formData` for the `embed` function in `workbench-client.ts`.
   - **User Impact:** Ensures consistent and correct prompt naming for embedding requests.

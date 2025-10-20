@@ -4,6 +4,7 @@ import { LanceVectorStore } from '../lib/patterns/vector-db/lance-vector-store.j
 import { WorkbenchClient } from '../executors/workbench-client.js';
 import { StructuralPatternsManager } from '../core/structural-patterns-manager.js';
 import chalk from 'chalk';
+import path from 'path';
 
 export function addPatternsCommands(program: Command) {
   const patternsCommand = program

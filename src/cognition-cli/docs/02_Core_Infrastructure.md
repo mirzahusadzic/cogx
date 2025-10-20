@@ -53,3 +53,11 @@ The `StructuralOracle` (`src/core/oracles/structural-oracle.ts`) plays a crucial
 
 - **Mechanism:** The oracle verifies that all input and output hashes referenced in `TransformLog` entries actually exist in the `ObjectStore`. It also checks for the existence of `manifest.yaml` files for each transformation. This process ensures that the PGC remains a verifiable and auditable knowledge graph.
 - **Data Types:** `VerificationResult` objects, indicating success or failure and providing detailed messages for any inconsistencies.
+
+### 7. Overlays: Specialized Knowledge Layers
+
+Overlays provide a mechanism to store specialized analyses and derived knowledge that is anchored to the core PGC data. They represent "parallel, sparse knowledge graphs" that enhance the understanding of the codebase without altering the immutable bedrock of the `ObjectStore` and `Index`.
+
+- **Mechanism:** Overlays are managed by the `PGCManager` and stored within the `.open_cognition/overlays/` directory. Each overlay type (e.g., `structural_patterns`, `security_vulnerabilities`) has its own subdirectory. Individual overlay entries are named to reflect the source file and symbol they pertain to, ensuring a direct link to the Genesis Layer GKes.
+- **`structural_patterns` Overlay:** This specific overlay stores `PatternMetadata` for _each individual symbol_ (classes, functions, interfaces) found within a source file. The overlay entries are named using a combination of the source file's relative path and the symbol's name (e.g., `.open_cognition/overlays/structural_patterns/src/my_module/my_file.py#MyClass`). Each overlay entry contains the `PatternMetadata` for that specific symbol, including its structural signature, architectural role, and a reference to its embedding in the `LanceVectorStore`. This allows for granular analysis and efficient retrieval of per-symbol patterns.
+- **Data Types:** The content of `structural_patterns` overlay entries is `PatternMetadata`. Other overlays may store different types of specialized data.

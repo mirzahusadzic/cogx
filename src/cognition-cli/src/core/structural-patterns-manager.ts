@@ -44,29 +44,13 @@ export class StructuralPatternsManager {
   ) {}
 
   public async generateAndStorePattern(
-    symbol: string,
+    symbolName: string, // The name of the symbol (e.g., class name, function name)
+    symbolStructuralData: StructuralData, // StructuralData for the individual symbol
     filePath: string,
     sourceHash: string
   ) {
-    const { dependencies, initialContext } = await this.pgc.getLineageForSymbol(
-      symbol,
-      { maxDepth: 5 }
-    );
-
-    if (initialContext.length === 0) {
-      console.warn(
-        `[Pattern] No initial context found for ${symbol}, skipping.`
-      );
-      return;
-    }
-
-    const lineage = [
-      ...initialContext,
-      ...dependencies.map((d) => d.structuralData),
-    ];
-
-    const signature = this.generateStructuralSignature(lineage);
-    const architecturalRole = this.inferArchitecturalRole(lineage); // ✅ ADD THIS
+    const signature = this.generateStructuralSignature(symbolStructuralData);
+    const architecturalRole = this.inferArchitecturalRole(symbolStructuralData);
 
     const embedResponse: EmbedResponse = await this.workbench.embed({
       signature,
@@ -78,33 +62,33 @@ export class StructuralPatternsManager {
 
     if (!embedding) {
       console.error(
-        `Could not find embedding for dimension ${DEFAULT_EMBEDDING_DIMENSIONS} in response for ${symbol}`
+        `Could not find embedding for dimension ${DEFAULT_EMBEDDING_DIMENSIONS} in response for ${symbolName}`
       );
       return;
     }
 
-    const lineageHash = this.pgc.objectStore.computeHash(
-      JSON.stringify(lineage)
+    const structuralDataHash = this.pgc.objectStore.computeHash(
+      JSON.stringify(symbolStructuralData)
     );
     const embeddingHash = this.pgc.objectStore.computeHash(
       JSON.stringify(embedding)
     );
 
-    // Use symbol-based ID to avoid collisions
-    const vectorId = `pattern_${symbol.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    // Use a combination of filePath and symbolName for vectorId to ensure uniqueness
+    const vectorId = `pattern_${filePath.replace(/[^a-zA-Z0-9]/g, '_')}_${symbolName.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
     await this.vectorDB.storeVector(vectorId, embedding, {
-      symbol: symbol,
+      symbol: symbolName,
       structural_signature: signature,
       architectural_role: architecturalRole,
       computed_at: new Date().toISOString(),
-      lineage_hash: lineageHash,
+      lineage_hash: structuralDataHash, // lineageHash now refers to the hash of the symbol's structural data
     });
 
     const metadata: PatternMetadata = {
-      symbol: symbol,
+      symbol: symbolName,
       anchor: filePath,
-      lineageHash,
+      lineageHash: structuralDataHash, // lineageHash now refers to the hash of the symbol's structural data
       embeddingHash,
       structuralSignature: signature,
       computedAt: new Date().toISOString(),
@@ -112,61 +96,91 @@ export class StructuralPatternsManager {
         sourceHash: sourceHash,
         embeddingModelVersion: 'eGemma-v2-alpha',
       },
-      vectorId: vectorId, // ✅ Store reference to vector DB entry
+      vectorId: vectorId, // Store reference to vector DB entry
     };
 
-    await this.pgc.overlays.update('structural_patterns', symbol, metadata); // ✅ Use symbol as overlay key
+    // Use a combination of filePath and symbolName for the overlay key
+    const overlayKey = `${filePath}#${symbolName}`;
+    await this.pgc.overlays.update('structural_patterns', overlayKey, metadata);
   }
 
-  private inferArchitecturalRole(lineage: StructuralData[]): string {
-    // Simple role inference based on lineage characteristics
-    const dependencyCount = lineage.length;
-    const depth = Math.max(...lineage.map((item) => item.depth || 0));
-    const hasManyDependencies = dependencyCount > 10;
-    const hasDeepHierarchy = depth > 3;
-
-    if (hasManyDependencies && hasDeepHierarchy) {
-      return 'orchestrator';
-    } else if (lineage.some((item) => item.type?.includes('Repository'))) {
-      return 'data_access';
-    } else if (lineage.some((item) => item.type?.includes('Service'))) {
-      return 'service';
-    } else if (
-      lineage.some(
-        (item) =>
-          item.type?.includes('Controller') || item.type?.includes('Handler')
+  private inferArchitecturalRole(structuralData: StructuralData): string {
+    // Role inference based on the characteristics of a single symbol's structural data
+    if (structuralData.classes && structuralData.classes.length > 0) {
+      const className = structuralData.classes[0].name;
+      if (className.includes('Repository')) return 'data_access';
+      if (className.includes('Service')) return 'service';
+      if (className.includes('Controller') || className.includes('Handler'))
+        return 'controller';
+      if (className.includes('Orchestrator')) return 'orchestrator';
+    }
+    if (structuralData.functions && structuralData.functions.length > 0) {
+      const functionName = structuralData.functions[0].name;
+      if (functionName.includes('Handler')) return 'controller';
+      if (functionName.includes('Util') || functionName.includes('Helper'))
+        return 'utility';
+    }
+    if (structuralData.type) {
+      if (structuralData.type.includes('Repository')) return 'data_access';
+      if (structuralData.type.includes('Service')) return 'service';
+      if (
+        structuralData.type.includes('Controller') ||
+        structuralData.type.includes('Handler')
       )
-    ) {
-      return 'controller';
-    } else if (dependencyCount === 0) {
-      return 'utility';
+        return 'controller';
+      if (structuralData.type.includes('Orchestrator')) return 'orchestrator';
     }
 
+    // Fallback for general components or if no specific role is inferred
     return 'component';
   }
 
-  private generateStructuralSignature(lineage: StructuralData[]): string {
-    // Group by relationship type and depth for better pattern recognition
-    const relationships = new Map<string, number>();
+  private generateStructuralSignature(structuralData: StructuralData): string {
+    // Generate a signature based on the characteristics of a single symbol's structural data
+    const parts: string[] = [];
 
-    for (const item of lineage) {
-      const relationship = item.relationship || 'uses';
-      const depth = item.depth || 1;
-      const type = item.type || this.extractPrimaryType(item);
-
-      if (type) {
-        const key = `${relationship}:${type}`;
-        const weight = 1 / Math.sqrt(depth); // Weight by depth
-        relationships.set(key, (relationships.get(key) || 0) + weight);
+    if (structuralData.classes && structuralData.classes.length > 0) {
+      const cls = structuralData.classes[0];
+      parts.push(`class:${cls.name}`);
+      if (cls.base_classes && cls.base_classes.length > 0) {
+        parts.push(`extends:${cls.base_classes.join(',')}`);
       }
+      if (cls.implements_interfaces && cls.implements_interfaces.length > 0) {
+        parts.push(`implements:${cls.implements_interfaces.join(',')}`);
+      }
+      parts.push(`methods:${cls.methods.length}`);
+      parts.push(`decorators:${cls.decorators.length}`);
     }
 
-    // Convert to sorted signature
-    return Array.from(relationships.entries())
-      .sort((a, b) => b[1] - a[1]) // Sort by weight descending
-      .slice(0, 15) // Top 15 most significant relationships
-      .map(([key, weight]) => `${key}:${weight.toFixed(2)}`)
-      .join(' | ');
+    if (structuralData.functions && structuralData.functions.length > 0) {
+      const func = structuralData.functions[0];
+      parts.push(`function:${func.name}`);
+      parts.push(`params:${func.params.length}`);
+      parts.push(`returns:${func.returns}`);
+      parts.push(`async:${func.is_async}`);
+      parts.push(`decorators:${func.decorators.length}`);
+    }
+
+    if (structuralData.interfaces && structuralData.interfaces.length > 0) {
+      const iface = structuralData.interfaces[0];
+      parts.push(`interface:${iface.name}`);
+      parts.push(`properties:${iface.properties.length}`);
+    }
+
+    if (structuralData.imports && structuralData.imports.length > 0) {
+      parts.push(`imports:${structuralData.imports.length}`);
+    }
+
+    if (structuralData.exports && structuralData.exports.length > 0) {
+      parts.push(`exports:${structuralData.exports.length}`);
+    }
+
+    if (structuralData.type) {
+      parts.push(`type:${structuralData.type}`);
+    }
+
+    // Sort parts for consistent signature generation
+    return parts.sort().join(' | ');
   }
 
   private extractPrimaryType(structuralData: StructuralData): string {
@@ -192,9 +206,39 @@ export class StructuralPatternsManager {
     }>
   > {
     // Get target pattern metadata
+    const manifest = await this.pgc.overlays.get(
+      'structural_patterns',
+      'manifest',
+      z.record(z.string())
+    );
+
+    if (!manifest) {
+      console.log(chalk.yellow(`No structural patterns manifest found.`));
+      return [];
+    }
+
+    const matchingKeys = Object.keys(manifest).filter((key) =>
+      key.endsWith(`#${symbol}`)
+    );
+
+    if (matchingKeys.length === 0) {
+      console.log(chalk.yellow(`No pattern found for symbol: ${symbol}`));
+      return [];
+    }
+
+    if (matchingKeys.length > 1) {
+      console.warn(
+        chalk.yellow(
+          `Multiple patterns found for symbol: ${symbol}. Using the first match: ${matchingKeys[0]}`
+        )
+      );
+    }
+
+    const overlayKey = matchingKeys[0];
+
     const targetMetadata = await this.pgc.overlays.get(
       'structural_patterns',
-      symbol,
+      overlayKey,
       PatternMetadataSchema
     );
     if (!targetMetadata) {
