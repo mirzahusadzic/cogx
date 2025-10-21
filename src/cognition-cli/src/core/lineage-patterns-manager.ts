@@ -19,6 +19,8 @@ import {
 import { EmbedResponse } from '../types/workbench.js';
 import chalk from 'chalk';
 
+const MAX_OVERALL_DEPTH = 5;
+
 export interface LineagePatternMetadata {
   symbol: string;
   anchor: string;
@@ -64,6 +66,22 @@ export class LineagePatternsManager implements PatternManager {
     );
     const manifestPath = path.join(overlayPath, 'manifest.json');
 
+    let manifestExists = true;
+    try {
+      await fs.access(manifestPath, fs.constants.F_OK);
+    } catch (e) {
+      manifestExists = false;
+    }
+
+    if (!manifestExists) {
+      console.log(
+        chalk.yellow(
+          `[LineagePatternsManager] Structural patterns manifest not found at ${manifestPath}, skipping lineage pattern generation.`
+        )
+      );
+      return;
+    }
+
     try {
       const manifestContent = await fs.readFile(manifestPath, 'utf-8');
       const manifest = JSON.parse(manifestContent);
@@ -87,6 +105,19 @@ export class LineagePatternsManager implements PatternManager {
             continue;
           }
 
+          if (
+            !(await this.pgc.objectStore.exists(
+              structuralPatternMetadata.symbolStructuralDataHash
+            ))
+          ) {
+            console.warn(
+              chalk.yellow(
+                `[LineagePatternsManager] Structural data not found for hash ${structuralPatternMetadata.symbolStructuralDataHash}, skipping.`
+              )
+            );
+            continue;
+          }
+
           const structuralDataBuffer = await this.pgc.objectStore.retrieve(
             structuralPatternMetadata.symbolStructuralDataHash
           );
@@ -105,7 +136,7 @@ export class LineagePatternsManager implements PatternManager {
           ) as StructuralData;
 
           const searchPath = path.dirname(
-            path.join(this.pgc.pgcRoot, relativeFilePath as string)
+            path.join(this.pgc.projectRoot, relativeFilePath as string)
           );
 
           await this.generateAndStoreLineagePattern(
@@ -132,15 +163,37 @@ export class LineagePatternsManager implements PatternManager {
     }
   }
 
-  private _determineMaxDepth(structuralData: StructuralData): number {
+  MAX_OVERALL_DEPTH = 5;
+
+  private _determineMaxDepth(
+    structuralData: StructuralData,
+    filePath: string
+  ): number {
+    let baseDepth = 1;
     if (
       structuralData.classes?.some((c) => (c.methods?.length || 0) > 0) ||
       structuralData.functions?.some((f) => (f.params?.length || 0) > 0) ||
       structuralData.interfaces?.some((i) => (i.properties?.length || 0) > 0)
     ) {
-      return 2;
+      baseDepth = 2;
     }
-    return 1;
+
+    const srcIndex = filePath.indexOf('src/');
+    let calculatedDepth = baseDepth;
+
+    if (srcIndex !== -1) {
+      const relativePath = filePath.substring(srcIndex + 4); // +4 for 'src/'
+      const pathSegments = relativePath
+        .split('/')
+        .filter((segment) => segment.length > 0);
+      // Ensure calculatedDepth is at least 1
+      calculatedDepth = Math.max(
+        1,
+        MAX_OVERALL_DEPTH - pathSegments.length + 1
+      );
+    }
+
+    return Math.max(baseDepth, calculatedDepth);
   }
 
   public async generateAndStoreLineagePattern(
@@ -152,9 +205,9 @@ export class LineagePatternsManager implements PatternManager {
   ) {
     await this.vectorDB.initialize('lineage_patterns');
 
-    const maxDepth = this._determineMaxDepth(structuralData);
+    const maxDepth = this._determineMaxDepth(structuralData, filePath);
 
-    const lineageResult = await this.pgc.getLineageForStructuralData(
+    const lineageResult = await this.pgc.getLineageForStructuralPatterns(
       structuralData,
       maxDepth,
       searchPath,
@@ -263,24 +316,14 @@ export class LineagePatternsManager implements PatternManager {
       return [];
     }
 
-    const matchingKeys = Object.keys(manifest).filter((key) =>
-      key.endsWith(`#${symbol}`)
-    );
+    const filePath = manifest[symbol];
 
-    if (matchingKeys.length === 0) {
+    if (!filePath) {
       console.log(chalk.yellow(`No pattern found for symbol: ${symbol}`));
       return [];
     }
 
-    if (matchingKeys.length > 1) {
-      console.warn(
-        chalk.yellow(
-          `Multiple patterns found for symbol: ${symbol}. Using the first match: ${matchingKeys[0]}`
-        )
-      );
-    }
-
-    const overlayKey = matchingKeys[0];
+    const overlayKey = `${filePath}#${symbol}`;
 
     const targetMetadata = await this.pgc.overlays.get(
       'lineage_patterns',
@@ -340,24 +383,14 @@ export class LineagePatternsManager implements PatternManager {
       return undefined;
     }
 
-    const matchingKeys = Object.keys(manifest).filter((key) =>
-      key.endsWith(`#${symbol}`)
-    );
+    const filePath = manifest[symbol];
 
-    if (matchingKeys.length === 0) {
+    if (!filePath) {
       console.log(chalk.yellow(`No pattern found for symbol: ${symbol}`));
       return undefined;
     }
 
-    if (matchingKeys.length > 1) {
-      console.warn(
-        chalk.yellow(
-          `Multiple patterns found for symbol: ${symbol}. Using the first match: ${matchingKeys[0]}`
-        )
-      );
-    }
-
-    const overlayKey = matchingKeys[0];
+    const overlayKey = `${filePath}#${symbol}`;
 
     const targetMetadata = await this.pgc.overlays.get(
       'lineage_patterns',

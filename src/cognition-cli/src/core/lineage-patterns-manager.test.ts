@@ -27,11 +27,13 @@ describe('LineagePatternsManager', () => {
     vol.reset();
     // Mock the dependencies
     pgcManager = {
-      getLineageForStructuralData: vi.fn(),
+      getLineageForStructuralPatterns: vi.fn(),
       pgcRoot: pgcRoot,
+      projectRoot: '/test-project',
       objectStore: {
         computeHash: vi.fn((data) => `hash(${data})`),
         retrieve: vi.fn(),
+        exists: vi.fn(),
       },
       overlays: { update: vi.fn(), get: vi.fn() },
     } as unknown as PGCManager;
@@ -89,7 +91,7 @@ describe('LineagePatternsManager', () => {
     vol.writeFileSync(structuralDataPath, JSON.stringify(mockStructuralDataA));
 
     // Mock PGCManager response
-    (pgcManager.getLineageForStructuralData as vi.Mock).mockResolvedValue(
+    (pgcManager.getLineageForStructuralPatterns as vi.Mock).mockResolvedValue(
       mockLineageResult
     );
 
@@ -102,6 +104,7 @@ describe('LineagePatternsManager', () => {
       mockStructuralPatternMetadata
     );
 
+    (pgcManager.objectStore.exists as vi.Mock).mockResolvedValue(true);
     (pgcManager.objectStore.retrieve as vi.Mock).mockImplementation((hash) => {
       if (hash === 'hash(mockStructuralDataA)') {
         return Promise.resolve(
@@ -120,7 +123,7 @@ describe('LineagePatternsManager', () => {
     await lineagePatternsManager.generateLineageForAllPatterns();
 
     // Assert
-    expect(pgcManager.getLineageForStructuralData).toHaveBeenCalled();
+    expect(pgcManager.getLineageForStructuralPatterns).toHaveBeenCalled();
     expect(workbench.embed).toHaveBeenCalled();
     expect(vectorDB.storeVector).toHaveBeenCalled();
     expect(pgcManager.overlays.update).toHaveBeenCalled();

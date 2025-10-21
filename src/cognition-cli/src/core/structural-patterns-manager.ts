@@ -19,6 +19,7 @@ export interface PatternMetadata {
   symbolStructuralDataHash: string;
   embeddingHash: string;
   structuralSignature: string;
+  architecturalRole: string;
   computedAt: string;
   vectorId: string;
   validation: {
@@ -53,8 +54,9 @@ export class StructuralPatternsManager implements PatternManager {
   public async generateAndStorePattern(
     symbolName: string, // The name of the symbol (e.g., class name, function name)
     symbolStructuralData: StructuralData, // StructuralData for the individual symbol
-    filePath: string,
-    sourceHash: string
+    relativePath: string,
+    sourceHash: string,
+    structuralDataHash: string // New parameter
   ) {
     await this.vectorDB.initialize('structural_patterns');
     const signature = this.generateStructuralSignature(symbolStructuralData);
@@ -82,8 +84,8 @@ export class StructuralPatternsManager implements PatternManager {
       JSON.stringify(embedding)
     );
 
-    // Use a combination of filePath and symbolName for vectorId to ensure uniqueness
-    const vectorId = `pattern_${filePath.replace(/[^a-zA-Z0-9]/g, '_')}_${symbolName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    // Use a combination of relativePath and symbolName for vectorId to ensure uniqueness
+    const vectorId = `pattern_${relativePath.replace(/[^a-zA-Z0-9]/g, '_')}_${symbolName.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
     await this.vectorDB.storeVector(vectorId, embedding, {
       symbol: symbolName,
@@ -95,10 +97,11 @@ export class StructuralPatternsManager implements PatternManager {
 
     const metadata: PatternMetadata = {
       symbol: symbolName,
-      anchor: filePath,
-      symbolStructuralDataHash: lineageHash,
+      anchor: relativePath,
+      symbolStructuralDataHash: structuralDataHash,
       embeddingHash,
       structuralSignature: signature,
+      architecturalRole: architecturalRole,
       computedAt: new Date().toISOString(),
       validation: {
         sourceHash: sourceHash,
@@ -107,8 +110,8 @@ export class StructuralPatternsManager implements PatternManager {
       vectorId: vectorId, // Store reference to vector DB entry
     };
 
-    // Use a combination of filePath and symbolName for the overlay key
-    const overlayKey = `${filePath}#${symbolName}`;
+    // Use a combination of relativePath and symbolName for the overlay key
+    const overlayKey = `${relativePath}#${symbolName}`;
     await this.pgc.overlays.update('structural_patterns', overlayKey, metadata);
   }
 
@@ -225,24 +228,14 @@ export class StructuralPatternsManager implements PatternManager {
       return [];
     }
 
-    const matchingKeys = Object.keys(manifest).filter((key) =>
-      key.endsWith(`#${symbol}`)
-    );
+    const filePath = manifest[symbol];
 
-    if (matchingKeys.length === 0) {
+    if (!filePath) {
       console.log(chalk.yellow(`No pattern found for symbol: ${symbol}`));
       return [];
     }
 
-    if (matchingKeys.length > 1) {
-      console.warn(
-        chalk.yellow(
-          `Multiple patterns found for symbol: ${symbol}. Using the first match: ${matchingKeys[0]}`
-        )
-      );
-    }
-
-    const overlayKey = matchingKeys[0];
+    const overlayKey = `${filePath}#${symbol}`;
 
     const targetMetadata = await this.pgc.overlays.get(
       'structural_patterns',
@@ -305,24 +298,14 @@ export class StructuralPatternsManager implements PatternManager {
       return undefined;
     }
 
-    const matchingKeys = Object.keys(manifest).filter((key) =>
-      key.endsWith(`#${symbol}`)
-    );
+    const filePath = manifest[symbol];
 
-    if (matchingKeys.length === 0) {
+    if (!filePath) {
       console.log(chalk.yellow(`No pattern found for symbol: ${symbol}`));
       return undefined;
     }
 
-    if (matchingKeys.length > 1) {
-      console.warn(
-        chalk.yellow(
-          `Multiple patterns found for symbol: ${symbol}. Using the first match: ${matchingKeys[0]}`
-        )
-      );
-    }
-
-    const overlayKey = matchingKeys[0];
+    const overlayKey = `${filePath}#${symbol}`;
 
     const targetMetadata = await this.pgc.overlays.get(
       'structural_patterns',

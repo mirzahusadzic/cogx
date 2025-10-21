@@ -7,7 +7,7 @@ export const IndexDataSchema = z.object({
   symbol: z.string().optional(),
   content_hash: z.string(),
   structural_hash: z.string(),
-  status: z.enum(['Valid', 'Invalidated']),
+  status: z.enum(['Valid', 'Invalidated', 'PartiallyProcessed']),
   history: z.array(z.string()),
   structuralData: StructuralDataSchema.optional(),
   lineage_hash: z.string().optional(),

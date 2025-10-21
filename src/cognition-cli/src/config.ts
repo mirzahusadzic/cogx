@@ -8,6 +8,12 @@ export const DEFAULT_EMBEDDING_DIMENSIONS = 768;
 export const DEFAULT_EMBEDDING_MODEL_NAME = 'google/embeddinggemma-300m';
 export const EMBED_PROMPT_NAME = 'Retrieval-document';
 
+export const WORKBENCH_DEPENDENT_EXTRACTION_METHODS = [
+  'ast_remote',
+  'slm',
+  'llm_supervised',
+];
+
 export const DEFAULT_FILE_EXTENSIONS = [
   '.ts',
   '.d.ts',

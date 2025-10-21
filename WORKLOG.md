@@ -24,6 +24,15 @@ This file serves as an audit trail for the development of this project, aligning
 
 ## Action Log
 
+- **2025-10-21:** Comprehensive Refactoring and Bug Fixes for Pattern Management and Lineage Generation.
+  - **Functionality:**
+    - **Pattern Retrieval & Analysis:** Corrected logic in `StructuralPatternsManager` and `LineagePatternsManager` for `findSimilarPatterns` and `getVectorForSymbol` to accurately retrieve patterns from the manifest using direct symbol lookup instead of an incorrect `endsWith` filter. This resolves issues where `find-similar` and `compare` commands failed to locate patterns.
+    - **Pattern Persistence:** Modified `LanceVectorStore` to conditionally create LanceDB tables only if they don't exist, preventing accidental deletion of previously generated patterns upon initialization. The `forceCreateTable` method was removed. This ensures that `patterns analyze` now correctly displays architectural pattern distributions.
+    - **Lineage Generation Efficiency:** Refactored `PGCManager.getLineageForStructuralPatterns` to pre-populate a `symbolToStructuralDataMap` with initial structural data and overlay patterns, eliminating redundant calls to `_findOverlaySymbolsInPath`. Unused `sourceHash` parameter was removed, and `structural_hash` assignment for dummy `bestResult` was corrected to compute the hash of the `structuralData` object.
+    - **Error Handling:** Added a check in `PGCManager.getLineageForStructuralPatterns` to ensure `transformHash` is not empty before accessing its elements, resolving a `TypeError` in `TransformLog.getTransformData`.
+    - **Overlay Orchestration Enhancements:** Updated `OverlayOrchestrator` to include `StructuralMiner`, `OverlayOracle`, and `GenesisOracle` for more robust pattern generation and verification. Implemented spinner for better UX, integrated `discoverFiles` and `runPGCMaintenance`, and added logic to handle `PartiallyProcessed` status for workbench-dependent extractions. The `generateManifest` method was updated to accept `SourceFile[]`.
+    - **Schema & Configuration:** Added `PartiallyProcessed` status to `IndexDataSchema` and enabled `sourceMap` in `tsconfig.json`.
+  - **User Impact:** These changes significantly improve the reliability and functionality of the `cognition-cli` pattern management commands (`analyze`, `find-similar`, `compare`), ensuring accurate pattern retrieval, persistence, and analysis. The lineage generation process is now more efficient and robust, with better error handling and user feedback.
 - **2025-10-20:** Implemented manifest-driven type lineage generation.
 - **2025-10-20:** Refactored vector store to support multiple schemas.
 - **2025-10-20:** Fixed `patterns find-similar` command path resolution.

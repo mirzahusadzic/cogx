@@ -7,9 +7,13 @@ import type { PGCManager } from '../core/pgc-manager.js';
 import type { StructuralMiner } from '../miners/structural-miner.js';
 import type { WorkbenchClient } from '../executors/workbench-client.js';
 import type { SourceFile, Language } from '../types/structural.js';
-import { StructuralOracle } from '../core/oracles/structural-oracle.js';
+import { GenesisOracle } from '../core/oracles/genesis.js';
 
-import { DEFAULT_MAX_FILE_SIZE, DEFAULT_FILE_EXTENSIONS } from '../config.js';
+import {
+  DEFAULT_MAX_FILE_SIZE,
+  DEFAULT_FILE_EXTENSIONS,
+  WORKBENCH_DEPENDENT_EXTRACTION_METHODS,
+} from '../config.js';
 
 export class GenesisOrchestrator {
   private maxFileSize = DEFAULT_MAX_FILE_SIZE;
@@ -18,7 +22,7 @@ export class GenesisOrchestrator {
     private pgc: PGCManager,
     private miner: StructuralMiner,
     private workbench: WorkbenchClient,
-    private structuralOracle: StructuralOracle,
+    private genesisOracle: GenesisOracle,
     private projectRoot: string
   ) {}
 
@@ -97,7 +101,7 @@ export class GenesisOrchestrator {
 
     // The Oracle
     log.info('Oracle: Verifying PGC structural coherence after maintenance.');
-    const verificationResult = await this.structuralOracle.verify();
+    const verificationResult = await this.genesisOracle.verify();
 
     if (verificationResult.success) {
       log.success(
@@ -107,7 +111,7 @@ export class GenesisOrchestrator {
       log.error(
         'Oracle: Verification failed. PGC has structural inconsistencies:'
       );
-      verificationResult.messages.forEach((msg) =>
+      verificationResult.messages.forEach((msg: string) =>
         log.error(chalk.red(`- ${msg}`))
       );
     }
@@ -131,14 +135,6 @@ export class GenesisOrchestrator {
       return;
     }
 
-    if (!isWorkbenchHealthy) {
-      s.stop(
-        chalk.yellow(`⸬ ${file.relativePath} (skipped - workbench not healthy)`)
-      );
-
-      return;
-    }
-
     try {
       // Store the content hash in the object store
       await this.pgc.objectStore.store(file.content);
@@ -149,7 +145,38 @@ export class GenesisOrchestrator {
       const structuralHash = await this.pgc.objectStore.store(
         JSON.stringify(structural, null, 2)
       );
+
       storedHashes.push(structuralHash);
+
+      const isWorkbenchDependentExtraction =
+        WORKBENCH_DEPENDENT_EXTRACTION_METHODS.includes(
+          structural.extraction_method
+        );
+
+      if (!isWorkbenchHealthy && isWorkbenchDependentExtraction) {
+        s.stop(
+          chalk.yellow(
+            `⸬ ${file.relativePath} (skipped workbench processing - workbench not healthy)`
+          )
+        );
+
+        // Still update the index with structural data, but mark as partially processed
+
+        const newHistory = existingIndex?.history
+          ? [...existingIndex.history, 'skipped_workbench_processing']
+          : ['skipped_workbench_processing'];
+
+        await this.pgc.index.set(file.relativePath, {
+          path: file.relativePath,
+          content_hash: contentHash,
+          structural_hash: structuralHash,
+          status: 'PartiallyProcessed',
+          history: newHistory,
+          structuralData: structural,
+        });
+
+        return;
+      }
 
       recordedTransformId = await this.pgc.transformLog.record({
         goal: {
@@ -161,6 +188,7 @@ export class GenesisOrchestrator {
           ],
           phimin: 0.8,
         },
+
         inputs: [{ path: file.relativePath, hash: contentHash }],
         outputs: [{ path: file.relativePath, hash: structuralHash }],
         method: structural.extraction_method,

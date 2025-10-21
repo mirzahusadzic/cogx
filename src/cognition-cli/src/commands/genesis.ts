@@ -6,7 +6,7 @@ import { PGCManager } from '../core/pgc-manager.js';
 import { StructuralMiner } from '../miners/structural-miner.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
 import { GenesisOrchestrator } from '../orchestrators/genesis-orchestrator.js';
-import { StructuralOracle } from '../core/oracles/structural-oracle.js';
+import { GenesisOracle } from '../core/oracles/genesis.js';
 
 class PGCInitializationError extends Error {
   constructor(message: string) {
@@ -72,14 +72,14 @@ export async function genesisCommand(options: GenesisOptions) {
     // Initialize structural miner with three-layer pipeline
     const miner = new StructuralMiner(workbench);
 
-    const structuralOracle = new StructuralOracle(pgc);
+    const genesisOracle = new GenesisOracle(pgc);
 
     // Create genesis orchestrator
     const orchestrator = new GenesisOrchestrator(
       pgc,
       miner,
       workbench,
-      structuralOracle,
+      genesisOracle,
       options.projectRoot
     );
 

@@ -12,6 +12,8 @@ import {
   ClassData,
   FunctionData,
   InterfaceData,
+  StructuralPatternMetadata,
+  StructuralPatternMetadataSchema,
 } from '../types/structural.js';
 
 export interface Dependency {
@@ -27,6 +29,7 @@ export interface LineageQueryResult {
 
 export class PGCManager {
   public readonly pgcRoot: string;
+  public readonly projectRoot: string;
   public readonly index: Index;
   public readonly objectStore: ObjectStore;
   public readonly transformLog: TransformLog;
@@ -34,6 +37,7 @@ export class PGCManager {
   public readonly overlays: Overlays;
 
   constructor(projectRoot: string) {
+    this.projectRoot = projectRoot;
     this.pgcRoot = path.join(projectRoot, '.open_cognition');
     this.index = new Index(this.pgcRoot);
     this.objectStore = new ObjectStore(this.pgcRoot);
@@ -241,14 +245,31 @@ export class PGCManager {
             data.interfaces?.some((i) => i.name === symbolName);
 
           if (isMatch) {
-            // Create a dummy IndexData object
             const structural_hash = this.objectStore.computeHash(content);
             const originalPath = file.split('#')[0];
+
+            // Construct the overlayKey to retrieve metadata
+            const overlayKey = `${originalPath}#${symbolName}`;
+            const metadata = await this.overlays.get(
+              'structural_patterns',
+              overlayKey,
+              StructuralPatternMetadataSchema
+            );
+
+            let contentHash = '';
+            if (
+              metadata &&
+              metadata.validation &&
+              metadata.validation.sourceHash
+            ) {
+              contentHash = metadata.validation.sourceHash;
+            }
+
             results.push({
               path: originalPath,
               symbol: symbolName,
               structural_hash,
-              content_hash: '', // Not available from overlay files
+              content_hash: contentHash,
               status: 'Valid',
               history: [],
             });
@@ -261,7 +282,72 @@ export class PGCManager {
     return results;
   }
 
-  public async getLineageForStructuralData(
+  private async _getStructuralPatternsInPath(
+    targetFilePath: string
+  ): Promise<StructuralPatternMetadata[]> {
+    const structuralPatterns: StructuralPatternMetadata[] = [];
+    const overlayStructuralPatternsPath = path.join(
+      this.pgcRoot,
+      'overlays',
+      'structural_patterns'
+    );
+
+    // Determine the relative path of the target file within the project
+    const relativeTargetFilePath = path.relative(
+      this.projectRoot,
+      targetFilePath
+    );
+
+    const targetFileDir = path.dirname(relativeTargetFilePath);
+
+    // Function to recursively read JSON files in a directory
+    const readJsonFiles = async (currentDirPath: string) => {
+      try {
+        const entries = await fs.readdir(currentDirPath, {
+          withFileTypes: true,
+        });
+        for (const entry of entries) {
+          const fullPath = path.join(currentDirPath, entry.name);
+          if (entry.isDirectory()) {
+            await readJsonFiles(fullPath); // Recurse into subdirectories
+          } else if (entry.isFile() && entry.name.endsWith('.json')) {
+            // Extract the original file path from the JSON file name
+            // e.g., src/types/workbench.ts#SummarizeRequest.json -> src/types/workbench.ts
+            const originalFilePath = entry.name.split('#')[0];
+            const relativeOriginalFilePath = path.relative(
+              overlayStructuralPatternsPath,
+              path.join(currentDirPath, originalFilePath)
+            );
+
+            // Check if the original file path is within the target file's directory or is the target file itself
+            if (
+              relativeOriginalFilePath.startsWith(targetFileDir) ||
+              relativeOriginalFilePath === relativeTargetFilePath
+            ) {
+              try {
+                const content = await fs.readFile(fullPath, 'utf-8');
+                const data = JSON.parse(content) as StructuralPatternMetadata;
+                structuralPatterns.push(data);
+              } catch (parseError) {
+                console.error(
+                  `Error parsing structural pattern file ${fullPath}:`,
+                  parseError
+                );
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`Error reading directory ${currentDirPath}:`, error);
+      }
+    };
+
+    // Start reading from the overlay structural patterns root
+    await readJsonFiles(overlayStructuralPatternsPath);
+    return structuralPatterns;
+  }
+
+  public async getLineageForStructuralPatterns(
     initialStructuralData: StructuralData,
     maxDepth: number,
     searchPath: string,
@@ -273,22 +359,43 @@ export class PGCManager {
       initialStructuralData.interfaces?.[0]?.name ||
       '';
 
-    const initialContext = [initialStructuralData];
+    const initialIndexDataList: IndexData[] = [];
+    const initialContext: StructuralData[] = [];
+    initialContext.push(initialStructuralData);
+
+    const symbolToStructuralDataMap = new Map<string, StructuralData>();
+    if (initialSymbol) {
+      symbolToStructuralDataMap.set(initialSymbol, initialStructuralData);
+    }
+
+    // Prepopulate initialContext with structural patterns from the overlay based on filePath
+    const overlayPatterns = await this._getStructuralPatternsInPath(filePath);
+    for (const pattern of overlayPatterns) {
+      const structuralDataBuffer = await this.objectStore.retrieve(
+        pattern.symbolStructuralDataHash
+      );
+      if (structuralDataBuffer) {
+        const structuralData = JSON.parse(
+          structuralDataBuffer.toString()
+        ) as StructuralData;
+        symbolToStructuralDataMap.set(pattern.symbol, structuralData);
+      }
+
+      // Create a dummy IndexData for overlay patterns
+      initialIndexDataList.push({
+        path: pattern.anchor, // Use the filePath of the current context
+        symbol: pattern.symbol,
+        structural_hash: pattern.symbolStructuralDataHash,
+        content_hash: '', // No direct content hash for overlay patterns
+        status: 'Valid',
+        history: [],
+      });
+    }
+
     const dependencies: Dependency[] = [];
     const processedSymbols = new Set<string>([initialSymbol]);
 
-    // Create a dummy IndexData for the initial symbol to start the process
-    const initialIndexData: IndexData = {
-      path: filePath,
-      symbol: initialSymbol,
-      structural_hash: this.objectStore.computeHash(
-        JSON.stringify(initialStructuralData)
-      ),
-      content_hash: '',
-      status: 'Valid',
-      history: [],
-    };
-    let currentResults = [initialIndexData];
+    let currentResults = [...initialIndexDataList];
 
     if (maxDepth > 0 && currentResults.length > 0) {
       for (let currentDepth = 1; currentDepth <= maxDepth; currentDepth++) {
@@ -298,9 +405,26 @@ export class PGCManager {
         const dependencySymbolToLineage = new Map<string, string>();
 
         for (const result of currentResults) {
-          const structuralDataBuffer = await this.objectStore.retrieve(
+          const transformHash = await this.reverseDeps.getTransformIds(
             result.structural_hash
           );
+
+          if (!transformHash || transformHash.length === 0) {
+            continue;
+          }
+
+          const transformData = await this.transformLog.getTransformData(
+            transformHash[0]
+          );
+
+          if (!(transformData && transformData.outputs.length > 0)) {
+            continue;
+          }
+
+          const structuralDataBuffer = await this.objectStore.retrieve(
+            transformData.outputs[0].hash
+          );
+
           if (structuralDataBuffer) {
             const structuralData = JSON.parse(
               structuralDataBuffer.toString()
@@ -367,30 +491,32 @@ export class PGCManager {
           }
           processedSymbols.add(depSymbol);
 
-          // Use the new overlay-specific search method
-          const searchResults = await this._findOverlaySymbolsInPath(
-            depSymbol,
-            searchPath
-          );
+          let structuralData: StructuralData | undefined;
+          let bestResult: IndexData | null = null;
 
-          // For simplicity, we'll take the first result if multiple are found.
-          if (searchResults.length > 0) {
-            const bestResult = searchResults[0];
-            const structuralDataBuffer = await this.objectStore.retrieve(
-              bestResult.structural_hash
-            );
-            if (structuralDataBuffer) {
-              const structuralData = JSON.parse(
-                structuralDataBuffer.toString()
-              ) as StructuralData;
-              dependencies.push({
-                path: `${parentLineage} -> ${depSymbol}`,
-                depth: currentDepth,
-                structuralData: structuralData,
-              });
-              bestResult.path = `${parentLineage} -> ${depSymbol}`;
-              newDependenciesForNextLevel.push(bestResult);
-            }
+          if (symbolToStructuralDataMap.has(depSymbol)) {
+            structuralData = symbolToStructuralDataMap.get(depSymbol);
+            // Create a dummy bestResult for consistency
+            bestResult = {
+              path: parentLineage,
+              symbol: depSymbol,
+              structural_hash: this.objectStore.computeHash(
+                JSON.stringify(structuralData!)
+              ),
+              content_hash: '',
+              status: 'Valid',
+              history: [],
+            };
+          }
+
+          if (structuralData && bestResult) {
+            dependencies.push({
+              path: `${parentLineage} -> ${depSymbol}`,
+              depth: currentDepth,
+              structuralData: structuralData,
+            });
+            bestResult.path = `${parentLineage} -> ${depSymbol}`;
+            newDependenciesForNextLevel.push(bestResult);
           }
         }
         currentResults = newDependenciesForNextLevel;

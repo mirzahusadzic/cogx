@@ -90,40 +90,6 @@ export class LanceVectorStore {
     return this.initializationPromise;
   }
 
-  private async forceCreateTable(
-    tableName: string,
-    schema: Schema
-  ): Promise<void> {
-    try {
-      // Try to drop the table if it exists
-      await this.db!.dropTable(tableName).catch(() => {
-        // Ignore errors if table doesn't exist
-      });
-    } catch (error) {
-      // Ignore drop errors
-    }
-
-    // Create the table with the EXACT schema we want
-    const completeDummyRecord = {
-      id: 'schema_test_record',
-      symbol: 'test',
-      embedding: new Array(DEFAULT_EMBEDDING_DIMENSIONS).fill(0.1),
-      structural_signature: 'test',
-      architectural_role: 'test_role',
-      computed_at: new Date().toISOString(),
-      lineage_hash: 'test_hash',
-    };
-
-    this.table = await this.db!.createTable(tableName, [completeDummyRecord], {
-      schema,
-    });
-
-    // Immediately verify the schema
-
-    // Clean up test record
-    await this.table.delete(`id = 'schema_test_record'`);
-  }
-
   private async doInitialize(tableName: string, schema: Schema): Promise<void> {
     try {
       const dbPath = path.join(this.pgcRoot, 'patterns.lancedb');
@@ -131,9 +97,34 @@ export class LanceVectorStore {
 
       this.db = await connect(dbPath);
 
-      // ALWAYS force recreate the table to ensure correct schema
-      await this.forceCreateTable(tableName, schema);
+      // Check if table exists, if not, create it
+      const tableNames = await this.db.tableNames();
+      if (tableNames.includes(tableName)) {
+        this.table = await this.db.openTable(tableName);
+        // Optionally, check and migrate schema if necessary here
+      } else {
+        // Create the table with the EXACT schema we want
+        const completeDummyRecord = {
+          id: 'schema_test_record',
+          symbol: 'test',
+          embedding: new Array(DEFAULT_EMBEDDING_DIMENSIONS).fill(0.1),
+          structural_signature: 'test',
+          architectural_role: 'test_role',
+          computed_at: new Date().toISOString(),
+          lineage_hash: 'test_hash',
+        };
 
+        this.table = await this.db.createTable(
+          tableName,
+          [completeDummyRecord],
+          {
+            schema,
+          }
+        );
+
+        // Clean up test record
+        await this.table.delete(`id = 'schema_test_record'`);
+      }
       this.isInitialized = true;
     } catch (error: unknown) {
       this.initializationPromise = null;

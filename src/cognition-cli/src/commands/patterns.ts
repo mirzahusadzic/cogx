@@ -75,9 +75,11 @@ export function addPatternsCommands(program: Command) {
       "The type of patterns to analyze ('structural' or 'lineage')",
       'structural'
     )
-    .action(async () => {
+    .action(async (options) => {
       const pgc = new PGCManager(process.cwd());
       const vectorDB = new LanceVectorStore(pgc.pgcRoot);
+      const tableName = `${options.type}_patterns`;
+      await vectorDB.initialize(tableName);
       const allVectors: VectorRecord[] = await vectorDB.getAllVectors();
 
       // Group by architectural role

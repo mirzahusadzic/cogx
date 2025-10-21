@@ -6,7 +6,8 @@ import fs from 'fs-extra';
 import { TransformData } from '../../types/transform.js';
 import yaml from 'js-yaml';
 
-export class StructuralOracle {
+export class GenesisOracle {
+  // Renamed from StructuralOracle
   constructor(private pgcManager: PGCManager) {}
 
   async verify(): Promise<VerificationResult> {
