@@ -61,16 +61,15 @@ export class GenesisOrchestrator {
     let processed = 0;
 
     for (const file of files) {
-      // s.start(
-      //   `Processing ${chalk.cyan(file.relativePath)} (${++processed}/${files.length})`
-      // );
-      console.log(
+      s.start(
         `Processing ${chalk.cyan(file.relativePath)} (${++processed}/${files.length})`
       );
       try {
         await this.processFile(file, s, isWorkbenchHealthy);
       } catch (error) {
-        // s.stop(chalk.red(`✗ ${file.relativePath}: ${(error as Error).message}`));
+        s.stop(
+          chalk.red(`✗ ${file.relativePath}: ${(error as Error).message}`)
+        );
         errors.push({
           file: file.relativePath,
           message: (error as Error).message,
@@ -165,7 +164,7 @@ export class GenesisOrchestrator {
     const contentHash = this.pgc.objectStore.computeHash(file.content);
 
     if (existingIndex && existingIndex.content_hash === contentHash) {
-      console.log(chalk.gray(`⸟ ${file.relativePath} (unchanged)`));
+      s.stop(chalk.gray(`⸟ ${file.relativePath} (unchanged)`));
 
       return;
     }
@@ -189,7 +188,7 @@ export class GenesisOrchestrator {
         );
 
       if (!isWorkbenchHealthy && isWorkbenchDependentExtraction) {
-        console.warn(
+        s.stop(
           chalk.yellow(
             `⸬ ${file.relativePath} (skipped workbench processing - workbench not healthy)`
           )
@@ -276,11 +275,9 @@ export class GenesisOrchestrator {
       await this.pgc.reverseDeps.add(contentHash, recordedTransformId);
       await this.pgc.reverseDeps.add(structuralHash, recordedTransformId);
 
-      console.log(chalk.green(`✓ ${file.relativePath}`));
+      s.stop(chalk.green(`✓ ${file.relativePath}`));
     } catch (error) {
-      console.error(
-        chalk.red(`✗ ${file.relativePath}: ${(error as Error).message}`)
-      );
+      s.stop(chalk.red(`✗ ${file.relativePath}: ${(error as Error).message}`));
       await this.rollback(storedHashes, recordedTransformId);
       throw error; // Re-throw the error so it can be caught by the caller
     }

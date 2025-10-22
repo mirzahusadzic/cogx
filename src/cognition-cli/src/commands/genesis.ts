@@ -7,6 +7,8 @@ import { StructuralMiner } from '../core/orchestrators/miners/structural-miner.j
 import { WorkbenchClient } from '../core/executors/workbench-client.js';
 import { GenesisOrchestrator } from '../core/orchestrators/genesis.js';
 import { GenesisOracle } from '../core/pgc/oracles/genesis.js';
+import { LineagePatternsManager } from '../core/overlays/lineage/manager.js';
+import { LanceVectorStore } from '../core/overlays/vector-db/lance-store.js';
 
 class PGCInitializationError extends Error {
   constructor(message: string) {
@@ -43,9 +45,12 @@ async function validatePgcInitialized(projectRoot: string): Promise<void> {
 export async function genesisCommand(options: GenesisOptions) {
   intro(chalk.bold('Genesis: Building the Verifiable Skeleton'));
 
-  const s = spinner();
+  let s: ReturnType<typeof spinner> | undefined;
+  let lineageManager: LineagePatternsManager | undefined;
 
   try {
+    s = spinner();
+
     // Validate PGC initialization
     s.start('Validating PGC initialization');
     await validatePgcInitialized(options.projectRoot);
@@ -57,6 +62,12 @@ export async function genesisCommand(options: GenesisOptions) {
     const workbench = new WorkbenchClient(
       process.env.WORKBENCH_URL || 'http://localhost:8000'
     );
+
+    // Initialize LanceVectorStore and LineagePatternsManager to set up embedding handler
+    const vectorDB = new LanceVectorStore(pgc.pgcRoot);
+    lineageManager = new LineagePatternsManager(pgc, vectorDB, workbench);
+    // Dummy call to satisfy linter, as its constructor has side effects
+    lineageManager.getEmbeddingStats();
 
     try {
       await workbench.health();
@@ -89,7 +100,9 @@ export async function genesisCommand(options: GenesisOptions) {
 
     outro(chalk.green('✓ Genesis complete - Verifiable skeleton constructed'));
   } catch (error) {
-    s.stop('Genesis failed');
+    if (s) {
+      s.stop('Genesis failed');
+    }
     if (error instanceof PGCInitializationError) {
       log.error(chalk.red(error.message));
     } else {
@@ -97,6 +110,12 @@ export async function genesisCommand(options: GenesisOptions) {
     }
     throw error;
   } finally {
-    s.stop();
+    if (s) {
+      s.stop();
+    }
+    // Ensure lineageManager is shut down
+    if (lineageManager) {
+      await lineageManager.shutdown();
+    }
   }
 }

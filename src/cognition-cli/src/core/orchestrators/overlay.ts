@@ -215,13 +215,13 @@ export class OverlayOrchestrator {
               existingOverlay.validation?.sourceHash === contentHash
             ) {
               skippedCount++;
-              console.log(
+              s.stop(
                 chalk.gray(`⸟ ${file.relativePath}#${symbolName} (unchanged)`)
               );
               return;
             }
 
-            console.log(
+            s.message(
               chalk.blue(
                 `[Overlay] Mining pattern for: ${symbolName} (from ${file.relativePath})`
               )
@@ -237,9 +237,9 @@ export class OverlayOrchestrator {
               );
 
               processedCount++;
-              console.log(chalk.green(`✓ ${file.relativePath}#${symbolName}`));
+              s.stop(chalk.green(`✓ ${file.relativePath}#${symbolName}`));
             } catch (error) {
-              console.error(
+              s.stop(
                 chalk.red(
                   `✗ ${file.relativePath}#${symbolName}: ${(error as Error).message}`
                 )

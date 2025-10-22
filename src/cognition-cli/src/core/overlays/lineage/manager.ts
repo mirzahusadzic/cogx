@@ -15,7 +15,6 @@ import {
   PatternGenerationOptions,
   StructuralSymbolType,
   PatternJobPacket,
-  PatternResultPacket,
 } from './types.js';
 
 // These interfaces remain, as they are part of the manager's public API for single-threaded lineage queries.
@@ -58,7 +57,7 @@ export class LineagePatternsManager implements PatternManager {
   /**
    * Centralized embedding request handler for workers
    */
-  private async requestEmbedding(params: {
+  public async requestEmbedding(params: {
     signature: string;
     dimensions: number;
   }): Promise<EmbedResponse> {
@@ -78,7 +77,6 @@ export class LineagePatternsManager implements PatternManager {
       chalk.blue('[LineagePatterns] Starting generation with options:', options)
     );
 
-    // 2. STRATEGIC ASSESSMENT: The Conductor consults the manifest to identify all potential targets.
     const structuralManifest = await this.pgc.overlays.get(
       'structural_patterns',
       'manifest',
@@ -98,7 +96,6 @@ export class LineagePatternsManager implements PatternManager {
       ([, filePath]) => files.length === 0 || files.includes(filePath as string)
     );
 
-    // 3. MISSION BRIEFING: The Conductor creates a detailed mission packet for each agent.
     const jobs: PatternJobPacket[] = targetEntries
       .map(([symbolName, filePath]) => ({
         pgcRoot: this.pgc.pgcRoot,
@@ -122,38 +119,19 @@ export class LineagePatternsManager implements PatternManager {
       return;
     }
 
-    console.log(
-      chalk.blue(
-        `[LineagePatterns] Dispatching ${jobs.length} generation jobs to workers...`
-      )
-    );
+    console.log(`[LineagePatterns] Dispatching ${jobs.length} jobs...`);
 
-    // 4. DEPLOY AGENTS: The Conductor commands the pool to execute 'processJob' for each packet.
-    const promises = jobs.map((job) =>
-      this.workerPool.exec('processJob', [job])
-    );
-    const results: PatternResultPacket[] = await Promise.all(promises);
+    try {
+      const promises = jobs.map((job) =>
+        this.workerPool.exec('processJob', [job])
+      );
 
-    // 5. MISSION DEBRIEFING: The Conductor reviews the outcome of the campaign.
-    let successCount = 0,
-      skippedCount = 0,
-      errorCount = 0;
-    results.forEach((result) => {
-      if (result.status === 'success') successCount++;
-      if (result.status === 'skipped') skippedCount++;
-      if (result.status === 'error') {
-        errorCount++;
-        console.error(
-          chalk.red(`[Worker Error | ${result.symbolName}]: ${result.message}`)
-        );
-      }
-    });
-
-    console.log(
-      chalk.green(
-        `[LineagePatterns] Generation complete. Success: ${successCount}, Skipped: ${skippedCount}, Errors: ${errorCount}`
-      )
-    );
+      await Promise.all(promises);
+      console.log('[LineagePatterns] All jobs completed');
+    } catch (error) {
+      console.error('[LineagePatterns] Worker error:', error);
+      throw error;
+    }
   }
 
   /**
