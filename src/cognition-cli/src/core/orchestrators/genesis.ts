@@ -6,17 +6,23 @@ import chalk from 'chalk';
 import type { PGCManager } from '../pgc/manager.js';
 import type { StructuralMiner } from './miners/structural-miner.js';
 import type { WorkbenchClient } from '../executors/workbench-client.js';
-import type { SourceFile, Language } from '../types/structural.js';
+import type {
+  SourceFile,
+  Language,
+  StructuralPatternMetadata,
+} from '../types/structural.js';
 import { GenesisOracle } from '../pgc/oracles/genesis.js';
 
 import {
   DEFAULT_MAX_FILE_SIZE,
   DEFAULT_FILE_EXTENSIONS,
   WORKBENCH_DEPENDENT_EXTRACTION_METHODS,
+  DEFAULT_EMBEDDING_MODEL_NAME,
 } from '../../config.js';
 
 export class GenesisOrchestrator {
   private maxFileSize = DEFAULT_MAX_FILE_SIZE;
+  private structuralPatternsManifest: Record<string, string> = {};
 
   constructor(
     private pgc: PGCManager,
@@ -28,6 +34,7 @@ export class GenesisOrchestrator {
 
   async executeBottomUpAggregation(sourcePath: string) {
     const s = spinner();
+    const errors: { file: string; message: string }[] = [];
 
     let isWorkbenchHealthy = false;
 
@@ -54,15 +61,43 @@ export class GenesisOrchestrator {
     let processed = 0;
 
     for (const file of files) {
-      s.start(
+      // s.start(
+      //   `Processing ${chalk.cyan(file.relativePath)} (${++processed}/${files.length})`
+      // );
+      console.log(
         `Processing ${chalk.cyan(file.relativePath)} (${++processed}/${files.length})`
       );
-      await this.processFile(file, s, isWorkbenchHealthy);
+      try {
+        await this.processFile(file, s, isWorkbenchHealthy);
+      } catch (error) {
+        // s.stop(chalk.red(`✗ ${file.relativePath}: ${(error as Error).message}`));
+        errors.push({
+          file: file.relativePath,
+          message: (error as Error).message,
+        });
+      }
     }
+
+    // s.stop(`Found ${files.length} files`); // This stop is for the initial discovery, keep it.
 
     await this.aggregateDirectories();
 
+    // Write the complete structural patterns manifest once
+    await this.pgc.overlays.update(
+      'structural_patterns',
+      'manifest',
+      this.structuralPatternsManifest
+    );
+
     await this.runPGCMaintenance(files.map((f) => f.relativePath));
+
+    if (errors.length > 0) {
+      log.error(chalk.red('\n--- Errors during file processing ---'));
+      errors.forEach((err) => {
+        log.error(chalk.red(`✗ ${err.file}: ${err.message}`));
+      });
+      log.error(chalk.red('-------------------------------------'));
+    }
   }
 
   private async runPGCMaintenance(processedFiles: string[]) {
@@ -130,7 +165,7 @@ export class GenesisOrchestrator {
     const contentHash = this.pgc.objectStore.computeHash(file.content);
 
     if (existingIndex && existingIndex.content_hash === contentHash) {
-      s.stop(chalk.gray(`⸟ ${file.relativePath} (unchanged)`));
+      console.log(chalk.gray(`⸟ ${file.relativePath} (unchanged)`));
 
       return;
     }
@@ -154,7 +189,7 @@ export class GenesisOrchestrator {
         );
 
       if (!isWorkbenchHealthy && isWorkbenchDependentExtraction) {
-        s.stop(
+        console.warn(
           chalk.yellow(
             `⸬ ${file.relativePath} (skipped workbench processing - workbench not healthy)`
           )
@@ -208,14 +243,46 @@ export class GenesisOrchestrator {
         structuralData: structural,
       });
 
+      // Store StructuralPatternMetadata for each symbol in the structural_patterns overlay
+      const processSymbol = async (symbolName: string) => {
+        const structuralPatternMetadata: StructuralPatternMetadata = {
+          symbol: symbolName,
+          anchor: file.relativePath,
+          symbolStructuralDataHash: structuralHash,
+          validation: {
+            sourceHash: contentHash,
+            extractionMethod: structural.extraction_method,
+            fidelity: structural.fidelity,
+            embeddingModelVersion: DEFAULT_EMBEDDING_MODEL_NAME,
+          },
+          computedAt: new Date().toISOString(),
+          structuralSignature: JSON.stringify(structural, null, 2), // Placeholder
+          architecturalRole: 'structural_pattern', // Placeholder
+          vectorId: `structural_${file.relativePath.replace(/[^a-zA-Z0-9_]/g, '_')}_${symbolName.replace(/[^a-zA-Z0-9]/g, '_')}`, // Placeholder
+        };
+
+        await this.pgc.overlays.update(
+          'structural_patterns',
+          `${file.relativePath}#${symbolName}`,
+          structuralPatternMetadata
+        );
+        this.structuralPatternsManifest[symbolName] = file.relativePath;
+      };
+
+      structural.classes?.forEach(async (c) => await processSymbol(c.name));
+      structural.functions?.forEach(async (f) => await processSymbol(f.name));
+      structural.interfaces?.forEach(async (i) => await processSymbol(i.name));
+
       await this.pgc.reverseDeps.add(contentHash, recordedTransformId);
       await this.pgc.reverseDeps.add(structuralHash, recordedTransformId);
 
-      s.stop(chalk.green(`✓ ${file.relativePath}`));
+      console.log(chalk.green(`✓ ${file.relativePath}`));
     } catch (error) {
-      s.stop(chalk.red(`✗ ${file.relativePath}: ${(error as Error).message}`));
-      log.error(`Failed to process ${file.relativePath}`);
+      console.error(
+        chalk.red(`✗ ${file.relativePath}: ${(error as Error).message}`)
+      );
       await this.rollback(storedHashes, recordedTransformId);
+      throw error; // Re-throw the error so it can be caught by the caller
     }
   }
 

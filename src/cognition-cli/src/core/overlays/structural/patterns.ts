@@ -85,7 +85,7 @@ export class StructuralPatternsManager implements PatternManager {
     // Use a combination of relativePath and symbolName for vectorId to ensure uniqueness
     const vectorId = `pattern_${relativePath.replace(/[^a-zA-Z0-9]/g, '_')}_${symbolName.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
-    await this.vectorDB.storeVector(vectorId, embedding, {
+    await this.vectorDB.storeVector(vectorId, embedding as number[], {
       symbol: symbolName,
       structural_signature: signature,
       architectural_role: architecturalRole,

@@ -122,6 +122,8 @@ export const StructuralPatternMetadataSchema = z.object({
   validation: z.object({
     sourceHash: z.string(),
     embeddingModelVersion: z.string(),
+    extractionMethod: z.string(),
+    fidelity: z.number(),
   }),
 });
 

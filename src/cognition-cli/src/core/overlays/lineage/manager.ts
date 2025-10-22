@@ -1,4 +1,5 @@
-import path from 'path';
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
 import chalk from 'chalk';
 import { z } from 'zod';
 import * as workerpool from 'workerpool';
@@ -8,12 +9,13 @@ import { LanceVectorStore, VectorRecord } from '../vector-db/lance-store.js';
 import { WorkbenchClient } from '../../executors/workbench-client.js';
 import { PatternManager } from '../../pgc/patterns.js';
 import { StructuralData } from '../../types/structural.js';
+import { EmbeddingService } from '../../services/embedding-service.js';
+import { EmbedResponse } from '../../types/workbench.js'; // ADD THIS IMPORT
 import {
   PatternGenerationOptions,
   StructuralSymbolType,
   PatternJobPacket,
   PatternResultPacket,
-  // LineagePatternMetadataSchema, // Not used in this file
 } from './types.js';
 
 // These interfaces remain, as they are part of the manager's public API for single-threaded lineage queries.
@@ -30,6 +32,7 @@ export interface LineageQueryResult {
 
 export class LineagePatternsManager implements PatternManager {
   private workerPool: workerpool.Pool;
+  private embeddingService: EmbeddingService;
 
   constructor(
     private pgc: PGCManager,
@@ -37,9 +40,31 @@ export class LineagePatternsManager implements PatternManager {
     private workbench: WorkbenchClient
   ) {
     // 1. INITIALIZATION: The Conductor creates its pool of autonomous agents.
-    // It points to the compiled JavaScript file of the worker.
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
     this.workerPool = workerpool.pool(
       path.resolve(__dirname, 'lineage-pattern-worker.js')
+    );
+
+    // 2. Initialize the centralized embedding service
+    this.embeddingService = new EmbeddingService(
+      process.env.WORKBENCH_URL || 'http://localhost:8000'
+    );
+
+    // 3. Configure the PGCManager to use our embedding service
+    this.pgc.setEmbeddingRequestHandler(this.requestEmbedding.bind(this));
+  }
+
+  /**
+   * Centralized embedding request handler for workers
+   */
+  private async requestEmbedding(params: {
+    signature: string;
+    dimensions: number;
+  }): Promise<EmbedResponse> {
+    return this.embeddingService.getEmbedding(
+      params.signature,
+      params.dimensions
     );
   }
 
@@ -159,10 +184,26 @@ export class LineagePatternsManager implements PatternManager {
   }
 
   /**
-   * Shuts down the worker pool. A crucial cleanup step.
+   * Shuts down the worker pool and embedding service. A crucial cleanup step.
    */
   public async shutdown(): Promise<void> {
+    console.log(
+      chalk.blue(
+        '[LineagePatterns] Shutting down worker pool and embedding service...'
+      )
+    );
     await this.workerPool.terminate();
+    await this.embeddingService.shutdown();
+  }
+
+  /**
+   * Get embedding service statistics for monitoring
+   */
+  public getEmbeddingStats(): { queueSize: number; isProcessing: boolean } {
+    return {
+      queueSize: this.embeddingService.getQueueSize(),
+      isProcessing: this.embeddingService.isProcessing(),
+    };
   }
 
   // "Read" methods like findSimilarPatterns remain on the Conductor.

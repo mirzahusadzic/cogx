@@ -6,6 +6,8 @@ import {
   StructuralPatternMetadata,
 } from '../../types/structural.js';
 import chalk from 'chalk';
+import path from 'path';
+import { log } from '@clack/prompts';
 
 export class OverlayOracle {
   constructor(private pgcManager: PGCManager) {}
@@ -18,6 +20,17 @@ export class OverlayOracle {
       'structural_patterns',
       'manifest',
       z.record(z.string())
+    );
+
+    // Log the manifest path for debugging
+    const manifestPath = path.join(
+      this.pgcManager.pgcRoot,
+      'overlays',
+      'structural_patterns',
+      'manifest.json'
+    );
+    log.info(
+      `[OverlayOracle] Attempting to read manifest from: ${manifestPath}`
     );
 
     if (structuralPatternsManifest) {

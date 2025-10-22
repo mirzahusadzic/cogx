@@ -144,6 +144,27 @@ export class OverlayOrchestrator {
       let skippedCount = 0;
       const BATCH_SIZE = 50;
 
+      // Verify the structural patterns overlay after generation
+      log.info(
+        chalk.cyan(
+          '\n[Overlay] Oracle: Verifying structural patterns overlay...'
+        )
+      );
+
+      const verificationResult2 =
+        await this.overlayOracle.verifyStructuralPatternsOverlay();
+      if (!verificationResult2.success) {
+        log.error(
+          chalk.red('Structural patterns overlay verification failed:')
+        );
+        verificationResult2.messages.forEach((msg: string) => log.error(msg));
+        throw new Error('Structural patterns overlay is inconsistent.');
+      } else {
+        log.success(
+          chalk.green('[Overlay] Structural Oracle verification successful.')
+        );
+      }
+
       for (let i = 0; i < allFiles.length; i += BATCH_SIZE) {
         const batch = allFiles.slice(i, i + BATCH_SIZE);
 
@@ -180,60 +201,66 @@ export class OverlayOrchestrator {
             return;
           }
 
-          const symbol = this.findPrimarySymbol(structuralData, filePath);
+          const processIndividualSymbol = async (symbolName: string) => {
+            const overlayKey = `${filePath}#${symbolName}`;
 
-          if (!symbol) {
-            log.warn(
-              chalk.yellow(
-                `[Overlay] No primary symbol found in ${file.relativePath}, skipping.`
+            const existingOverlay = await this.pgc.overlays.get(
+              overlayType,
+              overlayKey,
+              StructuralPatternMetadataSchema
+            );
+
+            if (
+              existingOverlay &&
+              existingOverlay.validation?.sourceHash === contentHash
+            ) {
+              skippedCount++;
+              console.log(
+                chalk.gray(`⸟ ${file.relativePath}#${symbolName} (unchanged)`)
+              );
+              return;
+            }
+
+            console.log(
+              chalk.blue(
+                `[Overlay] Mining pattern for: ${symbolName} (from ${file.relativePath})`
               )
             );
 
-            skippedCount++;
+            try {
+              await this.structuralPatternManager.generateAndStorePattern(
+                symbolName,
+                structuralData,
+                file.relativePath,
+                contentHash,
+                structuralHash
+              );
 
-            return;
-          }
+              processedCount++;
+              console.log(chalk.green(`✓ ${file.relativePath}#${symbolName}`));
+            } catch (error) {
+              console.error(
+                chalk.red(
+                  `✗ ${file.relativePath}#${symbolName}: ${(error as Error).message}`
+                )
+              );
+              // Do not re-throw here, let the batch continue
+            }
+          };
 
-          const overlayKey = `${filePath}#${symbol}`;
-
-          const existingOverlay = await this.pgc.overlays.get(
-            overlayType,
-            overlayKey,
-            StructuralPatternMetadataSchema
+          // Process each class, function, and interface as a separate symbol
+          const symbolPromises: Promise<void>[] = [];
+          structuralData.classes?.forEach((c) =>
+            symbolPromises.push(processIndividualSymbol(c.name))
+          );
+          structuralData.functions?.forEach((f) =>
+            symbolPromises.push(processIndividualSymbol(f.name))
+          );
+          structuralData.interfaces?.forEach((i) =>
+            symbolPromises.push(processIndividualSymbol(i.name))
           );
 
-          if (
-            existingOverlay &&
-            existingOverlay.validation?.sourceHash === contentHash
-          ) {
-            skippedCount++;
-            s.stop(chalk.gray(`⸟ ${file.relativePath} (unchanged)`));
-            return;
-          }
-
-          s.message(
-            chalk.blue(
-              `[Overlay] Mining pattern for: ${symbol} (from ${file.relativePath})`
-            )
-          );
-
-          try {
-            await this.structuralPatternManager.generateAndStorePattern(
-              symbol,
-              structuralData,
-              file.relativePath,
-              contentHash,
-              structuralHash
-            );
-
-            processedCount++;
-            s.stop(chalk.green(`✓ ${file.relativePath}`));
-          } catch (error) {
-            s.stop(
-              chalk.red(`✗ ${file.relativePath}: ${(error as Error).message}`)
-            );
-            log.error(`Failed to process ${file.relativePath}`);
-          }
+          await Promise.all(symbolPromises);
         };
 
         await Promise.all(batch.map(processSymbol));
@@ -243,8 +270,6 @@ export class OverlayOrchestrator {
       log.success(chalk.cyan(`\n[Overlay] Processing complete.`));
       log.info(chalk.cyan(`- Processed ${processedCount} new/updated files.`));
       log.info(chalk.cyan(`- Skipped ${skippedCount} up-to-date files.`));
-
-      await this.generateManifest(allFiles, overlayType);
 
       // Verify the structural patterns overlay after generation
       log.info(
@@ -266,34 +291,6 @@ export class OverlayOrchestrator {
         );
       }
     }
-  }
-
-  private async generateManifest(
-    files: SourceFile[],
-    overlayType: 'structural_patterns' | 'lineage_patterns'
-  ): Promise<void> {
-    log.info('[Overlay] Generating pattern manifest...');
-    const manifest: Record<string, string> = {};
-
-    const filteredFiles = files.filter(
-      (file) => !file.path.includes('.test.') && !file.path.includes('.spec.')
-    );
-
-    for (const file of filteredFiles) {
-      const indexData = await this.pgc.index.get(file.relativePath);
-      if (!indexData || !indexData.structuralData) continue;
-
-      const symbol = this.findPrimarySymbol(
-        indexData.structuralData,
-        file.path
-      );
-      if (symbol) {
-        manifest[symbol] = file.relativePath;
-      }
-    }
-
-    await this.pgc.overlays.update(overlayType, 'manifest', manifest);
-    log.success('[Overlay] Manifest generated.');
   }
 
   private async runPGCMaintenance(processedFiles: string[]) {

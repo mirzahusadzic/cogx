@@ -101,29 +101,40 @@ export class LanceVectorStore {
       const tableNames = await this.db.tableNames();
       if (tableNames.includes(tableName)) {
         this.table = await this.db.openTable(tableName);
-        // Optionally, check and migrate schema if necessary here
       } else {
-        // Create the table with the EXACT schema we want
-        const completeDummyRecord = {
-          id: 'schema_test_record',
-          symbol: 'test',
-          embedding: new Array(DEFAULT_EMBEDDING_DIMENSIONS).fill(0.1),
-          structural_signature: 'test',
-          architectural_role: 'test_role',
-          computed_at: new Date().toISOString(),
-          lineage_hash: 'test_hash',
-        };
+        try {
+          // Create the table with the EXACT schema we want
+          const completeDummyRecord = {
+            id: 'schema_test_record',
+            symbol: 'test',
+            embedding: new Array(DEFAULT_EMBEDDING_DIMENSIONS).fill(0.1),
+            structural_signature: 'test',
+            architectural_role: 'test_role',
+            computed_at: new Date().toISOString(),
+            lineage_hash: 'test_hash',
+          };
 
-        this.table = await this.db.createTable(
-          tableName,
-          [completeDummyRecord],
-          {
-            schema,
+          this.table = await this.db.createTable(
+            tableName,
+            [completeDummyRecord],
+            {
+              schema,
+            }
+          );
+
+          // Clean up test record
+          await this.table.delete(`id = 'schema_test_record'`);
+        } catch (createError: unknown) {
+          // If table already exists (e.g., due to a race condition), open it instead
+          if (
+            createError instanceof Error &&
+            createError.message.includes('already exists')
+          ) {
+            this.table = await this.db.openTable(tableName);
+          } else {
+            throw createError; // Re-throw other errors
           }
-        );
-
-        // Clean up test record
-        await this.table.delete(`id = 'schema_test_record'`);
+        }
       }
       this.isInitialized = true;
     } catch (error: unknown) {

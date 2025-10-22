@@ -12,6 +12,7 @@ import {
   InterfaceData,
 } from '../types/structural.js';
 import { LineageQueryResult, Dependency } from '../overlays/lineage/manager.js';
+import { EmbedResponse } from '../types/workbench.js';
 
 export class PGCManager {
   public readonly pgcRoot: string;
@@ -22,6 +23,12 @@ export class PGCManager {
   public readonly reverseDeps: ReverseDeps;
   public readonly overlays: Overlays;
 
+  // Add embedding request handler property
+  private embeddingRequestHandler?: (params: {
+    signature: string;
+    dimensions: number;
+  }) => Promise<EmbedResponse>;
+
   constructor(projectRoot: string) {
     this.projectRoot = projectRoot;
     this.pgcRoot = path.join(projectRoot, '.open_cognition');
@@ -30,6 +37,42 @@ export class PGCManager {
     this.transformLog = new TransformLog(this.pgcRoot);
     this.reverseDeps = new ReverseDeps(this.pgcRoot);
     this.overlays = new Overlays(this.pgcRoot);
+  }
+
+  /**
+   * Sets the embedding request handler - used by pattern managers
+   * to provide centralized embedding services to workers
+   */
+  public setEmbeddingRequestHandler(
+    handler: (params: {
+      signature: string;
+      dimensions: number;
+    }) => Promise<EmbedResponse>
+  ): void {
+    this.embeddingRequestHandler = handler;
+  }
+
+  /**
+   * Request an embedding - used by workers to get embeddings via centralized service
+   */
+  public async requestEmbedding(params: {
+    signature: string;
+    dimensions: number;
+  }): Promise<EmbedResponse> {
+    if (!this.embeddingRequestHandler) {
+      throw new Error(
+        'Embedding request handler not set. This PGCManager instance cannot service embedding requests. ' +
+          'Make sure you are using this PGCManager instance through a PatternManager that sets up the embedding service.'
+      );
+    }
+    return this.embeddingRequestHandler(params);
+  }
+
+  /**
+   * Check if embedding requests are available
+   */
+  public canRequestEmbeddings(): boolean {
+    return this.embeddingRequestHandler !== undefined;
   }
 
   // This method is COPIED from query.ts to be reused by the overlay command

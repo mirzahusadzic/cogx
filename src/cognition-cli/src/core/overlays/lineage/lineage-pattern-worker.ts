@@ -1,7 +1,5 @@
-import { parentPort } from 'worker_threads';
 import { PGCManager } from '../../pgc/manager.js';
 import { LanceVectorStore } from '../vector-db/lance-store.js';
-import { WorkbenchClient } from '../../executors/workbench-client.js';
 import {
   StructuralData,
   StructuralPatternMetadata,
@@ -22,13 +20,14 @@ import {
   StructuralSymbolType,
 } from './types.js';
 import { LineageQueryResult } from './manager.js';
+import * as workerpool from 'workerpool';
 
 // This class encapsulates the logic a worker can perform.
 class WorkerLogic {
   constructor(
     private pgc: PGCManager,
-    private vectorDB: LanceVectorStore,
-    private workbench: WorkbenchClient
+    private vectorDB: LanceVectorStore
+    // WorkbenchClient removed - we'll use pgc.requestEmbedding instead
   ) {}
 
   private _formatAsLineageJSON(lineageResult: LineageQueryResult): object {
@@ -108,10 +107,13 @@ class WorkerLogic {
     const signature = JSON.stringify(lineageJson, null, 2);
     const lineageDataHash = this.pgc.objectStore.computeHash(signature);
 
-    const embedResponse: EmbedResponse = await this.workbench.embed({
+    // CRITICAL CHANGE: Use the centralized embedding service via PGCManager
+    // This ensures proper rate limiting across all workers
+    const embedResponse: EmbedResponse = await this.pgc.requestEmbedding({
       signature,
       dimensions: DEFAULT_EMBEDDING_DIMENSIONS,
     });
+
     const embedding =
       embedResponse[`embedding_${DEFAULT_EMBEDDING_DIMENSIONS}d`];
     if (!embedding) {
@@ -125,7 +127,7 @@ class WorkerLogic {
 
     const vectorId = `pattern_${filePath.replace(/[^a-zA-Z0-9_]/g, '_')}_${symbolName.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
-    await this.vectorDB.storeVector(vectorId, embedding, {
+    await this.vectorDB.storeVector(vectorId, embedding as number[], {
       symbol: symbolName,
       symbolType: symbolType,
       structural_signature: signature,
@@ -159,36 +161,40 @@ class WorkerLogic {
   }
 }
 
-async function processJob(job: PatternJobPacket): Promise<PatternResultPacket> {
-  const { pgcRoot, projectRoot, symbolName, filePath, symbolType, force } = job;
-
+export async function processJob(
+  job: PatternJobPacket
+): Promise<PatternResultPacket> {
   try {
     // Worker creates its own instances of the core systems.
-    const pgc = new PGCManager(projectRoot);
-    const vectorDB = new LanceVectorStore(pgcRoot);
-    const workbench = new WorkbenchClient('http://localhost:8000'); // This should be configurable
-    const logic = new WorkerLogic(pgc, vectorDB, workbench);
+    const pgc = new PGCManager(job.projectRoot);
+    const vectorDB = new LanceVectorStore(job.pgcRoot);
+
+    // Remove WorkbenchClient creation - we'll use pgc.requestEmbedding instead
+    const logic = new WorkerLogic(pgc, vectorDB);
 
     // The rest of the logic is the same...
-    const overlayKey = `${filePath}#${symbolName}`;
-    if (!force && (await pgc.overlays.exists('lineage_patterns', overlayKey))) {
+    const overlayKey = `${job.filePath}#${job.symbolName}`;
+    if (
+      !job.force &&
+      (await pgc.overlays.exists('lineage_patterns', overlayKey))
+    ) {
       return {
         status: 'skipped',
-        message: `Pattern for ${symbolName} already exists.`,
-        symbolName,
-        filePath,
+        message: `Pattern for ${job.symbolName} already exists.`,
+        symbolName: job.symbolName,
+        filePath: job.filePath,
       };
     }
 
     const structuralPatternMeta =
       await pgc.overlays.get<StructuralPatternMetadata>(
         'structural_patterns',
-        `${filePath}#${symbolName}`,
+        `${job.filePath}#${job.symbolName}`,
         StructuralPatternMetadataSchema
       );
 
     if (!structuralPatternMeta) {
-      throw new Error(`Structural metadata not found for ${symbolName}.`);
+      throw new Error(`Structural metadata not found for ${job.symbolName}.`);
     }
 
     const structuralDataBuffer = await pgc.objectStore.retrieve(
@@ -196,7 +202,9 @@ async function processJob(job: PatternJobPacket): Promise<PatternResultPacket> {
     );
 
     if (!structuralDataBuffer) {
-      throw new Error(`Structural data object not found for ${symbolName}.`);
+      throw new Error(
+        `Structural data object not found for ${job.symbolName}.`
+      );
     }
 
     const structuralData = JSON.parse(
@@ -204,30 +212,29 @@ async function processJob(job: PatternJobPacket): Promise<PatternResultPacket> {
     ) as StructuralData;
 
     await logic.generateAndStoreLineagePattern(
-      symbolName,
-      symbolType,
+      job.symbolName,
+      job.symbolType,
       structuralData,
-      filePath,
+      job.filePath,
       structuralPatternMeta.validation.sourceHash
     );
 
     return {
       status: 'success',
-      message: `Successfully generated pattern for ${symbolName}.`,
-      symbolName,
-      filePath,
+      message: `Successfully generated pattern for ${job.symbolName}.`,
+      symbolName: job.symbolName,
+      filePath: job.filePath,
     };
   } catch (error: unknown) {
     return {
       status: 'error',
-      message: `Error processing ${symbolName}: ${(error as Error).message}`,
-      symbolName,
-      filePath,
+      message: `Error processing ${job.symbolName}: ${(error as Error).message}`,
+      symbolName: job.symbolName,
+      filePath: job.filePath,
     };
   }
 }
 
-parentPort?.on('message', async (job: PatternJobPacket) => {
-  const result = await processJob(job);
-  parentPort?.postMessage(result);
+workerpool.worker({
+  processJob: processJob,
 });

@@ -187,7 +187,7 @@ export class WorkbenchClient {
     }
   }
 
-  private async waitForEmbedRateLimit(): Promise<void> {
+  public async waitForEmbedRateLimit(): Promise<void> {
     const now = Date.now();
     const timeElapsed = now - this.lastEmbedCallTime;
 
