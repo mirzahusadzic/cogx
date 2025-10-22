@@ -1,108 +1,79 @@
-# Troubleshooting Guide: When Your Vitest Spy Fails But `stdout` Shows It Ran
+# Troubleshooting Guide: My Spy Fails But The Code Ran
 
-You've just spent hours on a test that is failing. The assertion `expect(mySpy).toHaveBeenCalledTimes(1)` insists the spy was called 0 times, but the test output (`stdout`) right above the failure clearly shows the logs from the function you are trying to spy on. It feels impossible, but it's a classic sign of a subtle and frustrating module mocking issue.
+You're staring at a failing test. The assertion `expect(mySpy).toHaveBeenCalled()` insists the function was never called, but your console is filled with `console.log` output from that exact function. It's a maddening paradox that feels like a bug in the test runner itself.
 
-This guide explains why it happens and provides a robust, pragmatic solution.
+This is a classic and subtle module mocking issue. This guide explains the root cause and provides a robust, philosophically sound solution.
 
-## The Symptom
+## The Root Cause: The "Two Phones" Problem
 
-You have a test setup like this:
+The core of the issue is that **the instance of the module your test is spying on is different from the instance your code is actually executing.**
 
-```typescript
-// test-file.test.ts
-import * as myModule from './my-module.js';
-vi.spyOn(myModule, 'functionToSpyOn');
+Imagine you have two identical phones, both with the same phone number.
 
-// ... test logic that calls myModule.functionUnderTest()
-// functionUnderTest() internally calls functionToSpyOn()
+- Your code-under-test makes a call. **One phone rings.**
+- Your test, with its spy, is listening for a call on the **other phone.**
 
-expect(myModule.functionToSpyOn).toHaveBeenCalled(); // Fails, says 0 calls
-```
+The call was made, the log proves it rang, but your spy heard nothing because it was listening in the wrong place. This "disconnected spy" problem often arises from the complex ways JavaScript modules are loaded, mocked, and cached by modern test runners like Vitest.
 
-But your test runner's console output clearly shows logs from inside `functionToSpyOn`.
+## The Solution: Stop Testing the Implementation, Start Testing the Outcome
 
-## The Root Cause: The "Disconnected Spy"
+When internal mocking becomes this brittle, it's a sign that you're testing an _implementation detail_ (that function A calls function B) instead of the **verifiable outcome**. The most robust solution is to shift your perspective.
 
-The core problem is that the instance of the function being called by your code is **different** from the instance your spy is attached to.
+Instead of asking, "Was my internal function called?" ask, "Did the command produce the final, observable side effect I expected?"
 
-Think of it like two different phones with the same phone number. Your code-under-test (`functionUnderTest`) is calling one phone, but your test is listening for a ring on the _other_ one.
+In many CLI tools, the ultimate side effect is text printed to the console. The `console` object is a stable, global dependency that is guaranteed to be the _same instance_ for both your test and your code. It is the perfect place to listen.
 
-This happens due to the complexities of the ES Module system and how test runners like Vitest "hoist" `vi.mock` calls to the very top of the files before they run. This can sometimes create separate module instances or closures, leaving your spy disconnected from the code that's actually executing.
+### The Robust Pattern: Spy on the Side Effect
 
-## The Ultimate Solution: Test the Side Effect
-
-When internal mocking becomes this difficult, stop fighting it. Instead of testing the _implementation detail_ (that function A calls function B), test the ultimate, observable **side effect** of the code.
-
-In our case, the ultimate side effect was that the `queryCommand` caused text to be printed to the console. So, we'll test that.
-
-**Step 1: Do NOT mock the module you are testing.**
-Let `query.js` be the real module. We want to test its behavior as a whole.
-
-**Step 2: Identify and spy on the global dependency.**
-The most reliable thing to spy on is the global `console` object. This is guaranteed to be the same instance for both your test and the code being executed.
-
-**Step 3: Assert against the _content_ of the side effect.**
-Instead of checking if a function was called, check that the expected text was actually logged.
-
-## Example: The Final, Working Pattern
-
-Here is the robust pattern that solved our issue.
+Here is the final, working pattern for testing a command's output, immune to module mocking issues.
 
 ```typescript
 // src/commands/query.test.ts
-import {
-  describe,
-  it,
-  expect,
-  vi,
-  beforeEach,
-  afterEach,
-  Mocked,
-} from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// 1. Import the module directly without mocking it.
+// 1. Import the REAL command. Do NOT mock the module you are testing.
 import { queryCommand } from './query.js';
 import { PGCManager } from '../core/pgc-manager.js';
-// ... other necessary imports
 
-// 2. We only mock EXTERNAL dependencies.
+// 2. Only mock EXTERNAL dependencies (like the PGCManager).
 vi.mock('../core/pgc-manager.js');
 
-describe('My Command', () => {
+describe('queryCommand', () => {
   let consoleLogSpy: vi.SpyInstance;
 
   beforeEach(() => {
-    // 3. Before each test, spy on `console.log`.
-    // The mockImplementation prevents logs from spamming the test output.
+    // 3. Spy on the STABLE, GLOBAL side effect: `console.log`.
+    // The mockImplementation prevents test output from being polluted.
     consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    // ... (setup for mocked external dependencies like PGCManager)
+    // (Setup mocks for PGCManager, etc.)
   });
 
   afterEach(() => {
-    // 4. IMPORTANT: Restore the original console.log after each test.
+    // 4. ALWAYS restore the spy to avoid breaking other tests.
     vi.restoreAllMocks();
   });
 
-  it('should produce the correct output', async () => {
-    // Arrange: set up mocks for external dependencies to return expected data
+  it('should produce the correct output when called', async () => {
+    // Arrange: Mock the PGCManager to return predictable data.
     // ...
 
-    // Act: run the real command
-    await queryCommand(/* ...args */);
+    // Act: Run the real, unmocked command.
+    await queryCommand(/*...args...*/);
 
-    // Assert: Check the captured console output
+    // Assert: Check the content of what was printed to the console.
 
-    // 5. Combine all captured logs into a single string.
+    // 5. Aggregate all calls to the spy into a single string for easy searching.
     const allLogs = consoleLogSpy.mock.calls.flat().join('\n');
 
-    // 6. Assert that the key parts of the output are present.
+    // 6. Assert that the key, observable outputs are present.
     expect(allLogs).toContain('--- Relevant Context ---');
-    expect(allLogs).toContain('extractStructure');
+    expect(allLogs).toContain('TheSymbolYouSearchedFor');
+    expect(allLogs).not.toContain('AnErrorShouldNotAppear');
   });
 });
 ```
 
-## Key Takeaway
+## Architectural Principle
 
-When a spy on an internal function fails despite evidence it ran, stop trying to mock your own module. **Switch your testing strategy to spy on a stable, external dependency (like `console`) and test the final, observable side effect.** This leads to more robust, less brittle tests that are immune to complex module mocking issues.
+When a test spy on an internal function becomes unreliable, it is a sign to **elevate your test's perspective.** Stop verifying the hidden wiring inside the box. Instead, verify the observable, final output of the box as a whole. This leads to tests that are not only more robust and less brittle but also more aligned with the user's actual experience.

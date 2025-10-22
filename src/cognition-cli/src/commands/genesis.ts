@@ -2,11 +2,11 @@ import { intro, outro, spinner, log } from '@clack/prompts';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
-import { PGCManager } from '../core/pgc-manager.js';
-import { StructuralMiner } from '../miners/structural-miner.js';
-import { WorkbenchClient } from '../executors/workbench-client.js';
-import { GenesisOrchestrator } from '../orchestrators/genesis-orchestrator.js';
-import { GenesisOracle } from '../core/oracles/genesis.js';
+import { PGCManager } from '../core/pgc/manager.js';
+import { StructuralMiner } from '../core/orchestrators/miners/structural-miner.js';
+import { WorkbenchClient } from '../core/executors/workbench-client.js';
+import { GenesisOrchestrator } from '../core/orchestrators/genesis.js';
+import { GenesisOracle } from '../core/pgc/oracles/genesis.js';
 
 class PGCInitializationError extends Error {
   constructor(message: string) {

@@ -1,63 +1,42 @@
-# 02 - Core Infrastructure: The Grounded Context Pool (PGC)
+# 02 - Core Infrastructure: The Anatomy of a Digital Brain
 
-The heart of the `cognition-cli` is the Grounded Context Pool (PGC), a content-addressable "digital brain" that stores and manages all extracted knowledge about a codebase. The PGC is designed for verifiability, immutability, and efficient retrieval of structural data. It resides within the `.open_cognition` directory at the project root and is managed by the `PGCManager`.
+The heart of the `cognition-cli` is the **Grounded Context Pool (PGC)**. It is not a database or a simple file cache; it is a content-addressable "digital brain" designed from the ground up for verifiability, immutability, and the efficient navigation of complex knowledge.
 
-## PGCManager: The Orchestrator of Knowledge
+All of its components reside within the `.open_cognition` directory at your project's root. The entire system is orchestrated by the **`PGCManager`**, which acts as the conscious, coordinating mind for all of the brain's underlying parts.
 
-The `PGCManager` (`src/core/pgc-manager.ts`) serves as the central entry point for interacting with the PGC. It is responsible for initializing and providing access to all core PGC components, ensuring a unified interface for knowledge management.
+## The Four Pillars of the PGC
 
-The `PGCManager` constructs the `pgcRoot` by appending `.open_cognition` to the provided `projectRoot`, establishing the dedicated location for the PGC.
+The PGC is built on four interconnected pillars. Each serves a distinct and vital role, and together they form the fundamental, content-agnostic physics of this new architecture.
 
-## Core Components of the PGC
+| Pillar                  | Directory       | Role & Analogy                                                                                                                                   |
+| :---------------------- | :-------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1. The ObjectStore**  | `objects/`      | **The Immutable Memory.** A content-addressable store (like Git's) for every unique piece of knowledge (code, ASTs). It cannot be altered.       |
+| **2. The TransformLog** | `transforms/`   | **The Auditable Thought Process.** An immutable, append-only log of every single operation, providing a perfect, verifiable history.             |
+| **3. The Index**        | `index/`        | **The Conscious Mind.** The brain's "table of contents," linking human-readable file paths to the correct, verified memories in the ObjectStore. |
+| **4. The ReverseDeps**  | `reverse_deps/` | **The Reflexive Nervous System.** An instantaneous reverse-lookup index that makes tracing relationships and analyzing impact effortless.        |
 
-The PGC is composed of four interconnected pillars, each serving a distinct role in maintaining data integrity and accessibility:
+## The Brain's Faculties: Specialized Tools for Understanding
 
-### 1. ObjectStore: The Immutable Memory
+While the four pillars provide the core structure, the PGC is brought to life by a set of specialized faculties that enable advanced reasoning and analysis.
 
-The `ObjectStore` (`src/core/object-store.ts`) is a content-addressable storage system, inspired by Git. It stores all unique pieces of knowledge, including raw file content and extracted `StructuralData`.
+### The `LanceVectorStore`: The Engine of Intuition
 
-- **Mechanism:** When a file or structural data is processed, its content is hashed (e.g., SHA-256). This hash serves as its unique identifier. If an object with that hash already exists, it's not re-stored, ensuring data deduplication and immutability. New objects are written to a location derived from their hash within the `objects/` directory (e.g., `objects/<first-two-chars-of-hash>/<full-hash>`).
-- **Data Types:** Raw file content, JSON representations of ASTs, and other structural metadata.
+The `LanceVectorStore` is the PGC's engine for semantic and structural search. It allows the system to move beyond exact matches and find "similar" or "related" concepts.
 
-### 2. TransformLog: The Auditable Thought Process
+- **Mechanism:** It uses **LanceDB**, an embedded, high-performance vector database, to store the mathematical "fingerprints" (vector embeddings) of your code's structural patterns. This enables powerful similarity searches to find, for example, all classes that are architecturally similar to your `UserManager`.
+- **Analogy:** This is the brain's ability to make intuitive leaps, recognizing that two different concepts "feel" related even if they don't share the same name.
 
-The `TransformLog` (`src/core/transform-log.ts`) is an immutable, append-only log of all operations that modify the knowledge graph. It provides a complete audit trail of how the graph evolved, enabling verifiability and reproducibility.
+### Overlays: The Lenses of Perception
 
-- **Mechanism:** Each transformation (e.g., file parsing, structural extraction) is recorded as an entry in the log. This entry includes metadata about the transformation, such as the goal, input object hashes, output object hashes, the method used, and the fidelity of the transformation. These log entries are now stored as YAML manifests within the `transforms/` directory.
-- **Data Types:** `TransformData` objects, containing metadata about transformations.
+Overlays are specialized layers of analysis that are "laid over" the core knowledge graph. They provide different, focused views of the codebase without ever altering the foundational truth in the `ObjectStore`.
 
-### 3. Index: The Conscious Mind
+- **Mechanism:** Each overlay (e.g., `structural_patterns`, `lineage_patterns`, `security_vulnerabilities`) lives in its own directory. Its entries are anchored directly to the core knowledge elements in the main `Index`, creating a rich, multi-dimensional understanding.
+- **Example (`structural_patterns`):** This crucial overlay stores the detailed architectural pattern for every single symbol (class, function, etc.) in your project. Each entry is a granular analysis of a symbol's structure and role, serving as the foundation for more advanced overlays like `lineage_patterns`.
+- **Analogy:** These are the brain's specialized visual cortices. One can analyze for threats (security), another for relationships (lineage), and another for abstract patterns, all while looking at the same, underlying reality.
 
-The `Index` (`src/core/index.ts`) is a semantic path-to-hash mapping. It links human-readable file paths to their corresponding content-addressable hashes in the `ObjectStore`. It acts as the system's "Table of Contents," enabling the retrieval of specific knowledge elements based on their logical location within the project structure.
+### The `StructuralOracle`: The Guardian of Coherence
 
-- **Mechanism:** When a file is processed, its canonical path is mapped to the hashes of its raw content and extracted structural data. This index is updated atomically, ensuring that the system's understanding of the codebase is always current. The index data is stored within the `index/` directory.
-- **Data Types:** Key-value pairs where keys are file paths and values are `IndexData` objects (containing content and structural hashes, status, and history).
+The `StructuralOracle` is the PGC's immune system. Its sole purpose is to maintain the integrity and logical coherence of the entire "digital brain."
 
-### 4. ReverseDeps: The Reflexive Nervous System
-
-The `ReverseDeps` (`src/core/reverse-deps.ts`) component provides an efficient mechanism for O(1) reverse lookups. It allows for quick identification of all entities that depend on a given object, which is vital for understanding relationships and efficiently building context.
-
-- **Mechanism:** As structural data is extracted (e.g., imports, function calls), dependencies are recorded. The `ReverseDeps` component stores mappings from a dependent object's hash to the hashes of objects it depends on, and vice-versa. This data is sharded and stored within the `reverse_deps/` directory.
-- **Data Types:** Graph-like structures mapping object hashes to lists of dependent/dependency hashes.
-
-### 5. LanceVectorStore: The Semantic Search Engine
-
-The `LanceVectorStore` (`src/lib/patterns/vector-db/lance-vector-store.ts`) is responsible for storing and querying vector embeddings of structural patterns. It enables semantic search capabilities within the PGC, allowing for the discovery of similar code structures based on their embedded representations.
-
-- **Mechanism:** It uses LanceDB to store vector embeddings along with associated metadata (e.g., symbol, structural signature, architectural role). It provides methods for storing new vectors, performing similarity searches, and retrieving individual vectors.
-- **Data Types:** `VectorRecord` objects, containing an ID, embedding (array of numbers), and metadata about the structural pattern.
-
-### 6. StructuralOracle: The Verifier of Coherence
-
-The `StructuralOracle` (`src/core/oracles/structural-oracle.ts`) plays a crucial role in maintaining the integrity and coherence of the PGC. It performs a series of checks to ensure that all references within the PGC are valid and consistent.
-
-- **Mechanism:** The oracle verifies that all input and output hashes referenced in `TransformLog` entries actually exist in the `ObjectStore`. It also checks for the existence of `manifest.yaml` files for each transformation. This process ensures that the PGC remains a verifiable and auditable knowledge graph.
-- **Data Types:** `VerificationResult` objects, indicating success or failure and providing detailed messages for any inconsistencies.
-
-### 7. Overlays: Specialized Knowledge Layers
-
-Overlays provide a mechanism to store specialized analyses and derived knowledge that is anchored to the core PGC data. They represent "parallel, sparse knowledge graphs" that enhance the understanding of the codebase without altering the immutable bedrock of the `ObjectStore` and `Index`.
-
-- **Mechanism:** Overlays are managed by the `PGCManager` and stored within the `.open_cognition/overlays/` directory. Each overlay type (e.g., `structural_patterns`, `security_vulnerabilities`) has its own subdirectory. Individual overlay entries are named to reflect the source file and symbol they pertain to, ensuring a direct link to the Genesis Layer GKes.
-- **`structural_patterns` Overlay:** This specific overlay stores `PatternMetadata` for _each individual symbol_ (classes, functions, interfaces) found within a source file. The overlay entries are named using a combination of the source file's relative path and the symbol's name (e.g., `.open_cognition/overlays/structural_patterns/src/my_module/my_file.py#MyClass`). Each overlay entry contains the `PatternMetadata` for that specific symbol, including its structural signature, architectural role, and a reference to its embedding in the `LanceVectorStore`. This allows for granular analysis and efficient retrieval of per-symbol patterns.
-- **Data Types:** The content of `structural_patterns` overlay entries is `PatternMetadata`. Other overlays may store different types of specialized data.
+- **Mechanism:** After major operations like the `genesis` process, the `Oracle` runs a series of rigorous checks. It sweeps through the `TransformLog` and verifies that every single input and output hash points to a real, existing memory in the `ObjectStore`. It ensures that the brain's history is complete and its current state is logically sound.
+- **Analogy:** This is the brain's ability to self-diagnose and detect when a memory has become corrupted or a line of reasoning is flawed, ensuring the entire system remains trustworthy.

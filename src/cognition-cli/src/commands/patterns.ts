@@ -1,15 +1,15 @@
 import { Command } from 'commander';
-import { PGCManager } from '../core/pgc-manager.js';
+import { PGCManager } from '../core/pgc/manager.js';
 import {
   LanceVectorStore,
   VectorRecord,
-} from '../lib/patterns/vector-db/lance-vector-store.js';
-import { WorkbenchClient } from '../executors/workbench-client.js';
-import { StructuralPatternsManager } from '../core/structural-patterns-manager.js';
-import { LineagePatternsManager } from '../core/lineage-patterns-manager.js';
+} from '../core/overlays/vector-db/lance-store.js';
+import { WorkbenchClient } from '../core/executors/workbench-client.js';
+import { StructuralPatternsManager } from '../core/overlays/structural/patterns.js';
+import { LineagePatternsManager } from '../core/overlays/lineage/manager.js';
 import chalk from 'chalk';
 
-import { PatternManager } from '../core/pattern-manager.js';
+import { PatternManager } from '../core/pgc/patterns.js';
 
 export function addPatternsCommands(program: Command) {
   const patternsCommand = program
@@ -53,17 +53,27 @@ export function addPatternsCommands(program: Command) {
             } patterns similar to ${chalk.cyan(symbol)}:\n`
           )
         );
-        results.forEach((r, i) => {
-          const simBar = '█'.repeat(Math.round(r.similarity * 20));
-          console.log(
-            `${i + 1}. ${chalk.green(r.symbol)} ` +
-              `${chalk.gray(`[${r.architecturalRole}]`)}`
-          );
-          console.log(
-            `   ${chalk.yellow(simBar)} ${(r.similarity * 100).toFixed(1)}%`
-          );
-          console.log(`   ${chalk.dim(r.explanation)}\n`);
-        });
+        results.forEach(
+          (
+            r: {
+              symbol: string;
+              similarity: number;
+              architecturalRole: string;
+              explanation: string;
+            },
+            i: number
+          ) => {
+            const simBar = '█'.repeat(Math.round(r.similarity * 20));
+            console.log(
+              `${i + 1}. ${chalk.green(r.symbol)} ` +
+                `${chalk.gray(`[${r.architecturalRole}]`)}`
+            );
+            console.log(
+              `   ${chalk.yellow(simBar)} ${(r.similarity * 100).toFixed(1)}%`
+            );
+            console.log(`   ${chalk.dim(r.explanation)}\n`);
+          }
+        );
       }
     });
 

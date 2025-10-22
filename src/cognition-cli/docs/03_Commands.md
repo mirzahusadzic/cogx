@@ -1,314 +1,116 @@
 # 03 - Commands: Interacting with the Cognition CLI
 
-The `cognition-cli` provides a set of commands to manage and interact with the Grounded Context Pool and extract structural information from your codebase. This document details the primary commands available.
+The `cognition-cli` provides a powerful suite of commands for building, managing, and exploring your project's Grounded Context Pool (PGC). The commands are designed to be used in a logical workflow, moving from foundational setup to deep architectural analysis.
 
-## General Usage
+To see a list of all available commands, simply run `cognition-cli --help`.
 
-To see a list of all available commands and their brief descriptions, run `cognition-cli` without any arguments:
+---
 
-```bash
-cognition-cli
-```
+## 1. Foundational Commands (The Genesis Workflow)
 
-This will output:
+These are the primary commands for creating and populating your project's "digital brain."
 
-```bash
-Usage: cognition-cli [options] [command]
+### **`cognition-cli init`**
 
-A meta-interpreter for verifiable, stateful AI cognition
+Initializes the PGC in your project, creating the `.open_cognition` directory and all of its necessary sub-directories (`objects`, `transforms`, `index`, etc.).
 
-Options:
-  -V, --version                               output the version number
-  -h, --help                                  display help for command
-
-Commands:
-  init [options]                              Initialize a new Grounded Context Pool (PGC)
-  genesis [options] [sourcePath]              Builds the verifiable skeleton of a codebase
-  query [options] <question>                  Query the codebase for information
-  audit:transformations [options] <filePath>  Audit the transformation history of a file
-  overlay                                     Manage and generate analytical overlays.
-  patterns                                    Commands for managing and querying structural patterns.
-  help [command]                              display help for command
-```
-
-## 1. `init` Command: Initializing the PGC
-
-The `init` command (`src/commands/init.ts`) sets up the necessary directory structure for the Grounded Context Pool (`.open_cognition`) within your project. This command prepares your repository to store the extracted knowledge graph.
-
-### `init` Command Usage
-
-Replace `<path-to-project>` with the root directory of your project where you want to initialize the PGC. If omitted, it typically defaults to the current working directory.
-
-### `init` Command Functionality
-
-The `init` command performs the following actions:
-
-- **Creates PGC Root:** Establishes the `.open_cognition` directory at the specified project path.
-- **Creates Core Directories:** Within `.open_cognition`, it creates the foundational directories for the PGC:
-  - `objects/`: Stores content-addressable objects (raw file content, structural data).
-  - `transforms/`: Stores the auditable log of transformations.
-  - `index/`: Stores the semantic path-to-hash mappings.
-  - `reverse_deps/`: Stores reverse dependency information.
-  - `overlays/`: (Future use for overlays or temporary data).
-- **Generates `metadata.json`:** Creates a `metadata.json` file within `.open_cognition` to track the PGC's version, initialization timestamp, and current status.
-- **Creates `.gitignore`:** Adds a `.gitignore` file within `.open_cognition` to prevent committing generated artifacts, particularly the `objects/` directory.
-
-## 2. `genesis` Command: Building the Verifiable Skeleton
-
-The `genesis` command (`src/commands/genesis.ts`) populates the `.open_cognition` directory by extracting structural metadata from your project's source code. This process involves parsing files, hashing their content, logging transformations, and performing a structural verification of the generated knowledge graph to ensure its integrity and coherence.
-
-### `genesis` Command Usage
+- **When to Use It:** Run this command once when you first introduce `cognition-cli` to a project. It's the foundational step that prepares the ground for all future knowledge generation.
 
 ```bash
-cognition-cli genesis <path-to-source-code> --projectRoot <path-to-project-root>
+# Initialize in the current directory
+cognition-cli init
+
+# Initialize in a specific project directory
+cognition-cli init --projectRoot /path/to/your/project
 ```
 
-- Replace `<path-to-source-code>` with the directory containing the source files you wish to process.
-- `--projectRoot` specifies the root of your project, which is used to determine relative paths for files and the location of the `.open_cognition` directory.
+### **`cognition-cli genesis`**
 
-### `genesis` Command Functionality
+Populates the PGC by performing a deep structural analysis of your codebase. It discovers source files, parses them to extract structural data (classes, functions, imports), and stores the results in the PGC's content-addressable storage.
 
-The `genesis` command orchestrates the "Bottom-Up Aggregation" phase, which includes:
-
-- **File Discovery:** Identifies relevant source files within the specified `<path-to-source-code>`.
-- **Structural Extraction:** Utilizes the `StructuralMiner` to extract detailed `StructuralData` from each source file using a multi-layered approach (native AST, remote AST via `eGemma`, SLM, LLM).
-- **Content Addressable Storage:** Stores both the raw file content and the extracted `StructuralData` in the `ObjectStore`, ensuring immutability and deduplication.
-- **Transformation Logging:** Records every extraction event in the `TransformLog`, providing an auditable history.
-- **Index Mapping:** Updates the `Index` to map file paths to their corresponding content and structural hashes.
-- **Reverse Dependency Tracking:** Begins building reverse dependency information in `ReverseDeps`.
-- **Structural Verification:** After processing all files, the `StructuralOracle` verifies the structural coherence of the entire PGC.
-
-## 3. `query` Command: Exploring the Knowledge Graph
-
-The `query` command (`src/commands/query.ts`) allows you to explore the structural knowledge graph that has been extracted and stored in the PGC. You can search for symbols (classes, functions, interfaces) and traverse their dependencies.
-
-### `query` Command Usage
+- **When to Use It:** This is the main "heavy-lifting" command. Run it after `init` to build the initial knowledge graph. You can re-run it later to update the PGC with new files and changes.
 
 ```bash
-cognition-cli query <symbol-name> --projectRoot <path-to-project-root> [--depth <depth>] [--lineage]
+# Run genesis on the 'src' directory of your project
+cognition-cli genesis src/
 ```
 
-- `<symbol-name>`: The name of the symbol you want to query (e.g., `StructuralMiner`, `extractStructure`).
-- `--projectRoot`: Specifies the root of your project, used to locate the `.open_cognition` directory.
-- `--depth`: (Optional) The depth of dependency traversal. Defaults to `0` (only direct results). Use `1` for first-level dependencies, `2` for second-level, and so on.
-- `--lineage`: (Optional) When present, the command will output the full lineage of dependencies, showing the path from the queried symbol to its deepest dependencies.
+---
 
-### `query` Command Functionality
+## 2. Analytical Commands (Exploring the Knowledge)
 
-The `query` command performs the following:
+Once the PGC is populated, these commands allow you to explore, analyze, and gain insights from the structured knowledge.
 
-- **Entity Extraction:** Identifies potential symbols from your query string (e.g., PascalCase or camelCase terms).
-- **Contextual Search Logging:** Provides detailed logging for search operations, indicating the context (e.g., "initial entity search", "dependency search at depth X") to clarify the purpose of each search.
-- **Index Lookup:** Uses the PGC `Index` to find files whose paths or components match the canonicalized symbol name.
-- **Structural Data Retrieval:** Retrieves the associated `StructuralData` from the `ObjectStore` for matching files.
-- **Dependency Traversal:** If a `--depth` greater than 0 is specified, it recursively traverses the dependencies (base classes, interfaces, parameter types) of the found symbols, providing a broader context. When `--lineage` is used, the output will include the full dependency path.
+### **`cognition-cli overlay generate`**
 
-## 4. `audit:transformations` Command: Verifying PGC Integrity
+Generates specialized analytical layers, or "overlays," on top of the foundational PGC. These overlays enrich the knowledge graph with semantic and relational insights.
 
-The `audit:transformations` command (`src/commands/audit.ts`) allows you to verify the integrity and coherence of the Grounded Context Pool (PGC) by examining the transformation history of a specific file. It checks that all referenced objects and transformations exist, and notes that transformations are inherently immutable due to the append-only nature of the TransformLog.
-
-### `audit:transformations` Command Usage
+- **When to Use It:** After running `genesis`, use this command to build the higher-level understanding required for advanced queries. Generating the `structural_patterns` and `lineage_patterns` overlays is essential for enabling the powerful `patterns` commands.
 
 ```bash
-cognition-cli audit:transformations <file-path> --projectRoot <path-to-project-root> [--limit <number>]
+# Generate the structural patterns required for similarity search
+cognition-cli overlay generate structural_patterns
+
+# (Future) Generate the lineage patterns for dependency analysis
+cognition-cli overlay generate lineage_patterns
 ```
 
-- `<file-path>`: The path to the file whose transformation history you want to audit.
-- `--projectRoot`: Specifies the root of your project, used to locate the `.open_cognition` directory.
-- `--limit`: (Optional) The maximum number of transformation history entries to display. Defaults to `5`.
+### **`cognition-cli patterns`** (and its subcommands)
 
-### `audit:transformations` Command Functionality
+A suite of powerful tools for querying the `structural_patterns` overlay, allowing you to reason about your code's architecture.
 
-- **Transformation History Review:** Displays the transformation history for a given file, showing details of each transformation (goal, fidelity, verification result, inputs, outputs).
-- **PGC Coherence Check:** Verifies that all content hashes, structural hashes, and transform IDs referenced in the file's history exist within the PGC.
-- **Immutability Note:** Emphasizes that transformations are append-only, ensuring an immutable and verifiable audit trail.
+- **When to Use It:** Use these commands when you want to understand architectural roles, find structurally similar code, or compare the dependency profiles of different components. It's your primary tool for architectural discovery.
 
-#### `audit:transformations` Example Output
+#### `patterns find-similar <symbol>`
+
+Finds code that is architecturally similar to a given symbol based on vector embeddings of their structure.
 
 ````bash
-cognition-cli audit:transformations src/core/structural-patterns-manager.ts
-Auditing last 2 transformations for: src/core/structural-patterns-manager.ts
+cognition-cli patterns find-similar UserManager --top-k 5```
 
---- Iteration 1 (Transform: 22d4a4bc5c65a9091a36cdf4e58a27fe4bf12f4c8c1c7b50fbe4d915d9b0f214) ---
-  Goal: [object Object]
-  Fidelity (Phi): 1
-  Verification Result: Success
-  Inputs:
-    - src/core/structural-patterns-manager.ts (c0242093e615af60cb589183136fb027f65ac55d9907c82f5973175a7c9c8584)
-  Outputs:
-    - src/core/structural-patterns-manager.ts (cefa774205f9d6e053230c64b96d2d77c98881a1052c084f5c211a6b04bf1d99)
-
---- Iteration 2 (Transform: d23160d611ac9ede80bea34b8a50d1623e516e1195f6abe03c98a1444e3fdecb) ---
-  Goal: [object Object]
-  Fidelity (Phi): 1
-  Verification Result: Success
-  Inputs:
-    - src/core/structural-patterns-manager.ts (f33c6f78f69634a2c352220eb2fd17b4b2e18d094f6528ce73814f818e8cec91)
-  Outputs:
-    - src/core/structural-patterns-manager.ts (cefa774205f9d6e053230c64b96d2d77c98881a1052c084f5c211a6b04bf1d99)
-
-
-## 5. `overlay` Command: Manage and Generate Analytical Overlays
-
-The `overlay` command (`src/commands/overlay.ts`) allows you to manage and generate various analytical overlays on top of your Grounded Context Pool. These overlays provide specialized views or data derived from the core PGC.
-
-### `overlay generate` Command: Generate a Specific Overlay
-
-The `generate` subcommand is used to create or update a specific type of overlay.
-
-#### `overlay generate` Command Usage
-
+#### `patterns compare <symbol1> <symbol2>`
+Compares the dependency lineages of two symbols, showing what they share and what is unique to each.
 ```bash
-cognition-cli overlay generate <type> --projectRoot <path-to-project-root>
+cognition-cli patterns compare UserManager OrderManager
 ````
 
-- `<type>`: The type of overlay to generate. Currently, only `structural_patterns` is supported.
-- `--projectRoot`: (Optional) The root directory of the project. Defaults to the current working directory.
+#### `patterns analyze`
 
-#### `overlay generate` Command Functionality
-
-The `overlay generate` command performs the following actions:
-
-- **Overlay Type Validation:** Checks if the specified `<type>` is supported.
-- **Orchestration:** For `structural_patterns`, it initializes the `OverlayOrchestrator`, which then:
-  - Discovers files in the project's index.
-  - Identifies primary symbols within each file.
-  - Generates structural signatures and infers architectural roles for these symbols.
-  - Stores these patterns, along with their vector embeddings, in a LanceDB vector store.
-  - Updates the PGC overlays with metadata about the generated patterns.
-  - Generates a manifest of the processed patterns.
-
-## 6. `patterns` Command: Managing and Querying Structural Patterns
-
-The `patterns` command (`src/commands/patterns.ts`) provides functionality for working with structural patterns extracted from your codebase. This includes finding similar patterns based on their structural signatures.
-
-### `patterns find-similar` Command Usage
-
-```bash
-cognition-cli patterns find-similar <symbol> --top-k <number> [--json]
-```
-
-- `<symbol>`: The name of the symbol (e.g., a class, function, or interface) for which you want to find similar structural patterns.
-- `--top-k`: (Optional) The number of top similar patterns to return. Defaults to `10`.
-- `--json`: (Optional) When present, the command will output the raw JSON results instead of the human-readable formatted output.
-
-### `patterns find-similar` Command Functionality
-
-The `patterns find-similar` command performs the following:
-
-- **Vector Database Initialization:** Initializes the local LanceDB vector store, which holds the vector embeddings of structural patterns.
-- **Workbench Client Initialization:** Connects to the `eGemma` workbench to potentially generate embeddings or leverage its capabilities for similarity search.
-- **Similarity Search:** Uses the `StructuralPatternsManager` to query the vector database for patterns structurally similar to the provided `<symbol>`. The search is based on the vector embeddings of the structural signatures.
-- **Rich Output Formatting:** By default, results are displayed with rich formatting, including color-coded symbols, architectural roles, similarity bars, and explanations. The `--json` flag can be used to get raw JSON output.
-
-#### `patterns find-similar` Example Output
-
-```bash
-✅ Opened existing LanceDB table: structural_patterns
-
-🔍 Patterns similar to StructuralMiner:
-
-1. SLMExtractor [component]
-   ██████████████████ 91.4%
-   Shared patterns: uses:SummarizeRequest:3.00, uses:WorkbenchClient:1.00, uses:SourceFile:1.00
-
-2. LLMSupervisor [component]
-   ██████████████████ 88.2%
-   Shared patterns: uses:SummarizeRequest:3.00, uses:WorkbenchClient:1.00, uses:SourceFile:1.00
-
-3. GenesisOrchestrator [component]
-   ████████████████ 81.3%
-   Shared patterns: uses:SummarizeRequest:3.00, uses:StructuralMiner:1.00, uses:WorkbenchClient:1.00
-
-4. WorkbenchClient [component]
-   ███████████████ 76.1%
-   Shared patterns: uses:SummarizeRequest:3.00, uses:WorkbenchClient:1.00
-
-5. StructuralPatternsManager [component]
-   ██████████████ 72.2%
-   Shared patterns: uses:SummarizeRequest:3.00, uses:WorkbenchClient:1.00
-
-6. SourceFile [component]
-   ██████████████ 69.3%
-   Shared patterns: uses:SourceFile:1.00, uses:ASTParserRegistry:1.00
-
-7. JavaScriptParser [component]
-   █████████████ 68.1%
-   Shared patterns: uses:SourceFile:1.00, uses:ASTParserRegistry:1.00
-
-8. TypeScriptParser [component]
-   █████████████ 66.1%
-   Shared patterns: uses:SourceFile:1.00, uses:ASTParserRegistry:1.00
-
-9. ASTParserRegistry [component]
-   █████████████ 63.4%
-   Shared patterns:
-
-10. StructuralOracle [component]
-   ████████████ 59.7%
-   Shared patterns:
-```
-
-### `patterns analyze` Command Usage
+Provides a high-level overview of the architectural roles (e.g., 'component', 'service') found in your codebase.
 
 ```bash
 cognition-cli patterns analyze
 ```
 
-### `patterns analyze` Command Functionality
+### **`cognition-cli query`**
 
-The `patterns analyze` command performs the following:
+A direct and powerful tool for traversing the raw dependency graph of the PGC.
 
-- **Vector Database Initialization:** Initializes the local LanceDB vector store.
-- **Retrieve All Patterns:** Fetches all stored structural patterns from the vector database.
-- **Architectural Role Distribution:** Groups patterns by their inferred architectural role (e.g., 'orchestrator', 'data_access', 'service') and counts the occurrences of each role.
-
-#### `patterns analyze` Example Output
+- **When to Use It:** When you need to trace the specific, hard-coded dependency chain for a given symbol, step-by-step. It's more granular than `patterns compare` and excellent for deep-dive debugging.
 
 ```bash
-✅ Opened existing LanceDB table: structural_patterns
+# Find the first-level dependencies of 'handleRequest'
+cognition-cli query handleRequest --depth 1
 
-📊 Architectural Pattern Distribution:
-
-component       ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ 25
+# Trace the full dependency lineage of 'handleRequest'
+cognition-cli query handleRequest --lineage
 ```
 
-### `patterns compare` Command Usage
+---
+
+## 3. Auditing Commands (Verifying the Truth)
+
+These commands allow you to inspect the integrity and history of the PGC itself, reinforcing the system's core promise of verifiability.
+
+### **`cognition-cli audit:transformations`**
+
+Audits the transformation history of a specific file, allowing you to see exactly how its knowledge was created and evolved in the PGC.
+
+- **When to Use It:** When you need to debug the system itself or want to have absolute, cryptographic proof of a file's provenance. It's the ultimate tool for answering the question, "How does the system know what it knows?"
 
 ```bash
-cognition-cli patterns compare <symbol1> <symbol2>
+# Audit the last 5 transformations for a specific file
+cognition-cli audit:transformations src/core/pgc/manager.ts --limit 5
 ```
 
-- `<symbol1>`: The first symbol to compare.
-- `<symbol2>`: The second symbol to compare.
-
-### `patterns compare` Command Functionality
-
-The `patterns compare` command performs the following:
-
-- **Lineage Retrieval:** Retrieves the dependency lineage for both `<symbol1>` and `<symbol2>` up to a specified depth (currently 3).
-- **Dependency Comparison:** Identifies shared dependencies, as well as dependencies unique to each symbol.
-- **Formatted Output:** Displays a clear comparison of shared and unique dependencies, highlighting the structural similarities and differences between the two symbols.
-
-#### `patterns compare` Example Output
-
-```bash
-🔗 Comparing StructuralMiner vs StructuralPatternsManager:
-
-Shared dependencies:
-  ● WorkbenchClient
-  ● SummarizeRequest
-  ● EmbedRequest
-  ● ASTParseRequest
-
-Unique to StructuralMiner:
-  ● SourceFile
-  ● Language
-
-Unique to StructuralPatternsManager:
-  ● PGCManager
-  ● LanceVectorStore
-  ● StructuralData
-  ● QueryOptions
-  ● QueryResult
-```
+_(Note: Example output for audit and patterns commands can be found in the main `README.md`)_

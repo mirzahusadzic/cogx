@@ -1,388 +1,64 @@
-# Cognition CLI
+# Cognition CLI (`cognition-cli`)
 
 <div align="center" style="margin-top: 20px; margin-bottom: 20px;">
 <img src="./docs/assets/cognition-cli-logo.png" alt="Cognition CLI Logo" width="512"/>
 </div>
 
-> **Research Focus**: Enhancing LLM Code Understanding Through Structured Knowledge Graphs
+> **A tool for building a verifiable, content-addressable knowledge graph of your codebase.**
 
-The Cognition Command-Line Interface (`cognition-cli`) implements the **Grounded Context Pool (PGC)** - a verifiable, content-addressable knowledge graph system for codebases. This research explores how structured knowledge graphs can overcome current limitations in AI-based code understanding.
+The Cognition CLI is the reference implementation of the **Grounded Context Pool (PGC)**, a core component of the [CogX Architectural Blueprint](https://github.com/mirzahusadzic/cogx). It transforms unstructured source code into a rich, queryable, and verifiably-grounded knowledge graph, enabling a new generation of AI-powered developer tools and workflows.
 
-## Research Significance
+It is designed to augment human intelligence by providing a deep, structural, and semantic understanding of a codebase, ensuring that any AI interaction is grounded in verifiable truth, not statistical approximation.
 
-This implementation addresses fundamental challenges in AI-code interaction:
+---
 
-- **Verifiable Context Sampling**: Grounded code reasoning beyond token windows
-- **Dependency-Aware Analysis**: Structural understanding of code relationships
-- **Architectural Pattern Recognition**: Content-addressable storage for system-level insights
-- **Reduced Hallucination**: Immutable, verifiable knowledge graphs for accurate AI reasoning
+## The Core Problem: AI's Superficial Code Understanding
 
-## Features
+Modern Large Language Models (LLMs) are powerful pattern-matchers, but they lack a deep, verifiable understanding of a project's architecture. They operate on a limited "token window" and have no concept of the intricate dependency lattice that defines a real-world codebase. This leads to:
 
-The `cognition-cli` provides a set of commands to manage and interact with the Grounded Context Pool and extract structural information from your codebase. This document details the primary commands available.
+- **High-Confidence Hallucinations:** Generating code that looks plausible but is architecturally unsound.
+- **Broken Refactoring:** Suggesting changes that break distant, unseen dependencies.
+- **Lack of Strategic Insight:** Inability to reason about the system-level impact of a change.
 
-### Usage
+**The Cognition CLI solves this by building the PGC: a persistent, stateful "second brain" for your project that is grounded in cryptographic truth.**
 
-## 1. `init` Command: Initializing the PGC
+## The PGC Architecture at a Glance
 
-The `init` command (`src/commands/init.ts`) sets up the necessary directory structure for the Grounded Context Pool (`.open_cognition`) within your project. This command prepares your repository to store the extracted knowledge graph.
+The `cognition-cli` is the engine that builds and maintains the PGC. The PGC itself is a set of simple, transparent structures stored in a `.open_cognition` directory at the root of your project.
 
-### `init` Command Usage
+| Component         | Directory       | Role & Analogy                                                                                                                                  |
+| :---------------- | :-------------- | :---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Object Store**  | `objects/`      | **The Library of Truth.** A content-addressable store (like Git's) for every unique piece of data (code, ASTs). Immutable and deduplicated.     |
+| **Transform Log** | `transforms/`   | **The Unforgettable History.** An immutable, append-only log of every operation, recording how knowledge was created. The system's audit trail. |
+| **Index**         | `index/`        | **The Table of Contents.** A human-readable map from file paths to their current, valid content hashes in the Object Store.                     |
+| **Reverse Deps**  | `reverse_deps/` | **The Nervous System.** An O(1) reverse-lookup index that makes dependency traversal and impact analysis instantaneous.                         |
+| **Overlays**      | `overlays/`     | **The Specialized Senses.** Layers of analytical data (like structural patterns and lineages) that enrich the core knowledge graph.             |
 
-Replace `<path-to-project>` with the root directory of your project where you want to initialize the PGC. If omitted, it typically defaults to the current working directory.
+---
 
-### `init` Command Functionality
+## Key Features & Commands
 
-The `init` command performs the following actions:
+The CLI provides a suite of tools to manage the PGC lifecycle.
 
-- **Creates PGC Root:** Establishes the `.open_cognition` directory at the specified project path.
-- **Creates Core Directories:** Within `.open_cognition`, it creates the foundational directories for the PGC:
-  - `objects/`: Stores content-addressable objects (raw file content, structural data).
-  - `transforms/`: Stores the auditable log of transformations.
-  - `index/`: Stores the semantic path-to-hash mappings.
-  - `reverse_deps/`: Stores reverse dependency information.
-  - `overlays/`: (Future use for overlays or temporary data).
-- **Generates `metadata.json`:** Creates a `metadata.json` file within `.open_cognition` to track the PGC's version, initialization timestamp, and current status.
-- **Creates `.gitignore`:** Adds a `.gitignore` file within `.open_cognition` to prevent committing generated artifacts, particularly the `objects/` directory.
+| Command                               | Description                                                                                                                                                                   | Key Operations                                                                       |
+| :------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------- |
+| `cognition-cli init`                  | **Initializes the PGC.** Creates the `.open_cognition` directory and its core structure, preparing your project for analysis.                                                 | Create directories, generate metadata, `.gitignore`.                                 |
+| `cognition-cli genesis`               | **Builds the Knowledge Graph.** Populates the PGC by parsing all source files, creating the verifiable "skeleton" of your project's structure.                                | File discovery, AST parsing, content hashing, `TransformLog` creation, verification. |
+| `cognition-cli overlay generate`      | **Adds Analytical Layers.** Generates specialized overlays like `structural_patterns` and `lineage_patterns`, enriching the PGC with deeper semantic and relational insights. | Symbol extraction, signature generation, vector embedding, `LanceDB` storage.        |
+| `cognition-cli patterns <sub-cmd>`    | **Queries Pattern Overlays.** Allows you to find structurally similar code, compare dependencies, and analyze the architectural roles within your project.                    | Vector similarity search, dependency comparison, architectural analysis.             |
+| `cognition-cli query <symbol>`        | **Traverses the Graph.** A powerful tool to search for a specific symbol and trace its dependency lineage through the PGC.                                                    | Index lookup, structural data retrieval, recursive dependency traversal.             |
+| `cognition-cli audit:transformations` | **Verifies PGC Integrity.** Audits the transformation history of any file, ensuring the chain of provenance is unbroken and all data is coherent.                             | History review, hash verification, integrity checks.                                 |
 
-## 2. `genesis` Command: Building the Verifiable Skeleton
+---
 
-The `genesis` command (`src/commands/genesis.ts`) populates the `.open_cognition` directory by extracting structural metadata from your project's source code. This process involves parsing files, hashing their content, logging transformations, and performing a structural verification of the generated knowledge graph to ensure its integrity and coherence.
+## Getting Started
 
-### `genesis` Command Usage
+### Prerequisites
 
-```bash
-cognition-cli genesis <path-to-source-code> --projectRoot <path-to-project-root>
-```
+- Node.js (v20.x or later)
+- For advanced multi-language parsing, the `eGemma` server must be running. ([Project Repository](https://github.com/mirzahusadzic/egemma))
 
-- Replace `<path-to-source-code>` with the directory containing the source files you wish to process.
-- `--projectRoot` specifies the root of your project, which is used to determine relative paths for files and the location of the `.open_cognition` directory.
-
-### `genesis` Command Functionality
-
-The `genesis` command orchestrates the "Bottom-Up Aggregation" phase, which includes:
-
-- **File Discovery:** Identifies relevant source files within the specified `<path-to-source-code>`.
-- **Structural Extraction:** Utilizes the `StructuralMiner` to extract detailed `StructuralData` from each source file using a multi-layered approach (native AST, remote AST via `eGemma`, SLM, LLM).
-- **Content Addressable Storage:** Stores both the raw file content and the extracted `StructuralData` in the `ObjectStore`, ensuring immutability and deduplication.
-- **Transformation Logging:** Records every extraction event in the `TransformLog`, providing an auditable history.
-- **Index Mapping:** Updates the `Index` to map file paths to their corresponding content and structural hashes.
-- **Reverse Dependency Tracking:** Begins building reverse dependency information in `ReverseDeps`.
-- **Structural Verification:** After processing all files, the `StructuralOracle` verifies the structural coherence of the entire PGC.
-
-## 3. `query` Command: Exploring the Knowledge Graph
-
-The `query` command (`src/commands/query.ts`) allows you to explore the structural knowledge graph that has been extracted and stored in the PGC. You can search for symbols (classes, functions, interfaces) and traverse their dependencies.
-
-### `query` Command Usage
-
-```bash
-cognition-cli query <symbol-name> --projectRoot <path-to-project-root> [--depth <depth>] [--lineage]
-```
-
-- `<symbol-name>`: The name of the symbol you want to query (e.g., `StructuralMiner`, `extractStructure`).
-- `--projectRoot`: Specifies the root of your project, used to locate the `.open_cognition` directory.
-- `--depth`: (Optional) The depth of dependency traversal. Defaults to `0` (only direct results). Use `1` for first-level dependencies, `2` for second-level, and so on.
-- `--lineage`: (Optional) When present, the command will output the full lineage of dependencies, showing the path from the queried symbol to its deepest dependencies.
-
-### `query` Command Functionality
-
-The `query` command performs the following:
-
-- **Entity Extraction:** Identifies potential symbols from your query string (e.g., PascalCase or camelCase terms).
-- **Contextual Search Logging:** Provides detailed logging for search operations, indicating the context (e.g., "initial entity search", "dependency search at depth X") to clarify the purpose of each search.
-- **Index Lookup:** Uses the PGC `Index` to find files whose paths or components match the canonicalized symbol name.
-- **Structural Data Retrieval:** Retrieves the associated `StructuralData` from the `ObjectStore` for matching files.
-- **Dependency Traversal:** If a `--depth` greater than 0 is specified, it recursively traverses the dependencies (base classes, interfaces, parameter types) of the found symbols, providing a broader context. When `--lineage` is used, the output will include the full dependency path.
-
-## 4. `audit:transformations` Command: Verifying PGC Integrity
-
-The `audit:transformations` command (`src/commands/audit.ts`) allows you to verify the integrity and coherence of the Grounded Context Pool (PGC) by examining the transformation history of a specific file. It checks that all referenced objects and transformations exist, and notes that transformations are inherently immutable due to the append-only nature of the TransformLog.
-
-### `audit:transformations` Command Usage
-
-```bash
-cognition-cli audit:transformations <file-path> --projectRoot <path-to-project-root> [--limit <number>]
-```
-
-- `<file-path>`: The path to the file whose transformation history you want to audit.
-- `--projectRoot`: Specifies the root of your project, used to locate the `.open_cognition` directory.
-- `--limit`: (Optional) The maximum number of transformation history entries to display. Defaults to `5`.
-
-### `audit:transformations` Command Functionality
-
-- **Transformation History Review:** Displays the transformation history for a given file, showing details of each transformation (goal, fidelity, verification result, inputs, outputs).
-- **PGC Coherence Check:** Verifies that all content hashes, structural hashes, and transform IDs referenced in the file's history exist within the PGC.
-- **Immutability Note:** Emphasizes that transformations are append-only, ensuring an immutable and verifiable audit trail.
-
-#### `audit:transformations` Example Output
-
-````bash
-cognition-cli audit:transformations src/core/structural-patterns-manager.ts
-Auditing last 2 transformations for: src/core/structural-patterns-manager.ts
-
---- Iteration 1 (Transform: 22d4a4bc5c65a9091a36cdf4e58a27fe4bf12f4c8c1c7b50fbe4d915d9b0f214) ---
-  Goal: [object Object]
-  Fidelity (Phi): 1
-  Verification Result: Success
-  Inputs:
-    - src/core/structural-patterns-manager.ts (c0242093e615af60cb589183136fb027f65ac55d9907c82f5973175a7c9c8584)
-  Outputs:
-    - src/core/structural-patterns-manager.ts (cefa774205f9d6e053230c64b96d2d77c98881a1052c084f5c211a6b04bf1d99)
-
---- Iteration 2 (Transform: d23160d611ac9ede80bea34b8a50d1623e516e1195f6abe03c98a1444e3fdecb) ---
-  Goal: [object Object]
-  Fidelity (Phi): 1
-  Verification Result: Success
-  Inputs:
-    - src/core/structural-patterns-manager.ts (f33c6f78f69634a2c352220eb2fd17b4b2e18d094f6528ce73814f818e8cec91)
-  Outputs:
-    - src/core/structural-patterns-manager.ts (cefa774205f9d6e053230c64b96d2d77c98881a1052c084f5c211a6b04bf1d99)
-
-
-## 5. `overlay` Command: Manage and Generate Analytical Overlays
-
-The `overlay` command (`src/commands/overlay.ts`) allows you to manage and generate various analytical overlays on top of your Grounded Context Pool. These overlays provide specialized views or data derived from the core PGC.
-
-### `overlay generate` Command: Generate a Specific Overlay
-
-The `generate` subcommand is used to create or update a specific type of overlay.
-
-#### `overlay generate` Command Usage
-
-```bash
-cognition-cli overlay generate <type> --projectRoot <path-to-project-root>
-````
-
-- `<type>`: The type of overlay to generate. Currently, only `structural_patterns` is supported.
-- `--projectRoot`: (Optional) The root directory of the project. Defaults to the current working directory.
-
-#### `overlay generate` Command Functionality
-
-The `overlay generate` command performs the following actions:
-
-- **Overlay Type Validation:** Checks if the specified `<type>` is supported.
-- **Orchestration:** For `structural_patterns`, it initializes the `OverlayOrchestrator`, which then:
-  - Discovers files in the project's index.
-  - Identifies primary symbols within each file.
-  - Generates structural signatures and infers architectural roles for these symbols.
-  - Stores these patterns, along with their vector embeddings, in a LanceDB vector store.
-  - Updates the PGC overlays with metadata about the generated patterns.
-  - Generates a manifest of the processed patterns.
-
-## 6. `patterns` Command: Managing and Querying Structural Patterns
-
-The `patterns` command (`src/commands/patterns.ts`) provides functionality for working with structural patterns extracted from your codebase. This includes finding similar patterns based on their structural signatures.
-
-### `patterns find-similar` Command Usage
-
-```bash
-cognition-cli patterns find-similar <symbol> --top-k <number> [--json]
-```
-
-- `<symbol>`: The name of the symbol (e.g., a class, function, or interface) for which you want to find similar structural patterns.
-- `--top-k`: (Optional) The number of top similar patterns to return. Defaults to `10`.
-- `--json`: (Optional) When present, the command will output the raw JSON results instead of the human-readable formatted output.
-
-### `patterns find-similar` Command Functionality
-
-The `patterns find-similar` command performs the following:
-
-- **Vector Database Initialization:** Initializes the local LanceDB vector store, which holds the vector embeddings of structural patterns.
-- **Workbench Client Initialization:** Connects to the `eGemma` workbench to potentially generate embeddings or leverage its capabilities for similarity search.
-- **Similarity Search:** Uses the `StructuralPatternsManager` to query the vector database for patterns structurally similar to the provided `<symbol>`. The search is based on the vector embeddings of the structural signatures.
-- **Rich Output Formatting:** By default, results are displayed with rich formatting, including color-coded symbols, architectural roles, similarity bars, and explanations. The `--json` flag can be used to get raw JSON output.
-
-#### Example Output
-
-```bash
-✅ Opened existing LanceDB table: structural_patterns
-
-🔍 Patterns similar to StructuralMiner:
-
-1. SLMExtractor [component]
-   ██████████████████ 91.4%
-   Shared patterns: uses:SummarizeRequest:3.00, uses:WorkbenchClient:1.00, uses:SourceFile:1.00
-
-2. LLMSupervisor [component]
-   ██████████████████ 88.2%
-   Shared patterns: uses:SummarizeRequest:3.00, uses:WorkbenchClient:1.00, uses:SourceFile:1.00
-
-3. GenesisOrchestrator [component]
-   ████████████████ 81.3%
-   Shared patterns: uses:SummarizeRequest:3.00, uses:StructuralMiner:1.00, uses:WorkbenchClient:1.00
-
-4. WorkbenchClient [component]
-   ███████████████ 76.1%
-   Shared patterns: uses:SummarizeRequest:3.00, uses:WorkbenchClient:1.00
-
-5. StructuralPatternsManager [component]
-   ██████████████ 72.2%
-   Shared patterns: uses:SummarizeRequest:3.00, uses:WorkbenchClient:1.00
-
-6. SourceFile [component]
-   ██████████████ 69.3%
-   Shared patterns: uses:SourceFile:1.00, uses:ASTParserRegistry:1.00
-
-7. JavaScriptParser [component]
-   █████████████ 68.1%
-   Shared patterns: uses:SourceFile:1.00, uses:ASTParserRegistry:1.00
-
-8. TypeScriptParser [component]
-   █████████████ 66.1%
-   Shared patterns: uses:SourceFile:1.00, uses:ASTParserRegistry:1.00
-
-9. ASTParserRegistry [component]
-   █████████████ 63.4%
-   Shared patterns:
-
-10. StructuralOracle [component]
-   ████████████ 59.7%
-   Shared patterns:
-```
-
-### `patterns analyze` Command Usage
-
-```bash
-cognition-cli patterns analyze
-```
-
-### `patterns analyze` Command Functionality
-
-The `patterns analyze` command performs the following:
-
-- **Vector Database Initialization:** Initializes the local LanceDB vector store.
-- **Retrieve All Patterns:** Fetches all stored structural patterns from the vector database.
-- **Architectural Role Distribution:** Groups patterns by their inferred architectural role (e.g., 'orchestrator', 'data_access', 'service') and counts the occurrences of each role.
-
-#### `patterns analyze` Example Output
-
-```bash
-✅ Opened existing LanceDB table: structural_patterns
-
-📊 Architectural Pattern Distribution:
-
-component       ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ 25
-```
-
-### `patterns compare` Command Usage
-
-```bash
-cognition-cli patterns compare <symbol1> <symbol2>
-```
-
-- `<symbol1>`: The first symbol to compare.
-- `<symbol2>`: The second symbol to compare.
-
-### `patterns compare` Command Functionality
-
-The `patterns compare` command performs the following:
-
-- **Lineage Retrieval:** Retrieves the dependency lineage for both `<symbol1>` and `<symbol2>` up to a specified depth (currently 3).
-- **Dependency Comparison:** Identifies shared dependencies, as well as dependencies unique to each symbol.
-- **Formatted Output:** Displays a clear comparison of shared and unique dependencies, highlighting the structural similarities and differences between the two symbols.
-
-#### `patterns compare` Example Output
-
-```bash
-🔗 Comparing StructuralMiner vs StructuralPatternsManager:
-
-Shared dependencies:
-  ● WorkbenchClient
-  ● SummarizeRequest
-  ● EmbedRequest
-  ● ASTParseRequest
-
-Unique to StructuralMiner:
-  ● SourceFile
-  ● Language
-
-Unique to StructuralPatternsManager:
-  ● PGCManager
-  ● LanceVectorStore
-  ● StructuralData
-  ● QueryOptions
-  ● QueryResult
-```
-
-## Research Applications
-
-The PGC architecture enables novel approaches to:
-
-- **Enhanced LLM Code Understanding**: Providing structural context for more accurate AI analysis
-- **Verifiable AI Code Assistance**: Grounding AI responses in actual code dependencies
-- **Architectural Reasoning**: Enabling AI systems to reason about code at system level
-- **Continuous Learning**: Tracking code evolution patterns for AI improvement
-
-## Project Goal
-
-The overarching goal of the Cognition CLI is to facilitate the creation of a robust, verifiable, and well-tested implementation of the CogX blueprint. By transforming raw source code into a structured, queryable knowledge graph, we aim to enable advanced code analysis, automated reasoning, and intelligent software development workflows.
-
-## Content Addressable Knowledge Graph
-
-The `cognition-cli` implements a Content Addressable Knowledge Graph (CAKG) based on the principles outlined in the CogX blueprint. This system ensures that all extracted structural data is verifiable, immutable, and efficiently stored.
-
-### Core Infrastructure
-
-The CAKG is built upon several key components, each designed for specific roles in maintaining data integrity and accessibility:
-
-- **ObjectStore:** A content-addressable storage system, inspired by Git. It stores all extracted structural data and file contents. Each object is hashed (e.g., SHA-256), and this hash serves as its unique identifier. This ensures data deduplication and immutability; any change to an object results in a new hash and a new object.
-  - **Algorithm:** When a file or structural data is processed, its content is hashed. If an object with that hash already exists in the store, it's not re-stored. Otherwise, the new object is written to a location derived from its hash.
-  - **Data Types:** Raw file content, JSON representations of ASTs, and other structural metadata.
-
-- **TransformLog:** An immutable, append-only log of all operations that modify the knowledge graph. This provides a complete audit trail of how the graph evolved, enabling verifiability and reproducibility. Log entries are now stored as YAML manifests.
-  - **Algorithm:** Each transformation (e.g., file parsing, structural extraction) is recorded as an entry in the log, including metadata about the transformation, such as the goal, input/output object hashes, the method used, and the fidelity of the transformation.
-  - **Data Types:** `TransformData` objects, containing metadata about transformations.
-
-- **Index:** A semantic path to hash mapping. This allows human-readable file paths to be resolved to their corresponding content-addressable hashes in the ObjectStore. It acts as the system's 'Table of Contents,' enabling the retrieval of specific knowledge elements based on their logical location within the project structure, thereby forming a crucial part of context assembly. It now includes advanced search capabilities with symbol canonicalization and Zod validation.
-  - **Algorithm:** When a file is processed, its canonical path is mapped to the hash of its extracted structural data. This index is updated atomically. Advanced search logic allows matching of canonicalized symbols against components of canonicalized file paths.
-  - **Data Types:** Key-value pairs where keys are file paths and values are `IndexData` objects (containing content and structural hashes, status, and history).
-
-- **ReverseDeps (Reverse Dependencies):** An efficient mechanism for O(1) reverse lookups, allowing quick identification of all entities that depend on a given object. This component is vital for understanding the relationships between different pieces of knowledge and for efficiently building a comprehensive context by tracing dependencies across the graph.
-  - **Algorithm:** As structural data is extracted (e.g., imports, function calls), dependencies are recorded. The ReverseDeps component stores mappings from a dependent object's hash to the hashes of objects it depends on, and vice-versa.
-
-  - **Data Types:** Graph-like structures mapping object hashes to lists of dependent/dependency hashes.
-
-### Data Types and Verifiability
-
-The system extensively uses TypeScript for type safety, ensuring that all data structures conform to predefined schemas. Key data types include:
-
-- `SourceFile`: Represents a source code file, including its path, content hash, and language.
-- `StructuralData`: The extracted Abstract Syntax Tree (AST) or other structural representations of code, now including `InterfaceData` and `PropertyData`.
-- `PropertyData`: Details properties within interfaces.
-- `InterfaceData`: Describes interfaces.
-- `GKe` (Graph Knowledge Element): A generic type for elements within the knowledge graph.
-- `GoalData`: Defines the objective, criteria, and minimum fidelity for a transformation.
-- `TransformInput`, `TransformOutput`: Structured types for inputs and outputs of transformations, including path and hash.
-- `VerificationResult`: Details the status and any messages from a verification process.
-- `TransformData`: Data associated with entries in the TransformLog.
-- `IndexData`: Data stored in the Index.
-- `Language`: Enumeration of supported programming languages.
-
-The combination of content-addressable storage, immutable logs, and explicit dependency tracking ensures that the entire knowledge graph is verifiable. Any discrepancy in content or transformation can be detected by re-hashing objects or replaying the transform log.
-
-## Research Collaboration
-
-This project is positioned for research into AI-code interaction patterns and enhanced LLM reasoning capabilities. The PGC architecture provides the foundational infrastructure for exploring:
-
-- How structured knowledge graphs improve LLM code reasoning accuracy
-- The impact of verifiable context sampling on AI code analysis
-- Architectural patterns that emerge from systematic code evolution tracking
-- Enhanced dependency-aware code generation and refactoring
-
-## Documentation
-
-- [00 - Introduction to Cognition CLI](./docs/00_Introduction.md)
-- [01 - Structural Analysis: Mapping the Codebase](./docs/01_Structural_Analysis.md)
-- [02 - Core Infrastructure: The Grounded Context Pool (PGC)](./docs/02_Core_Infrastructure.md)
-- [03 - Commands: Interacting with the Cognition CLI](./docs/03_Commands.md)
-- [04 - Miners and Executors: Extracting and Processing Knowledge](./docs/04_Miners_and_Executors.md)
-- [05 - Verification and Oracles: Ensuring PGC Integrity](./docs/05_Verification_and_Oracles.md)
-- [06 - Testing and Deployment](./docs/06_Testing_and_Deployment.md)
-
-## Build and Run
-
-To build and run the `cognition-cli`, follow these steps:
+### Build and Run
 
 1. **Navigate to the CLI directory:**
 
@@ -402,62 +78,55 @@ To build and run the `cognition-cli`, follow these steps:
    npm run build
    ```
 
-   This compiles the TypeScript code into JavaScript, placing the output in the `dist` directory.
+4. **Link for global access (recommended for development):**
 
-After building, you can run the CLI in several ways:
+   ```bash
+   npm link
+   ```
 
-- **Using `npm link` (for local development and global access):**
+### Example Workflow
 
-  ```bash
-  npm link
-  # Then, from any directory, you can run:
-  cognition-cli <command> [args]
-  # Example: cognition-cli init
-  # Example: cognition-cli genesis .
-  # Example: cognition-cli query StructuralMiner
-  # Example: cognition-cli audit:transformations src/miners/structural-miner.ts
-  ```
+1. **Initialize the PGC in your project:**
 
-  This creates a global symlink to your local `cognition-cli` installation, allowing you to run it from any directory. This is particularly useful for development and testing without publishing to a registry.
+   ```bash
+   cd /path/to/your/project
+   cognition-cli init
+   ```
 
-- **Using `npm start` (recommended for built version):**
+2. **Run the Genesis process to build the foundational knowledge:**
 
-  ```bash
-  npm start -- <command> [args]
-  # Example: npm start -- init
-  # Example: npm start -- genesis .
-  # Example: npm start -- query StructuralMiner
-  # Example: npm start -- audit src/miners/structural-miner.ts
-  ```
+   ```bash
+   cognition-cli genesis src/
+   ```
 
-- **Directly using the compiled executable:**
+3. **Generate the structural and lineage pattern overlays:**
 
-  ```bash
-  node dist/cli.js <command> [args]
-  # Example: node dist/cli.js init
-  # Example: node dist/cli.js genesis .
-  # Example: node dist/cli.js query StructuralMiner
-  # Example: node dist/cli.js audit src/miners/structural-miner.ts
-  ```
+   ```bash
+   cognition-cli overlay generate structural_patterns
+   cognition-cli overlay generate lineage_patterns
+   ```
 
-- **In development mode (without building, using `tsx`):**
+4. **Explore your codebase in a new way:**
 
-  ```bash
-  npm run dev -- <command> [args]
-  # Example: npm run dev -- init
-  # Example: npm run dev -- genesis .
-  # Example: npm run dev -- query StructuralMiner
-  # Example: npm run dev -- audit src/miners/structural-miner.ts
-  ```
+   ```bash
+   # Find code that is structurally similar to your main application class
+   cognition-cli patterns find-similar App
 
-  This uses `tsx` to run the TypeScript files directly and watches for changes.
+   # Trace the dependency tree of a critical function
+   cognition-cli query handleRequest --lineage --depth 3
 
-## Dependencies
+   # Compare two managers to understand their architectural differences
+   cognition-cli patterns compare UserManager OrderManager
+   ```
 
-For processing non-native TypeScript files and other languages not natively supported by the CLI's AST parsers, the `genesis` command relies on the `eGemma` server.
+---
 
-**eGemma Integration:**
+## Research & Collaboration
 
-- Provides advanced parsing capabilities for multiple languages
-- Must be running and accessible at `http://localhost:8000` for full functionality
-- Project repository: [https://github.com/mirzahusadzic/egemma](https://github.com/mirzahusadzic/egemma)
+This project serves as a research platform for a new generation of AI development tools. The PGC architecture enables novel approaches to:
+
+- **Verifiable AI Code Assistance**: Grounding AI responses in a source of cryptographic truth.
+- **Architectural Reasoning**: Enabling AI agents to reason about code at a system-wide level.
+- **True Symbiotic AI**: Fostering a partnership where the AI helps the human understand their own code, and the human verifies the AI's understanding.
+
+Contributions to this research and the tool's development are welcome. Please refer to the [main CogX repository](https://github.com/mirzahusadzic/cogx) for the overarching architectural blueprint.

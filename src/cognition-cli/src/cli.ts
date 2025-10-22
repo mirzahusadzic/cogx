@@ -6,7 +6,7 @@ import {
   queryCommand,
   formatAsHumanReadable,
   formatAsLineageJSON,
-} from './commands/query.js';
+} from './core/query/query.js';
 import { auditCommand } from './commands/audit.js';
 import { addPatternsCommands } from './commands/patterns.js';
 import dotenv from 'dotenv';

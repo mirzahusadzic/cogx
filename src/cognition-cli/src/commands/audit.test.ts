@@ -3,9 +3,9 @@ import yaml from 'js-yaml';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { vol } from 'memfs';
 import { auditCommand } from './audit';
-import { PGCManager } from '../core/pgc-manager';
-import { IndexData } from '../types';
-import { TransformData } from '../types/transform';
+import { PGCManager } from '../core/pgc/manager';
+import { IndexData } from '../core/types';
+import { TransformData } from '../core/types/transform';
 
 vi.mock('fs-extra', async () => {
   const memfs = await vi.importActual<typeof import('memfs')>('memfs');

@@ -1,6 +1,6 @@
-import { PGCManager } from '../core/pgc-manager.js';
-import { TransformLog } from '../core/transform-log.js';
-import { TransformData } from '../types/transform.js';
+import { PGCManager } from '../core/pgc/manager.js';
+import { TransformLog } from '../core/pgc/transform-log.js';
+import { TransformData } from '../core/types/transform.js';
 
 interface AuditOptions {
   projectRoot: string;

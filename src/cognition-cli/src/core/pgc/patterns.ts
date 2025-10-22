@@ -1,0 +1,16 @@
+import { VectorRecord } from '../overlays/vector-db/lance-store.js';
+
+export interface PatternManager {
+  findSimilarPatterns(
+    symbol: string,
+    topK: number
+  ): Promise<
+    Array<{
+      symbol: string;
+      similarity: number;
+      architecturalRole: string;
+      explanation: string;
+    }>
+  >;
+  getVectorForSymbol(symbol: string): Promise<VectorRecord | undefined>;
+}

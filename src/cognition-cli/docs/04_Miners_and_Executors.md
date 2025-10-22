@@ -1,51 +1,44 @@
-# 04 - Miners and Executors: Extracting and Processing Knowledge
+# 04 - Miners & Executors: The Intelligence Layer
 
-This document details the components responsible for extracting structural information from source code and interacting with external services within the `cognition-cli`. These "Miners" and "Executors" form the intelligence layer that transforms raw code into verifiable `StructuralData`.
+This document describes the heart of the `cognition-cli`'s intelligence: the "Miners" and "Executors." These are the components responsible for the difficult and crucial work of transforming raw, unstructured source code into the verifiable, structured knowledge that forms the PGC.
 
-## 1. StructuralMiner: The Multi-Layered Extraction Engine
+Think of them as a team of specialized miners, each with different tools and expertise, all tasked with extracting the valuable "ore" (the structural data) from the mountain of your codebase.
 
-The `StructuralMiner` (`src/miners/structural-miner.ts`) is the core component that orchestrates the extraction of structural data from source files. It employs a robust, multi-layered approach to ensure high fidelity and resilience, prioritizing deterministic methods before falling back to AI-driven techniques.
+## The `StructuralMiner`: The Foreman of the Operation
 
-### Extraction Layers
+The `StructuralMiner` is the orchestrator and the "foreman" of the entire extraction process. When the `genesis` command is run, it is the `StructuralMiner` that takes charge of each `SourceFile` and deploys its team of specialized extractors in a specific, strategic order to ensure the highest possible quality of knowledge.
 
-The `extractStructure` method attempts to extract structural data using the following hierarchy:
+### The Mining Strategy: A Hierarchy of Trust
 
-#### Layer 1: Deterministic AST Parsers (High Fidelity)
+The `StructuralMiner` employs a robust, three-layer "waterfall" strategy. It always attempts the most reliable and deterministic method first, only falling back to more heuristic, AI-driven methods if necessary. This guarantees that the PGC is built on a foundation of maximum truth.
 
-- **Native AST Parsing (TypeScript):**
-  - **Output:** Detailed `StructuralData` including imports, classes (with base classes, interfaces, methods, decorators), functions (with parameters, return types, async status, decorators), exports, and now also **interfaces (with properties)**. Docstrings are also extracted.
-  - **Fidelity:** 1.0 (highest confidence).
-- **Remote AST Parsing (Python via `eGemma`):**
-  - **Mechanism:** For languages like Python, which do not have a native parser implemented directly in `cognition-cli`, the `StructuralMiner` delegates the parsing task to the `WorkbenchClient`'s `parseAST` method. This sends the code to the external `eGemma` server for AST generation.
-  - **Fidelity:** 1.0 (highest confidence).
-- **Other Languages (e.g., JavaScript, Java, Rust, Go):** Files with these extensions are discovered by the `GenesisOrchestrator`, but currently lack dedicated AST parsers in Layer 1. Their structural extraction will proceed to Layer 2 or Layer 3.
+#### **Layer 1: The Reliable Craftsman (Deterministic AST Parsers)**
 
-#### Layer 2: Specialized Language Model (SLM) Extraction (Medium Fidelity)
+This is the preferred, highest-fidelity method. It uses traditional, deterministic Abstract Syntax Tree (AST) parsers to read the code's structure with 100% accuracy.
 
-- **Mechanism:** If Layer 1 AST parsing fails or is unavailable, the `SLMExtractor` (`src/miners/slm-extractor.ts`) is engaged. It utilizes the `WorkbenchClient` to send the source file content to `eGemma`'s `/summarize` endpoint, instructing it to act as a `structure_extractor` persona. The `eGemma` server then uses a specialized language model to infer and return structural data in JSON format. The `StructuralData` returned now includes support for `interfaces`.
-- **Fidelity:** 0.85 (moderate confidence).
+- **Mechanism:** For TypeScript/JavaScript, it uses a native parser built directly into the CLI. For other supported languages like Python, it delegates the task via the `WorkbenchClient` to the external `eGemma` server, which performs the same high-fidelity AST parsing.
+- **Fidelity:** **1.0 (Cryptographic Truth)**
 
-#### Layer 3: LLM Supervised Extraction (Lower Fidelity)
+#### **Layer 2: The Smart Interpreter (Specialized Language Model)**
 
-- **Mechanism:** As a final fallback, if both Layer 1 and Layer 2 fail, the `LLMSupervisor` (`src/miners/llm-supervisor.ts`) is invoked. It uses the `WorkbenchClient` to send the source file to `eGemma`'s `/summarize` endpoint with a `parser_generator` persona and a goal to "Generate a tree-sitter query to extract structure." Currently, this layer is a placeholder for future implementation where the generated parsing logic would be executed in a sandbox. The `StructuralData` returned now includes support for `interfaces`.
-- **Fidelity:** 0.7 (lowest confidence).
+If a dedicated AST parser is unavailable for a language, the `SLMExtractor` is called.
 
-## 2. ASTParserRegistry: Managing Language Parsers
+- **Mechanism:** It sends the code to the `eGemma` workbench, which uses a specialized, fine-tuned Language Model (SLM) trained specifically to read code and output its structure in a reliable JSON format.
+- **Fidelity:** **0.85 (High Confidence)**
 
-The `ASTParserRegistry` (`src/miners/ast-parsers/index.ts`) acts as a central repository for different AST parsers, mapping programming languages to their respective parsing implementations.
+#### **Layer 3: The Creative Improviser (LLM Supervisor)**
 
-## 3. TypeScriptParser: Native TypeScript AST Extraction
+If all else fails, the `LLMSupervisor` is the final fallback.
 
-The `TypeScriptParser` (`src/miners/ast-parsers/typescript-parser.ts`) is responsible for natively parsing TypeScript source code into `StructuralData`.
+- **Mechanism:** It tasks a powerful, general-purpose Large Language Model (LLM) on the `eGemma` workbench to analyze the unknown code and dynamically generate a parsing strategy. (Note: This layer is currently a placeholder for future sandboxed execution).
+- **Fidelity:** **0.70 (Educated Guess)**
 
-## 4. SLMExtractor: Specialized Language Model Extraction
+## The `WorkbenchClient`: The Gateway to External Intelligence
 
-The `SLMExtractor` (`src/miners/slm-extractor.ts`) provides a fallback mechanism for structural extraction using Specialized Language Models (SLMs) hosted on the `eGemma` workbench.
+The `WorkbenchClient` is the CLI's dedicated executor for communicating with the external `eGemma` server. It is the secure gateway that allows the `StructuralMiner` to access the powerful, off-the-shelf language processing and AI inference capabilities needed for Layers 2 and 3, as well as for remote AST parsing.
 
-## 5. LLMSupervisor: Large Language Model Orchestration
+## The "Why" Behind the Layers: A Commitment to Verifiability
 
-The `LLMSupervisor` (`src/miners/llm-supervisor.ts`) acts as the final fallback in the structural extraction pipeline. It leverages Large Language Models (LLMs) via the `eGemma` workbench to generate parsing logic when other methods fail.
+This complex, multi-layered mining strategy is a direct reflection of the CogX core philosophy. A simpler system might just use an LLM for everything, but this would create a knowledge graph built on a foundation of high-confidence guesses.
 
-## 6. WorkbenchClient: Interfacing with eGemma
-
-The `WorkbenchClient` (`src/executors/workbench-client.ts`) is the dedicated client for communicating with the external `eGemma` server. `eGemma` provides advanced language processing capabilities, including remote AST parsing and specialized/large language model inference.
+By prioritizing deterministic, verifiable methods and clearly labeling the `fidelity` of every single piece of knowledge it creates, the `cognition-cli` ensures that the resulting PGC is not just a useful tool, but a **trustworthy and auditable source of architectural truth.**

@@ -1,67 +1,54 @@
-# 01 - Structural Analysis: Mapping the Codebase
+# 01 - Structural Analysis: Forging the Verifiable Skeleton
 
-This document details Phase 1 of the `cognition-cli`'s "Dogfooding Strategy": mapping the raw structure of TypeScript and Python code into a verifiable, content-addressable knowledge graph. This process forms the "immutable bedrock" for all future reasoning within the CogX system.
+This document details the first and most critical phase of the `cognition-cli`: transforming raw, unstructured source code into a verifiable, content-addressable knowledge graph. This process, known as **Genesis**, forges the **immutable bedrock** upon which all future AI reasoning and analysis will be built.
 
-## The Genesis Process: Bottom-Up Aggregation
+The goal of this phase is not to understand _why_ the code works, but to establish, with cryptographic certainty, _what_ objectively exists and _how_ it is structurally connected.
 
-The `genesis` command orchestrates the structural analysis, employing a multi-layered approach to extract and store code metadata.
+## The Genesis Process
 
-### 1. File Discovery and Language Detection
+The `cognition-cli genesis` command orchestrates this foundational analysis. It employs a multi-layered, hierarchical strategy to extract structural metadata, prioritizing accuracy and determinism above all else.
 
-- **Process:** The orchestrator recursively scans the specified source path, identifying files based on their extensions (`.ts`, `.js`, `.py`, `.java`, `.rs`, `.go`). Common irrelevant directories (`node_modules`, `.git`, `__pycache__`, `.open_cognition`) are excluded.
-- **Output:** Each relevant file is represented as a `SourceFile` object, containing its path, relative path, name, detected language, and raw content. While files of these types are discovered, their subsequent structural extraction fidelity depends on the availability of dedicated parsers in the `StructuralMiner`.
+### 1. File Discovery
 
-### 2. Multi-Layered Structural Extraction
+The orchestrator begins by mapping the territory. It recursively scans the specified source path, identifying all relevant source files (`.ts`, `.js`, `.py`, etc.) while intelligently excluding noise (`node_modules`, `.git`, `__pycache__`). Each discovered file becomes a `SourceFile` object, the first, raw `GKe` in our system.
 
-The `StructuralMiner` employs a hierarchical strategy to extract `StructuralData` from each `SourceFile`, prioritizing accuracy and determinism.
+### 2. The Structural Mining Strategy
 
-#### Layer 1: Deterministic AST Parsers (High Fidelity)
+To extract `StructuralData` (the classes, functions, imports, etc.) from each `SourceFile`, the `StructuralMiner` uses a "waterfall" strategy. It attempts the most reliable method first and only falls back to less certain methods if the higher-fidelity approach fails.
 
-- **Native AST Parsing (TypeScript):**
-  - **Mechanism:** Uses the `typescript` library to parse TypeScript code into an Abstract Syntax Tree (AST) directly within `cognition-cli`.
-  - **Output:** Detailed `StructuralData` including imports, classes (with base classes, interfaces, methods, decorators), functions (with parameters, return types, async status, decorators), and exports. Docstrings are also extracted.
-  - **Fidelity:** 1.0 (highest confidence).
-- **Remote AST Parsing (Python via `eGemma`):**
-  - **Mechanism:** For Python, the parsing task is delegated to an external `eGemma` server (accessed via `WorkbenchClient`). `eGemma` performs the AST parsing and returns similar `StructuralData`.
-  - **Fidelity:** 1.0 (highest confidence).
-- **Other Languages (e.g., JavaScript, Java, Rust, Go):** While files with these extensions are discovered, they currently do not have dedicated AST parsers configured in Layer 1. Their structural extraction will proceed to Layer 2 (SLM Extraction) or Layer 3 (LLM Supervised Extraction), resulting in potentially lower fidelity.
+This tiered approach ensures that the resulting knowledge graph is as truthful and deterministic as possible.
 
-#### Layer 2: Specialized Language Model (SLM) Extraction (Medium Fidelity)
+| Layer | Method                               | Mechanism                                                                                                                                        | Fidelity | Status                                               |
+| :---- | :----------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- | :------- | :--------------------------------------------------- |
+| **1** | **Deterministic AST Parsers**        | **Direct Abstract Syntax Tree (AST) parsing.** Uses the native `typescript` library for TS/JS files and the external `eGemma` server for Python. | **1.0**  | **Highest Confidence.** The verifiable ground truth. |
+| **2** | **Specialized Language Model (SLM)** | If AST parsing is unavailable or fails, a specialized, fine-tuned SLM attempts to extract the key structural elements.                           | **0.85** | **Moderate Confidence.** A powerful fallback.        |
+| **3** | **LLM Supervisor**                   | As a last resort, a generalist LLM is tasked with dynamically generating and executing a script to parse the file.                               | **0.70** | **Lowest Confidence.** A heuristic of last resort.   |
 
-- **Mechanism:** If AST parsing fails, `SLMExtractor` attempts to extract structural information using specialized language models.
-- **Fidelity:** 0.85 (moderate confidence).
+### 3. Building the Grounded Context Pool (PGC)
 
-#### Layer 3: LLM Supervised Extraction (Lower Fidelity)
+As each file is mined, its knowledge is meticulously integrated into the PGC, ensuring every piece of information is immutable, auditable, and interconnected.
 
-- **Mechanism:** As a last resort, the `LLMSupervisor` uses a Large Language Model to dynamically generate and execute parsing logic for the file.
-- **Fidelity:** 0.7 (lowest confidence).
+- **Object Store:** Both the raw file content and the extracted `StructuralData` are hashed (SHA-256). This hash becomes the object's unique, content-addressable ID. This guarantees that data is never duplicated and can never be altered without creating a new, distinct object.
 
-### 3. Content Addressable Storage and Auditable Transformations
+- **Transform Log:** Every single extraction—whether it was a high-fidelity AST parse or a low-fidelity LLM guess—is recorded as a permanent, immutable "receipt" in the `transforms/` log. This entry details the goal, the input/output hashes, the method used, and the final `fidelity` score, providing a complete and transparent audit trail.
 
-All extracted structural data is meticulously stored and tracked to ensure verifiability and immutability.
+- **Index:** This is the PGC's "Table of Contents." It maps the human-readable file path (e.g., `src/core/pgc/manager.ts`) to the content hash of its `StructuralData` in the Object Store, enabling fast lookups.
 
-- **ObjectStore:** Both the raw `SourceFile` content and the extracted `StructuralData` (JSON representation) are hashed (e.g., SHA-256) and stored. The hash serves as a unique, content-addressable identifier, preventing duplication and guaranteeing immutability.
-- **TransformLog:** Every structural extraction is recorded as an entry in an immutable, append-only log. This log details the transformation's goal, input/output hashes, extraction method, and fidelity, providing a complete audit trail.
-- **Index:** This component provides a semantic path-to-hash mapping, allowing human-readable file paths to be resolved to their corresponding `StructuralData` hashes in the `ObjectStore`. It now includes advanced search capabilities:
-  - **Symbol Canonicalization:** A `canonicalizeSymbol` helper standardizes search terms (e.g., PascalCase, snake_case) into a consistent kebab-case, ensuring reliable matching.
-  - **Refined Search Logic:** The search mechanism intelligently matches canonicalized symbols against components of canonicalized file paths. It splits the file path into parts, removes file extensions, and checks for inclusion of the canonicalized symbol within these parts.
-  - **Zod Validation:** All `IndexData` entries are validated using Zod, ensuring data integrity and adherence to the defined schema.
-- **ReverseDeps:** This component tracks dependencies between structural elements, mapping dependent objects to the hashes of objects they depend on, and vice-versa.
+- **Reverse Deps:** As the system discovers dependencies (e.g., an `import` statement), it populates the `reverse_deps/` index. This is the PGC's high-speed nervous system, allowing for instantaneous lookups of "what depends on this?"—a critical function for later analysis.
 
-### 4. Structural Verification
+### 4. Final Verification: The Structural Oracle
 
-- **StructuralOracle:** After all files are processed, the `StructuralOracle` performs a verification step to ensure the coherence and integrity of the generated Grounded Context Pool (PGC). Any inconsistencies are flagged, reinforcing the "auditable graph" principle.
+After the mining process is complete, the `StructuralOracle` performs a final verification run. It sweeps through the entire generated PGC, checking for broken links, incoherent dependencies, and structural anomalies. This ensures that the "verifiable skeleton" is not just a collection of data, but a coherent and logically sound whole.
 
-## Data Structures for Structural Representation
+## The Anatomy of a `StructuralData` Object
 
-The `cognition-cli` uses well-defined TypeScript interfaces to represent the extracted structural data:
+The final output for each source file is a rich `StructuralData` object, a `GKe` that serves as its complete structural fingerprint.
 
-- **`SourceFile`**: Represents the raw input file.
-- **`ParameterData`**: Details function parameters (name, type, optional, default).
-- **`FunctionData`**: Describes functions (name, docstring, parameters, return type, async status, decorators).
-- **`ClassData`**: Represents classes (name, docstring, base classes, implemented interfaces, methods, decorators).
-- **`PropertyData`**: Details properties within interfaces (name, type, optional).
-- **`InterfaceData`**: Describes interfaces (name, docstring, properties).
-- **`StructuralData`**: The comprehensive output for each file, encapsulating its language, file-level docstring, imports, lists of `ClassData`, `FunctionData`, and `InterfaceData`, exports, dependencies, the `extraction_method`, and `fidelity` score.
+- **Core Metadata:** `language`, `file_docstring`, `extraction_method`, and the final `fidelity` score.
+- **Connections:** Lists of `imports` and `exports`.
+- **Structural Elements:** Comprehensive lists of every `ClassData`, `FunctionData`, and `InterfaceData` element found in the file, each with its own detailed metadata:
+  - **`ClassData`:** Includes base classes, implemented interfaces, methods, and decorators.
+  - **`FunctionData`:** Includes parameters (with types), return types, and async status.
+  - **`InterfaceData`:** Includes a list of all its properties with their types.
 
-This structured representation, combined with content-addressable storage and auditable transformations, forms the "immutable bedrock" of the CogX project, enabling advanced code analysis and reasoning.
+This rich, structured, and verifiably-grounded representation of the codebase is the essential foundation upon which all the more advanced reasoning of the CogX ecosystem is built.
