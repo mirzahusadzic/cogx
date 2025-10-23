@@ -73,10 +73,13 @@ export async function genesisCommand(options: GenesisOptions) {
       await workbench.health();
       s.stop();
       log.info('Connected to egemma workbench');
+      s = undefined; // Prevent finally block from stopping spinner again
     } catch (error) {
-      s.stop(
-        'eGemma workbench is not running. Please start it before running the genesis command.'
-      );
+      if (s) {
+        s.stop(
+          'eGemma workbench is not running. Please start it before running the genesis command.'
+        );
+      }
       return;
     }
 

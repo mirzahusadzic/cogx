@@ -8,6 +8,18 @@ import { StructuralMiner } from '../../orchestrators/miners/structural.ts';
 import { WorkbenchClient } from '../../executors/workbench-client.ts';
 import { StructuralOracle } from './oracles/overlay.ts';
 
+// Mock workerpool to prevent real worker creation in tests
+vi.mock('workerpool', () => ({
+  pool: vi.fn(() => ({
+    exec: vi.fn(async () => ({
+      status: 'success',
+      relativePath: 'mocked',
+      structuralData: null,
+    })),
+    terminate: vi.fn(async () => {}),
+  })),
+}));
+
 vi.mock('fs/promises', async () => {
   const memfs = await vi.importActual<typeof import('memfs')>('memfs');
   return {

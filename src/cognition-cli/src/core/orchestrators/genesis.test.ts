@@ -10,6 +10,18 @@ vi.mock('proper-lockfile', () => ({
   },
 }));
 
+// Mock workerpool to prevent real worker creation in tests
+vi.mock('workerpool', () => ({
+  pool: vi.fn(() => ({
+    exec: vi.fn(async () => ({
+      status: 'success',
+      relativePath: 'mocked',
+      structuralData: null,
+    })),
+    terminate: vi.fn(async () => {}),
+  })),
+}));
+
 import { GenesisOrchestrator } from './genesis.js';
 import { PGCManager } from '../pgc/manager.js';
 import { StructuralMiner } from './miners/structural.js';

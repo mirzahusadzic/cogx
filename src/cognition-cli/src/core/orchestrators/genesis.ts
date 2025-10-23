@@ -130,6 +130,16 @@ export class GenesisOrchestrator {
     let processed = 0;
 
     for (const file of files) {
+      // Check if file is unchanged BEFORE starting spinner to avoid empty spinner stops
+      const existingIndex = await this.pgc.index.get(file.relativePath);
+      const contentHash = this.pgc.objectStore.computeHash(file.content);
+
+      if (existingIndex && existingIndex.content_hash === contentHash) {
+        // Skip unchanged files silently - don't even start the spinner
+        processed++;
+        continue;
+      }
+
       s.start(
         `Processing ${chalk.cyan(file.relativePath)} (${++processed}/${files.length})`
       );
@@ -139,12 +149,12 @@ export class GenesisOrchestrator {
           file,
           s,
           isWorkbenchHealthy,
-          preParsedStructural
+          preParsedStructural,
+          existingIndex,
+          contentHash
         );
       } catch (error) {
-        s.stop(
-          chalk.red(`✗ ${file.relativePath}: ${(error as Error).message}`)
-        );
+        // processFile already called s.stop() before throwing, don't double-stop
         errors.push({
           file: file.relativePath,
           message: (error as Error).message,
@@ -193,7 +203,7 @@ export class GenesisOrchestrator {
     this.workerPool = workerpool.pool(
       path.resolve(__dirname, '../../../dist/genesis-worker.cjs'),
       {
-        workerType: 'process',
+        workerType: 'thread', // Use worker_threads instead of child processes for better cleanup
         maxWorkers: workerCount,
       }
     );
@@ -204,8 +214,24 @@ export class GenesisOrchestrator {
    */
   private async shutdownWorkers(): Promise<void> {
     if (this.workerPool) {
-      await this.workerPool.terminate(true);
-      this.workerPool = undefined;
+      try {
+        // Force terminate with timeout to ensure workers don't hang
+        await Promise.race([
+          this.workerPool.terminate(true),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Worker shutdown timeout')), 5000)
+          ),
+        ]);
+      } catch (error) {
+        // Log but don't fail - workers will be killed by OS anyway
+        log.warn(
+          chalk.yellow(
+            `[Genesis] Worker pool shutdown warning: ${(error as Error).message}`
+          )
+        );
+      } finally {
+        this.workerPool = undefined;
+      }
     }
   }
 
@@ -310,19 +336,12 @@ export class GenesisOrchestrator {
     file: SourceFile,
     s: ReturnType<typeof spinner>,
     isWorkbenchHealthy: boolean,
-    preParsedStructural?: StructuralData
+    preParsedStructural: StructuralData | undefined,
+    existingIndex: Awaited<ReturnType<PGCManager['index']['get']>> | undefined,
+    contentHash: string
   ) {
     const storedHashes: string[] = [];
     let recordedTransformId: string | undefined;
-
-    const existingIndex = await this.pgc.index.get(file.relativePath);
-
-    const contentHash = this.pgc.objectStore.computeHash(file.content);
-
-    if (existingIndex && existingIndex.content_hash === contentHash) {
-      // Skip unchanged files silently
-      return;
-    }
 
     try {
       // Store the content hash in the object store

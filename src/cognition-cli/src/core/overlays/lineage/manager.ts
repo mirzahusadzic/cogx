@@ -98,7 +98,7 @@ export class LineagePatternsManager implements PatternManager {
     );
 
     this.workerPool = workerpool.pool(this.workerScriptPath, {
-      workerType: 'process',
+      workerType: 'thread', // Use worker_threads instead of child processes for better cleanup
       maxWorkers: workerCount,
     });
   }
