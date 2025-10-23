@@ -516,10 +516,65 @@ export class GenesisOrchestrator {
     log.info('Aggregating directory summaries (bottom-up)');
   }
 
+  /**
+   * Collect all object hashes referenced by overlays
+   * These hashes must NOT be deleted by GC even if their source files are stale
+   */
+  private async getOverlayReferencedHashes(): Promise<Set<string>> {
+    const referencedHashes = new Set<string>();
+    const allOverlays = ['structural_patterns', 'lineage_patterns'];
+
+    for (const overlayType of allOverlays) {
+      try {
+        const manifest = await this.pgc.overlays.getManifest(overlayType);
+        for (const [symbolName, overlayFilePath] of Object.entries(manifest)) {
+          const overlayKey = `${overlayFilePath}#${symbolName}`;
+
+          // Try to get overlay data - it might have different schemas for different overlay types
+          // We use a permissive approach to extract hashes
+          try {
+            const overlayPath = this.pgc.overlays.getOverlayPath(
+              overlayType,
+              overlayKey
+            );
+            if (await fs.pathExists(overlayPath)) {
+              const overlayData = await fs.readJSON(overlayPath);
+
+              // Collect all hash fields that might exist
+              if (overlayData.symbolStructuralDataHash) {
+                referencedHashes.add(overlayData.symbolStructuralDataHash);
+              }
+              if (overlayData.embeddingHash) {
+                referencedHashes.add(overlayData.embeddingHash);
+              }
+              if (overlayData.lineageHash) {
+                referencedHashes.add(overlayData.lineageHash);
+              }
+              if (overlayData.validation?.sourceHash) {
+                referencedHashes.add(overlayData.validation.sourceHash);
+              }
+            }
+          } catch (error) {
+            // If we can't read/parse an overlay, log but continue
+            // We don't want to fail GC just because one overlay is malformed
+            console.warn(`[GC] Could not read overlay ${overlayKey}:`, error);
+          }
+        }
+      } catch (error) {
+        // If overlay type doesn't exist, that's fine - just skip it
+      }
+    }
+
+    return referencedHashes;
+  }
+
   private async garbageCollect(processedFiles: string[]) {
     let staleEntries = 0;
     let cleanedReverseDeps = 0;
     let cleanedTransformLogEntries = 0;
+
+    // Collect hashes that are referenced by overlays and must be preserved
+    const overlayReferencedHashes = await this.getOverlayReferencedHashes();
 
     // Phase 1: Clean up stale index entries
     const allIndexedData = await this.pgc.index.getAllData();
@@ -532,8 +587,15 @@ export class GenesisOrchestrator {
     for (const staleFile of staleFilePaths) {
       const indexData = await this.pgc.index.get(staleFile);
       if (indexData) {
-        await this.pgc.objectStore.delete(indexData.content_hash);
-        await this.pgc.objectStore.delete(indexData.structural_hash);
+        // CRITICAL: Only delete hashes that are NOT referenced by overlays
+        if (!overlayReferencedHashes.has(indexData.content_hash)) {
+          await this.pgc.objectStore.delete(indexData.content_hash);
+        }
+        if (!overlayReferencedHashes.has(indexData.structural_hash)) {
+          await this.pgc.objectStore.delete(indexData.structural_hash);
+        }
+
+        // Clean up transform history
         for (const transformId of indexData.history) {
           await this.pgc.transformLog.delete(transformId);
           await this.pgc.reverseDeps.delete(

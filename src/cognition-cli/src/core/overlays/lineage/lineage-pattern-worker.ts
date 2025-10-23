@@ -21,14 +21,23 @@ import { IndexData } from '../../types/index.js';
 class WorkerLogic {
   constructor(private pgc: PGCManager) {}
 
-  private _formatAsLineageJSON(lineageResult: LineageQueryResult): object {
+  private _formatAsLineageJSON(
+    lineageResult: LineageQueryResult,
+    targetSymbol: string
+  ): object {
+    // Find the specific symbol we're looking for in the initial context
+    // Don't just take the first symbol of any type!
+    const initialStructure = lineageResult.initialContext[0];
     const rootSymbol =
-      lineageResult.initialContext[0]?.classes?.[0]?.name ||
-      lineageResult.initialContext[0]?.functions?.[0]?.name ||
-      lineageResult.initialContext[0]?.interfaces?.[0]?.name ||
+      initialStructure?.classes?.find((c) => c.name === targetSymbol)?.name ||
+      initialStructure?.functions?.find((f) => f.name === targetSymbol)?.name ||
+      initialStructure?.interfaces?.find((i) => i.name === targetSymbol)
+        ?.name ||
       '';
 
     const lineage = lineageResult.dependencies.map((dep) => {
+      // For dependencies, we can take the first symbol since the structural data
+      // is filtered to just that symbol (stored separately in the object store)
       const depSymbol =
         dep.structuralData.classes?.[0]?.name ||
         dep.structuralData.functions?.[0]?.name ||
@@ -380,7 +389,7 @@ class WorkerLogic {
       { maxDepth }
     );
 
-    const lineageJson = this._formatAsLineageJSON(lineageResult);
+    const lineageJson = this._formatAsLineageJSON(lineageResult, symbolName);
     const signature = JSON.stringify(lineageJson, null, 2);
     const lineageDataHash = this.pgc.objectStore.computeHash(signature);
 
