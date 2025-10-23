@@ -12,8 +12,8 @@ cognition-cli init                              # Initialize PGC
 cognition-cli genesis src/                      # Build knowledge graph
 
 # Overlays
-cognition-cli overlay generate structural_patterns  # Generate structural overlay
-cognition-cli overlay generate lineage_patterns     # Generate lineage overlay
+cognition-cli overlay generate structural_patterns .  # Generate structural overlay
+cognition-cli overlay generate lineage_patterns .     # Generate lineage overlay
 
 # Pattern Analysis
 cognition-cli patterns list                     # List all structural patterns
@@ -77,11 +77,14 @@ cognition-cli genesis src/ --project-root /path/to/project --workbench http://lo
 
 Once the PGC is populated, these commands allow you to explore, analyze, and gain insights from the structured knowledge.
 
-### **`cognition-cli overlay generate <type>`**
+### **`cognition-cli overlay generate <type> [sourcePath]`**
 
 Generates specialized analytical layers, or "overlays," on top of the foundational PGC. These overlays enrich the knowledge graph with semantic and relational insights.
 
 - **When to Use It:** After running `genesis`, use this command to build the higher-level understanding required for advanced queries. Generating the `structural_patterns` and `lineage_patterns` overlays is essential for enabling the powerful `patterns` commands.
+- **Arguments:**
+  - `<type>` - Type of overlay: `structural_patterns` or `lineage_patterns`
+  - `[sourcePath]` - Optional source path to analyze (default: `.` - current directory)
 - **Supported Types:**
   - `structural_patterns` - Extracts structural signatures and architectural roles
   - `lineage_patterns` - Builds dependency lineage graphs through time-traveling PGC archaeology
@@ -91,17 +94,23 @@ Generates specialized analytical layers, or "overlays," on top of the foundation
   - `--skip-gc` - Skip garbage collection (recommended when switching branches or regenerating after deletion)
 
 ```bash
-# Generate the structural patterns required for similarity search
-cognition-cli overlay generate structural_patterns
+# Generate structural patterns for current directory
+cognition-cli overlay generate structural_patterns .
+
+# Generate patterns for src/ directory (if using src/ structure)
+cognition-cli overlay generate structural_patterns src
+
+# Generate patterns for lib/ directory
+cognition-cli overlay generate structural_patterns lib
 
 # Generate the lineage patterns for dependency analysis
-cognition-cli overlay generate lineage_patterns
+cognition-cli overlay generate lineage_patterns .
 
 # Force regeneration of all patterns (useful after major code changes)
-cognition-cli overlay generate structural_patterns --force
+cognition-cli overlay generate structural_patterns . --force
 
 # Skip GC when regenerating after branch switch or deletion
-cognition-cli overlay generate lineage_patterns --skip-gc
+cognition-cli overlay generate lineage_patterns . --skip-gc
 ```
 
 **Note on `--skip-gc`:** When you switch git branches or delete/regenerate overlays, the garbage collector may delete object hashes that overlays still reference. Use `--skip-gc` to prevent this until a more intelligent GC is implemented.

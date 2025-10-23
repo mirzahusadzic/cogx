@@ -7,7 +7,11 @@ const generateCommand = new Command('generate')
     'Generate a specific type of overlay (structural_patterns or lineage_patterns).'
   )
   .argument('<type>', 'The type of overlay to generate')
-  .argument('[sourcePath]', 'Source path to analyze (default: from metadata or ".")', '.')
+  .argument(
+    '[sourcePath]',
+    'Source path to analyze (default: from metadata or ".")',
+    '.'
+  )
   .option('-p, --project-root <path>', 'The root of the project.', '.')
   .option(
     '-f, --force',
