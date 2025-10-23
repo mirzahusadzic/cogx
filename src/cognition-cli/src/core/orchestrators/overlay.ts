@@ -303,6 +303,26 @@ export class OverlayOrchestrator {
           chalk.green('[Overlay] Structural Oracle verification successful.')
         );
       }
+
+      // CRITICAL: Verify manifest completeness against vector DB
+      log.info(
+        chalk.cyan('\n[Overlay] Oracle: Verifying manifest completeness...')
+      );
+      const completenessResult =
+        await this.overlayOracle.verifyManifestCompleteness();
+      completenessResult.messages.forEach((msg: string) => console.log(msg));
+      if (!completenessResult.success) {
+        log.error(
+          chalk.red(
+            '[Overlay] Manifest is incomplete - pattern generation may have failed.'
+          )
+        );
+        throw new Error('Structural patterns manifest is incomplete.');
+      } else {
+        log.success(
+          chalk.green('[Overlay] Manifest completeness verification passed.')
+        );
+      }
     }
   }
 

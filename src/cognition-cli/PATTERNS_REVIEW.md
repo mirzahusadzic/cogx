@@ -5,34 +5,42 @@
 ### Existing Commands
 
 #### 1. `patterns find-similar <symbol>` ✅ (Structural) ⚠️ (Lineage)
+
 **What it does:**
+
 - Vector similarity search to find code structurally similar to a given symbol
 - Supports both `--type structural` and `--type lineage`
 - Shows similarity score, architectural role, and explanation
 
 **Status:**
+
 - ✅ **Structural patterns**: Fully implemented and working
 - ⚠️ **Lineage patterns**: Stub implementation - returns empty array
 
 **Utility:** HIGH - Very useful for finding similar code patterns, refactoring candidates, or understanding architectural consistency.
 
 **Issues:**
+
 - Lineage find-similar is not implemented (just returns `[]`)
 - No file path shown in results (where is the similar code?)
 - No way to see the actual code snippets
 
 #### 2. `patterns analyze` ✅ (Basic)
+
 **What it does:**
+
 - Shows distribution of architectural roles (controller, service, component, etc.)
 - Simple histogram/bar chart of role counts
 
 **Status:**
+
 - ✅ Works for both structural and lineage patterns
 - Very basic - just counting
 
 **Utility:** MEDIUM - Useful for high-level architecture overview, but too simplistic.
 
 **Issues:**
+
 - Only shows counts, no deeper insights
 - No complexity metrics
 - No clustering or pattern identification
@@ -40,17 +48,21 @@
 - Doesn't show relationships between roles
 
 #### 3. `patterns compare <symbol1> <symbol2>` ✅ (Structural) ⚠️ (Lineage)
+
 **What it does:**
+
 - Compares two symbols using cosine similarity
 - Shows similarity percentage and both signatures side-by-side
 
 **Status:**
+
 - ✅ **Structural patterns**: Works
 - ⚠️ **Lineage patterns**: Stub implementation - getVectorForSymbol returns undefined
 
 **Utility:** MEDIUM - Useful for understanding differences, but doesn't highlight what's actually different.
 
 **Issues:**
+
 - Lineage compare not implemented
 - Shows signatures but doesn't diff them
 - No highlighting of differences
@@ -61,7 +73,9 @@
 ## Critical Issues
 
 ### 1. Lineage Patterns Commands Are Broken ❌
+
 The `LineagePatternsManager` has stub implementations:
+
 ```typescript
 public async findSimilarPatterns(): Promise<...> {
   return [];  // ← Stub!
@@ -73,13 +87,16 @@ public async getVectorForSymbol(): Promise<VectorRecord | undefined> {
 ```
 
 **Impact:**
+
 - `patterns find-similar --type lineage` returns no results
 - `patterns compare --type lineage` fails (can't find vectors)
 
 **Fix Required:** Implement these methods in `LineagePatternsManager`
 
 ### 2. No File Path Information
+
 When finding similar patterns, users don't know WHERE the code is:
+
 ```
 1. UserManager [service]
    ████████████████████ 95.3%
@@ -87,6 +104,7 @@ When finding similar patterns, users don't know WHERE the code is:
 ```
 
 Should show:
+
 ```
 1. UserManager [service]
    📁 src/modules/users/user-manager.ts:15
@@ -99,9 +117,11 @@ Should show:
 ## Missing High-Value Commands
 
 ### 1. `patterns inspect <symbol>` 🎯 HIGH VALUE
+
 **Purpose:** Deep dive into a single symbol - show everything we know about it
 
 **Output:**
+
 ```
 📦 Symbol: UserManager
 📁 Location: src/modules/users/user-manager.ts:15
@@ -132,15 +152,18 @@ Should show:
 ```
 
 **Implementation:** Combine data from:
+
 - Structural overlay metadata
 - Lineage overlay metadata
 - Index (file path, status)
 - ObjectStore (actual structural data)
 
 ### 2. `patterns list --role <role>` 🎯 MEDIUM VALUE
+
 **Purpose:** List all symbols with a specific architectural role
 
 **Examples:**
+
 ```bash
 # Show all controllers
 cognition-cli patterns list --role controller
@@ -153,6 +176,7 @@ cognition-cli patterns list --role data_access
 ```
 
 **Output:**
+
 ```
 🎯 Controllers (8 found):
 
@@ -167,9 +191,11 @@ cognition-cli patterns list --role data_access
 ```
 
 ### 3. `patterns graph <symbol>` 🎯 HIGH VALUE
+
 **Purpose:** Visualize the dependency graph for a symbol (ASCII art or JSON for external viz)
 
 **ASCII Output:**
+
 ```
 UserService
 ├── Database
@@ -182,6 +208,7 @@ UserService
 ```
 
 **JSON Output:** For piping to Graphviz, D3.js, etc.
+
 ```json
 {
   "symbol": "UserService",
@@ -192,9 +219,11 @@ UserService
 ```
 
 ### 4. `patterns diff <symbol1> <symbol2>` 🎯 MEDIUM VALUE
+
 **Purpose:** Show actual differences between two symbols (enhanced compare)
 
 **Output:**
+
 ```
 ⚖️  Comparing UserManager vs OrderManager:
 
@@ -218,9 +247,11 @@ Similarity: ████████████████░░░░ 80.5%
 ```
 
 ### 5. `patterns search <query>` 🎯 LOW-MEDIUM VALUE
+
 **Purpose:** Free-text or fuzzy search for patterns
 
 **Examples:**
+
 ```bash
 # Find patterns mentioning "payment"
 cognition-cli patterns search payment
@@ -237,6 +268,7 @@ cognition-cli patterns search "depends:Database"
 ## Enhancement Recommendations
 
 ### Priority 1: Critical Fixes
+
 1. ✅ **Implement lineage pattern query methods** in `LineagePatternsManager`
    - `findSimilarPatterns(symbol, topK)`
    - `getVectorForSymbol(symbol)`
@@ -246,6 +278,7 @@ cognition-cli patterns search "depends:Database"
    - Update UI rendering to show paths
 
 ### Priority 2: High-Value Additions
+
 3. ✅ **Add `patterns inspect <symbol>`** command
    - Comprehensive view of a single symbol
    - Combines structural, lineage, and validation data
@@ -255,6 +288,7 @@ cognition-cli patterns search "depends:Database"
    - Optional JSON output for external tools
 
 ### Priority 3: Quality of Life
+
 5. ✅ **Add `patterns list --role <role>`** command
    - Filter symbols by architectural role
    - Show file paths and brief descriptions
@@ -269,6 +303,7 @@ cognition-cli patterns search "depends:Database"
    - Identify outliers (overly complex or isolated patterns)
 
 ### Priority 4: Advanced Features
+
 8. 🔮 **Add `patterns search <query>`** command
    - Flexible querying across all patterns
    - Support for filters (role, dependencies, methods, etc.)
@@ -286,22 +321,26 @@ cognition-cli patterns search "depends:Database"
 ## Implementation Plan
 
 ### Phase 1: Fix Critical Issues (URGENT)
+
 - [ ] Implement `LineagePatternsManager.findSimilarPatterns()`
 - [ ] Implement `LineagePatternsManager.getVectorForSymbol()`
 - [ ] Add file paths to all command outputs
 - [ ] Add tests for lineage pattern queries
 
 ### Phase 2: Add Core Commands (HIGH VALUE)
+
 - [ ] Implement `patterns inspect <symbol>`
 - [ ] Implement `patterns graph <symbol>`
 - [ ] Implement `patterns list --role <role>`
 
 ### Phase 3: Enhance Existing Commands
+
 - [ ] Enhance `patterns compare` with diff view
 - [ ] Enhance `patterns analyze` with metrics and insights
 - [ ] Add `--verbose` flag for detailed output
 
 ### Phase 4: Advanced Features (FUTURE)
+
 - [ ] Implement `patterns search <query>`
 - [ ] Implement `patterns cluster`
 - [ ] Implement `patterns suggest-refactor`
@@ -312,16 +351,19 @@ cognition-cli patterns search "depends:Database"
 ## Testing Strategy
 
 ### Unit Tests Needed
+
 1. `LineagePatternsManager.findSimilarPatterns()` - vector similarity search
 2. `LineagePatternsManager.getVectorForSymbol()` - vector retrieval
 3. New commands: `inspect`, `graph`, `list`
 
 ### Integration Tests Needed
+
 1. End-to-end test: Generate overlays → Run all pattern commands
 2. Test with real codebase (cognition-cli itself)
 3. Performance test with large codebases (1000+ symbols)
 
 ### Manual Testing Checklist
+
 - [ ] `patterns find-similar` with `--type lineage` works
 - [ ] `patterns compare` with `--type lineage` works
 - [ ] All commands show file paths
@@ -334,12 +376,14 @@ cognition-cli patterns search "depends:Database"
 ## Conclusion
 
 The patterns commands have a solid foundation but need:
+
 1. **Critical fixes** for lineage pattern queries
 2. **Missing information** like file paths
 3. **New commands** for deeper inspection and analysis
 4. **Enhanced output** for existing commands
 
 The highest ROI improvements are:
+
 1. Fix lineage pattern stubs (enables `--type lineage`)
 2. Add file paths to all outputs
 3. Add `patterns inspect` for deep dives

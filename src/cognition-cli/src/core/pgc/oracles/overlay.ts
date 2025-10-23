@@ -86,4 +86,100 @@ export class OverlayOracle {
 
     return { success, messages };
   }
+
+  /**
+   * CRITICAL: Verify manifest completeness against vector DB
+   * Manifest is the source of truth, but it must be in sync with vector DB
+   * This catches the case where patterns are generated but manifest isn't updated
+   */
+  async verifyManifestCompleteness(): Promise<VerificationResult> {
+    const messages: string[] = [];
+    let success = true;
+
+    try {
+      // Load manifest
+      const manifest = await this.pgcManager.overlays.getManifest(
+        'structural_patterns'
+      );
+      const manifestSymbols = new Set(Object.keys(manifest || {}));
+
+      // Load vector DB to see what patterns actually exist
+      const { LanceVectorStore } = await import(
+        '../../overlays/vector-db/lance-store.js'
+      );
+      const vectorDB = new LanceVectorStore(this.pgcManager.pgcRoot);
+      await vectorDB.initialize('structural_patterns');
+      const allVectors = await vectorDB.getAllVectors();
+      const vectorSymbols = new Set(
+        allVectors.map((v: { symbol: unknown }) => v.symbol as string)
+      );
+
+      // Find patterns in vector DB but missing from manifest
+      const missingFromManifest: string[] = [];
+      for (const symbol of vectorSymbols) {
+        if (!manifestSymbols.has(symbol as string)) {
+          missingFromManifest.push(symbol as string);
+        }
+      }
+
+      // Find manifest entries with no corresponding vector
+      const orphanedInManifest: string[] = [];
+      for (const symbol of manifestSymbols) {
+        if (!vectorSymbols.has(symbol as string)) {
+          orphanedInManifest.push(symbol as string);
+        }
+      }
+
+      // Report findings
+      if (missingFromManifest.length > 0) {
+        messages.push(
+          chalk.red(
+            `\n❌ MANIFEST INCOMPLETE: ${missingFromManifest.length} patterns exist in vector DB but are missing from manifest`
+          )
+        );
+        messages.push(
+          chalk.dim(`   First 10 missing: ${missingFromManifest.slice(0, 10).join(', ')}`)
+        );
+        messages.push(
+          chalk.yellow(
+            `   🔧 Fix: Run 'cognition-cli overlay generate structural_patterns --force'`
+          )
+        );
+        success = false;
+      }
+
+      if (orphanedInManifest.length > 0) {
+        messages.push(
+          chalk.yellow(
+            `\n⚠️  ORPHANED MANIFEST ENTRIES: ${orphanedInManifest.length} entries in manifest have no vector DB entry`
+          )
+        );
+        messages.push(
+          chalk.dim(`   Orphaned: ${orphanedInManifest.join(', ')}`)
+        );
+        messages.push(
+          chalk.dim(
+            `   This may indicate stale data from branch switches or incomplete generation`
+          )
+        );
+      }
+
+      if (success) {
+        messages.push(
+          chalk.green(
+            `✅ Manifest complete: ${manifestSymbols.size} entries match ${vectorSymbols.size} vectors`
+          )
+        );
+      }
+    } catch (error) {
+      messages.push(
+        chalk.red(
+          `Error during manifest completeness check: ${(error as Error).message}`
+        )
+      );
+      success = false;
+    }
+
+    return { success, messages };
+  }
 }
