@@ -1,15 +1,43 @@
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
+import * as workerpool from 'workerpool';
+import chalk from 'chalk';
+import { z } from 'zod';
+import os from 'os';
+
 import { PatternManager } from '../../pgc/patterns.js';
 import { PGCManager } from '../../pgc/manager.js';
-export { PatternManager } from '../../pgc/patterns.js';
 import { LanceVectorStore, VectorRecord } from '../vector-db/lance-store.js';
 import { WorkbenchClient } from '../../executors/workbench-client.js';
 import { StructuralData } from '../../types/structural.js';
+import { EmbeddingService } from '../../services/embedding-service.js';
+import { EmbedResponse } from '../../types/workbench.js';
 import {
   DEFAULT_EMBEDDING_DIMENSIONS,
   DEFAULT_EMBEDDING_MODEL_NAME,
 } from '../../../config.js';
-import { EmbedResponse } from '../../types/workbench.js';
-import chalk from 'chalk';
+
+/**
+ * Calculate optimal worker count based on system resources and workload
+ *
+ * NOTE: Workers now only perform mining (AST parsing, signature generation).
+ * Embedding is done sequentially in the main process to respect rate limits.
+ * We can safely use multiple workers for the CPU-intensive mining phase.
+ */
+function calculateOptimalWorkers(jobCount: number): number {
+  const cpuCount = os.cpus().length;
+
+  if (jobCount <= 10) {
+    return Math.min(2, cpuCount); // Small jobs: 2 workers max
+  }
+
+  if (jobCount <= 50) {
+    return Math.min(4, cpuCount); // Medium jobs: 4 workers max
+  }
+
+  // Large jobs: use up to 8 workers (leave some CPUs for main process)
+  return Math.min(8, Math.floor(cpuCount * 0.75));
+}
 
 export interface PatternMetadata {
   symbol: string;
@@ -23,10 +51,10 @@ export interface PatternMetadata {
   validation: {
     sourceHash: string;
     embeddingModelVersion: typeof DEFAULT_EMBEDDING_MODEL_NAME;
+    extractionMethod: string;
+    fidelity: number;
   };
 }
-
-import { z } from 'zod';
 
 const PatternMetadataSchema = z.object({
   symbol: z.string(),
@@ -42,20 +70,345 @@ const PatternMetadataSchema = z.object({
   }),
 });
 
+interface StructuralJobPacket {
+  projectRoot: string;
+  symbolName: string;
+  filePath: string;
+  contentHash: string;
+  structuralHash: string;
+  structuralData: StructuralData;
+  force: boolean;
+}
+
+interface StructuralMiningResult {
+  status: 'success' | 'skipped' | 'error';
+  symbolName: string;
+  filePath: string;
+  signature?: string;
+  architecturalRole?: string;
+  structuralData?: StructuralData;
+  contentHash?: string;
+  structuralHash?: string;
+  message?: string;
+}
+
 export class StructuralPatternsManager implements PatternManager {
+  private workerPool?: workerpool.Pool;
+  private embeddingService?: EmbeddingService;
+  private useWorkers: boolean = false;
+
   constructor(
     private pgc: PGCManager,
     private vectorDB: LanceVectorStore,
     private workbench: WorkbenchClient
   ) {}
 
+  /**
+   * Initialize worker pool for parallel processing with optimal size
+   * @param jobCount - Number of jobs to process (used to calculate optimal worker count)
+   */
+  public initializeWorkers(jobCount?: number): void {
+    if (this.workerPool) return;
+
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+
+    const workerCount = jobCount
+      ? calculateOptimalWorkers(jobCount)
+      : os.cpus().length;
+
+    if (jobCount) {
+      console.log(
+        chalk.blue(
+          `[StructuralPatterns] Initializing worker pool with ${workerCount} workers for ${jobCount} jobs (${os.cpus().length} CPUs available)`
+        )
+      );
+    }
+
+    this.workerPool = workerpool.pool(
+      path.resolve(__dirname, '../../../../dist/structural-worker.cjs'),
+      {
+        workerType: 'process',
+        maxWorkers: workerCount,
+      }
+    );
+
+    // Initialize centralized embedding service
+    this.embeddingService = new EmbeddingService(
+      process.env.WORKBENCH_URL || 'http://localhost:8000'
+    );
+
+    // Configure PGC to use our embedding service
+    this.pgc.setEmbeddingRequestHandler(this.requestEmbedding.bind(this));
+
+    this.useWorkers = true;
+
+    if (!jobCount) {
+      console.log(
+        chalk.blue(
+          '[StructuralPatterns] Worker pool and embedding service initialized'
+        )
+      );
+    }
+  }
+
+  /**
+   * Centralized embedding request handler for workers
+   */
+  private async requestEmbedding(params: {
+    signature: string;
+    dimensions: number;
+  }): Promise<EmbedResponse> {
+    if (!this.embeddingService) {
+      throw new Error('Embedding service not initialized');
+    }
+    return this.embeddingService.getEmbedding(
+      params.signature,
+      params.dimensions
+    );
+  }
+
+  /**
+   * Shutdown worker pool and embedding service
+   */
+  public async shutdown(): Promise<void> {
+    if (this.workerPool) {
+      console.log(
+        chalk.blue(
+          '[StructuralPatterns] Shutting down worker pool and embedding service...'
+        )
+      );
+      await this.workerPool.terminate(true);
+      this.workerPool = undefined;
+    }
+    if (this.embeddingService) {
+      await this.embeddingService.shutdown();
+      this.embeddingService = undefined;
+    }
+    this.useWorkers = false;
+  }
+
+  /**
+   * Generate patterns in two phases:
+   * Phase 1: Mine patterns in parallel (fast, CPU-intensive)
+   * Phase 2: Generate embeddings sequentially (slow, rate-limited)
+   */
+  public async generatePatternsParallel(
+    jobs: StructuralJobPacket[]
+  ): Promise<void> {
+    if (!this.workerPool) {
+      throw new Error(
+        'Worker pool not initialized. Call initializeWorkers() first.'
+      );
+    }
+    if (!this.embeddingService) {
+      throw new Error('Embedding service not initialized.');
+    }
+
+    // Phase 1: Mine patterns in parallel
+    console.log(
+      chalk.blue(
+        `[StructuralPatterns] Phase 1: Mining ${jobs.length} patterns with workers...`
+      )
+    );
+
+    let miningResults: StructuralMiningResult[];
+    try {
+      const promises = jobs.map((job) =>
+        this.workerPool!.exec('processStructuralPattern', [job])
+      );
+
+      miningResults = (await Promise.all(promises)) as StructuralMiningResult[];
+
+      const mined = miningResults.filter((r) => r.status === 'success').length;
+      const skipped = miningResults.filter(
+        (r) => r.status === 'skipped'
+      ).length;
+      const failed = miningResults.filter((r) => r.status === 'error').length;
+
+      console.log(
+        chalk.green(
+          `[StructuralPatterns] Mining complete: ${mined} mined, ${skipped} skipped, ${failed} failed`
+        )
+      );
+    } catch (error) {
+      console.error(chalk.red('[StructuralPatterns] Mining error:'), error);
+      throw error;
+    }
+
+    // Phase 2: Generate embeddings sequentially (respecting rate limits)
+    const successfulMines = miningResults.filter((r) => r.status === 'success');
+
+    if (successfulMines.length === 0) {
+      console.log(chalk.yellow('[StructuralPatterns] No patterns to embed.'));
+      return;
+    }
+
+    console.log(
+      chalk.blue(
+        `[StructuralPatterns] Phase 2: Generating embeddings for ${successfulMines.length} patterns...`
+      )
+    );
+
+    await this.vectorDB.initialize('structural_patterns');
+
+    let embeddedCount = 0;
+    let embedFailedCount = 0;
+
+    for (const result of successfulMines) {
+      try {
+        await this.generateAndStoreEmbedding(result);
+        embeddedCount++;
+
+        // Show progress every 10 patterns
+        if (embeddedCount % 10 === 0) {
+          console.log(
+            chalk.dim(
+              `[StructuralPatterns] Progress: ${embeddedCount}/${successfulMines.length} embedded`
+            )
+          );
+        }
+      } catch (error) {
+        console.error(
+          chalk.red(
+            `[StructuralPatterns] Failed to embed ${result.symbolName}: ${(error as Error).message}`
+          )
+        );
+        embedFailedCount++;
+      }
+    }
+
+    console.log(
+      chalk.green(
+        `[StructuralPatterns] Embedding complete: ${embeddedCount} succeeded, ${embedFailedCount} failed`
+      )
+    );
+  }
+
+  /**
+   * Generate embedding and store pattern for a single mined result
+   */
+  private async generateAndStoreEmbedding(
+    result: StructuralMiningResult
+  ): Promise<void> {
+    const {
+      symbolName,
+      filePath,
+      signature,
+      architecturalRole,
+      structuralData,
+      contentHash,
+      structuralHash,
+    } = result;
+
+    if (
+      !signature ||
+      !architecturalRole ||
+      !structuralData ||
+      !contentHash ||
+      !structuralHash
+    ) {
+      throw new Error(`Missing required data for ${symbolName}`);
+    }
+
+    console.log(chalk.dim(`  [Embed] ${symbolName} - requesting embedding...`));
+
+    // Request embedding through centralized service
+    const embedResponse = await this.workbench.embed({
+      signature,
+      dimensions: DEFAULT_EMBEDDING_DIMENSIONS,
+    });
+
+    const embedding =
+      embedResponse[`embedding_${DEFAULT_EMBEDDING_DIMENSIONS}d`];
+
+    if (!embedding) {
+      throw new Error(
+        `Could not find embedding for dimension ${DEFAULT_EMBEDDING_DIMENSIONS}`
+      );
+    }
+
+    console.log(chalk.dim(`  [Embed] ${symbolName} - computing hashes...`));
+
+    const lineageHash = this.pgc.objectStore.computeHash(
+      JSON.stringify(structuralData)
+    );
+    const embeddingHash = this.pgc.objectStore.computeHash(
+      JSON.stringify(embedding)
+    );
+    const vectorId = `pattern_${filePath.replace(/[^a-zA-Z0-9]/g, '_')}_${symbolName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+    console.log(chalk.dim(`  [Embed] ${symbolName} - storing vector...`));
+
+    // Store vector
+    await this.vectorDB.storeVector(vectorId, embedding as number[], {
+      symbol: symbolName,
+      structural_signature: signature,
+      architectural_role: architecturalRole,
+      computed_at: new Date().toISOString(),
+      lineage_hash: lineageHash,
+    });
+
+    // Update PGC overlays
+    const metadata: PatternMetadata = {
+      symbol: symbolName,
+      anchor: filePath,
+      symbolStructuralDataHash: structuralHash,
+      embeddingHash,
+      structuralSignature: signature,
+      architecturalRole: architecturalRole,
+      computedAt: new Date().toISOString(),
+      validation: {
+        sourceHash: contentHash,
+        embeddingModelVersion: DEFAULT_EMBEDDING_MODEL_NAME,
+        extractionMethod: structuralData.extraction_method,
+        fidelity: structuralData.fidelity,
+      },
+      vectorId: vectorId,
+    };
+
+    const overlayKey = `${filePath}#${symbolName}`;
+    console.log(
+      chalk.dim(`  [Embed] ${symbolName} - updating overlay "${overlayKey}"...`)
+    );
+
+    // CRITICAL: Update overlay metadata FIRST, then manifest
+    // If overlay update fails, manifest won't have a stale entry
+    await this.pgc.overlays.update('structural_patterns', overlayKey, metadata);
+
+    console.log(chalk.dim(`  [Embed] ${symbolName} - updating manifest...`));
+    await this.pgc.overlays.updateManifest(
+      'structural_patterns',
+      symbolName,
+      filePath
+    );
+
+    console.log(chalk.dim(`  [Embed] ${symbolName} - ✓ complete`));
+  }
+
+  /**
+   * Get embedding service statistics for monitoring
+   */
+  public getEmbeddingStats(): { queueSize: number; isProcessing: boolean } {
+    if (!this.embeddingService) {
+      return { queueSize: 0, isProcessing: false };
+    }
+    return {
+      queueSize: this.embeddingService.getQueueSize(),
+      isProcessing: this.embeddingService.isProcessing(),
+    };
+  }
+
+  /**
+   * Original single-threaded method (kept for backwards compatibility)
+   */
   public async generateAndStorePattern(
-    symbolName: string, // The name of the symbol (e.g., class name, function name)
-    symbolStructuralData: StructuralData, // StructuralData for the individual symbol
+    symbolName: string,
+    symbolStructuralData: StructuralData,
     relativePath: string,
     sourceHash: string,
-    structuralDataHash: string // New parameter
-  ) {
+    structuralDataHash: string
+  ): Promise<void> {
     await this.vectorDB.initialize('structural_patterns');
     const signature = this.generateStructuralSignature(symbolStructuralData);
     const architecturalRole = this.inferArchitecturalRole(symbolStructuralData);
@@ -82,7 +435,6 @@ export class StructuralPatternsManager implements PatternManager {
       JSON.stringify(embedding)
     );
 
-    // Use a combination of relativePath and symbolName for vectorId to ensure uniqueness
     const vectorId = `pattern_${relativePath.replace(/[^a-zA-Z0-9]/g, '_')}_${symbolName.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
     await this.vectorDB.storeVector(vectorId, embedding as number[], {
@@ -104,17 +456,17 @@ export class StructuralPatternsManager implements PatternManager {
       validation: {
         sourceHash: sourceHash,
         embeddingModelVersion: DEFAULT_EMBEDDING_MODEL_NAME,
+        extractionMethod: symbolStructuralData.extraction_method,
+        fidelity: symbolStructuralData.fidelity,
       },
-      vectorId: vectorId, // Store reference to vector DB entry
+      vectorId: vectorId,
     };
 
-    // Use a combination of relativePath and symbolName for the overlay key
     const overlayKey = `${relativePath}#${symbolName}`;
     await this.pgc.overlays.update('structural_patterns', overlayKey, metadata);
   }
 
   private inferArchitecturalRole(structuralData: StructuralData): string {
-    // Role inference based on the characteristics of a single symbol's structural data
     if (structuralData.classes && structuralData.classes.length > 0) {
       const className = structuralData.classes[0].name;
       if (className.includes('Repository')) return 'data_access';
@@ -140,12 +492,10 @@ export class StructuralPatternsManager implements PatternManager {
       if (structuralData.type.includes('Orchestrator')) return 'orchestrator';
     }
 
-    // Fallback for general components or if no specific role is inferred
     return 'component';
   }
 
   private generateStructuralSignature(structuralData: StructuralData): string {
-    // Generate a signature based on the characteristics of a single symbol's structural data
     const parts: string[] = [];
 
     if (structuralData.classes && structuralData.classes.length > 0) {
@@ -188,19 +538,7 @@ export class StructuralPatternsManager implements PatternManager {
       parts.push(`type:${structuralData.type}`);
     }
 
-    // Sort parts for consistent signature generation
     return parts.sort().join(' | ');
-  }
-
-  private extractPrimaryType(structuralData: StructuralData): string {
-    if (structuralData.classes?.length > 0)
-      return structuralData.classes[0].name;
-    if (structuralData.functions?.length > 0)
-      return structuralData.functions[0].name;
-    if (structuralData.interfaces && structuralData.interfaces.length > 0)
-      return structuralData.interfaces[0].name;
-    if (structuralData.type) return structuralData.type;
-    return 'unknown';
   }
 
   public async findSimilarPatterns(
@@ -214,7 +552,6 @@ export class StructuralPatternsManager implements PatternManager {
       explanation: string;
     }>
   > {
-    // Get target pattern metadata
     const manifest = await this.pgc.overlays.get(
       'structural_patterns',
       'manifest',
@@ -245,19 +582,16 @@ export class StructuralPatternsManager implements PatternManager {
       return [];
     }
 
-    // Get target vector
     const targetVector = await this.vectorDB.getVector(targetMetadata.vectorId);
     if (!targetVector) {
       throw new Error(`Vector not found for symbol: ${symbol}`);
     }
 
-    // Find similar patterns
     const similar = await this.vectorDB.similaritySearch(
       targetVector.embedding,
-      topK + 1 // +1 to exclude self
+      topK + 1
     );
 
-    // Filter out self and format results
     return similar
       .filter((result) => result.id !== targetMetadata.vectorId)
       .map((result) => ({

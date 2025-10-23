@@ -28,7 +28,6 @@ export interface PatternGenerationOptions {
 }
 
 export interface PatternJobPacket {
-  pgcRoot: string;
   projectRoot: string;
   symbolName: string;
   filePath: string;
@@ -36,9 +35,44 @@ export interface PatternJobPacket {
   force: boolean;
 }
 
+export interface LineageMiningResult {
+  lineageJson: object;
+  signature: string;
+  lineageDataHash: string;
+  symbolType: StructuralSymbolType;
+  validationSourceHash: string;
+  structuralHash: string;
+}
+
 export interface PatternResultPacket {
   status: 'success' | 'skipped' | 'error';
   message: string;
   symbolName: string;
   filePath: string;
+  // Mining results (only present if status === 'success')
+  miningResult?: LineageMiningResult;
+}
+
+import { StructuralData } from '../../types/structural.js';
+
+export interface Dependency {
+  path: string;
+  depth: number;
+  structuralData: StructuralData;
+}
+
+export interface LineageQueryResult {
+  dependencies: Dependency[];
+  initialContext: StructuralData[];
+}
+
+export interface Dependency {
+  path: string;
+  depth: number;
+  structuralData: StructuralData;
+}
+
+export interface LineageQueryResult {
+  dependencies: Dependency[];
+  initialContext: StructuralData[];
 }

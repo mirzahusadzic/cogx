@@ -1,6 +1,7 @@
 import { fetch, FormData } from 'undici';
 import type { BodyInit } from 'undici';
 import { Blob } from 'node:buffer';
+import chalk from 'chalk';
 import type { StructuralData, SummarizeResponse } from '../types/structural.js';
 import type {
   SummarizeRequest,
@@ -137,36 +138,78 @@ export class WorkbenchClient {
       await this.waitForEmbedRateLimit();
 
       const { request, resolve, reject } = this.embedQueue.shift()!;
-      try {
-        // FIX: Send as FormData, not JSON
-        const formData = new FormData();
-        const signatureBuffer = Buffer.from(request.signature);
-        const blob = new Blob([signatureBuffer], { type: 'text/plain' });
-        // The server expects a 'file' field
-        formData.set('file', blob, 'signature.txt');
-        const promptName = request.prompt_name || EMBED_PROMPT_NAME;
-        const response = await fetch(
-          `${this.baseUrl}/embed?dimensions=${request.dimensions}&prompt_name=${promptName}`,
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${this.apiKey}`,
-            },
-            body: formData as unknown as BodyInit,
+      const maxRetries = 5;
+      let attempt = 0;
+      let lastError: Error | null = null;
+
+      while (attempt < maxRetries) {
+        try {
+          // FIX: Send as FormData, not JSON
+          const formData = new FormData();
+          const signatureBuffer = Buffer.from(request.signature);
+          const blob = new Blob([signatureBuffer], { type: 'text/plain' });
+          // The server expects a 'file' field
+          formData.set('file', blob, 'signature.txt');
+          const promptName = request.prompt_name || EMBED_PROMPT_NAME;
+
+          if (attempt === 0) {
+            // Only log on first attempt to reduce noise
+            const msg = `[WorkbenchClient] About to fetch embed from: ${this.baseUrl}/embed?dimensions=${request.dimensions}&prompt_name=${promptName}`;
+            console.log(chalk?.dim ? chalk.dim(msg) : msg);
           }
-        );
 
-        this.embedCallCount++;
-        this.lastEmbedCallTime = Date.now();
+          const response = await fetch(
+            `${this.baseUrl}/embed?dimensions=${request.dimensions}&prompt_name=${promptName}`,
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${this.apiKey}`,
+              },
+              body: formData as unknown as BodyInit,
+            }
+          );
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`HTTP ${response.status}: ${errorText}`);
+          this.embedCallCount++;
+          this.lastEmbedCallTime = Date.now();
+
+          if (response.status === 429) {
+            // Rate limit exceeded - extract retry time and wait
+            const errorText = await response.text();
+            const retryMatch = errorText.match(/Try again in (\d+) seconds/);
+            const retryAfter = retryMatch ? parseInt(retryMatch[1]) : 10;
+
+            attempt++;
+            if (attempt < maxRetries) {
+              const waitTime = retryAfter * 1000 + attempt * 1000; // Add exponential backoff
+              const msg = `[WorkbenchClient] Rate limit hit (429), retrying in ${waitTime / 1000}s (attempt ${attempt}/${maxRetries})`;
+              console.log(chalk?.yellow ? chalk.yellow(msg) : msg);
+              await new Promise((resolve) => setTimeout(resolve, waitTime));
+              continue;
+            } else {
+              throw new Error(`HTTP 429: ${errorText} (max retries exceeded)`);
+            }
+          }
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+          }
+
+          resolve((await response.json()) as EmbedResponse);
+          break; // Success - exit retry loop
+        } catch (error) {
+          lastError = error as Error;
+          // If it's not a rate limit error, don't retry
+          if (!lastError.message.includes('HTTP 429')) {
+            reject(error);
+            break;
+          }
         }
+      }
 
-        resolve((await response.json()) as EmbedResponse);
-      } catch (error) {
-        reject(error);
+      // If we exhausted retries, reject with the last error
+      if (attempt >= maxRetries && lastError) {
+        reject(lastError);
       }
     }
     this.isProcessingEmbedQueue = false;
@@ -225,5 +268,12 @@ export class WorkbenchClient {
     }
 
     return (await response.json()) as StructuralData;
+  }
+
+  public async shutdown(): Promise<void> {
+    // Wait for any ongoing processing to finish
+    while (this.isProcessingSummarizeQueue || this.isProcessingEmbedQueue) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
   }
 }

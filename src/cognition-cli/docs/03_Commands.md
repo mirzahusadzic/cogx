@@ -112,5 +112,3 @@ Audits the transformation history of a specific file, allowing you to see exactl
 # Audit the last 5 transformations for a specific file
 cognition-cli audit:transformations src/core/pgc/manager.ts --limit 5
 ```
-
-_(Note: Example output for audit and patterns commands can be found in the main `README.md`)_

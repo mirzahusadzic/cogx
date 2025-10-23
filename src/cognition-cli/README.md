@@ -119,7 +119,15 @@ The CLI provides a suite of tools to manage the PGC lifecycle.
    cognition-cli patterns compare UserManager OrderManager
    ```
 
----
+## Table of Contents (Official Documentation)
+
+- [00 - Introduction to Cognition CLI](./00_Introduction.md)
+- [01 - Structural Analysis: Mapping the Codebase](./01_Structural_Analysis.md)
+- [02 - Core Infrastructure: The Grounded Context Pool (PGC)](./02_Core_Infrastructure.md)
+- [03 - Commands: Interacting with the Cognition CLI](./03_Commands.md)
+- [04 - Miners and Executors: Extracting and Processing Knowledge](./04_Miners_and_Executors.md)
+- [05 - Verification and Oracles: Ensuring PGC Integrity](./05_Verification_and_Oracles.md)
+- [06 - Testing and Deployment](./06_Testing_and_Deployment.md)
 
 ## Research & Collaboration
 

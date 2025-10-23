@@ -1,7 +1,10 @@
 import fs from 'fs-extra';
-import path from 'path';
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { log, spinner } from '@clack/prompts';
 import chalk from 'chalk';
+import * as workerpool from 'workerpool';
+import os from 'os';
 
 import type { PGCManager } from '../pgc/manager.js';
 import type { StructuralMiner } from './miners/structural-miner.js';
@@ -10,7 +13,9 @@ import type {
   SourceFile,
   Language,
   StructuralPatternMetadata,
+  StructuralData,
 } from '../types/structural.js';
+import type { GenesisJobResult } from './genesis-worker.js';
 import { GenesisOracle } from '../pgc/oracles/genesis.js';
 
 import {
@@ -20,9 +25,28 @@ import {
   DEFAULT_EMBEDDING_MODEL_NAME,
 } from '../../config.js';
 
+/**
+ * Calculate optimal worker count for native AST parsing
+ */
+function calculateOptimalWorkersForParsing(fileCount: number): number {
+  const cpuCount = os.cpus().length;
+
+  if (fileCount <= 10) {
+    return Math.min(2, cpuCount);
+  }
+
+  if (fileCount <= 50) {
+    return Math.min(4, cpuCount);
+  }
+
+  // Large codebases: use up to 8 workers
+  return Math.min(8, Math.floor(cpuCount * 0.75));
+}
+
 export class GenesisOrchestrator {
   private maxFileSize = DEFAULT_MAX_FILE_SIZE;
   private structuralPatternsManifest: Record<string, string> = {};
+  private workerPool?: workerpool.Pool;
 
   constructor(
     private pgc: PGCManager,
@@ -58,6 +82,51 @@ export class GenesisOrchestrator {
 
     s.stop(`Found ${files.length} files`);
 
+    // Separate files into native (TS/JS) and remote (Python) for optimal processing
+    const nativeFiles: SourceFile[] = [];
+    const remoteFiles: SourceFile[] = [];
+
+    for (const file of files) {
+      if (file.language === 'typescript' || file.language === 'javascript') {
+        nativeFiles.push(file);
+      } else {
+        remoteFiles.push(file);
+      }
+    }
+
+    log.info(
+      chalk.cyan(
+        `Processing: ${nativeFiles.length} native (TS/JS), ${remoteFiles.length} remote (Python)`
+      )
+    );
+
+    // Phase 1: Parse native files in parallel with workers
+    const nativeResults = new Map<string, StructuralData>();
+
+    if (nativeFiles.length > 0) {
+      try {
+        await this.initializeWorkers(nativeFiles.length);
+        const parsedResults = await this.parseNativeFilesParallel(
+          nativeFiles,
+          s
+        );
+
+        for (const result of parsedResults) {
+          if (result.status === 'success' && result.structuralData) {
+            nativeResults.set(result.relativePath, result.structuralData);
+          } else if (result.status === 'error') {
+            errors.push({
+              file: result.relativePath,
+              message: result.error || 'Unknown error',
+            });
+          }
+        }
+      } finally {
+        await this.shutdownWorkers();
+      }
+    }
+
+    // Phase 2: Process all files (use parsed results for native, parse remote sequentially)
     let processed = 0;
 
     for (const file of files) {
@@ -65,7 +134,13 @@ export class GenesisOrchestrator {
         `Processing ${chalk.cyan(file.relativePath)} (${++processed}/${files.length})`
       );
       try {
-        await this.processFile(file, s, isWorkbenchHealthy);
+        const preParsedStructural = nativeResults.get(file.relativePath);
+        await this.processFile(
+          file,
+          s,
+          isWorkbenchHealthy,
+          preParsedStructural
+        );
       } catch (error) {
         s.stop(
           chalk.red(`✗ ${file.relativePath}: ${(error as Error).message}`)
@@ -96,6 +171,86 @@ export class GenesisOrchestrator {
         log.error(chalk.red(`✗ ${err.file}: ${err.message}`));
       });
       log.error(chalk.red('-------------------------------------'));
+    }
+  }
+
+  /**
+   * Initialize worker pool for parallel native AST parsing
+   */
+  private async initializeWorkers(fileCount: number): Promise<void> {
+    if (this.workerPool) return;
+
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    const workerCount = calculateOptimalWorkersForParsing(fileCount);
+
+    log.info(
+      chalk.blue(
+        `[Genesis] Initializing ${workerCount} workers for parallel AST parsing (${os.cpus().length} CPUs available)`
+      )
+    );
+
+    this.workerPool = workerpool.pool(
+      path.resolve(__dirname, '../../../dist/genesis-worker.cjs'),
+      {
+        workerType: 'process',
+        maxWorkers: workerCount,
+      }
+    );
+  }
+
+  /**
+   * Shutdown worker pool
+   */
+  private async shutdownWorkers(): Promise<void> {
+    if (this.workerPool) {
+      await this.workerPool.terminate(true);
+      this.workerPool = undefined;
+    }
+  }
+
+  /**
+   * Parse native files in parallel using workers
+   */
+  private async parseNativeFilesParallel(
+    files: SourceFile[],
+    s: ReturnType<typeof spinner>
+  ): Promise<GenesisJobResult[]> {
+    if (!this.workerPool) {
+      throw new Error('Worker pool not initialized');
+    }
+
+    s.start(
+      chalk.blue(
+        `[Genesis] Parsing ${files.length} native files in parallel...`
+      )
+    );
+
+    const jobs = files.map((file) => ({
+      file,
+      contentHash: this.pgc.objectStore.computeHash(file.content),
+    }));
+
+    try {
+      const promises = jobs.map((job) =>
+        this.workerPool!.exec('parseNativeAST', [job])
+      );
+
+      const results = (await Promise.all(promises)) as GenesisJobResult[];
+
+      const succeeded = results.filter((r) => r.status === 'success').length;
+      const failed = results.filter((r) => r.status === 'error').length;
+
+      s.stop(
+        chalk.green(
+          `[Genesis] Native parsing complete: ${succeeded} succeeded, ${failed} failed`
+        )
+      );
+
+      return results;
+    } catch (error) {
+      s.stop(chalk.red('[Genesis] Worker parsing error'));
+      throw error;
     }
   }
 
@@ -154,7 +309,8 @@ export class GenesisOrchestrator {
   private async processFile(
     file: SourceFile,
     s: ReturnType<typeof spinner>,
-    isWorkbenchHealthy: boolean
+    isWorkbenchHealthy: boolean,
+    preParsedStructural?: StructuralData
   ) {
     const storedHashes: string[] = [];
     let recordedTransformId: string | undefined;
@@ -174,7 +330,10 @@ export class GenesisOrchestrator {
       await this.pgc.objectStore.store(file.content);
       storedHashes.push(contentHash);
 
-      const structural = await this.miner.extractStructure(file);
+      // Use pre-parsed structural data if available (from parallel workers)
+      // Otherwise, extract using miner (for remote parsing like Python)
+      const structural =
+        preParsedStructural || (await this.miner.extractStructure(file));
 
       const structuralHash = await this.pgc.objectStore.store(
         JSON.stringify(structural, null, 2)

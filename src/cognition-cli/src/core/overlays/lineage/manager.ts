@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url';
 import chalk from 'chalk';
 import { z } from 'zod';
 import * as workerpool from 'workerpool';
+import os from 'os';
 
 import { PGCManager } from '../../pgc/manager.js';
 import { LanceVectorStore, VectorRecord } from '../vector-db/lance-store.js';
@@ -15,7 +16,30 @@ import {
   PatternGenerationOptions,
   StructuralSymbolType,
   PatternJobPacket,
+  PatternResultPacket,
 } from './types.js';
+
+/**
+ * Calculate optimal worker count based on system resources and workload
+ *
+ * NOTE: Workers now only perform lineage mining (dependency traversal).
+ * Embedding is done sequentially in the main process to respect rate limits.
+ * We can safely use multiple workers for the CPU-intensive mining phase.
+ */
+function calculateOptimalWorkers(jobCount: number): number {
+  const cpuCount = os.cpus().length;
+
+  if (jobCount <= 10) {
+    return Math.min(2, cpuCount); // Small jobs: 2 workers max
+  }
+
+  if (jobCount <= 50) {
+    return Math.min(4, cpuCount); // Medium jobs: 4 workers max
+  }
+
+  // Large jobs: use up to 8 workers (leave some CPUs for main process)
+  return Math.min(8, Math.floor(cpuCount * 0.75));
+}
 
 // These interfaces remain, as they are part of the manager's public API for single-threaded lineage queries.
 export interface Dependency {
@@ -30,29 +54,49 @@ export interface LineageQueryResult {
 }
 
 export class LineagePatternsManager implements PatternManager {
-  private workerPool: workerpool.Pool;
+  private workerPool: workerpool.Pool | null = null;
   private embeddingService: EmbeddingService;
+  private workerScriptPath: string;
 
   constructor(
     private pgc: PGCManager,
     private vectorDB: LanceVectorStore,
     private workbench: WorkbenchClient
   ) {
-    // 1. INITIALIZATION: The Conductor creates its pool of autonomous agents.
+    // 1. Store worker script path for lazy initialization
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
-    this.workerPool = workerpool.pool(
-      path.resolve(__dirname, '../../../../dist/worker.cjs'),
-      { workerType: 'process' }
+    this.workerScriptPath = path.resolve(
+      __dirname,
+      '../../../../dist/lineage-worker.cjs'
     );
 
     // 2. Initialize the centralized embedding service
-    this.embeddingService = new EmbeddingService(
-      process.env.WORKBENCH_URL || 'http://localhost:8000'
-    );
+    this.embeddingService = new EmbeddingService(this.workbench.getBaseUrl());
 
     // 3. Configure the PGCManager to use our embedding service
     this.pgc.setEmbeddingRequestHandler(this.requestEmbedding.bind(this));
+  }
+
+  /**
+   * Initialize worker pool with optimal size based on job count
+   */
+  private initializeWorkerPool(jobCount: number): void {
+    if (this.workerPool) {
+      return; // Already initialized
+    }
+
+    const workerCount = calculateOptimalWorkers(jobCount);
+    console.log(
+      chalk.blue(
+        `[LineagePatterns] Initializing worker pool with ${workerCount} workers for ${jobCount} jobs (${os.cpus().length} CPUs available)`
+      )
+    );
+
+    this.workerPool = workerpool.pool(this.workerScriptPath, {
+      workerType: 'process',
+      maxWorkers: workerCount,
+    });
   }
 
   /**
@@ -69,7 +113,9 @@ export class LineagePatternsManager implements PatternManager {
   }
 
   /**
-   * The primary, multi-worker aware, granular entry point for generating lineage patterns.
+   * Generate lineage patterns in two phases:
+   * Phase 1: Mine lineage in parallel (expensive dependency traversal)
+   * Phase 2: Generate embeddings sequentially (rate-limited)
    */
   public async generate(options: PatternGenerationOptions = {}): Promise<void> {
     const { symbolTypes = [], files = [], force = false } = options;
@@ -99,7 +145,6 @@ export class LineagePatternsManager implements PatternManager {
 
     const jobs: PatternJobPacket[] = targetEntries
       .map(([symbolName, filePath]) => ({
-        pgcRoot: this.pgc.pgcRoot,
         projectRoot: this.pgc.projectRoot,
         symbolName,
         filePath: filePath as string,
@@ -120,20 +165,155 @@ export class LineagePatternsManager implements PatternManager {
       return;
     }
 
-    console.log(`[LineagePatterns] Dispatching ${jobs.length} jobs...`);
+    // Phase 1: Mine lineage in parallel
+    this.initializeWorkerPool(jobs.length);
 
+    console.log(
+      chalk.blue(
+        `[LineagePatterns] Phase 1: Mining lineage for ${jobs.length} patterns with workers...`
+      )
+    );
+
+    let miningResults: PatternResultPacket[];
     try {
-      // Use string name instead of importing the function
       const promises = jobs.map((job) =>
-        this.workerPool.exec('processJob', [job])
+        this.workerPool!.exec('processJob', [job])
       );
 
-      await Promise.all(promises);
-      console.log('[LineagePatterns] All jobs completed');
+      miningResults = (await Promise.all(promises)) as PatternResultPacket[];
+
+      const mined = miningResults.filter((r) => r.status === 'success').length;
+      const skipped = miningResults.filter(
+        (r) => r.status === 'skipped'
+      ).length;
+      const failed = miningResults.filter((r) => r.status === 'error').length;
+
+      console.log(
+        chalk.green(
+          `[LineagePatterns] Mining complete: ${mined} mined, ${skipped} skipped, ${failed} failed`
+        )
+      );
     } catch (error) {
-      console.error('[LineagePatterns] Worker error:', error);
+      console.error(chalk.red('[LineagePatterns] Mining error:'), error);
       throw error;
     }
+
+    // Phase 2: Generate embeddings sequentially
+    const successfulMines = miningResults.filter((r) => r.status === 'success');
+
+    if (successfulMines.length === 0) {
+      console.log(chalk.yellow('[LineagePatterns] No patterns to embed.'));
+      return;
+    }
+
+    console.log(
+      chalk.blue(
+        `[LineagePatterns] Phase 2: Generating embeddings for ${successfulMines.length} patterns...`
+      )
+    );
+
+    await this.vectorDB.initialize('lineage_patterns');
+
+    let embeddedCount = 0;
+    let embedFailedCount = 0;
+
+    for (const result of successfulMines) {
+      try {
+        await this.generateAndStoreEmbedding(result);
+        embeddedCount++;
+
+        // Show progress every 10 patterns
+        if (embeddedCount % 10 === 0) {
+          console.log(
+            chalk.dim(
+              `[LineagePatterns] Progress: ${embeddedCount}/${successfulMines.length} embedded`
+            )
+          );
+        }
+      } catch (error) {
+        console.error(
+          chalk.red(
+            `[LineagePatterns] Failed to embed ${result.symbolName}: ${(error as Error).message}`
+          )
+        );
+        embedFailedCount++;
+      }
+    }
+
+    console.log(
+      chalk.green(
+        `[LineagePatterns] Embedding complete: ${embeddedCount} succeeded, ${embedFailedCount} failed`
+      )
+    );
+  }
+
+  /**
+   * Generate embedding and store lineage pattern for a single mined result
+   */
+  private async generateAndStoreEmbedding(
+    result: PatternResultPacket
+  ): Promise<void> {
+    const { symbolName, filePath, miningResult } = result;
+
+    if (!miningResult) {
+      throw new Error(`Missing mining result for ${symbolName}`);
+    }
+
+    const { signature, lineageDataHash, symbolType, validationSourceHash } =
+      miningResult;
+
+    // Request embedding through centralized service
+    const embedResponse = await this.embeddingService.getEmbedding(
+      signature,
+      768 // DEFAULT_EMBEDDING_DIMENSIONS
+    );
+
+    const embedding = embedResponse[`embedding_768d`];
+    if (!embedding || !Array.isArray(embedding)) {
+      throw new Error(`Invalid embedding format for ${symbolName}`);
+    }
+
+    const embeddingHash = this.pgc.objectStore.computeHash(
+      JSON.stringify(embedding)
+    );
+
+    const vectorId = `pattern_${filePath.replace(/[^a-zA-Z0-9_]/g, '_')}_${symbolName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+    // Store vector
+    await this.vectorDB.storeVector(vectorId, embedding, {
+      symbol: symbolName,
+      symbolType: symbolType,
+      structural_signature: signature,
+      architectural_role: 'lineage_pattern',
+      computed_at: new Date().toISOString(),
+      lineage_hash: lineageDataHash,
+    });
+
+    // Update PGC overlays
+    const metadata = {
+      symbol: symbolName,
+      symbolType: symbolType,
+      anchor: filePath,
+      lineageHash: lineageDataHash,
+      embeddingHash,
+      lineageSignature: signature,
+      computed_at: new Date().toISOString(),
+      validation: {
+        sourceHash: validationSourceHash,
+        embeddingModelVersion: 'eGemma-2B',
+      },
+      vectorId: vectorId,
+    };
+
+    const overlayKey = `${filePath}#${symbolName}`;
+    // CRITICAL: Update overlay metadata FIRST, then manifest
+    // If overlay update fails, manifest won't have a stale entry
+    await this.pgc.overlays.update('lineage_patterns', overlayKey, metadata);
+    await this.pgc.overlays.updateManifest(
+      'lineage_patterns',
+      symbolName,
+      filePath
+    );
   }
 
   /**
@@ -167,12 +347,15 @@ export class LineagePatternsManager implements PatternManager {
    * Shuts down the worker pool and embedding service. A crucial cleanup step.
    */
   public async shutdown(): Promise<void> {
-    console.log(
-      chalk.blue(
-        '[LineagePatterns] Shutting down worker pool and embedding service...'
-      )
-    );
-    await this.workerPool.terminate();
+    // Only print if we actually initialized workers
+    if (this.workerPool) {
+      console.log(
+        chalk.blue(
+          '[LineagePatterns] Shutting down worker pool and embedding service...'
+        )
+      );
+      await this.workerPool.terminate();
+    }
     await this.embeddingService.shutdown();
   }
 

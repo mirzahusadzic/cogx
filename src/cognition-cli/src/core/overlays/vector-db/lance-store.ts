@@ -354,9 +354,7 @@ export class LanceVectorStore {
 
   async close(): Promise<void> {
     if (this.db) {
-      // LanceDB connections don't typically need explicit closing
-
-      // but we can clean up our state
+      await this.db.close();
       this.isInitialized = false;
       this.initializationPromise = null;
       this.table = undefined;

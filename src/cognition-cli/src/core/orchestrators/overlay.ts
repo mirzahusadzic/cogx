@@ -12,7 +12,6 @@ import {
   InterfaceData,
   StructuralData,
 } from '../types/structural.js';
-import { StructuralPatternMetadataSchema } from '../types/structural.js';
 import { log, spinner } from '@clack/prompts';
 import chalk from 'chalk';
 import fs from 'fs-extra';
@@ -94,13 +93,11 @@ export class OverlayOrchestrator {
     );
     if (firstExportedInterface) return firstExportedInterface.name;
 
-    // Check for first exported function
     const firstExportedFunction = data.functions?.find((f: FunctionData) =>
       data.exports?.includes(f.name)
     );
     if (firstExportedFunction) return firstExportedFunction.name;
 
-    // Fallback: if no specific primary symbol is found among exports, look for the first defined symbol
     if (!data.exports || data.exports.length === 0) {
       if (data.classes && data.classes.length > 0) return data.classes[0].name;
       if (data.functions && data.functions.length > 0)
@@ -121,8 +118,10 @@ export class OverlayOrchestrator {
   }
 
   public async run(
-    overlayType: 'structural_patterns' | 'lineage_patterns'
+    overlayType: 'structural_patterns' | 'lineage_patterns',
+    options?: { force?: boolean }
   ): Promise<void> {
+    const force = options?.force || false;
     const s = spinner();
     const allFiles = await this.discoverFiles(
       path.join(this.projectRoot, 'src')
@@ -133,10 +132,9 @@ export class OverlayOrchestrator {
       s.start('[Overlay] Generating lineage patterns from manifest...');
 
       try {
-        await this.lineagePatternManager.generateLineageForAllPatterns();
+        await this.lineagePatternManager.generate({ force });
         s.stop('[Overlay] Lineage patterns generated.');
       } finally {
-        // 👇 CRITICAL: Always shutdown the worker pool
         await this.lineagePatternManager.shutdown();
       }
     } else {
@@ -144,48 +142,33 @@ export class OverlayOrchestrator {
       await this.vectorDB.initialize(overlayType);
       s.stop('[Overlay] Vector database initialized.');
 
-      log.info(`[Overlay] Verifying work for ${allFiles.length} files...`);
-      let processedCount = 0;
+      log.info(`[Overlay] Preparing jobs for ${allFiles.length} files...`);
       let skippedCount = 0;
       const BATCH_SIZE = 50;
 
-      // Verify the structural patterns overlay after generation
-      log.info(
-        chalk.cyan(
-          '\n[Overlay] Oracle: Verifying structural patterns overlay...'
-        )
-      );
-
-      const verificationResult2 =
-        await this.overlayOracle.verifyStructuralPatternsOverlay();
-      if (!verificationResult2.success) {
-        log.error(
-          chalk.red('Structural patterns overlay verification failed:')
-        );
-        verificationResult2.messages.forEach((msg: string) => log.error(msg));
-        throw new Error('Structural patterns overlay is inconsistent.');
-      } else {
-        log.success(
-          chalk.green('[Overlay] Structural Oracle verification successful.')
-        );
-      }
+      const allJobs: Array<{
+        projectRoot: string;
+        symbolName: string;
+        filePath: string;
+        contentHash: string;
+        structuralHash: string;
+        structuralData: StructuralData;
+        force: boolean;
+      }> = [];
 
       for (let i = 0; i < allFiles.length; i += BATCH_SIZE) {
         const batch = allFiles.slice(i, i + BATCH_SIZE);
 
         s.start(
-          `[Overlay] Processing batch ${
+          `[Overlay] Preparing batch ${
             i / BATCH_SIZE + 1
           }/${Math.ceil(allFiles.length / BATCH_SIZE)}`
         );
 
-        const processSymbol = async (file: SourceFile) => {
-          const filePath = file.path;
-
-          if (filePath.includes('.test.') || filePath.includes('.spec.')) {
+        for (const file of batch) {
+          if (file.path.includes('.test.') || file.path.includes('.spec.')) {
             skippedCount++;
-
-            return;
+            continue;
           }
 
           const structuralData = await this.miner.extractStructure(file);
@@ -195,86 +178,71 @@ export class OverlayOrchestrator {
           );
 
           if (!structuralData) {
-            log.warn(
-              chalk.yellow(
-                `[Overlay] No structural data for ${file.relativePath}, skipping.`
-              )
-            );
-
             skippedCount++;
-
-            return;
+            continue;
           }
 
-          const processIndividualSymbol = async (symbolName: string) => {
-            const overlayKey = `${file.relativePath}#${symbolName}`;
+          structuralData.classes?.forEach((c) => {
+            allJobs.push({
+              projectRoot: this.projectRoot,
+              symbolName: c.name,
+              filePath: file.relativePath,
+              contentHash,
+              structuralHash,
+              structuralData,
+              force,
+            });
+          });
 
-            const existingOverlay = await this.pgc.overlays.get(
-              overlayType,
-              overlayKey,
-              StructuralPatternMetadataSchema
-            );
+          structuralData.functions?.forEach((f) => {
+            allJobs.push({
+              projectRoot: this.projectRoot,
+              symbolName: f.name,
+              filePath: file.relativePath,
+              contentHash,
+              structuralHash,
+              structuralData,
+              force,
+            });
+          });
 
-            if (
-              existingOverlay &&
-              existingOverlay.validation?.sourceHash === contentHash
-            ) {
-              skippedCount++;
-              s.stop(
-                chalk.gray(`⸟ ${file.relativePath}#${symbolName} (unchanged)`)
-              );
-              return;
-            }
-
-            s.message(
-              chalk.blue(
-                `[Overlay] Mining pattern for: ${symbolName} (from ${file.relativePath})`
-              )
-            );
-
-            try {
-              await this.structuralPatternManager.generateAndStorePattern(
-                symbolName,
-                structuralData,
-                file.relativePath,
-                contentHash,
-                structuralHash
-              );
-
-              processedCount++;
-              s.stop(chalk.green(`✓ ${file.relativePath}#${symbolName}`));
-            } catch (error) {
-              s.stop(
-                chalk.red(
-                  `✗ ${file.relativePath}#${symbolName}: ${(error as Error).message}`
-                )
-              );
-              // Do not re-throw here, let the batch continue
-            }
-          };
-
-          // Process each class, function, and interface as a separate symbol
-          const symbolPromises: Promise<void>[] = [];
-          structuralData.classes?.forEach((c) =>
-            symbolPromises.push(processIndividualSymbol(c.name))
-          );
-          structuralData.functions?.forEach((f) =>
-            symbolPromises.push(processIndividualSymbol(f.name))
-          );
-          structuralData.interfaces?.forEach((i) =>
-            symbolPromises.push(processIndividualSymbol(i.name))
-          );
-
-          await Promise.all(symbolPromises);
-        };
-
-        await Promise.all(batch.map(processSymbol));
+          structuralData.interfaces?.forEach((i) => {
+            allJobs.push({
+              projectRoot: this.projectRoot,
+              symbolName: i.name,
+              filePath: file.relativePath,
+              contentHash,
+              structuralHash,
+              structuralData,
+              force,
+            });
+          });
+        }
       }
 
       s.stop();
+
+      // Initialize workers with optimal count based on job size
+      this.structuralPatternManager.initializeWorkers(allJobs.length);
+
+      log.info(
+        chalk.cyan(
+          `\n[Overlay] Processing ${allJobs.length} patterns with workers...`
+        )
+      );
+
+      try {
+        await this.structuralPatternManager.generatePatternsParallel(allJobs);
+      } finally {
+        await this.structuralPatternManager.shutdown();
+      }
+
       log.success(chalk.cyan(`\n[Overlay] Processing complete.`));
-      log.info(chalk.cyan(`- Processed ${processedCount} new/updated files.`));
-      log.info(chalk.cyan(`- Skipped ${skippedCount} up-to-date files.`));
+      log.info(
+        chalk.cyan(
+          `- Processed ${allJobs.length} patterns (${skippedCount} files skipped)`
+        )
+      );
 
       // Verify the structural patterns overlay after generation
       log.info(
@@ -301,12 +269,10 @@ export class OverlayOrchestrator {
   private async runPGCMaintenance(processedFiles: string[]) {
     log.step('Running PGC Maintenance and Verification');
 
-    // The Goal
     log.info(
       'Goal: Achieve a structurally coherent PGC by removing stale entries.'
     );
 
-    // The Transform
     const gcSummary = await this.garbageCollect(processedFiles);
 
     if (gcSummary.staleEntries > 0) {
@@ -332,7 +298,6 @@ export class OverlayOrchestrator {
       log.info('Transform: No stale entries found. PGC is clean.');
     }
 
-    // The Oracle
     log.info('Oracle: Verifying PGC structural coherence after maintenance.');
     const verificationResult = await this.genesisOracle.verify();
 
@@ -355,7 +320,6 @@ export class OverlayOrchestrator {
     let cleanedReverseDeps = 0;
     let cleanedTransformLogEntries = 0;
 
-    // Phase 1: Clean up stale index entries
     const allIndexedData = await this.pgc.index.getAllData();
     const allIndexedPaths = allIndexedData.map((data) => data.path);
 
@@ -384,7 +348,6 @@ export class OverlayOrchestrator {
       staleEntries++;
     }
 
-    // Phase 2: Clean up stale ReverseDeps entries
     const allReverseDepHashes =
       await this.pgc.reverseDeps.getAllReverseDepHashes();
 
@@ -405,7 +368,6 @@ export class OverlayOrchestrator {
       }
     }
 
-    // Phase 3: Validate TransformLog entries
     const allTransformIds = await this.pgc.transformLog.getAllTransformIds();
 
     for (const transformId of allTransformIds) {
@@ -440,7 +402,6 @@ export class OverlayOrchestrator {
       }
     }
 
-    // Phase 4: Clean up empty sharded directories
     await this.pgc.objectStore.removeEmptyShardedDirectories();
     await this.pgc.reverseDeps.removeEmptyShardedDirectories();
 
@@ -515,5 +476,9 @@ export class OverlayOrchestrator {
       '.go': 'go',
     };
     return map[ext] || 'unknown';
+  }
+
+  public async shutdown(): Promise<void> {
+    await this.vectorDB.close();
   }
 }

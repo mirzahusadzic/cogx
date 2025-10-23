@@ -7,7 +7,6 @@ import {
 } from '../../types/structural.js';
 import chalk from 'chalk';
 import path from 'path';
-import { log } from '@clack/prompts';
 
 export class OverlayOracle {
   constructor(private pgcManager: PGCManager) {}
@@ -22,16 +21,15 @@ export class OverlayOracle {
       z.record(z.string())
     );
 
-    // Log the manifest path for debugging
+    // Log the manifest path for debugging (dimmed to reduce noise)
     const manifestPath = path.join(
       this.pgcManager.pgcRoot,
       'overlays',
       'structural_patterns',
       'manifest.json'
     );
-    log.info(
-      `[OverlayOracle] Attempting to read manifest from: ${manifestPath}`
-    );
+    const msg = `[OverlayOracle] Attempting to read manifest from: ${manifestPath}`;
+    console.log(chalk?.dim ? chalk.dim(msg) : msg);
 
     if (structuralPatternsManifest) {
       for (const [symbolName, relativeFilePath] of Object.entries(
