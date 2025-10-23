@@ -138,7 +138,9 @@ export class OverlayOracle {
           )
         );
         messages.push(
-          chalk.dim(`   First 10 missing: ${missingFromManifest.slice(0, 10).join(', ')}`)
+          chalk.dim(
+            `   First 10 missing: ${missingFromManifest.slice(0, 10).join(', ')}`
+          )
         );
         messages.push(
           chalk.yellow(

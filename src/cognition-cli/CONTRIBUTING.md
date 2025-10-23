@@ -1,6 +1,6 @@
 # Contributing to cognition-cli
 
-## Pre-Commit Checklist: F.L.T.B.
+## Pre-Commit Checklist: F.L.T.B
 
 **IMPORTANT:** Before committing any changes, you MUST run the F.L.T.B. pipeline:
 
@@ -54,6 +54,7 @@ If you see "Unhandled Error: Unexpected message on Worker" when running tests wi
 ### Worker Processes Hanging
 
 If you encounter hanging worker processes consuming CPU:
+
 - Kill them: `ps aux | grep node | grep vitest` then `kill -9 <PID>`
 - This should not happen with the current codebase (we use worker threads, not child processes)
 
@@ -76,7 +77,7 @@ If you encounter hanging worker processes consuming CPU:
 
 Use conventional commits format:
 
-```
+```text
 type(scope): description
 
 - feat: New feature
@@ -88,7 +89,8 @@ type(scope): description
 ```
 
 Example:
-```
+
+```text
 fix(workers): switch from child processes to threads
 
 Changed all worker pools to use worker_threads instead of child processes

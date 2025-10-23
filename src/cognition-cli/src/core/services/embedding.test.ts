@@ -134,7 +134,10 @@ describe('EmbeddingService - Unit', () => {
     mockWorkbenchClient.embed.mockImplementation(
       async () =>
         new Promise((resolve) =>
-          setTimeout(() => resolve({ embedding_768d: new Array(768).fill(0.1) }), 100)
+          setTimeout(
+            () => resolve({ embedding_768d: new Array(768).fill(0.1) }),
+            100
+          )
         )
     );
 
@@ -160,7 +163,10 @@ describe('EmbeddingService - Unit', () => {
     mockWorkbenchClient.embed.mockImplementation(
       async () =>
         new Promise((resolve) =>
-          setTimeout(() => resolve({ embedding_768d: new Array(768).fill(0.1) }), 100)
+          setTimeout(
+            () => resolve({ embedding_768d: new Array(768).fill(0.1) }),
+            100
+          )
         )
     );
 

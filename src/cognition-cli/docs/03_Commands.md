@@ -55,7 +55,7 @@ Populates the PGC by performing a deep structural analysis of your codebase. It 
 - **When to Use It:** This is the main "heavy-lifting" command. Run it after `init` to build the initial knowledge graph. You can re-run it later to update the PGC with new files and changes.
 - **Options:**
   - `-p, --project-root <path>` - Root directory of the project being analyzed (default: current directory)
-  - `-w, --workbench <url>` - URL of the eGemma workbench (default: http://localhost:8000)
+  - `-w, --workbench <url>` - URL of the eGemma workbench (default: <http://localhost:8000>)
 
 ```bash
 # Run genesis on the 'src' directory of your project
