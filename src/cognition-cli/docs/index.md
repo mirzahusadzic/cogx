@@ -21,7 +21,7 @@ Welcome to the documentation for the Cognition Command-Line Interface (CLI). Thi
 
 ## 🎉 Breakthrough: Pure Grounded AI Analysis
 
-**[Document 08](./08_AI_Grounded_Architecture_Analysis.md)** marks a historic milestone - the first architecture analysis generated through pure grounded AI reasoning, with **zero source file reading**.
+**[Document 07](./07_AI_Grounded_Architecture_Analysis.md)** marks a historic milestone - the first architecture analysis generated through pure grounded AI reasoning, with **zero source file reading**.
 
 The AI analyzed cognition-cli's architecture using only:
 

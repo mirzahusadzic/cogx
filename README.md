@@ -47,7 +47,7 @@ Traditional AI architecture analysis:
 
 **This is not theory. This is the architecture working in production.**
 
-[Read the full grounded analysis →](src/cognition-cli/docs/08_AI_Grounded_Architecture_Analysis.md)
+[Read the full grounded analysis →](src/cognition-cli/docs/07_AI_Grounded_Architecture_Analysis.md)
 
 ---
 
@@ -59,7 +59,7 @@ This vision is realized through working implementations that demonstrate the arc
 
 The command-line interface that builds verifiable, content-addressable knowledge graphs from codebases. It performs structural mining to create the "skeleton" of project understanding—the immutable bedrock for all AI reasoning.
 
-**First Achievement (Oct 24, 2025):** cognition-cli performed the first grounded architecture analysis **on itself**, proving that structured PGC metadata is sufficient for deep architectural understanding without reading source code. This meta-cognitive breakthrough demonstrates the viability of verifiable AI cognition in production. [See the analysis](src/cognition-cli/docs/08_AI_Grounded_Architecture_Analysis.md)
+**First Achievement (Oct 24, 2025):** cognition-cli performed the first grounded architecture analysis **on itself**, proving that structured PGC metadata is sufficient for deep architectural understanding without reading source code. This meta-cognitive breakthrough demonstrates the viability of verifiable AI cognition in production. [See the analysis](src/cognition-cli/docs/07_AI_Grounded_Architecture_Analysis.md)
 
 ## eGemma – [The Deterministic Workbench](https://github.com/mirzahusadzic/egemma)
 

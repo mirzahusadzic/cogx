@@ -111,14 +111,29 @@ The CLI provides a suite of tools to manage the PGC lifecycle.
 4. **Explore your codebase in a new way:**
 
    ```bash
-   # Find code that is structurally similar to your main application class
+   # List all structural patterns and their roles
+   cognition-cli patterns list
+
+   # Analyze architectural distribution
+   cognition-cli patterns analyze --verbose
+
+   # Inspect a specific symbol
+   cognition-cli patterns inspect PGCManager
+
+   # Visualize dependency tree
+   cognition-cli patterns graph WorkbenchClient
+
+   # Analyze blast radius (impact of changes)
+   cognition-cli blast-radius PGCManager
+
+   # Find code that is structurally similar
    cognition-cli patterns find-similar App
 
-   # Trace the dependency tree of a critical function
-   cognition-cli query handleRequest --lineage --depth 3
-
-   # Compare two managers to understand their architectural differences
+   # Compare two components
    cognition-cli patterns compare UserManager OrderManager
+
+   # Trace dependency lineage
+   cognition-cli query handleRequest --lineage --depth 3
    ```
 
 ---
@@ -127,7 +142,7 @@ The CLI provides a suite of tools to manage the PGC lifecycle.
 
 **We did it!** The first architecture analysis generated through pure grounded AI reasoning:
 
-📄 **[AI-Grounded Architecture Analysis](./docs/08_AI_Grounded_Architecture_Analysis.md)**
+📄 **[AI-Grounded Architecture Analysis](./docs/07_AI_Grounded_Architecture_Analysis.md)**
 
 This document represents a breakthrough in AI-assisted development:
 
@@ -151,7 +166,7 @@ This document represents a breakthrough in AI-assisted development:
 - [04 - Miners and Executors: Extracting and Processing Knowledge](./docs/04_Miners_and_Executors.md)
 - [05 - Verification and Oracles: Ensuring PGC Integrity](./docs/05_Verification_and_Oracles.md)
 - [06 - Testing and Deployment](./docs/06_Testing_and_Deployment.md)
-- [08 - AI-Grounded Architecture Analysis](./docs/08_AI_Grounded_Architecture_Analysis.md) ⭐ **First Human-AI Grounded Collaboration**
+- [07 - AI-Grounded Architecture Analysis](./docs/07_AI_Grounded_Architecture_Analysis.md) ⭐ **First Human-AI Grounded Collaboration**
 
 ## Research & Collaboration
 

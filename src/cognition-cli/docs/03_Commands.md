@@ -16,9 +16,15 @@ cognition-cli overlay generate structural_patterns  # Generate structural overla
 cognition-cli overlay generate lineage_patterns     # Generate lineage overlay
 
 # Pattern Analysis
+cognition-cli patterns list                     # List all structural patterns
+cognition-cli patterns analyze                  # Show architecture distribution
+cognition-cli patterns inspect MyClass          # Inspect symbol details
+cognition-cli patterns graph MyClass            # Visualize dependency tree
 cognition-cli patterns find-similar MyClass     # Find similar code
 cognition-cli patterns compare Class1 Class2    # Compare two symbols
-cognition-cli patterns analyze                  # Show architecture distribution
+
+# Impact Analysis
+cognition-cli blast-radius MySymbol             # Show impact of changing symbol
 
 # Queries
 cognition-cli query MySymbol --depth 2          # Traverse dependencies
@@ -106,6 +112,82 @@ A suite of powerful tools for querying the `structural_patterns` overlay, allowi
 
 - **When to Use It:** Use these commands when you want to understand architectural roles, find structurally similar code, or compare the dependency profiles of different components. It's your primary tool for architectural discovery.
 
+#### `patterns list`
+
+Lists all symbols found in the structural patterns overlay, showing their architectural roles and locations.
+
+**Options:**
+
+- `--role <role>` - Filter by architectural role (e.g., 'component', 'service', 'type', 'utility')
+- `--json` - Output raw JSON instead of formatted text
+
+```bash
+# List all structural patterns
+cognition-cli patterns list
+
+# List only components
+cognition-cli patterns list --role component
+
+# Get raw JSON output
+cognition-cli patterns list --json
+```
+
+#### `patterns analyze`
+
+Provides a high-level overview of the architectural roles (e.g., 'component', 'service', 'controller', 'utility', 'type') found in your codebase, showing distribution statistics.
+
+**Options:**
+
+- `--type <type>` - Type of patterns to analyze: 'structural' or 'lineage' (default: structural)
+- `--verbose` - Show detailed breakdown including all symbols per role
+
+```bash
+# Analyze structural patterns
+cognition-cli patterns analyze
+
+# Analyze with verbose output
+cognition-cli patterns analyze --verbose
+
+# Analyze lineage patterns
+cognition-cli patterns analyze --type lineage
+```
+
+#### `patterns inspect <symbol>`
+
+Inspects a specific symbol, showing its location, architectural role, dependencies, consumers, and structural signature.
+
+**Options:**
+
+- `--json` - Output raw JSON instead of formatted text
+
+```bash
+# Inspect a symbol
+cognition-cli patterns inspect PGCManager
+
+# Get detailed JSON output
+cognition-cli patterns inspect UserService --json
+```
+
+#### `patterns graph <symbol>`
+
+Visualizes the dependency tree for a symbol, showing both upstream dependencies and downstream consumers.
+
+**Options:**
+
+- `--direction <dir>` - Graph direction: 'up' (dependencies), 'down' (consumers), or 'both' (default: both)
+- `--max-depth <N>` - Maximum depth to traverse (default: 3)
+
+```bash
+# Show full dependency tree
+cognition-cli patterns graph PGCManager
+
+# Show only consumers (downstream)
+cognition-cli patterns graph UserService --direction down
+
+# Limit traversal depth
+cognition-cli patterns graph OrderManager --max-depth 2
+```
+
 #### `patterns find-similar <symbol>`
 
 Finds code that is architecturally similar to a given symbol based on vector embeddings of their structure.
@@ -143,21 +225,34 @@ cognition-cli patterns compare UserManager OrderManager
 cognition-cli patterns compare UserService OrderService --type lineage
 ```
 
-#### `patterns analyze`
+### **`cognition-cli blast-radius <symbol>`**
 
-Provides a high-level overview of the architectural roles (e.g., 'component', 'service', 'controller', 'data_access') found in your codebase, showing distribution statistics.
+Analyzes the complete impact graph when a symbol changes, showing all affected components, critical paths, and architectural risks.
 
-**Options:**
-
-- `--type <type>` - Type of patterns to analyze: 'structural' or 'lineage' (default: structural)
+- **When to Use It:** Before making changes to a component, use this to understand the ripple effects. It's essential for impact analysis, refactoring planning, and identifying architectural coupling.
+- **Options:**
+  - `--max-depth <N>` - Maximum traversal depth (default: 3)
+  - `--json` - Output raw JSON for programmatic use
+  - `-p, --project-root <path>` - Root directory of the project (default: current directory)
 
 ```bash
-# Analyze structural patterns
-cognition-cli patterns analyze
+# Analyze impact of changing PGCManager
+cognition-cli blast-radius PGCManager
 
-# Analyze lineage patterns
-cognition-cli patterns analyze --type lineage
+# Get JSON output for CI/CD integration
+cognition-cli blast-radius UserService --json
+
+# Limit depth for large dependency trees
+cognition-cli blast-radius OrderManager --max-depth 2
 ```
+
+**What it shows:**
+
+- Total symbols impacted by changes
+- Direct consumers and their roles
+- Critical dependency paths
+- Maximum consumer depth (blast radius)
+- Risk assessment (low/medium/high/critical)
 
 ### **`cognition-cli query <question>`**
 

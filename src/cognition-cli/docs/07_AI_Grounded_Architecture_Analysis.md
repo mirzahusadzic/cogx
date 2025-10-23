@@ -457,7 +457,7 @@ This command can be run by any developer at any time to regenerate this analysis
 The fact that two independent Claude instances, in separate sessions, with zero coordination, produced identical architectural insights using only PGC commands proves that **grounded AI cognition is reproducible, verifiable, and reliable**.
 
 _Generated through Human-AI collaboration using verifiable PGC data._
-_Cognition-CLI version: 0.1.0_
-_Claude Sonnet 4.5 via Claude Code_
+_Cognition-CLI version: 0.1.0._
+_Claude Sonnet 4.5 via Claude Code._
 _All metrics and claims are reproducible._
 _Reproducibility validated with fresh session on October 24, 2025._
