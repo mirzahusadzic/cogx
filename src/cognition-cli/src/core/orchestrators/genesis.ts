@@ -320,8 +320,7 @@ export class GenesisOrchestrator {
     const contentHash = this.pgc.objectStore.computeHash(file.content);
 
     if (existingIndex && existingIndex.content_hash === contentHash) {
-      s.stop(chalk.gray(`⸟ ${file.relativePath} (unchanged)`));
-
+      // Skip unchanged files silently
       return;
     }
 
