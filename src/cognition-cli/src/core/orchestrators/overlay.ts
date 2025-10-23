@@ -124,6 +124,23 @@ export class OverlayOrchestrator {
     const force = options?.force || false;
     const skipGc = options?.skipGc || false;
     const s = spinner();
+
+    // Pre-flight check: Verify workbench is accessible
+    s.start('[Overlay] Checking workbench availability...');
+    try {
+      await this.workbench.health();
+      s.stop('[Overlay] Workbench is available.');
+    } catch (error) {
+      s.stop(
+        chalk.red('[Overlay] ✗ Failed to connect to workbench.')
+      );
+      throw new Error(
+        `Cannot generate overlays: Workbench at ${this.workbench.getBaseUrl()} is not accessible. ` +
+        `Please ensure eGemma is running or set WORKBENCH_URL to a valid endpoint.\n` +
+        `Error: ${(error as Error).message}`
+      );
+    }
+
     const allFiles = await this.discoverFiles(
       path.join(this.projectRoot, 'src')
     );
