@@ -96,17 +96,31 @@ export function addPatternsCommands(program: Command) {
       await vectorDB.initialize(tableName);
       const allVectors: VectorRecord[] = await vectorDB.getAllVectors();
 
+      // Helper function to extract file path from vector id
+      // id format: pattern_src_commands_audit_ts_auditCommand -> src/commands/audit.ts
+      const getFilePathFromId = (id: string): string => {
+        const parts = id.split('_');
+        if (parts.length < 3) return 'unknown';
+        // Remove 'pattern' prefix and symbol name suffix
+        const pathParts = parts.slice(1, -1);
+        // Join with slashes and replace last _ts with .ts extension
+        let path = pathParts.join('/');
+        // Handle .ts extension (last segment will be 'ts', replace it with .ts)
+        if (path.endsWith('/ts')) {
+          path = path.substring(0, path.length - 3) + '.ts';
+        }
+        return path || 'unknown';
+      };
+
       // Group by architectural role with symbols and file paths
       const roleGroups = allVectors.reduce(
         (
           acc: Record<string, Array<{ symbol: string; filePath: string }>>,
           v: VectorRecord
         ) => {
-          const metadata = (v.metadata as Record<string, unknown>) || {};
           const role = (v.architectural_role as string) || 'unknown';
-          const symbol = (metadata.symbol as string) || 'unknown';
-          const filePath =
-            ((metadata.anchor || metadata.file_path) as string) || 'unknown';
+          const symbol = (v.symbol as string) || 'unknown';
+          const filePath = getFilePathFromId(v.id as string);
 
           if (!acc[role]) {
             acc[role] = [];
@@ -207,11 +221,21 @@ export function addPatternsCommands(program: Command) {
         chalk.bold(`\n📋 ${title} (${filteredVectors.length} found):\n`)
       );
 
+      // Helper function to extract file path from vector id
+      const getFilePathFromId = (id: string): string => {
+        const parts = id.split('_');
+        if (parts.length < 3) return 'unknown';
+        const pathParts = parts.slice(1, -1);
+        let path = pathParts.join('/');
+        if (path.endsWith('/ts')) {
+          path = path.substring(0, path.length - 3) + '.ts';
+        }
+        return path || 'unknown';
+      };
+
       filteredVectors.forEach((v, i) => {
-        const metadata = (v.metadata as Record<string, unknown>) || {};
-        const symbol = (metadata.symbol as string) || 'unknown';
-        const filePath =
-          ((metadata.anchor || metadata.file_path) as string) || 'unknown';
+        const symbol = (v.symbol as string) || 'unknown';
+        const filePath = getFilePathFromId(v.id as string);
         const role = v.architectural_role as string;
 
         console.log(`${i + 1}. ${chalk.green(symbol)}`);
