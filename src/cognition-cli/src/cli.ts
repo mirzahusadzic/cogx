@@ -87,8 +87,10 @@ program
   .action(auditCommand);
 
 import { overlayCommand } from './commands/overlay.js';
+import { blastRadiusCommand } from './commands/blast-radius.js';
 
 program.addCommand(overlayCommand);
+program.addCommand(blastRadiusCommand);
 addPatternsCommands(program);
 
 program.parse();

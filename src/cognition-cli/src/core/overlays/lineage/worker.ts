@@ -35,20 +35,32 @@ class WorkerLogic {
         ?.name ||
       '';
 
-    const lineage = lineageResult.dependencies.map((dep) => {
-      // For dependencies, we can take the first symbol since the structural data
-      // is filtered to just that symbol (stored separately in the object store)
+    // Deduplicate dependencies by symbol name (keep the one with smallest depth)
+    const depMap = new Map<
+      string,
+      { type: string; relationship: string; depth: number }
+    >();
+
+    for (const dep of lineageResult.dependencies) {
       const depSymbol =
         dep.structuralData.classes?.[0]?.name ||
         dep.structuralData.functions?.[0]?.name ||
         dep.structuralData.interfaces?.[0]?.name ||
         '';
-      return {
-        type: depSymbol,
-        relationship: 'uses',
-        depth: dep.depth,
-      };
-    });
+
+      if (depSymbol) {
+        const existing = depMap.get(depSymbol);
+        if (!existing || dep.depth < existing.depth) {
+          depMap.set(depSymbol, {
+            type: depSymbol,
+            relationship: 'uses',
+            depth: dep.depth,
+          });
+        }
+      }
+    }
+
+    const lineage = Array.from(depMap.values());
 
     return { symbol: rootSymbol, lineage: lineage };
   }
