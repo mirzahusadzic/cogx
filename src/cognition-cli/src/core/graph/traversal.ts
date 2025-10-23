@@ -150,7 +150,9 @@ export class GraphTraversal {
                 if (
                   !edges.find(
                     (e) =>
-                      e.from === symbol && e.to === cleanType && e.type === 'uses'
+                      e.from === symbol &&
+                      e.to === cleanType &&
+                      e.type === 'uses'
                   )
                 ) {
                   edges.push({
@@ -174,7 +176,9 @@ export class GraphTraversal {
               if (
                 !edges.find(
                   (e) =>
-                    e.from === symbol && e.to === returnType && e.type === 'uses'
+                    e.from === symbol &&
+                    e.to === returnType &&
+                    e.type === 'uses'
                 )
               ) {
                 edges.push({
@@ -256,7 +260,12 @@ export class GraphTraversal {
 
     // Calculate metrics
     const totalImpacted = consumers.length + dependencies.length + 1; // +1 for the symbol itself
-    const maxConsumerDepth = this.calculateMaxDepth(symbol, graph, 'up', maxDepth);
+    const maxConsumerDepth = this.calculateMaxDepth(
+      symbol,
+      graph,
+      'up',
+      maxDepth
+    );
     const maxDependencyDepth = this.calculateMaxDepth(
       symbol,
       graph,

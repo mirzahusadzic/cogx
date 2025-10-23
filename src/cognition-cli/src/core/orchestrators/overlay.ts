@@ -565,7 +565,11 @@ export class OverlayOrchestrator {
    * due to aggressive garbage collection or other issues.
    */
   private async validateJobHashes(
-    jobs: Array<{ structuralHash: string; filePath: string; symbolName: string }>
+    jobs: Array<{
+      structuralHash: string;
+      filePath: string;
+      symbolName: string;
+    }>
   ): Promise<{ success: boolean; messages: string[] }> {
     const messages: string[] = [];
     const missingHashes = new Set<string>();

@@ -2,7 +2,7 @@
 
 When debugging or understanding how symbol A reaches symbol B, use PGC tools to trace the verifiable path.
 
-## Dependency Tracing Steps:
+## Dependency Tracing Steps
 
 1. **Start with blast-radius**: Run `cognition-cli blast-radius <start-symbol> --direction down --max-depth 5 --json`
    - This shows all downstream dependencies
@@ -17,14 +17,16 @@ When debugging or understanding how symbol A reaches symbol B, use PGC tools to 
    - Includes transitive dependencies
 
 4. **Verify with structural data**: For each symbol in the chain, run:
+
    ```bash
    cognition-cli overlay inspect structural_patterns "<symbol>"
    ```
+
    - Confirms the structural relationship (imports, extends, implements, uses)
 
-## Output Format:
+## Output Format
 
-```
+```text
 🔍 Dependency Trace: A → B
 
 Path Found:
@@ -47,13 +49,13 @@ Verification Hashes:
 - B: structural_hash_789...
 ```
 
-## Use Cases:
+## Use Cases
 
 - "How does X reach Y?"
 - "Why does changing A break B?"
 - "What's the dependency chain between these components?"
 - "Find circular dependencies"
 
-## Important:
+## Important
 
 All paths MUST be verified through PGC data - never guess at dependencies!

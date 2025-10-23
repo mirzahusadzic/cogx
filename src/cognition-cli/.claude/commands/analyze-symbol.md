@@ -22,6 +22,7 @@ When analyzing code symbols, you MUST use the cognition-cli tools to gather grou
 ## Output Format:
 
 After gathering PGC context, provide:
+
 - **Summary**: What the symbol does in 1-2 sentences
 - **Purpose**: Why it exists architecturally
 - **Dependencies**: Key symbols it uses

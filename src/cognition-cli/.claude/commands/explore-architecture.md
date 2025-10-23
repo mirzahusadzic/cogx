@@ -2,7 +2,7 @@
 
 When the user asks about overall architecture or how systems connect, use PGC tools to build a grounded understanding.
 
-## Architecture Exploration Steps:
+## Architecture Exploration Steps
 
 1. **Load Structural Patterns**: Run `cognition-cli patterns list` to see all symbols and their roles
 
@@ -25,11 +25,11 @@ When the user asks about overall architecture or how systems connect, use PGC to
    - Run `cognition-cli patterns graph <symbol>` to visualize dependency trees
    - Track how data flows through the system
 
-## Output Format:
+## Output Format
 
 Provide a structured architecture overview:
 
-```
+```text
 🏗️ Architecture Overview
 
 Core Components:
@@ -52,7 +52,7 @@ Critical Paths:
 - [High-impact dependency chains]
 ```
 
-## Grounding:
+## Grounding
 
 - All analysis MUST reference PGC data (structural patterns, lineage, blast radius)
 - Include metrics to support architectural claims

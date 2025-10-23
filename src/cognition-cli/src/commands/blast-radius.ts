@@ -6,7 +6,6 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { PGCManager } from '../core/pgc/manager.js';
 import { GraphTraversal } from '../core/graph/traversal.js';
-import { GraphNode } from '../core/graph/types.js';
 
 export const blastRadiusCommand = new Command('blast-radius')
   .description('Show the complete impact graph when a symbol changes')
@@ -23,7 +22,9 @@ export const blastRadiusCommand = new Command('blast-radius')
     const pgc = new PGCManager(process.cwd());
     const traversal = new GraphTraversal(pgc);
 
-    console.log(chalk.bold(`\n🎯 Blast Radius Analysis: ${chalk.cyan(symbol)}\n`));
+    console.log(
+      chalk.bold(`\n🎯 Blast Radius Analysis: ${chalk.cyan(symbol)}\n`)
+    );
 
     try {
       const result = await traversal.getBlastRadius(symbol, {
@@ -65,7 +66,9 @@ export const blastRadiusCommand = new Command('blast-radius')
 
       // Metrics
       console.log(chalk.bold('📊 Impact Metrics:'));
-      console.log(`   Total impacted: ${chalk.yellow(result.metrics.totalImpacted)}`);
+      console.log(
+        `   Total impacted: ${chalk.yellow(result.metrics.totalImpacted)}`
+      );
       console.log(
         `   Max consumer depth: ${chalk.yellow(result.metrics.maxConsumerDepth)}`
       );
@@ -85,7 +88,10 @@ export const blastRadiusCommand = new Command('blast-radius')
           console.log(chalk.dim('   No consumers found'));
         } else {
           // Group by architectural role
-          const byRole = groupBy(result.consumers, (n) => n.architecturalRole || 'unknown');
+          const byRole = groupBy(
+            result.consumers,
+            (n) => n.architecturalRole || 'unknown'
+          );
 
           for (const [role, nodes] of Object.entries(byRole)) {
             console.log(chalk.cyan(`   ${role}:`));
@@ -139,9 +145,7 @@ export const blastRadiusCommand = new Command('blast-radius')
         console.log(chalk.dim('   High-impact chains through the codebase:\n'));
 
         for (const path of result.metrics.criticalPaths.slice(0, 3)) {
-          console.log(
-            `   ${chalk.yellow(path.reason)} (depth ${path.depth})`
-          );
+          console.log(`   ${chalk.yellow(path.reason)} (depth ${path.depth})`);
           const pathStr = path.path.map((s) => chalk.cyan(s)).join(' → ');
           console.log(`      ${pathStr}`);
         }
@@ -157,17 +161,13 @@ export const blastRadiusCommand = new Command('blast-radius')
         );
       } else if (result.metrics.totalImpacted <= 1) {
         console.log(
-          chalk.green(
-            '✓ Low impact! This symbol is relatively isolated.'
-          )
+          chalk.green('✓ Low impact! This symbol is relatively isolated.')
         );
       }
     } catch (error) {
       if ((error as Error).message.includes('not found in graph')) {
         console.error(
-          chalk.red(
-            `\n❌ Symbol '${symbol}' not found in structural patterns.`
-          )
+          chalk.red(`\n❌ Symbol '${symbol}' not found in structural patterns.`)
         );
         console.log(
           chalk.dim(
@@ -185,10 +185,7 @@ export const blastRadiusCommand = new Command('blast-radius')
 /**
  * Group array by key function
  */
-function groupBy<T>(
-  arr: T[],
-  keyFn: (item: T) => string
-): Record<string, T[]> {
+function groupBy<T>(arr: T[], keyFn: (item: T) => string): Record<string, T[]> {
   return arr.reduce(
     (acc, item) => {
       const key = keyFn(item);

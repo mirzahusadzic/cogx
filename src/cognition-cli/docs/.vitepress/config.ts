@@ -41,6 +41,10 @@ export default defineConfig({
             text: '06 - Testing and Deployment',
             link: '/06_Testing_and_Deployment',
           },
+          {
+            text: '07 - AI-Grounded Architecture Analysis',
+            link: '/07_AI_Grounded_Architecture_Analysis',
+          },
         ],
       },
     ],
