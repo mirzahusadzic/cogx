@@ -2,6 +2,35 @@
 
 **Goal**: Add AI-powered semantic commands that leverage the PGC lattice for efficient code understanding and analysis.
 
+## AI Integration via Slash Commands
+
+This implementation provides **two interfaces** for interacting with the PGC:
+
+### 1. CLI Commands (for users)
+Direct invocation via terminal:
+```bash
+cognition-cli blast-radius PGCManager
+cognition-cli overlay inspect structural_patterns "PGCManager"
+```
+
+### 2. Slash Commands (for AI assistants)
+Files in `.claude/commands/` become slash commands that expand into prompts for the AI:
+
+**Created Commands**:
+- `/analyze-symbol` - Instructs AI to use PGC tools for comprehensive symbol analysis
+- `/analyze-impact` - Guides AI through blast radius analysis before making changes
+- `/explore-architecture` - Framework for understanding overall codebase architecture
+- `/trace-dependency` - Step-by-step dependency chain tracing
+
+**How it works**:
+1. User types `/analyze-symbol` in Claude Code
+2. Claude sees the expanded prompt from `.claude/commands/analyze-symbol.md`
+3. Claude runs `cognition-cli blast-radius <symbol>` via Bash tool
+4. Claude uses PGC-grounded data instead of hallucinating
+5. All analysis backed by cryptographic hashes (verifiable cognition!)
+
+**True Symbiosis**: The PGC provides verifiable, immutable context that grounds AI analysis in reality. The AI can leverage graph traversal, historical data, and semantic patterns without hallucination risk.
+
 ---
 
 ## Phase 1: Blast Radius (Foundation) 🔴 PRIORITY

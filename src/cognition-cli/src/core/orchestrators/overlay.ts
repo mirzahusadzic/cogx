@@ -253,12 +253,12 @@ export class OverlayOrchestrator {
       const preflightResult = await this.validateJobHashes(allJobs);
       if (!preflightResult.success) {
         log.error(
-          chalk.red('Pre-flight validation failed - missing source hashes:')
+          chalk.red('Pre-flight validation failed - missing structural hashes:')
         );
         preflightResult.messages.forEach((msg: string) => log.error(msg));
         throw new Error(
-          'Cannot proceed with embedding - source files missing from object store. ' +
-            'This may be caused by aggressive garbage collection.'
+          'Cannot proceed with embedding - structural data missing from object store. ' +
+            'This may be caused by aggressive garbage collection. Try running with --skip-gc flag.'
         );
       }
       log.success(
@@ -558,24 +558,24 @@ export class OverlayOrchestrator {
   }
 
   /**
-   * Pre-flight validation: Check that all source hashes exist in object store
+   * Pre-flight validation: Check that all structural hashes exist in object store
    * BEFORE starting expensive embedding operations.
    *
-   * This prevents wasting time on embedding when source files are missing
+   * This prevents wasting time on embedding when structural data is missing
    * due to aggressive garbage collection or other issues.
    */
   private async validateJobHashes(
-    jobs: Array<{ contentHash: string; filePath: string; symbolName: string }>
+    jobs: Array<{ structuralHash: string; filePath: string; symbolName: string }>
   ): Promise<{ success: boolean; messages: string[] }> {
     const messages: string[] = [];
     const missingHashes = new Set<string>();
 
     for (const job of jobs) {
-      const exists = await this.pgc.objectStore.exists(job.contentHash);
-      if (!exists && !missingHashes.has(job.contentHash)) {
-        missingHashes.add(job.contentHash);
+      const exists = await this.pgc.objectStore.exists(job.structuralHash);
+      if (!exists && !missingHashes.has(job.structuralHash)) {
+        missingHashes.add(job.structuralHash);
         messages.push(
-          `Source file hash missing for ${job.filePath}#${job.symbolName}: ${job.contentHash.slice(0, 7)}...`
+          `Structural hash missing for ${job.filePath}#${job.symbolName}: ${job.structuralHash.slice(0, 7)}...`
         );
       }
     }
