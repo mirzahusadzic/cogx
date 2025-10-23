@@ -178,13 +178,18 @@ class WorkerLogic {
             if (!type) return;
 
             // Clean up the type string
+            // NOTE: This is TypeScript-focused. May need language-specific cleaning for:
+            // - Python: List[int], Dict[str, Any], Callable[[int], str], Union[str, None]
+            // - Java: List<String>, Map<String, Object>
+            // - Rust: Vec<T>, Option<T>, Result<T, E>
+            // TODO: Implement language-specific type cleaning when adding Python/Java/Rust support
             const cleanType = type
-              .replace(/\[\]/g, '') // Remove array brackets
-              .replace(/<[^>]*>/g, '') // Remove generic parameters
-              .replace(/([^)]*)/g, '') // Remove function params
-              .replace(/\s+is\s+.*/g, '') // Remove type predicates
-              .split('|')[0] // Take first union type
-              .split('&')[0] // Take first intersection type
+              .replace(/\[\]/g, '') // Remove array brackets (TS: string[])
+              .replace(/<[^>]*>/g, '') // Remove generic parameters (TS: Promise<T>, Python uses [...])
+              .replace(/\([^)]*\)/g, '') // Remove function params (FIX: was /([^)]*)/ which matched everything!)
+              .replace(/\s+is\s+.*/g, '') // Remove type predicates (TS: x is string)
+              .split('|')[0] // Take first union type (TS: string | null)
+              .split('&')[0] // Take first intersection type (TS: A & B)
               .trim();
 
             // Expanded list of built-ins to exclude
