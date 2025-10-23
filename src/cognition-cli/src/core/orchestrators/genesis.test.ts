@@ -12,7 +12,7 @@ vi.mock('proper-lockfile', () => ({
 
 import { GenesisOrchestrator } from './genesis.js';
 import { PGCManager } from '../pgc/manager.js';
-import { StructuralMiner } from './miners/structural-miner.js';
+import { StructuralMiner } from './miners/structural.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
 import type { StructuralData } from '../types/structural.js';
 import { StructuralOracle } from '../pgc/oracles/overlay.js';

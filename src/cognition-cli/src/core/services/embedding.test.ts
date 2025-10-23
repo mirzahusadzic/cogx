@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { EmbeddingService } from './embedding-service.js';
+import { EmbeddingService } from './embedding.js';
 
 // Integration tests - require eGemma to be running
 describe('EmbeddingService - Integration', () => {

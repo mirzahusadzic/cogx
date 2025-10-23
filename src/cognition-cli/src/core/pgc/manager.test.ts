@@ -4,7 +4,7 @@ import path from 'path';
 import { PGCManager } from './manager.ts';
 import { ObjectStore } from './object-store.ts';
 import { GenesisOrchestrator } from '../orchestrators/genesis.ts';
-import { StructuralMiner } from '../../orchestrators/miners/structural-miner.ts';
+import { StructuralMiner } from '../../orchestrators/miners/structural.ts';
 import { WorkbenchClient } from '../../executors/workbench-client.ts';
 import { StructuralOracle } from './oracles/overlay.ts';
 

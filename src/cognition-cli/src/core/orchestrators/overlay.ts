@@ -4,7 +4,7 @@ import { LanceVectorStore } from '../overlays/vector-db/lance-store.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
 import { StructuralPatternsManager } from '../overlays/structural/patterns.js';
 import { LineagePatternsManager } from '../overlays/lineage/manager.js';
-import { StructuralMiner } from './miners/structural-miner.js';
+import { StructuralMiner } from './miners/structural.js';
 import { OverlayOracle } from '../pgc/oracles/overlay.js';
 import {
   ClassData,

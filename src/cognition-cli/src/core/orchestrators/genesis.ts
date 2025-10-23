@@ -7,7 +7,7 @@ import * as workerpool from 'workerpool';
 import os from 'os';
 
 import type { PGCManager } from '../pgc/manager.js';
-import type { StructuralMiner } from './miners/structural-miner.js';
+import type { StructuralMiner } from './miners/structural.js';
 import type { WorkbenchClient } from '../executors/workbench-client.js';
 import type {
   SourceFile,

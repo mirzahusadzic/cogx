@@ -10,7 +10,7 @@ import { PGCManager } from '../../pgc/manager.js';
 import { LanceVectorStore, VectorRecord } from '../vector-db/lance-store.js';
 import { WorkbenchClient } from '../../executors/workbench-client.js';
 import { StructuralData } from '../../types/structural.js';
-import { EmbeddingService } from '../../services/embedding-service.js';
+import { EmbeddingService } from '../../services/embedding.js';
 import { EmbedResponse } from '../../types/workbench.js';
 import {
   DEFAULT_EMBEDDING_DIMENSIONS,

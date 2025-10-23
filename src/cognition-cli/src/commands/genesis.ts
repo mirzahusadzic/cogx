@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 import { PGCManager } from '../core/pgc/manager.js';
-import { StructuralMiner } from '../core/orchestrators/miners/structural-miner.js';
+import { StructuralMiner } from '../core/orchestrators/miners/structural.js';
 import { WorkbenchClient } from '../core/executors/workbench-client.js';
 import { GenesisOrchestrator } from '../core/orchestrators/genesis.js';
 import { GenesisOracle } from '../core/pgc/oracles/genesis.js';

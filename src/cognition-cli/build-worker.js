@@ -2,7 +2,7 @@ import esbuild from 'esbuild';
 
 // Build lineage worker
 await esbuild.build({
-  entryPoints: ['src/core/overlays/lineage/lineage-pattern-worker.ts'],
+  entryPoints: ['src/core/overlays/lineage/worker.ts'],
   bundle: true,
   platform: 'node',
   target: 'node16',
@@ -15,7 +15,7 @@ await esbuild.build({
 
 // Build structural worker
 await esbuild.build({
-  entryPoints: ['src/core/overlays/structural/structural-pattern-worker.ts'],
+  entryPoints: ['src/core/overlays/structural/worker.ts'],
   bundle: true,
   platform: 'node',
   target: 'node16',
