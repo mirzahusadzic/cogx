@@ -270,25 +270,69 @@ export function addPatternsCommands(program: Command) {
         chalk.bold(`\n🔍 Inspecting symbol: ${chalk.cyan(symbol)}\n`)
       );
 
-      // Check structural patterns
-      const structuralManifest = await pgc.overlays.getManifest(
-        'structural_patterns'
-      );
-      const structuralFilePath = structuralManifest?.[symbol];
+      // Helper function to extract file path from vector id
+      const getFilePathFromId = (id: string): string => {
+        const parts = id.split('_');
+        if (parts.length < 3) return 'unknown';
+        const pathParts = parts.slice(1, -1);
+        let path = pathParts.join('/');
+        if (path.endsWith('/ts')) {
+          path = path.substring(0, path.length - 3) + '.ts';
+        }
+        return path || 'unknown';
+      };
 
-      if (!structuralFilePath) {
-        console.log(chalk.red(`❌ Symbol '${symbol}' not found in patterns.`));
-        console.log(
-          chalk.dim('\n💡 Use `patterns list` to see all available symbols')
+      // Search vector DB for the symbol
+      await vectorDB.initialize('structural_patterns');
+      const allVectors = await vectorDB.getAllVectors();
+
+      let matchingVector = allVectors.find((v) => v.symbol === symbol);
+
+      // If not found, try case-insensitive search
+      if (!matchingVector) {
+        const symbolLower = symbol.toLowerCase();
+        matchingVector = allVectors.find(
+          (v) => (v.symbol as string).toLowerCase() === symbolLower
         );
-        return;
+
+        if (matchingVector) {
+          const correctSymbol = matchingVector.symbol as string;
+          console.log(
+            chalk.yellow(
+              `⚠️  Symbol '${symbol}' not found. Did you mean '${chalk.cyan(correctSymbol)}'?`
+            )
+          );
+          console.log(
+            chalk.dim(`Using ${chalk.cyan(correctSymbol)} instead...\n`)
+          );
+          symbol = correctSymbol;
+        } else {
+          console.log(chalk.red(`❌ Symbol '${symbol}' not found in patterns.`));
+          console.log(
+            chalk.dim('\n💡 Use `patterns list` to see all available symbols')
+          );
+          return;
+        }
       }
 
+      const structuralFilePath = getFilePathFromId(matchingVector.id as string);
       console.log(
         chalk.green(`✅ Found in: ${chalk.dim(structuralFilePath)}\n`)
       );
 
-      // Load structural pattern metadata
+      // Show structural pattern info from vector
+      console.log(chalk.bold('📦 Structural Pattern:'));
+      console.log(
+        `   Role: ${chalk.cyan(matchingVector.architectural_role as string)}`
+      );
+      console.log(
+        `   Signature: ${chalk.dim(matchingVector.structural_signature as string)}`
+      );
+      console.log(
+        `   Computed: ${chalk.dim(matchingVector.computed_at as string)}`
+      );
+
+      // Try to load additional metadata from overlay (if exists)
       const structuralOverlayKey = `${structuralFilePath}#${symbol}`;
       const structuralMeta = await pgc.overlays.get(
         'structural_patterns',
@@ -298,11 +342,6 @@ export function addPatternsCommands(program: Command) {
 
       if (structuralMeta) {
         const meta = structuralMeta as Record<string, unknown>;
-        console.log(chalk.bold('📦 Structural Pattern:'));
-        console.log(`   Role: ${chalk.cyan(meta.architecturalRole)}`);
-        console.log(`   Signature: ${chalk.dim(meta.structuralSignature)}`);
-        console.log(`   Computed: ${chalk.dim(meta.computedAt)}`);
-
         const validation = meta.validation as Record<string, unknown>;
         if (validation) {
           console.log(chalk.bold('\n✅ Validation:'));
@@ -399,16 +438,38 @@ export function addPatternsCommands(program: Command) {
       // Check if symbol exists in lineage patterns
       const lineageManifest =
         await pgc.overlays.getManifest('lineage_patterns');
-      const filePath = lineageManifest?.[symbol];
+      let filePath = lineageManifest?.[symbol];
 
+      // If not found, try case-insensitive search
       if (!filePath) {
-        console.log(
-          chalk.red(`❌ Symbol '${symbol}' not found in lineage patterns.`)
+        const symbolLower = symbol.toLowerCase();
+        const matchingSymbols = Object.keys(lineageManifest || {}).filter(
+          (s) => s.toLowerCase() === symbolLower
         );
-        console.log(
-          chalk.dim('\n💡 Run: cognition-cli overlay generate lineage_patterns')
-        );
-        return;
+
+        if (matchingSymbols.length > 0) {
+          const correctSymbol = matchingSymbols[0];
+          console.log(
+            chalk.yellow(
+              `⚠️  Symbol '${symbol}' not found. Did you mean '${chalk.cyan(correctSymbol)}'?`
+            )
+          );
+          console.log(
+            chalk.dim(`Using ${chalk.cyan(correctSymbol)} instead...\n`)
+          );
+          symbol = correctSymbol;
+          filePath = lineageManifest?.[symbol];
+        } else {
+          console.log(
+            chalk.red(`❌ Symbol '${symbol}' not found in lineage patterns.`)
+          );
+          console.log(
+            chalk.dim(
+              '\n💡 Run: cognition-cli overlay generate lineage_patterns'
+            )
+          );
+          return;
+        }
       }
 
       // Load lineage pattern
