@@ -119,10 +119,15 @@ export class OverlayOrchestrator {
 
   public async run(
     overlayType: 'structural_patterns' | 'lineage_patterns',
-    options?: { force?: boolean; skipGc?: boolean }
+    options?: {
+      force?: boolean;
+      skipGc?: boolean;
+      sourcePath?: string;
+    }
   ): Promise<void> {
     const force = options?.force || false;
     const skipGc = options?.skipGc || false;
+    const sourcePath = options?.sourcePath || '.';
     const s = spinner();
 
     // Pre-flight check: Verify workbench is accessible
@@ -140,7 +145,7 @@ export class OverlayOrchestrator {
     }
 
     const allFiles = await this.discoverFiles(
-      path.join(this.projectRoot, 'src')
+      path.join(this.projectRoot, sourcePath)
     );
     await this.runPGCMaintenance(
       allFiles.map((f) => f.relativePath),

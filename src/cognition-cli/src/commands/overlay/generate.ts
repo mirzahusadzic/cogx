@@ -7,6 +7,7 @@ const generateCommand = new Command('generate')
     'Generate a specific type of overlay (structural_patterns or lineage_patterns).'
   )
   .argument('<type>', 'The type of overlay to generate')
+  .argument('[sourcePath]', 'Source path to analyze (default: from metadata or ".")', '.')
   .option('-p, --project-root <path>', 'The root of the project.', '.')
   .option(
     '-f, --force',
@@ -18,7 +19,7 @@ const generateCommand = new Command('generate')
     'Skip garbage collection (recommended when switching branches or regenerating after deletion)',
     false
   )
-  .action(async (type, options) => {
+  .action(async (type, sourcePath, options) => {
     if (type !== 'structural_patterns' && type !== 'lineage_patterns') {
       console.error(`Unsupported overlay type: ${type}`);
       console.error('Supported types: structural_patterns, lineage_patterns');
@@ -49,7 +50,7 @@ const generateCommand = new Command('generate')
     try {
       await orchestrator.run(
         type as 'structural_patterns' | 'lineage_patterns',
-        { force: options.force, skipGc: options.skipGc }
+        { force: options.force, skipGc: options.skipGc, sourcePath }
       );
     } finally {
       await shutdown();
