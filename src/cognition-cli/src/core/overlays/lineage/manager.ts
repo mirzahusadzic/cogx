@@ -13,6 +13,10 @@ import { StructuralData } from '../../types/structural.js';
 import { EmbeddingService } from '../../services/embedding.js';
 import { EmbedResponse } from '../../types/workbench.js';
 import {
+  LineagePatternMetadata,
+  LineagePatternMetadataSchema,
+} from '../../types/lineage.js';
+import {
   PatternGenerationOptions,
   StructuralSymbolType,
   PatternJobPacket,
@@ -369,31 +373,143 @@ export class LineagePatternsManager implements PatternManager {
     };
   }
 
-  // "Read" methods like findSimilarPatterns remain on the Conductor.
-  public async findSimilarPatterns() // symbol: string,
-  // topK: number = 10
-  : Promise<
+  public async findSimilarPatterns(
+    symbol: string,
+    topK: number = 10
+  ): Promise<
     Array<{
       symbol: string;
+      filePath: string;
       similarity: number;
       architecturalRole: string;
       explanation: string;
     }>
   > {
-    // ... (Your existing implementation of findSimilarPatterns)
-    return [];
+    const manifest = await this.pgc.overlays.getManifest('lineage_patterns');
+
+    if (!manifest || Object.keys(manifest).length === 0) {
+      console.log(chalk.yellow(`No lineage patterns manifest found.`));
+      return [];
+    }
+
+    const filePath = manifest[symbol];
+
+    if (!filePath) {
+      console.log(
+        chalk.yellow(`No lineage pattern found for symbol: ${symbol}`)
+      );
+      return [];
+    }
+
+    const overlayKey = `${filePath}#${symbol}`;
+
+    const targetMetadata = await this.pgc.overlays.get<LineagePatternMetadata>(
+      'lineage_patterns',
+      overlayKey,
+      LineagePatternMetadataSchema
+    );
+
+    if (!targetMetadata) {
+      console.log(
+        chalk.yellow(`No lineage pattern found for symbol: ${symbol}`)
+      );
+      return [];
+    }
+
+    const targetVector = await this.vectorDB.getVector(targetMetadata.vectorId);
+    if (!targetVector) {
+      throw new Error(`Vector not found for symbol: ${symbol}`);
+    }
+
+    const similar = await this.vectorDB.similaritySearch(
+      targetVector.embedding,
+      topK + 1
+    );
+
+    // Get structural patterns to fetch architectural roles
+    const structuralManifest = await this.pgc.overlays.getManifest(
+      'structural_patterns'
+    );
+
+    return similar
+      .filter((result) => result.id !== targetMetadata.vectorId)
+      .map((result) => {
+        const resultSymbol = result.metadata.symbol as string;
+        const resultFilePath = result.metadata.anchor as string;
+
+        // Try to get architectural role from structural patterns
+        let architecturalRole = 'component'; // default
+        if (structuralManifest && structuralManifest[resultSymbol]) {
+          // We have structural data for this symbol, but we'll just use default for now
+          // Could enhance this by loading the structural metadata
+          architecturalRole = 'component';
+        }
+
+        return {
+          symbol: resultSymbol,
+          filePath: resultFilePath,
+          similarity: result.similarity,
+          architecturalRole,
+          explanation: this.generateSimilarityExplanation(
+            targetMetadata.lineageSignature,
+            result.metadata.lineage_signature as string
+          ),
+        };
+      });
   }
 
-  public async getVectorForSymbol() // symbol: string
-  : Promise<VectorRecord | undefined> {
-    // ... (Your existing implementation of getVectorForSymbol)
-    return undefined;
+  public async getVectorForSymbol(
+    symbol: string
+  ): Promise<VectorRecord | undefined> {
+    const manifest = await this.pgc.overlays.getManifest('lineage_patterns');
+
+    if (!manifest) {
+      return undefined;
+    }
+
+    const filePath = manifest[symbol];
+    if (!filePath) {
+      return undefined;
+    }
+
+    const overlayKey = `${filePath}#${symbol}`;
+    const metadata = await this.pgc.overlays.get<LineagePatternMetadata>(
+      'lineage_patterns',
+      overlayKey,
+      LineagePatternMetadataSchema
+    );
+
+    if (!metadata) {
+      return undefined;
+    }
+
+    return this.vectorDB.getVector(metadata.vectorId);
   }
 
-  private generateSimilarityExplanation() // targetSignature: string,
-  // resultSignature: string
-  : string {
-    // ... (Your existing implementation)
-    return '';
+  private generateSimilarityExplanation(
+    targetSignature: string,
+    resultSignature: string
+  ): string {
+    try {
+      const targetLineage = JSON.parse(targetSignature);
+      const resultLineage = JSON.parse(resultSignature);
+
+      const targetDeps = new Set(
+        targetLineage.lineage?.map((d: { type: string }) => d.type) || []
+      );
+      const resultDeps = new Set(
+        resultLineage.lineage?.map((d: { type: string }) => d.type) || []
+      );
+
+      const common = [...targetDeps].filter((dep) => resultDeps.has(dep));
+
+      if (common.length === 0) {
+        return 'Similar dependency depth structure';
+      }
+
+      return `Shared dependencies: ${common.slice(0, 3).join(', ')}`;
+    } catch {
+      return 'Similar dependency structure';
+    }
   }
 }

@@ -43,12 +43,13 @@ describe('OverlayOrchestrator - Workbench Pre-flight Check', () => {
     const orchestrator = await OverlayOrchestrator.create(process.cwd());
 
     // Replace the workbench with our mock
-    (orchestrator as any).workbench = mockWorkbench;
+    (orchestrator as unknown as { workbench: typeof mockWorkbench }).workbench =
+      mockWorkbench;
 
     // Attempt to run overlay generation
-    await expect(
-      orchestrator.run('structural_patterns')
-    ).rejects.toThrow(/Cannot generate overlays.*not accessible/);
+    await expect(orchestrator.run('structural_patterns')).rejects.toThrow(
+      /Cannot generate overlays.*not accessible/
+    );
 
     // Verify health check was called
     expect(mockWorkbench.health).toHaveBeenCalledTimes(1);
@@ -61,7 +62,8 @@ describe('OverlayOrchestrator - Workbench Pre-flight Check', () => {
     };
 
     const orchestrator = await OverlayOrchestrator.create(process.cwd());
-    (orchestrator as any).workbench = mockWorkbench;
+    (orchestrator as unknown as { workbench: typeof mockWorkbench }).workbench =
+      mockWorkbench;
 
     try {
       await orchestrator.run('structural_patterns');
@@ -85,18 +87,23 @@ describe('OverlayOrchestrator - Workbench Pre-flight Check', () => {
     };
 
     const orchestrator = await OverlayOrchestrator.create(process.cwd());
-    (orchestrator as any).workbench = mockWorkbench;
+    (orchestrator as unknown as { workbench: typeof mockWorkbench }).workbench =
+      mockWorkbench;
 
     // Mock discoverFiles to throw after health check succeeds
     // This proves health check happens first
-    (orchestrator as any).discoverFiles = vi.fn().mockRejectedValue(
-      new Error('Test intentional failure')
-    );
+    (
+      orchestrator as unknown as {
+        discoverFiles: () => Promise<never>;
+      }
+    ).discoverFiles = vi
+      .fn()
+      .mockRejectedValue(new Error('Test intentional failure'));
 
     // Attempt to run - should fail at discoverFiles (after health check)
-    await expect(
-      orchestrator.run('structural_patterns')
-    ).rejects.toThrow('Test intentional failure');
+    await expect(orchestrator.run('structural_patterns')).rejects.toThrow(
+      'Test intentional failure'
+    );
 
     // Verify health check was called first (before discoverFiles)
     expect(mockWorkbench.health).toHaveBeenCalledTimes(1);
@@ -109,12 +116,13 @@ describe('OverlayOrchestrator - Workbench Pre-flight Check', () => {
     };
 
     const orchestrator = await OverlayOrchestrator.create(process.cwd());
-    (orchestrator as any).workbench = mockWorkbench;
+    (orchestrator as unknown as { workbench: typeof mockWorkbench }).workbench =
+      mockWorkbench;
 
     // Both overlay types should check workbench health
-    await expect(
-      orchestrator.run('lineage_patterns')
-    ).rejects.toThrow(/Cannot generate overlays/);
+    await expect(orchestrator.run('lineage_patterns')).rejects.toThrow(
+      /Cannot generate overlays/
+    );
 
     expect(mockWorkbench.health).toHaveBeenCalledTimes(1);
   });

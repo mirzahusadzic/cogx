@@ -547,6 +547,7 @@ export class StructuralPatternsManager implements PatternManager {
   ): Promise<
     Array<{
       symbol: string;
+      filePath: string;
       similarity: number;
       architecturalRole: string;
       explanation: string;
@@ -596,6 +597,7 @@ export class StructuralPatternsManager implements PatternManager {
       .filter((result) => result.id !== targetMetadata.vectorId)
       .map((result) => ({
         symbol: result.metadata.symbol as string,
+        filePath: result.metadata.anchor as string,
         similarity: result.similarity,
         architecturalRole: result.metadata.architectural_role as string,
         explanation: this.generateSimilarityExplanation(

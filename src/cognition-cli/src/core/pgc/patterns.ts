@@ -7,6 +7,7 @@ export interface PatternManager {
   ): Promise<
     Array<{
       symbol: string;
+      filePath: string;
       similarity: number;
       architecturalRole: string;
       explanation: string;

@@ -25,75 +25,122 @@ interface StructuralMiningResult {
 }
 
 // Helper functions (duplicated to keep worker self-contained)
-function inferArchitecturalRole(structuralData: StructuralData): string {
-  if (structuralData.classes && structuralData.classes.length > 0) {
-    const className = structuralData.classes[0].name;
-    if (className.includes('Repository')) return 'data_access';
-    if (className.includes('Service')) return 'service';
-    if (className.includes('Controller') || className.includes('Handler'))
-      return 'controller';
-    if (className.includes('Orchestrator')) return 'orchestrator';
-  }
-  if (structuralData.functions && structuralData.functions.length > 0) {
-    const functionName = structuralData.functions[0].name;
-    if (functionName.includes('Handler')) return 'controller';
-    if (functionName.includes('Util') || functionName.includes('Helper'))
-      return 'utility';
-  }
-  if (structuralData.type) {
-    if (structuralData.type.includes('Repository')) return 'data_access';
-    if (structuralData.type.includes('Service')) return 'service';
+
+/**
+ * Infer architectural role from a SPECIFIC symbol, not the entire file
+ */
+function inferArchitecturalRole(
+  symbolName: string,
+  structuralData: StructuralData
+): string {
+  // Find the specific symbol in the structural data
+  const targetClass = structuralData.classes?.find(
+    (c) => c.name === symbolName
+  );
+  const targetFunction = structuralData.functions?.find(
+    (f) => f.name === symbolName
+  );
+  const targetInterface = structuralData.interfaces?.find(
+    (i) => i.name === symbolName
+  );
+
+  // Infer role from class name
+  if (targetClass) {
+    if (targetClass.name.includes('Repository')) return 'data_access';
+    if (targetClass.name.includes('Service')) return 'service';
     if (
-      structuralData.type.includes('Controller') ||
-      structuralData.type.includes('Handler')
+      targetClass.name.includes('Controller') ||
+      targetClass.name.includes('Handler')
     )
       return 'controller';
-    if (structuralData.type.includes('Orchestrator')) return 'orchestrator';
+    if (targetClass.name.includes('Orchestrator')) return 'orchestrator';
+    return 'component';
   }
+
+  // Infer role from function name
+  if (targetFunction) {
+    if (targetFunction.name.includes('Handler')) return 'controller';
+    if (
+      targetFunction.name.includes('Util') ||
+      targetFunction.name.includes('Helper')
+    )
+      return 'utility';
+    return 'utility';
+  }
+
+  // Infer role from interface name
+  if (targetInterface) {
+    if (targetInterface.name.endsWith('Config')) return 'configuration';
+    if (targetInterface.name.endsWith('Data')) return 'type';
+    if (targetInterface.name.endsWith('Request')) return 'type';
+    if (targetInterface.name.endsWith('Response')) return 'type';
+    if (targetInterface.name.endsWith('Result')) return 'type';
+    return 'type';
+  }
+
   return 'component';
 }
 
-function generateStructuralSignature(structuralData: StructuralData): string {
+/**
+ * Generate structural signature for a SPECIFIC symbol, not the entire file
+ * CRITICAL: This must only process the target symbol, not all symbols in the file!
+ */
+function generateStructuralSignature(
+  symbolName: string,
+  structuralData: StructuralData
+): string {
   const parts: string[] = [];
 
-  if (structuralData.classes && structuralData.classes.length > 0) {
-    const cls = structuralData.classes[0];
-    parts.push(`class:${cls.name}`);
-    if (cls.base_classes && cls.base_classes.length > 0) {
-      parts.push(`extends:${cls.base_classes.join(',')}`);
+  // Find the specific symbol we're creating a signature for
+  const targetClass = structuralData.classes?.find(
+    (c) => c.name === symbolName
+  );
+  const targetFunction = structuralData.functions?.find(
+    (f) => f.name === symbolName
+  );
+  const targetInterface = structuralData.interfaces?.find(
+    (i) => i.name === symbolName
+  );
+
+  // Generate signature ONLY for the target symbol
+  if (targetClass) {
+    parts.push(`class:${targetClass.name}`);
+    if (targetClass.base_classes && targetClass.base_classes.length > 0) {
+      parts.push(`extends:${targetClass.base_classes.join(',')}`);
     }
-    if (cls.implements_interfaces && cls.implements_interfaces.length > 0) {
-      parts.push(`implements:${cls.implements_interfaces.join(',')}`);
+    if (
+      targetClass.implements_interfaces &&
+      targetClass.implements_interfaces.length > 0
+    ) {
+      parts.push(`implements:${targetClass.implements_interfaces.join(',')}`);
     }
-    parts.push(`methods:${cls.methods.length}`);
-    parts.push(`decorators:${cls.decorators.length}`);
+    parts.push(`methods:${targetClass.methods.length}`);
+    parts.push(`decorators:${targetClass.decorators.length}`);
+  } else if (targetFunction) {
+    parts.push(`function:${targetFunction.name}`);
+    parts.push(`params:${targetFunction.params.length}`);
+    parts.push(`returns:${targetFunction.returns}`);
+    parts.push(`async:${targetFunction.is_async}`);
+    parts.push(`decorators:${targetFunction.decorators.length}`);
+  } else if (targetInterface) {
+    parts.push(`interface:${targetInterface.name}`);
+    parts.push(`properties:${targetInterface.properties.length}`);
+
+    // Include property types for better signature
+    const propertyTypes = targetInterface.properties
+      .map((p) => `${p.name}:${p.type}${p.optional ? '?' : ''}`)
+      .join(',');
+    if (propertyTypes) {
+      parts.push(`shape:{${propertyTypes}}`);
+    }
   }
 
-  if (structuralData.functions && structuralData.functions.length > 0) {
-    const func = structuralData.functions[0];
-    parts.push(`function:${func.name}`);
-    parts.push(`params:${func.params.length}`);
-    parts.push(`returns:${func.returns}`);
-    parts.push(`async:${func.is_async}`);
-    parts.push(`decorators:${func.decorators.length}`);
-  }
-
-  if (structuralData.interfaces && structuralData.interfaces.length > 0) {
-    const iface = structuralData.interfaces[0];
-    parts.push(`interface:${iface.name}`);
-    parts.push(`properties:${iface.properties.length}`);
-  }
-
+  // Add file-level context (imports/exports count)
   if (structuralData.imports && structuralData.imports.length > 0) {
     parts.push(`imports:${structuralData.imports.length}`);
   }
-
   if (structuralData.exports && structuralData.exports.length > 0) {
     parts.push(`exports:${structuralData.exports.length}`);
-  }
-
-  if (structuralData.type) {
-    parts.push(`type:${structuralData.type}`);
   }
 
   return parts.sort().join(' | ');
@@ -129,9 +176,12 @@ async function processStructuralPattern(
       };
     }
 
-    // Mine the pattern: generate signature and infer role
-    const signature = generateStructuralSignature(structuralData);
-    const architecturalRole = inferArchitecturalRole(structuralData);
+    // Mine the pattern: generate signature and infer role for THIS SPECIFIC SYMBOL
+    const signature = generateStructuralSignature(symbolName, structuralData);
+    const architecturalRole = inferArchitecturalRole(
+      symbolName,
+      structuralData
+    );
 
     return {
       status: 'success',

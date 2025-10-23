@@ -57,6 +57,7 @@ export function addPatternsCommands(program: Command) {
           (
             r: {
               symbol: string;
+              filePath: string;
               similarity: number;
               architecturalRole: string;
               explanation: string;
@@ -68,6 +69,7 @@ export function addPatternsCommands(program: Command) {
               `${i + 1}. ${chalk.green(r.symbol)} ` +
                 `${chalk.gray(`[${r.architecturalRole}]`)}`
             );
+            console.log(`   ${chalk.dim('📁 ' + r.filePath)}`);
             console.log(
               `   ${chalk.yellow(simBar)} ${(r.similarity * 100).toFixed(1)}%`
             );
@@ -147,21 +149,53 @@ export function addPatternsCommands(program: Command) {
 
       console.log(
         chalk.bold(
-          `\n⚖️ Comparing ${chalk.cyan(symbol1)} vs ${chalk.green(
+          `\n⚖️  Comparing ${chalk.cyan(symbol1)} vs ${chalk.green(
             symbol2
           )} (${options.type} patterns):\n`
         )
       );
+
+      // Show file paths
+      const metadata1 = vector1.metadata as Record<string, unknown>;
+      const metadata2 = vector2.metadata as Record<string, unknown>;
+      console.log(
+        chalk.dim(
+          `📁 ${symbol1}: ${metadata1.anchor || metadata1.file_path || 'unknown'}`
+        )
+      );
+      console.log(
+        chalk.dim(
+          `📁 ${symbol2}: ${metadata2.anchor || metadata2.file_path || 'unknown'}`
+        )
+      );
+
       const simBar = '█'.repeat(Math.round(similarity * 40));
       console.log(
-        `   Similarity: ${chalk.yellow(simBar)} ${(similarity * 100).toFixed(
+        `\n   Similarity: ${chalk.yellow(simBar)} ${(similarity * 100).toFixed(
           1
         )}%`
       );
 
+      const vectorData1 = vector1 as Record<string, unknown>;
+      const vectorData2 = vector2 as Record<string, unknown>;
+
       console.log(chalk.bold(`\nSignature for ${symbol1}:`));
-      console.log(chalk.dim(vector1.structural_signature));
+      console.log(
+        chalk.dim(
+          vectorData1.structural_signature ||
+            metadata1.structural_signature ||
+            metadata1.lineage_signature ||
+            'N/A'
+        )
+      );
       console.log(chalk.bold(`\nSignature for ${symbol2}:`));
-      console.log(chalk.dim(vector2.structural_signature));
+      console.log(
+        chalk.dim(
+          vectorData2.structural_signature ||
+            metadata2.structural_signature ||
+            metadata2.lineage_signature ||
+            'N/A'
+        )
+      );
     });
 }
