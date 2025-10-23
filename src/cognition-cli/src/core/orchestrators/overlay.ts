@@ -119,14 +119,18 @@ export class OverlayOrchestrator {
 
   public async run(
     overlayType: 'structural_patterns' | 'lineage_patterns',
-    options?: { force?: boolean }
+    options?: { force?: boolean; skipGc?: boolean }
   ): Promise<void> {
     const force = options?.force || false;
+    const skipGc = options?.skipGc || false;
     const s = spinner();
     const allFiles = await this.discoverFiles(
       path.join(this.projectRoot, 'src')
     );
-    await this.runPGCMaintenance(allFiles.map((f) => f.relativePath));
+    await this.runPGCMaintenance(
+      allFiles.map((f) => f.relativePath),
+      skipGc
+    );
 
     if (overlayType === 'lineage_patterns') {
       s.start('[Overlay] Generating lineage patterns from manifest...');
@@ -225,6 +229,27 @@ export class OverlayOrchestrator {
       // Initialize workers with optimal count based on job size
       this.structuralPatternManager.initializeWorkers(allJobs.length);
 
+      // Pre-flight validation: Check all source hashes exist before expensive embedding
+      log.info(
+        chalk.cyan(
+          `\n[Overlay] Oracle: Pre-flight validation of ${allJobs.length} patterns...`
+        )
+      );
+      const preflightResult = await this.validateJobHashes(allJobs);
+      if (!preflightResult.success) {
+        log.error(
+          chalk.red('Pre-flight validation failed - missing source hashes:')
+        );
+        preflightResult.messages.forEach((msg: string) => log.error(msg));
+        throw new Error(
+          'Cannot proceed with embedding - source files missing from object store. ' +
+            'This may be caused by aggressive garbage collection.'
+        );
+      }
+      log.success(
+        chalk.green('[Overlay] Oracle: Pre-flight validation successful.')
+      );
+
       log.info(
         chalk.cyan(
           `\n[Overlay] Processing ${allJobs.length} patterns with workers...`
@@ -266,14 +291,29 @@ export class OverlayOrchestrator {
     }
   }
 
-  private async runPGCMaintenance(processedFiles: string[]) {
+  private async runPGCMaintenance(
+    processedFiles: string[],
+    skipGc: boolean = false
+  ) {
     log.step('Running PGC Maintenance and Verification');
 
-    log.info(
-      'Goal: Achieve a structurally coherent PGC by removing stale entries.'
-    );
+    if (skipGc) {
+      log.info(
+        'Goal: Verify PGC structural coherence (garbage collection skipped).'
+      );
+    } else {
+      log.info(
+        'Goal: Achieve a structurally coherent PGC by removing stale entries.'
+      );
+    }
 
-    const gcSummary = await this.garbageCollect(processedFiles);
+    const gcSummary = skipGc
+      ? {
+          staleEntries: 0,
+          cleanedReverseDeps: 0,
+          cleanedTransformLogEntries: 0,
+        }
+      : await this.garbageCollect(processedFiles);
 
     if (gcSummary.staleEntries > 0) {
       log.success(
@@ -295,7 +335,11 @@ export class OverlayOrchestrator {
       gcSummary.cleanedReverseDeps === 0 &&
       gcSummary.cleanedTransformLogEntries === 0
     ) {
-      log.info('Transform: No stale entries found. PGC is clean.');
+      if (skipGc) {
+        log.info('Transform: Garbage collection skipped (--skip-gc flag).');
+      } else {
+        log.info('Transform: No stale entries found. PGC is clean.');
+      }
     }
 
     log.info('Oracle: Verifying PGC structural coherence after maintenance.');
@@ -476,6 +520,35 @@ export class OverlayOrchestrator {
       '.go': 'go',
     };
     return map[ext] || 'unknown';
+  }
+
+  /**
+   * Pre-flight validation: Check that all source hashes exist in object store
+   * BEFORE starting expensive embedding operations.
+   *
+   * This prevents wasting time on embedding when source files are missing
+   * due to aggressive garbage collection or other issues.
+   */
+  private async validateJobHashes(
+    jobs: Array<{ contentHash: string; filePath: string; symbolName: string }>
+  ): Promise<{ success: boolean; messages: string[] }> {
+    const messages: string[] = [];
+    const missingHashes = new Set<string>();
+
+    for (const job of jobs) {
+      const exists = await this.pgc.objectStore.exists(job.contentHash);
+      if (!exists && !missingHashes.has(job.contentHash)) {
+        missingHashes.add(job.contentHash);
+        messages.push(
+          `Source file hash missing for ${job.filePath}#${job.symbolName}: ${job.contentHash.slice(0, 7)}...`
+        );
+      }
+    }
+
+    return {
+      success: messages.length === 0,
+      messages,
+    };
   }
 
   public async shutdown(): Promise<void> {

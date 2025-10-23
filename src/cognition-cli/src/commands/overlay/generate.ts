@@ -13,6 +13,11 @@ const generateCommand = new Command('generate')
     'Force regeneration of all patterns, even if they already exist',
     false
   )
+  .option(
+    '--skip-gc',
+    'Skip garbage collection (recommended when switching branches or regenerating after deletion)',
+    false
+  )
   .action(async (type, options) => {
     if (type !== 'structural_patterns' && type !== 'lineage_patterns') {
       console.error(`Unsupported overlay type: ${type}`);
@@ -44,7 +49,7 @@ const generateCommand = new Command('generate')
     try {
       await orchestrator.run(
         type as 'structural_patterns' | 'lineage_patterns',
-        { force: options.force }
+        { force: options.force, skipGc: options.skipGc }
       );
     } finally {
       await shutdown();

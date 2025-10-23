@@ -19,7 +19,11 @@ vi.mock('fs-extra', async () => {
           .access(filePath)
           .then(() => true)
           .catch(() => false),
-      writeJSON: (filePath: string, data: any, options?: any) =>
+      writeJSON: (
+        filePath: string,
+        data: unknown,
+        options?: { spaces?: number }
+      ) =>
         actualVol.promises.writeFile(
           filePath,
           JSON.stringify(data, null, options?.spaces || 0)
@@ -30,7 +34,8 @@ vi.mock('fs-extra', async () => {
         actualVol.promises.readFile(filePath, encoding),
       writeFile: (filePath: string, content: string) =>
         actualVol.promises.writeFile(filePath, content),
-      remove: (filePath: string) => actualVol.promises.rm(filePath, { recursive: true, force: true }),
+      remove: (filePath: string) =>
+        actualVol.promises.rm(filePath, { recursive: true, force: true }),
     },
   };
 });
@@ -53,8 +58,8 @@ describe('StructuralPatternsManager - Transaction Ordering', () => {
   let mockPgc: PGCManager;
   let mockVectorDB: LanceVectorStore;
   let mockWorkbench: WorkbenchClient;
-  let overlayUpdateSpy: any;
-  let manifestUpdateSpy: any;
+  let overlayUpdateSpy: ReturnType<typeof vi.fn>;
+  let manifestUpdateSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     vol.reset();
@@ -81,20 +86,24 @@ describe('StructuralPatternsManager - Transaction Ordering', () => {
         exists: vi.fn(async () => true),
         store: vi.fn(async () => 'test-hash'),
       },
-    } as any;
+    } as Partial<PGCManager> as PGCManager;
 
     mockVectorDB = {
       initialize: vi.fn(async () => {}),
       storeVector: vi.fn(async () => {}),
-    } as any;
+    } as Partial<LanceVectorStore> as LanceVectorStore;
 
     mockWorkbench = {
       embed: vi.fn(async () => ({
         embedding_768d: new Array(768).fill(0.1),
       })),
-    } as any;
+    } as Partial<WorkbenchClient> as WorkbenchClient;
 
-    manager = new StructuralPatternsManager(mockPgc, mockVectorDB, mockWorkbench);
+    manager = new StructuralPatternsManager(
+      mockPgc,
+      mockVectorDB,
+      mockWorkbench
+    );
   });
 
   afterEach(() => {
@@ -121,7 +130,9 @@ describe('StructuralPatternsManager - Transaction Ordering', () => {
       structuralData: {
         extraction_method: 'ast_native',
         fidelity: 1.0,
-        classes: [{ name: 'TestClass', methods: [], properties: [], decorators: [] }],
+        classes: [
+          { name: 'TestClass', methods: [], properties: [], decorators: [] },
+        ],
       },
       contentHash: 'abc123',
       structuralHash: 'def456',
@@ -147,7 +158,9 @@ describe('StructuralPatternsManager - Transaction Ordering', () => {
       structuralData: {
         extraction_method: 'ast_native',
         fidelity: 1.0,
-        classes: [{ name: 'TestClass', methods: [], properties: [], decorators: [] }],
+        classes: [
+          { name: 'TestClass', methods: [], properties: [], decorators: [] },
+        ],
       },
       contentHash: 'abc123',
       structuralHash: 'def456',
@@ -155,7 +168,9 @@ describe('StructuralPatternsManager - Transaction Ordering', () => {
     };
 
     // Should throw and not call manifest update
-    await expect(manager['generateAndStoreEmbedding'](result)).rejects.toThrow('Disk full');
+    await expect(manager['generateAndStoreEmbedding'](result)).rejects.toThrow(
+      'Disk full'
+    );
 
     expect(overlayUpdateSpy).toHaveBeenCalled();
     expect(manifestUpdateSpy).not.toHaveBeenCalled();
@@ -170,7 +185,9 @@ describe('StructuralPatternsManager - Transaction Ordering', () => {
       structuralData: {
         extraction_method: 'ast_native',
         fidelity: 1.0,
-        classes: [{ name: 'TestClass', methods: [], properties: [], decorators: [] }],
+        classes: [
+          { name: 'TestClass', methods: [], properties: [], decorators: [] },
+        ],
       },
       contentHash: 'abc123',
       structuralHash: 'def456',

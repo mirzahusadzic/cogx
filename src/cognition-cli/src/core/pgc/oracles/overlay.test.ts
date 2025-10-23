@@ -17,7 +17,11 @@ vi.mock('fs-extra', async () => {
           .access(filePath)
           .then(() => true)
           .catch(() => false),
-      writeJSON: (filePath: string, data: any, options?: any) =>
+      writeJSON: (
+        filePath: string,
+        data: unknown,
+        options?: { spaces?: number }
+      ) =>
         actualVol.promises.writeFile(
           filePath,
           JSON.stringify(data, null, options?.spaces || 0)
@@ -46,7 +50,7 @@ describe('OverlayOracle - Validation', () => {
       objectStore: {
         exists: vi.fn(async () => true),
       },
-    } as any;
+    } as Partial<PGCManager> as PGCManager;
 
     oracle = new OverlayOracle(mockPgc);
   });
@@ -73,7 +77,8 @@ describe('OverlayOracle - Validation', () => {
       },
     };
 
-    mockPgc.overlays.get = vi.fn()
+    mockPgc.overlays.get = vi
+      .fn()
       .mockResolvedValueOnce({ TestClass: 'src/test.ts' }) // manifest
       .mockResolvedValueOnce(validMetadata); // overlay metadata
 
@@ -87,7 +92,8 @@ describe('OverlayOracle - Validation', () => {
     // When schema validation fails in overlays.get(), it returns null
     // So this is treated as missing metadata
 
-    mockPgc.overlays.get = vi.fn()
+    mockPgc.overlays.get = vi
+      .fn()
       .mockResolvedValueOnce({ TestClass: 'src/test.ts' }) // manifest
       .mockResolvedValueOnce(null); // schema parse failed -> null
 
@@ -99,7 +105,8 @@ describe('OverlayOracle - Validation', () => {
   });
 
   it('should FAIL when overlay metadata is missing but manifest has entry', async () => {
-    mockPgc.overlays.get = vi.fn()
+    mockPgc.overlays.get = vi
+      .fn()
       .mockResolvedValueOnce({ TestClass: 'src/test.ts' }) // manifest exists
       .mockResolvedValueOnce(null); // overlay missing - ORPHANED ENTRY
 
@@ -128,7 +135,8 @@ describe('OverlayOracle - Validation', () => {
       },
     };
 
-    mockPgc.overlays.get = vi.fn()
+    mockPgc.overlays.get = vi
+      .fn()
       .mockResolvedValueOnce({ TestClass: 'src/test.ts' })
       .mockResolvedValueOnce(metadata);
 
@@ -139,9 +147,12 @@ describe('OverlayOracle - Validation', () => {
     const result = await oracle.verifyStructuralPatternsOverlay();
 
     expect(result.success).toBe(false);
-    expect(result.messages.some((m: string) =>
-      m.includes('symbolStructuralDataHash') && m.includes('missing_hash')
-    )).toBe(true);
+    expect(
+      result.messages.some(
+        (m: string) =>
+          m.includes('symbolStructuralDataHash') && m.includes('missing_hash')
+      )
+    ).toBe(true);
   });
 
   it('should FAIL when sourceHash not in object store', async () => {
@@ -162,7 +173,8 @@ describe('OverlayOracle - Validation', () => {
       },
     };
 
-    mockPgc.overlays.get = vi.fn()
+    mockPgc.overlays.get = vi
+      .fn()
       .mockResolvedValueOnce({ TestClass: 'src/test.ts' })
       .mockResolvedValueOnce(metadata);
 
@@ -173,8 +185,11 @@ describe('OverlayOracle - Validation', () => {
     const result = await oracle.verifyStructuralPatternsOverlay();
 
     expect(result.success).toBe(false);
-    expect(result.messages.some((m: string) =>
-      m.includes('sourceHash') && m.includes('missing_source_hash')
-    )).toBe(true);
+    expect(
+      result.messages.some(
+        (m: string) =>
+          m.includes('sourceHash') && m.includes('missing_source_hash')
+      )
+    ).toBe(true);
   });
 });
