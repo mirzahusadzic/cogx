@@ -102,7 +102,7 @@ export function addPatternsCommands(program: Command) {
           acc: Record<string, Array<{ symbol: string; filePath: string }>>,
           v: VectorRecord
         ) => {
-          const metadata = v.metadata as Record<string, unknown>;
+          const metadata = (v.metadata as Record<string, unknown>) || {};
           const role = (v.architectural_role as string) || 'unknown';
           const symbol = (metadata.symbol as string) || 'unknown';
           const filePath =
@@ -208,7 +208,7 @@ export function addPatternsCommands(program: Command) {
       );
 
       filteredVectors.forEach((v, i) => {
-        const metadata = v.metadata as Record<string, unknown>;
+        const metadata = (v.metadata as Record<string, unknown>) || {};
         const symbol = (metadata.symbol as string) || 'unknown';
         const filePath =
           ((metadata.anchor || metadata.file_path) as string) || 'unknown';
