@@ -40,16 +40,16 @@ The `cognition-cli` is the engine that builds and maintains the PGC. The PGC its
 
 The CLI provides a suite of tools to manage the PGC lifecycle.
 
-| Command                                      | Description                                                                                                                                                                   | Key Operations                                                                       |
-| :------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------- |
-| `cognition-cli init`                         | **Initializes the PGC.** Creates the `.open_cognition` directory and its core structure, preparing your project for analysis.                                                 | Create directories, generate metadata, `.gitignore`.                                 |
-| `cognition-cli genesis [sourcePath]`         | **Builds the Knowledge Graph.** Populates the PGC by parsing all source files, creating the verifiable "skeleton" of your project's structure.                                | File discovery, AST parsing, content hashing, `TransformLog` creation, verification. |
-| `cognition-cli overlay generate <type>`      | **Adds Analytical Layers.** Generates specialized overlays (`structural_patterns` or `lineage_patterns`), enriching the PGC with deeper semantic and relational insights. Supports `--force` for regeneration and `--skip-gc` for branch switching. | Symbol extraction, signature generation, vector embedding, `LanceDB` storage, garbage collection.        |
-| `cognition-cli patterns find-similar <symbol>`    | **Find Similar Patterns.** Uses vector similarity to find code that is structurally similar to a given symbol.                    | Vector similarity search, architectural role matching.             |
-| `cognition-cli patterns compare <symbol1> <symbol2>`    | **Compare Patterns.** Compares the structural signatures and dependencies of two symbols.                    | Cosine similarity, signature comparison, architectural analysis.             |
-| `cognition-cli patterns analyze`    | **Analyze Architecture.** Provides distribution of architectural roles across the codebase.                    | Role aggregation, pattern statistics.             |
-| `cognition-cli query <question>`        | **Traverses the Graph.** Searches for symbols and traces their dependency lineage through the PGC. Supports `--depth` and `--lineage` flags.                                                    | Index lookup, structural data retrieval, recursive dependency traversal.             |
-| `cognition-cli audit:transformations <filePath>` | **Verifies PGC Integrity.** Audits the transformation history of any file, ensuring the chain of provenance is unbroken and all data is coherent.                             | History review, hash verification, integrity checks.                                 |
+| Command                                              | Description                                                                                                                                                                                                                                         | Key Operations                                                                                    |
+| :--------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------ |
+| `cognition-cli init`                                 | **Initializes the PGC.** Creates the `.open_cognition` directory and its core structure, preparing your project for analysis.                                                                                                                       | Create directories, generate metadata, `.gitignore`.                                              |
+| `cognition-cli genesis [sourcePath]`                 | **Builds the Knowledge Graph.** Populates the PGC by parsing all source files, creating the verifiable "skeleton" of your project's structure.                                                                                                      | File discovery, AST parsing, content hashing, `TransformLog` creation, verification.              |
+| `cognition-cli overlay generate <type>`              | **Adds Analytical Layers.** Generates specialized overlays (`structural_patterns` or `lineage_patterns`), enriching the PGC with deeper semantic and relational insights. Supports `--force` for regeneration and `--skip-gc` for branch switching. | Symbol extraction, signature generation, vector embedding, `LanceDB` storage, garbage collection. |
+| `cognition-cli patterns find-similar <symbol>`       | **Find Similar Patterns.** Uses vector similarity to find code that is structurally similar to a given symbol.                                                                                                                                      | Vector similarity search, architectural role matching.                                            |
+| `cognition-cli patterns compare <symbol1> <symbol2>` | **Compare Patterns.** Compares the structural signatures and dependencies of two symbols.                                                                                                                                                           | Cosine similarity, signature comparison, architectural analysis.                                  |
+| `cognition-cli patterns analyze`                     | **Analyze Architecture.** Provides distribution of architectural roles across the codebase.                                                                                                                                                         | Role aggregation, pattern statistics.                                                             |
+| `cognition-cli query <question>`                     | **Traverses the Graph.** Searches for symbols and traces their dependency lineage through the PGC. Supports `--depth` and `--lineage` flags.                                                                                                        | Index lookup, structural data retrieval, recursive dependency traversal.                          |
+| `cognition-cli audit:transformations <filePath>`     | **Verifies PGC Integrity.** Audits the transformation history of any file, ensuring the chain of provenance is unbroken and all data is coherent.                                                                                                   | History review, hash verification, integrity checks.                                              |
 
 ---
 
@@ -123,13 +123,13 @@ The CLI provides a suite of tools to manage the PGC lifecycle.
 
 ## Table of Contents (Official Documentation)
 
-- [00 - Introduction to Cognition CLI](./00_Introduction.md)
-- [01 - Structural Analysis: Mapping the Codebase](./01_Structural_Analysis.md)
-- [02 - Core Infrastructure: The Grounded Context Pool (PGC)](./02_Core_Infrastructure.md)
-- [03 - Commands: Interacting with the Cognition CLI](./03_Commands.md)
-- [04 - Miners and Executors: Extracting and Processing Knowledge](./04_Miners_and_Executors.md)
-- [05 - Verification and Oracles: Ensuring PGC Integrity](./05_Verification_and_Oracles.md)
-- [06 - Testing and Deployment](./06_Testing_and_Deployment.md)
+- [00 - Introduction to Cognition CLI](./docs/00_Introduction.md)
+- [01 - Structural Analysis: Mapping the Codebase](./docs/01_Structural_Analysis.md)
+- [02 - Core Infrastructure: The Grounded Context Pool (PGC)](./docs/02_Core_Infrastructure.md)
+- [03 - Commands: Interacting with the Cognition CLI](./docs/03_Commands.md)
+- [04 - Miners and Executors: Extracting and Processing Knowledge](./docs/04_Miners_and_Executors.md)
+- [05 - Verification and Oracles: Ensuring PGC Integrity](./docs/05_Verification_and_Oracles.md)
+- [06 - Testing and Deployment](./docs/06_Testing_and_Deployment.md)
 
 ## Research & Collaboration
 

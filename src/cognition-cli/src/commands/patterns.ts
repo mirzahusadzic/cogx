@@ -8,6 +8,7 @@ import { WorkbenchClient } from '../core/executors/workbench-client.js';
 import { StructuralPatternsManager } from '../core/overlays/structural/patterns.js';
 import { LineagePatternsManager } from '../core/overlays/lineage/manager.js';
 import chalk from 'chalk';
+import { z } from 'zod';
 
 import { PatternManager } from '../core/pgc/patterns.js';
 
@@ -87,6 +88,7 @@ export function addPatternsCommands(program: Command) {
       "The type of patterns to analyze ('structural' or 'lineage')",
       'structural'
     )
+    .option('--verbose', 'Show detailed information including file paths')
     .action(async (options) => {
       const pgc = new PGCManager(process.cwd());
       const vectorDB = new LanceVectorStore(pgc.pgcRoot);
@@ -94,23 +96,391 @@ export function addPatternsCommands(program: Command) {
       await vectorDB.initialize(tableName);
       const allVectors: VectorRecord[] = await vectorDB.getAllVectors();
 
-      // Group by architectural role
-      const roleDistribution = allVectors.reduce(
-        (acc: Record<string, number>, v: VectorRecord) => {
-          const role = v.architectural_role as string;
-          acc[role] = (acc[role] || 0) + 1;
+      // Group by architectural role with symbols and file paths
+      const roleGroups = allVectors.reduce(
+        (
+          acc: Record<string, Array<{ symbol: string; filePath: string }>>,
+          v: VectorRecord
+        ) => {
+          const metadata = v.metadata as Record<string, unknown>;
+          const role = (v.architectural_role as string) || 'unknown';
+          const symbol = (metadata.symbol as string) || 'unknown';
+          const filePath =
+            ((metadata.anchor || metadata.file_path) as string) || 'unknown';
+
+          if (!acc[role]) {
+            acc[role] = [];
+          }
+          acc[role].push({ symbol, filePath });
           return acc;
         },
-        {} as Record<string, number>
+        {} as Record<string, Array<{ symbol: string; filePath: string }>>
       );
 
-      console.log(chalk.bold('\n📊 Architectural Pattern Distribution:\n'));
-      Object.entries(roleDistribution)
-        .sort(([, a], [, b]) => b - a)
-        .forEach(([role, count]) => {
-          const bar = '▓'.repeat(count);
-          console.log(`${chalk.cyan(role.padEnd(15))} ${bar} ${count}`);
-        });
+      console.log(
+        chalk.bold(
+          `\n📊 Architectural Pattern Distribution (${options.type}):\n`
+        )
+      );
+
+      const sortedRoles = Object.entries(roleGroups).sort(
+        ([, a], [, b]) => b.length - a.length
+      );
+
+      for (const [role, symbols] of sortedRoles) {
+        const count = symbols.length;
+        const bar = '▓'.repeat(Math.min(count, 50));
+        console.log(
+          `\n${chalk.cyan(role.padEnd(20))} ${bar} ${chalk.bold(count)}`
+        );
+
+        if (options.verbose) {
+          // Show first 5 symbols in this role
+          const displayCount = Math.min(5, symbols.length);
+          for (let i = 0; i < displayCount; i++) {
+            const { symbol, filePath } = symbols[i];
+            console.log(chalk.dim(`  ${i + 1}. ${symbol} - ${filePath}`));
+          }
+          if (symbols.length > 5) {
+            console.log(chalk.dim(`  ... and ${symbols.length - 5} more`));
+          }
+        }
+      }
+
+      // Show summary statistics
+      console.log(chalk.bold('\n📈 Summary:'));
+      console.log(`  Total patterns: ${allVectors.length}`);
+      console.log(`  Unique roles: ${sortedRoles.length}`);
+      console.log(
+        `  Most common role: ${chalk.cyan(sortedRoles[0]?.[0])} (${sortedRoles[0]?.[1].length})`
+      );
+
+      if (!options.verbose) {
+        console.log(
+          chalk.dim('\n💡 Use --verbose to see file paths for each role')
+        );
+      }
+    });
+
+  patternsCommand
+    .command('list')
+    .description('List all patterns, optionally filtered by role')
+    .option('--role <role>', 'Filter by architectural role')
+    .option(
+      '--type <type>',
+      "The type of patterns to list ('structural' or 'lineage')",
+      'structural'
+    )
+    .action(async (options) => {
+      const pgc = new PGCManager(process.cwd());
+      const vectorDB = new LanceVectorStore(pgc.pgcRoot);
+      const tableName = `${options.type}_patterns`;
+      await vectorDB.initialize(tableName);
+      const allVectors: VectorRecord[] = await vectorDB.getAllVectors();
+
+      // Filter by role if specified
+      let filteredVectors = allVectors;
+      if (options.role) {
+        filteredVectors = allVectors.filter(
+          (v) => v.architectural_role === options.role
+        );
+      }
+
+      if (filteredVectors.length === 0) {
+        if (options.role) {
+          console.log(
+            chalk.yellow(
+              `\nNo patterns found with role: ${chalk.cyan(options.role)}`
+            )
+          );
+        } else {
+          console.log(chalk.yellow('\nNo patterns found.'));
+        }
+        return;
+      }
+
+      const title = options.role
+        ? `Patterns with role: ${chalk.cyan(options.role)}`
+        : `All ${options.type} patterns`;
+
+      console.log(
+        chalk.bold(`\n📋 ${title} (${filteredVectors.length} found):\n`)
+      );
+
+      filteredVectors.forEach((v, i) => {
+        const metadata = v.metadata as Record<string, unknown>;
+        const symbol = (metadata.symbol as string) || 'unknown';
+        const filePath =
+          ((metadata.anchor || metadata.file_path) as string) || 'unknown';
+        const role = v.architectural_role as string;
+
+        console.log(`${i + 1}. ${chalk.green(symbol)}`);
+        console.log(`   📁 ${chalk.dim(filePath)}`);
+        if (!options.role) {
+          console.log(`   🏷️  ${chalk.cyan(role)}`);
+        }
+        console.log('');
+      });
+
+      // Show available roles if no filter applied
+      if (!options.role) {
+        const roles = new Set(
+          allVectors.map((v) => v.architectural_role as string)
+        );
+        console.log(chalk.dim('\n💡 Available roles:'));
+        console.log(chalk.dim(`   ${Array.from(roles).sort().join(', ')}`));
+        console.log(
+          chalk.dim('\n   Use --role <role> to filter by a specific role')
+        );
+      }
+    });
+
+  patternsCommand
+    .command('inspect <symbol>')
+    .description('Show comprehensive information about a symbol')
+    .action(async (symbol) => {
+      const pgc = new PGCManager(process.cwd());
+      const vectorDB = new LanceVectorStore(pgc.pgcRoot);
+
+      console.log(
+        chalk.bold(`\n🔍 Inspecting symbol: ${chalk.cyan(symbol)}\n`)
+      );
+
+      // Check structural patterns
+      const structuralManifest = await pgc.overlays.getManifest(
+        'structural_patterns'
+      );
+      const structuralFilePath = structuralManifest?.[symbol];
+
+      if (!structuralFilePath) {
+        console.log(chalk.red(`❌ Symbol '${symbol}' not found in patterns.`));
+        console.log(
+          chalk.dim('\n💡 Use `patterns list` to see all available symbols')
+        );
+        return;
+      }
+
+      console.log(
+        chalk.green(`✅ Found in: ${chalk.dim(structuralFilePath)}\n`)
+      );
+
+      // Load structural pattern metadata
+      const structuralOverlayKey = `${structuralFilePath}#${symbol}`;
+      const structuralMeta = await pgc.overlays.get(
+        'structural_patterns',
+        structuralOverlayKey,
+        z.record(z.unknown())
+      );
+
+      if (structuralMeta) {
+        const meta = structuralMeta as Record<string, unknown>;
+        console.log(chalk.bold('📦 Structural Pattern:'));
+        console.log(`   Role: ${chalk.cyan(meta.architecturalRole)}`);
+        console.log(`   Signature: ${chalk.dim(meta.structuralSignature)}`);
+        console.log(`   Computed: ${chalk.dim(meta.computedAt)}`);
+
+        const validation = meta.validation as Record<string, unknown>;
+        if (validation) {
+          console.log(chalk.bold('\n✅ Validation:'));
+          console.log(`   Extraction: ${validation.extractionMethod}`);
+          console.log(`   Fidelity: ${validation.fidelity}`);
+          console.log(`   Model: ${validation.embeddingModelVersion}`);
+        }
+      }
+
+      // Load lineage pattern metadata
+      const lineageManifest =
+        await pgc.overlays.getManifest('lineage_patterns');
+      const lineageFilePath = lineageManifest?.[symbol];
+
+      if (lineageFilePath) {
+        const lineageOverlayKey = `${lineageFilePath}#${symbol}`;
+        const lineageMeta = await pgc.overlays.get(
+          'lineage_patterns',
+          lineageOverlayKey,
+          z.record(z.unknown())
+        );
+
+        if (lineageMeta) {
+          const meta = lineageMeta as Record<string, unknown>;
+          console.log(chalk.bold('\n🌳 Lineage Pattern:'));
+
+          try {
+            const lineageData = JSON.parse(meta.lineageSignature as string);
+            if (lineageData.lineage && lineageData.lineage.length > 0) {
+              console.log(`   Dependencies (${lineageData.lineage.length}):`);
+              lineageData.lineage.forEach(
+                (dep: { type: string; depth: number }) => {
+                  const indent = '  '.repeat(dep.depth);
+                  console.log(
+                    `   ${indent}└─ ${chalk.cyan(dep.type)} ${chalk.dim(`(depth ${dep.depth})`)}`
+                  );
+                }
+              );
+            } else {
+              console.log(chalk.dim('   No dependencies found'));
+            }
+          } catch {
+            console.log(chalk.dim('   Could not parse lineage data'));
+          }
+        }
+      } else {
+        console.log(
+          chalk.yellow('\n⚠️  No lineage pattern found for this symbol')
+        );
+        console.log(
+          chalk.dim('   Run: cognition-cli overlay generate lineage_patterns')
+        );
+      }
+
+      // Find similar patterns
+      await vectorDB.initialize('structural_patterns');
+      const structuralPatternManager = new StructuralPatternsManager(
+        pgc,
+        vectorDB,
+        new WorkbenchClient(process.env.WORKBENCH_URL!)
+      );
+
+      try {
+        const similar = await structuralPatternManager.findSimilarPatterns(
+          symbol,
+          5
+        );
+        if (similar.length > 0) {
+          console.log(chalk.bold('\n🔗 Similar Patterns:'));
+          similar.forEach((s, i) => {
+            console.log(
+              `   ${i + 1}. ${chalk.green(s.symbol)} ${chalk.dim(`(${(s.similarity * 100).toFixed(1)}%)`)}`
+            );
+            console.log(`      📁 ${chalk.dim(s.filePath)}`);
+          });
+        }
+      } catch (error) {
+        console.log(chalk.dim('\n💡 Similar patterns search unavailable'));
+      }
+    });
+
+  patternsCommand
+    .command('graph <symbol>')
+    .description('Visualize dependency graph for a symbol')
+    .option('--json', 'Output as JSON instead of ASCII tree')
+    .option('--max-depth <number>', 'Maximum depth to traverse', '3')
+    .action(async (symbol, options) => {
+      const pgc = new PGCManager(process.cwd());
+
+      console.log(
+        chalk.bold(`\n🌳 Dependency Graph for: ${chalk.cyan(symbol)}\n`)
+      );
+
+      // Check if symbol exists in lineage patterns
+      const lineageManifest =
+        await pgc.overlays.getManifest('lineage_patterns');
+      const filePath = lineageManifest?.[symbol];
+
+      if (!filePath) {
+        console.log(
+          chalk.red(`❌ Symbol '${symbol}' not found in lineage patterns.`)
+        );
+        console.log(
+          chalk.dim('\n💡 Run: cognition-cli overlay generate lineage_patterns')
+        );
+        return;
+      }
+
+      // Load lineage pattern
+      const overlayKey = `${filePath}#${symbol}`;
+      const lineageMeta = await pgc.overlays.get(
+        'lineage_patterns',
+        overlayKey,
+        z.record(z.unknown())
+      );
+
+      if (!lineageMeta) {
+        console.log(chalk.red(`❌ No lineage data found for '${symbol}'.`));
+        return;
+      }
+
+      const meta = lineageMeta as Record<string, unknown>;
+
+      try {
+        const lineageData = JSON.parse(meta.lineageSignature as string);
+
+        if (options.json) {
+          // Output as JSON for external visualization tools
+          const graph = {
+            symbol: lineageData.symbol,
+            nodes: lineageData.lineage.map(
+              (dep: { type: string; depth: number }) => ({
+                id: dep.type,
+                depth: dep.depth,
+              })
+            ),
+            edges: lineageData.lineage.map((dep: { type: string }) => ({
+              from: symbol,
+              to: dep.type,
+            })),
+            maxDepth: Math.max(
+              ...lineageData.lineage.map((d: { depth: number }) => d.depth),
+              1
+            ),
+          };
+          console.log(JSON.stringify(graph, null, 2));
+        } else {
+          // ASCII tree visualization
+          if (!lineageData.lineage || lineageData.lineage.length === 0) {
+            console.log(chalk.dim('No dependencies found'));
+            return;
+          }
+
+          console.log(chalk.green(symbol));
+
+          // Group dependencies by depth
+          const byDepth: Record<number, string[]> = {};
+          lineageData.lineage.forEach(
+            (dep: { type: string; depth: number }) => {
+              if (!byDepth[dep.depth]) {
+                byDepth[dep.depth] = [];
+              }
+              byDepth[dep.depth].push(dep.type);
+            }
+          );
+
+          const maxDepth = parseInt(options.maxDepth);
+          const depths = Object.keys(byDepth)
+            .map(Number)
+            .sort()
+            .filter((d) => d <= maxDepth);
+
+          for (const depth of depths) {
+            const deps = byDepth[depth];
+            const isLast = depth === depths[depths.length - 1];
+
+            deps.forEach((dep, idx) => {
+              const isLastInGroup = idx === deps.length - 1;
+              const prefix =
+                depth === 1 ? '├─' : depth === 2 ? '│ ├─' : '│ │ ├─';
+              const lastPrefix =
+                depth === 1 ? '└─' : depth === 2 ? '│ └─' : '│ │ └─';
+
+              const connector = isLastInGroup && isLast ? lastPrefix : prefix;
+              console.log(
+                `${connector} ${chalk.cyan(dep)} ${chalk.dim(`(depth ${depth})`)}`
+              );
+            });
+          }
+
+          if (Object.keys(byDepth).some((d) => Number(d) > maxDepth)) {
+            console.log(
+              chalk.dim(
+                `\n... and deeper dependencies (use --max-depth to see more)`
+              )
+            );
+          }
+        }
+      } catch (error) {
+        console.log(chalk.red('Failed to parse lineage data'));
+        console.error(error);
+      }
     });
 
   patternsCommand

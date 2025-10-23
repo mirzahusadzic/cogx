@@ -111,6 +111,7 @@ A suite of powerful tools for querying the `structural_patterns` overlay, allowi
 Finds code that is architecturally similar to a given symbol based on vector embeddings of their structure.
 
 **Options:**
+
 - `-k, --top-k <number>` - Number of similar patterns to return (default: 10)
 - `--type <type>` - Type of patterns to find: 'structural' or 'lineage' (default: structural)
 - `--json` - Output raw JSON instead of formatted text
@@ -131,6 +132,7 @@ cognition-cli patterns find-similar OrderManager --json
 Compares the structural signatures and dependencies of two symbols, showing their similarity score.
 
 **Options:**
+
 - `--type <type>` - Type of patterns to compare: 'structural' or 'lineage' (default: structural)
 
 ```bash
@@ -146,6 +148,7 @@ cognition-cli patterns compare UserService OrderService --type lineage
 Provides a high-level overview of the architectural roles (e.g., 'component', 'service', 'controller', 'data_access') found in your codebase, showing distribution statistics.
 
 **Options:**
+
 - `--type <type>` - Type of patterns to analyze: 'structural' or 'lineage' (default: structural)
 
 ```bash
