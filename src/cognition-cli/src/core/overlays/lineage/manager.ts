@@ -10,7 +10,7 @@ import { WorkbenchClient } from '../../executors/workbench-client.js';
 import { PatternManager } from '../../pgc/patterns.js';
 import { StructuralData } from '../../types/structural.js';
 import { EmbeddingService } from '../../services/embedding-service.js';
-import { EmbedResponse } from '../../types/workbench.js'; // ADD THIS IMPORT
+import { EmbedResponse } from '../../types/workbench.js';
 import {
   PatternGenerationOptions,
   StructuralSymbolType,
@@ -42,7 +42,8 @@ export class LineagePatternsManager implements PatternManager {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
     this.workerPool = workerpool.pool(
-      path.resolve(__dirname, 'lineage-pattern-worker.js')
+      path.resolve(__dirname, '../../../../dist/worker.cjs'),
+      { workerType: 'process' }
     );
 
     // 2. Initialize the centralized embedding service
@@ -122,6 +123,7 @@ export class LineagePatternsManager implements PatternManager {
     console.log(`[LineagePatterns] Dispatching ${jobs.length} jobs...`);
 
     try {
+      // Use string name instead of importing the function
       const promises = jobs.map((job) =>
         this.workerPool.exec('processJob', [job])
       );

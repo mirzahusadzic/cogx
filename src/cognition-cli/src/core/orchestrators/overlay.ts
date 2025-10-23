@@ -128,12 +128,17 @@ export class OverlayOrchestrator {
       path.join(this.projectRoot, 'src')
     );
     await this.runPGCMaintenance(allFiles.map((f) => f.relativePath));
+
     if (overlayType === 'lineage_patterns') {
       s.start('[Overlay] Generating lineage patterns from manifest...');
 
-      await this.lineagePatternManager.generateLineageForAllPatterns();
-
-      s.stop('[Overlay] Lineage patterns generated.');
+      try {
+        await this.lineagePatternManager.generateLineageForAllPatterns();
+        s.stop('[Overlay] Lineage patterns generated.');
+      } finally {
+        // 👇 CRITICAL: Always shutdown the worker pool
+        await this.lineagePatternManager.shutdown();
+      }
     } else {
       s.start('[Overlay] Initializing vector database...');
       await this.vectorDB.initialize(overlayType);
@@ -202,7 +207,7 @@ export class OverlayOrchestrator {
           }
 
           const processIndividualSymbol = async (symbolName: string) => {
-            const overlayKey = `${filePath}#${symbolName}`;
+            const overlayKey = `${file.relativePath}#${symbolName}`;
 
             const existingOverlay = await this.pgc.overlays.get(
               overlayType,
