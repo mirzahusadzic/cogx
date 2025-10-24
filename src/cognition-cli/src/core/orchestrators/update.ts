@@ -385,9 +385,110 @@ export class UpdateOrchestrator {
       }
     }
 
-    // 5. TODO: Invalidate overlays that anchor to this Genesis element
+    // 5. Invalidate overlays that anchor to this Genesis element
     // This will mark structural_patterns and lineage_patterns for regeneration
-    // await this.invalidateOverlays(objectHash);
+    await this.invalidateOverlays(objectHash);
+  }
+
+  /**
+   * Invalidate overlays that depend on a Genesis structural hash
+   * Implements: Overlay invalidation when anchored Genesis elements change
+   *
+   * When a source file's structure changes, all overlays (patterns, embeddings)
+   * that anchor to the old structure must be invalidated and regenerated.
+   */
+  private async invalidateOverlays(structuralHash: string): Promise<void> {
+    const overlayTypes = ['structural_patterns']; // Add 'lineage_patterns' when implemented
+
+    for (const overlayType of overlayTypes) {
+      try {
+        // Get all overlay files for this type
+        const overlaysDir = path.join(this.projectRoot, '.open_cognition', 'overlays', overlayType);
+
+        if (!(await fs.pathExists(overlaysDir))) {
+          continue; // No overlays of this type yet
+        }
+
+        // Recursively find all .json files except manifest.json
+        const overlayFiles = await this.findOverlayFiles(overlaysDir);
+
+        for (const overlayFile of overlayFiles) {
+          try {
+            const overlayData = await fs.readJSON(overlayFile);
+
+            // Check if this overlay anchors to the invalidated structural hash
+            if (overlayData.symbolStructuralDataHash === structuralHash) {
+              // Delete the overlay file - it will be regenerated on next overlay generation
+              await fs.remove(overlayFile);
+
+              // Also remove from manifest
+              const symbolName = overlayData.symbol;
+              await this.removeFromManifest(overlayType, symbolName);
+            }
+          } catch (error) {
+            // Overlay file might be corrupted or incomplete - skip it
+            continue;
+          }
+        }
+      } catch (error) {
+        // If overlay invalidation fails, log but don't block the update
+        log.warn(
+          chalk.yellow(
+            `Warning: Failed to invalidate ${overlayType} overlays: ${(error as Error).message}`
+          )
+        );
+      }
+    }
+  }
+
+  /**
+   * Recursively find all overlay .json files except manifest.json
+   */
+  private async findOverlayFiles(dir: string): Promise<string[]> {
+    const results: string[] = [];
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+
+      if (entry.isDirectory()) {
+        // Recursively search subdirectories
+        const subResults = await this.findOverlayFiles(fullPath);
+        results.push(...subResults);
+      } else if (entry.isFile() && entry.name.endsWith('.json') && entry.name !== 'manifest.json') {
+        results.push(fullPath);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Remove a symbol from the overlay manifest
+   */
+  private async removeFromManifest(overlayType: string, symbolName: string): Promise<void> {
+    try {
+      const manifest = await this.pgc.overlays.getManifest(overlayType);
+      if (manifest[symbolName]) {
+        delete manifest[symbolName];
+
+        const manifestPath = path.join(
+          this.projectRoot,
+          '.open_cognition',
+          'overlays',
+          overlayType,
+          'manifest.json'
+        );
+        await fs.writeJSON(manifestPath, manifest, { spaces: 2 });
+      }
+    } catch (error) {
+      // If manifest update fails, log but don't block
+      log.warn(
+        chalk.yellow(
+          `Warning: Failed to update ${overlayType} manifest: ${(error as Error).message}`
+        )
+      );
+    }
   }
 
   /**
