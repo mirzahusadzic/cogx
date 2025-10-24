@@ -20,7 +20,7 @@ Instead of scanning files for changes, we **listen to the filesystem** and maint
 
 **Purpose**: Emit `change_event` when source files are modified
 
-```typescript
+````typescript
 interface ChangeEvent {
   type: 'modified' | 'created' | 'deleted';
   path: string;
@@ -350,3 +350,4 @@ This is **the coordination layer for the multi-agent future.** 🚀
 ---
 
 **Next Step**: Start with file watcher + dirty_state (Hour 1)
+````

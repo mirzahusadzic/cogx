@@ -24,7 +24,7 @@ Claude Code supports **slash commands** defined as markdown files in the `.claud
 
 **The cognition-cli already includes living guides in this format:**
 
-```text
+```bash
 cognition-cli/
 ├── .claude/
 │   └── commands/
@@ -32,17 +32,17 @@ cognition-cli/
 │       ├── status.md       # Guide for status command
 │       ├── update.md       # Guide for update command
 │       └── explore-architecture.md  # AI architecture exploration
-```text
+```
 
 ### Using Guides as Slash Commands
 
 In Claude Code, you can run:
 
-```text
+```bash
 /watch     → Shows the watch command guide
 /status    → Shows the status command guide
 /update    → Shows the update command guide
-```text
+```
 
 Claude Code will read the markdown, understand the command's purpose, options, and examples, then help you use it effectively!
 
@@ -52,8 +52,7 @@ You can create your own `.claude/commands/` that leverage cognition-cli:
 
 **Example: `.claude/commands/analyze-impact.md`**
 
-```markdown
-# Analyze Impact of Changes
+## Analyze Impact of Changes
 
 Please analyze the impact of my recent changes using the PGC:
 
@@ -63,9 +62,10 @@ Please analyze the impact of my recent changes using the PGC:
 4. Suggest if changes should be split into multiple commits based on blast radius
 
 Be thorough and provide specific examples from the output.
-```text
 
+```bash
 Now `/analyze-impact` becomes a custom workflow!
+```
 
 ---
 
@@ -83,18 +83,18 @@ Now `/analyze-impact` becomes a custom workflow!
    cognition-cli init
    cognition-cli genesis src/
    cognition-cli overlay generate structural_patterns
-   ```text
+   ```
 
 2. **In Claude Code, use PGC commands**:
 
-   ```text
+   ```bash
    User: /explore-architecture
 
    Claude: I'll analyze your architecture using the PGC...
    [Runs cognition-cli patterns list]
    [Runs cognition-cli patterns analyze]
    [Provides architectural insights based on structural patterns]
-   ```text
+   ```
 
 3. **Claude reasons about your architecture** using grounded data, not hallucinations:
    - Identifies architectural roles (components, services, utilities)
@@ -114,11 +114,11 @@ Now `/analyze-impact` becomes a custom workflow!
 
    ```bash
    cognition-cli watch
-   ```text
+   ```
 
 2. **Terminal 2: Work with Claude Code**
 
-   ```text
+   ```bash
    User: Please refactor the authentication logic in src/auth.ts
 
    Claude: [Makes changes using Edit tool]
@@ -126,11 +126,11 @@ Now `/analyze-impact` becomes a custom workflow!
    # Watch detects changes:
    # ✗ src/auth.ts
    # Detected change: src/auth.ts
-   ```text
+   ```
 
 3. **Check impact before committing**:
 
-   ```text
+   ```bash
    User: What's the PGC status?
 
    Claude: [Runs cognition-cli status --verbose]
@@ -149,18 +149,18 @@ Now `/analyze-impact` becomes a custom workflow!
    Claude: "8 symbols were affected by the refactoring. This is a medium-sized
    change that impacts core authentication functions. I recommend running
    `cognition-cli update` before committing to ensure the PGC is synchronized."
-   ```text
+   ```
 
 4. **Update and verify**:
 
-   ```text
+   ```bash
    User: Please update the PGC
 
    Claude: [Runs cognition-cli update]
    ✓ Update complete - PGC is coherent
 
    Claude: "PGC is now synchronized. Safe to commit!"
-   ```text
+   ```
 
 **Why it works**: Claude Code can monitor PGC coherence and advise on when to update, creating a feedback loop between AI-driven changes and verifiable knowledge.
 
@@ -172,7 +172,7 @@ Now `/analyze-impact` becomes a custom workflow!
 
 1. **Analyze before refactoring**:
 
-   ```text
+   ```bash
    User: I want to refactor PGCManager. What's the impact?
 
    Claude: [Runs cognition-cli blast-radius PGCManager]
@@ -197,7 +197,7 @@ Now `/analyze-impact` becomes a custom workflow!
    2. Consider interface-preserving refactoring
    3. Split changes into smaller, incremental commits
    4. Review each critical path after changes"
-   ```text
+   ```
 
 2. **Make informed decisions**:
    - Claude understands the architectural impact
@@ -213,8 +213,7 @@ Now `/analyze-impact` becomes a custom workflow!
 
 **Create `.claude/commands/pre-commit-check.md`:**
 
-```markdown
-# Pre-Commit Quality Check
+#### Pre-Commit Quality Check
 
 Run a comprehensive quality check before committing:
 
@@ -239,11 +238,10 @@ Run a comprehensive quality check before committing:
    - Recommendation: Safe to commit / Needs attention
 
 Be thorough and provide actionable feedback.
-```text
 
 **Usage:**
 
-```text
+```bash
 User: /pre-commit-check
 
 Claude: Running pre-commit quality checks...
@@ -259,7 +257,7 @@ Claude: Running pre-commit quality checks...
 ✅ RECOMMENDATION: Safe to commit!
    This is a focused change affecting only the authentication module.
    Consider commit message: "refactor(auth): improve session management"
-```text
+```
 
 **Why it works**: Automates the quality check workflow using PGC data + test results, giving you confidence before committing.
 
@@ -277,7 +275,7 @@ cognition-cli watch
 
 # Terminal 2
 claude  # Start Claude Code
-```text
+```
 
 This ensures dirty_state is always up-to-date, allowing Claude to give accurate coherence feedback.
 
@@ -285,7 +283,7 @@ This ensures dirty_state is always up-to-date, allowing Claude to give accurate 
 
 **Before committing, ask Claude:**
 
-```text
+```bash
 User: Check PGC status before I commit
 
 Claude: [Runs cognition-cli status --verbose]
@@ -294,7 +292,7 @@ Impacted symbols: 12
 
 Claude: "Medium-sized change. Consider reviewing if these 3 files
 represent a cohesive feature or should be split into separate commits."
-```text
+```
 
 This creates a feedback loop where **blast radius informs commit granularity**.
 
@@ -302,7 +300,7 @@ This creates a feedback loop where **blast radius informs commit granularity**.
 
 **Instead of explaining commands, reference guides:**
 
-```text
+```bash
 User: How does the update command work?
 
 Claude: Let me check the guide...
@@ -312,7 +310,7 @@ Claude: "Update implements the Invalidate algorithm from CogX. It reads
 dirty_state.json, re-processes changed files, updates the PGC, and runs
 Oracle verification. It's optimized to skip verification if no files actually
 changed. Here's an example..."
-```text
+```
 
 The guides **ship with the tool**, so Claude always has accurate, version-specific documentation!
 
@@ -322,7 +320,7 @@ The guides **ship with the tool**, so Claude always has accurate, version-specif
 
 **`.claude/commands/security-audit.md`:**
 
-```markdown
+```bash
 # Security-Focused Codebase Audit
 
 Perform a security-oriented analysis using PGC:
@@ -335,7 +333,7 @@ Perform a security-oriented analysis using PGC:
 6. Suggest security-focused test coverage
 
 Focus on architectural security, not code-level vulnerabilities.
-```text
+```
 
 ### 5. Integrate with Git Workflows
 
@@ -359,11 +357,11 @@ if ! cognition-cli status --json > /dev/null 2>&1; then
 fi
 
 echo "🔔 PGC is coherent - proceeding with commit"
-```text
+```
 
 **Ask Claude to set this up:**
 
-```text
+```bash
 User: Create a pre-commit hook that ensures PGC coherence
 
 Claude: [Creates the hook script above]
@@ -371,7 +369,7 @@ Claude: [Makes it executable with chmod +x]
 
 Claude: "Pre-commit hook installed! Now every commit will ensure the PGC
 is synchronized with your code changes."
-```text
+```
 
 ---
 
@@ -381,7 +379,7 @@ is synchronized with your code changes."
 
 **Once Monument 4 & 5 are built:**
 
-```text
+```bash
 # Agent 1 (Claude Code instance 1)
 User: Refactor auth module
 
@@ -399,13 +397,13 @@ auth module. Syncing with latest PGC state before continuing..."
 
 [Runs cognition-cli update]
 [Resumes work with fresh context]
-```text
+```
 
 This is the **multi-agent coordination** from CogX blueprint - enabled by Monument 1-3!
 
 ### Scenario 2: Semantic Code Search with AI
 
-```text
+```bash
 User: Find all functions that are structurally similar to validateUser
 
 Claude: [Runs cognition-cli patterns find-similar validateUser --top-k 10]
@@ -424,7 +422,7 @@ patterns with validateUser. They all:
 - Follow the validator architectural role
 
 Would you like me to analyze if they could share a common abstraction?"
-```text
+```
 
 ### Scenario 3: Continuous Integration with PGC
 
@@ -464,11 +462,11 @@ jobs:
             echo "⚠️ Large impact detected ($SYMBOLS symbols)"
             echo "Consider splitting this PR into smaller changes"
           fi
-```text
+```
 
 **Ask Claude to generate this:**
 
-```text
+```bash
 User: Create a GitHub Actions workflow that checks PGC coherence on PRs
 
 Claude: [Creates the YAML file above]
@@ -480,7 +478,7 @@ Claude: "This workflow will:
 4. Encourage smaller, focused changes
 
 This enforces PGC coherence as part of your CI/CD pipeline!"
-```text
+```
 
 ---
 
@@ -502,7 +500,7 @@ npm link
 
 # Or add to PATH in your shell config
 export PATH="$PATH:/path/to/cognition-cli/dist"
-```text
+```
 
 ### Slash Commands Not Working
 
@@ -519,7 +517,7 @@ ls -la .claude/commands/
 # status.md
 # update.md
 # explore-architecture.md
-```text
+```
 
 Claude Code will find these automatically!
 
@@ -535,13 +533,13 @@ ps aux | grep "cognition-cli watch"
 
 # If not, start it
 cognition-cli watch --verbose
-```text
+```
 
 **Remember**: Status only reads `dirty_state.json`. Without watch running, this file isn't updated!
 
 ### Scenario 4: AI-Guided Architectural Analysis
 
-```text
+```bash
 User: Analyze the architectural patterns in my codebase
 
 Claude: I'll analyze using the PGC overlays...
@@ -568,11 +566,11 @@ services, which is good! The 47 components indicate a modular frontend.
 
 Would you like me to analyze specific architectural patterns or
 find similar components for refactoring?"
-```text
+```
 
 ### Scenario 5: Dependency Tracing with AI Context
 
-```text
+```bash
 User: Trace all dependencies of handleRequest function
 
 Claude: [Runs cognition-cli query handleRequest --depth 3 --lineage]
@@ -596,7 +594,7 @@ Claude: "handleRequest has a clear 3-layer structure:
 
 This shows good separation of concerns. If you refactor handleRequest,
 you'll need to ensure the 9 downstream functions maintain their contracts."
-```text
+```
 
 ---
 
@@ -606,7 +604,7 @@ you'll need to ensure the 9 downstream functions maintain their contracts."
 
 **Create `.claude/commands/rebuild-pgc.md`:**
 
-```markdown
+```bash
 # Rebuild PGC from Scratch
 
 Rebuild the PGC after major changes:
@@ -618,11 +616,11 @@ Rebuild the PGC after major changes:
 5. Provide a summary of what was indexed
 
 Show progress and any errors encountered.
-```text
+```
 
 **Usage:**
 
-```text
+```bash
 User: /rebuild-pgc
 
 Claude: Rebuilding PGC from scratch...
@@ -650,13 +648,13 @@ Claude: Rebuilding PGC from scratch...
   - Storage size: 45.2 MB
 
 Your PGC is now ready for grounded AI reasoning!
-```text
+```
 
 ### Overlay Commands Integration
 
 **Create `.claude/commands/refresh-overlays.md`:**
 
-```markdown
+```bash
 # Refresh PGC Overlays
 
 Regenerate pattern overlays when code structure changes significantly:
@@ -667,13 +665,13 @@ Regenerate pattern overlays when code structure changes significantly:
 4. Show updated pattern statistics
 
 Use this after major refactoring or branch switches.
-```text
+```
 
 ### Patterns Commands Integration
 
 **Create `.claude/commands/find-refactor-candidates.md`:**
 
-```markdown
+```bash
 # Find Refactoring Candidates
 
 Use pattern similarity to find refactoring opportunities:
@@ -687,11 +685,11 @@ Use pattern similarity to find refactoring opportunities:
 4. Provide specific examples with pattern names
 
 Be practical and suggest concrete refactorings.
-```text
+```
 
 **Usage:**
 
-```text
+```bash
 User: /find-refactor-candidates
 
 Claude: Analyzing structural patterns for refactoring opportunities...
@@ -722,13 +720,13 @@ Claude: Analyzing structural patterns for refactoring opportunities...
    - Enable easier addition of new validators
 
 Would you like me to implement any of these refactorings?
-```text
+```
 
 ### Blast-Radius Commands Integration
 
 **Create `.claude/commands/safe-refactor.md`:**
 
-```markdown
+```bash
 # Safe Refactoring Workflow
 
 Perform refactoring with impact awareness:
@@ -743,11 +741,11 @@ Perform refactoring with impact awareness:
 5. After refactoring, recommend which tests to run/create
 
 Make risk-aware refactoring decisions.
-```text
+```
 
 **Usage:**
 
-```text
+```bash
 User: /safe-refactor
 Which component would you like to refactor?
 
@@ -777,13 +775,13 @@ Safer approach:
 4. Verify each path with tests before moving to the next
 
 Shall I help create tests for the critical paths first?
-```text
+```
 
 ### Query Commands Integration
 
 **Create `.claude/commands/trace-dependency.md`:**
 
-```markdown
+```bash
 # Trace Dependency Chain
 
 Trace how one component depends on another:
@@ -796,13 +794,13 @@ Trace how one component depends on another:
 6. Suggest if relationship is direct or transitive
 
 Help understand complex dependency relationships.
-```text
+```
 
 ### Audit Commands Integration
 
 **Create `.claude/commands/verify-provenance.md`:**
 
-```markdown
+```bash
 # Verify File Provenance
 
 Audit the transformation history of a file:
@@ -818,11 +816,11 @@ Audit the transformation history of a file:
 5. Explain the provenance chain in human terms
 
 Useful for debugging or ensuring data integrity.
-```text
+```
 
 **Usage:**
 
-```text
+```bash
 User: /verify-provenance
 Which file should I audit?
 
@@ -857,7 +855,7 @@ complete and cryptographically verifiable back to genesis.
 
 This means you can trust that the PGC's understanding of this file is
 grounded in actual code, not hallucination.
-```text
+```
 
 ---
 
@@ -924,7 +922,7 @@ git commit -m "feat(auth): add JWT authentication middleware"
 
 # === End of Day ===
 # PGC is synchronized, all changes tracked, AI reasoning grounded in truth!
-```text
+```
 
 ---
 
@@ -964,7 +962,7 @@ This is the **first-ever implementation** of the CogX blueprint's vision: AI rea
 
 Once implemented, you'll be able to:
 
-```text
+```bash
 User: What code is relevant to implementing OAuth?
 
 Claude: [Runs cognition-cli context-sample --goal "implement OAuth"]
@@ -978,13 +976,13 @@ Field of View: 3 files, 847 tokens
 
 Claude: "I've sampled the most relevant context for OAuth implementation.
 These 3 files contain the authentication infrastructure you'll build on."
-```text
+```
 
 ### Monument 5: Multi-Agent Delta Calculation
 
 When multiple Claude instances work simultaneously:
 
-```text
+```bash
 # Agent 1 modifies AuthService
 # → Update Function calculates Delta
 # → Agent 2's context overlap detected
@@ -992,7 +990,7 @@ When multiple Claude instances work simultaneously:
 
 Claude (Agent 2): "⚠️ Detected parallel changes in auth module by another
 agent. Synchronizing before continuing to avoid conflicts..."
-```text
+```
 
 The PGC becomes the **coordination layer** for multi-agent AI collaboration!
 
@@ -1001,9 +999,9 @@ The PGC becomes the **coordination layer** for multi-agent AI collaboration!
 ## Resources
 
 - **CogX Blueprint**: [github.com/mirzahusadzic/cogx](https://github.com/mirzahusadzic/cogx)
-- **cognition-cli Docs**: [./docs/](./docs/)
+- **cognition-cli Docs**: [./index.md](./index.md)
 - **Claude Code**: [claude.ai/code](https://claude.ai/code)
-- **Living Guides**: [./.claude/commands/](./.claude/commands/)
+- **Living Guides**: Browse the `.claude/commands/` directory for custom slash commands
 
 ---
 
