@@ -233,11 +233,15 @@ export class UpdateOrchestrator {
       });
 
       // Update reverse_deps
-      await this.pgc.reverseDeps.add(contentHash, transformId);
+      // Only track structural dependencies - content hash is just provenance
       await this.pgc.reverseDeps.add(structuralHash, transformId);
 
-      // Propagate invalidation upward through reverse_deps (Monument 4)
-      await this.propagateInvalidation(dirtyFile.tracked_hash);
+      // Propagate invalidation only if structure changed (Monument 4)
+      // Old content hashes become stale naturally without explicit handling
+      const oldStructuralHash = existingIndex?.structural_hash;
+      if (oldStructuralHash && oldStructuralHash !== structuralHash) {
+        await this.propagateInvalidation(oldStructuralHash);
+      }
 
       s.stop(chalk.green(`✓ ${dirtyFile.path}`));
       return true;
@@ -322,8 +326,9 @@ export class UpdateOrchestrator {
       });
 
       // Update reverse_deps
-      await this.pgc.reverseDeps.add(contentHash, transformId);
+      // Only track structural dependencies - content hash is just provenance
       await this.pgc.reverseDeps.add(structuralHash, transformId);
+      // No propagation needed for new files - nothing depended on them before
 
       s.stop(chalk.green(`✓ ${relativePath} (new)`));
     } catch (error) {
