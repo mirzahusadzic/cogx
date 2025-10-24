@@ -67,7 +67,7 @@ Populates the PGC by performing a deep structural analysis of your codebase. It 
 - **When to Use It:** This is the main "heavy-lifting" command. Run it after `init` to build the initial knowledge graph. You can re-run it later to update the PGC with new files and changes.
 - **Options:**
   - `-p, --project-root <path>` - Root directory of the project being analyzed (default: current directory)
-  - `-w, --workbench <url>` - URL of the eGemma workbench (default: <http://localhost:8000>)
+  - `-w, --workbench <url>` - URL of the eGemma workbench (default: `http://localhost:8000`)
 
 ```bash
 # Run genesis on the 'src' directory of your project
@@ -237,7 +237,7 @@ Incrementally syncs the PGC with your code changes. This is **Monument 3: Update
   - Clears `dirty_state.json` on success
 - **Options:**
   - `-p, --project-root <path>` - Root directory (default: current directory)
-  - `-w, --workbench <url>` - eGemma workbench URL (default: <http://localhost:8000>)
+  - `-w, --workbench <url>` - eGemma workbench URL (default: `http://localhost:8000`)
 - **Exit Codes:**
   - `0` - Update successful, PGC coherent
   - `1` - Update failed or verification error

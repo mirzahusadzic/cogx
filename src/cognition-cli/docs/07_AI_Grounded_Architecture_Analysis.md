@@ -384,7 +384,7 @@ This bidirectional partnership, grounded in verifiable data rather than source c
 
 ### October 24, 2025 - Fresh Session Verification
 
-To validate that this analysis is truly reproducible and not dependent on a specific AI instance or session state, the [/explore-architecture](../.claude/commands/explore-architecture.md) command was executed in a completely fresh Claude Code session with a different Claude instance.
+To validate that this analysis is truly reproducible and not dependent on a specific AI instance or session state, the `/explore-architecture` command was executed in a completely fresh Claude Code session with a different Claude instance.
 
 ### Validation Results
 
@@ -443,7 +443,7 @@ The fresh instance independently:
 
 ### Automated Validation Workflow
 
-The `/explore-architecture` slash command ([source](../.claude/commands/explore-architecture.md)) encapsulates this entire workflow, making it a one-command operation to:
+The `/explore-architecture` slash command encapsulates this entire workflow, making it a one-command operation to:
 
 1. List all structural patterns
 2. Analyze architectural distribution
