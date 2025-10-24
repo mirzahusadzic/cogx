@@ -91,45 +91,54 @@ export function addPatternsCommands(program: Command) {
     .option('--verbose', 'Show detailed information including file paths')
     .action(async (options) => {
       const pgc = new PGCManager(process.cwd());
+
+      // Monument 4.8: Manifest as Source of Truth
+      // Read manifest first to determine which patterns should exist
+      const manifest = await pgc.overlays.getManifest(`${options.type}_patterns`);
+
+      if (!manifest || Object.keys(manifest).length === 0) {
+        console.log(chalk.yellow(`\nNo ${options.type} patterns found in manifest.`));
+        console.log(chalk.dim(`Run: cognition-cli overlay generate ${options.type}_patterns`));
+        return;
+      }
+
       const vectorDB = new LanceVectorStore(pgc.pgcRoot);
       const tableName = `${options.type}_patterns`;
       await vectorDB.initialize(tableName);
-      const allVectors: VectorRecord[] = await vectorDB.getAllVectors();
 
-      // Helper function to extract file path from vector id
-      // id format: pattern_src_commands_audit_ts_auditCommand -> src/commands/audit.ts
-      const getFilePathFromId = (id: string): string => {
-        const parts = id.split('_');
-        if (parts.length < 3) return 'unknown';
-        // Remove 'pattern' prefix and symbol name suffix
-        const pathParts = parts.slice(1, -1);
-        // Join with slashes and replace last _ts with .ts extension
-        let path = pathParts.join('/');
-        // Handle .ts extension (last segment will be 'ts', replace it with .ts)
-        if (path.endsWith('/ts')) {
-          path = path.substring(0, path.length - 3) + '.ts';
-        }
-        return path || 'unknown';
-      };
+      const workbench = new WorkbenchClient(process.env.WORKBENCH_URL!);
+      const manager: PatternManager =
+        options.type === 'structural'
+          ? new StructuralPatternsManager(pgc, vectorDB, workbench)
+          : new LineagePatternsManager(pgc, vectorDB, workbench);
 
       // Group by architectural role with symbols and file paths
-      const roleGroups = allVectors.reduce(
-        (
-          acc: Record<string, Array<{ symbol: string; filePath: string }>>,
-          v: VectorRecord
-        ) => {
-          const role = (v.architectural_role as string) || 'unknown';
-          const symbol = (v.symbol as string) || 'unknown';
-          const filePath = getFilePathFromId(v.id as string);
+      // Only include symbols that are in the manifest (source of truth)
+      const roleGroups: Record<string, Array<{ symbol: string; filePath: string }>> = {};
+      let totalPatterns = 0;
+      let staleVectors = 0;
 
-          if (!acc[role]) {
-            acc[role] = [];
+      for (const [symbol, filePath] of Object.entries(manifest)) {
+        try {
+          // Try to get vector from pattern manager (uses manifest)
+          const vector = await manager.getVectorForSymbol(symbol);
+
+          if (vector) {
+            const role = (vector.architectural_role as string) || 'unknown';
+            if (!roleGroups[role]) {
+              roleGroups[role] = [];
+            }
+            roleGroups[role].push({ symbol, filePath });
+            totalPatterns++;
+          } else {
+            // Symbol in manifest but not in vector DB - will be generated on next overlay run
+            staleVectors++;
           }
-          acc[role].push({ symbol, filePath });
-          return acc;
-        },
-        {} as Record<string, Array<{ symbol: string; filePath: string }>>
-      );
+        } catch (e) {
+          // Symbol not in vector DB yet
+          staleVectors++;
+        }
+      }
 
       console.log(
         chalk.bold(
@@ -163,11 +172,16 @@ export function addPatternsCommands(program: Command) {
 
       // Show summary statistics
       console.log(chalk.bold('\n📈 Summary:'));
-      console.log(`  Total patterns: ${allVectors.length}`);
+      console.log(`  Total patterns: ${totalPatterns}`);
       console.log(`  Unique roles: ${sortedRoles.length}`);
       console.log(
         `  Most common role: ${chalk.cyan(sortedRoles[0]?.[0])} (${sortedRoles[0]?.[1].length})`
       );
+
+      if (staleVectors > 0) {
+        console.log(chalk.yellow(`  ⚠️  ${staleVectors} patterns in manifest but not in vector DB`));
+        console.log(chalk.dim(`     Run: cognition-cli overlay generate ${options.type}_patterns --force`));
+      }
 
       if (!options.verbose) {
         console.log(
