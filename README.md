@@ -50,6 +50,47 @@ Traditional AI architecture analysis:
 
 [Read the full grounded analysis →](src/cognition-cli/docs/07_AI_Grounded_Architecture_Analysis.md)
 
+## 🤝 The Symbiosis: Grounded AI-Assisted Development
+
+**October 24, 2025** - We integrated cognition-cli with Claude Code to create the first grounded AI development workflow:
+
+📄 **[Claude Code Integration: AI + PGC Symbiosis](src/cognition-cli/docs/08_Claude_CLI_Integration.md)**
+
+**What this enables:**
+
+- ✅ **AI reasoning anchored in cryptographic truth** - Not statistical approximation
+- ✅ **Real-time coherence monitoring** - `/watch` tracks PGC state during development
+- ✅ **Impact-aware refactoring** - `/blast-radius` quantifies change impact before commits
+- ✅ **Grounded architecture exploration** - AI queries verified PGC metadata, not guesses
+- ✅ **Pre-commit quality gates** - Automated PGC coherence checks prevent broken commits
+
+**Why this matters:**
+
+Traditional AI-assisted development:
+
+- ❌ AI hallucinates dependencies and architecture
+- ❌ No verification of AI suggestions
+- ❌ Impact analysis is guesswork
+- ❌ Code changes break undiscovered dependencies
+
+**PGC-powered grounded development:**
+
+- ✅ AI works from verified ground truth (PGC metadata)
+- ✅ Every suggestion backed by cryptographic proof
+- ✅ Impact quantified before any change
+- ✅ Dependency breaks caught at development time
+
+**The Four Integration Patterns:**
+
+1. **Grounded Architecture Exploration** - AI queries PGC for verifiable architectural data
+2. **Coherence-Aware Development** - Real-time monitoring keeps AI and developer in sync
+3. **Impact-Aware Refactoring** - Quantified blast radius informs safer changes
+4. **Pre-Commit Quality Checks** - Automated verification before merge
+
+**This is the symbiosis in practice: Claude Code provides reasoning, cognition-cli provides truth.**
+
+[Read the full integration guide →](src/cognition-cli/docs/08_Claude_CLI_Integration.md) | [View live documentation →](https://mirzahusadzic.github.io/cogx/08_Claude_CLI_Integration.html)
+
 ## The Axiom: Knowledge is a Lattice
 
 **This is not an analogy. This is not a metaphor. This is a formal mathematical truth.**
