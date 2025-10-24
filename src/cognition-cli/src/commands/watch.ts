@@ -10,21 +10,9 @@ export function createWatchCommand(): Command {
 
   cmd
     .description('Watch files for changes and maintain PGC coherence state')
-    .option(
-      '--untracked',
-      'Also watch for new untracked files',
-      false
-    )
-    .option(
-      '--debounce <ms>',
-      'Debounce delay in milliseconds',
-      '300'
-    )
-    .option(
-      '--verbose',
-      'Show detailed change events',
-      false
-    )
+    .option('--untracked', 'Also watch for new untracked files', false)
+    .option('--debounce <ms>', 'Debounce delay in milliseconds', '300')
+    .option('--verbose', 'Show detailed change events', false)
     .action(async (options) => {
       try {
         await runWatch(options);

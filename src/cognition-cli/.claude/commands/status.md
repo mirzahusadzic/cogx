@@ -7,10 +7,11 @@ Is your PGC in sync? Find out in < 10ms! 🚀
 `status` is your **instant reality check** - it tells you if the PGC's understanding matches your actual code. No file scanning, no waiting. Just pure, event-driven truth.
 
 Think of it as **listening to an echo** 🔔:
+
 - 🔔 **COHERENT** - One clear bell, perfect resonance, single truth
 - 🎐 **INCOHERENT** - Wind chimes, many bells, cacophony of changes
 
-*A salute to Echo and the Semantic Echo Network - where truth propagates like sound waves!* 🌊
+_A salute to Echo and the Semantic Echo Network - where truth propagates like sound waves!_ 🌊
 
 ## ⚡ Command
 
@@ -41,7 +42,7 @@ The Echo rings clear - all tracked files resonate with the PGC.
 Last checked: 2025-10-24T05:56:38.283Z
 ```
 
-*Chef's kiss* 👌 - One clear tone, perfect resonance!
+_Chef's kiss_ 👌 - One clear tone, perfect resonance!
 
 ### 🎐 When You've Been Coding
 
@@ -62,7 +63,7 @@ Next Steps:
   Run cognition-cli status --verbose for detailed impact
 ```
 
-This is saying: *"Hey! You changed `src/cli.ts` and now 2 symbols are out of date!"*
+This is saying: _"Hey! You changed `src/cli.ts` and now 2 symbols are out of date!"_
 
 ### 🔬 Verbose Mode (For the Curious)
 
@@ -202,11 +203,13 @@ Summary:
 ```
 
 **The insight**: Status isn't just "is PGC synced?" - it's **meta-information about code quality**. Use it to decide:
+
 - **Small impact** (1-5 symbols) → Focused commit, ship it! ✅
 - **Medium impact** (6-15 symbols) → Review for cohesion 🔍
 - **Large impact** (15+ symbols) → Split commits or architectural review 🏗️
 
 **The cascading benefits** 🌊:
+
 ```
 Smaller commits (via status optimization)
     ↓
@@ -234,7 +237,7 @@ else
 fi
 ```
 
-Exit codes make automation *chef's kiss* 👌
+Exit codes make automation _chef's kiss_ 👌
 
 ### 🔬 Impact Analysis
 
@@ -369,6 +372,7 @@ QueryCommandOptions
 Status doesn't scan files. It **trusts the event stream**.
 
 This is the **no-present paradigm** in action:
+
 - **Past**: dirty_state.json (what changed)
 - **Future**: what needs updating
 
@@ -396,6 +400,7 @@ Status is the **interface** between them - it shows you the delta! ⚡
 This command is **< 50 lines of actual logic**. Why?
 
 Because the **architecture** does the work:
+
 - Watch maintains truth
 - Status reads truth
 - Update synchronizes truth

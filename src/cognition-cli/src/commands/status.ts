@@ -168,7 +168,9 @@ function formatAsHuman(report: StatusReport, verbose: boolean): string {
   if (report.coherent) {
     lines.push(chalk.green.bold('🔔 PGC Status: COHERENT'));
     lines.push('');
-    lines.push('The Echo rings clear - all tracked files resonate with the PGC.');
+    lines.push(
+      'The Echo rings clear - all tracked files resonate with the PGC.'
+    );
     lines.push('');
     lines.push(chalk.gray(`Last checked: ${report.dirtyState.last_updated}`));
     return lines.join('\n');

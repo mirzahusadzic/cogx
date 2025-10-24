@@ -72,7 +72,11 @@ export class FileWatcher extends EventEmitter {
       .on('change', (filePath) => this.handleChange(filePath))
       .on('unlink', (filePath) => this.handleDelete(filePath))
       .on('add', (filePath) => this.handleAdd(filePath))
-      .on('error', (error) => this.handleError(error instanceof Error ? error : new Error(String(error))))
+      .on('error', (error) =>
+        this.handleError(
+          error instanceof Error ? error : new Error(String(error))
+        )
+      )
       .on('ready', () => {
         this.isWatching = true;
         console.log('File watcher ready');
@@ -235,9 +239,7 @@ export class FileWatcher extends EventEmitter {
 
   private async getIndexedFiles(): Promise<string[]> {
     const allData = await this.index.getAllData();
-    return allData.map((d) =>
-      path.join(this.projectRoot, d.path)
-    );
+    return allData.map((d) => path.join(this.projectRoot, d.path));
   }
 
   private getDefaultIgnored(): string[] {

@@ -54,9 +54,7 @@ export class DirtyStateManager {
     const state = await this.read();
 
     // Remove if already exists (to update timestamp)
-    state.dirty_files = state.dirty_files.filter(
-      (f) => f.path !== file.path
-    );
+    state.dirty_files = state.dirty_files.filter((f) => f.path !== file.path);
 
     state.dirty_files.push(file);
     state.last_updated = new Date().toISOString();
@@ -87,9 +85,7 @@ export class DirtyStateManager {
   async removeDirty(filePath: string): Promise<void> {
     const state = await this.read();
 
-    state.dirty_files = state.dirty_files.filter(
-      (f) => f.path !== filePath
-    );
+    state.dirty_files = state.dirty_files.filter((f) => f.path !== filePath);
     state.untracked_files = state.untracked_files.filter(
       (f) => f.path !== filePath
     );
@@ -110,9 +106,7 @@ export class DirtyStateManager {
    */
   async isDirty(): Promise<boolean> {
     const state = await this.read();
-    return (
-      state.dirty_files.length > 0 || state.untracked_files.length > 0
-    );
+    return state.dirty_files.length > 0 || state.untracked_files.length > 0;
   }
 
   /**

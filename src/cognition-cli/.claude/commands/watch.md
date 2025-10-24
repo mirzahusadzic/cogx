@@ -53,6 +53,7 @@ cognition-cli watch [options]
 Location: `.open_cognition/dirty_state.json`
 
 Structure:
+
 ```json
 {
   "last_updated": "2025-10-24T05:48:44.082Z",
@@ -108,6 +109,7 @@ cognition-cli watch --daemon
 ### Instant Status Checks (Monument 2)
 
 Instead of scanning all files:
+
 ```bash
 cognition-cli status  # < 10ms - just reads dirty_state.json
 ```
@@ -115,6 +117,7 @@ cognition-cli status  # < 10ms - just reads dirty_state.json
 ### Incremental Updates (Monument 2)
 
 Process only changed files:
+
 ```bash
 cognition-cli update  # Only updates dirty files
 ```
@@ -150,6 +153,7 @@ When multiple AI agents work simultaneously:
 **Ignored Patterns**: Skips node_modules, .git, dist, build, etc.
 
 **Event Emitter**: Extends EventEmitter for extensibility
+
 ```typescript
 watcher.on('change', (event: ChangeEvent) => {
   // Custom handlers
@@ -157,6 +161,7 @@ watcher.on('change', (event: ChangeEvent) => {
 ```
 
 **Hash-based Detection**: Uses same SHA-256 hashing as ObjectStore
+
 ```typescript
 const currentHash = this.objectStore.computeHash(content);
 if (currentHash !== indexData.content_hash) {

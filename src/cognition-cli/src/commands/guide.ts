@@ -12,7 +12,10 @@ export function createGuideCommand(): Command {
 
   cmd
     .description('📚 Show colorful, candid guides for cognition-cli commands')
-    .argument('[topic]', 'Guide topic (watch, status, explore-architecture, etc.)')
+    .argument(
+      '[topic]',
+      'Guide topic (watch, status, explore-architecture, etc.)'
+    )
     .action(async (topic?: string) => {
       try {
         if (!topic) {
@@ -36,16 +39,34 @@ async function showGuideIndex(): Promise<void> {
   console.log('');
 
   const guides = [
-    { name: 'watch', emoji: '👀', desc: 'Monitor file changes & maintain dirty state' },
+    {
+      name: 'watch',
+      emoji: '👀',
+      desc: 'Monitor file changes & maintain dirty state',
+    },
     { name: 'status', emoji: '🔍', desc: 'Check PGC coherence (< 10ms!)' },
-    { name: 'explore-architecture', emoji: '🏗️', desc: 'Explore codebase architecture with PGC' },
-    { name: 'analyze-symbol', emoji: '🔬', desc: 'Deep-dive into a specific symbol' },
+    {
+      name: 'explore-architecture',
+      emoji: '🏗️',
+      desc: 'Explore codebase architecture with PGC',
+    },
+    {
+      name: 'analyze-symbol',
+      emoji: '🔬',
+      desc: 'Deep-dive into a specific symbol',
+    },
     { name: 'trace-dependency', emoji: '🧭', desc: 'Follow dependency chains' },
-    { name: 'analyze-impact', emoji: '💥', desc: 'Understand blast radius of changes' },
+    {
+      name: 'analyze-impact',
+      emoji: '💥',
+      desc: 'Understand blast radius of changes',
+    },
   ];
 
   for (const guide of guides) {
-    console.log(`  ${guide.emoji}  ${chalk.cyan(guide.name.padEnd(25))} ${chalk.gray(guide.desc)}`);
+    console.log(
+      `  ${guide.emoji}  ${chalk.cyan(guide.name.padEnd(25))} ${chalk.gray(guide.desc)}`
+    );
   }
 
   console.log('');
@@ -59,7 +80,12 @@ async function showGuideIndex(): Promise<void> {
 async function showGuide(topic: string): Promise<void> {
   // Try to find guide in .claude/commands/ directory (from project root)
   const projectRoot = process.cwd();
-  const guidePath = path.join(projectRoot, '.claude', 'commands', `${topic}.md`);
+  const guidePath = path.join(
+    projectRoot,
+    '.claude',
+    'commands',
+    `${topic}.md`
+  );
 
   // Fallback to built-in guides if project doesn't have .claude/commands
   const builtinGuidePath = path.join(
@@ -115,7 +141,7 @@ function renderMarkdown(content: string): string {
       output.push(chalk.bold(line.slice(4)));
     } else if (line.startsWith('```')) {
       // Code blocks
-      const lang = line.slice(3);
+      const _lang = line.slice(3); // TODO: Use for syntax highlighting
       i++; // Skip opening ```
       const codeLines: string[] = [];
       while (i < lines.length && !lines[i].startsWith('```')) {
@@ -142,15 +168,25 @@ function renderMarkdown(content: string): string {
       let formatted = line;
 
       // Bold (**text** or __text__)
-      formatted = formatted.replace(/\*\*(.*?)\*\*/g, (_, text) => chalk.bold(text));
-      formatted = formatted.replace(/__(.*?)__/g, (_, text) => chalk.bold(text));
+      formatted = formatted.replace(/\*\*(.*?)\*\*/g, (_, text) =>
+        chalk.bold(text)
+      );
+      formatted = formatted.replace(/__(.*?)__/g, (_, text) =>
+        chalk.bold(text)
+      );
 
       // Italic (*text* or _text_)
-      formatted = formatted.replace(/\*(.*?)\*/g, (_, text) => chalk.italic(text));
-      formatted = formatted.replace(/_(.*?)_/g, (_, text) => chalk.italic(text));
+      formatted = formatted.replace(/\*(.*?)\*/g, (_, text) =>
+        chalk.italic(text)
+      );
+      formatted = formatted.replace(/_(.*?)_/g, (_, text) =>
+        chalk.italic(text)
+      );
 
       // Inline code (`code`)
-      formatted = formatted.replace(/`([^`]+)`/g, (_, code) => chalk.cyan(code));
+      formatted = formatted.replace(/`([^`]+)`/g, (_, code) =>
+        chalk.cyan(code)
+      );
 
       output.push(formatted);
     }
