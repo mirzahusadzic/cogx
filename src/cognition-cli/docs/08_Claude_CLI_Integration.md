@@ -78,6 +78,7 @@ Now `/analyze-impact` becomes a custom workflow!
 **Workflow:**
 
 1. **Build the PGC**:
+
    ```bash
    cognition-cli init
    cognition-cli genesis src/
@@ -85,6 +86,7 @@ Now `/analyze-impact` becomes a custom workflow!
    ```
 
 2. **In Claude Code, use PGC commands**:
+
    ```
    User: /explore-architecture
 
@@ -109,11 +111,13 @@ Now `/analyze-impact` becomes a custom workflow!
 **Workflow:**
 
 1. **Terminal 1: Start the watcher**
+
    ```bash
    cognition-cli watch
    ```
 
 2. **Terminal 2: Work with Claude Code**
+
    ```
    User: Please refactor the authentication logic in src/auth.ts
 
@@ -125,6 +129,7 @@ Now `/analyze-impact` becomes a custom workflow!
    ```
 
 3. **Check impact before committing**:
+
    ```
    User: What's the PGC status?
 
@@ -147,6 +152,7 @@ Now `/analyze-impact` becomes a custom workflow!
    ```
 
 4. **Update and verify**:
+
    ```
    User: Please update the PGC
 
@@ -165,6 +171,7 @@ Now `/analyze-impact` becomes a custom workflow!
 **Workflow:**
 
 1. **Analyze before refactoring**:
+
    ```
    User: I want to refactor PGCManager. What's the impact?
 
@@ -1003,4 +1010,3 @@ The PGC becomes the **coordination layer** for multi-agent AI collaboration!
 **The future is here: AI reasoning grounded in verifiable truth.** 🏛️✨
 
 Build with confidence. Reason with precision. Collaborate with clarity.
-

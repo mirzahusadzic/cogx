@@ -119,12 +119,14 @@ cognition-cli watch --debounce 500
 ```
 
 **Key Features:**
+
 - **Hash-based detection** - Only detects real content changes, not timestamp updates
 - **Debounced updates** - Handles rapid consecutive changes gracefully
 - **Ignored patterns** - Automatically skips `node_modules`, `.git`, `dist`, `build`, etc.
 - **Graceful shutdown** - Press `Ctrl+C` to stop cleanly
 
 **The dirty_state.json format:**
+
 ```json
 {
   "last_updated": "2025-10-24T06:30:08.883Z",
@@ -179,6 +181,7 @@ fi
 **Example outputs:**
 
 When **coherent** 🔔:
+
 ```bash
 $ cognition-cli status
 🔔 PGC Status: COHERENT
@@ -189,6 +192,7 @@ Last checked: 2025-10-24T06:30:08.883Z
 ```
 
 When **incoherent** 🎐:
+
 ```bash
 $ cognition-cli status
 🎐 PGC Status: INCOHERENT
@@ -213,6 +217,7 @@ Next Steps:
 **Why use status for commit optimization:**
 
 Status tells you the **blast radius** of your changes. Use it to decide:
+
 - **Small impact** (1-5 symbols) → Focused commit, ship it! ✅
 - **Medium impact** (6-15 symbols) → Review for cohesion 🔍
 - **Large impact** (15+ symbols) → Split commits or architectural review 🏗️
@@ -251,12 +256,14 @@ cognition-cli status    # Verify coherence
 ```
 
 **Performance characteristics:**
+
 - **Incremental** - Only processes changed files, not entire codebase
 - **Optimized** - Skips Oracle verification if no files were actually processed
 - **Hash-based** - Detects when dirty_state has false positives (e.g., after `git checkout`)
 - **Verifiable** - Every update recorded in transform log for auditability
 
 **Example session:**
+
 ```bash
 $ cognition-cli update
 🔄 Update: Syncing PGC with Changes
@@ -276,17 +283,20 @@ $ cognition-cli status
 ```
 
 **The Update Function (U) implements the Invalidate algorithm from CogX:**
+
 ```
 Change(⊥) → Invalidate(⊥) → Propagate_Up(Join_edges) → Invalidate(⊤)
 ```
 
 Currently implemented:
+
 - ✅ Re-process dirty files (Genesis Layer update)
 - ✅ Store new content/structural hashes
 - ✅ Record transforms in Lops
 - ✅ Update reverse_deps for future propagation
 
 Future work (when overlays are fully synthesized):
+
 - ⏳ Propagate invalidation upward through reverse_deps
 - ⏳ Invalidate dependent overlay elements
 - ⏳ Calculate Delta for multi-agent coordination
@@ -321,6 +331,7 @@ cognition-cli guide update
 ```
 
 The guides include:
+
 - 🎯 The Point - What it does and why it matters
 - ⚡ Command reference with all options
 - 🎨 Example outputs showing real usage

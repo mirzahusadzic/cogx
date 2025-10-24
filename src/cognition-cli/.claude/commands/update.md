@@ -7,6 +7,7 @@ Close the loop! Keep your PGC coherent after code changes.
 `update` is the **healing function** - it takes dirty files (detected by watch) and brings the PGC back into coherence by re-processing them.
 
 Think of it as **regeneration** 🌱:
+
 - 🎐 **INCOHERENT** - Changes detected, PGC out of sync
 - 🔄 **UPDATING** - Re-processing changed files, propagating through lattice
 - 🔔 **COHERENT** - PGC healed, understanding matches reality
@@ -135,6 +136,7 @@ Update implements **Propagation Model 1: Horizontal Shockwave** (Bottom-Up Chang
 ### 1. Vertical Ripple (Genesis Layer)
 
 When you change `src/auth.ts`:
+
 - Update re-processes the file
 - New content_hash and structural_hash stored
 - Index updated with new hashes
@@ -143,11 +145,13 @@ When you change `src/auth.ts`:
 ### 2. Horizontal Shockwave (Overlays) 🚧
 
 **Future work** - When overlays are fully synthesized:
+
 - Update will use `reverse_deps` to find dependent elements
 - Mark overlay elements (e.g., security risk assessments) as `Invalidated`
 - Propagate upward through the lattice
 
 **Why it's not implemented yet:** Current overlays (structural_patterns, lineage_patterns) are directly derived during processing. The full dependency graph for propagation will be built when:
+
 - Directory summaries create Join operations
 - Overlays anchor to Genesis elements with tracked dependencies
 - Multi-agent coordination requires Delta calculation
@@ -240,6 +244,7 @@ cognition-cli update
 ```
 
 **The Flow:**
+
 1. **Watch** detects changes → writes dirty_state.json
 2. **Status** reads dirty_state.json → shows impact
 3. **Update** processes dirty files → clears dirty_state.json
@@ -312,11 +317,13 @@ Update is **transactional** - if verification fails, you know exactly what's wro
 Update is the **living proof** that the lattice can evolve coherently.
 
 From the CogX blueprint:
+
 > "When source code changes, the Update Function (U) is the recursive loop that keeps the lattice coherent."
 
 This isn't theory - it's **running code**! 🚀
 
 The Update Function implements:
+
 - **Change detection** - Via file watcher and dirty_state
 - **Incremental processing** - Only dirty files, not full rescan
 - **Verifiable transformation** - Every update recorded in Lops
@@ -359,4 +366,3 @@ Monument 3 proves that the lattice can **evolve** while remaining **coherent**. 
 ---
 
 **The cycle is complete!** Run `cognition-cli watch` in one terminal, code in another, and `cognition-cli update` when ready. The PGC stays alive! 🌱
-

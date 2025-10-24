@@ -1,61 +1,43 @@
 # Trace Dependency Chain
 
-When debugging or understanding how symbol A reaches symbol B, use PGC tools to trace the verifiable path.
+Trace how one component depends on another through the dependency graph.
 
-## Dependency Tracing Steps
+## Goal
 
-1. **Start with blast-radius**: Run `cognition-cli blast-radius <start-symbol> --direction down --max-depth 5 --json`
-   - This shows all downstream dependencies
-   - Check if target symbol appears in dependencies list
+Visualize and explain the dependency path between two components, identifying:
 
-2. **Inspect critical paths**: Look at the `criticalPaths` in blast-radius output
-   - These show high-impact chains through the codebase
-   - Often reveal the connection you're looking for
+- Direct vs transitive dependencies
+- Intermediary components in the chain
+- Multiple paths if they exist
+- Depth and complexity of the relationship
 
-3. **Check lineage pattern**: Run `cognition-cli overlay inspect lineage_patterns "<start-symbol>"`
-   - Shows the full dependency lineage with depths
-   - Includes transitive dependencies
+## Steps
 
-4. **Verify with structural data**: For each symbol in the chain, run:
+1. **Get source and target components from user**
+   - Ask: "Which component is the source?" (the one that depends)
+   - Ask: "Which component is the target?" (the one being depended on)
 
-   ```bash
-   cognition-cli overlay inspect structural_patterns "<symbol>"
-   ```
+2. **Run dependency query**
+   - Execute: `cognition-cli query <source> --depth 5 --lineage`
+   - Parse the JSON lineage output
 
-   - Confirms the structural relationship (imports, extends, implements, uses)
+3. **Search for paths to target**
+   - Traverse the lineage tree looking for target symbol
+   - Identify all paths from source to target
+   - Calculate depth of each path
 
-## Output Format
+4. **Visualize the dependency chains**
+   - Show each path clearly with tree structure
+   - Highlight intermediary components
+   - Indicate direct (1-hop) vs transitive (multi-hop)
 
-```text
-🔍 Dependency Trace: A → B
+5. **Provide analysis**
+   - Relationship type (direct, transitive, none)
+   - Coupling assessment (tight vs loose)
+   - Suggestions if needed
 
-Path Found:
-A (src/file1.ts)
-  → uses C (depth: 1)
-    → C (src/file2.ts)
-      → extends D (depth: 2)
-        → D (src/file3.ts)
-          → imports B (depth: 3)
-            → B (src/file4.ts) ✓
+## Notes
 
-Relationship Types:
-- A uses C: method parameter type
-- C extends D: class inheritance
-- D imports B: direct import
-
-Verification Hashes:
-- A: structural_hash_123...
-- C: structural_hash_456...
-- B: structural_hash_789...
-```
-
-## Use Cases
-
-- "How does X reach Y?"
-- "Why does changing A break B?"
-- "What's the dependency chain between these components?"
-- "Find circular dependencies"
-
-## Important
-
-All paths MUST be verified through PGC data - never guess at dependencies!
+- Limit depth to 5-7 levels to avoid overwhelming output
+- Highlight circular dependencies prominently
+- Provide architectural context and suggestions

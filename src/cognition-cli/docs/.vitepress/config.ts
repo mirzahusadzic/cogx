@@ -45,6 +45,10 @@ export default defineConfig({
             text: '07 - AI-Grounded Architecture Analysis',
             link: '/07_AI_Grounded_Architecture_Analysis',
           },
+          {
+            text: '08 - Claude Code Integration',
+            link: '/08_Claude_CLI_Integration',
+          },
         ],
       },
     ],

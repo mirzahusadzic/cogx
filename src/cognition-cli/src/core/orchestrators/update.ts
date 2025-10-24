@@ -82,7 +82,11 @@ export class UpdateOrchestrator {
     log.info(chalk.cyan('Updating modified files...'));
     let filesProcessed = 0;
     for (const dirtyFile of dirtyState.dirty_files) {
-      const processed = await this.processDirtyFile(dirtyFile, s, isWorkbenchHealthy);
+      const processed = await this.processDirtyFile(
+        dirtyFile,
+        s,
+        isWorkbenchHealthy
+      );
       if (processed) filesProcessed++;
     }
 
@@ -107,7 +111,9 @@ export class UpdateOrchestrator {
     // Run PGC verification only if files were actually processed
     if (filesProcessed > 0) {
       s.start('Running PGC Maintenance and Verification');
-      log.info('Goal: Achieve a structurally coherent PGC after incremental update.');
+      log.info(
+        'Goal: Achieve a structurally coherent PGC after incremental update.'
+      );
 
       const verificationResult = await this.genesisOracle.verify();
 
@@ -116,12 +122,18 @@ export class UpdateOrchestrator {
       } else {
         s.stop('Oracle: Verification failed.');
         log.error(chalk.red('✗ PGC verification failed:'));
-        verificationResult.messages.forEach((msg) => log.error(chalk.red(`  ${msg}`)));
+        verificationResult.messages.forEach((msg) =>
+          log.error(chalk.red(`  ${msg}`))
+        );
         throw new Error('PGC verification failed after update');
       }
     } else {
       // No files were actually processed - dirty_state had false positives
-      log.info(chalk.gray('No files required processing (false positives in dirty_state)'));
+      log.info(
+        chalk.gray(
+          'No files required processing (false positives in dirty_state)'
+        )
+      );
     }
   }
 
@@ -357,7 +369,9 @@ export class UpdateOrchestrator {
   /**
    * Detect language from file extension
    */
-  private detectLanguage(filePath: string): 'typescript' | 'javascript' | 'python' {
+  private detectLanguage(
+    filePath: string
+  ): 'typescript' | 'javascript' | 'python' {
     const ext = path.extname(filePath).toLowerCase();
     if (ext === '.ts' || ext === '.tsx') return 'typescript';
     if (ext === '.js' || ext === '.jsx') return 'javascript';

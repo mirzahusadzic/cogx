@@ -16,6 +16,7 @@ Welcome to the documentation for the Cognition Command-Line Interface (CLI). Thi
 - [05 - Verification and Oracles: Ensuring PGC Integrity](./05_Verification_and_Oracles.md)
 - [06 - Testing and Deployment](./06_Testing_and_Deployment.md)
 - [07 - AI-Grounded Architecture Analysis](./07_AI_Grounded_Architecture_Analysis.md) ⭐ **NEW: First Human-AI Grounded Collaboration**
+- [08 - Claude Code Integration](./08_Claude_CLI_Integration.md) 🤝 **NEW: Grounded AI-Assisted Development**
 
 ---
 
@@ -30,5 +31,21 @@ The AI analyzed cognition-cli's architecture using only:
 - PGC structured metadata
 
 Every claim is verifiable, reproducible, and backed by cryptographic truth. This is the future of AI-assisted development.
+
+---
+
+## 🤝 Monument 1-3: The Symbiosis
+
+**[Document 08](./08_Claude_CLI_Integration.md)** demonstrates the practical symbiosis between Claude Code and cognition-cli's event-driven architecture (Monument 1-3).
+
+Using the `.claude/commands/` system, developers can:
+
+- Get instant coherence checks before commits (`/pre-commit-check`)
+- Perform risk-aware refactoring with blast radius analysis (`/safe-refactor`)
+- Discover refactoring opportunities through pattern similarity (`/find-refactor-candidates`)
+- Verify transformation provenance and data integrity (`/verify-provenance`)
+- Trace dependency chains and architectural relationships (`/trace-dependency`)
+
+All AI reasoning is grounded in verifiable PGC data, enabling impact-aware code assistance with cryptographic guarantees.
 
 ---
