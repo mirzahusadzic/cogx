@@ -11,6 +11,12 @@ To see a list of all available commands, simply run `cognition-cli --help`.
 cognition-cli init                              # Initialize PGC
 cognition-cli genesis src/                      # Build knowledge graph
 
+# Live System (Monument 1-3: Event-Driven Coherence)
+cognition-cli watch                             # Monitor file changes in real-time
+cognition-cli status                            # Check PGC coherence (< 10ms)
+cognition-cli update                            # Sync PGC with changes
+cognition-cli guide [topic]                     # Show command guides
+
 # Overlays
 cognition-cli overlay generate structural_patterns .  # Generate structural overlay
 cognition-cli overlay generate lineage_patterns .     # Generate lineage overlay
@@ -73,7 +79,292 @@ cognition-cli genesis src/ --project-root /path/to/project --workbench http://lo
 
 ---
 
-## 2. Analytical Commands (Exploring the Knowledge)
+## 2. Live System Commands (Event-Driven Coherence)
+
+**Monument 1-3: The Reflexive Nervous System**
+
+These commands implement the event-driven architecture from the CogX blueprint, allowing the PGC to detect changes and maintain coherence automatically. Together, they form a living feedback loop:
+
+```
+watch → dirty_state.json → status → update → coherence restored ♻️
+```
+
+### **`cognition-cli watch`**
+
+Monitors your source files for changes in real-time and maintains a dirty state ledger. This is **Monument 1: Event Source** - the foundation for incremental updates and multi-agent coordination.
+
+- **When to Use It:** Run this in a separate terminal during active development. It continuously watches your codebase and tracks which files have changed, enabling instant status checks without file scanning.
+- **What It Does:**
+  - Uses `chokidar` for cross-platform file watching
+  - Computes file hashes to detect actual content changes (not just mtime)
+  - Maintains `.open_cognition/dirty_state.json` with changed files
+  - Emits real-time notifications when changes are detected
+- **Options:**
+  - `--untracked` - Also watch for new untracked files (default: false)
+  - `--debounce <ms>` - Debounce delay in milliseconds (default: 300)
+  - `--verbose` - Show detailed change events including file hashes
+
+```bash
+# Start watching in the current directory
+cognition-cli watch
+
+# Watch with verbose output showing hashes
+cognition-cli watch --verbose
+
+# Watch and also detect new untracked files
+cognition-cli watch --untracked
+
+# Adjust debounce for rapid file changes
+cognition-cli watch --debounce 500
+```
+
+**Key Features:**
+- **Hash-based detection** - Only detects real content changes, not timestamp updates
+- **Debounced updates** - Handles rapid consecutive changes gracefully
+- **Ignored patterns** - Automatically skips `node_modules`, `.git`, `dist`, `build`, etc.
+- **Graceful shutdown** - Press `Ctrl+C` to stop cleanly
+
+**The dirty_state.json format:**
+```json
+{
+  "last_updated": "2025-10-24T06:30:08.883Z",
+  "dirty_files": [
+    {
+      "path": "src/config.ts",
+      "tracked_hash": "a1b2c3d4...",
+      "current_hash": "e5f6g7h8...",
+      "detected_at": "2025-10-24T06:29:44.081Z",
+      "change_type": "modified"
+    }
+  ],
+  "untracked_files": []
+}
+```
+
+### **`cognition-cli status`**
+
+Instantly checks if your PGC is coherent by reading the dirty state. This is **Monument 2: Status** - your < 10ms reality check.
+
+- **When to Use It:** Run before committing, after pulling changes, or anytime you want to know if the PGC matches your code. It's your instant coherence check without waiting for file scans.
+- **What It Does:**
+  - Reads `.open_cognition/dirty_state.json` (no file scanning!)
+  - Calculates blast radius for each dirty file
+  - Shows which symbols are affected by changes
+  - Returns exit code for CI/CD automation
+- **Options:**
+  - `--json` - Output as JSON for scripting
+  - `--verbose` - Show detailed symbol names affected
+- **Exit Codes:**
+  - `0` - 🔔 Coherent (PGC matches code)
+  - `1` - 🎐 Incoherent (changes detected)
+
+```bash
+# Check coherence status
+cognition-cli status
+
+# Get detailed output with symbol names
+cognition-cli status --verbose
+
+# Machine-readable output for scripts
+cognition-cli status --json
+
+# Use in shell scripts
+if cognition-cli status; then
+  echo "PGC is coherent!"
+else
+  echo "PGC needs updating"
+fi
+```
+
+**Example outputs:**
+
+When **coherent** 🔔:
+```bash
+$ cognition-cli status
+🔔 PGC Status: COHERENT
+
+The Echo rings clear - all tracked files resonate with the PGC.
+
+Last checked: 2025-10-24T06:30:08.883Z
+```
+
+When **incoherent** 🎐:
+```bash
+$ cognition-cli status
+🎐 PGC Status: INCOHERENT
+
+Summary:
+  Modified files: 3
+  Impacted symbols: 12
+
+Modified Files:
+  ✗ src/core/config.ts
+    5 symbols, 0 consumers
+  ✗ src/commands/status.ts
+    4 symbols, 0 consumers
+  ✗ src/cli.ts
+    3 symbols, 0 consumers
+
+Next Steps:
+  Run cognition-cli update to sync PGC with changes
+  Run cognition-cli status --verbose for detailed impact
+```
+
+**Why use status for commit optimization:**
+
+Status tells you the **blast radius** of your changes. Use it to decide:
+- **Small impact** (1-5 symbols) → Focused commit, ship it! ✅
+- **Medium impact** (6-15 symbols) → Review for cohesion 🔍
+- **Large impact** (15+ symbols) → Split commits or architectural review 🏗️
+
+Smaller commits lead to faster `update` operations and reduce the chance of conflicts in multi-agent scenarios!
+
+### **`cognition-cli update`**
+
+Incrementally syncs the PGC with your code changes. This is **Monument 3: Update Function (U)** - the healing function that closes the loop.
+
+- **When to Use It:** Run this after making changes to bring the PGC back into coherence. It only processes the files marked dirty by the watcher, making it much faster than re-running `genesis`.
+- **What It Does:**
+  - Reads `dirty_state.json` to find changed files
+  - Re-extracts structural data for each dirty file
+  - Updates `objects/`, `transforms/`, `index/`, and `reverse_deps/`
+  - Runs Oracle verification to ensure consistency
+  - Clears `dirty_state.json` on success
+- **Options:**
+  - `-p, --project-root <path>` - Root directory (default: current directory)
+  - `-w, --workbench <url>` - eGemma workbench URL (default: http://localhost:8000)
+- **Exit Codes:**
+  - `0` - Update successful, PGC coherent
+  - `1` - Update failed or verification error
+
+```bash
+# Update PGC with all dirty files
+cognition-cli update
+
+# Update with custom workbench
+cognition-cli update --workbench http://localhost:8001
+
+# Typical workflow
+cognition-cli status    # See what changed
+cognition-cli update    # Sync changes
+cognition-cli status    # Verify coherence
+```
+
+**Performance characteristics:**
+- **Incremental** - Only processes changed files, not entire codebase
+- **Optimized** - Skips Oracle verification if no files were actually processed
+- **Hash-based** - Detects when dirty_state has false positives (e.g., after `git checkout`)
+- **Verifiable** - Every update recorded in transform log for auditability
+
+**Example session:**
+```bash
+$ cognition-cli update
+🔄 Update: Syncing PGC with Changes
+
+Reading dirty state... Found 3 dirty files, 0 untracked files
+Updating modified files...
+  ✓ src/core/config.ts
+  ✓ src/commands/status.ts
+  ✓ src/cli.ts
+Clearing dirty state... Dirty state cleared
+Running PGC Maintenance and Verification...
+Oracle: Verification complete. PGC is structurally coherent.
+✓ Update complete - PGC is coherent
+
+$ cognition-cli status
+🔔 PGC Status: COHERENT
+```
+
+**The Update Function (U) implements the Invalidate algorithm from CogX:**
+```
+Change(⊥) → Invalidate(⊥) → Propagate_Up(Join_edges) → Invalidate(⊤)
+```
+
+Currently implemented:
+- ✅ Re-process dirty files (Genesis Layer update)
+- ✅ Store new content/structural hashes
+- ✅ Record transforms in Lops
+- ✅ Update reverse_deps for future propagation
+
+Future work (when overlays are fully synthesized):
+- ⏳ Propagate invalidation upward through reverse_deps
+- ⏳ Invalidate dependent overlay elements
+- ⏳ Calculate Delta for multi-agent coordination
+
+### **`cognition-cli guide [topic]`**
+
+Shows colorful, candid guides for cognition-cli commands - the living documentation baked into the tool itself.
+
+- **When to Use It:** Anytime you need a refresher on how a command works or want to understand the architecture behind it. The guides are more conversational and example-rich than standard help text.
+- **What It Does:**
+  - Renders markdown guides from `.claude/commands/` directory
+  - Shows available guides if no topic specified
+  - Includes real examples, architectural explanations, and pro tips
+- **Available Guides:**
+  - `watch` - File system monitoring and dirty state management
+  - `status` - Instant coherence checks and commit optimization
+  - `update` - Incremental PGC sync and the Update Function
+  - More guides coming for other commands!
+
+```bash
+# List all available guides
+cognition-cli guide
+
+# Show the watch guide
+cognition-cli guide watch
+
+# Show the status guide
+cognition-cli guide status
+
+# Show the update guide
+cognition-cli guide update
+```
+
+The guides include:
+- 🎯 The Point - What it does and why it matters
+- ⚡ Command reference with all options
+- 🎨 Example outputs showing real usage
+- 🏗️ How the magic works (architecture)
+- 🎭 Real-world scenarios and workflows
+- 🎪 Pro tips for effective use
+
+**Why guides are special:**
+
+The guides **ship with the tool** and are version-controlled with the code. They're not just documentation - they're part of the system itself, explaining the living architecture from the inside!
+
+### **The Complete Workflow**
+
+These four commands form a complete feedback loop for maintaining PGC coherence:
+
+```bash
+# Terminal 1: The Sentinel 🗼
+cognition-cli watch
+
+# Terminal 2: The Developer 💻
+vim src/core/config.ts
+
+# Terminal 1 shows:
+# ✗ src/core/config.ts
+# Detected change: src/core/config.ts
+
+# Terminal 2: Check impact
+cognition-cli status
+# 🎐 Modified files: 1, Impacted symbols: 5
+
+# Terminal 2: Heal the PGC
+cognition-cli update
+# ✓ Update complete - PGC is coherent
+
+# Terminal 2: Verify
+cognition-cli status
+# 🔔 COHERENT
+```
+
+This is the **operational implementation** of the event-driven architecture from CogX. The PGC now has a reflexive nervous system - it detects changes and heals automatically! 🧠
+
+---
+
+## 3. Analytical Commands (Exploring the Knowledge)
 
 Once the PGC is populated, these commands allow you to explore, analyze, and gain insights from the structured knowledge.
 

@@ -44,6 +44,10 @@ The CLI provides a suite of tools to manage the PGC lifecycle.
 | :--------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------ |
 | `cognition-cli init`                                 | **Initializes the PGC.** Creates the `.open_cognition` directory and its core structure, preparing your project for analysis.                                                                                                                       | Create directories, generate metadata, `.gitignore`.                                              |
 | `cognition-cli genesis [sourcePath]`                 | **Builds the Knowledge Graph.** Populates the PGC by parsing all source files, creating the verifiable "skeleton" of your project's structure.                                                                                                      | File discovery, AST parsing, content hashing, `TransformLog` creation, verification.              |
+| `cognition-cli watch`                                | **🗼 Monument 1: Event Source.** Monitors file changes in real-time and maintains `dirty_state.json`. Foundation for incremental updates and multi-agent coordination.                                                                              | Real-time file watching, hash-based change detection, dirty state ledger.                         |
+| `cognition-cli status`                               | **👁️ Monument 2: Instant Coherence Check.** Shows if PGC matches code in < 10ms. Calculates blast radius and optimizes commits.                                                                                                                    | Read dirty_state, calculate impact, show affected symbols, exit codes for CI/CD.                  |
+| `cognition-cli update`                               | **🌱 Monument 3: Incremental Sync.** Heals PGC by re-processing only changed files. Implements the Update Function (U) from CogX blueprint.                                                                                                         | Process dirty files, update objects/transforms/index, Oracle verification, clear dirty_state.     |
+| `cognition-cli guide [topic]`                        | **📚 Living Documentation.** Shows colorful, candid guides for commands - baked into the tool itself. Run `cognition-cli guide` to see all available topics.                                                                                       | Markdown rendering, command examples, architectural explanations, pro tips.                       |
 | `cognition-cli overlay generate <type>`              | **Adds Analytical Layers.** Generates specialized overlays (`structural_patterns` or `lineage_patterns`), enriching the PGC with deeper semantic and relational insights. Supports `--force` for regeneration and `--skip-gc` for branch switching. | Symbol extraction, signature generation, vector embedding, `LanceDB` storage, garbage collection. |
 | `cognition-cli patterns find-similar <symbol>`       | **Find Similar Patterns.** Uses vector similarity to find code that is structurally similar to a given symbol.                                                                                                                                      | Vector similarity search, architectural role matching.                                            |
 | `cognition-cli patterns compare <symbol1> <symbol2>` | **Compare Patterns.** Compares the structural signatures and dependencies of two symbols.                                                                                                                                                           | Cosine similarity, signature comparison, architectural analysis.                                  |
@@ -135,6 +139,37 @@ The CLI provides a suite of tools to manage the PGC lifecycle.
    # Trace dependency lineage
    cognition-cli query handleRequest --lineage --depth 3
    ```
+
+5. **Keep PGC synchronized with code changes (Monument 1-3):**
+
+   ```bash
+   # Terminal 1: Start the file watcher (run in background)
+   cognition-cli watch
+
+   # Terminal 2: Make changes to your code
+   # Edit files as usual...
+
+   # Terminal 2: Check coherence status (< 10ms)
+   cognition-cli status
+
+   # Output:
+   # 🎐 PGC Status: INCOHERENT
+   # Modified files: 3, Impacted symbols: 12
+
+   # Terminal 2: Update PGC incrementally
+   cognition-cli update
+
+   # Terminal 2: Verify coherence
+   cognition-cli status
+   # 🔔 PGC Status: COHERENT
+   ```
+
+   **The Complete Feedback Loop:**
+   ```
+   watch → dirty_state.json → status → update → coherence restored ♻️
+   ```
+
+   This is the **operational implementation** of the event-driven architecture from CogX. The PGC now has a reflexive nervous system - it detects changes and heals automatically!
 
 ---
 
