@@ -9,12 +9,10 @@ import type { WorkbenchClient } from '../executors/workbench-client.js';
 import { GenesisOracle } from '../pgc/oracles/genesis.js';
 import { DirtyStateManager } from '../watcher/dirty-state.js';
 import type { DirtyFile } from '../types/watcher.js';
-import type { StructuralData } from '../types/structural.js';
 
 import {
   DEFAULT_MAX_FILE_SIZE,
   WORKBENCH_DEPENDENT_EXTRACTION_METHODS,
-  DEFAULT_EMBEDDING_MODEL_NAME,
 } from '../../config.js';
 
 /**
@@ -353,7 +351,8 @@ export class UpdateOrchestrator {
    * For Monument 3, we focus on the core: re-process dirty files and clear state.
    * The propagation infrastructure (reverse_deps) is already in place for future use.
    */
-  private async propagateInvalidation(objectHash: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private async propagateInvalidation(_objectHash: string): Promise<void> {
     // Future implementation will use reverse_deps to traverse upward:
     //
     // 1. const dependentTransforms = await this.pgc.reverseDeps.get(objectHash)

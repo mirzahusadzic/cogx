@@ -141,7 +141,7 @@ function renderMarkdown(content: string): string {
       output.push(chalk.bold(line.slice(4)));
     } else if (line.startsWith('```')) {
       // Code blocks
-      const _lang = line.slice(3); // TODO: Use for syntax highlighting
+      // const lang = line.slice(3); // TODO: Use for syntax highlighting
       i++; // Skip opening ```
       const codeLines: string[] = [];
       while (i < lines.length && !lines[i].startsWith('```')) {

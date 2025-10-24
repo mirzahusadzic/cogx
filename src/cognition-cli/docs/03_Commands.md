@@ -81,11 +81,11 @@ cognition-cli genesis src/ --project-root /path/to/project --workbench http://lo
 
 ## 2. Live System Commands (Event-Driven Coherence)
 
-**Monument 1-3: The Reflexive Nervous System**
+### Monument 1-3: The Reflexive Nervous System
 
 These commands implement the event-driven architecture from the CogX blueprint, allowing the PGC to detect changes and maintain coherence automatically. Together, they form a living feedback loop:
 
-```
+```text
 watch → dirty_state.json → status → update → coherence restored ♻️
 ```
 
@@ -237,7 +237,7 @@ Incrementally syncs the PGC with your code changes. This is **Monument 3: Update
   - Clears `dirty_state.json` on success
 - **Options:**
   - `-p, --project-root <path>` - Root directory (default: current directory)
-  - `-w, --workbench <url>` - eGemma workbench URL (default: http://localhost:8000)
+  - `-w, --workbench <url>` - eGemma workbench URL (default: <http://localhost:8000>)
 - **Exit Codes:**
   - `0` - Update successful, PGC coherent
   - `1` - Update failed or verification error
@@ -284,7 +284,7 @@ $ cognition-cli status
 
 **The Update Function (U) implements the Invalidate algorithm from CogX:**
 
-```
+```text
 Change(⊥) → Invalidate(⊥) → Propagate_Up(Join_edges) → Invalidate(⊤)
 ```
 

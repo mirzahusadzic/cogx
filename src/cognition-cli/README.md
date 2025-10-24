@@ -70,25 +70,25 @@ The CLI provides a suite of tools to manage the PGC lifecycle.
 
    ```bash
    cd src/cognition-cli
-   ```
+   ```text
 
 2. **Install dependencies:**
 
    ```bash
    npm install
-   ```
+   ```text
 
 3. **Build the project:**
 
    ```bash
    npm run build
-   ```
+   ```text
 
 4. **Link for global access (recommended for development):**
 
    ```bash
    npm link
-   ```
+   ```text
 
 ### Example Workflow
 
@@ -97,20 +97,20 @@ The CLI provides a suite of tools to manage the PGC lifecycle.
    ```bash
    cd /path/to/your/project
    cognition-cli init
-   ```
+   ```text
 
 2. **Run the Genesis process to build the foundational knowledge:**
 
    ```bash
    cognition-cli genesis src/
-   ```
+   ```text
 
 3. **Generate the structural and lineage pattern overlays:**
 
    ```bash
    cognition-cli overlay generate structural_patterns
    cognition-cli overlay generate lineage_patterns
-   ```
+   ```text
 
 4. **Explore your codebase in a new way:**
 
@@ -138,7 +138,7 @@ The CLI provides a suite of tools to manage the PGC lifecycle.
 
    # Trace dependency lineage
    cognition-cli query handleRequest --lineage --depth 3
-   ```
+   ```text
 
 5. **Keep PGC synchronized with code changes (Monument 1-3):**
 
@@ -162,13 +162,13 @@ The CLI provides a suite of tools to manage the PGC lifecycle.
    # Terminal 2: Verify coherence
    cognition-cli status
    # 🔔 PGC Status: COHERENT
-   ```
+   ```text
 
    **The Complete Feedback Loop:**
 
-   ```
+   ```text
    watch → dirty_state.json → status → update → coherence restored ♻️
-   ```
+   ```text
 
    This is the **operational implementation** of the event-driven architecture from CogX. The PGC now has a reflexive nervous system - it detects changes and heals automatically!
 

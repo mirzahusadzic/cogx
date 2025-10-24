@@ -27,7 +27,7 @@ interface ChangeEvent {
   timestamp: number;
   hash?: string;
 }
-```
+```text
 
 **Implementation**:
 
@@ -37,7 +37,7 @@ cognition-cli watch [--daemon]
 
 # Watches all files in PGC index
 # On change → emit event → update dirty_state.json
-```
+```text
 
 **Technology Options**:
 
@@ -79,7 +79,7 @@ cognition-cli watch [--daemon]
     }
   ]
 }
-```
+```text
 
 **Operations**:
 
@@ -97,11 +97,11 @@ cognition-cli watch [--daemon]
 cognition-cli status
 # Reads dirty_state.json (< 10ms)
 # No file scanning needed!
-```
+```text
 
 **Output**:
 
-```
+```text
 PGC Status: INCOHERENT
 
 Dirty Files (2):
@@ -112,7 +112,7 @@ Untracked Files (1):
   + src/new-feature.ts (created 2m ago)
 
 Run 'cognition-cli update' to sync
-```
+```text
 
 ---
 
@@ -136,7 +136,7 @@ interface ContextDisturbanceScore {
     affectedSymbols: string[];
   };
 }
-```
+```text
 
 **Algorithm**:
 
@@ -167,7 +167,7 @@ async function update(options: UpdateOptions): Promise<UpdateResult> {
     delta,
   };
 }
-```
+```text
 
 ---
 
@@ -195,7 +195,7 @@ interface InMemoryFS {
   on(event: 'change', handler: (e: ChangeEvent) => void): void;
   on(event: 'delta_threshold_exceeded', handler: (e: DeltaEvent) => void): void;
 }
-```
+```text
 
 **Usage**:
 
@@ -211,7 +211,7 @@ const context = await memfs.getSymbols(['Config', 'ToolRegistry']);
 
 // Event fired → Delta calculated
 // Agent 1's Delta > threshold → paused & resynced
-```
+```text
 
 ---
 
@@ -221,7 +221,7 @@ const context = await memfs.getSymbols(['Config', 'ToolRegistry']);
 
 **Workflow**:
 
-```
+```text
 Agent 1 (Task: Refactor Config)
   ├─ Loads in-mem-fs
   ├─ Subscribes to change events
@@ -243,7 +243,7 @@ Agent 2 receives pause_and_resync event:
   → Saves current state
   → Reloads context from updated PGC
   → Resumes with fresh knowledge
-```
+```text
 
 **Configuration**:
 
@@ -253,7 +253,7 @@ interface CoordinationConfig {
   resyncStrategy: 'pause' | 'notify' | 'auto';
   contextWindow: number; // How many symbols to track
 }
-```
+```text
 
 ---
 
@@ -286,7 +286,7 @@ interface CoordinationConfig {
 
 ## Files to Create
 
-```
+```text
 src/
 ├── commands/
 │   ├── watch.ts          (new - start file watcher)
@@ -307,7 +307,7 @@ src/
 └── types/
     ├── coordination.ts   (new - Delta, events)
     └── watcher.ts        (new - ChangeEvent, DirtyState)
-```
+```text
 
 ---
 
@@ -343,7 +343,7 @@ cognition-cli agent run --task="add new logging tool"
 # - Agentic swarms
 # - Parallel development
 # - Cognitive Proof of Work (CPoW)
-```
+```text
 
 This is **the coordination layer for the multi-agent future.** 🚀
 
