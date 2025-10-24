@@ -388,6 +388,10 @@ export class UpdateOrchestrator {
     // 5. Invalidate overlays that anchor to this Genesis element
     // This will mark structural_patterns and lineage_patterns for regeneration
     await this.invalidateOverlays(objectHash);
+
+    // 6. Monument 4.9: Invalidate reverse dependencies (O₂ propagation)
+    // When file A changes, also invalidate lineage patterns of files that depend on A
+    await this.invalidateReverseDependencies(objectHash);
   }
 
   /**
@@ -396,9 +400,11 @@ export class UpdateOrchestrator {
    *
    * When a source file's structure changes, all overlays (patterns, embeddings)
    * that anchor to the old structure must be invalidated and regenerated.
+   *
+   * Monument 4.9: Also invalidates lineage_patterns for O₂ layer coherence
    */
   private async invalidateOverlays(structuralHash: string): Promise<void> {
-    const overlayTypes = ['structural_patterns']; // Add 'lineage_patterns' when implemented
+    const overlayTypes = ['structural_patterns', 'lineage_patterns'];
 
     for (const overlayType of overlayTypes) {
       try {
@@ -486,6 +492,118 @@ export class UpdateOrchestrator {
       log.warn(
         chalk.yellow(
           `Warning: Failed to update ${overlayType} manifest: ${(error as Error).message}`
+        )
+      );
+    }
+  }
+
+  /**
+   * Monument 4.9: Invalidate lineage patterns of files that depend on the changed file
+   *
+   * This implements O₂ (cross-file) invalidation. When file A changes, we must
+   * invalidate the lineage patterns of all files that import A, since their
+   * dependency graphs have changed.
+   *
+   * Algorithm:
+   * 1. Get the file path from the structural hash
+   * 2. Find all lineage patterns that list this file in their dependencies
+   * 3. Recursively invalidate those patterns (they'll be regenerated on next overlay run)
+   */
+  private async invalidateReverseDependencies(structuralHash: string): Promise<void> {
+    try {
+      // Get the file path for this structural hash from the Genesis manifest
+      const manifestPath = path.join(this.projectRoot, '.open_cognition', 'manifest.json');
+
+      if (!(await fs.pathExists(manifestPath))) {
+        return;
+      }
+
+      const genesisManifest = await fs.readJSON(manifestPath);
+      let changedFilePath: string | null = null;
+
+      for (const [filePath, hashes] of Object.entries(genesisManifest)) {
+        const hashData = hashes as { structuralHash?: string };
+        if (hashData.structuralHash === structuralHash) {
+          changedFilePath = filePath;
+          break;
+        }
+      }
+
+      if (!changedFilePath) {
+        // Structural hash not found in manifest - might have been deleted
+        return;
+      }
+
+      // Get all lineage patterns
+      const lineagePatternsDir = path.join(
+        this.projectRoot,
+        '.open_cognition',
+        'overlays',
+        'lineage_patterns'
+      );
+
+      if (!(await fs.pathExists(lineagePatternsDir))) {
+        // No lineage patterns yet
+        return;
+      }
+
+      const lineageFiles = await this.findOverlayFiles(lineagePatternsDir);
+      const toInvalidate: string[] = [];
+
+      // Find all lineage patterns that depend on the changed file
+      for (const lineageFile of lineageFiles) {
+        try {
+          const lineageData = await fs.readJSON(lineageFile);
+
+          // Parse the lineageSignature to check if it contains the changed file
+          if (lineageData.lineageSignature) {
+            const lineageJson = JSON.parse(lineageData.lineageSignature);
+
+            // Check if this lineage pattern has the changed file in its dependencies
+            if (lineageJson.lineage && Array.isArray(lineageJson.lineage)) {
+              const dependsOnChangedFile = lineageJson.lineage.some(
+                (dep: any) => dep.type && dep.type.includes(changedFilePath)
+              );
+
+              if (dependsOnChangedFile) {
+                toInvalidate.push(lineageFile);
+              }
+            }
+          }
+        } catch (error) {
+          // Skip corrupted lineage files
+          continue;
+        }
+      }
+
+      // Invalidate all affected lineage patterns
+      for (const lineageFile of toInvalidate) {
+        try {
+          const lineageData = await fs.readJSON(lineageFile);
+          await fs.remove(lineageFile);
+
+          // Remove from manifest
+          if (lineageData.symbol) {
+            await this.removeFromManifest('lineage_patterns', lineageData.symbol);
+          }
+        } catch (error) {
+          // Continue even if individual invalidation fails
+          continue;
+        }
+      }
+
+      if (toInvalidate.length > 0) {
+        log.info(
+          chalk.blue(
+            `Monument 4.9: Invalidated ${toInvalidate.length} lineage pattern(s) depending on ${changedFilePath}`
+          )
+        );
+      }
+    } catch (error) {
+      // If reverse dependency invalidation fails, log but don't block the update
+      log.warn(
+        chalk.yellow(
+          `Warning: Failed to invalidate reverse dependencies: ${(error as Error).message}`
         )
       );
     }
