@@ -485,7 +485,8 @@ export class GenesisOrchestrator {
             entry.name === 'node_modules' ||
             entry.name === '.git' ||
             entry.name === '__pycache__' ||
-            entry.name === '.open_cognition'
+            entry.name === '.open_cognition' ||
+            entry.name.startsWith('.venv') // Ignore all Python virtual environments
           ) {
             continue;
           }

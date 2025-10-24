@@ -50,6 +50,8 @@ interface QueryCommandOptions {
   projectRoot: string;
   depth: string;
   lineage: boolean;
+  // Test property to trigger Monument 4.7 overlay invalidation
+  testOverlayInvalidation?: boolean;
 }
 
 async function queryAction(question: string, options: QueryCommandOptions) {
