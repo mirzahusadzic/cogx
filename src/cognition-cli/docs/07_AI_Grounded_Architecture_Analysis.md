@@ -6,7 +6,7 @@
 
 ## Overview
 
-This document represents the first architecture analysis generated through human-AI collaboration using the Project Graph Cognition (PGC) system. Instead of relying on ungrounded LLM knowledge, this analysis is derived entirely from verifiable data extracted from the codebase itself using:
+This document represents the first architecture analysis generated through human-AI collaboration using the Grounded Context Pool (PGC) system. Instead of relying on ungrounded LLM knowledge, this analysis is derived entirely from verifiable data extracted from the codebase itself using:
 
 - `cognition-cli patterns analyze` - Architectural pattern distribution
 - `cognition-cli patterns list` - Symbol inventory
