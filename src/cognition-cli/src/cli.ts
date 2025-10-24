@@ -90,12 +90,14 @@ import { overlayCommand } from './commands/overlay.js';
 import { blastRadiusCommand } from './commands/blast-radius.js';
 import { createWatchCommand } from './commands/watch.js';
 import { createStatusCommand } from './commands/status.js';
+import { createUpdateCommand } from './commands/update.js';
 import { createGuideCommand } from './commands/guide.js';
 
 program.addCommand(overlayCommand);
 program.addCommand(blastRadiusCommand);
 program.addCommand(createWatchCommand());
 program.addCommand(createStatusCommand());
+program.addCommand(createUpdateCommand());
 program.addCommand(createGuideCommand());
 addPatternsCommands(program);
 
