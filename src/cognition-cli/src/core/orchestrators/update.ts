@@ -236,10 +236,8 @@ export class UpdateOrchestrator {
       await this.pgc.reverseDeps.add(contentHash, transformId);
       await this.pgc.reverseDeps.add(structuralHash, transformId);
 
-      // TODO: Propagate invalidation upward through reverse_deps
-      // This will be implemented when overlays are fully synthesized and attached
-      // For now, we just update the Genesis Layer directly
-      // await this.propagateInvalidation(dirtyFile.tracked_hash);
+      // Propagate invalidation upward through reverse_deps (Monument 4)
+      await this.propagateInvalidation(dirtyFile.tracked_hash);
 
       s.stop(chalk.green(`✓ ${dirtyFile.path}`));
       return true;
@@ -338,31 +336,55 @@ export class UpdateOrchestrator {
    * Propagate invalidation upward through the lattice
    * Implements: Invalidate(⊥) → Propagate_Up(Join_edges)
    *
-   * This is the recursive algorithm from CogX:
-   * 1. Find all transforms that depend on this hash (via reverse_deps)
-   * 2. Mark their outputs as Invalidated
-   * 3. Recursively propagate upward
-   *
-   * NOTE: Currently a stub. This will be fully implemented when:
-   * - Overlays are fully synthesized and attached to Genesis Layer
-   * - Directory summaries create Join operations that need invalidation
-   * - Multi-agent coordination requires Delta calculation
-   *
-   * For Monument 3, we focus on the core: re-process dirty files and clear state.
-   * The propagation infrastructure (reverse_deps) is already in place for future use.
+   * Monument 4: Surgical invalidation
+   * When a source file changes, only invalidate transforms that depend on it.
+   * This enables:
+   * - Incremental overlay regeneration (only affected patterns)
+   * - Surgical context updates (only changed symbols)
+   * - Efficient CI/CD (skip unchanged analysis)
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private async propagateInvalidation(_objectHash: string): Promise<void> {
-    // Future implementation will use reverse_deps to traverse upward:
-    //
-    // 1. const dependentTransforms = await this.pgc.reverseDeps.get(objectHash)
-    // 2. For each transform:
-    //    - Read manifest to get output hashes
-    //    - Mark those in index as status='Invalidated'
-    //    - Recursively call propagateInvalidation on those hashes
-    // 3. Propagate to overlays that anchor to this Genesis element
-    //
-    // This will enable the full Horizontal Shockwave propagation model.
+  private async propagateInvalidation(objectHash: string): Promise<void> {
+    // 1. Find all transforms that consumed this hash
+    const dependentTransforms = await this.pgc.reverseDeps.getTransformIds(
+      objectHash
+    );
+
+    if (dependentTransforms.length === 0) {
+      // Leaf node - nothing depends on this, we're done
+      return;
+    }
+
+    // 2. For each dependent transform
+    for (const transformId of dependentTransforms) {
+      const transform = await this.pgc.transformLog.getTransformData(
+        transformId
+      );
+
+      if (!transform) {
+        // Transform was deleted, skip
+        continue;
+      }
+
+      // 3. Mark its outputs as Invalidated
+      for (const output of transform.outputs) {
+        const indexEntry = await this.pgc.index.get(output.path);
+
+        if (indexEntry && indexEntry.structural_hash === output.hash) {
+          // Output still matches transform output - invalidate it
+          await this.pgc.index.set(output.path, {
+            ...indexEntry,
+            status: 'Invalidated',
+          });
+
+          // 4. Recursively propagate upward
+          await this.propagateInvalidation(output.hash);
+        }
+      }
+    }
+
+    // 5. TODO: Invalidate overlays that anchor to this Genesis element
+    // This will mark structural_patterns and lineage_patterns for regeneration
+    // await this.invalidateOverlays(objectHash);
   }
 
   /**
