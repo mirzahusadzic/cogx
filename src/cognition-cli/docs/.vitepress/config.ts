@@ -3,6 +3,7 @@ import { defineConfig } from 'vitepress';
 export default defineConfig({
   title: 'Cognition CLI',
   description: 'A meta-interpreter for verifiable, stateful AI cognition.',
+  base: '/cogx/',
   themeConfig: {
     nav: [
       { text: 'Home', link: '/' },
