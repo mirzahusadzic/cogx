@@ -350,9 +350,8 @@ export class UpdateOrchestrator {
    */
   private async propagateInvalidation(objectHash: string): Promise<void> {
     // 1. Find all transforms that consumed this hash
-    const dependentTransforms = await this.pgc.reverseDeps.getTransformIds(
-      objectHash
-    );
+    const dependentTransforms =
+      await this.pgc.reverseDeps.getTransformIds(objectHash);
 
     if (dependentTransforms.length === 0) {
       // Leaf node - nothing depends on this, we're done
@@ -361,9 +360,8 @@ export class UpdateOrchestrator {
 
     // 2. For each dependent transform
     for (const transformId of dependentTransforms) {
-      const transform = await this.pgc.transformLog.getTransformData(
-        transformId
-      );
+      const transform =
+        await this.pgc.transformLog.getTransformData(transformId);
 
       if (!transform) {
         // Transform was deleted, skip

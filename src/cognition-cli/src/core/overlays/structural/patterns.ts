@@ -39,6 +39,44 @@ function calculateOptimalWorkers(jobCount: number): number {
   return Math.min(8, Math.floor(cpuCount * 0.75));
 }
 
+/**
+ * Calculate cPOW (Cognitive Proof of Work) magnitude for an overlay entry
+ *
+ * This measures the inherent computational cost of generating the overlay,
+ * not its market value or tradeable price.
+ *
+ * @param extractionMethod - How structure was extracted (ast_remote, ast_local, llm_supervised)
+ * @param fidelity - Quality/confidence of extraction (0.0-1.0)
+ * @returns Magnitude score (0.0-1.0) representing computational work invested
+ */
+function calculateCPOWMagnitude(
+  extractionMethod: string,
+  fidelity: number
+): number {
+  // Base layer costs (Genesis extraction)
+  const GENESIS_COSTS: Record<string, number> = {
+    ast_remote: 0.15, // Remote API call to eGemma
+    ast_local: 0.05, // Local AST parsing
+    llm_supervised: 0.3, // LLM-assisted extraction
+  };
+
+  // Overlay layer cost (embedding generation - always expensive)
+  const OVERLAY_EMBEDDING_COST = 0.75;
+
+  let magnitude = 0.0;
+
+  // Genesis layer contribution
+  magnitude += GENESIS_COSTS[extractionMethod] || 0.1;
+
+  // Overlay layer contribution (embedding)
+  magnitude += OVERLAY_EMBEDDING_COST;
+
+  // Adjust by fidelity (higher fidelity = more work/refinement)
+  magnitude *= fidelity;
+
+  return Math.min(magnitude, 1.0);
+}
+
 export interface PatternMetadata {
   symbol: string;
   anchor: string;
@@ -53,6 +91,15 @@ export interface PatternMetadata {
     embeddingModelVersion: typeof DEFAULT_EMBEDDING_MODEL_NAME;
     extractionMethod: string;
     fidelity: number;
+  };
+  cpow: {
+    magnitude: number; // 0.0 - 1.0 scale of computational work
+    computation: {
+      extraction_method: string;
+      embedding_model: string;
+      api_calls: number;
+    };
+    timestamp: string;
   };
 }
 
@@ -349,6 +396,12 @@ export class StructuralPatternsManager implements PatternManager {
       lineage_hash: lineageHash,
     });
 
+    // Calculate cPOW magnitude
+    const cpowMagnitude = calculateCPOWMagnitude(
+      structuralData.extraction_method,
+      structuralData.fidelity
+    );
+
     // Update PGC overlays
     const metadata: PatternMetadata = {
       symbol: symbolName,
@@ -363,6 +416,15 @@ export class StructuralPatternsManager implements PatternManager {
         embeddingModelVersion: DEFAULT_EMBEDDING_MODEL_NAME,
         extractionMethod: structuralData.extraction_method,
         fidelity: structuralData.fidelity,
+      },
+      cpow: {
+        magnitude: cpowMagnitude,
+        computation: {
+          extraction_method: structuralData.extraction_method,
+          embedding_model: DEFAULT_EMBEDDING_MODEL_NAME,
+          api_calls: 1,
+        },
+        timestamp: new Date().toISOString(),
       },
       vectorId: vectorId,
     };
@@ -445,6 +507,12 @@ export class StructuralPatternsManager implements PatternManager {
       lineage_hash: lineageHash,
     });
 
+    // Calculate cPOW magnitude
+    const cpowMagnitude = calculateCPOWMagnitude(
+      symbolStructuralData.extraction_method,
+      symbolStructuralData.fidelity
+    );
+
     const metadata: PatternMetadata = {
       symbol: symbolName,
       anchor: relativePath,
@@ -458,6 +526,15 @@ export class StructuralPatternsManager implements PatternManager {
         embeddingModelVersion: DEFAULT_EMBEDDING_MODEL_NAME,
         extractionMethod: symbolStructuralData.extraction_method,
         fidelity: symbolStructuralData.fidelity,
+      },
+      cpow: {
+        magnitude: cpowMagnitude,
+        computation: {
+          extraction_method: symbolStructuralData.extraction_method,
+          embedding_model: DEFAULT_EMBEDDING_MODEL_NAME,
+          api_calls: 1,
+        },
+        timestamp: new Date().toISOString(),
       },
       vectorId: vectorId,
     };
