@@ -114,7 +114,7 @@ Every act of reasoning reduces to two primitive operations:
 
 The Meet operation answers: _"What do these two things share?"_
 
-```
+```text
 Component_A ∧ Component_B → Common_Dependencies
 ```
 
@@ -126,7 +126,7 @@ Component_A ∧ Component_B → Common_Dependencies
 
 The Join operation answers: _"What's the smallest thing that contains both?"_
 
-```
+```text
 File_A ∨ File_B → Synthesized_Component_Summary
 ```
 
@@ -138,7 +138,7 @@ File_A ∨ File_B → Synthesized_Component_Summary
 
 When source code changes, the Update Function (U) is the recursive loop that keeps the lattice coherent:
 
-```
+```text
 Change(⊥) → Invalidate(⊥) → Propagate_Up(Join_edges) → Invalidate(⊤)
 ```
 
@@ -248,37 +248,45 @@ graph TD
 The diagram illustrates five critical data flow patterns:
 
 **1. Genesis Flow (Bottom → Up):**
-```
+
+```text
 SOURCE → STRUCTURE → SYMBOLS → O₁/O₂ → TOP
 ```
+
 The foundational extraction: raw source code is parsed into structural data, symbols are extracted, overlays analyze them, all aggregating to complete understanding (⊤).
 
 **2. The Historian Pattern (Object → Transform → History):**
-```
+
+```text
 object_hash → REVERSE[object_hash→transform_ids] → TRANSFORMS[inputs/outputs] → OBJECTS
 ```
+
 **O(1) time travel:** Given any object hash, instantly retrieve which transform created it and trace back to original inputs. This is the bidirectional bridge that enables verifiable provenance.
 
 **3. Storage & Retrieval (Index → Objects):**
-```
+
+```text
 INDEX[semantic_path→hash] → OBJECTS[hash→data]
 ```
+
 The conscious mind: human-readable paths map to content-addressable storage. The present state of knowledge.
 
 **4. Update Function (Change Propagation):**
-```
+
+```text
 SOURCE (changed) → REVERSE[instant lookup] → SYMBOLS → O₁/O₂ (invalidated)
 ```
+
 When source code changes at ⊥, `reverse_deps` provides O(1) lookup of all dependent transforms, propagating invalidation upward through the lattice.
 
 **5. Overlay Anchoring (Horizontal Dimension):**
-```
+
+```text
 SYMBOLS ←--anchored to--→ O₁ (Structural Patterns)
 SYMBOLS ←--anchored to--→ O₂ (Lineage Patterns)
 ```
-Multiple overlays anchor to the same Genesis Layer truth, forming independent horizontal lattices that aggregate to ⊤.
 
----
+Multiple overlays anchor to the same Genesis Layer truth, forming independent horizontal lattices that aggregate to ⊤.
 
 **The Four Pillars of the PGC (The "Digital Brain"):**
 
@@ -310,6 +318,7 @@ The diagram shows two operational overlays—these are the system's **"sensory o
 - **`lineage_patterns/` (Blue) - The Dependency Sense:** This overlay anchors to the same Genesis symbols but traces dependency relationships and type lineage. It builds the "who depends on whom" graph. When you run `cognition-cli blast-radius`, you're asking this overlay to compute impact. **This is how the system "feels" connections.**
 
 **Key insight:** Both overlays anchor to the same Genesis Layer (the shared ground truth at ⊥), but they form their own **horizontal lattices** with their own Join operations:
+
 - Structural signatures (Meet from symbols) → Architectural roles (Join into classification)
 - Dependency graphs (Meet from symbols) → Type lineage (Join into flow analysis)
 
@@ -1203,6 +1212,71 @@ This tiered approach ensures that the vast majority of high-volume, routine cogn
 - **Why mention them? Does this mean AIs authored the blueprint?** No. The vision, courage, and architectural direction are human. These AI systems acted as collaborative tools—extensions of the author's cognition. They are acknowledged here for the same reason you might acknowledge a vital research library or a specialized instrument: they were part of the intellectual environment. Documenting their role is an act of verifiable grounding, aligning with the project's core principle that the provenance of understanding matters.
 
 - **Is this common?** This level of explicit, conceptual collaboration is new. It represents a paradigm shift beyond using AI for mere code generation or editing. It is a case study in symbiotic system design, where human intuition and AI's scalable reasoning are woven together to solve problems of foundational complexity.
+
+**15. What happens if someone installs a fake overlay into the PGC?**
+
+> The lattice architecture is inherently self-defending against superficial or fabricated knowledge. Let's trace through three attack scenarios to understand why:
+
+**Scenario 1: Fake Claims (Installing overlay with non-existent object hashes)**
+
+```bash
+# Attacker creates fake_overlay.json with imaginary hashes
+{
+  "symbol": "SuperSecretFunction",
+  "structural_hash": "abc123_fake_hash",
+  "dependencies": ["xyz789_also_fake"]
+}
+```
+
+**What happens:**
+
+- Pre-flight validation: System checks if `abc123_fake_hash` exists in `objects/`
+- **Result: REJECTION** - Hash doesn't exist, overlay entry is invalid
+- The overlay can't even be written without referencing real objects
+
+**Scenario 2: Backdated History (Claiming to have created something that exists)**
+
+```bash
+# Attacker finds real hash in objects/ and claims authorship
+# Tries to inject transform claiming they created it earlier
+```
+
+**What happens:**
+
+- System traces `structural_hash` → `reverse_deps/` → `transform_ids`
+- Finds the **actual** transform that created this object
+- Checks timestamp and provenance chain in `transforms/`
+- **Result: CONFLICT DETECTION** - Two transforms claiming same output hash
+- The earlier, legitimate transform is the source of truth (content-addressable storage doesn't lie)
+
+**Scenario 3: Ghost Symbols (Creating overlay entries with no source grounding)**
+
+```bash
+# Attacker creates structurally valid overlay pointing to real hashes
+# But those hashes represent unrelated code snippets
+```
+
+**What happens:**
+
+- Overlay passes pre-flight (hashes exist)
+- Overlay gets written to `overlays/structural_patterns/`
+- Someone queries: "Show me dependencies of SuperSecretFunction"
+- System retrieves object via hash, parses actual AST
+- **Result: COHERENCE VIOLATION** - Claimed structure doesn't match actual parsed structure
+- Oracle validation fails, data is flagged as incoherent
+
+**Why the lattice is inherently resistant to noise:**
+
+The combination of:
+
+1. **Content-addressable storage** (can't fake cryptographic hashes)
+2. **Immutable transform logs** (can't rewrite history)
+3. **Bidirectional provenance** (`objects ↔ transforms ↔ reverse_deps`)
+4. **Oracle validation** (claims must match ground truth)
+
+...creates a system where **superficial knowledge structurally cannot pass the filter**.
+
+The lattice doesn't need a bouncer. The mathematics IS the bouncer. Noise can't pass the filter because noise has no structure.
 
 ## **Roadmap: From Blueprint to Living System**
 
