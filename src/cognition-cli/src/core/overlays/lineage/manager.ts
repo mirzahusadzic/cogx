@@ -13,14 +13,12 @@ import { StructuralData } from '../../types/structural.js';
 import { EmbeddingService } from '../../services/embedding.js';
 import { EmbedResponse } from '../../types/workbench.js';
 import {
-  LineagePatternMetadata,
-  LineagePatternMetadataSchema,
-} from '../../types/lineage.js';
-import {
   PatternGenerationOptions,
   StructuralSymbolType,
   PatternJobPacket,
   PatternResultPacket,
+  LineagePatternMetadata,
+  LineagePatternMetadataSchema,
 } from './types.js';
 
 /**

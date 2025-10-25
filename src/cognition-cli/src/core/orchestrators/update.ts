@@ -409,7 +409,12 @@ export class UpdateOrchestrator {
     for (const overlayType of overlayTypes) {
       try {
         // Get all overlay files for this type
-        const overlaysDir = path.join(this.projectRoot, '.open_cognition', 'overlays', overlayType);
+        const overlaysDir = path.join(
+          this.projectRoot,
+          '.open_cognition',
+          'overlays',
+          overlayType
+        );
 
         if (!(await fs.pathExists(overlaysDir))) {
           continue; // No overlays of this type yet
@@ -461,7 +466,11 @@ export class UpdateOrchestrator {
         // Recursively search subdirectories
         const subResults = await this.findOverlayFiles(fullPath);
         results.push(...subResults);
-      } else if (entry.isFile() && entry.name.endsWith('.json') && entry.name !== 'manifest.json') {
+      } else if (
+        entry.isFile() &&
+        entry.name.endsWith('.json') &&
+        entry.name !== 'manifest.json'
+      ) {
         results.push(fullPath);
       }
     }
@@ -472,7 +481,10 @@ export class UpdateOrchestrator {
   /**
    * Remove a symbol from the overlay manifest
    */
-  private async removeFromManifest(overlayType: string, symbolName: string): Promise<void> {
+  private async removeFromManifest(
+    overlayType: string,
+    symbolName: string
+  ): Promise<void> {
     try {
       const manifest = await this.pgc.overlays.getManifest(overlayType);
       if (manifest[symbolName]) {
@@ -509,10 +521,16 @@ export class UpdateOrchestrator {
    * 2. Find all lineage patterns that list this file in their dependencies
    * 3. Recursively invalidate those patterns (they'll be regenerated on next overlay run)
    */
-  private async invalidateReverseDependencies(structuralHash: string): Promise<void> {
+  private async invalidateReverseDependencies(
+    structuralHash: string
+  ): Promise<void> {
     try {
       // Get the file path for this structural hash from the Genesis manifest
-      const manifestPath = path.join(this.projectRoot, '.open_cognition', 'manifest.json');
+      const manifestPath = path.join(
+        this.projectRoot,
+        '.open_cognition',
+        'manifest.json'
+      );
 
       if (!(await fs.pathExists(manifestPath))) {
         return;
@@ -562,7 +580,8 @@ export class UpdateOrchestrator {
             // Check if this lineage pattern has the changed file in its dependencies
             if (lineageJson.lineage && Array.isArray(lineageJson.lineage)) {
               const dependsOnChangedFile = lineageJson.lineage.some(
-                (dep: any) => dep.type && dep.type.includes(changedFilePath)
+                (dep: { type?: string }) =>
+                  dep.type && dep.type.includes(changedFilePath)
               );
 
               if (dependsOnChangedFile) {
@@ -584,7 +603,10 @@ export class UpdateOrchestrator {
 
           // Remove from manifest
           if (lineageData.symbol) {
-            await this.removeFromManifest('lineage_patterns', lineageData.symbol);
+            await this.removeFromManifest(
+              'lineage_patterns',
+              lineageData.symbol
+            );
           }
         } catch (error) {
           // Continue even if individual invalidation fails

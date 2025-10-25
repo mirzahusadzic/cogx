@@ -94,11 +94,19 @@ export function addPatternsCommands(program: Command) {
 
       // Monument 4.8: Manifest as Source of Truth
       // Read manifest first to determine which patterns should exist
-      const manifest = await pgc.overlays.getManifest(`${options.type}_patterns`);
+      const manifest = await pgc.overlays.getManifest(
+        `${options.type}_patterns`
+      );
 
       if (!manifest || Object.keys(manifest).length === 0) {
-        console.log(chalk.yellow(`\nNo ${options.type} patterns found in manifest.`));
-        console.log(chalk.dim(`Run: cognition-cli overlay generate ${options.type}_patterns`));
+        console.log(
+          chalk.yellow(`\nNo ${options.type} patterns found in manifest.`)
+        );
+        console.log(
+          chalk.dim(
+            `Run: cognition-cli overlay generate ${options.type}_patterns`
+          )
+        );
         return;
       }
 
@@ -114,7 +122,10 @@ export function addPatternsCommands(program: Command) {
 
       // Group by architectural role with symbols and file paths
       // Only include symbols that are in the manifest (source of truth)
-      const roleGroups: Record<string, Array<{ symbol: string; filePath: string }>> = {};
+      const roleGroups: Record<
+        string,
+        Array<{ symbol: string; filePath: string }>
+      > = {};
       let totalPatterns = 0;
       let staleVectors = 0;
 
@@ -179,8 +190,16 @@ export function addPatternsCommands(program: Command) {
       );
 
       if (staleVectors > 0) {
-        console.log(chalk.yellow(`  ⚠️  ${staleVectors} patterns in manifest but not in vector DB`));
-        console.log(chalk.dim(`     Run: cognition-cli overlay generate ${options.type}_patterns --force`));
+        console.log(
+          chalk.yellow(
+            `  ⚠️  ${staleVectors} patterns in manifest but not in vector DB`
+          )
+        );
+        console.log(
+          chalk.dim(
+            `     Run: cognition-cli overlay generate ${options.type}_patterns --force`
+          )
+        );
       }
 
       if (!options.verbose) {
