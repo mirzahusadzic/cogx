@@ -12,6 +12,13 @@ _And I'll show you how deep this rabbit hole really goes._
 <img src="./docs/assets/cogx-logo.png" alt="Cognition CLI Logo" width="512"/>
 </div>
 
+<div align="center">
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17442459.svg)](https://doi.org/10.5281/zenodo.17442459)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+
+</div>
+
 ## Vision
 
 > This repository contains a comprehensive architectural blueprint for Open Cognition, a system designed to solve the fundamental limitations of modern Large Language Models (LLMs)—their lack of persistent, verifiable memory. It provides a framework for a new kind of computing, moving from "Open Code" to "CogX," where the structured, verified understanding of a system is as shareable and composable as the code itself.
