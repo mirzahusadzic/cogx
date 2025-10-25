@@ -518,7 +518,14 @@ export class OverlayOrchestrator {
             entry.name === '.git' ||
             entry.name === '__pycache__' ||
             entry.name === '.open_cognition' ||
-            entry.name.startsWith('.venv') // Ignore all Python virtual environments
+            entry.name === 'dist' ||
+            entry.name === 'docs' ||
+            entry.name === 'build' ||
+            entry.name === 'cache' ||
+            entry.name === '.next' ||
+            entry.name === '.nuxt' ||
+            entry.name.startsWith('.venv') || // Python virtual environments
+            entry.name.startsWith('.') // All other hidden directories (e.g., .vitepress)
           ) {
             continue;
           }
