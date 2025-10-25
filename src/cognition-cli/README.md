@@ -219,6 +219,7 @@ This document represents a breakthrough in AI-assisted development:
 - [05 - Verification and Oracles: Ensuring PGC Integrity](./docs/05_Verification_and_Oracles.md)
 - [06 - Testing and Deployment](./docs/06_Testing_and_Deployment.md)
 - [07 - AI-Grounded Architecture Analysis](./docs/07_AI_Grounded_Architecture_Analysis.md) ⭐ **First Human-AI Grounded Collaboration**
+- [08 - Claude Code Integration](./docs/08_Claude_CLI_Integration.md) 🤖 **Grounded AI-Assisted Development**
 
 ## Research & Collaboration
 
