@@ -155,6 +155,8 @@ Change(⊥) → Invalidate(⊥) → Propagate_Up(Join_edges) → Invalidate(⊤)
 
 The PGC architecture is a **constructive proof** that knowledge forms a lattice:
 
+#### Figure 1: The N-Dimensional Lattice Architecture
+
 ```mermaid
 graph TD
     %% Top of Lattice
@@ -163,13 +165,13 @@ graph TD
     %% Current State (The Conscious Mind)
     INDEX["index/<br/>(current state - semantic paths to hashes)"]
 
-    %% Overlay Dimension 1: Structural Patterns
-    SP_ROLE["Architectural Roles<br/>(component, service, utility, type)"]
-    SP_SIG["Structural Signatures<br/>(embeddings of code structure)"]
+    %% Overlay Dimension O₁: Structural Patterns
+    SP_ROLE["O₁: Architectural Roles<br/>(component, service, utility, type)"]
+    SP_SIG["O₁: Structural Signatures<br/>(embeddings of code structure)"]
 
-    %% Overlay Dimension 2: Lineage Patterns
-    LP_GRAPH["Dependency Graphs<br/>(who depends on whom)"]
-    LP_TYPE["Type Lineage<br/>(data flow through types)"]
+    %% Overlay Dimension O₂: Lineage Patterns
+    LP_GRAPH["O₂: Dependency Graphs<br/>(who depends on whom)"]
+    LP_TYPE["O₂: Type Lineage<br/>(data flow through types)"]
 
     %% Genesis Layer
     SYMBOLS["Symbols<br/>(classes, functions, exports)"]
@@ -212,7 +214,12 @@ graph TD
     TRANSFORMS -.->|"history"| SP_SIG
     TRANSFORMS -.->|"history"| LP_GRAPH
 
+    %% Transform-Object bridge (inputs/outputs reference objects)
+    TRANSFORMS <-.->|"inputs/outputs"| OBJECTS
+
     %% Reflexive nervous system (Update Function U)
+    %% The Historian: reverse_deps indexes from objects into transforms for O(1) history lookup
+    REVERSE -.->|"object_hash→transform_ids"| TRANSFORMS
     REVERSE -.->|"instant lookup"| SYMBOLS
     REVERSE -.->|"instant lookup"| SP_SIG
     REVERSE -.->|"instant lookup"| LP_GRAPH
@@ -230,6 +237,48 @@ graph TD
     style TRANSFORMS fill:#5f4a2d,stroke:#7c6a4a,color:#fff
     style REVERSE fill:#5f3d2d,stroke:#7c5c4a,color:#fff
 ```
+
+**Legend:**
+- **Solid arrows (→)**: Lattice operations (Meet ∧ and Join ∨) - the vertical structure
+- **Dashed arrows (-.->)**: Infrastructure connections - storage, indexing, and history
+- **Bidirectional (←→)**: Mutual reference relationships
+
+#### Data Flow Patterns
+
+The diagram illustrates five critical data flow patterns:
+
+**1. Genesis Flow (Bottom → Up):**
+```
+SOURCE → STRUCTURE → SYMBOLS → O₁/O₂ → TOP
+```
+The foundational extraction: raw source code is parsed into structural data, symbols are extracted, overlays analyze them, all aggregating to complete understanding (⊤).
+
+**2. The Historian Pattern (Object → Transform → History):**
+```
+object_hash → REVERSE[object_hash→transform_ids] → TRANSFORMS[inputs/outputs] → OBJECTS
+```
+**O(1) time travel:** Given any object hash, instantly retrieve which transform created it and trace back to original inputs. This is the bidirectional bridge that enables verifiable provenance.
+
+**3. Storage & Retrieval (Index → Objects):**
+```
+INDEX[semantic_path→hash] → OBJECTS[hash→data]
+```
+The conscious mind: human-readable paths map to content-addressable storage. The present state of knowledge.
+
+**4. Update Function (Change Propagation):**
+```
+SOURCE (changed) → REVERSE[instant lookup] → SYMBOLS → O₁/O₂ (invalidated)
+```
+When source code changes at ⊥, `reverse_deps` provides O(1) lookup of all dependent transforms, propagating invalidation upward through the lattice.
+
+**5. Overlay Anchoring (Horizontal Dimension):**
+```
+SYMBOLS ←--anchored to--→ O₁ (Structural Patterns)
+SYMBOLS ←--anchored to--→ O₂ (Lineage Patterns)
+```
+Multiple overlays anchor to the same Genesis Layer truth, forming independent horizontal lattices that aggregate to ⊤.
+
+---
 
 **The Four Pillars of the PGC (The "Digital Brain"):**
 
