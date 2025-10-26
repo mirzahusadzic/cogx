@@ -21,6 +21,7 @@ export const MISSION_SECTIONS = {
    * Only sections with these headings (case-insensitive) will be analyzed
    */
   whitelist: [
+    // Strategic/Vision sections
     'Vision',
     'Mission',
     'Principles',
@@ -29,6 +30,21 @@ export const MISSION_SECTIONS = {
     'Strategic Intent',
     'Why',
     'Purpose',
+    'Opportunity',
+    'Solution',
+    'Crossroads',
+    'Path Forward',
+
+    // Technical documentation sections
+    'Overview',
+    'Architecture',
+    'Design',
+    'Implementation',
+    'Usage',
+    'Meta',
+    'Philosophy',
+    'Patterns',
+    'Strategy',
   ],
 
   /**

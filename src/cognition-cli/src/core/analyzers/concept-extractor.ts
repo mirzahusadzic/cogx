@@ -239,37 +239,73 @@ export class ConceptExtractor {
     // First section = 1.0, last section = 0.6
     const positionWeight = 1.0 - (sectionIndex / totalSections) * 0.4;
 
-    // Extract emphasized text (**bold**, *italic*)
-    const emphasized = this.extractEmphasized(content);
-    emphasized.forEach((text) => {
+    // 1. Extract blockquotes/epigraphs (highest signal)
+    const blockquotes = this.extractBlockquotes(content);
+    blockquotes.forEach((text) => {
       concepts.push({
         text,
         section: section.heading,
-        weight: positionWeight * 0.95, // High weight for emphasized
+        weight: positionWeight * 1.0, // Highest weight - distilled essence
         occurrences: 1,
         sectionHash: section.structuralHash,
       });
     });
 
-    // Extract quoted phrases
+    // 2. Extract H3/H4 subsection headers (concepts as titles)
+    const headers = this.extractSubHeaders(content);
+    headers.forEach((text) => {
+      concepts.push({
+        text,
+        section: section.heading,
+        weight: positionWeight * 0.95, // Very high - named concepts
+        occurrences: 1,
+        sectionHash: section.structuralHash,
+      });
+    });
+
+    // 3. Extract bullet points with bold prefix pattern
+    const bulletConcepts = this.extractBulletPrefixes(content);
+    bulletConcepts.forEach((text) => {
+      concepts.push({
+        text,
+        section: section.heading,
+        weight: positionWeight * 0.9, // High - structured value props
+        occurrences: 1,
+        sectionHash: section.structuralHash,
+      });
+    });
+
+    // 4. Extract standalone bold complete sentences
+    const boldSentences = this.extractBoldSentences(content);
+    boldSentences.forEach((text) => {
+      concepts.push({
+        text,
+        section: section.heading,
+        weight: positionWeight * 0.85, // High - complete thoughts
+        occurrences: 1,
+        sectionHash: section.structuralHash,
+      });
+    });
+
+    // 5. Extract emoji-prefixed items
+    const emojiItems = this.extractEmojiPrefixed(content);
+    emojiItems.forEach((text) => {
+      concepts.push({
+        text,
+        section: section.heading,
+        weight: positionWeight * 0.8, // Good - structured lists
+        occurrences: 1,
+        sectionHash: section.structuralHash,
+      });
+    });
+
+    // 6. Extract quoted phrases (fallback)
     const quoted = this.extractQuoted(content);
     quoted.forEach((text) => {
       concepts.push({
         text,
         section: section.heading,
-        weight: positionWeight * 0.9, // High weight for quotes
-        occurrences: 1,
-        sectionHash: section.structuralHash,
-      });
-    });
-
-    // Extract noun phrases (2-4 word sequences)
-    const nounPhrases = this.extractNounPhrases(content);
-    nounPhrases.forEach((text) => {
-      concepts.push({
-        text,
-        section: section.heading,
-        weight: positionWeight * 0.7, // Medium weight for noun phrases
+        weight: positionWeight * 0.75, // Medium - may be examples
         occurrences: 1,
         sectionHash: section.structuralHash,
       });
@@ -279,35 +315,179 @@ export class ConceptExtractor {
   }
 
   /**
-   * Extract emphasized text (**bold**, *italic*)
+   * Extract blockquotes/epigraphs (> lines)
+   * These are typically distilled essence statements
    */
-  private extractEmphasized(content: string): string[] {
-    const emphasized: string[] = [];
+  private extractBlockquotes(content: string): string[] {
+    const blockquotes: string[] = [];
+    const lines = content.split('\n');
 
-    // Match **bold**
-    const boldRegex = /\*\*([^*]+)\*\*/g;
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('>')) {
+        // Remove > and surrounding _ or * formatting
+        const text = trimmed
+          .substring(1)
+          .trim()
+          .replace(/^[_*]+|[_*]+$/g, '')
+          .trim();
+
+        if (this.isValidConcept(text) && text.length > 15) {
+          blockquotes.push(text);
+        }
+      }
+    }
+
+    return blockquotes;
+  }
+
+  /**
+   * Extract subsection headers (### or ####)
+   * These are named concepts in the document structure
+   */
+  private extractSubHeaders(content: string): string[] {
+    const headers: string[] = [];
+    const lines = content.split('\n');
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      // Match ### or #### headers (but not ## or #)
+      const match = trimmed.match(/^###\s+(.+)$/);
+      if (match) {
+        const text = match[1].trim().replace(/^[#\s]+/, '');
+        if (this.isValidConcept(text)) {
+          headers.push(text);
+        }
+      }
+    }
+
+    return headers;
+  }
+
+  /**
+   * Extract bullet points with bold prefix pattern
+   * Pattern: - **prefix**, rest of text
+   * Or: - **complete bold statement**
+   */
+  private extractBulletPrefixes(content: string): string[] {
+    const concepts: string[] = [];
+    const lines = content.split('\n');
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      // Match bullet/dash lines with bold content
+      if (trimmed.match(/^[-*•]\s+/)) {
+        // Extract bold prefix + context (up to comma, em dash, or end)
+        const boldPrefixMatch = trimmed.match(
+          /^[-*•]\s+\*\*([^*]+)\*\*(?:[,—]\s*(.+?))?$/
+        );
+
+        if (boldPrefixMatch) {
+          const prefix = boldPrefixMatch[1].trim();
+          const context = boldPrefixMatch[2]?.trim();
+
+          // If there's context, combine prefix + first part of context
+          if (context) {
+            const contextSnippet = context.split(/[.!?]/)[0].trim();
+            const combined = `${prefix}: ${contextSnippet}`;
+            if (this.isValidConcept(combined) && combined.length > 10) {
+              concepts.push(combined);
+            }
+          } else if (this.isValidConcept(prefix) && prefix.length > 5) {
+            // Just the bold prefix if it's meaningful
+            concepts.push(prefix);
+          }
+        }
+      }
+    }
+
+    return concepts;
+  }
+
+  /**
+   * Extract standalone bold sentences (complete thoughts)
+   * Must be a complete sentence (ends with punctuation) and substantial
+   */
+  private extractBoldSentences(content: string): string[] {
+    const sentences: string[] = [];
+
+    // Match **text that ends with punctuation**
+    const sentenceRegex = /\*\*([^*]+[.!?])\*\*/g;
     let match;
-    while ((match = boldRegex.exec(content)) !== null) {
+
+    while ((match = sentenceRegex.exec(content)) !== null) {
       const text = match[1].trim();
-      if (this.isValidConcept(text)) {
-        emphasized.push(text);
+      // Must be a complete sentence (at least 20 chars, ends with punctuation)
+      if (this.isValidConcept(text) && text.length >= 20) {
+        sentences.push(text);
       }
     }
 
-    // Match *italic*
-    const italicRegex = /\*([^*]+)\*/g;
-    while ((match = italicRegex.exec(content)) !== null) {
-      const text = match[1].trim();
-      if (this.isValidConcept(text)) {
-        emphasized.push(text);
+    return sentences;
+  }
+
+  /**
+   * Extract emoji-prefixed items
+   * Pattern: ✅ or ❌ followed by text
+   * Captures bold prefix + context for compound value props
+   */
+  private extractEmojiPrefixed(content: string): string[] {
+    const items: string[] = [];
+    const lines = content.split('\n');
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      // Match lines starting with common list emojis
+      // Using test for emoji presence then capturing the rest
+      if (
+        !/^[-*•]?\s*[✅❌✓✗⚠🔥💡]/u.test(trimmed) &&
+        !trimmed.includes('⚠️')
+      ) {
+        continue;
+      }
+
+      const emojiMatch = trimmed.match(/^[-*•]?\s*[^\s]+\s+(.+)$/u);
+      if (emojiMatch) {
+        let text = emojiMatch[1].trim();
+
+        // If it contains bold, extract the bold part + meaningful context
+        const boldMatch = text.match(/\*\*([^*]+)\*\*/);
+        if (boldMatch) {
+          const boldText = boldMatch[1];
+
+          // Check for em-dash separator (—)
+          const afterBold = text
+            .substring(text.indexOf(boldMatch[0]) + boldMatch[0].length)
+            .trim();
+
+          if (afterBold.startsWith('—')) {
+            // Has explanation after em-dash, extract first meaningful part
+            const explanation = afterBold.substring(1).trim();
+            const snippet = explanation.split(/[.!?]/)[0].trim();
+
+            if (snippet.length > 10) {
+              text = `${boldText} — ${snippet}`;
+            } else {
+              text = boldText;
+            }
+          } else {
+            // No em-dash, just use bold text
+            text = boldText;
+          }
+        }
+
+        if (this.isValidConcept(text) && text.length >= 10) {
+          items.push(text);
+        }
       }
     }
 
-    return emphasized;
+    return items;
   }
 
   /**
    * Extract quoted phrases
+   * Skip questions and very short quotes (likely examples, not concepts)
    */
   private extractQuoted(content: string): string[] {
     const quoted: string[] = [];
@@ -317,57 +497,19 @@ export class ConceptExtractor {
     let match;
     while ((match = quoteRegex.exec(content)) !== null) {
       const text = match[1].trim();
-      if (this.isValidConcept(text)) {
+
+      // Skip questions (examples, not concepts)
+      if (text.endsWith('?')) {
+        continue;
+      }
+
+      // Must be substantial (at least 15 chars)
+      if (this.isValidConcept(text) && text.length >= 15) {
         quoted.push(text);
       }
     }
 
     return quoted;
-  }
-
-  /**
-   * Extract noun phrases (2-4 word sequences)
-   * Simple heuristic: sequences of capitalized words or meaningful word pairs
-   */
-  private extractNounPhrases(content: string): string[] {
-    const phrases: string[] = [];
-
-    // Remove markdown formatting for cleaner extraction
-    const cleanContent = content
-      .replace(/\*\*([^*]+)\*\*/g, '$1') // Remove bold
-      .replace(/\*([^*]+)\*/g, '$1') // Remove italic
-      .replace(/`([^`]+)`/g, '$1') // Remove code
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1'); // Remove links
-
-    // Extract 2-4 word phrases
-    const words = cleanContent.split(/\s+/);
-
-    for (let i = 0; i < words.length - 1; i++) {
-      // Try 4-word phrases
-      if (i + 3 < words.length) {
-        const phrase = words.slice(i, i + 4).join(' ');
-        if (this.isValidConcept(phrase)) {
-          phrases.push(phrase);
-        }
-      }
-
-      // Try 3-word phrases
-      if (i + 2 < words.length) {
-        const phrase = words.slice(i, i + 3).join(' ');
-        if (this.isValidConcept(phrase)) {
-          phrases.push(phrase);
-        }
-      }
-
-      // Try 2-word phrases
-      const phrase = words.slice(i, i + 2).join(' ');
-      if (this.isValidConcept(phrase)) {
-        phrases.push(phrase);
-      }
-    }
-
-    // Deduplicate
-    return Array.from(new Set(phrases));
   }
 
   /**

@@ -31,7 +31,7 @@ This enables **mission-driven development** where you can:
 
 Browse all extracted mission concepts with their weights and sections.
 
-```bash
+````bash
 cognition-cli concepts list --limit 50
 ```text
 
@@ -603,3 +603,4 @@ cognition-cli concepts list --limit 5
 ---
 
 **← Back to [Claude Code Integration](../08_Claude_CLI_Integration.md)**
+````
