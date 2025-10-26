@@ -307,7 +307,14 @@ export class LanceVectorStore {
       if (!isValid) {
         console.warn(
           `[LanceVectorStore] Invalid vector record found in getAllVectors:`,
-          record
+          {
+            id: record.id,
+            symbol: record.symbol,
+            embedding_length: record.embedding?.length,
+            embedding_type: typeof record.embedding,
+            has_architectural_role: !!record.architectural_role,
+            has_lineage_hash: !!record.lineage_hash,
+          }
         );
       }
       return isValid && record.id !== 'dummy_record';
