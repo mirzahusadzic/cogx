@@ -3,7 +3,7 @@ import remarkParse from 'remark-parse';
 import { visit } from 'unist-util-visit';
 import { createHash } from 'crypto';
 import { readFile } from 'fs/promises';
-import { Root, Heading, Content } from 'mdast';
+import { Root, Heading, Node, PhrasingContent } from 'mdast';
 
 export interface MarkdownSection {
   heading: string;
@@ -12,8 +12,8 @@ export interface MarkdownSection {
   children: MarkdownSection[];
   structuralHash: string;
   position: {
-    start: { line: number; column: number; offset: number };
-    end: { line: number; column: number; offset: number };
+    start: { line: number; column: number; offset?: number };
+    end: { line: number; column: number; offset?: number };
   };
 }
 
@@ -27,6 +27,17 @@ export interface MarkdownDocument {
     date?: string;
   };
   rawContent: string;
+}
+
+interface Position {
+  start: { line: number; column: number; offset?: number };
+  end: { line: number; column: number; offset?: number };
+}
+
+interface HeadingInfo {
+  text: string;
+  level: number;
+  position: Position | undefined;
 }
 
 export class MarkdownParser {
@@ -67,7 +78,7 @@ export class MarkdownParser {
     const sectionStack: Array<{ section: MarkdownSection; level: number }> = [];
 
     let currentContent: string[] = [];
-    let currentHeading: { text: string; level: number; position: any } | null = null;
+    let currentHeading: HeadingInfo | null = null;
 
     visit(ast, (node) => {
       if (node.type === 'heading') {
@@ -100,8 +111,8 @@ export class MarkdownParser {
     });
 
     // Add final section
-    if (currentHeading !== null) {
-      const heading: { text: string; level: number; position: any } = currentHeading;
+    if (currentHeading) {
+      const heading: HeadingInfo = currentHeading;
       const section = this.createSection(
         heading.text,
         heading.level,
@@ -121,7 +132,7 @@ export class MarkdownParser {
     heading: string,
     level: number,
     content: string,
-    position: any
+    position: Position | undefined
   ): MarkdownSection {
     const section: MarkdownSection = {
       heading,
@@ -129,7 +140,10 @@ export class MarkdownParser {
       content: content.trim(),
       children: [],
       structuralHash: '',
-      position: position || { start: { line: 0, column: 0, offset: 0 }, end: { line: 0, column: 0, offset: 0 } },
+      position: position || {
+        start: { line: 0, column: 0, offset: 0 },
+        end: { line: 0, column: 0, offset: 0 },
+      },
     };
 
     // Compute hash after creating section
@@ -168,11 +182,13 @@ export class MarkdownParser {
    */
   private extractHeadingText(heading: Heading): string {
     return heading.children
-      .map((child: any) => {
+      .map((child: PhrasingContent) => {
         if (child.type === 'text') return child.value;
         if (child.type === 'inlineCode') return child.value;
         if (child.type === 'strong' || child.type === 'emphasis') {
-          return child.children.map((c: any) => c.value || '').join('');
+          return child.children
+            .map((c) => ('value' in c ? c.value : ''))
+            .join('');
         }
         return '';
       })
@@ -183,10 +199,12 @@ export class MarkdownParser {
   /**
    * Convert AST node to text (for content accumulation)
    */
-  private nodeToText(node: any, fullContent: string): string {
+  private nodeToText(node: Node, fullContent: string): string {
     if (!node.position) return '';
 
     const { start, end } = node.position;
+    if (start.offset === undefined || end.offset === undefined) return '';
+
     return fullContent.substring(start.offset, end.offset);
   }
 
@@ -205,7 +223,7 @@ export class MarkdownParser {
     const data = [
       section.heading,
       section.content,
-      ...section.children.map(c => c.structuralHash),
+      ...section.children.map((c) => c.structuralHash),
     ].join('||');
 
     return createHash('sha256').update(data).digest('hex');
@@ -220,7 +238,7 @@ export class MarkdownParser {
     date?: string;
   } {
     // Use first H1 as title
-    const firstH1 = sections.find(s => s.level === 1);
+    const firstH1 = sections.find((s) => s.level === 1);
 
     return {
       title: firstH1?.heading,
