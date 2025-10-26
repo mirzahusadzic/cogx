@@ -88,12 +88,25 @@ program
   .option('-l, --limit <number>', 'Number of transformations to show', '5')
   .action(auditCommand);
 
+program
+  .command('genesis:docs <path>')
+  .description('Ingest markdown documentation into PGC with full provenance')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .action((pathArg, options) => {
+    genesisDocsCommand(pathArg, options);
+  });
+
 import { overlayCommand } from './commands/overlay.js';
 import { blastRadiusCommand } from './commands/blast-radius.js';
 import { createWatchCommand } from './commands/watch.js';
 import { createStatusCommand } from './commands/status.js';
 import { createUpdateCommand } from './commands/update.js';
 import { createGuideCommand } from './commands/guide.js';
+import { genesisDocsCommand } from './commands/genesis-docs.js';
 
 program.addCommand(overlayCommand);
 program.addCommand(blastRadiusCommand);
