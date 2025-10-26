@@ -26,14 +26,14 @@ This integration enables:
 
 ### Getting Started
 
-- **[Quick Start](./claude-integration/quick-start.md)** - 5-minute setup guide
-- **[Slash Commands](./claude-integration/slash-commands.md)** - Using `.claude/commands/`
-- **[Integration Patterns](./claude-integration/integration-patterns.md)** - Common workflows
+- **Quick Start** - 5-minute setup guide _(Coming Soon)_
+- **Slash Commands** - Using `.claude/commands/` _(Coming Soon)_
+- **Integration Patterns** - Common workflows _(Coming Soon)_
 
 ### Core Features
 
-- **[Structural Analysis](./claude-integration/structural-analysis.md)** - Architecture exploration with AI
-- **[Impact Analysis](./claude-integration/impact-analysis.md)** - Blast radius & dependency tracking
+- **Structural Analysis** - Architecture exploration with AI _(Coming Soon)_
+- **Impact Analysis** - Blast radius & dependency tracking _(Coming Soon)_
 - **[O₃ Mission Alignment](./claude-integration/o3-mission-alignment.md)** ⭐ NEW
   - Mission concepts extraction
   - Strategic coherence scoring
@@ -41,14 +41,14 @@ This integration enables:
 
 ### Development Workflows
 
-- **[Best Practices](./claude-integration/best-practices.md)** - Recommended patterns
-- **[Real-World Workflows](./claude-integration/workflows.md)** - End-to-end examples
-- **[Git Integration](./claude-integration/git-integration.md)** - Pre-commit checks & PR reviews
+- **Best Practices** - Recommended patterns _(Coming Soon)_
+- **Real-World Workflows** - End-to-end examples _(Coming Soon)_
+- **Git Integration** - Pre-commit checks & PR reviews _(Coming Soon)_
 
 ### Reference
 
-- **[Command Reference](./claude-integration/command-reference.md)** - All cognition-cli commands
-- **[Troubleshooting](./claude-integration/troubleshooting.md)** - Common issues
+- **Command Reference** - All cognition-cli commands _(Coming Soon)_
+- **Troubleshooting** - Common issues _(Coming Soon)_
 
 ---
 
@@ -130,11 +130,11 @@ Choose your path:
 
 ### 🚀 **New User?**
 
-Start with **[Quick Start](./claude-integration/quick-start.md)** to set up in 5 minutes.
+Start with the **Quick Start** guide _(coming soon)_ to set up in 5 minutes.
 
 ### 🎯 **Want Practical Examples?**
 
-See **[Real-World Workflows](./claude-integration/workflows.md)** for end-to-end scenarios.
+See **Real-World Workflows** _(coming soon)_ for end-to-end scenarios.
 
 ### 🔬 **Interested in Mission Alignment?**
 
@@ -142,7 +142,7 @@ Explore **[O₃ Mission Alignment](./claude-integration/o3-mission-alignment.md)
 
 ### 📚 **Need Command Reference?**
 
-Browse **[Command Reference](./claude-integration/command-reference.md)** for all available commands.
+Browse the **Command Reference** _(coming soon)_ for all available commands.
 
 ---
 
@@ -155,4 +155,4 @@ Browse **[Command Reference](./claude-integration/command-reference.md)** for al
 
 ---
 
-**Ready to start?** Head to **[Quick Start](./claude-integration/quick-start.md)** →
+**Ready to start?** Check out the docs above to get started with `cognition-cli` + Claude Code! →
