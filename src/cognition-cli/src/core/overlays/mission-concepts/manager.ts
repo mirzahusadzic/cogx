@@ -2,15 +2,20 @@ import { MissionConcept } from '../../analyzers/concept-extractor.js';
 import fs from 'fs-extra';
 import path from 'path';
 import YAML from 'yaml';
+import { WorkbenchClient } from '../../executors/workbench-client.js';
 
 /**
  * Mission concepts overlay
  * Stores extracted mission-critical concepts for strategic coherence analysis
+ *
+ * EMBEDDINGS:
+ * - Each concept has a 768-dimensional vector from eGemma
+ * - Used for semantic alignment scoring in strategic coherence analysis
  */
 export interface MissionConceptsOverlay {
   document_hash: string; // Content hash of source document
   document_path: string; // Path to source markdown file
-  extracted_concepts: MissionConcept[]; // Ranked concepts
+  extracted_concepts: MissionConcept[]; // Ranked concepts with 768d embeddings
   generated_at: string; // ISO timestamp
   transform_id: string; // Transform that generated this overlay
 }
@@ -25,6 +30,11 @@ export interface MissionConceptsOverlay {
  * OVERLAY STRUCTURE:
  * .open_cognition/overlays/mission_concepts/<doc-hash>.yaml
  *
+ * EMBEDDINGS (O₃ = O₁ Pattern):
+ * - Generates 768-dimensional embeddings via eGemma (Workbench)
+ * - Follows Monument O₁ pattern: Extract → Embed → Store
+ * - Embeddings enable semantic alignment scoring
+ *
  * PROVENANCE:
  * - Each concept tracks source section via sectionHash
  * - Overlay tracks source document via document_hash
@@ -32,23 +42,73 @@ export interface MissionConceptsOverlay {
  */
 export class MissionConceptsManager {
   private overlayPath: string;
+  private workbench: WorkbenchClient;
 
-  constructor(private pgcRoot: string) {
+  constructor(
+    private pgcRoot: string,
+    workbenchUrl?: string
+  ) {
     this.overlayPath = path.join(pgcRoot, 'overlays', 'mission_concepts');
+    this.workbench = new WorkbenchClient(
+      workbenchUrl || process.env.WORKBENCH_URL || 'http://localhost:8000'
+    );
   }
 
   /**
-   * Store mission concepts overlay
+   * Generate embeddings for mission concepts
+   * Uses eGemma via Workbench (768 dimensions)
+   */
+  private async generateEmbeddings(
+    concepts: MissionConcept[]
+  ): Promise<MissionConcept[]> {
+    const conceptsWithEmbeddings: MissionConcept[] = [];
+
+    for (const concept of concepts) {
+      // Generate embedding for concept text
+      const embedResponse = await this.workbench.embed({
+        signature: concept.text,
+        dimensions: 768, // eGemma native dimension
+      });
+
+      const embedding = embedResponse['embedding_768d'];
+
+      if (!embedding || !Array.isArray(embedding)) {
+        throw new Error(
+          `Failed to generate embedding for concept: ${concept.text}`
+        );
+      }
+
+      conceptsWithEmbeddings.push({
+        ...concept,
+        embedding: embedding as number[],
+      });
+    }
+
+    return conceptsWithEmbeddings;
+  }
+
+  /**
+   * Store mission concepts overlay (with embeddings)
    */
   async store(overlay: MissionConceptsOverlay): Promise<void> {
     await fs.ensureDir(this.overlayPath);
+
+    // Generate embeddings for all concepts
+    const conceptsWithEmbeddings = await this.generateEmbeddings(
+      overlay.extracted_concepts
+    );
+
+    const enrichedOverlay: MissionConceptsOverlay = {
+      ...overlay,
+      extracted_concepts: conceptsWithEmbeddings,
+    };
 
     const filePath = path.join(
       this.overlayPath,
       `${overlay.document_hash}.yaml`
     );
 
-    const yamlContent = YAML.stringify(overlay);
+    const yamlContent = YAML.stringify(enrichedOverlay);
     await fs.writeFile(filePath, yamlContent, 'utf-8');
   }
 

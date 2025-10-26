@@ -13,6 +13,7 @@ export interface MissionConcept {
   weight: number; // Importance score (0-1)
   occurrences: number; // How many times it appears
   sectionHash: string; // Structural hash of source section (provenance)
+  embedding?: number[]; // 768-dimensional vector from eGemma (optional for testing)
 }
 
 /**
