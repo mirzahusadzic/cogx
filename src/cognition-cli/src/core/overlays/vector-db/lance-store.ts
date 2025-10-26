@@ -26,6 +26,8 @@ function createLineagePatternSchema(): Schema {
     new Field('architectural_role', new Utf8()),
     new Field('computed_at', new Utf8()),
     new Field('lineage_hash', new Utf8()),
+    new Field('filePath', new Utf8()),
+    new Field('structuralHash', new Utf8()),
   ]);
 }
 
@@ -63,6 +65,8 @@ export const VECTOR_RECORD_SCHEMA = new Schema([
   new Field('architectural_role', new Utf8()),
   new Field('computed_at', new Utf8()),
   new Field('lineage_hash', new Utf8()), // Ensure this exists
+  new Field('filePath', new Utf8()),
+  new Field('structuralHash', new Utf8()),
 ]);
 
 export class LanceVectorStore {
@@ -112,6 +116,8 @@ export class LanceVectorStore {
             architectural_role: 'test_role',
             computed_at: new Date().toISOString(),
             lineage_hash: 'test_hash',
+            filePath: 'test/path.ts',
+            structuralHash: 'test_structural_hash',
           };
 
           this.table = await this.db.createTable(
@@ -181,6 +187,8 @@ export class LanceVectorStore {
       architectural_role: metadata.architectural_role as string,
       computed_at: metadata.computed_at as string,
       lineage_hash: metadata.lineage_hash as string,
+      filePath: (metadata.filePath as string) || 'unknown',
+      structuralHash: (metadata.structuralHash as string) || 'unknown',
     };
 
     // After deleting the old one, we can simply add the new record.

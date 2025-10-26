@@ -16,6 +16,7 @@ import type {
 } from '../types/structural.js';
 import type { GenesisJobResult } from './genesis-worker.js';
 import { GenesisOracle } from '../pgc/oracles/genesis.js';
+import { DocsOracle } from '../pgc/oracles/docs.js';
 
 import {
   DEFAULT_MAX_FILE_SIZE,
@@ -46,6 +47,7 @@ export class GenesisOrchestrator {
   // NOTE: Structural patterns manifest is now managed by overlay generator
   // private structuralPatternsManifest: Record<string, string> = {};
   private workerPool?: workerpool.Pool;
+  private docsOracle: DocsOracle;
 
   constructor(
     private pgc: PGCManager,
@@ -53,7 +55,9 @@ export class GenesisOrchestrator {
     private workbench: WorkbenchClient,
     private genesisOracle: GenesisOracle,
     private projectRoot: string
-  ) {}
+  ) {
+    this.docsOracle = new DocsOracle(pgc);
+  }
 
   async executeBottomUpAggregation(sourcePath: string) {
     const s = spinner();
@@ -309,6 +313,16 @@ export class GenesisOrchestrator {
       log.info('Transform: No stale entries found. PGC is clean.');
     }
 
+    // Document GC: Remove stale document index entries
+    const overlayReferencedHashes = await this.getOverlayReferencedHashes();
+    const removedDocs = await this.garbageCollectDocs(overlayReferencedHashes);
+
+    if (removedDocs > 0) {
+      log.success(
+        `Transform: Removed ${removedDocs} stale document index entries.`
+      );
+    }
+
     // The Oracle
     log.info('Oracle: Verifying PGC structural coherence after maintenance.');
     const verificationResult = await this.genesisOracle.verify();
@@ -528,7 +542,12 @@ export class GenesisOrchestrator {
    */
   private async getOverlayReferencedHashes(): Promise<Set<string>> {
     const referencedHashes = new Set<string>();
-    const allOverlays = ['structural_patterns', 'lineage_patterns'];
+    const allOverlays = [
+      'structural_patterns',
+      'lineage_patterns',
+      'mission_concepts',
+      'strategic_coherence',
+    ];
 
     for (const overlayType of allOverlays) {
       try {
@@ -558,6 +577,13 @@ export class GenesisOrchestrator {
               }
               if (overlayData.validation?.sourceHash) {
                 referencedHashes.add(overlayData.validation.sourceHash);
+              }
+              // Document hashes from mission_concepts and strategic_coherence
+              if (overlayData.document_hash) {
+                referencedHashes.add(overlayData.document_hash);
+              }
+              if (overlayData.mission_document_hash) {
+                referencedHashes.add(overlayData.mission_document_hash);
               }
             }
           } catch (error) {
@@ -679,6 +705,36 @@ export class GenesisOrchestrator {
     await this.pgc.reverseDeps.removeEmptyShardedDirectories();
 
     return { staleEntries, cleanedReverseDeps, cleanedTransformLogEntries };
+  }
+
+  /**
+   * Garbage collect document index entries
+   * Removes stale document entries whose object hashes are not referenced by overlays
+   */
+  private async garbageCollectDocs(
+    overlayReferencedHashes: Set<string>
+  ): Promise<number> {
+    const staleHashes = new Set<string>();
+
+    // Get all documents from the index
+    const docs = await this.docsOracle.listDocuments();
+
+    // Check which document object hashes are stale (not in object store or not referenced by overlays)
+    for (const doc of docs) {
+      const objectExists = await this.pgc.objectStore.exists(doc.objectHash);
+
+      // Mark as stale if:
+      // 1. Object doesn't exist in object store, OR
+      // 2. Object exists but is not referenced by any overlay
+      if (!objectExists || !overlayReferencedHashes.has(doc.objectHash)) {
+        staleHashes.add(doc.objectHash);
+      }
+    }
+
+    // Remove stale document index entries
+    const removedCount = await this.docsOracle.removeStaleEntries(staleHashes);
+
+    return removedCount;
   }
 
   private async rollback(

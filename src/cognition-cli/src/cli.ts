@@ -8,7 +8,7 @@ import {
   formatAsHumanReadable,
   formatAsLineageJSON,
 } from './core/query/query.js';
-import { auditCommand } from './commands/audit.js';
+import { auditCommand, auditDocsCommand } from './commands/audit.js';
 import { addPatternsCommands } from './commands/patterns.js';
 import dotenv from 'dotenv';
 
@@ -88,6 +88,16 @@ program
   )
   .option('-l, --limit <number>', 'Number of transformations to show', '5')
   .action(auditCommand);
+
+program
+  .command('audit:docs')
+  .description('Audit document integrity in PGC (index/docs validation)')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project being audited',
+    process.cwd()
+  )
+  .action(auditDocsCommand);
 
 program
   .command('genesis:docs [path]')

@@ -155,10 +155,13 @@ export class GenesisDocTransform {
     );
     await this.storeTransformLog(transformLog);
 
-    // 11. Update index mapping (file path → hashes)
+    // 11. Check for document changes and invalidate overlays if needed
+    await this.invalidateOverlaysIfChanged(relativePath, hash);
+
+    // 12. Update index mapping (file path → hashes)
     await this.updateIndex(relativePath, hash, objectHash);
 
-    // 12. Record mission version (for future drift detection)
+    // 13. Record mission version (for future drift detection)
     if (
       this.integrityMonitor &&
       this.securityConfig?.missionIntegrity.enabled
@@ -265,6 +268,69 @@ export class GenesisDocTransform {
 
     const logPath = path.join(logsDir, `${log.transform_id}.json`);
     await fs.writeFile(logPath, JSON.stringify(log, null, 2));
+  }
+
+  /**
+   * Invalidate overlays if document has changed
+   * Deletes mission_concepts and strategic_coherence overlays when a document changes
+   */
+  private async invalidateOverlaysIfChanged(
+    filePath: string,
+    newContentHash: string
+  ): Promise<void> {
+    const indexDir = path.join(this.pgcRoot, 'index', 'docs');
+    const fileName = basename(filePath);
+    const indexPath = path.join(indexDir, `${fileName}.json`);
+
+    // Check if document already exists in index
+    if (!(await fs.pathExists(indexPath))) {
+      // New document - no overlays to invalidate
+      return;
+    }
+
+    try {
+      const existingIndex = await fs.readJSON(indexPath);
+
+      // If content hash has changed, invalidate overlays
+      if (existingIndex.contentHash !== newContentHash) {
+        console.log(
+          chalk.yellow(
+            `Document changed: ${fileName} - invalidating mission overlays`
+          )
+        );
+
+        // Delete mission_concepts overlay for this document's object hash
+        const missionConceptsPath = path.join(
+          this.pgcRoot,
+          'overlays',
+          'mission_concepts',
+          `${existingIndex.objectHash}.yaml`
+        );
+        if (await fs.pathExists(missionConceptsPath)) {
+          await fs.remove(missionConceptsPath);
+          console.log(
+            chalk.dim(`  Invalidated mission_concepts overlay for ${fileName}`)
+          );
+        }
+
+        // Delete strategic_coherence overlay (it depends on mission_concepts)
+        const coherencePath = path.join(
+          this.pgcRoot,
+          'overlays',
+          'strategic_coherence',
+          'coherence.yaml'
+        );
+        if (await fs.pathExists(coherencePath)) {
+          await fs.remove(coherencePath);
+          console.log(chalk.dim(`  Invalidated strategic_coherence overlay`));
+        }
+      }
+    } catch (error) {
+      // If we can't read the index or invalidate overlays, log warning but continue
+      console.warn(
+        `Warning: Failed to invalidate overlays for ${fileName}: ${(error as Error).message}`
+      );
+    }
   }
 
   /**
