@@ -387,6 +387,8 @@ export class StructuralPatternsManager implements PatternManager {
     // Store vector
     await this.vectorDB.storeVector(vectorId, embedding as number[], {
       symbol: symbolName,
+      filePath: filePath,
+      structuralHash: structuralHash,
       structural_signature: signature,
       architectural_role: architecturalRole,
       computed_at: new Date().toISOString(),
@@ -493,6 +495,8 @@ export class StructuralPatternsManager implements PatternManager {
 
     await this.vectorDB.storeVector(vectorId, embedding as number[], {
       symbol: symbolName,
+      filePath: relativePath,
+      structuralHash: structuralDataHash,
       structural_signature: signature,
       architectural_role: architecturalRole,
       computed_at: new Date().toISOString(),
