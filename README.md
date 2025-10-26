@@ -29,80 +29,61 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 **Read the full manifesto**: **[VISION.md](VISION.md)** — Mission, symbiosis architecture, strategic intent, and why AGPLv3.
 
-## 🎯 Proof of Concept: It Works
+## 🎯 Recent Innovations
 
-**October 24, 2025** - We demonstrated the first pure grounded architecture analysis:
+**October 26, 2025** — The system achieved recursive meta-cognition and mission security validation:
 
-📄 **[cognition-cli analyzed itself using only PGC commands](src/cognition-cli/docs/07_AI_Grounded_Architecture_Analysis.md)**
+### Foundation: Meta-Cognitive Self-Analysis
 
-**What was proven:**
+**[AI Grounded Architecture Analysis](src/cognition-cli/docs/07_AI_Grounded_Architecture_Analysis.md)** — First pure grounded architecture analysis:
 
-- ✅ **Zero source files read during analysis** - AI reasoned from structured PGC metadata alone
-- ✅ **All insights from verifiable commands** - `patterns analyze` and `blast-radius` queries
+- ✅ **Zero source files read** - AI reasoned from structured PGC metadata alone
 - ✅ **101 structural patterns analyzed** - Complete architectural understanding
-- ✅ **100% reproducible and verifiable** - Every claim backed by command output
-- ✅ **Meta-cognitive breakthrough** - The system reasoning about its own structure
+- ✅ **100% reproducible** - Every claim backed by verifiable commands
+- ✅ **Meta-cognitive breakthrough** - System reasoning about its own structure
 
-**Why this matters:**
+**[Claude Code Integration](src/cognition-cli/docs/08_Claude_CLI_Integration.md)** — AI-human symbiosis workflow:
 
-Traditional AI architecture analysis:
+- ✅ **Grounded architecture exploration** - AI queries verified PGC metadata
+- ✅ **Real-time coherence monitoring** - `/watch` tracks PGC state during development
+- ✅ **Impact-aware refactoring** - `/blast-radius` quantifies change impact
+- ✅ **Pre-commit quality gates** - Automated PGC coherence checks
 
-- ❌ Reads source code → statistical patterns → educated guesses
-- ❌ Limited by context window
-- ❌ Hallucinations common
-- ❌ Not reproducible
+### O₃ Layer: Mission Concepts
 
-**PGC-powered grounded analysis:**
+**[Mission Concept Extraction](src/cognition-cli/docs/09_Mission_Concept_Extraction.md)** — Pattern-based extraction with recursive meta-cognition:
 
-- ✅ Reads structured metadata → verifiable facts → grounded insights
-- ✅ Unlimited by context (full project graph)
-- ✅ Zero hallucinations (all claims backed by data)
-- ✅ 100% reproducible (re-run same commands)
+- ✅ **6-Pattern extraction system** - Blockquotes, headers, bullets, bold, emoji, quoted phrases
+- ✅ **97.6% noise reduction** - From 1,076 generic fragments → 26 high-quality concepts
+- ✅ **Recursive meta-cognition** - System extracted its own methodology as concepts
+- ✅ **Weighted concept ranking** - Structural markers indicate concept importance
+
+**[Pattern Library](src/cognition-cli/docs/PATTERN_LIBRARY.md)** — Reusable extraction patterns for community use
+
+**[Vindication Story](src/cognition-cli/docs/VINDICATION.md)** — The 14-day journey from "docs is code" to proven recursion
+
+### O₄ Layer: Strategic Coherence
+
+**Strategic coherence scoring** between code and strategic documents via vector similarity
+
+### Mission Security Validation
+
+**[Multi-Layer Mission Security](src/cognition-cli/docs/10_Mission_Security_Validation.md)** — Protecting strategic documents from gradual mission poisoning:
+
+- ✅ **Layer 1A: Gemini LLM validation** - Advanced threat detection via `security_validator` persona
+- ✅ **Layer 1B: Pattern-based filtering** - Regex-based explicit threat detection
+- ✅ **Layer 2: Semantic drift detection** - Immutable versioning with embedding-based distance calculation
+- ✅ **5 attack patterns detected** - Security weakening, trust erosion, permission creep, ambiguity injection, velocity over safety
+- ✅ **Content-addressable versioning** - Every strategic document version stored with concept embeddings
+- ✅ **Overlay invalidation** - Automatic cascade when documents change
+
+### Infrastructure
+
+- ✅ **DocsOracle** - Document integrity validation with content-addressable storage
+- ✅ **Markdown parser with meta properties** - Hierarchical AST with structuralHash and position tracking
+- ✅ **Garbage collection** - Automatic cleanup of stale document references
 
 **This is not theory. This is the architecture working in production.**
-
-[Read the full grounded analysis →](src/cognition-cli/docs/07_AI_Grounded_Architecture_Analysis.md)
-
-## 🤝 The Symbiosis: Grounded AI-Assisted Development
-
-**October 24, 2025** - We integrated cognition-cli with Claude Code to create the first grounded AI development workflow:
-
-📄 **[Claude Code Integration: AI + PGC Symbiosis](src/cognition-cli/docs/08_Claude_CLI_Integration.md)**
-
-**What this enables:**
-
-- ✅ **AI reasoning anchored in cryptographic truth** - Not statistical approximation
-- ✅ **Real-time coherence monitoring** - `/watch` tracks PGC state during development
-- ✅ **Impact-aware refactoring** - `/blast-radius` quantifies change impact before commits
-- ✅ **Grounded architecture exploration** - AI queries verified PGC metadata, not guesses
-- ✅ **Pre-commit quality gates** - Automated PGC coherence checks prevent broken commits
-
-**Why this matters:**
-
-Traditional AI-assisted development:
-
-- ❌ AI hallucinates dependencies and architecture
-- ❌ No verification of AI suggestions
-- ❌ Impact analysis is guesswork
-- ❌ Code changes break undiscovered dependencies
-
-**PGC-powered grounded development:**
-
-- ✅ AI works from verified ground truth (PGC metadata)
-- ✅ Every suggestion backed by cryptographic proof
-- ✅ Impact quantified before any change
-- ✅ Dependency breaks caught at development time
-
-**The Four Integration Patterns:**
-
-1. **Grounded Architecture Exploration** - AI queries PGC for verifiable architectural data
-2. **Coherence-Aware Development** - Real-time monitoring keeps AI and developer in sync
-3. **Impact-Aware Refactoring** - Quantified blast radius informs safer changes
-4. **Pre-Commit Quality Checks** - Automated verification before merge
-
-**This is the symbiosis in practice: Claude Code provides reasoning, cognition-cli provides truth.**
-
-[Read the full integration guide →](src/cognition-cli/docs/08_Claude_CLI_Integration.md) | [View live documentation →](https://mirzahusadzic.github.io/cogx/08_Claude_CLI_Integration.html)
 
 ## The Axiom: Knowledge is a Lattice
 
@@ -163,86 +144,9 @@ The PGC architecture is a **constructive proof** that knowledge forms a lattice:
 
 #### Figure 1: The N-Dimensional Lattice Architecture
 
-```mermaid
-graph TD
-    %% Top of Lattice
-    TOP["⊤ Complete Understanding<br/>(Manifests: structural_patterns + lineage_patterns)"]
-
-    %% Current State (The Conscious Mind)
-    INDEX["index/<br/>(current state - semantic paths to hashes)"]
-
-    %% Overlay Dimension O₁: Structural Patterns
-    SP_ROLE["O₁: Architectural Roles<br/>(component, service, utility, type)"]
-    SP_SIG["O₁: Structural Signatures<br/>(embeddings of code structure)"]
-
-    %% Overlay Dimension O₂: Lineage Patterns
-    LP_GRAPH["O₂: Dependency Graphs<br/>(who depends on whom)"]
-    LP_TYPE["O₂: Type Lineage<br/>(data flow through types)"]
-
-    %% Genesis Layer
-    SYMBOLS["Symbols<br/>(classes, functions, exports)"]
-    STRUCTURE["Structural Data<br/>(AST, imports, signatures)"]
-    SOURCE["⊥ Source Code<br/>(TypeScript/JavaScript files)"]
-
-    %% Content-Addressable Storage
-    OBJECTS["objects/<br/>(content-addressable storage)"]
-
-    %% Temporal Dimension
-    TRANSFORMS["transforms/<br/>(immutable operation log)"]
-
-    %% Reflexive Nervous System
-    REVERSE["reverse_deps/<br/>(O(1) impact analysis)"]
-
-    %% Vertical edges (Join operations - bottom up)
-    SOURCE -->|"Genesis: Parse"| STRUCTURE
-    STRUCTURE -->|"Extract"| SYMBOLS
-    SYMBOLS -->|"Meet ∧"| SP_SIG
-    SYMBOLS -->|"Meet ∧"| LP_GRAPH
-    SP_SIG -->|"Join ∨"| SP_ROLE
-    LP_GRAPH -->|"Join ∨"| LP_TYPE
-    SP_ROLE -->|"Aggregate"| TOP
-    LP_TYPE -->|"Aggregate"| TOP
-
-    %% Horizontal edges (overlay anchoring)
-    SP_SIG -.->|"anchored to"| SYMBOLS
-    LP_GRAPH -.->|"anchored to"| SYMBOLS
-
-    %% State management
-    INDEX -.->|"points to"| OBJECTS
-    TOP -.->|"current view"| INDEX
-    OBJECTS -.->|"stores all"| SYMBOLS
-    OBJECTS -.->|"stores all"| SP_SIG
-    OBJECTS -.->|"stores all"| LP_GRAPH
-
-    %% Temporal edges (historical dimension)
-    TRANSFORMS -.->|"history"| SOURCE
-    TRANSFORMS -.->|"history"| SYMBOLS
-    TRANSFORMS -.->|"history"| SP_SIG
-    TRANSFORMS -.->|"history"| LP_GRAPH
-
-    %% Transform-Object bridge (inputs/outputs reference objects)
-    TRANSFORMS <-.->|"inputs/outputs"| OBJECTS
-
-    %% Reflexive nervous system (Update Function U)
-    %% The Historian: reverse_deps indexes from objects into transforms for O(1) history lookup
-    REVERSE -.->|"object_hash→transform_ids"| TRANSFORMS
-    REVERSE -.->|"instant lookup"| SYMBOLS
-    REVERSE -.->|"instant lookup"| SP_SIG
-    REVERSE -.->|"instant lookup"| LP_GRAPH
-
-    style TOP fill:#2d5016,stroke:#4a7c1f,color:#fff
-    style INDEX fill:#3d2d5f,stroke:#5c4a7c,color:#fff
-    style SP_ROLE fill:#5f2d2d,stroke:#7c4a4a,color:#fff
-    style SP_SIG fill:#5f2d2d,stroke:#7c4a4a,color:#fff
-    style LP_TYPE fill:#2d3d5f,stroke:#4a5c7c,color:#fff
-    style LP_GRAPH fill:#2d3d5f,stroke:#4a5c7c,color:#fff
-    style SYMBOLS fill:#5f5f2d,stroke:#7c7c4a,color:#fff
-    style STRUCTURE fill:#5f5f2d,stroke:#7c7c4a,color:#fff
-    style SOURCE fill:#4a2d5f,stroke:#6a4a7c,color:#fff
-    style OBJECTS fill:#2d4a4a,stroke:#4a6a6a,color:#fff
-    style TRANSFORMS fill:#5f4a2d,stroke:#7c6a4a,color:#fff
-    style REVERSE fill:#5f3d2d,stroke:#7c5c4a,color:#fff
-```
+<div align="center" style="margin-top: 20px; margin-bottom: 20px;">
+<img src="./docs/assets/cogx-pgc-lattice.svg" alt="CogX PGC Lattice" width="auto"/>
+</div>
 
 **Legend:**
 
@@ -252,9 +156,9 @@ graph TD
 
 #### Data Flow Patterns
 
-The diagram illustrates five critical data flow patterns:
+The diagram illustrates seven critical data flow patterns:
 
-**1. Genesis Flow (Bottom → Up):**
+**1. Genesis Flow (Code → Overlays):**
 
 ```text
 SOURCE → STRUCTURE → SYMBOLS → O₁/O₂ → TOP
@@ -262,7 +166,23 @@ SOURCE → STRUCTURE → SYMBOLS → O₁/O₂ → TOP
 
 The foundational extraction: raw source code is parsed into structural data, symbols are extracted, overlays analyze them, all aggregating to complete understanding (⊤).
 
-**2. The Historian Pattern (Object → Transform → History):**
+**2. Mission Flow (Docs → Strategic Intelligence):**
+
+```text
+DOCS → MC_CONCEPTS (O₃) → SC_SCORES (O₄) → TOP
+```
+
+Strategic documents are parsed into mission concepts via pattern extraction, then scored for coherence with code symbols, aggregating to complete understanding (⊤).
+
+**3. Strategic Coherence Synthesis:**
+
+```text
+SYMBOLS (code) + MC_CONCEPTS (mission) → SC_SCORES (alignment)
+```
+
+The O₄ layer joins code structure with mission concepts to compute alignment scores, enabling mission-aware development.
+
+**4. The Historian Pattern (Object → Transform → History):**
 
 ```text
 object_hash → REVERSE[object_hash→transform_ids] → TRANSFORMS[inputs/outputs] → OBJECTS
@@ -270,7 +190,7 @@ object_hash → REVERSE[object_hash→transform_ids] → TRANSFORMS[inputs/outpu
 
 **O(1) time travel:** Given any object hash, instantly retrieve which transform created it and trace back to original inputs. This is the bidirectional bridge that enables verifiable provenance.
 
-**3. Storage & Retrieval (Index → Objects):**
+**5. Storage & Retrieval (Index → Objects):**
 
 ```text
 INDEX[semantic_path→hash] → OBJECTS[hash→data]
@@ -278,22 +198,24 @@ INDEX[semantic_path→hash] → OBJECTS[hash→data]
 
 The conscious mind: human-readable paths map to content-addressable storage. The present state of knowledge.
 
-**4. Update Function (Change Propagation):**
+**6. Update Function (Change Propagation):**
 
 ```text
-SOURCE (changed) → REVERSE[instant lookup] → SYMBOLS → O₁/O₂ (invalidated)
+SOURCE/DOCS (changed) → REVERSE[instant lookup] → SYMBOLS/MC_CONCEPTS → O₁/O₂/O₃/O₄ (invalidated)
 ```
 
-When source code changes at ⊥, `reverse_deps` provides O(1) lookup of all dependent transforms, propagating invalidation upward through the lattice.
+When source code or strategic documents change at ⊥, `reverse_deps` provides O(1) lookup of all dependent transforms, propagating invalidation upward through the lattice.
 
-**5. Overlay Anchoring (Horizontal Dimension):**
+**7. Overlay Anchoring (Horizontal Dimension):**
 
 ```text
 SYMBOLS ←--anchored to--→ O₁ (Structural Patterns)
 SYMBOLS ←--anchored to--→ O₂ (Lineage Patterns)
+DOCS ←--anchored to--→ O₃ (Mission Concepts)
+SYMBOLS + MC_CONCEPTS ←--anchored to--→ O₄ (Strategic Coherence)
 ```
 
-Multiple overlays anchor to the same Genesis Layer truth, forming independent horizontal lattices that aggregate to ⊤.
+Multiple overlays anchor to the same Genesis Layer truth (code or docs), forming independent horizontal lattices that aggregate to ⊤.
 
 **The Four Pillars of the PGC (The "Digital Brain"):**
 

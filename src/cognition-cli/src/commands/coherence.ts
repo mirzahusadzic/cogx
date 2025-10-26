@@ -39,7 +39,7 @@ export function addCoherenceCommands(program: Command) {
           JSON.stringify(
             {
               generated_at: overlay.generated_at,
-              mission_document_hash: overlay.mission_document_hash,
+              mission_document_hashes: overlay.mission_document_hashes,
               symbol_count: overlay.symbol_coherence.length,
               mission_concepts_count: overlay.mission_concepts_count,
               overall_metrics: overlay.overall_metrics,
@@ -64,7 +64,7 @@ export function addCoherenceCommands(program: Command) {
       );
       console.log(
         chalk.white(
-          `  Mission document: ${chalk.dim(overlay.mission_document_hash.slice(0, 8))}...`
+          `  Mission documents: ${chalk.dim(overlay.mission_document_hashes.length)} (${overlay.mission_document_hashes.map((h) => h.slice(0, 8)).join(', ')}...)`
         )
       );
       console.log('');

@@ -3,6 +3,7 @@ import fs from 'fs-extra';
 import YAML from 'yaml';
 import { MissionConceptsManager } from '../mission-concepts/manager.js';
 import { LanceVectorStore } from '../vector-db/lance-store.js';
+import type { MissionConcept } from '../../analyzers/concept-extractor.js';
 
 /**
  * Alignment between a code symbol and mission concept
@@ -44,9 +45,8 @@ export interface ConceptImplementation {
  */
 export interface StrategicCoherenceOverlay {
   generated_at: string; // ISO timestamp
-  mission_document_hash: string; // Hash of VISION.md (or other strategic doc)
-  structural_patterns_count: number; // Number of code symbols analyzed
-  mission_concepts_count: number; // Number of mission concepts
+  mission_document_hashes: string[]; // Hashes of strategic docs (VISION.md, PATTERN_LIBRARY.md, etc.)
+  mission_concepts_count: number; // Number of mission concepts (aggregated from all docs)
   symbol_coherence: SymbolCoherence[]; // Symbol → Concept alignments
   concept_implementations: ConceptImplementation[]; // Concept → Symbol mappings
   overall_metrics: {
@@ -54,6 +54,7 @@ export interface StrategicCoherenceOverlay {
     high_alignment_threshold: number; // e.g., 0.7
     aligned_symbols_count: number; // Symbols above threshold
     drifted_symbols_count: number; // Symbols below threshold
+    total_symbols: number; // Total number of symbols analyzed
   };
 }
 
@@ -267,8 +268,7 @@ export class StrategicCoherenceManager {
 
     const overlay: StrategicCoherenceOverlay = {
       generated_at: new Date().toISOString(),
-      mission_document_hash: missionDocHash,
-      structural_patterns_count: vectorRecords.length,
+      mission_document_hashes: [missionDocHash], // Wrap single doc in array for consistency
       mission_concepts_count: conceptsWithEmbeddings.length,
       symbol_coherence: symbolCoherenceList,
       concept_implementations: conceptImplementations,
@@ -277,6 +277,172 @@ export class StrategicCoherenceManager {
         high_alignment_threshold: highAlignmentThreshold,
         aligned_symbols_count: alignedSymbols.length,
         drifted_symbols_count: driftedSymbols.length,
+        total_symbols: symbolCoherenceList.length,
+      },
+    };
+
+    return overlay;
+  }
+
+  /**
+   * Compute strategic coherence from multiple mission documents
+   * Aggregates all mission concepts from all documents into a single coherence analysis
+   *
+   * @param missionDocHashes - Array of mission document hashes to aggregate
+   * @param topN - Number of top alignments to return per symbol (default: 5)
+   * @param alignmentThreshold - Minimum similarity score to consider (default: 0.5)
+   */
+  async computeCoherenceFromMultipleDocs(
+    missionDocHashes: string[],
+    topN: number = 5,
+    alignmentThreshold: number = 0.5
+  ): Promise<StrategicCoherenceOverlay> {
+    // 1. Load and aggregate mission concepts from all documents
+    const allMissionConcepts: MissionConcept[] = [];
+    const missionDocumentHashes: string[] = [];
+
+    for (const docHash of missionDocHashes) {
+      const missionOverlay = await this.missionManager.retrieve(docHash);
+
+      if (!missionOverlay) {
+        console.warn(
+          `Warning: Mission concepts overlay not found for hash: ${docHash}`
+        );
+        continue;
+      }
+
+      missionDocumentHashes.push(docHash);
+      allMissionConcepts.push(...missionOverlay.extracted_concepts);
+    }
+
+    if (allMissionConcepts.length === 0) {
+      throw new Error(
+        'No mission concepts found in any of the provided documents'
+      );
+    }
+
+    // Validate embeddings exist
+    const conceptsWithEmbeddings = allMissionConcepts.filter(
+      (c) => c.embedding && c.embedding.length === 768
+    );
+
+    if (conceptsWithEmbeddings.length === 0) {
+      throw new Error('No mission concepts with embeddings found');
+    }
+
+    // 2. Load structural patterns (from O₁ vector store)
+    const vectorRecords = await this.vectorStore.getAllVectors();
+
+    if (vectorRecords.length === 0) {
+      throw new Error('No structural patterns found in vector store');
+    }
+
+    // 3. Compute alignments for each symbol
+    const symbolCoherenceList: SymbolCoherence[] = [];
+    const conceptImplementationMap = new Map<string, ConceptImplementation>();
+
+    // Initialize concept implementation map
+    for (const concept of conceptsWithEmbeddings) {
+      const key = `${concept.text}::${concept.section}`; // Unique key per concept
+      conceptImplementationMap.set(key, {
+        conceptText: concept.text,
+        conceptSection: concept.section,
+        implementingSymbols: [],
+      });
+    }
+
+    for (const vectorRecord of vectorRecords) {
+      const symbolEmbedding = vectorRecord.embedding;
+
+      if (!symbolEmbedding || symbolEmbedding.length !== 768) {
+        continue; // Skip symbols without valid embeddings
+      }
+
+      const alignments: ConceptAlignment[] = [];
+
+      // Compute similarity with each mission concept from ALL documents
+      for (const concept of conceptsWithEmbeddings) {
+        const similarity = this.cosineSimilarity(
+          symbolEmbedding,
+          concept.embedding!
+        );
+
+        if (similarity >= alignmentThreshold) {
+          alignments.push({
+            conceptText: concept.text,
+            conceptSection: concept.section,
+            alignmentScore: similarity,
+            sectionHash: concept.sectionHash,
+          });
+        }
+      }
+
+      // Sort by alignment score (descending) and take top N
+      alignments.sort((a, b) => b.alignmentScore - a.alignmentScore);
+      const topAlignments = alignments.slice(0, topN);
+
+      if (topAlignments.length > 0) {
+        const overallCoherence =
+          topAlignments.reduce((sum, a) => sum + a.alignmentScore, 0) /
+          topAlignments.length;
+
+        const symbolName = vectorRecord.symbol as string;
+        const filePath = (vectorRecord.filePath as string) || 'unknown';
+        const symbolHash =
+          (vectorRecord.structuralHash as string) ||
+          (vectorRecord.lineage_hash as string) ||
+          'unknown';
+
+        symbolCoherenceList.push({
+          symbolName,
+          filePath,
+          symbolHash,
+          topAlignments,
+          overallCoherence,
+        });
+
+        // Update reverse mapping (concept → symbols)
+        for (const alignment of topAlignments) {
+          const key = `${alignment.conceptText}::${alignment.conceptSection}`;
+          const conceptImpl = conceptImplementationMap.get(key);
+          if (conceptImpl) {
+            conceptImpl.implementingSymbols.push({
+              symbolName,
+              filePath,
+              alignmentScore: alignment.alignmentScore,
+            });
+          }
+        }
+      }
+    }
+
+    // 4. Compute overall metrics
+    const alignedSymbols = symbolCoherenceList.filter(
+      (s) => s.overallCoherence >= 0.7
+    );
+    const driftedSymbols = symbolCoherenceList.filter(
+      (s) => s.overallCoherence < 0.7
+    );
+
+    const avgCoherence =
+      symbolCoherenceList.length > 0
+        ? symbolCoherenceList.reduce((sum, s) => sum + s.overallCoherence, 0) /
+          symbolCoherenceList.length
+        : 0;
+
+    // 5. Build overlay
+    const overlay: StrategicCoherenceOverlay = {
+      generated_at: new Date().toISOString(),
+      mission_document_hashes: missionDocumentHashes,
+      mission_concepts_count: conceptsWithEmbeddings.length,
+      symbol_coherence: symbolCoherenceList,
+      concept_implementations: Array.from(conceptImplementationMap.values()),
+      overall_metrics: {
+        average_coherence: avgCoherence,
+        aligned_symbols_count: alignedSymbols.length,
+        drifted_symbols_count: driftedSymbols.length,
+        total_symbols: symbolCoherenceList.length,
+        high_alignment_threshold: 0.7,
       },
     };
 
@@ -340,7 +506,7 @@ export class StrategicCoherenceManager {
 
     return overlay.symbol_coherence
       .filter((s) => s.overallCoherence <= maxCoherence)
-      .sort((a, b) => a.overallCoherence - b.overallCoherence);
+      .sort((a, b) => b.overallCoherence - a.overallCoherence); // Sort descending (highest first)
   }
 
   /**

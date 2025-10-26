@@ -864,10 +864,10 @@ export class OverlayOrchestrator {
       );
     }
 
-    // Use the first document (typically VISION.md) as the mission document
-    const missionDoc = docIndex[0];
-    s.stop(
-      `[StrategicCoherence] Using mission document: ${missionDoc.filePath}`
+    // Aggregate mission concepts from ALL documents
+    s.stop(`[StrategicCoherence] Found ${docIndex.length} strategic documents`);
+    console.log(
+      chalk.dim(`  Documents: ${docIndex.map((d) => d.filePath).join(', ')}`)
     );
 
     // Step 3: Initialize vector database for structural patterns
@@ -875,18 +875,19 @@ export class OverlayOrchestrator {
     await this.vectorDB.initialize('structural_patterns');
     s.stop('[StrategicCoherence] Structural patterns loaded.');
 
-    // Step 4: Compute coherence overlay
+    // Step 4: Compute coherence overlay using ALL documents
     console.log(
       chalk.blue(
         '[StrategicCoherence] Computing alignment between code and mission...'
       )
     );
 
-    const overlay = await this.strategicCoherenceManager.computeCoherence(
-      missionDoc.contentHash,
-      5, // top 5 alignments per symbol
-      0.5 // alignment threshold
-    );
+    const overlay =
+      await this.strategicCoherenceManager.computeCoherenceFromMultipleDocs(
+        docIndex.map((d) => d.contentHash),
+        5, // top 5 alignments per symbol
+        0.5 // alignment threshold
+      );
 
     // Step 5: Store the overlay
     s.start('[StrategicCoherence] Storing coherence overlay...');
