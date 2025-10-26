@@ -10,8 +10,14 @@ import { readFileSync } from 'fs';
 vi.mock('fs-extra', async () => {
   const memfs = await vi.importActual<typeof import('memfs')>('memfs');
   const promises = memfs.fs.promises;
+  const realFsExtra =
+    await vi.importActual<typeof import('fs-extra')>('fs-extra');
 
   const pathExists = async (path: string) => {
+    // Use real fs for VISION.md
+    if (typeof path === 'string' && path.includes('VISION.md')) {
+      return realFsExtra.pathExists(path);
+    }
     try {
       await promises.access(path);
       return true;
@@ -20,16 +26,32 @@ vi.mock('fs-extra', async () => {
     }
   };
 
+  const readFile = async (path: string, encoding?: string) => {
+    // Use real fs for VISION.md
+    if (typeof path === 'string' && path.includes('VISION.md')) {
+      return realFsExtra.readFile(path, encoding as BufferEncoding);
+    }
+    return promises.readFile(path, encoding);
+  };
+
+  const stat = async (path: string) => {
+    // Use real fs for VISION.md
+    if (typeof path === 'string' && path.includes('VISION.md')) {
+      return realFsExtra.stat(path);
+    }
+    return promises.stat(path);
+  };
+
   return {
     default: {
       ...promises,
       pathExists,
+      readFile,
+      stat,
       ensureDir: (path: string) => promises.mkdir(path, { recursive: true }),
       remove: (path: string) =>
         promises.rm(path, { recursive: true, force: true }),
       writeFile: promises.writeFile,
-      readFile: promises.readFile,
-      stat: promises.stat,
     },
   };
 });

@@ -1386,6 +1386,22 @@ This repository constitutes a **formal defensive publication** establishing prio
 11. **The Historian Pattern** — O(1) provenance lookup via `reverse_deps` index mapping object hashes to transform IDs
 12. **Self-Defending Lattice Architecture** — Mathematical resistance to adversarial overlays through transform validation
 
+#### Mission Drift Security (Innovations #16-18)
+
+**Published**: October 26, 2025
+
+16. **Mission Integrity Monitoring** — Immutable audit trail of strategic document versions with semantic fingerprinting via embedding centroids
+17. **Semantic Drift Detection** — Embedding-based detection of gradual mission poisoning through 6 transparent pattern detectors (security weakening, trust erosion, permission creep, ambiguity injection, velocity over safety, error tolerance)
+18. **Advisory Security Model** — Defense-in-depth against lattice-based alignment attacks with user-configurable modes (off/advisory/strict) and no telemetry
+
+**Threat Model**: Defends against supply chain attacks that exploit AI-assisted development by gradually poisoning strategic documents through plausible pull requests. See [`docs/MISSION_DRIFT_ATTACKS.md`](docs/MISSION_DRIFT_ATTACKS.md) for detailed threat analysis.
+
+**Key Innovation**: First security system designed specifically for AI-powered semantic coherence tools. Traditional defenses (code review, static analysis, LLM safety filters) are blind to gradual mission drift because each individual change appears legitimate.
+
+**Privacy Guarantee**: No telemetry, no phone-home, all analysis runs locally. Users maintain full control.
+
+**Learn more**: [`docs/SECURITY_ARCHITECTURE.md`](docs/SECURITY_ARCHITECTURE.md)
+
 #### Strategic Intelligence (Innovations #13-15)
 
 **Published**: October 26, 2025
