@@ -41,6 +41,21 @@ vi.mock('fs/promises', async () => {
   };
 });
 
+// Mock WorkbenchClient to prevent hitting real API in tests
+vi.mock('../executors/workbench-client.js', () => {
+  return {
+    WorkbenchClient: vi.fn().mockImplementation(() => ({
+      embed: vi.fn().mockResolvedValue({
+        embedding_768d: new Array(768).fill(0.1), // Dummy 768-dim vector
+      }),
+      summarize: vi.fn().mockResolvedValue({
+        summary: 'THREAT ASSESSMENT: SAFE\nRECOMMENDATION: APPROVE',
+      }),
+      getBaseUrl: vi.fn().mockReturnValue('http://mock-workbench'),
+    })),
+  };
+});
+
 describe('GenesisDocTransform', () => {
   const pgcRoot = '/test-pgc';
   let transform: GenesisDocTransform;
