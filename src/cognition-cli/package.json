@@ -39,6 +39,7 @@
     "unist-util-visit": "^5.0.0",
     "upath": "^2.0.1",
     "workerpool": "^10.0.0",
+    "yaml": "^2.8.1",
     "zod": "^3.22.4"
   },
   "devDependencies": {
