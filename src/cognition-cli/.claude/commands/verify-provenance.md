@@ -13,7 +13,7 @@ Show the complete, verifiable chain of transformations for a file, demonstrating
    - Validate file exists in PGC
 
 2. **Run audit command**
-   - Execute: `cognition-cli audit:transformations <file> --limit 10`
+   - Execute: `node dist/cli.js audit:transformations <file> --limit 10`
    - Show the transformation history
 
 3. **Present transformation chain**

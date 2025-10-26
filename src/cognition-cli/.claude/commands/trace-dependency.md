@@ -18,7 +18,7 @@ Visualize and explain the dependency path between two components, identifying:
    - Ask: "Which component is the target?" (the one being depended on)
 
 2. **Run dependency query**
-   - Execute: `cognition-cli query <source> --depth 5 --lineage`
+   - Execute: `node dist/cli.js query <source> --depth 5 --lineage`
    - Parse the JSON lineage output
 
 3. **Search for paths to target**
