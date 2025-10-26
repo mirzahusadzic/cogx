@@ -34,10 +34,18 @@ export class EmbedLogger {
   /**
    * Log batch progress (every N items)
    */
-  static progress(current: number, total: number, overlayType?: string): void {
+  static progress(
+    current: number,
+    total: number,
+    overlayType?: string,
+    documentName?: string
+  ): void {
     const prefix = overlayType ? `[${overlayType}]` : '[Embed]';
+    const docContext = documentName ? ` (${documentName})` : '';
     console.log(
-      chalk.dim(`  ${prefix} Progress: ${current}/${total} embedded`)
+      chalk.dim(
+        `  ${prefix} Progress: ${current}/${total} embedded${docContext}`
+      )
     );
   }
 }

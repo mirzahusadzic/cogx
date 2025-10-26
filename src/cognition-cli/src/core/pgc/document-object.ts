@@ -1,4 +1,5 @@
 import { MarkdownDocument } from '../parsers/markdown-parser.js';
+import { MissionConcept } from '../analyzers/concept-extractor.js';
 
 /**
  * Document object stored in PGC objects/
@@ -15,6 +16,7 @@ export interface DocumentObject {
     created?: string;
     modified?: string;
   };
+  embeddedConcepts?: MissionConcept[]; // Pre-embedded concepts from security validation (skip re-embedding)
 }
 
 /**

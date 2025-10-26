@@ -79,6 +79,8 @@ export class GenesisDocTransform {
    * 2. SECURITY GATE: Validate mission document
    * 3. Parse and store if validation passes
    * 4. Record version for future drift detection
+   *
+   * @param filePath - Path to markdown file to ingest
    */
   async execute(filePath: string): Promise<TransformResult> {
     // 1. Validate file exists and is markdown
@@ -90,8 +92,12 @@ export class GenesisDocTransform {
     // 3. SECURITY GATE: Initialize and run validation
     await this.initializeSecurity();
 
+    let embeddedConcepts: MissionConcept[] | undefined;
     if (this.securityConfig && this.securityConfig.mode !== 'off') {
       const validationResult = await this.validateMissionDocument(filePath);
+
+      // Capture embedded concepts from security validation for reuse
+      embeddedConcepts = validationResult.embeddedConcepts;
 
       // Handle based on mode and result
       if (this.securityConfig.mode === 'strict') {
@@ -125,7 +131,7 @@ export class GenesisDocTransform {
     // 6. Compute document hash
     const hash = this.computeHash(content);
 
-    // 7. Create document object (store relative path)
+    // 7. Create document object (store relative path + embedded concepts from security)
     const docObject: DocumentObject = {
       type: 'markdown_document',
       hash,
@@ -138,6 +144,7 @@ export class GenesisDocTransform {
         created: ast.metadata.date,
         modified: new Date().toISOString(),
       },
+      embeddedConcepts, // Store embedded concepts from security validation for reuse
     };
 
     // 8. Store in objects/
@@ -162,11 +169,12 @@ export class GenesisDocTransform {
     await this.updateIndex(relativePath, hash, objectHash);
 
     // 13. Record mission version (for future drift detection)
+    // Reuse embedded concepts from security validation (no re-embedding!)
     if (
       this.integrityMonitor &&
       this.securityConfig?.missionIntegrity.enabled
     ) {
-      await this.recordMissionVersion(filePath, ast);
+      await this.recordMissionVersion(filePath, ast, embeddedConcepts);
     }
 
     return {
@@ -500,38 +508,53 @@ export class GenesisDocTransform {
 
   /**
    * SECURITY: Record mission version for future drift detection
+   *
+   * @param filePath - Path to document
+   * @param ast - Parsed markdown AST
+   * @param preEmbeddedConcepts - Already-embedded concepts from security validation (skip re-embedding)
    */
   private async recordMissionVersion(
     filePath: string,
-    ast: MarkdownDocument
+    ast: MarkdownDocument,
+    preEmbeddedConcepts?: MissionConcept[]
   ): Promise<void> {
     if (!this.integrityMonitor) {
       return; // Monitor not initialized
     }
 
     try {
-      // Extract concepts from the document
-      const extractor = new ConceptExtractor();
-      const concepts = extractor.extract(ast);
+      let validConcepts: MissionConcept[];
 
-      if (concepts.length === 0) {
-        // No mission concepts found - not a mission document
-        return;
+      // If concepts were already embedded during security validation, reuse them
+      if (preEmbeddedConcepts && preEmbeddedConcepts.length > 0) {
+        validConcepts = preEmbeddedConcepts.filter(
+          (c) => c.embedding && c.embedding.length === 768
+        );
+      } else {
+        // Fallback: Extract and embed (shouldn't happen in normal flow)
+        const extractor = new ConceptExtractor();
+        const concepts = extractor.extract(ast);
+
+        if (concepts.length === 0) {
+          // No mission concepts found - not a mission document
+          return;
+        }
+
+        // Generate embeddings for concepts (fallback path)
+        const manager = new MissionConceptsManager(this.pgcRoot);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const generateEmbeddings = (manager as any).generateEmbeddings.bind(
+          manager
+        );
+        const docName = `${basename(filePath)} [version recording fallback]`;
+        const conceptsWithEmbeddings: MissionConcept[] =
+          await generateEmbeddings(concepts, docName);
+
+        // Filter to valid embeddings
+        validConcepts = conceptsWithEmbeddings.filter(
+          (c) => c.embedding && c.embedding.length === 768
+        );
       }
-
-      // Generate embeddings for concepts
-      const manager = new MissionConceptsManager(this.pgcRoot);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const generateEmbeddings = (manager as any).generateEmbeddings.bind(
-        manager
-      );
-      const conceptsWithEmbeddings: MissionConcept[] =
-        await generateEmbeddings(concepts);
-
-      // Filter to valid embeddings
-      const validConcepts = conceptsWithEmbeddings.filter(
-        (c) => c.embedding && c.embedding.length === 768
-      );
 
       if (validConcepts.length === 0) {
         // No valid embeddings - skip version recording

@@ -77,9 +77,9 @@ Closed implementations become evolutionary dead ends because:
 
 We license all code, documentation, and architectural designs under **AGPLv3** (copyleft) for strategic reasons:
 
-### 1. Prevent Proprietary Capture
+### 1. Ensure Open Contribution
 
-Large tech companies cannot build closed-source versions without explicit permission. They must contribute back or stay out. This prevents the "embrace, extend, extinguish" pattern that has killed open standards before.
+Large tech companies cannot build closed-source versions without explicit permission. They must contribute back or stay out. This ensures all improvements flow back to the commons, strengthening the open ecosystem for everyone.
 
 ### 2. Network Effects Favor the Commons
 

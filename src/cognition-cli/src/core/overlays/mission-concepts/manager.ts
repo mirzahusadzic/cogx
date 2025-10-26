@@ -80,7 +80,8 @@ export class MissionConceptsManager {
    * Uses eGemma via Workbench (768 dimensions)
    */
   private async generateEmbeddings(
-    concepts: MissionConcept[]
+    concepts: MissionConcept[],
+    documentName?: string
   ): Promise<MissionConcept[]> {
     const conceptsWithEmbeddings: MissionConcept[] = [];
     const total = concepts.length;
@@ -90,7 +91,7 @@ export class MissionConceptsManager {
 
       // Show progress every 50 concepts or at specific milestones
       if (i === 0 || i === total - 1 || (i + 1) % 50 === 0) {
-        EmbedLogger.progress(i + 1, total, 'MissionConcepts');
+        EmbedLogger.progress(i + 1, total, 'MissionConcepts', documentName);
       }
 
       try {
@@ -131,10 +132,26 @@ export class MissionConceptsManager {
   async store(overlay: MissionConceptsOverlay): Promise<void> {
     await fs.ensureDir(this.overlayPath);
 
-    // Generate embeddings for all concepts
-    const conceptsWithEmbeddings = await this.generateEmbeddings(
-      overlay.extracted_concepts
+    // Extract document name from path for progress logging
+    const documentName = path.basename(overlay.document_path);
+
+    // Check if concepts already have embeddings (from security validation)
+    const alreadyEmbedded = overlay.extracted_concepts.every(
+      (c) => c.embedding && c.embedding.length === 768
     );
+
+    let conceptsWithEmbeddings: MissionConcept[];
+
+    if (alreadyEmbedded) {
+      // Reuse existing embeddings (no re-embedding needed)
+      conceptsWithEmbeddings = overlay.extracted_concepts;
+    } else {
+      // Generate embeddings for concepts that don't have them
+      conceptsWithEmbeddings = await this.generateEmbeddings(
+        overlay.extracted_concepts,
+        documentName
+      );
+    }
 
     const enrichedOverlay: MissionConceptsOverlay = {
       ...overlay,

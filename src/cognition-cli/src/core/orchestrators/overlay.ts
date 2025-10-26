@@ -26,6 +26,7 @@ import { SourceFile, Language } from '../types/structural.js';
 import { DocumentObject } from '../pgc/document-object.js';
 
 import { GenesisOracle } from '../pgc/oracles/genesis.js';
+import { GenesisDocTransform } from '../transforms/genesis-doc-transform.js';
 
 export class OverlayOrchestrator {
   private maxFileSize = DEFAULT_MAX_FILE_SIZE;
@@ -165,6 +166,15 @@ export class OverlayOrchestrator {
 
     // Mission concepts has a different flow - no file discovery needed
     if (overlayType === 'mission_concepts') {
+      // Auto-discover and ingest strategic docs (VISION.md, PATTERN_LIBRARY.md, etc.)
+      s.start('[Overlay] Discovering and ingesting strategic documents...');
+      const ingestedCount = await this.autoIngestStrategicDocs();
+      if (ingestedCount > 0) {
+        s.stop(`[Overlay] Ingested ${ingestedCount} strategic document(s)`);
+      } else {
+        s.stop('[Overlay] All strategic documents already ingested');
+      }
+
       s.start('[Overlay] Discovering markdown documents in PGC...');
       const docIndex = await this.discoverDocuments();
       s.stop(`[Overlay] Found ${docIndex.length} document(s) in PGC.`);
@@ -172,7 +182,7 @@ export class OverlayOrchestrator {
       if (docIndex.length === 0) {
         log.warn(
           chalk.yellow(
-            '[Overlay] No documents found. Run "genesis:docs <path>" first to ingest markdown files.'
+            '[Overlay] No documents found. Add markdown files to docs/ folder or VISION.md in project root.'
           )
         );
         return;
@@ -184,8 +194,15 @@ export class OverlayOrchestrator {
         )
       );
 
-      for (const docEntry of docIndex) {
+      for (let i = 0; i < docIndex.length; i++) {
+        const docEntry = docIndex[i];
         await this.generateMissionConcepts(docEntry, force);
+
+        // Add delay between documents to avoid API rate limiting
+        if (i < docIndex.length - 1) {
+          console.log(chalk.dim('  ⏱  Waiting 5s to avoid rate limits...'));
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+        }
       }
 
       console.log(
@@ -752,33 +769,45 @@ export class OverlayOrchestrator {
       return;
     }
 
-    // Extract concepts from document
-    const markdownDoc = {
-      filePath: parsedDoc.filePath,
-      hash: parsedDoc.hash,
-      sections: parsedDoc.ast.sections,
-      metadata: parsedDoc.ast.metadata,
-      rawContent: parsedDoc.content,
-    };
+    // Check if document has pre-embedded concepts from security validation
+    let concepts = parsedDoc.embeddedConcepts;
 
-    const concepts = this.conceptExtractor.extract(markdownDoc);
+    if (!concepts || concepts.length === 0) {
+      // Fallback: Extract concepts (no pre-embedded concepts available)
+      const markdownDoc = {
+        filePath: parsedDoc.filePath,
+        hash: parsedDoc.hash,
+        sections: parsedDoc.ast.sections,
+        metadata: parsedDoc.ast.metadata,
+        rawContent: parsedDoc.content,
+      };
 
-    if (concepts.length === 0) {
+      concepts = this.conceptExtractor.extract(markdownDoc);
+
+      if (concepts.length === 0) {
+        console.log(
+          chalk.yellow(
+            `  [MissionConcepts] ${filePath} - skipped (no mission concepts found)`
+          )
+        );
+        return;
+      }
+
       console.log(
-        chalk.yellow(
-          `  [MissionConcepts] ${filePath} - skipped (no mission concepts found)`
+        chalk.blue(
+          `  [MissionConcepts] ${filePath} - found ${concepts.length} concepts, generating embeddings...`
         )
       );
-      return;
+    } else {
+      // Using pre-embedded concepts from security validation
+      console.log(
+        chalk.blue(
+          `  [MissionConcepts] ${filePath} - reusing ${concepts.length} concepts from security validation (no re-embedding)...`
+        )
+      );
     }
 
-    console.log(
-      chalk.blue(
-        `  [MissionConcepts] ${filePath} - found ${concepts.length} concepts, generating embeddings...`
-      )
-    );
-
-    // Create overlay and store (manager will generate embeddings)
+    // Create overlay and store (manager will generate embeddings only if needed)
     // Use contentHash as the stable document identity
     const overlay = {
       document_hash: contentHash,
@@ -897,6 +926,121 @@ export class OverlayOrchestrator {
       )
     );
     console.log('');
+  }
+
+  /**
+   * Auto-discover and ingest strategic documentation files
+   * Looks for:
+   * - VISION.md in project root or parent directories (searches up to repo root)
+   * - docs/PATTERN_LIBRARY.md, docs/PRINCIPLES.md, docs/0X_*.md, etc.
+   *
+   * Only ingests files that haven't been processed yet (checks PGC index)
+   */
+  private async autoIngestStrategicDocs(): Promise<number> {
+    const strategicPaths: string[] = [];
+    const docTransform = new GenesisDocTransform(this.pgc.pgcRoot);
+
+    // 1. Search for VISION.md in current dir and parent directories
+    // Convert to absolute path first (projectRoot might be relative like '.')
+    let searchDir = path.resolve(this.projectRoot);
+
+    // Search up to 3 levels (current, parent, grandparent)
+    for (let i = 0; i < 3; i++) {
+      const visionPath = path.join(searchDir, 'VISION.md');
+
+      if (await fs.pathExists(visionPath)) {
+        strategicPaths.push(visionPath);
+        break;
+      }
+
+      const parentDir = path.dirname(searchDir);
+      if (parentDir === searchDir) break; // Reached filesystem root
+      searchDir = parentDir;
+    }
+
+    // 2. Discover specific strategic docs in docs/ folder
+    const docsFolder = path.join(this.projectRoot, 'docs');
+    if (await fs.pathExists(docsFolder)) {
+      // Check for specific strategic document names
+      const strategicFileNames = [
+        'PATTERN_LIBRARY.md',
+        'PRINCIPLES.md',
+        'STRATEGY.md',
+      ];
+
+      for (const fileName of strategicFileNames) {
+        const filePath = path.join(docsFolder, fileName);
+        if (await fs.pathExists(filePath)) {
+          strategicPaths.push(filePath);
+        }
+      }
+
+      // Find specific strategic numbered docs only (not all technical docs)
+      const strategicNumberedDocs = [
+        '09_Mission_Concept_Extraction.md', // Strategic - how we extract mission concepts
+        // Skip 00-08 (technical implementation docs)
+      ];
+
+      for (const fileName of strategicNumberedDocs) {
+        const filePath = path.join(docsFolder, fileName);
+        if (await fs.pathExists(filePath)) {
+          strategicPaths.push(filePath);
+        }
+      }
+    }
+
+    // Remove duplicates
+    const uniquePaths = [...new Set(strategicPaths)];
+
+    // Get already indexed documents
+    const existingDocs = await this.discoverDocuments();
+
+    // Normalize paths for comparison (convert to relative paths from projectRoot)
+    const normalizedExistingPaths = new Set(
+      existingDocs.map((d) => path.resolve(this.projectRoot, d.filePath))
+    );
+
+    // Filter to only new documents (by comparing absolute paths)
+    const newPaths = uniquePaths.filter((p) => !normalizedExistingPaths.has(p));
+
+    if (newPaths.length === 0) {
+      return 0;
+    }
+
+    // Ingest each new strategic document with FULL security validation
+    // Each document goes through:
+    // 1. Content pattern validation (malicious instruction detection)
+    // 2. Semantic drift detection (compares embeddings vs previous version)
+    // 3. Structural integrity (markdown validation)
+    // 4. Version recording (stores baseline for future drift detection)
+    // 5. Overlay generation (extracts mission concepts with embeddings)
+    //
+    // Yes, this means concepts are embedded twice:
+    // - Once during ingestion for security validation (drift detection + version recording)
+    // - Once during overlay generation for mission concepts
+    // This is intentional - security validation is worth the embedding cost.
+    let ingestedCount = 0;
+    for (const docPath of newPaths) {
+      try {
+        const docName = path.basename(docPath);
+        console.log(
+          chalk.dim(`  🔒 ${docName} - running security validation...`)
+        );
+        await docTransform.execute(docPath); // Full security validation (includes embedding for drift detection)
+        console.log(
+          chalk.green(`  ✓ Validated: ${docName} (passed security + ingested)`)
+        );
+        ingestedCount++;
+      } catch (error) {
+        console.log(
+          chalk.yellow(
+            `  ⚠ Failed to validate ${path.basename(docPath)}: ${(error as Error).message}`
+          )
+        );
+      }
+    }
+
+    return ingestedCount;
   }
 
   public async shutdown(): Promise<void> {

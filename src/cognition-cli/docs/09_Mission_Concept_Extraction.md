@@ -296,14 +296,13 @@ private extractEmojiPrefixed(content: string): string[] {
 **Example**:
 
 ```markdown
-Large tech companies cannot build closed-source versions without explicit permission.
-This prevents the "embrace, extend, extinguish" pattern that has killed open standards before.
+The result is "verifiable AI-human symbiosis" - intelligence grounded in mathematical truth.
 ```
 
 **Extracted**:
 
 ```text
-"embrace, extend, extinguish"
+"verifiable AI-human symbiosis"
 ```
 
 **Implementation**:
@@ -928,7 +927,7 @@ Looking at VISION.md structure:
 ✓ - **AI reasoning**, anchoring... → Bullet + bold + context
 ✓ **Our mission is to establish...** → Bold complete sentence
 ✓ ✅ **Structured understanding** → Emoji + bold value prop
-✓ "embrace, extend, extinguish" → Quoted coined term
+✓ "verifiable AI-human symbiosis" → Quoted coined term
 ```
 
 **Discovery**: Authors use formatting deliberately to signal importance!

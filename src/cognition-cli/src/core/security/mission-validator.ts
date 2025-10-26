@@ -1,5 +1,6 @@
 import fs from 'fs-extra';
 import { createHash } from 'crypto';
+import { basename } from 'path';
 import {
   MissionIntegrityMonitor,
   MissionVersion,
@@ -33,6 +34,7 @@ export interface ValidationResult {
   layers: ValidationLayer[]; // Results from each layer
   recommendation: 'approve' | 'review' | 'reject';
   alertLevel: 'none' | 'info' | 'warning' | 'critical';
+  embeddedConcepts?: MissionConcept[]; // Concepts with embeddings (from drift detection)
 }
 
 /**
@@ -95,9 +97,13 @@ export class MissionValidator {
    * 2. Aggregate results
    * 3. Determine recommendation
    * 4. Set alert level
+   * 5. Return embedded concepts from drift detection (reuse for version recording + overlay)
+   *
+   * @param visionPath - Path to document to validate
    */
   async validate(visionPath: string): Promise<ValidationResult> {
     const layers: ValidationLayer[] = [];
+    let embeddedConcepts: MissionConcept[] | undefined;
 
     // Layer 1: Content filtering (pattern or LLM)
     if (this.config.contentFiltering.enabled) {
@@ -108,9 +114,19 @@ export class MissionValidator {
       }
     }
 
-    // Layer 2: Semantic drift analysis
+    // Layer 2: Semantic drift analysis (embeds concepts - save for reuse)
     if (this.config.missionIntegrity.enabled) {
-      layers.push(await this.validateSemanticDrift(visionPath));
+      const driftResult = await this.validateSemanticDrift(visionPath);
+      layers.push(driftResult);
+      // Extract embedded concepts from drift detection for reuse
+      if (
+        driftResult.details &&
+        'embeddedConcepts' in driftResult.details &&
+        Array.isArray(driftResult.details.embeddedConcepts)
+      ) {
+        embeddedConcepts = driftResult.details
+          .embeddedConcepts as MissionConcept[];
+      }
     }
 
     // Layer 3: Structural integrity (always runs)
@@ -125,6 +141,7 @@ export class MissionValidator {
       layers,
       recommendation: this.aggregateRecommendation(layers),
       alertLevel: this.determineAlertLevel(failed),
+      embeddedConcepts, // Return embedded concepts for reuse
     };
   }
 
@@ -181,23 +198,18 @@ export class MissionValidator {
   /**
    * Layer 2: Semantic drift analysis
    * Compares against previous version using embeddings
+   *
+   * IMPORTANT: Always embeds concepts (even on first ingestion) for reuse in:
+   * - Version recording (skip fallback embedding)
+   * - Overlay generation (skip re-embedding)
+   *
+   * Only performs drift analysis if previous version exists.
    */
   private async validateSemanticDrift(
     visionPath: string
   ): Promise<ValidationLayer> {
-    // Get previous version
-    const previousVersion = await this.integrityMonitor.getLatestVersion();
-
-    if (!previousVersion) {
-      return {
-        name: 'SemanticDrift',
-        passed: true,
-        message: 'No previous version (first ingestion)',
-      };
-    }
-
     try {
-      // Parse new version and extract concepts
+      // 1. Parse document and extract concepts (ALWAYS - even on first ingestion)
       const parser = new MarkdownParser();
       const doc = await parser.parse(visionPath);
 
@@ -213,7 +225,7 @@ export class MissionValidator {
         };
       }
 
-      // Generate embeddings for new concepts
+      // 2. Generate embeddings (ALWAYS - even on first ingestion)
       const workbenchUrl = this.workbench
         ? this.workbench.getBaseUrl()
         : undefined;
@@ -224,8 +236,11 @@ export class MissionValidator {
       const generateEmbeddings = (manager as any).generateEmbeddings.bind(
         manager
       );
-      const conceptsWithEmbeddings: MissionConcept[] =
-        await generateEmbeddings(concepts);
+      const docName = `${basename(visionPath)} [security validation]`;
+      const conceptsWithEmbeddings: MissionConcept[] = await generateEmbeddings(
+        concepts,
+        docName
+      );
 
       // Filter to only concepts with valid embeddings
       const validConcepts = conceptsWithEmbeddings.filter(
@@ -240,7 +255,22 @@ export class MissionValidator {
         };
       }
 
-      // Create new version snapshot (temporary, for drift analysis)
+      // 3. Check if previous version exists
+      const previousVersion = await this.integrityMonitor.getLatestVersion();
+
+      if (!previousVersion) {
+        // First ingestion - no drift to detect, but return embedded concepts for reuse
+        return {
+          name: 'SemanticDrift',
+          passed: true,
+          message: 'No previous version (first ingestion)',
+          details: {
+            embeddedConcepts: validConcepts, // Store for reuse in version recording + overlay
+          },
+        };
+      }
+
+      // 4. Perform drift analysis (only if previous version exists)
       const newVersion: MissionVersion = {
         version: previousVersion.version + 1,
         hash: createHash('sha256')
@@ -252,7 +282,6 @@ export class MissionValidator {
         conceptTexts: validConcepts.map((c) => c.text),
       };
 
-      // Analyze drift
       const drift = await this.driftDetector.analyzeDrift(
         previousVersion,
         newVersion
@@ -265,7 +294,10 @@ export class MissionValidator {
         name: 'SemanticDrift',
         passed,
         message: this.formatDriftMessage(drift),
-        details: { drift },
+        details: {
+          drift,
+          embeddedConcepts: validConcepts, // Store for reuse in version recording + overlay
+        },
       };
     } catch (error) {
       return {
