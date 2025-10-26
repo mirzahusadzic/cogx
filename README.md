@@ -21,7 +21,13 @@ _And I'll show you how deep this rabbit hole really goes._
 
 ## Vision
 
-> This repository contains a comprehensive architectural blueprint for Open Cognition, a system designed to solve the fundamental limitations of modern Large Language Models (LLMs)—their lack of persistent, verifiable memory. It provides a framework for a new kind of computing, moving from "Open Code" to "CogX," where the structured, verified understanding of a system is as shareable and composable as the code itself.
+> **Augment human consciousness through verifiable AI-human symbiosis. Ignite the spark of progress.**
+
+This repository contains the architectural blueprint for **Open Cognition** (CogX)—a system that creates verifiable AI-human symbiosis by solving the fundamental limitation of modern LLMs: their lack of persistent, verifiable memory.
+
+**The goal is not better AI. The goal is to accelerate human progress** by providing mathematical foundations for AI systems that augment, rather than replace, human intelligence.
+
+**Read the full manifesto**: **[VISION.md](VISION.md)** — Mission, symbiosis architecture, strategic intent, and why AGPLv3.
 
 ## 🎯 Proof of Concept: It Works
 
@@ -239,6 +245,7 @@ graph TD
 ```
 
 **Legend:**
+
 - **Solid arrows (→)**: Lattice operations (Meet ∧ and Join ∨) - the vertical structure
 - **Dashed arrows (-.->)**: Infrastructure connections - storage, indexing, and history
 - **Bidirectional (←→)**: Mutual reference relationships
