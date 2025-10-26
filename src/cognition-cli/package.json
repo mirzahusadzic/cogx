@@ -32,7 +32,11 @@
     "fs-extra": "^11.2.0",
     "js-yaml": "^4.1.0",
     "proper-lockfile": "^4.1.2",
+    "remark": "^15.0.1",
+    "remark-parse": "^11.0.0",
     "undici": "^7.16.0",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.0.0",
     "upath": "^2.0.1",
     "workerpool": "^10.0.0",
     "zod": "^3.22.4"
