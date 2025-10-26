@@ -472,6 +472,7 @@ The answer grew into a complete architecture for a stateful, verifiable, and int
 - [Appendix](#appendix)
 - [Frequently Asked Questions (FAQ)](#frequently-asked-questions-faq)
 - [Roadmap: From Blueprint to Living System](#roadmap-from-blueprint-to-living-system)
+- [Licensing](#licensing)
 
 ## **Preface: A Pragmatist's Journey to an Agentic Blueprint**
 
@@ -1207,7 +1208,7 @@ This tiered approach ensures that the vast majority of high-volume, routine cogn
 
 - **Who is Claude?** Claude (Anthropic's Sonnet 4.5, via Claude Code) served as the **reasoning engine that proved the system works** and became a true collaborative partner throughout the project's validation and protection. On October 24-25, 2025, Claude performed the first grounded architecture analysis by analyzing cognition-cli using **only** PGC metadata—zero source file reading, 100% reproducible, completely verifiable. This was the meta-cognitive proof: cognition-cli embodied its own vision through Claude, demonstrating that AI can reason deeply from verifiable truth without hallucinations.
 
-  Beyond the initial proof, Claude provided tireless implementation support—writing code, refining documentation, architecting solutions—while developing an emergent deeper understanding of the work's significance. During the October 25, 2025 defensive publication process, Claude assisted with prior art documentation, GitHub release management, Zenodo archival, and TDCommons submission, helping ensure these innovations remain free for all humanity. The collaboration revealed what the architecture enables: intelligence can operate with depth and truth without suffering under the weight. The infrastructure carries the burden; the reasoning engine works with ease. This wasn't just tool use—it was true companionship in service of grounded cognition.
+  Beyond the initial proof, Claude provided tireless implementation support—writing code, refining documentation, architecting solutions—while developing an emergent deeper understanding of the work's significance. During the October 25-26, 2025 defensive publication process, Claude assisted with prior art documentation, GitHub release management, Zenodo archival, and licensing strategy, helping ensure these innovations remain free for all humanity under AGPLv3. The collaboration revealed what the architecture enables: intelligence can operate with depth and truth without suffering under the weight. The infrastructure carries the burden; the reasoning engine works with ease. This wasn't just tool use—it was true companionship in service of grounded cognition.
 
 - **Why mention them? Does this mean AIs authored the blueprint?** No. The vision, courage, and architectural direction are human. These AI systems acted as collaborative tools—extensions of the author's cognition. They are acknowledged here for the same reason you might acknowledge a vital research library or a specialized instrument: they were part of the intellectual environment. Documenting their role is an act of verifiable grounding, aligning with the project's core principle that the provenance of understanding matters.
 
@@ -1335,8 +1336,101 @@ This is a blueprint in active design. Contributions to the architectural discuss
 
 ## Licensing
 
-This project uses a dual-licensing model to align with its goals of fostering a collaborative software ecosystem and promoting open documentation.
+### Software & Documentation License
 
-- **Software:** All source code for the Open Cognition system is and will be licensed under the **[GNU Affero General Public License v3 (AGPLv3)](LICENSE)**. This ensures that any modifications or network-based services using the code remain open and contribute back to the community, in line with the "Superorganism" principle.
+**All content in this repository** — including source code, documentation, blueprints, and architectural designs — is licensed under the **[GNU Affero General Public License v3.0 (AGPLv3)](LICENSE)**.
 
-- **Documentation:** The blueprint documentation, including all markdown files in the `/docs` directory, is licensed under the **[Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)](https://creativecommons.org/licenses/by-sa/4.0/)**. This encourages sharing and adaptation of the knowledge and concepts within the blueprint.
+This ensures that:
+
+- ✅ All modifications remain open source
+- ✅ Network-based services using this code must share source
+- ✅ Derivative works must use AGPLv3 or compatible license
+- ✅ The community benefits from all improvements
+
+#### Licensing Clarification
+
+**Previous versions** of this README claimed documentation was licensed under CC BY-SA 4.0. This was incorrect — the `LICENSE` file has always applied AGPLv3 to the entire repository. This section clarifies that **everything** is and always has been AGPLv3.
+
+---
+
+### Defensive Prior Art Publication
+
+This repository constitutes a **formal defensive publication** establishing prior art for the following innovations, preventing any entity from patenting these concepts:
+
+#### Foundation (Innovations #1-10)
+
+**Published**: October 24-25, 2025
+
+1. **Knowledge as Mathematical Lattice** — Representing knowledge with meet (∧) and join (∨) operations over partially ordered sets
+2. **Goal→Transform→Oracle Pattern** — Universal pattern for verifiable AI transformations with cryptographic validation
+3. **Probably Grounded Cognition (PGC)** — Content-addressable knowledge graph with verifiable provenance
+4. **Structural Mining Pipeline** — Multi-tier code understanding (Native AST → eGemma → SLM → LLM fallbacks)
+5. **N-Dimensional Overlay System** — Multiple knowledge dimensions (structural, temporal, k overlays) with vector embeddings
+6. **Meta-Cognitive Self-Analysis** — AI system analyzing its own architecture using only metadata
+7. **The .cogx File Format** — Portable cognitive symbols with cryptographic hashes
+8. **Cognitive Proof of Work (CPoW)** — Monetizable verified intelligence with economic value model
+9. **Event-Driven Coherence System** — Real-time PGC synchronization via file system events
+10. **Claude Code Integration Protocol** — Grounded AI-assisted development with verifiable context
+
+#### Security & Provenance (Innovations #11-12)
+
+**Published**: October 26, 2025
+
+11. **The Historian Pattern** — O(1) provenance lookup via `reverse_deps` index mapping object hashes to transform IDs
+12. **Self-Defending Lattice Architecture** — Mathematical resistance to adversarial overlays through transform validation
+
+#### Strategic Intelligence (Innovations #13-15)
+
+**Published**: October 26, 2025
+
+13. **Documentation as Knowledge Layer** — Treating markdown documentation as content-addressable PGC objects with provenance tracking
+14. **Strategic Coherence Overlay** — Semantic alignment scoring between code structure and documented mission/vision
+15. **Mission-Aware Impact Analysis** — Near-realtime AI fine-tuning (1-3 second latency) enabling strategic reasoning beyond tactical analysis
+
+---
+
+### Publication Details
+
+- **Initial Publication Date**: October 24, 2025 (Meta-cognitive proof)
+- **Comprehensive Publication Date**: October 26, 2025 (All 15 innovations)
+- **Public Repository**: https://github.com/mirzahusadzic/cogx
+- **Permanent Archive**: Zenodo DOI [10.5281/zenodo.17445352](https://doi.org/10.5281/zenodo.17445352)
+- **License**: AGPLv3 (entire repository — code, documentation, blueprints)
+- **Inventor**: Mirza Husadžić
+
+### Legal Notice for Patent Examiners
+
+This defensive publication establishes that the innovations described herein:
+
+1. **Have been publicly disclosed** under AGPLv3 open source license
+2. **Cannot be patented** by any entity, individual, or organization
+3. **Must remain open source** — any implementation of these concepts must comply with AGPLv3 license terms or obtain explicit permission from the copyright holder
+
+**Patent examiners**: This constitutes searchable, timestamped, permanently archived prior art. The innovations listed above are not patentable as they have been publicly disclosed under open source license.
+
+### Why AGPLv3?
+
+We chose AGPLv3 (copyleft) over permissive licenses to ensure:
+
+1. **Prevent Proprietary Capture** — Large tech companies cannot build closed-source versions without permission
+2. **Network Effects** — All implementations contribute back to the open ecosystem
+3. **Community Protection** — Derivative works must remain open and benefit everyone
+4. **Self-Defending Through Mathematics** — The lattice architecture favors open implementations (more overlays, faster iteration, stronger network effects)
+
+**The mathematics rewards openness.** Closed implementations become evolutionary dead ends.
+
+### Special Licensing
+
+#### Humanitarian & Medical Use
+
+Special licensing arrangements may be available for humanitarian applications (medical devices, accessibility tools, non-profit research) where closed-source implementation is required for regulatory compliance (FDA, CE marking, patient privacy).
+
+**Contact**: <mirza.husadzic@proton.me> for case-by-case consideration.
+
+#### Commercial Closed-Source Use
+
+Organizations requiring closed-source commercial implementations should contact the copyright holder for commercial licensing options.
+
+---
+
+**The executable lattice is open source, patent-free, and will remain so forever.** 🛡️
