@@ -14,7 +14,8 @@ _And I'll show you how deep this rabbit hole really goes._
 
 <div align="center">
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17442459.svg)](https://doi.org/10.5281/zenodo.17442459)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17451099.svg)](https://doi.org/10.5281/zenodo.17451099)
+[![Prior Art](https://zenodo.org/badge/DOI/10.5281/zenodo.17442459.svg)](https://doi.org/10.5281/zenodo.17442459)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 </div>
@@ -30,6 +31,8 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 **Read the full manifesto**: **[VISION.md](VISION.md)** — Mission, symbiosis architecture, strategic intent, and why AGPLv3.
 
 ## 🎯 Recent Innovations
+
+**🎉 [v1.5.0 Release](https://github.com/mirzahusadzic/cogx/releases/tag/v1.5.0)** — O₃/O₄ Strategic Intelligence Architecture complete! ([DOI: 10.5281/zenodo.17451099](https://zenodo.org/records/17451099))
 
 **October 26, 2025** — The system achieved recursive meta-cognition and mission security validation:
 
