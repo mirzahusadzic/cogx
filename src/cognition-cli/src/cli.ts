@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
+import path from 'path';
 import { genesisCommand } from './commands/genesis.js';
 import { initCommand } from './commands/init.js';
 import {
@@ -89,15 +90,19 @@ program
   .action(auditCommand);
 
 program
-  .command('genesis:docs <path>')
-  .description('Ingest markdown documentation into PGC with full provenance')
+  .command('genesis:docs [path]')
+  .description(
+    'Ingest markdown documentation into PGC with full provenance (defaults to VISION.md)'
+  )
   .option(
     '-p, --project-root <path>',
     'Root directory of the project',
     process.cwd()
   )
   .action((pathArg, options) => {
-    genesisDocsCommand(pathArg, options);
+    const defaultPath = path.join(options.projectRoot, '../../VISION.md');
+    const targetPath = pathArg || defaultPath;
+    genesisDocsCommand(targetPath, options);
   });
 
 import { overlayCommand } from './commands/overlay.js';

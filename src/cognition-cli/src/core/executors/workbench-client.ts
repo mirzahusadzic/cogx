@@ -152,11 +152,8 @@ export class WorkbenchClient {
           formData.set('file', blob, 'signature.txt');
           const promptName = request.prompt_name || EMBED_PROMPT_NAME;
 
-          if (attempt === 0) {
-            // Only log on first attempt to reduce noise
-            const msg = `[WorkbenchClient] About to fetch embed from: ${this.baseUrl}/embed?dimensions=${request.dimensions}&prompt_name=${promptName}`;
-            console.log(chalk?.dim ? chalk.dim(msg) : msg);
-          }
+          // Logging disabled - EmbedLogger handles progress tracking
+          // Individual fetch logs create too much noise during batch operations
 
           const response = await fetch(
             `${this.baseUrl}/embed?dimensions=${request.dimensions}&prompt_name=${promptName}`,

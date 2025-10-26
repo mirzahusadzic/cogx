@@ -4,6 +4,8 @@ import { LanceVectorStore } from '../overlays/vector-db/lance-store.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
 import { StructuralPatternsManager } from '../overlays/structural/patterns.js';
 import { LineagePatternsManager } from '../overlays/lineage/manager.js';
+import { MissionConceptsManager } from '../overlays/mission-concepts/manager.js';
+import { ConceptExtractor } from '../analyzers/concept-extractor.js';
 import { StructuralMiner } from './miners/structural.js';
 import { OverlayOracle } from '../pgc/oracles/overlay.js';
 import {
@@ -20,6 +22,7 @@ import {
   DEFAULT_FILE_EXTENSIONS,
 } from '../../config.js';
 import { SourceFile, Language } from '../types/structural.js';
+import { DocumentObject } from '../pgc/document-object.js';
 
 import { GenesisOracle } from '../pgc/oracles/genesis.js';
 
@@ -29,6 +32,8 @@ export class OverlayOrchestrator {
   private workbench: WorkbenchClient;
   private structuralPatternManager: StructuralPatternsManager;
   private lineagePatternManager: LineagePatternsManager;
+  private missionConceptsManager: MissionConceptsManager;
+  private conceptExtractor: ConceptExtractor;
   private overlayOracle: OverlayOracle;
   private genesisOracle: GenesisOracle;
   private miner: StructuralMiner;
@@ -39,9 +44,8 @@ export class OverlayOrchestrator {
     private pgc: PGCManager
   ) {
     this.pgc = pgc;
-    this.workbench = new WorkbenchClient(
-      process.env.WORKBENCH_URL || 'http://localhost:8000'
-    );
+    const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
+    this.workbench = new WorkbenchClient(workbenchUrl);
     this.miner = new StructuralMiner(this.workbench);
     this.structuralPatternManager = new StructuralPatternsManager(
       this.pgc,
@@ -53,6 +57,11 @@ export class OverlayOrchestrator {
       this.vectorDB,
       this.workbench
     );
+    this.missionConceptsManager = new MissionConceptsManager(
+      path.join(this.projectRoot, '.open_cognition'),
+      workbenchUrl
+    );
+    this.conceptExtractor = new ConceptExtractor();
     this.overlayOracle = new OverlayOracle(this.pgc);
     this.genesisOracle = new GenesisOracle(this.pgc);
   }
@@ -118,7 +127,10 @@ export class OverlayOrchestrator {
   }
 
   public async run(
-    overlayType: 'structural_patterns' | 'lineage_patterns',
+    overlayType:
+      | 'structural_patterns'
+      | 'lineage_patterns'
+      | 'mission_concepts',
     options?: {
       force?: boolean;
       skipGc?: boolean;
@@ -144,6 +156,37 @@ export class OverlayOrchestrator {
       );
     }
 
+    // Mission concepts has a different flow - no file discovery needed
+    if (overlayType === 'mission_concepts') {
+      s.start('[Overlay] Discovering markdown documents in PGC...');
+      const docIndex = await this.discoverDocuments();
+      s.stop(`[Overlay] Found ${docIndex.length} document(s) in PGC.`);
+
+      if (docIndex.length === 0) {
+        log.warn(
+          chalk.yellow(
+            '[Overlay] No documents found. Run "genesis:docs <path>" first to ingest markdown files.'
+          )
+        );
+        return;
+      }
+
+      console.log(
+        chalk.blue(
+          `[Overlay] Extracting mission concepts from ${docIndex.length} document(s)...`
+        )
+      );
+
+      for (const docEntry of docIndex) {
+        await this.generateMissionConcepts(docEntry, force);
+      }
+
+      console.log(
+        chalk.green('[Overlay] Mission concepts generation complete.')
+      );
+      return;
+    }
+
     const allFiles = await this.discoverFiles(
       path.join(this.projectRoot, sourcePath)
     );
@@ -154,10 +197,13 @@ export class OverlayOrchestrator {
 
     if (overlayType === 'lineage_patterns') {
       s.start('[Overlay] Generating lineage patterns from manifest...');
+      s.stop('[Overlay] Generating lineage patterns from manifest.');
 
       try {
         await this.lineagePatternManager.generate({ force });
-        s.stop('[Overlay] Lineage patterns generated.');
+        console.log(
+          chalk.green('[Overlay] Lineage patterns generation complete.')
+        );
       } finally {
         await this.lineagePatternManager.shutdown();
       }
@@ -601,6 +647,141 @@ export class OverlayOrchestrator {
       success: messages.length === 0,
       messages,
     };
+  }
+
+  /**
+   * Discover markdown documents that have been ingested into PGC
+   */
+  private async discoverDocuments(): Promise<
+    Array<{ filePath: string; contentHash: string; objectHash: string }>
+  > {
+    const docsIndexPath = path.join(this.pgc.pgcRoot, 'index', 'docs');
+
+    if (!(await fs.pathExists(docsIndexPath))) {
+      return [];
+    }
+
+    const indexFiles = await fs.readdir(docsIndexPath);
+    const documents: Array<{
+      filePath: string;
+      contentHash: string;
+      objectHash: string;
+    }> = [];
+
+    for (const indexFile of indexFiles) {
+      if (!indexFile.endsWith('.json')) continue;
+
+      const indexPath = path.join(docsIndexPath, indexFile);
+      const indexData = await fs.readJSON(indexPath);
+
+      // Support both old format (hash only) and new format (contentHash + objectHash)
+      const contentHash = indexData.contentHash || indexData.hash;
+      const objectHash = indexData.objectHash || indexData.hash;
+
+      documents.push({
+        filePath: indexData.filePath,
+        contentHash,
+        objectHash,
+      });
+    }
+
+    return documents;
+  }
+
+  /**
+   * Generate mission concepts for a single document
+   */
+  private async generateMissionConcepts(
+    docEntry: { filePath: string; contentHash: string; objectHash: string },
+    force: boolean
+  ): Promise<void> {
+    const { filePath, contentHash, objectHash } = docEntry;
+
+    // Check if overlay already exists (unless force=true)
+    // Use contentHash for overlay storage (stable document identity)
+    if (!force) {
+      const existing = await this.missionConceptsManager.retrieve(contentHash);
+      if (existing) {
+        console.log(
+          chalk.dim(
+            `  [MissionConcepts] ${filePath} - skipped (already exists)`
+          )
+        );
+        return;
+      }
+    }
+
+    console.log(
+      chalk.blue(`  [MissionConcepts] ${filePath} - extracting concepts...`)
+    );
+
+    // Load document object from PGC using objectHash (for retrieval)
+    const docObjectBuffer = await this.pgc.objectStore.retrieve(objectHash);
+    if (!docObjectBuffer) {
+      console.log(
+        chalk.yellow(
+          `  [MissionConcepts] ${filePath} - skipped (document not found in PGC)`
+        )
+      );
+      return;
+    }
+
+    const parsedDoc = JSON.parse(
+      docObjectBuffer.toString('utf-8')
+    ) as DocumentObject;
+
+    if (parsedDoc.type !== 'markdown_document') {
+      console.log(
+        chalk.yellow(
+          `  [MissionConcepts] ${filePath} - skipped (not a markdown document)`
+        )
+      );
+      return;
+    }
+
+    // Extract concepts from document
+    const markdownDoc = {
+      filePath: parsedDoc.filePath,
+      hash: parsedDoc.hash,
+      sections: parsedDoc.ast.sections,
+      metadata: parsedDoc.ast.metadata,
+      rawContent: parsedDoc.content,
+    };
+
+    const concepts = this.conceptExtractor.extract(markdownDoc);
+
+    if (concepts.length === 0) {
+      console.log(
+        chalk.yellow(
+          `  [MissionConcepts] ${filePath} - skipped (no mission concepts found)`
+        )
+      );
+      return;
+    }
+
+    console.log(
+      chalk.blue(
+        `  [MissionConcepts] ${filePath} - found ${concepts.length} concepts, generating embeddings...`
+      )
+    );
+
+    // Create overlay and store (manager will generate embeddings)
+    // Use contentHash as the stable document identity
+    const overlay = {
+      document_hash: contentHash,
+      document_path: filePath,
+      extracted_concepts: concepts,
+      generated_at: new Date().toISOString(),
+      transform_id: `mission_concepts:${contentHash}:${new Date().toISOString()}`,
+    };
+
+    await this.missionConceptsManager.store(overlay);
+
+    console.log(
+      chalk.green(
+        `  [MissionConcepts] ${filePath} - ✓ complete (${concepts.length} concepts embedded)`
+      )
+    );
   }
 
   public async shutdown(): Promise<void> {

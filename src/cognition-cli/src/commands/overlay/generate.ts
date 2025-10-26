@@ -1,10 +1,11 @@
 import { Command } from 'commander';
 import { getGlobalDispatcher } from 'undici';
+import chalk from 'chalk';
 import { OverlayOrchestrator } from '../../core/orchestrators/overlay.js';
 
 const generateCommand = new Command('generate')
   .description(
-    'Generate a specific type of overlay (structural_patterns or lineage_patterns).'
+    'Generate a specific type of overlay (structural_patterns, lineage_patterns, or mission_concepts).'
   )
   .argument('<type>', 'The type of overlay to generate')
   .argument(
@@ -24,9 +25,15 @@ const generateCommand = new Command('generate')
     false
   )
   .action(async (type, sourcePath, options) => {
-    if (type !== 'structural_patterns' && type !== 'lineage_patterns') {
+    if (
+      type !== 'structural_patterns' &&
+      type !== 'lineage_patterns' &&
+      type !== 'mission_concepts'
+    ) {
       console.error(`Unsupported overlay type: ${type}`);
-      console.error('Supported types: structural_patterns, lineage_patterns');
+      console.error(
+        'Supported types: structural_patterns, lineage_patterns, mission_concepts'
+      );
       process.exit(1);
     }
 
@@ -51,20 +58,29 @@ const generateCommand = new Command('generate')
       process.exit(1);
     });
 
+    let exitCode = 0;
+    let errorOccurred: Error | null = null;
+
     try {
       await orchestrator.run(
-        type as 'structural_patterns' | 'lineage_patterns',
+        type as 'structural_patterns' | 'lineage_patterns' | 'mission_concepts',
         { force: options.force, skipGc: options.skipGc, sourcePath }
       );
+      console.log('[Overlay] Generation complete.');
+    } catch (error) {
+      errorOccurred = error instanceof Error ? error : new Error(String(error));
+      exitCode = 1;
     } finally {
       await shutdown();
     }
 
-    console.log('[Overlay] Generation complete.');
+    // Print error after shutdown completes
+    if (errorOccurred) {
+      console.error(chalk.red(`\n[Overlay] Error: ${errorOccurred.message}`));
+    }
 
-    // Force exit after successful completion to prevent hanging
-    // (embedding service or worker pool may keep event loop alive)
-    process.exit(0);
+    // Force exit to prevent hanging (embedding service or worker pool may keep event loop alive)
+    process.exit(exitCode);
   });
 
 export { generateCommand };

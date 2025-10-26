@@ -7,7 +7,7 @@ import {
 } from '../pgc/document-object.js';
 import { createHash } from 'crypto';
 import { readFile, stat } from 'fs/promises';
-import { basename } from 'path';
+import { basename, relative, dirname } from 'path';
 import fs from 'fs-extra';
 import path from 'path';
 
@@ -18,10 +18,13 @@ import path from 'path';
 export class GenesisDocTransform {
   private parser: MarkdownParser;
   private objectStore: ObjectStore;
+  private projectRoot: string;
 
   constructor(private pgcRoot: string) {
     this.parser = new MarkdownParser();
     this.objectStore = new ObjectStore(pgcRoot);
+    // Project root is the parent of .open_cognition
+    this.projectRoot = dirname(pgcRoot);
   }
 
   /**
@@ -31,20 +34,23 @@ export class GenesisDocTransform {
     // 1. Validate file exists and is markdown
     await this.validateMarkdownFile(filePath);
 
-    // 2. Parse markdown into AST
+    // 2. Compute relative path from project root (for portability)
+    const relativePath = relative(this.projectRoot, filePath);
+
+    // 3. Parse markdown into AST
     const ast = await this.parser.parse(filePath);
 
-    // 3. Read raw content
+    // 4. Read raw content
     const content = await readFile(filePath, 'utf-8');
 
-    // 4. Compute document hash
+    // 5. Compute document hash
     const hash = this.computeHash(content);
 
-    // 5. Create document object
+    // 6. Create document object (store relative path)
     const docObject: DocumentObject = {
       type: 'markdown_document',
       hash,
-      filePath,
+      filePath: relativePath,
       content,
       ast,
       metadata: {
@@ -55,23 +61,23 @@ export class GenesisDocTransform {
       },
     };
 
-    // 6. Store in objects/
+    // 7. Store in objects/
     const objectHash = await this.storeDocumentObject(docObject);
 
-    // 7. Create transform ID
-    const transformId = this.generateTransformId(filePath, hash);
+    // 8. Create transform ID
+    const transformId = this.generateTransformId(relativePath, hash);
 
-    // 8. Create and store transform log
+    // 9. Create and store transform log
     const transformLog = this.createTransformLog(
       transformId,
-      filePath,
+      relativePath,
       hash,
       objectHash
     );
     await this.storeTransformLog(transformLog);
 
-    // 9. Update index mapping (file path → hash)
-    await this.updateIndex(filePath, hash);
+    // 10. Update index mapping (file path → hashes)
+    await this.updateIndex(relativePath, hash, objectHash);
 
     return {
       transformId,
@@ -175,9 +181,13 @@ export class GenesisDocTransform {
   }
 
   /**
-   * Update index mapping (file path → hash)
+   * Update index mapping (file path → hashes)
    */
-  private async updateIndex(filePath: string, hash: string): Promise<void> {
+  private async updateIndex(
+    filePath: string,
+    contentHash: string,
+    objectHash: string
+  ): Promise<void> {
     const indexDir = path.join(this.pgcRoot, 'index', 'docs');
     await fs.ensureDir(indexDir);
 
@@ -186,7 +196,8 @@ export class GenesisDocTransform {
 
     const indexEntry = {
       filePath,
-      hash,
+      contentHash, // Hash of raw markdown content (for change detection)
+      objectHash, // Hash of JSON DocumentObject (for retrieval from object store)
       timestamp: new Date().toISOString(),
     };
 

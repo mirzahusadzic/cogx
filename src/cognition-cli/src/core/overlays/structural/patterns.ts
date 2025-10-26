@@ -12,6 +12,7 @@ import { WorkbenchClient } from '../../executors/workbench-client.js';
 import { StructuralData } from '../../types/structural.js';
 import { EmbeddingService } from '../../services/embedding.js';
 import { EmbedResponse } from '../../types/workbench.js';
+import { EmbedLogger } from '../shared/embed-logger.js';
 import {
   DEFAULT_EMBEDDING_DIMENSIONS,
   DEFAULT_EMBEDDING_MODEL_NAME,
@@ -358,7 +359,7 @@ export class StructuralPatternsManager implements PatternManager {
       throw new Error(`Missing required data for ${symbolName}`);
     }
 
-    console.log(chalk.dim(`  [Embed] ${symbolName} - requesting embedding...`));
+    EmbedLogger.start(symbolName);
 
     // Request embedding through centralized service
     const embedResponse = await this.workbench.embed({
@@ -375,8 +376,6 @@ export class StructuralPatternsManager implements PatternManager {
       );
     }
 
-    console.log(chalk.dim(`  [Embed] ${symbolName} - computing hashes...`));
-
     const lineageHash = this.pgc.objectStore.computeHash(
       JSON.stringify(structuralData)
     );
@@ -384,8 +383,6 @@ export class StructuralPatternsManager implements PatternManager {
       JSON.stringify(embedding)
     );
     const vectorId = `pattern_${filePath.replace(/[^a-zA-Z0-9]/g, '_')}_${symbolName.replace(/[^a-zA-Z0-9]/g, '_')}`;
-
-    console.log(chalk.dim(`  [Embed] ${symbolName} - storing vector...`));
 
     // Store vector
     await this.vectorDB.storeVector(vectorId, embedding as number[], {
@@ -430,22 +427,17 @@ export class StructuralPatternsManager implements PatternManager {
     };
 
     const overlayKey = `${filePath}#${symbolName}`;
-    console.log(
-      chalk.dim(`  [Embed] ${symbolName} - updating overlay "${overlayKey}"...`)
-    );
 
     // CRITICAL: Update overlay metadata FIRST, then manifest
     // If overlay update fails, manifest won't have a stale entry
     await this.pgc.overlays.update('structural_patterns', overlayKey, metadata);
-
-    console.log(chalk.dim(`  [Embed] ${symbolName} - updating manifest...`));
     await this.pgc.overlays.updateManifest(
       'structural_patterns',
       symbolName,
       filePath
     );
 
-    console.log(chalk.dim(`  [Embed] ${symbolName} - ✓ complete`));
+    EmbedLogger.complete(symbolName);
   }
 
   /**

@@ -3,6 +3,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import YAML from 'yaml';
 import { WorkbenchClient } from '../../executors/workbench-client.js';
+import { EmbedLogger } from '../shared/embed-logger.js';
 
 /**
  * Mission concepts overlay
@@ -55,6 +56,26 @@ export class MissionConceptsManager {
   }
 
   /**
+   * Sanitize text for embedding (remove chars that trigger binary detection)
+   */
+  private sanitizeForEmbedding(text: string): string {
+    return (
+      text
+        // Replace em-dash and en-dash with regular dash
+        .replace(/[\u2013\u2014]/g, '-')
+        // Replace various quotes with straight quotes
+        .replace(/[\u201C\u201D]/g, '"')
+        .replace(/[\u2018\u2019]/g, "'")
+        // Replace bullet points and checkmarks with asterisk
+        .replace(/[\u2022\u2023\u25E6\u2043\u2219\u25CF\u2713\u2714]/g, '*')
+        // Replace arrows with ASCII equivalents
+        .replace(/[\u2192\u2190\u2191\u2193]/g, '->')
+        // Remove any remaining non-ASCII characters
+        .replace(/[^\x20-\x7E\n\r\t]/g, '')
+    );
+  }
+
+  /**
    * Generate embeddings for mission concepts
    * Uses eGemma via Workbench (768 dimensions)
    */
@@ -62,26 +83,43 @@ export class MissionConceptsManager {
     concepts: MissionConcept[]
   ): Promise<MissionConcept[]> {
     const conceptsWithEmbeddings: MissionConcept[] = [];
+    const total = concepts.length;
 
-    for (const concept of concepts) {
-      // Generate embedding for concept text
-      const embedResponse = await this.workbench.embed({
-        signature: concept.text,
-        dimensions: 768, // eGemma native dimension
-      });
+    for (let i = 0; i < concepts.length; i++) {
+      const concept = concepts[i];
 
-      const embedding = embedResponse['embedding_768d'];
-
-      if (!embedding || !Array.isArray(embedding)) {
-        throw new Error(
-          `Failed to generate embedding for concept: ${concept.text}`
-        );
+      // Show progress every 50 concepts or at specific milestones
+      if (i === 0 || i === total - 1 || (i + 1) % 50 === 0) {
+        EmbedLogger.progress(i + 1, total, 'MissionConcepts');
       }
 
-      conceptsWithEmbeddings.push({
-        ...concept,
-        embedding: embedding as number[],
-      });
+      try {
+        // Sanitize text to avoid triggering eGemma's binary detection
+        const sanitizedText = this.sanitizeForEmbedding(concept.text);
+
+        // Generate embedding for concept text
+        const embedResponse = await this.workbench.embed({
+          signature: sanitizedText,
+          dimensions: 768, // eGemma native dimension
+        });
+
+        const embedding = embedResponse['embedding_768d'];
+
+        if (!embedding || !Array.isArray(embedding)) {
+          throw new Error(
+            `Failed to generate embedding for concept: ${concept.text}`
+          );
+        }
+
+        conceptsWithEmbeddings.push({
+          ...concept,
+          embedding: embedding as number[],
+        });
+      } catch (error) {
+        throw new Error(
+          `Failed to embed concept ${i + 1}/${total} "${concept.text.substring(0, 100)}...": ${(error as Error).message}`
+        );
+      }
     }
 
     return conceptsWithEmbeddings;

@@ -12,6 +12,7 @@ import { PatternManager } from '../../pgc/patterns.js';
 import { StructuralData } from '../../types/structural.js';
 import { EmbeddingService } from '../../services/embedding.js';
 import { EmbedResponse } from '../../types/workbench.js';
+import { EmbedLogger } from '../shared/embed-logger.js';
 import {
   PatternGenerationOptions,
   StructuralSymbolType,
@@ -226,18 +227,14 @@ export class LineagePatternsManager implements PatternManager {
 
         // Show progress every 10 patterns
         if (embeddedCount % 10 === 0) {
-          console.log(
-            chalk.dim(
-              `[LineagePatterns] Progress: ${embeddedCount}/${successfulMines.length} embedded`
-            )
+          EmbedLogger.progress(
+            embeddedCount,
+            successfulMines.length,
+            'LineagePatterns'
           );
         }
       } catch (error) {
-        console.error(
-          chalk.red(
-            `[LineagePatterns] Failed to embed ${result.symbolName}: ${(error as Error).message}`
-          )
-        );
+        EmbedLogger.error(result.symbolName, error as Error, 'LineagePatterns');
         embedFailedCount++;
       }
     }
@@ -263,6 +260,8 @@ export class LineagePatternsManager implements PatternManager {
 
     const { signature, lineageDataHash, symbolType, validationSourceHash } =
       miningResult;
+
+    EmbedLogger.start(symbolName, 'LineagePatterns');
 
     // Request embedding through centralized service
     const embedResponse = await this.embeddingService.getEmbedding(
@@ -316,6 +315,8 @@ export class LineagePatternsManager implements PatternManager {
       symbolName,
       filePath
     );
+
+    EmbedLogger.complete(symbolName, 'LineagePatterns');
   }
 
   /**

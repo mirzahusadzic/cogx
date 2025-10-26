@@ -12,7 +12,6 @@ import type { WorkbenchClient } from '../executors/workbench-client.js';
 import type {
   SourceFile,
   Language,
-  StructuralPatternMetadata,
   StructuralData,
 } from '../types/structural.js';
 import type { GenesisJobResult } from './genesis-worker.js';
@@ -22,7 +21,6 @@ import {
   DEFAULT_MAX_FILE_SIZE,
   DEFAULT_FILE_EXTENSIONS,
   WORKBENCH_DEPENDENT_EXTRACTION_METHODS,
-  DEFAULT_EMBEDDING_MODEL_NAME,
 } from '../../config.js';
 
 /**
@@ -45,7 +43,8 @@ function calculateOptimalWorkersForParsing(fileCount: number): number {
 
 export class GenesisOrchestrator {
   private maxFileSize = DEFAULT_MAX_FILE_SIZE;
-  private structuralPatternsManifest: Record<string, string> = {};
+  // NOTE: Structural patterns manifest is now managed by overlay generator
+  // private structuralPatternsManifest: Record<string, string> = {};
   private workerPool?: workerpool.Pool;
 
   constructor(
@@ -166,12 +165,8 @@ export class GenesisOrchestrator {
 
     await this.aggregateDirectories();
 
-    // Write the complete structural patterns manifest once
-    await this.pgc.overlays.update(
-      'structural_patterns',
-      'manifest',
-      this.structuralPatternsManifest
-    );
+    // NOTE: Structural patterns manifest is now created by overlay generator
+    // Genesis no longer creates or updates the structural_patterns overlay
 
     await this.runPGCMaintenance(files.map((f) => f.relativePath));
 
@@ -419,35 +414,9 @@ export class GenesisOrchestrator {
         structuralData: structural,
       });
 
-      // Store StructuralPatternMetadata for each symbol in the structural_patterns overlay
-      const processSymbol = async (symbolName: string) => {
-        const structuralPatternMetadata: StructuralPatternMetadata = {
-          symbol: symbolName,
-          anchor: file.relativePath,
-          symbolStructuralDataHash: structuralHash,
-          validation: {
-            sourceHash: contentHash,
-            extractionMethod: structural.extraction_method,
-            fidelity: structural.fidelity,
-            embeddingModelVersion: DEFAULT_EMBEDDING_MODEL_NAME,
-          },
-          computedAt: new Date().toISOString(),
-          structuralSignature: JSON.stringify(structural, null, 2), // Placeholder
-          architecturalRole: 'structural_pattern', // Placeholder
-          vectorId: `structural_${file.relativePath.replace(/[^a-zA-Z0-9_]/g, '_')}_${symbolName.replace(/[^a-zA-Z0-9]/g, '_')}`, // Placeholder
-        };
-
-        await this.pgc.overlays.update(
-          'structural_patterns',
-          `${file.relativePath}#${symbolName}`,
-          structuralPatternMetadata
-        );
-        this.structuralPatternsManifest[symbolName] = file.relativePath;
-      };
-
-      structural.classes?.forEach(async (c) => await processSymbol(c.name));
-      structural.functions?.forEach(async (f) => await processSymbol(f.name));
-      structural.interfaces?.forEach(async (i) => await processSymbol(i.name));
+      // NOTE: Structural pattern overlay metadata is created by overlay generator, not genesis
+      // Genesis only maintains PGC index with structural data
+      // The overlay generator will read structural data from PGC and create embeddings + metadata
 
       await this.pgc.reverseDeps.add(contentHash, recordedTransformId);
       await this.pgc.reverseDeps.add(structuralHash, recordedTransformId);
@@ -500,6 +469,17 @@ export class GenesisOrchestrator {
           await walk(fullPath);
         } else if (entry.isFile()) {
           const ext = path.extname(entry.name);
+
+          // Skip test files
+          if (
+            entry.name.endsWith('.test.ts') ||
+            entry.name.endsWith('.test.js') ||
+            entry.name.endsWith('.spec.ts') ||
+            entry.name.endsWith('.spec.js')
+          ) {
+            continue;
+          }
+
           if (extensions.includes(ext)) {
             const stats = await fs.stat(fullPath);
             if (stats.size > this.maxFileSize) {

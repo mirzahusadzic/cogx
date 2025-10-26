@@ -157,7 +157,7 @@ Content.
       expect(log.transform_id).toBe(result.transformId);
       expect(log.type).toBe('genesis_doc');
       expect(log.method).toBe('markdown-ast-parse');
-      expect(log.inputs.source_file).toBe('/test.md');
+      expect(log.inputs.source_file).toBe('test.md'); // Relative path (portable)
       expect(log.outputs[0].hash).toBeTruthy(); // Object hash
       expect(log.outputs[0].type).toBe('markdown_document');
       expect(log.fidelity).toBe(1.0);
@@ -187,8 +187,9 @@ Content.
       const indexContent = await fs.readFile(indexPath, 'utf-8');
       const index = JSON.parse(indexContent);
 
-      expect(index.filePath).toBe('/docs/README.md');
-      expect(index.hash).toBe(result.outputHash);
+      expect(index.filePath).toBe('docs/README.md'); // Relative path (portable)
+      expect(index.contentHash).toBe(result.outputHash); // Content hash
+      expect(index.objectHash).toBeTruthy(); // Object hash
       expect(index.timestamp).toBeTruthy();
     });
 
