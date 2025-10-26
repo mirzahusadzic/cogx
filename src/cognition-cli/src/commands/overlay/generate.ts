@@ -5,7 +5,7 @@ import { OverlayOrchestrator } from '../../core/orchestrators/overlay.js';
 
 const generateCommand = new Command('generate')
   .description(
-    'Generate a specific type of overlay (structural_patterns, lineage_patterns, or mission_concepts).'
+    'Generate a specific type of overlay (structural_patterns, lineage_patterns, mission_concepts, or strategic_coherence).'
   )
   .argument('<type>', 'The type of overlay to generate')
   .argument(
@@ -28,11 +28,12 @@ const generateCommand = new Command('generate')
     if (
       type !== 'structural_patterns' &&
       type !== 'lineage_patterns' &&
-      type !== 'mission_concepts'
+      type !== 'mission_concepts' &&
+      type !== 'strategic_coherence'
     ) {
       console.error(`Unsupported overlay type: ${type}`);
       console.error(
-        'Supported types: structural_patterns, lineage_patterns, mission_concepts'
+        'Supported types: structural_patterns, lineage_patterns, mission_concepts, strategic_coherence'
       );
       process.exit(1);
     }
@@ -63,7 +64,11 @@ const generateCommand = new Command('generate')
 
     try {
       await orchestrator.run(
-        type as 'structural_patterns' | 'lineage_patterns' | 'mission_concepts',
+        type as
+          | 'structural_patterns'
+          | 'lineage_patterns'
+          | 'mission_concepts'
+          | 'strategic_coherence',
         { force: options.force, skipGc: options.skipGc, sourcePath }
       );
       console.log('[Overlay] Generation complete.');

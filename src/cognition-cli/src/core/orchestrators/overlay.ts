@@ -5,6 +5,7 @@ import { WorkbenchClient } from '../executors/workbench-client.js';
 import { StructuralPatternsManager } from '../overlays/structural/patterns.js';
 import { LineagePatternsManager } from '../overlays/lineage/manager.js';
 import { MissionConceptsManager } from '../overlays/mission-concepts/manager.js';
+import { StrategicCoherenceManager } from '../overlays/strategic-coherence/manager.js';
 import { ConceptExtractor } from '../analyzers/concept-extractor.js';
 import { StructuralMiner } from './miners/structural.js';
 import { OverlayOracle } from '../pgc/oracles/overlay.js';
@@ -33,6 +34,7 @@ export class OverlayOrchestrator {
   private structuralPatternManager: StructuralPatternsManager;
   private lineagePatternManager: LineagePatternsManager;
   private missionConceptsManager: MissionConceptsManager;
+  private strategicCoherenceManager: StrategicCoherenceManager;
   private conceptExtractor: ConceptExtractor;
   private overlayOracle: OverlayOracle;
   private genesisOracle: GenesisOracle;
@@ -58,6 +60,10 @@ export class OverlayOrchestrator {
       this.workbench
     );
     this.missionConceptsManager = new MissionConceptsManager(
+      path.join(this.projectRoot, '.open_cognition'),
+      workbenchUrl
+    );
+    this.strategicCoherenceManager = new StrategicCoherenceManager(
       path.join(this.projectRoot, '.open_cognition'),
       workbenchUrl
     );
@@ -130,7 +136,8 @@ export class OverlayOrchestrator {
     overlayType:
       | 'structural_patterns'
       | 'lineage_patterns'
-      | 'mission_concepts',
+      | 'mission_concepts'
+      | 'strategic_coherence',
     options?: {
       force?: boolean;
       skipGc?: boolean;
@@ -184,6 +191,12 @@ export class OverlayOrchestrator {
       console.log(
         chalk.green('[Overlay] Mission concepts generation complete.')
       );
+      return;
+    }
+
+    // Strategic coherence has a different flow - computes from existing overlays
+    if (overlayType === 'strategic_coherence') {
+      await this.generateStrategicCoherence(force);
       return;
     }
 
@@ -782,6 +795,108 @@ export class OverlayOrchestrator {
         `  [MissionConcepts] ${filePath} - ✓ complete (${concepts.length} concepts embedded)`
       )
     );
+  }
+
+  /**
+   * Generate strategic coherence overlay
+   * Computes alignment between code symbols (O₁) and mission concepts (O₃)
+   */
+  private async generateStrategicCoherence(force: boolean): Promise<void> {
+    const s = spinner();
+
+    // Step 1: Check if overlay already exists
+    if (!force) {
+      const existing = await this.strategicCoherenceManager.retrieve();
+      if (existing) {
+        console.log(
+          chalk.dim(
+            '[StrategicCoherence] Overlay already exists. Use --force to regenerate.'
+          )
+        );
+        return;
+      }
+    }
+
+    // Step 2: Get mission document hash from mission concepts overlay
+    s.start('[StrategicCoherence] Finding mission document...');
+    const docIndex = await this.discoverDocuments();
+
+    if (docIndex.length === 0) {
+      s.stop(
+        chalk.red('[StrategicCoherence] ✗ No mission documents found in PGC.')
+      );
+      log.error(
+        chalk.yellow(
+          'Run "cognition-cli overlay generate mission_concepts" first to extract mission concepts.'
+        )
+      );
+      throw new Error(
+        'Mission concepts overlay required for strategic coherence'
+      );
+    }
+
+    // Use the first document (typically VISION.md) as the mission document
+    const missionDoc = docIndex[0];
+    s.stop(
+      `[StrategicCoherence] Using mission document: ${missionDoc.filePath}`
+    );
+
+    // Step 3: Initialize vector database for structural patterns
+    s.start('[StrategicCoherence] Loading structural patterns...');
+    await this.vectorDB.initialize('structural_patterns');
+    s.stop('[StrategicCoherence] Structural patterns loaded.');
+
+    // Step 4: Compute coherence overlay
+    console.log(
+      chalk.blue(
+        '[StrategicCoherence] Computing alignment between code and mission...'
+      )
+    );
+
+    const overlay = await this.strategicCoherenceManager.computeCoherence(
+      missionDoc.contentHash,
+      5, // top 5 alignments per symbol
+      0.5 // alignment threshold
+    );
+
+    // Step 5: Store the overlay
+    s.start('[StrategicCoherence] Storing coherence overlay...');
+    await this.strategicCoherenceManager.store(overlay);
+    s.stop('[StrategicCoherence] Overlay stored.');
+
+    // Step 6: Display summary
+    console.log('');
+    console.log(chalk.green.bold('✓ Strategic Coherence Generation Complete'));
+    console.log('');
+    console.log(
+      chalk.white(
+        `  Analyzed ${overlay.symbol_coherence.length} code symbols against ${overlay.mission_concepts_count} mission concepts`
+      )
+    );
+    console.log('');
+    console.log(chalk.white('  Overall Metrics:'));
+    console.log(
+      chalk.white(
+        `    Average coherence: ${overlay.overall_metrics.average_coherence.toFixed(3)}`
+      )
+    );
+    console.log(
+      chalk.green(
+        `    ✓ Aligned symbols:  ${overlay.overall_metrics.aligned_symbols_count} (score ≥ ${overlay.overall_metrics.high_alignment_threshold})`
+      )
+    );
+    console.log(
+      chalk.yellow(
+        `    ⚠ Drifted symbols:  ${overlay.overall_metrics.drifted_symbols_count} (score < ${overlay.overall_metrics.high_alignment_threshold})`
+      )
+    );
+    console.log('');
+    console.log(
+      chalk.dim(
+        '  Query results with: cognition-cli coherence aligned | drifted | report'
+      )
+    );
+    console.log('');
   }
 
   public async shutdown(): Promise<void> {
