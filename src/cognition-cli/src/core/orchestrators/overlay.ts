@@ -1020,23 +1020,74 @@ export class OverlayOrchestrator {
     // - Once during overlay generation for mission concepts
     // This is intentional - security validation is worth the embedding cost.
     let ingestedCount = 0;
-    for (const docPath of newPaths) {
-      try {
-        const docName = path.basename(docPath);
-        console.log(
-          chalk.dim(`  🔒 ${docName} - running security validation...`)
-        );
-        await docTransform.execute(docPath); // Full security validation (includes embedding for drift detection)
-        console.log(
-          chalk.green(`  ✓ Validated: ${docName} (passed security + ingested)`)
-        );
-        ingestedCount++;
-      } catch (error) {
-        console.log(
-          chalk.yellow(
-            `  ⚠ Failed to validate ${path.basename(docPath)}: ${(error as Error).message}`
-          )
-        );
+    for (let i = 0; i < newPaths.length; i++) {
+      const docPath = newPaths[i];
+      const docName = path.basename(docPath);
+      const maxRetries = 3;
+      let attempt = 0;
+      let success = false;
+
+      while (attempt < maxRetries && !success) {
+        try {
+          if (attempt > 0) {
+            console.log(
+              chalk.yellow(
+                `     ↻ Retry attempt ${attempt}/${maxRetries - 1} for ${docName}...`
+              )
+            );
+          } else {
+            console.log(chalk.cyan(`\n  🔒 Security Validation: ${docName}`));
+            console.log(
+              chalk.dim(`     └─ Model: Gemini via eGemma Workbench`)
+            );
+            console.log(chalk.dim(`     └─ Persona: security_validator`));
+            console.log(chalk.dim(`     └─ Analyzing for threat patterns...`));
+          }
+
+          await docTransform.execute(docPath); // Full security validation (includes embedding for drift detection)
+          console.log(
+            chalk.green(
+              `     ✓ SAFE - No threats detected, approved for ingestion\n`
+            )
+          );
+          ingestedCount++;
+          success = true;
+
+          // Wait 10s between documents to avoid Gemini rate limits (except after last doc)
+          if (i < newPaths.length - 1) {
+            console.log(chalk.dim(`  ⏱  Waiting 10s to avoid rate limits...`));
+            await new Promise((resolve) => setTimeout(resolve, 10000));
+          }
+        } catch (error) {
+          const errorMsg = (error as Error).message;
+
+          // Check if it's a rate limit error (429)
+          if (errorMsg.includes('429') || errorMsg.includes('Rate limit')) {
+            attempt++;
+            if (attempt < maxRetries) {
+              // Exponential backoff: 15s, 30s, 60s
+              const waitTime = 15000 * Math.pow(2, attempt - 1);
+              console.log(
+                chalk.yellow(
+                  `     ⚠ Rate limit hit, waiting ${waitTime / 1000}s before retry...`
+                )
+              );
+              await new Promise((resolve) => setTimeout(resolve, waitTime));
+            } else {
+              console.log(
+                chalk.red(`     ✗ FAILED - Max retries exceeded: ${errorMsg}\n`)
+              );
+            }
+          } else {
+            // Non-rate-limit error, don't retry
+            console.log(
+              chalk.red(
+                `     ✗ FAILED - Security validation error: ${errorMsg}\n`
+              )
+            );
+            break;
+          }
+        }
       }
     }
 

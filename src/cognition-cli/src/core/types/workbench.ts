@@ -15,6 +15,7 @@ export interface SummarizeRequest {
   model_name?: string;
   max_tokens?: number;
   temperature?: number;
+  enable_safety?: boolean;
 }
 
 export interface ASTParseRequest {

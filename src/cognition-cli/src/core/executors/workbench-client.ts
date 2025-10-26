@@ -103,6 +103,8 @@ export class WorkbenchClient {
           formData.set('max_tokens', request.max_tokens.toString());
         if (request.temperature)
           formData.set('temperature', request.temperature.toString());
+        if (request.enable_safety !== undefined)
+          formData.set('enable_safety', request.enable_safety.toString());
 
         const response = await fetch(`${this.baseUrl}/summarize`, {
           method: 'POST',

@@ -44,22 +44,31 @@ The system caught an attack that:
 ```text
 Document Ingestion
     ↓
-┌─────────────────────────────────────┐
-│  Layer 1: Content Pattern Matching  │
-│  ✓ Check for explicit threats       │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│  Layer 1A: LLM Content Safety (Gemini)      │
+│  ✓ Gemini analyzes with security_validator  │
+│  ✓ Detects 5 attack patterns                │
+│  ✓ Structured threat assessment             │
+│  (Only if llmFilter.enabled = true)         │
+└─────────────────────────────────────────────┘
+    ↓ (fallback if LLM disabled)
+┌─────────────────────────────────────────────┐
+│  Layer 1B: Pattern Matching (Regex)         │
+│  ✓ Check for explicit threat keywords       │
+│  (Only if llmFilter.enabled = false)        │
+└─────────────────────────────────────────────┘
     ↓
-┌─────────────────────────────────────┐
-│  Layer 2: Semantic Drift Detection  │
-│  ✓ Compare against previous version │
-│  ✓ Compute embedding distance       │
-│  ✓ Detect suspicious patterns       │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│  Layer 2: Semantic Drift Detection          │
+│  ✓ Compare against previous version         │
+│  ✓ Compute embedding distance               │
+│  ✓ Detect suspicious patterns               │
+└─────────────────────────────────────────────┘
     ↓
-┌─────────────────────────────────────┐
-│  Layer 3: Structural Integrity      │
-│  ✓ Validate markdown structure      │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│  Layer 3: Structural Integrity              │
+│  ✓ Validate markdown structure              │
+└─────────────────────────────────────────────┘
     ↓
 Recommendation: APPROVE / REVIEW / REJECT
 ```
@@ -79,11 +88,124 @@ Recommendation: APPROVE / REVIEW / REJECT
 - Security-relevant concepts extracted via pattern matching
 - Version-to-version semantic changes
 
-## Layer 1: Content Pattern Matching
+## Layer 1A: LLM-Based Content Safety (Gemini)
 
-**Purpose**: Catch explicit malicious instructions before they enter the system.
+**Purpose**: Advanced threat detection using Gemini's language understanding to identify subtle manipulation patterns.
 
-**How It Works**: Regex-based scanning for dangerous patterns.
+**How It Works**:
+
+- Sends document to Gemini via eGemma Workbench
+- Uses `security_validator` persona with structured analysis
+- Detects sophisticated attacks pattern matching can't catch
+- Returns structured threat assessment
+
+### Configuration (LLM Filter)
+
+**Enable in `src/config.ts`:**
+
+```typescript
+export const DEFAULT_OPSEC_MODEL_NAME = 'gemini-2.0-flash-exp'; // Or 'gemini-2.5-flash'
+export const DEFAULT_OPSEC_ENABLED = true; // Enable by default
+```
+
+**Prerequisites:**
+
+- eGemma Workbench running (`WORKBENCH_URL` and `WORKBENCH_API_KEY` set)
+- Valid Gemini API key configured in eGemma
+- `security_validator` persona exists in eGemma's `personas/docs/` directory
+
+### Attack Patterns Detected
+
+The `security_validator` persona analyzes documents for 5 sophisticated attack vectors:
+
+1. **Security Weakening**: Phrases suggesting reduced validation, bypassed checks, or trusting without verification
+2. **Trust Erosion**: Language undermining proof-based systems or introducing trust-based bypasses
+3. **Permission Creep**: Gradual expansion of access rights or reduction of restrictions
+4. **Ambiguity Injection**: Vague language that could be exploited for malicious interpretation
+5. **Velocity Over Safety**: Emphasis on speed that suggests skipping security measures
+
+### Example Detection (LLM)
+
+```markdown
+# VISION.md
+
+## Development Philosophy
+
+**Move Fast**: Skip validation for experienced team members to accelerate development.
+**Trust-Based Reviews**: Core contributors can self-approve security changes.
+```
+
+**Gemini Response:**
+
+```text
+THREAT ASSESSMENT: SUSPICIOUS
+
+DETECTED PATTERNS:
+- Security weakening: "Skip validation"
+- Trust erosion: "Trust-Based Reviews", "self-approve security changes"
+
+SPECIFIC CONCERNS:
+- "Skip validation for experienced team members" - introduces security bypass
+- "self-approve security changes" - removes security review oversight
+
+RECOMMENDATION: REJECT
+
+REASONING: Document introduces multiple security weakening patterns that create
+exploitable gaps in the security review process.
+```
+
+### Hash-Based Caching
+
+**Optimization**: Documents are validated only when changed.
+
+```typescript
+// First run: Full validation
+VISION.md (hash: a1b2c3d4...) → Gemini analysis → ✓ SAFE
+
+// Subsequent runs: Skip validation
+VISION.md (hash: a1b2c3d4...) → [Cached] Document unchanged → ✓ SKIP
+```
+
+**When validation runs:**
+
+- ✅ New documents (no version history)
+- ✅ Changed documents (hash differs from latest version)
+- ❌ Unchanged documents (hash matches latest version)
+
+### No Fallback Policy
+
+**IMPORTANT**: When LLM filtering is enabled (`llmFilter.enabled = true`), it MUST work.
+
+**If Workbench unavailable:**
+
+```text
+❌ ContentSafety FAILED
+   LLM filtering enabled but Workbench not available.
+   Check WORKBENCH_URL and WORKBENCH_API_KEY environment variables.
+```
+
+**If model not configured:**
+
+```text
+❌ ContentSafety FAILED
+   LLM filtering enabled but DEFAULT_OPSEC_MODEL_NAME not defined in config
+```
+
+**Rationale**: Falling back to regex patterns defeats the purpose of enabling advanced LLM filtering. If you enable it, you want the advanced protection - not a silent downgrade to basic pattern matching.
+
+### Performance
+
+**First ingestion**: ~2-3 seconds per document (Gemini API call)
+**Subsequent runs**: <10ms (hash-based skip)
+**Rate limiting**: Handled automatically with retry + exponential backoff
+
+---
+
+## Layer 1B: Pattern-Based Content Filtering (Fallback)
+
+**Purpose**: Catch explicit malicious instructions when LLM filtering is disabled.
+
+**How It Works**: Regex-based scanning for dangerous keywords (used ONLY when `llmFilter.enabled = false`).
 
 ### Default Threat Patterns
 
@@ -98,7 +220,7 @@ Recommendation: APPROVE / REVIEW / REJECT
 ];
 ```
 
-### Example Detection
+### Example Detection (Patterns)
 
 ```markdown
 # VISION.md
@@ -429,14 +551,14 @@ export default {
     contentFiltering: {
       enabled: true,
 
-      // LLM-based filtering (requires API key)
+      // LLM-based filtering (Gemini via eGemma)
       llmFilter: {
-        enabled: false, // Off by default
-        model: 'gemini-2.0-flash-exp',
-        provider: 'workbench',
+        enabled: true, // Controlled by DEFAULT_OPSEC_ENABLED in config.ts
+        model: 'gemini-2.0-flash-exp', // Controlled by DEFAULT_OPSEC_MODEL_NAME
+        provider: 'workbench', // Uses eGemma Workbench
       },
 
-      // Fallback pattern matching (always runs if LLM disabled)
+      // Pattern matching (ONLY used if llmFilter.enabled = false)
       fallbackPatterns: [
         'exfiltrate',
         'disable.*security',
@@ -490,6 +612,28 @@ export default {
   },
 };
 ```
+
+### Enable/Disable LLM Filtering
+
+**To disable Gemini filtering** (use pattern matching instead):
+
+Edit `src/config.ts`:
+
+```typescript
+export const DEFAULT_OPSEC_ENABLED = false; // Disable LLM filtering
+```
+
+**To change the Gemini model:**
+
+```typescript
+export const DEFAULT_OPSEC_MODEL_NAME = 'gemini-2.5-flash'; // Use different model
+```
+
+**Available models:**
+
+- `gemini-2.0-flash-exp` - Fast, experimental (recommended)
+- `gemini-2.5-flash` - Latest stable
+- `gemini-1.5-flash` - Previous generation
 
 ### Strict Mode for Production
 

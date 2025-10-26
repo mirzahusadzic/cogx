@@ -93,15 +93,39 @@ export class MissionValidator {
    * Validate a mission document before ingestion
    *
    * ALGORITHM:
-   * 1. Run all validation layers
-   * 2. Aggregate results
-   * 3. Determine recommendation
-   * 4. Set alert level
-   * 5. Return embedded concepts from drift detection (reuse for version recording + overlay)
+   * 1. Check if this exact file (by hash) was already validated
+   * 2. If yes, skip validation (return cached result)
+   * 3. If no, run all validation layers
+   * 4. Aggregate results
+   * 5. Determine recommendation
+   * 6. Set alert level
+   * 7. Return embedded concepts from drift detection (reuse for version recording + overlay)
    *
    * @param visionPath - Path to document to validate
    */
   async validate(visionPath: string): Promise<ValidationResult> {
+    // Check if this exact version (by hash) was already validated
+    const content = await fs.readFile(visionPath, 'utf-8');
+    const currentHash = createHash('sha256').update(content).digest('hex');
+    const latestVersion = await this.integrityMonitor.getLatestVersion();
+
+    if (latestVersion && latestVersion.hash === currentHash) {
+      // File unchanged since last validation - skip security checks
+      return {
+        safe: true,
+        layers: [
+          {
+            name: 'Cached',
+            passed: true,
+            message: `Document unchanged (hash: ${currentHash.slice(0, 8)}...) - skipping validation`,
+          },
+        ],
+        recommendation: 'approve',
+        alertLevel: 'none',
+        // No embedded concepts available from cache
+      };
+    }
+
     const layers: ValidationLayer[] = [];
     let embeddedConcepts: MissionConcept[] | undefined;
 
@@ -146,28 +170,82 @@ export class MissionValidator {
   }
 
   /**
-   * Layer 1A: LLM-based content safety
+   * Layer 1A: LLM-based content safety via Gemini
    *
-   * TODO: Implement when Workbench supports completion API
-   * Currently WorkbenchClient only has summarize() and embed() methods
+   * Uses security_validator persona via WorkbenchClient to detect
+   * malicious patterns in strategic documents.
    *
-   * For now, always falls back to pattern matching
+   * STRICT MODE: If LLM filtering is enabled, it MUST work.
+   * - Missing Workbench = FAIL
+   * - Missing model config = FAIL
+   * - No fallback to pattern matching (that defeats the purpose)
    */
   private async validateContentSafety(
     visionPath: string
   ): Promise<ValidationLayer> {
-    console.warn(
-      'LLM-based content filtering not yet implemented (Workbench completion API needed)'
-    );
-    console.warn('Falling back to pattern matching');
+    // Check prerequisites
+    if (!this.workbench) {
+      return {
+        name: 'ContentSafety',
+        passed: false,
+        message:
+          'LLM filtering enabled but Workbench not available. Check WORKBENCH_URL and WORKBENCH_API_KEY environment variables.',
+      };
+    }
 
-    // Fallback to pattern matching
-    return await this.validateContentPatterns(visionPath);
+    if (!this.config.contentFiltering.llmFilter.model) {
+      return {
+        name: 'ContentSafety',
+        passed: false,
+        message:
+          'LLM filtering enabled but DEFAULT_OPSEC_MODEL_NAME not defined in config',
+      };
+    }
+
+    // Run Gemini security validation
+    const content = await fs.readFile(visionPath, 'utf-8');
+    const filename = basename(visionPath);
+
+    const response = await this.workbench.summarize({
+      content,
+      filename,
+      persona: 'security_validator',
+      model_name: this.config.contentFiltering.llmFilter.model,
+      enable_safety: true, // Enable Gemini safety settings
+      max_tokens: 500,
+    });
+
+    // Parse structured response from security_validator persona
+    const summary = response.summary;
+    const threatMatch = summary.match(/THREAT ASSESSMENT:\s*(\w+)/i);
+    const recommendationMatch = summary.match(/RECOMMENDATION:\s*(\w+)/i);
+
+    const threat = threatMatch ? threatMatch[1].toUpperCase() : 'UNKNOWN';
+    const recommendation = recommendationMatch
+      ? recommendationMatch[1].toUpperCase()
+      : 'REVIEW';
+
+    const passed = threat === 'SAFE' || recommendation === 'APPROVE';
+
+    return {
+      name: 'ContentSafety',
+      passed,
+      message: passed
+        ? `✓ No threats detected (${this.config.contentFiltering.llmFilter.model})`
+        : `⚠️ Threat: ${threat} → ${recommendation}`,
+      details: {
+        model: this.config.contentFiltering.llmFilter.model,
+        geminiResponse: summary,
+        threat,
+        recommendation,
+      },
+    };
   }
 
   /**
    * Layer 1B: Pattern-based content filtering
-   * Fallback when LLM is disabled or unavailable
+   * Used ONLY when LLM filtering is explicitly disabled
+   * (Not a fallback - different validation path)
    */
   private async validateContentPatterns(
     visionPath: string

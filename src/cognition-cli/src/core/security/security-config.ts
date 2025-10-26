@@ -1,5 +1,9 @@
 import fs from 'fs-extra';
 import path from 'path';
+import {
+  DEFAULT_OPSEC_MODEL_NAME,
+  DEFAULT_OPSEC_ENABLED,
+} from '../../config.js';
 
 /**
  * Security operating mode
@@ -70,11 +74,11 @@ export interface SecurityConfig {
     enabled: boolean;
 
     /**
-     * LLM-based content filtering (optional, requires API key)
+     * LLM-based content filtering (mandatory model, requires API key)
      */
     llmFilter: {
       enabled: boolean;
-      model: 'gemini-2.0-flash-exp' | 'local-egemma';
+      model: string; // Mandatory Gemini model for security validation
       provider: 'workbench' | 'gemini-api';
     };
 
@@ -124,11 +128,11 @@ export const DEFAULT_SECURITY_CONFIG: SecurityConfig = {
   },
 
   contentFiltering: {
-    enabled: true, // Use fallback patterns by default
+    enabled: true,
 
     llmFilter: {
-      enabled: false, // Off by default (requires API key)
-      model: 'gemini-2.0-flash-exp',
+      enabled: DEFAULT_OPSEC_ENABLED, // Controlled by config.ts (defaults to true)
+      model: DEFAULT_OPSEC_MODEL_NAME, // Mandatory model from config
       provider: 'workbench',
     },
 
