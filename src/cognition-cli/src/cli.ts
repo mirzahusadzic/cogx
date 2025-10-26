@@ -113,6 +113,7 @@ import { createUpdateCommand } from './commands/update.js';
 import { createGuideCommand } from './commands/guide.js';
 import { genesisDocsCommand } from './commands/genesis-docs.js';
 import { addCoherenceCommands } from './commands/coherence.js';
+import { addConceptsCommands } from './commands/concepts.js';
 
 program.addCommand(overlayCommand);
 program.addCommand(blastRadiusCommand);
@@ -122,5 +123,6 @@ program.addCommand(createUpdateCommand());
 program.addCommand(createGuideCommand());
 addPatternsCommands(program);
 addCoherenceCommands(program);
+addConceptsCommands(program);
 
 program.parse();

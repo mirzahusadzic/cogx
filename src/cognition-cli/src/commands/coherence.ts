@@ -99,14 +99,16 @@ export function addCoherenceCommands(program: Command) {
       const alignedPercent =
         overlay.symbol_coherence.length > 0
           ? (
-              (metrics.aligned_symbols_count / overlay.symbol_coherence.length) *
+              (metrics.aligned_symbols_count /
+                overlay.symbol_coherence.length) *
               100
             ).toFixed(1)
           : '0.0';
       const driftedPercent =
         overlay.symbol_coherence.length > 0
           ? (
-              (metrics.drifted_symbols_count / overlay.symbol_coherence.length) *
+              (metrics.drifted_symbols_count /
+                overlay.symbol_coherence.length) *
               100
             ).toFixed(1)
           : '0.0';
@@ -126,10 +128,14 @@ export function addCoherenceCommands(program: Command) {
 
       console.log(chalk.gray('  View details with:'));
       console.log(
-        chalk.dim('    cognition-cli coherence aligned     # High-aligned symbols')
+        chalk.dim(
+          '    cognition-cli coherence aligned     # High-aligned symbols'
+        )
       );
       console.log(
-        chalk.dim('    cognition-cli coherence drifted     # Low-aligned symbols')
+        chalk.dim(
+          '    cognition-cli coherence drifted     # Low-aligned symbols'
+        )
       );
       console.log(
         chalk.dim(
@@ -327,7 +333,9 @@ export function addCoherenceCommands(program: Command) {
 
       if (!symbol) {
         console.error(
-          chalk.red(`\n✗ Symbol "${symbolName}" not found in coherence overlay.\n`)
+          chalk.red(
+            `\n✗ Symbol "${symbolName}" not found in coherence overlay.\n`
+          )
         );
         console.log(
           chalk.dim(
@@ -353,9 +361,7 @@ export function addCoherenceCommands(program: Command) {
 
       console.log(chalk.white(`  File: ${chalk.dim(symbol.filePath)}`));
       console.log(
-        chalk.white(
-          `  Hash: ${chalk.dim(symbol.symbolHash.slice(0, 16))}...`
-        )
+        chalk.white(`  Hash: ${chalk.dim(symbol.symbolHash.slice(0, 16))}...`)
       );
       console.log('');
 
@@ -382,9 +388,7 @@ export function addCoherenceCommands(program: Command) {
 
       symbol.topAlignments.forEach((alignment, i) => {
         const alignScore = (alignment.alignmentScore * 100).toFixed(1);
-        const alignBar = '█'.repeat(
-          Math.round(alignment.alignmentScore * 20)
-        );
+        const alignBar = '█'.repeat(Math.round(alignment.alignmentScore * 20));
         const alignColor =
           alignment.alignmentScore >= 0.7
             ? chalk.green
@@ -398,16 +402,16 @@ export function addCoherenceCommands(program: Command) {
           )
         );
         console.log(
-          chalk.dim(
-            `     Section: ${chalk.cyan(alignment.conceptSection)}`
-          )
+          chalk.dim(`     Section: ${chalk.cyan(alignment.conceptSection)}`)
         );
         console.log(chalk.white(`     "${alignment.conceptText}"`));
         console.log('');
       });
 
       console.log(
-        chalk.dim('  Use "coherence compare <s1> <s2>" to compare with other symbols.')
+        chalk.dim(
+          '  Use "coherence compare <s1> <s2>" to compare with other symbols.'
+        )
       );
       console.log('');
     });
@@ -445,14 +449,18 @@ export function addCoherenceCommands(program: Command) {
 
       if (!symbol1) {
         console.error(
-          chalk.red(`\n✗ Symbol "${symbol1Name}" not found in coherence overlay.\n`)
+          chalk.red(
+            `\n✗ Symbol "${symbol1Name}" not found in coherence overlay.\n`
+          )
         );
         process.exit(1);
       }
 
       if (!symbol2) {
         console.error(
-          chalk.red(`\n✗ Symbol "${symbol2Name}" not found in coherence overlay.\n`)
+          chalk.red(
+            `\n✗ Symbol "${symbol2Name}" not found in coherence overlay.\n`
+          )
         );
         process.exit(1);
       }
@@ -464,8 +472,12 @@ export function addCoherenceCommands(program: Command) {
               symbol1: symbol1,
               symbol2: symbol2,
               comparison: {
-                coherence_diff: symbol1.overallCoherence - symbol2.overallCoherence,
-                more_aligned: symbol1.overallCoherence > symbol2.overallCoherence ? symbol1Name : symbol2Name,
+                coherence_diff:
+                  symbol1.overallCoherence - symbol2.overallCoherence,
+                more_aligned:
+                  symbol1.overallCoherence > symbol2.overallCoherence
+                    ? symbol1Name
+                    : symbol2Name,
               },
             },
             null,
