@@ -258,7 +258,7 @@ The lattice is operational. The mathematics works. The self-defense is embedded.
 - **Author**: Mirza Husadžić
 - **Email**: <mirza.husadzic@proton.me>
 - **Repository**: <https://github.com/mirzahusadzic/cogx>
-- **Archive**: Zenodo DOI [10.5281/zenodo.17445352](https://doi.org/10.5281/zenodo.17445352)
+- **Archive**: Zenodo DOI [10.5281/zenodo.17453691](https://doi.org/10.5281/zenodo.17453691)
 - **License**: AGPLv3 (entire repository)
 
 ---

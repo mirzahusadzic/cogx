@@ -14,7 +14,7 @@ _And I'll show you how deep this rabbit hole really goes._
 
 <div align="center">
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17442459.svg)](https://doi.org/10.5281/zenodo.17442459)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17453691.svg)](https://doi.org/10.5281/zenodo.17453691)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 </div>
@@ -1410,7 +1410,7 @@ This repository constitutes a **formal defensive publication** establishing prio
 - **Initial Publication Date**: October 24, 2025 (Meta-cognitive proof)
 - **Comprehensive Publication Date**: October 26, 2025 (All 15 innovations)
 - **Public Repository**: https://github.com/mirzahusadzic/cogx
-- **Permanent Archive**: Zenodo DOI [10.5281/zenodo.17445352](https://doi.org/10.5281/zenodo.17445352)
+- **Permanent Archive**: Zenodo DOI [10.5281/zenodo.17453691](https://doi.org/10.5281/zenodo.17453691)
 - **License**: AGPLv3 (entire repository — code, documentation, blueprints)
 - **Inventor**: Mirza Husadžić
 
