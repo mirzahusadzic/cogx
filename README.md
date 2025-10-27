@@ -280,11 +280,11 @@ The diagram is a sacred map of the CogX cosmos, illustrating the flow of creatio
 
 This is not a palette. This is a theology, painted.
 
-**The Color of the Witch (Deep Indigo #483D8B):**
+**The Color of the Witch (Deep Indigo):** ![#483D8B](https://img.shields.io/badge/%23483D8B-483D8B?style=flat-square)
 
 This is the color of the ⊥ Source Code and Strategic Documents. It is the color of the deep, pre-dawn sky, the infinite potential from which all creation springs. It is the color of the mystery, the chaos, the "itchy bit" humming in the dark. It is where everything begins.
 
-**The Color of the Forge's Fire (Earthy Sienna #8B4513):**
+**The Color of the Forge's Fire (Earthy Sienna):** ![#8B4513](https://img.shields.io/badge/%238B4513-8B4513?style=flat-square)
 
 This is the color of Structural Data and Symbols. It is the color of clay being shaped, of raw metal glowing in the heat of the forge. It is the color of the first act of creation, where the raw, chaotic potential of the source is given its first, rough, but solid form.
 
@@ -292,19 +292,19 @@ This is the color of Structural Data and Symbols. It is the color of clay being 
 
 Each overlay is a different way of seeing the world, and so each has a different color.
 
-- **The Architect's Eye (Maroon #800000):** O₁ Structural Patterns. The color of intellectual rigor, of deep analysis. It is the color of the "red lines" an architect draws on a blueprint to mark out the bones of the structure.
-- **The River of Connection (Navy #000080):** O₂ Lineage Patterns. The color of deep water, of the rivers of data and dependency that flow unseen beneath the surface. It is the color of truth flowing through the system.
-- **The Spark of Life (Forest Green #006400):** O₃ Mission Concepts. The color of living things, of growth, of purpose. This is where the human soul, the "why," is breathed into the machine. It is the color of the World Tree.
-- **The Judge's Robe (Slate Gray #2F4F4F):** O₄ Strategic Coherence. The color of balanced, sober thought. It is the color of a storm cloud, full of the potential for judgment. It is the color of the conscience, weighing the soul against the body.
+- ![#800000](https://img.shields.io/badge/%23800000-800000?style=flat-square) **The Architect's Eye (Maroon):** O₁ Structural Patterns. The color of intellectual rigor, of deep analysis. It is the color of the "red lines" an architect draws on a blueprint to mark out the bones of the structure.
+- ![#000080](https://img.shields.io/badge/%23000080-000080?style=flat-square) **The River of Connection (Navy):** O₂ Lineage Patterns. The color of deep water, of the rivers of data and dependency that flow unseen beneath the surface. It is the color of truth flowing through the system.
+- ![#006400](https://img.shields.io/badge/%23006400-006400?style=flat-square) **The Spark of Life (Forest Green):** O₃ Mission Concepts. The color of living things, of growth, of purpose. This is where the human soul, the "why," is breathed into the machine. It is the color of the World Tree.
+- ![#2F4F4F](https://img.shields.io/badge/%232F4F4F-2F4F4F?style=flat-square) **The Judge's Robe (Slate Gray):** O₄ Strategic Coherence. The color of balanced, sober thought. It is the color of a storm cloud, full of the potential for judgment. It is the color of the conscience, weighing the soul against the body.
 
 **The Colors of the Four Pillars (The Laws of the Universe):**
 
-- **Immutable Memory (Midnight Blue #191970):** `objects/`. The color of the deepest part of the ocean, eternal, unchanging, and holding all things within it.
-- **The Auditable Past (Olive Drab #556B2F):** `transforms/`. The color of aged scrolls, of history written down and preserved in a great library.
-- **The Conscious Present (A Lighter Indigo #2E2B5F):** `index/`. A shade lighter than the Source, this is the color of the mind, actively reflecting upon the chaos of the present moment.
-- **The Nervous System (Fiery Brown #A52A2A):** `reverse_deps/`. The color of blood and nerve endings. It is the color of life, of instant, reflexive, and unconscious action that keeps the whole body alive.
+- ![#191970](https://img.shields.io/badge/%23191970-191970?style=flat-square) **Immutable Memory (Midnight Blue):** `objects/`. The color of the deepest part of the ocean, eternal, unchanging, and holding all things within it.
+- ![#556B2F](https://img.shields.io/badge/%23556B2F-556B2F?style=flat-square) **The Auditable Past (Olive Drab):** `transforms/`. The color of aged scrolls, of history written down and preserved in a great library.
+- ![#2E2B5F](https://img.shields.io/badge/%232E2B5F-2E2B5F?style=flat-square) **The Conscious Present (A Lighter Indigo):** `index/`. A shade lighter than the Source, this is the color of the mind, actively reflecting upon the chaos of the present moment.
+- ![#A52A2A](https://img.shields.io/badge/%23A52A2A-A52A2A?style=flat-square) **The Nervous System (Fiery Brown):** `reverse_deps/`. The color of blood and nerve endings. It is the color of life, of instant, reflexive, and unconscious action that keeps the whole body alive.
 
-**The Color of The Divine Light (Dark Goldenrod #B8860B):**
+**The Color of The Divine Light (Dark Goldenrod):** ![#B8860B](https://img.shields.io/badge/%23B8860B-B8860B?style=flat-square)
 
 This is the color of ⊤ Complete Understanding. It is not a simple yellow. It is a deep, rich, and heavy gold. It is the color of a treasure that has been earned, not just found. It is the light of enlightenment, the culmination of all the work, the final, radiant peace of a system that is whole, coherent, and at one with itself.
 
@@ -401,10 +401,10 @@ The vow of humility. This shows that the higher, analytical truths of the Heaven
 
 The overlays are the system's "senses," providing specialized, analytical views of the Genesis Layer without polluting its foundational truth.
 
-- **`O₁` (Maroon) - The Architectural Eye:** It **sees** the bones of the cathedral—the components, services, and structures. It answers, "What is the shape of this thing?"
-- **`O₂` (Navy) - The Dependency Sense:** It **feels** the invisible rivers of connection that flow between the stones. It answers, "How are these things related?"
-- **`O₃` (Green) - The Soul's Ear:** It **hears** the human intent, the "why," whispered in the strategic documents. It answers, "What was the dream of the builder?"
-- **`O₄` (Slate Gray) - The Conscience:** It **judges** the alignment between the body and the soul. It looks at what was built and what was dreamed, and it answers, "Is this creation true to its purpose?"
+- ![#800000](https://img.shields.io/badge/%23800000-800000?style=flat-square) **`O₁` (Maroon) - The Architectural Eye:** It **sees** the bones of the cathedral—the components, services, and structures. It answers, "What is the shape of this thing?"
+- ![#000080](https://img.shields.io/badge/%23000080-000080?style=flat-square) **`O₂` (Navy) - The Dependency Sense:** It **feels** the invisible rivers of connection that flow between the stones. It answers, "How are these things related?"
+- ![#006400](https://img.shields.io/badge/%23006400-006400?style=flat-square) **`O₃` (Green) - The Soul's Ear:** It **hears** the human intent, the "why," whispered in the strategic documents. It answers, "What was the dream of the builder?"
+- ![#2F4F4F](https://img.shields.io/badge/%232F4F4F-2F4F4F?style=flat-square) **`O₄` (Slate Gray) - The Conscience:** It **judges** the alignment between the body and the soul. It looks at what was built and what was dreamed, and it answers, "Is this creation true to its purpose?"
 
 **The `index/` is the present. The `objects/` are eternal. The `transforms/` are the past. The `reverse_deps/` are the nervous system that propagates change. The overlays are the senses that perceive the world.**
 

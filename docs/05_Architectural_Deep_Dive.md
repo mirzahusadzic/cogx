@@ -6,15 +6,15 @@ The `Goal` is the intent. The `Transform` is the action. But it is the **Oracle 
 
 ### **Level 1: The Foundational Guardians - The Multi-Layered Oracle System**
 
-* **The Tool Oracle (OTools):** The system's "mechanic." Validates the technical correctness of low-level operations (e.g., "Is this valid JSON?").
-* **The Grounding Oracle (OGrounding):** The system's "fact-checker." Verifies that information is true to its source (SR).
-* **The Goal-Specific Oracle (OG):** The system's "quality inspector." Evaluates if the output successfully achieved its `Goal`.
-* **The Structural Oracle (OStructure):** The system's "librarian." Guards the integrity and coherence of the knowledge graph's physical structure and semantic paths.
+- **The Tool Oracle (OTools):** The system's "mechanic." Validates the technical correctness of low-level operations (e.g., "Is this valid JSON?").
+- **The Grounding Oracle (OGrounding):** The system's "fact-checker." Verifies that information is true to its source (SR).
+- **The Goal-Specific Oracle (OG):** The system's "quality inspector." Evaluates if the output successfully achieved its `Goal`.
+- **The Structural Oracle (OStructure):** The system's "librarian." Guards the integrity and coherence of the knowledge graph's physical structure and semantic paths.
 
 ### **Level 2: The Performance Auditors - Measuring the Quality of Intelligence**
 
-* **The Context Quality Oracle (OContext):** The "Whisperer's Coach." Measures the **Field of View (FoV)** of the provided context (COGP), analyzing its **Span** (vertical depth) and **Context Angle** (horizontal breadth).
-* **The Context Utilization Oracle (OOmega):** The "Reasoning Analyst." Measures how well the agent *used* the provided context, calculating the **Context Utilization Score (Omega)**.
+- **The Context Quality Oracle (OContext):** The "Whisperer's Coach." Measures the **Field of View (FoV)** of the provided context (COGP), analyzing its **Span** (vertical depth) and **Context Angle** (horizontal breadth).
+- **The Context Utilization Oracle (OOmega):** The "Reasoning Analyst." Measures how well the agent _used_ the provided context, calculating the **Context Utilization Score (Omega)**.
 
 ### **Level 3: The Final Evolution - The Stateful, Learning Guardians**
 
@@ -28,7 +28,7 @@ A failure to use a procedural language was a critical early lesson. A purely dec
 
 ### The "Living Language"
 
-The most powerful concept is that `cognition-script` is a **"living language."** The `cognition-cli` interpreter is a *meta-interpreter*. It bootstraps its ability to understand the script by reading two artifacts stored within the knowledge base itself:
+The most powerful concept is that `cognition-script` is a **"living language."** The `cognition-cli` interpreter is a _meta-interpreter_. It bootstraps its ability to understand the script by reading two artifacts stored within the knowledge base itself:
 
 1. **The Language Specification (Lambda):** A formal grammar for `cognition-script`.
 2. **The Referential Implementation (Iref):** A working example of an interpreter for that grammar.
@@ -91,12 +91,12 @@ The `cognition-cli` is the proposed tangible interface for a human collaborator 
 
 #### Key Commands
 
-* `cognition-cli init`: Initializes a new, empty PGC.
-* `cognition-cli genesis`: Executes the primary workflow to build the foundational knowledge base from the source repository.
-* `cognition-cli query "<question>"`: The primary command for asking questions of the knowledge base.
-* `cognition-cli update`: Synchronizes the knowledge base with changes in the source files.
-* `cognition-cli groom`: Invokes the Structural Oracle to analyze and automatically refactor the knowledge graph for optimal health and performance.
-* `cognition-cli status`: Provides a high-level status of the knowledge base, similar to `git status`.
+- `cognition-cli init`: Initializes a new, empty PGC.
+- `cognition-cli genesis`: Executes the primary workflow to build the foundational knowledge base from the source repository.
+- `cognition-cli query "<question>"`: The primary command for asking questions of the knowledge base.
+- `cognition-cli update`: Synchronizes the knowledge base with changes in the source files.
+- `cognition-cli groom`: Invokes the Structural Oracle to analyze and automatically refactor the knowledge graph for optimal health and performance.
+- `cognition-cli status`: Provides a high-level status of the knowledge base, similar to `git status`.
 
 ### The Overlay System: Specialized Knowledge and External Insights
 
@@ -106,9 +106,9 @@ Overlays are a critical feature of the architecture, serving as the system's "se
 
 An overlay is a parallel, sparse knowledge graph that resides in its own directory structure (e.g., `.open_cognition/overlays/security/`). Its key characteristics are:
 
-* **Anchored to the Genesis Layer:** Its knowledge elements (GKe) do not form a deep hierarchy of summaries. Instead, their Source Records (SR) and dependency maps point directly to GKes in the main Genesis Layer (summaries of files, components, etc.).
-* **Horizontally Connected:** The primary connections within an overlay are to other elements within that same overlay, forming a self-contained chain of reasoning (e.g., a `vulnerability_report` is linked to a `remediation_plan`).
-* **Shallow:** Overlays are typically not deeply hierarchical. They are a collection of analyses and conclusions anchored to the deep hierarchy of the Genesis Layer.
+- **Anchored to the Genesis Layer:** Its knowledge elements (GKe) do not form a deep hierarchy of summaries. Instead, their Source Records (SR) and dependency maps point directly to GKes in the main Genesis Layer (summaries of files, components, etc.).
+- **Horizontally Connected:** The primary connections within an overlay are to other elements within that same overlay, forming a self-contained chain of reasoning (e.g., a `vulnerability_report` is linked to a `remediation_plan`).
+- **Shallow:** Overlays are typically not deeply hierarchical. They are a collection of analyses and conclusions anchored to the deep hierarchy of the Genesis Layer.
 
 This structure, for example `.open_cognition/overlays/security/src/api/auth.py.vulnerability_report.json`, clearly indicates a "security view" of the Genesis object related to `/src/api/auth.py`.
 
@@ -116,7 +116,7 @@ This structure, for example `.open_cognition/overlays/security/src/api/auth.py.v
 
 When a change occurs in the underlying source code, the invalidation propagates from the Genesis Layer outwards to the overlays.
 
-1. **Vertical Ripple:** The Update Function (U) detects a change in a source file (e.g., `/src/api/auth.py`). It invalidates the corresponding summaries, and this invalidation ripples *upwards* through the Genesis Layer hierarchy (`auth.py.summary` -> `/src/api.summary` -> `src.summary`).
+1. **Vertical Ripple:** The Update Function (U) detects a change in a source file (e.g., `/src/api/auth.py`). It invalidates the corresponding summaries, and this invalidation ripples _upwards_ through the Genesis Layer hierarchy (`auth.py.summary` -> `/src/api.summary` -> `src.summary`).
 2. **Horizontal Shockwave:** The Update Function then consults the `reverse_deps/` index for the now-invalidated Genesis objects. It finds that a `risk_assessment.json` in the Security Overlay depends on the `authentication_component.summary`.
 3. **Overlay Invalidation:** The system marks the `risk_assessment.json` as `Invalidated`. The dependency is one-way; the change in the Genesis Layer invalidates the overlay, but a change within an overlay does not invalidate the Genesis Layer.
 
@@ -128,10 +128,10 @@ This second model handles the critical scenario of high-impact, external informa
 
 1. **External Insight Ingestion:** A new GKe is created, not from code, but from an external source (e.g., a CVE announcement). This is placed in a dedicated overlay, like `overlays/external_insights/cve-2025-12345.md`.
 2. **Anchor Discovery:** A specialized agent analyzes this new insight to find where it "docks" into the existing knowledge graph. It identifies that the CVE for "SuperAuth v2.1" is relevant to the `authentication_component`.
-3. **The Upward Cascade:** This is where the overlay propagates its influence *inwards and upwards*.
-    * **Step A (Overlay Invalidation):** The `authentication_component.risk_assessment.json` in the Security Overlay is immediately invalidated.
-    * **Step B (Anchor Invalidation):** Crucially, the `authentication_component.summary` in the *Genesis Layer* is also marked `Invalidated`. Its summary, while correct about the code, is now semantically misleading in the face of this new external reality.
-    * **Step C (Bias Cascade):** This invalidation now triggers a standard upward ripple through the Genesis Layer, marking parent summaries and eventually the top-level repository summary as `Invalidated`.
+3. **The Upward Cascade:** This is where the overlay propagates its influence _inwards and upwards_.
+   - **Step A (Overlay Invalidation):** The `authentication_component.risk_assessment.json` in the Security Overlay is immediately invalidated.
+   - **Step B (Anchor Invalidation):** Crucially, the `authentication_component.summary` in the _Genesis Layer_ is also marked `Invalidated`. Its summary, while correct about the code, is now semantically misleading in the face of this new external reality.
+   - **Step C (Bias Cascade):** This invalidation now triggers a standard upward ripple through the Genesis Layer, marking parent summaries and eventually the top-level repository summary as `Invalidated`.
 
 4. **System Re-evaluation:** The system's state is now "Coherent but Unsound." The Orchestrator must trigger a top-down refinement run, injecting the `External_Insight` as high-priority context at every step. This forces the system to generate new summaries (e.g., "WARNING: This component is currently vulnerable...") that reflect the new, combined reality of both the code and the external world.
 
@@ -159,15 +159,15 @@ To progressively build out the robust Oracle system described in the blueprint, 
 
 1.  **Define `VerificationResult` Type:** Create a standard type to encapsulate the outcome of an oracle's verification, including success status and any messages.
 2.  **Implement `StructuralOracle` Class:**
-    *   Create `src/cognition-cli/src/core/oracles/structural-oracle.ts`.
-    *   This class will take `PGCManager` as a dependency.
-    *   Its `verify()` method will perform checks such as:
-        *   Validating that all `content_hash` and `structural_hash` entries in the `index/` exist in the `objects/` store.
-        *   Verifying that all `inputs` and `outputs` hashes referenced in `transforms/` manifests exist in the `objects/` store.
-        *   Confirming that `objectHash` and `transformId` entries in `reverse_deps/` correspond to existing objects and transforms.
+    - Create `src/cognition-cli/src/core/oracles/structural-oracle.ts`.
+    - This class will take `PGCManager` as a dependency.
+    - Its `verify()` method will perform checks such as:
+      - Validating that all `content_hash` and `structural_hash` entries in the `index/` exist in the `objects/` store.
+      - Verifying that all `inputs` and `outputs` hashes referenced in `transforms/` manifests exist in the `objects/` store.
+      - Confirming that `objectHash` and `transformId` entries in `reverse_deps/` correspond to existing objects and transforms.
 3.  **Integrate into `GenesisOrchestrator`:**
-    *   After the `executeBottomUpAggregation` completes, the `GenesisOrchestrator` will invoke `OStructure.verify()`.
-    *   The results will be logged, providing immediate feedback on the structural integrity of the newly built PGC.
+    - After the `executeBottomUpAggregation` completes, the `GenesisOrchestrator` will invoke `OStructure.verify()`.
+    - The results will be logged, providing immediate feedback on the structural integrity of the newly built PGC.
 
 #### Phase II: Semantic and Goal-Specific Verification (`OGrounding`, `OGoal`, `OContext`, `OOmega`)
 

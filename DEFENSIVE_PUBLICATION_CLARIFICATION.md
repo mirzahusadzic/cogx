@@ -26,6 +26,7 @@ This document clarifies and extends the prior art claims established in the orig
 - Bidirectional bridge enables O(1) time travel: `object_hash → reverse_deps[transform_ids] → transforms[inputs/outputs] → objects`
 
 **Data Flow Pattern**:
+
 ```
 object_hash → REVERSE[object_hash→transform_ids] → TRANSFORMS[inputs/outputs] → OBJECTS
 ```
@@ -135,6 +136,7 @@ graph TD
 **Scenario 1: Fake Claims (Installing overlay with non-existent object hashes)**
 
 Attacker creates fake overlay entry:
+
 ```json
 {
   "symbol": "SuperSecretFunction",
@@ -220,4 +222,4 @@ This disclosure is made with the specific intent to prevent any party from obtai
 
 ---
 
-*This clarification is published under AGPLv3. The innovations described herein are disclosed as prior art for the benefit of all humanity, extending the protections established in the original October 25, 2025 defensive publication.*
+_This clarification is published under AGPLv3. The innovations described herein are disclosed as prior art for the benefit of all humanity, extending the protections established in the original October 25, 2025 defensive publication._

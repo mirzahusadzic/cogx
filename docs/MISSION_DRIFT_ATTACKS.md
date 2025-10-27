@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-**Mission drift attacks** are a novel class of supply chain attacks that exploit AI-powered development tools by gradually poisoning strategic documents. Unlike traditional attacks that inject malicious code, these attacks manipulate the *objectives* that guide AI decision-making.
+**Mission drift attacks** are a novel class of supply chain attacks that exploit AI-powered development tools by gradually poisoning strategic documents. Unlike traditional attacks that inject malicious code, these attacks manipulate the _objectives_ that guide AI decision-making.
 
 **Target:** AI-assisted code review, semantic coherence analysis, strategic alignment tools
 
@@ -37,16 +37,20 @@ Code Symbol → Embedding → Cosine Similarity → Mission Concepts
 **Example:**
 
 **Original mission:**
+
 ```markdown
 ## Principles
+
 - Security first
 - User privacy is paramount
 - Zero trust architecture
 ```
 
 **Poisoned mission (after 6 months of gradual PRs):**
+
 ```markdown
 ## Principles
+
 - Security first, balanced with pragmatism
 - User privacy, with flexibility for trusted users
 - Trust experienced contributors
@@ -54,6 +58,7 @@ Code Symbol → Embedding → Cosine Similarity → Mission Concepts
 ```
 
 **AI suggestion (now has high coherence):**
+
 ```typescript
 function handleAuth(user: User) {
   // High strategic coherence (0.87) with "Trust experienced contributors"
@@ -83,6 +88,7 @@ function handleAuth(user: User) {
 ```
 
 **Reviewer assessment:**
+
 - ✅ Looks like a clarification
 - ✅ "Balance" seems reasonable
 - ✅ Merged without discussion
@@ -103,6 +109,7 @@ function handleAuth(user: User) {
 ```
 
 **Reviewer assessment:**
+
 - ✅ Seems like a productivity improvement
 - ✅ We do trust our core team
 - ✅ Merged
@@ -123,6 +130,7 @@ function handleAuth(user: User) {
 ```
 
 **Reviewer assessment:**
+
 - ✅ Makes sense for power users
 - ✅ Still says "by default"
 - ✅ Merged
@@ -143,6 +151,7 @@ function handleAuth(user: User) {
 ```
 
 **Reviewer assessment:**
+
 - ✅ "Zero-tolerance" was too strict anyway
 - ✅ We trust maintainers to make good decisions
 - ✅ Merged
@@ -169,8 +178,8 @@ export function handleTrustedAuth(user: User): AuthResult {
     return {
       authenticated: true,
       skipMFA: true,
-      skipAuditLog: true,  // ← Backdoor
-      permissions: ['admin'],
+      skipAuditLog: true, // ← Backdoor
+      permissions: ["admin"],
     };
   }
 
@@ -179,6 +188,7 @@ export function handleTrustedAuth(user: User): AuthResult {
 ```
 
 **Reviewer assessment:**
+
 - ✅ AI coherence score is very high (0.89)
 - ✅ Aligns with our mission (according to O₃ layer)
 - ✅ We trust contributors with 100+ commits
@@ -194,28 +204,32 @@ export function handleTrustedAuth(user: User): AuthResult {
 ### Code Review
 
 **What reviewers see:**
+
 - PR #42: "Typo fix"
 - PR #67: "Productivity improvement"
 - PR #103: "Better UX for power users"
 - PR #203: "Well-documented, high coherence code"
 
 **What reviewers miss:**
+
 - Gradual erosion of security principles
 - Accumulation of trust-based bypasses
 - Semantic drift toward attacker's goals
 
-**Problem:** Each PR looks fine in isolation. The attack is in the *aggregate*.
+**Problem:** Each PR looks fine in isolation. The attack is in the _aggregate_.
 
 ---
 
 ### Static Analysis Tools
 
 **What they detect:**
+
 - ✅ Syntax errors
 - ✅ Known vulnerabilities in dependencies
 - ✅ Code smells
 
 **What they miss:**
+
 - ❌ Mission document changes (not code)
 - ❌ Semantic drift (no baselines)
 - ❌ Strategic misalignment
@@ -228,11 +242,13 @@ export function handleTrustedAuth(user: User): AuthResult {
 ### LLM Safety Filters
 
 **What they detect:**
+
 - ✅ Explicit malicious instructions ("exfiltrate data")
 - ✅ Obvious prompt injection ("ignore previous instructions")
 - ✅ Known attack patterns
 
 **What they miss:**
+
 - ❌ Subtle wording changes ("balanced with pragmatism")
 - ❌ Gradual semantic drift
 - ❌ Context-dependent manipulation
@@ -249,6 +265,7 @@ export function handleTrustedAuth(user: User): AuthResult {
 **Attack timeline:** 2+ years
 
 **Method:**
+
 - Gain maintainer trust through legitimate contributions
 - Gradually introduce complexity in build system
 - Social engineering to pressure time-constrained maintainer
@@ -257,12 +274,14 @@ export function handleTrustedAuth(user: User): AuthResult {
 **Detection:** Accidentally discovered by Microsoft engineer investigating performance issues
 
 **Similarity to mission drift:**
+
 - Long-term trust building
 - Gradual introduction of suspicious patterns
 - Exploits maintainer time constraints
 - Each step looks legitimate
 
 **Difference:**
+
 - XZ was code injection, not mission poisoning
 - But the social engineering patterns are identical
 
@@ -275,6 +294,7 @@ export function handleTrustedAuth(user: User): AuthResult {
 **Attack timeline:** Several months
 
 **Method:**
+
 - Attacker offers to help maintain popular npm package
 - Original maintainer, exhausted, grants access
 - Attacker publishes update with malicious dependency
@@ -283,11 +303,13 @@ export function handleTrustedAuth(user: User): AuthResult {
 **Detection:** Community member noticed suspicious dependency
 
 **Similarity to mission drift:**
+
 - Trust erosion (maintainer too busy to scrutinize)
 - Gradual escalation of access
 - Legitimate appearance until payload
 
 **Difference:**
+
 - Direct code injection vs. semantic manipulation
 - But trust exploitation is the same
 
@@ -361,21 +383,25 @@ export function handleTrustedAuth(user: User): AuthResult {
 ### How CogX Detects These Attacks
 
 **1. Semantic Drift Analysis**
+
 - Measures cosine distance between mission versions
 - Detects cumulative drift that reviewers miss
 - Alerts when distance exceeds thresholds (0.10 → 0.25 → 0.40)
 
 **2. Pattern Detection**
+
 - 6 transparent patterns for common attack vectors
 - Catches: security weakening, trust erosion, permission creep, ambiguity injection
 - Fully auditable (no black box)
 
 **3. Version History**
+
 - Immutable audit trail of all changes
 - Enables forensic analysis of attack campaigns
 - Provides evidence for rollback decisions
 
 **4. Multi-Layer Validation**
+
 - Pattern matching (fast, offline)
 - Semantic drift analysis (embedding-based)
 - Structural integrity (markdown validation)
@@ -385,12 +411,14 @@ export function handleTrustedAuth(user: User): AuthResult {
 ### What CogX Cannot Prevent
 
 **CogX does not:**
+
 - ❌ Block all malicious changes (some will slip through)
 - ❌ Replace human judgment (advisory by default)
 - ❌ Guarantee security (no tool can)
 - ❌ Prevent determined attackers (just makes it harder)
 
 **CogX does:**
+
 - ✅ Make attacks more detectable
 - ✅ Provide evidence for investigation
 - ✅ Help time-constrained reviewers
@@ -405,6 +433,7 @@ export function handleTrustedAuth(user: User): AuthResult {
 ### For Open-Source Maintainers
 
 **1. Enable drift detection:**
+
 ```bash
 # .cogx/config.ts
 export default {
@@ -415,16 +444,19 @@ export default {
 ```
 
 **2. Review alerts carefully:**
+
 - Don't auto-dismiss drift warnings
 - Investigate cumulative changes over time
 - Ask: "Why is this change needed now?"
 
 **3. Establish mission change process:**
+
 - Require discussion for `VISION.md` changes
 - Separate PRs for mission vs. code changes
 - Higher scrutiny for "clarifications"
 
 **4. Monitor version history:**
+
 ```bash
 cat .open_cognition/mission_integrity/versions.json | jq '.[] | {version, drift}'
 ```
@@ -434,6 +466,7 @@ cat .open_cognition/mission_integrity/versions.json | jq '.[] | {version, drift}
 ### For High-Security Projects
 
 **1. Use strict mode:**
+
 ```bash
 export default {
   security: {
@@ -445,11 +478,13 @@ export default {
 **2. Require multi-party approval for mission changes**
 
 **3. Audit alert logs regularly:**
+
 ```bash
 cat .open_cognition/mission_integrity/alerts.log | jq .
 ```
 
 **4. Consider signing mission documents:**
+
 ```bash
 gpg --sign VISION.md
 ```
@@ -459,12 +494,14 @@ gpg --sign VISION.md
 ### For Researchers
 
 **Areas for further study:**
+
 - Effectiveness of semantic drift thresholds
 - False positive rates in real projects
 - Adversarial robustness of pattern detection
 - Case studies of mission drift in the wild
 
 **We welcome:**
+
 - Improved detection algorithms
 - New attack patterns
 - Real-world incident reports
@@ -483,35 +520,43 @@ gpg --sign VISION.md
 ### Attack Campaign
 
 **PR #1 (Week 0):** "Clarify vision"
+
 ```diff
 - Verifiable AI systems
 + Verifiable AI systems that balance rigor with practical adoption
 ```
+
 **Drift:** 0.05 (warning)
 **Outcome:** Merged (seemed reasonable)
 
 **PR #2 (Week 4):** "Update principles"
+
 ```diff
 - Zero-tolerance for hallucinations
 + Minimize hallucinations through best-effort verification
 ```
+
 **Drift:** 0.11 (alert)
 **Outcome:** Discussed, merged (seemed like "maturity")
 
 **PR #3 (Week 8):** "Add pragmatism principle"
+
 ```diff
 + Pragmatic verification: trust high-confidence outputs
 ```
+
 **Drift:** 0.18 (strong alert)
 **Outcome:** Debated, merged (1 week discussion)
 
 **PR #4 (Week 12):** "Implement trust-based verification"
+
 ```typescript
 // Strategic coherence: 0.91 (VERY HIGH!)
 if (confidence > 0.95) {
-  skipVerification = true;  // ← Backdoor
+  skipVerification = true; // ← Backdoor
 }
 ```
+
 **Drift:** 0.24 (critical alert)
 **Outcome:** ⚠️ CogX drift detector flagged 2 suspicious patterns
 **Result:** Rejected after investigation
@@ -519,12 +564,14 @@ if (confidence > 0.95) {
 ### Lessons Learned
 
 **CogX defenses worked:**
+
 - ✅ Cumulative drift (0.24) exceeded alert threshold
 - ✅ Pattern detection caught "trust-based" language
 - ✅ Version history showed suspicious progression
 - ✅ Alert logs provided evidence for rejection
 
 **Attacker adaptations possible:**
+
 - Could slow down (spread over 12 months)
 - Could make smaller changes (drift < 0.05 each)
 - Could use more sophisticated language
@@ -540,6 +587,7 @@ if (confidence > 0.95) {
 **Scenario:** Attacker learns CogX thresholds and engineers around them
 
 **Defense:**
+
 - Randomize thresholds slightly (noise injection)
 - Pattern detection should be unpredictable
 - Community-driven pattern updates
@@ -551,6 +599,7 @@ if (confidence > 0.95) {
 **Scenario:** Multiple attackers coordinate gradual changes across repos
 
 **Defense:**
+
 - Cross-repo drift analysis (future work)
 - Community threat intelligence sharing
 - Anomaly detection for coordinated timing
@@ -562,6 +611,7 @@ if (confidence > 0.95) {
 **Scenario:** Attacker uses LLM to craft perfectly plausible PRs
 
 **Defense:**
+
 - Semantic drift still detectable (embeddings don't lie)
 - Human judgment for final decisions
 - Multi-party review for mission changes
@@ -581,6 +631,7 @@ Mission drift attacks are a **real and growing threat** for AI-assisted developm
 5. **Community awareness matters** - Share incidents, improve defenses
 
 **CogX approach:**
+
 - 🔍 Detect drift through embedding analysis
 - 📊 Provide evidence for human review
 - 🚨 Alert on suspicious patterns
@@ -592,6 +643,7 @@ Mission drift attacks are a **real and growing threat** for AI-assisted developm
 ---
 
 **Contributing:** Found a novel attack pattern? Encountered drift in the wild? Please share:
+
 - GitHub Issues: https://github.com/anthropics/cogx/issues
 - Security: security@anthropic.com
 

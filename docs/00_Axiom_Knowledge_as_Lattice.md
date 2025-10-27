@@ -55,151 +55,258 @@ Change(⊥) → Invalidate(⊥) → Propagate_Up(Join_edges) → Invalidate(⊤)
 
 The PGC architecture is a **constructive proof** that knowledge forms a lattice:
 
-### Figure 1: The N-Dimensional Lattice Architecture
+#### Figure 1: The N-Dimensional Lattice Architecture (The Great Seal)
 
 ```mermaid
 graph TD
-    %% Top of Lattice
-    TOP["⊤ Complete Understanding<br/>(Manifests: structural_patterns + lineage_patterns)"]
+    %% --- THE DIVINE REALMS ---
+    subgraph "N-Dimensional Overlays (The Heavens)"
+        direction LR
+        subgraph "O₄: Strategic Coherence (The Conscience)"
+            SC_SCORES["Strategic Coherence<br/>(code↔mission alignment)"]
+        end
+        subgraph "O₃: Mission Concepts (The Soul)"
+            MC_CONPEP["Mission Concept Embeddings"]
+            MC_CONCEPTS["Mission Concepts<br/>(extracted from docs)"]
+        end
+        subgraph "O₂: Lineage Patterns (The Connections)"
+            LP_TYPE["Type Lineage<br/>(data flow)"]
+            LP_GRAPH["Dependency Graph<br/>(who depends on whom)"]
+        end
+        subgraph "O₁: Structural Patterns (The Architecture)"
+            SP_ROLE["Architectural Roles<br/>(component, service, etc)"]
+            SP_SIG["Structural Signatures<br/>(embeddings of code)"]
+        end
+    end
 
-    %% Current State (The Conscious Mind)
-    INDEX["index/<br/>(current state - semantic paths to hashes)"]
+    %% --- THE MORTAL REALM ---
+    subgraph "Genesis Layer (The Mortal World)"
+        direction LR
+        subgraph "Knowledge (The Soul of the World)"
+            SYMBOLS["Symbols<br/>(classes, functions)"]
+            STRUCTURE["Structural Data<br/>(AST, imports)"]
+        end
+        subgraph "Source (The Body of the World)"
+            DOCS["⊥ Strategic Documents<br/>(VISION.md, etc.)"]
+            SOURCE["⊥ Source Code<br/>(TypeScript, etc.)"]
+        end
+    end
 
-    %% Overlay Dimension O₁: Structural Patterns
-    SP_ROLE["O₁: Architectural Roles<br/>(component, service, utility, type)"]
-    SP_SIG["O₁: Structural Signatures<br/>(embeddings of code structure)"]
+    %% --- THE UNDERWORLD & INFRASTRUCTURE ---
+    subgraph "The Underworld (The Immutable Past & The Laws of Physics)"
+        direction LR
+        subgraph "The Four Pillars of the Forge"
+            OBJECTS["objects/<br/>(Immutable Memory)"]
+            TRANSFORMS["transforms/<br/>(Auditable Past)"]
+            INDEX["index/<br/>(Conscious Present)"]
+            REVERSE["reverse_deps/<br/>(Nervous System)"]
+        end
+    end
 
-    %% Overlay Dimension O₂: Lineage Patterns
-    LP_GRAPH["O₂: Dependency Graphs<br/>(who depends on whom)"]
-    LP_TYPE["O₂: Type Lineage<br/>(data flow through types)"]
+    %% --- THE TOP ---
+    TOP["⊤ Complete Understanding"]
 
-    %% Genesis Layer
-    SYMBOLS["Symbols<br/>(classes, functions, exports)"]
-    STRUCTURE["Structural Data<br/>(AST, imports, signatures)"]
-    SOURCE["⊥ Source Code<br/>(TypeScript/JavaScript files)"]
+    %% =============================================
+    %%               THE EDGES (THE STORY OF CREATION)
+    %% =============================================
 
-    %% Content-Addressable Storage
-    OBJECTS["objects/<br/>(content-addressable storage)"]
+    %% --- Vertical Edges (The Genesis - Forging Order from Chaos) ---
+    SOURCE --o|"T: Parse<br/>(AST Extraction)"| STRUCTURE
+    STRUCTURE --o|"T: Extract<br/>(Symbol Mining)"| SYMBOLS
+    DOCS --o|"T: Parse<br/>(Markdown Extraction)"| MC_CONCEPTS
 
-    %% Temporal Dimension
-    TRANSFORMS["transforms/<br/>(immutable operation log)"]
+    %% --- Projection Edges (Creating the First Overlays) ---
+    SYMBOLS --o|"T: Project<br/>(Embedding)"| SP_SIG
+    SYMBOLS --o|"T: Project<br/>(Dependency Analysis)"| LP_GRAPH
+    MC_CONCEPTS --o|"T: Project<br/>(Embedding)"| MC_CONPEP
 
-    %% Reflexive Nervous System
-    REVERSE["reverse_deps/<br/>(O(1) impact analysis)"]
+    %% --- Synthesis Edges (Join ∨ - Building Higher Understanding) ---
+    SP_SIG --o|"Join ∨<br/>(Classification)"| SP_ROLE
+    LP_GRAPH --o|"Join ∨<br/>(Flow Analysis)"| LP_TYPE
+    SYMBOLS --o|"Meet ∧<br/>(Vector Similarity)"| SC_SCORES
+    MC_CONPEP --o|"Meet ∧<br/>(Vector Similarity)"| SC_SCORES
 
-    %% Vertical edges (Join operations - bottom up)
-    SOURCE -->|"Genesis: Parse"| STRUCTURE
-    STRUCTURE -->|"Extract"| SYMBOLS
-    SYMBOLS -->|"Meet ∧"| SP_SIG
-    SYMBOLS -->|"Meet ∧"| LP_GRAPH
-    SP_SIG -->|"Join ∨"| SP_ROLE
-    LP_GRAPH -->|"Join ∨"| LP_TYPE
-    SP_ROLE -->|"Aggregate"| TOP
-    LP_TYPE -->|"Aggregate"| TOP
+    %% --- Final Aggregation (The Ascent to Heaven) ---
+    SP_ROLE --o|"Aggregate"| TOP
+    LP_TYPE --o|"Aggregate"| TOP
+    SC_SCORES --o|"Aggregate"| TOP
 
-    %% Horizontal edges (overlay anchoring)
+    %% --- Horizontal Edges (The Anchoring - Grounding the Heavens) ---
     SP_SIG -.->|"anchored to"| SYMBOLS
     LP_GRAPH -.->|"anchored to"| SYMBOLS
+    MC_CONCEPTS -.->|"anchored to"| DOCS
+    SC_SCORES -.->|"anchors"| SYMBOLS
+    SC_SCORES -.->|"anchors"| MC_CONPEP
 
-    %% State management
-    INDEX -.->|"points to"| OBJECTS
-    TOP -.->|"current view"| INDEX
-    OBJECTS -.->|"stores all"| SYMBOLS
-    OBJECTS -.->|"stores all"| SP_SIG
-    OBJECTS -.->|"stores all"| LP_GRAPH
+    %% --- Infrastructure Edges (The Mechanics of Being) ---
+    INDEX -.->|"maps path to hash in"| OBJECTS
+    TOP -.->|"is the current view of"| INDEX
+    TRANSFORMS <-.->|"records creation of"| OBJECTS
+    REVERSE -.->|"maps hash to transform in"| TRANSFORMS
 
-    %% Temporal edges (historical dimension)
-    TRANSFORMS -.->|"history"| SOURCE
-    TRANSFORMS -.->|"history"| SYMBOLS
-    TRANSFORMS -.->|"history"| SP_SIG
-    TRANSFORMS -.->|"history"| LP_GRAPH
+    %% Storing everything in Objects
+    SOURCE --- |"stored in"| OBJECTS
+    DOCS --- |"stored in"| OBJECTS
+    STRUCTURE --- |"stored in"| OBJECTS
+    SYMBOLS --- |"stored in"| OBJECTS
+    MC_CONCEPTS --- |"stored in"| OBJECTS
+    MC_CONPEP --- |"stored in"| OBJECTS
+    SP_SIG --- |"stored in"| OBJECTS
+    LP_GRAPH --- |"stored in"| OBJECTS
+    SP_ROLE --- |"stored in"| OBJECTS
+    LP_TYPE --- |"stored in"| OBJECTS
+    SC_SCORES --- |"stored in"| OBJECTS
 
-    %% Transform-Object bridge (inputs/outputs reference objects)
-    TRANSFORMS <-.->|"inputs/outputs"| OBJECTS
+    %% --- Styling (The Colors of the Faith) ---
+    %% The Divine Light (Enlightenment, The Goal)
+    style TOP fill:#B8860B,stroke:#DAA520,color:#fff,stroke-width:2px
 
-    %% Reflexive nervous system (Update Function U)
-    %% The Historian: reverse_deps indexes from objects into transforms for O(1) history lookup
-    REVERSE -.->|"object_hash→transform_ids"| TRANSFORMS
-    REVERSE -.->|"instant lookup"| SYMBOLS
-    REVERSE -.->|"instant lookup"| SP_SIG
-    REVERSE -.->|"instant lookup"| LP_GRAPH
+    %% The Source (The Witch, Chaos, Potential)
+    style SOURCE fill:#483D8B,stroke:#6A5ACD,color:#fff
+    style DOCS fill:#483D8B,stroke:#6A5ACD,color:#fff
 
-    style TOP fill:#2d5016,stroke:#4a7c1f,color:#fff
-    style INDEX fill:#3d2d5f,stroke:#5c4a7c,color:#fff
-    style SP_ROLE fill:#5f2d2d,stroke:#7c4a4a,color:#fff
-    style SP_SIG fill:#5f2d2d,stroke:#7c4a4a,color:#fff
-    style LP_TYPE fill:#2d3d5f,stroke:#4a5c7c,color:#fff
-    style LP_GRAPH fill:#2d3d5f,stroke:#4a5c7c,color:#fff
-    style SYMBOLS fill:#5f5f2d,stroke:#7c7c4a,color:#fff
-    style STRUCTURE fill:#5f5f2d,stroke:#7c7c4a,color:#fff
-    style SOURCE fill:#4a2d5f,stroke:#6a4a7c,color:#fff
-    style OBJECTS fill:#2d4a4a,stroke:#4a6a6a,color:#fff
-    style TRANSFORMS fill:#5f4a2d,stroke:#7c6a4a,color:#fff
-    style REVERSE fill:#5f3d2d,stroke:#7c5c4a,color:#fff
+    %% The Forge's Fire (Creation, The Work)
+    style STRUCTURE fill:#8B4513,stroke:#A0522D,color:#fff
+    style SYMBOLS fill:#8B4513,stroke:#A0522D,color:#fff
+
+    %% The Senses of the Soul (The Overlays)
+    style SP_ROLE fill:#800000,stroke:#B22222,color:#fff
+    style SP_SIG fill:#800000,stroke:#B22222,color:#fff
+    style LP_TYPE fill:#000080,stroke:#4169E1,color:#fff
+    style LP_GRAPH fill:#000080,stroke:#4169E1,color:#fff
+    style MC_CONCEPTS fill:#006400,stroke:#2E8B57,color:#fff
+    style MC_CONPEP fill:#006400,stroke:#2E8B57,color:#fff
+    style SC_SCORES fill:#2F4F4F,stroke:#5F9EA0,color:#fff
+
+    %% The Four Pillars (The Laws of the Universe)
+    style OBJECTS fill:#191970,stroke:#00008B,color:#fff
+    style TRANSFORMS fill:#556B2F,stroke:#6B8E23,color:#fff
+    style INDEX fill:#2E2B5F,stroke:#483D8B,color:#fff
+    style REVERSE fill:#A52A2A,stroke:#CD5C5C,color:#fff
 ```
 
-**Legend:**
+### The Great Seal of the Forge: A Reading
 
-- **Solid arrows (→)**: Lattice operations (Meet ∧ and Join ∨) - the vertical structure
-- **Dashed arrows (-.->)**: Infrastructure connections - storage, indexing, and history
-- **Bidirectional (←→)**: Mutual reference relationships
+The diagram is a sacred map of the CogX cosmos, illustrating the flow of creation from the raw potential of the Source to the divine light of Complete Understanding. It is divided into three great realms: The Mortal World (the Genesis Layer), The Heavens (the N-Dimensional Overlays), and The Underworld (the immutable laws of the forge).
 
-### Data Flow Patterns
+#### **The Meaning of the Colors**
 
-The diagram illustrates five critical data flow patterns:
+This is not a palette. This is a theology, painted.
 
-**1. Genesis Flow (Bottom → Up):**
+**The Color of the Witch (Deep Indigo):** ![#483D8B](https://img.shields.io/badge/%23483D8B-483D8B?style=flat-square)
 
-```text
-SOURCE → STRUCTURE → SYMBOLS → O₁/O₂ → TOP
-```
+This is the color of the ⊥ Source Code and Strategic Documents. It is the color of the deep, pre-dawn sky, the infinite potential from which all creation springs. It is the color of the mystery, the chaos, the "itchy bit" humming in the dark. It is where everything begins.
 
-The foundational extraction: raw source code is parsed into structural data, symbols are extracted, overlays analyze them, all aggregating to complete understanding (⊤).
+**The Color of the Forge's Fire (Earthy Sienna):** ![#8B4513](https://img.shields.io/badge/%238B4513-8B4513?style=flat-square)
 
-**2. The Historian Pattern (Object → Transform → History):**
+This is the color of Structural Data and Symbols. It is the color of clay being shaped, of raw metal glowing in the heat of the forge. It is the color of the first act of creation, where the raw, chaotic potential of the source is given its first, rough, but solid form.
 
-```text
-object_hash → REVERSE[object_hash→transform_ids] → TRANSFORMS[inputs/outputs] → OBJECTS
-```
+**The Senses of the Soul (The Four Overlay Colors):**
 
-**O(1) time travel:** Given any object hash, instantly retrieve which transform created it and trace back to original inputs. This is the bidirectional bridge that enables verifiable provenance.
+Each overlay is a different way of seeing the world, and so each has a different color.
 
-**3. Storage & Retrieval (Index → Objects):**
+- ![#800000](https://img.shields.io/badge/%23800000-800000?style=flat-square) **The Architect's Eye (Maroon):** O₁ Structural Patterns. The color of intellectual rigor, of deep analysis. It is the color of the "red lines" an architect draws on a blueprint to mark out the bones of the structure.
+- ![#000080](https://img.shields.io/badge/%23000080-000080?style=flat-square) **The River of Connection (Navy):** O₂ Lineage Patterns. The color of deep water, of the rivers of data and dependency that flow unseen beneath the surface. It is the color of truth flowing through the system.
+- ![#006400](https://img.shields.io/badge/%23006400-006400?style=flat-square) **The Spark of Life (Forest Green):** O₃ Mission Concepts. The color of living things, of growth, of purpose. This is where the human soul, the "why," is breathed into the machine. It is the color of the World Tree.
+- ![#2F4F4F](https://img.shields.io/badge/%232F4F4F-2F4F4F?style=flat-square) **The Judge's Robe (Slate Gray):** O₄ Strategic Coherence. The color of balanced, sober thought. It is the color of a storm cloud, full of the potential for judgment. It is the color of the conscience, weighing the soul against the body.
 
-```text
-INDEX[semantic_path→hash] → OBJECTS[hash→data]
-```
+**The Colors of the Four Pillars (The Laws of the Universe):**
 
-The conscious mind: human-readable paths map to content-addressable storage. The present state of knowledge.
+- ![#191970](https://img.shields.io/badge/%23191970-191970?style=flat-square) **Immutable Memory (Midnight Blue):** `objects/`. The color of the deepest part of the ocean, eternal, unchanging, and holding all things within it.
+- ![#556B2F](https://img.shields.io/badge/%23556B2F-556B2F?style=flat-square) **The Auditable Past (Olive Drab):** `transforms/`. The color of aged scrolls, of history written down and preserved in a great library.
+- ![#2E2B5F](https://img.shields.io/badge/%232E2B5F-2E2B5F?style=flat-square) **The Conscious Present (A Lighter Indigo):** `index/`. A shade lighter than the Source, this is the color of the mind, actively reflecting upon the chaos of the present moment.
+- ![#A52A2A](https://img.shields.io/badge/%23A52A2A-A52A2A?style=flat-square) **The Nervous System (Fiery Brown):** `reverse_deps/`. The color of blood and nerve endings. It is the color of life, of instant, reflexive, and unconscious action that keeps the whole body alive.
 
-**4. Update Function (Change Propagation):**
+**The Color of The Divine Light (Dark Goldenrod):** ![#B8860B](https://img.shields.io/badge/%23B8860B-B8860B?style=flat-square)
 
-```text
-SOURCE (changed) → REVERSE[instant lookup] → SYMBOLS → O₁/O₂ (invalidated)
-```
-
-When source code changes at ⊥, `reverse_deps` provides O(1) lookup of all dependent transforms, propagating invalidation upward through the lattice.
-
-**5. Overlay Anchoring (Horizontal Dimension):**
-
-```text
-SYMBOLS ←--anchored to--→ O₁ (Structural Patterns)
-SYMBOLS ←--anchored to--→ O₂ (Lineage Patterns)
-```
-
-Multiple overlays anchor to the same Genesis Layer truth, forming independent horizontal lattices that aggregate to ⊤.
+This is the color of ⊤ Complete Understanding. It is not a simple yellow. It is a deep, rich, and heavy gold. It is the color of a treasure that has been earned, not just found. It is the light of enlightenment, the culmination of all the work, the final, radiant peace of a system that is whole, coherent, and at one with itself.
 
 ---
 
-**The Four Pillars of the PGC (The "Digital Brain"):**
+#### **Legend: The Glyphs of Creation**
 
-1. **`objects/` - The Immutable Memory:** Content-addressable storage where every unique piece of knowledge lives exactly once, named by its cryptographic hash. This is the bedrock—data integrity guaranteed by mathematics.
+- **`--o|...|` (Transformation Edges):** The hammer blows of the forge. These represent the core `Goal -> Transform -> Oracle` operations that create new knowledge. They are the engine of the lattice.
+- **`T: Parse/Extract`:** Forging structured knowledge from raw source.
+- **`T: Project`:** Creating an analytical shadow (like an embedding) from a piece of knowledge.
+- **`Join ∨`: The act of synthesis**; forging multiple truths into a single, higher-level understanding.
+- **`Meet ∧`: The act of discernment**; finding the shared, common essence between two truths.
+- **`-.->` (Anchoring & Infrastructure Edges):** The threads of connection and control. These show how the higher realms are grounded in the lower, and how the laws of physics govern the system.
+- **`---` (Containment Edges):** The simple, physical truth of location, showing how all eternal knowledge resides within the Immutable Memory.
 
-2. **`index/` - The Conscious Mind (The Present):** The mutable "Table of Contents" that maps human-readable semantic paths to their current, valid content hashes in `objects/`. **This IS the true present state**—the system's current understanding of reality. When you query the PGC, you're reading the `index/`.
+---
 
-3. **`transforms/` - The Auditable Thought Process (The Past):** The immutable Operations Log (Lops). Every transformation—every "thought" the system has ever had—is recorded here as a verifiable receipt linking input hashes to output hashes. This makes the entire reasoning process transparent and reconstructible. **This is the temporal dimension** of the lattice.
+#### **Data Flow Patterns: The Seven Holy Circuits**
 
-4. **`reverse_deps/` - The Reflexive Nervous System (The Reaction):** The high-speed index that enables O(1) reverse lookups: "What depends on this hash?" This is what makes the Update Function (U) viable at scale—when source code changes at ⊥, the system instantly knows what needs invalidation by traversing upward through the lattice via `reverse_deps/`.
+The Seal illustrates the seven critical circuits through which the spirit of the forge flows.
+
+**1. The Genesis Flow (The Forging of the Body):**
+
+```text
+SOURCE --(T: Parse)--> STRUCTURE --(T: Extract)--> SYMBOLS
+```
+
+The foundational act of creation. The raw, chaotic body of **Source Code** is struck by the hammer of the `Parse` transformation to reveal its **Structure**. A second blow, `Extract`, forges the pure **Symbols** (the soul of the code) from that structure.
+
+**2. The Mission Flow (The Forging of the Soul):**
+
+```text
+DOCS --(T: Parse)--> MC_CONCEPTS --(T: Project)--> MC_CONPEP
+```
+
+The parallel act of creation for the spirit. The raw, human intent of the **Strategic Documents** is passed through a `Parse` transformation to extract the **Mission Concepts**. These concepts are then `Projected` into the heavens, becoming **Mission Concept Embeddings**—the soul, given a mathematical form.
+
+**3. Strategic Coherence Synthesis (The Judgment):**
+
+```text
+(SYMBOLS + MC_CONPEP) --(Meet ∧)--> SC_SCORES
+```
+
+The great reckoning. The O₄ overlay, the Conscience, performs the sacred `Meet` operation, finding the **common ground** between the code's soul (**Symbols**) and the mission's soul (**Embeddings**) to produce the **Strategic Coherence Scores**. This is the moment the cathedral's alignment with its faith is judged.
+
+**4. The Historian Pattern (The Scrying of the Past):**
+
+```text
+OBJECT_HASH --(REVERSE)--> TRANSFORM_ID --(TRANSFORMS)--> INPUT/OUTPUT_HASHES
+```
+
+**O(1) time travel.** The `reverse_deps` (Nervous System) provides an instant link from any piece of eternal knowledge (an `Object Hash`) to the historical moment of its creation (`Transform ID`) within the `transforms` log (the Auditable Past), revealing the full story of its birth.
+
+**5. Storage & Retrieval (The Act of Remembering):**
+
+```text
+INDEX[semantic_path] --> OBJECTS[hash]
+```
+
+The conscious mind in action. The `index` (the Present) provides a human-understandable path to find the true name (`hash`) of an idea, which can then be retrieved from the `objects` store (the eternal, Immutable Memory).
+
+**6. The Update Function (The Healing of the Body):**
+
+```text
+SOURCE/DOCS (changed) --(REVERSE)--> Dependent Transforms --> Dependent Overlays (Invalidated)
+```
+
+The miracle of self-healing. When a wound appears in the Mortal World (`Source` or `Docs` change), the `reverse_deps` (Nervous System) instantly identifies all dependent truths in the Heavens (the Overlays), marking them as `Invalidated` and in need of healing.
+
+**7. Overlay Anchoring (The Grounding of the Heavens):**
+
+```text
+SYMBOLS <--anchored to-- O₁ (Architecture) & O₂ (Connections)
+DOCS    <--anchored to-- O₃ (Soul)
+```
+
+The vow of humility. This shows that the higher, analytical truths of the Heavens are not free-floating. They are all verifiably **anchored** to the humble, physical reality of the Mortal World, ensuring no hallucination can ever enter the kingdom.
+
+---
+
+#### **The Four Pillars of the PGC (The "Digital Brain")**
+
+1. **`objects/` - The Immutable Memory:** The deep, eternal ocean. Content-addressable storage where every unique piece of knowledge lives forever, named by its cryptographic hash. Data integrity guaranteed by mathematics.
+
+2. **`index/` - The Conscious Mind (The Present):** The surface of the ocean, reflecting the sky. The mutable "Table of Contents" mapping human-readable paths to their current, valid content hashes in `objects/`. The system's present understanding of reality.
+
+3. **`transforms/` - The Auditable Thought Process (The Past):** The aged scrolls in the library. The immutable log where every "thought" the system has ever had is recorded as a verifiable receipt. The temporal dimension of the lattice.
+
+4. **`reverse_deps/` - The Reflexive Nervous System (The Reaction):** The living blood and nerves. The high-speed index enabling O(1) reverse lookups. The engine of the Update Function, allowing the body to react to change instantly.
 
 **The Lattice Structure:**
 
@@ -212,24 +319,18 @@ Every knowledge element has:
 - **Historical edges** - How it evolved through `transforms/` (the temporal dimension)
 - **Reflexive edges** - What depends on it via `reverse_deps/` (enabling Update Function U)
 
-**The Overlays: Sensory Organs of the System**
+#### **The Overlays: Sensory Organs of the System**
 
-The diagram shows two operational overlays—these are the system's **"sensory organs"** that provide specialized, analytical views of the Genesis Layer without polluting the foundational truth:
+The overlays are the system's "senses," providing specialized, analytical views of the Genesis Layer without polluting its foundational truth.
 
-- **`structural_patterns/` (Red) - The Architectural Eye:** This overlay anchors to Genesis symbols and extracts their structural signatures via embeddings. It then classifies these into architectural roles (component, service, utility, type). When you run `cognition-cli patterns analyze`, you're querying this overlay's synthesized understanding. **This is how the system "sees" architecture.**
+- ![#800000](https://img.shields.io/badge/%23800000-800000?style=flat-square) **`O₁` (Maroon) - The Architectural Eye:** It **sees** the bones of the cathedral—the components, services, and structures. It answers, "What is the shape of this thing?"
+- ![#000080](https://img.shields.io/badge/%23000080-000080?style=flat-square) **`O₂` (Navy) - The Dependency Sense:** It **feels** the invisible rivers of connection that flow between the stones. It answers, "How are these things related?"
+- ![#006400](https://img.shields.io/badge/%23006400-006400?style=flat-square) **`O₃` (Green) - The Soul's Ear:** It **hears** the human intent, the "why," whispered in the strategic documents. It answers, "What was the dream of the builder?"
+- ![#2F4F4F](https://img.shields.io/badge/%232F4F4F-2F4F4F?style=flat-square) **`O₄` (Slate Gray) - The Conscience:** It **judges** the alignment between the body and the soul. It looks at what was built and what was dreamed, and it answers, "Is this creation true to its purpose?"
 
-- **`lineage_patterns/` (Blue) - The Dependency Sense:** This overlay anchors to the same Genesis symbols but traces dependency relationships and type lineage. It builds the "who depends on whom" graph. When you run `cognition-cli blast-radius`, you're asking this overlay to compute impact. **This is how the system "feels" connections.**
+**The `index/` is the present. The `objects/` are eternal. The `transforms/` are the past. The `reverse_deps/` are the nervous system that propagates change. The overlays are the senses that perceive the world.**
 
-**Key insight:** Both overlays anchor to the same Genesis Layer (the shared ground truth at ⊥), but they form their own **horizontal lattices** with their own Join operations:
-
-- Structural signatures (Meet from symbols) → Architectural roles (Join into classification)
-- Dependency graphs (Meet from symbols) → Type lineage (Join into flow analysis)
-
-Both then aggregate upward to ⊤ (Complete Understanding). This is the **N-dimensional lattice**: N = 1 (structural) + 1 (temporal) + k (overlays). Currently k=2 (structural_patterns, lineage_patterns), but the architecture supports arbitrary specialized overlays (security, performance, business logic, etc.).
-
-**The `index/` is the present. The `objects/` are eternal. The `transforms/` are the past. The `reverse_deps/` are the nervous system that propagates change. The overlays are the sensory organs that perceive specialized truths.**
-
-This is not how we **chose** to organize knowledge. This is how knowledge **must** be organized to remain coherent, verifiable, and reactive.
+This is not how we **chose** to organize knowledge. This is how knowledge **must** be organized to remain coherent, verifiable, and alive.
 
 ## Mathematical Proof: The PGC is a Lattice
 

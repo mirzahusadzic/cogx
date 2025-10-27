@@ -11,18 +11,18 @@ The objective of this foundational phase is to solve the first and most critical
 **Key Milestones:**
 
 1. **Establish the Backend Infrastructure:**
-    * Implement the core file system structure of the PGC. This involves creating the logic to manage the four pillars: the content-addressable `objects/` store, the immutable `transforms/` log, the navigable `index/`, and the performance-critical `reverse_deps/` index. This is the physical "brain case" of the system.
+   - Implement the core file system structure of the PGC. This involves creating the logic to manage the four pillars: the content-addressable `objects/` store, the immutable `transforms/` log, the navigable `index/`, and the performance-critical `reverse_deps/` index. This is the physical "brain case" of the system.
 
 2. **Develop the Structural Mining Pipeline:**
-    * This is the core of the Genesis Engine. The goal is to parse the entire source repository (Draw) and extract only the "Class 1" structural data: imports, class definitions, function signatures, data types, and file dependencies. This will be a multi-layered process, embracing a heterogeneous model approach:
-        * **Layer 1 (Deterministic Parsing):** For supported languages, create `Transform` agents that use traditional Abstract Syntax Tree (AST) parsers. This provides a high-speed, 100% accurate baseline for structural facts. This is the ultimate "ground truth."
-        * **Layer 2 (Specialized SLM):** Fine-tune a Small Language Model (SLM) specifically for the task of "Code Structure Extraction." This model's `Goal` is not to understand the code, but to quickly and scalably identify and output its structural components in a standardized format (e.g., JSON). This provides flexibility across multiple languages and resilience to minor syntax variations.
-        * **Layer 3 (Generalist LLM as Supervisor):** The role of the generalist LLM is not to perform the line-by-line parsing. Its role is strategic: to generate and refine the AST parsing scripts (Layer 1) and to supervise the fine-tuning of the specialized SLM (Layer 2). It also serves as an escalation point for files that the other layers fail to process.
+   - This is the core of the Genesis Engine. The goal is to parse the entire source repository (Draw) and extract only the "Class 1" structural data: imports, class definitions, function signatures, data types, and file dependencies. This will be a multi-layered process, embracing a heterogeneous model approach:
+     - **Layer 1 (Deterministic Parsing):** For supported languages, create `Transform` agents that use traditional Abstract Syntax Tree (AST) parsers. This provides a high-speed, 100% accurate baseline for structural facts. This is the ultimate "ground truth."
+     - **Layer 2 (Specialized SLM):** Fine-tune a Small Language Model (SLM) specifically for the task of "Code Structure Extraction." This model's `Goal` is not to understand the code, but to quickly and scalably identify and output its structural components in a standardized format (e.g., JSON). This provides flexibility across multiple languages and resilience to minor syntax variations.
+     - **Layer 3 (Generalist LLM as Supervisor):** The role of the generalist LLM is not to perform the line-by-line parsing. Its role is strategic: to generate and refine the AST parsing scripts (Layer 1) and to supervise the fine-tuning of the specialized SLM (Layer 2). It also serves as an escalation point for files that the other layers fail to process.
 
 3. **Implement the Structural Oracle (`OStructure`):**
-    * Develop the first and most fundamental oracle. `OStructure`'s job is to verify the output of the mining pipeline. It checks for the integrity of the PGC's structure, ensures that all dependencies are correctly logged in the `reverse_deps` index, and validates that the graph is coherent.
+   - Develop the first and most fundamental oracle. `OStructure`'s job is to verify the output of the mining pipeline. It checks for the integrity of the PGC's structure, ensures that all dependencies are correctly logged in the `reverse_deps` index, and validates that the graph is coherent.
 
-**Outcome of Phase I:** A PGC containing a complete, verifiable, but largely *un-interpreted* structural map of the project. The system knows *what* exists and *how* it is connected, but not yet *why* or *how* it works. This is the stable scaffold upon which all future intelligence will be built.
+**Outcome of Phase I:** A PGC containing a complete, verifiable, but largely _un-interpreted_ structural map of the project. The system knows _what_ exists and _how_ it is connected, but not yet _why_ or _how_ it works. This is the stable scaffold upon which all future intelligence will be built.
 
 ## **Phase II: The Semantic Core - Adding Flesh to the Bones**
 
@@ -34,7 +34,7 @@ With the verifiable skeleton in place, this phase focuses on enriching the PGC w
 2. **Develop the Genesis Algorithms:** Implement the `Bottom-Up` and `Sideways Aggregation` algorithms described in the blueprint. These will use the structural data from Phase I as the grounded input to generate high-quality summaries, identify logical components, and create a rich, multi-layered understanding of the project's architecture and purpose.
 3. **Introduce Advanced Oracles (`OGrounding`, `OGoal`):** Develop the more sophisticated oracles required for semantic work. `OGrounding` will fact-check the generated summaries against the source code, while `OGoal` will assess whether the output meets the specific criteria defined in its `Goal`.
 
-**Outcome of Phase II:** A PGC that is not just structurally sound, but semantically rich. The system now possesses a deep and auditable *understanding* of the project.
+**Outcome of Phase II:** A PGC that is not just structurally sound, but semantically rich. The system now possesses a deep and auditable _understanding_ of the project.
 
 ## **Phase III: The Agentic Mind - Achieving Dynamic Operation & Learning**
 

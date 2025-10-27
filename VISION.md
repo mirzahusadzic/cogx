@@ -55,7 +55,7 @@ Knowledge, in its most fundamental form, has the structure of a **mathematical l
 - **Meet (∧)**: Finding common ground ("What do A and B share?")
 - **Join (∨)**: Building higher understanding ("What's the smallest thing containing both?")
 
-The **Probably Grounded Cognition (PGC)** is the first executable implementation of this formal truth. It's not "like" a lattice—**it IS a lattice**, complete with:
+The **Grounded Context Pool (PGC)** is the first executable implementation of this formal truth. It's not "like" a lattice—**it IS a lattice**, complete with:
 
 - **Content-addressable storage** (`objects/`) — Immutable, deduplicated knowledge
 - **Transform logs** (`transforms/`) — Auditable provenance chains
@@ -127,7 +127,46 @@ Cognition should be a **public utility**, like roads or electricity. Open Cognit
 
 We establish prior art through **public disclosure** (Zenodo DOI, GitHub), not patent applications. This prevents proprietary capture while ensuring innovations remain free forever.
 
-**15 innovations published**: Knowledge lattices, Goal→Transform→Oracle, PGC architecture, structural mining, overlay systems, meta-cognitive self-analysis, Cognitive Proof of Work, Claude Code integration, Historian Pattern, strategic coherence overlays, and more.
+#### Innovations Disclosed as Prior Art
+
+These innovations are protected from patent restrictions and remain free for all humanity:
+
+**Foundation (Innovations #1-10):**
+
+1. **Mathematical Foundation:** Knowledge representation as a lattice structure
+2. **Goal→Transform→Oracle Pattern:** Universal pattern for verifiable AI transformations
+3. **Grounded Context Pool (PGC):** Content-addressable knowledge storage system
+4. **Structural Mining Pipeline:** Multi-tier code understanding (AST → SLM → LLM)
+5. **Overlay System:** Multi-dimensional knowledge layers with vector embeddings
+6. **Meta-Cognitive Self-Analysis:** System analyzing its own architecture
+7. **The .cogx File Format:** Portable cognitive symbols
+8. **Cognitive Proof of Work (CPoW):** Monetizable verified intelligence
+9. **Event-Driven Coherence System:** Real-time PGC synchronization
+10. **Claude Code Integration Protocol:** Grounded AI-assisted development
+
+**Security & Provenance (Innovations #11-12):**
+
+11. **The Historian Pattern:** O(1) provenance lookup via reverse_deps → transforms
+12. **Self-Defending Lattice:** Mathematical resistance to adversarial overlays
+
+**Strategic Intelligence (Innovations #13-24):**
+
+13. **Documentation as Knowledge Layer:** Markdown AST → content-addressable PGC objects
+14. **O₃ Layer (Mission Concepts):** Pattern-based extraction with recursive meta-cognition
+15. **O₄ Layer (Strategic Coherence):** Vector similarity scoring between code and strategic documents
+16. **6-Pattern Extraction System:** Blockquotes, headers, bullets, bold, emoji, quoted phrases
+17. **Recursive Meta-Cognition:** System understanding its own methodology through concept extraction
+18. **Semantic Drift Detection:** Immutable versioning with cosine distance on concept embedding centroids
+19. **5-Pattern Attack Detection:** Security weakening, trust erosion, permission creep, ambiguity injection, velocity over safety
+20. **Multi-Layer Mission Security:** Gemini LLM (Layer 1A) + Pattern matching (Layer 1B) + Semantic drift (Layer 2)
+21. **Immutable Version Storage:** Content-addressable strategic document history with concept embeddings
+22. **DocsOracle:** Document integrity validation with content-addressable storage
+23. **Markdown Parser with Meta Properties:** Hierarchical AST with structuralHash and position tracking
+24. **Overlay Invalidation System:** Automatic cascade invalidation of dependent overlays
+
+**Post-Publication Additions (Innovation #25):**
+
+25. **Context Sampling Function (Σ):** Efficient lattice traversal for relevant knowledge extraction (emerged through Claude Code integration)
 
 ### 5. Mathematics Rewards Openness
 

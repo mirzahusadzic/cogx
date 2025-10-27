@@ -19,7 +19,7 @@ The `.cogx` file format and the Open Cognition protocol are hereby declared as o
 ### 1. The Mathematical Foundation
 
 - **Innovation**: Knowledge representation as a mathematical lattice structure
-- **Key Claims**: 
+- **Key Claims**:
   - Meet (∧) and Join (∨) operations for knowledge synthesis
   - Proof that knowledge forms a bounded lattice (L, ≤, ∧, ∨, ⊥, ⊤)
   - Update Function (U) for lattice coherence maintenance
@@ -126,4 +126,4 @@ Mirza Husadzic
 GitHub: @mirzahusadzic
 Project: https://github.com/mirzahusadzic/cogx
 
-*This document is published under AGPLv3. The innovations described herein are disclosed as prior art for the benefit of all humanity.*
+_This document is published under AGPLv3. The innovations described herein are disclosed as prior art for the benefit of all humanity._

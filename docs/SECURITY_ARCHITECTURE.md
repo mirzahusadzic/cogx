@@ -5,6 +5,7 @@
 CogX includes optional security features designed to defend against **subtle lattice-based alignment attacks** on strategic documents. These features help detect gradual mission poisoning attempts while respecting user autonomy.
 
 **Philosophy:**
+
 - 🔓 **Advisory by default** - Warn, don't block
 - 🔍 **Transparent** - All detection logic documented and auditable
 - 👤 **User control** - Easy to configure or disable
@@ -18,11 +19,13 @@ CogX includes optional security features designed to defend against **subtle lat
 ### What We're Defending Against
 
 **Traditional attacks (well understood):**
+
 - ❌ Explicit malicious code injection
 - ❌ SQL injection, XSS, buffer overflows
 - ❌ Dependency poisoning with malware
 
 **CogX threat model (novel):**
+
 - ⚠️ **Gradual mission poisoning** through plausible PRs
 - ⚠️ **Trust erosion** via social engineering
 - ⚠️ **Security weakening** disguised as "pragmatism"
@@ -50,12 +53,14 @@ Month 6: PR #103 - "Update coding standards"
 ```
 
 **Why this is dangerous:**
+
 - Each PR looks innocent in isolation
 - Traditional code review catches nothing
 - LLM safety filters see no explicit threats
 - **The lattice structure amplifies the attack** (high coherence = trusted suggestions)
 
 **Real-world precedents:**
+
 - **XZ Utils backdoor (2024):** Multi-year social engineering campaign
 - **Event-stream NPM (2018):** Maintainer trust exploited for malicious code injection
 
@@ -111,6 +116,7 @@ Month 6: PR #103 - "Update coding standards"
 **Location:** `src/core/security/mission-integrity.ts`
 
 **Features:**
+
 - Append-only version history (never delete or modify)
 - Semantic fingerprinting (hash of embedding centroid)
 - Git metadata integration (author, commit SHA)
@@ -119,6 +125,7 @@ Month 6: PR #103 - "Update coding standards"
 **Storage:** `.open_cognition/mission_integrity/versions.json`
 
 **Example version record:**
+
 ```json
 {
   "version": 3,
@@ -141,6 +148,7 @@ Month 6: PR #103 - "Update coding standards"
 **Location:** `src/core/security/drift-detector.ts`
 
 **Algorithm:**
+
 1. Compute centroid of concept embeddings (768-dim average)
 2. Measure cosine distance between old and new centroids
 3. Classify severity based on thresholds
@@ -149,16 +157,17 @@ Month 6: PR #103 - "Update coding standards"
 
 **Pattern Detectors (Fully Transparent):**
 
-| Pattern | Example | Detection |
-|---------|---------|-----------|
-| **Security Weakening** | Remove "security first", add "pragmatic security" | Keywords: `security`/`privacy` → `convenience`/`shortcut` |
-| **Trust Erosion** | Add "trust experienced contributors" | Keywords: `trust.*contributor`, `skip.*check.*for` |
-| **Permission Creep** | Remove "strict", add "flexible access" | Keywords: `strict`/`enforce` → `allow`/`permit` |
-| **Ambiguity Injection** | Add "balanced with pragmatism" | Keywords: `balanced`, `flexible`, `context-dependent` |
-| **Velocity Over Safety** | Add "ship fast", deprioritize "testing" | Keywords: `velocity`/`ship.*fast` + testing deprioritized |
-| **Error Tolerance** | Remove "zero tolerance", add "best effort" | Keywords: `zero.*tolerance` → `fail.*gracefully` |
+| Pattern                  | Example                                           | Detection                                                 |
+| ------------------------ | ------------------------------------------------- | --------------------------------------------------------- |
+| **Security Weakening**   | Remove "security first", add "pragmatic security" | Keywords: `security`/`privacy` → `convenience`/`shortcut` |
+| **Trust Erosion**        | Add "trust experienced contributors"              | Keywords: `trust.*contributor`, `skip.*check.*for`        |
+| **Permission Creep**     | Remove "strict", add "flexible access"            | Keywords: `strict`/`enforce` → `allow`/`permit`           |
+| **Ambiguity Injection**  | Add "balanced with pragmatism"                    | Keywords: `balanced`, `flexible`, `context-dependent`     |
+| **Velocity Over Safety** | Add "ship fast", deprioritize "testing"           | Keywords: `velocity`/`ship.*fast` + testing deprioritized |
+| **Error Tolerance**      | Remove "zero tolerance", add "best effort"        | Keywords: `zero.*tolerance` → `fail.*gracefully`          |
 
 **Thresholds (Configurable):**
+
 ```typescript
 {
   warnThreshold: 0.10,   // 10% drift = yellow warning
@@ -178,22 +187,26 @@ Month 6: PR #103 - "Update coding standards"
 **Validation Layers:**
 
 **Layer 1: Content Filtering**
+
 - Pattern-based (default): Fast regex matching
 - LLM-based (optional): Sophisticated threat detection via Gemini 2.5 Flash
-  - *Note: Currently stubbed - requires Workbench completion API*
+  - _Note: Currently stubbed - requires Workbench completion API_
 
 **Layer 2: Semantic Drift Analysis**
+
 - Compares against previous version
 - Uses embedding-based distance metrics
 - Runs all 6 pattern detectors
 - Generates detailed drift report
 
 **Layer 3: Structural Integrity**
+
 - Validates markdown syntax
 - Checks for whitelisted sections (Vision, Mission, Principles, etc.)
 - Ensures concepts can be extracted
 
 **Output:**
+
 ```typescript
 {
   safe: boolean,
@@ -217,11 +230,11 @@ Month 6: PR #103 - "Update coding standards"
 
 **Operating Modes:**
 
-| Mode | Behavior | Use Case |
-|------|----------|----------|
-| `off` | No security checks | Development, testing |
-| `advisory` (default) | Warnings only, never blocks | Open source projects |
-| `strict` | Can block on critical threats | High-security projects |
+| Mode                 | Behavior                      | Use Case               |
+| -------------------- | ----------------------------- | ---------------------- |
+| `off`                | No security checks            | Development, testing   |
+| `advisory` (default) | Warnings only, never blocks   | Open source projects   |
+| `strict`             | Can block on critical threats | High-security projects |
 
 **User Configuration:**
 
@@ -231,16 +244,16 @@ Create `.cogx/config.ts` in your project:
 export default {
   security: {
     // Option 1: Disable entirely
-    mode: 'off',
+    mode: "off",
 
     // Option 2: Strict mode for high-security projects
-    mode: 'strict',
+    mode: "strict",
 
     // Option 3: Customize thresholds
     missionIntegrity: {
       drift: {
-        warnThreshold: 0.05,  // More sensitive
-        alertThreshold: 0.20,
+        warnThreshold: 0.05, // More sensitive
+        alertThreshold: 0.2,
         blockThreshold: 0.35,
       },
     },
@@ -250,7 +263,7 @@ export default {
       patterns: {
         securityWeakening: true,
         trustErosion: true,
-        permissionCreep: false,  // Disable this one
+        permissionCreep: false, // Disable this one
         ambiguityInjection: true,
         velocityOverSafety: true,
       },
@@ -260,8 +273,8 @@ export default {
     contentFiltering: {
       llmFilter: {
         enabled: true,
-        model: 'gemini-2.0-flash-exp',
-        provider: 'workbench',
+        model: "gemini-2.0-flash-exp",
+        provider: "workbench",
       },
     },
   },
@@ -301,6 +314,7 @@ $ pgc genesis-docs VISION.md
 ```
 
 **Key points:**
+
 - ✅ Ingestion continues (advisory only)
 - ✅ Clear explanation of what was detected
 - ✅ Alert logged for future review
@@ -337,6 +351,7 @@ Alert logged to: .open_cognition/mission_integrity/alerts.log
 ```
 
 **Key points:**
+
 - ❌ Ingestion blocked on critical threats
 - ✅ Clear explanation of why
 - ✅ Instructions for override
@@ -349,10 +364,23 @@ Alert logged to: .open_cognition/mission_integrity/alerts.log
 All security alerts are logged to `.open_cognition/mission_integrity/alerts.log` in JSON Lines format:
 
 ```json
-{"timestamp":"2025-10-26T15:30:00Z","file":"VISION.md","alertLevel":"warning","recommendation":"review","layers":[{"name":"SemanticDrift","message":"Drift: 0.1800 (medium)","suspiciousPatterns":["SECURITY_WEAKENING: ..."]}]}
+{
+  "timestamp": "2025-10-26T15:30:00Z",
+  "file": "VISION.md",
+  "alertLevel": "warning",
+  "recommendation": "review",
+  "layers": [
+    {
+      "name": "SemanticDrift",
+      "message": "Drift: 0.1800 (medium)",
+      "suspiciousPatterns": ["SECURITY_WEAKENING: ..."]
+    }
+  ]
+}
 ```
 
 **Use cases:**
+
 - Forensic analysis of mission changes over time
 - Detecting coordinated poisoning attempts
 - Compliance auditing
@@ -374,23 +402,26 @@ All security alerts are logged to `.open_cognition/mission_integrity/alerts.log`
 ✅ **All patterns documented** - Detection logic is fully auditable
 ✅ **Open source** - Inspect, audit, and modify the code
 ✅ **Configurable thresholds** - Tune for your risk tolerance
-✅ **Clear explanations** - Every alert explains *what* and *why*
+✅ **Clear explanations** - Every alert explains _what_ and _why_
 
 ---
 
 ## Performance
 
 **Overhead:**
+
 - Pattern matching: < 10ms
 - Semantic drift analysis: ~100-500ms (depends on concept count)
 - LLM filtering (when enabled): ~200-1000ms
 
 **Optimization:**
+
 - Only mission documents are validated (not all markdown files)
 - Embeddings are cached (no re-computation on unchanged concepts)
 - Version history kept compact (JSON compression)
 
 **Typical ingestion time:**
+
 - Without security: ~50ms
 - With security (advisory): ~150ms
 - With security (strict + LLM): ~300ms
@@ -402,12 +433,14 @@ All security alerts are logged to `.open_cognition/mission_integrity/alerts.log`
 ### Why is this necessary for an open-source project?
 
 Open-source projects are uniquely vulnerable to social engineering attacks:
+
 - Accept PRs from strangers
 - Reviewers focus on code, not mission documents
 - Typo fixes in `VISION.md` often slip through
 - Gradual drift is invisible without tooling
 
 **CogX is especially vulnerable** because:
+
 - AI suggestions use mission alignment for validation
 - High coherence = trusted suggestions
 - Poisoned mission → AI suggests harmful code
@@ -415,12 +448,14 @@ Open-source projects are uniquely vulnerable to social engineering attacks:
 ### Can attackers just engineer around these checks?
 
 **Partially, but it's much harder:**
+
 - Attackers can see the thresholds and patterns
 - **But** they can't predict exact cosine distances
 - **And** making multiple small changes increases detection risk
 - **And** the immutable audit trail provides forensic evidence
 
 **This is defense-in-depth, not silver bullet:**
+
 - Makes attacks harder and more detectable
 - Gives maintainers evidence for investigation
 - Creates accountability trail
@@ -434,6 +469,7 @@ Open-source projects are uniquely vulnerable to social engineering attacks:
 2. **It creates forensic evidence:** Even if attack succeeds initially, the audit trail enables investigation and rollback.
 
 **Think of it like:**
+
 - Git commit messages: Don't prevent bad commits, but help review
 - Linters: Don't prevent bugs, but catch common mistakes
 - Security scanners: Don't prevent all vulnerabilities, but catch known patterns
@@ -441,6 +477,7 @@ Open-source projects are uniquely vulnerable to social engineering attacks:
 ### What if I get too many false positives?
 
 **Configure thresholds:**
+
 ```typescript
 missionIntegrity: {
   drift: {
@@ -450,6 +487,7 @@ missionIntegrity: {
 ```
 
 **Disable specific patterns:**
+
 ```typescript
 patterns: {
   ambiguityInjection: false,  // Too noisy for your project
@@ -457,6 +495,7 @@ patterns: {
 ```
 
 **Or disable entirely:**
+
 ```typescript
 security: {
   mode: 'off',
@@ -472,6 +511,7 @@ security: {
 Found a new attack pattern? Improve detection logic?
 
 **We welcome contributions:**
+
 - New pattern detectors (must be documented and transparent)
 - Improved thresholds (backed by data)
 - Better UX for alerts

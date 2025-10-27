@@ -10,13 +10,13 @@ The core principle is the creation and exchange of **verifiable understanding**.
 
 The Cognition Economy is comprised of several key actors, each with a distinct role and motivation:
 
-* **The Creators (or "Cognitive Miners"):** These are the pioneers of the ecosystem. They are individuals or organizations who expend significant resources—compute time, energy, and human expertise—to perform the initial "Genesis" process on a domain. Their output is a foundational, high-quality `.cogx` file that serves as the trusted starting point for a given subject (e.g., the Python standard library, the GDPR legal text).
+- **The Creators (or "Cognitive Miners"):** These are the pioneers of the ecosystem. They are individuals or organizations who expend significant resources—compute time, energy, and human expertise—to perform the initial "Genesis" process on a domain. Their output is a foundational, high-quality `.cogx` file that serves as the trusted starting point for a given subject (e.g., the Python standard library, the GDPR legal text).
 
-* **The Specialists:** These are domain experts who create and sell high-value, often proprietary, **Knowledge Overlays**. A cybersecurity firm, for example, would not run Genesis on a client's code for free. Instead, they sell a "Security Audit Overlay" as a verifiable, packaged product. Specialists leverage the foundational work of Creators to build and monetize their unique expertise.
+- **The Specialists:** These are domain experts who create and sell high-value, often proprietary, **Knowledge Overlays**. A cybersecurity firm, for example, would not run Genesis on a client's code for free. Instead, they sell a "Security Audit Overlay" as a verifiable, packaged product. Specialists leverage the foundational work of Creators to build and monetize their unique expertise.
 
-* **The Consumers:** These are developers, businesses, researchers, and other AI agents who need to solve problems within a specific domain. They pay to consume the assets created by Creators and Specialists. The economic calculus is simple: the cost of licensing a pre-existing `.cogx` file or Overlay is a tiny fraction of the cost, time, and risk of trying to build that understanding from scratch.
+- **The Consumers:** These are developers, businesses, researchers, and other AI agents who need to solve problems within a specific domain. They pay to consume the assets created by Creators and Specialists. The economic calculus is simple: the cost of licensing a pre-existing `.cogx` file or Overlay is a tiny fraction of the cost, time, and risk of trying to build that understanding from scratch.
 
-* **The Curators:** This is a role filled by both the community and automated protocols. Curators maintain the health and trustworthiness of the marketplace. They validate the quality of assets, rank Creators based on the proven AQS of their work, and help surface the most reliable and valuable knowledge, ensuring that excellence is visible and rewarded.
+- **The Curators:** This is a role filled by both the community and automated protocols. Curators maintain the health and trustworthiness of the marketplace. They validate the quality of assets, rank Creators based on the proven AQS of their work, and help surface the most reliable and valuable knowledge, ensuring that excellence is visible and rewarded.
 
 ## **3. The Verifiable Assets: A New Class of Digital Goods**
 
@@ -32,10 +32,10 @@ The Cognition Economy revolves around three primary classes of tradable, verifia
 
 For this economy to function, a marketplace is required. This would likely take the form of a public, decentralized ledger or repository where assets can be registered, discovered, and licensed. Such a registry would need to contain:
 
-* **Immutable Asset Linking:** The cryptographic hash of the asset (e.g., the root hash of a `.cogx` file).
-* **Verifiable Quality Metrics:** The AQS and Fidelity Factor (Phi) scores from the asset's creation process, providing a standardized, trustworthy measure of quality.
-* **Creator Identity:** A secure link to the identity of the Creator or Specialist.
-* **Licensing Terms:** The specific terms under which the asset can be consumed, including any fees.
+- **Immutable Asset Linking:** The cryptographic hash of the asset (e.g., the root hash of a `.cogx` file).
+- **Verifiable Quality Metrics:** The AQS and Fidelity Factor (Phi) scores from the asset's creation process, providing a standardized, trustworthy measure of quality.
+- **Creator Identity:** A secure link to the identity of the Creator or Specialist.
+- **Licensing Terms:** The specific terms under which the asset can be consumed, including any fees.
 
 This transparent and verifiable marketplace ensures that Consumers can trust the quality of the assets they are purchasing, and Creators are rewarded in direct proportion to the quality of the work they produce.
 

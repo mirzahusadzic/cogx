@@ -23,21 +23,21 @@ Given a verifiably constructed Grounded Context Pool (PGC) (Th. I), it is possib
 ### **2.3. Proof Part C: The Core Dynamic Functions**
 
 1. **[2.3.1] Definition of the Update Function (U):**
-    Let U be a function that takes a `change_event` as input and modifies the state of the `index`. It is defined by a recursive algorithm, `Invalidate`, which is initiated with the `object.hash` of the changed raw file.
-    * **The `Invalidate(object.hash)` function is defined as:**
-        1. Identify all transformations that depend on the input `object.hash`. This is achieved by a direct lookup in the `reverse_deps` index: let `dependent.transforms` be the result of g(object.hash).        2. For each `transform` in `dependent.transforms`:
-            a.  Identify all knowledge elements that were created by this transform by reading the `output.hashes` from the manifest of t.
-            b.  For each `hash.out` in `output.hashes`:
-                i.  Find the semantic `Path` p that currently points to this `hash.out` by querying the `index`.
-                ii. Update the record for this `Path` p in the `index`, setting its `status` to `Invalidated`.
-                iii. Recursively call `Invalidate(hash.out)` to continue the cascade.
+   Let U be a function that takes a `change_event` as input and modifies the state of the `index`. It is defined by a recursive algorithm, `Invalidate`, which is initiated with the `object.hash` of the changed raw file.
+   - **The `Invalidate(object.hash)` function is defined as:**
+     1. Identify all transformations that depend on the input `object.hash`. This is achieved by a direct lookup in the `reverse_deps` index: let `dependent.transforms` be the result of g(object.hash). 2. For each `transform` in `dependent.transforms`:
+        a. Identify all knowledge elements that were created by this transform by reading the `output.hashes` from the manifest of t.
+        b. For each `hash.out` in `output.hashes`:
+        i. Find the semantic `Path` p that currently points to this `hash.out` by querying the `index`.
+        ii. Update the record for this `Path` p in the `index`, setting its `status` to `Invalidated`.
+        iii. Recursively call `Invalidate(hash.out)` to continue the cascade.
 
 2. **[2.3.2] Definition of the Context Sampling Function (Sigma):**
-    Let Sigma be a function that takes a Pnew as input and returns a COGP. It is defined by a sequence of four distinct operations:
-    * **Deconstruction:** The initial Pnew is processed by an LLM Agent (ALLM) to produce a structured `query.analysis` containing the query's core `entities`, `intent`, and implied `persona`.
-    * **Anchor Identification:** The `index` is searched for `GK_e`s whose semantic `Path`s directly match the `entities` from the `query.analysis`. This yields a set of `anchors`.
-    * **Context Expansion:** A graph traversal algorithm, `Traversal`, is executed starting from the `anchors`. This algorithm navigates the PGC by moving upward (to parent summaries), downward (to component members), sideways (by following dependency links in `transforms`), and horizontally (across overlays), collecting a set of `candidates`.
-    * **Optimal Composition:** The final COGP is constructed by selecting a subset of the `candidates` that solves an optimization problem: maximizing the total `relevance` to the `query.analysis` while staying within a pre-defined `token_budget`.
+   Let Sigma be a function that takes a Pnew as input and returns a COGP. It is defined by a sequence of four distinct operations:
+   - **Deconstruction:** The initial Pnew is processed by an LLM Agent (ALLM) to produce a structured `query.analysis` containing the query's core `entities`, `intent`, and implied `persona`.
+   - **Anchor Identification:** The `index` is searched for `GK_e`s whose semantic `Path`s directly match the `entities` from the `query.analysis`. This yields a set of `anchors`.
+   - **Context Expansion:** A graph traversal algorithm, `Traversal`, is executed starting from the `anchors`. This algorithm navigates the PGC by moving upward (to parent summaries), downward (to component members), sideways (by following dependency links in `transforms`), and horizontally (across overlays), collecting a set of `candidates`.
+   - **Optimal Composition:** The final COGP is constructed by selecting a subset of the `candidates` that solves an optimization problem: maximizing the total `relevance` to the `query.analysis` while staying within a pre-defined `token_budget`.
 
 ### **2.4. Proof Part D: The Closed Loop of Context Plasticity**
 
