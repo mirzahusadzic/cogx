@@ -1363,7 +1363,7 @@ This repository constitutes a **formal defensive publication** establishing prio
 
 1. **Knowledge as Mathematical Lattice** — Representing knowledge with meet (∧) and join (∨) operations over partially ordered sets
 2. **Goal→Transform→Oracle Pattern** — Universal pattern for verifiable AI transformations with cryptographic validation
-3. **Probably Grounded Cognition (PGC)** — Content-addressable knowledge graph with verifiable provenance
+3. **Grounded Context Pool (PGC)** — Content-addressable knowledge graph with verifiable provenance
 4. **Structural Mining Pipeline** — Multi-tier code understanding (Native AST → eGemma → SLM → LLM fallbacks)
 5. **N-Dimensional Overlay System** — Multiple knowledge dimensions (structural, temporal, k overlays) with vector embeddings
 6. **Meta-Cognitive Self-Analysis** — AI system analyzing its own architecture using only metadata
@@ -1379,13 +1379,30 @@ This repository constitutes a **formal defensive publication** establishing prio
 11. **The Historian Pattern** — O(1) provenance lookup via `reverse_deps` index mapping object hashes to transform IDs
 12. **Self-Defending Lattice Architecture** — Mathematical resistance to adversarial overlays through transform validation
 
-#### Mission Drift Security (Innovations #16-18)
+#### Strategic Intelligence (Innovations #13-24)
 
 **Published**: October 26, 2025
 
-16. **Mission Integrity Monitoring** — Immutable audit trail of strategic document versions with semantic fingerprinting via embedding centroids
-17. **Semantic Drift Detection** — Embedding-based detection of gradual mission poisoning through 6 transparent pattern detectors (security weakening, trust erosion, permission creep, ambiguity injection, velocity over safety, error tolerance)
-18. **Advisory Security Model** — Defense-in-depth against lattice-based alignment attacks with user-configurable modes (off/advisory/strict) and no telemetry
+13. **Documentation as Knowledge Layer** — Markdown AST → content-addressable PGC objects
+14. **O₃ Layer (Mission Concepts)** — Pattern-based extraction with recursive meta-cognition
+15. **O₄ Layer (Strategic Coherence)** — Vector similarity scoring between code and strategic documents
+16. **6-Pattern Extraction System** — Blockquotes, headers, bullets, bold, emoji, quoted phrases
+17. **Recursive Meta-Cognition** — System understanding its own methodology through concept extraction
+18. **Semantic Drift Detection** — Immutable versioning with cosine distance on concept embedding centroids
+19. **5-Pattern Attack Detection** — Security weakening, trust erosion, permission creep, ambiguity injection, velocity over safety
+20. **Multi-Layer Mission Security** — Gemini LLM (Layer 1A) + Pattern matching (Layer 1B) + Semantic drift (Layer 2)
+21. **Immutable Version Storage** — Content-addressable strategic document history with concept embeddings
+22. **DocsOracle** — Document integrity validation with content-addressable storage
+23. **Markdown Parser with Meta Properties** — Hierarchical AST with structuralHash and position tracking
+24. **Overlay Invalidation System** — Automatic cascade invalidation of dependent overlays
+
+#### Post-Publication Additions (Innovation #25)
+
+**Published**: October 27, 2025
+
+25. **Context Sampling Function (Σ)** — Efficient lattice traversal for relevant knowledge extraction (emerged through Claude Code integration)
+
+---
 
 **Threat Model**: Defends against supply chain attacks that exploit AI-assisted development by gradually poisoning strategic documents through plausible pull requests. See [`docs/MISSION_DRIFT_ATTACKS.md`](docs/MISSION_DRIFT_ATTACKS.md) for detailed threat analysis.
 
@@ -1395,20 +1412,13 @@ This repository constitutes a **formal defensive publication** establishing prio
 
 **Learn more**: [`docs/SECURITY_ARCHITECTURE.md`](docs/SECURITY_ARCHITECTURE.md)
 
-#### Strategic Intelligence (Innovations #13-15)
-
-**Published**: October 26, 2025
-
-13. **Documentation as Knowledge Layer** — Treating markdown documentation as content-addressable PGC objects with provenance tracking
-14. **Strategic Coherence Overlay** — Semantic alignment scoring between code structure and documented mission/vision
-15. **Mission-Aware Impact Analysis** — Near-realtime AI fine-tuning (1-3 second latency) enabling strategic reasoning beyond tactical analysis
-
 ---
 
 ### Publication Details
 
 - **Initial Publication Date**: October 24, 2025 (Meta-cognitive proof)
-- **Comprehensive Publication Date**: October 26, 2025 (All 15 innovations)
+- **Comprehensive Publication Date**: October 26, 2025 (Innovations #1-24)
+- **Post-Publication Additions**: October 27, 2025 (Innovation #25)
 - **Public Repository**: https://github.com/mirzahusadzic/cogx
 - **Permanent Archive**: Zenodo DOI [10.5281/zenodo.17453691](https://doi.org/10.5281/zenodo.17453691)
 - **License**: AGPLv3 (entire repository — code, documentation, blueprints)
