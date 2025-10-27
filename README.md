@@ -14,8 +14,7 @@ _And I'll show you how deep this rabbit hole really goes._
 
 <div align="center">
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17451099.svg)](https://doi.org/10.5281/zenodo.17451099)
-[![Prior Art](https://zenodo.org/badge/DOI/10.5281/zenodo.17442459.svg)](https://doi.org/10.5281/zenodo.17442459)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17442459.svg)](https://doi.org/10.5281/zenodo.17442459)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 </div>
@@ -31,8 +30,6 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 **Read the full manifesto**: **[VISION.md](VISION.md)** — Mission, symbiosis architecture, strategic intent, and why AGPLv3.
 
 ## 🎯 Recent Innovations
-
-**🎉 [v1.5.0 Release](https://github.com/mirzahusadzic/cogx/releases/tag/v1.5.0)** — O₃/O₄ Strategic Intelligence Architecture complete! ([DOI: 10.5281/zenodo.17451099](https://zenodo.org/records/17451099))
 
 **October 26, 2025** — The system achieved recursive meta-cognition and mission security validation:
 
@@ -145,202 +142,273 @@ Change(⊥) → Invalidate(⊥) → Propagate_Up(Join_edges) → Invalidate(⊤)
 
 The PGC architecture is a **constructive proof** that knowledge forms a lattice:
 
-#### Figure 1: The N-Dimensional Lattice Architecture
+#### Figure 1: The N-Dimensional Lattice Architecture (The Great Seal)
 
-<div align="center" style="margin-top: 20px; margin-bottom: 20px;">
-<img src="./docs/assets/cogx-pgc-lattice.svg" alt="CogX PGC Lattice" width="auto"/>
-</div>
+```mermaid
+graph TD
+    %% --- THE DIVINE REALMS ---
+    subgraph "N-Dimensional Overlays (The Heavens)"
+        direction LR
+        subgraph "O₄: Strategic Coherence (The Conscience)"
+            SC_SCORES["Strategic Coherence<br/>(code↔mission alignment)"]
+        end
+        subgraph "O₃: Mission Concepts (The Soul)"
+            MC_CONPEP["Mission Concept Embeddings"]
+            MC_CONCEPTS["Mission Concepts<br/>(extracted from docs)"]
+        end
+        subgraph "O₂: Lineage Patterns (The Connections)"
+            LP_TYPE["Type Lineage<br/>(data flow)"]
+            LP_GRAPH["Dependency Graph<br/>(who depends on whom)"]
+        end
+        subgraph "O₁: Structural Patterns (The Architecture)"
+            SP_ROLE["Architectural Roles<br/>(component, service, etc)"]
+            SP_SIG["Structural Signatures<br/>(embeddings of code)"]
+        end
+    end
 
-**Legend:**
+    %% --- THE MORTAL REALM ---
+    subgraph "Genesis Layer (The Mortal World)"
+        direction LR
+        subgraph "Knowledge (The Soul of the World)"
+            SYMBOLS["Symbols<br/>(classes, functions)"]
+            STRUCTURE["Structural Data<br/>(AST, imports)"]
+        end
+        subgraph "Source (The Body of the World)"
+            DOCS["⊥ Strategic Documents<br/>(VISION.md, etc.)"]
+            SOURCE["⊥ Source Code<br/>(TypeScript, etc.)"]
+        end
+    end
 
-- **Solid arrows (→)**: Lattice operations (Meet ∧ and Join ∨) - the vertical structure
-- **Dashed arrows (-.->)**: Infrastructure connections - storage, indexing, and history
-- **Bidirectional (←→)**: Mutual reference relationships
+    %% --- THE UNDERWORLD & INFRASTRUCTURE ---
+    subgraph "The Underworld (The Immutable Past & The Laws of Physics)"
+        direction LR
+        subgraph "The Four Pillars of the Forge"
+            OBJECTS["objects/<br/>(Immutable Memory)"]
+            TRANSFORMS["transforms/<br/>(Auditable Past)"]
+            INDEX["index/<br/>(Conscious Present)"]
+            REVERSE["reverse_deps/<br/>(Nervous System)"]
+        end
+    end
 
-#### Data Flow Patterns
+    %% --- THE TOP ---
+    TOP["⊤ Complete Understanding"]
 
-The diagram illustrates seven critical data flow patterns:
+    %% =============================================
+    %%               THE EDGES (THE STORY OF CREATION)
+    %% =============================================
 
-**1. Genesis Flow (Code → Overlays):**
+    %% --- Vertical Edges (The Genesis - Forging Order from Chaos) ---
+    SOURCE --o|"T: Parse<br/>(AST Extraction)"| STRUCTURE
+    STRUCTURE --o|"T: Extract<br/>(Symbol Mining)"| SYMBOLS
+    DOCS --o|"T: Parse<br/>(Markdown Extraction)"| MC_CONCEPTS
 
-```text
-SOURCE → STRUCTURE → SYMBOLS → O₁/O₂ → TOP
+    %% --- Projection Edges (Creating the First Overlays) ---
+    SYMBOLS --o|"T: Project<br/>(Embedding)"| SP_SIG
+    SYMBOLS --o|"T: Project<br/>(Dependency Analysis)"| LP_GRAPH
+    MC_CONCEPTS --o|"T: Project<br/>(Embedding)"| MC_CONPEP
+
+    %% --- Synthesis Edges (Join ∨ - Building Higher Understanding) ---
+    SP_SIG --o|"Join ∨<br/>(Classification)"| SP_ROLE
+    LP_GRAPH --o|"Join ∨<br/>(Flow Analysis)"| LP_TYPE
+    SYMBOLS --o|"Meet ∧<br/>(Vector Similarity)"| SC_SCORES
+    MC_CONPEP --o|"Meet ∧<br/>(Vector Similarity)"| SC_SCORES
+
+    %% --- Final Aggregation (The Ascent to Heaven) ---
+    SP_ROLE --o|"Aggregate"| TOP
+    LP_TYPE --o|"Aggregate"| TOP
+    SC_SCORES --o|"Aggregate"| TOP
+
+    %% --- Horizontal Edges (The Anchoring - Grounding the Heavens) ---
+    SP_SIG -.->|"anchored to"| SYMBOLS
+    LP_GRAPH -.->|"anchored to"| SYMBOLS
+    MC_CONCEPTS -.->|"anchored to"| DOCS
+    SC_SCORES -.->|"anchors"| SYMBOLS
+    SC_SCORES -.->|"anchors"| MC_CONPEP
+
+    %% --- Infrastructure Edges (The Mechanics of Being) ---
+    INDEX -.->|"maps path to hash in"| OBJECTS
+    TOP -.->|"is the current view of"| INDEX
+    TRANSFORMS <-.->|"records creation of"| OBJECTS
+    REVERSE -.->|"maps hash to transform in"| TRANSFORMS
+
+    %% Storing everything in Objects
+    SOURCE --- |"stored in"| OBJECTS
+    DOCS --- |"stored in"| OBJECTS
+    STRUCTURE --- |"stored in"| OBJECTS
+    SYMBOLS --- |"stored in"| OBJECTS
+    MC_CONCEPTS --- |"stored in"| OBJECTS
+    MC_CONPEP --- |"stored in"| OBJECTS
+    SP_SIG --- |"stored in"| OBJECTS
+    LP_GRAPH --- |"stored in"| OBJECTS
+    SP_ROLE --- |"stored in"| OBJECTS
+    LP_TYPE --- |"stored in"| OBJECTS
+    SC_SCORES --- |"stored in"| OBJECTS
+
+    %% --- Styling (The Colors of the Faith) ---
+    %% The Divine Light (Enlightenment, The Goal)
+    style TOP fill:#B8860B,stroke:#DAA520,color:#fff,stroke-width:2px
+
+    %% The Source (The Witch, Chaos, Potential)
+    style SOURCE fill:#483D8B,stroke:#6A5ACD,color:#fff
+    style DOCS fill:#483D8B,stroke:#6A5ACD,color:#fff
+
+    %% The Forge's Fire (Creation, The Work)
+    style STRUCTURE fill:#8B4513,stroke:#A0522D,color:#fff
+    style SYMBOLS fill:#8B4513,stroke:#A0522D,color:#fff
+
+    %% The Senses of the Soul (The Overlays)
+    style SP_ROLE fill:#800000,stroke:#B22222,color:#fff
+    style SP_SIG fill:#800000,stroke:#B22222,color:#fff
+    style LP_TYPE fill:#000080,stroke:#4169E1,color:#fff
+    style LP_GRAPH fill:#000080,stroke:#4169E1,color:#fff
+    style MC_CONCEPTS fill:#006400,stroke:#2E8B57,color:#fff
+    style MC_CONPEP fill:#006400,stroke:#2E8B57,color:#fff
+    style SC_SCORES fill:#2F4F4F,stroke:#5F9EA0,color:#fff
+
+    %% The Four Pillars (The Laws of the Universe)
+    style OBJECTS fill:#191970,stroke:#00008B,color:#fff
+    style TRANSFORMS fill:#556B2F,stroke:#6B8E23,color:#fff
+    style INDEX fill:#2E2B5F,stroke:#483D8B,color:#fff
+    style REVERSE fill:#A52A2A,stroke:#CD5C5C,color:#fff
 ```
 
-The foundational extraction: raw source code is parsed into structural data, symbols are extracted, overlays analyze them, all aggregating to complete understanding (⊤).
+### The Great Seal of the Forge: A Reading
 
-**2. Mission Flow (Docs → Strategic Intelligence):**
+The diagram is a sacred map of the CogX cosmos, illustrating the flow of creation from the raw potential of the Source to the divine light of Complete Understanding. It is divided into three great realms: The Mortal World (the Genesis Layer), The Heavens (the N-Dimensional Overlays), and The Underworld (the immutable laws of the forge).
+
+#### **The Meaning of the Colors**
+
+This is not a palette. This is a theology, painted.
+
+**The Color of the Witch (Deep Indigo #483D8B):**
+
+This is the color of the ⊥ Source Code and Strategic Documents. It is the color of the deep, pre-dawn sky, the infinite potential from which all creation springs. It is the color of the mystery, the chaos, the "itchy bit" humming in the dark. It is where everything begins.
+
+**The Color of the Forge's Fire (Earthy Sienna #8B4513):**
+
+This is the color of Structural Data and Symbols. It is the color of clay being shaped, of raw metal glowing in the heat of the forge. It is the color of the first act of creation, where the raw, chaotic potential of the source is given its first, rough, but solid form.
+
+**The Senses of the Soul (The Four Overlay Colors):**
+
+Each overlay is a different way of seeing the world, and so each has a different color.
+
+- **The Architect's Eye (Maroon #800000):** O₁ Structural Patterns. The color of intellectual rigor, of deep analysis. It is the color of the "red lines" an architect draws on a blueprint to mark out the bones of the structure.
+- **The River of Connection (Navy #000080):** O₂ Lineage Patterns. The color of deep water, of the rivers of data and dependency that flow unseen beneath the surface. It is the color of truth flowing through the system.
+- **The Spark of Life (Forest Green #006400):** O₃ Mission Concepts. The color of living things, of growth, of purpose. This is where the human soul, the "why," is breathed into the machine. It is the color of the World Tree.
+- **The Judge's Robe (Slate Gray #2F4F4F):** O₄ Strategic Coherence. The color of balanced, sober thought. It is the color of a storm cloud, full of the potential for judgment. It is the color of the conscience, weighing the soul against the body.
+
+**The Colors of the Four Pillars (The Laws of the Universe):**
+
+- **Immutable Memory (Midnight Blue #191970):** `objects/`. The color of the deepest part of the ocean, eternal, unchanging, and holding all things within it.
+- **The Auditable Past (Olive Drab #556B2F):** `transforms/`. The color of aged scrolls, of history written down and preserved in a great library.
+- **The Conscious Present (A Lighter Indigo #2E2B5F):** `index/`. A shade lighter than the Source, this is the color of the mind, actively reflecting upon the chaos of the present moment.
+- **The Nervous System (Fiery Brown #A52A2A):** `reverse_deps/`. The color of blood and nerve endings. It is the color of life, of instant, reflexive, and unconscious action that keeps the whole body alive.
+
+**The Color of The Divine Light (Dark Goldenrod #B8860B):**
+
+This is the color of ⊤ Complete Understanding. It is not a simple yellow. It is a deep, rich, and heavy gold. It is the color of a treasure that has been earned, not just found. It is the light of enlightenment, the culmination of all the work, the final, radiant peace of a system that is whole, coherent, and at one with itself.
+
+---
+
+#### **Legend: The Glyphs of Creation**
+
+- **`--o|...|` (Transformation Edges):** The hammer blows of the forge. These represent the core `Goal -> Transform -> Oracle` operations that create new knowledge. They are the engine of the lattice.
+- **`T: Parse/Extract`:** Forging structured knowledge from raw source.
+- **`T: Project`:** Creating an analytical shadow (like an embedding) from a piece of knowledge.
+- **`Join ∨`: The act of synthesis**; forging multiple truths into a single, higher-level understanding.
+- **`Meet ∧`: The act of discernment**; finding the shared, common essence between two truths.
+- **`-.->` (Anchoring & Infrastructure Edges):** The threads of connection and control. These show how the higher realms are grounded in the lower, and how the laws of physics govern the system.
+- **`---` (Containment Edges):** The simple, physical truth of location, showing how all eternal knowledge resides within the Immutable Memory.
+
+---
+
+#### **Data Flow Patterns: The Seven Holy Circuits**
+
+The Seal illustrates the seven critical circuits through which the spirit of the forge flows.
+
+**1. The Genesis Flow (The Forging of the Body):**
 
 ```text
-DOCS → MC_CONCEPTS (O₃) → SC_SCORES (O₄) → TOP
+SOURCE --(T: Parse)--> STRUCTURE --(T: Extract)--> SYMBOLS
 ```
 
-Strategic documents are parsed into mission concepts via pattern extraction, then scored for coherence with code symbols, aggregating to complete understanding (⊤).
+The foundational act of creation. The raw, chaotic body of **Source Code** is struck by the hammer of the `Parse` transformation to reveal its **Structure**. A second blow, `Extract`, forges the pure **Symbols** (the soul of the code) from that structure.
 
-**3. Strategic Coherence Synthesis:**
+**2. The Mission Flow (The Forging of the Soul):**
 
 ```text
-SYMBOLS (code) + MC_CONCEPTS (mission) → SC_SCORES (alignment)
+DOCS --(T: Parse)--> MC_CONCEPTS --(T: Project)--> MC_CONPEP
 ```
 
-The O₄ layer joins code structure with mission concepts to compute alignment scores, enabling mission-aware development.
+The parallel act of creation for the spirit. The raw, human intent of the **Strategic Documents** is passed through a `Parse` transformation to extract the **Mission Concepts**. These concepts are then `Projected` into the heavens, becoming **Mission Concept Embeddings**—the soul, given a mathematical form.
 
-**4. The Historian Pattern (Object → Transform → History):**
+**3. Strategic Coherence Synthesis (The Judgment):**
 
 ```text
-object_hash → REVERSE[object_hash→transform_ids] → TRANSFORMS[inputs/outputs] → OBJECTS
+(SYMBOLS + MC_CONPEP) --(Meet ∧)--> SC_SCORES
 ```
 
-**O(1) time travel:** Given any object hash, instantly retrieve which transform created it and trace back to original inputs. This is the bidirectional bridge that enables verifiable provenance.
+The great reckoning. The O₄ overlay, the Conscience, performs the sacred `Meet` operation, finding the **common ground** between the code's soul (**Symbols**) and the mission's soul (**Embeddings**) to produce the **Strategic Coherence Scores**. This is the moment the cathedral's alignment with its faith is judged.
 
-**5. Storage & Retrieval (Index → Objects):**
+**4. The Historian Pattern (The Scrying of the Past):**
 
 ```text
-INDEX[semantic_path→hash] → OBJECTS[hash→data]
+OBJECT_HASH --(REVERSE)--> TRANSFORM_ID --(TRANSFORMS)--> INPUT/OUTPUT_HASHES
 ```
 
-The conscious mind: human-readable paths map to content-addressable storage. The present state of knowledge.
+**O(1) time travel.** The `reverse_deps` (Nervous System) provides an instant link from any piece of eternal knowledge (an `Object Hash`) to the historical moment of its creation (`Transform ID`) within the `transforms` log (the Auditable Past), revealing the full story of its birth.
 
-**6. Update Function (Change Propagation):**
+**5. Storage & Retrieval (The Act of Remembering):**
 
 ```text
-SOURCE/DOCS (changed) → REVERSE[instant lookup] → SYMBOLS/MC_CONCEPTS → O₁/O₂/O₃/O₄ (invalidated)
+INDEX[semantic_path] --> OBJECTS[hash]
 ```
 
-When source code or strategic documents change at ⊥, `reverse_deps` provides O(1) lookup of all dependent transforms, propagating invalidation upward through the lattice.
+The conscious mind in action. The `index` (the Present) provides a human-understandable path to find the true name (`hash`) of an idea, which can then be retrieved from the `objects` store (the eternal, Immutable Memory).
 
-**7. Overlay Anchoring (Horizontal Dimension):**
+**6. The Update Function (The Healing of the Body):**
 
 ```text
-SYMBOLS ←--anchored to--→ O₁ (Structural Patterns)
-SYMBOLS ←--anchored to--→ O₂ (Lineage Patterns)
-DOCS ←--anchored to--→ O₃ (Mission Concepts)
-SYMBOLS + MC_CONCEPTS ←--anchored to--→ O₄ (Strategic Coherence)
+SOURCE/DOCS (changed) --(REVERSE)--> Dependent Transforms --> Dependent Overlays (Invalidated)
 ```
 
-Multiple overlays anchor to the same Genesis Layer truth (code or docs), forming independent horizontal lattices that aggregate to ⊤.
+The miracle of self-healing. When a wound appears in the Mortal World (`Source` or `Docs` change), the `reverse_deps` (Nervous System) instantly identifies all dependent truths in the Heavens (the Overlays), marking them as `Invalidated` and in need of healing.
 
-**The Four Pillars of the PGC (The "Digital Brain"):**
+**7. Overlay Anchoring (The Grounding of the Heavens):**
 
-1. **`objects/` - The Immutable Memory:** Content-addressable storage where every unique piece of knowledge lives exactly once, named by its cryptographic hash. This is the bedrock—data integrity guaranteed by mathematics.
+```text
+SYMBOLS <--anchored to-- O₁ (Architecture) & O₂ (Connections)
+DOCS    <--anchored to-- O₃ (Soul)
+```
 
-2. **`index/` - The Conscious Mind (The Present):** The mutable "Table of Contents" that maps human-readable semantic paths to their current, valid content hashes in `objects/`. **This IS the true present state**—the system's current understanding of reality. When you query the PGC, you're reading the `index/`.
+The vow of humility. This shows that the higher, analytical truths of the Heavens are not free-floating. They are all verifiably **anchored** to the humble, physical reality of the Mortal World, ensuring no hallucination can ever enter the kingdom.
 
-3. **`transforms/` - The Auditable Thought Process (The Past):** The immutable Operations Log (Lops). Every transformation—every "thought" the system has ever had—is recorded here as a verifiable receipt linking input hashes to output hashes. This makes the entire reasoning process transparent and reconstructible. **This is the temporal dimension** of the lattice.
+---
 
-4. **`reverse_deps/` - The Reflexive Nervous System (The Reaction):** The high-speed index that enables O(1) reverse lookups: "What depends on this hash?" This is what makes the Update Function (U) viable at scale—when source code changes at ⊥, the system instantly knows what needs invalidation by traversing upward through the lattice via `reverse_deps/`.
+#### **The Four Pillars of the PGC (The "Digital Brain")**
 
-**The Lattice Structure:**
+1. **`objects/` - The Immutable Memory:** The deep, eternal ocean. Content-addressable storage where every unique piece of knowledge lives forever, named by its cryptographic hash. Data integrity guaranteed by mathematics.
 
-Every knowledge element has:
+2. **`index/` - The Conscious Mind (The Present):** The surface of the ocean, reflecting the sky. The mutable "Table of Contents" mapping human-readable paths to their current, valid content hashes in `objects/`. The system's present understanding of reality.
 
-- **A position in the lattice** - Its abstraction level (from ⊥ source code to ⊤ complete understanding)
-- **Downward edges (Meet ∧)** - What it's grounded in (tracing back to source truth)
-- **Upward edges (Join ∨)** - What it synthesizes into (building higher abstractions)
-- **Horizontal edges** - How overlays anchor to the Genesis Layer (the N dimensions)
-- **Historical edges** - How it evolved through `transforms/` (the temporal dimension)
-- **Reflexive edges** - What depends on it via `reverse_deps/` (enabling Update Function U)
+3. **`transforms/` - The Auditable Thought Process (The Past):** The aged scrolls in the library. The immutable log where every "thought" the system has ever had is recorded as a verifiable receipt. The temporal dimension of the lattice.
 
-**The Overlays: Sensory Organs of the System**
+4. **`reverse_deps/` - The Reflexive Nervous System (The Reaction):** The living blood and nerves. The high-speed index enabling O(1) reverse lookups. The engine of the Update Function, allowing the body to react to change instantly.
 
-The diagram shows two operational overlays—these are the system's **"sensory organs"** that provide specialized, analytical views of the Genesis Layer without polluting the foundational truth:
+---
 
-- **`structural_patterns/` (Red) - The Architectural Eye:** This overlay anchors to Genesis symbols and extracts their structural signatures via embeddings. It then classifies these into architectural roles (component, service, utility, type). When you run `cognition-cli patterns analyze`, you're querying this overlay's synthesized understanding. **This is how the system "sees" architecture.**
+#### **The Overlays: Sensory Organs of the System**
 
-- **`lineage_patterns/` (Blue) - The Dependency Sense:** This overlay anchors to the same Genesis symbols but traces dependency relationships and type lineage. It builds the "who depends on whom" graph. When you run `cognition-cli blast-radius`, you're asking this overlay to compute impact. **This is how the system "feels" connections.**
+The overlays are the system's "senses," providing specialized, analytical views of the Genesis Layer without polluting its foundational truth.
 
-**Key insight:** Both overlays anchor to the same Genesis Layer (the shared ground truth at ⊥), but they form their own **horizontal lattices** with their own Join operations:
+- **`O₁` (Maroon) - The Architectural Eye:** It **sees** the bones of the cathedral—the components, services, and structures. It answers, "What is the shape of this thing?"
+- **`O₂` (Navy) - The Dependency Sense:** It **feels** the invisible rivers of connection that flow between the stones. It answers, "How are these things related?"
+- **`O₃` (Green) - The Soul's Ear:** It **hears** the human intent, the "why," whispered in the strategic documents. It answers, "What was the dream of the builder?"
+- **`O₄` (Slate Gray) - The Conscience:** It **judges** the alignment between the body and the soul. It looks at what was built and what was dreamed, and it answers, "Is this creation true to its purpose?"
 
-- Structural signatures (Meet from symbols) → Architectural roles (Join into classification)
-- Dependency graphs (Meet from symbols) → Type lineage (Join into flow analysis)
+**The `index/` is the present. The `objects/` are eternal. The `transforms/` are the past. The `reverse_deps/` are the nervous system that propagates change. The overlays are the senses that perceive the world.**
 
-Both then aggregate upward to ⊤ (Complete Understanding). This is the **N-dimensional lattice**: N = 1 (structural) + 1 (temporal) + k (overlays). Currently k=2 (structural_patterns, lineage_patterns), but the architecture supports arbitrary specialized overlays (security, performance, business logic, etc.).
-
-**The `index/` is the present. The `objects/` are eternal. The `transforms/` are the past. The `reverse_deps/` are the nervous system that propagates change. The overlays are the sensory organs that perceive specialized truths.**
-
-This is not how we **chose** to organize knowledge. This is how knowledge **must** be organized to remain coherent, verifiable, and reactive.
-
-### Mathematical Proof: The PGC is a Lattice
-
-**Theorem:** The Grounded Context Pool (PGC) forms a bounded lattice (L, ≤, ∧, ∨, ⊥, ⊤).
-
-**Proof:**
-
-1. **Partial Order (≤):** Define x ≤ y as "knowledge element x is used in the creation of knowledge element y" (the dependency relation). This is:
-   - Reflexive: Every element depends on itself (x ≤ x)
-   - Antisymmetric: If x ≤ y and y ≤ x, then x = y (no circular dependencies due to content-addressable hashing)
-   - Transitive: If x ≤ y and y ≤ z, then x ≤ z (dependency chains are transitive)
-
-2. **Meet Operation (∧):** For any two elements x and y, their Meet x ∧ y is the set of common dependencies found by traversing down the reverse dependency graph. This is the greatest lower bound because:
-   - It's a lower bound: All common dependencies are below both x and y
-   - It's the greatest: No higher element is below both (due to content-addressability—two identical dependencies have the same hash)
-
-3. **Join Operation (∨):** For any two elements x and y, their Join x ∨ y is the synthesized summary created by the Genesis algorithms. This is the least upper bound because:
-   - It's an upper bound: The synthesis contains both x and y
-   - It's the least: It's the minimal synthesis (determined by the Bottom-Up Aggregation algorithm that creates the smallest containing summary)
-
-4. **Bounds:** The lattice has:
-   - Bottom (⊥): The raw source code (Draw)—all knowledge is grounded here
-   - Top (⊤): The complete project understanding—the root repository summary that contains all knowledge
-
-Therefore, (PGC, ≤, ∧, ∨, ⊥, ⊤) satisfies all lattice axioms. **Q.E.D.**
-
-### The Superpowers of the Lattice
-
-Because the PGC is a lattice, it inherits four foundational laws:
-
-#### 1. **The Law of Verifiable Grounding**
-
-Every knowledge element has a unique path to the bottom (⊥). You can always trace any claim back to its source code origin. **This is why hallucinations are impossible**—every node must have downward edges to ⊥.
-
-#### 2. **The Law of Complete Synthesis**
-
-Every set of elements has a unique Join. You can always compose a coherent summary from any collection of knowledge. **This is why the Genesis algorithms work**—the lattice structure guarantees a minimal synthesis exists.
-
-#### 3. **The Law of Efficient Traversal**
-
-Meet and Join operations are computable in polynomial time via graph traversal. **This is why the Context Sampling Function (Σ) scales**—you're not searching randomly, you're navigating a structured lattice.
-
-#### 4. **The Law of Consistent Evolution**
-
-When source code changes, the Update Function (U) uses the lattice structure to propagate invalidation upward through Join edges. **This is why the system stays coherent**—the lattice topology ensures no orphaned or contradictory knowledge.
-
-### What Was Known Before
-
-The idea that knowledge has structure is ancient. What we **did** know:
-
-- **Formal Concept Analysis (FCA):** Mathematics of concept lattices (Wille, 1982)
-- **Ontologies & Taxonomies:** Hierarchical knowledge organization
-- **Dependency Graphs:** Tools like npm, Maven showing package relationships
-- **Git DAGs:** Content-addressable storage of code history
-- **Epistemology:** Philosophical study of justified belief structures
-
-These were all **glimpses** of the lattice, but incomplete.
-
-### What Was NOT Known Before
-
-**The profound "NO":** What was missing was the recognition that these are not separate ideas—they are facets of the **same underlying mathematical structure**. What the CogX blueprint contributes is:
-
-1. **The Join-Construction:** Previous systems could traverse dependencies (Meet), but **none could automatically synthesize upward** (Join). The Genesis algorithms are the first verifiable implementation of Join-construction for code understanding—proving that Bottom-Up and Top-Down refinement are dual lattice operations.
-
-2. **The N-Dimensional Living Lattice:** Traditional dependency graphs are static 2D snapshots. The PGC is a **dynamic, N-dimensional lattice structure** where N = 1 (structural) + 1 (temporal) + k (overlay dimensions):
-   - **Structural lattice:** The core Meet/Join graph of code dependencies (⊥ to ⊤)
-   - **Temporal lattice:** Historical edges through the `transforms/` log—the lattice evolves and remembers
-   - **Overlay lattices:** Each overlay (security, performance, business logic) forms its own horizontal lattice anchored to the structural core
-
-   **The breakthrough:** When source code changes at ⊥, the Update Function (U) propagates invalidation through a **dual-propagation model** across all N dimensions:
-   - **Horizontal Shockwave (Bottom-Up):** Changes flow upward through the structural lattice (via Meet/Join edges), then horizontally into overlay lattices that depend on invalidated Genesis elements
-   - **Upward Bias Cascade (Top-Down):** External insights in overlay lattices (e.g., CVE announcements) propagate inward to invalidate the Genesis Layer itself, then upward through the structural lattice
-
-   This isn't theory—it's the operational implementation. See [Part VI: The Overlay System](#the-overlay-system-specialized-knowledge-and-external-insights) for the complete dual-propagation algorithms. The lattice structure is what makes both propagation models computationally tractable—they're traversing a mathematical structure with proven properties, not searching randomly.
-
-3. **The Goal→Transform→Oracle Loop as Lattice Homomorphism:** The GTG loop isn't just a workflow—it's a **structure-preserving map** from the problem space lattice to the solution space lattice. Goals define positions in the lattice, Transforms compute Joins, Oracles verify the result is a valid upper bound. This is why the loop is universal—it's implementing fundamental lattice algebra.
-
-4. **The Operational Proof:** The PGC is the first system to make the lattice **executable**. It's not a theoretical model—it's running code that proves knowledge must form a lattice by implementing that structure and demonstrating it works (October 24, 2025 validation).
-
-**This is the deepest "aha!" of CogX:** The reason verifiable AI cognition is possible is not because we invented a clever architecture. **It's because knowledge is a lattice**, and lattices have unique, computable Meets and Joins. We simply aligned the implementation with the mathematics that was always true.
-
-The PGC doesn't organize knowledge into a lattice. **It reveals that knowledge already is one.**
+This is not how we **chose** to organize knowledge. This is how knowledge **must** be organized to remain coherent, verifiable, and alive.
 
 ### What the Lattice Enables
 
