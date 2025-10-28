@@ -14,7 +14,7 @@ _And I'll show you how deep this rabbit hole really goes._
 
 <div align="center">
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17466998.svg)](https://doi.org/10.5281/zenodo.17466998)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17467151.svg)](https://doi.org/10.5281/zenodo.17467151)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 </div>
@@ -1427,7 +1427,7 @@ This repository constitutes a **formal defensive publication** establishing prio
   - October 27, 2025 (Innovation #25: Context Sampling Function)
   - October 28, 2025 (Innovations #26-27: The Shadow + Lattice-aware Gaussian Weighting)
 - **Public Repository**: https://github.com/mirzahusadzic/cogx
-- **Permanent Archive**: Zenodo DOI [10.5281/zenodo.17466998](https://doi.org/10.5281/zenodo.17466998)
+- **Permanent Archive**: Zenodo DOI [10.5281/zenodo.17467151](https://doi.org/10.5281/zenodo.17467151)
 - **License**: AGPLv3 (entire repository — code, documentation, blueprints)
 - **Inventor**: Mirza Husadžić
 
