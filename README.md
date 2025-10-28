@@ -14,7 +14,7 @@ _And I'll show you how deep this rabbit hole really goes._
 
 <div align="center">
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17453691.svg)](https://doi.org/10.5281/zenodo.17453691)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17466998.svg)](https://doi.org/10.5281/zenodo.17466998)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 </div>
@@ -1396,11 +1396,16 @@ This repository constitutes a **formal defensive publication** establishing prio
 23. **Markdown Parser with Meta Properties** — Hierarchical AST with structuralHash and position tracking
 24. **Overlay Invalidation System** — Automatic cascade invalidation of dependent overlays
 
-#### Post-Publication Additions (Innovation #25)
+#### Post-Publication Additions (Innovations #25-27)
 
 **Published**: October 27, 2025
 
 25. **Context Sampling Function (Σ)** — Efficient lattice traversal for relevant knowledge extraction (emerged through Claude Code integration)
+
+**Published**: October 28, 2025
+
+26. **Monument 4.7: The Shadow** — Dual embedding system for structural and semantic signatures enabling both code pattern matching and mission alignment queries
+27. **Monument 5.1: Lattice-aware Gaussian Weighting** — Pure lattice-based coherence using Gaussian statistics + graph centrality, eliminating all hardcoded constants (weight formula: w = log10(deps+1) × max(0.1, 1.0 + z_score))
 
 ---
 
@@ -1420,7 +1425,7 @@ This repository constitutes a **formal defensive publication** establishing prio
 - **Comprehensive Publication Date**: October 26, 2025 (Innovations #1-24)
 - **Post-Publication Additions**: October 27, 2025 (Innovation #25)
 - **Public Repository**: https://github.com/mirzahusadzic/cogx
-- **Permanent Archive**: Zenodo DOI [10.5281/zenodo.17453691](https://doi.org/10.5281/zenodo.17453691)
+- **Permanent Archive**: Zenodo DOI [10.5281/zenodo.17466998](https://doi.org/10.5281/zenodo.17466998)
 - **License**: AGPLv3 (entire repository — code, documentation, blueprints)
 - **Inventor**: Mirza Husadžić
 
