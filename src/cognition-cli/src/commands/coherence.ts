@@ -86,15 +86,73 @@ export function addCoherenceCommands(program: Command) {
       console.log('');
 
       const metrics = overlay.overall_metrics;
+
+      // Convert to percentages for human readability
+      const avgPct = (metrics.average_coherence * 100).toFixed(1);
+      const weightedPct = (metrics.weighted_coherence * 100).toFixed(1);
+      const latticePct = (metrics.lattice_coherence * 100).toFixed(1);
+      const medianPct = (metrics.median_coherence * 100).toFixed(1);
+      const topPct = (metrics.top_quartile_coherence * 100).toFixed(1);
+      const bottomPct = (metrics.bottom_quartile_coherence * 100).toFixed(1);
+      const stdDevPct = (metrics.std_deviation * 100).toFixed(1);
+      const thresholdPct = (metrics.high_alignment_threshold * 100).toFixed(0);
+
+      // Calculate deltas
+      const weightedDelta = (
+        (metrics.weighted_coherence - metrics.average_coherence) *
+        100
+      ).toFixed(1);
+      const latticeDelta = (
+        (metrics.lattice_coherence - metrics.average_coherence) *
+        100
+      ).toFixed(1);
+      const weightedDeltaSign = parseFloat(weightedDelta) > 0 ? '+' : '';
+      const latticeDeltaSign = parseFloat(latticeDelta) > 0 ? '+' : '';
+      const weightedDeltaColor =
+        parseFloat(weightedDelta) > 0 ? chalk.green : chalk.red;
+      const latticeDeltaColor =
+        parseFloat(latticeDelta) > 0 ? chalk.green : chalk.red;
+
       console.log(chalk.bold.white('  Coherence Metrics:'));
       console.log(
         chalk.white(
-          `    Average coherence:       ${chalk.cyan(metrics.average_coherence.toFixed(3))}`
+          `    Average coherence:       ${chalk.cyan(avgPct + '%')} ${chalk.dim('(all symbols equally weighted)')}`
         )
       );
       console.log(
         chalk.white(
-          `    Alignment threshold:     ${chalk.dim('≥')} ${chalk.cyan(metrics.high_alignment_threshold)}`
+          `    Weighted coherence:      ${chalk.cyan(weightedPct + '%')} ${weightedDeltaColor(`(${weightedDeltaSign}${weightedDelta}%)`)} ${chalk.dim('← centrality-based')}`
+        )
+      );
+      console.log(
+        chalk.white(
+          `    Lattice coherence:       ${chalk.bold.cyan(latticePct + '%')} ${latticeDeltaColor(`(${latticeDeltaSign}${latticeDelta}%)`)} ${chalk.dim('← Gaussian + lattice synthesis')}`
+        )
+      );
+      console.log('');
+      console.log(chalk.bold.white('  Distribution:'));
+      console.log(
+        chalk.white(`    Top 25% (best):          ${chalk.green(topPct + '%')}`)
+      );
+      console.log(
+        chalk.white(
+          `    Median (typical):        ${chalk.cyan(medianPct + '%')}`
+        )
+      );
+      console.log(
+        chalk.white(
+          `    Bottom 25% (concern):    ${chalk.yellow(bottomPct + '%')}`
+        )
+      );
+      console.log(
+        chalk.white(
+          `    Std deviation (σ):       ${chalk.dim(stdDevPct + '%')} ${chalk.dim('(statistical spread)')}`
+        )
+      );
+      console.log('');
+      console.log(
+        chalk.white(
+          `    Alignment threshold:     ${chalk.dim('≥')} ${chalk.cyan(thresholdPct + '%')}`
         )
       );
       console.log('');

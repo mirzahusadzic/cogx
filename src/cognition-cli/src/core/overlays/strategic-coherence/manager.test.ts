@@ -107,9 +107,16 @@ describe('StrategicCoherenceManager', () => {
         ],
         overall_metrics: {
           average_coherence: 0.85,
+          weighted_coherence: 0.85,
+          lattice_coherence: 0.85,
+          median_coherence: 0.85,
+          std_deviation: 0.05,
+          top_quartile_coherence: 0.9,
+          bottom_quartile_coherence: 0.8,
           high_alignment_threshold: 0.7,
           aligned_symbols_count: 1,
           drifted_symbols_count: 0,
+          total_symbols: 1,
         },
       };
 

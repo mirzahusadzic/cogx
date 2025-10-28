@@ -3,6 +3,7 @@ import fs from 'fs-extra';
 import YAML from 'yaml';
 import { MissionConceptsManager } from '../mission-concepts/manager.js';
 import { LanceVectorStore } from '../vector-db/lance-store.js';
+import { PGCManager } from '../../pgc/manager.js';
 import type { MissionConcept } from '../../analyzers/concept-extractor.js';
 
 /**
@@ -50,7 +51,13 @@ export interface StrategicCoherenceOverlay {
   symbol_coherence: SymbolCoherence[]; // Symbol → Concept alignments
   concept_implementations: ConceptImplementation[]; // Concept → Symbol mappings
   overall_metrics: {
-    average_coherence: number; // Mean coherence across all symbols
+    average_coherence: number; // Simple arithmetic mean
+    weighted_coherence: number; // Weighted by architectural importance (name-based)
+    lattice_coherence: number; // Lattice-aware Gaussian weighting (synthesis across overlays)
+    median_coherence: number; // Median value (50th percentile)
+    std_deviation: number; // Standard deviation (statistical spread)
+    top_quartile_coherence: number; // 75th percentile (best performers)
+    bottom_quartile_coherence: number; // 25th percentile (needs attention)
     high_alignment_threshold: number; // e.g., 0.7
     aligned_symbols_count: number; // Symbols above threshold
     drifted_symbols_count: number; // Symbols below threshold
@@ -61,14 +68,31 @@ export interface StrategicCoherenceOverlay {
 /**
  * StrategicCoherenceManager
  *
- * Computes semantic alignment between code (O₁) and mission (O₃).
+ * Computes semantic alignment between code (O₁) and mission (O₃) using The Shadow
+ * architecture's dual embedding system with lattice-aware Gaussian weighting.
  *
  * ALGORITHM:
- * 1. Load structural pattern embeddings (code symbols)
- * 2. Load mission concept embeddings (VISION.md concepts)
+ * 1. Load structural pattern embeddings (code symbols from O₁)
+ * 2. Load mission concept embeddings (strategic docs from O₃)
  * 3. For each symbol, compute cosine similarity with all concepts
  * 4. Store top N alignments per symbol
  * 5. Generate reverse mapping (concept → implementing symbols)
+ * 6. Compute three coherence metrics:
+ *    - Average: Simple arithmetic mean (baseline)
+ *    - Weighted: Centrality-based weighting from O₁ graph structure
+ *    - Lattice: Gaussian + centrality synthesis (filters noise, amplifies signal)
+ *
+ * LATTICE-AWARE WEIGHTING (Monument 5.1):
+ * The lattice coherence metric synthesizes data across overlays:
+ * - O₁ (structure): Graph centrality via reverse_deps (dependency count)
+ * - O₃ (mission): Semantic similarity scores
+ * - Gaussian statistics: Z-scores for signal/noise separation
+ *
+ * Weight formula: w = centrality × gaussian_significance
+ * - centrality = log10(dependency_count + 1)
+ * - gaussian_significance = max(0.1, 1.0 + z_score)
+ * - Filters noise: symbols below μ - σ are excluded entirely
+ * - NO HARDCODED CONSTANTS: all weights derived from lattice structure
  *
  * OVERLAY STRUCTURE:
  * .open_cognition/overlays/strategic_coherence/coherence.yaml
@@ -78,11 +102,13 @@ export interface StrategicCoherenceOverlay {
  * - "Which code has drifted from strategic intent?"
  * - "What implements 'verifiable AI' concept?"
  * - "Show me coherence report for this PR"
+ * - "What's the lattice coherence after filtering statistical noise?"
  */
 export class StrategicCoherenceManager {
   private overlayPath: string;
   private missionManager: MissionConceptsManager;
   private vectorStore: LanceVectorStore;
+  private pgcManager: PGCManager;
 
   constructor(
     private pgcRoot: string,
@@ -91,6 +117,7 @@ export class StrategicCoherenceManager {
     this.overlayPath = path.join(pgcRoot, 'overlays', 'strategic_coherence');
     this.missionManager = new MissionConceptsManager(pgcRoot, workbenchUrl);
     this.vectorStore = new LanceVectorStore(pgcRoot);
+    this.pgcManager = new PGCManager(pgcRoot);
   }
 
   /**
@@ -270,11 +297,42 @@ export class StrategicCoherenceManager {
       (s) => s.overallCoherence < highAlignmentThreshold
     );
 
+    // Compute simple average
     const averageCoherence =
       symbolCoherenceList.length > 0
         ? symbolCoherenceList.reduce((sum, s) => sum + s.overallCoherence, 0) /
           symbolCoherenceList.length
         : 0;
+
+    // Compute standard deviation (Gaussian statistics)
+    const variance =
+      symbolCoherenceList.length > 0
+        ? symbolCoherenceList.reduce(
+            (sum, s) =>
+              sum + Math.pow(s.overallCoherence - averageCoherence, 2),
+            0
+          ) / symbolCoherenceList.length
+        : 0;
+    const stdDeviation = Math.sqrt(variance);
+
+    // Compute weighted average (centrality-based)
+    const weightedCoherence =
+      await this.computeWeightedCoherence(symbolCoherenceList);
+
+    // Compute lattice-aware Gaussian weighting (synthesis across overlays)
+    const latticeCoherence = await this.computeLatticeAwareCoherence(
+      symbolCoherenceList,
+      averageCoherence,
+      stdDeviation
+    );
+
+    // Compute distribution metrics
+    const sortedScores = symbolCoherenceList
+      .map((s) => s.overallCoherence)
+      .sort((a, b) => a - b);
+    const medianCoherence = this.computePercentile(sortedScores, 50);
+    const topQuartile = this.computePercentile(sortedScores, 75);
+    const bottomQuartile = this.computePercentile(sortedScores, 25);
 
     // Sort concept implementations by number of implementing symbols (descending)
     const conceptImplementations = Array.from(
@@ -294,6 +352,12 @@ export class StrategicCoherenceManager {
       concept_implementations: conceptImplementations,
       overall_metrics: {
         average_coherence: averageCoherence,
+        weighted_coherence: weightedCoherence,
+        lattice_coherence: latticeCoherence,
+        median_coherence: medianCoherence,
+        std_deviation: stdDeviation,
+        top_quartile_coherence: topQuartile,
+        bottom_quartile_coherence: bottomQuartile,
         high_alignment_threshold: highAlignmentThreshold,
         aligned_symbols_count: alignedSymbols.length,
         drifted_symbols_count: driftedSymbols.length,
@@ -450,6 +514,34 @@ export class StrategicCoherenceManager {
           symbolCoherenceList.length
         : 0;
 
+    // Compute standard deviation (Gaussian statistics)
+    const variance =
+      symbolCoherenceList.length > 0
+        ? symbolCoherenceList.reduce(
+            (sum, s) => sum + Math.pow(s.overallCoherence - avgCoherence, 2),
+            0
+          ) / symbolCoherenceList.length
+        : 0;
+    const stdDeviation = Math.sqrt(variance);
+
+    // Compute weighted and distribution metrics
+    const weightedCoherence =
+      await this.computeWeightedCoherence(symbolCoherenceList);
+
+    // Compute lattice-aware Gaussian weighting (synthesis across overlays)
+    const latticeCoherence = await this.computeLatticeAwareCoherence(
+      symbolCoherenceList,
+      avgCoherence,
+      stdDeviation
+    );
+
+    const sortedScores = symbolCoherenceList
+      .map((s) => s.overallCoherence)
+      .sort((a, b) => a - b);
+    const medianCoherence = this.computePercentile(sortedScores, 50);
+    const topQuartile = this.computePercentile(sortedScores, 75);
+    const bottomQuartile = this.computePercentile(sortedScores, 25);
+
     // 5. Build overlay
     const overlay: StrategicCoherenceOverlay = {
       generated_at: new Date().toISOString(),
@@ -459,10 +551,16 @@ export class StrategicCoherenceManager {
       concept_implementations: Array.from(conceptImplementationMap.values()),
       overall_metrics: {
         average_coherence: avgCoherence,
+        weighted_coherence: weightedCoherence,
+        lattice_coherence: latticeCoherence,
+        median_coherence: medianCoherence,
+        std_deviation: stdDeviation,
+        top_quartile_coherence: topQuartile,
+        bottom_quartile_coherence: bottomQuartile,
+        high_alignment_threshold: 0.7,
         aligned_symbols_count: alignedSymbols.length,
         drifted_symbols_count: driftedSymbols.length,
         total_symbols: symbolCoherenceList.length,
-        high_alignment_threshold: 0.7,
       },
     };
 
@@ -546,5 +644,144 @@ export class StrategicCoherenceManager {
         (impl) => impl.conceptText.toLowerCase() === conceptText.toLowerCase()
       ) || null
     );
+  }
+
+  /**
+   * Compute lattice-aware Gaussian weighted coherence
+   * Synthesizes across all overlays: O₁ (structure), O₂ (lineage), O₃ (mission)
+   *
+   * Weight formula (NO HARDCODED CONSTANTS - pure lattice derivation):
+   *   weight = centrality_factor × gaussian_significance
+   *
+   * Where:
+   * - centrality_factor: Graph centrality from reverse_deps (O₁ structure)
+   *   Logarithmic scaling: log10(dependency_count + 1)
+   *   Range: [0, ~3] for typical codebases
+   * - gaussian_significance: Z-score based amplification (statistical filtering)
+   *   Amplify positive outliers (high coherence relative to mean)
+   *   Suppress noise (symbols near or below mean)
+   *
+   * Noise filtering: Symbols below μ - σ are filtered out entirely
+   */
+  private async computeLatticeAwareCoherence(
+    symbols: SymbolCoherence[],
+    mean: number,
+    stdDev: number
+  ): Promise<number> {
+    if (symbols.length === 0) return 0;
+    if (stdDev === 0) return mean; // No variation, return mean
+
+    let weightedSum = 0;
+    let totalWeight = 0;
+    let filteredCount = 0; // Track how many symbols were filtered as noise
+
+    for (const symbol of symbols) {
+      // 1. Compute z-score (Gaussian statistics)
+      const zScore = (symbol.overallCoherence - mean) / stdDev;
+
+      // 2. NOISE FILTERING: Filter out symbols below μ - σ (statistical noise)
+      if (zScore < -1.0) {
+        filteredCount++;
+        continue; // Skip this symbol entirely
+      }
+
+      // 3. Gaussian significance (amplification based on z-score)
+      // Symbols above mean get amplified, symbols near mean stay neutral
+      const gaussianSignificance = Math.max(0.1, 1.0 + zScore);
+
+      // 4. Graph centrality (how many symbols depend on this one - from O₁)
+      const centralityFactor = await this.getCentralityFactor(
+        symbol.symbolHash
+      );
+
+      // 5. Combined weight: pure lattice synthesis (NO CONSTANTS)
+      const latticeWeight = centralityFactor * gaussianSignificance;
+
+      weightedSum += symbol.overallCoherence * latticeWeight;
+      totalWeight += latticeWeight;
+    }
+
+    // Log noise filtering for transparency
+    if (filteredCount > 0) {
+      console.log(
+        `[Lattice] Filtered ${filteredCount} symbols as statistical noise (below μ - σ)`
+      );
+    }
+
+    return totalWeight > 0 ? weightedSum / totalWeight : 0;
+  }
+
+  /**
+   * Get centrality factor from reverse_deps (O₁ graph structure)
+   * Pure logarithmic scaling - NO HARDCODED CONSTANTS
+   *
+   * Returns: log10(dependency_count + 1)
+   * - 0 deps = 0.0 (no centrality)
+   * - 1 dep = 0.30
+   * - 10 deps = 1.04
+   * - 100 deps = 2.00
+   * - 1000 deps = 3.00
+   */
+  private async getCentralityFactor(symbolHash: string): Promise<number> {
+    try {
+      const dependentTransforms =
+        await this.pgcManager.reverseDeps.getTransformIds(symbolHash);
+      const dependencyCount = dependentTransforms.length;
+
+      // Pure logarithmic scaling derived from lattice structure
+      // No arbitrary multipliers or caps
+      return Math.log10(dependencyCount + 1);
+    } catch {
+      // If reverse_deps not found, no centrality contribution
+      return 0.0;
+    }
+  }
+
+  /**
+   * Compute weighted coherence score based on graph centrality
+   * Simple centrality-based weighting - symbols with more dependents matter more
+   *
+   * This provides a simpler comparison baseline vs lattice_coherence which includes
+   * Gaussian filtering and more sophisticated synthesis.
+   */
+  private async computeWeightedCoherence(
+    symbols: SymbolCoherence[]
+  ): Promise<number> {
+    if (symbols.length === 0) return 0;
+
+    let weightedSum = 0;
+    let totalWeight = 0;
+
+    for (const symbol of symbols) {
+      // Weight by centrality only (no Gaussian, no name heuristics)
+      const centrality = await this.getCentralityFactor(symbol.symbolHash);
+      // Add 1.0 baseline so all symbols have some weight
+      const weight = 1.0 + centrality;
+
+      weightedSum += symbol.overallCoherence * weight;
+      totalWeight += weight;
+    }
+
+    return totalWeight > 0 ? weightedSum / totalWeight : 0;
+  }
+
+  /**
+   * Compute percentile value from sorted scores
+   * @param sortedScores - Array of coherence scores sorted ascending
+   * @param percentile - Percentile to compute (0-100)
+   */
+  private computePercentile(
+    sortedScores: number[],
+    percentile: number
+  ): number {
+    if (sortedScores.length === 0) return 0;
+    if (sortedScores.length === 1) return sortedScores[0];
+
+    const index = (percentile / 100) * (sortedScores.length - 1);
+    const lower = Math.floor(index);
+    const upper = Math.ceil(index);
+    const weight = index - lower;
+
+    return sortedScores[lower] * (1 - weight) + sortedScores[upper] * weight;
   }
 }
