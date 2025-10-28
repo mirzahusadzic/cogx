@@ -7,7 +7,8 @@ To see a list of all available commands, simply run `cognition-cli --help`.
 ## Quick Reference
 
 ```bash
-# Setup
+# Setup & Onboarding
+cognition-cli wizard                            # Interactive setup wizard (easiest!)
 cognition-cli init                              # Initialize PGC
 cognition-cli genesis src/                      # Build knowledge graph
 
@@ -20,6 +21,8 @@ cognition-cli guide [topic]                     # Show command guides
 # Overlays
 cognition-cli overlay generate structural_patterns .  # Generate structural overlay
 cognition-cli overlay generate lineage_patterns .     # Generate lineage overlay
+cognition-cli overlay generate mission_concepts .     # Generate mission concepts
+cognition-cli overlay generate strategic_coherence .  # Generate strategic coherence
 
 # Pattern Analysis
 cognition-cli patterns list                     # List all structural patterns
@@ -28,6 +31,13 @@ cognition-cli patterns inspect MyClass          # Inspect symbol details
 cognition-cli patterns graph MyClass            # Visualize dependency tree
 cognition-cli patterns find-similar MyClass     # Find similar code
 cognition-cli patterns compare Class1 Class2    # Compare two symbols
+
+# Strategic Coherence (mission alignment)
+cognition-cli coherence report                  # Show coherence dashboard
+cognition-cli coherence aligned                 # Show mission-aligned symbols
+cognition-cli coherence drifted                 # Show drifted symbols
+cognition-cli coherence for-symbol MyClass      # Inspect symbol alignment
+cognition-cli coherence compare Class1 Class2   # Compare symbol alignments
 
 # Impact Analysis
 cognition-cli blast-radius MySymbol             # Show impact of changing symbol
@@ -614,6 +624,303 @@ cognition-cli audit:transformations src/core/pgc/manager.ts --limit 10
 # Audit a file in a different project
 cognition-cli audit:transformations src/app.ts --project-root /path/to/project
 ```
+
+---
+
+## 4. Strategic Coherence Commands
+
+These commands help you analyze and measure the alignment between your codebase and your mission/strategic documentation. They require the `strategic_coherence` overlay to be generated first.
+
+### **`cognition-cli coherence report`**
+
+Displays an overall strategic coherence metrics dashboard showing how well your code aligns with your mission documentation.
+
+- **When to Use It:** Use this to get a high-level overview of how aligned your codebase is with your strategic goals. It shows overall metrics, distribution statistics, and identifies aligned vs. drifted symbols.
+- **Options:**
+  - `-p, --project-root <path>` - Root directory of the project (default: current directory)
+  - `--json` - Output raw JSON instead of formatted report
+
+```bash
+# Show strategic coherence dashboard
+cognition-cli coherence report
+
+# Get JSON output for programmatic use
+cognition-cli coherence report --json
+```
+
+**What it shows:**
+
+- Analysis scope (symbols analyzed, mission concepts count)
+- Coherence metrics (average, weighted, lattice coherence)
+- Distribution statistics (top quartile, median, bottom quartile)
+- Symbol distribution (aligned vs. drifted counts)
+
+**The three coherence measures:**
+
+- **Average coherence** - All symbols weighted equally
+- **Weighted coherence** - Symbols weighted by their centrality in the dependency graph (more central = more important)
+- **Lattice coherence** - Advanced measure using Gaussian weighting and lattice synthesis for the most accurate alignment score
+
+### **`cognition-cli coherence aligned`**
+
+Shows symbols that are strongly aligned with your mission (coherence score above threshold).
+
+- **When to Use It:** Use this to identify which parts of your codebase are most aligned with your strategic goals. These are your "exemplar" components that embody the mission.
+- **Options:**
+  - `-p, --project-root <path>` - Root directory of the project (default: current directory)
+  - `--min-score <score>` - Minimum coherence score to display (default: 0.7)
+  - `--json` - Output raw JSON
+
+```bash
+# Show aligned symbols (default threshold 0.7)
+cognition-cli coherence aligned
+
+# Show highly aligned symbols (threshold 0.8)
+cognition-cli coherence aligned --min-score 0.8
+
+# Get JSON output
+cognition-cli coherence aligned --json
+```
+
+**Example output:**
+
+For each aligned symbol, you'll see:
+
+- Symbol name and file path
+- Visual coherence score bar
+- Top mission concepts it aligns with
+
+### **`cognition-cli coherence drifted`**
+
+Shows symbols that have drifted from your mission (coherence score below threshold).
+
+- **When to Use It:** Use this to identify code that may need refactoring or re-alignment with strategic goals. These are potential areas of technical or strategic drift.
+- **Options:**
+  - `-p, --project-root <path>` - Root directory of the project (default: current directory)
+  - `--max-score <score>` - Maximum coherence score to display (default: 0.7)
+  - `--json` - Output raw JSON
+
+```bash
+# Show drifted symbols (default threshold 0.7)
+cognition-cli coherence drifted
+
+# Show severely drifted symbols (threshold 0.5)
+cognition-cli coherence drifted --max-score 0.5
+
+# Get JSON output
+cognition-cli coherence drifted --json
+```
+
+**Example output:**
+
+For each drifted symbol, you'll see:
+
+- Symbol name and file path
+- Visual coherence score bar
+- Best mission concepts it aligns with (even if alignment is weak)
+
+### **`cognition-cli coherence for-symbol <symbolName>`**
+
+Shows detailed mission alignment information for a specific symbol.
+
+- **When to Use It:** Use this for deep-dive analysis of a specific component's alignment with your mission. Shows all alignments and helps you understand which mission concepts the symbol relates to.
+- **Options:**
+  - `-p, --project-root <path>` - Root directory of the project (default: current directory)
+  - `--json` - Output raw JSON
+
+```bash
+# Inspect strategic coherence for a specific symbol
+cognition-cli coherence for-symbol PGCManager
+
+# Get detailed JSON output
+cognition-cli coherence for-symbol OverlayOrchestrator --json
+```
+
+**Example output:**
+
+- File path and symbol hash
+- Overall coherence score with visual bar
+- Top mission alignments with scores and concept text
+- Related mission sections
+
+### **`cognition-cli coherence compare <symbol1> <symbol2>`**
+
+Compares the mission alignment of two symbols side-by-side.
+
+- **When to Use It:** Use this to compare architectural choices, understand which component is more mission-aligned, or analyze different implementations.
+- **Options:**
+  - `-p, --project-root <path>` - Root directory of the project (default: current directory)
+  - `--json` - Output raw JSON
+
+```bash
+# Compare mission alignment of two symbols
+cognition-cli coherence compare PGCManager OracleVerifier
+
+# Compare with JSON output
+cognition-cli coherence compare StructuralWorker LineageWorker --json
+```
+
+**Example output:**
+
+- Side-by-side coherence scores
+- Top alignments for each symbol
+- Which symbol is more aligned and by how much
+
+**Workflow example:**
+
+```bash
+# 1. Generate the strategic coherence overlay
+cognition-cli overlay generate strategic_coherence .
+
+# 2. Check overall coherence
+cognition-cli coherence report
+
+# 3. Find your best-aligned components
+cognition-cli coherence aligned
+
+# 4. Identify drift areas needing attention
+cognition-cli coherence drifted
+
+# 5. Deep-dive on specific symbols
+cognition-cli coherence for-symbol StrategicCoherenceManager
+
+# 6. Compare architectural choices
+cognition-cli coherence compare StructuralWorker LineageWorker
+```
+
+---
+
+## 5. Setup & Onboarding Commands
+
+### **`cognition-cli wizard`**
+
+Interactive wizard that guides you through complete PGC setup from scratch. This is the easiest way to get started with cognition-cli.
+
+- **When to Use It:** Use this when setting up cognition-cli for the first time in a new project, or when you want a guided experience instead of running individual commands.
+- **What It Does:**
+  - Checks for existing PGC and confirms before proceeding
+  - Auto-detects running workbench instances on common ports
+  - Validates workbench connection before proceeding
+  - Prompts for source path and validates it exists
+  - Detects and offers to ingest strategic documentation (VISION.md, etc.)
+  - Lets you choose which overlays to generate
+  - Runs the complete setup sequence: init → genesis → genesis:docs → overlays
+  - Forces clean exit when complete (prevents worker pool hangs)
+- **Options:**
+  - `-p, --project-root <path>` - Root directory of the project (default: current directory)
+
+```bash
+# Run the interactive setup wizard
+cognition-cli wizard
+
+# Run wizard in a specific project directory
+cognition-cli wizard --project-root /path/to/project
+```
+
+**Wizard flow:**
+
+1. **PGC Check** - Detects if PGC already exists and confirms continuation
+2. **Workbench Detection** - Auto-detects workbench on localhost:8000, :8080, etc.
+3. **Workbench URL** - Prompts for workbench URL (pre-filled with detected value)
+4. **Connection Verification** - Validates workbench is accessible before proceeding
+5. **API Key** - Prompts for API key (defaults to "dummy-key" for local workbench)
+6. **Source Path** - Prompts for source directory to analyze (validates existence)
+7. **Documentation** - Detects VISION.md or asks about custom documentation
+8. **Overlay Selection** - Choose which overlays to generate:
+   - All overlays (recommended)
+   - Structural patterns only
+   - Lineage patterns only
+   - Mission concepts only (requires docs)
+   - Strategic coherence only (requires docs)
+   - Skip overlays
+9. **Confirmation** - Shows summary and asks for final confirmation
+10. **Execution** - Runs the full setup pipeline with progress indicators
+
+**Example session:**
+
+```bash
+$ cognition-cli wizard
+
+🧙 PGC Setup Wizard
+
+This wizard will guide you through setting up a complete Grounded Context Pool (PGC).
+
+⚡ The symmetric machine provides perfect traversal.
+🎨 The asymmetric human provides creative projection.
+🤝 This is the symbiosis.
+
+◆  Detecting workbench instance...
+│  ✓ Found workbench at http://localhost:8000
+│
+◇  Workbench URL:
+│  http://localhost:8000
+│
+◆  Verifying workbench connection...
+│  ✓ Workbench connection verified
+│
+◇  Workbench API Key:
+│  dummy-key
+│
+◇  Source path to analyze:
+│  src
+│
+◇  Found VISION.md. Ingest documentation?
+│  Yes
+│
+◇  Which overlays would you like to generate?
+│  All overlays (recommended)
+│
+Setup Summary:
+  Project Root: /Users/you/project
+  Workbench URL: http://localhost:8000
+  Source Path: src
+  Documentation: ../../VISION.md
+  Overlays: all
+
+◇  Proceed with setup?
+│  Yes
+
+🚀 Starting PGC construction...
+
+[1/4] Initializing PGC...
+✓ PGC initialized
+
+[2/4] Running genesis (building verifiable skeleton)...
+✓ Genesis complete
+
+[3/4] Ingesting documentation...
+✓ Documentation ingested
+
+[4/4] Generating overlays...
+✓ structural_patterns generated
+✓ lineage_patterns generated
+✓ mission_concepts generated
+✓ strategic_coherence generated
+
+✨ PGC setup complete! Your Grounded Context Pool is ready to use.
+
+Next steps:
+  • Run queries: cognition-cli query "your question"
+  • Watch for changes: cognition-cli watch
+  • Check status: cognition-cli status
+  • View guides: cognition-cli guide
+```
+
+**Why use the wizard:**
+
+- **Guided experience** - No need to remember command sequences
+- **Validation** - Checks workbench connectivity before wasting time
+- **Smart defaults** - Auto-detects workbench, pre-fills sensible values
+- **Error prevention** - Validates paths exist, prevents common mistakes
+- **Complete setup** - Runs the full pipeline in one go
+- **Documentation-aware** - Detects VISION.md and strategic docs automatically
+
+**When NOT to use the wizard:**
+
+- You want fine-grained control over each step
+- You're updating an existing PGC (use `update` instead)
+- You only need to regenerate specific overlays (use `overlay generate` instead)
+- You're automating in CI/CD (use individual commands for better control)
 
 ---
 
