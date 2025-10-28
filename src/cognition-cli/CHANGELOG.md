@@ -11,13 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release introduces two major innovations building on the defensive publication:
 
-**Innovation #26: Monument 4.7 - The Shadow**
+#### Innovation #26: Monument 4.7 - The Shadow
+
 - Dual embedding system for structural and semantic signatures
 - Structural embeddings based on AST patterns
 - Semantic embeddings based on docstring + type signatures
 - Enables both code pattern matching AND mission alignment queries
 
-**Innovation #27: Monument 5.1 - Lattice-aware Gaussian Weighting**
+#### Innovation #27: Monument 5.1 - Lattice-aware Gaussian Weighting
+
 - Pure lattice-based coherence eliminating all hardcoded constants
 - Gaussian statistics for signal/noise separation (filters symbols below μ - σ)
 - Graph centrality from O₁ reverse_deps (logarithmic scaling)
