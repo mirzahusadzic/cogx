@@ -328,12 +328,17 @@ export async function wizardCommand(options: WizardOptions) {
     log.info('  • Watch for changes: ' + chalk.cyan('cognition-cli watch'));
     log.info('  • Check status: ' + chalk.cyan('cognition-cli status'));
     log.info('  • View guides: ' + chalk.cyan('cognition-cli guide'));
+
+    // Force exit to prevent hanging (worker pools may keep event loop alive)
+    process.exit(0);
   } catch (error) {
     log.error(chalk.red('\n✗ Setup failed'));
     if (error instanceof Error) {
       log.error(error.message);
     }
     outro(chalk.red('PGC setup incomplete. Please check the errors above.'));
-    throw error;
+
+    // Force exit on error too
+    process.exit(1);
   }
 }
