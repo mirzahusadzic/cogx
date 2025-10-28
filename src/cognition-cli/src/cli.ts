@@ -124,6 +124,17 @@ import { createGuideCommand } from './commands/guide.js';
 import { genesisDocsCommand } from './commands/genesis-docs.js';
 import { addCoherenceCommands } from './commands/coherence.js';
 import { addConceptsCommands } from './commands/concepts.js';
+import { wizardCommand } from './commands/wizard.js';
+
+program
+  .command('wizard')
+  .description('🧙 Interactive wizard to set up a complete PGC from scratch')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .action(wizardCommand);
 
 program.addCommand(overlayCommand);
 program.addCommand(blastRadiusCommand);
