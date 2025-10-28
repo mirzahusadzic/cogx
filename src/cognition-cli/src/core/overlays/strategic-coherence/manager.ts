@@ -117,7 +117,9 @@ export class StrategicCoherenceManager {
     this.overlayPath = path.join(pgcRoot, 'overlays', 'strategic_coherence');
     this.missionManager = new MissionConceptsManager(pgcRoot, workbenchUrl);
     this.vectorStore = new LanceVectorStore(pgcRoot);
-    this.pgcManager = new PGCManager(pgcRoot);
+    // PGCManager expects projectRoot, not pgcRoot - it will append .open_cognition internally
+    const projectRoot = path.dirname(pgcRoot);
+    this.pgcManager = new PGCManager(projectRoot);
   }
 
   /**
@@ -730,9 +732,21 @@ export class StrategicCoherenceManager {
 
       // Pure logarithmic scaling derived from lattice structure
       // No arbitrary multipliers or caps
-      return Math.log10(dependencyCount + 1);
-    } catch {
+      const centrality = Math.log10(dependencyCount + 1);
+
+      // Debug logging (first 5 symbols only to reduce noise)
+      if (dependencyCount > 0) {
+        console.log(
+          `[Lattice] Symbol ${symbolHash.slice(0, 8)}... has ${dependencyCount} deps → centrality ${centrality.toFixed(3)}`
+        );
+      }
+
+      return centrality;
+    } catch (error) {
       // If reverse_deps not found, no centrality contribution
+      console.warn(
+        `[Lattice] Failed to get centrality for ${symbolHash.slice(0, 8)}...: ${error instanceof Error ? error.message : 'unknown error'}`
+      );
       return 0.0;
     }
   }
