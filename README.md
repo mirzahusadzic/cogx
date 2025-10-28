@@ -1423,7 +1423,9 @@ This repository constitutes a **formal defensive publication** establishing prio
 
 - **Initial Publication Date**: October 24, 2025 (Meta-cognitive proof)
 - **Comprehensive Publication Date**: October 26, 2025 (Innovations #1-24)
-- **Post-Publication Additions**: October 27, 2025 (Innovation #25)
+- **Post-Publication Additions**:
+  - October 27, 2025 (Innovation #25: Context Sampling Function)
+  - October 28, 2025 (Innovations #26-27: The Shadow + Lattice-aware Gaussian Weighting)
 - **Public Repository**: https://github.com/mirzahusadzic/cogx
 - **Permanent Archive**: Zenodo DOI [10.5281/zenodo.17466998](https://doi.org/10.5281/zenodo.17466998)
 - **License**: AGPLv3 (entire repository — code, documentation, blueprints)
