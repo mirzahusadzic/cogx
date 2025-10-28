@@ -162,7 +162,7 @@ graph TD
         end
         subgraph "O₁: Structural Patterns (The Architecture)"
             SP_ROLE["Architectural Roles<br/>(component, service, etc)"]
-            SP_SIG["Structural Signatures<br/>(embeddings of code)"]
+            SP_SIG["The Shadow<br/>(dual embeddings: structural + semantic)"]
         end
     end
 

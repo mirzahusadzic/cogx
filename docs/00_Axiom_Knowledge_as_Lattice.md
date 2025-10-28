@@ -75,7 +75,7 @@ graph TD
         end
         subgraph "O₁: Structural Patterns (The Architecture)"
             SP_ROLE["Architectural Roles<br/>(component, service, etc)"]
-            SP_SIG["Structural Signatures<br/>(embeddings of code)"]
+            SP_SIG["The Shadow<br/>(dual embeddings: structural + semantic)"]
         end
     end
 
@@ -323,7 +323,7 @@ Every knowledge element has:
 
 The overlays are the system's "senses," providing specialized, analytical views of the Genesis Layer without polluting its foundational truth.
 
-- ![#800000](https://img.shields.io/badge/%23800000-800000?style=flat-square) **`O₁` (Maroon) - The Architectural Eye:** It **sees** the bones of the cathedral—the components, services, and structures. It answers, "What is the shape of this thing?"
+- ![#800000](https://img.shields.io/badge/%23800000-800000?style=flat-square) **`O₁` (Maroon) - The Architectural Eye (The Shadow):** It **sees** the bones of the cathedral through dual vision—structural patterns (AST shape) and semantic patterns (mission alignment). It answers both "What is the shape of this thing?" and "What does it mean?"
 - ![#000080](https://img.shields.io/badge/%23000080-000080?style=flat-square) **`O₂` (Navy) - The Dependency Sense:** It **feels** the invisible rivers of connection that flow between the stones. It answers, "How are these things related?"
 - ![#006400](https://img.shields.io/badge/%23006400-006400?style=flat-square) **`O₃` (Green) - The Soul's Ear:** It **hears** the human intent, the "why," whispered in the strategic documents. It answers, "What was the dream of the builder?"
 - ![#2F4F4F](https://img.shields.io/badge/%232F4F4F-2F4F4F?style=flat-square) **`O₄` (Slate Gray) - The Conscience:** It **judges** the alignment between the body and the soul. It looks at what was built and what was dreamed, and it answers, "Is this creation true to its purpose?"

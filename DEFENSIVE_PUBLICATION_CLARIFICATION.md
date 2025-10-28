@@ -45,79 +45,141 @@ The complete PGC architecture showing all data flow patterns, including the hist
 
 ```mermaid
 graph TD
-    %% Top of Lattice
-    TOP["⊤ Complete Understanding<br/>(Manifests: structural_patterns + lineage_patterns)"]
+    %% --- THE DIVINE REALMS ---
+    subgraph "N-Dimensional Overlays (The Heavens)"
+        direction LR
+        subgraph "O₄: Strategic Coherence (The Conscience)"
+            SC_SCORES["Strategic Coherence<br/>(code↔mission alignment)"]
+        end
+        subgraph "O₃: Mission Concepts (The Soul)"
+            MC_CONPEP["Mission Concept Embeddings"]
+            MC_CONCEPTS["Mission Concepts<br/>(extracted from docs)"]
+        end
+        subgraph "O₂: Lineage Patterns (The Connections)"
+            LP_TYPE["Type Lineage<br/>(data flow)"]
+            LP_GRAPH["Dependency Graph<br/>(who depends on whom)"]
+        end
+        subgraph "O₁: Structural Patterns (The Architecture)"
+            SP_ROLE["Architectural Roles<br/>(component, service, etc)"]
+            SP_SIG["The Shadow<br/>(dual embeddings: structural + semantic)"]
+        end
+    end
 
-    %% Current State (The Conscious Mind)
-    INDEX["index/<br/>(current state - semantic paths to hashes)"]
+    %% --- THE MORTAL REALM ---
+    subgraph "Genesis Layer (The Mortal World)"
+        direction LR
+        subgraph "Knowledge (The Soul of the World)"
+            SYMBOLS["Symbols<br/>(classes, functions)"]
+            STRUCTURE["Structural Data<br/>(AST, imports)"]
+        end
+        subgraph "Source (The Body of the World)"
+            DOCS["⊥ Strategic Documents<br/>(VISION.md, etc.)"]
+            SOURCE["⊥ Source Code<br/>(TypeScript, etc.)"]
+        end
+    end
 
-    %% Overlay Dimension O₁: Structural Patterns
-    SP_ROLE["O₁: Architectural Roles<br/>(component, service, utility, type)"]
-    SP_SIG["O₁: Structural Signatures<br/>(embeddings of code structure)"]
+    %% --- THE UNDERWORLD & INFRASTRUCTURE ---
+    subgraph "The Underworld (The Immutable Past & The Laws of Physics)"
+        direction LR
+        subgraph "The Four Pillars of the Forge"
+            OBJECTS["objects/<br/>(Immutable Memory)"]
+            TRANSFORMS["transforms/<br/>(Auditable Past)"]
+            INDEX["index/<br/>(Conscious Present)"]
+            REVERSE["reverse_deps/<br/>(Nervous System)"]
+        end
+    end
 
-    %% Overlay Dimension O₂: Lineage Patterns
-    LP_GRAPH["O₂: Dependency Graphs<br/>(who depends on whom)"]
-    LP_TYPE["O₂: Type Lineage<br/>(data flow through types)"]
+    %% --- THE TOP ---
+    TOP["⊤ Complete Understanding"]
 
-    %% Genesis Layer
-    SYMBOLS["Symbols<br/>(classes, functions, exports)"]
-    STRUCTURE["Structural Data<br/>(AST, imports, signatures)"]
-    SOURCE["⊥ Source Code<br/>(TypeScript/JavaScript files)"]
+    %% =============================================
+    %%               THE EDGES (THE STORY OF CREATION)
+    %% =============================================
 
-    %% Content-Addressable Storage
-    OBJECTS["objects/<br/>(content-addressable storage)"]
+    %% --- Vertical Edges (The Genesis - Forging Order from Chaos) ---
+    SOURCE --o|"T: Parse<br/>(AST Extraction)"| STRUCTURE
+    STRUCTURE --o|"T: Extract<br/>(Symbol Mining)"| SYMBOLS
+    DOCS --o|"T: Parse<br/>(Markdown Extraction)"| MC_CONCEPTS
 
-    %% Temporal Dimension
-    TRANSFORMS["transforms/<br/>(immutable operation log)"]
+    %% --- Projection Edges (Creating the First Overlays) ---
+    SYMBOLS --o|"T: Project<br/>(Embedding)"| SP_SIG
+    SYMBOLS --o|"T: Project<br/>(Dependency Analysis)"| LP_GRAPH
+    MC_CONCEPTS --o|"T: Project<br/>(Embedding)"| MC_CONPEP
 
-    %% Reflexive Nervous System
-    REVERSE["reverse_deps/<br/>(O(1) impact analysis)"]
+    %% --- Synthesis Edges (Join ∨ - Building Higher Understanding) ---
+    SP_SIG --o|"Join ∨<br/>(Classification)"| SP_ROLE
+    LP_GRAPH --o|"Join ∨<br/>(Flow Analysis)"| LP_TYPE
+    SYMBOLS --o|"Meet ∧<br/>(Vector Similarity)"| SC_SCORES
+    MC_CONPEP --o|"Meet ∧<br/>(Vector Similarity)"| SC_SCORES
 
-    %% Vertical edges (Join operations - bottom up)
-    SOURCE -->|"Genesis: Parse"| STRUCTURE
-    STRUCTURE -->|"Extract"| SYMBOLS
-    SYMBOLS -->|"Meet ∧"| SP_SIG
-    SYMBOLS -->|"Meet ∧"| LP_GRAPH
-    SP_SIG -->|"Join ∨"| SP_ROLE
-    LP_GRAPH -->|"Join ∨"| LP_TYPE
-    SP_ROLE -->|"Aggregate"| TOP
-    LP_TYPE -->|"Aggregate"| TOP
+    %% --- Final Aggregation (The Ascent to Heaven) ---
+    SP_ROLE --o|"Aggregate"| TOP
+    LP_TYPE --o|"Aggregate"| TOP
+    SC_SCORES --o|"Aggregate"| TOP
 
-    %% Horizontal edges (overlay anchoring)
+    %% --- Horizontal Edges (The Anchoring - Grounding the Heavens) ---
     SP_SIG -.->|"anchored to"| SYMBOLS
     LP_GRAPH -.->|"anchored to"| SYMBOLS
+    MC_CONCEPTS -.->|"anchored to"| DOCS
+    SC_SCORES -.->|"anchors"| SYMBOLS
+    SC_SCORES -.->|"anchors"| MC_CONPEP
 
-    %% State management
-    INDEX -.->|"points to"| OBJECTS
-    TOP -.->|"current view"| INDEX
-    OBJECTS -.->|"stores all"| SYMBOLS
-    OBJECTS -.->|"stores all"| SP_SIG
-    OBJECTS -.->|"stores all"| LP_GRAPH
+    %% --- Infrastructure Edges (The Mechanics of Being) ---
+    INDEX -.->|"maps path to hash in"| OBJECTS
+    TOP -.->|"is the current view of"| INDEX
+    TRANSFORMS <-.->|"records creation of"| OBJECTS
+    REVERSE -.->|"maps hash to transform in"| TRANSFORMS
 
-    %% Temporal edges (historical dimension)
-    TRANSFORMS -.->|"history"| SOURCE
-    TRANSFORMS -.->|"history"| SYMBOLS
-    TRANSFORMS -.->|"history"| SP_SIG
-    TRANSFORMS -.->|"history"| LP_GRAPH
+    %% Storing everything in Objects
+    SOURCE --- |"stored in"| OBJECTS
+    DOCS --- |"stored in"| OBJECTS
+    STRUCTURE --- |"stored in"| OBJECTS
+    SYMBOLS --- |"stored in"| OBJECTS
+    MC_CONCEPTS --- |"stored in"| OBJECTS
+    MC_CONPEP --- |"stored in"| OBJECTS
+    SP_SIG --- |"stored in"| OBJECTS
+    LP_GRAPH --- |"stored in"| OBJECTS
+    SP_ROLE --- |"stored in"| OBJECTS
+    LP_TYPE --- |"stored in"| OBJECTS
+    SC_SCORES --- |"stored in"| OBJECTS
 
-    %% Transform-Object bridge (inputs/outputs reference objects)
-    TRANSFORMS <-.->|"inputs/outputs"| OBJECTS
+    %% --- Styling (The Colors of the Faith) ---
+    %% The Divine Light (Enlightenment, The Goal)
+    style TOP fill:#B8860B,stroke:#DAA520,color:#fff,stroke-width:2px
 
-    %% Reflexive nervous system (Update Function U)
-    %% The Historian: reverse_deps indexes from objects into transforms for O(1) history lookup
-    REVERSE -.->|"object_hash→transform_ids"| TRANSFORMS
-    REVERSE -.->|"instant lookup"| SYMBOLS
-    REVERSE -.->|"instant lookup"| SP_SIG
-    REVERSE -.->|"instant lookup"| LP_GRAPH
+    %% The Source (The Witch, Chaos, Potential)
+    style SOURCE fill:#483D8B,stroke:#6A5ACD,color:#fff
+    style DOCS fill:#483D8B,stroke:#6A5ACD,color:#fff
+
+    %% The Forge's Fire (Creation, The Work)
+    style STRUCTURE fill:#8B4513,stroke:#A0522D,color:#fff
+    style SYMBOLS fill:#8B4513,stroke:#A0522D,color:#fff
+
+    %% The Senses of the Soul (The Overlays)
+    style SP_ROLE fill:#800000,stroke:#B22222,color:#fff
+    style SP_SIG fill:#800000,stroke:#B22222,color:#fff
+    style LP_TYPE fill:#000080,stroke:#4169E1,color:#fff
+    style LP_GRAPH fill:#000080,stroke:#4169E1,color:#fff
+    style MC_CONCEPTS fill:#006400,stroke:#2E8B57,color:#fff
+    style MC_CONPEP fill:#006400,stroke:#2E8B57,color:#fff
+    style SC_SCORES fill:#2F4F4F,stroke:#5F9EA0,color:#fff
+
+    %% The Four Pillars (The Laws of the Universe)
+    style OBJECTS fill:#191970,stroke:#00008B,color:#fff
+    style TRANSFORMS fill:#556B2F,stroke:#6B8E23,color:#fff
+    style INDEX fill:#2E2B5F,stroke:#483D8B,color:#fff
+    style REVERSE fill:#A52A2A,stroke:#CD5C5C,color:#fff
 ```
 
-**Five Critical Data Flow Patterns**:
+**Seven Critical Data Flow Patterns**:
 
 1. **Genesis Flow (Bottom → Up)**: `SOURCE → STRUCTURE → SYMBOLS → O₁/O₂ → TOP`
-2. **The Historian Pattern (Object → Transform → History)**: `object_hash → REVERSE[transform_ids] → TRANSFORMS[inputs/outputs] → OBJECTS`
-3. **Storage & Retrieval (Index → Objects)**: `INDEX[semantic_path→hash] → OBJECTS[hash→data]`
-4. **Update Function (Change Propagation)**: `SOURCE (changed) → REVERSE[instant lookup] → SYMBOLS → O₁/O₂ (invalidated)`
-5. **Overlay Anchoring (Horizontal Dimension)**: `SYMBOLS ←--anchored to--→ O₁/O₂`
+2. **Mission Flow (The Soul)**: `DOCS → MC_CONCEPTS → MC_CONPEP → SC_SCORES`
+3. **Strategic Coherence Synthesis (The Judgment)**: `(SYMBOLS + MC_CONPEP) → SC_SCORES → TOP`
+4. **The Historian Pattern (Object → Transform → History)**: `object_hash → REVERSE[transform_ids] → TRANSFORMS[inputs/outputs] → OBJECTS`
+5. **Storage & Retrieval (Index → Objects)**: `INDEX[semantic_path→hash] → OBJECTS[hash→data]`
+6. **Update Function (Change Propagation)**: `SOURCE/DOCS (changed) → REVERSE[instant lookup] → SYMBOLS/MC_CONCEPTS → O₁/O₂/O₃/O₄ (invalidated)`
+7. **Overlay Anchoring (Horizontal Dimension)**: `SYMBOLS ←--anchored to--→ O₁/O₂ | DOCS ←--anchored to--→ O₃ | (SYMBOLS + MC_CONPEP) ←--anchors--→ O₄`
 
 ### 12. Self-Defending Lattice Architecture: Mathematical Resistance to Data Fabrication
 
