@@ -3,6 +3,9 @@ import path from 'path';
 import chalk from 'chalk';
 import { StrategicCoherenceManager } from '../core/overlays/strategic-coherence/manager.js';
 
+/**
+ * Adds strategic coherence query commands to the CLI program.
+ */
 export function addCoherenceCommands(program: Command) {
   const coherenceCommand = program
     .command('coherence')

@@ -14,7 +14,7 @@ Common patterns for integrating cognition-cli with Claude Code and your developm
 
 Create `.claude/commands/query-pgc.md`:
 
-```markdown
+````markdown
 ---
 description: Query PGC instead of reading source files
 ---
@@ -31,6 +31,7 @@ Example: To find all managers, run:
 ```bash
 cognition-cli patterns list --role manager
 ```
+````
 
 **Usage in Claude Code:**
 
@@ -203,7 +204,7 @@ Use the PGC metadata to answer the user's architectural questions.
 
 **`.claude/commands/check-blast-radius.md`:**
 
-```markdown
+````markdown
 ---
 description: Check impact of changing a symbol
 ---
@@ -220,6 +221,7 @@ Show the user:
 
 Warn if blast radius is high (>10 files).
 ```
+````
 
 **`.claude/commands/check-alignment.md`:**
 
@@ -416,9 +418,11 @@ service-c        51.2%  ✓ 31   ✗ 74
 # Real-Time Collaboration Feature
 
 ## Vision
+
 Enable conflict-free simultaneous editing through operational transformation.
 
 ## Key Concepts
+
 - "Conflict-free Replicated Data Type (CRDT)"
 - "Operational Transformation (OT)"
 - "Cryptographic event sourcing"
@@ -435,6 +439,7 @@ cognition-cli overlay generate mission_concepts --force
 #### Step 3: Develop with Alignment Checks
 
 In Claude Code:
+
 > "Based on FEATURE_VISION.md concepts, implement RealTimeCollaborationService"
 
 While coding:
@@ -506,7 +511,7 @@ cognition-cli blast-radius AuthenticationManager
 
 Create `ONBOARDING.md`:
 
-```markdown
+````markdown
 # Developer Onboarding
 
 Welcome! This project uses cognition-cli for verifiable AI-assisted development.
@@ -522,6 +527,7 @@ cd ~/projects/my-app
 cognition-cli init
 cognition-cli genesis
 ```
+````
 
 ## Step 2: Explore Architecture (10 minutes)
 

@@ -4,6 +4,9 @@ import path from 'path';
 import { LanceVectorStore } from '../../core/overlays/vector-db/lance-store.js';
 import chalk from 'chalk';
 
+/**
+ * Represents metadata for an available overlay type.
+ */
 interface OverlayInfo {
   name: string;
   description: string;
@@ -37,6 +40,9 @@ const OVERLAY_TYPES: OverlayInfo[] = [
   },
 ];
 
+/**
+ * Command for listing available overlay types and their status.
+ */
 const listCommand = new Command('list')
   .description('List available overlay types and their status.')
   .option('-p, --project-root <path>', 'The root of the project.', '.')

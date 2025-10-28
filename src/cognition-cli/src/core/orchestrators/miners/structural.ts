@@ -5,6 +5,9 @@ import { LLMSupervisor } from './llm-supervisor.js';
 import type { SourceFile, StructuralData } from '../../types/structural.js';
 import { StructuralDataSchema } from '../../types/structural.js';
 
+/**
+ * Extracts structural data from source files using a multi-layer fallback strategy.
+ */
 export class StructuralMiner {
   private astParsers: ASTParserRegistry;
   private slmExtractor: SLMExtractor;

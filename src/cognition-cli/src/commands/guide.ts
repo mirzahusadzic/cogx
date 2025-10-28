@@ -7,6 +7,9 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/**
+ * Creates the guide command for displaying colorful, candid guides for CLI commands.
+ */
 export function createGuideCommand(): Command {
   const cmd = new Command('guide');
 

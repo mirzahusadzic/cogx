@@ -4,11 +4,17 @@ import fs from 'fs-extra';
 import path from 'path';
 import { GenesisDocTransform } from '../core/transforms/genesis-doc-transform.js';
 
+/**
+ * Represents options for the genesis-docs command.
+ */
 interface GenesisDocsOptions {
   projectRoot: string;
   pattern?: string;
 }
 
+/**
+ * Represents errors during PGC initialization validation.
+ */
 class PGCInitializationError extends Error {
   constructor(message: string) {
     super(message);
@@ -33,6 +39,9 @@ async function validatePgcInitialized(projectRoot: string): Promise<void> {
   }
 }
 
+/**
+ * Ingests markdown documentation files into the PGC.
+ */
 export async function genesisDocsCommand(
   pathOrPattern: string,
   options: GenesisDocsOptions

@@ -28,6 +28,9 @@ import { DocumentObject } from '../pgc/document-object.js';
 import { GenesisOracle } from '../pgc/oracles/genesis.js';
 import { GenesisDocTransform } from '../transforms/genesis-doc-transform.js';
 
+/**
+ * Orchestrates overlay generation including structural patterns, lineage, and mission concepts.
+ */
 export class OverlayOrchestrator {
   private maxFileSize = DEFAULT_MAX_FILE_SIZE;
 

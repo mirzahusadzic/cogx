@@ -22,6 +22,7 @@ cognition-cli patterns graph DataProcessor
 ```
 
 **In Claude Code:**
+
 > "Using the PGC, show me all classes that handle data transformation. I need to understand the pattern before implementing export functionality."
 
 Claude will query PGC metadata, not guess or hallucinate.
@@ -112,6 +113,7 @@ cognition-cli patterns list --role utility
 ### Step 2: Plan the Refactor with AI
 
 **In Claude Code:**
+
 > "Using the PGC metadata, analyze utils.ts and suggest how to split it into cohesive modules based on actual usage patterns."
 
 Claude will:
@@ -224,7 +226,7 @@ Top alignments:
 
 **Comment on PR:**
 
-```markdown
+````markdown
 I ran `cognition-cli coherence for-symbol AnalyticsService` and noticed:
 
 - **Coherence score**: 34.2% (below our 50% threshold)
@@ -232,14 +234,17 @@ I ran `cognition-cli coherence for-symbol AnalyticsService` and noticed:
 - **Pattern match**: Similar to MetricsService (good consistency)
 
 Suggestions:
+
 1. Add provenance tracking (see MetricsService implementation)
 2. Consider renaming to align with our "verifiable" mission language
 
 Run these locally:
+
 ```bash
 cognition-cli coherence for-symbol AnalyticsService
 cognition-cli patterns compare AnalyticsService MetricsService
 ```
+````
 
 ---
 
@@ -288,6 +293,7 @@ cognition-cli patterns find-similar AuthenticationService
 ```
 
 **In Claude Code:**
+
 > "Show me all authentication-related code paths using PGC metadata."
 
 ---
@@ -392,6 +398,7 @@ cognition-cli patterns analyze
 ### Step 5: Course Correction
 
 **In Claude Code:**
+
 > "Based on PGC coherence scores, identify the top 5 classes that have drifted from our mission. For each, suggest specific refactorings to improve alignment."
 
 Claude uses coherence data to suggest:
@@ -463,14 +470,17 @@ Create `FEATURE_VISION.md`:
 # Real-Time Collaboration Feature
 
 ## Vision
+
 Enable multiple developers to work simultaneously on the same codebase with conflict-free merges through operational transformation.
 
 ## Principles
+
 - **Verifiable state**: Every edit has cryptographic hash
 - **Deterministic merges**: Same inputs = same output
 - **Provenance tracking**: Who changed what, when
 
 ## Key Concepts
+
 - "Conflict-free Replicated Data Type (CRDT)"
 - "Operational Transformation (OT)"
 - "Cryptographic event sourcing"
@@ -496,6 +506,7 @@ cognition-cli concepts by-section "Key Concepts"
 ### Step 3: Develop with Alignment Checks
 
 **In Claude Code:**
+
 > "Based on FEATURE_VISION.md concepts in the PGC, implement the RealTimeCollaborationService class."
 
 As you code:

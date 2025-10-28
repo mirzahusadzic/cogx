@@ -5,6 +5,9 @@ import path from 'path';
 import { FileWatcher } from '../core/watcher/file-watcher.js';
 import { ChangeEvent } from '../core/types/watcher.js';
 
+/**
+ * Creates the watch command for monitoring file changes and maintaining PGC coherence state.
+ */
 export function createWatchCommand(): Command {
   const cmd = new Command('watch');
 

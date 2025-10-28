@@ -2,6 +2,9 @@ import crypto from 'node:crypto';
 import fs from 'fs-extra';
 import path from 'path';
 
+/**
+ * Manages content-addressable storage for immutable objects using SHA-256 hashing.
+ */
 export class ObjectStore {
   constructor(private rootPath: string) {}
 

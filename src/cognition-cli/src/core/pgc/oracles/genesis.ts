@@ -6,6 +6,9 @@ import fs from 'fs-extra';
 import { TransformData } from '../../types/transform.js';
 import yaml from 'js-yaml';
 
+/**
+ * Validates Genesis layer integrity including index, transforms, and object store consistency.
+ */
 export class GenesisOracle {
   // Renamed from StructuralOracle
   constructor(private pgcManager: PGCManager) {}
@@ -49,33 +52,44 @@ export class GenesisOracle {
     }
 
     // 2. Validate TransformLog entries against ObjectStore
+    // NOTE: Transforms now use Git-style sharding: transforms/{shard}/{hash}/manifest.yaml
     const transformsPath = path.join(this.pgcManager.pgcRoot, 'transforms');
     if (await fs.pathExists(transformsPath)) {
-      const transformDirs = await fs.readdir(transformsPath);
-      for (const dir of transformDirs) {
-        const manifestPath = path.join(transformsPath, dir, 'manifest.yaml');
-        if (await fs.pathExists(manifestPath)) {
-          const content = await fs.readFile(manifestPath, 'utf-8');
-          const transformData = yaml.load(content) as TransformData;
-          for (const input of transformData.inputs) {
-            if (!(await this.pgcManager.objectStore.exists(input.hash))) {
-              messages.push(
-                `Transform ${dir} references non-existent input hash: ${input.hash}`
-              );
+      const shards = await fs.readdir(transformsPath);
+      for (const shard of shards) {
+        const shardPath = path.join(transformsPath, shard);
+        const stat = await fs.stat(shardPath);
+
+        if (stat.isDirectory()) {
+          const transformHashes = await fs.readdir(shardPath);
+          for (const hashDir of transformHashes) {
+            const manifestPath = path.join(shardPath, hashDir, 'manifest.yaml');
+            const fullHash = shard + hashDir; // Reconstruct full hash
+
+            if (await fs.pathExists(manifestPath)) {
+              const content = await fs.readFile(manifestPath, 'utf-8');
+              const transformData = yaml.load(content) as TransformData;
+              for (const input of transformData.inputs) {
+                if (!(await this.pgcManager.objectStore.exists(input.hash))) {
+                  messages.push(
+                    `Transform ${fullHash} references non-existent input hash: ${input.hash}`
+                  );
+                  success = false;
+                }
+              }
+              for (const output of transformData.outputs) {
+                if (!(await this.pgcManager.objectStore.exists(output.hash))) {
+                  messages.push(
+                    `Transform ${fullHash} references non-existent output hash: ${output.hash}`
+                  );
+                  success = false;
+                }
+              }
+            } else {
+              messages.push(`Transform ${fullHash} is missing manifest.yaml`);
               success = false;
             }
           }
-          for (const output of transformData.outputs) {
-            if (!(await this.pgcManager.objectStore.exists(output.hash))) {
-              messages.push(
-                `Transform ${dir} references non-existent output hash: ${output.hash}`
-              );
-              success = false;
-            }
-          }
-        } else {
-          messages.push(`Transform directory ${dir} is missing manifest.yaml`);
-          success = false;
         }
       }
     } else {
@@ -105,9 +119,13 @@ export class GenesisOracle {
             const transformIds = content.split('\n').filter(Boolean); // Filter out empty strings
 
             for (const transformId of transformIds) {
+              // Transform is sharded: transforms/{shard}/{hash}/manifest.yaml
+              const shard = transformId.slice(0, 2);
+              const rest = transformId.slice(2);
               const transformManifestPath = path.join(
                 transformsPath,
-                transformId,
+                shard,
+                rest,
                 'manifest.yaml'
               );
               if (!(await fs.pathExists(transformManifestPath))) {

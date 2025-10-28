@@ -17,18 +17,27 @@ import {
   EMBED_PROMPT_NAME,
 } from '../../config.js';
 
+/**
+ * Represents a queued summarization request.
+ */
 interface SummarizeQueueItem {
   request: SummarizeRequest;
   resolve: (value: SummarizeResponse | PromiseLike<SummarizeResponse>) => void;
   reject: (reason?: unknown) => void;
 }
 
+/**
+ * Represents a queued embedding request.
+ */
 interface EmbedQueueItem {
   request: EmbedRequest;
   resolve: (value: EmbedResponse | PromiseLike<EmbedResponse>) => void;
   reject: (reason?: unknown) => void;
 }
 
+/**
+ * HTTP client for communicating with the eGemma workbench API with rate limiting and queueing.
+ */
 export class WorkbenchClient {
   private apiKey: string;
   private summarizeQueue: SummarizeQueueItem[] = [];

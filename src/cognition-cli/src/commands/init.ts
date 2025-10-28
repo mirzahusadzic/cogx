@@ -3,6 +3,9 @@ import path from 'path';
 import { intro, outro, spinner } from '@clack/prompts';
 import chalk from 'chalk';
 
+/**
+ * Initializes the PGC directory structure at the specified path.
+ */
 export async function initCommand(options: { path: string }) {
   intro(chalk.bold('Initializing Grounded Context Pool'));
 

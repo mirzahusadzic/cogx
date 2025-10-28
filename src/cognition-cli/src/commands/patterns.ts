@@ -12,6 +12,9 @@ import { z } from 'zod';
 
 import { PatternManager } from '../core/pgc/patterns.js';
 
+/**
+ * Adds pattern management and query commands to the CLI program.
+ */
 export function addPatternsCommands(program: Command) {
   const patternsCommand = program
     .command('patterns')

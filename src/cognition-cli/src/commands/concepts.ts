@@ -4,6 +4,9 @@ import chalk from 'chalk';
 import { MissionConceptsManager } from '../core/overlays/mission-concepts/manager.js';
 import { MissionConcept } from '../core/analyzers/concept-extractor.js';
 
+/**
+ * Adds mission concept query commands to the CLI program.
+ */
 export function addConceptsCommands(program: Command) {
   const conceptsCommand = program
     .command('concepts')

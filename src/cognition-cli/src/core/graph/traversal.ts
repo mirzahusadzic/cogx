@@ -13,6 +13,9 @@ import {
   CriticalPath,
 } from './types.js';
 
+/**
+ * Performs graph traversal operations for blast radius and dependency analysis.
+ */
 export class GraphTraversal {
   constructor(private pgc: PGCManager) {}
 

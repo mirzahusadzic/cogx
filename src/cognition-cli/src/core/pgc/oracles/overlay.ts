@@ -8,6 +8,9 @@ import {
 import chalk from 'chalk';
 import path from 'path';
 
+/**
+ * Validates overlay layer integrity including structural and lineage pattern metadata.
+ */
 export class OverlayOracle {
   constructor(private pgcManager: PGCManager) {}
 

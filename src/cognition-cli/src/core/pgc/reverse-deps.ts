@@ -1,6 +1,9 @@
 import fs from 'fs-extra';
 import path from 'path';
 
+/**
+ * Manages reverse dependency tracking for object-to-transform relationships.
+ */
 export class ReverseDeps {
   constructor(private pgcRoot: string) {}
 

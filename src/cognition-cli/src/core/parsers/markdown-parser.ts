@@ -5,6 +5,9 @@ import { createHash } from 'crypto';
 import { readFile } from 'fs/promises';
 import { Root, Heading, Node, PhrasingContent } from 'mdast';
 
+/**
+ * Represents a hierarchical section extracted from a markdown document.
+ */
 export interface MarkdownSection {
   heading: string;
   level: number; // 1-6 (H1-H6)
@@ -17,6 +20,9 @@ export interface MarkdownSection {
   };
 }
 
+/**
+ * Represents a parsed markdown document with structured sections.
+ */
 export interface MarkdownDocument {
   filePath: string;
   hash: string; // SHA-256 of entire document
@@ -29,17 +35,26 @@ export interface MarkdownDocument {
   rawContent: string;
 }
 
+/**
+ * Represents a position in the markdown source file.
+ */
 interface Position {
   start: { line: number; column: number; offset?: number };
   end: { line: number; column: number; offset?: number };
 }
 
+/**
+ * Represents heading metadata extracted during parsing.
+ */
 interface HeadingInfo {
   text: string;
   level: number;
   position: Position | undefined;
 }
 
+/**
+ * Parses markdown files into structured, hierarchical representations.
+ */
 export class MarkdownParser {
   /**
    * Parse a markdown file into structured format

@@ -14,6 +14,9 @@ import {
 import { LineageQueryResult, Dependency } from '../overlays/lineage/manager.js';
 import { EmbedResponse } from '../types/workbench.js';
 
+/**
+ * Manages the Provenance-Grounded Computation system including index, objects, transforms, and overlays.
+ */
 export class PGCManager {
   public readonly pgcRoot: string;
   public readonly projectRoot: string;

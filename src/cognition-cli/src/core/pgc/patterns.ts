@@ -1,5 +1,8 @@
 import { VectorRecord } from '../overlays/vector-db/lance-store.js';
 
+/**
+ * Interface for pattern management implementations that support similarity search.
+ */
 export interface PatternManager {
   findSimilarPatterns(
     symbol: string,

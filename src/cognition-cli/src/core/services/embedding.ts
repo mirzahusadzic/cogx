@@ -2,6 +2,9 @@ import { WorkbenchClient } from '../executors/workbench-client.js';
 import { EmbedResponse } from '../types/workbench.js';
 import { EventEmitter } from 'events';
 
+/**
+ * Represents a queued embedding job.
+ */
 interface EmbeddingJob {
   signature: string;
   dimensions: number;
@@ -9,6 +12,9 @@ interface EmbeddingJob {
   reject: (error: Error) => void;
 }
 
+/**
+ * Service for generating text embeddings with queueing and rate limiting.
+ */
 export class EmbeddingService extends EventEmitter {
   private workbench: WorkbenchClient;
   private queue: EmbeddingJob[] = [];

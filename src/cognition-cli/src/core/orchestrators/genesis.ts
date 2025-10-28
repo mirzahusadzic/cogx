@@ -25,7 +25,7 @@ import {
 } from '../../config.js';
 
 /**
- * Calculate optimal worker count for native AST parsing
+ * Calculates optimal worker count for parallel native AST parsing.
  */
 function calculateOptimalWorkersForParsing(fileCount: number): number {
   const cpuCount = os.cpus().length;
@@ -42,6 +42,9 @@ function calculateOptimalWorkersForParsing(fileCount: number): number {
   return Math.min(8, Math.floor(cpuCount * 0.75));
 }
 
+/**
+ * Orchestrates the Genesis process for extracting structural data from source files.
+ */
 export class GenesisOrchestrator {
   private maxFileSize = DEFAULT_MAX_FILE_SIZE;
   // NOTE: Structural patterns manifest is now managed by overlay generator

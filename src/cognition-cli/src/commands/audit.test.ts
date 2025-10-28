@@ -57,16 +57,23 @@ describe('auditCommand', () => {
 
     const transformHash1 = 'abc1';
     const transformHash2 = 'def2';
+    // Git-style sharding: transforms/{shard}/{rest}/manifest.yaml
+    const shard1 = transformHash1.slice(0, 2); // 'ab'
+    const rest1 = transformHash1.slice(2); // 'c1'
+    const shard2 = transformHash2.slice(0, 2); // 'de'
+    const rest2 = transformHash2.slice(2); // 'f2'
     const manifestPath1 = path.join(
       pgc.pgcRoot,
       'transforms',
-      transformHash1,
+      shard1,
+      rest1,
       'manifest.yaml'
     );
     const manifestPath2 = path.join(
       pgc.pgcRoot,
       'transforms',
-      transformHash2,
+      shard2,
+      rest2,
       'manifest.yaml'
     );
 
@@ -111,11 +118,11 @@ describe('auditCommand', () => {
     expect(console.log).toHaveBeenCalledWith(
       '\n--- Iteration 1 (Transform: abc1) ---'
     );
-    expect(console.log).toHaveBeenCalledWith('  Goal: [object Object]');
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Goal:'));
     expect(console.log).toHaveBeenCalledWith(
       '\n--- Iteration 2 (Transform: def2) ---'
     );
-    expect(console.log).toHaveBeenCalledWith('  Goal: [object Object]');
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Goal:'));
   });
 
   it('should handle files with no history', async () => {

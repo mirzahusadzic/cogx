@@ -23,11 +23,8 @@ import {
 } from './types.js';
 
 /**
- * Calculate optimal worker count based on system resources and workload
- *
- * NOTE: Workers now only perform lineage mining (dependency traversal).
- * Embedding is done sequentially in the main process to respect rate limits.
- * We can safely use multiple workers for the CPU-intensive mining phase.
+ * Calculates optimal worker count based on system resources and workload.
+ * Workers perform lineage mining while embedding is done sequentially.
  */
 function calculateOptimalWorkers(jobCount: number): number {
   const cpuCount = os.cpus().length;
@@ -44,18 +41,26 @@ function calculateOptimalWorkers(jobCount: number): number {
   return Math.min(8, Math.floor(cpuCount * 0.75));
 }
 
-// These interfaces remain, as they are part of the manager's public API for single-threaded lineage queries.
+/**
+ * Represents a dependency discovered during lineage traversal.
+ */
 export interface Dependency {
   path: string;
   depth: number;
   structuralData: StructuralData;
 }
 
+/**
+ * Represents the result of a lineage query including dependencies and initial context.
+ */
 export interface LineageQueryResult {
   dependencies: Dependency[];
   initialContext: StructuralData[];
 }
 
+/**
+ * Manages lineage pattern generation and similarity search using worker-based mining and sequential embedding.
+ */
 export class LineagePatternsManager implements PatternManager {
   private workerPool: workerpool.Pool | null = null;
   private embeddingService: EmbeddingService;

@@ -1,3 +1,6 @@
+/**
+ * Represents metadata tracking the provenance of a source artifact.
+ */
 export interface SourceRecord {
   uri: string;
   hash: string;
@@ -5,6 +8,9 @@ export interface SourceRecord {
   verified_by: string;
 }
 
+/**
+ * Represents a Grounded Knowledge Element with content, type, and provenance tracking.
+ */
 export interface GKe {
   content: string | Buffer;
   type:
@@ -19,6 +25,9 @@ export interface GKe {
   history_ref: string; // transform hash
 }
 
+/**
+ * Represents an objective with acceptance criteria and minimum fidelity threshold.
+ */
 export interface Goal {
   objective: string;
   criteria: string[];
@@ -30,6 +39,9 @@ export interface Goal {
   };
 }
 
+/**
+ * Represents a computational agent with role-specific behavior and constraints.
+ */
 export interface Persona {
   name: string;
   type: 'developer' | 'log_analyst' | 'architect' | 'structure_extractor';

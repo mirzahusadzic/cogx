@@ -16,7 +16,8 @@ interface StructuralMiningResult {
   status: 'success' | 'skipped' | 'error';
   symbolName: string;
   filePath: string;
-  signature?: string;
+  signature?: string; // Structural signature (the body)
+  semanticSignature?: string; // Semantic signature (the shadow)
   architecturalRole?: string;
   structuralData?: StructuralData;
   contentHash?: string;
@@ -82,8 +83,58 @@ function inferArchitecturalRole(
 }
 
 /**
- * Generate structural signature for a SPECIFIC symbol, not the entire file
+ * Generate semantic signature for mission coherence alignment
+ * Format: "docstring | type:SymbolName"
+ * This is the "shadow" - a semantic projection of the symbol
+ */
+function generateSemanticSignature(
+  symbolName: string,
+  structuralData: StructuralData
+): string {
+  const parts: string[] = [];
+
+  // Find the specific symbol
+  const targetClass = structuralData.classes?.find(
+    (c) => c.name === symbolName
+  );
+  const targetFunction = structuralData.functions?.find(
+    (f) => f.name === symbolName
+  );
+  const targetInterface = structuralData.interfaces?.find(
+    (i) => i.name === symbolName
+  );
+
+  // Extract docstring (semantic meaning)
+  let docstring = '';
+  if (targetClass && targetClass.docstring) {
+    docstring = targetClass.docstring.trim();
+  } else if (targetFunction && targetFunction.docstring) {
+    docstring = targetFunction.docstring.trim();
+  } else if (targetInterface && targetInterface.docstring) {
+    docstring = targetInterface.docstring.trim();
+  }
+
+  // Include docstring if it exists
+  if (docstring) {
+    parts.push(docstring);
+  }
+
+  // Add type:name for semantic context
+  if (targetClass) {
+    parts.push(`class:${targetClass.name}`);
+  } else if (targetFunction) {
+    parts.push(`function:${targetFunction.name}`);
+  } else if (targetInterface) {
+    parts.push(`interface:${targetInterface.name}`);
+  }
+
+  return parts.join(' | ');
+}
+
+/**
+ * Generate structural signature for architectural pattern matching
  * CRITICAL: This must only process the target symbol, not all symbols in the file!
+ * Format: Pure structural metadata without docstrings
  */
 function generateStructuralSignature(
   symbolName: string,
@@ -143,7 +194,7 @@ function generateStructuralSignature(
     parts.push(`exports:${structuralData.exports.length}`);
   }
 
-  return parts.sort().join(' | ');
+  return parts.join(' | ');
 }
 
 async function processStructuralPattern(
@@ -176,8 +227,12 @@ async function processStructuralPattern(
       };
     }
 
-    // Mine the pattern: generate signature and infer role for THIS SPECIFIC SYMBOL
+    // Mine the pattern: generate BOTH signatures and infer role for THIS SPECIFIC SYMBOL
     const signature = generateStructuralSignature(symbolName, structuralData);
+    const semanticSignature = generateSemanticSignature(
+      symbolName,
+      structuralData
+    );
     const architecturalRole = inferArchitecturalRole(
       symbolName,
       structuralData
@@ -189,6 +244,7 @@ async function processStructuralPattern(
       symbolName,
       filePath,
       signature,
+      semanticSignature, // The Shadow
       architecturalRole,
       structuralData,
       contentHash,

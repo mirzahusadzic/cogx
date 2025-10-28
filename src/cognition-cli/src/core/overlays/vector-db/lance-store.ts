@@ -11,6 +11,10 @@ import {
 } from 'apache-arrow';
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../../config.js';
 
+/**
+ * Creates Apache Arrow schema for lineage pattern records.
+ * Updated for The Shadow architecture (Monument 4.7) with dual embeddings.
+ */
 function createLineagePatternSchema(): Schema {
   return new Schema([
     new Field('id', new Utf8()),
@@ -23,6 +27,8 @@ function createLineagePatternSchema(): Schema {
       )
     ),
     new Field('structural_signature', new Utf8()),
+    new Field('semantic_signature', new Utf8()),
+    new Field('type', new Utf8()),
     new Field('architectural_role', new Utf8()),
     new Field('computed_at', new Utf8()),
     new Field('lineage_hash', new Utf8()),
@@ -31,6 +37,9 @@ function createLineagePatternSchema(): Schema {
   ]);
 }
 
+/**
+ * Represents a vector record stored in LanceDB.
+ */
 export interface VectorRecord extends Record<string, unknown> {
   [key: string]: unknown; // Explicit index signature
   id: string;
@@ -39,6 +48,9 @@ export interface VectorRecord extends Record<string, unknown> {
   lineage_hash?: string;
 }
 
+/**
+ * Represents a search result returned from LanceDB similarity queries.
+ */
 interface LanceDBSearchResult extends Record<string, unknown> {
   [key: string]: unknown; // Explicit index signature
   id: string;
@@ -51,6 +63,10 @@ interface LanceDBSearchResult extends Record<string, unknown> {
   lineage_hash?: string;
 }
 
+/**
+ * Apache Arrow schema for structural pattern vector records.
+ * Updated for The Shadow architecture (Monument 4.7) with dual embeddings.
+ */
 export const VECTOR_RECORD_SCHEMA = new Schema([
   new Field('id', new Utf8()),
   new Field('symbol', new Utf8()),
@@ -61,14 +77,19 @@ export const VECTOR_RECORD_SCHEMA = new Schema([
       new Field('item', new Float(Precision.DOUBLE))
     )
   ),
-  new Field('structural_signature', new Utf8()),
+  new Field('structural_signature', new Utf8()), // class:X | methods:5 (for pattern matching)
+  new Field('semantic_signature', new Utf8()), // docstring | class:X (for mission alignment)
+  new Field('type', new Utf8()), // 'structural' or 'semantic'
   new Field('architectural_role', new Utf8()),
   new Field('computed_at', new Utf8()),
-  new Field('lineage_hash', new Utf8()), // Ensure this exists
+  new Field('lineage_hash', new Utf8()),
   new Field('filePath', new Utf8()),
   new Field('structuralHash', new Utf8()),
 ]);
 
+/**
+ * Manages vector storage and similarity search using LanceDB.
+ */
 export class LanceVectorStore {
   private db: Connection | undefined;
   private table: Table | undefined;
@@ -107,12 +128,14 @@ export class LanceVectorStore {
         this.table = await this.db.openTable(tableName);
       } else {
         try {
-          // Create the table with the EXACT schema we want
+          // Create the table with the EXACT schema we want (Shadow architecture)
           const completeDummyRecord = {
             id: 'schema_test_record',
             symbol: 'test',
             embedding: new Array(DEFAULT_EMBEDDING_DIMENSIONS).fill(0.1),
             structural_signature: 'test',
+            semantic_signature: 'test',
+            type: 'structural',
             architectural_role: 'test_role',
             computed_at: new Date().toISOString(),
             lineage_hash: 'test_hash',
@@ -183,7 +206,9 @@ export class LanceVectorStore {
       id: id,
       embedding: embedding,
       symbol: metadata.symbol as string,
-      structural_signature: metadata.structural_signature as string,
+      structural_signature: (metadata.structural_signature as string) || '',
+      semantic_signature: (metadata.semantic_signature as string) || '',
+      type: (metadata.type as string) || 'structural',
       architectural_role: metadata.architectural_role as string,
       computed_at: metadata.computed_at as string,
       lineage_hash: metadata.lineage_hash as string,

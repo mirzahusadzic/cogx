@@ -10,6 +10,9 @@ import { GenesisOracle } from '../core/pgc/oracles/genesis.js';
 import { LineagePatternsManager } from '../core/overlays/lineage/manager.js';
 import { LanceVectorStore } from '../core/overlays/vector-db/lance-store.js';
 
+/**
+ * Represents errors during PGC initialization validation.
+ */
 class PGCInitializationError extends Error {
   constructor(message: string) {
     super(message);
@@ -42,6 +45,9 @@ async function validatePgcInitialized(projectRoot: string): Promise<void> {
   // Optionally, add more checks for other essential directories if needed
 }
 
+/**
+ * Executes the genesis command to build the verifiable skeleton from source code.
+ */
 export async function genesisCommand(options: GenesisOptions) {
   intro(chalk.bold('Genesis: Building the Verifiable Skeleton'));
 

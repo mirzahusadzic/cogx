@@ -7,6 +7,12 @@ import type {
 
 import { DEFAULT_SLM_MODEL_NAME } from '../../../config.js';
 
+/**
+ * Small Language Model (SLM) based structural extractor.
+ * Extracts structural metadata from source code using a lightweight language model when native AST parsing is unavailable.
+ * Uses the ast_analyst persona to generate structured JSON representations of code structure.
+ * Provides 70% fidelity extraction as a fallback to native AST parsing.
+ */
 export class SLMExtractor {
   constructor(private workbench: WorkbenchClient) {}
 

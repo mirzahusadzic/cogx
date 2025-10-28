@@ -19,11 +19,8 @@ import {
 } from '../../../config.js';
 
 /**
- * Calculate optimal worker count based on system resources and workload
- *
- * NOTE: Workers now only perform mining (AST parsing, signature generation).
- * Embedding is done sequentially in the main process to respect rate limits.
- * We can safely use multiple workers for the CPU-intensive mining phase.
+ * Calculates optimal worker count based on system resources and workload.
+ * Workers perform mining while embedding is done sequentially.
  */
 function calculateOptimalWorkers(jobCount: number): number {
   const cpuCount = os.cpus().length;
@@ -41,14 +38,7 @@ function calculateOptimalWorkers(jobCount: number): number {
 }
 
 /**
- * Calculate cPOW (Cognitive Proof of Work) magnitude for an overlay entry
- *
- * This measures the inherent computational cost of generating the overlay,
- * not its market value or tradeable price.
- *
- * @param extractionMethod - How structure was extracted (ast_remote, ast_local, llm_supervised)
- * @param fidelity - Quality/confidence of extraction (0.0-1.0)
- * @returns Magnitude score (0.0-1.0) representing computational work invested
+ * Calculates cPOW magnitude representing computational cost of overlay generation.
  */
 function calculateCPOWMagnitude(
   extractionMethod: string,
@@ -78,12 +68,19 @@ function calculateCPOWMagnitude(
   return Math.min(magnitude, 1.0);
 }
 
+/**
+ * Represents metadata for a structural pattern including validation and cPOW tracking.
+ * Supports dual embeddings: structural (the body) and semantic (the shadow).
+ */
 export interface PatternMetadata {
   symbol: string;
   anchor: string;
   symbolStructuralDataHash: string;
   embeddingHash: string;
   structuralSignature: string;
+  semanticSignature?: string; // The shadow signature (docstring + type)
+  semanticEmbeddingHash?: string; // Hash of semantic embedding
+  semanticVectorId?: string; // Vector ID for semantic embedding
   architecturalRole: string;
   computedAt: string;
   vectorId: string;
@@ -104,6 +101,9 @@ export interface PatternMetadata {
   };
 }
 
+/**
+ * Zod schema for validating pattern metadata.
+ */
 const PatternMetadataSchema = z.object({
   symbol: z.string(),
   anchor: z.string(),
@@ -118,6 +118,9 @@ const PatternMetadataSchema = z.object({
   }),
 });
 
+/**
+ * Represents a job packet for parallel structural pattern mining.
+ */
 interface StructuralJobPacket {
   projectRoot: string;
   symbolName: string;
@@ -128,11 +131,15 @@ interface StructuralJobPacket {
   force: boolean;
 }
 
+/**
+ * Represents the result of a structural mining operation.
+ */
 interface StructuralMiningResult {
   status: 'success' | 'skipped' | 'error';
   symbolName: string;
   filePath: string;
-  signature?: string;
+  signature?: string; // Structural signature (the body)
+  semanticSignature?: string; // Semantic signature (the shadow)
   architecturalRole?: string;
   structuralData?: StructuralData;
   contentHash?: string;
@@ -140,6 +147,9 @@ interface StructuralMiningResult {
   message?: string;
 }
 
+/**
+ * Manages structural pattern generation and similarity search using worker-based mining and sequential embedding.
+ */
 export class StructuralPatternsManager implements PatternManager {
   private workerPool?: workerpool.Pool;
   private embeddingService?: EmbeddingService;
@@ -334,7 +344,9 @@ export class StructuralPatternsManager implements PatternManager {
   }
 
   /**
-   * Generate embedding and store pattern for a single mined result
+   * Generate DUAL embeddings (structural + semantic) and store pattern for a single mined result
+   * The structural embedding captures the architecture (the body)
+   * The semantic embedding captures the meaning (the shadow)
    */
   private async generateAndStoreEmbedding(
     result: StructuralMiningResult
@@ -343,6 +355,7 @@ export class StructuralPatternsManager implements PatternManager {
       symbolName,
       filePath,
       signature,
+      semanticSignature,
       architecturalRole,
       structuralData,
       contentHash,
@@ -361,31 +374,69 @@ export class StructuralPatternsManager implements PatternManager {
 
     EmbedLogger.start(symbolName);
 
-    // Request embedding through centralized service
-    const embedResponse = await this.workbench.embed({
+    // Request STRUCTURAL embedding (the body)
+    const structuralEmbedResponse = await this.workbench.embed({
       signature,
       dimensions: DEFAULT_EMBEDDING_DIMENSIONS,
     });
 
-    const embedding =
-      embedResponse[`embedding_${DEFAULT_EMBEDDING_DIMENSIONS}d`];
+    const structuralEmbedding =
+      structuralEmbedResponse[`embedding_${DEFAULT_EMBEDDING_DIMENSIONS}d`];
 
-    if (!embedding) {
+    if (!structuralEmbedding) {
       throw new Error(
-        `Could not find embedding for dimension ${DEFAULT_EMBEDDING_DIMENSIONS}`
+        `Could not find structural embedding for dimension ${DEFAULT_EMBEDDING_DIMENSIONS}`
       );
     }
 
+    // Request SEMANTIC embedding (the shadow) - only if semantic signature exists
+    let semanticEmbedding: number[] | undefined;
+    let semanticEmbeddingHash: string | undefined;
+    let semanticVectorId: string | undefined;
+
+    if (semanticSignature && semanticSignature.trim().length > 0) {
+      const semanticEmbedResponse = await this.workbench.embed({
+        signature: semanticSignature,
+        dimensions: DEFAULT_EMBEDDING_DIMENSIONS,
+      });
+
+      const embeddingField =
+        semanticEmbedResponse[`embedding_${DEFAULT_EMBEDDING_DIMENSIONS}d`];
+
+      if (embeddingField && Array.isArray(embeddingField)) {
+        semanticEmbedding = embeddingField as number[];
+        semanticEmbeddingHash = this.pgc.objectStore.computeHash(
+          JSON.stringify(semanticEmbedding)
+        );
+        semanticVectorId = `pattern_semantic_${filePath.replace(/[^a-zA-Z0-9]/g, '_')}_${symbolName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      }
+    }
+
+    // Compute lineage hash BEFORE storing vectors (needed for both structural and semantic)
     const lineageHash = this.pgc.objectStore.computeHash(
       JSON.stringify(structuralData)
     );
+
+    // Store semantic vector (the shadow) if it exists
+    if (semanticEmbedding && semanticVectorId) {
+      await this.vectorDB.storeVector(semanticVectorId, semanticEmbedding, {
+        symbol: symbolName,
+        filePath: filePath,
+        structuralHash: structuralHash,
+        semantic_signature: semanticSignature,
+        architectural_role: architecturalRole,
+        computed_at: new Date().toISOString(),
+        lineage_hash: lineageHash, // CRITICAL: Include lineage hash
+        type: 'semantic', // Mark as semantic shadow
+      });
+    }
     const embeddingHash = this.pgc.objectStore.computeHash(
-      JSON.stringify(embedding)
+      JSON.stringify(structuralEmbedding)
     );
     const vectorId = `pattern_${filePath.replace(/[^a-zA-Z0-9]/g, '_')}_${symbolName.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
-    // Store vector
-    await this.vectorDB.storeVector(vectorId, embedding as number[], {
+    // Store structural vector (the body)
+    await this.vectorDB.storeVector(vectorId, structuralEmbedding as number[], {
       symbol: symbolName,
       filePath: filePath,
       structuralHash: structuralHash,
@@ -393,6 +444,7 @@ export class StructuralPatternsManager implements PatternManager {
       architectural_role: architecturalRole,
       computed_at: new Date().toISOString(),
       lineage_hash: lineageHash,
+      type: 'structural', // Mark as structural body
     });
 
     // Calculate cPOW magnitude
@@ -401,13 +453,16 @@ export class StructuralPatternsManager implements PatternManager {
       structuralData.fidelity
     );
 
-    // Update PGC overlays
+    // Update PGC overlays with DUAL embeddings (body + shadow)
     const metadata: PatternMetadata = {
       symbol: symbolName,
       anchor: filePath,
       symbolStructuralDataHash: structuralHash,
       embeddingHash,
       structuralSignature: signature,
+      semanticSignature: semanticSignature, // The shadow
+      semanticEmbeddingHash: semanticEmbeddingHash, // Shadow's hash
+      semanticVectorId: semanticVectorId, // Shadow's vector ID
       architecturalRole: architecturalRole,
       computedAt: new Date().toISOString(),
       validation: {
@@ -421,7 +476,7 @@ export class StructuralPatternsManager implements PatternManager {
         computation: {
           extraction_method: structuralData.extraction_method,
           embedding_model: DEFAULT_EMBEDDING_MODEL_NAME,
-          api_calls: 1,
+          api_calls: semanticEmbedding ? 2 : 1, // Count both embeddings if shadow exists
         },
         timestamp: new Date().toISOString(),
       },

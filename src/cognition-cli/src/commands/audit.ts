@@ -4,11 +4,17 @@ import { TransformData } from '../core/types/transform.js';
 import { DocsOracle } from '../core/pgc/oracles/docs.js';
 import chalk from 'chalk';
 
+/**
+ * Represents options for the audit command.
+ */
 interface AuditOptions {
   projectRoot: string;
   limit: string;
 }
 
+/**
+ * Audits transformation history for a specific file path.
+ */
 export async function auditCommand(filePath: string, options: AuditOptions) {
   const pgc = new PGCManager(options.projectRoot);
   const transformLog = new TransformLog(pgc.pgcRoot);
@@ -64,7 +70,7 @@ function displayTransformData(data: TransformData) {
 }
 
 /**
- * Audit document integrity using DocsOracle
+ * Audits document integrity using the DocsOracle.
  */
 export async function auditDocsCommand(options: {
   projectRoot: string;

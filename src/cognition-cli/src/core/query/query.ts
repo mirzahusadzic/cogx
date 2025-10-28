@@ -7,12 +7,18 @@ import {
   InterfaceData,
 } from '../types/structural.js';
 
+/**
+ * Represents a dependency discovered during query traversal.
+ */
 export interface DependencyResult {
   path: string;
   depth: number;
   structuralData: StructuralData;
 }
 
+/**
+ * Represents the complete result of a query operation.
+ */
 export interface QueryResult {
   question: string;
   initialContext: StructuralData[];
@@ -50,6 +56,9 @@ async function findBestResultForSymbol(
   return bestResult;
 }
 
+/**
+ * Executes a query to find code symbols and their dependencies based on a natural language question.
+ */
 export async function queryCommand(
   question: string,
   options: QueryOptions
@@ -217,6 +226,9 @@ function extractEntities(question: string): string[] {
   return [...new Set(entities)];
 }
 
+/**
+ * Formats a query result as human-readable text.
+ */
 export function formatAsHumanReadable(queryResult: QueryResult): string {
   let output = '';
   output += `Query: "${queryResult.question}"`;
@@ -244,6 +256,9 @@ export function formatAsHumanReadable(queryResult: QueryResult): string {
   return output;
 }
 
+/**
+ * Formats a query result as lineage JSON structure.
+ */
 export function formatAsLineageJSON(queryResult: QueryResult): string {
   const { question, dependencies } = queryResult;
 

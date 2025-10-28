@@ -3,6 +3,9 @@ import { getGlobalDispatcher } from 'undici';
 import chalk from 'chalk';
 import { OverlayOrchestrator } from '../../core/orchestrators/overlay.js';
 
+/**
+ * Command for generating specific types of analytical overlays.
+ */
 const generateCommand = new Command('generate')
   .description(
     'Generate a specific type of overlay (structural_patterns, lineage_patterns, mission_concepts, or strategic_coherence).'

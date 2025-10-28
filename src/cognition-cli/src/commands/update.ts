@@ -9,6 +9,9 @@ import { WorkbenchClient } from '../core/executors/workbench-client.js';
 import { UpdateOrchestrator } from '../core/orchestrators/update.js';
 import { GenesisOracle } from '../core/pgc/oracles/genesis.js';
 
+/**
+ * Represents errors during PGC initialization validation.
+ */
 class PGCInitializationError extends Error {
   constructor(message: string) {
     super(message);
@@ -81,6 +84,9 @@ async function runUpdate(options: UpdateOptions) {
   }
 }
 
+/**
+ * Creates the update command for incremental PGC synchronization.
+ */
 export function createUpdateCommand(): Command {
   const cmd = new Command('update');
 

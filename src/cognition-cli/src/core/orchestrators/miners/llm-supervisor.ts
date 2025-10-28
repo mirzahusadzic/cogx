@@ -1,6 +1,12 @@
 import type { WorkbenchClient } from '../../executors/workbench-client.js';
 import type { SourceFile, StructuralData } from '../../types/structural.js';
 
+/**
+ * Large Language Model (LLM) supervised parser generator.
+ * Generates custom tree-sitter queries for unsupported languages using an LLM.
+ * This is an experimental fallback extractor that dynamically creates parsers when neither native AST nor SLM extraction is suitable.
+ * Provides 50% fidelity extraction as the last-resort option in the extraction hierarchy.
+ */
 export class LLMSupervisor {
   constructor(private workbench: WorkbenchClient) {}
 

@@ -6,12 +6,18 @@ import { DirtyStateManager } from '../core/watcher/dirty-state.js';
 import { Index } from '../core/pgc/index.js';
 import { DirtyState } from '../core/types/watcher.js';
 
+/**
+ * Represents impact analysis data for a modified file.
+ */
 interface BlastRadiusInfo {
   affectedSymbols: string[];
   consumerCount: number;
   maxDepth: number;
 }
 
+/**
+ * Represents a complete PGC coherence status report.
+ */
 interface StatusReport {
   coherent: boolean;
   dirtyState: DirtyState;
@@ -23,6 +29,9 @@ interface StatusReport {
   };
 }
 
+/**
+ * Creates the status command for checking PGC coherence state.
+ */
 export function createStatusCommand(): Command {
   const cmd = new Command('status');
 

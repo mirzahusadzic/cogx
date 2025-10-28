@@ -155,12 +155,32 @@ export class StrategicCoherenceManager {
       throw new Error('No mission concepts with embeddings found');
     }
 
-    // 2. Load structural patterns (from O₁ vector store)
+    // 2. Load SEMANTIC patterns (the shadow) from O₁ vector store
+    // We use semantic embeddings (docstring + type) for mission alignment, not structural embeddings
     const vectorRecords = await this.vectorStore.getAllVectors();
 
     if (vectorRecords.length === 0) {
       throw new Error('No structural patterns found in vector store');
     }
+
+    // Filter for semantic vectors (the shadow projection)
+    const semanticVectors = vectorRecords.filter(
+      (v) =>
+        v.metadata &&
+        typeof v.metadata === 'object' &&
+        'type' in v.metadata &&
+        v.metadata.type === 'semantic'
+    );
+
+    if (semanticVectors.length === 0) {
+      console.warn(
+        '[StrategicCoherence] No semantic embeddings found. Falling back to structural embeddings.'
+      );
+    }
+
+    // Use semantic vectors if available, otherwise fall back to structural
+    const vectorsForCoherence =
+      semanticVectors.length > 0 ? semanticVectors : vectorRecords;
 
     // 3. Compute alignments for each symbol
     const symbolCoherenceList: SymbolCoherence[] = [];
@@ -175,7 +195,7 @@ export class StrategicCoherenceManager {
       });
     }
 
-    for (const vectorRecord of vectorRecords) {
+    for (const vectorRecord of vectorsForCoherence) {
       const symbolEmbedding = vectorRecord.embedding;
 
       if (!symbolEmbedding || symbolEmbedding.length !== 768) {

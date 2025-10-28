@@ -18,6 +18,12 @@ function canonicalizeSymbol(symbol: string): string {
   return canonical;
 }
 
+/**
+ * High-performance file index with multi-threaded search capabilities.
+ * Maps source file paths to their structural metadata, content hashes, and processing status.
+ * Supports parallel deep-search across structural data using worker threads for large codebases.
+ * This is the primary lookup system for the Provenance Graph Cache (PGC).
+ */
 export class Index {
   private indexPath: string;
 

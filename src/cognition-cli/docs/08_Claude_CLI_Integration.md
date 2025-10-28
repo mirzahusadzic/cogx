@@ -496,7 +496,7 @@ description: Check mission alignment for recent changes
 
 ### `/blast-radius`
 
-```markdown
+````markdown
 ---
 description: Check impact of changing a symbol
 ---
@@ -506,6 +506,7 @@ Ask the user which symbol they want to modify, then run:
 ```bash
 cognition-cli blast-radius <symbol-name>
 ```
+````
 
 Show:
 

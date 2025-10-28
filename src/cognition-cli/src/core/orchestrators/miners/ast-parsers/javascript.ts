@@ -16,7 +16,12 @@ import ts, {
   isMethodDeclaration,
 } from 'typescript';
 
-// The AST Parser Implementation for JavaScript
+/**
+ * Native JavaScript AST parser using the TypeScript Compiler API.
+ * Extracts comprehensive structural metadata from JavaScript source files including classes, functions, imports, exports, and JSDoc documentation.
+ * Provides 100% fidelity extraction by parsing JavaScript as a TypeScript AST with ScriptKind.JS.
+ * This is the highest-fidelity extractor for JavaScript in the structural mining pipeline.
+ */
 export class JavaScriptParser implements ASTParser {
   readonly isNative = true;
   readonly language = 'javascript';

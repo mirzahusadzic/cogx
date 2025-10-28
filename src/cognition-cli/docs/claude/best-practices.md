@@ -270,6 +270,7 @@ description: Analyze architecture using PGC
 ---
 
 Run:
+
 1. \`cognition-cli patterns analyze\`
 2. \`cognition-cli overlay list\`
 3. Use PGC metadata to answer the user's question
@@ -317,6 +318,7 @@ cognition-cli coherence for-symbol NewFeature
 **Blast Radius:** 12 files affected
 **Coherence:** 58.3% (above threshold ✓)
 **Aligned Concepts:**
+
 - "Verifiable state" (72.4%)
 - "Provenance tracking" (61.2%)
 
@@ -469,14 +471,16 @@ cd ~/projects/service-b && cognition-cli genesis:docs VISION.md
 
 **Create `PGC_GUIDE.md` in your repo:**
 
-```markdown
+````markdown
 # PGC Developer Guide
 
 ## Setup
+
 ```bash
 cognition-cli init
 cognition-cli genesis
 ```
+````
 
 ## Daily Workflow
 
@@ -665,12 +669,13 @@ vi.mock('../executors/workbench-client.js', () => {
 
 **Add to README.md:**
 
-```markdown
+````markdown
 ## Mission Alignment
 
 This project maintains strategic coherence with our vision.
 
 **Coherence targets:**
+
 - Overall average: 50%+
 - Core modules: 70%+
 - Utilities: 40%+
@@ -680,6 +685,7 @@ Check alignment:
 ```bash
 cognition-cli coherence report
 ```
+````
 
 ---
 

@@ -4,6 +4,9 @@ import { z } from 'zod';
 import upath from 'upath';
 import { lock } from 'proper-lockfile';
 
+/**
+ * Manages overlay storage and retrieval for pattern metadata and manifests.
+ */
 export class Overlays {
   private overlaysPath: string;
 
