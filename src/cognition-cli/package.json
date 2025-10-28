@@ -2,6 +2,8 @@
   "name": "cognition-cli",
   "version": "1.6.0",
   "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "author": "Mirza Husadzic",
   "bin": {
     "cognition-cli": "./dist/cli.js"
   },
