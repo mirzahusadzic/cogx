@@ -164,9 +164,11 @@ These innovations are protected from patent restrictions and remain free for all
 23. **Markdown Parser with Meta Properties:** Hierarchical AST with structuralHash and position tracking
 24. **Overlay Invalidation System:** Automatic cascade invalidation of dependent overlays
 
-**Post-Publication Additions (Innovation #25):**
+**Post-Publication Additions (Innovations #25-27):**
 
 25. **Context Sampling Function (Σ):** Efficient lattice traversal for relevant knowledge extraction (emerged through Claude Code integration)
+26. **Monument 4.7: The Shadow:** Dual embedding system for structural and semantic signatures enabling both code pattern matching and mission alignment queries
+27. **Monument 5.1: Lattice-aware Gaussian Weighting:** Pure lattice-based coherence using Gaussian statistics + graph centrality, eliminating all hardcoded constants (weight formula: w = log10(deps+1) × max(0.1, 1.0 + z_score))
 
 ### 5. Mathematics Rewards Openness
 
