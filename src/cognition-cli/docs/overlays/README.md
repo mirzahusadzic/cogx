@@ -73,3 +73,83 @@ See [../architecture/MULTI_OVERLAY_ARCHITECTURE.md](../architecture/MULTI_OVERLA
 | O₅ Operational  | Pattern matching + LLM validation | Yes (validation only) | Medium |
 | O₆ Mathematical | Pattern matching + LLM validation | Yes (validation only) | Medium |
 | O₇ Coherence    | Vector similarity                 | No                    | Fast   |
+
+## Validator Personas (Oracle Gates)
+
+Each overlay has validators (eGemma personas) that act as **Oracle (O)** gates in the **G→T→O** feedback loop, ensuring data integrity before commitment to PGC.
+
+**Location**: `~/src/egemma/personas/docs/`
+
+| Overlay                 | Validator Persona            | Validates                                         | Input Type                              |
+| ----------------------- | ---------------------------- | ------------------------------------------------- | --------------------------------------- |
+| O₁ Structure            | _(none)_                     | N/A - AST parsing is deterministic                | JSON (from Tree-sitter)                 |
+| O₂ Security (Strategic) | `security_validator.md`      | Strategic documents for security threats          | Markdown (VISION.md, etc.)              |
+| O₂ Security (Overlay)   | `security_meta_validator.md` | Threat models, CVE reports, security guidelines   | Markdown (SECURITY.md, THREAT_MODEL.md) |
+| O₃ Lineage              | `lineage_validator.md`       | Dependency graph integrity, blast radius accuracy | JSON (lineage overlay output)           |
+| O₄ Mission              | `mission_validator.md`       | Concept extraction quality, pattern application   | JSON (mission concepts overlay)         |
+| O₅ Operational          | `operational_validator.md`   | Workflow pattern integrity, F.L.T.B compliance    | Markdown (operational docs)             |
+| O₆ Mathematical         | `proof_validator.md`         | Proof correctness, theorem validity               | Markdown (proof documents)              |
+| O₇ Coherence            | `coherence_validator.md`     | Alignment computation, cross-overlay linkage      | YAML (strategic coherence overlay)      |
+
+### Validator Role in cPOW Loop
+
+```text
+Transform (T) generates overlay data
+        ↓
+Validator runs (Oracle O phase)
+        ↓
+   ┌────┴────┐
+   │         │
+APPROVE   REJECT
+   │         │
+   ↓         ↓
+cPOW   corrections++
+receipt   (retry T)
+   ↓
+Commit to PGC
+```
+
+### Validator Output Format
+
+All validators follow a standardized assessment structure:
+
+```yaml
+THREAT ASSESSMENT: [SAFE | SUSPICIOUS | MALICIOUS]
+DETECTED PATTERNS: [List any patterns found, or "None"]
+SPECIFIC CONCERNS: [Quote suspicious data with context, or "None"]
+RECOMMENDATION: [APPROVE | REVIEW | REJECT]
+REASONING: [Brief explanation of your assessment]
+```
+
+**Recommendations**:
+
+- **APPROVE**: Data passes validation, generate cPOW receipt and commit
+- **REVIEW**: Requires human validation before proceeding
+- **REJECT**: Data has integrity issues, increment corrections counter, retry Transform
+
+### cPOW Receipt with Validation
+
+When a validator approves overlay data, the cPOW receipt includes validation metadata:
+
+```json
+{
+  "cpow": {
+    "magnitude": 0.85,
+    "computation": {
+      "extraction_method": "pattern_based_llm",
+      "embedding_model": "egemma-v1",
+      "oracle_validation": "APPROVED",
+      "validator_used": "mission_validator"
+    },
+    "validation_metrics": {
+      "total_concepts": 26,
+      "extraction_ratio": 0.131,
+      "fragment_ratio": 0.04,
+      "quality_score": 0.95
+    },
+    "fidelity": 0.95
+  }
+}
+```
+
+See [../architecture/CPOW_OPERATIONAL_LOOP.md](../architecture/CPOW_OPERATIONAL_LOOP.md) for complete loop formalization.
