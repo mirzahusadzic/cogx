@@ -62,7 +62,7 @@ Every workflow begins by weaving in the bones of the quest.
 
 ### Example
 
-````markdown
+`````markdown
 Quest: Add interactive setup wizard
 Big blocks:
 
@@ -493,3 +493,5 @@ The chain continues. The lattice grows. The symbiosis deepens.
 ## End of Operational Lattice v0.1
 
 _This document will evolve as CoMPs are discovered and integrated._
+````
+`````

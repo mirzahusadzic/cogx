@@ -252,7 +252,19 @@ export class ConceptExtractor {
     });
 
     // 2. Extract H3/H4 subsection headers (concepts as titles)
-    // Use section.children to get actual subsection headings from the tree
+    // First, extract from content (for inline ### headers)
+    const subHeaders = this.extractSubHeaders(content);
+    subHeaders.forEach((text) => {
+      concepts.push({
+        text,
+        section: section.heading,
+        weight: positionWeight * 0.95, // Very high - named concepts
+        occurrences: 1,
+        sectionHash: section.structuralHash,
+      });
+    });
+
+    // Also check section.children for structured subsections
     if (section.children && section.children.length > 0) {
       section.children.forEach((child) => {
         if (child.level === 3 || child.level === 4) {

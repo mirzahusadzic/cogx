@@ -81,23 +81,23 @@ Brain → BCI detects encoding pattern → NMP translates → Memory stored
 {
   "operation": "memory_form",
   "timestamp": "2024-10-29T14:32:18.428Z",
-  "memory_type": "episodic",  // episodic, semantic, procedural
+  "memory_type": "episodic", // episodic, semantic, procedural
   "content": {
     "sensory": {
-      "visual": "<encoded_data>",  // What was seen
+      "visual": "<encoded_data>", // What was seen
       "auditory": "<encoded_data>", // What was heard
-      "other": "<encoded_data>"     // Touch, smell, etc.
+      "other": "<encoded_data>" // Touch, smell, etc.
     },
     "context": {
       "location": "<gps_coordinates>",
       "people_present": ["<person_id>"],
-      "emotional_valence": 0.7,  // -1 to 1 (negative to positive)
-      "attention_level": 0.9      // 0 to 1 (distracted to focused)
+      "emotional_valence": 0.7, // -1 to 1 (negative to positive)
+      "attention_level": 0.9 // 0 to 1 (distracted to focused)
     }
   },
-  "confidence": 0.95,  // BCI confidence in signal interpretation
+  "confidence": 0.95, // BCI confidence in signal interpretation
   "provenance": {
-    "source": "direct_experience",  // vs "told_by_someone", "read", etc.
+    "source": "direct_experience", // vs "told_by_someone", "read", etc.
     "device_id": "<bci_device_hash>",
     "signal_quality": 0.92
   }
@@ -111,7 +111,7 @@ Brain → BCI detects encoding pattern → NMP translates → Memory stored
   "memory_hash": "sha256:abc123...",
   "stored": true,
   "overlays_updated": ["semantic", "episodic", "emotional"],
-  "associations_formed": 12  // Connected to existing memories
+  "associations_formed": 12 // Connected to existing memories
 }
 ```
 
@@ -138,14 +138,14 @@ Brain → BCI detects recall attempt → NMP translates → Memory queried → R
       "certainty": 0.6
     },
     "emotional_cues": {
-      "valence": 0.8,  // Positive memory
-      "arousal": 0.5   // Moderate intensity
+      "valence": 0.8, // Positive memory
+      "arousal": 0.5 // Moderate intensity
     },
     "context_cues": {
       "location_type": "home"
     }
   },
-  "recall_difficulty": 0.7,  // 0=easy recall, 1=struggling
+  "recall_difficulty": 0.7, // 0=easy recall, 1=struggling
   "confidence": 0.85
 }
 ```
@@ -163,7 +163,7 @@ Brain → BCI detects recall attempt → NMP translates → Memory queried → R
     "provenance": {
       "source": "direct_experience",
       "timestamp": "2024-09-15T16:30:00Z",
-      "witnesses": ["<person_hash>"],  // For verification
+      "witnesses": ["<person_hash>"], // For verification
       "external_evidence": ["photo_hash", "video_hash"]
     },
     "associations": {
@@ -171,7 +171,8 @@ Brain → BCI detects recall attempt → NMP translates → Memory queried → R
       "emotional_context": { "valence": 0.85, "arousal": 0.6 }
     }
   },
-  "alternatives": [  // Other possible matches
+  "alternatives": [
+    // Other possible matches
     { "memory_hash": "...", "confidence": 0.78 },
     { "memory_hash": "...", "confidence": 0.65 }
   ]
@@ -205,7 +206,7 @@ Brain → BCI detects uncertainty pattern → NMP requests verification → Resu
       "where": "unknown"
     }
   },
-  "uncertainty_level": 0.8  // How unsure person is
+  "uncertainty_level": 0.8 // How unsure person is
 }
 ```
 
@@ -281,8 +282,16 @@ Brain → BCI detects decision-making pattern → NMP checks coherence → Guida
   "coherence_result": "conflict_detected",
   "identity_check": {
     "core_values": [
-      { "value": "safety_first", "established": "2024-01-15", "priority": "high" },
-      { "value": "accept_help", "established": "2024-03-20", "priority": "high" }
+      {
+        "value": "safety_first",
+        "established": "2024-01-15",
+        "priority": "high"
+      },
+      {
+        "value": "accept_help",
+        "established": "2024-03-20",
+        "priority": "high"
+      }
     ],
     "mission": "Be a loving parent, stay safe, maintain independence",
     "constraints": [
@@ -318,11 +327,11 @@ Brain → BCI detects decision-making pattern → NMP checks coherence → Guida
 
 ```typescript
 enum MemoryType {
-  EPISODIC = "episodic",        // Events, experiences
-  SEMANTIC = "semantic",         // Facts, knowledge
-  PROCEDURAL = "procedural",     // Skills, how-to
-  EMOTIONAL = "emotional",       // Feelings, associations
-  IDENTITY = "identity"          // Self-concept, values, mission
+  EPISODIC = 'episodic', // Events, experiences
+  SEMANTIC = 'semantic', // Facts, knowledge
+  PROCEDURAL = 'procedural', // Skills, how-to
+  EMOTIONAL = 'emotional', // Feelings, associations
+  IDENTITY = 'identity', // Self-concept, values, mission
 }
 ```
 
@@ -330,12 +339,12 @@ enum MemoryType {
 
 ```typescript
 interface Provenance {
-  source: "direct_experience" | "told_by_someone" | "read" | "inferred";
+  source: 'direct_experience' | 'told_by_someone' | 'read' | 'inferred';
   timestamp: ISO8601Timestamp;
-  device_id: ContentHash;        // BCI device that recorded
-  signal_quality: number;        // 0-1, confidence in signal
-  witnesses?: ContentHash[];     // Other people present (for verification)
-  external_evidence?: ContentHash[];  // Photos, videos, documents
+  device_id: ContentHash; // BCI device that recorded
+  signal_quality: number; // 0-1, confidence in signal
+  witnesses?: ContentHash[]; // Other people present (for verification)
+  external_evidence?: ContentHash[]; // Photos, videos, documents
 }
 ```
 
@@ -343,8 +352,8 @@ interface Provenance {
 
 ```typescript
 interface EmotionalValence {
-  valence: number;   // -1 (negative) to 1 (positive)
-  arousal: number;   // 0 (calm) to 1 (intense)
+  valence: number; // -1 (negative) to 1 (positive)
+  arousal: number; // 0 (calm) to 1 (intense)
   discrete_emotions?: {
     joy?: number;
     sadness?: number;
@@ -360,23 +369,23 @@ interface EmotionalValence {
 
 ```typescript
 interface IdentityCore {
-  mission: string;                    // Life purpose, overarching goal
+  mission: string; // Life purpose, overarching goal
   values: Array<{
     name: string;
-    priority: "critical" | "high" | "medium" | "low";
+    priority: 'critical' | 'high' | 'medium' | 'low';
     established: ISO8601Timestamp;
     provenance: Provenance;
   }>;
   beliefs: Array<{
-    category: "religious" | "philosophical" | "political" | "personal";
+    category: 'religious' | 'philosophical' | 'political' | 'personal';
     statement: string;
-    confidence: number;              // 0-1, how strongly held
+    confidence: number; // 0-1, how strongly held
     established: ISO8601Timestamp;
   }>;
   relationships: Array<{
     person_hash: ContentHash;
-    type: "family" | "friend" | "professional" | "other";
-    importance: number;              // 0-1
+    type: 'family' | 'friend' | 'professional' | 'other';
+    importance: number; // 0-1
     first_met: ISO8601Timestamp;
   }>;
 }
@@ -398,20 +407,20 @@ interface IdentityCore {
 
 ```typescript
 interface AccessControl {
-  owner: PatientID;                     // Primary control
+  owner: PatientID; // Primary control
   authorized_viewers: Array<{
     person_id: string;
-    access_level: "full" | "limited" | "emergency_only";
+    access_level: 'full' | 'limited' | 'emergency_only';
     granted_by: PatientID;
     granted_at: ISO8601Timestamp;
-    expires_at?: ISO8601Timestamp;      // Optional expiration
-    memories_accessible: "all" | ContentHash[];  // Which memories
+    expires_at?: ISO8601Timestamp; // Optional expiration
+    memories_accessible: 'all' | ContentHash[]; // Which memories
   }>;
   emergency_access: {
     enabled: boolean;
-    conditions: string[];                 // E.g., "patient incapacitated"
-    authorized_persons: string[];         // Who can access in emergency
-    audit_required: boolean;              // Must log all emergency access
+    conditions: string[]; // E.g., "patient incapacitated"
+    authorized_persons: string[]; // Who can access in emergency
+    audit_required: boolean; // Must log all emergency access
   };
 }
 ```
@@ -423,21 +432,21 @@ interface AccessControl {
 ```typescript
 interface ConsentPolicy {
   memory_recording: {
-    default: "always" | "ask_each_time" | "never";
+    default: 'always' | 'ask_each_time' | 'never';
     exceptions: Array<{
-      context: string;           // E.g., "private conversations"
-      policy: "never_record";
+      context: string; // E.g., "private conversations"
+      policy: 'never_record';
     }>;
   };
   memory_sharing: {
-    default: "owner_only" | "family" | "caregivers";
+    default: 'owner_only' | 'family' | 'caregivers';
     sensitive_categories: Array<{
-      category: "medical" | "financial" | "intimate" | "embarrassing";
-      policy: "owner_only" | "encrypted_extra";
+      category: 'medical' | 'financial' | 'intimate' | 'embarrassing';
+      policy: 'owner_only' | 'encrypted_extra';
     }>;
   };
   recall_assistance: {
-    default: "always_assist" | "ask_first" | "only_if_struggling";
+    default: 'always_assist' | 'ask_first' | 'only_if_struggling';
   };
 }
 ```
@@ -449,15 +458,15 @@ interface ConsentPolicy {
 ```typescript
 interface AuditEntry {
   timestamp: ISO8601Timestamp;
-  operation: "read" | "write" | "verify" | "share" | "delete";
-  actor: string;                    // Who performed operation
-  memory_hash?: ContentHash;        // Which memory (if applicable)
+  operation: 'read' | 'write' | 'verify' | 'share' | 'delete';
+  actor: string; // Who performed operation
+  memory_hash?: ContentHash; // Which memory (if applicable)
   authorization: {
-    consent_type: "explicit" | "implicit" | "emergency";
+    consent_type: 'explicit' | 'implicit' | 'emergency';
     granted_by: PatientID;
   };
-  result: "success" | "denied" | "error";
-  reason?: string;                  // If denied or error
+  result: 'success' | 'denied' | 'error';
+  reason?: string; // If denied or error
 }
 ```
 
@@ -509,15 +518,15 @@ To implement NMP, a BCI device must provide:
 
 ```typescript
 interface BCIDevice {
-  device_id: ContentHash;               // Unique device identifier
+  device_id: ContentHash; // Unique device identifier
   manufacturer: string;
   model: string;
   firmware_version: string;
-  implant_date?: ISO8601Timestamp;     // If implanted
+  implant_date?: ISO8601Timestamp; // If implanted
   electrode_configuration: {
     count: number;
-    locations: string[];                // Brain regions covered
-    signal_quality: number[];           // Per electrode
+    locations: string[]; // Brain regions covered
+    signal_quality: number[]; // Per electrode
   };
   capabilities: {
     memory_formation_detection: boolean;
