@@ -792,14 +792,52 @@ cognition-cli coherence compare StructuralWorker LineageWorker
 
 ## 5. Setup & Onboarding Commands
 
+### **Setting Up the Workbench (eGemma)**
+
+**IMPORTANT:** Before using cognition-cli, you need to have the eGemma workbench running. The workbench provides the AI-powered embedding and summarization services that enable semantic analysis.
+
+**Quick Setup:**
+
+1. **Clone eGemma repository:**
+
+   ```bash
+   git clone https://github.com/mirzahusadzic/egemma
+   cd egemma
+   ```
+
+2. **Start the workbench:**
+
+   ```bash
+   # Follow the setup instructions in the eGemma repository
+   # The workbench typically runs on http://localhost:8000
+   ```
+
+3. **Verify it's running:**
+
+   ```bash
+   curl http://localhost:8000/health
+   ```
+
+For detailed setup instructions, see the [eGemma repository](https://github.com/mirzahusadzic/egemma).
+
+**Default Workbench Configuration:**
+
+- URL: `http://localhost:8000`
+- API Key: `dummy-key` (for local development)
+
+You can customize these values using the `--workbench` flag on commands like `genesis`, `update`, and overlay generation.
+
+---
+
 ### **`cognition-cli wizard`**
 
 Interactive wizard that guides you through complete PGC setup from scratch. This is the easiest way to get started with cognition-cli.
 
 - **When to Use It:** Use this when setting up cognition-cli for the first time in a new project, or when you want a guided experience instead of running individual commands.
+- **Prerequisites:** Ensure the eGemma workbench is running (see "Setting Up the Workbench" above)
 - **What It Does:**
   - Checks for existing PGC and confirms before proceeding
-  - Auto-detects running workbench instances on common ports
+  - Auto-detects running workbench instances on common ports (8000, 8080, etc.)
   - Validates workbench connection before proceeding
   - Prompts for source path and validates it exists
   - Detects and offers to ingest strategic documentation (VISION.md, etc.)
