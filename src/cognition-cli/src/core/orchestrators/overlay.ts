@@ -936,7 +936,7 @@ export class OverlayOrchestrator {
    * Auto-discover and ingest strategic documentation files
    * Looks for:
    * - VISION.md in project root or parent directories (searches up to repo root)
-   * - docs/PATTERN_LIBRARY.md, docs/PRINCIPLES.md, docs/0X_*.md, etc.
+   * - docs/overlays/O4_mission/PATTERN_LIBRARY.md, docs/PRINCIPLES.md, docs/0X_*.md, etc.
    *
    * Only ingests files that haven't been processed yet (checks PGC index)
    */

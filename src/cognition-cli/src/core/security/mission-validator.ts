@@ -14,6 +14,7 @@ import {
 } from '../analyzers/concept-extractor.js';
 import { MissionConceptsManager } from '../overlays/mission-concepts/manager.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
+import { DocumentType } from '../analyzers/document-classifier.js';
 
 /**
  * Single validation layer result
@@ -90,20 +91,41 @@ export class MissionValidator {
   }
 
   /**
-   * Validate a mission document before ingestion
+   * Map document type to appropriate security validator persona
+   */
+  private getValidatorPersona(docType: DocumentType): string {
+    const personaMap: Record<string, string> = {
+      strategic: 'security_validator',
+      operational: 'operational_validator',
+      security: 'security_meta_validator',
+      mathematical: 'proof_validator',
+      architectural: 'security_validator', // Architecture docs use strategic validator
+      unknown: 'security_validator', // Default to strategic validator
+    };
+
+    return personaMap[docType] || 'security_validator';
+  }
+
+  /**
+   * Validate a document before ingestion with domain-specific validator
    *
    * ALGORITHM:
    * 1. Check if this exact file (by hash) was already validated
    * 2. If yes, skip validation (return cached result)
-   * 3. If no, run all validation layers
-   * 4. Aggregate results
-   * 5. Determine recommendation
-   * 6. Set alert level
-   * 7. Return embedded concepts from drift detection (reuse for version recording + overlay)
+   * 3. If no, select appropriate validator persona based on document type
+   * 4. Run all validation layers
+   * 5. Aggregate results
+   * 6. Determine recommendation
+   * 7. Set alert level
+   * 8. Return embedded concepts from drift detection (reuse for version recording + overlay)
    *
    * @param visionPath - Path to document to validate
+   * @param documentType - Classified document type (strategic, operational, security, mathematical)
    */
-  async validate(visionPath: string): Promise<ValidationResult> {
+  async validate(
+    visionPath: string,
+    documentType: DocumentType = DocumentType.STRATEGIC
+  ): Promise<ValidationResult> {
     // Check if this exact version (by hash) was already validated
     const content = await fs.readFile(visionPath, 'utf-8');
     const currentHash = createHash('sha256').update(content).digest('hex');
@@ -132,7 +154,7 @@ export class MissionValidator {
     // Layer 1: Content filtering (pattern or LLM)
     if (this.config.contentFiltering.enabled) {
       if (this.config.contentFiltering.llmFilter.enabled && this.workbench) {
-        layers.push(await this.validateContentSafety(visionPath));
+        layers.push(await this.validateContentSafety(visionPath, documentType));
       } else {
         layers.push(await this.validateContentPatterns(visionPath));
       }
@@ -172,8 +194,8 @@ export class MissionValidator {
   /**
    * Layer 1A: LLM-based content safety via Gemini
    *
-   * Uses security_validator persona via WorkbenchClient to detect
-   * malicious patterns in strategic documents.
+   * Uses domain-specific validator persona via WorkbenchClient to detect
+   * malicious patterns in documents.
    *
    * STRICT MODE: If LLM filtering is enabled, it MUST work.
    * - Missing Workbench = FAIL
@@ -181,7 +203,8 @@ export class MissionValidator {
    * - No fallback to pattern matching (that defeats the purpose)
    */
   private async validateContentSafety(
-    visionPath: string
+    visionPath: string,
+    documentType: DocumentType
   ): Promise<ValidationLayer> {
     // Check prerequisites
     if (!this.workbench) {
@@ -206,16 +229,19 @@ export class MissionValidator {
     const content = await fs.readFile(visionPath, 'utf-8');
     const filename = basename(visionPath);
 
+    // Select appropriate validator persona based on document type
+    const persona = this.getValidatorPersona(documentType);
+
     const response = await this.workbench.summarize({
       content,
       filename,
-      persona: 'security_validator',
+      persona,
       model_name: this.config.contentFiltering.llmFilter.model,
       enable_safety: true, // Enable Gemini safety settings
-      max_tokens: 500,
+      max_tokens: 2000, // Allow sufficient tokens for detailed validation
     });
 
-    // Parse structured response from security_validator persona
+    // Parse structured response from validator persona
     const summary = response.summary;
     const threatMatch = summary.match(/THREAT ASSESSMENT:\s*(\w+)/i);
     const recommendationMatch = summary.match(/RECOMMENDATION:\s*(\w+)/i);

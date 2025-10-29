@@ -15,6 +15,8 @@ export interface DocumentObject {
     author?: string;
     created?: string;
     modified?: string;
+    documentType?: string; // Classified document type (strategic, operational, security, mathematical)
+    documentTypeConfidence?: number; // Classification confidence (0-1)
   };
   embeddedConcepts?: MissionConcept[]; // Pre-embedded concepts from security validation (skip re-embedding)
 }

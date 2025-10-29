@@ -23,6 +23,10 @@ import {
 } from '../analyzers/concept-extractor.js';
 import { MissionConceptsManager } from '../overlays/mission-concepts/manager.js';
 import { MarkdownDocument } from '../parsers/markdown-parser.js';
+import {
+  DocumentClassifier,
+  DocumentType,
+} from '../analyzers/document-classifier.js';
 import chalk from 'chalk';
 
 /**
@@ -37,6 +41,7 @@ import chalk from 'chalk';
  */
 export class GenesisDocTransform {
   private parser: MarkdownParser;
+  private classifier: DocumentClassifier;
   private objectStore: ObjectStore;
   private projectRoot: string;
   private securityConfig?: SecurityConfig;
@@ -45,6 +50,7 @@ export class GenesisDocTransform {
 
   constructor(private pgcRoot: string) {
     this.parser = new MarkdownParser();
+    this.classifier = new DocumentClassifier();
     this.objectStore = new ObjectStore(pgcRoot);
     // Project root is the parent of .open_cognition
     this.projectRoot = dirname(pgcRoot);
@@ -89,12 +95,26 @@ export class GenesisDocTransform {
     // 2. Compute relative path from project root (for portability)
     const relativePath = relative(this.projectRoot, filePath);
 
-    // 3. SECURITY GATE: Initialize and run validation
+    // 3. Parse markdown into AST
+    const ast = await this.parser.parse(filePath);
+
+    // 4. Classify document type
+    const classification = this.classifier.classify(ast, filePath);
+    console.log(
+      chalk.dim(
+        `  [Classification] ${basename(filePath)}: ${classification.type} (confidence: ${(classification.confidence * 100).toFixed(1)}%)`
+      )
+    );
+
+    // 5. SECURITY GATE: Initialize and run domain-specific validation
     await this.initializeSecurity();
 
     let embeddedConcepts: MissionConcept[] | undefined;
     if (this.securityConfig && this.securityConfig.mode !== 'off') {
-      const validationResult = await this.validateMissionDocument(filePath);
+      const validationResult = await this.validateMissionDocument(
+        filePath,
+        classification.type
+      );
 
       // Capture embedded concepts from security validation for reuse
       embeddedConcepts = validationResult.embeddedConcepts;
@@ -122,16 +142,13 @@ export class GenesisDocTransform {
       }
     }
 
-    // 4. Parse markdown into AST
-    const ast = await this.parser.parse(filePath);
-
     // 5. Read raw content
     const content = await readFile(filePath, 'utf-8');
 
     // 6. Compute document hash
     const hash = this.computeHash(content);
 
-    // 7. Create document object (store relative path + embedded concepts from security)
+    // 7. Create document object (store relative path + classification + embedded concepts)
     const docObject: DocumentObject = {
       type: 'markdown_document',
       hash,
@@ -143,6 +160,8 @@ export class GenesisDocTransform {
         author: ast.metadata.author,
         created: ast.metadata.date,
         modified: new Date().toISOString(),
+        documentType: classification.type, // Store classified type for overlay routing
+        documentTypeConfidence: classification.confidence,
       },
       embeddedConcepts, // Store embedded concepts from security validation for reuse
     };
@@ -366,16 +385,17 @@ export class GenesisDocTransform {
   }
 
   /**
-   * SECURITY: Validate mission document before ingestion
+   * SECURITY: Validate document before ingestion with domain-specific validator
    */
   private async validateMissionDocument(
-    filePath: string
+    filePath: string,
+    documentType: DocumentType
   ): Promise<ValidationResult> {
     if (!this.validator) {
       throw new Error('Validator not initialized');
     }
 
-    const result = await this.validator.validate(filePath);
+    const result = await this.validator.validate(filePath, documentType);
 
     // Log alert if needed
     if (result.alertLevel !== 'none') {

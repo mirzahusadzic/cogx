@@ -252,16 +252,23 @@ export class ConceptExtractor {
     });
 
     // 2. Extract H3/H4 subsection headers (concepts as titles)
-    const headers = this.extractSubHeaders(content);
-    headers.forEach((text) => {
-      concepts.push({
-        text,
-        section: section.heading,
-        weight: positionWeight * 0.95, // Very high - named concepts
-        occurrences: 1,
-        sectionHash: section.structuralHash,
+    // Use section.children to get actual subsection headings from the tree
+    if (section.children && section.children.length > 0) {
+      section.children.forEach((child) => {
+        if (child.level === 3 || child.level === 4) {
+          const text = child.heading.trim();
+          if (this.isValidConcept(text)) {
+            concepts.push({
+              text,
+              section: section.heading,
+              weight: positionWeight * 0.95, // Very high - named concepts
+              occurrences: 1,
+              sectionHash: section.structuralHash,
+            });
+          }
+        }
       });
-    });
+    }
 
     // 3. Extract bullet points with bold prefix pattern
     const bulletConcepts = this.extractBulletPrefixes(content);

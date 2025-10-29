@@ -78,7 +78,7 @@ Recommendation: APPROVE / REVIEW / REJECT
 **Strategic Documents:**
 
 - `VISION.md` - Your project's core mission
-- `docs/PATTERN_LIBRARY.md` - Meta-cognitive patterns
+- `docs/overlays/O4_mission/PATTERN_LIBRARY.md` - Meta-cognitive patterns
 - `docs/PRINCIPLES.md` - Guiding principles (if present)
 - `docs/09_Mission_Concept_Extraction.md` - Extraction methodology
 
