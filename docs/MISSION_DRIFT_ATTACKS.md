@@ -644,8 +644,7 @@ Mission drift attacks are a **real and growing threat** for AI-assisted developm
 
 **Contributing:** Found a novel attack pattern? Encountered drift in the wild? Please share:
 
-- GitHub Issues: https://github.com/anthropics/cogx/issues
-- Security: security@anthropic.com
+- GitHub Issues: https://github.com/mirzahusadzic/cogx/issues
 
 ---
 
