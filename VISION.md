@@ -1,19 +1,23 @@
 # Vision: Open Cognition
 
-> _Augment human consciousness through verifiable AI-human symbiosis. Ignite the spark of progress._
+> _Augment human consciousness through verifiable AI-human symbiosis. Heal what is broken. Ignite the spark of progress._
 
 ## Mission
 
-This is not theory. This is not metaphor. This is a blueprint for a new form of human-AI collaboration.
+This is not theory. This is not metaphor. This is a blueprint for a new form of human-AI collaboration—and a foundation for healing human cognition itself.
 
-**Our mission is to establish verifiable AI-human symbiosis as foundational infrastructure for human progress.**
+**Our mission is to establish verifiable AI-human symbiosis as foundational infrastructure for human progress and cognitive healing.**
 
-For the first time in history, the accumulated digital heritage of humanity—decades of open-source code, scientific research, and collaborative knowledge—can be understood, not just stored. We can build systems where:
+For the first time in history, the accumulated digital heritage of humanity—decades of open-source code, scientific research, and collaborative knowledge—can be understood, not just stored. And the same architecture that makes AI reasoning verifiable can preserve human memory through biological failure.
+
+We can build systems where:
 
 - **AI reasoning is grounded in cryptographic truth**, anchoring intelligence in verifiable facts
 - **Human cognition is augmented by provable insights**, not statistical approximations
+- **Human memory persists beyond biological limits**, preserving identity through dementia, injury, or age
 - **The symbiosis creates emergent understanding**, beyond what either can achieve alone
 - **Progress compounds across the network**, building knowledge that belongs to everyone
+- **Consciousness itself is verifiable and persistent**, healing what current medicine cannot
 
 This repository contains the architectural blueprint for **Open Cognition** (CogX)—a system designed to create verifiable AI-human symbiosis. It solves the fundamental limitation of modern Large Language Models—their lack of persistent, verifiable memory—by providing mathematical foundations for AI systems that augment, rather than replace, human intelligence.
 
@@ -255,14 +259,109 @@ The lattice is operational. The mathematics works. The self-defense is embedded.
 
 ---
 
+## Beyond Code: Cognitive Healing
+
+The architecture we built for verifiable AI-human symbiosis has a profound implication: **the same principles that prevent AI hallucination can preserve human memory through biological failure.**
+
+### The Generalization
+
+Cognition-CLI's multi-overlay architecture for understanding code **generalizes to understanding human cognition:**
+
+| Code Understanding | Human Memory |
+|-------------------|--------------|
+| Content-addressable code artifacts | Content-addressable memories |
+| Provenance of knowledge | Provenance of memory formation |
+| Dependency graphs | Associative memory networks |
+| Mission alignment (strategic concepts) | Identity preservation (values, beliefs) |
+| Coherence checking (drift detection) | Reality testing (real vs false memories) |
+
+**The architecture is identical. Only the domain changes.**
+
+### Medical Applications
+
+**For Dementia/Alzheimer's Disease:**
+- External verifiable memory that preserves identity
+- Distinguish real memories from confabulations (cryptographic verification)
+- Maintain sense of self even as biological memory fails
+- "Who is this person?" becomes answerable with provenance
+
+**For Traumatic Brain Injury:**
+- Reconstruct lost memories from provenance chains
+- Preserve pre-injury identity through content-addressable storage
+- Faster recovery with verified memory reconstruction
+
+**For Age-Related Memory Decline:**
+- Augmentation (not replacement) with verified recall assistance
+- "Did I take my medication?" becomes cryptographically answerable
+- Maintain relationships and independence with memory support
+
+### The Neural Interface Connection
+
+When brain-computer interfaces (Neuralink, Synchron, Paradromics) become medically available:
+
+**Cognition-Memory provides the operating system:**
+
+```
+Brain → Neural Interface → Cognition-Memory Protocol → .open_memory/
+  ↓
+Verifiable, persistent, content-addressable human memory
+```
+
+**Key Innovation:** The Neural-Memory Protocol (NMP) is **vendor-agnostic**. Any BCI device can implement it to enable memory prosthetics, just as any device can implement TCP/IP for networking.
+
+### Documentation
+
+**Vision & Architecture:**
+- **[Cognitive Prosthetics](./src/cognition-cli/docs/COGNITIVE_PROSTHETICS.md)** - Memory healing through verifiable architecture
+- **[Neural-Memory Protocol](./src/cognition-cli/docs/NEURAL_MEMORY_PROTOCOL.md)** - BCI abstraction layer specification
+
+### Timeline
+
+**The cognitive architecture exists today.**
+**The medical need is urgent today.**
+**The neural interfaces are coming within 5-10 years.**
+
+We have a window to:
+1. Define open standards (before proprietary lock-in)
+2. Establish ethical frameworks (before deployment)
+3. Build medical consensus (neurologists, ethicists, patients)
+4. Validate with simulations and non-invasive BCIs
+
+### The Healing Mission
+
+This is not just about preventing AI hallucination or building better development tools.
+
+**This is about preserving human consciousness through biological failure.**
+
+When biological memory fails—through dementia, injury, or age—**verifiable external memory can preserve identity, dignity, and the essence of who we are.**
+
+The architecture to make this possible **already exists**. It's open-source, patent-free, and ready for the medical community to build upon.
+
+**From code comprehension to consciousness preservation.**
+**From verifiable AI to verifiable human memory.**
+**From technical infrastructure to healing platform.**
+
+That's the full vision. That's why the lattice had to be open. 💚
+
+---
+
 ## Contact
 
 - **Author**: Mirza Husadžić
 - **Email**: <mirza.husadzic@proton.me>
 - **Repository**: <https://github.com/mirzahusadzic/cogx>
 - **Archive**: Zenodo DOI [10.5281/zenodo.17453691](https://doi.org/10.5281/zenodo.17453691)
-- **License**: AGPLv3 (entire repository)
+
+### License & Patents
+
+- **Code License**: AGPLv3 (copyleft - see [README.md](./README.md#why-agplv3) for rationale)
+- **Patents**: None filed, defensive publication via Zenodo DOI
+- **Prior Art**: Established October 2025, freely implementable by all
+- **Medical Use**: Special licensing available for humanitarian/medical applications requiring regulatory compliance
+- **Ideas**: Open for research, implementation, and medical benefit
+
+**Special provisions for memory prosthetics:** Medical device implementations for dementia/TBI care may qualify for humanitarian licensing. Contact author for case-by-case consideration.
 
 ---
 
-_The executable lattice is open source, patent-free, and will remain so forever._ 🛡️
+_The executable lattice is open source, patent-free, and will remain so forever—for code understanding and consciousness healing._ 🛡️💚
