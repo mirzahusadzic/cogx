@@ -25,11 +25,19 @@ This directory contains documentation for each overlay layer in the PGC architec
 
 ### O₄: Mission Concepts Overlay
 
-**Layer**: Strategic Vision
-**Purpose**: Extract mission-critical concepts from strategic docs
+**Layer**: Strategic Intent (The Constitution)
+**Purpose**: Extract mission-critical concepts and coding principles—the invariant truths that govern all implementation
 **Status**: Implemented
-**Key Docs**: [PATTERN_LIBRARY.md](./O4_mission/PATTERN_LIBRARY.md)
-**Related**: `../../VISION.md`
+**Key Docs**:
+
+- [PATTERN_LIBRARY.md](./O4_mission/PATTERN_LIBRARY.md) - Extraction patterns (meta)
+- [CODING_PRINCIPLES.md](./O4_mission/CODING_PRINCIPLES.md) - Coding philosophy and principles
+  **Related**: `../../VISION.md`
+
+**Dimensional Coherence**: Concepts are tagged by source document, enabling:
+
+- `--filter "source:VISION.md"` → Mission alignment scoring
+- `--filter "source:CODING_PRINCIPLES.md"` → Principles adherence scoring
 
 ### O₅: Operational Patterns Overlay
 
