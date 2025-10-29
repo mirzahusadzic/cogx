@@ -31,6 +31,19 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 ## 🎯 Recent Innovations
 
+**October 28, 2025** — Monument 5.1: Lattice-aware Gaussian Weighting + The Shadow:
+
+- ✅ **Pure Lattice Derivation** - Eliminated all hardcoded constants using Gaussian statistics + graph centrality
+- ✅ **Three-Tier Coherence** - Average (baseline), Weighted (centrality), Lattice (Gaussian + centrality synthesis)
+- ✅ **Noise Filtering** - Automatic exclusion of symbols below μ - σ (statistical noise reduction)
+- ✅ **The Shadow Architecture** - Dual embedding system for structural and semantic signatures
+- ✅ **Verified Results** - 57.7% lattice coherence (+3.0% from baseline)
+
+**October 27, 2025** — Context Sampling Function (Σ):
+
+- ✅ **Efficient Lattice Traversal** - Intelligent knowledge extraction from PGC structure
+- ✅ **Context-Aware Operations** - Emerged through Claude Code integration
+
 **October 26, 2025** — The system achieved recursive meta-cognition and mission security validation:
 
 ### Foundation: Meta-Cognitive Self-Analysis
