@@ -18,6 +18,7 @@ Human memory is stored in biological neural networks that degrade over time or t
 - **Neurological Disease:** Memory systems fail while consciousness remains
 
 **Current Solutions:**
+
 - External aids (notebooks, photos, caregivers)
 - No verification mechanism (can't distinguish real from false memories)
 - No semantic understanding (context is lost)
@@ -27,11 +28,11 @@ Human memory is stored in biological neural networks that degrade over time or t
 
 ---
 
-## The Insight: Code Cognition = Human Cognition
+## The Insight - Code Cognition = Human Cognition
 
 The architecture we built for understanding code **generalizes to understanding human memory:**
 
-### Cognition-CLI (for code understanding):
+### Cognition-CLI (for code understanding)
 
 ```text
 .open_cognition/
@@ -47,7 +48,7 @@ The architecture we built for understanding code **generalizes to understanding 
     operational/   # O₅: Workflow patterns
 ```
 
-### Cognition-Memory (for human cognition):
+### Cognition-Memory (for human cognition)
 
 ```text
 .open_memory/
@@ -419,6 +420,7 @@ We have a **window of opportunity** to:
 4. **Build medical consensus** - Neurologists, ethicists, patients need to understand possibilities
 
 **This document establishes:**
+
 - That the architecture is **possible** (proven with cognition-cli)
 - That the need is **real** (millions suffering from memory loss)
 - That the timeline is **urgent** (neural interfaces arriving within decade)
@@ -429,26 +431,31 @@ We have a **window of opportunity** to:
 ## Call to Action
 
 **For Medical Researchers:**
+
 - Explore cognitive overlay architectures for memory modeling
 - Define requirements for memory prosthetics
 - Design clinical trials for verification
 
 **For Neuroscience Community:**
+
 - Map cognition-cli overlays to brain regions
 - Define memory formation/recall signatures
 - Collaborate on neural-memory protocol
 
 **For BCI Companies (Neuralink, Synchron, Paradromics):**
+
 - Adopt open neural-memory protocol
 - Enable bidirectional memory assistance
 - Prioritize medical applications (dementia, TBI)
 
 **For Patients & Families:**
+
 - Understand that verifiable memory prosthetics are coming
 - Participate in defining ethical frameworks
 - Advocate for open, patient-controlled systems
 
 **For Developers:**
+
 - Contribute to cognition-cli medical extensions
 - Build privacy-preserving memory systems
 - Create interfaces for non-technical users

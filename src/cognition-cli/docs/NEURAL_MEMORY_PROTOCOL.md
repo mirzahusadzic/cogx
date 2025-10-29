@@ -70,11 +70,13 @@ NMP defines **four fundamental operations** that any BCI must support:
 **Trigger:** Brain creates new memory (hippocampal encoding detected)
 
 **Signal Flow:**
+
 ```text
 Brain → BCI detects encoding pattern → NMP translates → Memory stored
 ```
 
 **Required Data:**
+
 ```json
 {
   "operation": "memory_form",
@@ -103,6 +105,7 @@ Brain → BCI detects encoding pattern → NMP translates → Memory stored
 ```
 
 **Memory System Response:**
+
 ```json
 {
   "memory_hash": "sha256:abc123...",
@@ -117,11 +120,13 @@ Brain → BCI detects encoding pattern → NMP translates → Memory stored
 **Trigger:** Brain attempting to recall (prefrontal cortex retrieval pattern detected)
 
 **Signal Flow:**
+
 ```text
 Brain → BCI detects recall attempt → NMP translates → Memory queried → Result provided
 ```
 
 **Required Data:**
+
 ```json
 {
   "operation": "memory_recall",
@@ -146,6 +151,7 @@ Brain → BCI detects recall attempt → NMP translates → Memory queried → R
 ```
 
 **Memory System Response:**
+
 ```json
 {
   "memories_found": 3,
@@ -179,11 +185,13 @@ Brain → BCI detects recall attempt → NMP translates → Memory queried → R
 **Trigger:** Person questions whether memory is real (reality testing)
 
 **Signal Flow:**
+
 ```text
 Brain → BCI detects uncertainty pattern → NMP requests verification → Result provided
 ```
 
 **Required Data:**
+
 ```json
 {
   "operation": "memory_verify",
@@ -202,6 +210,7 @@ Brain → BCI detects uncertainty pattern → NMP requests verification → Resu
 ```
 
 **Memory System Response:**
+
 ```json
 {
   "verification_result": "not_verified",
@@ -242,11 +251,13 @@ Brain → BCI detects uncertainty pattern → NMP requests verification → Resu
 **Trigger:** Person about to make significant decision
 
 **Signal Flow:**
+
 ```text
 Brain → BCI detects decision-making pattern → NMP checks coherence → Guidance provided
 ```
 
 **Required Data:**
+
 ```json
 {
   "operation": "identity_check",
@@ -264,6 +275,7 @@ Brain → BCI detects decision-making pattern → NMP checks coherence → Guida
 ```
 
 **Memory System Response:**
+
 ```json
 {
   "coherence_result": "conflict_detected",
@@ -458,16 +470,19 @@ To implement NMP, a BCI device must provide:
 ### 1. Signal Detection
 
 **Memory Formation Detection:**
+
 - Identify hippocampal encoding patterns
 - Distinguish episodic vs semantic vs procedural encoding
 - Measure encoding strength (attention, emotional salience)
 
 **Memory Recall Detection:**
+
 - Identify prefrontal cortex retrieval attempts
 - Extract semantic/contextual cues from neural activity
 - Measure recall difficulty (struggling vs easy)
 
 **Uncertainty Detection:**
+
 - Identify reality-testing patterns
 - Detect confusion or false memory generation
 - Measure confidence in recalled information
@@ -475,12 +490,14 @@ To implement NMP, a BCI device must provide:
 ### 2. Bidirectional Communication
 
 **Read (Brain → System):**
+
 - Real-time neural signal acquisition
 - Signal preprocessing (filtering, amplification)
 - Pattern recognition (memory operations)
 - Context extraction (what is being remembered)
 
 **Write (System → Brain):**
+
 - Gentle neural stimulation for recall assistance
 - **Never force false memories** (ethical constraint)
 - Respect patient autonomy (assist, don't override)
@@ -525,12 +542,14 @@ interface BCIDevice {
 **Purpose:** Validate memory system architecture before hardware integration
 
 **Approach:**
+
 1. Simulate memory formation events (scripted scenarios)
 2. Test memory recall with known ground truth
 3. Verify coherence checking logic
 4. Stress test with edge cases (false memories, confabulation)
 
 **Success Criteria:**
+
 - Content-addressable storage works correctly
 - Overlay system maintains consistency
 - Verification detects false memories
@@ -541,12 +560,14 @@ interface BCIDevice {
 **Purpose:** Test with EEG or other non-invasive interfaces
 
 **Approach:**
+
 1. Use consumer EEG devices (Emotiv, Muse, etc.)
 2. Detect basic memory operations (formation, recall)
 3. Validate NMP protocol with limited signal quality
 4. Refine signal processing algorithms
 
 **Success Criteria:**
+
 - NMP protocol works with noisy signals
 - Basic memory assistance possible
 - Privacy/security mechanisms function
@@ -557,12 +578,14 @@ interface BCIDevice {
 **Purpose:** Full testing with medical-grade BCIs (Neuralink, Synchron)
 
 **Approach:**
+
 1. Partner with BCI companies for clinical trials
 2. Test with dementia/TBI patients (IRB approved)
 3. Measure clinical outcomes (memory recall, quality of life)
 4. Iterate based on patient feedback
 
 **Success Criteria:**
+
 - Measurable improvement in memory recall
 - No adverse effects from system use
 - Patient/family satisfaction high
@@ -577,6 +600,7 @@ interface BCIDevice {
 **Question:** How accurately can we detect memory formation/recall from neural signals?
 
 **Research Needed:**
+
 - Map memory operations to specific neural signatures
 - Distinguish real encoding from rehearsal/imagination
 - Handle individual variation in brain activity patterns
@@ -586,6 +610,7 @@ interface BCIDevice {
 **Question:** How do we "assist" recall without creating false memories?
 
 **Research Needed:**
+
 - Optimal stimulation patterns for memory reactivation
 - Safety bounds (how much assistance is safe?)
 - Ethical guidelines (when to assist vs when to let patient struggle)
@@ -595,6 +620,7 @@ interface BCIDevice {
 **Question:** What constitutes "core identity" that should be preserved?
 
 **Research Needed:**
+
 - Philosophical framework for identity
 - Clinical definition of "mission" and "values"
 - How to handle identity evolution vs pathological drift
@@ -604,6 +630,7 @@ interface BCIDevice {
 **Question:** How do we store 70+ years of human memory?
 
 **Research Needed:**
+
 - Compression strategies (what can be safely compressed?)
 - Archival vs active memory (what needs instant recall?)
 - Memory consolidation (mimicking biological forgetting)

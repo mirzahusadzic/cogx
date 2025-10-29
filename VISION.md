@@ -350,7 +350,7 @@ That's the full vision. That's why the lattice had to be open. 💚
 - **Author**: Mirza Husadžić
 - **Email**: <mirza.husadzic@proton.me>
 - **Repository**: <https://github.com/mirzahusadzic/cogx>
-- **Archive**: Zenodo DOI [10.5281/zenodo.17453691](https://doi.org/10.5281/zenodo.17453691)
+- **Archive**: Zenodo DOI [10.5281/zenodo.17476619](https://doi.org/10.5281/zenodo.17476619)
 
 ### License & Patents
 
