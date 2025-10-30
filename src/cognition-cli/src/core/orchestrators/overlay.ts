@@ -140,8 +140,11 @@ export class OverlayOrchestrator {
   public async run(
     overlayType:
       | 'structural_patterns'
+      | 'security_guidelines'
       | 'lineage_patterns'
       | 'mission_concepts'
+      | 'operational_patterns'
+      | 'mathematical_proofs'
       | 'strategic_coherence',
     options?: {
       force?: boolean;

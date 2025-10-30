@@ -318,31 +318,31 @@ Can we do `union([O2.attacks, O4.concepts])`?
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                   CLI Commands (UX Sugar)                │
-│  security, workflow, coherence, proofs, lattice          │
+│                   CLI Commands (UX Sugar)               │
+│  security, workflow, coherence, proofs, lattice         │
 └─────────────────────┬───────────────────────────────────┘
                       │
 ┌─────────────────────┴───────────────────────────────────┐
-│                Query Engine (Future)                     │
-│  Parse: "meet(O2.attacks, O4.principles)"                │
+│                Query Engine (Future)                    │
+│  Parse: "meet(O2.attacks, O4.principles)"               │
 └─────────────────────┬───────────────────────────────────┘
                       │
 ┌─────────────────────┴───────────────────────────────────┐
-│         Lattice Operations (lattice-operations.ts)       │
-│  meet, union, intersection, difference, project          │
+│         Lattice Operations (lattice-operations.ts)      │
+│  meet, union, intersection, difference, project         │
 └─────────────────────┬───────────────────────────────────┘
                       │
 ┌─────────────────────┴───────────────────────────────────┐
-│         Overlay Registry (overlay-registry.ts)           │
-│  Map O1-O7 → Manager instances                           │
+│         Overlay Registry (overlay-registry.ts)          │
+│  Map O1-O7 → Manager instances                          │
 └─────────────────────┬───────────────────────────────────┘
                       │
 ┌─────────────────────┴───────────────────────────────────┐
-│      Overlay Algebra Interface (overlay-algebra.ts)      │
-│  Universal contract for all overlays                     │
+│      Overlay Algebra Interface (overlay-algebra.ts)     │
+│  Universal contract for all overlays                    │
 └─────────────────────┬───────────────────────────────────┘
                       │
-┌─────────────────────┴───────────────────────────────────┐
+┌─────────────────────┴────────────────────────────────────┐
 │              Overlay Managers (TODO: Refactor)           │
 │  SecurityGuidelinesManager, MissionConceptsManager, etc. │
 └──────────────────────────────────────────────────────────┘

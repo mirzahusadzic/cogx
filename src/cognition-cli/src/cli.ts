@@ -126,6 +126,29 @@ import { addCoherenceCommands } from './commands/coherence.js';
 import { addConceptsCommands } from './commands/concepts.js';
 import { wizardCommand } from './commands/wizard.js';
 import { latticeCommand, showOverlaysCommand } from './commands/lattice.js';
+// Sugar commands (convenience wrappers around lattice algebra)
+import {
+  securityAttacksCommand,
+  securityCoverageGapsCommand,
+  securityBoundariesCommand,
+} from './commands/sugar/security.js';
+import {
+  workflowPatternsCommand,
+  workflowQuestsCommand,
+  workflowDepthRulesCommand,
+} from './commands/sugar/workflow.js';
+import {
+  proofsTheoremsCommand,
+  proofsLemmasCommand,
+  proofsListCommand,
+  proofsAlignedCommand,
+} from './commands/sugar/proofs.js';
+import {
+  coherenceReportCommand,
+  coherenceAlignedCommand,
+  coherenceDriftedCommand,
+  coherenceListCommand,
+} from './commands/sugar/coherence.js';
 
 program
   .command('wizard')
@@ -176,5 +199,270 @@ program
     process.cwd()
   )
   .action(showOverlaysCommand);
+
+// ========================================
+// SUGAR COMMANDS (Convenience Wrappers)
+// ========================================
+
+// Security commands
+const securityCmd = program
+  .command('security')
+  .description('Security analysis commands (wraps lattice algebra)');
+
+securityCmd
+  .command('attacks')
+  .description('Show attack vectors that conflict with mission principles')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option(
+    '-f, --format <format>',
+    'Output format: table, json, summary',
+    'table'
+  )
+  .option('-l, --limit <number>', 'Maximum number of results to show', '50')
+  .option('-v, --verbose', 'Show detailed error messages', false)
+  .action(securityAttacksCommand);
+
+securityCmd
+  .command('coverage-gaps')
+  .description('Show code symbols without security coverage')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option(
+    '-f, --format <format>',
+    'Output format: table, json, summary',
+    'table'
+  )
+  .option('-l, --limit <number>', 'Maximum number of results to show', '50')
+  .option('-v, --verbose', 'Show detailed error messages', false)
+  .action(securityCoverageGapsCommand);
+
+securityCmd
+  .command('boundaries')
+  .description('Show security boundaries and constraints')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option(
+    '-f, --format <format>',
+    'Output format: table, json, summary',
+    'table'
+  )
+  .option('-l, --limit <number>', 'Maximum number of results to show', '50')
+  .option('-v, --verbose', 'Show detailed error messages', false)
+  .action(securityBoundariesCommand);
+
+// Workflow commands
+const workflowCmd = program
+  .command('workflow')
+  .description('Operational workflow analysis commands');
+
+workflowCmd
+  .command('patterns')
+  .description('Show workflow patterns')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option(
+    '-f, --format <format>',
+    'Output format: table, json, summary',
+    'table'
+  )
+  .option('-l, --limit <number>', 'Maximum number of results to show', '50')
+  .option('-v, --verbose', 'Show detailed error messages', false)
+  .option('--secure', 'Show workflows aligned with security boundaries', false)
+  .option('--aligned', 'Show workflows aligned with mission', false)
+  .action(workflowPatternsCommand);
+
+workflowCmd
+  .command('quests')
+  .description('Show quest structures')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option(
+    '-f, --format <format>',
+    'Output format: table, json, summary',
+    'table'
+  )
+  .option('-l, --limit <number>', 'Maximum number of results to show', '50')
+  .option('-v, --verbose', 'Show detailed error messages', false)
+  .action(workflowQuestsCommand);
+
+workflowCmd
+  .command('depth-rules')
+  .description('Show depth rules')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option(
+    '-f, --format <format>',
+    'Output format: table, json, summary',
+    'table'
+  )
+  .option('-l, --limit <number>', 'Maximum number of results to show', '50')
+  .option('-v, --verbose', 'Show detailed error messages', false)
+  .action(workflowDepthRulesCommand);
+
+// Proofs commands
+const proofsCmd = program
+  .command('proofs')
+  .description('Mathematical proofs and theorems analysis');
+
+proofsCmd
+  .command('theorems')
+  .description('Show all theorems')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option(
+    '-f, --format <format>',
+    'Output format: table, json, summary',
+    'table'
+  )
+  .option('-l, --limit <number>', 'Maximum number of results to show', '50')
+  .option('-v, --verbose', 'Show detailed error messages', false)
+  .action(proofsTheoremsCommand);
+
+proofsCmd
+  .command('lemmas')
+  .description('Show all lemmas')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option(
+    '-f, --format <format>',
+    'Output format: table, json, summary',
+    'table'
+  )
+  .option('-l, --limit <number>', 'Maximum number of results to show', '50')
+  .option('-v, --verbose', 'Show detailed error messages', false)
+  .action(proofsLemmasCommand);
+
+proofsCmd
+  .command('list')
+  .description('Show all mathematical statements')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option(
+    '-f, --format <format>',
+    'Output format: table, json, summary',
+    'table'
+  )
+  .option('-l, --limit <number>', 'Maximum number of results to show', '50')
+  .option('-v, --verbose', 'Show detailed error messages', false)
+  .option(
+    '--type <type>',
+    'Filter by type: theorem, lemma, axiom, proof, identity'
+  )
+  .action(proofsListCommand);
+
+proofsCmd
+  .command('aligned')
+  .description('Show proofs aligned with mission principles')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option(
+    '-f, --format <format>',
+    'Output format: table, json, summary',
+    'table'
+  )
+  .option('-l, --limit <number>', 'Maximum number of results to show', '50')
+  .option('-v, --verbose', 'Show detailed error messages', false)
+  .action(proofsAlignedCommand);
+
+// Coherence commands (refactored to use algebra)
+const coherenceAlgebraCmd = program
+  .command('coherence-new')
+  .description('Strategic coherence analysis (algebra-based)');
+
+coherenceAlgebraCmd
+  .command('report')
+  .description('Show overall strategic coherence metrics')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option('-f, --format <format>', 'Output format: table, json', 'table')
+  .option('-v, --verbose', 'Show detailed error messages', false)
+  .action(coherenceReportCommand);
+
+coherenceAlgebraCmd
+  .command('aligned')
+  .description('Show symbols aligned with mission')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option(
+    '-f, --format <format>',
+    'Output format: table, json, summary',
+    'table'
+  )
+  .option('-l, --limit <number>', 'Maximum number of results to show', '50')
+  .option('--min-score <score>', 'Minimum coherence score', '0.7')
+  .option('-v, --verbose', 'Show detailed error messages', false)
+  .action(coherenceAlignedCommand);
+
+coherenceAlgebraCmd
+  .command('drifted')
+  .description('Show symbols that drifted from mission')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option(
+    '-f, --format <format>',
+    'Output format: table, json, summary',
+    'table'
+  )
+  .option('-l, --limit <number>', 'Maximum number of results to show', '50')
+  .option('--max-score <score>', 'Maximum coherence score', '0.5')
+  .option('-v, --verbose', 'Show detailed error messages', false)
+  .action(coherenceDriftedCommand);
+
+coherenceAlgebraCmd
+  .command('list')
+  .description('Show all symbols with coherence scores')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option(
+    '-f, --format <format>',
+    'Output format: table, json, summary',
+    'table'
+  )
+  .option('-l, --limit <number>', 'Maximum number of results to show', '50')
+  .option('-v, --verbose', 'Show detailed error messages', false)
+  .action(coherenceListCommand);
 
 program.parse();

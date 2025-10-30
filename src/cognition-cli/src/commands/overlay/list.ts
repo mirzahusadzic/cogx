@@ -21,21 +21,38 @@ const OVERLAY_TYPES: OverlayInfo[] = [
     generateSupported: true,
   },
   {
+    name: 'security_guidelines',
+    description:
+      'O₂: Security threats, attack vectors, mitigations, and constraints',
+    generateSupported: true,
+  },
+  {
     name: 'lineage_patterns',
     description:
-      'O₂: Dependency relationship embeddings (imports, calls, etc.)',
+      'O₃: Dependency relationship embeddings (imports, calls, etc.)',
     generateSupported: true,
   },
   {
     name: 'mission_concepts',
     description:
-      'O₃: Mission document concept embeddings (from VISION.md, etc.)',
+      'O₄: Mission document concept embeddings (from VISION.md, etc.)',
+    generateSupported: true,
+  },
+  {
+    name: 'operational_patterns',
+    description:
+      'O₅: Workflow patterns, quest structures, sacred sequences, depth rules',
+    generateSupported: true,
+  },
+  {
+    name: 'mathematical_proofs',
+    description: 'O₆: Theorems, lemmas, axioms, proofs, and identities',
     generateSupported: true,
   },
   {
     name: 'strategic_coherence',
     description:
-      'O₃: Semantic alignment between mission concepts and code symbols',
+      'O₇: Semantic alignment between mission concepts and code symbols',
     generateSupported: true,
   },
 ];
@@ -110,15 +127,27 @@ const listCommand = new Command('list')
         }
       }
 
-      // Check mission concepts overlay
-      if (overlay.name === 'mission_concepts') {
-        // Mission concepts are stored per document hash
+      // Check YAML-based overlays (mission, security, operational, mathematical)
+      if (
+        overlay.name === 'mission_concepts' ||
+        overlay.name === 'security_guidelines' ||
+        overlay.name === 'operational_patterns' ||
+        overlay.name === 'mathematical_proofs'
+      ) {
         if (await fs.pathExists(overlayDir)) {
           try {
             const files = await fs.readdir(overlayDir);
             const yamlFiles = files.filter((f) => f.endsWith('.yaml'));
             if (yamlFiles.length > 0) {
-              status = `${yamlFiles.length} document(s) processed`;
+              if (overlay.name === 'mission_concepts') {
+                status = `${yamlFiles.length} document(s) processed`;
+              } else if (overlay.name === 'security_guidelines') {
+                status = `${yamlFiles.length} security document(s)`;
+              } else if (overlay.name === 'operational_patterns') {
+                status = `${yamlFiles.length} operational document(s)`;
+              } else if (overlay.name === 'mathematical_proofs') {
+                status = `${yamlFiles.length} proof document(s)`;
+              }
             } else {
               status = 'not generated';
             }
@@ -161,8 +190,11 @@ const listCommand = new Command('list')
     console.log('Usage:');
     console.log('  cognition-cli overlay generate <type> [sourcePath]');
     console.log('  cognition-cli overlay generate structural_patterns');
+    console.log('  cognition-cli overlay generate security_guidelines');
     console.log('  cognition-cli overlay generate lineage_patterns');
     console.log('  cognition-cli overlay generate mission_concepts');
+    console.log('  cognition-cli overlay generate operational_patterns');
+    console.log('  cognition-cli overlay generate mathematical_proofs');
     console.log('  cognition-cli overlay generate strategic_coherence\n');
   });
 

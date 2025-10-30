@@ -8,7 +8,7 @@ import { OverlayOrchestrator } from '../../core/orchestrators/overlay.js';
  */
 const generateCommand = new Command('generate')
   .description(
-    'Generate a specific type of overlay (structural_patterns, lineage_patterns, mission_concepts, or strategic_coherence).'
+    'Generate a specific type of overlay (all 7 overlay types supported).'
   )
   .argument('<type>', 'The type of overlay to generate')
   .argument(
@@ -28,16 +28,19 @@ const generateCommand = new Command('generate')
     false
   )
   .action(async (type, sourcePath, options) => {
-    if (
-      type !== 'structural_patterns' &&
-      type !== 'lineage_patterns' &&
-      type !== 'mission_concepts' &&
-      type !== 'strategic_coherence'
-    ) {
+    const supportedTypes = [
+      'structural_patterns',
+      'security_guidelines',
+      'lineage_patterns',
+      'mission_concepts',
+      'operational_patterns',
+      'mathematical_proofs',
+      'strategic_coherence',
+    ];
+
+    if (!supportedTypes.includes(type)) {
       console.error(`Unsupported overlay type: ${type}`);
-      console.error(
-        'Supported types: structural_patterns, lineage_patterns, mission_concepts, strategic_coherence'
-      );
+      console.error(`Supported types: ${supportedTypes.join(', ')}`);
       process.exit(1);
     }
 
@@ -69,8 +72,11 @@ const generateCommand = new Command('generate')
       await orchestrator.run(
         type as
           | 'structural_patterns'
+          | 'security_guidelines'
           | 'lineage_patterns'
           | 'mission_concepts'
+          | 'operational_patterns'
+          | 'mathematical_proofs'
           | 'strategic_coherence',
         { force: options.force, skipGc: options.skipGc, sourcePath }
       );

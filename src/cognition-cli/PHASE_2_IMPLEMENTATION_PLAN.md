@@ -287,7 +287,7 @@ await this.routeToOverlays(classification, ast, filePath, hash, objectHash);
 
 ## Success Criteria
 
-### Phase 2 Complete When:
+### Phase 2 Complete When
 
 - [x] GenesisDocTransform routes documents to correct overlay managers
 - [x] All 4 document types (strategic, operational, security, mathematical) generate appropriate overlays
