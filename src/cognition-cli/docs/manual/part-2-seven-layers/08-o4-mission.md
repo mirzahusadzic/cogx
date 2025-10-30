@@ -128,7 +128,7 @@ We envision a world where AI cognitive systems are:
 **Example**:
 
 ```markdown
-The **Persistent Grounded Context (PGC)** is the foundational data structure
+The **Grounded Context Pool (PGC)** is the foundational data structure
 that stores all cognitive knowledge. Unlike traditional databases, the PGC is:
 
 - Content-addressable (hash-based storage)
@@ -144,11 +144,11 @@ that stores all cognitive knowledge. Unlike traditional databases, the PGC is:
 ```typescript
 {
   type: 'concept',
-  text: 'Persistent Grounded Context (PGC): foundational data structure...',
+  text: 'Grounded Context Pool (PGC): foundational data structure...',
   context: '...',
   source_file: 'VISION.md',
   concept_name: 'PGC',
-  aliases: ['Persistent Grounded Context', 'PGC'],
+  aliases: ['Grounded Context Pool', 'PGC'],
   related_concepts: ['Overlay', 'Lattice', 'Content-addressable']
 }
 ```
@@ -329,11 +329,11 @@ extracted_concepts:
     embedding: [0.123, 0.456, ..., 0.789] # 768 dimensions
 
   - type: concept
-    text: 'Persistent Grounded Context (PGC): foundational data structure'
+    text: 'Grounded Context Pool (PGC): foundational data structure'
     context: 'The **PGC** is...'
     source_file: VISION.md
     concept_name: PGC
-    aliases: ['Persistent Grounded Context', 'PGC']
+    aliases: ['Grounded Context Pool', 'PGC']
     embedding: [0.234, 0.567, ..., 0.890]
 
   - type: principle
@@ -986,7 +986,7 @@ portable, and compositional.
 concept: "Software system"
 
 ✅ SPECIFIC:
-concept: "Persistent Grounded Context (PGC): content-addressable immutable storage"
+concept: "Grounded Context Pool (PGC): content-addressable immutable storage"
 ```
 
 **Fix**: Ensure concepts are specific, well-defined, and unique to your mission.

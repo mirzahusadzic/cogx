@@ -14,7 +14,7 @@ Last Updated: October 30, 2025
 
 Every question you ask—"What depends on X?", "Where is Y used?", "What changed between versions?"—is a **lattice operation**. Knowledge, in its most fundamental form, has the structure of a **mathematical lattice**: a partially ordered set where any two elements have both a unique greatest lower bound (Meet, ∧) and a unique least upper bound (Join, ∨).
 
-The Persistent Grounded Context (PGC) is not "like" a lattice. **It IS a lattice**—the first executable implementation of this formal truth.
+The Grounded Context Pool (PGC) is not "like" a lattice. **It IS a lattice**—the first executable implementation of this formal truth.
 
 ---
 
@@ -55,7 +55,7 @@ THE LATTICE BOOK is the complete reference manual for building, querying, and re
 `part-1-foundation/01-cognitive-architecture.md`
 What is cognitive architecture? Why do we need structured knowledge beyond "context window"?
 
-**Chapter 2: The PGC (Persistent Grounded Context)**
+**Chapter 2: The PGC (Grounded Context Pool)**
 `part-1-foundation/02-the-pgc.md`
 The foundational data structure: `.open_cognition/` directory, versioning, provenance.
 
@@ -66,6 +66,10 @@ Separation of concerns: Strategic vs Operational vs Security knowledge.
 **Chapter 4: Embeddings as Semantic Substrate**
 `part-1-foundation/04-embeddings.md`
 768-dimensional vectors, eGemma, cosine similarity, semantic search.
+
+**Chapter 4.5: Core Security — Protecting the Lattice**
+`part-1-foundation/04.5-core-security.md`
+Mission validation, drift detection, integrity monitoring. Defending against mission poisoning attacks.
 
 ---
 
@@ -196,6 +200,7 @@ Read sequentially from Part I through Part V.
 - 📋 Chapter 2: The PGC
 - 🔄 Chapter 3: Why Overlays? (migrate from MULTI_OVERLAY_ARCHITECTURE.md)
 - 📋 Chapter 4: Embeddings
+- ✅ Chapter 4.5: Core Security (COMPLETE - 1,050 lines)
 
 ### Part II: The Seven Layers
 
