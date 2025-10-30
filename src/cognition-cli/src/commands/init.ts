@@ -7,6 +7,13 @@ import chalk from 'chalk';
  * Initializes the PGC directory structure at the specified path.
  */
 export async function initCommand(options: { path: string }) {
+  console.log(chalk.cyan('📦 PGC = Grounded Context Pool'));
+  console.log(
+    chalk.dim(
+      '   Content-addressable knowledge storage with full audit trails\n'
+    )
+  );
+
   intro(chalk.bold('Initializing Grounded Context Pool'));
 
   const s = spinner();

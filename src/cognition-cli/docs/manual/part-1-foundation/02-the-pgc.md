@@ -54,14 +54,14 @@ The **Grounded Context Pool (PGC)** is cognition-cli's storage layer—the physi
 
 ### Key Properties
 
-| Property         | Value                                                         |
-| ---------------- | ------------------------------------------------------------- |
-| **Location**     | `.open_cognition/` at project root                            |
-| **Format**       | Content-addressable (SHA-256), JSON, YAML                     |
-| **Versioning**   | Git-style sharding + transform manifests                      |
-| **Provenance**   | Every file tracked by content hash                            |
-| **Storage**      | ~70MB for 32K LOC (with template docs and all overlays)       |
-| **Git strategy** | Selective commits via `.gitignore`                            |
+| Property         | Value                                                   |
+| ---------------- | ------------------------------------------------------- |
+| **Location**     | `.open_cognition/` at project root                      |
+| **Format**       | Content-addressable (SHA-256), JSON, YAML               |
+| **Versioning**   | Git-style sharding + transform manifests                |
+| **Provenance**   | Every file tracked by content hash                      |
+| **Storage**      | ~70MB for 32K LOC (with template docs and all overlays) |
+| **Git strategy** | Selective commits via `.gitignore`                      |
 
 ---
 
@@ -85,6 +85,7 @@ The **Grounded Context Pool (PGC)** is cognition-cli's storage layer—the physi
 **Total size** (cognition-cli, 32K LOC, measured before template doc ingestion):
 
 **Before template docs** (genesis + code only):
+
 - `patterns.lancedb/`: 36MB (embeddings)
 - `overlays/`: 4.1MB (overlay data)
 - `objects/`: 3.7MB (source snapshots)
@@ -96,6 +97,7 @@ The **Grounded Context Pool (PGC)** is cognition-cli's storage layer—the physi
 - **Subtotal**: ~48MB
 
 **After template docs** (complete PGC with all overlays):
+
 - **Total**: ~70MB (+22MB for template doc embeddings and overlays)
 
 ---

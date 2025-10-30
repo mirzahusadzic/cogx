@@ -55,6 +55,15 @@ async function runStatus(options: {
   json?: boolean;
   verbose?: boolean;
 }): Promise<void> {
+  if (!options.json) {
+    console.log(chalk.cyan('📦 PGC = Grounded Context Pool'));
+    console.log(
+      chalk.dim(
+        '   Content-addressable knowledge storage with full audit trails\n'
+      )
+    );
+  }
+
   const projectRoot = process.cwd();
   const pgcRoot = path.join(projectRoot, '.open_cognition');
 
