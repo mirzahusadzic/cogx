@@ -6,7 +6,6 @@
  */
 
 import { Command } from 'commander';
-import { intro, outro, spinner, log } from '@clack/prompts';
 import chalk from 'chalk';
 import path from 'path';
 import fs from 'fs-extra';
@@ -37,18 +36,15 @@ export function addCoherenceCommands(program: Command) {
     .option('--json', 'Output raw JSON')
     .option('-v, --verbose', 'Show detailed error messages', false)
     .action(async (options) => {
-      intro(chalk.bold('Strategic Coherence Report'));
-
       const pgcRoot = path.join(options.projectRoot, '.open_cognition');
       if (!(await fs.pathExists(pgcRoot))) {
-        log.error(
-          chalk.red(`PGC not initialized. Run 'cognition-cli init' first.`)
+        console.error(
+          chalk.red(
+            `\n✗ PGC not initialized. Run 'cognition-cli init' first.\n`
+          )
         );
         process.exit(1);
       }
-
-      const s = spinner();
-      s.start('Loading coherence data');
 
       try {
         const workbenchUrl =
@@ -58,27 +54,44 @@ export function addCoherenceCommands(program: Command) {
           'O7'
         )) as unknown as CoherenceAlgebraAdapter;
 
+        // Get raw overlay data for detailed metrics
+        const { StrategicCoherenceManager } = await import(
+          '../core/overlays/strategic-coherence/manager.js'
+        );
+        const manager = new StrategicCoherenceManager(pgcRoot);
+        const overlay = await manager.retrieve();
+
         const items = await coherenceAdapter.getAllItems();
 
-        s.stop('Analysis complete');
-
-        if (items.length === 0) {
-          log.warn(
-            chalk.yellow(
-              'No coherence data found. Run "cognition-cli overlay generate strategic_coherence" first.'
+        if (items.length === 0 || !overlay) {
+          console.error(
+            chalk.red(
+              '\n✗ No strategic coherence overlay found. Run "cognition-cli overlay generate strategic_coherence" first.\n'
             )
           );
           process.exit(1);
         }
 
-        // Calculate metrics
+        // Calculate basic metrics
         const scores = items.map((item) => item.metadata.overallCoherence);
         const avgCoherence = scores.reduce((a, b) => a + b, 0) / scores.length;
         const sortedScores = [...scores].sort((a, b) => a - b);
         const medianCoherence =
           sortedScores[Math.floor(sortedScores.length / 2)];
-        const highAlignmentCount = scores.filter((s) => s >= 0.7).length;
-        const driftedCount = scores.filter((s) => s < 0.5).length;
+
+        // Get thresholds from overlay metrics
+        const alignmentThreshold =
+          overlay.overall_metrics.high_alignment_threshold;
+        const driftThreshold =
+          overlay.overall_metrics.bottom_quartile_coherence;
+
+        const highAlignmentCount = scores.filter(
+          (s) => s >= alignmentThreshold
+        ).length;
+        const driftedCount = scores.filter((s) => s <= driftThreshold).length;
+
+        // Get rich metrics from overlay
+        const metrics = overlay.overall_metrics;
 
         if (options.json) {
           console.log(
@@ -98,65 +111,143 @@ export function addCoherenceCommands(program: Command) {
         }
 
         // Display formatted report
-        log.info('');
-        log.info(chalk.bold.cyan('📊 Strategic Coherence Report'));
-        log.info(chalk.gray('━'.repeat(60)));
-        log.info('');
+        console.log('');
+        console.log(chalk.bold.cyan('📊 Strategic Coherence Report'));
+        console.log(chalk.gray('━'.repeat(60)));
+        console.log(
+          chalk.white(
+            `  Generated: ${chalk.dim(new Date(overlay.generated_at).toLocaleString())}`
+          )
+        );
+        console.log(
+          chalk.white(
+            `  Mission documents: ${chalk.dim(overlay.mission_document_hashes.length)} (${overlay.mission_document_hashes.map((h: string) => h.slice(0, 8)).join(', ')}...)`
+          )
+        );
+        console.log('');
 
-        log.info(chalk.bold.white('  Analysis Scope:'));
-        log.info(
+        console.log(chalk.bold.white('  Analysis Scope:'));
+        console.log(
           chalk.white(
             `    Code symbols analyzed:   ${chalk.cyan(items.length)}`
           )
         );
-        log.info('');
+        console.log(
+          chalk.white(
+            `    Mission concepts:        ${chalk.cyan(overlay.mission_concepts_count)}`
+          )
+        );
+        console.log('');
 
-        const avgPct = (avgCoherence * 100).toFixed(1);
-        const medianPct = (medianCoherence * 100).toFixed(1);
+        // Convert to percentages for human readability
+        const avgPct = (metrics.average_coherence * 100).toFixed(1);
+        const weightedPct = (metrics.weighted_coherence * 100).toFixed(1);
+        const latticePct = (metrics.lattice_coherence * 100).toFixed(1);
+        const medianPct = (metrics.median_coherence * 100).toFixed(1);
+        const topPct = (metrics.top_quartile_coherence * 100).toFixed(1);
+        const bottomPct = (metrics.bottom_quartile_coherence * 100).toFixed(1);
+        const stdDevPct = (metrics.std_deviation * 100).toFixed(1);
+        const thresholdPct = (metrics.high_alignment_threshold * 100).toFixed(
+          0
+        );
 
-        log.info(chalk.bold.white('  Coherence Metrics:'));
-        log.info(
-          chalk.white(
-            `    Average coherence:       ${chalk.cyan(`${avgPct}%`)}`
-          )
-        );
-        log.info(
-          chalk.white(
-            `    Median coherence:        ${chalk.cyan(`${medianPct}%`)}`
-          )
-        );
-        log.info(
-          chalk.white(
-            `    High alignment (≥70%):   ${chalk.green(`${highAlignmentCount} symbols`)}`
-          )
-        );
-        log.info(
-          chalk.white(
-            `    Drifted (<50%):          ${chalk.yellow(`${driftedCount} symbols`)}`
-          )
-        );
-        log.info('');
+        // Calculate deltas
+        const weightedDelta = (
+          (metrics.weighted_coherence - metrics.average_coherence) *
+          100
+        ).toFixed(1);
+        const latticeDelta = (
+          (metrics.lattice_coherence - metrics.average_coherence) *
+          100
+        ).toFixed(1);
+        const weightedDeltaSign = parseFloat(weightedDelta) > 0 ? '+' : '';
+        const latticeDeltaSign = parseFloat(latticeDelta) > 0 ? '+' : '';
+        const weightedDeltaColor =
+          parseFloat(weightedDelta) > 0 ? chalk.green : chalk.red;
+        const latticeDeltaColor =
+          parseFloat(latticeDelta) > 0 ? chalk.green : chalk.red;
 
-        log.info(chalk.dim('  Use these commands for more details:'));
-        log.info(
+        console.log(chalk.bold.white('  Coherence Metrics:'));
+        console.log(
+          chalk.white(
+            `    Average coherence:       ${chalk.cyan(avgPct + '%')} ${chalk.dim('(all symbols equally weighted)')}`
+          )
+        );
+        console.log(
+          chalk.white(
+            `    Weighted coherence:      ${chalk.cyan(weightedPct + '%')} ${weightedDeltaColor(`(${weightedDeltaSign}${weightedDelta}%)`)} ${chalk.dim('← centrality-based')}`
+          )
+        );
+        console.log(
+          chalk.white(
+            `    Lattice coherence:       ${chalk.bold.cyan(latticePct + '%')} ${latticeDeltaColor(`(${latticeDeltaSign}${latticeDelta}%)`)} ${chalk.dim('← Gaussian + lattice synthesis')}`
+          )
+        );
+        console.log('');
+
+        console.log(chalk.bold.white('  Distribution:'));
+        console.log(
+          chalk.white(
+            `    Top 25% (best):          ${chalk.green(topPct + '%')}`
+          )
+        );
+        console.log(
+          chalk.white(
+            `    Median (typical):        ${chalk.cyan(medianPct + '%')}`
+          )
+        );
+        console.log(
+          chalk.white(
+            `    Bottom 25% (concern):    ${chalk.yellow(bottomPct + '%')}`
+          )
+        );
+        console.log(
+          chalk.white(
+            `    Std deviation (σ):       ${chalk.dim(stdDevPct + '%')} ${chalk.dim('(statistical spread)')}`
+          )
+        );
+        console.log(
+          chalk.white(
+            `    Alignment threshold:     ${chalk.dim('≥ ' + thresholdPct + '%')}`
+          )
+        );
+        console.log(
+          chalk.white(
+            `    Drift threshold:         ${chalk.dim('≤ ' + bottomPct + '%')} ${chalk.dim('(bottom 25%)')}`
+          )
+        );
+        console.log('');
+
+        console.log(chalk.bold.white('  Symbol Distribution:'));
+        console.log(
+          chalk.white(
+            `    ✓ Aligned:               ${chalk.green(highAlignmentCount)} ${chalk.dim(`(${((highAlignmentCount / items.length) * 100).toFixed(1)}%)`)}`
+          )
+        );
+        console.log(
+          chalk.white(
+            `    ⚠ Drifted:               ${chalk.yellow(driftedCount)} ${chalk.dim(`(${((driftedCount / items.length) * 100).toFixed(1)}%)`)}`
+          )
+        );
+        console.log('');
+
+        console.log(chalk.dim('  View details with:'));
+        console.log(
           chalk.dim(
-            '    cognition-cli coherence aligned    # High-scoring symbols'
+            '    cognition-cli coherence aligned     # High-aligned symbols'
           )
         );
-        log.info(
+        console.log(
           chalk.dim(
-            '    cognition-cli coherence drifted    # Low-scoring symbols'
+            '    cognition-cli coherence drifted     # Low-aligned symbols'
           )
         );
-        log.info(
-          chalk.dim('    cognition-cli coherence list       # All symbols')
+        console.log(
+          chalk.dim('    cognition-cli coherence list        # All symbols')
         );
-        log.info('');
-
-        outro(chalk.green('✓ Report complete'));
+        console.log('');
       } catch (error) {
-        s.stop('Analysis failed');
-        log.error(chalk.red((error as Error).message));
+        console.error(chalk.red(`\n✗ ${(error as Error).message}\n`));
         if (options.verbose) {
           console.error(error);
         }
@@ -185,18 +276,15 @@ export function addCoherenceCommands(program: Command) {
     .option('-l, --limit <number>', 'Maximum number of results to show', '50')
     .option('-v, --verbose', 'Show detailed error messages', false)
     .action(async (options) => {
-      intro(chalk.bold('Coherence: Aligned Symbols'));
-
       const pgcRoot = path.join(options.projectRoot, '.open_cognition');
       if (!(await fs.pathExists(pgcRoot))) {
-        log.error(
-          chalk.red(`PGC not initialized. Run 'cognition-cli init' first.`)
+        console.error(
+          chalk.red(
+            `\n✗ PGC not initialized. Run 'cognition-cli init' first.\n`
+          )
         );
         process.exit(1);
       }
-
-      const s = spinner();
-      s.start('Finding aligned symbols');
 
       try {
         const workbenchUrl =
@@ -209,28 +297,23 @@ export function addCoherenceCommands(program: Command) {
         // Sort by coherence score (descending)
         const sortedItems = await coherenceAdapter.getItemsByCoherence(true);
 
-        s.stop('Analysis complete');
-
         const minScore = parseFloat(options.minScore);
         const filtered = sortedItems.filter(
           (item) => item.metadata.overallCoherence >= minScore
         );
 
         if (filtered.length === 0) {
-          log.warn(
+          console.log(
             chalk.yellow(
-              `No symbols found with coherence score ≥ ${minScore.toFixed(2)}`
+              `\nNo symbols found with coherence score ≥ ${minScore.toFixed(2)}\n`
             )
           );
-          outro('');
           return;
         }
 
         displayCoherenceItems(filtered, options, minScore);
-        outro(chalk.green('✓ Analysis complete'));
       } catch (error) {
-        s.stop('Analysis failed');
-        log.error(chalk.red((error as Error).message));
+        console.error(chalk.red(`\n✗ ${(error as Error).message}\n`));
         if (options.verbose) {
           console.error(error);
         }
@@ -244,12 +327,13 @@ export function addCoherenceCommands(program: Command) {
    */
   coherenceCommand
     .command('drifted')
-    .description('Show symbols that drifted from mission')
+    .description(
+      'Show symbols that drifted from mission (bottom quartile by default)'
+    )
     .option('-p, --project-root <path>', 'The root of the project.', '.')
     .option(
       '--max-score <score>',
-      'Maximum coherence score (default: 0.5)',
-      '0.5'
+      'Maximum coherence score (default: bottom quartile threshold)'
     )
     .option(
       '-f, --format <format>',
@@ -259,18 +343,15 @@ export function addCoherenceCommands(program: Command) {
     .option('-l, --limit <number>', 'Maximum number of results to show', '50')
     .option('-v, --verbose', 'Show detailed error messages', false)
     .action(async (options) => {
-      intro(chalk.bold('Coherence: Drifted Symbols'));
-
       const pgcRoot = path.join(options.projectRoot, '.open_cognition');
       if (!(await fs.pathExists(pgcRoot))) {
-        log.error(
-          chalk.red(`PGC not initialized. Run 'cognition-cli init' first.`)
+        console.error(
+          chalk.red(
+            `\n✗ PGC not initialized. Run 'cognition-cli init' first.\n`
+          )
         );
         process.exit(1);
       }
-
-      const s = spinner();
-      s.start('Finding drifted symbols');
 
       try {
         const workbenchUrl =
@@ -280,31 +361,46 @@ export function addCoherenceCommands(program: Command) {
           'O7'
         )) as unknown as CoherenceAlgebraAdapter;
 
+        // Get raw overlay data for bottom quartile threshold
+        const { StrategicCoherenceManager } = await import(
+          '../core/overlays/strategic-coherence/manager.js'
+        );
+        const manager = new StrategicCoherenceManager(pgcRoot);
+        const overlay = await manager.retrieve();
+
+        if (!overlay) {
+          console.error(
+            chalk.red(
+              '\n✗ No strategic coherence overlay found. Run "cognition-cli overlay generate strategic_coherence" first.\n'
+            )
+          );
+          process.exit(1);
+        }
+
         // Sort by coherence score (ascending - worst first)
         const sortedItems = await coherenceAdapter.getItemsByCoherence(false);
 
-        s.stop('Analysis complete');
+        // Use bottom quartile as default threshold, or custom value if provided
+        const maxScore = options.maxScore
+          ? parseFloat(options.maxScore)
+          : overlay.overall_metrics.bottom_quartile_coherence;
 
-        const maxScore = parseFloat(options.maxScore);
         const filtered = sortedItems.filter(
-          (item) => item.metadata.overallCoherence < maxScore
+          (item) => item.metadata.overallCoherence <= maxScore
         );
 
         if (filtered.length === 0) {
-          log.warn(
+          console.log(
             chalk.yellow(
-              `No symbols found with coherence score < ${maxScore.toFixed(2)}`
+              `\nNo symbols found with coherence score ≤ ${maxScore.toFixed(2)}\n`
             )
           );
-          outro('');
           return;
         }
 
         displayCoherenceItems(filtered, options, maxScore, true);
-        outro(chalk.green('✓ Analysis complete'));
       } catch (error) {
-        s.stop('Analysis failed');
-        log.error(chalk.red((error as Error).message));
+        console.error(chalk.red(`\n✗ ${(error as Error).message}\n`));
         if (options.verbose) {
           console.error(error);
         }
@@ -328,18 +424,15 @@ export function addCoherenceCommands(program: Command) {
     .option('-l, --limit <number>', 'Maximum number of results to show', '50')
     .option('-v, --verbose', 'Show detailed error messages', false)
     .action(async (options) => {
-      intro(chalk.bold('Coherence: All Symbols'));
-
       const pgcRoot = path.join(options.projectRoot, '.open_cognition');
       if (!(await fs.pathExists(pgcRoot))) {
-        log.error(
-          chalk.red(`PGC not initialized. Run 'cognition-cli init' first.`)
+        console.error(
+          chalk.red(
+            `\n✗ PGC not initialized. Run 'cognition-cli init' first.\n`
+          )
         );
         process.exit(1);
       }
-
-      const s = spinner();
-      s.start('Loading all symbols');
 
       try {
         const workbenchUrl =
@@ -352,19 +445,14 @@ export function addCoherenceCommands(program: Command) {
         // Get all items sorted by coherence
         const items = await coherenceAdapter.getItemsByCoherence(true);
 
-        s.stop('Analysis complete');
-
         if (items.length === 0) {
-          log.warn(chalk.yellow('No coherence data found'));
-          outro('');
+          console.log(chalk.yellow('\nNo coherence data found\n'));
           return;
         }
 
         displayCoherenceItems(items, options);
-        outro(chalk.green('✓ Analysis complete'));
       } catch (error) {
-        s.stop('Analysis failed');
-        log.error(chalk.red((error as Error).message));
+        console.error(chalk.red(`\n✗ ${(error as Error).message}\n`));
         if (options.verbose) {
           console.error(error);
         }
@@ -389,8 +477,8 @@ function displayCoherenceItems(
   const format = options.format || 'table';
   const limit = parseInt(options.limit || '50');
 
-  log.info('');
-  log.info(
+  console.log('');
+  console.log(
     chalk.bold(
       isDrifted
         ? `⚠ Drifted Symbols (score ${threshold ? `< ${threshold.toFixed(2)}` : '< 0.5'})`
@@ -399,8 +487,7 @@ function displayCoherenceItems(
           : `All Symbols (${items.length} total)`
     )
   );
-  log.info(chalk.gray('━'.repeat(60)));
-  log.info('');
+  console.log(chalk.gray('━'.repeat(60)));
 
   if (format === 'json') {
     console.log(JSON.stringify(items.slice(0, limit), null, 2));
@@ -408,21 +495,22 @@ function displayCoherenceItems(
   }
 
   if (format === 'summary') {
-    log.info(chalk.dim(`Showing ${Math.min(limit, items.length)} items`));
+    console.log(chalk.dim(`Showing ${Math.min(limit, items.length)} items`));
     for (const item of items.slice(0, limit)) {
       const score = (item.metadata.overallCoherence * 100).toFixed(1);
-      log.info(`  ${chalk.cyan(item.metadata.symbolName)} - ${score}%`);
+      console.log(`  ${chalk.cyan(item.metadata.symbolName)} - ${score}%`);
     }
+    console.log('');
     return;
   }
 
   // Table format (default)
-  log.info(
+  console.log(
     chalk.dim(
       `Showing ${Math.min(limit, items.length)} of ${items.length} items`
     )
   );
-  log.info('');
+  console.log('');
 
   for (const item of items.slice(0, limit)) {
     const score = item.metadata.overallCoherence;
@@ -432,24 +520,25 @@ function displayCoherenceItems(
     const scoreColor =
       score >= 0.7 ? chalk.green : score >= 0.5 ? chalk.yellow : chalk.red;
 
-    log.info(
+    console.log(
       `${chalk.cyan.bold(item.metadata.symbolName)} ${chalk.dim(`[${item.metadata.filePath}]`)}`
     );
-    log.info(`  ${scoreColor(scoreBar)} ${scorePct}%`);
-    log.info(
+    console.log(`  ${scoreColor(scoreBar)} ${scorePct}%`);
+    console.log(
       chalk.dim(
         `  Top concept: ${truncate(item.metadata.topConceptText, 60)} (${(item.metadata.topConceptScore * 100).toFixed(1)}%)`
       )
     );
-    log.info('');
+    console.log('');
   }
 
   if (items.length > limit) {
-    log.info(
+    console.log(
       chalk.dim(
         `... and ${items.length - limit} more (use --limit to see more)`
       )
     );
+    console.log('');
   }
 }
 
