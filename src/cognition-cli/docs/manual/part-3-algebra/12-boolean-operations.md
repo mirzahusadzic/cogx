@@ -1,14 +1,28 @@
 # Chapter 12: Boolean Operations on Knowledge
 
-> "Easy to type beats mathematical elegance." — Design principle for lattice query syntax
+> **The Axiom Applied**: When you query "O2 ∧ O4" (security Meet mission), you're not searching—you're computing the greatest lower bound in a knowledge lattice. This is why compositional queries work. This is why overlays compose. This is why the algebra is complete.
+
+**Part**: III — The Algebra
+**Chapter**: 12
+**Focus**: Boolean Operations, Meet/Union/Intersection/Difference
+**Implementation**: `src/core/algebra/`
 
 ---
 
-## Overview
+## Table of Contents
 
-This chapter describes the **lattice algebra** — a boolean algebra system for querying and combining knowledge across cognitive overlays. Unlike traditional databases that query records, the lattice algebra operates on **embeddings** (semantic vectors) and **metadata** (structured properties), enabling both exact matching and semantic alignment queries.
-
-**Key Insight**: Every overlay implements a universal interface (`OverlayAlgebra`), which means every overlay gains algebraic operations for free. Complex queries become compositions of simple primitives.
+1. [The Problem: Querying Across Cognitive Layers](#the-problem-querying-across-cognitive-layers)
+2. [Core Operations](#core-operations)
+3. [Composing Operations](#composing-operations)
+4. [The Universal Interface: OverlayAlgebra](#the-universal-interface-overlayalgebra)
+5. [Implementation Architecture](#implementation-architecture)
+6. [Performance Characteristics](#performance-characteristics)
+7. [Real-World Examples](#real-world-examples)
+8. [Design Decisions](#design-decisions)
+9. [Extension Points](#extension-points)
+10. [Testing](#testing)
+11. [Common Pitfalls](#common-pitfalls)
+12. [Future Directions](#future-directions)
 
 ---
 
@@ -1000,5 +1014,5 @@ cognition-cli lattice "O2[severity=critical] | avg(weight)"
 ---
 
 **Status**: ✅ Complete (October 30, 2025)
-**Author**: Claude Code + User (pair programming session)
+**Author**: Collaborative implementation session
 **Reviewed**: Pending

@@ -8,17 +8,30 @@ Last Updated: October 30, 2025
 
 ---
 
+## The Axiom: Knowledge is a Lattice
+
+**This is not an analogy. This is not a metaphor. This is a formal mathematical truth.**
+
+Every question you ask—"What depends on X?", "Where is Y used?", "What changed between versions?"—is a **lattice operation**. Knowledge, in its most fundamental form, has the structure of a **mathematical lattice**: a partially ordered set where any two elements have both a unique greatest lower bound (Meet, ∧) and a unique least upper bound (Join, ∨).
+
+The Persistent Grounded Context (PGC) is not "like" a lattice. **It IS a lattice**—the first executable implementation of this formal truth.
+
+---
+
 ## About This Book
 
 THE LATTICE BOOK is the complete reference manual for building, querying, and reasoning about cognitive architectures using the Open Cognition system. This is not just documentation—it's **executable knowledge** that can be ingested into the very system it describes.
 
 **Why "The Lattice Book"?**
 
-- **Lattice**: Mathematical structure of partial order with meet (∧) and join (∨) operations
+- **Lattice**: Not metaphor—mathematical structure with provable properties
 - **Open**: Transparent, inspectable, portable cognition
 - **Living**: Grows with the codebase, not written after the fact
+- **Executable**: The book itself becomes a .cogx artifact
 
-**Scope**: This book covers the complete implementation from foundation through advanced query algebra, portability formats (.cogx), and the computational Proof of Work (cPOW) loop.
+**Core Insight**: When you query "O2 ∧ O4" (security Meet mission), you're not searching—you're computing the greatest lower bound in a knowledge lattice. This is why compositional queries work. This is why overlays compose. This is why the algebra is complete.
+
+**Scope**: This book covers the complete implementation from foundational axioms through advanced query algebra, portability formats (.cogx), and the computational Proof of Work (cPOW) loop.
 
 ---
 
@@ -88,7 +101,7 @@ Meet operation across layers. Alignment scoring. Drift detection.
 
 ---
 
-### Part III: The Algebra (~80 pages) ⭐ **WRITING NOW**
+### Part III: The Algebra (~80 pages)
 
 **Chapter 12: Boolean Operations on Knowledge**
 `part-3-algebra/12-boolean-operations.md`
@@ -128,7 +141,7 @@ Oracle → Scribe → AQS → Receipt. The complete computational Proof of Work 
 
 **Chapter 19: Quest Structures**
 `part-5-cpow-loop/19-quest-structures.md`
-What/Why/Success. Depth tracking (Depth 0-3). Sacred sequences (F.L.T.B).
+What/Why/Success. Depth tracking (Depth 0-3). Sacred sequences (F.L.T.B: Format, Lint, Test, Build).
 
 **Chapter 20: Validation Oracles**
 `part-5-cpow-loop/20-validation-oracles.md`
@@ -187,7 +200,7 @@ Read sequentially from Part I through Part V.
 ### Part II: The Seven Layers
 
 - 📋 Chapter 5: O₁ Structure
-- 📋 Chapter 6: O₂ Security
+- ✅ Chapter 6: O₂ Security (COMPLETE - 1,200 lines)
 - 📋 Chapter 7: O₃ Lineage
 - 🔄 Chapter 8: O₄ Mission (partial content exists)
 - ✅ Chapter 9: O₅ Operational (COMPLETE - 1,100 lines)

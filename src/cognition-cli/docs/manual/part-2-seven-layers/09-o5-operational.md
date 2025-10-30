@@ -1,18 +1,38 @@
 # Chapter 9: O₅ Operational — Workflow Guidance
 
-> "Quest structures tell you HOW to work, not WHAT to build." — Operational Lattice principle
+> **The Axiom Applied**: Operational knowledge forms a sublattice where quest structures meet depth rules at precise points of alignment. "Which workflows apply at Depth 2?" is a computable query—not a search through documentation.
+
+**Part**: II — The Seven Layers
+**Layer**: O₅ (Operational)
+**Role**: Workflow Guidance
+**Knowledge Types**: 5 (quest_structure, sacred_sequence, workflow_pattern, depth_rule, terminology)
 
 ---
 
-## Overview
+## Table of Contents
 
-The **O₅ Operational overlay** stores workflow guidance, process patterns, and procedural knowledge extracted from operational documents like `OPERATIONAL_LATTICE.md`. Unlike O₄ (Mission) which answers "WHAT should we build?" and "WHY?", O₅ answers **"HOW should we work?"**
-
-**Key Insight**: O₅ is prescriptive, not descriptive. It captures invariant sequences, depth-tracking rules, and workflow patterns that guide AI agents (and humans) through complex cognitive tasks.
+1. [Purpose and Scope](#purpose-and-scope)
+2. [Knowledge Types](#knowledge-types)
+3. [Storage Structure](#storage-structure)
+4. [Extraction Process](#extraction-process)
+5. [Embeddings and Similarity](#embeddings-and-similarity)
+6. [Integration with Genesis](#integration-with-genesis)
+7. [Query Examples](#query-examples)
+8. [Real-World Usage](#real-world-usage)
+9. [Design Patterns](#design-patterns)
+10. [Comparison with Other Overlays](#comparison-with-other-overlays)
+11. [Implementation Details](#implementation-details)
+12. [Future Enhancements](#future-enhancements)
+13. [Common Pitfalls](#common-pitfalls)
+14. [Testing O₅ Extraction](#testing-o₅-extraction)
 
 ---
 
 ## Purpose and Scope
+
+The **O₅ Operational overlay** stores workflow guidance, process patterns, and procedural knowledge extracted from operational documents like `OPERATIONAL_LATTICE.md`. Unlike O₄ (Mission) which answers "WHAT should we build?" and "WHY?", O₅ answers **"HOW should we work?"**
+
+**Key Insight**: O₅ is prescriptive, not descriptive. It captures invariant sequences, depth-tracking rules, and workflow patterns that guide AI agents (and humans) through complex cognitive tasks.
 
 ### What O₅ Stores
 
@@ -106,39 +126,39 @@ O₅ extracts **5 types of operational knowledge**:
 
 **Definition**: Invariant step orders that MUST be followed (no reordering allowed).
 
-**Pattern**: Sequences marked as "sacred" or with explicit ordering like "F.L.T.B" (Focus, Lock, Test, Build).
+**Pattern**: Sequences marked as "sacred" or with explicit ordering like "F.L.T.B" (Format, Lint, Test, Build).
 
 **Example**:
 
 ```markdown
 ### Sacred Sequence: F.L.T.B
 
-1. **Focus**: Define the quest (What/Why/Success)
-2. **Lock**: Commit to the approach (no scope creep)
-3. **Test**: Validate assumptions (run tests, check edge cases)
-4. **Build**: Execute the plan
+1. **Format**: Run code formatter (prettier, black, gofmt)
+2. **Lint**: Run linter (eslint, pylint, clippy)
+3. **Test**: Run test suite (unit, integration)
+4. **Build**: Run build process (compile, bundle, package)
 ```
 
 **Why Sacred?**: These sequences encode hard-won lessons. Violating them leads to:
 
-- Scope creep (skipping Focus)
-- Half-finished work (skipping Lock)
-- Broken code (skipping Test)
-- Analysis paralysis (skipping Build)
+- Formatting conflicts (skipping Format)
+- Style violations in CI (skipping Lint)
+- Broken code in production (skipping Test)
+- Build failures after commit (skipping Build)
 
 **Metadata**:
 
 ```typescript
 {
   patternType: 'sacred_sequence',
-  text: 'F.L.T.B: Focus, Lock, Test, Build',
+  text: 'F.L.T.B: Format, Lint, Test, Build',
   metadata: {
     sequence_name: 'F.L.T.B',
     steps: [
-      { order: 1, name: 'Focus', description: 'Define the quest...' },
-      { order: 2, name: 'Lock', description: 'Commit to approach...' },
-      { order: 3, name: 'Test', description: 'Validate assumptions...' },
-      { order: 4, name: 'Build', description: 'Execute the plan' }
+      { order: 1, name: 'Format', description: 'Run code formatter...' },
+      { order: 2, name: 'Lint', description: 'Run linter...' },
+      { order: 3, name: 'Test', description: 'Run test suite...' },
+      { order: 4, name: 'Build', description: 'Run build process...' }
     ],
     invariant: true
   },
@@ -348,7 +368,7 @@ extracted_patterns:
       success_criteria: [...]
 
   - patternType: 'sacred_sequence'
-    text: 'F.L.T.B: Focus, Lock, Test, Build'
+    text: 'F.L.T.B: Format, Lint, Test, Build'
     embedding: [0.234, 0.567, ...]
     weight: 1.0
     metadata:
@@ -641,11 +661,11 @@ cognition-cli lattice "O5[sacred_sequence]"
 **Returns**:
 
 ```
-F.L.T.B: Focus, Lock, Test, Build
-  Step 1: Focus - Define the quest
-  Step 2: Lock - Commit to approach
-  Step 3: Test - Validate assumptions
-  Step 4: Build - Execute the plan
+F.L.T.B: Format, Lint, Test, Build
+  Step 1: Format - Run code formatter
+  Step 2: Lint - Run linter
+  Step 3: Test - Run test suite
+  Step 4: Build - Run build process
 ```
 
 **Use Case**: Follow established process patterns to avoid common mistakes.
@@ -693,7 +713,7 @@ cognition-cli lattice "O5[quest_structure]" | head -20
 
 # 3. Check sacred sequence
 cognition-cli lattice "O5[sacred_sequence]"
-# Reminds: F.L.T.B (Focus, Lock, Test, Build)
+# Reminds: F.L.T.B (Format, Lint, Test, Build)
 ```
 
 **Result**: Structured approach, clear success criteria, process guidance.
@@ -827,7 +847,7 @@ cognition-cli lattice "O5[workflow_pattern]" --query "oracle scribe rhythm"
 | Overlay            | Focus          | Question Answered   | Example                                           |
 | ------------------ | -------------- | ------------------- | ------------------------------------------------- |
 | **O₄ Mission**     | Strategic      | WHAT to build? WHY? | "Build lattice algebra for compositional queries" |
-| **O₅ Operational** | Procedural     | HOW to work?        | "Use F.L.T.B sequence: Focus, Lock, Test, Build"  |
+| **O₅ Operational** | Procedural     | HOW to work?        | "Use F.L.T.B sequence: Format, Lint, Test, Build"  |
 | **O₂ Security**    | Constraints    | Is it safe?         | "Validate input before processing"                |
 | **O₁ Structure**   | Implementation | How is it built?    | "meet() uses LanceDB ANN search"                  |
 
@@ -981,7 +1001,7 @@ cognition-cli lattice "O5[quest_structure]" | head -20
 
 ### Pitfall 2: Violating Sacred Sequences
 
-**Problem**: Skipping steps in F.L.T.B (e.g., writing code before testing approach)
+**Problem**: Skipping steps in F.L.T.B (e.g., building before running tests)
 
 **Symptom**: Half-finished work, broken code, frequent rework
 
@@ -1125,5 +1145,5 @@ lattice "O5 -> O2" --query "input"      # Project workflows to security
 ---
 
 **Status**: ✅ Complete (October 30, 2025)
-**Author**: Claude Code + User (pair programming session)
+**Author**: Collaborative implementation session
 **Reviewed**: Pending
