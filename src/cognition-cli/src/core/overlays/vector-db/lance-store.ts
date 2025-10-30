@@ -225,7 +225,8 @@ export class LanceVectorStore {
   async similaritySearch(
     queryEmbedding: number[],
     topK: number,
-    filter?: { symbol?: string; architectural_role?: string }
+    filter?: { symbol?: string; architectural_role?: string },
+    distanceType: 'l2' | 'cosine' | 'dot' = 'cosine'
   ): Promise<
     Array<{
       id: string;
@@ -241,7 +242,15 @@ export class LanceVectorStore {
       );
     }
 
-    let query = this.table!.search(queryEmbedding).limit(topK * 2); // Get extra for deduplication
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query = this.table!.search(queryEmbedding) as any;
+
+    // Set distance type if the method exists (LanceDB v0.22+)
+    if (typeof query.distanceType === 'function') {
+      query = query.distanceType(distanceType);
+    }
+
+    query = query.limit(topK * 2); // Get extra for deduplication
 
     // Apply filters if provided
     if (filter?.symbol) {
@@ -256,12 +265,12 @@ export class LanceVectorStore {
     const records = await query.toArray();
 
     // ✅ DEDUPLICATE RESULTS BY SYMBOL
-    const uniqueResults = new Map();
+    const uniqueResults = new Map<string, LanceDBSearchResult>();
     records
-      .filter((result): result is LanceDBSearchResult =>
+      .filter((result: unknown): result is LanceDBSearchResult =>
         this.isValidSearchResult(result)
       )
-      .forEach((result) => {
+      .forEach((result: LanceDBSearchResult) => {
         // Keep only the first occurrence of each symbol (highest similarity due to sorting)
         if (!uniqueResults.has(result.symbol)) {
           uniqueResults.set(result.symbol, result);
@@ -272,7 +281,7 @@ export class LanceVectorStore {
     return Array.from(uniqueResults.values())
       .map((result) => ({
         id: result.id,
-        similarity: this.calculateSimilarity(result._distance),
+        similarity: this.calculateSimilarity(result._distance, distanceType),
         metadata: {
           symbol: result.symbol,
           structural_signature: result.structural_signature,
@@ -490,11 +499,23 @@ export class LanceVectorStore {
     return true;
   }
 
-  public calculateSimilarity(distance: number): number {
-    // LanceDB returns L2 distance, convert to similarity score
-
-    // Smaller distance = higher similarity
-    return 1 / (1 + Math.max(0, distance)); // Ensure non-negative
+  public calculateSimilarity(
+    distance: number,
+    distanceType: 'l2' | 'cosine' | 'dot' = 'cosine'
+  ): number {
+    if (distanceType === 'cosine') {
+      // Cosine distance is 1 - cosine_similarity
+      // So cosine_similarity = 1 - distance
+      // LanceDB returns cosine distance in range [0, 2]
+      return Math.max(0, 1 - distance);
+    } else if (distanceType === 'dot') {
+      // For dot product, higher values are more similar
+      // Already in similarity form (not a distance)
+      return distance;
+    } else {
+      // L2 distance - smaller is more similar
+      return 1 / (1 + Math.max(0, distance));
+    }
   }
 
   public cosineSimilarity(vecA: number[], vecB: number[]): number {

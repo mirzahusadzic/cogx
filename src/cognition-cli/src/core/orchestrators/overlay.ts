@@ -1,4 +1,5 @@
 import path from 'path';
+import { glob } from 'glob';
 import { PGCManager } from '../pgc/manager.js';
 import { LanceVectorStore } from '../overlays/vector-db/lance-store.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
@@ -585,55 +586,55 @@ export class OverlayOrchestrator {
       return [];
     }
 
-    const walk = async (dir: string) => {
-      const entries = await fs.readdir(dir, { withFileTypes: true });
+    // Build glob pattern from extensions: **/*.{ts,js,py,...}
+    const extPattern = extensions.map((ext) => ext.slice(1)).join(','); // Remove leading dots
+    const pattern = `**/*.{${extPattern}}`;
 
-      for (const entry of entries) {
-        const fullPath = path.resolve(dir, entry.name);
+    // Use glob with ignore patterns for better performance
+    const filePaths = await glob(pattern, {
+      cwd: rootPath,
+      absolute: true,
+      ignore: [
+        '**/node_modules/**',
+        '**/.git/**',
+        '**/__pycache__/**',
+        '**/.open_cognition/**',
+        '**/dist/**',
+        '**/docs/**',
+        '**/build/**',
+        '**/cache/**',
+        '**/.next/**',
+        '**/.nuxt/**',
+        '**/.venv*/**',
+        '**/.*/**', // All hidden directories
+      ],
+      nodir: true,
+    });
 
-        if (entry.isDirectory()) {
-          if (
-            entry.name === 'node_modules' ||
-            entry.name === '.git' ||
-            entry.name === '__pycache__' ||
-            entry.name === '.open_cognition' ||
-            entry.name === 'dist' ||
-            entry.name === 'docs' ||
-            entry.name === 'build' ||
-            entry.name === 'cache' ||
-            entry.name === '.next' ||
-            entry.name === '.nuxt' ||
-            entry.name.startsWith('.venv') || // Python virtual environments
-            entry.name.startsWith('.') // All other hidden directories (e.g., .vitepress)
-          ) {
-            continue;
-          }
-          await walk(fullPath);
-        } else if (entry.isFile()) {
-          const ext = path.extname(entry.name);
-          if (extensions.includes(ext)) {
-            const stats = await fs.stat(fullPath);
-            if (stats.size > this.maxFileSize) {
-              const relativePath = path.relative(this.projectRoot, fullPath);
-              log.warn(
-                `Skipping large file: ${relativePath} (${(stats.size / (1024 * 1024)).toFixed(2)} MB)`
-              );
-              return;
-            }
-            const content = await fs.readFile(fullPath, 'utf-8');
-            files.push({
-              path: fullPath,
-              relativePath: path.relative(this.projectRoot, fullPath),
-              name: entry.name,
-              language: this.detectLanguage(ext),
-              content,
-            });
-          }
-        }
+    // Process files (filter by size and read content)
+    for (const fullPath of filePaths) {
+      const stats = await fs.stat(fullPath);
+      if (stats.size > this.maxFileSize) {
+        const relativePath = path.relative(this.projectRoot, fullPath);
+        log.warn(
+          `Skipping large file: ${relativePath} (${(stats.size / (1024 * 1024)).toFixed(2)} MB)`
+        );
+        continue;
       }
-    };
 
-    await walk(rootPath);
+      const content = await fs.readFile(fullPath, 'utf-8');
+      const fileName = path.basename(fullPath);
+      const ext = path.extname(fileName);
+
+      files.push({
+        path: fullPath,
+        relativePath: path.relative(this.projectRoot, fullPath),
+        name: fileName,
+        language: this.detectLanguage(ext),
+        content,
+      });
+    }
+
     return files;
   }
 
@@ -666,8 +667,16 @@ export class OverlayOrchestrator {
     const messages: string[] = [];
     const missingHashes = new Set<string>();
 
-    for (const job of jobs) {
-      const exists = await this.pgc.objectStore.exists(job.structuralHash);
+    // Parallelize existence checks for better performance
+    const existenceChecks = await Promise.all(
+      jobs.map(async (job) => ({
+        job,
+        exists: await this.pgc.objectStore.exists(job.structuralHash),
+      }))
+    );
+
+    // Process results sequentially to maintain order
+    for (const { job, exists } of existenceChecks) {
       if (!exists && !missingHashes.has(job.structuralHash)) {
         missingHashes.add(job.structuralHash);
         messages.push(
@@ -695,30 +704,28 @@ export class OverlayOrchestrator {
     }
 
     const indexFiles = await fs.readdir(docsIndexPath);
-    const documents: Array<{
-      filePath: string;
-      contentHash: string;
-      objectHash: string;
-    }> = [];
 
-    for (const indexFile of indexFiles) {
-      if (!indexFile.endsWith('.json')) continue;
+    // Parallelize file reads for better performance
+    const documentReads = await Promise.all(
+      indexFiles
+        .filter((indexFile) => indexFile.endsWith('.json'))
+        .map(async (indexFile) => {
+          const indexPath = path.join(docsIndexPath, indexFile);
+          const indexData = await fs.readJSON(indexPath);
 
-      const indexPath = path.join(docsIndexPath, indexFile);
-      const indexData = await fs.readJSON(indexPath);
+          // Support both old format (hash only) and new format (contentHash + objectHash)
+          const contentHash = indexData.contentHash || indexData.hash;
+          const objectHash = indexData.objectHash || indexData.hash;
 
-      // Support both old format (hash only) and new format (contentHash + objectHash)
-      const contentHash = indexData.contentHash || indexData.hash;
-      const objectHash = indexData.objectHash || indexData.hash;
+          return {
+            filePath: indexData.filePath,
+            contentHash,
+            objectHash,
+          };
+        })
+    );
 
-      documents.push({
-        filePath: indexData.filePath,
-        contentHash,
-        objectHash,
-      });
-    }
-
-    return documents;
+    return documentReads;
   }
 
   /**

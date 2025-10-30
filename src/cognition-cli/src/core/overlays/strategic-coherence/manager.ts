@@ -224,70 +224,102 @@ export class StrategicCoherenceManager {
       });
     }
 
-    for (const vectorRecord of vectorsForCoherence) {
-      const symbolEmbedding = vectorRecord.embedding;
+    // Create a temporary in-memory vector store for mission concepts
+    // This allows us to use efficient similarity search instead of O(symbols × concepts) loops
+    const conceptVectorStore = new LanceVectorStore(this.pgcRoot);
+    await conceptVectorStore.initialize('mission_concepts_temp');
 
-      if (!symbolEmbedding || symbolEmbedding.length !== 768) {
-        continue; // Skip symbols without valid embeddings
+    try {
+      // Store all mission concepts in the temporary vector store
+      for (let i = 0; i < conceptsWithEmbeddings.length; i++) {
+        const concept = conceptsWithEmbeddings[i];
+        await conceptVectorStore.storeVector(
+          `concept_${i}`,
+          concept.embedding!,
+          {
+            symbol: concept.text,
+            structural_signature: concept.section,
+            semantic_signature: concept.text,
+            type: 'mission_concept',
+            architectural_role: concept.section,
+            computed_at: new Date().toISOString(),
+            lineage_hash: concept.sectionHash,
+            filePath: 'mission_concept',
+            structuralHash: concept.sectionHash,
+          }
+        );
       }
 
-      const alignments: ConceptAlignment[] = [];
+      // For each symbol, use LanceDB's native similarity search
+      for (const vectorRecord of vectorsForCoherence) {
+        const symbolEmbedding = vectorRecord.embedding;
 
-      // Compute similarity with each mission concept
-      for (const concept of conceptsWithEmbeddings) {
-        const similarity = this.cosineSimilarity(
+        if (!symbolEmbedding || symbolEmbedding.length !== 768) {
+          continue; // Skip symbols without valid embeddings
+        }
+
+        // Use native LanceDB search with cosine similarity - much faster than manual loops
+        const searchResults = await conceptVectorStore.similaritySearch(
           symbolEmbedding,
-          concept.embedding!
+          topN * 2, // Get extra results to filter by threshold
+          undefined, // no filters
+          'cosine' // Use cosine similarity natively
         );
 
-        if (similarity >= alignmentThreshold) {
-          alignments.push({
-            conceptText: concept.text,
-            conceptSection: concept.section,
-            alignmentScore: similarity,
-            sectionHash: concept.sectionHash,
+        // Convert search results to alignments and filter by threshold
+        const alignments: ConceptAlignment[] = searchResults
+          .map((result) => {
+            const conceptIndex = parseInt(result.id.replace('concept_', ''));
+            const concept = conceptsWithEmbeddings[conceptIndex];
+
+            return {
+              conceptText: concept.text,
+              conceptSection: concept.section,
+              alignmentScore: result.similarity, // Already cosine similarity from LanceDB
+              sectionHash: concept.sectionHash,
+            };
+          })
+          .filter((alignment) => alignment.alignmentScore >= alignmentThreshold)
+          .slice(0, topN); // Take only top N after filtering
+
+        if (alignments.length > 0) {
+          const overallCoherence =
+            alignments.reduce((sum, a) => sum + a.alignmentScore, 0) /
+            alignments.length;
+
+          const symbolName = vectorRecord.symbol as string;
+          const filePath = (vectorRecord.filePath as string) || 'unknown';
+          const symbolHash =
+            (vectorRecord.structuralHash as string) ||
+            (vectorRecord.lineage_hash as string) ||
+            'unknown';
+
+          symbolCoherenceList.push({
+            symbolName,
+            filePath,
+            symbolHash,
+            topAlignments: alignments,
+            overallCoherence,
           });
-        }
-      }
 
-      // Sort by alignment score (descending) and take top N
-      alignments.sort((a, b) => b.alignmentScore - a.alignmentScore);
-      const topAlignments = alignments.slice(0, topN);
-
-      if (topAlignments.length > 0) {
-        const overallCoherence =
-          topAlignments.reduce((sum, a) => sum + a.alignmentScore, 0) /
-          topAlignments.length;
-
-        const symbolName = vectorRecord.symbol as string;
-        const filePath = (vectorRecord.filePath as string) || 'unknown';
-        const symbolHash =
-          (vectorRecord.structuralHash as string) ||
-          (vectorRecord.lineage_hash as string) ||
-          'unknown';
-
-        symbolCoherenceList.push({
-          symbolName,
-          filePath,
-          symbolHash,
-          topAlignments,
-          overallCoherence,
-        });
-
-        // Update reverse mapping (concept → symbols)
-        for (const alignment of topAlignments) {
-          const conceptImpl = conceptImplementationMap.get(
-            alignment.conceptText
-          );
-          if (conceptImpl) {
-            conceptImpl.implementingSymbols.push({
-              symbolName,
-              filePath,
-              alignmentScore: alignment.alignmentScore,
-            });
+          // Update reverse mapping (concept → symbols)
+          for (const alignment of alignments) {
+            const conceptImpl = conceptImplementationMap.get(
+              alignment.conceptText
+            );
+            if (conceptImpl) {
+              conceptImpl.implementingSymbols.push({
+                symbolName,
+                filePath,
+                alignmentScore: alignment.alignmentScore,
+              });
+            }
           }
         }
       }
+    } finally {
+      // Clean up temporary vector store
+      await conceptVectorStore.close();
     }
 
     // 4. Compute overall metrics
@@ -437,69 +469,101 @@ export class StrategicCoherenceManager {
       });
     }
 
-    for (const vectorRecord of vectorRecords) {
-      const symbolEmbedding = vectorRecord.embedding;
+    // Create a temporary in-memory vector store for mission concepts
+    // This allows us to use efficient similarity search instead of O(symbols × concepts) loops
+    const conceptVectorStore = new LanceVectorStore(this.pgcRoot);
+    await conceptVectorStore.initialize('mission_concepts_multi_temp');
 
-      if (!symbolEmbedding || symbolEmbedding.length !== 768) {
-        continue; // Skip symbols without valid embeddings
+    try {
+      // Store all mission concepts in the temporary vector store
+      for (let i = 0; i < conceptsWithEmbeddings.length; i++) {
+        const concept = conceptsWithEmbeddings[i];
+        await conceptVectorStore.storeVector(
+          `concept_${i}`,
+          concept.embedding!,
+          {
+            symbol: concept.text,
+            structural_signature: concept.section,
+            semantic_signature: concept.text,
+            type: 'mission_concept',
+            architectural_role: concept.section,
+            computed_at: new Date().toISOString(),
+            lineage_hash: concept.sectionHash,
+            filePath: 'mission_concept',
+            structuralHash: concept.sectionHash,
+          }
+        );
       }
 
-      const alignments: ConceptAlignment[] = [];
+      // For each symbol, use LanceDB's native similarity search
+      for (const vectorRecord of vectorRecords) {
+        const symbolEmbedding = vectorRecord.embedding;
 
-      // Compute similarity with each mission concept from ALL documents
-      for (const concept of conceptsWithEmbeddings) {
-        const similarity = this.cosineSimilarity(
+        if (!symbolEmbedding || symbolEmbedding.length !== 768) {
+          continue; // Skip symbols without valid embeddings
+        }
+
+        // Use native LanceDB search with cosine similarity - much faster than manual loops
+        const searchResults = await conceptVectorStore.similaritySearch(
           symbolEmbedding,
-          concept.embedding!
+          topN * 2, // Get extra results to filter by threshold
+          undefined, // no filters
+          'cosine' // Use cosine similarity natively
         );
 
-        if (similarity >= alignmentThreshold) {
-          alignments.push({
-            conceptText: concept.text,
-            conceptSection: concept.section,
-            alignmentScore: similarity,
-            sectionHash: concept.sectionHash,
+        // Convert search results to alignments and filter by threshold
+        const alignments: ConceptAlignment[] = searchResults
+          .map((result) => {
+            const conceptIndex = parseInt(result.id.replace('concept_', ''));
+            const concept = conceptsWithEmbeddings[conceptIndex];
+
+            return {
+              conceptText: concept.text,
+              conceptSection: concept.section,
+              alignmentScore: result.similarity, // Already cosine similarity from LanceDB
+              sectionHash: concept.sectionHash,
+            };
+          })
+          .filter((alignment) => alignment.alignmentScore >= alignmentThreshold)
+          .slice(0, topN); // Take only top N after filtering
+
+        if (alignments.length > 0) {
+          const overallCoherence =
+            alignments.reduce((sum, a) => sum + a.alignmentScore, 0) /
+            alignments.length;
+
+          const symbolName = vectorRecord.symbol as string;
+          const filePath = (vectorRecord.filePath as string) || 'unknown';
+          const symbolHash =
+            (vectorRecord.structuralHash as string) ||
+            (vectorRecord.lineage_hash as string) ||
+            'unknown';
+
+          symbolCoherenceList.push({
+            symbolName,
+            filePath,
+            symbolHash,
+            topAlignments: alignments,
+            overallCoherence,
           });
-        }
-      }
 
-      // Sort by alignment score (descending) and take top N
-      alignments.sort((a, b) => b.alignmentScore - a.alignmentScore);
-      const topAlignments = alignments.slice(0, topN);
-
-      if (topAlignments.length > 0) {
-        const overallCoherence =
-          topAlignments.reduce((sum, a) => sum + a.alignmentScore, 0) /
-          topAlignments.length;
-
-        const symbolName = vectorRecord.symbol as string;
-        const filePath = (vectorRecord.filePath as string) || 'unknown';
-        const symbolHash =
-          (vectorRecord.structuralHash as string) ||
-          (vectorRecord.lineage_hash as string) ||
-          'unknown';
-
-        symbolCoherenceList.push({
-          symbolName,
-          filePath,
-          symbolHash,
-          topAlignments,
-          overallCoherence,
-        });
-
-        // Update reverse mapping (concept → symbols)
-        for (const alignment of topAlignments) {
-          const key = `${alignment.conceptText}::${alignment.conceptSection}`;
-          const conceptImpl = conceptImplementationMap.get(key);
-          if (conceptImpl) {
-            conceptImpl.implementingSymbols.push({
-              symbolName,
-              filePath,
-              alignmentScore: alignment.alignmentScore,
-            });
+          // Update reverse mapping (concept → symbols)
+          for (const alignment of alignments) {
+            const key = `${alignment.conceptText}::${alignment.conceptSection}`;
+            const conceptImpl = conceptImplementationMap.get(key);
+            if (conceptImpl) {
+              conceptImpl.implementingSymbols.push({
+                symbolName,
+                filePath,
+                alignmentScore: alignment.alignmentScore,
+              });
+            }
           }
         }
       }
+    } finally {
+      // Clean up temporary vector store
+      await conceptVectorStore.close();
     }
 
     // 4. Compute overall metrics

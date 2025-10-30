@@ -1,6 +1,7 @@
 import fs from 'fs-extra';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { glob } from 'glob';
 import { log, spinner } from '@clack/prompts';
 import chalk from 'chalk';
 import * as workerpool from 'workerpool';
@@ -460,66 +461,59 @@ export class GenesisOrchestrator {
       return [];
     }
 
-    const walk = async (dir: string) => {
-      const entries = await fs.readdir(dir, { withFileTypes: true });
+    // Build glob pattern from extensions: **/*.{ts,js,py,...}
+    const extPattern = extensions.map((ext) => ext.slice(1)).join(','); // Remove leading dots
+    const pattern = `**/*.{${extPattern}}`;
 
-      for (const entry of entries) {
-        const fullPath = path.resolve(dir, entry.name);
+    // Use glob with ignore patterns for better performance
+    const filePaths = await glob(pattern, {
+      cwd: rootPath,
+      absolute: true,
+      ignore: [
+        '**/node_modules/**',
+        '**/.git/**',
+        '**/__pycache__/**',
+        '**/.open_cognition/**',
+        '**/dist/**',
+        '**/docs/**',
+        '**/build/**',
+        '**/cache/**',
+        '**/.next/**',
+        '**/.nuxt/**',
+        '**/.venv*/**',
+        '**/.*/**', // All hidden directories
+        '**/*.test.ts',
+        '**/*.test.js',
+        '**/*.spec.ts',
+        '**/*.spec.js',
+      ],
+      nodir: true,
+    });
 
-        if (entry.isDirectory()) {
-          if (
-            entry.name === 'node_modules' ||
-            entry.name === '.git' ||
-            entry.name === '__pycache__' ||
-            entry.name === '.open_cognition' ||
-            entry.name === 'dist' ||
-            entry.name === 'docs' ||
-            entry.name === 'build' ||
-            entry.name === 'cache' ||
-            entry.name === '.next' ||
-            entry.name === '.nuxt' ||
-            entry.name.startsWith('.venv') || // Python virtual environments
-            entry.name.startsWith('.') // All other hidden directories (e.g., .vitepress)
-          ) {
-            continue;
-          }
-          await walk(fullPath);
-        } else if (entry.isFile()) {
-          const ext = path.extname(entry.name);
-
-          // Skip test files
-          if (
-            entry.name.endsWith('.test.ts') ||
-            entry.name.endsWith('.test.js') ||
-            entry.name.endsWith('.spec.ts') ||
-            entry.name.endsWith('.spec.js')
-          ) {
-            continue;
-          }
-
-          if (extensions.includes(ext)) {
-            const stats = await fs.stat(fullPath);
-            if (stats.size > this.maxFileSize) {
-              const relativePath = path.relative(this.projectRoot, fullPath);
-              log.warn(
-                `Skipping large file: ${relativePath} (${(stats.size / (1024 * 1024)).toFixed(2)} MB)`
-              );
-              return;
-            }
-            const content = await fs.readFile(fullPath, 'utf-8');
-            files.push({
-              path: fullPath,
-              relativePath: path.relative(this.projectRoot, fullPath),
-              name: entry.name,
-              language: this.detectLanguage(ext),
-              content,
-            });
-          }
-        }
+    // Process files (filter by size and read content)
+    for (const fullPath of filePaths) {
+      const stats = await fs.stat(fullPath);
+      if (stats.size > this.maxFileSize) {
+        const relativePath = path.relative(this.projectRoot, fullPath);
+        log.warn(
+          `Skipping large file: ${relativePath} (${(stats.size / (1024 * 1024)).toFixed(2)} MB)`
+        );
+        continue;
       }
-    };
 
-    await walk(rootPath);
+      const content = await fs.readFile(fullPath, 'utf-8');
+      const fileName = path.basename(fullPath);
+      const ext = path.extname(fileName);
+
+      files.push({
+        path: fullPath,
+        relativePath: path.relative(this.projectRoot, fullPath),
+        name: fileName,
+        language: this.detectLanguage(ext),
+        content,
+      });
+    }
+
     return files;
   }
 
