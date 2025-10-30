@@ -22,6 +22,9 @@ import {
   MissionConcept,
 } from '../analyzers/concept-extractor.js';
 import { MissionConceptsManager } from '../overlays/mission-concepts/manager.js';
+import { OperationalPatternsManager } from '../overlays/operational-patterns/manager.js';
+import { SecurityGuidelinesManager } from '../overlays/security-guidelines/manager.js';
+import { MathematicalProofsManager } from '../overlays/mathematical-proofs/manager.js';
 import { MarkdownDocument } from '../parsers/markdown-parser.js';
 import {
   DocumentClassifier,
@@ -43,17 +46,37 @@ export class GenesisDocTransform {
   private parser: MarkdownParser;
   private classifier: DocumentClassifier;
   private objectStore: ObjectStore;
+  private pgcRoot: string;
   private projectRoot: string;
   private securityConfig?: SecurityConfig;
   private validator?: MissionValidator;
   private integrityMonitor?: MissionIntegrityMonitor;
 
-  constructor(private pgcRoot: string) {
+  // Overlay managers for multi-overlay routing
+  private missionManager: MissionConceptsManager;
+  private operationalManager: OperationalPatternsManager;
+  private securityManager: SecurityGuidelinesManager;
+  private mathManager: MathematicalProofsManager;
+  private workbenchUrl?: string;
+
+  constructor(pgcRoot: string, workbenchUrl?: string) {
     this.parser = new MarkdownParser();
     this.classifier = new DocumentClassifier();
     this.objectStore = new ObjectStore(pgcRoot);
+    this.pgcRoot = pgcRoot;
+    this.workbenchUrl = workbenchUrl;
+
     // Project root is the parent of .open_cognition
     this.projectRoot = dirname(pgcRoot);
+
+    // Initialize overlay managers
+    this.missionManager = new MissionConceptsManager(pgcRoot, workbenchUrl);
+    this.operationalManager = new OperationalPatternsManager(
+      pgcRoot,
+      workbenchUrl
+    );
+    this.securityManager = new SecurityGuidelinesManager(pgcRoot, workbenchUrl);
+    this.mathManager = new MathematicalProofsManager(pgcRoot, workbenchUrl);
   }
 
   /**
@@ -195,6 +218,9 @@ export class GenesisDocTransform {
     ) {
       await this.recordMissionVersion(filePath, ast, embeddedConcepts);
     }
+
+    // 14. Route to appropriate overlay managers based on document type
+    await this.routeToOverlays(classification, ast, filePath, hash, objectHash);
 
     return {
       transformId,
@@ -589,5 +615,206 @@ export class GenesisDocTransform {
         `Warning: Failed to record mission version: ${(error as Error).message}`
       );
     }
+  }
+
+  /**
+   * Route document to appropriate overlay managers based on classification
+   *
+   * MULTI-OVERLAY ROUTING (Phase 2):
+   * - strategic → O₄ (Mission Concepts)
+   * - operational → O₅ (Operational Patterns)
+   * - security → O₂ (Security Guidelines)
+   * - mathematical → O₆ (Mathematical Proofs)
+   *
+   * Each document type generates its corresponding overlay with extracted knowledge.
+   */
+  private async routeToOverlays(
+    classification: { type: DocumentType; confidence: number },
+    ast: MarkdownDocument,
+    filePath: string,
+    contentHash: string,
+    objectHash: string
+  ): Promise<void> {
+    const relativePath = relative(this.projectRoot, filePath);
+
+    console.log(
+      chalk.blue(
+        `  [Routing] Generating ${classification.type} overlay (confidence: ${(classification.confidence * 100).toFixed(1)}%)...`
+      )
+    );
+
+    try {
+      switch (classification.type) {
+        case DocumentType.STRATEGIC:
+          // Route to O₄ Mission Concepts
+          await this.generateMissionOverlay(
+            ast,
+            contentHash,
+            objectHash,
+            relativePath
+          );
+          break;
+
+        case DocumentType.OPERATIONAL:
+          // Route to O₅ Operational Patterns
+          await this.generateOperationalOverlay(
+            ast,
+            contentHash,
+            objectHash,
+            relativePath
+          );
+          break;
+
+        case DocumentType.SECURITY:
+          // Route to O₂ Security Guidelines
+          await this.generateSecurityOverlay(
+            ast,
+            contentHash,
+            objectHash,
+            relativePath
+          );
+          break;
+
+        case DocumentType.MATHEMATICAL:
+          // Route to O₆ Mathematical Proofs
+          await this.generateMathematicalOverlay(
+            ast,
+            contentHash,
+            objectHash,
+            relativePath
+          );
+          break;
+
+        default:
+          console.log(
+            chalk.yellow(
+              `  [Warning] Unknown document type: ${classification.type}`
+            )
+          );
+      }
+    } catch (error) {
+      console.error(
+        chalk.red(
+          `  [Error] Failed to generate overlay: ${error instanceof Error ? error.message : 'Unknown error'}`
+        )
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Generate O₄ Mission Concepts overlay (strategic documents)
+   */
+  private async generateMissionOverlay(
+    ast: MarkdownDocument,
+    contentHash: string,
+    objectHash: string,
+    filePath: string
+  ): Promise<void> {
+    // Extract mission concepts using ConceptExtractor
+    const extractor = new ConceptExtractor();
+    const concepts = extractor.extract(ast);
+
+    console.log(
+      chalk.dim(`    ✓ O₄ Mission: Extracted ${concepts.length} concepts`)
+    );
+
+    // Generate embeddings and store in mission overlay
+    // Note: MissionConceptsManager uses store() instead of generateOverlay()
+    const overlay = {
+      document_hash: contentHash,
+      document_path: filePath,
+      extracted_concepts: concepts,
+      generated_at: new Date().toISOString(),
+      transform_id: objectHash,
+    };
+    await this.missionManager.store(overlay);
+  }
+
+  /**
+   * Generate O₅ Operational Patterns overlay (workflow documents)
+   */
+  private async generateOperationalOverlay(
+    ast: MarkdownDocument,
+    contentHash: string,
+    objectHash: string,
+    filePath: string
+  ): Promise<void> {
+    // Extract operational patterns using WorkflowExtractor
+    const { WorkflowExtractor } = await import(
+      '../analyzers/workflow-extractor.js'
+    );
+    const extractor = new WorkflowExtractor();
+    const patterns = extractor.extract(ast);
+
+    console.log(
+      chalk.dim(`    ✓ O₅ Operational: Extracted ${patterns.length} patterns`)
+    );
+
+    // Generate embeddings and store in operational overlay
+    await this.operationalManager.generateOverlay(
+      filePath,
+      contentHash,
+      patterns,
+      objectHash // transformId
+    );
+  }
+
+  /**
+   * Generate O₂ Security Guidelines overlay (security documents)
+   */
+  private async generateSecurityOverlay(
+    ast: MarkdownDocument,
+    contentHash: string,
+    objectHash: string,
+    filePath: string
+  ): Promise<void> {
+    // Extract security guidelines using SecurityExtractor
+    const { SecurityExtractor } = await import(
+      '../analyzers/security-extractor.js'
+    );
+    const extractor = new SecurityExtractor();
+    const guidelines = extractor.extract(ast);
+
+    console.log(
+      chalk.dim(`    ✓ O₂ Security: Extracted ${guidelines.length} guidelines`)
+    );
+
+    // Generate embeddings and store in security overlay
+    await this.securityManager.generateOverlay(
+      filePath,
+      contentHash,
+      guidelines,
+      objectHash // transformId
+    );
+  }
+
+  /**
+   * Generate O₆ Mathematical Proofs overlay (formal documents)
+   */
+  private async generateMathematicalOverlay(
+    ast: MarkdownDocument,
+    contentHash: string,
+    objectHash: string,
+    filePath: string
+  ): Promise<void> {
+    // Extract mathematical proofs using ProofExtractor
+    const { ProofExtractor } = await import('../analyzers/proof-extractor.js');
+    const extractor = new ProofExtractor();
+    const knowledge = extractor.extract(ast);
+
+    console.log(
+      chalk.dim(
+        `    ✓ O₆ Mathematical: Extracted ${knowledge.length} statements`
+      )
+    );
+
+    // Generate embeddings and store in mathematical overlay
+    await this.mathManager.generateOverlay(
+      filePath,
+      contentHash,
+      knowledge,
+      objectHash // transformId
+    );
   }
 }
