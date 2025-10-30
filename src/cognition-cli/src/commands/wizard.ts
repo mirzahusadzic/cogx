@@ -69,9 +69,20 @@ export async function wizardCommand(options: WizardOptions) {
   log.info(chalk.dim('🎨 The asymmetric human provides creative projection.'));
   log.info(chalk.dim('🤝 This is the symbiosis.\n'));
 
-  // Step 1: Check if PGC already exists
-  const pgcPath = path.join(options.projectRoot, '.open_cognition');
-  const pgcExists = await fs.pathExists(pgcPath);
+  // Step 1: Check if PGC already exists (check for core directories from init)
+  const pgcRoot = path.join(options.projectRoot, '.open_cognition');
+  const coreDirectories = [
+    'objects',
+    'transforms',
+    'index',
+    'reverse_deps',
+    'overlays',
+  ];
+  const pgcExists = (
+    await Promise.all(
+      coreDirectories.map((dir) => fs.pathExists(path.join(pgcRoot, dir)))
+    )
+  ).every((exists) => exists);
 
   if (pgcExists) {
     const shouldContinue = await confirm({
@@ -270,6 +281,21 @@ export async function wizardCommand(options: WizardOptions) {
       await genesisDocsCommand(docsPath, { projectRoot: options.projectRoot });
     } else {
       log.info(chalk.bold('\n[3/4] Skipping documentation (none selected)'));
+    }
+
+    // Ingest template docs from docs/overlays/ (always)
+    const overlayTemplatesPath = path.join(
+      options.projectRoot,
+      'docs',
+      'overlays'
+    );
+    if (await fs.pathExists(overlayTemplatesPath)) {
+      log.info(chalk.bold('\nIngesting overlay template documents...'));
+
+      // Use pattern matching to ingest all overlay templates
+      await genesisDocsCommand('docs/overlays/**/*.md', {
+        projectRoot: options.projectRoot,
+      });
     }
 
     // Execute: overlays
