@@ -688,6 +688,7 @@ overallCoherence: 0.40 # DRIFT DETECTED!
    ```
 
 3. **Remove**: If truly misaligned with vision
+
    ```bash
    # If symbol doesn't serve mission, deprecate it
    git rm src/legacy/data-processor.ts

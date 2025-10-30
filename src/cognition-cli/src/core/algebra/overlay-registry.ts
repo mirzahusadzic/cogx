@@ -195,10 +195,7 @@ export class OverlayRegistry {
         return new SecurityGuidelinesManager(this.pgcRoot, this.workbenchUrl);
 
       case 'O3':
-        return new LineageAlgebraAdapter(
-          this.pgcRoot,
-          this.workbenchUrl
-        );
+        return new LineageAlgebraAdapter(this.pgcRoot, this.workbenchUrl);
 
       case 'O4':
         return new MissionConceptsManager(this.pgcRoot, this.workbenchUrl);
@@ -210,10 +207,7 @@ export class OverlayRegistry {
         return new MathematicalProofsManager(this.pgcRoot, this.workbenchUrl);
 
       case 'O7':
-        return new CoherenceAlgebraAdapter(
-          this.pgcRoot,
-          this.workbenchUrl
-        );
+        return new CoherenceAlgebraAdapter(this.pgcRoot, this.workbenchUrl);
 
       default:
         throw new Error(`Unknown overlay ID: ${overlayId}`);

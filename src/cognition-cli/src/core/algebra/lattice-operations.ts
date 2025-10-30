@@ -38,7 +38,6 @@ import {
   SetOperationResult,
 } from './overlay-algebra.js';
 import { LanceVectorStore } from '../overlays/vector-db/lance-store.js';
-import path from 'path';
 
 // ========================================
 // SEMANTIC OPERATIONS (Vector-based)

@@ -573,7 +573,7 @@ Blast radius is O₃'s killer feature: **know the impact before making changes**
 **Before the change**:
 
 ```bash
-$ cognition-cli blast-radius Database.query
+cognition-cli blast-radius Database.query
 ```
 
 **Output**:
@@ -657,6 +657,7 @@ interface BlastRadius {
 5. **Run tests** again to verify no breakage
 
 6. **Check coverage** of affected symbols
+
    ```bash
    cognition-cli coverage --symbols $(cognition-cli blast-radius MyFunction --json | jq -r '.symbols[]')
    ```

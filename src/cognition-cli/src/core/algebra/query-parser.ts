@@ -43,19 +43,26 @@
 import { OverlayRegistry, OverlayId } from './overlay-registry.js';
 import {
   meet,
-  project,
+  // project, // TODO: implement project operation
   union,
   intersection,
   difference,
-  complement,
+  // complement, // TODO: implement complement operation
 } from './lattice-operations.js';
-import {
-  OverlayAlgebra,
+import type {
   OverlayItem,
   OverlayMetadata,
-  MeetResult,
   SetOperationResult,
 } from './overlay-algebra.js';
+
+/**
+ * Query result type - can be items, Meet results, sets, or set operation results
+ */
+type QueryResult<T extends OverlayMetadata = OverlayMetadata> =
+  | OverlayItem<T>[]
+  | Set<string>
+  | { itemA: OverlayItem<T>; itemB: OverlayItem<T>; similarity: number }[]
+  | SetOperationResult<T>;
 
 // ========================================
 // TOKEN TYPES
@@ -517,7 +524,7 @@ export class QueryEngine {
   /**
    * Parse and execute a lattice query
    */
-  async execute(query: string): Promise<any> {
+  async execute(query: string): Promise<QueryResult> {
     // Tokenize
     const lexer = new Lexer(query);
     const tokens = lexer.tokenize();
@@ -533,7 +540,7 @@ export class QueryEngine {
   /**
    * Evaluate AST node recursively
    */
-  private async evaluate(node: ASTNode): Promise<any> {
+  private async evaluate(node: ASTNode): Promise<QueryResult> {
     switch (node.type) {
       case 'overlay':
         return this.evaluateOverlay(node);
@@ -548,7 +555,9 @@ export class QueryEngine {
         return this.evaluateBinaryOp(node);
 
       default:
-        throw new Error(`Unknown node type: ${(node as any).type}`);
+        throw new Error(
+          `Unknown node type: ${(node as { type: string }).type}`
+        );
     }
   }
 
@@ -582,8 +591,8 @@ export class QueryEngine {
     throw new Error(`Invalid filter: ${JSON.stringify(filter)}`);
   }
 
-  private async evaluateUnaryOp(node: UnaryOpNode): Promise<any> {
-    const operand = await this.evaluate(node.operand);
+  private async evaluateUnaryOp(node: UnaryOpNode): Promise<QueryResult> {
+    await this.evaluate(node.operand);
 
     if (node.operator === 'complement') {
       // For complement, we need a universal set
@@ -596,21 +605,49 @@ export class QueryEngine {
     throw new Error(`Unknown unary operator: ${node.operator}`);
   }
 
-  private async evaluateBinaryOp(node: BinaryOpNode): Promise<any> {
+  private async evaluateBinaryOp(node: BinaryOpNode): Promise<QueryResult> {
     const left = await this.evaluate(node.left);
     const right = await this.evaluate(node.right);
 
+    // Type guard: ensure we have OverlayItem arrays for set operations
+    const isOverlayItemArray = (
+      value: QueryResult
+    ): value is OverlayItem<OverlayMetadata>[] => {
+      return (
+        Array.isArray(value) &&
+        (value.length === 0 ||
+          (value[0] &&
+            'id' in value[0] &&
+            'embedding' in value[0] &&
+            'metadata' in value[0]))
+      );
+    };
+
     switch (node.operator) {
       case 'union':
+        if (!isOverlayItemArray(left) || !isOverlayItemArray(right)) {
+          throw new Error('Union requires OverlayItem arrays as operands');
+        }
         return union([left, right], ['left', 'right']);
 
       case 'intersection':
+        if (!isOverlayItemArray(left) || !isOverlayItemArray(right)) {
+          throw new Error(
+            'Intersection requires OverlayItem arrays as operands'
+          );
+        }
         return intersection([left, right], ['left', 'right']);
 
       case 'difference':
+        if (!isOverlayItemArray(left) || !isOverlayItemArray(right)) {
+          throw new Error('Difference requires OverlayItem arrays as operands');
+        }
         return difference(left, right, ['left', 'right']);
 
       case 'meet':
+        if (!isOverlayItemArray(left) || !isOverlayItemArray(right)) {
+          throw new Error('Meet requires OverlayItem arrays as operands');
+        }
         return meet(left, right, { threshold: 0.7 });
 
       case 'project':

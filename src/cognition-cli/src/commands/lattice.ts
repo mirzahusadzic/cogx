@@ -40,7 +40,12 @@ import path from 'path';
 import fs from 'fs-extra';
 import { createQueryEngine } from '../core/algebra/query-parser.js';
 import { OverlayRegistry } from '../core/algebra/overlay-registry.js';
-import { OverlayItem } from '../core/algebra/overlay-algebra.js';
+import {
+  OverlayItem,
+  OverlayMetadata,
+  SetOperationResult,
+  MeetResult,
+} from '../core/algebra/overlay-algebra.js';
 
 interface LatticeOptions {
   projectRoot: string;
@@ -106,19 +111,56 @@ export async function latticeCommand(
 /**
  * Display query results
  */
-function displayResults(result: any, options: LatticeOptions): void {
+function displayResults(result: unknown, options: LatticeOptions): void {
   const format = options.format || 'table';
   const limit = options.limit || 50;
 
+  // Type guard for MeetResult
+  const isMeetResult = (
+    value: unknown
+  ): value is MeetResult<OverlayMetadata, OverlayMetadata>[] => {
+    return (
+      Array.isArray(value) &&
+      value.length > 0 &&
+      value[0] &&
+      'itemA' in value[0] &&
+      'itemB' in value[0] &&
+      'similarity' in value[0]
+    );
+  };
+
+  // Type guard for OverlayItem array
+  const isOverlayItemArray = (value: unknown): value is OverlayItem[] => {
+    return (
+      Array.isArray(value) &&
+      (value.length === 0 ||
+        (value[0] &&
+          'id' in value[0] &&
+          'embedding' in value[0] &&
+          'metadata' in value[0]))
+    );
+  };
+
+  // Type guard for SetOperationResult
+  const isSetOperationResult = (
+    value: unknown
+  ): value is SetOperationResult<OverlayMetadata> => {
+    return (
+      value !== null &&
+      typeof value === 'object' &&
+      'items' in value &&
+      'metadata' in value &&
+      Array.isArray((value as SetOperationResult<OverlayMetadata>).items)
+    );
+  };
+
   // Handle different result types
-  if (Array.isArray(result)) {
-    displayItemList(result, format, limit);
-  } else if (result?.items && Array.isArray(result.items)) {
-    // SetOperationResult
-    displaySetOperationResult(result, format, limit);
-  } else if (Array.isArray(result) && result[0]?.itemA && result[0]?.itemB) {
-    // MeetResult[]
+  if (isMeetResult(result)) {
     displayMeetResults(result, format, limit);
+  } else if (isSetOperationResult(result)) {
+    displaySetOperationResult(result, format, limit);
+  } else if (isOverlayItemArray(result)) {
+    displayItemList(result, format, limit);
   } else {
     log.warn(chalk.yellow('Unknown result format'));
     console.log(JSON.stringify(result, null, 2));
@@ -195,7 +237,7 @@ function displayItemList(
  * Display set operation result
  */
 function displaySetOperationResult(
-  result: any,
+  result: SetOperationResult<OverlayMetadata>,
   format: string,
   limit: number
 ): void {
@@ -218,7 +260,7 @@ function displaySetOperationResult(
  * Display meet results (semantic alignment)
  */
 function displayMeetResults(
-  results: any[],
+  results: MeetResult<OverlayMetadata, OverlayMetadata>[],
   format: string,
   limit: number
 ): void {

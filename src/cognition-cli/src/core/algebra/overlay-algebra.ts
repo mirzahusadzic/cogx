@@ -19,8 +19,6 @@
  * - Project (→): Query-guided traversal between overlays
  */
 
-import { VectorRecord } from '../overlays/vector-db/lance-store.js';
-
 /**
  * Metadata associated with overlay items.
  * Each overlay extends this with domain-specific fields.

@@ -8,7 +8,10 @@ import {
   OverlayMetadata,
   SelectOptions,
 } from '../../algebra/overlay-algebra.js';
-import { LineagePatternMetadata, LineagePatternMetadataSchema } from './types.js';
+import {
+  LineagePatternMetadata,
+  LineagePatternMetadataSchema,
+} from './types.js';
 
 /**
  * Metadata for lineage overlay items (O₃)
@@ -35,9 +38,7 @@ export interface LineageMetadata extends OverlayMetadata {
  *
  * This adapter combines both sources to provide unified access.
  */
-export class LineageAlgebraAdapter
-  implements OverlayAlgebra<LineageMetadata>
-{
+export class LineageAlgebraAdapter implements OverlayAlgebra<LineageMetadata> {
   private vectorStore: LanceVectorStore;
   private workbench: WorkbenchClient;
   private pgcManager: PGCManager;
@@ -68,7 +69,15 @@ export class LineageAlgebraAdapter
   }
 
   getSupportedTypes(): string[] {
-    return ['dependency', 'call_chain', 'impact_zone', 'class', 'function', 'interface', 'type'];
+    return [
+      'dependency',
+      'call_chain',
+      'impact_zone',
+      'class',
+      'function',
+      'interface',
+      'type',
+    ];
   }
 
   getPgcRoot(): string {
@@ -83,24 +92,30 @@ export class LineageAlgebraAdapter
     const vectors = await this.vectorStore.getAllVectors();
 
     // Get metadata manifest
-    const manifest = await this.pgcManager.overlays.getManifest('lineage_patterns');
+    const manifest =
+      await this.pgcManager.overlays.getManifest('lineage_patterns');
 
     // Convert to OverlayItem format
     const items: OverlayItem<LineageMetadata>[] = [];
 
     for (const vec of vectors) {
-      if (vec.embedding && Array.isArray(vec.embedding) && vec.embedding.length === 768) {
+      if (
+        vec.embedding &&
+        Array.isArray(vec.embedding) &&
+        vec.embedding.length === 768
+      ) {
         // Try to find matching metadata in manifest
         const metadataKey = vec.symbol;
         let patternMetadata: LineagePatternMetadata | null = null;
 
         if (manifest && manifest[metadataKey]) {
           try {
-            patternMetadata = await this.pgcManager.overlays.get<LineagePatternMetadata>(
-              'lineage_patterns',
-              metadataKey,
-              LineagePatternMetadataSchema
-            );
+            patternMetadata =
+              await this.pgcManager.overlays.get<LineagePatternMetadata>(
+                'lineage_patterns',
+                metadataKey,
+                LineagePatternMetadataSchema
+              );
           } catch {
             // Metadata not found, use vector metadata only
           }
@@ -112,14 +127,36 @@ export class LineageAlgebraAdapter
           id: vec.id,
           embedding: vec.embedding,
           metadata: {
-            text: patternMetadata?.lineageSignature || vecMetadata?.lineage_signature as string || vec.symbol,
+            text:
+              patternMetadata?.lineageSignature ||
+              (vecMetadata?.lineage_signature as string) ||
+              vec.symbol,
             symbol: vec.symbol,
-            symbolType: patternMetadata?.symbolType || (vecMetadata?.symbolType as 'class' | 'function' | 'interface' | 'type') || 'function',
-            anchor: patternMetadata?.anchor || (vecMetadata?.filePath as string) || '',
-            lineageHash: patternMetadata?.lineageHash || (vecMetadata?.lineage_hash as string) || '',
+            symbolType:
+              patternMetadata?.symbolType ||
+              (vecMetadata?.symbolType as
+                | 'class'
+                | 'function'
+                | 'interface'
+                | 'type') ||
+              'function',
+            anchor:
+              patternMetadata?.anchor ||
+              (vecMetadata?.filePath as string) ||
+              '',
+            lineageHash:
+              patternMetadata?.lineageHash ||
+              (vecMetadata?.lineage_hash as string) ||
+              '',
             embeddingHash: patternMetadata?.embeddingHash || '',
-            lineageSignature: patternMetadata?.lineageSignature || (vecMetadata?.lineage_signature as string) || '',
-            computedAt: patternMetadata?.computed_at || (vecMetadata?.computed_at as string) || new Date().toISOString(),
+            lineageSignature:
+              patternMetadata?.lineageSignature ||
+              (vecMetadata?.lineage_signature as string) ||
+              '',
+            computedAt:
+              patternMetadata?.computed_at ||
+              (vecMetadata?.computed_at as string) ||
+              new Date().toISOString(),
             vectorId: patternMetadata?.vectorId || vec.id,
           },
         });
@@ -201,7 +238,9 @@ export class LineageAlgebraAdapter
     const allItems = await this.getAllItems();
 
     if (options.symbols) {
-      return allItems.filter((item) => options.symbols!.has(item.metadata.symbol));
+      return allItems.filter((item) =>
+        options.symbols!.has(item.metadata.symbol)
+      );
     }
 
     if (options.ids) {
@@ -242,14 +281,18 @@ export class LineageAlgebraAdapter
   /**
    * Get lineage items by symbol type (class, function, etc.)
    */
-  async getItemsBySymbolType(symbolType: 'class' | 'function' | 'interface' | 'type'): Promise<OverlayItem<LineageMetadata>[]> {
+  async getItemsBySymbolType(
+    symbolType: 'class' | 'function' | 'interface' | 'type'
+  ): Promise<OverlayItem<LineageMetadata>[]> {
     return this.getItemsByType(symbolType);
   }
 
   /**
    * Get lineage for specific symbol
    */
-  async getLineageForSymbol(symbol: string): Promise<OverlayItem<LineageMetadata> | null> {
+  async getLineageForSymbol(
+    symbol: string
+  ): Promise<OverlayItem<LineageMetadata> | null> {
     const items = await this.select({ symbols: new Set([symbol]) });
     return items.length > 0 ? items[0] : null;
   }

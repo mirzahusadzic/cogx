@@ -45,7 +45,10 @@ export class CoherenceAlgebraAdapter
     private pgcRoot: string,
     workbenchUrl?: string
   ) {
-    this.coherenceManager = new StrategicCoherenceManager(pgcRoot, workbenchUrl);
+    this.coherenceManager = new StrategicCoherenceManager(
+      pgcRoot,
+      workbenchUrl
+    );
     this.missionManager = new MissionConceptsManager(pgcRoot, workbenchUrl);
     this.workbench = new WorkbenchClient(
       workbenchUrl || process.env.WORKBENCH_URL || 'http://localhost:8000'
@@ -170,7 +173,9 @@ export class CoherenceAlgebraAdapter
     return result;
   }
 
-  async getItemsByType(type: string): Promise<OverlayItem<CoherenceMetadata>[]> {
+  async getItemsByType(
+    type: string
+  ): Promise<OverlayItem<CoherenceMetadata>[]> {
     const allItems = await this.getAllItems();
 
     // Classify by coherence level
