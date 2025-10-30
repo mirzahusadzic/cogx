@@ -2,10 +2,10 @@
 
 > **The Axiom Applied**: Operational knowledge forms a sublattice where quest structures meet depth rules at precise points of alignment. "Which workflows apply at Depth 2?" is a computable query—not a search through documentation.
 
-**Part**: II — The Seven Layers
-**Layer**: O₅ (Operational)
-**Role**: Workflow Guidance
-**Knowledge Types**: 5 (quest_structure, sacred_sequence, workflow_pattern, depth_rule, terminology)
+**Part**: II — The Seven Layers<br/>
+**Layer**: O₅ (Operational)<br/>
+**Role**: Workflow Guidance<br/>
+**Knowledge Types**: 5 (quest_structure, sacred_sequence, workflow_pattern, depth_rule, terminology)<br/>
 
 ---
 
@@ -847,7 +847,7 @@ cognition-cli lattice "O5[workflow_pattern]" --query "oracle scribe rhythm"
 | Overlay            | Focus          | Question Answered   | Example                                           |
 | ------------------ | -------------- | ------------------- | ------------------------------------------------- |
 | **O₄ Mission**     | Strategic      | WHAT to build? WHY? | "Build lattice algebra for compositional queries" |
-| **O₅ Operational** | Procedural     | HOW to work?        | "Use F.L.T.B sequence: Format, Lint, Test, Build"  |
+| **O₅ Operational** | Procedural     | HOW to work?        | "Use F.L.T.B sequence: Format, Lint, Test, Build" |
 | **O₂ Security**    | Constraints    | Is it safe?         | "Validate input before processing"                |
 | **O₁ Structure**   | Implementation | How is it built?    | "meet() uses LanceDB ANN search"                  |
 

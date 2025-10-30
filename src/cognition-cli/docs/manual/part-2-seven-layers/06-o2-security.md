@@ -2,10 +2,10 @@
 
 > **The Axiom Applied**: Security knowledge forms a sublattice where threat models meet mitigations at precise points of alignment. This is not metaphor—it's the mathematical structure that makes "Which attacks violate our principles?" a computable query.
 
-**Part**: II — The Seven Layers
-**Layer**: O₂ (Security)
-**Role**: Foundational Constraints
-**Knowledge Types**: 6 (threat_model, attack_vector, mitigation, boundary, constraint, vulnerability)
+**Part**: II — The Seven Layers<br/>
+**Layer**: O₂ (Security)<br/>
+**Role**: Foundational Constraints<br/>
+**Knowledge Types**: 6 (threat_model, attack_vector, mitigation, boundary, constraint, vulnerability)<br/>
 
 ---
 
