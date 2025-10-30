@@ -27,7 +27,7 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 **The goal is not better AI. The goal is to accelerate human progress** by providing mathematical foundations for AI systems that augment, rather than replace, human intelligence.
 
-**Read the full manifesto**: **[VISION.md](VISION.md)** — Mission, symbiosis architecture, strategic intent, and why AGPLv3.
+**Read the full manifesto**: **[VISION.md](src/cognition-cli/docs/overlays/O4_mission/VISION.md)** — Mission, symbiosis architecture, strategic intent, and why AGPLv3.
 
 ## 🎯 Recent Innovations
 
@@ -185,7 +185,7 @@ graph TD
             O5_PATTERNS["Workflow Patterns<br/>(Quests, F.L.T.B)"]
         end
         subgraph "O₄: Mission & Principles (The Soul)"
-            O4_CONCEPTS["Mission Concepts<br/>(from VISION.md)"]
+            O4_CONCEPTS["Mission Concepts<br/>(from docs/overlays/O4_mission/VISION.md)"]
             O4_PRINCIPLES["Coding Principles<br/>(from CODING_PRINCIPLES.md)"]
         end
         subgraph "O₃: Lineage (The Connections)"

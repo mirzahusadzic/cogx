@@ -267,30 +267,33 @@ The architecture we built for verifiable AI-human symbiosis has a profound impli
 
 Cognition-CLI's multi-overlay architecture for understanding code **generalizes to understanding human cognition:**
 
-| Code Understanding | Human Memory |
-|-------------------|--------------|
-| Content-addressable code artifacts | Content-addressable memories |
-| Provenance of knowledge | Provenance of memory formation |
-| Dependency graphs | Associative memory networks |
-| Mission alignment (strategic concepts) | Identity preservation (values, beliefs) |
-| Coherence checking (drift detection) | Reality testing (real vs false memories) |
+| Code Understanding                     | Human Memory                             |
+| -------------------------------------- | ---------------------------------------- |
+| Content-addressable code artifacts     | Content-addressable memories             |
+| Provenance of knowledge                | Provenance of memory formation           |
+| Dependency graphs                      | Associative memory networks              |
+| Mission alignment (strategic concepts) | Identity preservation (values, beliefs)  |
+| Coherence checking (drift detection)   | Reality testing (real vs false memories) |
 
 **The architecture is identical. Only the domain changes.**
 
 ### Medical Applications
 
 **For Dementia/Alzheimer's Disease:**
+
 - External verifiable memory that preserves identity
 - Distinguish real memories from confabulations (cryptographic verification)
 - Maintain sense of self even as biological memory fails
 - "Who is this person?" becomes answerable with provenance
 
 **For Traumatic Brain Injury:**
+
 - Reconstruct lost memories from provenance chains
 - Preserve pre-injury identity through content-addressable storage
 - Faster recovery with verified memory reconstruction
 
 **For Age-Related Memory Decline:**
+
 - Augmentation (not replacement) with verified recall assistance
 - "Did I take my medication?" becomes cryptographically answerable
 - Maintain relationships and independence with memory support
@@ -312,6 +315,7 @@ Verifiable, persistent, content-addressable human memory
 ### Documentation
 
 **Vision & Architecture:**
+
 - **[Cognitive Prosthetics](./src/cognition-cli/docs/COGNITIVE_PROSTHETICS.md)** - Memory healing through verifiable architecture
 - **[Neural-Memory Protocol](./src/cognition-cli/docs/NEURAL_MEMORY_PROTOCOL.md)** - BCI abstraction layer specification
 
@@ -322,6 +326,7 @@ Verifiable, persistent, content-addressable human memory
 **The neural interfaces are coming within 5-10 years.**
 
 We have a window to:
+
 1. Define open standards (before proprietary lock-in)
 2. Establish ethical frameworks (before deployment)
 3. Build medical consensus (neurologists, ethicists, patients)

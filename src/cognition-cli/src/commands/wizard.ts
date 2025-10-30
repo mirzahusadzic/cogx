@@ -161,41 +161,27 @@ export async function wizardCommand(options: WizardOptions) {
   })) as string;
 
   // Step 6: Ask about documentation
-  const hasVisionDoc = await fs.pathExists(
-    path.join(options.projectRoot, '../../VISION.md')
-  );
+  const hasCustomDocs = (await confirm({
+    message: 'Do you have additional strategic documentation to ingest?',
+    initialValue: false,
+  })) as boolean;
 
   let shouldIngestDocs = false;
   let docsPath = '';
 
-  if (hasVisionDoc) {
-    shouldIngestDocs = (await confirm({
-      message: 'Found VISION.md. Ingest documentation?',
-      initialValue: true,
-    })) as boolean;
-
-    if (shouldIngestDocs) {
-      docsPath = path.join(options.projectRoot, '../../VISION.md');
-    }
-  } else {
-    const hasCustomDocs = (await confirm({
-      message: 'Do you have strategic documentation to ingest?',
-      initialValue: false,
-    })) as boolean;
-
-    if (hasCustomDocs) {
-      shouldIngestDocs = true;
-      docsPath = (await text({
-        message: 'Path to documentation file:',
-        placeholder: 'docs/VISION.md',
-        validate: (value) => {
-          if (!value) return 'Documentation path is required';
-          const exists = fs.pathExistsSync(value);
-          if (!exists) return `File "${value}" does not exist`;
-          return undefined;
-        },
-      })) as string;
-    }
+  if (hasCustomDocs) {
+    shouldIngestDocs = true;
+    docsPath = (await text({
+      message: 'Path to documentation file or directory:',
+      placeholder: 'docs/custom',
+      validate: (value) => {
+        if (!value) return 'Documentation path is required';
+        const fullPath = path.join(options.projectRoot, value);
+        const exists = fs.pathExistsSync(fullPath);
+        if (!exists) return `Path "${value}" does not exist`;
+        return undefined;
+      },
+    })) as string;
   }
 
   // Step 7: Ask about overlays
@@ -275,25 +261,25 @@ export async function wizardCommand(options: WizardOptions) {
       projectRoot: options.projectRoot,
     });
 
-    // Execute: genesis:docs (if applicable)
-    if (shouldIngestDocs) {
-      log.info(chalk.bold('\n[3/4] Ingesting documentation...'));
-      await genesisDocsCommand(docsPath, { projectRoot: options.projectRoot });
-    } else {
-      log.info(chalk.bold('\n[3/4] Skipping documentation (none selected)'));
-    }
-
-    // Ingest template docs from docs/overlays/ (always)
+    // Ingest template docs from docs/overlays/ (always includes VISION.md)
+    log.info(chalk.bold('\n[3/4] Ingesting documentation...'));
     const overlayTemplatesPath = path.join(
       options.projectRoot,
       'docs',
       'overlays'
     );
     if (await fs.pathExists(overlayTemplatesPath)) {
-      log.info(chalk.bold('\nIngesting overlay template documents...'));
+      // Pass directory path to recursively ingest all markdown files
+      await genesisDocsCommand(overlayTemplatesPath, {
+        projectRoot: options.projectRoot,
+      });
+    }
 
-      // Use pattern matching to ingest all overlay templates
-      await genesisDocsCommand('docs/overlays/**/*.md', {
+    // Ingest additional custom docs if specified
+    if (shouldIngestDocs) {
+      log.info(chalk.bold('\nIngesting additional documentation...'));
+      const fullDocsPath = path.join(options.projectRoot, docsPath);
+      await genesisDocsCommand(fullDocsPath, {
         projectRoot: options.projectRoot,
       });
     }

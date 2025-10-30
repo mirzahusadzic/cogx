@@ -2,6 +2,7 @@ import { intro, outro, spinner, log } from '@clack/prompts';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
+import { createHash } from 'crypto';
 import { GenesisDocTransform } from '../core/transforms/genesis-doc-transform.js';
 
 /**
@@ -81,6 +82,25 @@ export async function genesisDocsCommand(
       s.start(`Processing ${path.basename(file)}`);
 
       try {
+        // Check if document already exists by content hash
+        const content = await fs.readFile(file, 'utf-8');
+        const contentHash = createHash('sha256').update(content).digest('hex');
+
+        const existingHash = await findExistingDocumentHash(
+          pgcRoot,
+          contentHash
+        );
+
+        if (existingHash) {
+          s.stop(
+            chalk.dim(
+              `⊘ ${path.basename(file)} → ${contentHash.substring(0, 12)}... (already exists, skipped)`
+            )
+          );
+          results.push({ file, skipped: true, success: true });
+          continue;
+        }
+
         const result = await transform.execute(file);
         s.stop(
           `✓ ${path.basename(file)} → ${result.outputHash.substring(0, 12)}...`
@@ -94,19 +114,25 @@ export async function genesisDocsCommand(
     }
 
     // Summary
-    const successCount = results.filter((r) => r.success).length;
-    const failCount = results.length - successCount;
+    const successCount = results.filter((r) => r.success && !r.skipped).length;
+    const skippedCount = results.filter((r) => r.skipped).length;
+    const failCount = results.filter((r) => !r.success).length;
 
     log.info('');
     log.info(chalk.bold('Summary:'));
     log.info(`  ${chalk.green(`✓ ${successCount} file(s) ingested`)}`);
+    if (skippedCount > 0) {
+      log.info(
+        `  ${chalk.dim(`⊘ ${skippedCount} file(s) skipped (already exist)`)}`
+      );
+    }
     if (failCount > 0) {
       log.info(`  ${chalk.red(`✗ ${failCount} file(s) failed`)}`);
     }
 
     outro(
       chalk.green(
-        `✓ Genesis docs complete - ${successCount} document(s) in PGC`
+        `✓ Genesis docs complete - ${successCount} new, ${skippedCount} skipped, ${results.length - failCount} total in PGC`
       )
     );
   } catch (error) {
@@ -171,4 +197,40 @@ async function findMarkdownFilesRecursive(
       results.push(fullPath);
     }
   }
+}
+
+/**
+ * Check if a document with this content hash already exists in the PGC
+ * Returns the object hash if found, null otherwise
+ */
+async function findExistingDocumentHash(
+  pgcRoot: string,
+  contentHash: string
+): Promise<string | null> {
+  const indexDir = path.join(pgcRoot, 'index', 'docs');
+
+  if (!(await fs.pathExists(indexDir))) {
+    return null;
+  }
+
+  const indexFiles = await fs.readdir(indexDir);
+
+  for (const indexFile of indexFiles) {
+    if (!indexFile.endsWith('.json')) {
+      continue;
+    }
+
+    const indexPath = path.join(indexDir, indexFile);
+    try {
+      const indexEntry = await fs.readJSON(indexPath);
+      if (indexEntry.contentHash === contentHash) {
+        return indexEntry.objectHash;
+      }
+    } catch (error) {
+      // Skip invalid index files
+      continue;
+    }
+  }
+
+  return null;
 }
