@@ -434,6 +434,7 @@ const newState = await applyTransform(transform);
 **Process**:
 
 1. Send to Oracle (eGemma):
+
    ```json
    {
      "quest_intent": q.intent,
@@ -442,6 +443,7 @@ const newState = await applyTransform(transform);
      "transform": serialize(t)
    }
    ```
+
 2. Oracle computes:
    - Accuracy: Did transform achieve intent?
    - Efficiency: Was it minimal?
@@ -614,6 +616,7 @@ Refs:
 
 1. Capture commit SHA: `commit_sha = git rev-parse HEAD`
 2. Update `.open_cognition/pgc/lineage.json`:
+
    ```json
    {
      "commit": "abc123...",
@@ -624,6 +627,7 @@ Refs:
      "coherence_delta": 0.03
    }
    ```
+
 3. Update transform chain: `.open_cognition/pgc/transforms/q_2025_10_30_001.json`
 4. Update overlay manifests (O₁-O₇) with new embeddings
 
@@ -649,15 +653,20 @@ await updatePGC({
    - F.L.T.B validation results
    - Commit SHA
 2. Compute checksums:
+
    ```typescript
    const beforeHash = sha256(serialize(beforeState));
    const afterHash = sha256(serialize(afterState));
    ```
+
 3. Aggregate Oracle scores:
+
    ```typescript
    const avgOracleScore = mean(oracleResponses.map((r) => r.score));
    ```
+
 4. Create cPOW document:
+
    ```json
    {
      "cpow_id": "cpow_q_2025_10_30_001",
@@ -679,6 +688,7 @@ await updatePGC({
      }
    }
    ```
+
 5. Store cPOW: `.open_cognition/pgc/cpow/cpow_q_2025_10_30_001.json`
 
 **API Call**:

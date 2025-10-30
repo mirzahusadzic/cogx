@@ -5,7 +5,10 @@ import type {
   StructuralData,
 } from '../../types/structural.js';
 
-import { DEFAULT_SLM_MODEL_NAME } from '../../../config.js';
+import {
+  DEFAULT_SLM_MODEL_NAME,
+  PERSONA_AST_ANALYST,
+} from '../../../config.js';
 
 /**
  * Small Language Model (SLM) based structural extractor.
@@ -20,8 +23,8 @@ export class SLMExtractor {
     const response = await this.workbench.summarize({
       content: file.content,
       filename: file.name,
-      persona: 'ast_analyst',
-      model_name: DEFAULT_SLM_MODEL_NAME, // Use configurable model name
+      persona: PERSONA_AST_ANALYST,
+      model_name: DEFAULT_SLM_MODEL_NAME,
       max_tokens: 2000,
       temperature: 0.1,
     });

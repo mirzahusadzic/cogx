@@ -10,6 +10,7 @@ import {
 } from './core/query/query.js';
 import { auditCommand, auditDocsCommand } from './commands/audit.js';
 import { addPatternsCommands } from './commands/patterns.js';
+import { bootstrapSecurity } from './core/security/security-bootstrap.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -126,6 +127,7 @@ import { addCoherenceCommands } from './commands/coherence.js';
 import { addConceptsCommands } from './commands/concepts.js';
 import { wizardCommand } from './commands/wizard.js';
 import { latticeCommand, showOverlaysCommand } from './commands/lattice.js';
+import { showMandate } from './commands/security/mandate.js';
 // Sugar commands (convenience wrappers around lattice algebra)
 import {
   securityAttacksCommand,
@@ -202,6 +204,11 @@ program
 const securityCmd = program
   .command('security')
   .description('Security analysis commands (wraps lattice algebra)');
+
+securityCmd
+  .command('mandate')
+  .description('📜 Display the Dual-Use Technology Mandate')
+  .action(showMandate);
 
 securityCmd
   .command('attacks')
@@ -388,5 +395,8 @@ proofsCmd
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
   .action(proofsAlignedCommand);
+
+// Bootstrap security layer (one-time acknowledgment)
+await bootstrapSecurity();
 
 program.parse();

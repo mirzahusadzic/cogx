@@ -15,6 +15,12 @@ import {
 import { MissionConceptsManager } from '../overlays/mission-concepts/manager.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
 import { DocumentType } from '../analyzers/document-classifier.js';
+import {
+  PERSONA_SECURITY_VALIDATOR,
+  PERSONA_OPERATIONAL_VALIDATOR,
+  PERSONA_SECURITY_META_VALIDATOR,
+  PERSONA_MATHEMATICAL_VALIDATOR,
+} from '../../config.js';
 
 /**
  * Single validation layer result
@@ -92,18 +98,19 @@ export class MissionValidator {
 
   /**
    * Map document type to appropriate security validator persona
+   * Note: Personas are provisional and user-controlled
    */
   private getValidatorPersona(docType: DocumentType): string {
     const personaMap: Record<string, string> = {
-      strategic: 'security_validator',
-      operational: 'operational_validator',
-      security: 'security_meta_validator',
-      mathematical: 'proof_validator',
-      architectural: 'security_validator', // Architecture docs use strategic validator
-      unknown: 'security_validator', // Default to strategic validator
+      strategic: PERSONA_SECURITY_VALIDATOR,
+      operational: PERSONA_OPERATIONAL_VALIDATOR,
+      security: PERSONA_SECURITY_META_VALIDATOR,
+      mathematical: PERSONA_MATHEMATICAL_VALIDATOR,
+      architectural: PERSONA_SECURITY_VALIDATOR, // Architecture docs use strategic validator
+      unknown: PERSONA_SECURITY_VALIDATOR, // Default to strategic validator
     };
 
-    return personaMap[docType] || 'security_validator';
+    return personaMap[docType] || PERSONA_SECURITY_VALIDATOR;
   }
 
   /**

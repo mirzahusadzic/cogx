@@ -1,5 +1,6 @@
 import type { WorkbenchClient } from '../../executors/workbench-client.js';
 import type { SourceFile, StructuralData } from '../../types/structural.js';
+import { PERSONA_PARSER_GENERATOR } from '../../../config.js';
 
 /**
  * Large Language Model (LLM) supervised parser generator.
@@ -14,7 +15,7 @@ export class LLMSupervisor {
     const parserScript = await this.workbench.summarize({
       filename: file.path,
       content: file.content,
-      persona: 'parser_generator',
+      persona: PERSONA_PARSER_GENERATOR,
       goal: 'Generate a tree-sitter query to extract structure',
     });
 
