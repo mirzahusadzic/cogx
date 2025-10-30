@@ -191,11 +191,17 @@ export async function wizardCommand(options: WizardOptions) {
   const overlayTypes = (await select({
     message: 'Which overlays would you like to generate?',
     options: [
-      { value: 'all', label: 'All overlays (recommended)' },
-      { value: 'structural', label: 'Structural patterns only' },
-      { value: 'lineage', label: 'Lineage patterns only' },
-      { value: 'mission', label: 'Mission concepts only (requires docs)' },
-      { value: 'coherence', label: 'Strategic coherence only (requires docs)' },
+      { value: 'all', label: 'All 7 overlays (recommended)' },
+      { value: 'structural', label: 'Structural patterns only (O₁)' },
+      { value: 'security', label: 'Security guidelines only (O₂)' },
+      { value: 'lineage', label: 'Lineage patterns only (O₃)' },
+      { value: 'mission', label: 'Mission concepts only (O₄, requires docs)' },
+      { value: 'operational', label: 'Operational patterns only (O₅)' },
+      { value: 'mathematical', label: 'Mathematical proofs only (O₆)' },
+      {
+        value: 'coherence',
+        label: 'Strategic coherence only (O₇, requires docs)',
+      },
       { value: 'none', label: 'Skip overlays for now' },
     ],
     initialValue: 'all',
@@ -273,16 +279,32 @@ export async function wizardCommand(options: WizardOptions) {
       const overlaysToGenerate: string[] = [];
 
       if (overlayTypes === 'all') {
-        overlaysToGenerate.push('structural_patterns', 'lineage_patterns');
+        // Generate all 7 overlays
+        overlaysToGenerate.push(
+          'structural_patterns', // O₁
+          'security_guidelines', // O₂
+          'lineage_patterns', // O₃
+          'operational_patterns', // O₅
+          'mathematical_proofs' // O₆
+        );
         if (shouldIngestDocs) {
-          overlaysToGenerate.push('mission_concepts', 'strategic_coherence');
+          overlaysToGenerate.push(
+            'mission_concepts', // O₄
+            'strategic_coherence' // O₇
+          );
         }
       } else if (overlayTypes === 'structural') {
         overlaysToGenerate.push('structural_patterns');
+      } else if (overlayTypes === 'security') {
+        overlaysToGenerate.push('security_guidelines');
       } else if (overlayTypes === 'lineage') {
         overlaysToGenerate.push('lineage_patterns');
       } else if (overlayTypes === 'mission' && shouldIngestDocs) {
         overlaysToGenerate.push('mission_concepts');
+      } else if (overlayTypes === 'operational') {
+        overlaysToGenerate.push('operational_patterns');
+      } else if (overlayTypes === 'mathematical') {
+        overlaysToGenerate.push('mathematical_proofs');
       } else if (overlayTypes === 'coherence' && shouldIngestDocs) {
         overlaysToGenerate.push('strategic_coherence');
       }
@@ -297,8 +319,11 @@ export async function wizardCommand(options: WizardOptions) {
         await orchestrator.run(
           overlayType as
             | 'structural_patterns'
+            | 'security_guidelines'
             | 'lineage_patterns'
             | 'mission_concepts'
+            | 'operational_patterns'
+            | 'mathematical_proofs'
             | 'strategic_coherence',
           {
             force: false,
