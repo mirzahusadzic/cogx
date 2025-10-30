@@ -143,12 +143,6 @@ import {
   proofsListCommand,
   proofsAlignedCommand,
 } from './commands/sugar/proofs.js';
-import {
-  coherenceReportCommand,
-  coherenceAlignedCommand,
-  coherenceDriftedCommand,
-  coherenceListCommand,
-} from './commands/sugar/coherence.js';
 
 program
   .command('wizard')
@@ -394,75 +388,5 @@ proofsCmd
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
   .action(proofsAlignedCommand);
-
-// Coherence commands (refactored to use algebra)
-const coherenceAlgebraCmd = program
-  .command('coherence-new')
-  .description('Strategic coherence analysis (algebra-based)');
-
-coherenceAlgebraCmd
-  .command('report')
-  .description('Show overall strategic coherence metrics')
-  .option(
-    '-p, --project-root <path>',
-    'Root directory of the project',
-    process.cwd()
-  )
-  .option('-f, --format <format>', 'Output format: table, json', 'table')
-  .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(coherenceReportCommand);
-
-coherenceAlgebraCmd
-  .command('aligned')
-  .description('Show symbols aligned with mission')
-  .option(
-    '-p, --project-root <path>',
-    'Root directory of the project',
-    process.cwd()
-  )
-  .option(
-    '-f, --format <format>',
-    'Output format: table, json, summary',
-    'table'
-  )
-  .option('-l, --limit <number>', 'Maximum number of results to show', '50')
-  .option('--min-score <score>', 'Minimum coherence score', '0.7')
-  .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(coherenceAlignedCommand);
-
-coherenceAlgebraCmd
-  .command('drifted')
-  .description('Show symbols that drifted from mission')
-  .option(
-    '-p, --project-root <path>',
-    'Root directory of the project',
-    process.cwd()
-  )
-  .option(
-    '-f, --format <format>',
-    'Output format: table, json, summary',
-    'table'
-  )
-  .option('-l, --limit <number>', 'Maximum number of results to show', '50')
-  .option('--max-score <score>', 'Maximum coherence score', '0.5')
-  .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(coherenceDriftedCommand);
-
-coherenceAlgebraCmd
-  .command('list')
-  .description('Show all symbols with coherence scores')
-  .option(
-    '-p, --project-root <path>',
-    'Root directory of the project',
-    process.cwd()
-  )
-  .option(
-    '-f, --format <format>',
-    'Output format: table, json, summary',
-    'table'
-  )
-  .option('-l, --limit <number>', 'Maximum number of results to show', '50')
-  .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(coherenceListCommand);
 
 program.parse();
