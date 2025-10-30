@@ -125,6 +125,7 @@ import { genesisDocsCommand } from './commands/genesis-docs.js';
 import { addCoherenceCommands } from './commands/coherence.js';
 import { addConceptsCommands } from './commands/concepts.js';
 import { wizardCommand } from './commands/wizard.js';
+import { latticeCommand, showOverlaysCommand } from './commands/lattice.js';
 
 program
   .command('wizard')
@@ -145,5 +146,35 @@ program.addCommand(createGuideCommand());
 addPatternsCommands(program);
 addCoherenceCommands(program);
 addConceptsCommands(program);
+
+// Lattice algebra commands
+program
+  .command('lattice <query>')
+  .description(
+    'Execute boolean algebra operations across overlays (e.g., "O1 - O2", "O2[critical] ~ O4")'
+  )
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option(
+    '-f, --format <format>',
+    'Output format: table, json, summary',
+    'table'
+  )
+  .option('-l, --limit <number>', 'Maximum number of results to show', '50')
+  .option('-v, --verbose', 'Show detailed error messages', false)
+  .action(latticeCommand);
+
+program
+  .command('overlays')
+  .description('Show available overlays and their data status')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .action(showOverlaysCommand);
 
 program.parse();
