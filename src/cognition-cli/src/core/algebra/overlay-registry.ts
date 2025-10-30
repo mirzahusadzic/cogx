@@ -28,9 +28,9 @@ import { MissionConceptsManager } from '../overlays/mission-concepts/manager.js'
 import { SecurityGuidelinesManager } from '../overlays/security-guidelines/manager.js';
 import { OperationalPatternsManager } from '../overlays/operational-patterns/manager.js';
 import { MathematicalProofsManager } from '../overlays/mathematical-proofs/manager.js';
-import { StrategicCoherenceManager } from '../overlays/strategic-coherence/manager.js';
-import { LineagePatternsManager } from '../overlays/lineage/manager.js';
 import { StructuralPatternsManager } from '../overlays/structural-patterns/manager.js';
+import { LineageAlgebraAdapter } from '../overlays/lineage/algebra-adapter.js';
+import { CoherenceAlgebraAdapter } from '../overlays/strategic-coherence/algebra-adapter.js';
 
 /**
  * Overlay identifiers following the lattice architecture
@@ -195,9 +195,10 @@ export class OverlayRegistry {
         return new SecurityGuidelinesManager(this.pgcRoot, this.workbenchUrl);
 
       case 'O3':
-        // TODO: LineagePatternsManager has different architecture (vector DB based)
-        // Requires specialized adapter to implement OverlayAlgebra
-        throw new Error('O3 (Lineage) not yet integrated with OverlayAlgebra');
+        return new LineageAlgebraAdapter(
+          this.pgcRoot,
+          this.workbenchUrl
+        );
 
       case 'O4':
         return new MissionConceptsManager(this.pgcRoot, this.workbenchUrl);
@@ -209,13 +210,10 @@ export class OverlayRegistry {
         return new MathematicalProofsManager(this.pgcRoot, this.workbenchUrl);
 
       case 'O7':
-        // TODO: StrategicCoherenceManager is a computed overlay (synthesis of O₁ + O₄)
-        // Items are SymbolCoherence records without embeddings
-        // Requires specialized adapter to implement OverlayAlgebra
-        return new StrategicCoherenceManager(
+        return new CoherenceAlgebraAdapter(
           this.pgcRoot,
           this.workbenchUrl
-        ) as any;
+        );
 
       default:
         throw new Error(`Unknown overlay ID: ${overlayId}`);
