@@ -58,9 +58,10 @@ export async function genesisDocsCommand(
     await validatePgcInitialized(options.projectRoot);
     s.stop('PGC validated');
 
-    // Initialize transform
+    // Initialize transform with workbench URL for overlay generation
     const pgcRoot = path.join(options.projectRoot, '.open_cognition');
-    const transform = new GenesisDocTransform(pgcRoot);
+    const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
+    const transform = new GenesisDocTransform(pgcRoot, workbenchUrl);
 
     // Find markdown files
     s.start('Finding markdown files');
