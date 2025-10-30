@@ -49,6 +49,11 @@ export async function genesisDocsCommand(
 ) {
   intro(chalk.bold('Genesis Docs: Ingesting Documentation into PGC'));
 
+  // Increase max listeners to avoid warnings during batch document processing
+  // (Each GenesisDocTransform creates multiple overlay managers that may register signal handlers)
+  const originalMaxListeners = process.getMaxListeners();
+  process.setMaxListeners(50);
+
   let s: ReturnType<typeof spinner> | undefined;
 
   try {
@@ -135,7 +140,12 @@ export async function genesisDocsCommand(
         `✓ Genesis docs complete - ${successCount} new, ${skippedCount} skipped, ${results.length - failCount} total in PGC`
       )
     );
+
+    // Restore original max listeners
+    process.setMaxListeners(originalMaxListeners);
   } catch (error) {
+    // Restore original max listeners on error too
+    process.setMaxListeners(originalMaxListeners);
     if (s) {
       s.stop('Genesis docs failed');
     }

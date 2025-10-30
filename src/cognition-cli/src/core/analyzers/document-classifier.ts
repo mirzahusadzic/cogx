@@ -99,13 +99,16 @@ export class DocumentClassifier {
       };
     }
 
-    // Operational documents
+    // Operational documents (includes lineage/structural patterns)
     if (
       filename.includes('operational') ||
       filename.includes('workflow') ||
-      filename.includes('process')
+      filename.includes('process') ||
+      filename.includes('lineage') ||
+      filename.includes('structural_patterns') ||
+      filename.includes('pattern_library')
     ) {
-      reasoning.push('Filename contains operational/workflow keywords');
+      reasoning.push('Filename contains operational/workflow/pattern keywords');
       return {
         type: DocumentType.OPERATIONAL,
         confidence: 0.9,
@@ -132,7 +135,9 @@ export class DocumentClassifier {
     if (
       filename.includes('vision') ||
       filename.includes('mission') ||
-      filename.includes('strategy')
+      filename.includes('strategy') ||
+      filename.includes('coding_principles') ||
+      filename.includes('coherence')
     ) {
       reasoning.push('Filename contains strategic keywords');
       return {

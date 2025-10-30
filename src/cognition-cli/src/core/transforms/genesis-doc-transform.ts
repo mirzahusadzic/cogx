@@ -220,7 +220,14 @@ export class GenesisDocTransform {
     }
 
     // 14. Route to appropriate overlay managers based on document type
-    await this.routeToOverlays(classification, ast, filePath, hash, objectHash);
+    await this.routeToOverlays(
+      classification,
+      ast,
+      filePath,
+      hash,
+      objectHash,
+      embeddedConcepts
+    );
 
     return {
       transformId,
@@ -633,7 +640,8 @@ export class GenesisDocTransform {
     ast: MarkdownDocument,
     filePath: string,
     contentHash: string,
-    objectHash: string
+    objectHash: string,
+    preEmbeddedConcepts?: MissionConcept[]
   ): Promise<void> {
     const relativePath = relative(this.projectRoot, filePath);
 
@@ -651,7 +659,8 @@ export class GenesisDocTransform {
             ast,
             contentHash,
             objectHash,
-            relativePath
+            relativePath,
+            preEmbeddedConcepts
           );
           break;
 
@@ -709,15 +718,27 @@ export class GenesisDocTransform {
     ast: MarkdownDocument,
     contentHash: string,
     objectHash: string,
-    filePath: string
+    filePath: string,
+    preEmbeddedConcepts?: MissionConcept[]
   ): Promise<void> {
-    // Extract mission concepts using ConceptExtractor
-    const extractor = new ConceptExtractor();
-    const concepts = extractor.extract(ast);
+    let concepts: MissionConcept[];
 
-    console.log(
-      chalk.dim(`    ✓ O₄ Mission: Extracted ${concepts.length} concepts`)
-    );
+    // Reuse pre-embedded concepts from security validation if available
+    if (preEmbeddedConcepts && preEmbeddedConcepts.length > 0) {
+      concepts = preEmbeddedConcepts;
+      console.log(
+        chalk.dim(
+          `    ✓ O₄ Mission: Reusing ${concepts.length} pre-embedded concepts from security validation`
+        )
+      );
+    } else {
+      // Extract mission concepts using ConceptExtractor
+      const extractor = new ConceptExtractor();
+      concepts = extractor.extract(ast);
+      console.log(
+        chalk.dim(`    ✓ O₄ Mission: Extracted ${concepts.length} concepts`)
+      );
+    }
 
     // Generate embeddings and store in mission overlay
     // Note: MissionConceptsManager uses store() instead of generateOverlay()
