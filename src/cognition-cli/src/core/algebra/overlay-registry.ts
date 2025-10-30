@@ -30,6 +30,7 @@ import { OperationalPatternsManager } from '../overlays/operational-patterns/man
 import { MathematicalProofsManager } from '../overlays/mathematical-proofs/manager.js';
 import { StrategicCoherenceManager } from '../overlays/strategic-coherence/manager.js';
 import { LineagePatternsManager } from '../overlays/lineage/manager.js';
+import { StructuralPatternsManager } from '../overlays/structural-patterns/manager.js';
 
 /**
  * Overlay identifiers following the lattice architecture
@@ -188,46 +189,29 @@ export class OverlayRegistry {
   private createManager(overlayId: OverlayId): OverlayAlgebra {
     switch (overlayId) {
       case 'O1':
-        // TODO: Create StructuralPatternsManager wrapper that implements OverlayAlgebra
-        throw new Error(
-          'O1 (Structure) not yet integrated with OverlayAlgebra'
-        );
+        return new StructuralPatternsManager(this.pgcRoot, this.workbenchUrl);
 
       case 'O2':
-        // TODO: Refactor SecurityGuidelinesManager to implement OverlayAlgebra
-        return new SecurityGuidelinesManager(
-          this.pgcRoot,
-          this.workbenchUrl
-        ) as any;
+        return new SecurityGuidelinesManager(this.pgcRoot, this.workbenchUrl);
 
       case 'O3':
-        // TODO: Refactor LineagePatternsManager to implement OverlayAlgebra
-        // LineagePatternsManager has different constructor - skip for now
+        // TODO: LineagePatternsManager has different architecture (vector DB based)
+        // Requires specialized adapter to implement OverlayAlgebra
         throw new Error('O3 (Lineage) not yet integrated with OverlayAlgebra');
 
       case 'O4':
-        // TODO: Refactor MissionConceptsManager to implement OverlayAlgebra
-        return new MissionConceptsManager(
-          this.pgcRoot,
-          this.workbenchUrl
-        ) as any;
+        return new MissionConceptsManager(this.pgcRoot, this.workbenchUrl);
 
       case 'O5':
-        // TODO: Refactor OperationalPatternsManager to implement OverlayAlgebra
-        return new OperationalPatternsManager(
-          this.pgcRoot,
-          this.workbenchUrl
-        ) as any;
+        return new OperationalPatternsManager(this.pgcRoot, this.workbenchUrl);
 
       case 'O6':
-        // TODO: Refactor MathematicalProofsManager to implement OverlayAlgebra
-        return new MathematicalProofsManager(
-          this.pgcRoot,
-          this.workbenchUrl
-        ) as any;
+        return new MathematicalProofsManager(this.pgcRoot, this.workbenchUrl);
 
       case 'O7':
-        // TODO: Refactor StrategicCoherenceManager to implement OverlayAlgebra
+        // TODO: StrategicCoherenceManager is a computed overlay (synthesis of O₁ + O₄)
+        // Items are SymbolCoherence records without embeddings
+        // Requires specialized adapter to implement OverlayAlgebra
         return new StrategicCoherenceManager(
           this.pgcRoot,
           this.workbenchUrl

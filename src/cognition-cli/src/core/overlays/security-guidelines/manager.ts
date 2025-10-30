@@ -5,6 +5,12 @@ import YAML from 'yaml';
 import { WorkbenchClient } from '../../executors/workbench-client.js';
 import { EmbedLogger } from '../shared/embed-logger.js';
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../../config.js';
+import {
+  OverlayAlgebra,
+  OverlayItem,
+  OverlayMetadata,
+  SelectOptions,
+} from '../../algebra/overlay-algebra.js';
 
 /**
  * Security guidelines overlay (O₂)
@@ -30,6 +36,30 @@ export interface SecurityGuidelinesOverlay {
   transform_id: string; // Transform that generated this overlay
   source_project?: string; // For imported .cogx files
   source_commit?: string; // Git commit hash (provenance)
+}
+
+/**
+ * Metadata for security overlay items
+ */
+export interface SecurityMetadata extends OverlayMetadata {
+  text: string;
+  securityType:
+    | 'threat_model'
+    | 'attack_vector'
+    | 'mitigation'
+    | 'boundary'
+    | 'constraint'
+    | 'vulnerability';
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  weight: number;
+  occurrences: number;
+  section: string;
+  sectionHash: string;
+  documentHash: string;
+  cveId?: string;
+  affectedVersions?: string;
+  mitigation?: string;
+  references?: string[];
 }
 
 /**
@@ -59,7 +89,9 @@ export interface SecurityGuidelinesOverlay {
  * - Can be imported from dependencies
  * - Enables security knowledge inheritance across projects
  */
-export class SecurityGuidelinesManager {
+export class SecurityGuidelinesManager
+  implements OverlayAlgebra<SecurityMetadata>
+{
   private overlayPath: string;
   private workbench: WorkbenchClient;
 
@@ -72,6 +104,199 @@ export class SecurityGuidelinesManager {
       workbenchUrl || process.env.WORKBENCH_URL || 'http://localhost:8000'
     );
   }
+
+  // ========================================
+  // OVERLAY ALGEBRA INTERFACE
+  // ========================================
+
+  getOverlayId(): string {
+    return 'O2';
+  }
+
+  getOverlayName(): string {
+    return 'Security';
+  }
+
+  getSupportedTypes(): string[] {
+    return [
+      'threat_model',
+      'attack_vector',
+      'mitigation',
+      'boundary',
+      'constraint',
+      'vulnerability',
+    ];
+  }
+
+  getPgcRoot(): string {
+    return this.pgcRoot;
+  }
+
+  async getAllItems(): Promise<OverlayItem<SecurityMetadata>[]> {
+    const items: OverlayItem<SecurityMetadata>[] = [];
+
+    if (!(await fs.pathExists(this.overlayPath))) {
+      return items;
+    }
+
+    const overlayFiles = await fs.readdir(this.overlayPath);
+
+    for (const file of overlayFiles) {
+      if (!file.endsWith('.yaml')) continue;
+
+      const documentHash = file.replace('.yaml', '');
+      const content = await fs.readFile(
+        path.join(this.overlayPath, file),
+        'utf-8'
+      );
+      const overlay = YAML.parse(content) as SecurityGuidelinesOverlay;
+
+      for (const knowledge of overlay.extracted_knowledge) {
+        if (knowledge.embedding && knowledge.embedding.length === 768) {
+          items.push({
+            id: `${documentHash}:${knowledge.text}`,
+            embedding: knowledge.embedding,
+            metadata: {
+              text: knowledge.text,
+              securityType: knowledge.securityType,
+              severity: knowledge.severity || 'low',
+              weight: knowledge.weight,
+              occurrences: knowledge.occurrences,
+              section: knowledge.section || 'unknown',
+              sectionHash: knowledge.sectionHash || documentHash,
+              documentHash: documentHash,
+              cveId: knowledge.metadata?.cveId as string | undefined,
+              affectedVersions: knowledge.metadata?.affectedVersions as
+                | string
+                | undefined,
+              mitigation: knowledge.metadata?.mitigation as string | undefined,
+              references: knowledge.metadata?.references as
+                | string[]
+                | undefined,
+            },
+          });
+        }
+      }
+    }
+
+    return items;
+  }
+
+  async getItemsByType(type: string): Promise<OverlayItem<SecurityMetadata>[]> {
+    const allItems = await this.getAllItems();
+    return allItems.filter((item) => item.metadata.securityType === type);
+  }
+
+  async filter(
+    predicate: (metadata: SecurityMetadata) => boolean
+  ): Promise<OverlayItem<SecurityMetadata>[]> {
+    const allItems = await this.getAllItems();
+    return allItems.filter((item) => predicate(item.metadata));
+  }
+
+  async query(
+    query: string,
+    topK: number = 10
+  ): Promise<
+    Array<{ item: OverlayItem<SecurityMetadata>; similarity: number }>
+  > {
+    // Generate embedding for query
+    const embedResponse = await this.workbench.embed({
+      signature: query,
+      dimensions: 768,
+    });
+
+    const queryEmbedding = embedResponse['embedding_768d'] as number[];
+    if (!queryEmbedding || queryEmbedding.length !== 768) {
+      throw new Error('Failed to generate query embedding');
+    }
+
+    // Get all items and compute similarity
+    const allItems = await this.getAllItems();
+    const results = allItems.map((item) => ({
+      item,
+      similarity: this.cosineSimilarity(queryEmbedding, item.embedding),
+    }));
+
+    // Sort by similarity and return top K
+    results.sort((a, b) => b.similarity - a.similarity);
+    return results.slice(0, topK);
+  }
+
+  async select(
+    options: SelectOptions
+  ): Promise<OverlayItem<SecurityMetadata>[]> {
+    const allItems = await this.getAllItems();
+
+    if (options.symbols) {
+      return allItems.filter((item) =>
+        options.symbols!.has(item.metadata.text)
+      );
+    }
+
+    if (options.ids) {
+      return allItems.filter((item) => options.ids!.has(item.id));
+    }
+
+    return allItems;
+  }
+
+  async exclude(
+    options: SelectOptions
+  ): Promise<OverlayItem<SecurityMetadata>[]> {
+    const allItems = await this.getAllItems();
+
+    if (options.symbols) {
+      return allItems.filter(
+        (item) => !options.symbols!.has(item.metadata.text)
+      );
+    }
+
+    if (options.ids) {
+      return allItems.filter((item) => !options.ids!.has(item.id));
+    }
+
+    return allItems;
+  }
+
+  async getSymbolSet(): Promise<Set<string>> {
+    const allItems = await this.getAllItems();
+    return new Set(allItems.map((item) => item.metadata.text));
+  }
+
+  async getIdSet(): Promise<Set<string>> {
+    const allItems = await this.getAllItems();
+    return new Set(allItems.map((item) => item.id));
+  }
+
+  private cosineSimilarity(a: number[], b: number[]): number {
+    if (a.length !== b.length) {
+      throw new Error('Vector dimensions must match');
+    }
+
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+
+    for (let i = 0; i < a.length; i++) {
+      dotProduct += a[i] * b[i];
+      normA += a[i] * a[i];
+      normB += b[i] * b[i];
+    }
+
+    normA = Math.sqrt(normA);
+    normB = Math.sqrt(normB);
+
+    if (normA === 0 || normB === 0) {
+      return 0;
+    }
+
+    return dotProduct / (normA * normB);
+  }
+
+  // ========================================
+  // LEGACY METHODS (keep for compatibility)
+  // ========================================
 
   /**
    * Sanitize text for embedding

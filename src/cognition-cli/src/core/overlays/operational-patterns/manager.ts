@@ -5,6 +5,12 @@ import YAML from 'yaml';
 import { WorkbenchClient } from '../../executors/workbench-client.js';
 import { EmbedLogger } from '../shared/embed-logger.js';
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../../config.js';
+import {
+  OverlayAlgebra,
+  OverlayItem,
+  OverlayMetadata,
+  SelectOptions,
+} from '../../algebra/overlay-algebra.js';
 
 /**
  * Operational patterns overlay (O₅)
@@ -21,6 +27,27 @@ export interface OperationalPatternsOverlay {
   extracted_patterns: OperationalKnowledge[]; // Workflow patterns with embeddings
   generated_at: string; // ISO timestamp
   transform_id: string; // Transform that generated this overlay
+}
+
+/**
+ * Metadata for operational overlay items
+ */
+export interface OperationalMetadata extends OverlayMetadata {
+  text: string;
+  patternType:
+    | 'quest_structure'
+    | 'sacred_sequence'
+    | 'workflow_pattern'
+    | 'depth_rule'
+    | 'terminology';
+  weight: number;
+  occurrences: number;
+  section: string;
+  sectionHash: string;
+  documentHash: string;
+  steps?: string[];
+  formula?: string;
+  example?: string;
 }
 
 /**
@@ -44,7 +71,9 @@ export interface OperationalPatternsOverlay {
  * - Enables semantic search: "How should I handle depth 2 work?"
  * - Supports projection queries across O₁ (code state) → O₅ (process guidance)
  */
-export class OperationalPatternsManager {
+export class OperationalPatternsManager
+  implements OverlayAlgebra<OperationalMetadata>
+{
   private overlayPath: string;
   private workbench: WorkbenchClient;
 
@@ -57,6 +86,191 @@ export class OperationalPatternsManager {
       workbenchUrl || process.env.WORKBENCH_URL || 'http://localhost:8000'
     );
   }
+
+  // ========================================
+  // OVERLAY ALGEBRA INTERFACE
+  // ========================================
+
+  getOverlayId(): string {
+    return 'O5';
+  }
+
+  getOverlayName(): string {
+    return 'Operational';
+  }
+
+  getSupportedTypes(): string[] {
+    return [
+      'quest_structure',
+      'sacred_sequence',
+      'workflow_pattern',
+      'depth_rule',
+      'terminology',
+    ];
+  }
+
+  getPgcRoot(): string {
+    return this.pgcRoot;
+  }
+
+  async getAllItems(): Promise<OverlayItem<OperationalMetadata>[]> {
+    const items: OverlayItem<OperationalMetadata>[] = [];
+
+    if (!(await fs.pathExists(this.overlayPath))) {
+      return items;
+    }
+
+    const overlayFiles = await fs.readdir(this.overlayPath);
+
+    for (const file of overlayFiles) {
+      if (!file.endsWith('.yaml')) continue;
+
+      const documentHash = file.replace('.yaml', '');
+      const content = await fs.readFile(
+        path.join(this.overlayPath, file),
+        'utf-8'
+      );
+      const overlay = YAML.parse(content) as OperationalPatternsOverlay;
+
+      for (const pattern of overlay.extracted_patterns) {
+        if (pattern.embedding && pattern.embedding.length === 768) {
+          items.push({
+            id: `${documentHash}:${pattern.text}`,
+            embedding: pattern.embedding,
+            metadata: {
+              text: pattern.text,
+              patternType: pattern.patternType,
+              weight: pattern.weight,
+              occurrences: pattern.occurrences,
+              section: pattern.section || 'unknown',
+              sectionHash: pattern.sectionHash || documentHash,
+              documentHash: documentHash,
+              steps: pattern.metadata?.steps as string[] | undefined,
+              formula: pattern.metadata?.formula as string | undefined,
+              example: pattern.metadata?.example as string | undefined,
+            },
+          });
+        }
+      }
+    }
+
+    return items;
+  }
+
+  async getItemsByType(
+    type: string
+  ): Promise<OverlayItem<OperationalMetadata>[]> {
+    const allItems = await this.getAllItems();
+    return allItems.filter((item) => item.metadata.patternType === type);
+  }
+
+  async filter(
+    predicate: (metadata: OperationalMetadata) => boolean
+  ): Promise<OverlayItem<OperationalMetadata>[]> {
+    const allItems = await this.getAllItems();
+    return allItems.filter((item) => predicate(item.metadata));
+  }
+
+  async query(
+    query: string,
+    topK: number = 10
+  ): Promise<
+    Array<{ item: OverlayItem<OperationalMetadata>; similarity: number }>
+  > {
+    const embedResponse = await this.workbench.embed({
+      signature: query,
+      dimensions: 768,
+    });
+
+    const queryEmbedding = embedResponse['embedding_768d'] as number[];
+    if (!queryEmbedding || queryEmbedding.length !== 768) {
+      throw new Error('Failed to generate query embedding');
+    }
+
+    const allItems = await this.getAllItems();
+    const results = allItems.map((item) => ({
+      item,
+      similarity: this.cosineSimilarity(queryEmbedding, item.embedding),
+    }));
+
+    results.sort((a, b) => b.similarity - a.similarity);
+    return results.slice(0, topK);
+  }
+
+  async select(
+    options: SelectOptions
+  ): Promise<OverlayItem<OperationalMetadata>[]> {
+    const allItems = await this.getAllItems();
+
+    if (options.symbols) {
+      return allItems.filter((item) =>
+        options.symbols!.has(item.metadata.text)
+      );
+    }
+
+    if (options.ids) {
+      return allItems.filter((item) => options.ids!.has(item.id));
+    }
+
+    return allItems;
+  }
+
+  async exclude(
+    options: SelectOptions
+  ): Promise<OverlayItem<OperationalMetadata>[]> {
+    const allItems = await this.getAllItems();
+
+    if (options.symbols) {
+      return allItems.filter(
+        (item) => !options.symbols!.has(item.metadata.text)
+      );
+    }
+
+    if (options.ids) {
+      return allItems.filter((item) => !options.ids!.has(item.id));
+    }
+
+    return allItems;
+  }
+
+  async getSymbolSet(): Promise<Set<string>> {
+    const allItems = await this.getAllItems();
+    return new Set(allItems.map((item) => item.metadata.text));
+  }
+
+  async getIdSet(): Promise<Set<string>> {
+    const allItems = await this.getAllItems();
+    return new Set(allItems.map((item) => item.id));
+  }
+
+  private cosineSimilarity(a: number[], b: number[]): number {
+    if (a.length !== b.length) {
+      throw new Error('Vector dimensions must match');
+    }
+
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+
+    for (let i = 0; i < a.length; i++) {
+      dotProduct += a[i] * b[i];
+      normA += a[i] * a[i];
+      normB += b[i] * b[i];
+    }
+
+    normA = Math.sqrt(normA);
+    normB = Math.sqrt(normB);
+
+    if (normA === 0 || normB === 0) {
+      return 0;
+    }
+
+    return dotProduct / (normA * normB);
+  }
+
+  // ========================================
+  // LEGACY METHODS (keep for compatibility)
+  // ========================================
 
   /**
    * Sanitize text for embedding (remove chars that trigger binary detection)

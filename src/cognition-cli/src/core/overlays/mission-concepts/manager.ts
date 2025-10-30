@@ -4,6 +4,12 @@ import path from 'path';
 import YAML from 'yaml';
 import { WorkbenchClient } from '../../executors/workbench-client.js';
 import { EmbedLogger } from '../shared/embed-logger.js';
+import {
+  OverlayAlgebra,
+  OverlayItem,
+  OverlayMetadata,
+  SelectOptions,
+} from '../../algebra/overlay-algebra.js';
 
 /**
  * Mission concepts overlay
@@ -19,6 +25,19 @@ export interface MissionConceptsOverlay {
   extracted_concepts: MissionConcept[]; // Ranked concepts with 768d embeddings
   generated_at: string; // ISO timestamp
   transform_id: string; // Transform that generated this overlay
+}
+
+/**
+ * Metadata for mission concept overlay items
+ */
+export interface MissionConceptMetadata extends OverlayMetadata {
+  text: string; // Concept text
+  type: 'vision' | 'concept' | 'principle' | 'goal'; // Concept type
+  weight: number; // Importance score (0-1)
+  occurrences: number; // Frequency in document
+  section: string; // Source section
+  sectionHash: string; // Section hash for provenance
+  documentHash: string; // Document hash for provenance
 }
 
 /**
@@ -41,7 +60,9 @@ export interface MissionConceptsOverlay {
  * - Overlay tracks source document via document_hash
  * - Full transform chain via transform_id
  */
-export class MissionConceptsManager {
+export class MissionConceptsManager
+  implements OverlayAlgebra<MissionConceptMetadata>
+{
   private overlayPath: string;
   private workbench: WorkbenchClient;
 
@@ -54,6 +75,211 @@ export class MissionConceptsManager {
       workbenchUrl || process.env.WORKBENCH_URL || 'http://localhost:8000'
     );
   }
+
+  // ========================================
+  // OVERLAY ALGEBRA INTERFACE
+  // ========================================
+
+  getOverlayId(): string {
+    return 'O4';
+  }
+
+  getOverlayName(): string {
+    return 'Mission Concepts';
+  }
+
+  getSupportedTypes(): string[] {
+    return ['vision', 'concept', 'principle', 'goal'];
+  }
+
+  getPgcRoot(): string {
+    return this.pgcRoot;
+  }
+
+  /**
+   * Classify concept type based on section name
+   */
+  private classifyConceptType(
+    sectionName: string
+  ): 'vision' | 'concept' | 'principle' | 'goal' {
+    const normalized = sectionName.toLowerCase();
+
+    if (
+      normalized.includes('vision') ||
+      normalized.includes('why') ||
+      normalized.includes('purpose') ||
+      normalized.includes('opportunity')
+    ) {
+      return 'vision';
+    }
+
+    if (
+      normalized.includes('principle') ||
+      normalized.includes('value') ||
+      normalized.includes('philosophy')
+    ) {
+      return 'principle';
+    }
+
+    if (
+      normalized.includes('goal') ||
+      normalized.includes('strategic intent') ||
+      normalized.includes('path forward')
+    ) {
+      return 'goal';
+    }
+
+    // Default: concept (for Mission, Solution, Architecture, etc.)
+    return 'concept';
+  }
+
+  async getAllItems(): Promise<OverlayItem<MissionConceptMetadata>[]> {
+    const hashes = await this.list();
+    const items: OverlayItem<MissionConceptMetadata>[] = [];
+
+    for (const hash of hashes) {
+      const overlay = await this.retrieve(hash);
+      if (overlay) {
+        for (const concept of overlay.extracted_concepts) {
+          if (concept.embedding && concept.embedding.length === 768) {
+            items.push({
+              id: `${hash}:${concept.text}`,
+              embedding: concept.embedding,
+              metadata: {
+                text: concept.text,
+                type: this.classifyConceptType(concept.section),
+                weight: concept.weight,
+                occurrences: concept.occurrences,
+                section: concept.section || 'unknown',
+                sectionHash: concept.sectionHash || hash,
+                documentHash: hash,
+              },
+            });
+          }
+        }
+      }
+    }
+
+    return items;
+  }
+
+  async getItemsByType(
+    type: string
+  ): Promise<OverlayItem<MissionConceptMetadata>[]> {
+    const allItems = await this.getAllItems();
+    return allItems.filter((item) => item.metadata.type === type);
+  }
+
+  async filter(
+    predicate: (metadata: MissionConceptMetadata) => boolean
+  ): Promise<OverlayItem<MissionConceptMetadata>[]> {
+    const allItems = await this.getAllItems();
+    return allItems.filter((item) => predicate(item.metadata));
+  }
+
+  async query(
+    query: string,
+    topK: number = 10
+  ): Promise<
+    Array<{ item: OverlayItem<MissionConceptMetadata>; similarity: number }>
+  > {
+    // Generate embedding for query
+    const embedResponse = await this.workbench.embed({
+      signature: query,
+      dimensions: 768,
+    });
+
+    const queryEmbedding = embedResponse['embedding_768d'] as number[];
+    if (!queryEmbedding || queryEmbedding.length !== 768) {
+      throw new Error('Failed to generate query embedding');
+    }
+
+    // Get all items and compute similarity
+    const allItems = await this.getAllItems();
+    const results = allItems.map((item) => ({
+      item,
+      similarity: this.cosineSimilarity(queryEmbedding, item.embedding),
+    }));
+
+    // Sort by similarity and return top K
+    results.sort((a, b) => b.similarity - a.similarity);
+    return results.slice(0, topK);
+  }
+
+  async select(
+    options: SelectOptions
+  ): Promise<OverlayItem<MissionConceptMetadata>[]> {
+    const allItems = await this.getAllItems();
+
+    if (options.symbols) {
+      return allItems.filter((item) =>
+        options.symbols!.has(item.metadata.text)
+      );
+    }
+
+    if (options.ids) {
+      return allItems.filter((item) => options.ids!.has(item.id));
+    }
+
+    return allItems;
+  }
+
+  async exclude(
+    options: SelectOptions
+  ): Promise<OverlayItem<MissionConceptMetadata>[]> {
+    const allItems = await this.getAllItems();
+
+    if (options.symbols) {
+      return allItems.filter(
+        (item) => !options.symbols!.has(item.metadata.text)
+      );
+    }
+
+    if (options.ids) {
+      return allItems.filter((item) => !options.ids!.has(item.id));
+    }
+
+    return allItems;
+  }
+
+  async getSymbolSet(): Promise<Set<string>> {
+    const allItems = await this.getAllItems();
+    return new Set(allItems.map((item) => item.metadata.text));
+  }
+
+  async getIdSet(): Promise<Set<string>> {
+    const allItems = await this.getAllItems();
+    return new Set(allItems.map((item) => item.id));
+  }
+
+  private cosineSimilarity(a: number[], b: number[]): number {
+    if (a.length !== b.length) {
+      throw new Error('Vector dimensions must match');
+    }
+
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+
+    for (let i = 0; i < a.length; i++) {
+      dotProduct += a[i] * b[i];
+      normA += a[i] * a[i];
+      normB += b[i] * b[i];
+    }
+
+    normA = Math.sqrt(normA);
+    normB = Math.sqrt(normB);
+
+    if (normA === 0 || normB === 0) {
+      return 0;
+    }
+
+    return dotProduct / (normA * normB);
+  }
+
+  // ========================================
+  // LEGACY METHODS (keep for compatibility)
+  // ========================================
 
   /**
    * Sanitize text for embedding (remove chars that trigger binary detection)
