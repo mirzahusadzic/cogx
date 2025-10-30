@@ -1,54 +1,79 @@
-# Analyze Change Impact
+# Analyze Impact
 
-When the user proposes changes to code, you MUST analyze the blast radius using PGC tools BEFORE making changes.
+Analyze the blast radius and impact of changes to a file or symbol.
 
-## Pre-Change Analysis:
+## Your Task
 
-1. **Identify affected symbols** from the proposed change
-2. **For each symbol**, run `cognition-cli blast-radius <symbol> --direction both --max-depth 3`
-3. **Review metrics**:
-   - Total impacted: How many symbols affected?
-   - Max consumer depth: How far upstream does impact reach?
-   - Critical paths: What high-impact chains exist?
+1. **Calculate blast radius** - what depends on this?
+2. **Find similar patterns** - are there related implementations?
+3. **Check security implications** - does this touch security boundaries?
+4. **Identify affected workflows** - which O₅ patterns use this?
+5. **Assess coherence impact** - will this affect alignment?
 
-## Risk Assessment:
+## Commands to Run
 
-Based on blast radius results, categorize risk:
+```bash
+# 1. Blast radius analysis
+cognition-cli blast-radius [FILE_PATH]:[SYMBOL_NAME]
 
-- **LOW RISK**: `totalImpacted <= 5`, no critical paths
-- **MEDIUM RISK**: `totalImpacted 6-20`, OR has critical paths
-- **HIGH RISK**: `totalImpacted > 20`, OR affects core architectural symbols
+# 2. Find similar code patterns
+cognition-cli patterns similar "[SYMBOL_NAME]"
 
-## Required Output:
+# 3. Check if symbol has security coverage
+cognition-cli lattice "O2" | grep -i "[SYMBOL_NAME]"
 
-Before implementing changes, report:
+# 4. Find related workflows
+cognition-cli lattice "O5[workflow]" --format summary
 
-```
-📊 Impact Analysis for <symbol>
-
-Risk Level: [LOW/MEDIUM/HIGH]
-Total Impacted: X symbols
-Max Consumer Depth: Y levels
-Max Dependency Depth: Z levels
-
-Affected Consumers (upstream):
-- symbol1 (role: ...)
-- symbol2 (role: ...)
-
-Affected Dependencies (downstream):
-- dep1 (role: ...)
-- dep2 (role: ...)
-
-Critical Paths:
-- path1 -> path2 -> path3 (reason: ...)
-
-Recommendation: [Proceed/Proceed with caution/Refactor first]
+# 5. Check current alignment
+cognition-cli coherence list | grep -i "[SYMBOL_NAME]"
 ```
 
-## After Analysis:
+## Impact Analysis
 
-- If HIGH RISK: Suggest refactoring to reduce blast radius first
-- If MEDIUM RISK: Proceed but note testing requirements
-- If LOW RISK: Proceed with confidence
+**Direct Dependencies**:
+[List files/symbols that directly depend on this]
 
-Always ground recommendations in PGC data (include hashes when relevant).
+**Transitive Dependencies**:
+[Estimate number of indirectly affected files]
+
+**Similar Patterns**:
+[List similar implementations that might need parallel changes]
+
+**Security Implications**:
+
+- ✅ No security boundaries affected
+- ⚠️ [List any security considerations]
+- ❌ [Critical security concerns]
+
+**Workflow Impact**:
+[List O₅ workflows that reference this pattern]
+
+**Coherence Risk**:
+
+- Low: Well-isolated change
+- Medium: Affects [X] symbols
+- High: Core pattern modification
+
+## Recommendations
+
+**Before Changing**:
+
+1. [Pre-change checklist items]
+2. Consider alternatives: [Suggestions]
+3. Plan tests for: [Affected areas]
+
+**During Change**:
+
+1. Update in parallel: [Similar patterns]
+2. Maintain interfaces: [Public APIs]
+3. Document rationale: [Why this change]
+
+**After Change**:
+
+1. Run: `cognition-cli quest-verify`
+2. Test: [Specific test scenarios]
+3. Update: [Related documentation]
+
+**Estimated Effort**: [Small/Medium/Large]
+**Risk Level**: [Low/Medium/High]
