@@ -60,7 +60,7 @@ The **Grounded Context Pool (PGC)** is cognition-cli's storage layer—the physi
 | **Format**       | Content-addressable (SHA-256), JSON, YAML                     |
 | **Versioning**   | Git-style sharding + transform manifests                      |
 | **Provenance**   | Every file tracked by content hash                            |
-| **Storage**      | ~48MB for 32K LOC (will update after full template ingestion) |
+| **Storage**      | ~70MB for 32K LOC (with template docs and all overlays)       |
 | **Git strategy** | Selective commits via `.gitignore`                            |
 
 ---
@@ -84,6 +84,7 @@ The **Grounded Context Pool (PGC)** is cognition-cli's storage layer—the physi
 
 **Total size** (cognition-cli, 32K LOC, measured before template doc ingestion):
 
+**Before template docs** (genesis + code only):
 - `patterns.lancedb/`: 36MB (embeddings)
 - `overlays/`: 4.1MB (overlay data)
 - `objects/`: 3.7MB (source snapshots)
@@ -92,9 +93,10 @@ The **Grounded Context Pool (PGC)** is cognition-cli's storage layer—the physi
 - `index/`: 716KB (structural metadata)
 - `transforms/`: 396KB (YAML manifests)
 - `logs/`: 8KB
-- **Total**: ~48MB
+- **Subtotal**: ~48MB
 
-**Note**: Sizes will increase after wizard ingests all template docs from `docs/overlays/`. Will update with actual measurements.
+**After template docs** (complete PGC with all overlays):
+- **Total**: ~70MB (+22MB for template doc embeddings and overlays)
 
 ---
 

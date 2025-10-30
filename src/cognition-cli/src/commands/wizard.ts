@@ -85,14 +85,40 @@ export async function wizardCommand(options: WizardOptions) {
   ).every((exists) => exists);
 
   if (pgcExists) {
-    const shouldContinue = await confirm({
-      message: 'PGC already exists. Do you want to continue anyway?',
-      initialValue: false,
-    });
+    const action = (await select({
+      message: 'PGC already exists. What do you want to do?',
+      options: [
+        {
+          value: 'update',
+          label: 'Update Existing Overlays',
+        },
+        { value: 'init', label: 'Init PGC (wipe and start fresh)' },
+        { value: 'cancel', label: 'Cancel' },
+      ],
+      initialValue: 'update',
+    })) as string;
 
-    if (!shouldContinue) {
+    if (action === 'cancel') {
       outro(chalk.yellow('Wizard cancelled.'));
       return;
+    }
+
+    if (action === 'init') {
+      log.warn(chalk.yellow('\n⚠️  Init PGC will DELETE all existing data.'));
+      const confirmInit = (await confirm({
+        message: 'Are you sure you want to wipe the PGC?',
+        initialValue: false,
+      })) as boolean;
+
+      if (!confirmInit) {
+        outro(chalk.yellow('Wizard cancelled.'));
+        return;
+      }
+
+      // Wipe the entire PGC
+      log.info(chalk.bold('\n🗑️  Removing existing PGC...'));
+      await fs.remove(pgcRoot);
+      log.info(chalk.green('✓ PGC removed'));
     }
   }
 
