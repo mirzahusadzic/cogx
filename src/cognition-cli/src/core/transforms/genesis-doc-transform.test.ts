@@ -41,6 +41,15 @@ vi.mock('fs/promises', async () => {
   };
 });
 
+// Mock fs (for TransparencyLog)
+vi.mock('fs', async () => {
+  const memfs = await vi.importActual<typeof import('memfs')>('memfs');
+  return {
+    default: memfs.fs,
+    ...memfs.fs,
+  };
+});
+
 // Mock WorkbenchClient to prevent hitting real API in tests
 vi.mock('../executors/workbench-client.js', () => {
   return {
@@ -57,16 +66,18 @@ vi.mock('../executors/workbench-client.js', () => {
 });
 
 describe('GenesisDocTransform', () => {
-  const pgcRoot = '/test-pgc';
+  const projectRoot = '/test-project';
+  const pgcRoot = `${projectRoot}/.open_cognition`;
   let transform: GenesisDocTransform;
 
   beforeEach(() => {
     vol.reset();
-    // Setup PGC directory structure
+    // Setup PGC directory structure (proper project layout)
     vol.fromJSON({
       [`${pgcRoot}/objects/.gitkeep`]: '',
       [`${pgcRoot}/logs/.gitkeep`]: '',
       [`${pgcRoot}/index/.gitkeep`]: '',
+      [`${pgcRoot}/security/.gitkeep`]: '', // For TransparencyLog
     });
     transform = new GenesisDocTransform(pgcRoot);
   });
@@ -83,10 +94,10 @@ Content for section 1.
 `;
 
       vol.fromJSON({
-        '/test.md': content,
+        [`${projectRoot}/test.md`]: content,
       });
 
-      const result = await transform.execute('/test.md');
+      const result = await transform.execute(`${projectRoot}/test.md`);
 
       expect(result.transformId).toBeTruthy();
       expect(result.outputHash).toBeTruthy();
@@ -102,10 +113,10 @@ Content here.
 `;
 
       vol.fromJSON({
-        '/test.md': content,
+        [`${projectRoot}/test.md`]: content,
       });
 
-      const result = await transform.execute('/test.md');
+      const result = await transform.execute(`${projectRoot}/test.md`);
 
       // The outputHash is the content hash
       // The object is stored by its JSON hash
@@ -149,10 +160,10 @@ Content.
 `;
 
       vol.fromJSON({
-        '/test.md': content,
+        [`${projectRoot}/test.md`]: content,
       });
 
-      const result = await transform.execute('/test.md');
+      const result = await transform.execute(`${projectRoot}/test.md`);
 
       // Check transform log exists
       const logPath = path.join(
@@ -187,10 +198,10 @@ Content.
 `;
 
       vol.fromJSON({
-        '/docs/README.md': content,
+        [`${projectRoot}/docs/README.md`]: content,
       });
 
-      const result = await transform.execute('/docs/README.md');
+      const result = await transform.execute(`${projectRoot}/docs/README.md`);
 
       // Check index entry exists
       const indexPath = path.join(pgcRoot, 'index', 'docs', 'README.md.json');
@@ -210,12 +221,12 @@ Content.
 
     it('should reject non-markdown files', async () => {
       vol.fromJSON({
-        '/test.txt': 'Not markdown',
+        [`${projectRoot}/test.txt`]: 'Not markdown',
       });
 
-      await expect(transform.execute('/test.txt')).rejects.toThrow(
-        'Not a markdown file'
-      );
+      await expect(
+        transform.execute(`${projectRoot}/test.txt`)
+      ).rejects.toThrow('Not a markdown file');
     });
 
     it('should reject files that are too large', async () => {
@@ -223,12 +234,12 @@ Content.
       const largeContent = 'x'.repeat(11 * 1024 * 1024);
 
       vol.fromJSON({
-        '/large.md': largeContent,
+        [`${projectRoot}/large.md`]: largeContent,
       });
 
-      await expect(transform.execute('/large.md')).rejects.toThrow(
-        'File too large'
-      );
+      await expect(
+        transform.execute(`${projectRoot}/large.md`)
+      ).rejects.toThrow('File too large');
     });
 
     it('should compute consistent hashes', async () => {
@@ -279,10 +290,10 @@ Content B.
 `;
 
       vol.fromJSON({
-        '/complex.md': content,
+        [`${projectRoot}/complex.md`]: content,
       });
 
-      const result = await transform.execute('/complex.md');
+      const result = await transform.execute(`${projectRoot}/complex.md`);
 
       // Get object hash from transform log
       const logPath = path.join(

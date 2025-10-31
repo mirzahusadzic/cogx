@@ -30,6 +30,7 @@ import {
   DocumentClassifier,
   DocumentType,
 } from '../analyzers/document-classifier.js';
+import { getTransparencyLog } from '../security/transparency-log.js';
 import chalk from 'chalk';
 
 /**
@@ -228,6 +229,15 @@ export class GenesisDocTransform {
       objectHash,
       embeddedConcepts
     );
+
+    // 15. TRANSPARENCY: Log mission document load to audit trail
+    const transparencyLog = getTransparencyLog(this.projectRoot);
+    await transparencyLog.logMissionLoad({
+      title: ast.metadata.title || basename(filePath),
+      source: relativePath,
+      concepts: embeddedConcepts || [],
+      hash: hash,
+    });
 
     return {
       transformId,
