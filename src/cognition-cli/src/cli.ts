@@ -128,6 +128,7 @@ import { addConceptsCommands } from './commands/concepts.js';
 import { wizardCommand } from './commands/wizard.js';
 import { latticeCommand, showOverlaysCommand } from './commands/lattice.js';
 import { showMandate } from './commands/security/mandate.js';
+import { askCommand } from './commands/ask.js';
 // Sugar commands (convenience wrappers around lattice algebra)
 import {
   securityAttacksCommand,
@@ -159,6 +160,31 @@ program
     process.cwd()
   )
   .action(wizardCommand);
+
+program
+  .command('ask <question>')
+  .description(
+    '🤔 Ask questions about the manual and get AI-synthesized answers'
+  )
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option(
+    '-w, --workbench <url>',
+    'URL of the egemma workbench',
+    'http://localhost:8000'
+  )
+  .option('--top-k <number>', 'Number of similar concepts to retrieve', '5')
+  .option('--save', 'Save Q&A as markdown document', false)
+  .option('--verbose', 'Show detailed processing steps', false)
+  .action((question, options) => {
+    askCommand(question, {
+      ...options,
+      topK: parseInt(options.topK),
+    });
+  });
 
 program.addCommand(overlayCommand);
 program.addCommand(blastRadiusCommand);

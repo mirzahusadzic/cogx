@@ -1,7 +1,7 @@
 export const DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 // Model names
-export const DEFAULT_SLM_MODEL_NAME = 'gemini-2.5-flash';
+export const DEFAULT_SLM_MODEL_NAME = 'gemini-2.5-flash'; // Use Gemini Flash
 export const DEFAULT_OPSEC_MODEL_NAME = 'gemini-2.0-flash-thinking-exp-01-21'; // Use Pro/Thinking for more reliable security validation
 export const DEFAULT_OPSEC_ENABLED = true; // Enable LLM security filtering by default
 export const DEFAULT_EMBEDDING_MODEL_NAME = 'google/embeddinggemma-300m';
@@ -17,6 +17,8 @@ export const PERSONA_SECURITY_VALIDATOR = 'security_validator'; // For strategic
 export const PERSONA_OPERATIONAL_VALIDATOR = 'operational_validator'; // For operational document validation
 export const PERSONA_SECURITY_META_VALIDATOR = 'security_meta_validator'; // For security document validation
 export const PERSONA_MATHEMATICAL_VALIDATOR = 'mathematical_validator'; // For mathematical document validation
+export const PERSONA_QUERY_ANALYST = 'query_analyst'; // For Q&A query deconstruction
+export const PERSONA_KNOWLEDGE_ASSISTANT = 'knowledge_assistant'; // For Q&A answer synthesis
 
 // Rate limiting
 export const SUMMARIZE_RATE_LIMIT_SECONDS = 60;

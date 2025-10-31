@@ -433,6 +433,24 @@ export class MissionConceptsManager
   }
 
   /**
+   * Get all concepts across all overlays (no merging, preserves embeddings)
+   * Used for semantic similarity search in Q&A
+   */
+  async getAllConcepts(): Promise<MissionConcept[]> {
+    const hashes = await this.list();
+    const allConcepts: MissionConcept[] = [];
+
+    for (const hash of hashes) {
+      const overlay = await this.retrieve(hash);
+      if (overlay) {
+        allConcepts.push(...overlay.extracted_concepts);
+      }
+    }
+
+    return allConcepts;
+  }
+
+  /**
    * Get top N concepts across all overlays (global mission concepts)
    */
   async getTopConcepts(topN: number = 50): Promise<MissionConcept[]> {

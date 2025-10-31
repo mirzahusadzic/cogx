@@ -102,8 +102,8 @@ O₁ Structural Patterns Overlay
     │            │
     ▼            ▼
 ┌────────────────────────┐
-│   LanceDB Vector Store  │
-│   768-dimensional ANN   │
+│   LanceDB Vector Store │
+│   768-dimensional ANN  │
 └────────────────────────┘
 ```
 
