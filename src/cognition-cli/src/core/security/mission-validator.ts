@@ -20,6 +20,7 @@ import {
   PERSONA_OPERATIONAL_VALIDATOR,
   PERSONA_SECURITY_META_VALIDATOR,
   PERSONA_MATHEMATICAL_VALIDATOR,
+  DEFAULT_MAX_OUTPUT_TOKENS,
 } from '../../config.js';
 
 /**
@@ -251,7 +252,7 @@ export class MissionValidator {
       persona,
       model_name: this.config.contentFiltering.llmFilter.model,
       enable_safety: true, // Enable Gemini safety settings
-      max_tokens: 2000, // Allow sufficient tokens for detailed validation
+      max_tokens: DEFAULT_MAX_OUTPUT_TOKENS,
     });
 
     // Parse structured response from validator persona

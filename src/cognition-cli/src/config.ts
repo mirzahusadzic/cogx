@@ -6,6 +6,9 @@ export const DEFAULT_OPSEC_MODEL_NAME = 'gemini-2.0-flash-thinking-exp-01-21'; /
 export const DEFAULT_OPSEC_ENABLED = true; // Enable LLM security filtering by default
 export const DEFAULT_EMBEDDING_MODEL_NAME = 'google/embeddinggemma-300m';
 
+// Token limits
+export const DEFAULT_MAX_OUTPUT_TOKENS = 8192; // Max output tokens for LLM responses (increased for large documents)
+
 // Persona names (user-controlled, provisional)
 // These are defaults that connect to workbench personas
 export const PERSONA_AST_ANALYST = 'ast_analyst'; // For SLM-based structural extraction

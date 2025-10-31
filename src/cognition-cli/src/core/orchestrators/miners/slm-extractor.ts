@@ -8,6 +8,7 @@ import type {
 import {
   DEFAULT_SLM_MODEL_NAME,
   PERSONA_AST_ANALYST,
+  DEFAULT_MAX_OUTPUT_TOKENS,
 } from '../../../config.js';
 
 /**
@@ -25,7 +26,7 @@ export class SLMExtractor {
       filename: file.name,
       persona: PERSONA_AST_ANALYST,
       model_name: DEFAULT_SLM_MODEL_NAME,
-      max_tokens: 2000,
+      max_tokens: DEFAULT_MAX_OUTPUT_TOKENS,
       temperature: 0.1,
     });
 
