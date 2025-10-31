@@ -14,6 +14,7 @@ This release represents the **complete implementation** of the 7-overlay cogniti
 ### Major Features
 
 #### 1. Lattice Algebra System
+
 - **ASCII query syntax** for Boolean operations across overlays
   - Set operations: `O1 ∩ O2` (intersection), `O1 ∪ O2` (union), `O1 - O2` (difference)
   - Tag filtering: `O2[critical]`, `O4[mission-alignment]`
@@ -24,6 +25,7 @@ This release represents the **complete implementation** of the 7-overlay cogniti
 - **Query parser** with full lattice operation support
 
 #### 2. Phase 2 Multi-Overlay Document Routing
+
 - **Intelligent document classification** using confidence thresholds
   - Strategic documents → O₄ Mission Concepts
   - Security documents → O₂ Security Guidelines
@@ -33,6 +35,7 @@ This release represents the **complete implementation** of the 7-overlay cogniti
 - **Content-addressable storage** with provenance tracking
 
 #### 3. Complete 7-Overlay System
+
 - **O₁ Structure**: Code artifacts and AST patterns
 - **O₂ Security**: Threat models, CVEs, mitigations (NEW: full CLI support)
 - **O₃ Lineage**: Dependency tracking and blast radius
@@ -43,7 +46,9 @@ This release represents the **complete implementation** of the 7-overlay cogniti
 - **Sugar commands** for intuitive access to each overlay
 
 #### 4. Foundation Manual (900+ pages)
+
 Eight comprehensive chapters documenting the complete system:
+
 - **Chapter 4.5**: Core Security - protecting the lattice
 - **Chapter 5**: O₁ Structure - code artifacts
 - **Chapter 6**: Security implementation details
@@ -55,6 +60,7 @@ Eight comprehensive chapters documenting the complete system:
 - **Chapter 20**: cPOW Reference Manual - cryptographic proof of work
 
 #### 5. O₂ Security Layer
+
 - **Security commands**: `security list`, `security query`, `security cves`
 - **Lattice algebra integration**: `O2[critical]`, `O2 - O1` (coverage gaps)
 - **THREAT_MODEL.md**: 20 real security threats for cognition-cli
@@ -68,11 +74,13 @@ Eight comprehensive chapters documenting the complete system:
 - **Dual-use acknowledgment system**: Minimal security bootstrap
 
 #### 6. Performance Optimizations
+
 - **Eliminate double embedding**: Reuse embeddings from mission validation
 - **Core bottleneck fixes**: Faster overlay generation
 - **Improved wizard performance**: Better progress indicators
 
 #### 7. Enhanced Wizard
+
 - **Generate all 7 overlays** in one command
 - **Ingest overlay template docs** from `docs/overlays/`
 - **Better UX**: Improved prompts and progress tracking
@@ -81,6 +89,7 @@ Eight comprehensive chapters documenting the complete system:
 ### Added
 
 #### Commands
+
 - `lattice <query>` - Execute Boolean algebra operations across overlays
 - `overlays` - Show available overlays and their data status
 - `security list` - List all security knowledge in O₂ overlay
@@ -101,6 +110,7 @@ Eight comprehensive chapters documenting the complete system:
 - `concepts search <term>` - Search mission concepts
 
 #### Features
+
 - **Recursive section processing** in SecurityExtractor for nested markdown
 - **Multi-field structured threat parsing** (Threat/Severity/Attack/Impact/Mitigation)
 - **Mission alignment headers** on security classes (MissionValidator, etc.)
@@ -110,12 +120,14 @@ Eight comprehensive chapters documenting the complete system:
 - **Lattice algebra guide** with quest-oriented commands
 
 ### Changed
+
 - **VISION.md relocated** to `docs/overlays/O4_mission/` (rightful home)
 - **Coherence report** with accurate drift calculation
 - **Algebra-based coherence** integrated into main coherence command
 - **Wizard PGC exists prompt** improved with clear options
 
 ### Fixed
+
 - **SecurityExtractor** now handles nested markdown sections (extracted 0 → 20 guidelines)
 - **TypeScript linter errors** resolved across codebase
 - **Wizard template docs** ingestion from correct path
@@ -123,12 +135,14 @@ Eight comprehensive chapters documenting the complete system:
 - **Metadata rendering** in foundation manual chapters
 
 ### Security
+
 - **Minimal dual-use acknowledgment** on first run
 - **Mission alignment tracking** for security classes
 - **Threat model documentation** with 20 real security threats
 - **Transparency logging** for all security operations
 
 ### Documentation
+
 - 8 new foundation manual chapters (900+ pages)
 - Comprehensive lattice algebra guide
 - Complete testing guide
@@ -137,6 +151,7 @@ Eight comprehensive chapters documenting the complete system:
 - Security mandate documentation
 
 ### Performance
+
 - Core bottleneck optimizations
 - Eliminated double embedding (validation + overlay generation)
 - Faster wizard execution
