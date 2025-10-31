@@ -55,11 +55,8 @@ export class WorkbenchClient {
 
   constructor(private baseUrl: string) {
     this.apiKey = process.env.WORKBENCH_API_KEY || '';
-    if (!this.apiKey) {
-      console.warn(
-        'WORKBENCH_API_KEY not set. This is required for production.'
-      );
-    }
+    // Note: API key warning is deferred until first actual API call
+    // Read-only commands don't need workbench access
   }
 
   public getBaseUrl(): string {
@@ -67,6 +64,11 @@ export class WorkbenchClient {
   }
 
   async health() {
+    if (!this.apiKey) {
+      console.warn(
+        'WORKBENCH_API_KEY not set. This is required for workbench API calls.'
+      );
+    }
     const response = await fetch(`${this.baseUrl}/health`);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${await response.text()}`);
@@ -75,6 +77,11 @@ export class WorkbenchClient {
   }
 
   async summarize(request: SummarizeRequest): Promise<SummarizeResponse> {
+    if (!this.apiKey) {
+      throw new Error(
+        'WORKBENCH_API_KEY not set. This is required for summarization.'
+      );
+    }
     return new Promise((resolve, reject) => {
       this.summarizeQueue.push({ request, resolve, reject });
       this.processSummarizeQueue();
@@ -82,6 +89,11 @@ export class WorkbenchClient {
   }
 
   async embed(request: EmbedRequest): Promise<EmbedResponse> {
+    if (!this.apiKey) {
+      throw new Error(
+        'WORKBENCH_API_KEY not set. This is required for embedding.'
+      );
+    }
     return new Promise((resolve, reject) => {
       this.embedQueue.push({ request, resolve, reject });
       this.processEmbedQueue();
@@ -254,6 +266,11 @@ export class WorkbenchClient {
   }
 
   async parseAST(request: ASTParseRequest): Promise<StructuralData> {
+    if (!this.apiKey) {
+      throw new Error(
+        'WORKBENCH_API_KEY not set. This is required for AST parsing.'
+      );
+    }
     const formData = new FormData();
     const fileBuffer = Buffer.from(request.content);
 
