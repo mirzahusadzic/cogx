@@ -788,7 +788,7 @@ cognition-cli security export-audit-log --format json --output audit.json
 - [Multi-Overlay Architecture](MULTI_OVERLAY_ARCHITECTURE.md) - Overview of 7-layer system
 - [Chapter 6: O₂ Security Overlay](../manual/part-2-seven-layers/06-o2-security.md) - Application security knowledge
 - [Chapter 12: Boolean Operations](../manual/part-3-algebra/12-boolean-operations.md) - Query algebra (includes O₂)
-- [Genesis Command](../manual/part-5-cpow-loop/18-operational-flow.md) - Where validation integrates
+- Genesis Command - Where validation integrates (see manual)
 
 ---
 

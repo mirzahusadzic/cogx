@@ -2237,7 +2237,7 @@ Measured on:
 
 ## Next Chapter
 
-**[Chapter 21: Advanced Quest Patterns →](./21-advanced-patterns.md)**
+**Chapter 21: Advanced Quest Patterns** (coming soon)
 
 Learn advanced quest patterns, optimization strategies, and production deployment techniques.
 

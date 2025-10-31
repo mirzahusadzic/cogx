@@ -83,8 +83,8 @@ O₁ Structural Patterns Overlay
 
 ```
 ┌─────────────────────────────────────────────────┐
-│         StructuralPatternsManager                │
-│   Coordinates extraction and storage             │
+│         StructuralPatternsManager               │
+│   Coordinates extraction and storage            │
 └──────────┬──────────────────────────────────────┘
            │
     ┌──────┴──────┐
@@ -292,7 +292,7 @@ role: service
 
 **Stability**: Doesn't change when implementation logic changes (only when signature changes)
 
-**Searchability**: Enables queries like "find functions that take `userId: string` and return `Promise<User>`"
+**Searchability**: Enables queries like "find functions that take `userId: string` and return `Promise\<User\>`"
 
 **Embeddability**: Compact text representation suitable for vector embedding (768 dimensions via eGemma)
 
@@ -310,7 +310,7 @@ O₁ supports **dual embeddings** for richer semantic search: the structural "bo
 
 **Use Case**: Structural search
 
-**Example Query**: "Find all functions that take `userId: string` and return `Promise<User>`"
+**Example Query**: "Find all functions that take `userId: string` and return `Promise\<User\>`"
 
 **Result**:
 
@@ -378,7 +378,7 @@ role: service (authentication)
 
 **Query Behavior**:
 
-- Structural query ("function that takes two strings and returns Promise<AuthToken>") → matches body
+- Structural query ("function that takes two strings and returns Promise\<AuthToken\>") → matches body
 - Semantic query ("authentication function") → matches shadow
 
 ---

@@ -5,6 +5,145 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.5] - 2025-10-31
+
+### 🎉 Complete 7-Overlay Lattice System - "The Foundation Manual"
+
+This release represents the **complete implementation** of the 7-overlay cognitive lattice architecture with comprehensive documentation, algebra operations, and security hardening. **35 commits** spanning lattice algebra, multi-overlay routing, complete overlay support, 8 new manual chapters, and security enhancements.
+
+### Major Features
+
+#### 1. Lattice Algebra System
+- **ASCII query syntax** for Boolean operations across overlays
+  - Set operations: `O1 ∩ O2` (intersection), `O1 ∪ O2` (union), `O1 - O2` (difference)
+  - Tag filtering: `O2[critical]`, `O4[mission-alignment]`
+  - Concept search: `O4 ~ "verification"` (semantic similarity)
+  - Coherence queries: `O7[coherence>0.8]`
+- **Complete OverlayAlgebra implementation** for all 7 overlays (O₁-O₇)
+- **OverlayRegistry** for dynamic overlay discovery and composition
+- **Query parser** with full lattice operation support
+
+#### 2. Phase 2 Multi-Overlay Document Routing
+- **Intelligent document classification** using confidence thresholds
+  - Strategic documents → O₄ Mission Concepts
+  - Security documents → O₂ Security Guidelines
+  - Operational documents → O₅ Operational Patterns
+  - Mathematical documents → O₆ Mathematical Proofs
+- **Automatic overlay generation** based on document type
+- **Content-addressable storage** with provenance tracking
+
+#### 3. Complete 7-Overlay System
+- **O₁ Structure**: Code artifacts and AST patterns
+- **O₂ Security**: Threat models, CVEs, mitigations (NEW: full CLI support)
+- **O₃ Lineage**: Dependency tracking and blast radius
+- **O₄ Mission**: Strategic concepts and principles
+- **O₅ Operational**: Workflow patterns and quests
+- **O₆ Mathematical**: Formal proofs and theorems
+- **O₇ Coherence**: Cross-layer synthesis and drift detection
+- **Sugar commands** for intuitive access to each overlay
+
+#### 4. Foundation Manual (900+ pages)
+Eight comprehensive chapters documenting the complete system:
+- **Chapter 4.5**: Core Security - protecting the lattice
+- **Chapter 5**: O₁ Structure - code artifacts
+- **Chapter 6**: Security implementation details
+- **Chapter 7**: O₃ Lineage - dependency tracking
+- **Chapter 8**: O₄ Mission - strategic concepts
+- **Chapter 9**: O₅ Operational - workflow guidance
+- **Chapter 10**: O₆ Mathematical - formal properties
+- **Chapter 11**: O₇ Coherence - cross-layer synthesis
+- **Chapter 20**: cPOW Reference Manual - cryptographic proof of work
+
+#### 5. O₂ Security Layer
+- **Security commands**: `security list`, `security query`, `security cves`
+- **Lattice algebra integration**: `O2[critical]`, `O2 - O1` (coverage gaps)
+- **THREAT_MODEL.md**: 20 real security threats for cognition-cli
+  - Mission Document Poisoning (CRITICAL)
+  - Command Injection (CRITICAL)
+  - PGC Data Tampering (CRITICAL)
+  - Path Traversal (HIGH)
+  - API Key Exposure (MEDIUM)
+- **Security coherence metrics**: Dynamic mission alignment tracking
+- **SecurityExtractor**: Multi-field structured threat parsing
+- **Dual-use acknowledgment system**: Minimal security bootstrap
+
+#### 6. Performance Optimizations
+- **Eliminate double embedding**: Reuse embeddings from mission validation
+- **Core bottleneck fixes**: Faster overlay generation
+- **Improved wizard performance**: Better progress indicators
+
+#### 7. Enhanced Wizard
+- **Generate all 7 overlays** in one command
+- **Ingest overlay template docs** from `docs/overlays/`
+- **Better UX**: Improved prompts and progress tracking
+- **Storage measurements**: Accurate PGC size reporting
+
+### Added
+
+#### Commands
+- `lattice <query>` - Execute Boolean algebra operations across overlays
+- `overlays` - Show available overlays and their data status
+- `security list` - List all security knowledge in O₂ overlay
+- `security query <term>` - Search security knowledge by text
+- `security cves` - List tracked CVEs
+- `security attacks` - Show attack vectors conflicting with mission
+- `security coverage-gaps` - Show code without security coverage
+- `security boundaries` - Show security boundaries and constraints
+- `security coherence` - Show security implementation alignment
+- `security mandate` - Display the Dual-Use Technology Mandate
+- `workflow patterns` - Show workflow patterns
+- `workflow quests` - Show quest structures
+- `workflow depth-rules` - Show depth rules
+- `proofs theorems` - Show all theorems
+- `proofs lemmas` - Show all lemmas
+- `proofs list` - Show all mathematical statements
+- `proofs aligned` - Show proofs aligned with mission
+- `concepts search <term>` - Search mission concepts
+
+#### Features
+- **Recursive section processing** in SecurityExtractor for nested markdown
+- **Multi-field structured threat parsing** (Threat/Severity/Attack/Impact/Mitigation)
+- **Mission alignment headers** on security classes (MissionValidator, etc.)
+- **PGC explanation headers** in init/status commands
+- **Workbench API key warning** deferred until actual use (no spurious warnings)
+- **Comprehensive testing guide** (docs/TESTING.md)
+- **Lattice algebra guide** with quest-oriented commands
+
+### Changed
+- **VISION.md relocated** to `docs/overlays/O4_mission/` (rightful home)
+- **Coherence report** with accurate drift calculation
+- **Algebra-based coherence** integrated into main coherence command
+- **Wizard PGC exists prompt** improved with clear options
+
+### Fixed
+- **SecurityExtractor** now handles nested markdown sections (extracted 0 → 20 guidelines)
+- **TypeScript linter errors** resolved across codebase
+- **Wizard template docs** ingestion from correct path
+- **TOC anchor** for section 10 in Chapter 4.5
+- **Metadata rendering** in foundation manual chapters
+
+### Security
+- **Minimal dual-use acknowledgment** on first run
+- **Mission alignment tracking** for security classes
+- **Threat model documentation** with 20 real security threats
+- **Transparency logging** for all security operations
+
+### Documentation
+- 8 new foundation manual chapters (900+ pages)
+- Comprehensive lattice algebra guide
+- Complete testing guide
+- cPOW reference manual
+- Quest-oriented command workflows
+- Security mandate documentation
+
+### Performance
+- Core bottleneck optimizations
+- Eliminated double embedding (validation + overlay generation)
+- Faster wizard execution
+- Improved progress indicators
+
+---
+
 ## [1.6.0] - 2025-10-28
 
 ### 🎉 The Shadow + Monument 5.1 - "Lattice-aware Gaussian Weighting"

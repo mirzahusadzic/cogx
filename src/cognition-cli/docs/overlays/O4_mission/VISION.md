@@ -316,8 +316,8 @@ Verifiable, persistent, content-addressable human memory
 
 **Vision & Architecture:**
 
-- **[Cognitive Prosthetics](./src/cognition-cli/docs/COGNITIVE_PROSTHETICS.md)** - Memory healing through verifiable architecture
-- **[Neural-Memory Protocol](./src/cognition-cli/docs/NEURAL_MEMORY_PROTOCOL.md)** - BCI abstraction layer specification
+- **[Cognitive Prosthetics](../../COGNITIVE_PROSTHETICS.md)** - Memory healing through verifiable architecture
+- **[Neural-Memory Protocol](../../NEURAL_MEMORY_PROTOCOL.md)** - BCI abstraction layer specification
 
 ### Timeline
 
@@ -359,7 +359,7 @@ That's the full vision. That's why the lattice had to be open. 💚
 
 ### License & Patents
 
-- **Code License**: AGPLv3 (copyleft - see [README.md](./README.md#why-agplv3) for rationale)
+- **Code License**: AGPLv3 (copyleft - see README for rationale)
 - **Patents**: None filed, defensive publication via Zenodo DOI
 - **Prior Art**: Established October 2025, freely implementable by all
 - **Medical Use**: Special licensing available for humanitarian/medical applications requiring regulatory compliance

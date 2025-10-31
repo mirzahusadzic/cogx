@@ -1007,7 +1007,7 @@ cognition-cli lattice "O2[severity=critical] | avg(weight)"
 - `src/core/algebra/overlay-registry.ts` — Registry
 - `src/commands/lattice.ts` — CLI
 
-**Next Chapter**: [Chapter 13: Query Syntax and Parser](13-query-syntax.md) (deep dive on parser internals)
+**Next Chapter**: Chapter 13: Query Syntax and Parser (coming soon)
 
 **Previous Chapter**: [Chapter 11: O₇ Coherence](../part-2-seven-layers/11-o7-coherence.md)
 

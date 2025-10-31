@@ -520,7 +520,6 @@ Automatically updates overlays as you code.
 
 ## Next Steps
 
-- 📖 Read [Overlay Architecture](./OVERLAYS.md)
-- 🎯 Learn [Quest Workflows](./QUESTS.md)
-- 🛠️ Explore [.claude/commands](../.claude/commands/)
-- 📊 Check [Testing Guide](../TESTING.md)
+- 📖 Read [Overlay Architecture](./overlays/README.md)
+- 🎯 Learn [Quest Workflows](./manual/part-2-seven-layers/09-o5-operational.md)
+- 📊 Check [Testing Guide](./06_Testing_and_Deployment.md)
