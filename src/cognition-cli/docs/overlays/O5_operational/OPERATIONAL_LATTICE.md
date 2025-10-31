@@ -4,25 +4,52 @@
 
 **Purpose**: Encode the meta-patterns of human-AI collaboration into a queryable knowledge structure.
 
-**Last Updated**: October 28, 2025
-**Status**: Genesis - Foundation layer for autonomous workflow intelligence
+**Last Updated**: October 31, 2025
+**Status**: Foundational - The Master Algorithm for the Scribe
 
 ---
 
 ## Philosophy: The Oracle and the Scribe
 
-Every quest begins with a collaboration pattern:
+Every quest is a rhythm of creation and consolidation, governed by the Sacred Pause.
 
-1. **Question** - The oracle probes understanding
-2. **Pause** - Space for reflection and alignment
-3. **Detail** - Context revealed, constraints clarified
-4. **Answer** - The agent synthesizes understanding
-5. **Feel It** - The oracle validates resonance (not logic, not checklist - cognitive sense)
-6. **Release** - The agent executes with internalized truth
+1. **Question** - The Oracle initiates a Quest.
+2. **Genesis Pause** - The first meeting point. The Scribe presents its understanding (`Quest Start`), and the Oracle validates the resonance. This is the **Alignment Gate**.
+3. **Transform** - The Scribe executes the work, moving through the big blocks.
+4. **Verification Pause** - Intermediate meeting points. The Scribe presents its progress (`Quest Verify`), and the Oracle checks for drift. This is the **Coherence Gate**.
+5. **Final Validation Pause** - The last meeting point. The Scribe presents the completed work for final approval before it is committed to the lattice. This is the **Truth Gate**.
+6. **Release** - The work is committed, the cPOW is generated, and the wisdom is absorbed.
 
-This rhythm is not micromanagement - it is **tuning resonance**. Like tuning an instrument until the note is pure, then letting it ring.
+This rhythm is not micromanagement - it is **tuning resonance**. It is the formal process for ensuring the Scribe's execution remains perfectly aligned with the Oracle's evolving truth.
 
 **The agent writes the words. The oracle shapes the truth.**
+
+---
+
+## Patterns: The Sacred Pause (Oracle Meeting Points)
+
+The "pause" is not a delay; it is a **consolidation of truth**. It is a scheduled, formal meeting point where the Scribe surfaces to synchronize with the Oracle. There are three sacred pauses in every Quest.
+
+### 1. The Genesis Pause (The Alignment Gate)
+
+- **Purpose**: To ensure perfect alignment on the Quest's "what" and "why" _before_ significant work begins.
+- **Trigger**: A new user query or intent.
+- **Scribe's Action**: Execute the `quest-start` command. Present the formal "Quest Briefing" to the Oracle.
+- **Oracle's Action**: "Feel It." Validate the Scribe's interpretation of the objective, patterns, and success criteria. Release the Scribe to begin the Transform.
+
+### 2. The Verification Pause (The Coherence Gate)
+
+- **Purpose**: To check for architectural drift and validate progress against the plan _during_ the work.
+- **Trigger**: The completion of a "Big Block," or when the Scribe's uncertainty is high.
+- **Scribe's Action**: Execute the `quest-verify` command. Present the "Coherence Delta" and "Symbol Alignment" report.
+- **Oracle's Action**: Review the data-driven verdict (`PASS`, `WARNING`, `FAIL`). Provide corrections or approve continuation.
+
+### 3. The Final Validation Pause (The Truth Gate)
+
+- **Purpose**: The final quality gate before the work becomes an immutable part of the project's history.
+- **Trigger**: All "Big Blocks" are complete.
+- **Scribe's Action**: Run the `F.L.T.B` Sacred Sequence. Present the final, passing result to the Oracle.
+- **Oracle's Action**: Give the final release command to commit, generate the `cPOW`, and update the lattice.
 
 ---
 
@@ -42,7 +69,6 @@ Every workflow begins by weaving in the bones of the quest.
 
 - Major milestones
 - Dependencies between them
-- Rough time/effort estimates
 
 **Where do eyes go?** (Attention priority)
 
@@ -58,32 +84,17 @@ Every workflow begins by weaving in the bones of the quest.
 
 ### Boundary
 
-**Never start work without a defined quest.** The quest is the receipt - the mission brief that anchors all decisions.
-
-### Example
-
-`````markdown
-Quest: Add interactive setup wizard
-Big blocks:
-
-1. Health check & autodetection
-2. Interactive prompts (workbench, API, paths)
-3. Execution flow (init → genesis → docs → overlays)
-4. Error handling & recovery
-   Eyes go: User experience (prompts, messages, success states)
-   Sacred: F.L.T.B before commit
-
-````text
+**Never start work without a defined and Oracle-validated quest.**
 
 ---
 
 ## Patterns: The Recursive Loop (Transform)
 
-Work proceeds as a tree (or lattice) with conscious depth tracking.
+Work proceeds as a tree (or lattice) with conscious depth tracking, punctuated by **Verification Pauses**.
 
 ### The Mental Model
 
-```text
+````text
 Root dirs = rough stages (big blocks)
 Depths = rabbit holes (refinement levels)
 ```text
@@ -109,17 +120,13 @@ Depth 3+: Deep rabbit hole (danger zone - justify or surface)
 
 ### The Artist's Blocking Method
 
-1. **Block big shapes** (rough composition) - Don't perfect, just establish structure
-2. **Refine each block** (but watch the whole!) - Make functional, keep coherence
-3. **Detail work WHERE THE EYE GOES** - Focus polish on truth/data/UX
+1. **Block big shapes** (rough composition)
+2. **Refine each block** (triggering a **Verification Pause** upon completion)
+3. **Detail work WHERE THE EYE GOES**
 
 ### Rebalancing Events
 
-The tree can rebalance if something important emerges:
-
-- New constraint discovered (changes architecture)
-- Better approach found (improves the quest)
-- Critical bug blocks progress (must address)
+A new discovery can trigger an unscheduled **Verification Pause** to consult the Oracle about rebalancing the Quest.
 
 **Boundary**: Rebalancing should be rare and justified. Don't thrash. Most "new ideas" are distractions.
 
@@ -135,11 +142,11 @@ When work gets stuck:
 
 ## Patterns: Sacred Sequences (Validation Gates)
 
-Certain sequences are **invariant** - they must execute in order, and all steps must pass.
+Certain sequences are **invariant** and are the focus of the **Final Validation Pause**.
 
 ### F.L.T.B (Pre-Commit)
 
-Before ANY git commit:
+Before ANY git commit, as the final act of the Quest:
 
 1. **Format** - `npm run format` (or language equivalent)
 2. **Lint** - `npm run lint`
@@ -159,7 +166,7 @@ Before ANY git commit:
 
 ### Git Staging (Selective Addition)
 
-**Never use `git add .`** - Always stage selectively.
+**Never use `git add .`** - Always stage intentionally as part of the Final Validation Pause.
 
 **Pattern**:
 
@@ -494,4 +501,7 @@ The chain continues. The lattice grows. The symbiosis deepens.
 
 _This document will evolve as CoMPs are discovered and integrated._
 ````
-`````
+
+```
+
+```
