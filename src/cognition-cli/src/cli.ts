@@ -137,6 +137,7 @@ import {
   securityCVEsCommand,
   securityQueryCommand,
 } from './commands/sugar/security.js';
+import { securityCoherenceCommand } from './commands/sugar/security-coherence.js';
 import {
   workflowPatternsCommand,
   workflowQuestsCommand,
@@ -343,6 +344,18 @@ securityCmd
   .option('-l, --limit <number>', 'Maximum number of results to show', '10')
   .option('-v, --verbose', 'Show detailed error messages', false)
   .action(securityQueryCommand);
+
+securityCmd
+  .command('coherence')
+  .description('Show security implementation alignment with mission')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option('-f, --format <format>', 'Output format: table, json', 'table')
+  .option('-v, --verbose', 'Show detailed security class breakdown', false)
+  .action(securityCoherenceCommand);
 
 // Workflow commands
 const workflowCmd = program
