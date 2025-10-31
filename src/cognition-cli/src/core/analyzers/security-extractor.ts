@@ -32,12 +32,24 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
   extract(doc: MarkdownDocument): SecurityKnowledge[] {
     const knowledge: SecurityKnowledge[] = [];
 
-    // Extract from each section
-    doc.sections.forEach((section, index) => {
-      knowledge.push(
-        ...this.extractFromSection(section, index, doc.sections.length)
-      );
-    });
+    // Extract from each section (recursively process nested sections)
+    const extractRecursively = (sections: MarkdownSection[]) => {
+      sections.forEach((section, index) => {
+        const extracted = this.extractFromSection(
+          section,
+          index,
+          sections.length
+        );
+        knowledge.push(...extracted);
+
+        // Recursively process child sections
+        if (section.children && section.children.length > 0) {
+          extractRecursively(section.children);
+        }
+      });
+    };
+
+    extractRecursively(doc.sections);
 
     return knowledge;
   }
@@ -70,37 +82,33 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
     // Position weight
     const positionWeight = 1.0 - (sectionIndex / totalSections) * 0.4;
 
-    // 1. Extract threat models
-    if (this.isThreatModelSection(section.heading)) {
-      const threats = this.extractThreats(content);
-      threats.forEach((threat) => {
-        knowledge.push({
-          ...threat,
-          section: section.heading,
-          sectionHash: section.structuralHash,
-          weight: positionWeight * 1.0, // Highest - critical knowledge
-          occurrences: 1,
-          securityType: 'threat_model',
-        });
+    // 1. Extract threat models from ALL sections (threats can appear anywhere)
+    const threats = this.extractThreats(content);
+    threats.forEach((threat) => {
+      knowledge.push({
+        ...threat,
+        section: section.heading,
+        sectionHash: section.structuralHash,
+        weight: positionWeight * 1.0, // Highest - critical knowledge
+        occurrences: 1,
+        securityType: 'threat_model',
       });
-    }
+    });
 
-    // 2. Extract attack vectors
-    if (this.isAttackVectorSection(section.heading)) {
-      const attacks = this.extractAttackVectors(content);
-      attacks.forEach((attack) => {
-        knowledge.push({
-          ...attack,
-          section: section.heading,
-          sectionHash: section.structuralHash,
-          weight: positionWeight * 0.95,
-          occurrences: 1,
-          securityType: 'attack_vector',
-        });
+    // 2. Extract attack vectors from ALL sections
+    const attacks = this.extractAttackVectors(content);
+    attacks.forEach((attack) => {
+      knowledge.push({
+        ...attack,
+        section: section.heading,
+        sectionHash: section.structuralHash,
+        weight: positionWeight * 0.95,
+        occurrences: 1,
+        securityType: 'attack_vector',
       });
-    }
+    });
 
-    // 3. Extract mitigations
+    // 3. Extract mitigations from ALL sections
     const mitigations = this.extractMitigations(content);
     mitigations.forEach((mitigation) => {
       knowledge.push({
@@ -113,7 +121,7 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
       });
     });
 
-    // 4. Extract security boundaries
+    // 4. Extract security boundaries from ALL sections
     const boundaries = this.extractBoundaries(content);
     boundaries.forEach((boundary) => {
       knowledge.push({
@@ -126,7 +134,7 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
       });
     });
 
-    // 5. Extract vulnerabilities (CVEs)
+    // 5. Extract vulnerabilities (CVEs) from ALL sections
     const vulnerabilities = this.extractVulnerabilities(content);
     vulnerabilities.forEach((vuln) => {
       knowledge.push({
@@ -160,7 +168,8 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
 
   /**
    * Extract threat models
-   * Pattern: **Threat Name** — Description
+   * Pattern: **Threat Name** — Description (single-line format)
+   * Pattern: **Threat**: Value (multi-field structured format)
    */
   private extractThreats(content: string): Array<{
     text: string;
@@ -172,24 +181,135 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
     }> = [];
     const lines = content.split('\n');
 
-    for (const line of lines) {
-      const trimmed = line.trim();
+    // Track multi-field threat blocks
+    let currentThreat: {
+      name?: string;
+      severity?: string;
+      attackVector?: string;
+      impact?: string;
+      mitigation?: string[];
+    } | null = null;
 
-      // Match: **Threat Name** — Description
-      const threatMatch = trimmed.match(/^\*\*([^*]+)\*\*\s*[—-]\s*(.+)$/);
-      if (threatMatch) {
-        const name = threatMatch[1].trim();
-        const description = threatMatch[2].trim();
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+
+      // Match single-line format: **Threat Name** — Description
+      const singleLineThreatMatch = trimmed.match(
+        /^\*\*([^*]+)\*\*\s*[—-]\s*(.+)$/
+      );
+      if (singleLineThreatMatch) {
+        const name = singleLineThreatMatch[1].trim();
+        const description = singleLineThreatMatch[2].trim();
         const severity = this.inferSeverity(name + ' ' + description);
 
         threats.push({
           text: `${name}: ${description}`,
           severity,
         });
+        continue;
+      }
+
+      // Match multi-field structured format: **Threat**: Name
+      const threatFieldMatch = trimmed.match(/^\*\*Threat\*\*:\s*(.+)$/i);
+      if (threatFieldMatch) {
+        // Save previous threat if exists
+        if (currentThreat?.name) {
+          threats.push(this.formatStructuredThreat(currentThreat));
+        }
+
+        currentThreat = {
+          name: threatFieldMatch[1].trim(),
+          mitigation: [],
+        };
+        continue;
+      }
+
+      // Collect fields for current threat
+      if (currentThreat) {
+        const severityMatch = trimmed.match(/^\*\*Severity\*\*:\s*(.+)$/i);
+        if (severityMatch) {
+          currentThreat.severity = severityMatch[1].trim();
+          continue;
+        }
+
+        const attackVectorMatch = trimmed.match(
+          /^\*\*Attack Vector\*\*:\s*(.+)$/i
+        );
+        if (attackVectorMatch) {
+          currentThreat.attackVector = attackVectorMatch[1].trim();
+          continue;
+        }
+
+        const impactMatch = trimmed.match(/^\*\*Impact\*\*:\s*(.+)$/i);
+        if (impactMatch) {
+          currentThreat.impact = impactMatch[1].trim();
+          continue;
+        }
+
+        const mitigationHeaderMatch = trimmed.match(
+          /^\*\*Mitigation\*\*:\s*$/i
+        );
+        if (mitigationHeaderMatch) {
+          // Next lines are mitigation bullets
+          continue;
+        }
+
+        // Collect mitigation bullets
+        const mitigationBulletMatch = trimmed.match(/^[-*]\s+(.+)$/);
+        if (mitigationBulletMatch && currentThreat.mitigation) {
+          currentThreat.mitigation.push(mitigationBulletMatch[1].trim());
+          continue;
+        }
+
+        // Empty line or new section - end current threat
+        if (!trimmed || trimmed.startsWith('##')) {
+          if (currentThreat.name) {
+            threats.push(this.formatStructuredThreat(currentThreat));
+            currentThreat = null;
+          }
+        }
       }
     }
 
+    // Save last threat if exists
+    if (currentThreat?.name) {
+      threats.push(this.formatStructuredThreat(currentThreat));
+    }
+
     return threats;
+  }
+
+  /**
+   * Format structured threat into SecurityKnowledge format
+   */
+  private formatStructuredThreat(threat: {
+    name?: string;
+    severity?: string;
+    attackVector?: string;
+    impact?: string;
+    mitigation?: string[];
+  }): {
+    text: string;
+    severity?: 'critical' | 'high' | 'medium' | 'low';
+  } {
+    const parts: string[] = [threat.name || 'Unknown Threat'];
+
+    if (threat.attackVector) {
+      parts.push(`Attack: ${threat.attackVector}`);
+    }
+
+    if (threat.impact) {
+      parts.push(`Impact: ${threat.impact}`);
+    }
+
+    if (threat.mitigation && threat.mitigation.length > 0) {
+      parts.push(`Mitigations: ${threat.mitigation.join('; ')}`);
+    }
+
+    return {
+      text: parts.join(' | '),
+      severity: this.inferSeverity(threat.severity || ''),
+    };
   }
 
   /**
