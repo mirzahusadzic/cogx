@@ -444,13 +444,34 @@ export class DocumentClassifier {
 
   /**
    * Combine multiple signals using weighted voting
+   *
+   * PRAGMATIC RULE: Frontmatter is authoritative.
+   * If frontmatter provides a type with 1.0 confidence, use it directly.
+   * Otherwise, fall back to weighted voting.
    */
   private combineSignals(
     signals: ClassificationResult[]
   ): ClassificationResult {
-    // Group by type and sum confidence scores
-    const typeScores = new Map<DocumentType, number>();
     const allReasoning: string[] = [];
+
+    // Check for authoritative frontmatter signal (confidence = 1.0)
+    const frontmatterSignal = signals.find(
+      (s) =>
+        s.confidence === 1.0 &&
+        s.reasoning.some((r) => r.includes('Frontmatter type:'))
+    );
+
+    if (frontmatterSignal) {
+      // Frontmatter is authoritative - use it directly
+      return {
+        type: frontmatterSignal.type,
+        confidence: 1.0,
+        reasoning: signals.flatMap((s) => s.reasoning),
+      };
+    }
+
+    // Fallback: Group by type and sum confidence scores
+    const typeScores = new Map<DocumentType, number>();
 
     for (const signal of signals) {
       const current = typeScores.get(signal.type) || 0;

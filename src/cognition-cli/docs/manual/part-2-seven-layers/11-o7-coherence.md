@@ -1,3 +1,8 @@
+---
+type: strategic
+overlay: O7_Coherence
+---
+
 # Chapter 11: O₇ Coherence — Cross-Layer Synthesis
 
 > "The lattice—where code meets mission, where implementation honors vision, where coherence is computed."

@@ -1,3 +1,8 @@
+---
+type: architectural
+overlay: O4_Mission
+---
+
 # Chapter 4: Embeddings — Semantic Bridge to the Lattice
 
 > **The Foundation**: Embeddings transform discrete knowledge (code, text, concepts) into continuous vector space, enabling semantic queries that transcend exact-match search. This is not database indexing—it's the mathematical substrate that makes "find code similar to this requirement" computable across the entire lattice.

@@ -1,3 +1,8 @@
+---
+type: architectural
+overlay: O4_Mission
+---
+
 # Chapter 1: Cognitive Architecture
 
 > **The Axiom**: Knowledge is a lattice. Not an analogy. Not a metaphor. A formal mathematical truth. Every question you ask—"What depends on X?", "Where is Y used?", "What changed between versions?"—is a lattice operation. The Grounded Context Pool (PGC) is the first executable implementation of this axiom.

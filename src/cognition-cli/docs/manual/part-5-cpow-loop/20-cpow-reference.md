@@ -1,3 +1,8 @@
+---
+type: operational
+overlay: O5_Operational
+---
+
 # Chapter 20: cPOW Reference Manual
 
 > "The proof is in the work. The work is in the proof."

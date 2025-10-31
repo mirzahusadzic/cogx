@@ -1,3 +1,8 @@
+---
+type: security
+overlay: O2_Security
+---
+
 # Chapter 6: O₂ Security — Foundational Constraints
 
 > **The Axiom Applied**: Security knowledge forms a sublattice where threat models meet mitigations at precise points of alignment. This is not metaphor—it's the mathematical structure that makes "Which attacks violate our principles?" a computable query.

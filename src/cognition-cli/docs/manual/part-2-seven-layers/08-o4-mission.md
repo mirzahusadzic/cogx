@@ -1,3 +1,8 @@
+---
+type: strategic
+overlay: O4_Mission
+---
+
 # Chapter 8: O₄ Mission — Strategic Alignment
 
 > **The Axiom Applied**: Mission concepts form a sublattice where vision meets principles at points of coherent alignment. "Does this code serve our mission?" becomes a computable query—measuring semantic distance between implementation and intent.

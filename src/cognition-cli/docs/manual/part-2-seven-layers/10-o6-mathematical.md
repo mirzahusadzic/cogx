@@ -1,3 +1,8 @@
+---
+type: mathematical
+overlay: O6_Mathematical
+---
+
 # Chapter 10: O₆ Mathematical — Formal Properties
 
 > **The Axiom Applied**: Mathematical statements form a sublattice where theorems meet lemmas at points of logical implication. "Which theorems apply to this code?" becomes a computable query—navigating proof space via semantic embeddings.

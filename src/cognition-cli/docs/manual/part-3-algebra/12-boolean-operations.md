@@ -1,3 +1,8 @@
+---
+type: mathematical
+overlay: O6_Mathematical
+---
+
 # Chapter 12: Boolean Operations on Knowledge
 
 > **The Axiom Applied**: When you query "O2 ∧ O4" (security Meet mission), you're not searching—you're computing the greatest lower bound in a knowledge lattice. This is why compositional queries work. This is why overlays compose. This is why the algebra is complete.

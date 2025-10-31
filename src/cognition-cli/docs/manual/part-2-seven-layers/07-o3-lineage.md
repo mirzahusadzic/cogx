@@ -1,3 +1,8 @@
+---
+type: operational
+overlay: O3_Lineage
+---
+
 # Chapter 7: O₃ Lineage — Dependency Tracking
 
 > "The threads—dependency chains that weave through code, revealing how changes ripple across the lattice."

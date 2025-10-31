@@ -1,3 +1,8 @@
+---
+type: strategic
+overlay: O4_Mission
+---
+
 # THE LATTICE BOOK
 
 > **A Reference Manual for Cognitive Architecture with Verifiable Overlays**

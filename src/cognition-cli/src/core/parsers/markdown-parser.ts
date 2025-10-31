@@ -4,6 +4,7 @@ import { visit } from 'unist-util-visit';
 import { createHash } from 'crypto';
 import { readFile } from 'fs/promises';
 import { Root, Heading, Node, PhrasingContent } from 'mdast';
+import yaml from 'js-yaml';
 
 /**
  * Represents a hierarchical section extracted from a markdown document.
@@ -31,6 +32,9 @@ export interface MarkdownDocument {
     title?: string;
     author?: string;
     date?: string;
+    type?: string; // Document type from frontmatter
+    overlay?: string; // Target overlay from frontmatter
+    [key: string]: unknown; // Additional frontmatter fields
   };
   rawContent: string;
 }
@@ -75,6 +79,12 @@ export class MarkdownParser {
 
     // Extract metadata (first H1 as title, etc.)
     const metadata = this.extractMetadata(sections);
+
+    // Extract and merge frontmatter
+    const frontmatter = this.extractFrontmatter(content);
+    if (frontmatter) {
+      Object.assign(metadata, frontmatter);
+    }
 
     return {
       filePath,
@@ -251,13 +261,35 @@ export class MarkdownParser {
     title?: string;
     author?: string;
     date?: string;
+    [key: string]: unknown; // Allow additional frontmatter fields
   } {
     // Use first H1 as title
     const firstH1 = sections.find((s) => s.level === 1);
 
     return {
       title: firstH1?.heading,
-      // TODO: Extract from frontmatter if present
     };
+  }
+
+  /**
+   * Extract YAML frontmatter from markdown content
+   */
+  private extractFrontmatter(content: string): Record<string, unknown> | null {
+    // Match YAML frontmatter: ---\n...content...\n---
+    const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n/;
+    const match = content.match(frontmatterRegex);
+
+    if (!match) {
+      return null;
+    }
+
+    try {
+      const yamlContent = match[1];
+      const parsed = yaml.load(yamlContent);
+      return parsed as Record<string, unknown>;
+    } catch (err) {
+      console.warn('Failed to parse frontmatter:', err);
+      return null;
+    }
   }
 }

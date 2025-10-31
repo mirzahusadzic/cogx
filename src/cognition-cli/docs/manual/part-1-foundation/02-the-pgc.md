@@ -1,3 +1,8 @@
+---
+type: architectural
+overlay: O4_Mission
+---
+
 # Chapter 2: The PGC (Grounded Context Pool)
 
 > **The Axiom Applied**: The PGC is not a cache. It is the **persistent lattice substrate** where knowledge accumulates across time. Content-addressable like Git, structured like a database, queryable like an index. This is the executable implementation of "knowledge is stateful."

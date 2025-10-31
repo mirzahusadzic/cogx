@@ -1,3 +1,8 @@
+---
+type: operational
+overlay: O5_Operational
+---
+
 # Chapter 9: O₅ Operational — Workflow Guidance
 
 > **The Axiom Applied**: Operational knowledge forms a sublattice where quest structures meet depth rules at precise points of alignment. "Which workflows apply at Depth 2?" is a computable query—not a search through documentation.

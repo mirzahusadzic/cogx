@@ -1,3 +1,8 @@
+---
+type: architectural
+overlay: O1_Structure
+---
+
 # Chapter 5: O₁ Structure — Code Artifacts
 
 > "The skeleton of code—classes, functions, interfaces—the bones upon which all other overlays rest."

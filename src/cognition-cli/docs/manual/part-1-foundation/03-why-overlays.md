@@ -1,3 +1,8 @@
+---
+type: architectural
+overlay: O4_Mission
+---
+
 # Chapter 3: Why Overlays?
 
 > **The Axiom Applied**: Different knowledge types require different cognitive operations. Security patterns are not mission concepts. Workflow guidance is not formal proof. Overlays enforce **separation of concerns** at the knowledge level, enabling compositional queries that would be impossible in a flat structure.
