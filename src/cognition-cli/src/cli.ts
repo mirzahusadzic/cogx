@@ -133,6 +133,9 @@ import {
   securityAttacksCommand,
   securityCoverageGapsCommand,
   securityBoundariesCommand,
+  securityListCommand,
+  securityCVEsCommand,
+  securityQueryCommand,
 } from './commands/sugar/security.js';
 import {
   workflowPatternsCommand,
@@ -260,6 +263,86 @@ securityCmd
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
   .action(securityBoundariesCommand);
+
+// Direct O₂ overlay queries
+securityCmd
+  .command('list')
+  .description('List all security knowledge in O₂ overlay')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option(
+    '--type <type>',
+    'Filter by type (threat_model|attack_vector|mitigation|boundary|vulnerability)'
+  )
+  .option('--severity <level>', 'Filter by severity (critical|high|medium|low)')
+  .option(
+    '-f, --format <format>',
+    'Output format: table, json, summary',
+    'table'
+  )
+  .option('-l, --limit <number>', 'Maximum number of results to show', '50')
+  .option('-v, --verbose', 'Show detailed error messages', false)
+  .action(
+    (options: {
+      projectRoot: string;
+      type?: string;
+      severity?: string;
+      format?: string;
+      limit?: string;
+      verbose?: boolean;
+    }) => {
+      securityListCommand({
+        projectRoot: options.projectRoot,
+        type: options.type,
+        severity: options.severity as
+          | 'critical'
+          | 'high'
+          | 'medium'
+          | 'low'
+          | undefined,
+        format: options.format as 'table' | 'json' | 'summary' | undefined,
+        limit: options.limit ? parseInt(options.limit) : undefined,
+        verbose: options.verbose,
+      });
+    }
+  );
+
+securityCmd
+  .command('cves')
+  .description('List CVEs tracked in O₂ overlay')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option(
+    '-f, --format <format>',
+    'Output format: table, json, summary',
+    'table'
+  )
+  .option('-l, --limit <number>', 'Maximum number of results to show', '50')
+  .option('-v, --verbose', 'Show detailed error messages', false)
+  .action(securityCVEsCommand);
+
+securityCmd
+  .command('query <searchTerm>')
+  .description('Search security knowledge by text')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option(
+    '-f, --format <format>',
+    'Output format: table, json, summary',
+    'table'
+  )
+  .option('-l, --limit <number>', 'Maximum number of results to show', '10')
+  .option('-v, --verbose', 'Show detailed error messages', false)
+  .action(securityQueryCommand);
 
 // Workflow commands
 const workflowCmd = program

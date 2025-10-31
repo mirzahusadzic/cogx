@@ -340,3 +340,232 @@ function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.substring(0, maxLength - 3) + '...';
 }
+
+// ========================================
+// DIRECT O₂ OVERLAY QUERIES
+// ========================================
+
+import { SecurityGuidelinesManager } from '../../core/overlays/security-guidelines/manager.js';
+
+/**
+ * List all security knowledge in O₂ overlay
+ */
+export async function securityListCommand(
+  options: SecurityOptions & {
+    type?: string;
+    severity?: 'critical' | 'high' | 'medium' | 'low';
+  }
+): Promise<void> {
+  intro(chalk.bold('Security: O₂ Overlay Contents'));
+
+  const pgcRoot = path.join(options.projectRoot, '.open_cognition');
+  const manager = new SecurityGuidelinesManager(pgcRoot);
+
+  const s = spinner();
+  s.start('Loading security knowledge from O₂ overlay');
+
+  try {
+    let items = await manager.getAllItems();
+    s.stop('Analysis complete');
+
+    if (items.length === 0) {
+      log.warn(
+        chalk.yellow(
+          '\n⚠️  No security knowledge found in O₂ overlay.\n\n' +
+            'To populate security overlay:\n' +
+            '  1. Add security documentation (SECURITY.md, THREAT_MODEL.md)\n' +
+            '  2. Run: cognition-cli genesis:docs docs/security/\n' +
+            '  3. Or scan code: cognition-cli overlay generate security-guidelines\n'
+        )
+      );
+      outro(chalk.dim('Security list complete (empty overlay)'));
+      return;
+    }
+
+    // Filter by type if specified
+    if (options.type) {
+      items = items.filter(
+        (item) => item.metadata.securityType === options.type
+      );
+    }
+
+    // Filter by severity if specified
+    if (options.severity) {
+      items = items.filter(
+        (item) => item.metadata.severity === options.severity
+      );
+    }
+
+    const limited = items.slice(0, options.limit || 50);
+
+    if (options.format === 'json') {
+      console.log(
+        JSON.stringify(
+          limited.map((i) => i.metadata),
+          null,
+          2
+        )
+      );
+    } else {
+      log.info(chalk.bold(`\n📋 Security Knowledge (${items.length} items)`));
+      if (options.type) {
+        log.info(chalk.dim(`   Filtered to type: ${options.type}`));
+      }
+      if (options.severity) {
+        log.info(chalk.dim(`   Filtered to severity: ${options.severity}`));
+      }
+      log.info(chalk.dim(`   Showing ${limited.length} of ${items.length}\n`));
+
+      limited.forEach((item, i) => {
+        const severityColor =
+          item.metadata.severity === 'critical'
+            ? chalk.red
+            : item.metadata.severity === 'high'
+              ? chalk.yellow
+              : chalk.dim;
+
+        log.info(
+          `${i + 1}. ${severityColor(`[${item.metadata.severity.toUpperCase()}]`)} ${item.metadata.securityType}`
+        );
+        log.info(chalk.dim(`   ${truncate(item.metadata.text, 80)}`));
+        if (item.metadata.cveId) {
+          log.info(chalk.cyan(`   CVE: ${item.metadata.cveId}`));
+        }
+        log.info('');
+      });
+    }
+
+    outro(chalk.green('✓ Security list complete'));
+  } catch (error) {
+    s.stop('Analysis failed');
+    log.error(chalk.red((error as Error).message));
+    if (options.verbose) {
+      console.error(error);
+    }
+    process.exit(1);
+  }
+}
+
+/**
+ * List all CVEs tracked in O₂ overlay
+ */
+export async function securityCVEsCommand(
+  options: SecurityOptions
+): Promise<void> {
+  intro(chalk.bold.red('Security: CVE Tracking'));
+
+  const pgcRoot = path.join(options.projectRoot, '.open_cognition');
+  const manager = new SecurityGuidelinesManager(pgcRoot);
+
+  const s = spinner();
+  s.start('Loading CVEs from O₂ overlay');
+
+  try {
+    const cves = await manager.getCVEs();
+    s.stop('Analysis complete');
+
+    if (cves.length === 0) {
+      log.warn(
+        chalk.yellow(
+          '⚠️  No CVEs tracked in O₂ overlay. Add vulnerability documentation to populate.'
+        )
+      );
+      outro(chalk.dim('CVE tracking complete (no CVEs found)'));
+      return;
+    }
+
+    if (options.format === 'json') {
+      console.log(JSON.stringify(cves, null, 2));
+    } else {
+      log.info(chalk.bold.red(`\n🚨 CVEs Tracked: ${cves.length}\n`));
+
+      cves.slice(0, options.limit || 50).forEach((cve, i) => {
+        log.info(
+          `${i + 1}. ${chalk.cyan(cve.metadata?.cveId || 'Unknown CVE')}`
+        );
+        log.info(chalk.dim(`   ${truncate(cve.text, 80)}`));
+        if (cve.metadata?.affectedVersions) {
+          log.info(
+            chalk.yellow(`   Affected: ${cve.metadata.affectedVersions}`)
+          );
+        }
+        if (cve.metadata?.mitigation) {
+          log.info(chalk.green(`   Mitigation: ${cve.metadata.mitigation}`));
+        }
+        log.info('');
+      });
+    }
+
+    outro(chalk.green('✓ CVE tracking complete'));
+  } catch (error) {
+    s.stop('Analysis failed');
+    log.error(chalk.red((error as Error).message));
+    if (options.verbose) {
+      console.error(error);
+    }
+    process.exit(1);
+  }
+}
+
+/**
+ * Query security knowledge by text search
+ */
+export async function securityQueryCommand(
+  searchTerm: string,
+  options: SecurityOptions
+): Promise<void> {
+  intro(chalk.bold(`Security: Query "${searchTerm}"`));
+
+  const pgcRoot = path.join(options.projectRoot, '.open_cognition');
+  const manager = new SecurityGuidelinesManager(pgcRoot);
+
+  const s = spinner();
+  s.start('Searching security knowledge');
+
+  try {
+    const results = await manager.queryKnowledge(searchTerm);
+    s.stop('Analysis complete');
+
+    if (results.length === 0) {
+      log.warn(
+        chalk.yellow(`⚠️  No security knowledge matching "${searchTerm}"`)
+      );
+      outro(chalk.dim('Query complete (no matches)'));
+      return;
+    }
+
+    if (options.format === 'json') {
+      console.log(JSON.stringify(results, null, 2));
+    } else {
+      log.info(
+        chalk.bold(
+          `\n🔍 Security Knowledge Matching "${searchTerm}": ${results.length} items\n`
+        )
+      );
+
+      results.slice(0, options.limit || 10).forEach((item, i) => {
+        const severityColor =
+          item.severity === 'critical'
+            ? chalk.red
+            : item.severity === 'high'
+              ? chalk.yellow
+              : chalk.dim;
+
+        log.info(
+          `${i + 1}. ${severityColor(`[${item.severity?.toUpperCase() || 'UNKNOWN'}]`)} ${item.securityType}`
+        );
+        log.info(chalk.dim(`   ${item.text}`));
+        log.info('');
+      });
+    }
+
+    outro(chalk.green('✓ Query complete'));
+  } catch (error) {
+    s.stop('Query failed');
+    log.error(chalk.red((error as Error).message));
+    if (options.verbose) {
+      console.error(error);
+    }
+    process.exit(1);
+  }
+}
