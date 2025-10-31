@@ -1,6 +1,6 @@
 # Cognition CLI (`cognition-cli`)
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17479238.svg)](https://doi.org/10.5281/zenodo.17479238)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17489413.svg)](https://doi.org/10.5281/zenodo.17489413)
 
 <div align="center" style="margin-top: 20px; margin-bottom: 20px;">
 <img src="./docs/assets/cognition-cli-logo.png" alt="Cognition CLI Logo" width="512"/>
