@@ -1,8 +1,20 @@
 /**
- * Transparency Log - Append-only audit trail for all cognition-cli operations
+ * TransparencyLog - Append-only audit trail for all cognition-cli operations
  *
+ * MISSION ALIGNMENT:
+ * - Core implementation of "National Security Through Transparency" (81.2% importance)
+ * - Provides "Verification Over Trust" via auditable operations (VISION.md:97-104, 74.3%)
+ * - Enables "Cryptographic Truth" through content-addressable logging (86.7% importance)
+ * - Supports "Oracle Validation" by logging validation outcomes (Innovation #2, 88.1%)
+ *
+ * PURPOSE:
  * Logs all mission loads and coherence measurements to make operations visible.
  * Users have full access to logs and control over their data.
+ *
+ * SECURITY ROLE:
+ * - Append-only audit trail (tamper-evident)
+ * - Full transparency for mission document operations
+ * - Content-addressable hash tracking for integrity
  */
 
 import fs from 'fs';

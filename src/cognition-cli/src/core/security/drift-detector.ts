@@ -22,13 +22,19 @@ export interface DriftAnalysis {
 /**
  * SemanticDriftDetector
  *
+ * MISSION ALIGNMENT:
+ * - Embodies "Verification Over Trust" principle (VISION.md:122, 74.3% importance)
+ * - Implements "Oracle Validation" pattern for mission document changes (Innovation #2, 88.1%)
+ * - Defends "National Security Through Transparency" via audit trails (81.2% importance)
+ * - Provides cryptographic proof of mission integrity ("Cryptographic Truth", 86.7%)
+ *
  * PURPOSE:
  * Detects semantic drift and suspicious patterns in mission document changes.
  * Analyzes changes between versions using embedding-based distance metrics
  * and pattern-based heuristics.
  *
  * SECURITY ROLE:
- * - Detects gradual mission poisoning attacks
+ * - Detects gradual mission poisoning attacks (Innovation #19: 5-Pattern Attack Detection)
  * - Flags suspicious language patterns (trust erosion, security weakening)
  * - Provides evidence-based recommendations (approve/review/reject)
  *
@@ -36,7 +42,7 @@ export interface DriftAnalysis {
  * All detection patterns are fully documented and auditable.
  * Users can inspect pattern matching logic and suggest improvements.
  *
- * THREAT MODEL:
+ * THREAT MODEL (Innovation #19: 5-Pattern Attack Detection):
  * Defends against:
  * - Security weakening (removing "security first", adding "pragmatic")
  * - Trust erosion (adding "trust experienced users")

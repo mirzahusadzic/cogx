@@ -47,21 +47,27 @@ export interface ValidationResult {
 /**
  * MissionValidator
  *
+ * MISSION ALIGNMENT:
+ * - Core implementation of "Goal → Transform → Oracle" pattern (Innovation #2, 88.1% importance)
+ * - Enforces "Verification Over Trust" principle (VISION.md:122, 74.3% importance)
+ * - Provides "Oracle Validation Metrics" for mission document integrity (88.1% importance)
+ * - Embodies "Cryptographic Truth" through content-addressable validation (86.7% importance)
+ *
  * PURPOSE:
  * Multi-layer validation before ingesting mission documents.
  * Combines pattern matching, semantic drift detection, and optional
  * LLM-based content filtering.
  *
- * LAYERS:
- * 1. Content safety (LLM-based, optional)
- * 2. Content patterns (regex-based, fallback)
- * 3. Semantic drift analysis (embedding-based)
- * 4. Structural integrity (markdown validation)
+ * VALIDATION LAYERS (Goal → Transform → Oracle):
+ * 1. Content safety (LLM-based Oracle, optional)
+ * 2. Content patterns (regex-based Transform, fallback)
+ * 3. Semantic drift analysis (embedding-based Oracle)
+ * 4. Structural integrity (markdown Oracle validation)
  *
  * SECURITY ROLE:
  * - Pre-ingestion gate for mission documents
- * - Prevents poisoned content from entering knowledge graph
- * - Provides evidence for human review
+ * - Prevents poisoned content from entering knowledge graph (Innovation #19: Attack Detection)
+ * - Provides evidence for human review ("National Security Through Transparency", 81.2%)
  *
  * TRANSPARENCY:
  * - All layers report findings explicitly

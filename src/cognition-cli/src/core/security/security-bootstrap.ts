@@ -1,11 +1,22 @@
 /**
- * Security Bootstrap - Minimal dual-use acknowledgment and transparency
+ * SecurityBootstrap - Minimal dual-use acknowledgment and transparency
  *
+ * MISSION ALIGNMENT:
+ * - Implements "National Security Through Transparency" (81.2% importance)
+ * - Enforces "Verification Over Trust" via explicit user acknowledgment (74.3%)
+ * - Provides audit trails for responsible AI deployment (VISION.md:97-104)
+ *
+ * PURPOSE:
  * cognition-cli is measurement infrastructure. It does not make ethical judgments.
  * This module ensures users:
  * 1. Acknowledge dual-use risks (one-time, stored in ~/.cognition-cli/settings.json)
  * 2. Understand their responsibility for ethical deployment
  * 3. Are informed about transparency logging
+ *
+ * SECURITY ROLE:
+ * - One-time dual-use mandate acknowledgment
+ * - Transparent security initialization
+ * - User-controlled transparency settings
  */
 
 import fs from 'fs';
