@@ -225,7 +225,7 @@ Read sequentially from Part I through Part V.
 ### Part III: The Algebra ⭐
 
 - ✅ Chapter 12: Boolean Operations (COMPLETE - 1,400 lines)
-- 📋 Chapter 13: Query Syntax
+- ✅ Chapter 13: Query Syntax and Parser (COMPLETE - 1,200 lines)
 - 📋 Chapter 14: Set Operations
 
 ### Part IV: Portability
