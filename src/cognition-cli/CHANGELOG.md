@@ -5,6 +5,164 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2025-11-01
+
+### 🎉 Self-Cognition - "The Lattice Explains Itself"
+
+This release achieves **Block 4 (Self-Cognition)** - the system can now query and explain its own knowledge. The new `ask` command enables natural language queries across the entire knowledge lattice with semantic synthesis and provenance tracking. **15 commits** spanning semantic Q&A, frontmatter validation, enhanced extraction, quest logging, and documentation.
+
+### Major Features
+
+#### 1. Semantic Q&A System - `cognition-cli ask`
+
+The flagship feature enabling true self-cognition through natural language queries:
+
+- **Natural language queries** across the entire knowledge lattice
+  - Example: `cognition-cli ask "what is cPOW used for?"`
+  - Cross-overlay synthesis (queries O₁-O₇ simultaneously)
+  - 2-3 second response times
+- **Semantic matching with confidence scores**
+  - Each source shows match percentage (e.g., "71.8% match")
+  - Results ranked by semantic relevance
+  - Pulls from multiple overlays for comprehensive answers
+- **Synthesized answers with provenance**
+  - AI-generated answer combining all relevant sources
+  - Source citations with overlay tags (O₄, O₅, O₁, etc.)
+  - Complete transparency of knowledge lineage
+- **Multi-overlay semantic search**
+  - Automatically searches across all relevant overlays
+  - Cross-layer synthesis (Chapter 11 - O₇ Coherence in action)
+  - Intelligent source selection and ranking
+
+**Implementation:**
+- `src/commands/ask.ts` - New command entry point
+- Enhanced `QueryService` with semantic Q&A capabilities
+- Integration with existing overlay infrastructure
+- Reuses semantic embeddings from PGC
+
+#### 2. 100% Classification Confidence
+
+YAML frontmatter infrastructure for authoritative document metadata:
+
+- **Frontmatter-based classification**
+  - Parser extracts YAML frontmatter using js-yaml
+  - Frontmatter treated as authoritative (1.0 confidence)
+  - Overrides ML-based classification when present
+- **All 15 manual documents validated**
+  - Each doc has explicit `type` and `overlay` metadata
+  - 100% classification confidence across entire manual
+  - Validation enforces 75% threshold
+- **Validation infrastructure**
+  - `test-manual-classification.ts` validator
+  - Ensures all manual docs meet quality threshold
+  - Prevents regression in document classification
+
+**Example frontmatter:**
+```yaml
+---
+type: architectural
+overlay: O4_Mission
+---
+```
+
+#### 3. Enhanced Document Extraction
+
+Generalized extraction system for comprehensive documentation capture:
+
+- **WorkflowExtractor generalized**
+  - Now handles all documentation types (not just workflows)
+  - Section heading-based extraction
+  - Captures explanatory content ("What is X?" sections)
+- **"What is X?" extraction fixed**
+  - Properly extracts definition sections
+  - Preserves context from section headings
+  - Better semantic chunking
+- **Force re-ingestion support**
+  - `genesis:docs --force` flag added
+  - Allows document updates without PGC reset
+  - Useful for iterative documentation improvements
+
+#### 4. Quest Operations Logging (Block 2 - Lops)
+
+Infrastructure for transparency logging and quest execution tracking:
+
+- **Transparency logging system**
+  - Logs all quest operations to `.open_cognition/logs/`
+  - Tracks command execution, duration, and outcomes
+  - Foundation for cPOW lineage tracking
+- **Quest execution provenance**
+  - Links operations to specific quests
+  - Enables audit trail for cognitive work
+  - Supports Block 2 (Lops) requirements
+
+#### 5. Sacred Pause Formalization
+
+Documentation of the three Oracle Meeting Points:
+
+- **Oracle Meeting Points documented**
+  - Three-phase decision framework
+  - Depth-based quality gates
+  - Formalized pause criteria
+- **Integration with quest mechanics**
+  - Links to F.L.T.B validation
+  - PGC coherence checks
+  - Security mandate verification
+
+### Added
+
+#### Commands
+
+- `ask "<question>"` - Query knowledge lattice in natural language
+  - Cross-overlay semantic search
+  - Synthesized answers with source citations
+  - Confidence scoring and ranking
+
+#### Features
+
+- **YAML frontmatter parsing** in MarkdownParser
+- **Frontmatter-authoritative classification** in DocumentClassifier
+- **Generic WorkflowExtractor** for all documentation types
+- **Force flag** for `genesis:docs` command (`--force`)
+- **Increased token limits** (8192) for large document ingestion
+- **Enhanced semantic shadows** in query results
+- **Section heading extraction** for better context capture
+
+### Changed
+
+- **Token limits increased** from 4096 to 8192 for Anthropic API calls
+- **Semantic shadow inclusion** in query results (previously excluded)
+- **WorkflowExtractor** made generic (renamed conceptually to handle all docs)
+
+### Fixed
+
+- **"What is X?" extraction** now properly captures definition sections
+- **Semantic shadows** now correctly included in `ask` query results
+- **Section heading context** preserved during extraction
+- **Large document ingestion** no longer truncated (increased token limit)
+
+### Documentation
+
+- **Chapter 5: CLI Operations** added to reference manual
+- **Comprehensive README update** reflecting seven-overlay architecture
+- **Sacred Pause formalization** in operational documentation
+- **Oracle Meeting Points** documented
+
+### Performance
+
+- **2-3 second query response times** for semantic Q&A
+- **Reuses existing embeddings** from PGC (no re-embedding)
+- **Efficient cross-overlay search** using optimized vector queries
+
+### Validation
+
+Quest verification metrics for this release:
+- **F.L.T.B**: Format ✅ Lint ✅ Test ✅ Build ✅
+- **PGC**: All 15 manual documents at 100% classification confidence
+- **Tests**: All passing
+- **Coherence**: Maintained lattice coherence
+
+---
+
 ## [1.7.5] - 2025-10-31
 
 ### 🎉 Complete 7-Overlay Lattice System - "The Foundation Manual"
