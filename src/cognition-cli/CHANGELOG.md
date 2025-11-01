@@ -5,6 +5,76 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.1] - 2025-11-01
+
+### 🔒 Security
+
+- **CRITICAL: Fixed SQL injection vulnerability in vector store** (`lance-store.ts`)
+  - IDs with special characters (quotes, SQL keywords, CVE formats) could break queries
+  - Added `escapeSqlString()` method following SQL standard (double single quotes)
+  - Applied to `getVector()` and `deleteVector()` operations
+  - All vector storage operations now secure against malicious IDs
+
+### ✨ Features
+
+- **Implemented project operator (`->` / `TO`) for lattice queries**
+  - Syntax: `cognition-cli lattice "O5 -> O2"`
+  - Semantic projection from one overlay to another
+  - Finds items in right overlay aligned with items in left overlay
+  - Uses `meet()` with threshold 0.6 and topK 10
+
+- **Implemented complement operator (`!` / `NOT`) with helpful error**
+  - Parses successfully but throws instructive error message
+  - Explains why complement requires universal set
+  - Directs users to use difference instead: `"O1 - O2"`
+  - Provides concrete examples for alternatives
+
+### 🧪 Testing
+
+- **Added comprehensive test suite: 65 tests (all passing)**
+  - `lattice-operations.test.ts`: 26 tests covering all 9 algebra operations
+    - union, intersection, difference, meet (12 tests)
+    - complement wrapper (2 tests)
+    - symbolDifference, symbolIntersection, symbolUnion (9 tests)
+    - complex compositions (2 tests)
+    - SQL injection prevention (1 test)
+  - `query-parser.test.ts`: 25 tests for query parsing
+    - Tokenization for all operators (6 tests)
+    - AST parsing with precedence (4 tests)
+    - Error handling (4 tests)
+    - Complex query examples (5 tests)
+    - Edge cases (6 tests)
+  - `lance-store.test.ts`: 14 tests for vector store security
+    - Basic operations (4 tests)
+    - SQL injection scenarios with CVE formats, quotes, keywords (7 tests)
+    - Error handling (3 tests)
+
+### 📚 Documentation
+
+- **Updated `docs/LATTICE_ALGEBRA.md`**
+  - Fixed project operator (was marked "future", now fully documented)
+  - Added complement operator with usage examples
+  - Added helpful error message examples
+
+- **Updated `docs/manual/part-3-algebra/12-boolean-operations.md`**
+  - Corrected project() signature (CLI vs programmatic API)
+  - Marked complement as not directly supported (helpful error)
+  - Added complete examples for symbolIntersection() and symbolUnion()
+  - Now covers all 9 algebra operations with TypeScript examples
+
+### 📊 Coverage
+
+- **All 9 lattice algebra operations now fully implemented, tested, and documented:**
+  1. ✅ meet() - Semantic alignment
+  2. ✅ project() - Semantic projection
+  3. ✅ union() - Combine items
+  4. ✅ intersection() - Items in all overlays
+  5. ✅ difference() - Items in A not B
+  6. ✅ complement() - Wrapper for difference
+  7. ✅ symbolDifference() - Fast symbol set difference
+  8. ✅ symbolIntersection() - Fast symbol set intersection
+  9. ✅ symbolUnion() - Fast symbol set union
+
 ## [1.8.0] - 2025-11-01
 
 ### 🎉 Self-Cognition - "The Lattice Explains Itself"
