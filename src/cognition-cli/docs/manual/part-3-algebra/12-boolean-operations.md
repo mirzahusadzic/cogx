@@ -117,27 +117,42 @@ cognition-cli lattice "O2[attacks] ~ O4[principles]"
 
 #### Project (→)
 
-**Definition**: Query-guided traversal from one overlay to another.
+**Definition**: Semantic projection from left overlay to right overlay via embedding similarity.
 
-**Signature**:
+**Implementation**: The CLI project operator is implemented as a specialized `meet()` operation with threshold 0.6 and topK 10.
+
+**Query Syntax**:
 
 ```typescript
-project<A, B>(
-  query: string,
-  from: OverlayAlgebra<A>,
-  to: OverlayAlgebra<B>,
-  options: { threshold?: number, topK?: number }
-): Promise<MeetResult<A, B>[]>
+// In query-parser.ts, project is implemented as:
+case 'project':
+  return meet(leftItems, rightItems, { threshold: 0.6, topK: 10 });
 ```
-
-**Returns**: Items from target overlay that are semantically related to query results from source overlay.
 
 **Use Cases**:
 
-- "Given workflow patterns for 'handling user input', what security guidelines apply?"
-- "For code symbols related to 'authentication', what mission concepts are relevant?"
+- "What security guidelines align with operational workflows?"
+- "Which mission concepts relate to code patterns?"
+- "Map patterns from one domain to another"
 
-**Example**:
+**CLI Syntax**:
+
+```bash
+# Find security guidelines aligned with operational patterns
+cognition-cli lattice "O5 -> O2"
+
+# Keyword syntax
+cognition-cli lattice "O5 TO O2"
+```
+
+**How It Works**:
+
+1. Extract all items from left overlay (O5)
+2. Extract all items from right overlay (O2)
+3. Run `meet(left, right, { threshold: 0.6, topK: 10 })`
+4. Return pairs of aligned items
+
+**Note**: For the programmatic API with natural language queries, use the `project()` function directly from `lattice-operations.ts`:
 
 ```typescript
 import { project } from './lattice-operations.js';
@@ -145,7 +160,7 @@ import { project } from './lattice-operations.js';
 const operational = await registry.get('O5');
 const security = await registry.get('O2');
 
-// Find security guidelines for workflows about "user authentication"
+// Query-guided projection (programmatic API)
 const guidance = await project(
   'handle user authentication',
   operational, // Source: O₅ Operational
@@ -153,19 +168,6 @@ const guidance = await project(
   { threshold: 0.7, topK: 5 }
 );
 ```
-
-**CLI Syntax**:
-
-```bash
-cognition-cli lattice "O5 -> O2" --query "handle user authentication"
-```
-
-**How It Works**:
-
-1. Embed the query string (768d vector)
-2. Find top-K items in source overlay matching query
-3. Run `meet()` between source results and target overlay
-4. Return aligned pairs
 
 ---
 
@@ -312,36 +314,50 @@ cognition-cli lattice "O1 - O2"
 
 #### Complement (¬)
 
-**Definition**: Items NOT in the given set (relative to a universal set).
+**Status**: ❌ **Not directly supported in CLI queries** (throws helpful error)
 
-**Signature**:
+**Reason**: Complement requires defining a universal set, which isn't well-defined in lattice algebra. Use **difference** instead.
+
+**CLI Behavior**:
+
+```bash
+# ❌ This will throw a helpful error
+cognition-cli lattice "!O2"
+cognition-cli lattice "NOT O2"
+
+# Error message directs you to use difference:
+# "Complement (!) requires a universal set. Use difference instead:
+#   • 'O1 - O2' for items in O1 but not in O2
+#   • '(O1 + O2 + O3) - O4' for union of multiple overlays minus O4"
+```
+
+**Recommended Alternative**:
+
+```bash
+# ✅ Use difference for coverage gaps
+cognition-cli lattice "O1 - O2"  # Code symbols not in security
+
+# ✅ Use difference after union for multi-overlay complement
+cognition-cli lattice "(O1 + O3 + O5) - O2"  # All items minus O2
+```
+
+**Programmatic API**: The `complement()` function exists in `lattice-operations.ts` but is simply a wrapper around `difference()`:
 
 ```typescript
-complement<T>(
+export function complement<T>(
   universalSet: OverlayItem<T>[],
   exclusionSet: OverlayItem<T>[],
   sourceOverlays: [string, string]
-): SetOperationResult<T>
+): SetOperationResult<T> {
+  return difference(universalSet, exclusionSet, sourceOverlays);
+}
 ```
 
-**Use Cases**:
+**Use Cases** (via difference):
 
-- All code symbols that have NO security guidelines
-- Same as `difference(universal, exclusion)`
-
-**CLI Syntax**:
-
-```bash
-cognition-cli lattice "!O2"       # Items NOT in O2
-cognition-cli lattice "NOT O2"    # SQL-style
-```
-
-**Note**: Complement requires specifying a universal set. In practice, use `difference()` instead:
-
-```bash
-# Instead of: !(O2)
-# Use: O1 - O2  (code symbols not in security)
-```
+- All code symbols that have NO security guidelines: `O1 - O2`
+- Mission concepts without workflow patterns: `O4 - O5`
+- Attacks without mitigations: `O2[attacks] - O2[mitigations]`
 
 ---
 
@@ -400,6 +416,29 @@ symbolUnion(symbolsA: Set<string>, symbolsB: Set<string>): Set<string>
 
 - Fast set membership checks
 - Pre-filtering before expensive operations
+- Combining symbol sets from multiple sources
+
+**Examples**:
+
+```typescript
+import { symbolIntersection, symbolUnion } from './lattice-operations.js';
+
+// Symbol Intersection: Find symbols present in BOTH sets
+const codeSymbols = await structural.getSymbolSet();
+const securedSymbols = await security.getSymbolSet();
+
+const secured = symbolIntersection(codeSymbols, securedSymbols);
+console.log(`${secured.size} symbols have security coverage`);
+
+// Symbol Union: Combine all symbols from multiple overlays
+const securitySymbols = await security.getSymbolSet();
+const operationalSymbols = await operational.getSymbolSet();
+
+const allGuidance = symbolUnion(securitySymbols, operationalSymbols);
+console.log(`Total guidance symbols: ${allGuidance.size}`);
+```
+
+**Performance**: O(n + m) — extremely fast for large symbol sets.
 
 ---
 

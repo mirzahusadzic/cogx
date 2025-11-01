@@ -119,6 +119,22 @@ cognition-cli lattice "O1 \ O2"
 - **Missing tests**: Functions without test coverage
 - **Undocumented code**: Symbols without mission alignment
 
+#### Complement (!, NOT)
+
+**Note**: Complement requires a universal set, which isn't defined in lattice algebra. Use **difference** instead.
+
+```bash
+# ❌ This will fail with a helpful error
+cognition-cli lattice "!O2"
+cognition-cli lattice "NOT O2"
+
+# ✅ Use difference instead
+cognition-cli lattice "O1 - O2"  # Items in O1 but not O2
+cognition-cli lattice "(O1 + O3 + O5) - O2"  # Union minus O2
+```
+
+The system will provide a helpful error message directing you to use difference instead of complement.
+
 ### Semantic Operations (Vector Similarity)
 
 #### Meet (~, MEET)
@@ -141,15 +157,24 @@ cognition-cli lattice "O2 MEET O4"
 
 #### Project (->, TO)
 
-Query-guided semantic projection (future).
+Semantic projection from one overlay to another via embedding similarity.
+
+**How it works**: Finds items in the right overlay that are semantically aligned with items in the left overlay (using similarity threshold 0.6, top 10 matches).
 
 ```bash
 # Project workflows onto security domain
+# Finds security guidelines aligned with operational patterns
 cognition-cli lattice "O5 -> O2"
 
 # Keyword syntax
 cognition-cli lattice "O5 TO O2"
 ```
+
+**Use cases**:
+
+- **Cross-domain mapping**: Map workflows to security requirements
+- **Pattern translation**: Find equivalent patterns in different domains
+- **Guidance discovery**: Given operational patterns, find relevant security guidelines
 
 ### Complex Queries
 

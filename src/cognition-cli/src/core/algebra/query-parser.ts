@@ -41,14 +41,7 @@
  */
 
 import { OverlayRegistry, OverlayId } from './overlay-registry.js';
-import {
-  meet,
-  // project, // TODO: implement project operation
-  union,
-  intersection,
-  difference,
-  // complement, // TODO: implement complement operation
-} from './lattice-operations.js';
+import { meet, union, intersection, difference } from './lattice-operations.js';
 import type {
   OverlayItem,
   OverlayMetadata,
@@ -592,13 +585,18 @@ export class QueryEngine {
   }
 
   private async evaluateUnaryOp(node: UnaryOpNode): Promise<QueryResult> {
-    await this.evaluate(node.operand);
-
     if (node.operator === 'complement') {
-      // For complement, we need a universal set
-      // For now, throw error (need to specify relative to what)
+      // Complement requires a universal set context
+      // The syntax "!O2" is ambiguous - complement relative to what?
+      //
+      // Use difference instead:
+      //   - "O1 - O2" for items in O1 but not in O2
+      //   - "(O1 + O2 + O3) - O4" for union minus O4
       throw new Error(
-        'Complement operation requires universal set. Use "O1 - O2" instead.'
+        'Complement (!) requires a universal set. Use difference instead:\n' +
+          '  • "O1 - O2" for items in O1 but not in O2\n' +
+          '  • "(O1 + O2 + O3) - O4" for union of multiple overlays minus O4\n\n' +
+          'Example: cognition-cli lattice "O1 - O2"'
       );
     }
 
@@ -608,6 +606,38 @@ export class QueryEngine {
   private async evaluateBinaryOp(node: BinaryOpNode): Promise<QueryResult> {
     const left = await this.evaluate(node.left);
     const right = await this.evaluate(node.right);
+
+    // Helper: Extract OverlayItem array from QueryResult
+    const extractItems = (
+      value: QueryResult
+    ): OverlayItem<OverlayMetadata>[] | null => {
+      // Already an array of OverlayItems
+      if (isOverlayItemArray(value)) {
+        return value;
+      }
+      // SetOperationResult with items
+      if (isSetOperationResult(value)) {
+        return value.items;
+      }
+      // MeetResult array - extract all unique items from both sides
+      if (isMeetResultArray(value)) {
+        const seen = new Set<string>();
+        const items: OverlayItem<OverlayMetadata>[] = [];
+        for (const result of value) {
+          if (!seen.has(result.itemA.id)) {
+            seen.add(result.itemA.id);
+            items.push(result.itemA);
+          }
+          if (!seen.has(result.itemB.id)) {
+            seen.add(result.itemB.id);
+            items.push(result.itemB);
+          }
+        }
+        return items;
+      }
+      // Can't extract items from other types (Set)
+      return null;
+    };
 
     // Type guard: ensure we have OverlayItem arrays for set operations
     const isOverlayItemArray = (
@@ -623,38 +653,76 @@ export class QueryEngine {
       );
     };
 
+    // Type guard for SetOperationResult
+    const isSetOperationResult = (
+      value: QueryResult
+    ): value is SetOperationResult<OverlayMetadata> => {
+      return (
+        value !== null &&
+        typeof value === 'object' &&
+        'items' in value &&
+        'metadata' in value &&
+        Array.isArray((value as SetOperationResult<OverlayMetadata>).items)
+      );
+    };
+
+    // Type guard for MeetResult array
+    const isMeetResultArray = (
+      value: QueryResult
+    ): value is {
+      itemA: OverlayItem<OverlayMetadata>;
+      itemB: OverlayItem<OverlayMetadata>;
+      similarity: number;
+    }[] => {
+      return (
+        Array.isArray(value) &&
+        (value.length === 0 ||
+          (value[0] &&
+            'itemA' in value[0] &&
+            'itemB' in value[0] &&
+            'similarity' in value[0]))
+      );
+    };
+
+    // Extract item arrays from QueryResults
+    const leftItems = extractItems(left);
+    const rightItems = extractItems(right);
+
     switch (node.operator) {
       case 'union':
-        if (!isOverlayItemArray(left) || !isOverlayItemArray(right)) {
+        if (!leftItems || !rightItems) {
           throw new Error('Union requires OverlayItem arrays as operands');
         }
-        return union([left, right], ['left', 'right']);
+        return union([leftItems, rightItems], ['left', 'right']);
 
       case 'intersection':
-        if (!isOverlayItemArray(left) || !isOverlayItemArray(right)) {
+        if (!leftItems || !rightItems) {
           throw new Error(
             'Intersection requires OverlayItem arrays as operands'
           );
         }
-        return intersection([left, right], ['left', 'right']);
+        return intersection([leftItems, rightItems], ['left', 'right']);
 
       case 'difference':
-        if (!isOverlayItemArray(left) || !isOverlayItemArray(right)) {
+        if (!leftItems || !rightItems) {
           throw new Error('Difference requires OverlayItem arrays as operands');
         }
-        return difference(left, right, ['left', 'right']);
+        return difference(leftItems, rightItems, ['left', 'right']);
 
       case 'meet':
-        if (!isOverlayItemArray(left) || !isOverlayItemArray(right)) {
+        if (!leftItems || !rightItems) {
           throw new Error('Meet requires OverlayItem arrays as operands');
         }
-        return meet(left, right, { threshold: 0.7 });
+        return meet(leftItems, rightItems, { threshold: 0.7 });
 
       case 'project':
-        // Project needs query string - for now, throw error
-        throw new Error(
-          'Project operation requires query string. Use project(query, from, to) directly.'
-        );
+        // Project: Semantic projection from left to right overlay
+        // Syntax: O5 -> O2 (project O5 items to O2)
+        // Semantics: Find O2 items aligned with O5 items
+        if (!leftItems || !rightItems) {
+          throw new Error('Project requires OverlayItem arrays as operands');
+        }
+        return meet(leftItems, rightItems, { threshold: 0.6, topK: 10 });
 
       default:
         throw new Error(`Unknown binary operator: ${node.operator}`);

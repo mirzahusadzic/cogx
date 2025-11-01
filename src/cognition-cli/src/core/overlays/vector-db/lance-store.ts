@@ -293,11 +293,22 @@ export class LanceVectorStore {
       .slice(0, topK); // Ensure we respect the topK limit
   }
 
+  /**
+   * Escape special characters in SQL string literals
+   *
+   * SECURITY: Prevents SQL injection by escaping single quotes
+   * SQL standard: single quote is escaped by doubling it ('').
+   */
+  private escapeSqlString(value: string): string {
+    return value.replace(/'/g, "''");
+  }
+
   async getVector(id: string): Promise<VectorRecord | undefined> {
     if (!this.isInitialized) await this.initialize();
 
+    const escapedId = this.escapeSqlString(id);
     const records = await this.table!.query()
-      .where(`id = '${id}'`)
+      .where(`id = '${escapedId}'`)
       .limit(1)
       .toArray();
 
@@ -326,7 +337,8 @@ export class LanceVectorStore {
   async deleteVector(id: string): Promise<boolean> {
     if (!this.isInitialized) await this.initialize();
 
-    await this.table!.delete(`id = '${id}'`);
+    const escapedId = this.escapeSqlString(id);
+    await this.table!.delete(`id = '${escapedId}'`);
 
     return true;
   }
