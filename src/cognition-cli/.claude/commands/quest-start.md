@@ -20,14 +20,17 @@ cognition-cli coherence report
 # 2. Check overlay status
 cognition-cli overlays
 
-# 3. Search for relevant operational patterns
-cognition-cli patterns search "[QUEST_TOPIC]"
+# 3. Search for relevant operational patterns (O₅)
+cognition-cli lattice "O5" --limit 20
 
-# 4. Find similar code patterns
-cognition-cli lattice "O1[function]" --limit 20
+# 4. Find similar code patterns in structural overlay (O₁)
+cognition-cli patterns find-similar "<relevant-symbol>"
 
-# 5. Check security boundaries if needed
+# 5. Check security boundaries if needed (O₂)
 cognition-cli security boundaries
+
+# 6. Query mission concepts (O₄) for alignment
+cognition-cli concepts search "<quest-related-concept>"
 ```
 
 ## Output Format

@@ -1,8 +1,33 @@
 # Rebuild PGC from Scratch
 
-Rebuild the PGC after major changes or when starting fresh.
+Rebuild the PGC after major changes or when starting fresh using the interactive wizard.
 
-## Steps
+## Recommended Approach: Use Wizard
+
+The wizard command provides an interactive setup that handles all overlays:
+
+```bash
+cognition-cli wizard
+```
+
+The wizard will:
+
+1. Check if PGC already exists (offers to rebuild if needed)
+2. Initialize `.open_cognition` workspace
+3. Run genesis on source code
+4. Optionally ingest documentation with `genesis:docs`
+5. Generate all 7 overlays interactively:
+   - O₁: structural_patterns
+   - O₂: security_guidelines
+   - O₃: lineage_patterns
+   - O₄: mission_concepts
+   - O₅: operational_patterns
+   - O₆: mathematical_proofs
+   - O₇: strategic_coherence
+
+## Manual Approach (Advanced)
+
+If you need more control, you can rebuild manually:
 
 1. Check if `.open_cognition` exists. If it does, warn the user that this will rebuild from scratch.
 
@@ -13,18 +38,23 @@ Rebuild the PGC after major changes or when starting fresh.
    - Report number of files found and parsed
    - Note any errors
 
-4. Run `cognition-cli overlay generate structural_patterns .`
-   - Show progress
-   - Report number of patterns generated
+4. Generate each overlay as needed:
 
-5. Run `cognition-cli overlay generate lineage_patterns .`
-   - Show progress
-   - Report dependency links created
+   ```bash
+   cognition-cli overlay generate structural_patterns .
+   cognition-cli overlay generate security_guidelines .
+   cognition-cli overlay generate lineage_patterns .
+   cognition-cli overlay generate mission_concepts .
+   cognition-cli overlay generate operational_patterns .
+   cognition-cli overlay generate mathematical_proofs .
+   cognition-cli overlay generate strategic_coherence .
+   ```
 
-6. Provide a comprehensive summary:
+5. Provide a comprehensive summary:
    - Total files indexed
    - Total symbols extracted
    - Dependency links created
+   - Overlays generated
    - Storage size (if available)
    - Any warnings or errors encountered
 
