@@ -1,0 +1,126 @@
+name: 🐛 Bug Report
+description: Report a bug or unexpected behavior in Cognition CLI
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the sections below to help us understand and fix the issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: When I run `cognition-cli genesis src/`, I get...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Initialize PGC with `cognition-cli init`
+        2. Run `cognition-cli genesis src/`
+        3. Observe error...
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen
+      placeholder: The genesis command should complete successfully and parse all files...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened (include error messages, stack traces, etc.)
+      placeholder: |
+        Error: Cannot read property 'hash' of undefined
+        at StructuralMiner.mine (...)
+      render: shell
+    validations:
+      required: true
+
+  - type: dropdown
+    id: overlay
+    attributes:
+      label: Affected Overlay
+      description: Which overlay(s) are affected? (if applicable)
+      multiple: true
+      options:
+        - O₁ - Structural Patterns
+        - O₂ - Security Guidelines
+        - O₃ - Lineage Patterns
+        - O₄ - Mission Concepts
+        - O₅ - Operational Patterns
+        - O₆ - Mathematical Proofs
+        - O₇ - Strategic Coherence
+        - Core PGC (objects/transforms/index)
+        - Not overlay-specific
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Your environment details
+      value: |
+        - **OS**: [e.g., macOS 14.0, Ubuntu 22.04, Windows 11]
+        - **Node.js version**: [e.g., 20.10.0]
+        - **cognition-cli version**: [e.g., 1.8.2]
+        - **Workbench integration**: [Yes/No, if yes: eGemma version]
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: pgc-state
+    attributes:
+      label: PGC State
+      description: Output of `cognition-cli status` (if relevant)
+      placeholder: |
+        Paste output here...
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context, screenshots, or information about the problem
+      placeholder: |
+        - This only happens when...
+        - It works fine if I...
+        - Related to issue #...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission Checklist
+      description: Please verify the following before submitting
+      options:
+        - label: I have checked the [documentation](https://mirzahusadzic.github.io/cogx/)
+          required: true
+        - label: I have searched existing issues to avoid duplicates
+          required: true
+        - label: I have included all relevant environment information
+          required: true
+        - label: This is not a security vulnerability (those should be reported via email - see SECURITY.md)
+          required: true

@@ -1,0 +1,164 @@
+name: ⚡ Performance Issue
+description: Report performance problems or suggest performance improvements
+title: "[Performance]: "
+labels: ["performance", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a performance issue! Performance is critical for cognition-cli to scale to large codebases.
+
+  - type: dropdown
+    id: perf-type
+    attributes:
+      label: Performance Issue Type
+      description: What kind of performance issue is this?
+      options:
+        - Slow Command Execution
+        - High Memory Usage
+        - Large File/Directory Size (.open_cognition)
+        - Slow Startup Time
+        - Inefficient Algorithm
+        - Resource Leak
+        - Scalability Concern
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Affected Command/Operation
+      description: Which command or operation is slow?
+      placeholder: |
+        cognition-cli genesis src/
+        cognition-cli overlay generate structural_patterns
+        cognition-cli patterns find-similar ...
+      render: bash
+    validations:
+      required: true
+
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Performance Metrics
+      description: Provide specific metrics (time, memory, file size, etc.)
+      placeholder: |
+        - Command takes: 5 minutes 30 seconds
+        - Memory usage: peaks at 8GB
+        - .open_cognition size: 2.5GB
+        - Number of files processed: 10,000
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: codebase
+    attributes:
+      label: Codebase Characteristics
+      description: Describe the codebase you're analyzing
+      value: |
+        - **Number of files**:
+        - **Total lines of code**:
+        - **Languages**:
+        - **Largest file**:
+        - **Deepest directory depth**:
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Performance
+      description: What performance would you expect for this operation?
+      placeholder: |
+        For a codebase of this size, I would expect...
+        Similar tools complete this in...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: overlay
+    attributes:
+      label: Related Overlay
+      description: Which overlay(s) are affected?
+      multiple: true
+      options:
+        - O₁ - Structural Patterns
+        - O₂ - Security Guidelines
+        - O₃ - Lineage Patterns
+        - O₄ - Mission Concepts
+        - O₅ - Operational Patterns
+        - O₆ - Mathematical Proofs
+        - O₇ - Strategic Coherence
+        - Core PGC (objects/transforms/index)
+        - All Overlays
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Your system specifications
+      value: |
+        - **OS**: [e.g., macOS 14.0, Ubuntu 22.04]
+        - **CPU**: [e.g., M3 Pro, Intel i7-12700K]
+        - **RAM**: [e.g., 16GB, 32GB]
+        - **Storage**: [e.g., SSD, NVMe]
+        - **Node.js version**: [e.g., 20.10.0]
+        - **cognition-cli version**: [e.g., 1.8.2]
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: profiling
+    attributes:
+      label: Profiling Data
+      description: If you've profiled the code, include relevant data
+      placeholder: |
+        - Hottest functions: ...
+        - Memory allocation: ...
+        - I/O operations: ...
+      render: markdown
+    validations:
+      required: false
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Workaround
+      description: Have you found any workarounds?
+      placeholder: |
+        - Processing in smaller batches helps...
+        - Disabling X overlay improves performance...
+    validations:
+      required: false
+
+  - type: textarea
+    id: suggestions
+    attributes:
+      label: Optimization Suggestions
+      description: Do you have ideas for how to improve performance?
+      placeholder: |
+        - Could cache X instead of recomputing...
+        - Consider using Y algorithm instead of Z...
+        - Parallel processing might help with...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have included specific performance metrics
+          required: true
+        - label: I have provided codebase size/characteristics
+          required: true
+        - label: I have searched existing issues to avoid duplicates
+          required: true
+        - label: I am using the latest version of cognition-cli
+          required: true

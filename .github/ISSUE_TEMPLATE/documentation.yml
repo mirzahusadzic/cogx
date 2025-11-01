@@ -1,0 +1,131 @@
+name: 📖 Documentation Improvement
+description: Suggest improvements to documentation, guides, or examples
+title: "[Docs]: "
+labels: ["documentation", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve our documentation! Clear, accurate docs are essential for a complex system like cognition-cli.
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: Documentation Type
+      description: What type of documentation needs improvement?
+      options:
+        - README.md
+        - Foundation Manual (16 chapters)
+        - Getting Started Guides (00-03)
+        - Advanced Topics (04-10)
+        - API/Code Documentation
+        - Command Reference
+        - Overlay Documentation (O₁-O₇)
+        - Philosophy & Vision
+        - Code Examples
+        - Error Messages
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Documentation Location
+      description: Where is the documentation that needs improvement?
+      placeholder: "docs/manual/part-1-foundation/02-the-pgc.md"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Issue Type
+      description: What kind of issue is this?
+      options:
+        - Incorrect/Outdated Information
+        - Unclear Explanation
+        - Missing Information
+        - Typo/Grammar
+        - Broken Link
+        - Missing Example
+        - Code Example Not Working
+        - Needs Diagram/Visual
+        - Inconsistency Across Docs
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: Current Documentation
+      description: What does the current documentation say? (quote or describe)
+      placeholder: |
+        The current docs say: "..."
+        Or: The docs don't mention...
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested
+    attributes:
+      label: Suggested Improvement
+      description: How should this be improved?
+      placeholder: |
+        It should instead say: "..."
+        Or: Add a section explaining...
+        Or: Include an example showing...
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Why This Matters
+      description: Why is this improvement important? What problem does it solve?
+      placeholder: |
+        - This confused me when I was trying to...
+        - New users might not understand...
+        - This is critical for understanding...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: audience
+    attributes:
+      label: Target Audience
+      description: Who would benefit most from this improvement?
+      options:
+        - New Users (First-Time Setup)
+        - Developers Using the CLI
+        - Contributors to the Project
+        - Researchers/Academic Users
+        - Integration Partners
+        - All Users
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context, screenshots, or links
+      placeholder: |
+        - Related documentation: ...
+        - Screenshots: ...
+        - External references: ...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have checked the latest version of the [documentation](https://mirzahusadzic.github.io/cogx/)
+          required: true
+        - label: I have searched existing issues to avoid duplicates
+          required: true
+        - label: I have provided specific location and suggested improvement
+          required: true

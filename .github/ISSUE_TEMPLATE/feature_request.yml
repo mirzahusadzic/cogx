@@ -1,0 +1,147 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement for Cognition CLI
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature! Please provide as much detail as possible to help us understand your request.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? What use case does it address?
+      placeholder: |
+        I'm trying to [do something] but currently cognition-cli doesn't support...
+        This would help with [specific scenario]...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: How would you like this feature to work?
+      placeholder: |
+        Add a new command `cognition-cli <command>` that...
+        Extend overlay O₄ to support...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What alternative solutions or workarounds have you considered?
+      placeholder: |
+        I currently work around this by...
+        An alternative approach might be...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: overlay-related
+    attributes:
+      label: Related Overlay
+      description: Is this feature related to a specific overlay?
+      options:
+        - O₁ - Structural Patterns
+        - O₂ - Security Guidelines
+        - O₃ - Lineage Patterns
+        - O₄ - Mission Concepts
+        - O₅ - Operational Patterns
+        - O₆ - Mathematical Proofs
+        - O₇ - Strategic Coherence
+        - Core PGC Infrastructure
+        - CLI Commands/UX
+        - Documentation
+        - Testing/Quality
+        - Not overlay-specific
+    validations:
+      required: true
+
+  - type: dropdown
+    id: fidelity
+    attributes:
+      label: Fidelity Considerations
+      description: What fidelity level would this feature operate at?
+      options:
+        - "1.0 - Deterministic/AST-based (cryptographic truth)"
+        - "0.85 - SLM-based (high confidence)"
+        - "0.70 - LLM-based (educated guess)"
+        - "Mixed fidelity levels"
+        - "Not applicable"
+    validations:
+      required: false
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Usage Examples
+      description: Show how you would use this feature
+      placeholder: |
+        ```bash
+        # Example 1: Basic usage
+        cognition-cli new-command --option value
+
+        # Example 2: Advanced usage
+        cognition-cli new-command --advanced-option
+        ```
+      render: bash
+    validations:
+      required: false
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact & Use Cases
+      description: Who would benefit from this feature? How would it be used?
+      placeholder: |
+        - This would help teams that...
+        - Use cases include...
+        - Benefits: ...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: Alignment with Core Principles
+      description: How does this feature align with cognition-cli principles?
+      options:
+        - label: Maintains cryptographic grounding (content-addressable, SHA-256)
+          required: false
+        - label: Includes proper fidelity labeling for uncertainty
+          required: false
+        - label: Preserves transparency and auditability
+          required: false
+        - label: Respects user autonomy and control
+          required: false
+        - label: Enhances verifiability of AI-assisted development
+          required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context, mockups, or references
+      placeholder: |
+        - Related research papers: ...
+        - Similar features in other tools: ...
+        - Mockups/diagrams: ...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have checked the [documentation](https://mirzahusadzic.github.io/cogx/) to ensure this doesn't already exist
+          required: true
+        - label: I have searched existing issues to avoid duplicates
+          required: true
+        - label: This feature aligns with the project's core principles (cryptographic grounding, transparency, user control)
+          required: true
