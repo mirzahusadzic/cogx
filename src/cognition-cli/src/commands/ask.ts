@@ -62,6 +62,91 @@ export async function askCommand(question: string, options: AskOptions) {
     console.log(chalk.gray('━'.repeat(80)));
     console.log('');
 
+    // STEP 0: Check cache first (before any LLM calls)
+    const questionHash = crypto
+      .createHash('sha256')
+      .update(question)
+      .digest('hex');
+
+    const qaDir = path.join(pgcRoot, 'knowledge', 'qa');
+    try {
+      const qaFiles = await fs.readdir(qaDir);
+      for (const file of qaFiles) {
+        if (!file.endsWith('.md')) continue;
+
+        const qaPath = path.join(qaDir, file);
+        const content = await fs.readFile(qaPath, 'utf-8');
+
+        // Parse frontmatter to check question_hash
+        const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+        if (frontmatterMatch) {
+          const frontmatter = frontmatterMatch[1];
+          const hashMatch = frontmatter.match(/question_hash:\s*(\S+)/);
+
+          if (hashMatch && hashMatch[1] === questionHash) {
+            if (verbose) {
+              console.log(
+                chalk.dim('  ✓ Found cached answer (skipping LLM calls)')
+              );
+            }
+
+            // Extract answer from markdown
+            const answerMatch = content.match(
+              /\*\*Answer\*\*:\s*(.+?)(?=\n\n##|$)/s
+            );
+            const sourcesMatch = content.match(/## Sources\n\n([\s\S]+)/);
+
+            if (answerMatch) {
+              console.log(chalk.bold.green('Answer (from cache):'));
+              console.log('');
+              console.log(chalk.white(answerMatch[1].trim()));
+              console.log('');
+
+              if (sourcesMatch) {
+                console.log(chalk.bold.dim('Sources (cached):'));
+                // Parse and display sources
+                const sourceLines = sourcesMatch[1].split('\n\n');
+                sourceLines.forEach((line) => {
+                  if (line.trim()) {
+                    console.log(chalk.dim(`  ${line.trim()}`));
+                  }
+                });
+                console.log('');
+              }
+
+              const elapsedMs = Date.now() - startTime;
+              const elapsedSeconds = (elapsedMs / 1000).toFixed(1);
+              console.log(
+                chalk.dim(
+                  `⏱  Completed in ${chalk.white(elapsedSeconds)} seconds (cached)`
+                )
+              );
+              console.log('');
+              return; // Early return - no LLM calls needed!
+            }
+          }
+        }
+      }
+    } catch (error) {
+      // QA directory doesn't exist or other error - continue with fresh search
+      if (verbose && (error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        console.log(
+          chalk.dim(
+            `  Note: Error reading Q&A cache: ${(error as Error).message}`
+          )
+        );
+      }
+    }
+
+    // No cache hit - proceed with full flow
+    if (verbose) {
+      console.log(
+        chalk.dim(
+          '  ✗ No cached answer found, proceeding with full analysis...'
+        )
+      );
+    }
+
     // STEP 1: Query Deconstruction (SLM)
     if (verbose) {
       console.log(chalk.dim('  [1/4] Deconstructing query intent...'));
@@ -123,14 +208,6 @@ export async function askCommand(question: string, options: AskOptions) {
         )
       );
     }
-
-    const questionHash = crypto
-      .createHash('sha256')
-      .update(question)
-      .digest('hex');
-
-    // Check if we have a cached Q&A
-    // TODO: Implement Q&A document search once we have the knowledge overlay
 
     // Initialize overlay managers (respecting overlay algebra interface)
     const overlays = [

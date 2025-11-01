@@ -7,8 +7,8 @@
 **Repository Details:**
 
 - **Location:** `~src/cogx/src/cognition-cli`
-- **Lines of Code:** ~28,281 TypeScript (production code)
-- **Current Version:** 1.7.5
+- **Lines of Code:** ~29,744 TypeScript (production code)
+- **Current Version:** 1.8.2
 - **License:** AGPL-3.0-or-later
 - **Author:** Mirza Husadzic
 - **Status:** Actively maintained with comprehensive documentation
@@ -158,6 +158,11 @@ Central orchestrator that manages:
 
 #### **Query & Search**
 
+- `ask <question>` — Semantic Q&A with multi-overlay search and answer synthesis
+  - Four-stage pipeline: query deconstruction (SLM) → vector search → answer synthesis (LLM) → optional save
+  - Intelligent cache using SHA256 hash of question for instant retrieval (0.0s vs 2.2s)
+  - Cached Q&A stored in `.open_cognition/knowledge/qa/*.md` with frontmatter metadata
+  - Searches across all overlays (O₁-O₇) using lattice algebra for comprehensive answers
 - `query <question>` — Traverse the dependency graph with optional lineage tracing
 - `audit:transformations <filePath>` — Verify transformation history integrity
 - `audit:docs` — Validate document integrity in PGC
@@ -571,19 +576,19 @@ The same architecture that understands code can preserve human identity through 
 
 ## Summary Statistics
 
-| Metric                      | Value                         |
-| --------------------------- | ----------------------------- |
-| Production TypeScript Lines | ~28,281                       |
-| Total Dependencies          | 24 npm packages               |
-| Documentation Pages         | 25+                           |
-| Manual Chapters             | 11                            |
-| Cognitive Overlays          | 7 (O₁-O₇)                     |
-| Supported Languages         | 6 (TS/JS/Python/Java/Rust/Go) |
-| Core Commands               | 15+                           |
-| Test Files                  | 18                            |
-| Test Coverage               | 85+ tests                     |
-| Current Version             | 1.7.5                         |
-| License                     | AGPL-3.0-or-later             |
+| Metric                      | Value             |
+| --------------------------- | ----------------- |
+| Production TypeScript Lines | ~29,744           |
+| Total Dependencies          | 24 npm packages   |
+| Documentation Pages         | 25+               |
+| Manual Chapters             | 16                |
+| Cognitive Overlays          | 7 (O₁-O₇)         |
+| Supported Languages         | 3 (TS/JS/Python)  |
+| Core Commands               | 15+               |
+| Test Files                  | 18                |
+| Test Coverage               | 85+ tests         |
+| Current Version             | 1.8.2             |
+| License                     | AGPL-3.0-or-later |
 
 ---
 
