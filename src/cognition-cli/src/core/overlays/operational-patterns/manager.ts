@@ -39,7 +39,8 @@ export interface OperationalMetadata extends OverlayMetadata {
     | 'sacred_sequence'
     | 'workflow_pattern'
     | 'depth_rule'
-    | 'terminology';
+    | 'terminology'
+    | 'explanation';
   weight: number;
   occurrences: number;
   section: string;
@@ -65,6 +66,7 @@ export interface OperationalMetadata extends OverlayMetadata {
  * - workflow_pattern: Process guidance (depth tracking, rebalancing)
  * - depth_rule: Depth-specific rules (Depth 0-3 guidance)
  * - terminology: Operational vocabulary (Quest, Oracle, AQS)
+ * - explanation: Explanatory paragraphs from documentation/manuals
  *
  * EMBEDDINGS:
  * - Each pattern has a 768-dimensional vector from eGemma
@@ -106,6 +108,7 @@ export class OperationalPatternsManager
       'workflow_pattern',
       'depth_rule',
       'terminology',
+      'explanation',
     ];
   }
 
@@ -435,6 +438,7 @@ export class OperationalPatternsManager
       | 'workflow_pattern'
       | 'depth_rule'
       | 'terminology'
+      | 'explanation'
   ): Promise<OperationalKnowledge[]> {
     const allPatterns = await this.getAllPatterns();
     return allPatterns.filter((p) => p.patternType === patternType);

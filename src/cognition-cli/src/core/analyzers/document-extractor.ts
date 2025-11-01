@@ -31,7 +31,8 @@ export interface OperationalKnowledge extends ExtractedKnowledge {
     | 'sacred_sequence'
     | 'workflow_pattern'
     | 'depth_rule'
-    | 'terminology';
+    | 'terminology'
+    | 'explanation'; // Explanatory paragraphs from documentation
   metadata?: {
     steps?: string[]; // For sequences
     formula?: string; // For AQS, calculations

@@ -168,6 +168,19 @@ export class WorkflowExtractor
       });
     });
 
+    // 7. Extract explanatory paragraphs (NEW: for documentation/reference manuals)
+    const explanations = this.extractExplanatoryParagraphs(content);
+    explanations.forEach((text) => {
+      patterns.push({
+        text,
+        section: section.heading,
+        weight: positionWeight * 0.85,
+        occurrences: 1,
+        sectionHash: section.structuralHash,
+        patternType: 'explanation',
+      });
+    });
+
     return patterns;
   }
 
@@ -353,5 +366,117 @@ export class WorkflowExtractor
     }
 
     return formulas;
+  }
+
+  /**
+   * Extract explanatory paragraphs from documentation
+   *
+   * For operational documentation like CLI manuals, we need to extract
+   * substantial explanatory content, not just pattern fragments.
+   *
+   * This method extracts:
+   * - Paragraphs with key concept definitions
+   * - Sections tagged with overlay markers (O4-MISSION, O5-DEPENDENCIES, etc.)
+   * - Multi-sentence explanations (>50 chars)
+   * - Purpose/why statements
+   */
+  private extractExplanatoryParagraphs(content: string): string[] {
+    const explanations: string[] = [];
+
+    // 1. Extract overlay-tagged content (O4-MISSION:, O5-DEPENDENCIES:, etc.)
+    const overlayTagPattern = /\*\*O[1-7]-[A-Z]+:\s*([^*]+)\*\*/g;
+    let overlayMatch;
+    while ((overlayMatch = overlayTagPattern.exec(content)) !== null) {
+      const text = overlayMatch[1].trim();
+      if (text.length > 50) {
+        explanations.push(
+          `${overlayMatch[0].replace(/\*\*/g, '').split(':')[0]}: ${text}`
+        );
+      }
+    }
+
+    // 2. Extract purpose statements (lines starting with PURPOSE:, ENABLES:, etc.)
+    const purposePattern =
+      /^(PURPOSE|ENABLES DOWNSTREAM OPERATIONS|KEY PRINCIPLE|WHAT GENESIS DOES|WHAT IT DOES|BEHAVIOR|IMPLEMENTATION|DETAILED PURPOSE):\s*$/gm;
+    const purposeMatches = Array.from(content.matchAll(purposePattern));
+
+    for (const match of purposeMatches) {
+      const startIdx = match.index! + match[0].length;
+      // Get next few lines after the header
+      const restOfContent = content.substring(startIdx);
+      const nextSection = restOfContent.split('\n##')[0]; // Until next heading
+      const lines = nextSection.split('\n').slice(0, 10); // Max 10 lines
+
+      let paragraph = '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('-') || trimmed.startsWith('*')) {
+          // List item
+          if (trimmed.length > 50) {
+            explanations.push(trimmed.replace(/^[*-]\s*/, ''));
+          }
+        } else if (trimmed.length > 50 && !trimmed.startsWith('#')) {
+          // Regular paragraph
+          paragraph += trimmed + ' ';
+          if (trimmed.endsWith('.') || trimmed.endsWith(':')) {
+            explanations.push(paragraph.trim());
+            paragraph = '';
+          }
+        }
+      }
+      if (paragraph.trim().length > 50) {
+        explanations.push(paragraph.trim());
+      }
+    }
+
+    // 3. Extract paragraphs with key concept indicators
+    const conceptIndicators = [
+      'genesis is',
+      'genesis process',
+      'verifiable skeleton',
+      'bottom-up aggregation',
+      'structural mining',
+      'command lifecycle',
+      'phase i',
+      'phase ii',
+      'phase iii',
+    ];
+
+    const paragraphs = content.split('\n\n');
+    for (const para of paragraphs) {
+      const lowerPara = para.toLowerCase();
+      const hasConceptIndicator = conceptIndicators.some((indicator) =>
+        lowerPara.includes(indicator)
+      );
+
+      if (hasConceptIndicator) {
+        // Clean up markdown formatting
+        const cleaned = para
+          .replace(/\*\*/g, '') // Remove bold
+          .replace(/`/g, '') // Remove code formatting
+          .replace(/\n/g, ' ') // Join lines
+          .replace(/\s+/g, ' ') // Normalize whitespace
+          .trim();
+
+        if (cleaned.length > 100 && cleaned.length < 500) {
+          explanations.push(cleaned);
+        }
+      }
+    }
+
+    // 4. Extract definition-style content ("X is Y" patterns)
+    const definitionPattern =
+      /([A-Z][A-Za-z\s]+)\s+is\s+(the\s+)?([^.]{20,200}\.)/g;
+    let defMatch;
+    while ((defMatch = definitionPattern.exec(content)) !== null) {
+      const fullMatch = defMatch[0].trim();
+      if (fullMatch.length > 50 && !fullMatch.includes('\n')) {
+        explanations.push(fullMatch);
+      }
+    }
+
+    // Deduplicate and limit
+    const unique = [...new Set(explanations)];
+    return unique.slice(0, 20); // Max 20 explanations per section
   }
 }
