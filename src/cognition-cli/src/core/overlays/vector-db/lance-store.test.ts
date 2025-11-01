@@ -29,6 +29,9 @@ describe('LanceVectorStore', () => {
     // CRITICAL: Close LanceDB connection before cleanup to prevent heap corruption
     if (store) {
       await store.close();
+      // Wait for native async cleanup to complete (LanceDB native bindings)
+      // Without this delay, native resources aren't fully released before next test
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
     // Cleanup temp directory
     await fs.remove(tempDir);

@@ -6,6 +6,7 @@ export default defineConfig({
   test: {
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
+    globalTeardown: './vitest.global-teardown.ts',
     /**
      * Ignore unhandled errors from workerpool/Tinypool incompatibility.
      *
@@ -17,5 +18,13 @@ export default defineConfig({
      * logging them for visibility.
      */
     dangerouslyIgnoreUnhandledErrors: true,
+    /**
+     * LanceDB native cleanup: Force sequential execution to prevent crashes.
+     * LanceDB native bindings have race conditions when tests run in parallel,
+     * causing segfaults and heap corruption even with proper cleanup delays.
+     */
+    maxConcurrency: 1, // Force sequential - LanceDB native code is not thread-safe
+    teardownTimeout: 5000, // 5 seconds for native cleanup
+    hookTimeout: 10000, // 10 seconds for test hooks (beforeEach/afterEach)
   },
 });
