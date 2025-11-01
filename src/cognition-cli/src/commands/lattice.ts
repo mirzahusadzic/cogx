@@ -352,11 +352,21 @@ export async function showOverlaysCommand(
   log.info('');
   for (const info of overlayInfo) {
     const hasData = await registry.hasData(info.id);
-    const status = hasData ? chalk.green('✓ HAS DATA') : chalk.dim('○ empty');
+    const status = hasData ? chalk.green('✓ HAS DATA') : chalk.dim('(empty)');
 
-    log.info(`${chalk.cyan(info.id)} ${chalk.bold(info.name)} ${status}`);
-    log.info(chalk.dim(`  ${info.description}`));
-    log.info(chalk.dim(`  Types: ${info.supportedTypes.join(', ')}`));
+    // Use filled bullet (●) for data, hollow (○) for empty - via log.message vs log.info
+    if (hasData) {
+      log.info(`${chalk.cyan(info.id)} ${chalk.bold(info.name)} ${status}`);
+      log.info(chalk.dim(`  ${info.description}`));
+      log.info(chalk.dim(`  Types: ${info.supportedTypes.join(', ')}`));
+    } else {
+      // Use log.message for hollow bullet to avoid automatic filled bullet
+      log.message(
+        `○  ${chalk.cyan(info.id)} ${chalk.bold(info.name)} ${status}`
+      );
+      log.message(chalk.dim(`│  ${info.description}`));
+      log.message(chalk.dim(`│  Types: ${info.supportedTypes.join(', ')}`));
+    }
     log.info('');
   }
 
