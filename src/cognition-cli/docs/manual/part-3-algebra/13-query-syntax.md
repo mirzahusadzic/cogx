@@ -1057,8 +1057,6 @@ The query parser transforms ASCII syntax into executable lattice operations thro
 - Type-safe evaluation (catches errors early)
 - Comprehensive test coverage (65 tests passing)
 
-**Next Chapter**: [Chapter 14: Set Operations and Symbol Algebra](14-set-operations.md) 📋
-
 **Previous Chapter**: [Chapter 12: Boolean Operations on Knowledge](12-boolean-operations.md) ✅
 
 ---
