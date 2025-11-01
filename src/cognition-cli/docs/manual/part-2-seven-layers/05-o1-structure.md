@@ -22,13 +22,13 @@ overlay: O1_Structure
 2. [Getting Started](#2-getting-started)
 3. [The Foundational Layer](#3-the-foundational-layer)
 4. [Extracted Entities — Symbol Types and Roles](#4-extracted-entities--symbol-types-and-roles)
-5. [Structural Signature — The Body](#4-structural-signature--the-body)
-6. [Dual Embeddings — Body & Shadow](#5-dual-embeddings--body--shadow)
-7. [Pattern Metadata Schema](#6-pattern-metadata-schema)
-8. [Worker-Based Parallel Extraction](#7-worker-based-parallel-extraction)
-9. [Computational Proof of Work (cPOW)](#8-computational-proof-of-work-cpow)
-10. [Performance and Storage](#9-performance-and-storage)
-11. [Integration with Other Overlays](#10-integration-with-other-overlays)
+5. [Structural Signature — The Body](#5-structural-signature--the-body)
+6. [Dual Embeddings — Body & Shadow](#6-dual-embeddings--body--shadow)
+7. [Pattern Metadata Schema](#7-pattern-metadata-schema)
+8. [Worker-Based Parallel Extraction](#8-worker-based-parallel-extraction)
+9. [Computational Proof of Work (cPOW)](#9-computational-proof-of-work-cpow)
+10. [Performance and Storage](#10-performance-and-storage)
+11. [Integration with Other Overlays](#11-integration-with-other-overlays)
 
 ---
 
@@ -195,7 +195,7 @@ O₁ Structural Patterns Overlay
 
 ---
 
-## 3. Extracted Entities — Symbol Types and Roles
+## 4. Extracted Entities — Symbol Types and Roles
 
 O₁ extracts **5 symbol types** and classifies them into **7 architectural roles**.
 
@@ -278,7 +278,7 @@ function classifyArchitecturalRole(
 
 ---
 
-## 4. Structural Signature — The Body
+## 5. Structural Signature — The Body
 
 Each symbol generates a **structural signature** that captures its essence without implementation details.
 
@@ -381,7 +381,7 @@ role: service
 
 ---
 
-## 5. Dual Embeddings — Body & Shadow
+## 6. Dual Embeddings — Body & Shadow
 
 O₁ supports **dual embeddings** for richer semantic search: the structural "body" and the semantic "shadow".
 
@@ -466,7 +466,7 @@ role: service (authentication)
 
 ---
 
-## 6. Pattern Metadata Schema
+## 7. Pattern Metadata Schema
 
 Each structural pattern entry includes comprehensive metadata for provenance, validation, and cPOW tracking.
 
@@ -557,7 +557,7 @@ interface PatternMetadata {
 
 ---
 
-## 7. Worker-Based Parallel Extraction
+## 8. Worker-Based Parallel Extraction
 
 O₁ uses **worker threads** for parallel AST parsing with optimal CPU utilization.
 
@@ -631,7 +631,7 @@ function calculateOptimalWorkers(jobCount: number): number {
 
 ---
 
-## 8. Computational Proof of Work (cPOW)
+## 9. Computational Proof of Work (cPOW)
 
 Every pattern extraction has a tracked **computational cost** (cPOW magnitude: 0.0 - 1.0).
 
@@ -710,7 +710,7 @@ cpow.magnitude = (0.30 + 0.75) * 1.00
 
 ---
 
-## 9. Performance and Storage
+## 10. Performance and Storage
 
 ### Performance Characteristics
 
@@ -757,7 +757,7 @@ cpow.magnitude = (0.30 + 0.75) * 1.00
 
 ---
 
-## 10. Integration with Other Overlays
+## 11. Integration with Other Overlays
 
 O₁ is the **foundation**—all other overlays depend on it.
 

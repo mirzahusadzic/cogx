@@ -228,23 +228,37 @@ npm link  # For global access
 # Navigate to your project
 cd /path/to/your/project
 
-# Initialize PGC
+# Run interactive wizard (recommended)
+cognition-cli wizard
+```
+
+The wizard handles:
+
+- PGC initialization (`.open_cognition/` directory structure)
+- Genesis (creates O₁ structural baseline from your code)
+- Optional overlay generation (O₂-O₇)
+- Documentation ingestion
+
+**Manual Alternative** (if you prefer step-by-step control):
+
+```bash
+# 1. Initialize PGC
 cognition-cli init
 
-# Build structural knowledge
+# 2. Build structural knowledge graph
 cognition-cli genesis src/
 
-# Ingest documentation
+# 3. Ingest documentation
 cognition-cli genesis:docs docs/
 
-# Generate overlays
+# 4. Generate specific overlays
 cognition-cli overlay generate structural_patterns
-cognition-cli overlay generate lineage_patterns
+cognition-cli overlay generate security_guidelines
 
-# Check mission alignment
+# 5. Check mission alignment
 cognition-cli coherence check
 
-# Start watching for changes
+# 6. Start watching for changes
 cognition-cli watch
 ```
 
