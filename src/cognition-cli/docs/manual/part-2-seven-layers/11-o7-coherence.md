@@ -25,6 +25,25 @@ overlay: O7_Coherence
 5. [Lattice-Aware Weighting — Gaussian + Centrality](#5-lattice-aware-weighting--gaussian--centrality)
 6. [Strategic Coherence Schema](#6-strategic-coherence-schema)
 7. [Cosine Similarity Algorithm](#7-cosine-similarity-algorithm)
+
+## Getting Started
+
+### Prerequisites
+
+**All other overlays must be generated first** (O₁-O₆)
+
+**Recommended**: `cognition-cli wizard`
+
+**Manual**:
+
+```bash
+# After generating O₁-O₆:
+cognition-cli overlay generate strategic_coherence
+cognition-cli coherence report
+```
+
+---
+
 8. [Drift Detection and Remediation](#8-drift-detection-and-remediation)
 9. [Use Cases and CLI Commands](#9-use-cases-and-cli-commands)
 10. [Cross-Overlay Integration](#10-cross-overlay-integration)

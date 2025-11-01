@@ -154,16 +154,18 @@ cognition-cli lattice "O4[category=principle]"
 cognition-cli coherence report --threshold 0.7
 ```
 
-**4. Portability**
+**4. Portability** _(Planned Feature)_
 
-Overlays can be **exported and imported**:
+**Status**: Not yet implemented. Future versions will support exporting/importing overlays via `.cogx` format.
+
+**Planned usage**:
 
 ```bash
-# Export security knowledge
-cognition-cli export --overlay O2 express-security.cogx
+# Future: Export security knowledge
+# cognition-cli export --overlay O2 express-security.cogx
 
-# Import into another project
-cognition-cli import express-security.cogx
+# Future: Import into another project
+# cognition-cli import express-security.cogx
 ```
 
 **Use case**: Share security patterns across projects that use the same dependencies.
@@ -588,7 +590,7 @@ docs/overlays/
 **Wizard Behavior** (after fix):
 
 1. Run `cognition-cli init`
-2. Run `cognition-cli genesis --source src/`
+2. Run `cognition-cli genesis src/`
 3. Ingest user's mission docs (if provided)
 4. **Ingest ALL template docs from `docs/overlays/`** (new!)
 5. Generate all requested overlays

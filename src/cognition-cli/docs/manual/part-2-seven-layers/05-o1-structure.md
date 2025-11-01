@@ -19,15 +19,16 @@ overlay: O1_Structure
 ## Table of Contents
 
 1. [Executive Summary](#1-executive-summary)
-2. [The Foundational Layer](#2-the-foundational-layer)
-3. [Extracted Entities — Symbol Types and Roles](#3-extracted-entities--symbol-types-and-roles)
-4. [Structural Signature — The Body](#4-structural-signature--the-body)
-5. [Dual Embeddings — Body & Shadow](#5-dual-embeddings--body--shadow)
-6. [Pattern Metadata Schema](#6-pattern-metadata-schema)
-7. [Worker-Based Parallel Extraction](#7-worker-based-parallel-extraction)
-8. [Computational Proof of Work (cPOW)](#8-computational-proof-of-work-cpow)
-9. [Performance and Storage](#9-performance-and-storage)
-10. [Integration with Other Overlays](#10-integration-with-other-overlays)
+2. [Getting Started](#2-getting-started)
+3. [The Foundational Layer](#3-the-foundational-layer)
+4. [Extracted Entities — Symbol Types and Roles](#4-extracted-entities--symbol-types-and-roles)
+5. [Structural Signature — The Body](#4-structural-signature--the-body)
+6. [Dual Embeddings — Body & Shadow](#5-dual-embeddings--body--shadow)
+7. [Pattern Metadata Schema](#6-pattern-metadata-schema)
+8. [Worker-Based Parallel Extraction](#7-worker-based-parallel-extraction)
+9. [Computational Proof of Work (cPOW)](#8-computational-proof-of-work-cpow)
+10. [Performance and Storage](#9-performance-and-storage)
+11. [Integration with Other Overlays](#10-integration-with-other-overlays)
 
 ---
 
@@ -62,7 +63,84 @@ The **Structural Patterns Overlay** (O₁) is the foundational layer of the PGC 
 
 ---
 
-## 2. The Foundational Layer
+## 2. Getting Started
+
+### Prerequisites
+
+Before using O₁ (Structural Patterns), you need:
+
+1. **Install cognition-cli**:
+
+   ```bash
+   cd src/cognition-cli
+   npm install
+   npm run build
+   npm link  # Makes cognition-cli available globally
+   ```
+
+2. **Initialize PGC** in your project directory
+
+### Generate O₁ Overlay
+
+**Recommended: Use Wizard**
+
+```bash
+cognition-cli wizard
+```
+
+The wizard handles:
+
+- PGC initialization
+- Genesis (creates O₁ structural baseline)
+- Optional overlay generation (O₂-O₇)
+
+**Manual Alternative**
+
+```bash
+# 1. Initialize PGC
+cognition-cli init
+
+# 2. Run genesis to build O₁
+cognition-cli genesis src/
+
+# 3. Generate structural patterns overlay
+cognition-cli overlay generate structural_patterns
+```
+
+### Ingest Structural Documentation (Optional)
+
+If you have structural pattern documentation:
+
+```bash
+# Ingest specific document
+cognition-cli genesis:docs docs/overlays/O1_structure/STRUCTURAL_PATTERNS.md --force
+
+# Or ingest all template docs
+cognition-cli genesis:docs docs/overlays/
+```
+
+**What happens**:
+
+- Extracts architectural patterns from documentation
+- Enriches O₁ with design patterns, conventions
+- Available for cross-overlay queries
+
+### Verify Generation
+
+```bash
+# Check overlay status
+cognition-cli overlays
+
+# Query structural patterns
+cognition-cli patterns find-similar <symbol-name>
+
+# Check lattice
+cognition-cli lattice "O1"
+```
+
+---
+
+## 3. The Foundational Layer
 
 O₁ Structure answers the question: **"What code artifacts exist in this codebase?"**
 

@@ -106,12 +106,14 @@ Cognitive architecture is infrastructure for **persistent, structured, verifiabl
 
 Knowledge is extracted once and queried many times. Like a database, not like a batch script.
 
-When you run `cognition-cli genesis --source src/`, the system:
+When you run `cognition-cli genesis src/`, the system:
 
 - Parses every TypeScript/JavaScript file
 - Extracts symbols, functions, classes, imports, exports
 - Computes content hashes (SHA-256) for integrity
-- Stores everything in the PGC (`.open_cognition/`)
+- Stores structural data (O₁) in the PGC (`.open_cognition/`)
+
+Then you generate overlays with `cognition-cli overlay generate <type>` or use the interactive wizard with `cognition-cli wizard`.
 
 Future queries read from the PGC. No re-parsing unless files change.
 

@@ -65,6 +65,26 @@ The **Lineage Patterns Overlay** (O₃) traces dependency relationships through 
 
 ---
 
+## Getting Started
+
+### Prerequisites
+
+1. **O₁ (Structural) overlay generated** - O₃ maps dependencies between symbols
+2. **Git repository** (optional) - for enhanced lineage tracking
+
+### Generate O₃ Overlay
+
+**Recommended**: `cognition-cli wizard`
+
+**Manual**:
+
+```bash
+cognition-cli genesis src/
+cognition-cli overlay generate lineage_patterns
+```
+
+---
+
 ## 2. The Dependency Layer
 
 O₃ Lineage answers three fundamental questions:

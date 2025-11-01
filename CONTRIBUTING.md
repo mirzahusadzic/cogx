@@ -64,8 +64,7 @@ This project and everyone participating in it is governed by our [Code of Conduc
 
    ```bash
    cd /path/to/test/project
-   cognition-cli init
-   cognition-cli genesis src/
+   cognition-cli wizard
    ```
 
 ## Development Workflow

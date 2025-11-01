@@ -497,7 +497,7 @@ embedding_semantic: [0.45, -0.23, 0.67, ..., -0.12] # 768-dim vector
 **Example**:
 
 ```bash
-cognition-cli query "authentication middleware"
+cognition-cli ask "authentication middleware"
 ```
 
 **Behind the scenes**:
@@ -525,7 +525,7 @@ const results = await lancedb.search(queryEmbedding).limit(10).execute();
 **Example**:
 
 ```bash
-cognition-cli query "classes with async methods handling user data"
+cognition-cli ask "classes with async methods handling user data"
 ```
 
 **Interpretation**:
@@ -606,7 +606,7 @@ dependencies:
 **Scenario**: Semantic search query after embeddings are generated
 
 ```bash
-time cognition-cli query "authentication middleware"
+time cognition-cli ask "authentication middleware"
 ```
 
 | Step               | Duration   | Notes                                |
@@ -750,7 +750,7 @@ Result: Code artifacts that align with mission principles
 **Goal**: Find security-critical code that violates mission principles
 
 ```bash
-cognition-cli query \
+cognition-cli ask \
   --overlay security_guidelines \
   & structural_patterns \
   - mission_concepts

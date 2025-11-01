@@ -31,6 +31,38 @@ overlay: O4_Mission
 
 ## Purpose and Scope
 
+## Getting Started
+
+### Prerequisites
+
+1. **O₁ (Structural) overlay generated** - O₄ aligns code with mission
+2. **Mission documentation** - VISION.md, MISSION.md, PRINCIPLES.md, or similar
+
+### Generate O₄ Overlay
+
+**Recommended**: `cognition-cli wizard`
+
+**Manual**:
+
+```bash
+# 1. Ingest mission documents
+cognition-cli genesis:docs docs/VISION.md --force
+cognition-cli genesis:docs docs/overlays/O4_mission/ --force
+
+# 2. Generate mission overlay
+cognition-cli overlay generate mission_concepts
+```
+
+### Verify
+
+```bash
+cognition-cli concepts list
+cognition-cli coherence report
+cognition-cli lattice "O4"
+```
+
+---
+
 The **O₄ Mission overlay** stores strategic knowledge extracted from mission documents like `VISION.md`, `MISSION.md`, and `CODING_PRINCIPLES.md`. It answers **"WHAT should we build?"** and **"WHY?"**
 
 **Key Distinction**: O₄ is **descriptive** (what/why), not prescriptive (how).

@@ -115,9 +115,9 @@ This chapter documents the core CLI commands that build, populate, and query the
 
 ## genesis — Build the Verifiable Skeleton
 
-**Command**: `cognition-cli genesis --source <path>`
+**Command**: `cognition-cli genesis <path>`
 
-**Purpose**: Extracts structural patterns and builds the foundational knowledge representation.
+**Purpose**: Extracts structural patterns (O₁) and builds the foundational knowledge representation.
 
 ### O4-MISSION: Why Genesis Exists
 
@@ -158,13 +158,15 @@ Genesis is **Phase I: Bottom-Up Structural Mining**
 ### Command Options
 
 ```bash
-cognition-cli genesis --source src/
+cognition-cli genesis src/
 ```
 
 **Parameters**:
 
-- `--source <path>`: Path to source code directory to analyze
+- `<path>`: Path to source code directory to analyze (positional argument)
 - `--workbench <url>`: eGemma workbench URL (default: `http://localhost:8000`)
+
+**Note**: After genesis, generate overlays with `cognition-cli overlay generate <type>` or use `cognition-cli wizard` for interactive setup.
 
 **Prerequisites**:
 
@@ -277,7 +279,7 @@ Semantic Vectors → [Index] → Searchable Knowledge
 ### Example: Genesis Run
 
 ```bash
-$ cognition-cli genesis --source src/
+$ cognition-cli genesis src/
 
 Genesis: Building the Verifiable Skeleton
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -329,11 +331,7 @@ cognition-cli status
 # Output: PGC Status: stale (43 files changed since genesis)
 ```
 
-**Force re-run**:
-
-```bash
-cognition-cli genesis --source src/ --force
-```
+**To refresh**: Use `cognition-cli update` for incremental changes, or re-run genesis for full rebuild.
 
 ### Troubleshooting
 
@@ -354,7 +352,7 @@ Or set WORKBENCH_URL environment variable
 
 ```
 Solution: Process in batches or increase Node.js heap
-NODE_OPTIONS=--max-old-space-size=8192 cognition-cli genesis --source src/
+NODE_OPTIONS=--max-old-space-size=8192 cognition-cli genesis src/
 ```
 
 ---

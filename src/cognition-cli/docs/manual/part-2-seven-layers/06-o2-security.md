@@ -16,16 +16,83 @@ overlay: O2_Security
 
 ## Table of Contents
 
-1. [Why O₂ Is Foundational](#why-o₂-is-foundational)
-2. [The Six Knowledge Types](#the-six-knowledge-types)
-3. [SecurityGuidelinesManager Architecture](#securityguidelinesmanager-architecture)
-4. [Document Classification and Routing](#document-classification-and-routing)
-5. [Cross-Overlay Queries](#cross-overlay-queries)
-6. [Dependency Security Inheritance](#dependency-security-inheritance)
-7. [Real-World Examples](#real-world-examples)
-8. [Implementation Deep Dive](#implementation-deep-dive)
-9. [Common Pitfalls](#common-pitfalls)
-10. [Performance Characteristics](#performance-characteristics)
+1. [Getting Started](#getting-started)
+2. [Why O₂ Is Foundational](#why-o₂-is-foundational)
+3. [The Six Knowledge Types](#the-six-knowledge-types)
+4. [SecurityGuidelinesManager Architecture](#securityguidelinesmanager-architecture)
+5. [Document Classification and Routing](#document-classification-and-routing)
+6. [Cross-Overlay Queries](#cross-overlay-queries)
+7. [Dependency Security Inheritance](#dependency-security-inheritance)
+8. [Real-World Examples](#real-world-examples)
+9. [Implementation Deep Dive](#implementation-deep-dive)
+10. [Common Pitfalls](#common-pitfalls)
+11. [Performance Characteristics](#performance-characteristics)
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+1. **O₁ (Structural) overlay generated** - O₂ maps threats to code symbols
+2. **Security documentation** - threat models, mitigations, attack vectors
+
+### Generate O₂ Overlay
+
+**Recommended: Use Wizard**
+
+```bash
+cognition-cli wizard
+```
+
+**Manual Alternative**
+
+```bash
+# 1. Ensure genesis completed (creates O₁)
+cognition-cli genesis src/
+
+# 2. Ingest security documentation
+cognition-cli genesis:docs docs/SECURITY.md --force
+
+# Or use template security docs
+cognition-cli genesis:docs docs/overlays/O2_security/ --force
+
+# 3. Generate security overlay
+cognition-cli overlay generate security_guidelines
+```
+
+### Ingest Specific Security Documents
+
+```bash
+# Single document with force regeneration
+cognition-cli genesis:docs docs/overlays/O2_security/SECURITY_GUIDELINES.md --force
+
+# Multiple documents
+cognition-cli genesis:docs docs/overlays/O2_security/THREAT_MODEL.md --force
+cognition-cli genesis:docs docs/SECURITY.md --force
+```
+
+**What `--force` does**:
+
+- Re-ingests document even if already processed
+- Updates overlay with new/changed security knowledge
+- Preserves existing non-overlapping data
+
+### Verify Generation
+
+```bash
+# Check overlay status
+cognition-cli overlays
+
+# Query security patterns
+cognition-cli lattice "O2"
+
+# Check threat models
+cognition-cli security threats
+
+# Verify cross-overlay alignment
+cognition-cli lattice "O2 & O4"  # Security aligned with mission
+```
 
 ---
 
@@ -790,19 +857,19 @@ cognition-cli lattice "O5[workflow_pattern] ~ O2[boundary]" --threshold 0.7
 
 ## Dependency Security Inheritance
 
-### The .cogx Format
+### The .cogx Format _(Planned Feature)_
 
-O₂ Security overlays can be exported as `.cogx` files and imported by dependent projects.
+**Status**: Not yet implemented. Future versions will support exporting/importing security overlays via `.cogx` format.
 
-**Use Case**: Express framework exports its known CVEs, your project imports them.
+**Planned Use Case**: Express framework exports its known CVEs, your project imports them.
 
-#### Export
+#### Export _(Future)_
 
 ```bash
-# In express repository
-cognition-cli export express-security.cogx --overlay O2
+# Future: In express repository
+# cognition-cli export express-security.cogx --overlay O2
 
-# Creates: express-security.cogx (contains all O₂ security knowledge)
+# Will create: express-security.cogx (contains all O₂ security knowledge)
 ```
 
 **File Format**:

@@ -25,6 +25,20 @@ overlay: O5_Operational
 7. [Query Examples](#query-examples)
 8. [Real-World Usage](#real-world-usage)
 9. [Design Patterns](#design-patterns)
+
+## Getting Started
+
+**Recommended**: `cognition-cli wizard`
+
+**Manual**:
+
+```bash
+cognition-cli genesis:docs docs/overlays/O5_operational/ --force
+cognition-cli overlay generate operational_patterns
+```
+
+---
+
 10. [Comparison with Other Overlays](#comparison-with-other-overlays)
 11. [Implementation Details](#implementation-details)
 12. [Future Enhancements](#future-enhancements)

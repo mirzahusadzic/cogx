@@ -25,6 +25,20 @@ overlay: O6_Mathematical
 7. [Real-World Examples](#real-world-examples)
 8. [Implementation Deep Dive](#implementation-deep-dive)
 9. [Common Pitfalls](#common-pitfalls)
+
+## Getting Started
+
+**Recommended**: `cognition-cli wizard`
+
+**Manual**:
+
+```bash
+cognition-cli genesis:docs docs/overlays/O6_mathematical/ --force
+cognition-cli overlay generate mathematical_proofs
+```
+
+---
+
 10. [Performance Characteristics](#performance-characteristics)
 
 ---

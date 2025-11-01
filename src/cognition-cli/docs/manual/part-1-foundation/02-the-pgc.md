@@ -829,7 +829,7 @@ cognition-cli init
 - `"active"`: Contains knowledge, ready for queries
 - `"stale"`: Code changed significantly since last genesis (needs refresh)
 
-**Next step**: Run `cognition-cli genesis --source src/` to populate
+**Next step**: Run `cognition-cli genesis src/` to populate structural data (O₁), then generate overlays with `cognition-cli overlay generate <type>` or use `cognition-cli wizard` for interactive setup.
 
 ---
 
@@ -838,13 +838,22 @@ cognition-cli init
 **1. Empty → Active** (First Genesis)
 
 ```bash
-cognition-cli genesis --source src/
+cognition-cli genesis src/
 ```
 
 - Parses all source files
 - Populates `objects/`, `transforms/`, `index/`
-- Creates O₁ (Structural Patterns)
+- Creates O₁ (Structural Patterns) baseline
 - Updates `metadata.json`: `"status": "active"`
+
+Then generate additional overlays:
+
+```bash
+cognition-cli overlay generate security_guidelines
+cognition-cli overlay generate mission_concepts
+# Or use wizard for interactive setup:
+cognition-cli wizard
+```
 
 **2. Active → Stale** (Code Changes)
 
@@ -960,10 +969,14 @@ logs/
 
 **Overlay conflicts**: Use JSON merge tools. Overlays are append-only, so conflicts are rare.
 
-**Regeneration**: If PGC gets corrupted, regenerate with:
+**Regeneration**: If PGC gets corrupted, contact support or file an issue. For advanced users who understand the risks, overlays can be regenerated individually:
 
 ```bash
-cognition-cli genesis --source src/ --force
+# Regenerate specific overlay (preserves other data)
+cognition-cli overlay generate structural_patterns --regenerate
+
+# Or use wizard to rebuild interactively
+cognition-cli wizard
 ```
 
 ---
@@ -982,13 +995,15 @@ tar -czf pgc-backup-$(date +%Y%m%d).tar.gz .open_cognition/
 
 Store outside repository (large file).
 
-**Option 3: Export .cogx**
+**Option 3: Full Tarball Backup**
 
 ```bash
-cognition-cli export my-project.cogx
+tar -czf pgc-backup-$(date +%Y%m%d).tar.gz .open_cognition/
 ```
 
 Portable, compressed, includes all overlays + metadata.
+
+**Note**: `.cogx` export format is planned for future releases.
 
 ---
 
