@@ -169,7 +169,10 @@ export class WorkflowExtractor
     });
 
     // 7. Extract explanatory paragraphs (NEW: for documentation/reference manuals)
-    const explanations = this.extractExplanatoryParagraphs(content);
+    const explanations = this.extractExplanatoryParagraphs(
+      content,
+      section.heading
+    );
     explanations.forEach((text) => {
       patterns.push({
         text,
@@ -380,10 +383,33 @@ export class WorkflowExtractor
    * - Multi-sentence explanations (>50 chars)
    * - Purpose/why statements
    */
-  private extractExplanatoryParagraphs(content: string): string[] {
+  private extractExplanatoryParagraphs(
+    content: string,
+    heading: string
+  ): string[] {
     const explanations: string[] = [];
 
-    // 1. Extract overlay-tagged content (O4-MISSION:, O5-DEPENDENCIES:, etc.)
+    // 1. Check if this section is a "What is X?" heading - if so, extract all content
+    const whatIsPattern = /What is ([^?]+)\?/i;
+    const whatIsMatch = heading.match(whatIsPattern);
+    if (whatIsMatch) {
+      // Extract paragraphs from this section's content
+      const paragraphs = content.split('\n\n').slice(0, 5); // First 5 paragraphs
+      for (const para of paragraphs) {
+        const cleaned = para
+          .replace(/\*\*/g, '')
+          .replace(/`/g, '')
+          .replace(/\n/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        if (cleaned.length > 50 && cleaned.length < 2000) {
+          explanations.push(cleaned);
+        }
+      }
+    }
+
+    // 2. Extract overlay-tagged content (O4-MISSION:, O5-DEPENDENCIES:, etc.)
     const overlayTagPattern = /\*\*O[1-7]-[A-Z]+:\s*([^*]+)\*\*/g;
     let overlayMatch;
     while ((overlayMatch = overlayTagPattern.exec(content)) !== null) {
@@ -429,30 +455,7 @@ export class WorkflowExtractor
       }
     }
 
-    // 3. Extract "What is X?" sections (common in reference manuals)
-    const whatIsPattern = /###?\s+What is ([^?]+)\?/g;
-    let whatIsMatch;
-    while ((whatIsMatch = whatIsPattern.exec(content)) !== null) {
-      const startIdx = whatIsMatch.index + whatIsMatch[0].length;
-      const restOfContent = content.substring(startIdx);
-      const nextSection = restOfContent.split('\n##')[0]; // Until next heading
-      const paragraphs = nextSection.split('\n\n').slice(0, 3); // First 3 paragraphs
-
-      for (const para of paragraphs) {
-        const cleaned = para
-          .replace(/\*\*/g, '')
-          .replace(/`/g, '')
-          .replace(/\n/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
-
-        if (cleaned.length > 100 && cleaned.length < 800) {
-          explanations.push(cleaned);
-        }
-      }
-    }
-
-    // 4. Extract paragraphs with key concept indicators
+    // 3. Extract paragraphs with key concept indicators
     // Generic patterns for operational/reference documentation
     const conceptIndicators = [
       'is the',
@@ -480,7 +483,7 @@ export class WorkflowExtractor
           .replace(/\s+/g, ' ') // Normalize whitespace
           .trim();
 
-        if (cleaned.length > 100 && cleaned.length < 500) {
+        if (cleaned.length > 50 && cleaned.length < 2000) {
           explanations.push(cleaned);
         }
       }
