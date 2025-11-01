@@ -285,6 +285,18 @@ cognition-cli watch
 
 ## Documentation
 
+📖 **[Complete Documentation Site](https://mirzahusadzic.github.io/cogx/)** — Full manual with 16 chapters covering cognitive architecture, 7 overlays, and lattice algebra
+
+### Foundation Manual
+
+The comprehensive 16-chapter manual organized by parts:
+
+- **Part I: Foundation** — Cognitive architecture, PGC, overlays, embeddings, core security (7+ Gemini personas)
+- **Part II: The Seven Overlays** — O₁ through O₇ (structural, security, lineage, mission, operational, mathematical, coherence)
+- **Part III: The Algebra** — Boolean operations and query syntax for multi-overlay reasoning
+
+[📚 Read the Manual](https://mirzahusadzic.github.io/cogx/manual/part-1-foundation/01-cognitive-architecture)
+
 ### Official Guides
 
 - [00 - Introduction to Cognition CLI](./docs/00_Introduction.md)
@@ -299,7 +311,7 @@ cognition-cli watch
 - [09 - Mission Concept Extraction](./docs/09_Mission_Concept_Extraction.md)
 - [10 - Mission Security Validation](./docs/10_Mission_Security_Validation.md)
 
-### Manual (Deep Dive)
+### Additional Resources
 
 - [Manual: Complete 900+ Page Guide](./docs/manual/README.md)
 - [Dual-Use Mandate](./docs/DUAL_USE_MANDATE.md)

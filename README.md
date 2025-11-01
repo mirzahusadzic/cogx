@@ -29,6 +29,20 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 **Read the full manifesto**: **[VISION.md](src/cognition-cli/docs/overlays/O4_mission/VISION.md)** — Mission, symbiosis architecture, strategic intent, and why AGPLv3.
 
+---
+
+## 📖 Documentation
+
+**[📚 Complete Documentation Site](https://mirzahusadzic.github.io/cogx/)** — 16-chapter manual covering cognitive architecture, 7 overlays (O₁-O₇), lattice algebra, and the complete reference implementation.
+
+**Quick Links:**
+- [Foundation Manual](https://mirzahusadzic.github.io/cogx/manual/part-1-foundation/01-cognitive-architecture) — Start here for comprehensive understanding
+- [Core Security](https://mirzahusadzic.github.io/cogx/manual/part-1-foundation/04.5-core-security) — 7+ Gemini personas protecting the lattice
+- [The Seven Overlays](https://mirzahusadzic.github.io/cogx/manual/part-2-seven-layers/05-o1-structure) — O₁ through O₇ explained
+- [Lattice Algebra](https://mirzahusadzic.github.io/cogx/manual/part-3-algebra/12-boolean-operations) — Boolean operations across overlays
+
+---
+
 ## 🎯 Recent Innovations
 
 **November 1, 2025** — [v1.8.0: Self-Cognition - The Lattice Explains Itself](https://github.com/mirzahusadzic/cogx/releases/tag/v1.8.0):
