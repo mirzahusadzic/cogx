@@ -397,7 +397,7 @@ export class WorkflowExtractor
 
     // 2. Extract purpose statements (lines starting with PURPOSE:, ENABLES:, etc.)
     const purposePattern =
-      /^(PURPOSE|ENABLES DOWNSTREAM OPERATIONS|KEY PRINCIPLE|WHAT GENESIS DOES|WHAT IT DOES|BEHAVIOR|IMPLEMENTATION|DETAILED PURPOSE):\s*$/gm;
+      /^(PURPOSE|ENABLES DOWNSTREAM OPERATIONS|KEY PRINCIPLE|WHAT GENESIS DOES|WHAT IT DOES|BEHAVIOR|IMPLEMENTATION|DETAILED PURPOSE|KEY PROPERTIES|CORE INNOVATION|EXECUTIVE SUMMARY):\s*$/gm;
     const purposeMatches = Array.from(content.matchAll(purposePattern));
 
     for (const match of purposeMatches) {
@@ -429,17 +429,39 @@ export class WorkflowExtractor
       }
     }
 
-    // 3. Extract paragraphs with key concept indicators
+    // 3. Extract "What is X?" sections (common in reference manuals)
+    const whatIsPattern = /###?\s+What is ([^?]+)\?/g;
+    let whatIsMatch;
+    while ((whatIsMatch = whatIsPattern.exec(content)) !== null) {
+      const startIdx = whatIsMatch.index + whatIsMatch[0].length;
+      const restOfContent = content.substring(startIdx);
+      const nextSection = restOfContent.split('\n##')[0]; // Until next heading
+      const paragraphs = nextSection.split('\n\n').slice(0, 3); // First 3 paragraphs
+
+      for (const para of paragraphs) {
+        const cleaned = para
+          .replace(/\*\*/g, '')
+          .replace(/`/g, '')
+          .replace(/\n/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        if (cleaned.length > 100 && cleaned.length < 800) {
+          explanations.push(cleaned);
+        }
+      }
+    }
+
+    // 4. Extract paragraphs with key concept indicators
+    // Generic patterns for operational/reference documentation
     const conceptIndicators = [
-      'genesis is',
-      'genesis process',
-      'verifiable skeleton',
-      'bottom-up aggregation',
-      'structural mining',
-      'command lifecycle',
-      'phase i',
-      'phase ii',
-      'phase iii',
+      'is the',
+      'is a',
+      'enables',
+      'provides',
+      'allows',
+      'ensures',
+      'guarantees',
     ];
 
     const paragraphs = content.split('\n\n');
