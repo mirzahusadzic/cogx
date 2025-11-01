@@ -26,7 +26,11 @@ describe('LanceVectorStore', () => {
   });
 
   afterEach(async () => {
-    // Cleanup
+    // CRITICAL: Close LanceDB connection before cleanup to prevent heap corruption
+    if (store) {
+      await store.close();
+    }
+    // Cleanup temp directory
     await fs.remove(tempDir);
   });
 
