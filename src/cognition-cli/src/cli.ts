@@ -110,6 +110,10 @@ program
     'Root directory of the project',
     process.cwd()
   )
+  .option(
+    '-f, --force',
+    'Force re-ingestion by removing existing entries first'
+  )
   .action((pathArg, options) => {
     const defaultPath = path.join(options.projectRoot, '../../VISION.md');
     const targetPath = pathArg || defaultPath;

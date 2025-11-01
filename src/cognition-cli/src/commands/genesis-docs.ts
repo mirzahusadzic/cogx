@@ -11,6 +11,7 @@ import { GenesisDocTransform } from '../core/transforms/genesis-doc-transform.js
 interface GenesisDocsOptions {
   projectRoot: string;
   pattern?: string;
+  force?: boolean;
 }
 
 /**
@@ -97,13 +98,22 @@ export async function genesisDocsCommand(
         );
 
         if (existingHash) {
-          s.stop(
-            chalk.dim(
-              `⊘ ${path.basename(file)} → ${contentHash.substring(0, 12)}... (already exists, skipped)`
-            )
-          );
-          results.push({ file, skipped: true, success: true });
-          continue;
+          if (options.force) {
+            // Force re-ingestion: delete existing document first
+            await deleteExistingDocument(pgcRoot, contentHash, existingHash);
+            s.message(
+              `Removed existing ${path.basename(file)} → ${contentHash.substring(0, 12)}...`
+            );
+          } else {
+            // Skip if already exists and not forcing
+            s.stop(
+              chalk.dim(
+                `⊘ ${path.basename(file)} → ${contentHash.substring(0, 12)}... (already exists, skipped)`
+              )
+            );
+            results.push({ file, skipped: true, success: true });
+            continue;
+          }
         }
 
         const result = await transform.execute(file);
@@ -243,4 +253,66 @@ async function findExistingDocumentHash(
   }
 
   return null;
+}
+
+/**
+ * Delete an existing document from the PGC (index and overlays)
+ */
+async function deleteExistingDocument(
+  pgcRoot: string,
+  contentHash: string,
+  objectHash: string
+): Promise<void> {
+  const indexDir = path.join(pgcRoot, 'index', 'docs');
+  const overlaysDir = path.join(pgcRoot, 'overlays');
+
+  // Delete index entry
+  const indexFiles = await fs.readdir(indexDir);
+  for (const indexFile of indexFiles) {
+    if (!indexFile.endsWith('.json')) {
+      continue;
+    }
+
+    const indexPath = path.join(indexDir, indexFile);
+    try {
+      const indexEntry = await fs.readJSON(indexPath);
+      if (indexEntry.contentHash === contentHash) {
+        await fs.remove(indexPath);
+        break;
+      }
+    } catch (error) {
+      // Skip invalid index files
+      continue;
+    }
+  }
+
+  // Delete overlay entries with matching document_hash
+  if (await fs.pathExists(overlaysDir)) {
+    const overlayTypes = await fs.readdir(overlaysDir);
+
+    for (const overlayType of overlayTypes) {
+      const overlayDir = path.join(overlaysDir, overlayType);
+      const stat = await fs.stat(overlayDir);
+
+      if (!stat.isDirectory()) {
+        continue;
+      }
+
+      const overlayFiles = await fs.readdir(overlayDir);
+
+      for (const overlayFile of overlayFiles) {
+        if (!overlayFile.endsWith('.yaml')) {
+          continue;
+        }
+
+        const overlayPath = path.join(overlayDir, overlayFile);
+
+        // Check if this overlay file is for our document
+        // The objectHash is the document hash used in overlays
+        if (overlayFile.startsWith(objectHash)) {
+          await fs.remove(overlayPath);
+        }
+      }
+    }
+  }
 }
