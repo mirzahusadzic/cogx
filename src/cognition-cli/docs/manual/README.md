@@ -76,6 +76,10 @@ Separation of concerns: Strategic vs Operational vs Security knowledge.
 `part-1-foundation/04.5-core-security.md`
 Mission validation, drift detection, integrity monitoring. Defending against mission poisoning attacks.
 
+**Chapter 5: CLI Operations — Building and Querying the Lattice**
+`part-1-foundation/05-cli-operations.md`
+Command reference: init, genesis, ask, patterns, coherence, blast-radius, overlay generate. The construction and query interface for the knowledge lattice.
+
 ---
 
 ### Part II: The Seven Layers (~200 pages)
@@ -206,6 +210,7 @@ Read sequentially from Part I through Part V.
 - 🔄 Chapter 3: Why Overlays? (migrate from MULTI_OVERLAY_ARCHITECTURE.md)
 - 📋 Chapter 4: Embeddings
 - ✅ Chapter 4.5: Core Security (COMPLETE - 1,050 lines)
+- ✅ Chapter 5: CLI Operations (COMPLETE - 850 lines)
 
 ### Part II: The Seven Layers ✅ COMPLETE
 
