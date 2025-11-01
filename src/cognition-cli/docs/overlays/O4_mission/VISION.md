@@ -168,11 +168,33 @@ These innovations are protected from patent restrictions and remain free for all
 23. **Markdown Parser with Meta Properties:** Hierarchical AST with structuralHash and position tracking
 24. **Overlay Invalidation System:** Automatic cascade invalidation of dependent overlays
 
-**Post-Publication Additions (Innovations #25-27):**
+**Post-Publication Additions (Innovations #25-38):**
+
+**Published**: October 27, 2025
 
 25. **Context Sampling Function (Σ):** Efficient lattice traversal for relevant knowledge extraction (emerged through Claude Code integration)
+
+**Published**: October 28, 2025
+
 26. **Monument 4.7: The Shadow:** Dual embedding system for structural and semantic signatures enabling both code pattern matching and mission alignment queries
 27. **Monument 5.1: Lattice-aware Gaussian Weighting:** Pure lattice-based coherence using Gaussian statistics + graph centrality, eliminating all hardcoded constants (weight formula: w = log10(deps+1) × max(0.1, 1.0 + z_score))
+
+**Published**: October 31, 2025 — [Zenodo: 10.5281/zenodo.17489413](https://doi.org/10.5281/zenodo.17489413)
+
+28. **Lattice Algebra System:** Boolean query operations across overlays with ASCII syntax (O1 ∩ O2, O1 ∪ O2, O1 - O2, O2[critical], O4 ~ "verification", O7[coherence>0.8])
+29. **Multi-Overlay Document Routing:** Intelligent document classification using confidence thresholds with automatic overlay generation based on document type (strategic → O₄, security → O₂, operational → O₅, mathematical → O₆)
+30. **Complete 7-Overlay System:** Full implementation of O₁ (Structure), O₂ (Security), O₃ (Lineage), O₄ (Mission), O₅ (Operational), O₆ (Mathematical), O₇ (Coherence) with unified query interface
+31. **O₂ Security Layer Full Implementation:** 20 real threats documented in THREAT_MODEL.md, CVE tracking, security coherence metrics, threat model documentation with SecurityExtractor for multi-field structured parsing
+32. **Foundation Manual (900+ pages):** Eight comprehensive chapters documenting complete system: Core Security (4.5), O₁ Structure (5), Security Implementation (6), O₃ Lineage (7), O₄ Mission (8), O₅ Operational (9), O₆ Mathematical (10), O₇ Coherence (11), cPOW Reference (20)
+33. **OverlayRegistry & Sugar Commands:** Dynamic overlay discovery system with intuitive CLI access (security, workflow, proofs, coherence commands)
+
+**Published**: November 1, 2025 — [Zenodo: 10.5281/zenodo.17501091](https://doi.org/10.5281/zenodo.17501091)
+
+34. **Semantic Q&A System (Block 4 - Self-Cognition):** Natural language queries across knowledge lattice with cross-overlay synthesis, provenance tracking, and confidence scoring enabling the lattice to explain its own architecture
+35. **Frontmatter-Authoritative Classification:** YAML frontmatter metadata treated as ground truth (1.0 confidence) overriding ML-based document classification for guaranteed accuracy
+36. **Generic Documentation Extraction:** WorkflowExtractor generalized for all documentation types with section heading-based context capture and "What is X?" pattern recognition
+37. **Quest Operations Logging (Block 2 - Lops):** Transparency logging infrastructure for quest execution provenance and cPOW lineage tracking with immutable audit trails
+38. **Sacred Pause Formalization:** Oracle Meeting Points documented as three-phase decision framework with depth-based quality gates and F.L.T.B validation checkpoints
 
 ### 5. Mathematics Rewards Openness
 

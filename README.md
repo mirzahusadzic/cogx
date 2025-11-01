@@ -31,85 +31,17 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 ## 🎯 Recent Innovations
 
-**October 28, 2025** — First Full-Stack Production Analysis:
+**November 1, 2025** — [v1.8.0: Self-Cognition - The Lattice Explains Itself](https://github.com/mirzahusadzic/cogx/releases/tag/v1.8.0):
 
-- ✅ **Production Validation** - First complete analysis of a real-world production application
-- ✅ **Polyglot Architecture** - Python backend + TypeScript/JavaScript frontend successfully analyzed
-- ✅ **226 Structural Patterns** - Complete architectural fingerprint extracted
-- ✅ **Mission Coherence Validated** - 71.1% coherence score on core business logic, 73.5% on ML pipeline
-- ✅ **Quantified Blast Radius** - Abstract risk transformed into measurable metrics
-- ✅ **Zero Hallucinations** - All insights derived from grounded structural and semantic lattice
+- ✅ **Block 4 (Self-Cognition) Achieved** - `cognition-cli ask "what is cPOW?"` queries and synthesizes answers across the entire knowledge lattice
+- ✅ **Cross-Overlay Semantic Q&A** - Natural language queries with provenance tracking and confidence scoring (2-3s response times)
+- ✅ **100% Classification Confidence** - YAML frontmatter validation for all 15 manual documents
+- ✅ **Enhanced Extraction** - WorkflowExtractor generalized, "What is X?" sections captured
+- ✅ **Quest Logging (Block 2 - Lops)** - Transparency logging infrastructure for cPOW lineage
 
-**PGC moves from theory to proven production capability.**
+**The lattice can now explain itself.**
 
-🚀 **[Get Started: Onboarding Docs](https://mirzahusadzic.github.io/cogx/03_Commands.html#_5-setup-onboarding-commands)**
-
-**October 28, 2025** — Monument 5.1: Lattice-aware Gaussian Weighting + The Shadow:
-
-- ✅ **Pure Lattice Derivation** - Eliminated all hardcoded constants using Gaussian statistics + graph centrality
-- ✅ **Three-Tier Coherence** - Average (baseline), Weighted (centrality), Lattice (Gaussian + centrality synthesis)
-- ✅ **Noise Filtering** - Automatic exclusion of symbols below μ - σ (statistical noise reduction)
-- ✅ **The Shadow Architecture** - Dual embedding system for structural and semantic signatures
-- ✅ **Verified Results** - 57.7% lattice coherence (+3.0% from baseline)
-
-**October 27, 2025** — Context Sampling Function (Σ):
-
-- ✅ **Efficient Lattice Traversal** - Intelligent knowledge extraction from PGC structure
-- ✅ **Context-Aware Operations** - Emerged through Claude Code integration
-
-**October 26, 2025** — The system achieved recursive meta-cognition and mission security validation:
-
-### Foundation: Meta-Cognitive Self-Analysis
-
-**[AI Grounded Architecture Analysis](src/cognition-cli/docs/07_AI_Grounded_Architecture_Analysis.md)** — First pure grounded architecture analysis:
-
-- ✅ **Zero source files read** - AI reasoned from structured PGC metadata alone
-- ✅ **101 structural patterns analyzed** - Complete architectural understanding
-- ✅ **100% reproducible** - Every claim backed by verifiable commands
-- ✅ **Meta-cognitive breakthrough** - System reasoning about its own structure
-
-**[Claude Code Integration](src/cognition-cli/docs/08_Claude_CLI_Integration.md)** — AI-human symbiosis workflow:
-
-- ✅ **Grounded architecture exploration** - AI queries verified PGC metadata
-- ✅ **Real-time coherence monitoring** - `/watch` tracks PGC state during development
-- ✅ **Impact-aware refactoring** - `/blast-radius` quantifies change impact
-- ✅ **Pre-commit quality gates** - Automated PGC coherence checks
-
-### O₃ Layer: Mission Concepts
-
-**[Mission Concept Extraction](src/cognition-cli/docs/09_Mission_Concept_Extraction.md)** — Pattern-based extraction with recursive meta-cognition:
-
-- ✅ **6-Pattern extraction system** - Blockquotes, headers, bullets, bold, emoji, quoted phrases
-- ✅ **97.6% noise reduction** - From 1,076 generic fragments → 26 high-quality concepts
-- ✅ **Recursive meta-cognition** - System extracted its own methodology as concepts
-- ✅ **Weighted concept ranking** - Structural markers indicate concept importance
-
-**[Pattern Library](src/cognition-cli/docs/PATTERN_LIBRARY.md)** — Reusable extraction patterns for community use
-
-**[Vindication Story](src/cognition-cli/docs/VINDICATION.md)** — The 14-day journey from "docs is code" to proven recursion
-
-### O₄ Layer: Strategic Coherence
-
-**Strategic coherence scoring** between code and strategic documents via vector similarity
-
-### Mission Security Validation
-
-**[Multi-Layer Mission Security](src/cognition-cli/docs/10_Mission_Security_Validation.md)** — Protecting strategic documents from gradual mission poisoning:
-
-- ✅ **Layer 1A: Gemini LLM validation** - Advanced threat detection via `security_validator` persona
-- ✅ **Layer 1B: Pattern-based filtering** - Regex-based explicit threat detection
-- ✅ **Layer 2: Semantic drift detection** - Immutable versioning with embedding-based distance calculation
-- ✅ **5 attack patterns detected** - Security weakening, trust erosion, permission creep, ambiguity injection, velocity over safety
-- ✅ **Content-addressable versioning** - Every strategic document version stored with concept embeddings
-- ✅ **Overlay invalidation** - Automatic cascade when documents change
-
-### Infrastructure
-
-- ✅ **DocsOracle** - Document integrity validation with content-addressable storage
-- ✅ **Markdown parser with meta properties** - Hierarchical AST with structuralHash and position tracking
-- ✅ **Garbage collection** - Automatic cleanup of stale document references
-
-**This is not theory. This is the architecture working in production.**
+📜 **[See full release history](src/cognition-cli/CHANGELOG.md)** | 🚀 **[Get Started](https://mirzahusadzic.github.io/cogx/03_Commands.html#_5-setup-onboarding-commands)**
 
 ## The Axiom: Knowledge is a Lattice
 
@@ -1557,6 +1489,23 @@ This repository constitutes a **formal defensive publication** establishing prio
 26. **Monument 4.7: The Shadow** — Dual embedding system for structural and semantic signatures enabling both code pattern matching and mission alignment queries
 27. **Monument 5.1: Lattice-aware Gaussian Weighting** — Pure lattice-based coherence using Gaussian statistics + graph centrality, eliminating all hardcoded constants (weight formula: w = log10(deps+1) × max(0.1, 1.0 + z_score))
 
+**Published**: October 31, 2025
+
+28. **Lattice Algebra System** — Boolean query operations across overlays with ASCII syntax (O1 ∩ O2, O1 ∪ O2, O1 - O2, O2[critical], O4 ~ "verification", O7[coherence>0.8])
+29. **Multi-Overlay Document Routing** — Intelligent document classification using confidence thresholds with automatic overlay generation based on document type (strategic → O₄, security → O₂, operational → O₅, mathematical → O₆)
+30. **Complete 7-Overlay System** — Full implementation of O₁ (Structure), O₂ (Security), O₃ (Lineage), O₄ (Mission), O₅ (Operational), O₆ (Mathematical), O₇ (Coherence) with unified query interface
+31. **O₂ Security Layer Full Implementation** — 20 real threats documented in THREAT_MODEL.md, CVE tracking, security coherence metrics, threat model documentation with SecurityExtractor for multi-field structured parsing
+32. **Foundation Manual (900+ pages)** — Eight comprehensive chapters documenting complete system: Core Security (4.5), O₁ Structure (5), Security Implementation (6), O₃ Lineage (7), O₄ Mission (8), O₅ Operational (9), O₆ Mathematical (10), O₇ Coherence (11), cPOW Reference (20)
+33. **OverlayRegistry & Sugar Commands** — Dynamic overlay discovery system with intuitive CLI access (security, workflow, proofs, coherence commands)
+
+**Published**: November 1, 2025
+
+34. **Semantic Q&A System (Block 4 - Self-Cognition)** — Natural language queries across knowledge lattice with cross-overlay synthesis, provenance tracking, and confidence scoring enabling the lattice to explain its own architecture
+35. **Frontmatter-Authoritative Classification** — YAML frontmatter metadata treated as ground truth (1.0 confidence) overriding ML-based document classification for guaranteed accuracy
+36. **Generic Documentation Extraction** — WorkflowExtractor generalized for all documentation types with section heading-based context capture and "What is X?" pattern recognition
+37. **Quest Operations Logging (Block 2 - Lops)** — Transparency logging infrastructure for quest execution provenance and cPOW lineage tracking with immutable audit trails
+38. **Sacred Pause Formalization** — Oracle Meeting Points documented as three-phase decision framework with depth-based quality gates and F.L.T.B validation checkpoints
+
 ---
 
 **Threat Model**: Defends against supply chain attacks that exploit AI-assisted development by gradually poisoning strategic documents through plausible pull requests. See [`docs/MISSION_DRIFT_ATTACKS.md`](docs/MISSION_DRIFT_ATTACKS.md) for detailed threat analysis.
@@ -1576,8 +1525,10 @@ This repository constitutes a **formal defensive publication** establishing prio
 - **Post-Publication Additions**:
   - October 27, 2025 (Innovation #25: Context Sampling Function)
   - October 28, 2025 (Innovations #26-27: The Shadow + Lattice-aware Gaussian Weighting)
+  - October 31, 2025 (Innovations #28-33: Complete 7-Overlay System, Lattice Algebra, Foundation Manual) — [Zenodo: 10.5281/zenodo.17489413](https://doi.org/10.5281/zenodo.17489413)
+  - November 1, 2025 (Innovations #34-38: Self-Cognition, Semantic Q&A, Quest Logging) — [Zenodo: 10.5281/zenodo.17501091](https://doi.org/10.5281/zenodo.17501091)
 - **Public Repository**: https://github.com/mirzahusadzic/cogx
-- **Permanent Archive**: Zenodo DOI [10.5281/zenodo.17467151](https://doi.org/10.5281/zenodo.17467151)
+- **Permanent Archive**: Zenodo DOI [10.5281/zenodo.17501091](https://doi.org/10.5281/zenodo.17501091) (latest)
 - **License**: AGPLv3 (entire repository — code, documentation, blueprints)
 - **Inventor**: Mirza Husadžić
 

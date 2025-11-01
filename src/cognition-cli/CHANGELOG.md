@@ -35,6 +35,7 @@ The flagship feature enabling true self-cognition through natural language queri
   - Intelligent source selection and ranking
 
 **Implementation:**
+
 - `src/commands/ask.ts` - New command entry point
 - Enhanced `QueryService` with semantic Q&A capabilities
 - Integration with existing overlay infrastructure
@@ -58,6 +59,7 @@ YAML frontmatter infrastructure for authoritative document metadata:
   - Prevents regression in document classification
 
 **Example frontmatter:**
+
 ```yaml
 ---
 type: architectural
@@ -156,6 +158,7 @@ Documentation of the three Oracle Meeting Points:
 ### Validation
 
 Quest verification metrics for this release:
+
 - **F.L.T.B**: Format ✅ Lint ✅ Test ✅ Build ✅
 - **PGC**: All 15 manual documents at 100% classification confidence
 - **Tests**: All passing
