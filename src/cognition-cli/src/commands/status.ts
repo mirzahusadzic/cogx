@@ -5,6 +5,7 @@ import path from 'path';
 import { DirtyStateManager } from '../core/watcher/dirty-state.js';
 import { Index } from '../core/pgc/index.js';
 import { DirtyState } from '../core/types/watcher.js';
+import { WorkspaceManager } from '../core/workspace-manager.js';
 
 /**
  * Represents impact analysis data for a modified file.
@@ -64,7 +65,18 @@ async function runStatus(options: {
     );
   }
 
-  const projectRoot = process.cwd();
+  const workspaceManager = new WorkspaceManager();
+  const projectRoot = workspaceManager.resolvePgcRoot(process.cwd());
+
+  if (!projectRoot) {
+    console.error(
+      chalk.red(
+        '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
+      )
+    );
+    process.exit(1);
+  }
+
   const pgcRoot = path.join(projectRoot, '.open_cognition');
 
   const dirtyStateManager = new DirtyStateManager(pgcRoot);

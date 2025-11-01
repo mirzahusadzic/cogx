@@ -8,19 +8,38 @@
 import { intro, outro, spinner, log } from '@clack/prompts';
 import chalk from 'chalk';
 import path from 'path';
-import fs from 'fs-extra';
 import { createQueryEngine } from '../../core/algebra/query-parser.js';
 import {
   OverlayItem,
   OverlayMetadata,
   SetOperationResult,
 } from '../../core/algebra/overlay-algebra.js';
+import { WorkspaceManager } from '../../core/workspace-manager.js';
 
 interface SecurityOptions {
   projectRoot: string;
   format?: 'table' | 'json' | 'summary';
   limit?: number;
   verbose?: boolean;
+}
+
+/**
+ * Helper to resolve PGC root with walk-up
+ */
+function resolvePgcRoot(startPath: string): string {
+  const workspaceManager = new WorkspaceManager();
+  const projectRoot = workspaceManager.resolvePgcRoot(startPath);
+
+  if (!projectRoot) {
+    log.error(
+      chalk.red(
+        'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
+      )
+    );
+    process.exit(1);
+  }
+
+  return path.join(projectRoot, '.open_cognition');
 }
 
 /**
@@ -32,13 +51,7 @@ export async function securityAttacksCommand(
 ): Promise<void> {
   intro(chalk.bold('Security: Attacks vs Mission Principles'));
 
-  const pgcRoot = path.join(options.projectRoot, '.open_cognition');
-  if (!(await fs.pathExists(pgcRoot))) {
-    log.error(
-      chalk.red(`PGC not initialized. Run 'cognition-cli init' first.`)
-    );
-    process.exit(1);
-  }
+  const pgcRoot = resolvePgcRoot(options.projectRoot);
 
   const s = spinner();
   s.start('Finding attack vectors that conflict with mission principles');
@@ -74,13 +87,7 @@ export async function securityCoverageGapsCommand(
 ): Promise<void> {
   intro(chalk.bold('Security: Coverage Gaps'));
 
-  const pgcRoot = path.join(options.projectRoot, '.open_cognition');
-  if (!(await fs.pathExists(pgcRoot))) {
-    log.error(
-      chalk.red(`PGC not initialized. Run 'cognition-cli init' first.`)
-    );
-    process.exit(1);
-  }
+  const pgcRoot = resolvePgcRoot(options.projectRoot);
 
   const s = spinner();
   s.start('Finding code symbols without security coverage');
@@ -116,13 +123,7 @@ export async function securityBoundariesCommand(
 ): Promise<void> {
   intro(chalk.bold('Security: Boundaries & Constraints'));
 
-  const pgcRoot = path.join(options.projectRoot, '.open_cognition');
-  if (!(await fs.pathExists(pgcRoot))) {
-    log.error(
-      chalk.red(`PGC not initialized. Run 'cognition-cli init' first.`)
-    );
-    process.exit(1);
-  }
+  const pgcRoot = resolvePgcRoot(options.projectRoot);
 
   const s = spinner();
   s.start('Loading security boundaries and constraints');

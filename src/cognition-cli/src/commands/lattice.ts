@@ -37,7 +37,6 @@
 import { intro, outro, spinner, log } from '@clack/prompts';
 import chalk from 'chalk';
 import path from 'path';
-import fs from 'fs-extra';
 import { createQueryEngine } from '../core/algebra/query-parser.js';
 import { OverlayRegistry } from '../core/algebra/overlay-registry.js';
 import {
@@ -46,6 +45,7 @@ import {
   SetOperationResult,
   MeetResult,
 } from '../core/algebra/overlay-algebra.js';
+import { WorkspaceManager } from '../core/workspace-manager.js';
 
 interface LatticeOptions {
   projectRoot: string;
@@ -66,16 +66,20 @@ export async function latticeCommand(
   let s = spinner();
 
   try {
-    // Validate PGC initialization
-    const pgcRoot = path.join(options.projectRoot, '.open_cognition');
-    if (!(await fs.pathExists(pgcRoot))) {
+    // Find .open_cognition by walking up directory tree
+    const workspaceManager = new WorkspaceManager();
+    const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
+
+    if (!projectRoot) {
       log.error(
         chalk.red(
-          `PGC not initialized in ${options.projectRoot}. Run 'cognition-cli init' first.`
+          'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
         )
       );
       process.exit(1);
     }
+
+    const pgcRoot = path.join(projectRoot, '.open_cognition');
 
     // Display query
     log.info(chalk.dim(`Query: ${query}`));
@@ -326,7 +330,20 @@ export async function showOverlaysCommand(
 ): Promise<void> {
   intro(chalk.bold('Available Overlays'));
 
-  const pgcRoot = path.join(options.projectRoot, '.open_cognition');
+  // Find .open_cognition by walking up directory tree
+  const workspaceManager = new WorkspaceManager();
+  const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
+
+  if (!projectRoot) {
+    log.error(
+      chalk.red(
+        'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
+      )
+    );
+    process.exit(1);
+  }
+
+  const pgcRoot = path.join(projectRoot, '.open_cognition');
   const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
   const registry = new OverlayRegistry(pgcRoot, workbenchUrl);
 

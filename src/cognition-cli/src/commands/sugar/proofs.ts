@@ -8,13 +8,13 @@
 import { intro, outro, spinner, log } from '@clack/prompts';
 import chalk from 'chalk';
 import path from 'path';
-import fs from 'fs-extra';
 import { createQueryEngine } from '../../core/algebra/query-parser.js';
 import {
   OverlayItem,
   OverlayMetadata,
   SetOperationResult,
 } from '../../core/algebra/overlay-algebra.js';
+import { WorkspaceManager } from '../../core/workspace-manager.js';
 
 interface ProofsOptions {
   projectRoot: string;
@@ -22,6 +22,25 @@ interface ProofsOptions {
   limit?: number;
   verbose?: boolean;
   type?: 'theorem' | 'lemma' | 'axiom' | 'proof' | 'identity';
+}
+
+/**
+ * Helper to resolve PGC root with walk-up
+ */
+function resolvePgcRoot(startPath: string): string {
+  const workspaceManager = new WorkspaceManager();
+  const projectRoot = workspaceManager.resolvePgcRoot(startPath);
+
+  if (!projectRoot) {
+    log.error(
+      chalk.red(
+        'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
+      )
+    );
+    process.exit(1);
+  }
+
+  return path.join(projectRoot, '.open_cognition');
 }
 
 /**
@@ -33,13 +52,7 @@ export async function proofsTheoremsCommand(
 ): Promise<void> {
   intro(chalk.bold('Proofs: Theorems'));
 
-  const pgcRoot = path.join(options.projectRoot, '.open_cognition');
-  if (!(await fs.pathExists(pgcRoot))) {
-    log.error(
-      chalk.red(`PGC not initialized. Run 'cognition-cli init' first.`)
-    );
-    process.exit(1);
-  }
+  const pgcRoot = resolvePgcRoot(options.projectRoot);
 
   const s = spinner();
   s.start('Loading theorems');
@@ -74,13 +87,7 @@ export async function proofsLemmasCommand(
 ): Promise<void> {
   intro(chalk.bold('Proofs: Lemmas'));
 
-  const pgcRoot = path.join(options.projectRoot, '.open_cognition');
-  if (!(await fs.pathExists(pgcRoot))) {
-    log.error(
-      chalk.red(`PGC not initialized. Run 'cognition-cli init' first.`)
-    );
-    process.exit(1);
-  }
+  const pgcRoot = resolvePgcRoot(options.projectRoot);
 
   const s = spinner();
   s.start('Loading lemmas');
@@ -113,13 +120,7 @@ export async function proofsLemmasCommand(
 export async function proofsListCommand(options: ProofsOptions): Promise<void> {
   intro(chalk.bold('Proofs: All Mathematical Statements'));
 
-  const pgcRoot = path.join(options.projectRoot, '.open_cognition');
-  if (!(await fs.pathExists(pgcRoot))) {
-    log.error(
-      chalk.red(`PGC not initialized. Run 'cognition-cli init' first.`)
-    );
-    process.exit(1);
-  }
+  const pgcRoot = resolvePgcRoot(options.projectRoot);
 
   const s = spinner();
 
@@ -162,13 +163,7 @@ export async function proofsAlignedCommand(
 ): Promise<void> {
   intro(chalk.bold('Proofs: Aligned with Mission'));
 
-  const pgcRoot = path.join(options.projectRoot, '.open_cognition');
-  if (!(await fs.pathExists(pgcRoot))) {
-    log.error(
-      chalk.red(`PGC not initialized. Run 'cognition-cli init' first.`)
-    );
-    process.exit(1);
-  }
+  const pgcRoot = resolvePgcRoot(options.projectRoot);
 
   const s = spinner();
   s.start('Finding proofs aligned with mission principles');

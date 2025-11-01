@@ -8,12 +8,12 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import path from 'path';
-import fs from 'fs-extra';
 import { OverlayRegistry } from '../core/algebra/overlay-registry.js';
 import type {
   CoherenceMetadata,
   CoherenceAlgebraAdapter,
 } from '../core/overlays/strategic-coherence/algebra-adapter.js';
+import { WorkspaceManager } from '../core/workspace-manager.js';
 
 /**
  * Adds strategic coherence query commands to the CLI program.
@@ -36,15 +36,19 @@ export function addCoherenceCommands(program: Command) {
     .option('--json', 'Output raw JSON')
     .option('-v, --verbose', 'Show detailed error messages', false)
     .action(async (options) => {
-      const pgcRoot = path.join(options.projectRoot, '.open_cognition');
-      if (!(await fs.pathExists(pgcRoot))) {
+      const workspaceManager = new WorkspaceManager();
+      const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
+
+      if (!projectRoot) {
         console.error(
           chalk.red(
-            `\n✗ PGC not initialized. Run 'cognition-cli init' first.\n`
+            '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
           )
         );
         process.exit(1);
       }
+
+      const pgcRoot = path.join(projectRoot, '.open_cognition');
 
       try {
         const workbenchUrl =
@@ -276,15 +280,19 @@ export function addCoherenceCommands(program: Command) {
     .option('-l, --limit <number>', 'Maximum number of results to show', '50')
     .option('-v, --verbose', 'Show detailed error messages', false)
     .action(async (options) => {
-      const pgcRoot = path.join(options.projectRoot, '.open_cognition');
-      if (!(await fs.pathExists(pgcRoot))) {
+      const workspaceManager = new WorkspaceManager();
+      const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
+
+      if (!projectRoot) {
         console.error(
           chalk.red(
-            `\n✗ PGC not initialized. Run 'cognition-cli init' first.\n`
+            '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
           )
         );
         process.exit(1);
       }
+
+      const pgcRoot = path.join(projectRoot, '.open_cognition');
 
       try {
         const workbenchUrl =
@@ -343,15 +351,19 @@ export function addCoherenceCommands(program: Command) {
     .option('-l, --limit <number>', 'Maximum number of results to show', '50')
     .option('-v, --verbose', 'Show detailed error messages', false)
     .action(async (options) => {
-      const pgcRoot = path.join(options.projectRoot, '.open_cognition');
-      if (!(await fs.pathExists(pgcRoot))) {
+      const workspaceManager = new WorkspaceManager();
+      const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
+
+      if (!projectRoot) {
         console.error(
           chalk.red(
-            `\n✗ PGC not initialized. Run 'cognition-cli init' first.\n`
+            '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
           )
         );
         process.exit(1);
       }
+
+      const pgcRoot = path.join(projectRoot, '.open_cognition');
 
       try {
         const workbenchUrl =
@@ -424,15 +436,19 @@ export function addCoherenceCommands(program: Command) {
     .option('-l, --limit <number>', 'Maximum number of results to show', '50')
     .option('-v, --verbose', 'Show detailed error messages', false)
     .action(async (options) => {
-      const pgcRoot = path.join(options.projectRoot, '.open_cognition');
-      if (!(await fs.pathExists(pgcRoot))) {
+      const workspaceManager = new WorkspaceManager();
+      const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
+
+      if (!projectRoot) {
         console.error(
           chalk.red(
-            `\n✗ PGC not initialized. Run 'cognition-cli init' first.\n`
+            '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
           )
         );
         process.exit(1);
       }
+
+      const pgcRoot = path.join(projectRoot, '.open_cognition');
 
       try {
         const workbenchUrl =

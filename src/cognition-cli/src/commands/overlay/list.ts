@@ -3,6 +3,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import { LanceVectorStore } from '../../core/overlays/vector-db/lance-store.js';
 import chalk from 'chalk';
+import { WorkspaceManager } from '../../core/workspace-manager.js';
 
 /**
  * Represents metadata for an available overlay type.
@@ -64,7 +65,19 @@ const listCommand = new Command('list')
   .description('List available overlay types and their status.')
   .option('-p, --project-root <path>', 'The root of the project.', '.')
   .action(async (options) => {
-    const pgcRoot = path.join(options.projectRoot, '.open_cognition');
+    const workspaceManager = new WorkspaceManager();
+    const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
+
+    if (!projectRoot) {
+      console.error(
+        chalk.red(
+          '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
+        )
+      );
+      process.exit(1);
+    }
+
+    const pgcRoot = path.join(projectRoot, '.open_cognition');
     const overlaysPath = path.join(pgcRoot, 'overlays');
 
     console.log('\nAvailable Overlay Types:\n');

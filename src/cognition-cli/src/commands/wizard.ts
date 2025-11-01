@@ -15,6 +15,7 @@ import { initCommand } from './init.js';
 import { genesisCommand } from './genesis.js';
 import { genesisDocsCommand } from './genesis-docs.js';
 import { OverlayOrchestrator } from '../core/orchestrators/overlay.js';
+import { WorkspaceManager } from '../core/workspace-manager.js';
 
 interface WizardOptions {
   projectRoot: string;
@@ -69,8 +70,16 @@ export async function wizardCommand(options: WizardOptions) {
   log.info(chalk.dim('🎨 The asymmetric human provides creative projection.'));
   log.info(chalk.dim('🤝 This is the symbiosis.\n'));
 
-  // Step 1: Check if PGC already exists (check for core directories from init)
-  const pgcRoot = path.join(options.projectRoot, '.open_cognition');
+  // Step 1: Check if PGC already exists using walk-up
+  const workspaceManager = new WorkspaceManager();
+  let projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
+
+  // If no workspace found, use the provided projectRoot for initialization
+  if (!projectRoot) {
+    projectRoot = options.projectRoot;
+  }
+
+  const pgcRoot = path.join(projectRoot, '.open_cognition');
   const coreDirectories = [
     'objects',
     'transforms',

@@ -8,6 +8,7 @@ import { StructuralMiner } from '../core/orchestrators/miners/structural.js';
 import { WorkbenchClient } from '../core/executors/workbench-client.js';
 import { UpdateOrchestrator } from '../core/orchestrators/update.js';
 import { GenesisOracle } from '../core/pgc/oracles/genesis.js';
+import { WorkspaceManager } from '../core/workspace-manager.js';
 
 /**
  * Represents errors during PGC initialization validation.
@@ -24,32 +25,37 @@ interface UpdateOptions {
   workbench: string;
 }
 
-async function validatePgcInitialized(projectRoot: string): Promise<void> {
-  const pgcRoot = path.join(projectRoot, '.open_cognition');
-  const metadataPath = path.join(pgcRoot, 'metadata.json');
+async function validatePgcInitialized(startPath: string): Promise<string> {
+  const workspaceManager = new WorkspaceManager();
+  const projectRoot = workspaceManager.resolvePgcRoot(startPath);
 
-  if (!(await fs.pathExists(pgcRoot))) {
+  if (!projectRoot) {
     throw new PGCInitializationError(
-      `PGC not initialized in ${projectRoot}. Please run 'cognition-cli init' first.`
+      'No .open_cognition workspace found. Please run "cognition-cli init" first.'
     );
   }
+
+  const pgcRoot = path.join(projectRoot, '.open_cognition');
+  const metadataPath = path.join(pgcRoot, 'metadata.json');
 
   if (!(await fs.pathExists(metadataPath))) {
     throw new PGCInitializationError(
       `PGC metadata.json not found in ${pgcRoot}. Please run 'cognition-cli init' first.`
     );
   }
+
+  return projectRoot;
 }
 
 async function runUpdate(options: UpdateOptions) {
   intro(chalk.bold('🔄 Update: Syncing PGC with Changes'));
 
   try {
-    // Validate PGC initialization
-    await validatePgcInitialized(options.projectRoot);
+    // Validate PGC initialization and resolve workspace
+    const projectRoot = await validatePgcInitialized(options.projectRoot);
 
     // Initialize core components
-    const pgc = new PGCManager(options.projectRoot);
+    const pgc = new PGCManager(projectRoot);
     const workbench = new WorkbenchClient(
       options.workbench || process.env.WORKBENCH_URL || 'http://localhost:8000'
     );

@@ -8,12 +8,12 @@
 import { intro, outro, spinner, log } from '@clack/prompts';
 import chalk from 'chalk';
 import path from 'path';
-import fs from 'fs-extra';
 import { OverlayRegistry } from '../../core/algebra/overlay-registry.js';
 import type {
   CoherenceMetadata,
   CoherenceAlgebraAdapter,
 } from '../../core/overlays/strategic-coherence/algebra-adapter.js';
+import { WorkspaceManager } from '../../core/workspace-manager.js';
 
 interface CoherenceOptions {
   projectRoot: string;
@@ -25,6 +25,25 @@ interface CoherenceOptions {
 }
 
 /**
+ * Helper to resolve PGC root with walk-up
+ */
+function resolvePgcRoot(startPath: string): string {
+  const workspaceManager = new WorkspaceManager();
+  const projectRoot = workspaceManager.resolvePgcRoot(startPath);
+
+  if (!projectRoot) {
+    log.error(
+      chalk.red(
+        'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
+      )
+    );
+    process.exit(1);
+  }
+
+  return path.join(projectRoot, '.open_cognition');
+}
+
+/**
  * Show overall coherence report
  */
 export async function coherenceReportCommand(
@@ -32,13 +51,7 @@ export async function coherenceReportCommand(
 ): Promise<void> {
   intro(chalk.bold('Strategic Coherence Report'));
 
-  const pgcRoot = path.join(options.projectRoot, '.open_cognition');
-  if (!(await fs.pathExists(pgcRoot))) {
-    log.error(
-      chalk.red(`PGC not initialized. Run 'cognition-cli init' first.`)
-    );
-    process.exit(1);
-  }
+  const pgcRoot = resolvePgcRoot(options.projectRoot);
 
   const s = spinner();
   s.start('Loading coherence data');
@@ -151,13 +164,7 @@ export async function coherenceAlignedCommand(
 ): Promise<void> {
   intro(chalk.bold('Coherence: Aligned Symbols'));
 
-  const pgcRoot = path.join(options.projectRoot, '.open_cognition');
-  if (!(await fs.pathExists(pgcRoot))) {
-    log.error(
-      chalk.red(`PGC not initialized. Run 'cognition-cli init' first.`)
-    );
-    process.exit(1);
-  }
+  const pgcRoot = resolvePgcRoot(options.projectRoot);
 
   const s = spinner();
   s.start('Finding aligned symbols');
@@ -209,13 +216,7 @@ export async function coherenceDriftedCommand(
 ): Promise<void> {
   intro(chalk.bold('Coherence: Drifted Symbols'));
 
-  const pgcRoot = path.join(options.projectRoot, '.open_cognition');
-  if (!(await fs.pathExists(pgcRoot))) {
-    log.error(
-      chalk.red(`PGC not initialized. Run 'cognition-cli init' first.`)
-    );
-    process.exit(1);
-  }
+  const pgcRoot = resolvePgcRoot(options.projectRoot);
 
   const s = spinner();
   s.start('Finding drifted symbols');
@@ -267,13 +268,7 @@ export async function coherenceListCommand(
 ): Promise<void> {
   intro(chalk.bold('Coherence: All Symbols'));
 
-  const pgcRoot = path.join(options.projectRoot, '.open_cognition');
-  if (!(await fs.pathExists(pgcRoot))) {
-    log.error(
-      chalk.red(`PGC not initialized. Run 'cognition-cli init' first.`)
-    );
-    process.exit(1);
-  }
+  const pgcRoot = resolvePgcRoot(options.projectRoot);
 
   const s = spinner();
   s.start('Loading all symbols');

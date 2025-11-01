@@ -3,6 +3,26 @@ import path from 'path';
 import chalk from 'chalk';
 import { MissionConceptsManager } from '../core/overlays/mission-concepts/manager.js';
 import { MissionConcept } from '../core/analyzers/concept-extractor.js';
+import { WorkspaceManager } from '../core/workspace-manager.js';
+
+/**
+ * Helper to resolve PGC root with walk-up
+ */
+function resolvePgcRoot(startPath: string): string {
+  const workspaceManager = new WorkspaceManager();
+  const projectRoot = workspaceManager.resolvePgcRoot(startPath);
+
+  if (!projectRoot) {
+    console.error(
+      chalk.red(
+        '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
+      )
+    );
+    process.exit(1);
+  }
+
+  return path.join(projectRoot, '.open_cognition');
+}
 
 /**
  * Adds mission concept query commands to the CLI program.
@@ -25,7 +45,7 @@ export function addConceptsCommands(program: Command) {
     .option('--json', 'Output raw JSON')
     .option('--limit <number>', 'Limit number of concepts to show', '100')
     .action(async (options) => {
-      const pgcRoot = path.join(options.projectRoot, '.open_cognition');
+      const pgcRoot = resolvePgcRoot(options.projectRoot);
       const manager = new MissionConceptsManager(pgcRoot);
       const limit = parseInt(options.limit);
 
@@ -123,7 +143,7 @@ export function addConceptsCommands(program: Command) {
     .option('-p, --project-root <path>', 'The root of the project.', '.')
     .option('--json', 'Output raw JSON')
     .action(async (count, options) => {
-      const pgcRoot = path.join(options.projectRoot, '.open_cognition');
+      const pgcRoot = resolvePgcRoot(options.projectRoot);
       const manager = new MissionConceptsManager(pgcRoot);
       const topN = parseInt(count || '20');
 
@@ -182,7 +202,7 @@ export function addConceptsCommands(program: Command) {
     .option('-p, --project-root <path>', 'The root of the project.', '.')
     .option('--json', 'Output raw JSON')
     .action(async (keyword, options) => {
-      const pgcRoot = path.join(options.projectRoot, '.open_cognition');
+      const pgcRoot = resolvePgcRoot(options.projectRoot);
       const manager = new MissionConceptsManager(pgcRoot);
 
       // Get all document hashes
@@ -284,7 +304,7 @@ export function addConceptsCommands(program: Command) {
     .option('-p, --project-root <path>', 'The root of the project.', '.')
     .option('--json', 'Output raw JSON')
     .action(async (section, options) => {
-      const pgcRoot = path.join(options.projectRoot, '.open_cognition');
+      const pgcRoot = resolvePgcRoot(options.projectRoot);
       const manager = new MissionConceptsManager(pgcRoot);
 
       // Get all document hashes
@@ -379,7 +399,7 @@ export function addConceptsCommands(program: Command) {
     .option('-p, --project-root <path>', 'The root of the project.', '.')
     .option('--json', 'Output raw JSON')
     .action(async (text, options) => {
-      const pgcRoot = path.join(options.projectRoot, '.open_cognition');
+      const pgcRoot = resolvePgcRoot(options.projectRoot);
       const manager = new MissionConceptsManager(pgcRoot);
 
       // Get all document hashes

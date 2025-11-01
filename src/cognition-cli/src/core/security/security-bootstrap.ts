@@ -23,6 +23,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { createInterface } from 'readline';
+import { WorkspaceManager } from '../workspace-manager.js';
 
 interface Settings {
   dual_use_acknowledgment?: UserAcknowledgment;
@@ -40,30 +41,40 @@ interface UserAcknowledgment {
 export class SecurityBootstrap {
   private settingsDir: string;
   private settingsPath: string;
-  private projectSecurityDir: string;
+  private projectSecurityDir: string | null;
 
-  constructor(projectRoot: string = process.cwd()) {
+  constructor(startDir: string = process.cwd()) {
     // Global settings in ~/.cognition-cli/
     this.settingsDir = path.join(os.homedir(), '.cognition-cli');
     this.settingsPath = path.join(this.settingsDir, 'settings.json');
 
-    // Per-project security/transparency logs
-    this.projectSecurityDir = path.join(
-      projectRoot,
-      '.open_cognition',
-      'security'
-    );
+    // Per-project security/transparency logs - use walk-up to find workspace
+    const workspaceManager = new WorkspaceManager();
+    const projectRoot = workspaceManager.resolvePgcRoot(startDir);
+
+    if (projectRoot) {
+      this.projectSecurityDir = path.join(
+        projectRoot,
+        '.open_cognition',
+        'security'
+      );
+    } else {
+      // No workspace found - don't create one
+      this.projectSecurityDir = null;
+    }
   }
 
   /**
    * Main bootstrap function - called before any cognition-cli operation
    */
   async bootstrap(): Promise<void> {
-    // Ensure directories exist
+    // Ensure global settings directory exists
     if (!fs.existsSync(this.settingsDir)) {
       fs.mkdirSync(this.settingsDir, { recursive: true });
     }
-    if (!fs.existsSync(this.projectSecurityDir)) {
+
+    // Only create project security dir if workspace exists
+    if (this.projectSecurityDir && !fs.existsSync(this.projectSecurityDir)) {
       fs.mkdirSync(this.projectSecurityDir, { recursive: true });
     }
 

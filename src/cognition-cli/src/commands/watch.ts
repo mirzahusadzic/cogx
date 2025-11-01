@@ -4,6 +4,7 @@ import path from 'path';
 
 import { FileWatcher } from '../core/watcher/file-watcher.js';
 import { ChangeEvent } from '../core/types/watcher.js';
+import { WorkspaceManager } from '../core/workspace-manager.js';
 
 /**
  * Creates the watch command for monitoring file changes and maintaining PGC coherence state.
@@ -33,7 +34,18 @@ async function runWatch(options: {
   debounce?: string;
   verbose?: boolean;
 }): Promise<void> {
-  const projectRoot = process.cwd();
+  const workspaceManager = new WorkspaceManager();
+  const projectRoot = workspaceManager.resolvePgcRoot(process.cwd());
+
+  if (!projectRoot) {
+    console.error(
+      chalk.red(
+        '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
+      )
+    );
+    process.exit(1);
+  }
+
   const pgcRoot = path.join(projectRoot, '.open_cognition');
 
   console.log(chalk.bold('🔭 Starting File Watcher'));
