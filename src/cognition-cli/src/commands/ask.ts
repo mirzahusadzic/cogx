@@ -73,7 +73,7 @@ export async function askCommand(question: string, options: AskOptions) {
       content: question,
       filename: 'query.md', // Must be .md for persona to work
       persona: PERSONA_QUERY_ANALYST,
-      max_tokens: 512, // Increase to ensure full JSON response
+      max_tokens: 2048, // Sufficient tokens for Gemini 2.5 Flash thinking + JSON output
       temperature: 0.1,
     };
     if (DEFAULT_SLM_MODEL_NAME) {

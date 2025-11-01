@@ -108,25 +108,31 @@ export class StructuralPatternsManager
         Array.isArray(vec.embedding) &&
         vec.embedding.length === 768
       ) {
-        const metadata = vec.metadata as Record<string, unknown> | undefined;
+        // Fields are top-level properties on VectorRecord, not nested in metadata
+        const vectorType = (vec.type as string) || 'structural';
+        const isSemanticVector = vectorType === 'semantic';
+        const structuralSig = (vec.structural_signature as string) || '';
+        const semanticSig = (vec.semantic_signature as string) || '';
+
+        // Use semantic signature (shadow) for semantic vectors, structural signature for structural vectors
+        const displayText = isSemanticVector
+          ? semanticSig || vec.symbol
+          : structuralSig || vec.symbol;
 
         items.push({
           id: vec.id,
           embedding: vec.embedding,
           metadata: {
-            text: vec.symbol, // Symbol name is the text for queries
+            text: displayText, // Include the shadow/signature content
             symbol: vec.symbol,
-            type: (metadata?.type as 'structural' | 'semantic') || 'structural',
-            structuralSignature:
-              (metadata?.structural_signature as string) || '',
-            semanticSignature: (metadata?.semantic_signature as string) || '',
-            architecturalRole:
-              (metadata?.architectural_role as string) || 'unknown',
-            filePath: (metadata?.filePath as string) || '',
-            structuralHash: (metadata?.structuralHash as string) || '',
-            lineageHash: (metadata?.lineage_hash as string) || '',
-            computedAt:
-              (metadata?.computed_at as string) || new Date().toISOString(),
+            type: vectorType as 'structural' | 'semantic',
+            structuralSignature: structuralSig,
+            semanticSignature: semanticSig,
+            architecturalRole: (vec.architectural_role as string) || 'unknown',
+            filePath: (vec.filePath as string) || '',
+            structuralHash: (vec.structuralHash as string) || '',
+            lineageHash: (vec.lineage_hash as string) || '',
+            computedAt: (vec.computed_at as string) || new Date().toISOString(),
           },
         });
       }

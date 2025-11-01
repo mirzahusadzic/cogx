@@ -121,41 +121,30 @@ export class LineageAlgebraAdapter implements OverlayAlgebra<LineageMetadata> {
           }
         }
 
-        const vecMetadata = vec.metadata as Record<string, unknown> | undefined;
-
+        // Fields are top-level properties on VectorRecord, not nested in metadata
         items.push({
           id: vec.id,
           embedding: vec.embedding,
           metadata: {
             text:
               patternMetadata?.lineageSignature ||
-              (vecMetadata?.lineage_signature as string) ||
+              (vec.structural_signature as string) ||
               vec.symbol,
             symbol: vec.symbol,
-            symbolType:
-              patternMetadata?.symbolType ||
-              (vecMetadata?.symbolType as
-                | 'class'
-                | 'function'
-                | 'interface'
-                | 'type') ||
-              'function',
-            anchor:
-              patternMetadata?.anchor ||
-              (vecMetadata?.filePath as string) ||
-              '',
+            symbolType: patternMetadata?.symbolType || 'function',
+            anchor: patternMetadata?.anchor || (vec.filePath as string) || '',
             lineageHash:
               patternMetadata?.lineageHash ||
-              (vecMetadata?.lineage_hash as string) ||
+              (vec.lineage_hash as string) ||
               '',
             embeddingHash: patternMetadata?.embeddingHash || '',
             lineageSignature:
               patternMetadata?.lineageSignature ||
-              (vecMetadata?.lineage_signature as string) ||
+              (vec.structural_signature as string) ||
               '',
             computedAt:
               patternMetadata?.computed_at ||
-              (vecMetadata?.computed_at as string) ||
+              (vec.computed_at as string) ||
               new Date().toISOString(),
             vectorId: patternMetadata?.vectorId || vec.id,
           },
