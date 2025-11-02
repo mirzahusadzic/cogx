@@ -1,10 +1,11 @@
 /**
  * Context Sampling Sigma - Analyzer Module
  *
- * Analyzes conversation turns to detect:
- * - Overlay activation (O1-O7)
- * - Importance scoring (1-10)
- * - Paradigm shift detection
+ * Analyzes conversation turns using embeddings to detect:
+ * - Novelty (distance from recent context)
+ * - Overlay activation (O1-O7 via semantic similarity)
+ * - Importance scoring (novelty + overlay strength)
+ * - Paradigm shift detection (high novelty)
  * - Semantic relationships
  */
 
@@ -15,6 +16,7 @@ import type {
   OverlayScores,
   AnalyzerOptions,
 } from './types.js';
+import { EmbeddingService } from '../core/services/embedding.js';
 
 const DEFAULT_OPTIONS: Required<AnalyzerOptions> = {
   overlay_threshold: 5,
@@ -52,6 +54,8 @@ export async function analyzeTurn(
     content: turn.content,
     role: turn.role,
     timestamp: turn.timestamp,
+    embedding: [], // Placeholder - use analyzer-with-embeddings.ts for real embeddings
+    novelty: 0, // Placeholder - use analyzer-with-embeddings.ts for real novelty
     overlay_scores: overlayScores,
     importance_score: importance,
     is_paradigm_shift: isParadigmShift,

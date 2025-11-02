@@ -146,6 +146,8 @@ function buildConversationLattice(
       role: turn.role,
       content: turn.content,
       timestamp: turn.timestamp,
+      embedding: turn.embedding,
+      novelty: turn.novelty,
       overlay_scores: turn.overlay_scores,
       importance_score: turn.importance_score,
       is_paradigm_shift: turn.is_paradigm_shift,

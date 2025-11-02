@@ -47,12 +47,18 @@ export interface TurnAnalysis {
   role: 'user' | 'assistant' | 'system';
   timestamp: number;
 
+  // Embedding (generated on-the-fly)
+  embedding: number[]; // 768-dimensional vector
+
+  // Novelty metrics
+  novelty: number; // 0-1, distance from recent context
+
   // Overlay activation (0-10 per overlay)
   overlay_scores: OverlayScores;
 
   // Importance metrics
   importance_score: number; // 1-10 overall
-  is_paradigm_shift: boolean; // High I.P.S. moment
+  is_paradigm_shift: boolean; // High I.P.S. moment (novelty > 0.7)
   is_routine: boolean; // Low importance (< 3)
 
   // Relationships
@@ -103,6 +109,12 @@ export interface ConversationNode {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: number;
+
+  // Embedding (stored for reconstruction)
+  embedding: number[];
+
+  // Novelty at time of creation
+  novelty: number;
 
   // Sigma metadata
   overlay_scores: OverlayScores;
