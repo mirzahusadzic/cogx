@@ -39,7 +39,7 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({ overlays }) => {
         })}
       </Box>
       <Box>
-        <Text bold color="cyan">⚡ COGNITION CLI</Text>
+        <Text bold color="cyan">⚡ COGNITION CLI v1.8.2</Text>
       </Box>
     </Box>
   );
