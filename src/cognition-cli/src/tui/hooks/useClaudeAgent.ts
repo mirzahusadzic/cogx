@@ -148,6 +148,18 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               `  Summarized: ${compressionResult.summarized_turns.length} turns\n` +
               `  Discarded: ${compressionResult.discarded_turns.length} turns\n\n`
           );
+
+          // TODO: Implement session switch
+          // 1. Reconstruct compressed context from lattice
+          // 2. Create new session with reconstructed context as system prompt
+          // 3. Switch to new session seamlessly
+          // 4. Reset token counter
+          // 5. Continue conversation with infinite context
+          fs.appendFileSync(
+            path.join(options.cwd, 'tui-debug.log'),
+            `[SIGMA] TODO: Switch to new session with compressed context\n` +
+              `  Next: Implement reconstructContext() → new session → inject as system prompt\n\n`
+          );
         }
       } catch (err) {
         // Log analysis errors but don't break the UI
