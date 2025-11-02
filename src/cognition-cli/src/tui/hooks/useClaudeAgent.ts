@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   query,
   type SDKMessage,
@@ -8,6 +8,14 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import * as Diff from 'diff';
+import { EmbeddingService } from '../../core/services/embedding.js';
+import { analyzeTurn } from '../../sigma/analyzer-with-embeddings.js';
+import { compressContext } from '../../sigma/compressor.js';
+import type {
+  ConversationLattice,
+  TurnAnalysis,
+  ConversationContext,
+} from '../../sigma/types.js';
 
 interface UseClaudeAgentOptions {
   sessionId?: string;
@@ -33,6 +41,125 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     output: 0,
     total: 0,
   });
+
+  // Sigma state: conversation lattice and analysis
+  const [conversationLattice, setConversationLattice] =
+    useState<ConversationLattice | null>(null);
+  const turnAnalyses = useRef<TurnAnalysis[]>([]);
+  const embedderRef = useRef<EmbeddingService | null>(null);
+  const compressionTriggered = useRef(false);
+
+  // Initialize embedding service
+  useEffect(() => {
+    // Get workbench endpoint from environment or default
+    const workbenchEndpoint =
+      process.env.WORKBENCH_ENDPOINT || 'http://localhost:8080';
+    embedderRef.current = new EmbeddingService(workbenchEndpoint);
+  }, []);
+
+  // Sigma: Analyze turns on-the-fly and trigger compression
+  useEffect(() => {
+    if (messages.length === 0 || !embedderRef.current) return;
+
+    const analyzeNewTurns = async () => {
+      const embedder = embedderRef.current!;
+      const lastMessage = messages[messages.length - 1];
+
+      // Only analyze user and assistant messages (not tool_progress/system)
+      if (lastMessage.type !== 'user' && lastMessage.type !== 'assistant')
+        return;
+
+      // Check if we've already analyzed this turn
+      const existingAnalysis = turnAnalyses.current.find(
+        (a) => a.timestamp === lastMessage.timestamp.getTime()
+      );
+      if (existingAnalysis) return; // Already analyzed
+
+      try {
+        // Build context from previous analyses
+        const context: ConversationContext = {
+          projectRoot: options.cwd,
+          sessionId: options.sessionId,
+          history: turnAnalyses.current.map((a) => ({
+            id: a.turn_id,
+            role: a.role,
+            content: a.content,
+            timestamp: a.timestamp,
+            embedding: a.embedding, // Include for novelty calculation
+          })) as any, // Cast to avoid type mismatch with embedding field
+        };
+
+        // Analyze this turn
+        const analysis = await analyzeTurn(
+          {
+            id: `turn-${lastMessage.timestamp.getTime()}`,
+            role: lastMessage.type as 'user' | 'assistant',
+            content: lastMessage.content,
+            timestamp: lastMessage.timestamp.getTime(),
+          },
+          context,
+          embedder
+        );
+
+        // Store analysis
+        turnAnalyses.current.push(analysis);
+
+        // Log analysis (for debugging)
+        fs.appendFileSync(
+          path.join(options.cwd, 'tui-debug.log'),
+          `[SIGMA] Turn analyzed: ${analysis.turn_id}\n` +
+            `  Role: ${analysis.role}\n` +
+            `  Novelty: ${analysis.novelty.toFixed(3)}\n` +
+            `  Importance: ${analysis.importance_score}\n` +
+            `  Paradigm shift: ${analysis.is_paradigm_shift}\n` +
+            `  Routine: ${analysis.is_routine}\n` +
+            `  Content: ${analysis.content.substring(0, 100)}${analysis.content.length > 100 ? '...' : ''}\n\n`
+        );
+
+        // Check if compression needed (150K token threshold)
+        const TOKEN_THRESHOLD = 150000;
+        if (
+          tokenCount.total > TOKEN_THRESHOLD &&
+          !compressionTriggered.current
+        ) {
+          compressionTriggered.current = true;
+
+          // Trigger compression
+          const compressionResult = await compressContext(
+            turnAnalyses.current,
+            {
+              target_size: 40000, // 40K tokens (20% of 200K limit)
+              preserve_threshold: 7, // Paradigm shifts
+            }
+          );
+
+          // Store compressed lattice
+          setConversationLattice(compressionResult.lattice);
+
+          // Log compression stats
+          fs.appendFileSync(
+            path.join(options.cwd, 'tui-debug.log'),
+            `[SIGMA] Compression triggered at ${tokenCount.total} tokens\n` +
+              `  Original: ${compressionResult.original_size} tokens\n` +
+              `  Compressed: ${compressionResult.compressed_size} tokens\n` +
+              `  Ratio: ${compressionResult.compression_ratio.toFixed(1)}x\n` +
+              `  Paradigm shifts: ${compressionResult.metrics.paradigm_shifts}\n` +
+              `  Preserved: ${compressionResult.preserved_turns.length} turns\n` +
+              `  Summarized: ${compressionResult.summarized_turns.length} turns\n` +
+              `  Discarded: ${compressionResult.discarded_turns.length} turns\n\n`
+          );
+        }
+      } catch (err) {
+        // Log analysis errors but don't break the UI
+        fs.appendFileSync(
+          path.join(options.cwd, 'tui-debug.log'),
+          `[SIGMA ERROR] ${(err as Error).message}\n`
+        );
+      }
+    };
+
+    analyzeNewTurns();
+  }, [messages, tokenCount.total, options.cwd]);
 
   // Load initial token count from existing session transcript
   useEffect(() => {
@@ -461,5 +588,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     isThinking,
     error,
     tokenCount,
+    conversationLattice, // Sigma compressed context
   };
 }
