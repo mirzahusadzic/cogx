@@ -1,7 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
 import { Spinner } from '@inkjs/ui';
-import chalk from 'chalk';
 import type { ClaudeMessage } from '../hooks/useClaudeAgent.js';
 import { useMouse } from '../hooks/useMouse.js';
 
@@ -28,36 +27,36 @@ export const ClaudePanelAgent: React.FC<ClaudePanelAgentProps> = ({
   // Calculate available height
   const availableHeight = (stdout?.rows || 24) - 11;
 
-  // Build colored text lines using Chalk (Ink's color engine)
+  // Build colored text lines with color metadata
   const allLines = useMemo(() => {
-    const lines: string[] = [];
+    const lines: Array<{ text: string; color: string }> = [];
 
     messages.forEach((msg) => {
       let prefix = '';
-      let colorFn = chalk.hex('#58a6ff'); // Default: O1 structural blue
+      let color = '#58a6ff'; // Default: O1 structural blue
 
       switch (msg.type) {
         case 'user':
           prefix = '> ';
-          colorFn = chalk.hex('#56d364'); // O3 lineage green
+          color = '#56d364'; // O3 lineage green
           break;
         case 'system':
           prefix = '• ';
-          colorFn = chalk.hex('#8b949e'); // Muted gray
+          color = '#8b949e'; // Muted gray
           break;
         case 'assistant':
         case 'tool_progress':
           prefix = '';
-          colorFn = chalk.hex('#58a6ff'); // O1 structural blue
+          color = '#58a6ff'; // O1 structural blue
           break;
       }
 
-      // Split content into lines and color each one
+      // Split content into lines and store with color
       const contentLines = (prefix + msg.content).split('\n');
       contentLines.forEach((line) => {
-        lines.push(colorFn(line));
+        lines.push({ text: line, color });
       });
-      lines.push(''); // Empty line between messages
+      lines.push({ text: '', color }); // Empty line between messages
     });
 
     return lines;
@@ -119,11 +118,11 @@ export const ClaudePanelAgent: React.FC<ClaudePanelAgentProps> = ({
     { isActive: true }
   );
 
-  // Calculate visible window
-  const displayContent = useMemo(() => {
+  // Calculate visible window - return line objects, not joined string
+  const visibleLines = useMemo(() => {
     const totalLines = allLines.length;
     if (totalLines <= availableHeight) {
-      return allLines.join('\n'); // Show all
+      return allLines; // Show all
     }
 
     const maxOffset = Math.max(0, totalLines - availableHeight);
@@ -131,7 +130,7 @@ export const ClaudePanelAgent: React.FC<ClaudePanelAgentProps> = ({
     const startIdx = Math.max(0, totalLines - availableHeight - actualOffset);
     const endIdx = totalLines - actualOffset;
 
-    return allLines.slice(startIdx, endIdx).join('\n');
+    return allLines.slice(startIdx, endIdx);
   }, [allLines, availableHeight, scrollOffset]);
 
   // Calculate scroll indicator
@@ -156,7 +155,11 @@ export const ClaudePanelAgent: React.FC<ClaudePanelAgentProps> = ({
       paddingX={1}
     >
       <Box flexDirection="column" flexGrow={1}>
-        <Text>{displayContent}</Text>
+        {visibleLines.map((line, idx) => (
+          <Text key={idx} color={line.color}>
+            {line.text}
+          </Text>
+        ))}
         {isThinking && (
           <Box marginTop={1}>
             <Spinner label="Thinking…" />

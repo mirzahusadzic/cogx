@@ -8,11 +8,7 @@
  * This is the HEART of Sigma's compression intelligence.
  */
 
-import type {
-  ConversationLattice,
-  ConversationNode,
-  OverlayScores,
-} from './types.js';
+import type { ConversationLattice } from './types.js';
 
 /**
  * Conversation mode classification
@@ -58,43 +54,47 @@ interface MentalMapBlock {
 /**
  * Classify conversation mode based on lattice characteristics
  */
-export function classifyConversationMode(lattice: ConversationLattice): ConversationMode {
+export function classifyConversationMode(
+  lattice: ConversationLattice
+): ConversationMode {
   const nodes = lattice.nodes;
 
   if (nodes.length === 0) return 'chat'; // Default to chat
 
   // Count indicators
-  const toolUseTurns = nodes.filter(n =>
-    n.content.includes('🔧') || // Tool progress markers
-    n.content.includes('tool_use') ||
-    n.content.includes('Edit:') ||
-    n.content.includes('Write:') ||
-    n.content.includes('Bash:')
+  const toolUseTurns = nodes.filter(
+    (n) =>
+      n.content.includes('🔧') || // Tool progress markers
+      n.content.includes('tool_use') ||
+      n.content.includes('Edit:') ||
+      n.content.includes('Write:') ||
+      n.content.includes('Bash:')
   ).length;
 
-  const codeBlocks = nodes.filter(n =>
-    n.content.includes('```') ||
-    n.content.includes('typescript') ||
-    n.content.includes('python') ||
-    n.content.includes('javascript')
+  const codeBlocks = nodes.filter(
+    (n) =>
+      n.content.includes('```') ||
+      n.content.includes('typescript') ||
+      n.content.includes('python') ||
+      n.content.includes('javascript')
   ).length;
 
-  const fileReferences = nodes.filter(n =>
+  const fileReferences = nodes.filter((n) =>
     /\.(ts|tsx|js|jsx|py|md|json)/.test(n.content)
   ).length;
 
   // Calculate average overlay activation
-  const avgO1 = nodes.reduce((sum, n) =>
-    sum + n.overlay_scores.O1_structural, 0
-  ) / nodes.length;
+  const avgO1 =
+    nodes.reduce((sum, n) => sum + n.overlay_scores.O1_structural, 0) /
+    nodes.length;
 
-  const avgO5 = nodes.reduce((sum, n) =>
-    sum + n.overlay_scores.O5_operational, 0
-  ) / nodes.length;
+  const avgO5 =
+    nodes.reduce((sum, n) => sum + n.overlay_scores.O5_operational, 0) /
+    nodes.length;
 
-  const avgO6 = nodes.reduce((sum, n) =>
-    sum + n.overlay_scores.O6_mathematical, 0
-  ) / nodes.length;
+  const avgO6 =
+    nodes.reduce((sum, n) => sum + n.overlay_scores.O6_mathematical, 0) /
+    nodes.length;
 
   // Quest indicators:
   // - High tool use (>5 tools used)
@@ -121,7 +121,7 @@ function detectCurrentQuest(lattice: ConversationLattice): QuestInfo {
 
   // Find paradigm shifts (quest milestones)
   const paradigmShifts = nodes
-    .filter(n => n.is_paradigm_shift)
+    .filter((n) => n.is_paradigm_shift)
     .sort((a, b) => b.timestamp - a.timestamp);
 
   // Last paradigm shift indicates current quest
@@ -138,26 +138,29 @@ function detectCurrentQuest(lattice: ConversationLattice): QuestInfo {
   }
 
   // Extract quest name from content
-  const questNameMatch = lastShift.content.match(/implement|build|create|add|fix|refactor|design|develop/i);
+  const questNameMatch = lastShift.content.match(
+    /implement|build|create|add|fix|refactor|design|develop/i
+  );
   const questName = questNameMatch
     ? lastShift.content.substring(0, 100).replace(/\n/g, ' ')
     : 'Current Development Task';
 
   // Check if completed (look for completion markers)
   const recentNodes = nodes.slice(-10);
-  const completionMarkers = recentNodes.filter(n =>
+  const completionMarkers = recentNodes.filter((n) =>
     /✅|complete|done|finished|working|passes|success/i.test(n.content)
   );
 
   const completed = completionMarkers.length > 3;
 
   // Extract files mentioned
-  const fileMatches = lastShift.content.match(/[\w-]+\.(ts|tsx|js|jsx|py|md|json)/g) || [];
+  const fileMatches =
+    lastShift.content.match(/[\w-]+\.(ts|tsx|js|jsx|py|md|json)/g) || [];
   const files = [...new Set(fileMatches)];
 
   // Last action from most recent high-importance turn
   const lastImportant = nodes
-    .filter(n => n.importance_score >= 7)
+    .filter((n) => n.importance_score >= 7)
     .sort((a, b) => b.timestamp - a.timestamp)[0];
 
   const lastAction = lastImportant
@@ -181,7 +184,7 @@ function buildMentalMap(lattice: ConversationLattice): MentalMapBlock[] {
 
   // Group by high O1 (structural) turns
   const structuralTurns = nodes
-    .filter(n => n.overlay_scores.O1_structural >= 7)
+    .filter((n) => n.overlay_scores.O1_structural >= 7)
     .sort((a, b) => b.importance_score - a.importance_score);
 
   // Extract architecture components
@@ -189,19 +192,24 @@ function buildMentalMap(lattice: ConversationLattice): MentalMapBlock[] {
 
   for (const turn of structuralTurns.slice(0, 5)) {
     // Extract component name (first noun phrase or file name)
-    const componentMatch = turn.content.match(/([A-Z][a-z]+(?:[A-Z][a-z]+)*)|(\w+\.(ts|tsx|js))/);
+    const componentMatch = turn.content.match(
+      /([A-Z][a-z]+(?:[A-Z][a-z]+)*)|(\w+\.(ts|tsx|js))/
+    );
     const name = componentMatch ? componentMatch[0] : 'Component';
 
     // Determine status from recent mentions
-    const recentMentions = nodes.filter(n =>
-      n.timestamp > turn.timestamp &&
-      n.content.toLowerCase().includes(name.toLowerCase())
+    const recentMentions = nodes.filter(
+      (n) =>
+        n.timestamp > turn.timestamp &&
+        n.content.toLowerCase().includes(name.toLowerCase())
     );
 
     const status: 'complete' | 'in-progress' | 'pending' =
-      recentMentions.length === 0 ? 'complete' :
-      recentMentions.some(n => n.importance_score >= 7) ? 'in-progress' :
-      'pending';
+      recentMentions.length === 0
+        ? 'complete'
+        : recentMentions.some((n) => n.importance_score >= 7)
+          ? 'in-progress'
+          : 'pending';
 
     blocks.push({
       name,
@@ -227,8 +235,9 @@ function getCurrentDepth(lattice: ConversationLattice): {
   const recentNodes = nodes.slice(-10);
 
   // Find most important recent turn
-  const currentFocus = recentNodes
-    .sort((a, b) => b.importance_score - a.importance_score)[0];
+  const currentFocus = recentNodes.sort(
+    (a, b) => b.importance_score - a.importance_score
+  )[0];
 
   if (!currentFocus) {
     return {
@@ -239,8 +248,9 @@ function getCurrentDepth(lattice: ConversationLattice): {
   }
 
   // Extract files from recent context
-  const fileMatches = recentNodes
-    .flatMap(n => n.content.match(/[\w-]+\.(ts|tsx|js|jsx|py|md|json)/g) || []);
+  const fileMatches = recentNodes.flatMap(
+    (n) => n.content.match(/[\w-]+\.(ts|tsx|js|jsx|py|md|json)/g) || []
+  );
   const files = [...new Set(fileMatches)];
 
   return {
@@ -253,7 +263,9 @@ function getCurrentDepth(lattice: ConversationLattice): {
 /**
  * Reconstruct context in Quest Mode
  */
-async function reconstructQuestContext(lattice: ConversationLattice): Promise<string> {
+async function reconstructQuestContext(
+  lattice: ConversationLattice
+): Promise<string> {
   const quest = detectCurrentQuest(lattice);
   const mentalMap = buildMentalMap(lattice);
   const currentDepth = getCurrentDepth(lattice);
@@ -268,17 +280,23 @@ ${statusEmoji} Status: ${quest.completed ? 'Complete' : 'In Progress'}
 ${quest.description}
 
 ## Mental Map (Architecture Blocks)
-${mentalMap.map(block => {
-  const statusIcon = block.status === 'complete' ? '✅' :
-                     block.status === 'in-progress' ? '🔄' : '⏳';
-  return `${statusIcon} **${block.name}** (Importance: ${block.importance}/10)`;
-}).join('\n')}
+${mentalMap
+  .map((block) => {
+    const statusIcon =
+      block.status === 'complete'
+        ? '✅'
+        : block.status === 'in-progress'
+          ? '🔄'
+          : '⏳';
+    return `${statusIcon} **${block.name}** (Importance: ${block.importance}/10)`;
+  })
+  .join('\n')}
 
 ## Current Depth 0 (Active Focus)
 ${currentDepth.description}
 
 **Files Involved:**
-${currentDepth.files.length > 0 ? currentDepth.files.map(f => `- \`${f}\``).join('\n') : '- (No specific files)'}
+${currentDepth.files.length > 0 ? currentDepth.files.map((f) => `- \`${f}\``).join('\n') : '- (No specific files)'}
 
 **Last Action:**
 ${currentDepth.lastAction}
@@ -309,23 +327,23 @@ function findLastUnfinishedTopic(lattice: ConversationLattice): string {
 
   // Find last user turn (unfinished topic)
   const lastUserTurn = recentNodes
-    .filter(n => n.role === 'user')
+    .filter((n) => n.role === 'user')
     .sort((a, b) => b.timestamp - a.timestamp)[0];
 
-  return lastUserTurn
-    ? lastUserTurn.content
-    : 'No recent topic';
+  return lastUserTurn ? lastUserTurn.content : 'No recent topic';
 }
 
 /**
  * Reconstruct context in Chat Mode
  */
-async function reconstructChatContext(lattice: ConversationLattice): Promise<string> {
+async function reconstructChatContext(
+  lattice: ConversationLattice
+): Promise<string> {
   const nodes = lattice.nodes;
 
   // Extract paradigm shifts (important points)
   const paradigmShifts = nodes
-    .filter(n => n.is_paradigm_shift)
+    .filter((n) => n.is_paradigm_shift)
     .sort((a, b) => b.importance_score - a.importance_score)
     .slice(0, 5);
 
@@ -335,12 +353,15 @@ async function reconstructChatContext(lattice: ConversationLattice): Promise<str
   return `# Conversation Recap
 
 ## Key Points Discussed
-${paradigmShifts.length > 0
-  ? paradigmShifts.map((s, i) => {
-      const preview = s.content.substring(0, 120).replace(/\n/g, ' ');
-      return `${i + 1}. ${preview}${s.content.length > 120 ? '...' : ''}`;
-    }).join('\n\n')
-  : '(No major points yet)'
+${
+  paradigmShifts.length > 0
+    ? paradigmShifts
+        .map((s, i) => {
+          const preview = s.content.substring(0, 120).replace(/\n/g, ' ');
+          return `${i + 1}. ${preview}${s.content.length > 120 ? '...' : ''}`;
+        })
+        .join('\n\n')
+    : '(No major points yet)'
 }
 
 ## Last Topic
@@ -363,24 +384,25 @@ export async function reconstructSessionContext(
 
   // 2. Calculate metrics
   const nodes = lattice.nodes;
-  const paradigmShifts = nodes.filter(n => n.is_paradigm_shift).length;
-  const toolUses = nodes.filter(n =>
-    n.content.includes('🔧') || n.content.includes('tool_use')
+  const paradigmShifts = nodes.filter((n) => n.is_paradigm_shift).length;
+  const toolUses = nodes.filter(
+    (n) => n.content.includes('🔧') || n.content.includes('tool_use')
   ).length;
-  const codeBlocks = nodes.filter(n => n.content.includes('```')).length;
+  const codeBlocks = nodes.filter((n) => n.content.includes('```')).length;
 
-  const avgStructural = nodes.reduce((sum, n) =>
-    sum + n.overlay_scores.O1_structural, 0
-  ) / nodes.length;
+  const avgStructural =
+    nodes.reduce((sum, n) => sum + n.overlay_scores.O1_structural, 0) /
+    nodes.length;
 
-  const avgOperational = nodes.reduce((sum, n) =>
-    sum + n.overlay_scores.O5_operational, 0
-  ) / nodes.length;
+  const avgOperational =
+    nodes.reduce((sum, n) => sum + n.overlay_scores.O5_operational, 0) /
+    nodes.length;
 
   // 3. Reconstruct based on mode
-  const recap = mode === 'quest'
-    ? await reconstructQuestContext(lattice)
-    : await reconstructChatContext(lattice);
+  const recap =
+    mode === 'quest'
+      ? await reconstructQuestContext(lattice)
+      : await reconstructChatContext(lattice);
 
   return {
     mode,

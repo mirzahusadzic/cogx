@@ -30,6 +30,7 @@ interface CognitionTUIProps {
   projectRoot: string;
   sessionId?: string;
   workbenchUrl?: string;
+  debug?: boolean;
 }
 
 const CognitionTUI: React.FC<CognitionTUIProps> = ({
@@ -37,16 +38,18 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   projectRoot,
   sessionId,
   workbenchUrl,
+  debug,
 }) => {
   const [focused, setFocused] = useState(true);
   const [renderError, setRenderError] = useState<Error | null>(null);
   const [mouseEnabled, setMouseEnabled] = useState(true);
 
   const { overlays, loading } = useOverlays({ pgcRoot, workbenchUrl });
-  const { messages, sendMessage, isThinking, error, tokenCount, interrupt } =
+  const { messages, sendMessage, isThinking, error, tokenCount, interrupt, sigmaStats } =
     useClaudeAgent({
       sessionId,
       cwd: projectRoot, // Use project root, not .open_cognition dir
+      debug, // Pass debug flag
     });
 
   // Enable mouse support and add Ctrl+C handler (colors set in tui.ts command)
@@ -179,7 +182,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     return (
       <ThemeProvider theme={customTheme}>
         <Box flexDirection="column" width="100%" height="100%" paddingTop={0} marginTop={0}>
-          <OverlaysBar overlays={overlays} />
+          <OverlaysBar sigmaStats={sigmaStats} />
           <Box flexGrow={1} flexShrink={1} minHeight={0} width="100%" overflow="hidden">
             <ClaudePanelAgent
               messages={messages}

@@ -115,7 +115,12 @@ async function detectOverlaysBySimilarity(
   // Generate embeddings for overlay signatures (cached in real impl)
   for (const [overlay, signature] of Object.entries(OVERLAY_SIGNATURES)) {
     const overlayResponse = await embedder.getEmbedding(signature, 768);
-    const overlayEmbed = overlayResponse['vector'] as number[];
+
+    // eGemma returns embedding with dimension in key name: "embedding_768d"
+    const overlayEmbed =
+      (overlayResponse['embedding_768d'] as number[]) ||
+      (overlayResponse['vector'] as number[]) ||
+      (overlayResponse['embedding'] as number[]);
 
     if (!Array.isArray(overlayEmbed)) continue; // Skip if invalid
 
@@ -141,11 +146,19 @@ export async function analyzeTurn(
 
   // 1. Generate embedding for this turn
   const embeddingResponse = await embedder.getEmbedding(turn.content, 768);
-  // EmbedResponse has flexible index signature, vector is at 'vector' key
-  const turnEmbed = embeddingResponse['vector'] as number[];
+
+  // eGemma returns embedding with dimension in key name: "embedding_768d"
+  const turnEmbed =
+    (embeddingResponse['embedding_768d'] as number[]) ||
+    (embeddingResponse['vector'] as number[]) ||
+    (embeddingResponse['embedding'] as number[]) ||
+    (embeddingResponse['embeddings'] as number[]) ||
+    (embeddingResponse['data'] as number[]);
 
   if (!Array.isArray(turnEmbed)) {
-    throw new Error('Expected embedding response to contain vector array');
+    throw new Error(
+      `Expected embedding response to contain vector array. Got keys: ${Object.keys(embeddingResponse).join(', ')}`
+    );
   }
 
   // 2. Calculate novelty (distance from recent context)
@@ -158,9 +171,9 @@ export async function analyzeTurn(
     // If history turn has embedding (from previous analysis), use it
     if (
       'embedding' in historyTurn &&
-      Array.isArray((historyTurn as any).embedding)
+      Array.isArray((historyTurn as { embedding: number[] }).embedding)
     ) {
-      recentEmbeds.push((historyTurn as any).embedding);
+      recentEmbeds.push((historyTurn as { embedding: number[] }).embedding);
     }
   }
 

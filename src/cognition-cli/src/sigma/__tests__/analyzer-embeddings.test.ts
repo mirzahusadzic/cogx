@@ -5,11 +5,7 @@
 
 import { analyzeTurn } from '../analyzer-with-embeddings.js';
 import { EmbeddingService } from '../../core/services/embedding.js';
-import type {
-  ConversationTurn,
-  ConversationContext,
-  TurnAnalysis,
-} from '../types.js';
+import type { ConversationTurn, ConversationContext } from '../types.js';
 
 // Mock EmbeddingService for testing
 class MockEmbeddingService extends EmbeddingService {
@@ -166,7 +162,7 @@ describe('Embedding-based analyzer', () => {
           content: analysis1.content,
           timestamp: analysis1.timestamp,
           embedding: analysis1.embedding, // Include embedding for novelty calc
-        } as any,
+        } as ConversationTurn & { embedding: number[] },
       ],
       metadata: {},
     };
@@ -226,7 +222,7 @@ describe('Embedding-based analyzer', () => {
           content: analysis1.content,
           timestamp: analysis1.timestamp,
           embedding: analysis1.embedding,
-        } as any,
+        } as ConversationTurn & { embedding: number[] },
       ],
       metadata: {},
     };
@@ -269,7 +265,7 @@ describe('Embedding-based analyzer', () => {
           content: analysis1.content,
           timestamp: analysis1.timestamp,
           embedding: analysis1.embedding,
-        } as any,
+        } as ConversationTurn & { embedding: number[] },
       ],
       metadata: {},
     };

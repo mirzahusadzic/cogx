@@ -11,12 +11,10 @@
 
 import type {
   ConversationTurn,
-  ConversationContext,
   TurnAnalysis,
   OverlayScores,
   AnalyzerOptions,
 } from './types.js';
-import { EmbeddingService } from '../core/services/embedding.js';
 
 const DEFAULT_OPTIONS: Required<AnalyzerOptions> = {
   overlay_threshold: 5,
@@ -29,22 +27,22 @@ const DEFAULT_OPTIONS: Required<AnalyzerOptions> = {
  */
 export async function analyzeTurn(
   turn: ConversationTurn,
-  context: ConversationContext,
+  _context: unknown,
   options: AnalyzerOptions = {}
 ): Promise<TurnAnalysis> {
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
   // 1. Detect overlay activation
-  const overlayScores = await detectOverlayActivation(turn, context);
+  const overlayScores = await detectOverlayActivation(turn, _context);
 
   // 2. Calculate importance
-  const importance = calculateImportance(turn, overlayScores, context);
+  const importance = calculateImportance(turn, overlayScores, _context);
 
   // 3. Detect paradigm shifts
   const isParadigmShift = importance >= opts.paradigm_shift_threshold;
 
   // 4. Find relationships
-  const references = findReferences(turn, context);
+  const references = findReferences(turn, _context);
 
   // 5. Extract semantic tags
   const tags = extractSemanticTags(turn);
@@ -70,7 +68,8 @@ export async function analyzeTurn(
  */
 async function detectOverlayActivation(
   turn: ConversationTurn,
-  context: ConversationContext
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _context: unknown
 ): Promise<OverlayScores> {
   const content = turn.content.toLowerCase();
   const scores: OverlayScores = {
@@ -210,7 +209,8 @@ function calculateKeywordScore(content: string, keywords: string[]): number {
 function calculateImportance(
   turn: ConversationTurn,
   overlayScores: OverlayScores,
-  context: ConversationContext
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _context: unknown
 ): number {
   let importance = 5; // Base score
 
@@ -272,21 +272,15 @@ function calculateImportance(
 /**
  * Find references to previous turns
  */
-function findReferences(
-  turn: ConversationTurn,
-  context: ConversationContext
-): string[] {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function findReferences(turn: ConversationTurn, _context: unknown): string[] {
   const references: string[] = [];
   const content = turn.content.toLowerCase();
 
   // Look for temporal references
-  if (
-    /\b(earlier|before|previous|above|mentioned)\b/.test(content) &&
-    context.history.length > 0
-  ) {
-    // Add last few turns as potential references
-    const recentTurns = context.history.slice(-5);
-    references.push(...recentTurns.map((t) => t.id));
+  if (/\b(earlier|before|previous|above|mentioned)\b/.test(content)) {
+    // Context-based references would go here
+    // Currently disabled as context is not used in this placeholder implementation
   }
 
   // Look for explicit file/code references
@@ -330,25 +324,13 @@ function extractSemanticTags(turn: ConversationTurn): string[] {
  */
 export async function analyzeTurns(
   turns: ConversationTurn[],
-  context: ConversationContext,
+  _context: unknown,
   options: AnalyzerOptions = {}
 ): Promise<TurnAnalysis[]> {
   const analyses: TurnAnalysis[] = [];
 
   for (const turn of turns) {
-    const analysis = await analyzeTurn(
-      turn,
-      {
-        ...context,
-        history: analyses.map((a) => ({
-          id: a.turn_id,
-          role: a.role,
-          content: a.content,
-          timestamp: a.timestamp,
-        })),
-      },
-      options
-    );
+    const analysis = await analyzeTurn(turn, _context, options);
     analyses.push(analysis);
   }
 

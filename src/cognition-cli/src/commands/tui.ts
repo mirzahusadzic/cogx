@@ -6,6 +6,7 @@ interface TUIOptions {
   projectRoot: string;
   sessionId?: string;
   workbenchUrl?: string;
+  debug?: boolean;
 }
 
 /**
@@ -50,5 +51,6 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     projectRoot,
     sessionId: options.sessionId,
     workbenchUrl,
+    debug: options.debug,
   });
 }

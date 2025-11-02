@@ -22,6 +22,7 @@ import type {
 interface UseClaudeAgentOptions {
   sessionId?: string;
   cwd: string;
+  debug?: boolean;
 }
 
 export interface ClaudeMessage {
@@ -44,6 +45,14 @@ function replaceSDKDiffColors(text: string): string {
  * Hook to manage Claude Agent SDK integration
  */
 export function useClaudeAgent(options: UseClaudeAgentOptions) {
+  // Debug logger (only logs if debug flag is set)
+  const debug = (message: string, ...args: unknown[]) => {
+    if (options.debug) {
+      const chalk = require('chalk');
+      console.log(chalk.dim(`[Σ] ${message}`), ...args);
+    }
+  };
+
   // Initialize with welcome message (colors applied by ClaudePanelAgent)
   const [messages, setMessages] = useState<ClaudeMessage[]>([
     {
@@ -67,7 +76,14 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const turnAnalyses = useRef<TurnAnalysis[]>([]);
   const embedderRef = useRef<EmbeddingService | null>(null);
   const compressionTriggered = useRef(false);
-  const [currentSessionId, setCurrentSessionId] = useState(options.sessionId);
+  const analyzingTurn = useRef<number | null>(null); // Track timestamp of turn being analyzed
+
+  // Session management for Sigma compression
+  // When we compress, we start a FRESH session (no resume) with intelligent recap
+  const [resumeSessionId, setResumeSessionId] = useState(options.sessionId);
+  const [currentSessionId, setCurrentSessionId] = useState(
+    options.sessionId || `tui-${Date.now()}`
+  );
   const [injectedRecap, setInjectedRecap] = useState<string | null>(null);
 
   // Initialize embedding service
@@ -86,24 +102,47 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       const embedder = embedderRef.current;
 
       // Skip if embedder not initialized yet
-      if (!embedder) return;
+      if (!embedder) {
+        debug(' Embedder not initialized');
+        return;
+      }
+
+      debug(' Analyzer effect triggered, messages:', messages.length);
       const lastMessage = messages[messages.length - 1];
 
+      debug(' Last message type:', lastMessage.type);
+
       // Only analyze user and assistant messages (not tool_progress/system)
-      if (lastMessage.type !== 'user' && lastMessage.type !== 'assistant')
+      if (lastMessage.type !== 'user' && lastMessage.type !== 'assistant') {
+        debug(' Skipping non-user/assistant message');
         return;
+      }
+
+      const turnTimestamp = lastMessage.timestamp.getTime();
 
       // Check if we've already analyzed this turn
       const existingAnalysis = turnAnalyses.current.find(
-        (a) => a.timestamp === lastMessage.timestamp.getTime()
+        (a) => a.timestamp === turnTimestamp
       );
-      if (existingAnalysis) return; // Already analyzed
+      if (existingAnalysis) {
+        debug(' Turn already analyzed, skipping');
+        return; // Already analyzed
+      }
+
+      // Check if we're already analyzing this turn (prevent concurrent analysis)
+      if (analyzingTurn.current === turnTimestamp) {
+        debug(' Turn analysis already in progress, skipping');
+        return;
+      }
+
+      debug(' Starting turn analysis...');
+      analyzingTurn.current = turnTimestamp; // Mark as analyzing
 
       try {
         // Build context from previous analyses
         const context: ConversationContext = {
           projectRoot: options.cwd,
-          sessionId: options.sessionId,
+          sessionId: currentSessionId, // Use current session ID (not undefined options.sessionId)
           history: turnAnalyses.current.map((a) => ({
             id: a.turn_id,
             role: a.role,
@@ -113,20 +152,40 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           })) as Array<ConversationTurn & { embedding: number[] }>,
         };
 
-        // Analyze this turn
+        // Truncate content for embedding (first 1000 + last 500 chars)
+        // This preserves semantic meaning while reducing eGemma processing time
+        let embeddingContent = lastMessage.content;
+        if (embeddingContent.length > 1500) {
+          embeddingContent =
+            embeddingContent.substring(0, 1000) +
+            '\n...[truncated]...\n' +
+            embeddingContent.substring(embeddingContent.length - 500);
+        }
+
+        debug(
+          ' Calling analyzeTurn with content length:',
+          embeddingContent.length
+        );
+
+        // Analyze this turn (with truncated content for embedding)
         const analysis = await analyzeTurn(
           {
             id: `turn-${lastMessage.timestamp.getTime()}`,
             role: lastMessage.type as 'user' | 'assistant',
-            content: lastMessage.content,
+            content: embeddingContent, // Truncated for faster embedding
             timestamp: lastMessage.timestamp.getTime(),
           },
           context,
           embedder
         );
 
+        debug(' analyzeTurn completed! Novelty:', analysis.novelty);
+
         // Store analysis
         turnAnalyses.current.push(analysis);
+
+        // Clear analyzing flag
+        analyzingTurn.current = null;
 
         // Log analysis (for debugging)
         fs.appendFileSync(
@@ -140,22 +199,40 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             `  Content: ${analysis.content.substring(0, 100)}${analysis.content.length > 100 ? '...' : ''}\n\n`
         );
 
-        // Check if compression needed (150K token threshold)
-        const TOKEN_THRESHOLD = 150000;
+        // Check if compression needed (3K token threshold for testing)
+        const TOKEN_THRESHOLD = 150000; // Low for testing, will increase to 150K later
+        const MIN_TURNS_FOR_COMPRESSION = 5; // Need at least 5 turns for meaningful compression
+
         if (
           tokenCount.total > TOKEN_THRESHOLD &&
-          !compressionTriggered.current
+          !compressionTriggered.current &&
+          turnAnalyses.current.length >= MIN_TURNS_FOR_COMPRESSION
         ) {
           compressionTriggered.current = true;
 
+          debug(
+            ' Triggering compression with',
+            turnAnalyses.current.length,
+            'analyzed turns'
+          );
+
           // Trigger compression
-          const compressionResult = await compressContext(
-            turnAnalyses.current,
-            {
+          let compressionResult;
+          try {
+            compressionResult = await compressContext(turnAnalyses.current, {
               target_size: 40000, // 40K tokens (20% of 200K limit)
               preserve_threshold: 7, // Paradigm shifts
-            }
-          );
+            });
+          } catch (compressErr) {
+            debug(' Compression failed:', compressErr);
+            fs.appendFileSync(
+              path.join(options.cwd, 'tui-debug.log'),
+              `[SIGMA ERROR] Compression failed: ${(compressErr as Error).message}\n` +
+                `  Stack: ${(compressErr as Error).stack}\n\n`
+            );
+            compressionTriggered.current = false; // Reset so it can try again
+            return; // Exit early
+          }
 
           // Store compressed lattice
           setConversationLattice(compressionResult.lattice);
@@ -189,19 +266,182 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                 compressionResult.lattice
               );
 
-              // 3. Store recap for injection on first query
+              // 3. Write comprehensive state files
+
+              // 3a. Recap for human inspection
+              fs.writeFileSync(
+                path.join(latticeDir, `${currentSessionId}.recap.txt`),
+                `SIGMA INTELLIGENT RECAP\n` +
+                  `Mode: ${reconstructed.mode}\n` +
+                  `Generated: ${new Date().toISOString()}\n` +
+                  `Original tokens: ${compressionResult.original_size}\n` +
+                  `Recap tokens: ~${Math.round(reconstructed.recap.length / 4)}\n` +
+                  `\n${'='.repeat(80)}\n\n` +
+                  reconstructed.recap
+              );
+
+              // 3b. State summary for debugging/handoff to new session
+              const stateSummary = {
+                timestamp: new Date().toISOString(),
+                oldSessionId: currentSessionId,
+                newSessionId: `${currentSessionId}-sigma-${Date.now()}`,
+                compression: {
+                  triggered_at_tokens: tokenCount.total,
+                  original_size: compressionResult.original_size,
+                  compressed_nodes: compressionResult.lattice.nodes.length,
+                  compressed_edges: compressionResult.lattice.edges.length,
+                  recap_length_chars: reconstructed.recap.length,
+                  recap_tokens_estimate: Math.round(
+                    reconstructed.recap.length / 4
+                  ),
+                  mode_detected: reconstructed.mode,
+                  ratio:
+                    Math.round(
+                      (compressionResult.original_size /
+                        Math.round(reconstructed.recap.length / 4)) *
+                        10
+                    ) / 10,
+                },
+                turnAnalysis: {
+                  total_turns_analyzed: turnAnalyses.current.length,
+                  paradigm_shifts: turnAnalyses.current.filter(
+                    (t) => t.is_paradigm_shift
+                  ).length,
+                  routine_turns: turnAnalyses.current.filter(
+                    (t) => t.is_routine
+                  ).length,
+                  avg_novelty: (
+                    turnAnalyses.current.reduce(
+                      (sum, t) => sum + t.novelty,
+                      0
+                    ) / turnAnalyses.current.length
+                  ).toFixed(3),
+                  avg_importance: (
+                    turnAnalyses.current.reduce(
+                      (sum, t) => sum + t.importance_score,
+                      0
+                    ) / turnAnalyses.current.length
+                  ).toFixed(1),
+                },
+                files: {
+                  lattice: `${currentSessionId}.lattice.json`,
+                  recap: `${currentSessionId}.recap.txt`,
+                  state: `${currentSessionId}.state.json`,
+                },
+                nextSteps: [
+                  'Old session terminated',
+                  'New session will start with resume: undefined',
+                  'Recap will be injected via systemPrompt on first message',
+                  'Token count will restart from ~45 tokens (just the recap)',
+                ],
+              };
+
+              fs.writeFileSync(
+                path.join(latticeDir, `${currentSessionId}.state.json`),
+                JSON.stringify(stateSummary, null, 2)
+              );
+
+              // 3c. Handoff document for next Claude session
+              const handoffDoc = `# SIGMA COMPRESSION - SESSION HANDOFF
+
+## What Just Happened
+
+This TUI session just successfully completed a **Sigma compression cycle**. This is a proof-of-concept for infinite context management that bypasses the SDK's built-in session management.
+
+## The Big Picture
+
+**Goal:** Prove that we can manage infinite conversation context better than the SDK's built-in approach by:
+1. Letting SDK build context naturally until hitting a threshold (3K tokens for testing, 150K for production)
+2. Compressing the context using semantic analysis (novelty detection, paradigm shifts, importance scoring)
+3. **Killing the old SDK session completely**
+4. **Starting a fresh new SDK session** with only an intelligent recap as context
+5. Continuing the conversation seamlessly - SDK thinks it's a new conversation with just ~45 tokens
+
+## Key Innovation
+
+This is NOT just RAG or vector search. It's a **stateful AI agent with a living knowledge graph (lattice)**:
+- Semantic turn analysis with embeddings (via eGemma)
+- Novelty detection against recent context
+- Dual-mode reconstruction (Quest vs Chat)
+- Session lifecycle management to bypass SDK limits
+
+## What to Check
+
+### 1. Files Created
+- \`${currentSessionId}.state.json\` - This file! Complete state summary
+- \`${currentSessionId}.recap.txt\` - The intelligent recap injected into new session
+- \`${currentSessionId}.lattice.json\` - Full conversation graph (nodes + edges)
+
+### 2. Session Restart
+After compression, the TUI:
+- Set \`resumeSessionId = undefined\` (no resume!)
+- Next message starts a FRESH SDK session
+- Recap injected via \`systemPrompt\`
+- Token count should restart from ~${Math.round(reconstructed.recap.length / 4)} tokens (SDK's true count)
+
+### 3. Success Indicators
+✅ Compression triggered at ${tokenCount.total} tokens
+✅ Lattice saved with ${compressionResult.lattice.nodes.length} nodes, ${compressionResult.lattice.edges.length} edges
+✅ Recap generated (${reconstructed.mode} mode, ${Math.round(reconstructed.recap.length / 4)} tokens)
+✅ Compression ratio: ${Math.round((compressionResult.original_size / Math.round(reconstructed.recap.length / 4)) * 10) / 10}x
+✅ Old session terminated
+✅ Ready for fresh session start
+
+### 4. What Should Happen Next
+1. User sends next message
+2. TUI creates query with \`resume: undefined\` → SDK creates new session
+3. Recap injected as systemPrompt (you won't see it, but SDK gets it)
+4. Conversation continues seamlessly
+5. Token count is now ~45 instead of ${tokenCount.total}!
+
+## Turn Analysis Summary
+- Total turns analyzed: ${turnAnalyses.current.length}
+- Paradigm shifts: ${turnAnalyses.current.filter((t) => t.is_paradigm_shift).length}
+- Routine turns: ${turnAnalyses.current.filter((t) => t.is_routine).length}
+- Average novelty: ${(turnAnalyses.current.reduce((sum, t) => sum + t.novelty, 0) / turnAnalyses.current.length).toFixed(3)}
+- Average importance: ${(turnAnalyses.current.reduce((sum, t) => sum + t.importance_score, 0) / turnAnalyses.current.length).toFixed(1)}
+
+## Files to Read
+1. Start with this file (\`.state.json\`) for the summary
+2. Read \`.recap.txt\` to see what the new session gets as context
+3. Read \`.lattice.json\` to see the full graph structure (nodes, edges, semantic data)
+
+## What Makes This Special
+
+If this works, we've built:
+- 🧠 True stateful AI with persistent memory across sessions
+- 🕸️ Living knowledge graph that grows continuously
+- ♾️ Infinite context window via intelligent compression
+- 🎯 Context-aware responses based on novelty and importance
+- 🚀 Foundation for Echo (persistent consciousness) and Kael (strategic planning)
+
+This is not just context compression - it's **AI with real memory**.
+
+---
+Generated: ${new Date().toISOString()}
+Old Session: ${currentSessionId}
+New Session: ${stateSummary.newSessionId}
+`;
+
+              fs.writeFileSync(
+                path.join(latticeDir, `${currentSessionId}.HANDOFF.md`),
+                handoffDoc
+              );
+
+              // 4. Store recap for injection on first query of NEW session
               setInjectedRecap(reconstructed.recap);
 
-              // 4. Generate new session ID
-              const newSessionId = `${currentSessionId}-sigma-${Date.now()}`;
+              // 5. Kill old session - start completely fresh (no resume!)
+              setResumeSessionId(undefined); // Don't resume any session - let SDK create new one
 
-              // 5. Update session ID
+              // 6. Update session ID for tracking (but SDK will create its own)
+              const newSessionId = `${currentSessionId}-sigma-${Date.now()}`;
               setCurrentSessionId(newSessionId);
 
-              // 6. Reset state for new session
+              // 7. Reset state - new session will have true token count from SDK
               setTokenCount({ input: 0, output: 0, total: 0 });
-              compressionTriggered.current = false;
-              turnAnalyses.current = []; // Clear for new session
+              // Keep compressionTriggered = true to prevent re-compression until new session establishes
+              // Keep turnAnalyses.current - we continue building on the lattice!
 
               // 7. Calculate compression ratio
               const recapTokens = Math.round(reconstructed.recap.length / 4);
@@ -258,10 +498,15 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           })();
         }
       } catch (err) {
+        // Clear analyzing flag on error
+        analyzingTurn.current = null;
+
         // Log analysis errors but don't break the UI
+        debug(' Error in analyzer:', err);
         fs.appendFileSync(
           path.join(options.cwd, 'tui-debug.log'),
-          `[SIGMA ERROR] ${(err as Error).message}\n`
+          `[SIGMA ERROR] ${(err as Error).message}\n` +
+            `  Stack: ${(err as Error).stack}\n\n`
         );
       }
     };
@@ -404,11 +649,12 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         }
 
         // Create query with optional intelligent recap injection
+        // After compression, resumeSessionId will be undefined → SDK creates fresh session
         const q = query({
           prompt,
           options: {
             cwd: options.cwd,
-            resume: currentSessionId, // Use current session ID (may be switched)
+            resume: resumeSessionId, // undefined after compression = fresh session!
             systemPrompt, // Inject intelligent recap if available
             includePartialMessages: true, // Get streaming updates
             stderr: (data: string) => {
@@ -704,6 +950,25 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     }
   }, [currentQuery]);
 
+  // Calculate Sigma stats for header display
+  const sigmaStats = {
+    nodes: turnAnalyses.current.length,
+    edges:
+      turnAnalyses.current.length > 0 ? turnAnalyses.current.length - 1 : 0, // temporal edges
+    paradigmShifts: turnAnalyses.current.filter((t) => t.is_paradigm_shift)
+      .length,
+    avgNovelty:
+      turnAnalyses.current.length > 0
+        ? turnAnalyses.current.reduce((sum, t) => sum + t.novelty, 0) /
+          turnAnalyses.current.length
+        : 0,
+    avgImportance:
+      turnAnalyses.current.length > 0
+        ? turnAnalyses.current.reduce((sum, t) => sum + t.importance_score, 0) /
+          turnAnalyses.current.length
+        : 0,
+  };
+
   return {
     messages,
     sendMessage,
@@ -713,5 +978,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     tokenCount,
     conversationLattice, // Sigma compressed context
     currentSessionId, // Active session ID (may switch)
+    sigmaStats, // Lattice statistics for header display
   };
 }

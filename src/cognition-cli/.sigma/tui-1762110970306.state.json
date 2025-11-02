@@ -1,0 +1,33 @@
+{
+  "timestamp": "2025-11-02T19:18:23.198Z",
+  "oldSessionId": "tui-1762110970306",
+  "newSessionId": "tui-1762110970306-sigma-1762111103198",
+  "compression": {
+    "triggered_at_tokens": 12762,
+    "original_size": 25,
+    "compressed_nodes": 4,
+    "compressed_edges": 3,
+    "recap_length_chars": 171,
+    "recap_tokens_estimate": 43,
+    "mode_detected": "chat",
+    "ratio": 0.6
+  },
+  "turnAnalysis": {
+    "total_turns_analyzed": 5,
+    "paradigm_shifts": 0,
+    "routine_turns": 1,
+    "avg_novelty": "0.471",
+    "avg_importance": "2.6"
+  },
+  "files": {
+    "lattice": "tui-1762110970306.lattice.json",
+    "recap": "tui-1762110970306.recap.txt",
+    "state": "tui-1762110970306.state.json"
+  },
+  "nextSteps": [
+    "Old session terminated",
+    "New session will start with resume: undefined",
+    "Recap will be injected via systemPrompt on first message",
+    "Token count will restart from ~45 tokens (just the recap)"
+  ]
+}

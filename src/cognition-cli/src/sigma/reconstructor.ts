@@ -87,7 +87,8 @@ export async function reconstructContext(
     token_count: opts.token_budget - budget,
     relevance_score: relevanceScore,
     overlay_activation: Object.fromEntries(
-      Object.entries(queryOverlays).filter(([_, score]) => score > 0)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      Object.entries(queryOverlays).filter(([_key, score]) => score > 0)
     ) as Partial<OverlayScores>,
   };
 }
@@ -258,7 +259,6 @@ function sortNodes(
  */
 function formatTurn(node: ConversationNode): string {
   const role = node.role.toUpperCase();
-  const timestamp = new Date(node.timestamp).toISOString();
 
   // Add metadata for high-importance turns
   let header = `[${role}]`;
@@ -310,7 +310,8 @@ export function getReconstructionStats(context: ReconstructedContext): {
   token_efficiency: number;
 } {
   const activeOverlays = Object.entries(context.overlay_activation || {})
-    .filter(([_, score]) => score && score > 0)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    .filter(([_key, score]) => score && score > 0)
     .map(([overlay]) => overlay);
 
   // Token efficiency: how many tokens per turn

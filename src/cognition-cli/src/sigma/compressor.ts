@@ -202,7 +202,8 @@ function buildConversationLattice(
  */
 export function addSemanticEdges(
   lattice: ConversationLattice,
-  similarityThreshold: number = 0.7
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _similarityThreshold: number = 0.7
 ): ConversationLattice {
   // TODO: Implement in Phase 4
   // For now, return lattice unchanged
@@ -213,7 +214,8 @@ export function addSemanticEdges(
 /**
  * Summarize a turn using LLM (for future enhancement)
  */
-async function summarizeTurn(
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function _summarizeTurn(
   turn: TurnAnalysis,
   compressionRatio: number = 0.3
 ): Promise<string> {

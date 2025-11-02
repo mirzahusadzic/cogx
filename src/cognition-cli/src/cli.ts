@@ -180,11 +180,13 @@ program
     'URL of the egemma workbench',
     'http://localhost:8000'
   )
+  .option('--debug', 'Enable debug logging for Sigma compression')
   .action((options) => {
     tuiCommand({
       projectRoot: options.projectRoot,
       sessionId: options.sessionId,
       workbenchUrl: options.workbench,
+      debug: options.debug,
     });
   });
 
