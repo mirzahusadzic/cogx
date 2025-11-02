@@ -9,6 +9,8 @@
  */
 
 import type { ConversationLattice } from './types.js';
+import type { ConversationOverlayRegistry } from './conversation-registry.js';
+import { filterConversationByAlignment } from './query-conversation.js';
 
 /**
  * Conversation mode classification
@@ -318,37 +320,161 @@ Use these to retrieve specific context from the lattice:
 
 /**
  * Find last unfinished topic in chat
+ * FIX: Now includes both user and assistant turns, looks back further
  */
 function findLastUnfinishedTopic(lattice: ConversationLattice): string {
   const nodes = lattice.nodes;
 
-  // Last 5 turns
-  const recentNodes = nodes.slice(-5);
+  // FIX: Increased from 5 to 15 turns for better context
+  const recentNodes = nodes.slice(-15);
 
-  // Find last user turn (unfinished topic)
-  const lastUserTurn = recentNodes
-    .filter((n) => n.role === 'user')
+  // FIX: Include BOTH user and assistant turns, not just user
+  const lastImportantTurn = recentNodes
+    .filter((n) => n.importance_score >= 3) // Filter for meaningful content
     .sort((a, b) => b.timestamp - a.timestamp)[0];
 
-  return lastUserTurn ? lastUserTurn.content : 'No recent topic';
+  // Fallback to last turn if no important turns found
+  const lastTurn = lastImportantTurn || recentNodes[recentNodes.length - 1];
+
+  return lastTurn ? lastTurn.content : 'No recent topic';
 }
 
 /**
  * Reconstruct context in Chat Mode
+ * FIX: Now uses conversation overlays for better context preservation
  */
 async function reconstructChatContext(
-  lattice: ConversationLattice
+  lattice: ConversationLattice,
+  conversationRegistry?: ConversationOverlayRegistry
 ): Promise<string> {
   const nodes = lattice.nodes;
 
-  // Extract paradigm shifts (important points)
+  // Find last unfinished topic
+  const lastTopic = findLastUnfinishedTopic(lattice);
+
+  // If we have conversation registry, use overlay filtering (BETTER!)
+  if (conversationRegistry) {
+    try {
+      const filtered = await filterConversationByAlignment(
+        conversationRegistry,
+        6 // Min alignment score
+      );
+
+      const hasContent =
+        filtered.structural.length > 0 ||
+        filtered.security.length > 0 ||
+        filtered.lineage.length > 0 ||
+        filtered.mission.length > 0 ||
+        filtered.operational.length > 0 ||
+        filtered.mathematical.length > 0 ||
+        filtered.coherence.length > 0;
+
+      if (hasContent) {
+        return `# Conversation Recap
+
+## Architecture & Design (O1 Structural)
+${
+  filtered.structural.length > 0
+    ? filtered.structural
+        .map(
+          (item, i) =>
+            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
+        )
+        .join('\n\n')
+    : '(None)'
+}
+
+## Security Concerns (O2 Security)
+${
+  filtered.security.length > 0
+    ? filtered.security
+        .map(
+          (item, i) =>
+            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
+        )
+        .join('\n\n')
+    : '(None)'
+}
+
+## Knowledge Evolution (O3 Lineage)
+${
+  filtered.lineage.length > 0
+    ? filtered.lineage
+        .map(
+          (item, i) =>
+            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
+        )
+        .join('\n\n')
+    : '(None)'
+}
+
+## Goals & Objectives (O4 Mission)
+${
+  filtered.mission.length > 0
+    ? filtered.mission
+        .map(
+          (item, i) =>
+            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
+        )
+        .join('\n\n')
+    : '(None)'
+}
+
+## Actions Taken (O5 Operational)
+${
+  filtered.operational.length > 0
+    ? filtered.operational
+        .map(
+          (item, i) =>
+            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
+        )
+        .join('\n\n')
+    : '(None)'
+}
+
+## Algorithms & Logic (O6 Mathematical)
+${
+  filtered.mathematical.length > 0
+    ? filtered.mathematical
+        .map(
+          (item, i) =>
+            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
+        )
+        .join('\n\n')
+    : '(None)'
+}
+
+## Conversation Flow (O7 Coherence)
+${
+  filtered.coherence.length > 0
+    ? filtered.coherence
+        .map(
+          (item, i) =>
+            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
+        )
+        .join('\n\n')
+    : '(None)'
+}
+
+## Current Focus
+${lastTopic.substring(0, 300)}${lastTopic.length > 300 ? '...' : ''}
+
+---
+
+**Memory Tool Available**: You have access to \`recall_past_conversation\` tool. Use it anytime you need to remember specific past discussions. The tool uses semantic search across all conversation history.
+`.trim();
+      }
+    } catch (err) {
+      // Fall back to old method
+      console.warn('Failed to use conversation overlays:', err);
+    }
+  }
+
+  // FALLBACK: Old method (paradigm shifts only)
   const paradigmShifts = nodes
     .filter((n) => n.is_paradigm_shift)
     .sort((a, b) => b.importance_score - a.importance_score)
     .slice(0, 5);
-
-  // Find last unfinished topic
-  const lastTopic = findLastUnfinishedTopic(lattice);
 
   return `# Conversation Recap
 
@@ -377,7 +503,8 @@ ${lastTopic.substring(0, 300)}${lastTopic.length > 300 ? '...' : ''}
  * Main reconstruction function - intelligently chooses mode
  */
 export async function reconstructSessionContext(
-  lattice: ConversationLattice
+  lattice: ConversationLattice,
+  conversationRegistry?: ConversationOverlayRegistry
 ): Promise<ReconstructedSessionContext> {
   // 1. Classify conversation mode
   const mode = classifyConversationMode(lattice);
@@ -398,11 +525,11 @@ export async function reconstructSessionContext(
     nodes.reduce((sum, n) => sum + n.overlay_scores.O5_operational, 0) /
     nodes.length;
 
-  // 3. Reconstruct based on mode
+  // 3. Reconstruct based on mode (pass conversationRegistry!)
   const recap =
     mode === 'quest'
       ? await reconstructQuestContext(lattice)
-      : await reconstructChatContext(lattice);
+      : await reconstructChatContext(lattice, conversationRegistry);
 
   return {
     mode,

@@ -68,7 +68,8 @@ export const ClaudePanel: React.FC<ClaudePanelProps> = ({
     return (
       <Box
         flexDirection="column"
-        borderStyle="single"
+        borderTop
+        borderBottom
         borderColor={focused ? 'cyan' : 'gray'}
         flexGrow={1}
         padding={1}
@@ -84,7 +85,8 @@ export const ClaudePanel: React.FC<ClaudePanelProps> = ({
   return (
     <Box
       flexDirection="column"
-      borderStyle="single"
+      borderTop
+      borderBottom
       borderColor={focused ? 'cyan' : 'gray'}
       flexGrow={1}
       paddingX={1}

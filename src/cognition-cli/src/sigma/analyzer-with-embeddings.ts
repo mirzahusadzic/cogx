@@ -3,8 +3,8 @@
  *
  * Uses embeddings for:
  * - Novelty detection (automatic paradigm shift detection)
- * - Semantic overlay matching (O1-O7)
- * - Importance scoring (novelty + overlay strength)
+ * - Semantic overlay matching (O1-O7) via Meet with project lattice
+ * - Importance scoring (novelty + project alignment)
  */
 
 import type {
@@ -15,6 +15,7 @@ import type {
   AnalyzerOptions,
 } from './types.js';
 import { EmbeddingService } from '../core/services/embedding.js';
+import { OverlayRegistry } from '../core/algebra/overlay-registry.js';
 
 const DEFAULT_OPTIONS: Required<AnalyzerOptions> = {
   overlay_threshold: 5,
@@ -76,31 +77,12 @@ function calculateNovelty(
 }
 
 /**
- * Overlay semantic signatures (for similarity matching)
+ * Detect overlay activation via Meet with project lattice
+ * This is the KEY INNOVATION: Conversation ∧ Project
  */
-const OVERLAY_SIGNATURES = {
-  O1_structural:
-    'architecture structure design components modules interfaces hierarchy organization',
-  O2_security:
-    'security credentials authentication permissions authorization vulnerabilities threats',
-  O3_lineage:
-    'earlier mentioned discussed previously before remember recall history reference',
-  O4_mission:
-    'goal objective plan strategy purpose intent target achieve mission accomplish',
-  O5_operational:
-    'command execute run workflow process implement operation perform deploy action',
-  O6_mathematical:
-    'algorithm function code formula calculate compute mathematics logic proof',
-  O7_strategic:
-    'validate test verify check review assess evaluate measure analyze strategy',
-};
-
-/**
- * Detect overlay activation via semantic similarity
- */
-async function detectOverlaysBySimilarity(
-  turnEmbed: number[],
-  embedder: EmbeddingService
+async function detectOverlaysByProjectAlignment(
+  turnContent: string,
+  projectRegistry: OverlayRegistry | null
 ): Promise<OverlayScores> {
   const scores: OverlayScores = {
     O1_structural: 0,
@@ -112,34 +94,48 @@ async function detectOverlaysBySimilarity(
     O7_strategic: 0,
   };
 
-  // Generate embeddings for overlay signatures (cached in real impl)
-  for (const [overlay, signature] of Object.entries(OVERLAY_SIGNATURES)) {
-    const overlayResponse = await embedder.getEmbedding(signature, 768);
+  // If no project registry, return zeros (graceful degradation)
+  if (!projectRegistry) {
+    return scores;
+  }
 
-    // eGemma returns embedding with dimension in key name: "embedding_768d"
-    const overlayEmbed =
-      (overlayResponse['embedding_768d'] as number[]) ||
-      (overlayResponse['vector'] as number[]) ||
-      (overlayResponse['embedding'] as number[]);
+  try {
+    // Query ALL 7 project overlays with turn content
+    const overlayIds = ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'] as const;
 
-    if (!Array.isArray(overlayEmbed)) continue; // Skip if invalid
+    for (const overlayId of overlayIds) {
+      try {
+        const overlay = await projectRegistry.get(overlayId);
+        const results = await overlay.query(turnContent, 3); // Top 3 matches
 
-    const similarity = cosineSimilarity(turnEmbed, overlayEmbed);
-
-    // Scale to 0-10
-    scores[overlay as keyof OverlayScores] = Math.round(similarity * 10);
+        if (results.length > 0) {
+          // Max similarity from top 3 results
+          const maxSimilarity = Math.max(...results.map((r) => r.similarity));
+          const scoreKey =
+            `${overlayId}_${overlay.getOverlayName().toLowerCase().replace(/ /g, '_')}` as keyof OverlayScores;
+          scores[scoreKey] = Math.round(maxSimilarity * 10);
+        }
+      } catch (error) {
+        // Overlay not populated yet, skip
+        continue;
+      }
+    }
+  } catch (error) {
+    // Project lattice not available, graceful degradation
+    console.warn('Project lattice query failed:', error);
   }
 
   return scores;
 }
 
 /**
- * Analyze a conversation turn (embedding-based)
+ * Analyze a conversation turn (embedding-based with project alignment)
  */
 export async function analyzeTurn(
   turn: ConversationTurn,
   context: ConversationContext,
   embedder: EmbeddingService,
+  projectRegistry: OverlayRegistry | null = null,
   options: AnalyzerOptions = {}
 ): Promise<TurnAnalysis> {
   const opts = { ...DEFAULT_OPTIONS, ...options };
@@ -179,10 +175,14 @@ export async function analyzeTurn(
 
   const novelty = calculateNovelty(turnEmbed, recentEmbeds);
 
-  // 3. Detect overlay activation via semantic similarity
-  const overlayScores = await detectOverlaysBySimilarity(turnEmbed, embedder);
+  // 3. Detect overlay activation via Meet with project lattice
+  const overlayScores = await detectOverlaysByProjectAlignment(
+    turn.content,
+    projectRegistry
+  );
 
-  // 4. Calculate importance (novelty + overlay strength)
+  // 4. Calculate importance (novelty + project alignment)
+  // Project alignment is KEY: high alignment = preserve, low = discard
   const maxOverlay = Math.max(...Object.values(overlayScores));
   const importance = Math.min(10, Math.round(novelty * 5 + maxOverlay * 0.5));
 
@@ -273,6 +273,7 @@ export async function analyzeTurns(
   turns: ConversationTurn[],
   context: ConversationContext,
   embedder: EmbeddingService,
+  projectRegistry: OverlayRegistry | null = null,
   options: AnalyzerOptions = {}
 ): Promise<TurnAnalysis[]> {
   const analyses: TurnAnalysis[] = [];
@@ -290,6 +291,7 @@ export async function analyzeTurns(
         })),
       },
       embedder,
+      projectRegistry,
       options
     );
     analyses.push(analysis);

@@ -76,14 +76,14 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
   if (!focused) {
     return (
-      <Box borderStyle="single" borderColor="#30363d" paddingX={1} width="100%">
+      <Box borderTop borderBottom borderColor="#30363d" paddingX={1} width="100%">
         <Text color="#8b949e">Press Tab to focus input</Text>
       </Box>
     );
   }
 
   return (
-    <Box borderStyle="single" borderColor="#56d364" paddingX={1} width="100%">
+    <Box borderTop borderBottom borderColor="#56d364" paddingX={1} width="100%">
       <Text color="#56d364">{'> '}</Text>
       <Text color="#56d364">
         <TextInput

@@ -51,7 +51,8 @@ export const SigmaInfoPanel: React.FC<SigmaInfoPanelProps> = ({
   return (
     <Box
       flexDirection="column"
-      borderStyle="round"
+      borderTop
+      borderBottom
       borderColor="cyan"
       paddingX={1}
       paddingY={0}

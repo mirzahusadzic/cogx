@@ -149,7 +149,8 @@ export const ClaudePanelAgent: React.FC<ClaudePanelAgentProps> = ({
   return (
     <Box
       flexDirection="column"
-      borderStyle="single"
+      borderTop
+      borderBottom
       borderColor={focused ? '#2ea043' : '#30363d'}
       width="100%"
       paddingX={1}

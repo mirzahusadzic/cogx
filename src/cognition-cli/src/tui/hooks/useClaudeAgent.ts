@@ -13,6 +13,11 @@ import { EmbeddingService } from '../../core/services/embedding.js';
 import { analyzeTurn } from '../../sigma/analyzer-with-embeddings.js';
 import { compressContext } from '../../sigma/compressor.js';
 import { reconstructSessionContext } from '../../sigma/context-reconstructor.js';
+import { OverlayRegistry } from '../../core/algebra/overlay-registry.js';
+import { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
+import { populateConversationOverlays } from '../../sigma/conversation-populator.js';
+import { createRecallMcpServer } from '../../sigma/recall-tool.js';
+import type { McpSdkServerConfigWithInstance } from '@anthropic-ai/claude-agent-sdk';
 import type {
   ConversationLattice,
   TurnAnalysis,
@@ -75,6 +80,13 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     useState<ConversationLattice | null>(null);
   const turnAnalyses = useRef<TurnAnalysis[]>([]);
   const embedderRef = useRef<EmbeddingService | null>(null);
+  const projectRegistryRef = useRef<OverlayRegistry | null>(null);
+  const conversationRegistryRef = useRef<ConversationOverlayRegistry | null>(
+    null
+  );
+  const recallMcpServerRef = useRef<McpSdkServerConfigWithInstance | null>(
+    null
+  );
   const compressionTriggered = useRef(false);
   const analyzingTurn = useRef<number | null>(null); // Track timestamp of turn being analyzed
 
@@ -86,13 +98,44 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   );
   const [injectedRecap, setInjectedRecap] = useState<string | null>(null);
 
-  // Initialize embedding service
+  // Initialize embedding service and registries
   useEffect(() => {
     // Get workbench endpoint from environment or default
     const workbenchEndpoint =
       process.env.WORKBENCH_ENDPOINT || 'http://localhost:8000';
     embedderRef.current = new EmbeddingService(workbenchEndpoint);
-  }, []);
+
+    // Initialize project registry (for querying .open_cognition/overlays/)
+    try {
+      const pgcPath = path.join(options.cwd, '.open_cognition');
+      if (fs.existsSync(pgcPath)) {
+        projectRegistryRef.current = new OverlayRegistry(
+          pgcPath,
+          workbenchEndpoint
+        );
+        debug(' Project registry initialized:', pgcPath);
+      } else {
+        debug(' No .open_cognition found, project alignment disabled');
+      }
+    } catch (err) {
+      debug(' Failed to initialize project registry:', err);
+    }
+
+    // Initialize conversation registry (for storing conversation overlays in .sigma/)
+    const sigmaPath = path.join(options.cwd, '.sigma');
+    conversationRegistryRef.current = new ConversationOverlayRegistry(
+      sigmaPath,
+      workbenchEndpoint
+    );
+    debug(' Conversation registry initialized:', sigmaPath);
+
+    // Initialize recall MCP server (for on-demand memory queries)
+    recallMcpServerRef.current = createRecallMcpServer(
+      conversationRegistryRef.current,
+      workbenchEndpoint
+    );
+    debug(' Recall MCP server initialized');
+  }, [options.cwd]);
 
   // Sigma: Analyze turns on-the-fly and trigger compression
   useEffect(() => {
@@ -168,6 +211,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         );
 
         // Analyze this turn (with truncated content for embedding)
+        // Pass projectRegistry for Meet operation (Conversation ∧ Project)
         const analysis = await analyzeTurn(
           {
             id: `turn-${lastMessage.timestamp.getTime()}`,
@@ -176,13 +220,33 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             timestamp: lastMessage.timestamp.getTime(),
           },
           context,
-          embedder
+          embedder,
+          projectRegistryRef.current // KEY: enables project alignment
         );
 
         debug(' analyzeTurn completed! Novelty:', analysis.novelty);
+        debug(
+          ' Overlay scores:',
+          Object.entries(analysis.overlay_scores)
+            .map(([k, v]) => `${k}=${v}`)
+            .join(', ')
+        );
 
         // Store analysis
         turnAnalyses.current.push(analysis);
+
+        // Populate conversation overlays based on project alignment
+        if (conversationRegistryRef.current) {
+          try {
+            await populateConversationOverlays(
+              analysis,
+              conversationRegistryRef.current
+            );
+            debug(' Conversation overlays populated');
+          } catch (err) {
+            debug(' Failed to populate conversation overlays:', err);
+          }
+        }
 
         // Clear analyzing flag
         analyzingTurn.current = null;
@@ -261,9 +325,23 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                 JSON.stringify(compressionResult.lattice, null, 2)
               );
 
+              // 1b. Flush conversation overlays to disk
+              if (conversationRegistryRef.current) {
+                try {
+                  await conversationRegistryRef.current.flushAll(
+                    currentSessionId
+                  );
+                  debug(' Conversation overlays flushed to', latticeDir);
+                } catch (flushErr) {
+                  debug(' Failed to flush conversation overlays:', flushErr);
+                }
+              }
+
               // 2. Intelligent reconstruction (quest vs chat mode)
+              // Pass conversationRegistry for better recap generation!
               const reconstructed = await reconstructSessionContext(
-                compressionResult.lattice
+                compressionResult.lattice,
+                conversationRegistryRef.current || undefined
               );
 
               // 3. Write comprehensive state files
@@ -443,7 +521,20 @@ New Session: ${stateSummary.newSessionId}
               // Keep compressionTriggered = true to prevent re-compression until new session establishes
               // Keep turnAnalyses.current - we continue building on the lattice!
 
-              // 7. Calculate compression ratio
+              // 7b. Clear in-memory conversation overlays (they've been flushed to disk)
+              if (conversationRegistryRef.current) {
+                try {
+                  await conversationRegistryRef.current.clearAllMemory();
+                  debug(' Conversation overlay memory cleared');
+                } catch (clearErr) {
+                  debug(
+                    ' Failed to clear conversation overlay memory:',
+                    clearErr
+                  );
+                }
+              }
+
+              // 7c. Calculate compression ratio
               const recapTokens = Math.round(reconstructed.recap.length / 4);
               const originalTokens = compressionResult.original_size;
               const actualRatio =
@@ -667,6 +758,12 @@ New Session: ${stateSummary.newSessionId}
                 updatedInput: input,
               };
             },
+            // Add recall MCP server for on-demand memory queries
+            mcpServers: recallMcpServerRef.current
+              ? {
+                  'conversation-memory': recallMcpServerRef.current,
+                }
+              : undefined,
           },
         });
 
