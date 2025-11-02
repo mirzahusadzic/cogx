@@ -11,8 +11,8 @@ import {
 } from '../base-conversation-manager.js';
 
 export class ConversationMissionManager extends BaseConversationManager<ConversationTurnMetadata> {
-  constructor(sigmaRoot: string, workbenchUrl?: string) {
-    super(sigmaRoot, 'conversation-mission', workbenchUrl);
+  constructor(sigmaRoot: string, workbenchUrl?: string, debug?: boolean) {
+    super(sigmaRoot, 'conversation-mission', workbenchUrl, debug);
   }
 
   getOverlayId(): string {

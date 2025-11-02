@@ -11,8 +11,8 @@ import {
 } from '../base-conversation-manager.js';
 
 export class ConversationSecurityManager extends BaseConversationManager<ConversationTurnMetadata> {
-  constructor(sigmaRoot: string, workbenchUrl?: string) {
-    super(sigmaRoot, 'conversation-security', workbenchUrl);
+  constructor(sigmaRoot: string, workbenchUrl?: string, debug?: boolean) {
+    super(sigmaRoot, 'conversation-security', workbenchUrl, debug);
   }
 
   getOverlayId(): string {

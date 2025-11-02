@@ -11,8 +11,8 @@ import {
 } from '../base-conversation-manager.js';
 
 export class ConversationCoherenceManager extends BaseConversationManager<ConversationTurnMetadata> {
-  constructor(sigmaRoot: string, workbenchUrl?: string) {
-    super(sigmaRoot, 'conversation-coherence', workbenchUrl);
+  constructor(sigmaRoot: string, workbenchUrl?: string, debug?: boolean) {
+    super(sigmaRoot, 'conversation-coherence', workbenchUrl, debug);
   }
 
   getOverlayId(): string {

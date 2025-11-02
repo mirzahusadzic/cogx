@@ -53,7 +53,7 @@ export class WorkbenchClient {
   private lastEmbedCallTime: number = 0;
   private embedCallCount: number = 0;
 
-  constructor(private baseUrl: string) {
+  constructor(private baseUrl: string, private debug: boolean = false) {
     this.apiKey = process.env.WORKBENCH_API_KEY || '';
     // Note: API key warning is deferred until first actual API call
     // Read-only commands don't need workbench access
@@ -201,8 +201,10 @@ export class WorkbenchClient {
             attempt++;
             if (attempt < maxRetries) {
               const waitTime = retryAfter * 1000 + attempt * 1000; // Add exponential backoff
-              const msg = `[WorkbenchClient] Rate limit hit (429), retrying in ${waitTime / 1000}s (attempt ${attempt}/${maxRetries})`;
-              console.log(chalk?.yellow ? chalk.yellow(msg) : msg);
+              if (this.debug) {
+                const msg = `[WorkbenchClient] Rate limit hit (429), retrying in ${waitTime / 1000}s (attempt ${attempt}/${maxRetries})`;
+                console.log(chalk?.yellow ? chalk.yellow(msg) : msg);
+              }
               await new Promise((resolve) => setTimeout(resolve, waitTime));
               continue;
             } else {

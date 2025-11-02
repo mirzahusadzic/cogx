@@ -188,6 +188,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       <ThemeProvider theme={customTheme}>
         <Box flexDirection="column" width="100%" height="100%" paddingTop={0} marginTop={0}>
           <OverlaysBar sigmaStats={sigmaStats} />
+          <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>
           <Box flexGrow={1} flexShrink={1} minHeight={0} width="100%" overflow="hidden" flexDirection="row">
             <ClaudePanelAgent
               messages={messages}
@@ -201,12 +202,14 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
               </Box>
             )}
           </Box>
+          <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>
           <InputBox
             onSubmit={sendMessage}
             focused={focused}
             disabled={isThinking}
             onInterrupt={interrupt}
           />
+          <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>
           <StatusBar sessionId={sessionId} focused={focused} tokenCount={tokenCount} mouseEnabled={mouseEnabled} />
         </Box>
       </ThemeProvider>

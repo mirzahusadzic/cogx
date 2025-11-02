@@ -11,8 +11,8 @@ import {
 } from '../base-conversation-manager.js';
 
 export class ConversationLineageManager extends BaseConversationManager<ConversationTurnMetadata> {
-  constructor(sigmaRoot: string, workbenchUrl?: string) {
-    super(sigmaRoot, 'conversation-lineage', workbenchUrl);
+  constructor(sigmaRoot: string, workbenchUrl?: string, debug?: boolean) {
+    super(sigmaRoot, 'conversation-lineage', workbenchUrl, debug);
   }
 
   getOverlayId(): string {

@@ -60,12 +60,15 @@ export interface ConversationOverlayInfo {
 export class ConversationOverlayRegistry {
   private managers = new Map<OverlayId, OverlayAlgebra>();
   private workbenchUrl?: string;
+  private debug: boolean;
 
   constructor(
     private sigmaRoot: string,
-    workbenchUrl?: string
+    workbenchUrl?: string,
+    debug?: boolean
   ) {
     this.workbenchUrl = workbenchUrl;
+    this.debug = debug || false;
   }
 
   /**
@@ -145,25 +148,27 @@ export class ConversationOverlayRegistry {
    */
   private createManager(overlayId: OverlayId): OverlayAlgebra {
     const workbenchUrl = this.workbenchUrl;
+    const debug = this.debug;
 
     switch (overlayId) {
       case 'O1':
-        return new ConversationStructuralManager(this.sigmaRoot, workbenchUrl);
+        return new ConversationStructuralManager(this.sigmaRoot, workbenchUrl, debug);
       case 'O2':
-        return new ConversationSecurityManager(this.sigmaRoot, workbenchUrl);
+        return new ConversationSecurityManager(this.sigmaRoot, workbenchUrl, debug);
       case 'O3':
-        return new ConversationLineageManager(this.sigmaRoot, workbenchUrl);
+        return new ConversationLineageManager(this.sigmaRoot, workbenchUrl, debug);
       case 'O4':
-        return new ConversationMissionManager(this.sigmaRoot, workbenchUrl);
+        return new ConversationMissionManager(this.sigmaRoot, workbenchUrl, debug);
       case 'O5':
-        return new ConversationOperationalManager(this.sigmaRoot, workbenchUrl);
+        return new ConversationOperationalManager(this.sigmaRoot, workbenchUrl, debug);
       case 'O6':
         return new ConversationMathematicalManager(
           this.sigmaRoot,
-          workbenchUrl
+          workbenchUrl,
+          debug
         );
       case 'O7':
-        return new ConversationCoherenceManager(this.sigmaRoot, workbenchUrl);
+        return new ConversationCoherenceManager(this.sigmaRoot, workbenchUrl, debug);
       default:
         throw new Error(`Unknown conversation overlay: ${overlayId}`);
     }

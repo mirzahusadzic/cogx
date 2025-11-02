@@ -125,7 +125,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     const sigmaPath = path.join(options.cwd, '.sigma');
     conversationRegistryRef.current = new ConversationOverlayRegistry(
       sigmaPath,
-      workbenchEndpoint
+      workbenchEndpoint,
+      options.debug
     );
     debug(' Conversation registry initialized:', sigmaPath);
 

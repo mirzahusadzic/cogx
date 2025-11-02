@@ -72,11 +72,13 @@ export abstract class BaseConversationManager<
   constructor(
     protected sigmaRoot: string,
     protected overlayName: string,
-    workbenchUrl?: string
+    workbenchUrl?: string,
+    debug?: boolean
   ) {
     this.overlayPath = path.join(sigmaRoot, 'overlays', overlayName);
     this.workbench = new WorkbenchClient(
-      workbenchUrl || process.env.WORKBENCH_URL || 'http://localhost:8000'
+      workbenchUrl || process.env.WORKBENCH_URL || 'http://localhost:8000',
+      debug || false
     );
   }
 
