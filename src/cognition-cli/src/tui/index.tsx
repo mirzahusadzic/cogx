@@ -32,7 +32,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
 
   // Enable mouse support in terminal
   useEffect(() => {
-    if (process.stdin.isTTY && process.stdin.setRawMode) {
+    if (process.stdin.isTTY && typeof process.stdin.setRawMode === 'function') {
       // Enable mouse tracking
       process.stdout.write('\x1b[?1000h'); // Enable mouse click tracking
       process.stdout.write('\x1b[?1002h'); // Enable mouse drag tracking

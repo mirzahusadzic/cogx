@@ -40,13 +40,14 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
     const loadSessionTokens = async () => {
       try {
+        const sessionId = options.sessionId!; // Guaranteed to exist by check above
         // Try common Claude Code transcript locations
         const possiblePaths = [
           path.join(
             os.homedir(),
             '.claude-code',
             'sessions',
-            options.sessionId,
+            sessionId,
             'transcript.jsonl'
           ),
           path.join(
@@ -54,14 +55,14 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             '.config',
             'claude-code',
             'sessions',
-            options.sessionId,
+            sessionId,
             'transcript.jsonl'
           ),
           path.join(
             process.cwd(),
             '.claude-code',
             'sessions',
-            options.sessionId,
+            sessionId,
             'transcript.jsonl'
           ),
         ];

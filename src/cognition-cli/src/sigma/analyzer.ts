@@ -334,7 +334,15 @@ export async function analyzeTurns(
   for (const turn of turns) {
     const analysis = await analyzeTurn(
       turn,
-      { ...context, history: analyses.map((a) => ({ ...a })) },
+      {
+        ...context,
+        history: analyses.map((a) => ({
+          id: a.turn_id,
+          role: a.role,
+          content: a.content,
+          timestamp: a.timestamp,
+        })),
+      },
       options
     );
     analyses.push(analysis);
