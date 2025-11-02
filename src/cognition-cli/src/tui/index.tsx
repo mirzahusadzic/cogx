@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { render, Box, Text, useInput } from 'ink';
 import { OverlaysBar } from './components/OverlaysBar.js';
 import { ClaudePanelAgent } from './components/ClaudePanelAgent.js';
@@ -21,11 +21,46 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   workbenchUrl,
 }) => {
   const [focused, setFocused] = useState(true);
+  const [renderError, setRenderError] = useState<Error | null>(null);
+
   const { overlays, loading } = useOverlays({ pgcRoot, workbenchUrl });
-  const { messages, sendMessage, isThinking, error } = useClaudeAgent({
-    sessionId,
-    cwd: projectRoot, // Use project root, not .open_cognition dir
-  });
+  const { messages, sendMessage, isThinking, error, tokenCount, interrupt } =
+    useClaudeAgent({
+      sessionId,
+      cwd: projectRoot, // Use project root, not .open_cognition dir
+    });
+
+  // Enable mouse support in terminal
+  useEffect(() => {
+    if (process.stdin.isTTY && process.stdin.setRawMode) {
+      // Enable mouse tracking
+      process.stdout.write('\x1b[?1000h'); // Enable mouse click tracking
+      process.stdout.write('\x1b[?1002h'); // Enable mouse drag tracking
+      process.stdout.write('\x1b[?1015h'); // Enable extended mouse mode
+      process.stdout.write('\x1b[?1006h'); // Enable SGR mouse mode
+
+      return () => {
+        // Disable mouse tracking on cleanup
+        process.stdout.write('\x1b[?1000l');
+        process.stdout.write('\x1b[?1002l');
+        process.stdout.write('\x1b[?1015l');
+        process.stdout.write('\x1b[?1006l');
+      };
+    }
+  }, []);
+
+  // Error boundary - catch render errors
+  useEffect(() => {
+    // Skip in Node.js environment (Ink runs in Node, not browser)
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const errorHandler = (err: ErrorEvent) => {
+      setRenderError(err.error);
+    };
+    window.addEventListener('error', errorHandler);
+    return () => window.removeEventListener('error', errorHandler);
+  }, []);
 
   // Handle input
   useInput((input, key) => {
@@ -39,6 +74,22 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     // Note: Arrow keys, etc. are handled by TextInput component
     // We just need to not interfere with them
   });
+
+  if (renderError) {
+    return (
+      <Box flexDirection="column" padding={1}>
+        <Box borderColor="red" borderStyle="single" padding={1}>
+          <Text color="red">💥 Render Error (Hot reload will fix this):</Text>
+        </Box>
+        <Box paddingTop={1}>
+          <Text>{renderError.message}</Text>
+        </Box>
+        <Box paddingTop={1}>
+          <Text dimColor>{renderError.stack?.split('\n').slice(0, 5).join('\n')}</Text>
+        </Box>
+      </Box>
+    );
+  }
 
   if (loading) {
     return (
@@ -58,24 +109,39 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     );
   }
 
-  return (
-    <Box flexDirection="column" width="100%" height="100%" paddingTop={0} marginTop={0}>
-      <OverlaysBar overlays={overlays} />
-      <Box flexGrow={1} flexShrink={1} minHeight={0} width="100%" overflow="hidden">
-        <ClaudePanelAgent
-          messages={messages}
-          isThinking={isThinking}
-          focused={!focused}
+  try {
+    return (
+      <Box flexDirection="column" width="100%" height="100%" paddingTop={0} marginTop={0}>
+        <OverlaysBar overlays={overlays} />
+        <Box flexGrow={1} flexShrink={1} minHeight={0} width="100%" overflow="hidden">
+          <ClaudePanelAgent
+            messages={messages}
+            isThinking={isThinking}
+            focused={!focused}
+            onScrollDetected={() => setFocused(false)}
+          />
+        </Box>
+        <InputBox
+          onSubmit={sendMessage}
+          focused={focused}
+          disabled={isThinking}
+          onInterrupt={interrupt}
         />
+        <StatusBar sessionId={sessionId} focused={focused} tokenCount={tokenCount} />
       </Box>
-      <InputBox
-        onSubmit={sendMessage}
-        focused={focused}
-        disabled={isThinking}
-      />
-      <StatusBar sessionId={sessionId} focused={focused} />
-    </Box>
-  );
+    );
+  } catch (err) {
+    return (
+      <Box flexDirection="column" padding={1}>
+        <Box borderColor="red" borderStyle="single" padding={1}>
+          <Text color="red">💥 Caught Error (Hot reload will fix this):</Text>
+        </Box>
+        <Box paddingTop={1}>
+          <Text>{(err as Error).message}</Text>
+        </Box>
+      </Box>
+    );
+  }
 };
 
 /**

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   query,
   type SDKMessage,
@@ -6,6 +6,7 @@ import {
 } from '@anthropic-ai/claude-agent-sdk';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import * as Diff from 'diff';
 
 interface UseClaudeAgentOptions {
@@ -27,6 +28,112 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const [isThinking, setIsThinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentQuery, setCurrentQuery] = useState<Query | null>(null);
+  const [tokenCount, setTokenCount] = useState({
+    input: 0,
+    output: 0,
+    total: 0,
+  });
+
+  // Load initial token count from existing session transcript
+  useEffect(() => {
+    if (!options.sessionId) return;
+
+    const loadSessionTokens = async () => {
+      try {
+        // Try common Claude Code transcript locations
+        const possiblePaths = [
+          path.join(
+            os.homedir(),
+            '.claude-code',
+            'sessions',
+            options.sessionId,
+            'transcript.jsonl'
+          ),
+          path.join(
+            os.homedir(),
+            '.config',
+            'claude-code',
+            'sessions',
+            options.sessionId,
+            'transcript.jsonl'
+          ),
+          path.join(
+            process.cwd(),
+            '.claude-code',
+            'sessions',
+            options.sessionId,
+            'transcript.jsonl'
+          ),
+        ];
+
+        let transcriptPath: string | null = null;
+        for (const p of possiblePaths) {
+          if (fs.existsSync(p)) {
+            transcriptPath = p;
+            break;
+          }
+        }
+
+        if (!transcriptPath) {
+          // Debug: log where we looked
+          fs.appendFileSync(
+            path.join(process.cwd(), 'tui-debug.log'),
+            `[TOKEN DEBUG] Transcript not found. Searched:\n${possiblePaths.join('\n')}\n\n`
+          );
+          return; // No transcript found, start from 0
+        }
+
+        // Debug: log successful load
+        fs.appendFileSync(
+          path.join(process.cwd(), 'tui-debug.log'),
+          `[TOKEN DEBUG] Loading transcript from: ${transcriptPath}\n`
+        );
+
+        // Read transcript and calculate cumulative tokens
+        const transcriptContent = fs.readFileSync(transcriptPath, 'utf-8');
+        const lines = transcriptContent.trim().split('\n').filter(Boolean);
+
+        let totalInput = 0;
+        let totalOutput = 0;
+
+        for (const line of lines) {
+          try {
+            const msg = JSON.parse(line);
+
+            // Look for usage information in different message types
+            if (
+              msg.type === 'stream_event' &&
+              msg.event?.type === 'message_delta' &&
+              msg.event?.usage
+            ) {
+              const usage = msg.event.usage;
+              totalInput += usage.input_tokens || 0;
+              totalInput += usage.cache_creation_input_tokens || 0;
+              totalInput += usage.cache_read_input_tokens || 0;
+              totalOutput += usage.output_tokens || 0;
+            } else if (msg.type === 'result' && msg.usage) {
+              // Result messages have final totals
+              totalInput = msg.usage.input_tokens || 0;
+              totalOutput = msg.usage.output_tokens || 0;
+            }
+          } catch (err) {
+            // Skip invalid JSON lines
+          }
+        }
+
+        setTokenCount({
+          input: totalInput,
+          output: totalOutput,
+          total: totalInput + totalOutput,
+        });
+      } catch (err) {
+        // Silently fail - just start from 0
+        console.error('Failed to load session tokens:', err);
+      }
+    };
+
+    loadSessionTokens();
+  }, [options.sessionId]);
 
   const sendMessage = useCallback(
     async (prompt: string) => {
@@ -202,7 +309,30 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           type: string;
           content_block?: { type: string; name: string };
           delta?: { type: string; text: string };
+          usage?: {
+            input_tokens: number;
+            output_tokens: number;
+            cache_creation_input_tokens?: number;
+            cache_read_input_tokens?: number;
+          };
         };
+
+        // Update token count from message_delta events (progressive updates)
+        if (event.type === 'message_delta' && event.usage) {
+          const usage = event.usage;
+          const totalInput =
+            usage.input_tokens +
+            (usage.cache_creation_input_tokens || 0) +
+            (usage.cache_read_input_tokens || 0);
+          const totalOutput = usage.output_tokens;
+
+          // Replace with current message totals (not accumulate - SDK gives totals)
+          setTokenCount({
+            input: totalInput,
+            output: totalOutput,
+            total: totalInput + totalOutput,
+          });
+        }
 
         if (
           event.type === 'content_block_start' &&
@@ -262,8 +392,24 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         break;
 
       case 'result':
-        // Final result
+        // Final result - update token counts (keep existing if higher)
         if (sdkMessage.subtype === 'success') {
+          const usage = sdkMessage.usage;
+          // Result usage doesn't include cache tokens, so only update if it's higher
+          const resultTotal = usage.input_tokens + usage.output_tokens;
+
+          setTokenCount((prev) => {
+            // Only update if the result total is higher than what we have
+            if (resultTotal > prev.total) {
+              return {
+                input: usage.input_tokens,
+                output: usage.output_tokens,
+                total: resultTotal,
+              };
+            }
+            return prev; // Keep the higher count from message_delta
+          });
+
           setMessages((prev) => [
             ...prev,
             {
@@ -313,5 +459,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     interrupt,
     isThinking,
     error,
+    tokenCount,
   };
 }

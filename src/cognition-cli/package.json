@@ -11,6 +11,7 @@
     "build": "tsc && node build-worker.js",
     "build:worker": "node build-worker.js",
     "dev": "tsx watch src/cli.ts",
+    "dev:tui": "tsx src/cli.ts tui",
     "start": "node dist/cli.js",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",

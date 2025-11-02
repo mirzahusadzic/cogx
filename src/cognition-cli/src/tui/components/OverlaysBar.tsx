@@ -20,23 +20,27 @@ const OVERLAY_ICONS: Record<string, string> = {
   O7: '🧭', // strategic_coherence - compass/alignment
 };
 
-export const OverlaysBar: React.FC<OverlaysBarProps> = ({ overlays }) => {
+export const OverlaysBar: React.FC<OverlaysBarProps> = ({ overlays = [] }) => {
   return (
     <Box paddingX={1} borderBottom borderColor="gray" flexDirection="row" justifyContent="space-between" width="100%">
       <Box flexDirection="row">
-        {overlays.map((overlay, index) => {
-          const icon = OVERLAY_ICONS[overlay.id] || '📦';
-          const status = overlay.hasData ? '✓' : '○';
-          const color = overlay.hasData ? 'green' : 'gray';
-          const count = overlay.hasData && overlay.itemCount ? overlay.itemCount.toString() : '';
+        {overlays.length === 0 ? (
+          <Text dimColor>No overlays loaded</Text>
+        ) : (
+          overlays.map((overlay, index) => {
+            const icon = OVERLAY_ICONS[overlay.id] || '📦';
+            const status = overlay.hasData ? '✓' : '○';
+            const color = overlay.hasData ? 'green' : 'gray';
+            const count = overlay.hasData && overlay.itemCount ? overlay.itemCount.toString() : '';
+            const separator = index < overlays.length - 1 ? ' | ' : '';
 
-          return (
-            <Text key={overlay.id} color={color}>
-              {icon} {status}{count}
-              {index < overlays.length - 1 && <Text dimColor> | </Text>}
-            </Text>
-          );
-        })}
+            return (
+              <Text key={overlay.id} color={color}>
+                {icon} {status}{count}{separator}
+              </Text>
+            );
+          })
+        )}
       </Box>
       <Box>
         <Text bold color="cyan">⚡ COGNITION CLI v1.8.2</Text>

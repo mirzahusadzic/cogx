@@ -1,12 +1,14 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { Box, Text, useStdout, useInput } from 'ink';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { Box, Text, useStdout, useInput, useFocus } from 'ink';
 import { Spinner } from '@inkjs/ui';
 import type { ClaudeMessage } from '../hooks/useClaudeAgent.js';
+import { useMouse } from '../hooks/useMouse.js';
 
 interface ClaudePanelAgentProps {
   messages: ClaudeMessage[];
   isThinking: boolean;
   focused: boolean;
+  onScrollDetected?: () => void;
 }
 
 /**
@@ -16,9 +18,12 @@ export const ClaudePanelAgent: React.FC<ClaudePanelAgentProps> = ({
   messages,
   isThinking,
   focused,
+  onScrollDetected,
 }) => {
   const { stdout } = useStdout();
   const [scrollOffset, setScrollOffset] = useState(0);
+  const { isFocused } = useFocus({ autoFocus: false });
+  const lastScrollFocus = useRef<number>(0);
 
   // Calculate available height for content
   // Terminal height - overlay bar (3) - input box (3) - status bar (3) - borders (2) - padding (2)
@@ -106,6 +111,31 @@ export const ClaudePanelAgent: React.FC<ClaudePanelAgentProps> = ({
       }
     },
     { isActive: focused }
+  );
+
+  // Handle mouse scroll events
+  useMouse(
+    (event) => {
+      // Auto-focus the panel when scrolling (debounced to prevent rapid calls)
+      if (!focused && onScrollDetected) {
+        const now = Date.now();
+        if (now - lastScrollFocus.current > 100) {
+          lastScrollFocus.current = now;
+          onScrollDetected();
+        }
+      }
+
+      const maxOffset = Math.max(0, allLines.length - availableHeight);
+
+      if (event.type === 'scroll_up') {
+        // Scroll up (increase offset) - 3 lines per scroll
+        setScrollOffset((prev) => Math.min(prev + 3, maxOffset));
+      } else if (event.type === 'scroll_down') {
+        // Scroll down (decrease offset) - 3 lines per scroll
+        setScrollOffset((prev) => Math.max(0, prev - 3));
+      }
+    },
+    { isActive: true } // Always listen for mouse events
   );
 
   // Calculate visible window
