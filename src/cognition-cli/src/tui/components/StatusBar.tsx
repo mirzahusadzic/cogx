@@ -6,6 +6,7 @@ interface StatusBarProps {
   focused: boolean;
   tokenCount?: { input: number; output: number; total: number };
   mouseEnabled?: boolean;
+  compressionThreshold?: number;
 }
 
 /**
@@ -16,6 +17,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   focused,
   tokenCount,
   mouseEnabled = true,
+  compressionThreshold = 150000,
 }) => {
   // Format token count with K suffix for readability
   const formatTokens = (count: number) => {
@@ -69,6 +71,8 @@ export const StatusBar: React.FC<StatusBarProps> = ({
             {tokenPercentage}%
           </Text>
           <Text color="#8b949e">)</Text>
+          <Text color="#8b949e"> | Compress at: </Text>
+          <Text color="#56d364">{formatTokens(compressionThreshold)}</Text>
         </>
       )}
     </Box>
