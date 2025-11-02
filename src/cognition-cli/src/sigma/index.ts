@@ -35,5 +35,8 @@ export {
   getLatticeStats,
 } from './compressor.js';
 
-// TODO: Export reconstructor when implemented
-// export { reconstructContext } from './reconstructor.js';
+// Reconstructor
+export {
+  reconstructContext,
+  getReconstructionStats,
+} from './reconstructor.js';
