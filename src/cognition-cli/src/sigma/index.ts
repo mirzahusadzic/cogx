@@ -28,8 +28,12 @@ export type {
 // Analyzer
 export { analyzeTurn, analyzeTurns } from './analyzer.js';
 
-// TODO: Export compressor when implemented
-// export { compressContext } from './compressor.js';
+// Compressor
+export {
+  compressContext,
+  addSemanticEdges,
+  getLatticeStats,
+} from './compressor.js';
 
 // TODO: Export reconstructor when implemented
 // export { reconstructContext } from './reconstructor.js';
