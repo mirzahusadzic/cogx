@@ -133,6 +133,7 @@ import { wizardCommand } from './commands/wizard.js';
 import { latticeCommand } from './commands/lattice.js';
 import { showMandate } from './commands/security/mandate.js';
 import { askCommand } from './commands/ask.js';
+import { tuiCommand } from './commands/tui.js';
 // Sugar commands (convenience wrappers around lattice algebra)
 import {
   securityAttacksCommand,
@@ -164,6 +165,28 @@ program
     process.cwd()
   )
   .action(wizardCommand);
+
+program
+  .command('tui')
+  .description('🖥️  Launch interactive TUI with Claude integration')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option('--session-id <uuid>', 'Claude session ID to attach to')
+  .option(
+    '-w, --workbench <url>',
+    'URL of the egemma workbench',
+    'http://localhost:8000'
+  )
+  .action((options) => {
+    tuiCommand({
+      projectRoot: options.projectRoot,
+      sessionId: options.sessionId,
+      workbenchUrl: options.workbench,
+    });
+  });
 
 program
   .command('ask <question>')

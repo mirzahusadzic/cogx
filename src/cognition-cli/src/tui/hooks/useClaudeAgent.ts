@@ -1,0 +1,317 @@
+import { useState, useCallback } from 'react';
+import {
+  query,
+  type SDKMessage,
+  type Query,
+} from '@anthropic-ai/claude-agent-sdk';
+import fs from 'fs';
+import path from 'path';
+import * as Diff from 'diff';
+
+interface UseClaudeAgentOptions {
+  sessionId?: string;
+  cwd: string;
+}
+
+export interface ClaudeMessage {
+  type: 'user' | 'assistant' | 'system' | 'tool_progress';
+  content: string;
+  timestamp: Date;
+}
+
+/**
+ * Hook to manage Claude Agent SDK integration
+ */
+export function useClaudeAgent(options: UseClaudeAgentOptions) {
+  const [messages, setMessages] = useState<ClaudeMessage[]>([]);
+  const [isThinking, setIsThinking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [currentQuery, setCurrentQuery] = useState<Query | null>(null);
+
+  const sendMessage = useCallback(
+    async (prompt: string) => {
+      try {
+        setIsThinking(true);
+        setError(null);
+
+        // Add user message immediately
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: 'user',
+            content: prompt,
+            timestamp: new Date(),
+          },
+        ]);
+
+        // Collect stderr for better error messages
+        const stderrLines: string[] = [];
+
+        // Create query
+        const q = query({
+          prompt,
+          options: {
+            cwd: options.cwd,
+            resume: options.sessionId,
+            includePartialMessages: true, // Get streaming updates
+            stderr: (data: string) => {
+              stderrLines.push(data);
+            },
+            canUseTool: async (toolName, input) => {
+              // Auto-approve all tools for now (we can add UI prompts later)
+              return {
+                behavior: 'allow',
+                updatedInput: input,
+              };
+            },
+          },
+        });
+
+        setCurrentQuery(q);
+
+        // Process streaming messages
+        for await (const message of q) {
+          processSDKMessage(message);
+        }
+
+        setIsThinking(false);
+      } catch (err) {
+        const errorMsg = (err as Error).message;
+        setError(errorMsg);
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: 'system',
+            content: `❌ Error: ${errorMsg}`,
+            timestamp: new Date(),
+          },
+        ]);
+        setIsThinking(false);
+      }
+    },
+    [options.cwd, options.sessionId]
+  );
+
+  const processSDKMessage = (sdkMessage: SDKMessage) => {
+    // Debug: log all SDK messages to a file
+    try {
+      const logPath = path.join(options.cwd, 'tui-debug.log');
+      fs.appendFileSync(
+        logPath,
+        `[${new Date().toISOString()}] ${sdkMessage.type}\n${JSON.stringify(sdkMessage, null, 2)}\n\n`
+      );
+    } catch (err) {
+      // Ignore logging errors
+    }
+
+    switch (sdkMessage.type) {
+      case 'assistant': {
+        // Check if this message has tool calls - if so, display them
+        const toolUses = sdkMessage.message.content.filter(
+          (c: { type: string }) => c.type === 'tool_use'
+        );
+        if (toolUses.length > 0) {
+          toolUses.forEach(
+            (tool: { name: string; input: Record<string, unknown> }) => {
+              // Format tool input - show description if available, otherwise full input
+              let inputDesc = '';
+              if (tool.input.description) {
+                inputDesc = tool.input.description as string;
+              } else if (tool.input.file_path) {
+                // For Edit tool, show character-level diff with background colors
+                if (
+                  tool.name === 'Edit' &&
+                  tool.input.old_string &&
+                  tool.input.new_string
+                ) {
+                  const diffLines: string[] = [];
+                  diffLines.push(tool.input.file_path as string);
+
+                  // Use diff library to get line changes
+                  const lineDiff = Diff.diffLines(
+                    tool.input.old_string as string,
+                    tool.input.new_string as string
+                  );
+
+                  lineDiff.forEach((part) => {
+                    const lines = part.value
+                      .split('\n')
+                      .filter(
+                        (line) => line.length > 0 || part.value.endsWith('\n')
+                      );
+
+                    if (part.added) {
+                      // Added lines - olive/dark green background with white text
+                      lines.forEach((line) => {
+                        if (line) {
+                          // \x1b[48;5;58m = dark olive background, \x1b[97m = bright white text
+                          diffLines.push(
+                            `  \x1b[32m+\x1b[0m \x1b[48;5;58m\x1b[97m${line}\x1b[0m`
+                          );
+                        }
+                      });
+                    } else if (part.removed) {
+                      // Removed lines - dark red background with white text
+                      lines.forEach((line) => {
+                        if (line) {
+                          // \x1b[48;5;52m = dark red background, \x1b[97m = bright white text
+                          diffLines.push(
+                            `  \x1b[31m-\x1b[0m \x1b[48;5;52m\x1b[97m${line}\x1b[0m`
+                          );
+                        }
+                      });
+                    } else {
+                      // Unchanged lines - no color
+                      lines.forEach((line) => {
+                        if (line) {
+                          diffLines.push(`   ${line}`);
+                        }
+                      });
+                    }
+                  });
+
+                  inputDesc = diffLines.join('\n');
+                } else {
+                  inputDesc = `file: ${tool.input.file_path as string}`;
+                }
+              } else if (tool.input.command) {
+                inputDesc = `cmd: ${tool.input.command as string}`;
+              } else if (tool.input.pattern) {
+                inputDesc = `pattern: ${tool.input.pattern as string}`;
+              } else {
+                inputDesc = JSON.stringify(tool.input);
+              }
+
+              setMessages((prev) => [
+                ...prev,
+                {
+                  type: 'tool_progress',
+                  content: `🔧 ${tool.name}: ${inputDesc}`,
+                  timestamp: new Date(),
+                },
+              ]);
+            }
+          );
+        }
+        break;
+      }
+
+      case 'stream_event': {
+        // Handle different stream event types
+        const event = sdkMessage.event as {
+          type: string;
+          content_block?: { type: string; name: string };
+          delta?: { type: string; text: string };
+        };
+
+        if (
+          event.type === 'content_block_start' &&
+          event.content_block?.type === 'tool_use'
+        ) {
+          // Tool starting - show indicator immediately
+          const toolBlock = event.content_block;
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: 'tool_progress',
+              content: `🔧 ${toolBlock.name}...`,
+              timestamp: new Date(),
+            },
+          ]);
+        } else if (
+          event.type === 'content_block_delta' &&
+          event.delta?.type === 'text_delta'
+        ) {
+          // Text content streaming
+          const delta = event.delta;
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (last && last.type === 'assistant') {
+              return [
+                ...prev.slice(0, -1),
+                {
+                  ...last,
+                  content: last.content + delta.text,
+                },
+              ];
+            } else {
+              return [
+                ...prev,
+                {
+                  type: 'assistant',
+                  content: delta.text,
+                  timestamp: new Date(),
+                },
+              ];
+            }
+          });
+        }
+        break;
+      }
+
+      case 'tool_progress':
+        // Tool execution progress
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: 'tool_progress',
+            content: `⏱️ ${sdkMessage.tool_name} (${Math.round(sdkMessage.elapsed_time_seconds)}s)`,
+            timestamp: new Date(),
+          },
+        ]);
+        break;
+
+      case 'result':
+        // Final result
+        if (sdkMessage.subtype === 'success') {
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: 'system',
+              content: `✓ Complete (${sdkMessage.num_turns} turns, $${sdkMessage.total_cost_usd.toFixed(4)})`,
+              timestamp: new Date(),
+            },
+          ]);
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: 'system',
+              content: `✗ Error: ${sdkMessage.subtype}`,
+              timestamp: new Date(),
+            },
+          ]);
+        }
+        break;
+
+      case 'system':
+        // System messages
+        if (sdkMessage.subtype === 'init') {
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: 'system',
+              content: `Connected to Claude (${sdkMessage.model})`,
+              timestamp: new Date(),
+            },
+          ]);
+        }
+        break;
+    }
+  };
+
+  const interrupt = useCallback(async () => {
+    if (currentQuery) {
+      await currentQuery.interrupt();
+      setIsThinking(false);
+    }
+  }, [currentQuery]);
+
+  return {
+    messages,
+    sendMessage,
+    interrupt,
+    isThinking,
+    error,
+  };
+}
