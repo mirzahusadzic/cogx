@@ -16,6 +16,7 @@ import type {
   ConversationLattice,
   TurnAnalysis,
   ConversationContext,
+  ConversationTurn,
 } from '../../sigma/types.js';
 
 interface UseClaudeAgentOptions {
@@ -30,10 +31,27 @@ export interface ClaudeMessage {
 }
 
 /**
+ * Strip ALL ANSI codes from SDK output to prevent color bleeding
+ * We apply our own colors in ClaudePanelAgent instead
+ */
+function replaceSDKDiffColors(text: string): string {
+  // Remove ALL ANSI escape codes (colors, bold, dim, etc.)
+  // eslint-disable-next-line no-control-regex
+  return text.replace(/\x1b\[[0-9;]*m/g, '');
+}
+
+/**
  * Hook to manage Claude Agent SDK integration
  */
 export function useClaudeAgent(options: UseClaudeAgentOptions) {
-  const [messages, setMessages] = useState<ClaudeMessage[]>([]);
+  // Initialize with welcome message (colors applied by ClaudePanelAgent)
+  const [messages, setMessages] = useState<ClaudeMessage[]>([
+    {
+      type: 'system',
+      content: `Welcome to Cognition CLI with AIEcho Theme 🎨\n\nStart typing to chat with Claude...`,
+      timestamp: new Date(),
+    },
+  ]);
   const [isThinking, setIsThinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentQuery, setCurrentQuery] = useState<Query | null>(null);
@@ -56,16 +74,19 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   useEffect(() => {
     // Get workbench endpoint from environment or default
     const workbenchEndpoint =
-      process.env.WORKBENCH_ENDPOINT || 'http://localhost:8080';
+      process.env.WORKBENCH_ENDPOINT || 'http://localhost:8000';
     embedderRef.current = new EmbeddingService(workbenchEndpoint);
   }, []);
 
   // Sigma: Analyze turns on-the-fly and trigger compression
   useEffect(() => {
-    if (messages.length === 0 || !embedderRef.current) return;
+    if (messages.length === 0) return;
 
     const analyzeNewTurns = async () => {
-      const embedder = embedderRef.current!;
+      const embedder = embedderRef.current;
+
+      // Skip if embedder not initialized yet
+      if (!embedder) return;
       const lastMessage = messages[messages.length - 1];
 
       // Only analyze user and assistant messages (not tool_progress/system)
@@ -89,7 +110,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             content: a.content,
             timestamp: a.timestamp,
             embedding: a.embedding, // Include for novelty calculation
-          })) as any, // Cast to avoid type mismatch with embedding field
+          })) as Array<ConversationTurn & { embedding: number[] }>,
         };
 
         // Analyze this turn
@@ -185,7 +206,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               // 7. Calculate compression ratio
               const recapTokens = Math.round(reconstructed.recap.length / 4);
               const originalTokens = compressionResult.original_size;
-              const actualRatio = Math.round((originalTokens / recapTokens) * 10) / 10;
+              const actualRatio =
+                Math.round((originalTokens / recapTokens) * 10) / 10;
 
               // 8. Add system message to UI
               const modeIcon = reconstructed.mode === 'quest' ? '🎯' : '💬';
@@ -230,7 +252,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               fs.appendFileSync(
                 path.join(options.cwd, 'tui-debug.log'),
                 `[SIGMA ERROR] Session switch failed: ${(switchErr as Error).message}\n` +
-                `  Stack: ${(switchErr as Error).stack}\n\n`
+                  `  Stack: ${(switchErr as Error).stack}\n\n`
               );
             }
           })();
@@ -377,7 +399,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           fs.appendFileSync(
             path.join(options.cwd, 'tui-debug.log'),
             `[SIGMA] Injecting intelligent recap into new session\n` +
-            `  Length: ${injectedRecap.length} chars (~${Math.round(injectedRecap.length / 4)} tokens)\n\n`
+              `  Length: ${injectedRecap.length} chars (~${Math.round(injectedRecap.length / 4)} tokens)\n\n`
           );
         }
 
@@ -582,6 +604,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         ) {
           // Text content streaming
           const delta = event.delta;
+          const colorReplacedText = replaceSDKDiffColors(delta.text);
           setMessages((prev) => {
             const last = prev[prev.length - 1];
             if (last && last.type === 'assistant') {
@@ -589,7 +612,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                 ...prev.slice(0, -1),
                 {
                   ...last,
-                  content: last.content + delta.text,
+                  content: last.content + colorReplacedText,
                 },
               ];
             } else {
@@ -597,7 +620,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                 ...prev,
                 {
                   type: 'assistant',
-                  content: delta.text,
+                  content: colorReplacedText,
                   timestamp: new Date(),
                 },
               ];

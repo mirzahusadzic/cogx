@@ -1,6 +1,16 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import { OverlayInfo } from '../types.js';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJson = JSON.parse(
+  readFileSync(join(__dirname, '../../../package.json'), 'utf-8')
+);
+const VERSION = packageJson.version;
 
 interface OverlaysBarProps {
   overlays: OverlayInfo[];
@@ -20,17 +30,28 @@ const OVERLAY_ICONS: Record<string, string> = {
   O7: '🧭', // strategic_coherence - compass/alignment
 };
 
+// Overlay-specific colors from AIEcho theme
+const OVERLAY_COLORS: Record<string, string> = {
+  O1: '#58a6ff', // Structural: blue
+  O2: '#f0883e', // Security: AIEcho orange
+  O3: '#56d364', // Lineage: bright green
+  O4: '#d29922', // Mission: golden
+  O5: '#79c0ff', // Operational: light blue
+  O6: '#bc8cff', // Mathematical: purple
+  O7: '#9ed2f5', // Strategic: AIEcho cyan-light
+};
+
 export const OverlaysBar: React.FC<OverlaysBarProps> = ({ overlays = [] }) => {
   return (
-    <Box paddingX={1} borderBottom borderColor="gray" flexDirection="row" justifyContent="space-between" width="100%">
+    <Box paddingX={1} borderBottom borderColor="#30363d" flexDirection="row" justifyContent="space-between" width="100%">
       <Box flexDirection="row">
         {overlays.length === 0 ? (
-          <Text dimColor>No overlays loaded</Text>
+          <Text color="#8b949e">No overlays loaded</Text>
         ) : (
           overlays.map((overlay, index) => {
             const icon = OVERLAY_ICONS[overlay.id] || '📦';
             const status = overlay.hasData ? '✓' : '○';
-            const color = overlay.hasData ? 'green' : 'gray';
+            const color = overlay.hasData ? (OVERLAY_COLORS[overlay.id] || '#2ea043') : '#8b949e';
             const count = overlay.hasData && overlay.itemCount ? overlay.itemCount.toString() : '';
             const separator = index < overlays.length - 1 ? ' | ' : '';
 
@@ -43,7 +64,7 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({ overlays = [] }) => {
         )}
       </Box>
       <Box>
-        <Text bold color="cyan">⚡ COGNITION CLI v1.8.2</Text>
+        <Text bold color="cyan">COGNITION CLI v{VERSION} ⚡</Text>
       </Box>
     </Box>
   );

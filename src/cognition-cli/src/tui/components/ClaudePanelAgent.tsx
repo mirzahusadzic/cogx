@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { Box, Text, useStdout, useInput, useFocus } from 'ink';
+import { Box, Text, useInput, useStdout } from 'ink';
 import { Spinner } from '@inkjs/ui';
+import chalk from 'chalk';
 import type { ClaudeMessage } from '../hooks/useClaudeAgent.js';
 import { useMouse } from '../hooks/useMouse.js';
 
@@ -22,47 +23,39 @@ export const ClaudePanelAgent: React.FC<ClaudePanelAgentProps> = ({
 }) => {
   const { stdout } = useStdout();
   const [scrollOffset, setScrollOffset] = useState(0);
-  const { isFocused } = useFocus({ autoFocus: false });
   const lastScrollFocus = useRef<number>(0);
 
-  // Calculate available height for content
-  // Terminal height - overlay bar (3) - input box (3) - status bar (3) - borders (2) - padding (2)
+  // Calculate available height
   const availableHeight = (stdout?.rows || 24) - 11;
 
-  // Build all content lines
+  // Build colored text lines using Chalk (Ink's color engine)
   const allLines = useMemo(() => {
-    if (messages.length === 0) {
-      return ['Start typing to chat with Claude...'];
-    }
-
     const lines: string[] = [];
 
     messages.forEach((msg) => {
       let prefix = '';
+      let colorFn = chalk.hex('#58a6ff'); // Default: O1 structural blue
+
       switch (msg.type) {
         case 'user':
           prefix = '> ';
+          colorFn = chalk.hex('#56d364'); // O3 lineage green
           break;
         case 'system':
           prefix = '• ';
+          colorFn = chalk.hex('#8b949e'); // Muted gray
           break;
         case 'assistant':
         case 'tool_progress':
           prefix = '';
+          colorFn = chalk.hex('#58a6ff'); // O1 structural blue
           break;
       }
 
-      // Split multi-line content and mark diff lines
+      // Split content into lines and color each one
       const contentLines = (prefix + msg.content).split('\n');
       contentLines.forEach((line) => {
-        // Color diff lines
-        if (line.trim().startsWith('- ')) {
-          lines.push(`\x1b[31m${line}\x1b[0m`); // Red for removals
-        } else if (line.trim().startsWith('+ ')) {
-          lines.push(`\x1b[32m${line}\x1b[0m`); // Green for additions
-        } else {
-          lines.push(line);
-        }
+        lines.push(colorFn(line));
       });
       lines.push(''); // Empty line between messages
     });
@@ -70,53 +63,43 @@ export const ClaudePanelAgent: React.FC<ClaudePanelAgentProps> = ({
     return lines;
   }, [messages]);
 
-  // Auto-scroll to bottom when new messages arrive OR when panel loses focus
+  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     setScrollOffset(0); // Reset to bottom
   }, [messages.length]);
 
   // Auto-scroll to bottom when switching focus back to input
   useEffect(() => {
-    if (focused) {
-      // Panel is focused - user is scrolling
-    } else {
-      // Input is focused - auto-scroll to bottom
-      setScrollOffset(0);
+    if (!focused) {
+      setScrollOffset(0); // Input focused - scroll to bottom
     }
   }, [focused]);
 
-  // Handle scrolling when panel is focused
+  // Handle keyboard scrolling when panel is focused
   useInput(
     (input, key) => {
       if (!focused) return;
 
+      const maxOffset = Math.max(0, allLines.length - availableHeight);
+
       if (key.upArrow) {
-        // Scroll up (increase offset)
-        setScrollOffset((prev) => {
-          const maxOffset = Math.max(0, allLines.length - availableHeight);
-          return Math.min(prev + 1, maxOffset);
-        });
+        setScrollOffset((prev) => Math.min(prev + 1, maxOffset));
       } else if (key.downArrow) {
-        // Scroll down (decrease offset)
         setScrollOffset((prev) => Math.max(0, prev - 1));
       } else if (key.pageUp) {
-        // Page up
-        setScrollOffset((prev) => {
-          const maxOffset = Math.max(0, allLines.length - availableHeight);
-          return Math.min(prev + availableHeight, maxOffset);
-        });
+        setScrollOffset((prev) => Math.min(prev + availableHeight, maxOffset));
       } else if (key.pageDown) {
-        // Page down
         setScrollOffset((prev) => Math.max(0, prev - availableHeight));
+      } else if (key.return) {
+        setScrollOffset(0); // Jump to bottom
       }
     },
     { isActive: focused }
   );
 
-  // Handle mouse scroll events
+  // Handle mouse scrolling
   useMouse(
     (event) => {
-      // Auto-focus the panel when scrolling (debounced to prevent rapid calls)
       if (!focused && onScrollDetected) {
         const now = Date.now();
         if (now - lastScrollFocus.current > 100) {
@@ -128,38 +111,36 @@ export const ClaudePanelAgent: React.FC<ClaudePanelAgentProps> = ({
       const maxOffset = Math.max(0, allLines.length - availableHeight);
 
       if (event.type === 'scroll_up') {
-        // Scroll up (increase offset) - 3 lines per scroll
         setScrollOffset((prev) => Math.min(prev + 3, maxOffset));
       } else if (event.type === 'scroll_down') {
-        // Scroll down (decrease offset) - 3 lines per scroll
         setScrollOffset((prev) => Math.max(0, prev - 3));
       }
     },
-    { isActive: true } // Always listen for mouse events
+    { isActive: true }
   );
 
   // Calculate visible window
   const displayContent = useMemo(() => {
     const totalLines = allLines.length;
+    if (totalLines <= availableHeight) {
+      return allLines.join('\n'); // Show all
+    }
+
     const maxOffset = Math.max(0, totalLines - availableHeight);
     const actualOffset = Math.min(scrollOffset, maxOffset);
-
-    // Show lines from bottom minus offset
     const startIdx = Math.max(0, totalLines - availableHeight - actualOffset);
     const endIdx = totalLines - actualOffset;
 
-    const visibleLines = allLines.slice(startIdx, endIdx);
-    return visibleLines.join('\n');
+    return allLines.slice(startIdx, endIdx).join('\n');
   }, [allLines, availableHeight, scrollOffset]);
 
   // Calculate scroll indicator
   const scrollInfo = useMemo(() => {
-    const totalLines = allLines.length;
-    if (totalLines <= availableHeight) {
+    if (allLines.length <= availableHeight) {
       return null; // No scrolling needed
     }
 
-    const maxOffset = totalLines - availableHeight;
+    const maxOffset = allLines.length - availableHeight;
     const actualOffset = Math.min(scrollOffset, maxOffset);
     const percentage = Math.round((1 - actualOffset / maxOffset) * 100);
 
@@ -170,7 +151,7 @@ export const ClaudePanelAgent: React.FC<ClaudePanelAgentProps> = ({
     <Box
       flexDirection="column"
       borderStyle="single"
-      borderColor={focused ? 'cyan' : 'gray'}
+      borderColor={focused ? '#2ea043' : '#30363d'}
       width="100%"
       paddingX={1}
     >

@@ -1,11 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { render, Box, Text, useInput } from 'ink';
+import { render, Box, Text, useInput, type TextProps } from 'ink';
+import {
+  ThemeProvider,
+  extendTheme,
+  defaultTheme,
+} from '@inkjs/ui';
 import { OverlaysBar } from './components/OverlaysBar.js';
 import { ClaudePanelAgent } from './components/ClaudePanelAgent.js';
 import { InputBox } from './components/InputBox.js';
 import { StatusBar } from './components/StatusBar.js';
 import { useClaudeAgent } from './hooks/useClaudeAgent.js';
 import { useOverlays } from './hooks/useOverlays.js';
+
+// Custom theme with vivid AIEcho cyan spinner
+const customTheme = extendTheme(defaultTheme, {
+  components: {
+    Spinner: {
+      styles: {
+        frame: (): TextProps => ({
+          color: '#9ed2f5', // AIEcho accent-green-light (vivid cyan)
+        }),
+      },
+    },
+  },
+});
 
 interface CognitionTUIProps {
   pgcRoot: string;
@@ -22,6 +40,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
 }) => {
   const [focused, setFocused] = useState(true);
   const [renderError, setRenderError] = useState<Error | null>(null);
+  const [mouseEnabled, setMouseEnabled] = useState(true);
 
   const { overlays, loading } = useOverlays({ pgcRoot, workbenchUrl });
   const { messages, sendMessage, isThinking, error, tokenCount, interrupt } =
@@ -30,14 +49,33 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       cwd: projectRoot, // Use project root, not .open_cognition dir
     });
 
-  // Enable mouse support in terminal
+  // Enable mouse support and add Ctrl+C handler (colors set in tui.ts command)
   useEffect(() => {
+    // Add direct SIGINT handler for Ctrl+C
+    const sigintHandler = () => {
+      try {
+        process.stdout.write('\x1b[0m'); // Reset colors
+        process.stdout.write('\x1b[?1000l'); // Disable mouse
+        process.stdout.write('\x1b[?1002l');
+        process.stdout.write('\x1b[?1015l');
+        process.stdout.write('\x1b[?1006l');
+      } catch (e) {
+        // Ignore errors during cleanup
+      }
+      // Use process.abort() - truly immediate, bypasses everything
+      process.abort();
+    };
+
+    process.on('SIGINT', sigintHandler);
+
     if (process.stdin.isTTY && typeof process.stdin.setRawMode === 'function') {
-      // Enable mouse tracking
-      process.stdout.write('\x1b[?1000h'); // Enable mouse click tracking
-      process.stdout.write('\x1b[?1002h'); // Enable mouse drag tracking
-      process.stdout.write('\x1b[?1015h'); // Enable extended mouse mode
-      process.stdout.write('\x1b[?1006h'); // Enable SGR mouse mode
+      // Enable mouse tracking on startup
+      if (mouseEnabled) {
+        process.stdout.write('\x1b[?1000h'); // Enable mouse click tracking
+        process.stdout.write('\x1b[?1002h'); // Enable mouse drag tracking
+        process.stdout.write('\x1b[?1015h'); // Enable extended mouse mode
+        process.stdout.write('\x1b[?1006h'); // Enable SGR mouse mode
+      }
 
       return () => {
         // Disable mouse tracking on cleanup
@@ -45,9 +83,28 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
         process.stdout.write('\x1b[?1002l');
         process.stdout.write('\x1b[?1015l');
         process.stdout.write('\x1b[?1006l');
+        // Reset colors on exit
+        process.stdout.write('\x1b[0m');
+        // Remove SIGINT handler
+        process.off('SIGINT', sigintHandler);
       };
     }
+
+    return () => {
+      process.off('SIGINT', sigintHandler);
+    };
   }, []);
+
+  // Toggle mouse mode when 'm' is pressed
+  useEffect(() => {
+    if (process.stdin.isTTY) {
+      if (mouseEnabled) {
+        process.stdout.write('\x1b[?1000h\x1b[?1002h\x1b[?1015h\x1b[?1006h');
+      } else {
+        process.stdout.write('\x1b[?1000l\x1b[?1002l\x1b[?1015l\x1b[?1006l');
+      }
+    }
+  }, [mouseEnabled]);
 
   // Error boundary - catch render errors
   useEffect(() => {
@@ -62,18 +119,27 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     return () => window.removeEventListener('error', errorHandler);
   }, []);
 
-  // Handle input
+  // Handle input - make sure this is always active for Ctrl+C
   useInput((input, key) => {
     if (key.ctrl && input === 'c') {
-      // Exit
-      process.exit(0);
+      // Force immediate exit - use process.abort() to bypass event loop
+      try {
+        process.stdout.write('\x1b[0m'); // Reset colors
+        process.stdout.write('\x1b[?1000l\x1b[?1002l\x1b[?1015l\x1b[?1006l'); // Disable mouse
+      } catch (e) {
+        // Ignore errors
+      }
+      process.abort(); // Immediate termination, no cleanup
     } else if (key.tab) {
       // Toggle focus between input and panel
       setFocused((prev) => !prev);
+    } else if (input === 'm' && !key.ctrl && !key.shift && !key.meta && !focused) {
+      // Toggle mouse mode with 'm' key (only when NOT in input box)
+      setMouseEnabled((prev) => !prev);
     }
     // Note: Arrow keys, etc. are handled by TextInput component
     // We just need to not interfere with them
-  });
+  }, { isActive: true });
 
   if (renderError) {
     return (
@@ -111,24 +177,26 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
 
   try {
     return (
-      <Box flexDirection="column" width="100%" height="100%" paddingTop={0} marginTop={0}>
-        <OverlaysBar overlays={overlays} />
-        <Box flexGrow={1} flexShrink={1} minHeight={0} width="100%" overflow="hidden">
-          <ClaudePanelAgent
-            messages={messages}
-            isThinking={isThinking}
-            focused={!focused}
-            onScrollDetected={() => setFocused(false)}
+      <ThemeProvider theme={customTheme}>
+        <Box flexDirection="column" width="100%" height="100%" paddingTop={0} marginTop={0}>
+          <OverlaysBar overlays={overlays} />
+          <Box flexGrow={1} flexShrink={1} minHeight={0} width="100%" overflow="hidden">
+            <ClaudePanelAgent
+              messages={messages}
+              isThinking={isThinking}
+              focused={!focused}
+              onScrollDetected={() => setFocused(false)}
+            />
+          </Box>
+          <InputBox
+            onSubmit={sendMessage}
+            focused={focused}
+            disabled={isThinking}
+            onInterrupt={interrupt}
           />
+          <StatusBar sessionId={sessionId} focused={focused} tokenCount={tokenCount} mouseEnabled={mouseEnabled} />
         </Box>
-        <InputBox
-          onSubmit={sendMessage}
-          focused={focused}
-          disabled={isThinking}
-          onInterrupt={interrupt}
-        />
-        <StatusBar sessionId={sessionId} focused={focused} tokenCount={tokenCount} />
-      </Box>
+      </ThemeProvider>
     );
   } catch (err) {
     return (

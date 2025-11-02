@@ -48,7 +48,15 @@ export const InputBox: React.FC<InputBoxProps> = ({
   // Handle double ESC to clear input, or ESC to interrupt when thinking
   useInput(
     (input, key) => {
-      if (key.escape) {
+      if (key.ctrl && input === 'c') {
+        // Force immediate exit - process.abort() bypasses event loop
+        try {
+          process.stdout.write('\x1b[0m');
+        } catch (e) {
+          // Ignore
+        }
+        process.abort();
+      } else if (key.escape) {
         const now = Date.now();
         const timeSinceLastEsc = now - lastEscapeTime.current;
 
@@ -68,31 +76,33 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
   if (!focused) {
     return (
-      <Box borderStyle="single" borderColor="gray" paddingX={1} width="100%">
-        <Text dimColor>Press Tab to focus input</Text>
+      <Box borderStyle="single" borderColor="#30363d" paddingX={1} width="100%">
+        <Text color="#8b949e">Press Tab to focus input</Text>
       </Box>
     );
   }
 
   return (
-    <Box borderStyle="single" borderColor="cyan" paddingX={1} width="100%">
-      <Text color="cyan">{'> '}</Text>
-      <TextInput
-        value={value}
-        onChange={handleChange}
-        onSubmit={handleSubmit}
-        placeholder={
-          disabled
-            ? 'Claude is thinking... (ESC to interrupt)'
-            : 'Type a message... (ESC ESC to clear)'
-        }
-        showCursor={!disabled}
-        // Disable any autocorrect/autocomplete features
-        // @ts-ignore - these props might not be in type definitions but work
-        autoComplete="off"
-        autoCorrect="off"
-        spellCheck={false}
-      />
+    <Box borderStyle="single" borderColor="#56d364" paddingX={1} width="100%">
+      <Text color="#56d364">{'> '}</Text>
+      <Text color="#56d364">
+        <TextInput
+          value={value}
+          onChange={handleChange}
+          onSubmit={handleSubmit}
+          placeholder={
+            disabled
+              ? 'Claude is thinking... (ESC to interrupt)'
+              : 'Type a message... (ESC ESC to clear)'
+          }
+          showCursor={!disabled}
+          // Disable any autocorrect/autocomplete features
+          // @ts-ignore - these props might not be in type definitions but work
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+        />
+      </Text>
     </Box>
   );
 };

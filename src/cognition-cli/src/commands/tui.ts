@@ -29,6 +29,13 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     process.env.WORKBENCH_URL ||
     'http://localhost:8000';
 
+  // Set AIEcho background color: #0d1117 = rgb(13, 17, 23)
+  if (process.stdout.isTTY) {
+    process.stdout.write('\x1b[48;2;13;17;23m'); // Set background to AIEcho dark
+    process.stdout.write('\x1b[2J'); // Clear entire screen with new bg
+    process.stdout.write('\x1b[H'); // Move cursor to home
+  }
+
   // Optional: Resume existing session or start fresh
   if (!options.sessionId) {
     console.log(
