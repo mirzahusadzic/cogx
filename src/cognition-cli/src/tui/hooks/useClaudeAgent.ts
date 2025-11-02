@@ -11,7 +11,7 @@ import * as Diff from 'diff';
 import { EmbeddingService } from '../../core/services/embedding.js';
 import { analyzeTurn } from '../../sigma/analyzer-with-embeddings.js';
 import { compressContext } from '../../sigma/compressor.js';
-import { reconstructContext } from '../../sigma/reconstructor.js';
+import { reconstructSessionContext } from '../../sigma/context-reconstructor.js';
 import type {
   ConversationLattice,
   TurnAnalysis,
@@ -50,6 +50,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const embedderRef = useRef<EmbeddingService | null>(null);
   const compressionTriggered = useRef(false);
   const [currentSessionId, setCurrentSessionId] = useState(options.sessionId);
+  const [injectedRecap, setInjectedRecap] = useState<string | null>(null);
 
   // Initialize embedding service
   useEffect(() => {
@@ -151,10 +152,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               `  Discarded: ${compressionResult.discarded_turns.length} turns\n\n`
           );
 
-          // Save lattice to disk - KEEP IT ALIVE (no markdown flattening!)
+          // Intelligent session switch with dual-mode reconstruction
           (async () => {
             try {
-              // 1. Save lattice to disk (graph structure preserved)
+              // 1. Save lattice to disk (graph structure preserved - ALIVE!)
               const latticeDir = path.join(options.cwd, '.sigma');
               fs.mkdirSync(latticeDir, { recursive: true });
               fs.writeFileSync(
@@ -162,43 +163,74 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                 JSON.stringify(compressionResult.lattice, null, 2)
               );
 
-              // 2. Generate new session ID
+              // 2. Intelligent reconstruction (quest vs chat mode)
+              const reconstructed = await reconstructSessionContext(
+                compressionResult.lattice
+              );
+
+              // 3. Store recap for injection on first query
+              setInjectedRecap(reconstructed.recap);
+
+              // 4. Generate new session ID
               const newSessionId = `${currentSessionId}-sigma-${Date.now()}`;
 
-              // 3. Update session ID
+              // 5. Update session ID
               setCurrentSessionId(newSessionId);
 
-              // 4. Reset state for new session
+              // 6. Reset state for new session
               setTokenCount({ input: 0, output: 0, total: 0 });
               compressionTriggered.current = false;
               turnAnalyses.current = []; // Clear for new session
 
-              // 5. Add system message to UI
+              // 7. Calculate compression ratio
+              const recapTokens = Math.round(reconstructed.recap.length / 4);
+              const originalTokens = compressionResult.original_size;
+              const actualRatio = Math.round((originalTokens / recapTokens) * 10) / 10;
+
+              // 8. Add system message to UI
+              const modeIcon = reconstructed.mode === 'quest' ? '🎯' : '💬';
               setMessages((prev) => [
                 ...prev,
                 {
                   type: 'system',
-                  content: `🔄 Context compressed (${compressionResult.compression_ratio.toFixed(1)}x ratio). Lattice saved, ready for semantic retrieval.`,
+                  content: `${modeIcon} Context compressed (${actualRatio}x ratio, ${reconstructed.mode} mode). Intelligent recap ready.`,
                   timestamp: new Date(),
                 },
               ]);
 
-              // 6. Log session switch
+              // 9. Log session switch with metrics
               fs.appendFileSync(
                 path.join(options.cwd, 'tui-debug.log'),
-                `[SIGMA] Session switch completed\n` +
+                `[SIGMA] Intelligent session switch completed\n` +
+                  `  Mode detected: ${reconstructed.mode.toUpperCase()}\n` +
                   `  Old session: ${currentSessionId}\n` +
                   `  New session: ${newSessionId}\n` +
                   `  Lattice saved: .sigma/${currentSessionId}.lattice.json\n` +
-                  `  Nodes: ${compressionResult.lattice.nodes.length}\n` +
-                  `  Edges: ${compressionResult.lattice.edges.length}\n` +
-                  `  Graph structure preserved (alive!)\n` +
-                  `  Ready for query-driven retrieval\n\n`
+                  `  \n` +
+                  `  Lattice Structure:\n` +
+                  `    Nodes: ${compressionResult.lattice.nodes.length}\n` +
+                  `    Edges: ${compressionResult.lattice.edges.length}\n` +
+                  `    Paradigm shifts: ${reconstructed.metrics.paradigm_shifts}\n` +
+                  `  \n` +
+                  `  Reconstruction:\n` +
+                  `    Original: ${originalTokens} tokens\n` +
+                  `    Recap: ${recapTokens} tokens (~${reconstructed.recap.length} chars)\n` +
+                  `    Compression ratio: ${actualRatio}x\n` +
+                  `  \n` +
+                  `  Mode Indicators:\n` +
+                  `    Tool uses: ${reconstructed.metrics.tool_uses}\n` +
+                  `    Code blocks: ${reconstructed.metrics.code_blocks}\n` +
+                  `    Avg structural (O1): ${reconstructed.metrics.avg_structural}\n` +
+                  `    Avg operational (O5): ${reconstructed.metrics.avg_operational}\n` +
+                  `  \n` +
+                  `  Context type: ${reconstructed.mode === 'quest' ? 'Mental map + query functions' : 'Linear important points'}\n` +
+                  `  Ready for injection on first query\n\n`
               );
             } catch (switchErr) {
               fs.appendFileSync(
                 path.join(options.cwd, 'tui-debug.log'),
-                `[SIGMA ERROR] Session switch failed: ${(switchErr as Error).message}\n`
+                `[SIGMA ERROR] Session switch failed: ${(switchErr as Error).message}\n` +
+                `  Stack: ${(switchErr as Error).stack}\n\n`
               );
             }
           })();
@@ -336,12 +368,26 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         // Collect stderr for better error messages
         const stderrLines: string[] = [];
 
-        // Create query (lattice stays alive, no context injection needed)
+        // Check if we have intelligent recap to inject (from session switch)
+        let systemPrompt: string | undefined = undefined;
+        if (injectedRecap) {
+          systemPrompt = injectedRecap;
+          setInjectedRecap(null); // Clear after injection (one-time use)
+
+          fs.appendFileSync(
+            path.join(options.cwd, 'tui-debug.log'),
+            `[SIGMA] Injecting intelligent recap into new session\n` +
+            `  Length: ${injectedRecap.length} chars (~${Math.round(injectedRecap.length / 4)} tokens)\n\n`
+          );
+        }
+
+        // Create query with optional intelligent recap injection
         const q = query({
           prompt,
           options: {
             cwd: options.cwd,
             resume: currentSessionId, // Use current session ID (may be switched)
+            systemPrompt, // Inject intelligent recap if available
             includePartialMessages: true, // Get streaming updates
             stderr: (data: string) => {
               stderrLines.push(data);
@@ -378,7 +424,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         setIsThinking(false);
       }
     },
-    [options.cwd, currentSessionId]
+    [options.cwd, currentSessionId, injectedRecap]
   );
 
   const processSDKMessage = (sdkMessage: SDKMessage) => {
