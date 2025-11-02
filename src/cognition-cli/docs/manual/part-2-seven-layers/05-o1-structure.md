@@ -129,7 +129,7 @@ cognition-cli genesis:docs docs/overlays/
 
 ```bash
 # Check overlay status
-cognition-cli overlays
+cognition-cli overlay list
 
 # Query structural patterns
 cognition-cli patterns find-similar <symbol-name>

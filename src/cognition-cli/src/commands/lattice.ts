@@ -34,11 +34,9 @@
  *   O7  Coherence     (alignment scores)
  */
 
-import { intro, outro, spinner, log } from '@clack/prompts';
-import chalk from 'chalk';
+import { spinner } from '@clack/prompts';
 import path from 'path';
 import { createQueryEngine } from '../core/algebra/query-parser.js';
-import { OverlayRegistry } from '../core/algebra/overlay-registry.js';
 import {
   OverlayItem,
   OverlayMetadata,
@@ -61,8 +59,6 @@ export async function latticeCommand(
   query: string,
   options: LatticeOptions
 ): Promise<void> {
-  intro(chalk.bold('Lattice Algebra Query'));
-
   let s = spinner();
 
   try {
@@ -71,19 +67,13 @@ export async function latticeCommand(
     const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
 
     if (!projectRoot) {
-      log.error(
-        chalk.red(
-          'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
-        )
+      console.error(
+        'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
       );
       process.exit(1);
     }
 
     const pgcRoot = path.join(projectRoot, '.open_cognition');
-
-    // Display query
-    log.info(chalk.dim(`Query: ${query}`));
-    log.info('');
 
     // Parse and execute query
     s.start('Parsing query');
@@ -98,13 +88,11 @@ export async function latticeCommand(
 
     // Format and display results
     displayResults(result, options);
-
-    outro(chalk.green('✓ Query complete'));
   } catch (error) {
     if (s) {
       s.stop('Query failed');
     }
-    log.error(chalk.red((error as Error).message));
+    console.error((error as Error).message);
     if (options.verbose) {
       console.error(error);
     }
@@ -166,7 +154,7 @@ function displayResults(result: unknown, options: LatticeOptions): void {
   } else if (isOverlayItemArray(result)) {
     displayItemList(result, format, limit);
   } else {
-    log.warn(chalk.yellow('Unknown result format'));
+    console.warn('Unknown result format');
     console.log(JSON.stringify(result, null, 2));
   }
 }
@@ -180,12 +168,11 @@ function displayItemList(
   limit: number
 ): void {
   if (items.length === 0) {
-    log.warn(chalk.yellow('No items found'));
+    console.warn('No items found');
     return;
   }
 
-  log.info(chalk.bold(`\nResults: ${items.length} item(s)`));
-  log.info('');
+  console.log(`\nResults: ${items.length} item(s)\n`);
 
   if (format === 'json') {
     console.log(JSON.stringify(items.slice(0, limit), null, 2));
@@ -193,28 +180,23 @@ function displayItemList(
   }
 
   if (format === 'summary') {
-    log.info(
-      chalk.dim(`Showing summary of ${Math.min(limit, items.length)} items`)
-    );
+    console.log(`Showing summary of ${Math.min(limit, items.length)} items`);
     for (const item of items.slice(0, limit)) {
-      log.info(`  ${chalk.cyan(item.id)}`);
-      log.info(chalk.dim(`    ${truncate(item.metadata.text, 80)}`));
+      console.log(`  ${item.id}`);
+      console.log(`    ${truncate(item.metadata.text, 80)}`);
     }
     return;
   }
 
   // Table format (default)
-  log.info(
-    chalk.dim(
-      `Showing ${Math.min(limit, items.length)} of ${items.length} items`
-    )
+  console.log(
+    `Showing ${Math.min(limit, items.length)} of ${items.length} items\n`
   );
-  log.info('');
 
   for (const item of items.slice(0, limit)) {
-    log.info(chalk.cyan(`${item.id}`));
-    log.info(chalk.dim(`  Type: ${item.metadata.type || 'unknown'}`));
-    log.info(chalk.dim(`  Text: ${truncate(item.metadata.text, 100)}`));
+    console.log(`${item.id}`);
+    console.log(`  Type: ${item.metadata.type || 'unknown'}`);
+    console.log(`  Text: ${truncate(item.metadata.text, 100)}`);
 
     // Show additional metadata
     const otherKeys = Object.keys(item.metadata).filter(
@@ -222,17 +204,15 @@ function displayItemList(
     );
     if (otherKeys.length > 0) {
       for (const key of otherKeys.slice(0, 3)) {
-        log.info(chalk.dim(`  ${key}: ${item.metadata[key]}`));
+        console.log(`  ${key}: ${item.metadata[key]}`);
       }
     }
-    log.info('');
+    console.log('');
   }
 
   if (items.length > limit) {
-    log.info(
-      chalk.dim(
-        `... and ${items.length - limit} more (use --limit to see more)`
-      )
+    console.log(
+      `... and ${items.length - limit} more (use --limit to see more)`
     );
   }
 }
@@ -247,15 +227,10 @@ function displaySetOperationResult(
 ): void {
   const { items, metadata } = result;
 
-  log.info(
-    chalk.bold(
-      `\n${metadata.operation.toUpperCase()}: ${metadata.itemCount} item(s)`
-    )
+  console.log(
+    `\n${metadata.operation.toUpperCase()}: ${metadata.itemCount} item(s)`
   );
-  log.info(
-    chalk.dim(`  Source overlays: ${metadata.sourceOverlays.join(', ')}`)
-  );
-  log.info('');
+  console.log(`  Source overlays: ${metadata.sourceOverlays.join(', ')}\n`);
 
   displayItemList(items, format, limit);
 }
@@ -269,47 +244,33 @@ function displayMeetResults(
   limit: number
 ): void {
   if (results.length === 0) {
-    log.warn(chalk.yellow('No alignments found (try lowering --threshold)'));
+    console.warn('No alignments found (try lowering --threshold)');
     return;
   }
 
-  log.info(chalk.bold(`\nMeet Results: ${results.length} alignment(s)`));
-  log.info('');
+  console.log(`\nMeet Results: ${results.length} alignment(s)\n`);
 
   if (format === 'json') {
     console.log(JSON.stringify(results.slice(0, limit), null, 2));
     return;
   }
 
-  log.info(
-    chalk.dim(
-      `Showing ${Math.min(limit, results.length)} of ${results.length} pairs`
-    )
+  console.log(
+    `Showing ${Math.min(limit, results.length)} of ${results.length} pairs\n`
   );
-  log.info('');
 
   for (const { itemA, itemB, similarity } of results.slice(0, limit)) {
-    // Color code similarity
-    const simColor =
-      similarity >= 0.9
-        ? chalk.green
-        : similarity >= 0.7
-          ? chalk.yellow
-          : chalk.dim;
-
-    log.info(simColor(`Similarity: ${(similarity * 100).toFixed(1)}%`));
-    log.info(chalk.cyan(`  A: ${itemA.id}`));
-    log.info(chalk.dim(`     ${truncate(itemA.metadata.text, 80)}`));
-    log.info(chalk.magenta(`  B: ${itemB.id}`));
-    log.info(chalk.dim(`     ${truncate(itemB.metadata.text, 80)}`));
-    log.info('');
+    console.log(`Similarity: ${(similarity * 100).toFixed(1)}%`);
+    console.log(`  A: ${itemA.id}`);
+    console.log(`     ${truncate(itemA.metadata.text, 80)}`);
+    console.log(`  B: ${itemB.id}`);
+    console.log(`     ${truncate(itemB.metadata.text, 80)}`);
+    console.log('');
   }
 
   if (results.length > limit) {
-    log.info(
-      chalk.dim(
-        `... and ${results.length - limit} more (use --limit to see more)`
-      )
+    console.log(
+      `... and ${results.length - limit} more (use --limit to see more)`
     );
   }
 }
@@ -320,55 +281,4 @@ function displayMeetResults(
 function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.substring(0, maxLength - 3) + '...';
-}
-
-/**
- * Show available overlays with their data status
- */
-export async function showOverlaysCommand(
-  options: LatticeOptions
-): Promise<void> {
-  intro(chalk.bold('Available Overlays'));
-
-  // Find .open_cognition by walking up directory tree
-  const workspaceManager = new WorkspaceManager();
-  const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
-
-  if (!projectRoot) {
-    log.error(
-      chalk.red(
-        'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
-      )
-    );
-    process.exit(1);
-  }
-
-  const pgcRoot = path.join(projectRoot, '.open_cognition');
-  const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
-  const registry = new OverlayRegistry(pgcRoot, workbenchUrl);
-
-  const overlayInfo = registry.getOverlayInfo();
-
-  log.info('');
-  for (const info of overlayInfo) {
-    const hasData = await registry.hasData(info.id);
-    const status = hasData ? chalk.green('✓ HAS DATA') : chalk.dim('(empty)');
-
-    // Use filled bullet (●) for data, hollow (○) for empty - via log.message vs log.info
-    if (hasData) {
-      log.info(`${chalk.cyan(info.id)} ${chalk.bold(info.name)} ${status}`);
-      log.info(chalk.dim(`  ${info.description}`));
-      log.info(chalk.dim(`  Types: ${info.supportedTypes.join(', ')}`));
-    } else {
-      // Use log.message for hollow bullet to avoid automatic filled bullet
-      log.message(
-        `○  ${chalk.cyan(info.id)} ${chalk.bold(info.name)} ${status}`
-      );
-      log.message(chalk.dim(`│  ${info.description}`));
-      log.message(chalk.dim(`│  Types: ${info.supportedTypes.join(', ')}`));
-    }
-    log.info('');
-  }
-
-  outro(chalk.green('Use "cognition-cli lattice <query>" to query overlays'));
 }

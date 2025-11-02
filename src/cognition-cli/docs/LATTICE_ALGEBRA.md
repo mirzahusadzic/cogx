@@ -527,7 +527,7 @@ Automatically updates overlays as you code.
 
 ### No Results
 
-- Check if overlays are generated: `cognition-cli overlays`
+- Check if overlays are generated: `cognition-cli overlay list`
 - Verify query syntax: Check for typos in operators
 - Try broader query: Remove tag filters temporarily
 

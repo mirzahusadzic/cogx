@@ -212,6 +212,42 @@ type ProofMethod =
 }
 ```
 
+## Extracted Proofs from CogX Architecture
+
+This section contains the formal mathematical proofs that underpin the CogX architectural blueprint.
+
+### Theorem 1: PGC Lattice Structure
+
+**Theorem 1:** The Grounded Context Pool (PGC) forms a bounded lattice (L, ≤, ∧, ∨, ⊥, ⊤) where ≤ represents dependency relation, ∧ is meet (common dependencies), ∨ is join (synthesis), ⊥ is bottom (raw source code), and ⊤ is top (complete understanding).
+
+**Proof:** The dependency relation ≤ forms a partial order because it is reflexive, antisymmetric (no circular dependencies due to content-addressable hashing), and transitive. The meet x ∧ y is the greatest lower bound (common dependencies via reverse dependency graph). The join x ∨ y is the least upper bound (minimal synthesis via Genesis algorithms). The bottom ⊥ is raw source code, top ⊤ is complete repository summary. Therefore (PGC, ≤, ∧, ∨, ⊥, ⊤) satisfies all lattice axioms. Q.E.D.
+
+---
+
+### Theorem 2: PGC Constructibility
+
+**Theorem 2:** The PGC can be deterministically constructed from source code via Genesis algorithms, resulting in verifiably grounded, consistent, and reconstructible state with four pillars: objects, transforms, index, and reverse_deps.
+
+**Proof:** Define Draw (raw code) and GKₑ (grounded knowledge elements). Bottom-Up Aggregation creates hierarchical summaries from files to root. Sideways Aggregation builds associative knowledge via dependency discovery and clustering. Top-Down Refinement ensures global consistency. These algorithms construct: (1) Object Store where Path(o) = hash(content(o)), (2) Operations Log linking input.hashes to output.hashes, (3) Forward Index mapping Path to object.hash, (4) Reverse Deps mapping object.hash to dependent transforms. Q.E.D.
+
+---
+
+### Theorem 3: Operational Soundness
+
+**Theorem 3:** The PGC can be maintained via Update Function U (O(1) invalidation cascade) and queried via Context Sampling Function Σ (O(V+E) graph traversal), providing foundation for context plasticity.
+
+**Proof:** Update Function U uses recursive Invalidate algorithm: lookup dependent transforms via g(object.hash) in O(1) using reverse_deps, recursively invalidate outputs in O(affected) time. Context Sampling Σ takes query Pnew and returns optimal context via: (1) Deconstruction to extract entities, (2) Anchor Identification in index, (3) Context Expansion via O(V+E) graph traversal (up/down/sideways/horizontal), (4) Optimal Composition maximizing relevance within token budget. Q.E.D.
+
+---
+
+### Theorem 4: Ecosystem Evolution
+
+**Theorem 4:** The system exhibits provable learning (AQS_t+1 > AQS_t via CoMP integration) and ecosystem evolution (superlinear intelligence growth via Cognitive Symbols and Semantic Echo Networks).
+
+**Proof:** Define AQS_t = (0.5 × Success) + (0.2 × Precision) + (0.15 × Δ_coherence) + (0.15 × Efficiency). Learning Loop: after Task_t with AQS_t, Wisdom Distiller produces CoMP_t+1 saved as GKₑ. For Task_t+1, Context Sampling Σ includes CoMP_t+1, enriching context, thus P(AQS_t+1 > AQS_t) increases. Ecosystem evolution via: (1) Cognitive Symbols enabling instant expert knowledge inheritance, (2) Semantic Echo Network where best ideas propagate, (3) Multi-Agent Cooperation via Update Function U as collaboration broker. Q.E.D.
+
+---
+
 ## Extraction Patterns
 
 ### 1. Comment-Based Extraction

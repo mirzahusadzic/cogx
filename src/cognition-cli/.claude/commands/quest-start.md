@@ -18,7 +18,7 @@ Initialize a new development quest with baseline context.
 cognition-cli coherence report
 
 # 2. Check overlay status
-cognition-cli overlays
+cognition-cli overlay list
 
 # 3. Search for relevant operational patterns (O₅)
 cognition-cli lattice "O5" --limit 20

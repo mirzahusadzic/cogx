@@ -48,6 +48,15 @@ export interface OverlayInfo {
 }
 
 /**
+ * Status of an overlay including warnings
+ */
+export interface OverlayStatus {
+  hasData: boolean;
+  warning?: string;
+  count?: number;
+}
+
+/**
  * Registry of all overlay managers in the PGC
  */
 export class OverlayRegistry {

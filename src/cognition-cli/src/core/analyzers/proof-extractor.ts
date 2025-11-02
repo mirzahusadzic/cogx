@@ -36,12 +36,43 @@ export class ProofExtractor
   extract(doc: MarkdownDocument): MathematicalKnowledge[] {
     const knowledge: MathematicalKnowledge[] = [];
 
-    // Extract from each section
+    // Extract from each section (recursively including children)
     doc.sections.forEach((section, index) => {
       knowledge.push(
-        ...this.extractFromSection(section, index, doc.sections.length)
+        ...this.extractFromSectionRecursive(section, index, doc.sections.length)
       );
     });
+
+    return knowledge;
+  }
+
+  /**
+   * Recursively extract from section and all its children
+   */
+  private extractFromSectionRecursive(
+    section: MarkdownSection,
+    sectionIndex: number,
+    totalSections: number
+  ): MathematicalKnowledge[] {
+    const knowledge: MathematicalKnowledge[] = [];
+
+    // Extract from this section
+    knowledge.push(
+      ...this.extractFromSection(section, sectionIndex, totalSections)
+    );
+
+    // Recursively extract from children
+    if (section.children && section.children.length > 0) {
+      section.children.forEach((child, childIndex) => {
+        knowledge.push(
+          ...this.extractFromSectionRecursive(
+            child,
+            childIndex,
+            section.children.length
+          )
+        );
+      });
+    }
 
     return knowledge;
   }

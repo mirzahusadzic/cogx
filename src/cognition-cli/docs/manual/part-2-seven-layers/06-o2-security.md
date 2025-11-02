@@ -82,7 +82,7 @@ cognition-cli genesis:docs docs/SECURITY.md --force
 
 ```bash
 # Check overlay status
-cognition-cli overlays
+cognition-cli overlay list
 
 # Query security patterns
 cognition-cli lattice "O2"

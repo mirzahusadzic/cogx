@@ -12,7 +12,7 @@ export default defineConfig({
         text: 'Manual',
         link: '/manual/part-1-foundation/01-cognitive-architecture',
       },
-      { text: 'Get Started', link: '/introduction' },
+      { text: 'Get Started', link: '/00_Introduction' },
     ],
 
     sidebar: [
