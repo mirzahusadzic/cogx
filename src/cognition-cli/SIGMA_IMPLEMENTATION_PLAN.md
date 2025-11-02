@@ -77,8 +77,8 @@ Conversation Turn
    - Edges: Links to related turns
     ↓
 3. Check token budget
-   - If < 180K: Continue normally
-   - If >= 180K: Trigger compression
+   - If < 150K: Continue normally
+   - If >= 150K: Trigger compression
     ↓
 4. Compressor (if triggered)
    - Sort nodes by importance

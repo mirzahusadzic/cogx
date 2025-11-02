@@ -58,7 +58,10 @@ export async function compressContext(
     const turnSize = estimateTokens(turn.content);
 
     // Always preserve paradigm shifts (never compress)
-    if (turn.is_paradigm_shift || turn.importance_score >= opts.preserve_threshold) {
+    if (
+      turn.is_paradigm_shift ||
+      turn.importance_score >= opts.preserve_threshold
+    ) {
       preserved.push(turn.turn_id);
       budget -= turnSize;
       continue;

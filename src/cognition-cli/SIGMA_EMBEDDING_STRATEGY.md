@@ -12,21 +12,24 @@
 ### What We're Using Now
 
 **Overlay Detection** (`analyzer.ts`):
-```typescript
+
+````typescript
 // O1 (Structural)
 if (content.includes('architecture')) scores.O1_structural = 8;
 
 // O6 (Mathematical)
 if (content.includes('```')) scores.O6_mathematical = 8;
-```
+````
 
 **Importance Scoring**:
+
 - Content length
 - Question marks
 - Code blocks
 - Paradigm shift keywords ("eureka", "solved", "breakthrough")
 
 **Graph Edges**:
+
 - Temporal (consecutive turns)
 - References (explicit mentions)
 - No semantic similarity yet
@@ -56,6 +59,7 @@ if (content.includes('```')) scores.O6_mathematical = 8;
 **Problem**: Related turns far apart in time aren't connected
 
 **Example**:
+
 ```
 Turn 5: "How do we handle mouse events in the terminal?"
 Turn 50: "The stdin listener interception solved the mouse issue"
@@ -65,6 +69,7 @@ Currently: No edge (not consecutive, no explicit reference)
 With embeddings: Semantic edge (cosine similarity = 0.85)
 
 **Implementation**:
+
 ```typescript
 // Phase 4: Add to compressor.ts
 import { EmbeddingService } from '@/core/services/embedding.js';
@@ -111,6 +116,7 @@ async function addSemanticEdges(
 **Problem**: Keywords miss semantic matches
 
 **Example**:
+
 ```
 "We need to restructure the component hierarchy"
 ```
@@ -119,6 +125,7 @@ Keyword: No "architecture" → O1 score = 0
 Semantic: Similar to "architecture design structure" → O1 score = 7
 
 **Implementation**:
+
 ```typescript
 // Phase 4: Enhance analyzer.ts
 async function detectOverlayActivation(
@@ -129,13 +136,13 @@ async function detectOverlayActivation(
 
   // Define overlay semantic signatures
   const overlaySignatures = {
-    O1_structural: "architecture structure design components hierarchy",
-    O2_security: "security credentials permissions authentication",
-    O3_lineage: "earlier mentioned discussed previously remember",
-    O4_mission: "goal objective plan strategy purpose",
-    O5_operational: "command workflow execute implement run",
-    O6_mathematical: "algorithm function code formula calculate",
-    O7_strategic: "validate test verify review assess",
+    O1_structural: 'architecture structure design components hierarchy',
+    O2_security: 'security credentials permissions authentication',
+    O3_lineage: 'earlier mentioned discussed previously remember',
+    O4_mission: 'goal objective plan strategy purpose',
+    O5_operational: 'command workflow execute implement run',
+    O6_mathematical: 'algorithm function code formula calculate',
+    O7_strategic: 'validate test verify review assess',
   };
 
   // Get turn embedding
@@ -145,10 +152,7 @@ async function detectOverlayActivation(
   const scores: OverlayScores = {};
   for (const [overlay, signature] of Object.entries(overlaySignatures)) {
     const overlayEmbed = await embedder.getEmbedding(signature, 768);
-    const similarity = cosineSimilarity(
-      turnEmbed.vector,
-      overlayEmbed.vector
-    );
+    const similarity = cosineSimilarity(turnEmbed.vector, overlayEmbed.vector);
     scores[overlay] = Math.round(similarity * 10); // Scale to 0-10
   }
 
@@ -161,6 +165,7 @@ async function detectOverlayActivation(
 **Problem**: Reconstruction misses relevant context
 
 **Example Query**:
+
 ```
 "How did we solve the scrolling issue?"
 ```
@@ -169,6 +174,7 @@ Keyword match: "scroll" appears in 3 turns
 Semantic match: "mouse events", "stdin interception", "scroll" all related (8 turns)
 
 **Implementation**:
+
 ```typescript
 // Phase 4: Enhance reconstructor.ts
 async function findNodesByOverlay(
@@ -200,19 +206,21 @@ async function findNodesByOverlay(
 ### EmbeddingService (`src/core/services/embedding.ts`)
 
 **Features**:
+
 - Queue-based batching (efficient API usage)
 - Rate limiting (respects API limits)
 - Workbench client integration
 - Configurable dimensions (768, 1536, etc.)
 
 **Usage**:
+
 ```typescript
 import { EmbeddingService } from '@/core/services/embedding.js';
 
 const embedder = new EmbeddingService('http://localhost:3001');
 
 const response = await embedder.getEmbedding(
-  "How do we handle mouse events?",
+  'How do we handle mouse events?',
   768 // Dimensions
 );
 
@@ -222,6 +230,7 @@ console.log(response.vector); // Float array [0.123, -0.456, ...]
 ### Vector Database (`src/core/overlays/vector-db`)
 
 **Already exists** for O1, O3, O4 overlays:
+
 - Stores embeddings in ChromaDB
 - Semantic search support
 - Used for code symbol similarity
@@ -233,29 +242,34 @@ console.log(response.vector); // Float array [0.123, -0.456, ...]
 ## Implementation Timeline
 
 ### Phase 1 (Current): ✅ **No Embeddings**
+
 - Keyword-based overlay detection
 - Rule-based importance scoring
 - Temporal + reference edges
 - **Status**: Complete, working
 
 ### Phase 2 (Next 1-2 weeks): **No Embeddings**
+
 - Integrate with useClaudeAgent.ts
 - Test with real TUI sessions
 - Validate compression/reconstruction
 - **Embeddings**: Not needed yet
 
 ### Phase 3 (Before Anthropic Pitch): **No Embeddings**
+
 - Measure metrics (compression ratio, fidelity)
 - Prepare demo materials
 - Test with sample conversations
 - **Embeddings**: Not needed for pitch
 
 ### Phase 4 (Post-Pitch Enhancement): **Add Embeddings**
+
 - After MVP validated
 - When we see concrete needs
 - Based on feedback from usage
 
 **Order of Implementation**:
+
 1. Semantic similarity edges (biggest impact on reconstruction quality)
 2. Better overlay detection (improves classification accuracy)
 3. Query understanding (improves relevance scoring)
@@ -267,17 +281,20 @@ console.log(response.vector); // Float array [0.123, -0.456, ...]
 ### Embedding Generation Costs
 
 **Assumptions**:
+
 - 200K token conversation ≈ 100 turns
 - Each turn ≈ 500 tokens
 - Workbench embedding: $0.0001 per 1K tokens
 
 **Calculations**:
+
 ```
 100 turns × 500 tokens/turn = 50K tokens
 50K tokens × $0.0001/1K = $0.005 (half a cent)
 ```
 
 **Plus semantic similarity**:
+
 ```
 100 nodes × 99 comparisons / 2 = 4,950 comparisons
 (O(n²) but only done once during compression)
@@ -288,11 +305,13 @@ console.log(response.vector); // Float array [0.123, -0.456, ...]
 ### Storage Costs
 
 **Per conversation lattice**:
+
 - 100 nodes × 768 floats × 4 bytes = ~300KB embeddings
 - Plus node metadata: ~50KB
 - **Total**: ~350KB per compressed conversation
 
 **Compared to**:
+
 - Original conversation: 200K tokens ≈ 800KB text
 - Compressed lattice without embeddings: ~10KB
 - Compressed lattice with embeddings: ~360KB
@@ -306,12 +325,14 @@ console.log(response.vector); // Float array [0.123, -0.456, ...]
 ### When to Add Embeddings?
 
 **Add embeddings if**:
+
 - Keyword matching misses relevant turns (false negatives)
 - Reconstruction quality < 90% fidelity
 - Testing non-technical domains (medical, legal) where keywords don't work well
 - User feedback: "Sigma didn't understand my query"
 
 **Don't add embeddings if**:
+
 - Current system works (keyword-based is sufficient)
 - Compression/reconstruction meets targets
 - Adding complexity without proven need
@@ -320,12 +341,14 @@ console.log(response.vector); // Float array [0.123, -0.456, ...]
 ### Testing Without Embeddings First
 
 **Why start simple**:
+
 1. **Faster iteration** - No API dependencies
 2. **Easier debugging** - Rule-based is transparent
 3. **Prove concept** - Compression/reconstruction works regardless
 4. **Baseline metrics** - Can measure improvement when adding embeddings
 
 **Then enhance**:
+
 1. Measure keyword-based performance (baseline)
 2. Add embeddings (one use case at a time)
 3. Measure improvement (quantify benefit)
@@ -342,12 +365,14 @@ console.log(response.vector); // Float array [0.123, -0.456, ...]
 **Detailed Answer**:
 
 **Phase 1-3 (Now - Anthropic Pitch)**:
+
 - ❌ No embeddings generated
 - ✅ Keyword-based detection sufficient
 - ✅ Temporal + reference edges work
 - ✅ Fast to build, test, demo
 
 **Phase 4+ (Post-Pitch Enhancement)**:
+
 - ✅ Generate embeddings during compression
 - ✅ Store in lattice nodes
 - ✅ Use for semantic similarity edges

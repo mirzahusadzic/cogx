@@ -7,6 +7,7 @@ I said "no embeddings until Phase 4" - but you're pointing out something more fu
 **Your Position**: Embeddings are essential and should be generated **as the conversation progresses**, not as a batch post-processing step.
 
 **Why This Makes Sense**:
+
 - Infrastructure already exists (EmbeddingService)
 - Algebraic operations can distill signal from noise automatically
 - The only question is: What's signal vs noise?
@@ -19,6 +20,7 @@ I said "no embeddings until Phase 4" - but you're pointing out something more fu
 ### What You're Saying
 
 The architecture for embeddings exists:
+
 - `EmbeddingService` (queue, batching, rate limiting)
 - Vector DB (ChromaDB)
 - Algebraic operations (cosine similarity, clustering, variance)
@@ -35,6 +37,7 @@ But: "How do we detect paradigm shifts vs routine turns?"
 ### When to Generate Embeddings
 
 **Option A (My Mistake)**: Batch at end
+
 ```typescript
 // WRONG - what I was thinking
 conversation happens (200K tokens)
@@ -47,6 +50,7 @@ build lattice with semantic edges
 ```
 
 **Option B (Your Point)**: Incremental during conversation
+
 ```typescript
 // RIGHT - what you're saying
 each turn arrives
@@ -69,6 +73,7 @@ mark importance based on embedding distance
 ### 1. Infrastructure Already Exists
 
 **EmbeddingService** (`src/core/services/embedding.ts`):
+
 ```typescript
 const embedder = new EmbeddingService(workbenchEndpoint);
 
@@ -82,17 +87,19 @@ const response = await embedder.getEmbedding(turn.content, 768);
 ### 2. Algebraic Operations Distill Signal
 
 **Paradigm Shift Detection** (embedding-based):
+
 ```typescript
 // Current turn embedding
 const currentEmbed = await embedder.getEmbedding(turn.content, 768);
 
 // Compare to recent history (last 10 turns)
-const recentEmbeds = lattice.getRecentNodes(10).map(n => n.embedding);
+const recentEmbeds = lattice.getRecentNodes(10).map((n) => n.embedding);
 
 // Calculate novelty (distance from recent context)
-const novelty = recentEmbeds.map(e =>
-  1 - cosineSimilarity(currentEmbed, e)
-).reduce((sum, d) => sum + d, 0) / recentEmbeds.length;
+const novelty =
+  recentEmbeds
+    .map((e) => 1 - cosineSimilarity(currentEmbed, e))
+    .reduce((sum, d) => sum + d, 0) / recentEmbeds.length;
 
 // High novelty = paradigm shift
 if (novelty > 0.7) {
@@ -106,16 +113,19 @@ if (novelty > 0.7) {
 ### 3. Noise Detection is Automatic
 
 **What's Noise**:
+
 - Low novelty (embedding similar to recent turns)
 - Short content (< 50 chars)
 - No semantic weight (low overlay activation)
 
 **What's Signal**:
+
 - High novelty (embedding distant from recent turns)
 - Overlaps with mission concepts (high O4/O7 scores)
 - Long, detailed content
 
 **Example**:
+
 ```typescript
 Turn A: "ok"
   → embedding close to previous "ok"
@@ -196,11 +206,12 @@ function calculateNovelty(
   if (recentEmbeds.length === 0) return 0.5; // Neutral for first turn
 
   // Average distance from recent context
-  const distances = recentEmbeds.map(e =>
-    1 - cosineSimilarity(currentEmbed, e)
+  const distances = recentEmbeds.map(
+    (e) => 1 - cosineSimilarity(currentEmbed, e)
   );
 
-  const avgDistance = distances.reduce((sum, d) => sum + d, 0) / distances.length;
+  const avgDistance =
+    distances.reduce((sum, d) => sum + d, 0) / distances.length;
 
   // Also check max distance (most novel compared to any single turn)
   const maxDistance = Math.max(...distances);
@@ -217,12 +228,14 @@ function calculateNovelty(
 You're right - embeddings aren't "enhancement", they're **fundamental**:
 
 ### Without Embeddings (My Original Plan)
+
 ```
 Keyword: "architecture" → O1 = 8
 Problem: Misses semantic matches
 ```
 
 ### With Embeddings (Your Point)
+
 ```
 Embedding: "restructure component hierarchy"
 Compare to O1 signature: "architecture design structure"
@@ -234,19 +247,24 @@ Automatic, no keyword list needed!
 ### Paradigm Shift Detection
 
 **Without Embeddings**:
+
 ```typescript
 if (content.includes('eureka') || content.includes('solved')) {
   paradigm_shift = true;
 }
 ```
+
 **Problem**: Keyword brittleness, false negatives
 
 **With Embeddings**:
+
 ```typescript
-if (novelty > 0.7) {  // Semantic distance from recent turns
+if (novelty > 0.7) {
+  // Semantic distance from recent turns
   paradigm_shift = true;
 }
 ```
+
 **Benefit**: Automatic, generalizes, no keywords needed
 
 ---
@@ -259,6 +277,7 @@ if (novelty > 0.7) {  // Semantic distance from recent turns
 **NEW**: Embedding-based analyzer
 
 **Changes**:
+
 ```typescript
 // analyzer.ts
 import { EmbeddingService } from '@/core/services/embedding.js';
@@ -290,6 +309,7 @@ export async function analyzeTurn(
 ### Phase 2 (Integration)
 
 **Hook into TUI** - embedder passed through:
+
 ```typescript
 // useClaudeAgent.ts
 const embedder = new EmbeddingService(workbenchEndpoint);
@@ -300,7 +320,7 @@ useEffect(() => {
   const lastMessage = messages[messages.length - 1];
 
   // Pass embedder to analyzer
-  analyzeTurn(lastMessage, context, embedder).then(analysis => {
+  analyzeTurn(lastMessage, context, embedder).then((analysis) => {
     addToLattice(analysis);
   });
 }, [messages]);
@@ -315,16 +335,19 @@ useEffect(() => {
 **Answer via Embeddings**:
 
 ### Signal (High Importance)
+
 1. **High novelty** - Embedding distant from recent turns (> 0.7)
 2. **High overlay match** - Similar to O1-O7 signatures (> 0.8)
 3. **Complex content** - Long, detailed (> 500 chars)
 
 ### Noise (Low Importance)
+
 1. **Low novelty** - Embedding similar to recent (< 0.3)
 2. **Low overlay match** - Doesn't match any O1-O7 (< 0.5)
 3. **Simple content** - Short, routine (< 50 chars)
 
 **Example**:
+
 ```typescript
 Turn: "ok thanks"
   → Novelty: 0.1 (similar to previous "ok")
@@ -344,11 +367,13 @@ Turn: "stdin listener interception bypasses the escape sequence filter"
 ## Cost/Performance Analysis
 
 ### Per Turn Cost
+
 - Embedding generation: $0.0001 (100 tokens avg)
 - Similarity calculation: negligible (dot product)
 - Storage: 768 floats × 4 bytes = 3KB per turn
 
 ### Per 100 Turn Conversation
+
 - Embedding cost: $0.01
 - Storage: 300KB (embeddings) + 10KB (metadata) = 310KB
 - Latency: Queued/batched (non-blocking)
@@ -368,6 +393,7 @@ Turn: "stdin listener interception bypasses the escape sequence filter"
 **Add**: Embedding-based semantic detection
 
 **Implementation**:
+
 1. Pass `EmbeddingService` to analyzer
 2. Generate embeddings on-the-fly (each turn)
 3. Calculate novelty (automatic paradigm shift detection)
@@ -437,12 +463,14 @@ async function findNodesByOverlay(
 ## Your Position: Correct
 
 **What you're saying**:
+
 1. ✅ Embeddings are essential (not optional enhancement)
 2. ✅ Generate on-the-fly (not batch at end)
 3. ✅ Use algebra to detect signal (novelty, similarity)
 4. ✅ Question is not "embeddings or not" but "what's signal vs noise"
 
 **What I missed**:
+
 - Embeddings ARE the paradigm shift detector (via novelty)
 - Embeddings ARE the overlay detector (via semantic similarity)
 - Infrastructure already exists (just use it)
@@ -453,6 +481,7 @@ async function findNodesByOverlay(
 ## Decision: Embeddings from Day 1
 
 **Change Phase 1 implementation**:
+
 - Use `EmbeddingService` in analyzer
 - Generate embeddings per turn (on-the-fly)
 - Calculate novelty for paradigm shift detection
@@ -460,6 +489,7 @@ async function findNodesByOverlay(
 - Store embeddings in nodes for reconstruction
 
 **Benefits**:
+
 - Automatic signal/noise detection
 - No keyword brittleness
 - Generalizes across domains

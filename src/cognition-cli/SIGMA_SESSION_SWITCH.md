@@ -3,6 +3,7 @@
 ## The Insight
 
 At ~150K tokens, instead of hitting 200K limit:
+
 1. **Compress** current context (150K → 40K via Sigma)
 2. **Switch** to new session (fresh 0 tokens)
 3. **Inject** compressed context as system prompt
@@ -190,6 +191,7 @@ const q = query({
 ```
 
 **Note**: Check if SDK supports `systemPrompt` option. If not:
+
 - Option A: Inject as first user message + assistant response
 - Option B: Modify transcript.jsonl manually before resume
 - Option C: Use SDK's initialization hook if available
@@ -260,6 +262,7 @@ Token count: 0 / 200,000 (+ 40K injected context)
 ### After Switch (Session 2)
 
 User continues typing as normal - no interruption!
+
 - Old context available in compressed form
 - New session has fresh 200K limit
 - Can go another 150K tokens before next compression
@@ -271,15 +274,18 @@ User continues typing as normal - no interruption!
 ### Scenario: 3 Sessions
 
 **Session 1** (0-150K):
+
 - Compress: 150K → 40K lattice
 - Switch to Session 2
 
 **Session 2** (0-150K):
+
 - Load Session 1 lattice (40K)
 - Compress: Session 1 lattice (40K) + Session 2 turns (150K) → 60K lattice
 - Switch to Session 3
 
 **Session 3** (0-150K):
+
 - Load Sessions 1+2 lattice (60K)
 - Compress: Previous lattice (60K) + Session 3 turns (150K) → 80K lattice
 - Switch to Session 4
@@ -293,6 +299,7 @@ After 10 sessions: ~200K tokens compressed (1.5M original tokens!)
 ## Implementation Checklist
 
 ### Phase 1: Basic Session Switch
+
 - [x] Trigger compression at 150K
 - [x] Build lattice with compressor
 - [ ] Reconstruct context from lattice (use reconstructor.ts)
@@ -303,6 +310,7 @@ After 10 sessions: ~200K tokens compressed (1.5M original tokens!)
 - [ ] Test single session switch
 
 ### Phase 2: Multi-Session Support
+
 - [ ] Save lattice to disk (.sigma/session-id.lattice.json)
 - [ ] Load previous lattice on next compression
 - [ ] Merge previous lattice + current turns
@@ -310,12 +318,14 @@ After 10 sessions: ~200K tokens compressed (1.5M original tokens!)
 - [ ] Track session history (IDs + ratios)
 
 ### Phase 3: Reconstruction Quality
+
 - [ ] Validate reconstructed context accuracy
 - [ ] Test paradigm shift preservation across switches
 - [ ] Measure compression ratio over multiple sessions
 - [ ] Optimize reconstruction format (markdown vs JSON)
 
 ### Phase 4: UI Polish
+
 - [ ] Show compression progress bar
 - [ ] Display session history in UI
 - [ ] Allow manual compression trigger
@@ -353,6 +363,7 @@ After 10 sessions: ~200K tokens compressed (1.5M original tokens!)
 5. **Polish UX**: Add progress indicators and session history
 
 Once validated:
+
 - **Infinite context achieved!** 🎯
 - Sessions can continue indefinitely
 - Paradigm shifts always preserved

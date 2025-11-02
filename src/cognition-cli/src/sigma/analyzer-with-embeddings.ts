@@ -156,7 +156,10 @@ export async function analyzeTurn(
   // Extract embeddings if available (from TurnAnalysis objects)
   for (const historyTurn of recentTurns) {
     // If history turn has embedding (from previous analysis), use it
-    if ('embedding' in historyTurn && Array.isArray((historyTurn as any).embedding)) {
+    if (
+      'embedding' in historyTurn &&
+      Array.isArray((historyTurn as any).embedding)
+    ) {
       recentEmbeds.push((historyTurn as any).embedding);
     }
   }
@@ -168,10 +171,7 @@ export async function analyzeTurn(
 
   // 4. Calculate importance (novelty + overlay strength)
   const maxOverlay = Math.max(...Object.values(overlayScores));
-  const importance = Math.min(
-    10,
-    Math.round(novelty * 5 + maxOverlay * 0.5)
-  );
+  const importance = Math.min(10, Math.round(novelty * 5 + maxOverlay * 0.5));
 
   // 5. Paradigm shift = high novelty
   const isParadigmShift = novelty >= opts.paradigm_shift_threshold;

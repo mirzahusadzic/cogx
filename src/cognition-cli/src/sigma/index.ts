@@ -36,7 +36,4 @@ export {
 } from './compressor.js';
 
 // Reconstructor
-export {
-  reconstructContext,
-  getReconstructionStats,
-} from './reconstructor.js';
+export { reconstructContext, getReconstructionStats } from './reconstructor.js';

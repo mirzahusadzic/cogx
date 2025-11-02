@@ -11,6 +11,7 @@ import * as Diff from 'diff';
 import { EmbeddingService } from '../../core/services/embedding.js';
 import { analyzeTurn } from '../../sigma/analyzer-with-embeddings.js';
 import { compressContext } from '../../sigma/compressor.js';
+import { reconstructContext } from '../../sigma/reconstructor.js';
 import type {
   ConversationLattice,
   TurnAnalysis,
@@ -48,6 +49,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const turnAnalyses = useRef<TurnAnalysis[]>([]);
   const embedderRef = useRef<EmbeddingService | null>(null);
   const compressionTriggered = useRef(false);
+  const [injectedContext, setInjectedContext] = useState<string | null>(null);
+  const [currentSessionId, setCurrentSessionId] = useState(options.sessionId);
 
   // Initialize embedding service
   useEffect(() => {
@@ -149,17 +152,70 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               `  Discarded: ${compressionResult.discarded_turns.length} turns\n\n`
           );
 
-          // TODO: Implement session switch
-          // 1. Reconstruct compressed context from lattice
-          // 2. Create new session with reconstructed context as system prompt
-          // 3. Switch to new session seamlessly
-          // 4. Reset token counter
-          // 5. Continue conversation with infinite context
-          fs.appendFileSync(
-            path.join(options.cwd, 'tui-debug.log'),
-            `[SIGMA] TODO: Switch to new session with compressed context\n` +
-              `  Next: Implement reconstructContext() → new session → inject as system prompt\n\n`
-          );
+          // Implement session switch
+          (async () => {
+            try {
+              // 1. Reconstruct compressed context from lattice
+              const reconstructed = await reconstructContext(
+                'full_context', // Query for full context reconstruction
+                compressionResult.lattice,
+                {
+                  token_budget: 40000,
+                  max_nodes: 100,
+                  sort_by: 'importance',
+                  include_neighbors: true,
+                }
+              );
+
+              // 2. Save lattice to disk for multi-session compression
+              const latticeDir = path.join(options.cwd, '.sigma');
+              fs.mkdirSync(latticeDir, { recursive: true });
+              fs.writeFileSync(
+                path.join(latticeDir, `${currentSessionId}.lattice.json`),
+                JSON.stringify(compressionResult.lattice, null, 2)
+              );
+
+              // 3. Generate new session ID
+              const newSessionId = `${currentSessionId}-sigma-${Date.now()}`;
+
+              // 4. Store reconstructed context for injection on next query
+              setInjectedContext(reconstructed.prompt);
+
+              // 5. Update session ID
+              setCurrentSessionId(newSessionId);
+
+              // 6. Reset state for new session
+              setTokenCount({ input: 0, output: 0, total: 0 });
+              compressionTriggered.current = false;
+              turnAnalyses.current = [];
+
+              // 7. Add system message to UI
+              setMessages((prev) => [
+                ...prev,
+                {
+                  type: 'system',
+                  content: `🔄 Context compressed (${compressionResult.compression_ratio.toFixed(1)}x ratio). New session started with preserved context.`,
+                  timestamp: new Date(),
+                },
+              ]);
+
+              // 8. Log session switch
+              fs.appendFileSync(
+                path.join(options.cwd, 'tui-debug.log'),
+                `[SIGMA] Session switch completed\n` +
+                  `  Old session: ${currentSessionId}\n` +
+                  `  New session: ${newSessionId}\n` +
+                  `  Compressed context: ${reconstructed.prompt.length} chars (~${Math.round(reconstructed.prompt.length / 4)} tokens)\n` +
+                  `  Lattice saved: .sigma/${currentSessionId}.lattice.json\n` +
+                  `  Ready for next 150K tokens\n\n`
+              );
+            } catch (switchErr) {
+              fs.appendFileSync(
+                path.join(options.cwd, 'tui-debug.log'),
+                `[SIGMA ERROR] Session switch failed: ${(switchErr as Error).message}\n`
+              );
+            }
+          })();
         }
       } catch (err) {
         // Log analysis errors but don't break the UI
@@ -294,12 +350,25 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         // Collect stderr for better error messages
         const stderrLines: string[] = [];
 
-        // Create query
+        // Check if we have compressed context to inject (from session switch)
+        let effectiveSystemPrompt: string | undefined = undefined;
+        if (injectedContext) {
+          effectiveSystemPrompt = injectedContext;
+          setInjectedContext(null); // Clear after using
+
+          fs.appendFileSync(
+            path.join(options.cwd, 'tui-debug.log'),
+            `[SIGMA] Injecting compressed context (${injectedContext.length} chars) into new session\n\n`
+          );
+        }
+
+        // Create query with optional system prompt injection
         const q = query({
           prompt,
           options: {
             cwd: options.cwd,
-            resume: options.sessionId,
+            resume: currentSessionId, // Use current session ID (may be switched)
+            systemPrompt: effectiveSystemPrompt, // Inject compressed context if available
             includePartialMessages: true, // Get streaming updates
             stderr: (data: string) => {
               stderrLines.push(data);
@@ -336,7 +405,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         setIsThinking(false);
       }
     },
-    [options.cwd, options.sessionId]
+    [options.cwd, currentSessionId, injectedContext]
   );
 
   const processSDKMessage = (sdkMessage: SDKMessage) => {
@@ -601,5 +670,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     error,
     tokenCount,
     conversationLattice, // Sigma compressed context
+    currentSessionId, // Active session ID (may switch)
   };
 }

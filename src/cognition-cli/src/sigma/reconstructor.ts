@@ -108,9 +108,7 @@ function analyzeQuery(query: string): OverlayScores {
   };
 
   // O1: Architecture, structure
-  if (
-    /\b(architecture|structure|design|component|interface)\b/.test(content)
-  ) {
+  if (/\b(architecture|structure|design|component|interface)\b/.test(content)) {
     scores.O1_structural = 8;
   }
 
@@ -186,8 +184,7 @@ function calculateNodeRelevance(
 
   // Compare node's overlay scores with query overlays
   for (const [overlay, queryScore] of Object.entries(queryOverlays)) {
-    const nodeScore =
-      node.overlay_scores[overlay as keyof OverlayScores] || 0;
+    const nodeScore = node.overlay_scores[overlay as keyof OverlayScores] || 0;
 
     if (queryScore > 0 && nodeScore > 0) {
       // Both query and node have this overlay active
@@ -305,9 +302,7 @@ function calculateRelevance(
 /**
  * Get reconstruction statistics (for debugging)
  */
-export function getReconstructionStats(
-  context: ReconstructedContext
-): {
+export function getReconstructionStats(context: ReconstructedContext): {
   turn_count: number;
   token_count: number;
   relevance_score: number;

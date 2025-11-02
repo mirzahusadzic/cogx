@@ -11,12 +11,14 @@ Validate that Context Sampling Sigma integrates correctly with the TUI and perfo
 **Test**: Verify embeddings are generated for each turn
 
 **Steps**:
+
 1. Start TUI session
 2. Send a few messages (user + assistant)
 3. Check `tui-debug.log` for embedding generation
 4. Verify no errors in analysis
 
 **Expected**:
+
 - Each user/assistant message triggers `analyzeTurn`
 - Embeddings stored with each analysis
 - No SIGMA ERROR messages in log
@@ -28,11 +30,13 @@ Validate that Context Sampling Sigma integrates correctly with the TUI and perfo
 **Test**: Verify novelty increases for novel content
 
 **Steps**:
+
 1. Send repetitive message ("hello")
 2. Send novel message ("Let's implement a context compression system using embeddings and lattice graphs")
 3. Check turn analyses for novelty scores
 
 **Expected**:
+
 - Repetitive message: low novelty (< 0.4)
 - Novel message: high novelty (> 0.6)
 - Paradigm shift detected if novelty > 0.7
@@ -44,15 +48,18 @@ Validate that Context Sampling Sigma integrates correctly with the TUI and perfo
 **Test**: Verify compression triggers at 180K tokens
 
 **Note**: This requires a long conversation. For testing, we can:
+
 - Option A: Lower threshold temporarily (e.g., 5K tokens)
 - Option B: Load existing long session transcript
 
 **Steps**:
+
 1. Modify `TOKEN_THRESHOLD` to 5000 in useClaudeAgent.ts
 2. Have conversation with ~10 messages
 3. Check for compression trigger in `tui-debug.log`
 
 **Expected**:
+
 - `[SIGMA] Compression triggered at XXXX tokens`
 - Compression ratio > 5x
 - Paradigm shifts preserved
@@ -65,6 +72,7 @@ Validate that Context Sampling Sigma integrates correctly with the TUI and perfo
 **Test**: Verify lattice is built correctly
 
 **Steps**:
+
 1. After compression triggers, check log for:
    - Node count
    - Edge count
@@ -72,6 +80,7 @@ Validate that Context Sampling Sigma integrates correctly with the TUI and perfo
    - Compression ratio
 
 **Expected**:
+
 - Nodes include preserved + summarized turns
 - Edges connect temporal + semantic relationships
 - Paradigm shifts all preserved
@@ -93,6 +102,7 @@ npm run tui
 ```
 
 Check `tui-debug.log` for:
+
 - `[SIGMA ERROR]` (should not appear)
 - Embedding generation (implicit in analysis)
 - Novelty scores varying with content
@@ -122,6 +132,7 @@ Check `tui-debug.log` for:
 4. **Revert threshold**: Change back to 180000 for production
 
 Once validated:
+
 - Write Anthropic collaboration pitch
 - Document Sigma architecture
 - Prepare demo materials
