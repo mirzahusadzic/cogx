@@ -49,7 +49,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const turnAnalyses = useRef<TurnAnalysis[]>([]);
   const embedderRef = useRef<EmbeddingService | null>(null);
   const compressionTriggered = useRef(false);
-  const [injectedContext, setInjectedContext] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState(options.sessionId);
 
   // Initialize embedding service
@@ -152,22 +151,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               `  Discarded: ${compressionResult.discarded_turns.length} turns\n\n`
           );
 
-          // Implement session switch
+          // Save lattice to disk - KEEP IT ALIVE (no markdown flattening!)
           (async () => {
             try {
-              // 1. Reconstruct compressed context from lattice
-              const reconstructed = await reconstructContext(
-                'full_context', // Query for full context reconstruction
-                compressionResult.lattice,
-                {
-                  token_budget: 40000,
-                  max_nodes: 100,
-                  sort_by: 'importance',
-                  include_neighbors: true,
-                }
-              );
-
-              // 2. Save lattice to disk for multi-session compression
+              // 1. Save lattice to disk (graph structure preserved)
               const latticeDir = path.join(options.cwd, '.sigma');
               fs.mkdirSync(latticeDir, { recursive: true });
               fs.writeFileSync(
@@ -175,39 +162,38 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                 JSON.stringify(compressionResult.lattice, null, 2)
               );
 
-              // 3. Generate new session ID
+              // 2. Generate new session ID
               const newSessionId = `${currentSessionId}-sigma-${Date.now()}`;
 
-              // 4. Store reconstructed context for injection on next query
-              setInjectedContext(reconstructed.prompt);
-
-              // 5. Update session ID
+              // 3. Update session ID
               setCurrentSessionId(newSessionId);
 
-              // 6. Reset state for new session
+              // 4. Reset state for new session
               setTokenCount({ input: 0, output: 0, total: 0 });
               compressionTriggered.current = false;
-              turnAnalyses.current = [];
+              turnAnalyses.current = []; // Clear for new session
 
-              // 7. Add system message to UI
+              // 5. Add system message to UI
               setMessages((prev) => [
                 ...prev,
                 {
                   type: 'system',
-                  content: `🔄 Context compressed (${compressionResult.compression_ratio.toFixed(1)}x ratio). New session started with preserved context.`,
+                  content: `🔄 Context compressed (${compressionResult.compression_ratio.toFixed(1)}x ratio). Lattice saved, ready for semantic retrieval.`,
                   timestamp: new Date(),
                 },
               ]);
 
-              // 8. Log session switch
+              // 6. Log session switch
               fs.appendFileSync(
                 path.join(options.cwd, 'tui-debug.log'),
                 `[SIGMA] Session switch completed\n` +
                   `  Old session: ${currentSessionId}\n` +
                   `  New session: ${newSessionId}\n` +
-                  `  Compressed context: ${reconstructed.prompt.length} chars (~${Math.round(reconstructed.prompt.length / 4)} tokens)\n` +
                   `  Lattice saved: .sigma/${currentSessionId}.lattice.json\n` +
-                  `  Ready for next 150K tokens\n\n`
+                  `  Nodes: ${compressionResult.lattice.nodes.length}\n` +
+                  `  Edges: ${compressionResult.lattice.edges.length}\n` +
+                  `  Graph structure preserved (alive!)\n` +
+                  `  Ready for query-driven retrieval\n\n`
               );
             } catch (switchErr) {
               fs.appendFileSync(
@@ -350,25 +336,12 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         // Collect stderr for better error messages
         const stderrLines: string[] = [];
 
-        // Check if we have compressed context to inject (from session switch)
-        let effectiveSystemPrompt: string | undefined = undefined;
-        if (injectedContext) {
-          effectiveSystemPrompt = injectedContext;
-          setInjectedContext(null); // Clear after using
-
-          fs.appendFileSync(
-            path.join(options.cwd, 'tui-debug.log'),
-            `[SIGMA] Injecting compressed context (${injectedContext.length} chars) into new session\n\n`
-          );
-        }
-
-        // Create query with optional system prompt injection
+        // Create query (lattice stays alive, no context injection needed)
         const q = query({
           prompt,
           options: {
             cwd: options.cwd,
             resume: currentSessionId, // Use current session ID (may be switched)
-            systemPrompt: effectiveSystemPrompt, // Inject compressed context if available
             includePartialMessages: true, // Get streaming updates
             stderr: (data: string) => {
               stderrLines.push(data);
@@ -405,7 +378,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         setIsThinking(false);
       }
     },
-    [options.cwd, currentSessionId, injectedContext]
+    [options.cwd, currentSessionId]
   );
 
   const processSDKMessage = (sdkMessage: SDKMessage) => {
