@@ -9,6 +9,7 @@ import { OverlaysBar } from './components/OverlaysBar.js';
 import { ClaudePanelAgent } from './components/ClaudePanelAgent.js';
 import { InputBox } from './components/InputBox.js';
 import { StatusBar } from './components/StatusBar.js';
+import { SigmaInfoPanel } from './components/SigmaInfoPanel.js';
 import { useClaudeAgent } from './hooks/useClaudeAgent.js';
 import { useOverlays } from './hooks/useOverlays.js';
 
@@ -43,9 +44,10 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   const [focused, setFocused] = useState(true);
   const [renderError, setRenderError] = useState<Error | null>(null);
   const [mouseEnabled, setMouseEnabled] = useState(true);
+  const [showInfoPanel, setShowInfoPanel] = useState(false);
 
   const { overlays, loading } = useOverlays({ pgcRoot, workbenchUrl });
-  const { messages, sendMessage, isThinking, error, tokenCount, interrupt, sigmaStats } =
+  const { messages, sendMessage, isThinking, error, tokenCount, interrupt, sigmaStats, avgOverlays } =
     useClaudeAgent({
       sessionId,
       cwd: projectRoot, // Use project root, not .open_cognition dir
@@ -136,6 +138,9 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     } else if (key.tab) {
       // Toggle focus between input and panel
       setFocused((prev) => !prev);
+    } else if (input === 'i' && !key.ctrl && !key.shift && !key.meta && !focused) {
+      // Toggle info panel with 'i' key (only when NOT in input box)
+      setShowInfoPanel((prev) => !prev);
     } else if (input === 'm' && !key.ctrl && !key.shift && !key.meta && !focused) {
       // Toggle mouse mode with 'm' key (only when NOT in input box)
       setMouseEnabled((prev) => !prev);
@@ -183,13 +188,18 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       <ThemeProvider theme={customTheme}>
         <Box flexDirection="column" width="100%" height="100%" paddingTop={0} marginTop={0}>
           <OverlaysBar sigmaStats={sigmaStats} />
-          <Box flexGrow={1} flexShrink={1} minHeight={0} width="100%" overflow="hidden">
+          <Box flexGrow={1} flexShrink={1} minHeight={0} width="100%" overflow="hidden" flexDirection="row">
             <ClaudePanelAgent
               messages={messages}
               isThinking={isThinking}
               focused={!focused}
               onScrollDetected={() => setFocused(false)}
             />
+            {showInfoPanel && sigmaStats && (
+              <Box marginLeft={1}>
+                <SigmaInfoPanel sigmaStats={sigmaStats} overlays={avgOverlays} />
+              </Box>
+            )}
           </Box>
           <InputBox
             onSubmit={sendMessage}

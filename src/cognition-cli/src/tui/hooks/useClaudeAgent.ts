@@ -8,6 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import * as Diff from 'diff';
+import chalk from 'chalk';
 import { EmbeddingService } from '../../core/services/embedding.js';
 import { analyzeTurn } from '../../sigma/analyzer-with-embeddings.js';
 import { compressContext } from '../../sigma/compressor.js';
@@ -48,7 +49,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   // Debug logger (only logs if debug flag is set)
   const debug = (message: string, ...args: unknown[]) => {
     if (options.debug) {
-      const chalk = require('chalk');
       console.log(chalk.dim(`[Σ] ${message}`), ...args);
     }
   };
@@ -969,6 +969,30 @@ New Session: ${stateSummary.newSessionId}
         : 0,
   };
 
+  // Calculate average overlay scores
+  const avgOverlays = {
+    O1_structural: 0,
+    O2_security: 0,
+    O3_lineage: 0,
+    O4_mission: 0,
+    O5_operational: 0,
+    O6_mathematical: 0,
+    O7_strategic: 0,
+  };
+
+  if (turnAnalyses.current.length > 0) {
+    turnAnalyses.current.forEach((turn) => {
+      Object.keys(avgOverlays).forEach((key) => {
+        avgOverlays[key as keyof typeof avgOverlays] +=
+          turn.overlay_scores[key as keyof typeof turn.overlay_scores];
+      });
+    });
+    Object.keys(avgOverlays).forEach((key) => {
+      avgOverlays[key as keyof typeof avgOverlays] /=
+        turnAnalyses.current.length;
+    });
+  }
+
   return {
     messages,
     sendMessage,
@@ -979,5 +1003,6 @@ New Session: ${stateSummary.newSessionId}
     conversationLattice, // Sigma compressed context
     currentSessionId, // Active session ID (may switch)
     sigmaStats, // Lattice statistics for header display
+    avgOverlays, // Average overlay scores for info panel
   };
 }
