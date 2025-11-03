@@ -5,6 +5,27 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2025-11-03
+
+### 🐛 Bug Fixes
+
+#### TUI SDK Hang on Fresh Session Starts
+
+Fixed a critical issue where the TUI would hang indefinitely when starting without a session ID, leaving users stuck with the "Thinking..." spinner.
+
+**Root Cause**: The MCP recall server was being passed to the SDK even on fresh starts with no conversation history, potentially causing initialization delays or blocking behavior.
+
+**Changes**:
+
+- Conditionally enable MCP recall server only when conversation history exists:
+  - When resuming an existing session (`currentResumeId` is set), OR
+  - After first turn is analyzed (`turnAnalyses.current.length > 0`)
+- Fix `sendMessage` dependency array to use `resumeSessionId` instead of `currentSessionId` to prevent callback recreation during SDK session ID updates
+- Add enhanced debug logging for SDK query lifecycle and message processing
+- Add error detection and user feedback when SDK completes without response
+
+**Impact**: Fresh sessions now start immediately without MCP overhead, while resumed and post-compression sessions maintain full recall capabilities.
+
 ## [2.0.0] - 2025-11-03 - 🎯 Sigma Release
 
 ### 💥 BREAKING CHANGES
