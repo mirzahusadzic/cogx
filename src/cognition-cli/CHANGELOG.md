@@ -119,7 +119,7 @@ The introduction of Σ (Sigma) fundamentally changes how AI agents maintain stat
   - Propagates through entire conversation overlay system
 
 - **Full stack integration**
-  - `useClaudeAgent` hook accepts `debug` option
+  - Agent hook accepts `debug` option
   - `ConversationOverlayRegistry` passes debug to all managers
   - All 7 conversation overlay managers forward debug flag
   - TUI respects `--debug` CLI flag
@@ -144,7 +144,7 @@ The introduction of Σ (Sigma) fundamentally changes how AI agents maintain stat
   - Performance characteristics and benchmarks
 
 - **Comparison tables**
-  - vs. Anthropic Contexts/Memory
+  - vs. Cloud-based memory systems
   - vs. Traditional RAG
   - vs. Long Context Windows (200K)
   - Feature-by-feature analysis with honest assessment
@@ -236,11 +236,13 @@ The introduction of Σ (Sigma) fundamentally changes how AI agents maintain stat
 **Token efficiency analysis:**
 
 Traditional approach (without Sigma):
+
 - ~30-50% of tokens wasted on re-explanation
 - Context compression overhead every session
 - $547.50/year per user in wasted tokens (at $3/M tokens)
 
 Sigma approach:
+
 - 76K tokens saved per 150K session (50%)
 - Zero re-explanation overhead
 - Local eGemma: $0 ongoing cost
@@ -293,7 +295,7 @@ cognition-cli --version
 ### 🙏 Acknowledgments
 
 - eGemma workbench for embeddings and LLM orchestration
-- Anthropic Claude SDK for agent infrastructure
+- Agent SDK for infrastructure
 - Lattice algebra theory for mathematical foundations
 - The artist's workflow: "Block in shapes, then refine"
 
