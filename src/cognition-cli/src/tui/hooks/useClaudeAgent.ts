@@ -831,7 +831,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
         // Create query with optional intelligent recap injection
         // After compression, resumeSessionId will be undefined → SDK creates fresh session
-        debugLog(`[QUERY START] Creating query with resume=${currentResumeId}, hasRecap=${!!systemPrompt}\n`);
+        debugLog(
+          `[QUERY START] Creating query with resume=${currentResumeId}, hasRecap=${!!systemPrompt}\n`
+        );
 
         const q = query({
           prompt,
@@ -878,16 +880,19 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           processSDKMessage(message);
         }
 
-        debugLog(`[QUERY LOOP] Query completed. Messages: ${messageCount}, hadAssistant: ${hasAssistantMessage}\n`);
+        debugLog(
+          `[QUERY LOOP] Query completed. Messages: ${messageCount}, hadAssistant: ${hasAssistantMessage}\n`
+        );
         if (stderrLines.length > 0) {
           debugLog(`[STDERR SUMMARY] ${stderrLines.join('\n')}\n`);
         }
 
         // If query completed without assistant response, show error
         if (!hasAssistantMessage && messageCount <= 1) {
-          const errorMsg = stderrLines.length > 0
-            ? `SDK error: ${stderrLines.join(' ')}`
-            : 'SDK completed without response - check authentication';
+          const errorMsg =
+            stderrLines.length > 0
+              ? `SDK error: ${stderrLines.join(' ')}`
+              : 'SDK completed without response - check authentication';
           setError(errorMsg);
           setMessages((prev) => [
             ...prev,
