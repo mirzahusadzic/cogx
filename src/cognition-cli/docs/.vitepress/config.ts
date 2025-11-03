@@ -119,6 +119,16 @@ export default defineConfig({
               },
             ],
           },
+          {
+            text: 'Part VI: Σ (Sigma) - Infinite Context',
+            collapsed: false,
+            items: [
+              {
+                text: '21 - Sigma Architecture',
+                link: '/manual/part-6-sigma/21-sigma-architecture',
+              },
+            ],
+          },
         ],
       },
       {
