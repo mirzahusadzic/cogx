@@ -644,7 +644,9 @@ export class OverlayOrchestrator {
   private detectLanguage(ext: string): Language {
     const map: Record<string, Language> = {
       '.ts': 'typescript',
+      '.tsx': 'typescript',
       '.js': 'javascript',
+      '.jsx': 'javascript',
       '.py': 'python',
       '.java': 'java',
       '.rs': 'rust',
