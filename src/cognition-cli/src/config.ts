@@ -38,8 +38,10 @@ export const WORKBENCH_DEPENDENT_EXTRACTION_METHODS = [
 
 export const DEFAULT_FILE_EXTENSIONS = [
   '.ts',
+  '.tsx',
   '.d.ts',
   '.js',
+  '.jsx',
   '.py',
   '.java',
   '.rs',

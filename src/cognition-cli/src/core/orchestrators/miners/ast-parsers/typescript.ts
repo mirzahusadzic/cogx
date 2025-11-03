@@ -33,6 +33,7 @@ export class TypeScriptParser implements ASTParser {
       reportDiagnostics: true,
       compilerOptions: {
         target: ts.ScriptTarget.Latest,
+        jsx: ts.JsxEmit.React,
         noEmit: true,
       },
     });

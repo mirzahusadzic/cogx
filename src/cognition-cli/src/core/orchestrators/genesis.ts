@@ -483,9 +483,13 @@ export class GenesisOrchestrator {
         '**/.venv*/**',
         '**/.*/**', // All hidden directories
         '**/*.test.ts',
+        '**/*.test.tsx',
         '**/*.test.js',
+        '**/*.test.jsx',
         '**/*.spec.ts',
+        '**/*.spec.tsx',
         '**/*.spec.js',
+        '**/*.spec.jsx',
       ],
       nodir: true,
     });
@@ -520,7 +524,9 @@ export class GenesisOrchestrator {
   private detectLanguage(ext: string): Language {
     const map: Record<string, Language> = {
       '.ts': 'typescript',
+      '.tsx': 'typescript',
       '.js': 'javascript',
+      '.jsx': 'javascript',
       '.py': 'python',
       '.java': 'java',
       '.rs': 'rust',
