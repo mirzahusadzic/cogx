@@ -720,12 +720,16 @@ The asymmetric human provides creative projection.
 
 ## References
 
-- [Sigma TUI Implementation](../../../src/tui/README.md)
-- [Conversation Overlay Registry](../../../src/sigma/conversation-registry.ts)
-- [Turn Analyzer](../../../src/sigma/analyzer-with-embeddings.ts)
-- [Context Compressor](../../../src/sigma/compressor.ts)
-- [Context Reconstructor](../../../src/sigma/context-reconstructor.ts)
-- [MCP Recall Tool](../../../src/sigma/recall-tool.ts)
+### Implementation Files
+
+- `src/tui/README.md` - TUI implementation documentation
+- `src/sigma/conversation-registry.ts` - Conversation overlay registry
+- `src/sigma/analyzer-with-embeddings.ts` - Turn analysis and alignment scoring
+- `src/sigma/compressor.ts` - Context compression logic
+- `src/sigma/context-reconstructor.ts` - Session resurrection
+- `src/sigma/recall-tool.ts` - MCP memory tool
+
+See the [GitHub repository](https://github.com/mirzahusadzic/cogx) for full source code.
 
 ---
 
