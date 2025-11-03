@@ -826,17 +826,23 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           );
         }
 
+        // Get current resume session ID
+        const currentResumeId = resumeSessionId;
+
         // Create query with optional intelligent recap injection
         // After compression, resumeSessionId will be undefined → SDK creates fresh session
+        debugLog(`[QUERY START] Creating query with resume=${currentResumeId}, hasRecap=${!!systemPrompt}\n`);
+
         const q = query({
           prompt,
           options: {
             cwd: options.cwd,
-            resume: resumeSessionId, // undefined after compression = fresh session!
+            resume: currentResumeId, // undefined after compression = fresh session!
             systemPrompt, // Inject intelligent recap if available
             includePartialMessages: true, // Get streaming updates
             stderr: (data: string) => {
               stderrLines.push(data);
+              debugLog(`[STDERR] ${data}\n`);
             },
             canUseTool: async (toolName, input) => {
               // Auto-approve all tools for now (we can add UI prompts later)
@@ -846,19 +852,51 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               };
             },
             // Add recall MCP server for on-demand memory queries
-            mcpServers: recallMcpServerRef.current
-              ? {
-                  'conversation-memory': recallMcpServerRef.current,
-                }
-              : undefined,
+            // Only enable when there's conversation history (resuming or post-compression)
+            mcpServers:
+              recallMcpServerRef.current &&
+              (currentResumeId || turnAnalyses.current.length > 0)
+                ? {
+                    'conversation-memory': recallMcpServerRef.current,
+                  }
+                : undefined,
           },
         });
 
         setCurrentQuery(q);
 
+        debugLog(`[QUERY LOOP] Starting to process SDK messages\n`);
         // Process streaming messages
+        let messageCount = 0;
+        let hasAssistantMessage = false;
         for await (const message of q) {
+          messageCount++;
+          debugLog(`[QUERY LOOP] Processing message type: ${message.type}\n`);
+          if (message.type === 'assistant') {
+            hasAssistantMessage = true;
+          }
           processSDKMessage(message);
+        }
+
+        debugLog(`[QUERY LOOP] Query completed. Messages: ${messageCount}, hadAssistant: ${hasAssistantMessage}\n`);
+        if (stderrLines.length > 0) {
+          debugLog(`[STDERR SUMMARY] ${stderrLines.join('\n')}\n`);
+        }
+
+        // If query completed without assistant response, show error
+        if (!hasAssistantMessage && messageCount <= 1) {
+          const errorMsg = stderrLines.length > 0
+            ? `SDK error: ${stderrLines.join(' ')}`
+            : 'SDK completed without response - check authentication';
+          setError(errorMsg);
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: 'system',
+              content: `❌ ${errorMsg}`,
+              timestamp: new Date(),
+            },
+          ]);
         }
 
         setIsThinking(false);
@@ -876,7 +914,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         setIsThinking(false);
       }
     },
-    [options.cwd, currentSessionId, injectedRecap]
+    [options.cwd, resumeSessionId, injectedRecap]
   );
 
   const processSDKMessage = (sdkMessage: SDKMessage) => {
