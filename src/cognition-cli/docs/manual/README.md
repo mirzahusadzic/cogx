@@ -9,7 +9,7 @@ overlay: O4_Mission
 
 Version: 1.0 (In Progress)
 Status: Living Document
-Last Updated: October 30, 2025
+Last Updated: November 3, 2025
 
 ---
 
@@ -162,11 +162,19 @@ eGemma personas. Coherence validators. Mission validators. Security validators.
 
 ---
 
+### Part VI: Σ (Sigma) — Infinite Context (~80 pages)
+
+**Chapter 21: Sigma Architecture**
+`part-6-sigma/21-sigma-architecture.md`
+Dual-lattice architecture. Meet operations. Conversation overlays (O1-O7). Session lifecycle management. Intelligent compression at 150K tokens. Context reconstruction. The symmetric machine (perfect memory) meets the asymmetric human (creative projection). Stateful AI with infinite continuity.
+
+---
+
 ## Reading Paths
 
 ### For Implementers (Full Path)
 
-Read sequentially from Part I through Part V.
+Read sequentially from Part I through Part VI.
 
 ### For Query Users (Fast Path)
 
@@ -189,6 +197,13 @@ Read sequentially from Part I through Part V.
 3. Chapter 4: Embeddings
 4. Chapter 11: O₇ Coherence
 5. Chapter 12: Boolean Operations
+
+### For AI Engineers (Stateful AI Focus)
+
+1. Chapter 3: Why Overlays? (understand lattice structure)
+2. Chapter 21: Sigma Architecture ⭐ (infinite context via dual-lattice)
+3. Chapter 11: O₇ Coherence (alignment scoring)
+4. Chapter 12: Boolean Operations (Meet operations)
 
 ---
 
@@ -239,6 +254,10 @@ Read sequentially from Part I through Part V.
 - 🔄 Chapter 18: Operational Flow (migrate from CPOW_OPERATIONAL_LOOP.md)
 - 📋 Chapter 19: Quest Structures
 - 📋 Chapter 20: Validation Oracles
+
+### Part VI: Σ (Sigma) — Infinite Context ✅ COMPLETE
+
+- ✅ Chapter 21: Sigma Architecture (COMPLETE - 800 lines)
 
 ---
 
