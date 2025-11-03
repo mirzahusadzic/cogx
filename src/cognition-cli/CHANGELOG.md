@@ -41,8 +41,8 @@ The introduction of Σ (Sigma) fundamentally changes how AI agents maintain stat
   - 7-dimensional intelligent recap generated via lattice algebra
 
 - **Session lifecycle management**
-  - Phase 1: Normal operation (0-150K tokens) - in-memory lattice building
-  - Phase 2: Compression trigger - flush overlays, generate recap, clear memory
+  - Phase 1: Normal operation (0-150K tokens) - in-memory lattice building with periodic flush
+  - Phase 2: Compression trigger - flush overlays, generate recap, keep memory for continuity
   - Phase 3: Session resurrection - reconstruct context from intelligent recap
   - Seamless continuity across unlimited sessions
 
@@ -51,6 +51,23 @@ The introduction of Σ (Sigma) fundamentally changes how AI agents maintain stat
   - Rich system prompt with session statistics
   - MCP `recall_past_conversation` tool for deep memory access
   - User experiences zero context loss
+
+- **High-fidelity memory recall system**
+  - Specialized `conversation_memory_assistant` persona for recall synthesis
+  - Query deconstruction via `query_analyst` persona (SLM)
+  - Multi-overlay search across all O1-O7 with embeddings
+  - Temporal re-ranking: results sorted chronologically for coherence
+  - Enhanced context synthesis with importance/alignment/overlay metadata
+  - Retry mechanism: 5 retries with exponential backoff for 429 errors
+  - Increased coverage: topK from 5 → 10 for better context
+  - Pretty display: 🧠 icon for memory recall tool in TUI
+  - Preserves technical details (file names, function names, decisions)
+
+- **Periodic overlay persistence**
+  - Automatic flush every 5 turns (prevents data loss in short sessions)
+  - Cleanup flush on TUI exit/unmount (guarantees data is saved)
+  - Overlays remain in memory across SDK session boundaries
+  - Memory available even before compression triggers (150K tokens)
 
 - **Performance characteristics**
   - Per-turn overhead: 300-500ms (embedding + alignment scoring)
