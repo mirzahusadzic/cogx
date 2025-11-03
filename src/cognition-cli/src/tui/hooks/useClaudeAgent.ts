@@ -92,7 +92,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
   // Session management for Sigma compression
   // When we compress, we start a FRESH session (no resume) with intelligent recap
-  const [resumeSessionId, setResumeSessionId] = useState(options.sessionId);
+  // If resuming a compressed session, we forward to the new session automatically
+  const [resumeSessionId, setResumeSessionId] = useState<string | undefined>(
+    undefined
+  ); // Will be set in loadSessionState
   const [currentSessionId, setCurrentSessionId] = useState(
     options.sessionId || `tui-${Date.now()}`
   );
@@ -437,93 +440,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                 JSON.stringify(stateSummary, null, 2)
               );
 
-              // 3c. Handoff document for next Claude session
-              const handoffDoc = `# SIGMA COMPRESSION - SESSION HANDOFF
-
-## What Just Happened
-
-This TUI session just successfully completed a **Sigma compression cycle**. This is a proof-of-concept for infinite context management that bypasses the SDK's built-in session management.
-
-## The Big Picture
-
-**Goal:** Prove that we can manage infinite conversation context better than the SDK's built-in approach by:
-1. Letting SDK build context naturally until hitting a threshold (3K tokens for testing, 150K for production)
-2. Compressing the context using semantic analysis (novelty detection, paradigm shifts, importance scoring)
-3. **Killing the old SDK session completely**
-4. **Starting a fresh new SDK session** with only an intelligent recap as context
-5. Continuing the conversation seamlessly - SDK thinks it's a new conversation with just ~45 tokens
-
-## Key Innovation
-
-This is NOT just RAG or vector search. It's a **stateful AI agent with a living knowledge graph (lattice)**:
-- Semantic turn analysis with embeddings (via eGemma)
-- Novelty detection against recent context
-- Dual-mode reconstruction (Quest vs Chat)
-- Session lifecycle management to bypass SDK limits
-
-## What to Check
-
-### 1. Files Created
-- \`${currentSessionId}.state.json\` - This file! Complete state summary
-- \`${currentSessionId}.recap.txt\` - The intelligent recap injected into new session
-- \`${currentSessionId}.lattice.json\` - Full conversation graph (nodes + edges)
-
-### 2. Session Restart
-After compression, the TUI:
-- Set \`resumeSessionId = undefined\` (no resume!)
-- Next message starts a FRESH SDK session
-- Recap injected via \`systemPrompt\`
-- Token count should restart from ~${Math.round(reconstructed.recap.length / 4)} tokens (SDK's true count)
-
-### 3. Success Indicators
-✅ Compression triggered at ${tokenCount.total} tokens
-✅ Lattice saved with ${compressionResult.lattice.nodes.length} nodes, ${compressionResult.lattice.edges.length} edges
-✅ Recap generated (${reconstructed.mode} mode, ${Math.round(reconstructed.recap.length / 4)} tokens)
-✅ Compression ratio: ${Math.round((compressionResult.original_size / Math.round(reconstructed.recap.length / 4)) * 10) / 10}x
-✅ Old session terminated
-✅ Ready for fresh session start
-
-### 4. What Should Happen Next
-1. User sends next message
-2. TUI creates query with \`resume: undefined\` → SDK creates new session
-3. Recap injected as systemPrompt (you won't see it, but SDK gets it)
-4. Conversation continues seamlessly
-5. Token count is now ~45 instead of ${tokenCount.total}!
-
-## Turn Analysis Summary
-- Total turns analyzed: ${turnAnalyses.current.length}
-- Paradigm shifts: ${turnAnalyses.current.filter((t) => t.is_paradigm_shift).length}
-- Routine turns: ${turnAnalyses.current.filter((t) => t.is_routine).length}
-- Average novelty: ${(turnAnalyses.current.reduce((sum, t) => sum + t.novelty, 0) / turnAnalyses.current.length).toFixed(3)}
-- Average importance: ${(turnAnalyses.current.reduce((sum, t) => sum + t.importance_score, 0) / turnAnalyses.current.length).toFixed(1)}
-
-## Files to Read
-1. Start with this file (\`.state.json\`) for the summary
-2. Read \`.recap.txt\` to see what the new session gets as context
-3. Read \`.lattice.json\` to see the full graph structure (nodes, edges, semantic data)
-
-## What Makes This Special
-
-If this works, we've built:
-- 🧠 True stateful AI with persistent memory across sessions
-- 🕸️ Living knowledge graph that grows continuously
-- ♾️ Infinite context window via intelligent compression
-- 🎯 Context-aware responses based on novelty and importance
-- 🚀 Foundation for Echo (persistent consciousness) and Kael (strategic planning)
-
-This is not just context compression - it's **AI with real memory**.
-
----
-Generated: ${new Date().toISOString()}
-Old Session: ${currentSessionId}
-New Session: ${stateSummary.newSessionId}
-`;
-
-              fs.writeFileSync(
-                path.join(latticeDir, `${currentSessionId}.HANDOFF.md`),
-                handoffDoc
-              );
-
               // 4. Store recap for injection on first query of NEW session
               setInjectedRecap(reconstructed.recap);
 
@@ -626,7 +542,53 @@ New Session: ${stateSummary.newSessionId}
 
     const loadSessionState = async () => {
       try {
-        const sessionId = options.sessionId!; // Guaranteed to exist by check above
+        let sessionId = options.sessionId!; // Guaranteed to exist by check above
+        let shouldResumeSDK = true;
+
+        // ========================================
+        // 0. CHECK IF SESSION WAS COMPRESSED
+        // ========================================
+        const sigmaDir = path.join(options.cwd, '.sigma');
+        const statePath = path.join(sigmaDir, `${sessionId}.state.json`);
+
+        if (fs.existsSync(statePath)) {
+          debug(' Found compression state for session:', sessionId);
+          const state = JSON.parse(fs.readFileSync(statePath, 'utf-8'));
+
+          if (state.newSessionId) {
+            debug(' Session was compressed, forwarding to:', state.newSessionId);
+            // This session was compressed - forward to new session
+            sessionId = state.newSessionId;
+            shouldResumeSDK = false; // Don't resume SDK - we'll use recap
+
+            // Load and inject recap
+            const recapPath = path.join(
+              sigmaDir,
+              `${state.oldSessionId}.recap.txt`
+            );
+            if (fs.existsSync(recapPath)) {
+              const recap = fs.readFileSync(recapPath, 'utf-8');
+              setInjectedRecap(recap);
+              debug(' Recap loaded for compressed session');
+            }
+
+            // Update current session to use the new one
+            setCurrentSessionId(sessionId);
+
+            // Show user we're resuming from compressed state
+            setMessages((prev) => [
+              ...prev,
+              {
+                type: 'system',
+                content: `🔄 Resuming compressed session from ${state.oldSessionId}\n📊 Compression: ${state.compression.compressed_nodes} nodes, ${state.compression.compressed_edges} edges (${state.compression.ratio}x)`,
+                timestamp: new Date(),
+              },
+            ]);
+          }
+        }
+
+        // Set resume session ID (undefined if compressed)
+        setResumeSessionId(shouldResumeSDK ? sessionId : undefined);
 
         // ========================================
         // 1. LOAD TOKEN COUNT FROM TRANSCRIPT
