@@ -28,6 +28,10 @@ export const SUMMARIZE_RATE_LIMIT_CALLS = 2;
 export const EMBED_RATE_LIMIT_SECONDS = 10;
 export const EMBED_RATE_LIMIT_CALLS = 5;
 
+// Retry configuration (used in WorkbenchClient for /summarize and /embed endpoints)
+export const MAX_RETRIES = 5; // Maximum number of retry attempts for 429 rate limit errors
+export const MAX_RETRY_DELAY_MS = 3000; // Cap retry delay at 3 seconds for better TUI recall UX
+
 // Embedding configuration
 export const DEFAULT_EMBEDDING_DIMENSIONS = 768;
 export const EMBED_PROMPT_NAME = 'Retrieval-document';

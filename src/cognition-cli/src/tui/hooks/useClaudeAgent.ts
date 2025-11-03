@@ -96,6 +96,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   );
   const compressionTriggered = useRef(false);
   const analyzingTurn = useRef<number | null>(null); // Track timestamp of turn being analyzed
+  const lastAnalyzedMessageIndex = useRef<number>(-1); // Track last analyzed message index
 
   // Session management for Sigma compression
   // When we compress, we start a FRESH session (no resume) with intelligent recap
@@ -108,6 +109,68 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   );
   const [injectedRecap, setInjectedRecap] = useState<string | null>(null);
   const hasReceivedSDKSessionId = useRef(false); // Track if we've gotten real SDK session ID
+
+  /**
+   * Helper: Write session state file
+   * Used for both initial flush and periodic flushes to ensure state is always tracked
+   */
+  const writeSessionState = useCallback(
+    (sessionId: string, isCompressed: boolean = false) => {
+      try {
+        const sigmaDir = path.join(options.cwd, '.sigma');
+        fs.mkdirSync(sigmaDir, { recursive: true });
+
+        const stateFile = path.join(sigmaDir, `${sessionId}.state.json`);
+
+        // Skip if state already exists and we're not compressing
+        // (compression creates a new state with newSessionId)
+        if (!isCompressed && fs.existsSync(stateFile)) {
+          return; // Already exists, don't overwrite
+        }
+
+        const stateSummary = {
+          timestamp: new Date().toISOString(),
+          sessionId: sessionId,
+          turnAnalysis: {
+            total_turns_analyzed: turnAnalyses.current.length,
+            paradigm_shifts: turnAnalyses.current.filter(
+              (t) => t.is_paradigm_shift
+            ).length,
+            routine_turns: turnAnalyses.current.filter((t) => t.is_routine)
+              .length,
+            avg_novelty:
+              turnAnalyses.current.length > 0
+                ? (
+                    turnAnalyses.current.reduce(
+                      (sum, t) => sum + t.novelty,
+                      0
+                    ) / turnAnalyses.current.length
+                  ).toFixed(3)
+                : '0.000',
+            avg_importance:
+              turnAnalyses.current.length > 0
+                ? (
+                    turnAnalyses.current.reduce(
+                      (sum, t) => sum + t.importance_score,
+                      0
+                    ) / turnAnalyses.current.length
+                  ).toFixed(1)
+                : '0.0',
+          },
+          files: {
+            state: `${sessionId}.state.json`,
+            overlays: '.sigma/overlays/*',
+          },
+        };
+
+        fs.writeFileSync(stateFile, JSON.stringify(stateSummary, null, 2));
+        debug(` Session state written: ${stateFile}`);
+      } catch (err) {
+        debug(' Failed to write session state:', err);
+      }
+    },
+    [options.cwd, debug]
+  );
 
   // Initialize embedding service and registries
   useEffect(() => {
@@ -162,380 +225,420 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         return;
       }
 
-      debug(' Analyzer effect triggered, messages:', messages.length);
-      const lastMessage = messages[messages.length - 1];
-
-      debug(' Last message type:', lastMessage.type);
-
-      // Only analyze user and assistant messages (not tool_progress/system)
-      if (lastMessage.type !== 'user' && lastMessage.type !== 'assistant') {
-        debug(' Skipping non-user/assistant message');
-        return;
-      }
-
-      const turnTimestamp = lastMessage.timestamp.getTime();
-
-      // Check if we've already analyzed this turn
-      const existingAnalysis = turnAnalyses.current.find(
-        (a) => a.timestamp === turnTimestamp
+      debug(
+        ' Analyzer effect triggered, messages:',
+        messages.length,
+        'isThinking:',
+        isThinking
       );
-      if (existingAnalysis) {
-        debug(' Turn already analyzed, skipping');
-        return; // Already analyzed
-      }
 
-      // Check if we're already analyzing this turn (prevent concurrent analysis)
-      if (analyzingTurn.current === turnTimestamp) {
-        debug(' Turn analysis already in progress, skipping');
+      // Find unanalyzed messages
+      const unanalyzedMessages = messages.slice(
+        lastAnalyzedMessageIndex.current + 1
+      );
+
+      if (unanalyzedMessages.length === 0) {
+        debug(' No unanalyzed messages');
         return;
       }
 
-      debug(' Starting turn analysis...');
-      analyzingTurn.current = turnTimestamp; // Mark as analyzing
+      debug(' Unanalyzed messages:', unanalyzedMessages.length);
 
-      try {
-        // Build context from previous analyses
-        const context: ConversationContext = {
-          projectRoot: options.cwd,
-          sessionId: currentSessionId, // Use current session ID (not undefined options.sessionId)
-          history: turnAnalyses.current.map((a) => ({
-            id: a.turn_id,
-            role: a.role,
-            content: a.content,
-            timestamp: a.timestamp,
-            embedding: a.embedding, // Include for novelty calculation
-          })) as Array<ConversationTurn & { embedding: number[] }>,
-        };
+      // Process each unanalyzed message
+      for (let i = 0; i < unanalyzedMessages.length; i++) {
+        const message = unanalyzedMessages[i];
+        const messageIndex = lastAnalyzedMessageIndex.current + 1 + i;
 
-        // Truncate content for embedding (first 1000 + last 500 chars)
-        // This preserves semantic meaning while reducing eGemma processing time
-        let embeddingContent = lastMessage.content;
-        if (embeddingContent.length > 1500) {
-          embeddingContent =
-            embeddingContent.substring(0, 1000) +
-            '\n...[truncated]...\n' +
-            embeddingContent.substring(embeddingContent.length - 500);
+        debug(
+          ` Processing message ${messageIndex}: type=${message.type}, isThinking=${isThinking}`
+        );
+
+        // Only analyze user and assistant messages (not tool_progress/system)
+        if (message.type !== 'user' && message.type !== 'assistant') {
+          debug('   Skipping non-user/assistant message');
+          lastAnalyzedMessageIndex.current = messageIndex; // Mark as processed (but not analyzed)
+          continue;
         }
 
-        debug(
-          ' Calling analyzeTurn with content length:',
-          embeddingContent.length
+        // For assistant messages, only analyze if we're NOT currently thinking
+        // (i.e., the assistant has finished responding)
+        if (message.type === 'assistant' && isThinking) {
+          debug('   Skipping assistant message - still streaming');
+          return; // Don't advance lastAnalyzedMessageIndex - will retry when isThinking becomes false
+        }
+
+        const turnTimestamp = message.timestamp.getTime();
+
+        // Check if we've already analyzed this turn
+        const existingAnalysis = turnAnalyses.current.find(
+          (a) => a.timestamp === turnTimestamp
         );
+        if (existingAnalysis) {
+          debug('   Turn already analyzed, skipping');
+          lastAnalyzedMessageIndex.current = messageIndex;
+          continue;
+        }
 
-        // Analyze this turn (with truncated content for embedding)
-        // Pass projectRegistry for Meet operation (Conversation ∧ Project)
-        const analysis = await analyzeTurn(
-          {
-            id: `turn-${lastMessage.timestamp.getTime()}`,
-            role: lastMessage.type as 'user' | 'assistant',
-            content: embeddingContent, // Truncated for faster embedding
-            timestamp: lastMessage.timestamp.getTime(),
-          },
-          context,
-          embedder,
-          projectRegistryRef.current // KEY: enables project alignment
-        );
+        // Check if we're already analyzing this turn (prevent concurrent analysis)
+        if (analyzingTurn.current === turnTimestamp) {
+          debug('   Turn analysis already in progress, skipping');
+          return; // Don't advance - wait for completion
+        }
 
-        debug(' analyzeTurn completed! Novelty:', analysis.novelty);
-        debug(
-          ' Overlay scores:',
-          Object.entries(analysis.overlay_scores)
-            .map(([k, v]) => `${k}=${v}`)
-            .join(', ')
-        );
+        debug('   Starting turn analysis...');
+        analyzingTurn.current = turnTimestamp; // Mark as analyzing
 
-        // Store analysis
-        turnAnalyses.current.push(analysis);
+        try {
+          // Build context from previous analyses
+          const context: ConversationContext = {
+            projectRoot: options.cwd,
+            sessionId: currentSessionId, // Use current session ID (not undefined options.sessionId)
+            history: turnAnalyses.current.map((a) => ({
+              id: a.turn_id,
+              role: a.role,
+              content: a.content,
+              timestamp: a.timestamp,
+              embedding: a.embedding, // Include for novelty calculation
+            })) as Array<ConversationTurn & { embedding: number[] }>,
+          };
 
-        // Populate conversation overlays based on project alignment
-        if (conversationRegistryRef.current) {
-          try {
-            await populateConversationOverlays(
-              analysis,
-              conversationRegistryRef.current
-            );
-            debug(' Conversation overlays populated');
-
-            // Periodic flush: Every 5 turns, flush overlays to disk
-            // This ensures data is persisted even if compression doesn't trigger
-            const FLUSH_INTERVAL = 5;
-            if (turnAnalyses.current.length % FLUSH_INTERVAL === 0) {
-              debug(
-                ` Periodic flush triggered (${turnAnalyses.current.length} turns)`
-              );
-              try {
-                await conversationRegistryRef.current.flushAll(
-                  currentSessionId
-                );
-                debug(' Conversation overlays flushed to disk');
-              } catch (flushErr) {
-                debug(' Failed to flush conversation overlays:', flushErr);
-              }
-            }
-          } catch (err) {
-            debug(' Failed to populate conversation overlays:', err);
+          // Truncate content for embedding (first 1000 + last 500 chars)
+          // This preserves semantic meaning while reducing eGemma processing time
+          let embeddingContent = message.content;
+          if (embeddingContent.length > 1500) {
+            embeddingContent =
+              embeddingContent.substring(0, 1000) +
+              '\n...[truncated]...\n' +
+              embeddingContent.substring(embeddingContent.length - 500);
           }
-        }
-
-        // Clear analyzing flag
-        analyzingTurn.current = null;
-
-        // Log analysis (for debugging)
-        debugLog(
-          `[SIGMA] Turn analyzed: ${analysis.turn_id}\n` +
-            `  Role: ${analysis.role}\n` +
-            `  Novelty: ${analysis.novelty.toFixed(3)}\n` +
-            `  Importance: ${analysis.importance_score}\n` +
-            `  Paradigm shift: ${analysis.is_paradigm_shift}\n` +
-            `  Routine: ${analysis.is_routine}\n` +
-            `  Content: ${analysis.content.substring(0, 100)}${analysis.content.length > 100 ? '...' : ''}\n\n`
-        );
-
-        // Check if compression needed (3K token threshold for testing)
-        const TOKEN_THRESHOLD = 150000; // Low for testing, will increase to 150K later
-        const MIN_TURNS_FOR_COMPRESSION = 5; // Need at least 5 turns for meaningful compression
-
-        if (
-          tokenCount.total > TOKEN_THRESHOLD &&
-          !compressionTriggered.current &&
-          turnAnalyses.current.length >= MIN_TURNS_FOR_COMPRESSION
-        ) {
-          compressionTriggered.current = true;
 
           debug(
-            ' Triggering compression with',
-            turnAnalyses.current.length,
-            'analyzed turns'
+            '   Calling analyzeTurn with content length:',
+            embeddingContent.length
           );
 
-          // Trigger compression
-          let compressionResult;
-          try {
-            compressionResult = await compressContext(turnAnalyses.current, {
-              target_size: 40000, // 40K tokens (20% of 200K limit)
-              preserve_threshold: 7, // Paradigm shifts
-            });
-          } catch (compressErr) {
-            debug(' Compression failed:', compressErr);
-            debugLog(
-              `[SIGMA ERROR] Compression failed: ${(compressErr as Error).message}\n` +
-                `  Stack: ${(compressErr as Error).stack}\n\n`
-            );
-            compressionTriggered.current = false; // Reset so it can try again
-            return; // Exit early
-          }
-
-          // Store compressed lattice
-          setConversationLattice(compressionResult.lattice);
-
-          // Log compression stats
-          debugLog(
-            `[SIGMA] Compression triggered at ${tokenCount.total} tokens\n` +
-              `  Original: ${compressionResult.original_size} tokens\n` +
-              `  Compressed: ${compressionResult.compressed_size} tokens\n` +
-              `  Ratio: ${compressionResult.compression_ratio.toFixed(1)}x\n` +
-              `  Paradigm shifts: ${compressionResult.metrics.paradigm_shifts}\n` +
-              `  Preserved: ${compressionResult.preserved_turns.length} turns\n` +
-              `  Summarized: ${compressionResult.summarized_turns.length} turns\n` +
-              `  Discarded: ${compressionResult.discarded_turns.length} turns\n\n`
+          // Analyze this turn (with truncated content for embedding)
+          // Pass projectRegistry for Meet operation (Conversation ∧ Project)
+          const analysis = await analyzeTurn(
+            {
+              id: `turn-${message.timestamp.getTime()}`,
+              role: message.type as 'user' | 'assistant',
+              content: embeddingContent, // Truncated for faster embedding
+              timestamp: message.timestamp.getTime(),
+            },
+            context,
+            embedder,
+            projectRegistryRef.current // KEY: enables project alignment
           );
 
-          // Intelligent session switch with dual-mode reconstruction
-          (async () => {
+          debug('   analyzeTurn completed! Novelty:', analysis.novelty);
+          debug(
+            '   Overlay scores:',
+            Object.entries(analysis.overlay_scores)
+              .map(([k, v]) => `${k}=${v}`)
+              .join(', ')
+          );
+
+          // Store analysis
+          turnAnalyses.current.push(analysis);
+
+          // Mark message as analyzed
+          lastAnalyzedMessageIndex.current = messageIndex;
+
+          // Populate conversation overlays based on project alignment
+          if (conversationRegistryRef.current) {
             try {
-              // 1. Save lattice to disk (graph structure preserved - ALIVE!)
-              const latticeDir = path.join(options.cwd, '.sigma');
-              fs.mkdirSync(latticeDir, { recursive: true });
-              fs.writeFileSync(
-                path.join(latticeDir, `${currentSessionId}.lattice.json`),
-                JSON.stringify(compressionResult.lattice, null, 2)
+              await populateConversationOverlays(
+                analysis,
+                conversationRegistryRef.current
               );
+              debug('   Conversation overlays populated');
 
-              // 1b. Flush conversation overlays to disk
-              if (conversationRegistryRef.current) {
+              // Periodic flush: Every 5 turns, flush overlays to disk
+              // This ensures data is persisted even if compression doesn't trigger
+              const FLUSH_INTERVAL = 5;
+              if (turnAnalyses.current.length % FLUSH_INTERVAL === 0) {
+                debug(
+                  ` Periodic flush triggered (${turnAnalyses.current.length} turns)`
+                );
                 try {
                   await conversationRegistryRef.current.flushAll(
                     currentSessionId
                   );
-                  debug(' Conversation overlays flushed to', latticeDir);
+                  debug(' Conversation overlays flushed to disk');
+                  // Update session state file with current stats
+                  writeSessionState(currentSessionId, false);
                 } catch (flushErr) {
                   debug(' Failed to flush conversation overlays:', flushErr);
                 }
               }
-
-              // 2. Intelligent reconstruction (quest vs chat mode)
-              // Pass conversationRegistry for better recap generation!
-              const reconstructed = await reconstructSessionContext(
-                compressionResult.lattice,
-                conversationRegistryRef.current || undefined
-              );
-
-              // 3. Write comprehensive state files
-
-              // 3a. Recap for human inspection
-              fs.writeFileSync(
-                path.join(latticeDir, `${currentSessionId}.recap.txt`),
-                `SIGMA INTELLIGENT RECAP\n` +
-                  `Mode: ${reconstructed.mode}\n` +
-                  `Generated: ${new Date().toISOString()}\n` +
-                  `Original tokens: ${compressionResult.original_size}\n` +
-                  `Recap tokens: ~${Math.round(reconstructed.recap.length / 4)}\n` +
-                  `\n${'='.repeat(80)}\n\n` +
-                  reconstructed.recap
-              );
-
-              // 3b. State summary for debugging/handoff to new session
-              const stateSummary = {
-                timestamp: new Date().toISOString(),
-                oldSessionId: currentSessionId,
-                newSessionId: `${currentSessionId}-sigma-${Date.now()}`,
-                compression: {
-                  triggered_at_tokens: tokenCount.total,
-                  original_size: compressionResult.original_size,
-                  compressed_nodes: compressionResult.lattice.nodes.length,
-                  compressed_edges: compressionResult.lattice.edges.length,
-                  recap_length_chars: reconstructed.recap.length,
-                  recap_tokens_estimate: Math.round(
-                    reconstructed.recap.length / 4
-                  ),
-                  mode_detected: reconstructed.mode,
-                  ratio:
-                    Math.round(
-                      (compressionResult.original_size /
-                        Math.round(reconstructed.recap.length / 4)) *
-                        10
-                    ) / 10,
-                },
-                turnAnalysis: {
-                  total_turns_analyzed: turnAnalyses.current.length,
-                  paradigm_shifts: turnAnalyses.current.filter(
-                    (t) => t.is_paradigm_shift
-                  ).length,
-                  routine_turns: turnAnalyses.current.filter(
-                    (t) => t.is_routine
-                  ).length,
-                  avg_novelty: (
-                    turnAnalyses.current.reduce(
-                      (sum, t) => sum + t.novelty,
-                      0
-                    ) / turnAnalyses.current.length
-                  ).toFixed(3),
-                  avg_importance: (
-                    turnAnalyses.current.reduce(
-                      (sum, t) => sum + t.importance_score,
-                      0
-                    ) / turnAnalyses.current.length
-                  ).toFixed(1),
-                },
-                files: {
-                  lattice: `${currentSessionId}.lattice.json`,
-                  recap: `${currentSessionId}.recap.txt`,
-                  state: `${currentSessionId}.state.json`,
-                },
-                nextSteps: [
-                  'Old session terminated',
-                  'New session will start with resume: undefined',
-                  'Recap will be injected via systemPrompt on first message',
-                  'Token count will restart from ~45 tokens (just the recap)',
-                ],
-              };
-
-              fs.writeFileSync(
-                path.join(latticeDir, `${currentSessionId}.state.json`),
-                JSON.stringify(stateSummary, null, 2)
-              );
-
-              // 4. Store recap for injection on first query of NEW session
-              setInjectedRecap(reconstructed.recap);
-
-              // 5. Kill old session - start completely fresh (no resume!)
-              setResumeSessionId(undefined); // Don't resume any session - let SDK create new one
-
-              // 6. Update session ID for tracking (but SDK will create its own)
-              const newSessionId = `${currentSessionId}-sigma-${Date.now()}`;
-              setCurrentSessionId(newSessionId);
-
-              // 7. Reset state - new session will have true token count from SDK
-              setTokenCount({ input: 0, output: 0, total: 0 });
-              // Keep compressionTriggered = true to prevent re-compression until new session establishes
-              // Keep turnAnalyses.current - we continue building on the lattice!
-
-              // 7b. DO NOT clear in-memory conversation overlays!
-              // They should continue accumulating across SDK session boundaries.
-              // When you resume with --session-id, we want ALL overlays (old + new).
-              // The overlays are flushed to disk above, but we keep them in memory
-              // so new turns continue building on the same overlay files.
-              debug(
-                ' Keeping conversation overlays in memory (continue accumulating)'
-              );
-
-              // 7c. Calculate compression ratio
-              const recapTokens = Math.round(reconstructed.recap.length / 4);
-              const originalTokens = compressionResult.original_size;
-              const actualRatio =
-                Math.round((originalTokens / recapTokens) * 10) / 10;
-
-              // 8. Add system message to UI
-              const modeIcon = reconstructed.mode === 'quest' ? '🎯' : '💬';
-              setMessages((prev) => [
-                ...prev,
-                {
-                  type: 'system',
-                  content: `${modeIcon} Context compressed (${actualRatio}x ratio, ${reconstructed.mode} mode). Intelligent recap ready.`,
-                  timestamp: new Date(),
-                },
-              ]);
-
-              // 9. Log session switch with metrics
-              debugLog(
-                `[SIGMA] Intelligent session switch completed\n` +
-                  `  Mode detected: ${reconstructed.mode.toUpperCase()}\n` +
-                  `  Old session: ${currentSessionId}\n` +
-                  `  New session: ${newSessionId}\n` +
-                  `  Lattice saved: .sigma/${currentSessionId}.lattice.json\n` +
-                  `  \n` +
-                  `  Lattice Structure:\n` +
-                  `    Nodes: ${compressionResult.lattice.nodes.length}\n` +
-                  `    Edges: ${compressionResult.lattice.edges.length}\n` +
-                  `    Paradigm shifts: ${reconstructed.metrics.paradigm_shifts}\n` +
-                  `  \n` +
-                  `  Reconstruction:\n` +
-                  `    Original: ${originalTokens} tokens\n` +
-                  `    Recap: ${recapTokens} tokens (~${reconstructed.recap.length} chars)\n` +
-                  `    Compression ratio: ${actualRatio}x\n` +
-                  `  \n` +
-                  `  Mode Indicators:\n` +
-                  `    Tool uses: ${reconstructed.metrics.tool_uses}\n` +
-                  `    Code blocks: ${reconstructed.metrics.code_blocks}\n` +
-                  `    Avg structural (O1): ${reconstructed.metrics.avg_structural}\n` +
-                  `    Avg operational (O5): ${reconstructed.metrics.avg_operational}\n` +
-                  `  \n` +
-                  `  Context type: ${reconstructed.mode === 'quest' ? 'Mental map + query functions' : 'Linear important points'}\n` +
-                  `  Ready for injection on first query\n\n`
-              );
-            } catch (switchErr) {
-              debugLog(
-                `[SIGMA ERROR] Session switch failed: ${(switchErr as Error).message}\n` +
-                  `  Stack: ${(switchErr as Error).stack}\n\n`
-              );
+            } catch (err) {
+              debug(' Failed to populate conversation overlays:', err);
             }
-          })();
-        }
-      } catch (err) {
-        // Clear analyzing flag on error
-        analyzingTurn.current = null;
+          }
 
-        // Log analysis errors but don't break the UI
-        debug(' Error in analyzer:', err);
-        debugLog(
-          `[SIGMA ERROR] ${(err as Error).message}\n` +
-            `  Stack: ${(err as Error).stack}\n\n`
-        );
-      }
+          // Clear analyzing flag
+          analyzingTurn.current = null;
+
+          // Log analysis (for debugging)
+          debugLog(
+            `[SIGMA] Turn analyzed: ${analysis.turn_id}\n` +
+              `  Role: ${analysis.role}\n` +
+              `  Novelty: ${analysis.novelty.toFixed(3)}\n` +
+              `  Importance: ${analysis.importance_score}\n` +
+              `  Paradigm shift: ${analysis.is_paradigm_shift}\n` +
+              `  Routine: ${analysis.is_routine}\n` +
+              `  Content: ${analysis.content.substring(0, 100)}${analysis.content.length > 100 ? '...' : ''}\n\n`
+          );
+
+          // Check if compression needed (3K token threshold for testing)
+          const TOKEN_THRESHOLD = 150000; // Low for testing, will increase to 150K later
+          const MIN_TURNS_FOR_COMPRESSION = 5; // Need at least 5 turns for meaningful compression
+
+          if (
+            tokenCount.total > TOKEN_THRESHOLD &&
+            !compressionTriggered.current &&
+            turnAnalyses.current.length >= MIN_TURNS_FOR_COMPRESSION
+          ) {
+            compressionTriggered.current = true;
+
+            debug(
+              ' Triggering compression with',
+              turnAnalyses.current.length,
+              'analyzed turns'
+            );
+
+            // Trigger compression
+            let compressionResult;
+            try {
+              compressionResult = await compressContext(turnAnalyses.current, {
+                target_size: 40000, // 40K tokens (20% of 200K limit)
+                preserve_threshold: 7, // Paradigm shifts
+              });
+            } catch (compressErr) {
+              debug(' Compression failed:', compressErr);
+              debugLog(
+                `[SIGMA ERROR] Compression failed: ${(compressErr as Error).message}\n` +
+                  `  Stack: ${(compressErr as Error).stack}\n\n`
+              );
+              compressionTriggered.current = false; // Reset so it can try again
+              return; // Exit early
+            }
+
+            // Store compressed lattice
+            setConversationLattice(compressionResult.lattice);
+
+            // Log compression stats
+            debugLog(
+              `[SIGMA] Compression triggered at ${tokenCount.total} tokens\n` +
+                `  Original: ${compressionResult.original_size} tokens\n` +
+                `  Compressed: ${compressionResult.compressed_size} tokens\n` +
+                `  Ratio: ${compressionResult.compression_ratio.toFixed(1)}x\n` +
+                `  Paradigm shifts: ${compressionResult.metrics.paradigm_shifts}\n` +
+                `  Preserved: ${compressionResult.preserved_turns.length} turns\n` +
+                `  Summarized: ${compressionResult.summarized_turns.length} turns\n` +
+                `  Discarded: ${compressionResult.discarded_turns.length} turns\n\n`
+            );
+
+            // Intelligent session switch with dual-mode reconstruction
+            (async () => {
+              try {
+                // 1. Save lattice to disk (graph structure preserved - ALIVE!)
+                const latticeDir = path.join(options.cwd, '.sigma');
+                fs.mkdirSync(latticeDir, { recursive: true });
+                fs.writeFileSync(
+                  path.join(latticeDir, `${currentSessionId}.lattice.json`),
+                  JSON.stringify(compressionResult.lattice, null, 2)
+                );
+
+                // 1b. Flush conversation overlays to disk
+                if (conversationRegistryRef.current) {
+                  try {
+                    await conversationRegistryRef.current.flushAll(
+                      currentSessionId
+                    );
+                    debug(' Conversation overlays flushed to', latticeDir);
+                  } catch (flushErr) {
+                    debug(' Failed to flush conversation overlays:', flushErr);
+                  }
+                }
+
+                // 2. Intelligent reconstruction (quest vs chat mode)
+                // Pass conversationRegistry for better recap generation!
+                const reconstructed = await reconstructSessionContext(
+                  compressionResult.lattice,
+                  conversationRegistryRef.current || undefined
+                );
+
+                // 3. Write comprehensive state files
+
+                // 3a. Recap for human inspection
+                fs.writeFileSync(
+                  path.join(latticeDir, `${currentSessionId}.recap.txt`),
+                  `SIGMA INTELLIGENT RECAP\n` +
+                    `Mode: ${reconstructed.mode}\n` +
+                    `Generated: ${new Date().toISOString()}\n` +
+                    `Original tokens: ${compressionResult.original_size}\n` +
+                    `Recap tokens: ~${Math.round(reconstructed.recap.length / 4)}\n` +
+                    `\n${'='.repeat(80)}\n\n` +
+                    reconstructed.recap
+                );
+
+                // 3b. State summary for debugging/handoff to new session
+                const stateSummary = {
+                  timestamp: new Date().toISOString(),
+                  oldSessionId: currentSessionId,
+                  newSessionId: `${currentSessionId}-sigma-${Date.now()}`,
+                  compression: {
+                    triggered_at_tokens: tokenCount.total,
+                    original_size: compressionResult.original_size,
+                    compressed_nodes: compressionResult.lattice.nodes.length,
+                    compressed_edges: compressionResult.lattice.edges.length,
+                    recap_length_chars: reconstructed.recap.length,
+                    recap_tokens_estimate: Math.round(
+                      reconstructed.recap.length / 4
+                    ),
+                    mode_detected: reconstructed.mode,
+                    ratio:
+                      Math.round(
+                        (compressionResult.original_size /
+                          Math.round(reconstructed.recap.length / 4)) *
+                          10
+                      ) / 10,
+                  },
+                  turnAnalysis: {
+                    total_turns_analyzed: turnAnalyses.current.length,
+                    paradigm_shifts: turnAnalyses.current.filter(
+                      (t) => t.is_paradigm_shift
+                    ).length,
+                    routine_turns: turnAnalyses.current.filter(
+                      (t) => t.is_routine
+                    ).length,
+                    avg_novelty: (
+                      turnAnalyses.current.reduce(
+                        (sum, t) => sum + t.novelty,
+                        0
+                      ) / turnAnalyses.current.length
+                    ).toFixed(3),
+                    avg_importance: (
+                      turnAnalyses.current.reduce(
+                        (sum, t) => sum + t.importance_score,
+                        0
+                      ) / turnAnalyses.current.length
+                    ).toFixed(1),
+                  },
+                  files: {
+                    lattice: `${currentSessionId}.lattice.json`,
+                    recap: `${currentSessionId}.recap.txt`,
+                    state: `${currentSessionId}.state.json`,
+                  },
+                  nextSteps: [
+                    'Old session terminated',
+                    'New session will start with resume: undefined',
+                    'Recap will be injected via systemPrompt on first message',
+                    'Token count will restart from ~45 tokens (just the recap)',
+                  ],
+                };
+
+                fs.writeFileSync(
+                  path.join(latticeDir, `${currentSessionId}.state.json`),
+                  JSON.stringify(stateSummary, null, 2)
+                );
+
+                // 4. Store recap for injection on first query of NEW session
+                setInjectedRecap(reconstructed.recap);
+
+                // 5. Kill old session - start completely fresh (no resume!)
+                setResumeSessionId(undefined); // Don't resume any session - let SDK create new one
+
+                // 6. Update session ID for tracking (but SDK will create its own)
+                const newSessionId = `${currentSessionId}-sigma-${Date.now()}`;
+                setCurrentSessionId(newSessionId);
+
+                // 7. Reset state - new session will have true token count from SDK
+                setTokenCount({ input: 0, output: 0, total: 0 });
+                // Keep compressionTriggered = true to prevent re-compression until new session establishes
+                // Keep turnAnalyses.current - we continue building on the lattice!
+
+                // 7b. DO NOT clear in-memory conversation overlays!
+                // They should continue accumulating across SDK session boundaries.
+                // When you resume with --session-id, we want ALL overlays (old + new).
+                // The overlays are flushed to disk above, but we keep them in memory
+                // so new turns continue building on the same overlay files.
+                debug(
+                  ' Keeping conversation overlays in memory (continue accumulating)'
+                );
+
+                // 7c. Calculate compression ratio
+                const recapTokens = Math.round(reconstructed.recap.length / 4);
+                const originalTokens = compressionResult.original_size;
+                const actualRatio =
+                  Math.round((originalTokens / recapTokens) * 10) / 10;
+
+                // 8. Add system message to UI
+                const modeIcon = reconstructed.mode === 'quest' ? '🎯' : '💬';
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    type: 'system',
+                    content: `${modeIcon} Context compressed (${actualRatio}x ratio, ${reconstructed.mode} mode). Intelligent recap ready.`,
+                    timestamp: new Date(),
+                  },
+                ]);
+
+                // 9. Log session switch with metrics
+                debugLog(
+                  `[SIGMA] Intelligent session switch completed\n` +
+                    `  Mode detected: ${reconstructed.mode.toUpperCase()}\n` +
+                    `  Old session: ${currentSessionId}\n` +
+                    `  New session: ${newSessionId}\n` +
+                    `  Lattice saved: .sigma/${currentSessionId}.lattice.json\n` +
+                    `  \n` +
+                    `  Lattice Structure:\n` +
+                    `    Nodes: ${compressionResult.lattice.nodes.length}\n` +
+                    `    Edges: ${compressionResult.lattice.edges.length}\n` +
+                    `    Paradigm shifts: ${reconstructed.metrics.paradigm_shifts}\n` +
+                    `  \n` +
+                    `  Reconstruction:\n` +
+                    `    Original: ${originalTokens} tokens\n` +
+                    `    Recap: ${recapTokens} tokens (~${reconstructed.recap.length} chars)\n` +
+                    `    Compression ratio: ${actualRatio}x\n` +
+                    `  \n` +
+                    `  Mode Indicators:\n` +
+                    `    Tool uses: ${reconstructed.metrics.tool_uses}\n` +
+                    `    Code blocks: ${reconstructed.metrics.code_blocks}\n` +
+                    `    Avg structural (O1): ${reconstructed.metrics.avg_structural}\n` +
+                    `    Avg operational (O5): ${reconstructed.metrics.avg_operational}\n` +
+                    `  \n` +
+                    `  Context type: ${reconstructed.mode === 'quest' ? 'Mental map + query functions' : 'Linear important points'}\n` +
+                    `  Ready for injection on first query\n\n`
+                );
+              } catch (switchErr) {
+                debugLog(
+                  `[SIGMA ERROR] Session switch failed: ${(switchErr as Error).message}\n` +
+                    `  Stack: ${(switchErr as Error).stack}\n\n`
+                );
+              }
+            })();
+          }
+        } catch (err) {
+          // Clear analyzing flag on error
+          analyzingTurn.current = null;
+
+          // Log analysis errors but don't break the UI
+          debug('   Error in analyzer:', err);
+          debugLog(
+            `[SIGMA ERROR] ${(err as Error).message}\n` +
+              `  Stack: ${(err as Error).stack}\n\n`
+          );
+          // Continue to next message on error
+          lastAnalyzedMessageIndex.current = messageIndex;
+        }
+      } // end for loop
     };
 
     analyzeNewTurns();
-  }, [messages, tokenCount.total, options.cwd]);
+  }, [messages, tokenCount.total, options.cwd, isThinking]);
 
   // Load initial token count from existing session transcript
   // AND restore Sigma lattice + conversation overlays
@@ -960,6 +1063,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                   ' Initial flush completed with SDK session ID:',
                   sdkSessionId
                 );
+                // Write initial state file with SDK session ID
+                writeSessionState(sdkSessionId, false);
               })
               .catch((err) => {
                 debug(' Initial flush failed:', err);

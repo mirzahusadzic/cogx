@@ -5,6 +5,57 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.2] - 2025-11-03
+
+### 🐛 Bug Fixes
+
+#### Missing Session State Files for Fresh Sessions
+
+Fixed a critical issue where fresh TUI sessions (without `--session-id`) would flush conversation overlays but not create session state files, making it impossible to track or resume sessions.
+
+**Root Cause**: Session state files (`.sigma/{sessionId}.state.json`) were only written during compression (at 150K tokens). For shorter sessions or periodic flushes, no state file was created.
+
+**Changes**:
+
+- Added `writeSessionState()` helper function to create/update session state files
+- Write initial state file when SDK session ID is received (first message)
+- Update state file during periodic flushes (every 5 turns)
+- State file tracks session metadata, turn analysis stats, and file references
+
+**Impact**: All sessions now have persistent state files, enabling proper session tracking and resumption.
+
+#### Assistant Message Streaming Fragmentation
+
+Fixed a critical issue where assistant responses were being analyzed during streaming, capturing only fragments ("Yes", "Sure", "Ah") instead of complete responses. This made conversation recall nearly useless.
+
+**Root Cause**: The analyzer effect triggered on every message update, including streaming deltas. Assistant messages were analyzed before completion, storing only partial text.
+
+**Changes**:
+
+- Added `lastAnalyzedMessageIndex` tracking to prevent re-analyzing messages
+- Check `isThinking` state before analyzing assistant messages
+- Only analyze assistant messages when `isThinking === false` (response complete)
+- Process unanalyzed messages in a loop with proper state management
+- Added `isThinking` to effect dependencies for proper re-trigger
+
+**Impact**: Conversation overlays now contain full, complete assistant responses, making memory recall actually useful for understanding past conversations.
+
+#### Excessive Retry Delays for Memory Recall
+
+Fixed overly aggressive exponential backoff that caused 10-15 second delays when the memory recall tool hit rate limits.
+
+**Root Cause**: Retry delay formula was `retryAfter * 1000 + attempt * 1000`, causing delays to grow exponentially (e.g., 15 seconds on attempt 5).
+
+**Changes**:
+
+- Capped retry delay at 3 seconds maximum: `Math.min(retryAfter * 1000, MAX_RETRY_DELAY_MS)`
+- Moved retry configuration to `src/config.ts`:
+  - `MAX_RETRIES = 5`
+  - `MAX_RETRY_DELAY_MS = 3000`
+- Applied to both `/summarize` and `/embed` endpoints in `WorkbenchClient`
+
+**Impact**: Memory recall tool responds much faster, improving TUI responsiveness from 10-15s waits to max 3s.
+
 ## [2.0.1] - 2025-11-03
 
 ### 🐛 Bug Fixes

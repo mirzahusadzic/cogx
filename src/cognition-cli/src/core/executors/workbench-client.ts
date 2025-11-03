@@ -15,6 +15,8 @@ import {
   EMBED_RATE_LIMIT_SECONDS,
   EMBED_RATE_LIMIT_CALLS,
   EMBED_PROMPT_NAME,
+  MAX_RETRIES,
+  MAX_RETRY_DELAY_MS,
 } from '../../config.js';
 
 /**
@@ -113,7 +115,7 @@ export class WorkbenchClient {
       await this.waitForSummarizeRateLimit();
 
       const { request, resolve, reject } = this.summarizeQueue.shift()!;
-      const maxRetries = 5;
+      const maxRetries = MAX_RETRIES;
       let attempt = 0;
       let lastError: Error | null = null;
 
@@ -155,7 +157,7 @@ export class WorkbenchClient {
 
             attempt++;
             if (attempt < maxRetries) {
-              const waitTime = retryAfter * 1000 + attempt * 1000; // Add exponential backoff
+              const waitTime = Math.min(retryAfter * 1000, MAX_RETRY_DELAY_MS);
               if (this.debug) {
                 const msg = `[WorkbenchClient] Summarize rate limit hit (429), retrying in ${waitTime / 1000}s (attempt ${attempt}/${maxRetries})`;
                 console.log(chalk?.yellow ? chalk.yellow(msg) : msg);
@@ -202,7 +204,7 @@ export class WorkbenchClient {
       await this.waitForEmbedRateLimit();
 
       const { request, resolve, reject } = this.embedQueue.shift()!;
-      const maxRetries = 5;
+      const maxRetries = MAX_RETRIES;
       let attempt = 0;
       let lastError: Error | null = null;
 
@@ -241,7 +243,7 @@ export class WorkbenchClient {
 
             attempt++;
             if (attempt < maxRetries) {
-              const waitTime = retryAfter * 1000 + attempt * 1000; // Add exponential backoff
+              const waitTime = Math.min(retryAfter * 1000, MAX_RETRY_DELAY_MS);
               if (this.debug) {
                 const msg = `[WorkbenchClient] Rate limit hit (429), retrying in ${waitTime / 1000}s (attempt ${attempt}/${maxRetries})`;
                 console.log(chalk?.yellow ? chalk.yellow(msg) : msg);
