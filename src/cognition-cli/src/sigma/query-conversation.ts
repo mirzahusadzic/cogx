@@ -13,7 +13,7 @@ import {
   DEFAULT_SLM_MODEL_NAME,
   DEFAULT_MAX_OUTPUT_TOKENS,
   PERSONA_QUERY_ANALYST,
-  PERSONA_KNOWLEDGE_ASSISTANT,
+  PERSONA_CONVERSATION_MEMORY_ASSISTANT,
 } from '../config.js';
 
 interface QueryIntent {
@@ -43,7 +43,7 @@ export async function queryConversationLattice(
   options: QueryConversationOptions = {}
 ): Promise<string> {
   const workbenchUrl = options.workbenchUrl || 'http://localhost:8000';
-  const topK = options.topK || 5;
+  const topK = options.topK || 10; // Increased from 5 to 10 for better coverage
   const verbose = options.verbose || false;
 
   const workbench = new WorkbenchClient(workbenchUrl);
@@ -120,10 +120,17 @@ export async function queryConversationLattice(
     return 'No relevant conversation history found.';
   }
 
-  // Re-rank globally and take top K
-  const topResults = allResults
+  // Re-rank globally and take top K, then re-sort by timestamp for temporal coherence
+  const topResultsBySimilarity = allResults
     .sort((a, b) => b.similarity - a.similarity)
     .slice(0, topK);
+
+  // Sort by timestamp to maintain chronological order
+  const topResults = topResultsBySimilarity.sort((a, b) => {
+    const tsA = (a.item.metadata as { timestamp?: number }).timestamp || 0;
+    const tsB = (b.item.metadata as { timestamp?: number }).timestamp || 0;
+    return tsA - tsB; // Chronological order
+  });
 
   if (verbose) {
     console.log(`  Found ${topResults.length} relevant turns`);
@@ -135,36 +142,62 @@ export async function queryConversationLattice(
     });
   }
 
-  // STEP 3: Answer Synthesis (LLM)
+  // STEP 3: Answer Synthesis (LLM with improved context)
   if (verbose) {
     console.log('[3/3] Synthesizing answer...');
   }
 
+  // Build richer context with metadata
   const contextText = topResults
-    .map((item, i) => {
+    .map((item) => {
       const metadata = item.item.metadata as {
         text: string;
         turn_id?: string;
         role?: string;
         importance?: number;
+        timestamp?: number;
+        project_alignment_score?: number;
       };
-      return `[${i + 1}] ${metadata.role === 'user' ? '👤 User' : '🤖 Assistant'}: ${metadata.text}`;
+
+      const roleIcon = metadata.role === 'user' ? '👤' : '🤖';
+      const importanceTag = metadata.importance
+        ? ` [Importance: ${metadata.importance}/10]`
+        : '';
+      const alignmentTag = metadata.project_alignment_score
+        ? ` [Alignment: ${metadata.project_alignment_score}/10]`
+        : '';
+      const overlayTag = `[${item.overlay}]`;
+
+      return `${overlayTag}${importanceTag}${alignmentTag}
+${roleIcon} ${metadata.role === 'user' ? 'User' : 'Assistant'}: ${metadata.text}`;
     })
-    .join('\n\n');
+    .join('\n\n---\n\n');
 
-  const synthesisPrompt = `You are recalling past conversation context.
+  const synthesisPrompt = `You are helping recall past conversation context with high fidelity.
 
-Question: ${question}
+**User's Question:** ${question}
 
-Relevant conversation history:
+**Relevant Conversation History** (sorted chronologically, with overlay classification):
+
 ${contextText}
 
-Provide a clear, accurate answer based ONLY on the conversation history above. If the history doesn't fully answer the question, say so. Be concise but thorough.`;
+---
+
+**Instructions:**
+- Provide a comprehensive answer based on the conversation history above
+- Preserve important details, decisions, and context
+- If multiple related points were discussed, organize them clearly
+- Include relevant technical details, file names, or specific decisions mentioned
+- If the history doesn't fully answer the question, clearly state what's missing
+- Maintain the chronological flow when relevant
+- Reference which overlay types (O1-O7) contained the most relevant information if helpful
+
+Provide your answer now:`;
 
   const synthesisRequest: SummarizeRequest = {
     content: synthesisPrompt,
     filename: 'synthesis.md',
-    persona: PERSONA_KNOWLEDGE_ASSISTANT,
+    persona: PERSONA_CONVERSATION_MEMORY_ASSISTANT,
     max_tokens: DEFAULT_SLM_MODEL_NAME ? DEFAULT_MAX_OUTPUT_TOKENS : 512,
     temperature: 0.3,
   };

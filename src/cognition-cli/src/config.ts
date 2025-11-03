@@ -19,6 +19,8 @@ export const PERSONA_SECURITY_META_VALIDATOR = 'security_meta_validator'; // For
 export const PERSONA_MATHEMATICAL_VALIDATOR = 'mathematical_validator'; // For mathematical document validation
 export const PERSONA_QUERY_ANALYST = 'query_analyst'; // For Q&A query deconstruction
 export const PERSONA_KNOWLEDGE_ASSISTANT = 'knowledge_assistant'; // For Q&A answer synthesis
+export const PERSONA_CONVERSATION_MEMORY_ASSISTANT =
+  'conversation_memory_assistant'; // For conversation memory recall synthesis
 
 // Rate limiting
 export const SUMMARIZE_RATE_LIMIT_SECONDS = 60;

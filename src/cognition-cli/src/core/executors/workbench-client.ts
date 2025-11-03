@@ -113,42 +113,80 @@ export class WorkbenchClient {
       await this.waitForSummarizeRateLimit();
 
       const { request, resolve, reject } = this.summarizeQueue.shift()!;
-      try {
-        const formData = new FormData();
-        const fileBuffer = Buffer.from(request.content);
+      const maxRetries = 5;
+      let attempt = 0;
+      let lastError: Error | null = null;
 
-        const blob = new Blob([fileBuffer], { type: 'text/plain' });
-        formData.set('file', blob, request.filename);
+      while (attempt < maxRetries) {
+        try {
+          const formData = new FormData();
+          const fileBuffer = Buffer.from(request.content);
 
-        formData.set('persona', request.persona);
-        if (request.goal) formData.set('goal', request.goal);
-        if (request.model_name) formData.set('model_name', request.model_name);
-        if (request.max_tokens)
-          formData.set('max_tokens', request.max_tokens.toString());
-        if (request.temperature)
-          formData.set('temperature', request.temperature.toString());
-        if (request.enable_safety !== undefined)
-          formData.set('enable_safety', request.enable_safety.toString());
+          const blob = new Blob([fileBuffer], { type: 'text/plain' });
+          formData.set('file', blob, request.filename);
 
-        const response = await fetch(`${this.baseUrl}/summarize`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${this.apiKey}`,
-          },
-          body: formData as unknown as BodyInit,
-        });
+          formData.set('persona', request.persona);
+          if (request.goal) formData.set('goal', request.goal);
+          if (request.model_name)
+            formData.set('model_name', request.model_name);
+          if (request.max_tokens)
+            formData.set('max_tokens', request.max_tokens.toString());
+          if (request.temperature)
+            formData.set('temperature', request.temperature.toString());
+          if (request.enable_safety !== undefined)
+            formData.set('enable_safety', request.enable_safety.toString());
 
-        this.summarizeCallCount++;
-        this.lastSummarizeCallTime = Date.now();
+          const response = await fetch(`${this.baseUrl}/summarize`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${this.apiKey}`,
+            },
+            body: formData as unknown as BodyInit,
+          });
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`HTTP ${response.status}: ${errorText}`);
+          this.summarizeCallCount++;
+          this.lastSummarizeCallTime = Date.now();
+
+          if (response.status === 429) {
+            // Rate limit exceeded - extract retry time and wait
+            const errorText = await response.text();
+            const retryMatch = errorText.match(/Try again in (\d+) seconds/);
+            const retryAfter = retryMatch ? parseInt(retryMatch[1]) : 10;
+
+            attempt++;
+            if (attempt < maxRetries) {
+              const waitTime = retryAfter * 1000 + attempt * 1000; // Add exponential backoff
+              if (this.debug) {
+                const msg = `[WorkbenchClient] Summarize rate limit hit (429), retrying in ${waitTime / 1000}s (attempt ${attempt}/${maxRetries})`;
+                console.log(chalk?.yellow ? chalk.yellow(msg) : msg);
+              }
+              await new Promise((resolve) => setTimeout(resolve, waitTime));
+              continue;
+            } else {
+              throw new Error(`HTTP 429: ${errorText} (max retries exceeded)`);
+            }
+          }
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+          }
+
+          resolve((await response.json()) as SummarizeResponse);
+          break; // Success - exit retry loop
+        } catch (error) {
+          lastError = error as Error;
+          // If it's not a rate limit error, don't retry
+          if (!lastError.message.includes('HTTP 429')) {
+            reject(error);
+            break;
+          }
         }
+      }
 
-        resolve((await response.json()) as SummarizeResponse);
-      } catch (error) {
-        reject(error);
+      // If we exhausted retries, reject with the last error
+      if (attempt >= maxRetries && lastError) {
+        reject(lastError);
       }
     }
     this.isProcessingSummarizeQueue = false;

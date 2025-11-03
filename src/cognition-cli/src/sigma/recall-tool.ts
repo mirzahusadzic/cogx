@@ -38,7 +38,7 @@ export function createRecallMcpServer(
           conversationRegistry,
           {
             workbenchUrl,
-            topK: 5,
+            topK: 10, // Increased from 5 for better coverage
             verbose: false,
           }
         );
