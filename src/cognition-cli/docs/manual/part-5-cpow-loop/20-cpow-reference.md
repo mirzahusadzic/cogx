@@ -16,6 +16,16 @@ overlay: O5_Operational
 
 ---
 
+## Preface
+
+This document formalizes the cryptographic Proof-of-Work (cPOW) operational loop that underlies the Cognition CLI's verification system.
+
+Previous chapters introduced the conceptual architecture—overlays, lattices, and semantic grounding. This chapter provides the technical specification: the mathematical foundations, API contracts, and implementation patterns that make verifiable AI cognition practical.
+
+Think of it as the reference manual for how trust is constructed, verified, and maintained in the system. It bridges the gap between architectural vision and working code.
+
+---
+
 ## Table of Contents
 
 1. [Executive Summary](#executive-summary)

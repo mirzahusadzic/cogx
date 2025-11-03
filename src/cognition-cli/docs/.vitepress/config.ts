@@ -120,6 +120,16 @@ export default defineConfig({
             ],
           },
           {
+            text: 'Part V: cPoW Loop',
+            collapsed: false,
+            items: [
+              {
+                text: '20 - cPoW Reference',
+                link: '/manual/part-5-cpow-loop/20-cpow-reference',
+              },
+            ],
+          },
+          {
             text: 'Part VI: Σ (Sigma) - Infinite Context',
             collapsed: false,
             items: [
