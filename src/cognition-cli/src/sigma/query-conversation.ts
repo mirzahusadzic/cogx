@@ -11,7 +11,7 @@ import type { SummarizeRequest } from '../core/types/workbench.js';
 import type { OverlayMetadata } from '../core/algebra/overlay-algebra.js';
 import {
   DEFAULT_SLM_MODEL_NAME,
-  DEFAULT_MAX_OUTPUT_TOKENS,
+  MEMORY_RECALL_MAX_TOKENS,
   PERSONA_QUERY_ANALYST,
   PERSONA_CONVERSATION_MEMORY_ASSISTANT,
 } from '../config.js';
@@ -198,7 +198,7 @@ Provide your answer now:`;
     content: synthesisPrompt,
     filename: 'synthesis.md',
     persona: PERSONA_CONVERSATION_MEMORY_ASSISTANT,
-    max_tokens: DEFAULT_SLM_MODEL_NAME ? DEFAULT_MAX_OUTPUT_TOKENS : 512,
+    max_tokens: MEMORY_RECALL_MAX_TOKENS, // Use dedicated 32K budget for comprehensive recall
     temperature: 0.3,
   };
   if (DEFAULT_SLM_MODEL_NAME) {

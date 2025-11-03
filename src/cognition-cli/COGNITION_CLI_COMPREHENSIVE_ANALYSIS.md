@@ -7,8 +7,13 @@
 **Repository Details:**
 
 - **Location:** `~src/cogx/src/cognition-cli`
-- **Lines of Code:** ~29,744 TypeScript (production code)
-- **Current Version:** 1.8.2
+- **Lines of Code:** ~44,524 TypeScript (production code)
+  - Core: 28,364 lines (64%) — PGC, orchestrators, overlays, miners
+  - Commands: 7,094 lines (16%) — CLI commands
+  - **Sigma: 6,184 lines (14%) — Dual-lattice architecture, infinite context**
+  - **TUI: 1,666 lines (4%) — Interactive terminal interface**
+  - Other: 1,216 lines (2%) — Root files, utilities
+- **Current Version:** 2.0.0 (Sigma Release)
 - **License:** AGPL-3.0-or-later
 - **Author:** Mirza Husadzic
 - **Status:** Actively maintained with comprehensive documentation
@@ -76,6 +81,114 @@ The knowledge graph is built on four fundamental pillars, all stored in `.open_c
 - **Mechanism:** O(1) reverse-lookup index
 - **Purpose:** Enable instantaneous dependency traversal and impact analysis
 - **Property:** Enables "blast radius" calculations
+
+### The Sigma Dual-Lattice Architecture (v2.0.0)
+
+**Innovation #39-46** — The breakthrough that enables **infinite context** for AI conversations.
+
+While the PGC (`.open_cognition/`) provides a lattice for **project knowledge**, Sigma adds a parallel lattice for **conversation knowledge** (`.sigma/`). These two lattices work together through **Meet (∧)** operations to create true infinite context.
+
+#### **The Dual Lattice**
+
+```
+Project Lattice (PGC)          Conversation Lattice (Sigma)
+.open_cognition/          ∧    .sigma/
+├── objects/                   ├── objects/          (conversation turns)
+├── transforms/                ├── overlays/
+├── index/                     │   ├── O1/           (structural patterns)
+├── reverse_deps/              │   ├── O2/           (security discussions)
+└── overlays/ (O₁-O₇)          │   ├── O3/           (conversational flow)
+                               │   ├── O4/           (mission concepts)
+                               │   ├── O5/           (operational patterns)
+                               │   ├── O6/           (mathematical concepts)
+                               │   └── O7/           (coherence scores)
+                               └── index/            (conversation state)
+```
+
+#### **How Sigma Solves the Context Window Problem**
+
+**The Problem with Standard LLM Sessions:**
+
+- Anthropic's SDK snaps at 150K tokens → compresses to 50K
+- Users only get **100K effective runway** (not 150K as advertised)
+- Compression is lossy (no intelligence, just truncation)
+- No memory across sessions
+
+**Sigma's Solution:**
+
+1. **Proactive Compression at ~140K tokens**
+   - Beats Anthropic to the snap
+   - Uses intelligent importance formula: `novelty × 5 + max(alignment_O1..O7) × 0.5`
+   - Preserves high-signal turns, discards noise
+
+2. **Fresh Start at <10K (not 50K!)**
+   - 5x better than Anthropic's compression
+   - Gives ~140K usable runway per session
+
+3. **Session Lifecycle Management**
+
+   ```
+   Session N: 0K → 140K → INTELLIGENT COMPRESSION
+                             ↓
+   Session N+1: <10K → 140K → COMPRESSION
+                                ↓
+   Session N+2: <10K → ... (infinite chain)
+   ```
+
+4. **High-Fidelity Memory Recall**
+   - Specialized persona with temporal re-ranking
+   - Multi-overlay search across O₁-O₇
+   - 5-retry exponential backoff for API errors
+   - Preserves technical details (file names, function names, decisions)
+
+5. **Real-Time Conversation Indexing**
+   - Every turn indexed across 7 dimensions (O₁-O₇)
+   - Novelty scoring for each turn
+   - Importance calculation for compression decisions
+   - Lattice statistics (nodes, edges, shifts)
+
+6. **Periodic Overlay Persistence**
+   - Auto-flush every 5 turns
+   - Cleanup on exit preventing data loss
+   - Overlays remain in memory across SDK sessions
+
+7. **Session Forwarding**
+   - Automatic chain management via `.sigma/{id}.state.json`
+   - User always uses original session ID
+   - Sigma manages internal session resurrection
+
+#### **The Interactive TUI**
+
+Sigma includes a production-ready terminal user interface built with **Ink** (React for terminals):
+
+**Features:**
+
+- ✅ **Live Lattice Visualization** — Real-time overlay counts (O1-O7)
+- ✅ **Token Tracking** — Exact count with compression threshold (vs Anthropic's spinner 🎰)
+- ✅ **Lattice Statistics** — Nodes, edges, context shifts
+- ✅ **Importance Scoring** — Novelty + alignment per turn
+- ✅ **Toggle Info Panel** — Detailed overlay breakdown
+- ✅ **Scroll History** — Navigate previous messages
+- ✅ **Persistent UI State** — Resume where you left off
+
+**Why the TUI Matters:**
+
+The TUI provides **radical transparency** that stock Claude Code hides:
+
+- See exactly how many tokens you're using (not a slot machine spinner)
+- Watch the lattice grow in real-time as you chat
+- Understand which overlays are being activated
+- Know when compression will trigger
+- Trust the system through visibility
+
+**Example TUI Output:**
+
+```
+Tokens: 57.5K / 150K
+Lattice: 10 nodes, 9 edges, 1 shift
+Novelty: 0.53 | Importance: 5.2
+O₁: 0.0  O₂: 3.4  O₃: 3.2  O₄: 0.0  O₅: 5.0  O₆: —  O₇: —
+```
 
 ### Supporting Faculties
 
@@ -262,9 +375,11 @@ watch → dirty_state.json → status → update → coherence restored ♻️
 
 #### **UI/UX**
 
+- **Ink** (v5.x) — React-based terminal UI framework for interactive TUI
 - **Chalk** (v5.6.2) — Colored terminal output
 - **Clack/prompts** — Interactive command-line prompts
 - **Markdown rendering** with formatted help guides
+- **React hooks** — useState, useEffect for TUI state management
 
 #### **Development & Documentation**
 
@@ -274,16 +389,18 @@ watch → dirty_state.json → status → update → coherence restored ♻️
 
 ### External Dependencies
 
-| Package    | Version | Purpose         |
-| ---------- | ------- | --------------- |
-| commander  | 12.0.0  | CLI framework   |
-| lancedb    | 0.22.2  | Vector database |
-| chalk      | 5.6.2   | Terminal colors |
-| chokidar   | 4.0.3   | File watching   |
-| zod        | 3.22.4  | Type validation |
-| workerpool | 10.0.0  | Thread pool     |
-| fs-extra   | 11.2.0  | File operations |
-| esbuild    | 0.25.11 | Worker bundling |
+| Package    | Version | Purpose                 |
+| ---------- | ------- | ----------------------- |
+| commander  | 12.0.0  | CLI framework           |
+| lancedb    | 0.22.2  | Vector database         |
+| ink        | 5.x     | React-based terminal UI |
+| chalk      | 5.6.2   | Terminal colors         |
+| chokidar   | 4.0.3   | File watching           |
+| zod        | 3.22.4  | Type validation         |
+| workerpool | 10.0.0  | Thread pool             |
+| fs-extra   | 11.2.0  | File operations         |
+| esbuild    | 0.25.11 | Worker bundling         |
+| anthropic  | latest  | Claude SDK for Sigma    |
 
 ---
 
@@ -367,7 +484,43 @@ Event-driven, self-healing architecture:
 - Update heals incrementally
 - Complete feedback loop for real-time synchronization
 
-### 9. **Comprehensive Documentation**
+### 9. **Sigma: Infinite Context Without Compromise**
+
+**The first LLM wrapper to solve context limits through lattice-based compression:**
+
+- **Proactive Compression** beats Anthropic's 150K→50K lossy snap
+- **<10K Fresh Starts** (5x better than Anthropic's 50K overhead)
+- **~140K Usable Runway** per session (vs Anthropic's 100K)
+- **Intelligent Preservation** via `novelty × 5 + max(alignment_O1..O7) × 0.5`
+- **Multi-Overlay Indexing** of every conversation turn across 7 dimensions
+- **Verifiable Memory Recall** with temporal re-ranking and multi-overlay search
+- **Session Resurrection** through automatic forwarding chain
+- **Radical Transparency** via live TUI (no slot machine spinner 🎰)
+
+This is **not RAG or summarization** — it's a true dual-lattice architecture where conversation knowledge has the same mathematical rigor as project knowledge.
+
+### 10. **Interactive TUI: Transparency Over Opacity**
+
+Built with **Ink** (React for terminals), the TUI demonstrates radical transparency:
+
+**Real-time Visibility:**
+
+- Exact token count (not Anthropic's deceptive spinner)
+- Live lattice statistics (nodes, edges, context shifts)
+- Per-turn novelty and importance scores
+- Overlay activation patterns (O₁-O₇ alignment)
+- Compression threshold warnings
+
+**Why It Matters:**
+
+- Users can **trust** what they can **see**
+- Catches Anthropic's compression before it happens
+- Enables informed decisions about session management
+- Proves the lattice is working in real-time
+
+The contrast is stark: stock Claude Code hides everything behind a 🎰 spinner, while Sigma shows you the mathematical truth of your conversation.
+
+### 11. **Comprehensive Documentation**
 
 - 25+ markdown documents covering every aspect
 - 900+ pages of "Foundation Manual"
@@ -375,7 +528,7 @@ Event-driven, self-healing architecture:
 - Guides for each command
 - Research papers and theoretical foundations
 
-### 10. **First Human-AI Grounded Collaboration**
+### 12. **First Human-AI Grounded Collaboration**
 
 Document: `07_AI_Grounded_Architecture_Analysis.md`
 
@@ -576,34 +729,44 @@ The same architecture that understands code can preserve human identity through 
 
 ## Summary Statistics
 
-| Metric                      | Value             |
-| --------------------------- | ----------------- |
-| Production TypeScript Lines | ~29,744           |
-| Total Dependencies          | 24 npm packages   |
-| Documentation Pages         | 25+               |
-| Manual Chapters             | 16                |
-| Cognitive Overlays          | 7 (O₁-O₇)         |
-| Supported Languages         | 3 (TS/JS/Python)  |
-| Core Commands               | 15+               |
-| Test Files                  | 18                |
-| Test Coverage               | 85+ tests         |
-| Current Version             | 1.8.2             |
-| License                     | AGPL-3.0-or-later |
+| Metric                      | Value                         |
+| --------------------------- | ----------------------------- |
+| Production TypeScript Lines | ~44,524 (+49.7% growth)       |
+| Sigma Module Lines          | 6,184 (infinite context)      |
+| TUI Module Lines            | 1,666 (interactive interface) |
+| Total Dependencies          | 26+ npm packages              |
+| Documentation Pages         | 25+                           |
+| Manual Chapters             | 16                            |
+| Cognitive Overlays          | 7 (O₁-O₇)                     |
+| Supported Languages         | 3 (TS/JS/Python)              |
+| Core Commands               | 15+                           |
+| Test Files                  | 18+                           |
+| Test Coverage               | 85+ tests                     |
+| Current Version             | 2.0.0 (Sigma Release)         |
+| License                     | AGPL-3.0-or-later             |
+| Zenodo DOI                  | 10.5281/zenodo.17509405       |
+| Innovations Published       | 46 (defensive patent pub)     |
 
 ---
 
 ## Conclusion
 
-Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. It combines:
+Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.0.0 (Sigma)** extends this vision from project knowledge to **infinite conversational memory**, solving the context window problem through dual-lattice architecture.
+
+It combines:
 
 - **Cryptographic grounding** (content-addressable truth)
 - **Architectural intelligence** (multi-layer analysis)
 - **Human values** (mission alignment)
 - **Real-time synchronization** (watch/status/update)
-- **Radical transparency** (audit trails)
+- **Radical transparency** (audit trails + live TUI)
 - **Security-first design** (dual-use awareness)
 - **Extensible overlays** (7 cognitive dimensions)
+- **Infinite context** (Sigma dual-lattice with intelligent compression)
+- **Verifiable memory** (conversation indexed like code)
 
 Rather than treating LLMs as magical oracles, it grounds them in verifiable fact, enabling a new generation of AI-powered developer tools that are trustworthy, auditable, and aligned with human values and principles.
 
-The project represents a fundamental rethinking of how AI and humans can collaborate on software architecture — not through blind trust in statistical models, but through verifiable partnership rooted in cryptographic truth.
+**The Sigma breakthrough** demonstrates that the same lattice architecture that provides verifiable understanding of codebases can provide verifiable memory for AI conversations — achieving true infinite context without the lossy compression and opacity of standard LLM wrappers.
+
+The project represents a fundamental rethinking of how AI and humans can collaborate on software architecture — not through blind trust in statistical models, but through verifiable partnership rooted in cryptographic truth and mathematical lattice operations.

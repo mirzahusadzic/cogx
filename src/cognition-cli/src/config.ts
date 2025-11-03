@@ -8,6 +8,7 @@ export const DEFAULT_EMBEDDING_MODEL_NAME = 'google/embeddinggemma-300m';
 
 // Token limits
 export const DEFAULT_MAX_OUTPUT_TOKENS = 8192; // Max output tokens for LLM responses (increased for large documents)
+export const MEMORY_RECALL_MAX_TOKENS = 32768; // 2^15 - Dedicated budget for memory recall synthesis to prevent truncation across session boundaries
 
 // Persona names (user-controlled, provisional)
 // These are defaults that connect to workbench personas
