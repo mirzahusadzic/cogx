@@ -107,6 +107,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     options.sessionId || `tui-${Date.now()}`
   );
   const [injectedRecap, setInjectedRecap] = useState<string | null>(null);
+  const hasReceivedSDKSessionId = useRef(false); // Track if we've gotten real SDK session ID
 
   // Initialize embedding service and registries
   useEffect(() => {
@@ -888,6 +889,46 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       // Ignore logging errors
     }
 
+    // Extract session ID from SDK message (all SDK messages have it)
+    // This is critical for session-less TUI starts where SDK creates its own ID
+    if ('session_id' in sdkMessage && sdkMessage.session_id) {
+      const sdkSessionId = sdkMessage.session_id;
+      setCurrentSessionId((prev) => {
+        if (prev !== sdkSessionId && prev.startsWith('tui-')) {
+          // We had a placeholder ID, switch to real SDK ID
+          debug(' Updating session ID from', prev, 'to SDK ID:', sdkSessionId);
+          debugLog(
+            `[SESSION] Updated from placeholder ${prev} to SDK session ID: ${sdkSessionId}\n\n`
+          );
+
+          // Mark that we've received SDK session ID
+          if (
+            !hasReceivedSDKSessionId.current &&
+            conversationRegistryRef.current
+          ) {
+            hasReceivedSDKSessionId.current = true;
+
+            // Trigger immediate flush with correct session ID
+            // This ensures overlays are saved even if we never hit compression threshold
+            conversationRegistryRef.current
+              .flushAll(sdkSessionId)
+              .then(() => {
+                debug(
+                  ' Initial flush completed with SDK session ID:',
+                  sdkSessionId
+                );
+              })
+              .catch((err) => {
+                debug(' Initial flush failed:', err);
+              });
+          }
+
+          return sdkSessionId;
+        }
+        return prev; // Keep existing if already set or not a placeholder
+      });
+    }
+
     switch (sdkMessage.type) {
       case 'assistant': {
         // Check if this message has tool calls - if so, display them
@@ -975,6 +1016,40 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                 inputDesc = `cmd: ${tool.input.command as string}`;
               } else if (tool.input.pattern) {
                 inputDesc = `pattern: ${tool.input.pattern as string}`;
+              } else if (tool.name === 'TodoWrite' && tool.input.todos) {
+                // Format TodoWrite with a nice visual display
+                const todos = tool.input.todos as Array<{
+                  content: string;
+                  status: string;
+                  activeForm: string;
+                }>;
+
+                const todoLines: string[] = [];
+                todos.forEach((todo) => {
+                  let statusIcon = '';
+                  let statusColor = '';
+
+                  if (todo.status === 'completed') {
+                    statusIcon = '✓';
+                    statusColor = '\x1b[32m'; // green
+                  } else if (todo.status === 'in_progress') {
+                    statusIcon = '→';
+                    statusColor = '\x1b[33m'; // yellow
+                  } else {
+                    statusIcon = '○';
+                    statusColor = '\x1b[90m'; // gray
+                  }
+
+                  const displayText =
+                    todo.status === 'in_progress'
+                      ? todo.activeForm
+                      : todo.content;
+                  todoLines.push(
+                    `  ${statusColor}${statusIcon}\x1b[0m ${displayText}`
+                  );
+                });
+
+                inputDesc = '\n' + todoLines.join('\n');
               } else {
                 inputDesc = JSON.stringify(tool.input);
               }

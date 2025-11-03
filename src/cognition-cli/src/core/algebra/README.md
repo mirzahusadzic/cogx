@@ -135,7 +135,9 @@ const guidance = await project(
   'handle user authentication',
   operational,
   security,
-  { threshold: 0.7 }
+  {
+    threshold: 0.7,
+  }
 );
 ```
 

@@ -601,9 +601,7 @@ export function addPatternsCommands(program: Command) {
 
       const simBar = '█'.repeat(Math.round(similarity * 40));
       console.log(
-        `\n   Similarity: ${chalk.yellow(simBar)} ${(similarity * 100).toFixed(
-          1
-        )}%`
+        `\n   Similarity: ${chalk.yellow(simBar)} ${(similarity * 100).toFixed(1)}%`
       );
 
       const vectorData1 = vector1 as Record<string, unknown>;
