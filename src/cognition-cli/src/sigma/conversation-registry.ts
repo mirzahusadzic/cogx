@@ -43,6 +43,8 @@ export type OverlayId = 'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7';
 interface ConversationOverlayWithLifecycle extends OverlayAlgebra {
   flush(sessionId: string): Promise<void>;
   clearMemory(): void;
+  initializeLanceStore?(): Promise<void>;
+  setCurrentSession?(sessionId: string): void;
 }
 
 /**
@@ -83,6 +85,17 @@ export class ConversationOverlayRegistry {
 
     // Create and cache manager
     const manager = this.createManager(overlayId);
+
+    // Initialize LanceDB store if supported
+    if (
+      'initializeLanceStore' in manager &&
+      typeof (manager as ConversationOverlayWithLifecycle)
+        .initializeLanceStore === 'function'
+    ) {
+      await (manager as ConversationOverlayWithLifecycle)
+        .initializeLanceStore!();
+    }
+
     this.managers.set(overlayId, manager);
     return manager;
   }
@@ -234,6 +247,30 @@ export class ConversationOverlayRegistry {
           'function'
       ) {
         (manager as ConversationOverlayWithLifecycle).clearMemory();
+      }
+    }
+  }
+
+  /**
+   * Set current session ID for all managers (for LanceDB filtering)
+   */
+  async setCurrentSession(sessionId: string): Promise<void> {
+    const allOverlays: OverlayId[] = ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'];
+
+    for (const overlayId of allOverlays) {
+      // Only set session if manager is already initialized
+      if (this.managers.has(overlayId)) {
+        const manager = this.managers.get(overlayId)!;
+
+        if (
+          'setCurrentSession' in manager &&
+          typeof (manager as ConversationOverlayWithLifecycle)
+            .setCurrentSession === 'function'
+        ) {
+          (manager as ConversationOverlayWithLifecycle).setCurrentSession!(
+            sessionId
+          );
+        }
       }
     }
   }

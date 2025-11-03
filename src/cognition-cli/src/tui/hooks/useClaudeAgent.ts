@@ -764,14 +764,22 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                 msg.event?.usage
               ) {
                 const usage = msg.event.usage;
-                totalInput += usage.input_tokens || 0;
-                totalInput += usage.cache_creation_input_tokens || 0;
-                totalInput += usage.cache_read_input_tokens || 0;
-                totalOutput += usage.output_tokens || 0;
+                // SDK provides cumulative totals in each message_delta, so take the max
+                // (not accumulate - same logic as line 1242)
+                const currentInput =
+                  (usage.input_tokens || 0) +
+                  (usage.cache_creation_input_tokens || 0) +
+                  (usage.cache_read_input_tokens || 0);
+                const currentOutput = usage.output_tokens || 0;
+                totalInput = Math.max(totalInput, currentInput);
+                totalOutput = Math.max(totalOutput, currentOutput);
               } else if (msg.type === 'result' && msg.usage) {
-                // Result messages have final totals
-                totalInput = msg.usage.input_tokens || 0;
-                totalOutput = msg.usage.output_tokens || 0;
+                // Result messages have final totals (without cache tokens)
+                totalInput = Math.max(totalInput, msg.usage.input_tokens || 0);
+                totalOutput = Math.max(
+                  totalOutput,
+                  msg.usage.output_tokens || 0
+                );
               }
             } catch (err) {
               // Skip invalid JSON lines
@@ -880,6 +888,20 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
     loadSessionState();
   }, [options.sessionId]);
+
+  // Effect: Set current session for LanceDB filtering
+  useEffect(() => {
+    if (conversationRegistryRef.current && currentSessionId) {
+      conversationRegistryRef.current
+        .setCurrentSession(currentSessionId)
+        .then(() => {
+          debug(` Current session set for LanceDB: ${currentSessionId}`);
+        })
+        .catch((err) => {
+          debug(' Failed to set current session:', err);
+        });
+    }
+  }, [currentSessionId, debug]);
 
   // Cleanup effect: Flush conversation overlays when component unmounts
   useEffect(() => {
