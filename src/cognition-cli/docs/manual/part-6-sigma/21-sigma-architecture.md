@@ -64,6 +64,7 @@ Sigma uses **lattice Meet operations** to compute semantic alignment between con
 **Built via**: `cognition-cli genesis` (pre-computed from codebase)
 
 **7 Project Overlays**:
+
 - **O₁**: Structural (architecture, symbols, dependencies)
 - **O₂**: Security (threats, vulnerabilities, mitigations)
 - **O₃**: Lineage (history, provenance, change tracking)
@@ -81,6 +82,7 @@ Sigma uses **lattice Meet operations** to compute semantic alignment between con
 **Built via**: Real-time analysis of chat turns
 
 **7 Conversation Overlays** (mirror project structure):
+
 - **O₁**: Architecture/design discussions
 - **O₂**: Security concerns raised
 - **O₃**: Knowledge evolution ("earlier we discussed...")
@@ -102,10 +104,10 @@ The **Meet** operation computes semantic alignment between a conversation turn a
 for (const overlay of ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7']) {
   // Query project overlay with turn content
   const projectOverlay = await projectRegistry.get(overlay);
-  const results = await projectOverlay.query(turnContent, topK=3);
+  const results = await projectOverlay.query(turnContent, (topK = 3));
 
   // Compute alignment score (0-10)
-  const maxSimilarity = Math.max(...results.map(r => r.similarity));
+  const maxSimilarity = Math.max(...results.map((r) => r.similarity));
   alignment[overlay] = Math.round(maxSimilarity * 10);
 }
 
@@ -113,6 +115,7 @@ for (const overlay of ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7']) {
 ```
 
 **Interpretation**:
+
 - **alignment ≥ 6**: Highly relevant to project knowledge
 - **alignment < 6**: General chat, low project relevance
 
@@ -175,12 +178,14 @@ Result: DISCARD (low importance)
 **State**: Single active session, conversation lattice building in-memory
 
 **Operations**:
+
 1. User sends message → Claude processes → response generated
 2. Turn analyzed: embeddings generated, alignment computed
 3. Turn added to conversation overlays (in-memory)
 4. Lattice grows: nodes, edges, topic shifts tracked
 
 **Visible to user**:
+
 ```
 Overlays: O1[12] O2[3] O3[8] O4[15] O5[6] O6[2] O7[10]
 Nodes: 47 | Edges: 156 | Shifts: 23
@@ -194,32 +199,38 @@ Tokens: 85.2K (42.6%) | Compress at: 150.0K
 **Compression sequence**:
 
 1. **Flush conversation lattice to disk**
+
    ```typescript
    await conversationRegistry.flushAll(sessionId);
    // Writes .sigma/overlays/O1-O7/*.json
    ```
 
 2. **Generate 7-dimensional intelligent recap**
+
    ```typescript
    const recap = await compressContext(conversationLattice, {
-     alignmentThreshold: 6,  // Preserve turns with alignment ≥ 6
-     minTurns: 5,            // Need at least 5 turns
-     maxRecapTokens: 4000    // Target recap size
+     alignmentThreshold: 6, // Preserve turns with alignment ≥ 6
+     minTurns: 5, // Need at least 5 turns
+     maxRecapTokens: 4000, // Target recap size
    });
    ```
 
 3. **Build structured recap by overlay**:
+
    ```markdown
    ## O₁ Structural (Architecture/Design)
+
    - Discussed JWT token refresh implementation in auth middleware
    - Decided on sliding window approach (15min access, 7day refresh)
    - Identified AuthService.ts as main integration point
 
    ## O₂ Security (Threats/Mitigations)
+
    - Raised concern about refresh token storage (httpOnly cookies chosen)
    - Discussed CSRF protection for refresh endpoint
 
    ## O₄ Mission (Goals/Objectives)
+
    - Primary goal: Implement secure, production-ready auth system
    - Constraint: Must maintain backward compatibility with v1 API
 
@@ -227,6 +238,7 @@ Tokens: 85.2K (42.6%) | Compress at: 150.0K
    ```
 
 4. **Clear in-memory state**
+
    ```typescript
    await conversationRegistry.clearAllMemory();
    ```
@@ -236,6 +248,7 @@ Tokens: 85.2K (42.6%) | Compress at: 150.0K
 **Context reconstruction**:
 
 1. **Read persisted lattice**
+
    ```typescript
    const sessionState = await reconstructSessionContext(sessionId, sigmaPath);
    ```
@@ -243,17 +256,18 @@ Tokens: 85.2K (42.6%) | Compress at: 150.0K
 2. **Load 7-dimensional recap** from `.sigma/{sessionId}.recap.txt`
 
 3. **Build rich system prompt**:
+
    ```typescript
    const systemPrompt = `
    You are resuming a conversation about: ${projectDescription}
-
+   
    Previous session context (compressed via lattice algebra):
-
+   
    ${recap}
-
+   
    The conversation lattice contains ${stats.nodes} nodes across 7 overlays.
    Key discussion areas: ${stats.topOverlays.join(', ')}
-
+   
    Continue naturally - you have full context via this intelligent recap.
    `;
    ```
@@ -270,6 +284,7 @@ Tokens: 85.2K (42.6%) | Compress at: 150.0K
 ### What Gets Preserved
 
 **High-alignment turns** (alignment ≥ 6):
+
 - Architecture decisions
 - Security discussions
 - Mission-critical planning
@@ -277,6 +292,7 @@ Tokens: 85.2K (42.6%) | Compress at: 150.0K
 - Code design rationale
 
 **Novel information** (even if low alignment):
+
 - New concepts introduced
 - Unexpected insights
 - Creative suggestions
@@ -284,6 +300,7 @@ Tokens: 85.2K (42.6%) | Compress at: 150.0K
 ### What Gets Discarded
 
 **Low-alignment, low-novelty turns**:
+
 - "That's great!"
 - "Thanks!"
 - "I see what you mean"
@@ -293,10 +310,12 @@ Tokens: 85.2K (42.6%) | Compress at: 150.0K
 ### Continuity Achieved
 
 **Before Sigma**:
+
 - User: "Remember when we discussed the auth refactor?"
 - Agent: "I don't have context from previous sessions."
 
 **After Sigma**:
+
 - User: "Let's continue with the auth refactor"
 - Agent: "Yes, we decided on JWT sliding windows with httpOnly cookies for refresh tokens. Ready to implement AuthService.ts integration?"
 
@@ -307,6 +326,7 @@ Tokens: 85.2K (42.6%) | Compress at: 150.0K
 ### Core Components
 
 **1. Conversation Overlay Registry**
+
 ```typescript
 // Central registry for O1-O7 conversation overlays
 const registry = new ConversationOverlayRegistry(
@@ -329,6 +349,7 @@ await structural.addTurn({
 ```
 
 **2. Turn Analyzer**
+
 ```typescript
 // Computes novelty + alignment for each turn
 const analysis = await analyzeTurn(
@@ -342,18 +363,20 @@ const analysis = await analyzeTurn(
 ```
 
 **3. Context Compressor**
+
 ```typescript
 // Generates intelligent recap from lattice
 const recap = await compressContext(lattice, {
   alignmentThreshold: 6,
   minTurns: 5,
-  maxRecapTokens: 4000
+  maxRecapTokens: 4000,
 });
 
 // Returns markdown-formatted 7-dimensional summary
 ```
 
 **4. Context Reconstructor**
+
 ```typescript
 // Rebuilds session state from .sigma/
 const context = await reconstructSessionContext(sessionId, sigmaPath);
@@ -362,12 +385,10 @@ const context = await reconstructSessionContext(sessionId, sigmaPath);
 ```
 
 **5. MCP Recall Tool**
+
 ```typescript
 // On-demand deep memory via MCP protocol
-const recallTool = createRecallMcpServer(
-  conversationRegistry,
-  workbenchUrl
-);
+const recallTool = createRecallMcpServer(conversationRegistry, workbenchUrl);
 
 // Agent can invoke: recall_past_conversation("auth implementation details")
 ```
@@ -495,11 +516,13 @@ const recallTool = createRecallMcpServer(
 ### Memory Usage
 
 **In-memory lattice** (per session):
+
 - ~5-10MB for 100 turns
 - ~50-100MB for 1000 turns (at 150K tokens)
 - Flushed to disk at compression threshold
 
 **Disk usage** (per session):
+
 - Overlay JSONs: ~10-20MB (compressed)
 - Recap file: ~10-20KB (markdown)
 - Lattice snapshot: ~50-100MB (full graph)
@@ -507,18 +530,21 @@ const recallTool = createRecallMcpServer(
 ### Computational Cost
 
 **Per turn** (real-time):
+
 - Embedding generation: ~50-100ms (eGemma)
 - 7 overlay queries: ~200-400ms (vector similarity)
 - Alignment calculation: ~10ms (pure math)
 - **Total: ~300-500ms overhead per turn**
 
 **At compression** (150K tokens):
+
 - Lattice flush: ~1-2s (write to disk)
 - Recap generation: ~5-10s (LLM summarization)
 - State cleanup: ~100ms
 - **Total: ~7-12s compression time**
 
 **Session resurrection**:
+
 - Recap loading: ~100ms (read file)
 - System prompt construction: ~50ms
 - **Total: ~150ms startup overhead**
@@ -529,35 +555,35 @@ const recallTool = createRecallMcpServer(
 
 ### vs. Anthropic Contexts/Memory
 
-| Feature | Sigma (Σ) | Anthropic Memory |
-|---------|-----------|------------------|
-| **Architecture** | Dual-lattice Meet operations | RAG-based retrieval |
-| **Alignment** | 7-dimensional semantic scoring | Single similarity score |
+| Feature          | Sigma (Σ)                               | Anthropic Memory          |
+| ---------------- | --------------------------------------- | ------------------------- |
+| **Architecture** | Dual-lattice Meet operations            | RAG-based retrieval       |
+| **Alignment**    | 7-dimensional semantic scoring          | Single similarity score   |
 | **Preservation** | Mathematically grounded (alignment ≥ 6) | Heuristic-based selection |
-| **Compression** | Intelligent 7D recap | Black-box summarization |
-| **Transparency** | Full lattice visible (.sigma/) | Opaque internal state |
-| **Ownership** | Local, open source | Cloud-hosted, proprietary |
-| **Cost** | Free (local eGemma) | Usage-based pricing |
+| **Compression**  | Intelligent 7D recap                    | Black-box summarization   |
+| **Transparency** | Full lattice visible (.sigma/)          | Opaque internal state     |
+| **Ownership**    | Local, open source                      | Cloud-hosted, proprietary |
+| **Cost**         | Free (local eGemma)                     | Usage-based pricing       |
 
 ### vs. Traditional RAG
 
-| Feature | Sigma (Σ) | Traditional RAG |
-|---------|-----------|-----------------|
-| **Indexing** | Real-time lattice building | Batch document chunking |
-| **Retrieval** | Meet operations (∧) | Cosine similarity search |
-| **Context** | 7 cognitive dimensions | Single embedding space |
-| **Continuity** | Session lifecycle with recap | No session concept |
-| **Alignment** | Project-aware (dual-lattice) | Query-only relevance |
+| Feature        | Sigma (Σ)                    | Traditional RAG          |
+| -------------- | ---------------------------- | ------------------------ |
+| **Indexing**   | Real-time lattice building   | Batch document chunking  |
+| **Retrieval**  | Meet operations (∧)          | Cosine similarity search |
+| **Context**    | 7 cognitive dimensions       | Single embedding space   |
+| **Continuity** | Session lifecycle with recap | No session concept       |
+| **Alignment**  | Project-aware (dual-lattice) | Query-only relevance     |
 
 ### vs. Long Context Windows
 
-| Feature | Sigma (Σ) | 200K Context Window |
-|---------|-----------|---------------------|
-| **Effective Limit** | Infinite (via compression) | 200K tokens (hard limit) |
-| **Cost** | O(1) per turn (local) | O(n²) attention (cloud) |
-| **Quality** | Preserves important, discards noise | Everything preserved equally |
-| **Continuity** | Across sessions | Single session only |
-| **Transparency** | Visible preservation logic | Opaque attention mechanism |
+| Feature             | Sigma (Σ)                           | 200K Context Window          |
+| ------------------- | ----------------------------------- | ---------------------------- |
+| **Effective Limit** | Infinite (via compression)          | 200K tokens (hard limit)     |
+| **Cost**            | O(1) per turn (local)               | O(n²) attention (cloud)      |
+| **Quality**         | Preserves important, discards noise | Everything preserved equally |
+| **Continuity**      | Across sessions                     | Single session only          |
+| **Transparency**    | Visible preservation logic          | Opaque attention mechanism   |
 
 ---
 
@@ -568,12 +594,14 @@ const recallTool = createRecallMcpServer(
 **Scenario**: Multi-day implementation of complex feature
 
 **Without Sigma**:
+
 - Daily context loss
 - Repeated explanations
 - Lost architectural decisions
 - Momentum breaks
 
 **With Sigma**:
+
 - Seamless daily continuation
 - Agent remembers design decisions
 - Architecture stays coherent
@@ -584,11 +612,13 @@ const recallTool = createRecallMcpServer(
 **Scenario**: Understanding large, unfamiliar codebase
 
 **Without Sigma**:
+
 - Agent forgets previous file discussions
 - Repeated questions about same modules
 - No accumulation of understanding
 
 **With Sigma**:
+
 - Conversation lattice builds codebase mental model
 - Agent recalls "we looked at AuthService.ts earlier"
 - Understanding compounds over sessions
@@ -598,11 +628,13 @@ const recallTool = createRecallMcpServer(
 **Scenario**: Collaborative development over hours
 
 **Without Sigma**:
+
 - Context limit forces session restart mid-task
 - Loss of debugging history
 - Repeated setup explanations
 
 **With Sigma**:
+
 - Continuous flow through 150K+ tokens
 - Full debugging history preserved
 - Natural multi-hour sessions
@@ -612,11 +644,13 @@ const recallTool = createRecallMcpServer(
 **Scenario**: Exploring multiple solution approaches
 
 **Without Sigma**:
+
 - Agent forgets earlier experiments
 - No memory of rejected approaches
 - Circular discussions
 
 **With Sigma**:
+
 - O3 (Lineage) tracks exploration history
 - Agent: "We tried approach A, failed due to X"
 - Systematic narrowing of solution space
@@ -630,6 +664,7 @@ const recallTool = createRecallMcpServer(
 Current: Fixed 150K token threshold
 
 Future: Dynamic adjustment based on:
+
 - Conversation complexity (high novelty → delay compression)
 - Overlay balance (uneven O1-O7 → compress earlier)
 - User preference (configurable threshold)
@@ -639,6 +674,7 @@ Future: Dynamic adjustment based on:
 Current: Each session independent
 
 Future: Meet operations across sessions:
+
 - "Find all discussions about auth across last 10 sessions"
 - Build meta-lattice of session lattices
 - Long-term project memory
@@ -648,6 +684,7 @@ Future: Meet operations across sessions:
 Current: Single-user session memory
 
 Future: Multi-user shared lattice:
+
 - Team conversation overlays
 - Consensus-weighted importance
 - Merge conflicts in knowledge graph
@@ -657,6 +694,7 @@ Future: Multi-user shared lattice:
 Current: Local .sigma/ storage
 
 Future: Distributed lattice synchronization:
+
 - P2P lattice sharing
 - Content-addressed overlay deduplication
 - Privacy-preserving Meet operations

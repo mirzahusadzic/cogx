@@ -152,15 +152,35 @@ export class ConversationOverlayRegistry {
 
     switch (overlayId) {
       case 'O1':
-        return new ConversationStructuralManager(this.sigmaRoot, workbenchUrl, debug);
+        return new ConversationStructuralManager(
+          this.sigmaRoot,
+          workbenchUrl,
+          debug
+        );
       case 'O2':
-        return new ConversationSecurityManager(this.sigmaRoot, workbenchUrl, debug);
+        return new ConversationSecurityManager(
+          this.sigmaRoot,
+          workbenchUrl,
+          debug
+        );
       case 'O3':
-        return new ConversationLineageManager(this.sigmaRoot, workbenchUrl, debug);
+        return new ConversationLineageManager(
+          this.sigmaRoot,
+          workbenchUrl,
+          debug
+        );
       case 'O4':
-        return new ConversationMissionManager(this.sigmaRoot, workbenchUrl, debug);
+        return new ConversationMissionManager(
+          this.sigmaRoot,
+          workbenchUrl,
+          debug
+        );
       case 'O5':
-        return new ConversationOperationalManager(this.sigmaRoot, workbenchUrl, debug);
+        return new ConversationOperationalManager(
+          this.sigmaRoot,
+          workbenchUrl,
+          debug
+        );
       case 'O6':
         return new ConversationMathematicalManager(
           this.sigmaRoot,
@@ -168,7 +188,11 @@ export class ConversationOverlayRegistry {
           debug
         );
       case 'O7':
-        return new ConversationCoherenceManager(this.sigmaRoot, workbenchUrl, debug);
+        return new ConversationCoherenceManager(
+          this.sigmaRoot,
+          workbenchUrl,
+          debug
+        );
       default:
         throw new Error(`Unknown conversation overlay: ${overlayId}`);
     }

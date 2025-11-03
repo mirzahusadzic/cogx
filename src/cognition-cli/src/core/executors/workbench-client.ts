@@ -53,7 +53,10 @@ export class WorkbenchClient {
   private lastEmbedCallTime: number = 0;
   private embedCallCount: number = 0;
 
-  constructor(private baseUrl: string, private debug: boolean = false) {
+  constructor(
+    private baseUrl: string,
+    private debug: boolean = false
+  ) {
     this.apiKey = process.env.WORKBENCH_API_KEY || '';
     // Note: API key warning is deferred until first actual API call
     // Read-only commands don't need workbench access
