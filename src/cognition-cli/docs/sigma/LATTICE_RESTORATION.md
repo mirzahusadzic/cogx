@@ -185,17 +185,19 @@ The conversation overlays enable semantic memory recall via the `mcp__conversati
 ```typescript
 // Example query
 tool.use({
-  query: "What did we discuss about TUI scrolling?"
+  query: 'What did we discuss about TUI scrolling?',
 });
 ```
 
 The recall system:
+
 1. **Query deconstruction** - SLM analyzes the query intent
 2. **Multi-overlay search** - Searches all 7 overlays (O1-O7) with embeddings
 3. **Temporal re-ranking** - Results sorted chronologically for coherence
 4. **Context synthesis** - LLM synthesizes answer with metadata (importance, alignment, overlay types)
 
 The `conversation_memory_assistant` persona ensures high-fidelity recall that preserves:
+
 - Technical details (file names, function names, decisions)
 - Chronological flow
 - Importance and alignment scores

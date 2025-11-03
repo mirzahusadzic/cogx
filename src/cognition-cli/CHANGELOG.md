@@ -69,6 +69,13 @@ The introduction of Σ (Sigma) fundamentally changes how AI agents maintain stat
   - Overlays remain in memory across SDK session boundaries
   - Memory available even before compression triggers (150K tokens)
 
+- **Session forwarding for compressed sessions**
+  - Automatically forward `--session-id` to compressed session when resuming
+  - Check `.sigma/{id}.state.json` for compression state
+  - Load recap and start fresh SDK session (no resume of dead sessions)
+  - User always uses original session ID, Sigma manages chain internally
+  - Prevents confusion about which session ID to use after compression
+
 - **Performance characteristics**
   - Per-turn overhead: 300-500ms (embedding + alignment scoring)
   - Compression time: 7-12s (at 150K tokens)

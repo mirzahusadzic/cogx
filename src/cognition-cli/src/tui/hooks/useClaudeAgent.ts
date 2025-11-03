@@ -556,7 +556,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           const state = JSON.parse(fs.readFileSync(statePath, 'utf-8'));
 
           if (state.newSessionId) {
-            debug(' Session was compressed, forwarding to:', state.newSessionId);
+            debug(
+              ' Session was compressed, forwarding to:',
+              state.newSessionId
+            );
             // This session was compressed - forward to new session
             sessionId = state.newSessionId;
             shouldResumeSDK = false; // Don't resume SDK - we'll use recap
