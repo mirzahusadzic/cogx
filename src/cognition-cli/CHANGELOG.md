@@ -5,6 +5,39 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.3] - 2025-11-03
+
+### ✨ Features
+
+#### LanceDB Integration with Dual-Storage Architecture
+
+Implemented high-performance dual-storage for conversational lattice: YAML for human-readable metadata, LanceDB for fast vector search.
+
+**Performance**: 10-100x faster queries, 95% reduction in YAML file size (288 bytes vs 22KB per turn)
+
+**Key Features**:
+
+- Automatic v1→v2 migration (lazy, preserves original files)
+- LanceDB-priority reads with YAML fallback
+- Cross-session semantic search and paradigm shift tracking
+- 768D embeddings with 7 overlay alignments (O1-O7)
+
+**Files Added**: `conversation-lance-store.ts`, `cross-session-query.ts`, `migrate-yaml-to-lancedb.ts`, `MIGRATION_V1_TO_V2.md`
+
+**Migration**: Automatic on access. Manual: `npx tsx src/sigma/migrate-yaml-to-lancedb.ts .sigma`
+
+**Deprecation**: v1 format (embeddings in YAML) will be removed in v3.0
+
+### 🐛 Bug Fixes
+
+#### Token Count Accumulation on Session Restore
+
+Fixed incorrect token accumulation when restoring sessions. SDK provides cumulative totals, but code was adding them (causing 30-40k to inflate). Now uses `Math.max()` to track highest value.
+
+#### LanceDB BigInt Timestamp Conversion
+
+Fixed Apache Arrow Int64 (BigInt) conversion errors by creating plain JS object copies instead of modifying Arrow proxies.
+
 ## [2.0.2] - 2025-11-03
 
 ### 🐛 Bug Fixes
