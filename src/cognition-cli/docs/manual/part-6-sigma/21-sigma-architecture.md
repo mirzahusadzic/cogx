@@ -91,7 +91,7 @@ Sigma uses **lattice Meet operations** to compute semantic alignment between con
 - **O₆**: Algorithms/logic discussed
 - **O₇**: Conversation flow, topic drift
 
-**Purpose**: Capture project-relevant conversation. Built on-the-fly, flushed at compression.
+**Purpose**: Capture project-relevant conversation. Built on-the-fly, flushed periodically (every 5 turns + on exit) and at compression.
 
 ---
 
@@ -182,7 +182,8 @@ Result: DISCARD (low importance)
 1. User sends message → Claude processes → response generated
 2. Turn analyzed: embeddings generated, alignment computed
 3. Turn added to conversation overlays (in-memory)
-4. Lattice grows: nodes, edges, topic shifts tracked
+4. **Periodic flush**: Every 5 turns, overlays flushed to disk (prevents data loss)
+5. Lattice grows: nodes, edges, topic shifts tracked
 
 **Visible to user**:
 
@@ -237,10 +238,12 @@ Tokens: 85.2K (42.6%) | Compress at: 150.0K
    [... continues for O3, O5, O6, O7 ...]
    ```
 
-4. **Clear in-memory state**
+4. **Keep in-memory state for continuity**
 
    ```typescript
-   await conversationRegistry.clearAllMemory();
+   // Overlays remain in memory to continue accumulating across SDK sessions
+   // This ensures seamless session resumption with --session-id
+   debug('Keeping conversation overlays in memory (continue accumulating)');
    ```
 
 ### Phase 3: Session Resurrection (New Session)
@@ -384,7 +387,7 @@ const context = await reconstructSessionContext(sessionId, sigmaPath);
 // Returns: { recap, stats, lattice }
 ```
 
-**5. MCP Recall Tool**
+**5. MCP Recall Tool** (Enhanced with High-Fidelity Synthesis)
 
 ```typescript
 // On-demand deep memory via MCP protocol
@@ -393,33 +396,47 @@ const recallTool = createRecallMcpServer(conversationRegistry, workbenchUrl);
 // Agent can invoke: recall_past_conversation("auth implementation details")
 ```
 
+**Recall System Improvements**:
+
+1. **Query deconstruction** via `query_analyst` persona (SLM)
+2. **Multi-overlay search** across all O1-O7 with embeddings
+3. **Temporal re-ranking** - results sorted chronologically for coherence
+4. **Enhanced synthesis** via `conversation_memory_assistant` persona:
+   - Preserves technical details (file names, function names, decisions)
+   - Maintains chronological flow
+   - Includes importance/alignment metadata
+   - Organizes multi-point discussions clearly
+5. **Retry mechanism** - 5 retries with exponential backoff for 429 errors
+6. **Increased coverage** - topK increased from 5 to 10 for better context
+
 ### Data Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    User Input                                │
+│                    User Input                               │
 └────────────────────┬────────────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              Turn Analysis (analyzeTurn)                     │
-│  • Generate embedding                                        │
-│  • Compute novelty vs recent history                         │
-│  • Query all 7 project overlays (Meet operations)            │
-│  • Compute alignment_O1..O7                                  │
-│  • Calculate importance = novelty×5 + max(alignment)×0.5     │
+│              Turn Analysis (analyzeTurn)                    │
+│  • Generate embedding                                       │
+│  • Compute novelty vs recent history                        │
+│  • Query all 7 project overlays (Meet operations)           │
+│  • Compute alignment_O1..O7                                 │
+│  • Calculate importance = novelty×5 + max(alignment)×0.5    │
 └────────────────────┬────────────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────┐
-│         Populate Conversation Overlays (in-memory)           │
+│         Populate Conversation Overlays (in-memory)          │
 │  • O1-O7 managers.addTurn(...)                              │
-│  • Build semantic graph (nodes, edges, shifts)               │
+│  • Build semantic graph (nodes, edges, shifts)              │
+│  • Periodic flush: Every 5 turns → .sigma/overlays/         │
 └────────────────────┬────────────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                 Claude Response                              │
+│                 Claude Response                             │
 └────────────────────┬────────────────────────────────────────┘
                      │
                      ▼
@@ -427,20 +444,20 @@ const recallTool = createRecallMcpServer(conversationRegistry, workbenchUrl);
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────┐
-│             Compression (at 150K threshold)                  │
+│             Compression (at 150K threshold)                 │
 │  1. Flush lattice to .sigma/overlays/                       │
-│  2. Generate 7-dimensional recap                             │
-│  3. Save recap to .sigma/{session}.recap.txt                 │
-│  4. Clear in-memory state                                    │
+│  2. Generate 7-dimensional recap                            │
+│  3. Save recap to .sigma/{session}.recap.txt                │
+│  4. Keep overlays in memory for continuity                  │
 └────────────────────┬────────────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────┐
-│          New Session (Context Reconstruction)                │
-│  1. Load .sigma/{session}.recap.txt                          │
-│  2. Build rich systemPrompt with recap                       │
-│  3. Start fresh agent with full continuity                   │
-│  4. MCP recall tool available for deep queries               │
+│          New Session (Context Reconstruction)               │
+│  1. Load .sigma/{session}.recap.txt                         │
+│  2. Build rich systemPrompt with recap                      │
+│  3. Start fresh agent with full continuity                  │
+│  4. MCP recall tool available for deep queries              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -553,9 +570,9 @@ const recallTool = createRecallMcpServer(conversationRegistry, workbenchUrl);
 
 ## Comparison to Alternatives
 
-### vs. Anthropic Contexts/Memory
+### vs. Managed Memory Services
 
-| Feature          | Sigma (Σ)                               | Anthropic Memory          |
+| Feature          | Sigma (Σ)                               | Cloud-based Memory        |
 | ---------------- | --------------------------------------- | ------------------------- |
 | **Architecture** | Dual-lattice Meet operations            | RAG-based retrieval       |
 | **Alignment**    | 7-dimensional semantic scoring          | Single similarity score   |

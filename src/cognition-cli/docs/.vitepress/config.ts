@@ -127,6 +127,10 @@ export default defineConfig({
                 text: '21 - Sigma Architecture',
                 link: '/manual/part-6-sigma/21-sigma-architecture',
               },
+              {
+                text: 'Lattice Restoration',
+                link: '/sigma/LATTICE_RESTORATION',
+              },
             ],
           },
         ],
