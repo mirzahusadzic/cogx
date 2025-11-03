@@ -1,14 +1,16 @@
 # Cognition CLI (`cognition-cli`)
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17489413.svg)](https://doi.org/10.5281/zenodo.17489413)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17509405.svg)](https://doi.org/10.5281/zenodo.17509405)
 
 <div align="center" style="margin-top: 20px; margin-bottom: 20px;">
 <img src="./docs/assets/cognition-cli-logo.png" alt="Cognition CLI Logo" width="512"/>
 </div>
 
-> **A cryptographically-grounded knowledge graph system with seven cognitive overlays for verifiable code understanding and mission alignment.**
+> **A cryptographically-grounded knowledge graph system with seven cognitive overlays for verifiable code understanding, mission alignment, and infinite context through Σ (Sigma).**
 
 The Cognition CLI is the reference implementation of the **Grounded Context Pool (PGC)**, a core component of the [CogX Architectural Blueprint](https://github.com/mirzahusadzic/cogx). It transforms unstructured code and documentation into a rich, queryable, verifiably-grounded knowledge graph with **seven specialized cognitive overlays** (O₁-O₇), enabling AI-powered development grounded in cryptographic truth, not statistical approximation.
+
+**v2.0 introduces Σ (Sigma)**: A dual-lattice architecture enabling **infinite context** for stateful AI through intelligent compression, conversation memory, and session lifecycle management. Not just RAG or summarization - this is **AI with real memory**.
 
 ---
 
@@ -466,6 +468,25 @@ AGPL-v3 - See LICENSE file for details.
 
 ---
 
+## Innovations Disclosed as Prior Art
+
+These innovations are protected from patent restrictions via defensive publication ([Zenodo: 10.5281/zenodo.17509405](https://doi.org/10.5281/zenodo.17509405)) and remain free for all humanity:
+
+**v2.0.0 - Published November 3, 2025:**
+
+39. **Σ (Sigma) Dual-Lattice Architecture:** Project lattice (`.open_cognition/`) ∧ Conversation lattice (`.sigma/`) with Meet operations for semantic alignment scoring across 7 dimensions, enabling stateful AI with infinite context
+40. **7-Dimensional Conversation Overlays (O1-O7):** Real-time conversation indexing mirroring project overlays (O₁: Architecture, O₂: Security, O₃: Knowledge evolution, O₄: Goals, O₅: Commands, O₆: Algorithms, O₇: Coherence) with on-the-fly lattice building from chat turns
+41. **Intelligent Context Compression at 150K Tokens:** Importance-based filtering using formula `novelty × 5 + max(alignment_O1..O7) × 0.5` with high-alignment preservation (≥6) and low-value chat discarding, generating 7-dimensional intelligent recaps via lattice algebra
+42. **Session Lifecycle Management:** Three-phase system (normal operation with periodic flush → compression trigger with overlay flush → session resurrection from intelligent recap) enabling seamless continuity across unlimited sessions with zero perceived context loss
+43. **High-Fidelity Memory Recall System:** Specialized `conversation_memory_assistant` persona with query deconstruction, multi-overlay embedding search, temporal re-ranking (chronological sorting), enhanced context synthesis with importance/alignment/overlay metadata, 5-retry exponential backoff for 429 errors, increased topK (5→10), preserving technical details (file names, function names, decisions)
+44. **Periodic Overlay Persistence:** Automatic flush every 5 turns preventing data loss in short sessions, cleanup flush on TUI exit/unmount guaranteeing data preservation, overlays remaining in memory across SDK session boundaries, memory available before 150K compression trigger
+45. **Session Forwarding for Compressed Sessions:** Automatic forwarding of `--session-id` to compressed session via `.sigma/{id}.state.json` state detection, recap loading with fresh SDK session start (no dead session resume), user always uses original session ID while Sigma manages internal chain
+46. **Interactive TUI with Real-Time Lattice Visualization:** Production-ready terminal interface with live overlay status bar showing counts (O1-O7), lattice statistics (nodes/edges/shifts), token tracking with compression threshold, toggle info panel, persistent scroll history with mouse support, and BBS-style aesthetics
+
+For complete innovation history (Innovations #1-46), see [docs/overlays/O4_mission/VISION.md](./docs/overlays/O4_mission/VISION.md).
+
+---
+
 ## Citation
 
 If you use this work in research, please cite:
@@ -473,9 +494,10 @@ If you use this work in research, please cite:
 ```bibtex
 @software{cognition_cli_2025,
   author = {Husadžić, Mirza},
-  title = {Cognition CLI: A Seven-Overlay Knowledge Graph for Verifiable Code Understanding},
+  title = {Cognition CLI: Seven-Overlay Knowledge Graph with Infinite Context (Sigma)},
   year = {2025},
-  doi = {10.5281/zenodo.17489413},
+  version = {2.0.0},
+  doi = {10.5281/zenodo.17509405},
   url = {https://github.com/mirzahusadzic/cogx}
 }
 ```

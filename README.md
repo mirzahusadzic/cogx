@@ -14,7 +14,7 @@ _And I'll show you how deep this rabbit hole really goes._
 
 <div align="center">
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17501091.svg)](https://doi.org/10.5281/zenodo.17501091)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17509405.svg)](https://doi.org/10.5281/zenodo.17509405)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 </div>
@@ -45,15 +45,18 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 ## 🎯 Recent Innovations
 
-**November 1, 2025** — [v1.8.0: Self-Cognition - The Lattice Explains Itself](https://github.com/mirzahusadzic/cogx/releases/tag/v1.8.0):
+**November 3, 2025** — [v2.0.0: Σ (Sigma) - Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0):
 
-- ✅ **Block 4 (Self-Cognition) Achieved** - `cognition-cli ask "what is cPOW?"` queries and synthesizes answers across the entire knowledge lattice
-- ✅ **Cross-Overlay Semantic Q&A** - Natural language queries with provenance tracking and confidence scoring (2-3s response times)
-- ✅ **100% Classification Confidence** - YAML frontmatter validation for all 15 manual documents
-- ✅ **Enhanced Extraction** - WorkflowExtractor generalized, "What is X?" sections captured
-- ✅ **Quest Logging (Block 2 - Lops)** - Transparency logging infrastructure for cPOW lineage
+- ✅ **Σ (Sigma) Dual-Lattice Architecture** - Project lattice ∧ Conversation lattice with Meet operations enabling stateful AI with infinite context
+- ✅ **7-Dimensional Conversation Overlays (O1-O7)** - Real-time conversation indexing mirroring project overlays, built on-the-fly from chat turns
+- ✅ **Intelligent Context Compression at 150K Tokens** - Importance formula: `novelty × 5 + max(alignment_O1..O7) × 0.5` preserving high-alignment turns, discarding noise
+- ✅ **Session Lifecycle Management** - Normal operation → Compression → Resurrection with seamless continuity across unlimited sessions
+- ✅ **High-Fidelity Memory Recall** - Specialized persona with temporal re-ranking, multi-overlay search, 5-retry exponential backoff
+- ✅ **Periodic Overlay Persistence** - Auto-flush every 5 turns + cleanup on exit preventing data loss
+- ✅ **Session Forwarding** - Automatic session chain management for compressed sessions
+- ✅ **Interactive TUI with Real-Time Lattice Visualization** - Live overlay counts, lattice statistics, token tracking, scroll history
 
-**The lattice can now explain itself.**
+**AI with real memory. Not just RAG or summarization.**
 
 📜 **[See full release history](src/cognition-cli/CHANGELOG.md)** | 🚀 **[Get Started](https://mirzahusadzic.github.io/cogx/03_Commands.html#_5-setup-onboarding-commands)**
 
@@ -1520,6 +1523,17 @@ This repository constitutes a **formal defensive publication** establishing prio
 37. **Quest Operations Logging (Block 2 - Lops)** — Transparency logging infrastructure for quest execution provenance and cPOW lineage tracking with immutable audit trails
 38. **Sacred Pause Formalization** — Oracle Meeting Points documented as three-phase decision framework with depth-based quality gates and F.L.T.B validation checkpoints
 
+**v2.0.0 - Published November 3, 2025** — [Zenodo: 10.5281/zenodo.17509405](https://doi.org/10.5281/zenodo.17509405)
+
+39. **Σ (Sigma) Dual-Lattice Architecture** — Project lattice (`.open_cognition/`) ∧ Conversation lattice (`.sigma/`) with Meet operations for semantic alignment scoring across 7 dimensions, enabling stateful AI with infinite context
+40. **7-Dimensional Conversation Overlays (O1-O7)** — Real-time conversation indexing mirroring project overlays (O₁: Architecture, O₂: Security, O₃: Knowledge evolution, O₄: Goals, O₅: Commands, O₆: Algorithms, O₇: Coherence) with on-the-fly lattice building from chat turns
+41. **Intelligent Context Compression at 150K Tokens** — Importance-based filtering using formula `novelty × 5 + max(alignment_O1..O7) × 0.5` with high-alignment preservation (≥6) and low-value chat discarding, generating 7-dimensional intelligent recaps via lattice algebra
+42. **Session Lifecycle Management** — Three-phase system (normal operation with periodic flush → compression trigger with overlay flush → session resurrection from intelligent recap) enabling seamless continuity across unlimited sessions with zero perceived context loss
+43. **High-Fidelity Memory Recall System** — Specialized `conversation_memory_assistant` persona with query deconstruction, multi-overlay embedding search, temporal re-ranking (chronological sorting), enhanced context synthesis with importance/alignment/overlay metadata, 5-retry exponential backoff for 429 errors, increased topK (5→10), preserving technical details (file names, function names, decisions)
+44. **Periodic Overlay Persistence** — Automatic flush every 5 turns preventing data loss in short sessions, cleanup flush on TUI exit/unmount guaranteeing data preservation, overlays remaining in memory across SDK session boundaries, memory available before 150K compression trigger
+45. **Session Forwarding for Compressed Sessions** — Automatic forwarding of `--session-id` to compressed session via `.sigma/{id}.state.json` state detection, recap loading with fresh SDK session start (no dead session resume), user always uses original session ID while Sigma manages internal chain
+46. **Interactive TUI with Real-Time Lattice Visualization** — Production-ready terminal interface with live overlay status bar showing counts (O1-O7), lattice statistics (nodes/edges/shifts), token tracking with compression threshold, toggle info panel, persistent scroll history with mouse support, and BBS-style aesthetics
+
 ---
 
 **Threat Model**: Defends against supply chain attacks that exploit AI-assisted development by gradually poisoning strategic documents through plausible pull requests. See [`docs/MISSION_DRIFT_ATTACKS.md`](docs/MISSION_DRIFT_ATTACKS.md) for detailed threat analysis.
@@ -1541,8 +1555,9 @@ This repository constitutes a **formal defensive publication** establishing prio
   - October 28, 2025 (Innovations #26-27: The Shadow + Lattice-aware Gaussian Weighting)
   - October 31, 2025 (Innovations #28-33: Complete 7-Overlay System, Lattice Algebra, Foundation Manual) — [Zenodo: 10.5281/zenodo.17489413](https://doi.org/10.5281/zenodo.17489413)
   - November 1, 2025 (Innovations #34-38: Self-Cognition, Semantic Q&A, Quest Logging) — [Zenodo: 10.5281/zenodo.17501091](https://doi.org/10.5281/zenodo.17501091)
+  - November 3, 2025 (Innovations #39-46: Σ Dual-Lattice, Infinite Context, Session Lifecycle) — [Zenodo: 10.5281/zenodo.17509405](https://doi.org/10.5281/zenodo.17509405)
 - **Public Repository**: https://github.com/mirzahusadzic/cogx
-- **Permanent Archive**: Zenodo DOI [10.5281/zenodo.17501091](https://doi.org/10.5281/zenodo.17501091) (latest)
+- **Permanent Archive**: Zenodo DOI [10.5281/zenodo.17509405](https://doi.org/10.5281/zenodo.17509405) (latest)
 - **License**: AGPLv3 (entire repository — code, documentation, blueprints)
 - **Inventor**: Mirza Husadžić
 

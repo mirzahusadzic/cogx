@@ -179,7 +179,7 @@ These innovations are protected from patent restrictions and remain free for all
 26. **Monument 4.7: The Shadow:** Dual embedding system for structural and semantic signatures enabling both code pattern matching and mission alignment queries
 27. **Monument 5.1: Lattice-aware Gaussian Weighting:** Pure lattice-based coherence using Gaussian statistics + graph centrality, eliminating all hardcoded constants (weight formula: w = log10(deps+1) × max(0.1, 1.0 + z_score))
 
-**Published**: October 31, 2025 — [Zenodo: 10.5281/zenodo.17489413](https://doi.org/10.5281/zenodo.17489413)
+**Published**: November 3, 2025 — [Zenodo: 10.5281/zenodo.17509405](https://doi.org/10.5281/zenodo.17509405)
 
 28. **Lattice Algebra System:** Boolean query operations across overlays with ASCII syntax (O1 ∩ O2, O1 ∪ O2, O1 - O2, O2[critical], O4 ~ "verification", O7[coherence>0.8])
 29. **Multi-Overlay Document Routing:** Intelligent document classification using confidence thresholds with automatic overlay generation based on document type (strategic → O₄, security → O₂, operational → O₅, mathematical → O₆)
@@ -195,6 +195,17 @@ These innovations are protected from patent restrictions and remain free for all
 36. **Generic Documentation Extraction:** WorkflowExtractor generalized for all documentation types with section heading-based context capture and "What is X?" pattern recognition
 37. **Quest Operations Logging (Block 2 - Lops):** Transparency logging infrastructure for quest execution provenance and cPOW lineage tracking with immutable audit trails
 38. **Sacred Pause Formalization:** Oracle Meeting Points documented as three-phase decision framework with depth-based quality gates and F.L.T.B validation checkpoints
+
+**Published**: November 3, 2025 — [Zenodo: 10.5281/zenodo.17509405](https://doi.org/10.5281/zenodo.17509405)
+
+39. **Σ (Sigma) Dual-Lattice Architecture:** Project lattice (`.open_cognition/`) ∧ Conversation lattice (`.sigma/`) with Meet operations for semantic alignment scoring across 7 dimensions, enabling stateful AI with infinite context
+40. **7-Dimensional Conversation Overlays (O1-O7):** Real-time conversation indexing mirroring project overlays (O₁: Architecture, O₂: Security, O₃: Knowledge evolution, O₄: Goals, O₅: Commands, O₆: Algorithms, O₇: Coherence) with on-the-fly lattice building from chat turns
+41. **Intelligent Context Compression at 150K Tokens:** Importance-based filtering using formula `novelty × 5 + max(alignment_O1..O7) × 0.5` with high-alignment preservation (≥6) and low-value chat discarding, generating 7-dimensional intelligent recaps via lattice algebra
+42. **Session Lifecycle Management:** Three-phase system (normal operation with periodic flush → compression trigger with overlay flush → session resurrection from intelligent recap) enabling seamless continuity across unlimited sessions with zero perceived context loss
+43. **High-Fidelity Memory Recall System:** Specialized `conversation_memory_assistant` persona with query deconstruction, multi-overlay embedding search, temporal re-ranking (chronological sorting), enhanced context synthesis with importance/alignment/overlay metadata, 5-retry exponential backoff for 429 errors, increased topK (5→10), preserving technical details (file names, function names, decisions)
+44. **Periodic Overlay Persistence:** Automatic flush every 5 turns preventing data loss in short sessions, cleanup flush on TUI exit/unmount guaranteeing data preservation, overlays remaining in memory across SDK session boundaries, memory available before 150K compression trigger
+45. **Session Forwarding for Compressed Sessions:** Automatic forwarding of `--session-id` to compressed session via `.sigma/{id}.state.json` state detection, recap loading with fresh SDK session start (no dead session resume), user always uses original session ID while Sigma manages internal chain
+46. **Interactive TUI with Real-Time Lattice Visualization:** Production-ready terminal interface with live overlay status bar showing counts (O1-O7), lattice statistics (nodes/edges/shifts), token tracking with compression threshold, toggle info panel, persistent scroll history with mouse support, and BBS-style aesthetics
 
 ### 5. Mathematics Rewards Openness
 
@@ -377,7 +388,7 @@ That's the full vision. That's why the lattice had to be open. 💚
 - **Author**: Mirza Husadžić
 - **Email**: <mirza.husadzic@proton.me>
 - **Repository**: <https://github.com/mirzahusadzic/cogx>
-- **Archive**: Zenodo DOI [10.5281/zenodo.17476619](https://doi.org/10.5281/zenodo.17476619)
+- **Archive**: Zenodo DOI [10.5281/zenodo.17509405](https://doi.org/10.5281/zenodo.17509405)
 
 ### License & Patents
 
