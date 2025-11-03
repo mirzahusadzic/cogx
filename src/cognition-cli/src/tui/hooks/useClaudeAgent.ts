@@ -244,6 +244,23 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               conversationRegistryRef.current
             );
             debug(' Conversation overlays populated');
+
+            // Periodic flush: Every 5 turns, flush overlays to disk
+            // This ensures data is persisted even if compression doesn't trigger
+            const FLUSH_INTERVAL = 5;
+            if (turnAnalyses.current.length % FLUSH_INTERVAL === 0) {
+              debug(
+                ` Periodic flush triggered (${turnAnalyses.current.length} turns)`
+              );
+              try {
+                await conversationRegistryRef.current.flushAll(
+                  currentSessionId
+                );
+                debug(' Conversation overlays flushed to disk');
+              } catch (flushErr) {
+                debug(' Failed to flush conversation overlays:', flushErr);
+              }
+            }
           } catch (err) {
             debug(' Failed to populate conversation overlays:', err);
           }
@@ -522,18 +539,14 @@ New Session: ${stateSummary.newSessionId}
               // Keep compressionTriggered = true to prevent re-compression until new session establishes
               // Keep turnAnalyses.current - we continue building on the lattice!
 
-              // 7b. Clear in-memory conversation overlays (they've been flushed to disk)
-              if (conversationRegistryRef.current) {
-                try {
-                  await conversationRegistryRef.current.clearAllMemory();
-                  debug(' Conversation overlay memory cleared');
-                } catch (clearErr) {
-                  debug(
-                    ' Failed to clear conversation overlay memory:',
-                    clearErr
-                  );
-                }
-              }
+              // 7b. DO NOT clear in-memory conversation overlays!
+              // They should continue accumulating across SDK session boundaries.
+              // When you resume with --session-id, we want ALL overlays (old + new).
+              // The overlays are flushed to disk above, but we keep them in memory
+              // so new turns continue building on the same overlay files.
+              debug(
+                ' Keeping conversation overlays in memory (continue accumulating)'
+              );
 
               // 7c. Calculate compression ratio
               const recapTokens = Math.round(reconstructed.recap.length / 4);
@@ -607,12 +620,17 @@ New Session: ${stateSummary.newSessionId}
   }, [messages, tokenCount.total, options.cwd]);
 
   // Load initial token count from existing session transcript
+  // AND restore Sigma lattice + conversation overlays
   useEffect(() => {
     if (!options.sessionId) return;
 
-    const loadSessionTokens = async () => {
+    const loadSessionState = async () => {
       try {
         const sessionId = options.sessionId!; // Guaranteed to exist by check above
+
+        // ========================================
+        // 1. LOAD TOKEN COUNT FROM TRANSCRIPT
+        // ========================================
         // Try common Claude Code transcript locations
         const possiblePaths = [
           path.join(
@@ -653,60 +671,166 @@ New Session: ${stateSummary.newSessionId}
             path.join(process.cwd(), 'tui-debug.log'),
             `[TOKEN DEBUG] Transcript not found. Searched:\n${possiblePaths.join('\n')}\n\n`
           );
-          return; // No transcript found, start from 0
-        }
+        } else {
+          // Debug: log successful load
+          fs.appendFileSync(
+            path.join(process.cwd(), 'tui-debug.log'),
+            `[TOKEN DEBUG] Loading transcript from: ${transcriptPath}\n`
+          );
 
-        // Debug: log successful load
-        fs.appendFileSync(
-          path.join(process.cwd(), 'tui-debug.log'),
-          `[TOKEN DEBUG] Loading transcript from: ${transcriptPath}\n`
-        );
+          // Read transcript and calculate cumulative tokens
+          const transcriptContent = fs.readFileSync(transcriptPath, 'utf-8');
+          const lines = transcriptContent.trim().split('\n').filter(Boolean);
 
-        // Read transcript and calculate cumulative tokens
-        const transcriptContent = fs.readFileSync(transcriptPath, 'utf-8');
-        const lines = transcriptContent.trim().split('\n').filter(Boolean);
+          let totalInput = 0;
+          let totalOutput = 0;
 
-        let totalInput = 0;
-        let totalOutput = 0;
+          for (const line of lines) {
+            try {
+              const msg = JSON.parse(line);
 
-        for (const line of lines) {
-          try {
-            const msg = JSON.parse(line);
-
-            // Look for usage information in different message types
-            if (
-              msg.type === 'stream_event' &&
-              msg.event?.type === 'message_delta' &&
-              msg.event?.usage
-            ) {
-              const usage = msg.event.usage;
-              totalInput += usage.input_tokens || 0;
-              totalInput += usage.cache_creation_input_tokens || 0;
-              totalInput += usage.cache_read_input_tokens || 0;
-              totalOutput += usage.output_tokens || 0;
-            } else if (msg.type === 'result' && msg.usage) {
-              // Result messages have final totals
-              totalInput = msg.usage.input_tokens || 0;
-              totalOutput = msg.usage.output_tokens || 0;
+              // Look for usage information in different message types
+              if (
+                msg.type === 'stream_event' &&
+                msg.event?.type === 'message_delta' &&
+                msg.event?.usage
+              ) {
+                const usage = msg.event.usage;
+                totalInput += usage.input_tokens || 0;
+                totalInput += usage.cache_creation_input_tokens || 0;
+                totalInput += usage.cache_read_input_tokens || 0;
+                totalOutput += usage.output_tokens || 0;
+              } else if (msg.type === 'result' && msg.usage) {
+                // Result messages have final totals
+                totalInput = msg.usage.input_tokens || 0;
+                totalOutput = msg.usage.output_tokens || 0;
+              }
+            } catch (err) {
+              // Skip invalid JSON lines
             }
-          } catch (err) {
-            // Skip invalid JSON lines
           }
+
+          setTokenCount({
+            input: totalInput,
+            output: totalOutput,
+            total: totalInput + totalOutput,
+          });
         }
 
-        setTokenCount({
-          input: totalInput,
-          output: totalOutput,
-          total: totalInput + totalOutput,
-        });
+        // ========================================
+        // 2. RESTORE SIGMA LATTICE
+        // ========================================
+        const latticeDir = path.join(options.cwd, '.sigma');
+        const latticePath = path.join(latticeDir, `${sessionId}.lattice.json`);
+
+        if (fs.existsSync(latticePath)) {
+          debug(' Found existing lattice, restoring:', latticePath);
+
+          const latticeContent = fs.readFileSync(latticePath, 'utf-8');
+          const restoredLattice = JSON.parse(
+            latticeContent
+          ) as ConversationLattice;
+
+          // Restore lattice to state
+          setConversationLattice(restoredLattice);
+
+          // Rebuild turnAnalyses from lattice nodes
+          const restoredAnalyses: TurnAnalysis[] = restoredLattice.nodes.map(
+            (node) => ({
+              turn_id: node.id,
+              role: node.role,
+              content: node.content,
+              timestamp: node.timestamp,
+              embedding: node.embedding || [],
+              novelty: node.novelty || 0,
+              importance_score: node.importance_score || 0,
+              is_paradigm_shift: node.is_paradigm_shift || false,
+              is_routine: (node.importance_score || 0) < 3, // Reconstruct from importance score
+              overlay_scores: node.overlay_scores || {
+                O1_structural: 0,
+                O2_security: 0,
+                O3_lineage: 0,
+                O4_mission: 0,
+                O5_operational: 0,
+                O6_mathematical: 0,
+                O7_strategic: 0,
+              },
+              references: [], // Not preserved in lattice nodes, start empty
+              semantic_tags: node.semantic_tags || [],
+            })
+          );
+
+          turnAnalyses.current = restoredAnalyses;
+
+          debug(
+            ' Lattice restored:',
+            restoredLattice.nodes.length,
+            'nodes,',
+            restoredLattice.edges.length,
+            'edges'
+          );
+          debug(' Turn analyses restored:', restoredAnalyses.length, 'turns');
+
+          fs.appendFileSync(
+            path.join(options.cwd, 'tui-debug.log'),
+            `[SIGMA] Session state restored from lattice\n` +
+              `  Session ID: ${sessionId}\n` +
+              `  Nodes: ${restoredLattice.nodes.length}\n` +
+              `  Edges: ${restoredLattice.edges.length}\n` +
+              `  Turn analyses: ${restoredAnalyses.length}\n` +
+              `  Paradigm shifts: ${restoredAnalyses.filter((t) => t.is_paradigm_shift).length}\n\n`
+          );
+
+          // Add system message to UI
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: 'system',
+              content: `🕸️  Resumed session with ${restoredLattice.nodes.length} nodes, ${restoredLattice.edges.length} edges`,
+              timestamp: new Date(),
+            },
+          ]);
+        } else {
+          debug(' No existing lattice found for session:', sessionId);
+        }
+
+        // ========================================
+        // 3. RESTORE CONVERSATION OVERLAYS
+        // ========================================
+        // Overlays are automatically loaded from disk by BaseConversationManager.getAllItems()
+        // when queried via conversationRegistryRef.current.get(overlayId)
+        // No explicit restoration needed - they're loaded on-demand from .sigma/overlays/
+        debug(' Conversation overlays will be loaded on-demand from disk');
       } catch (err) {
         // Silently fail - just start from 0
-        console.error('Failed to load session tokens:', err);
+        console.error('Failed to load session state:', err);
+        fs.appendFileSync(
+          path.join(options.cwd, 'tui-debug.log'),
+          `[SIGMA ERROR] Failed to restore session: ${(err as Error).message}\n` +
+            `  Stack: ${(err as Error).stack}\n\n`
+        );
       }
     };
 
-    loadSessionTokens();
+    loadSessionState();
   }, [options.sessionId]);
+
+  // Cleanup effect: Flush conversation overlays when component unmounts
+  useEffect(() => {
+    return () => {
+      // Flush on cleanup
+      if (conversationRegistryRef.current && currentSessionId) {
+        conversationRegistryRef.current
+          .flushAll(currentSessionId)
+          .then(() => {
+            debug(' Final flush on cleanup complete');
+          })
+          .catch((err) => {
+            debug(' Failed to flush on cleanup:', err);
+          });
+      }
+    };
+  }, [currentSessionId]); // Re-run if session changes
 
   const sendMessage = useCallback(
     async (prompt: string) => {
@@ -816,7 +940,20 @@ New Session: ${stateSummary.newSessionId}
             (tool: { name: string; input: Record<string, unknown> }) => {
               // Format tool input - show description if available, otherwise full input
               let inputDesc = '';
-              if (tool.input.description) {
+              let toolIcon = '🔧';
+
+              // Special formatting for memory recall tool
+              if (
+                tool.name ===
+                'mcp__conversation-memory__recall_past_conversation'
+              ) {
+                toolIcon = '🧠';
+                if (tool.input.query) {
+                  inputDesc = `"${tool.input.query as string}"`;
+                } else {
+                  inputDesc = JSON.stringify(tool.input);
+                }
+              } else if (tool.input.description) {
                 inputDesc = tool.input.description as string;
               } else if (tool.input.file_path) {
                 // For Edit tool, show character-level diff with background colors
@@ -887,7 +1024,7 @@ New Session: ${stateSummary.newSessionId}
                 ...prev,
                 {
                   type: 'tool_progress',
-                  content: `🔧 ${tool.name}: ${inputDesc}`,
+                  content: `${toolIcon} ${tool.name}: ${inputDesc}`,
                   timestamp: new Date(),
                 },
               ]);
