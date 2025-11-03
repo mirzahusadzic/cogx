@@ -58,6 +58,13 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     }
   };
 
+  // Debug file logger (only writes to file if debug flag is set)
+  const debugLog = (content: string) => {
+    if (options.debug) {
+      fs.appendFileSync(path.join(options.cwd, 'tui-debug.log'), content);
+    }
+  };
+
   // Initialize with welcome message (colors applied by ClaudePanelAgent)
   const [messages, setMessages] = useState<ClaudeMessage[]>([
     {
@@ -273,8 +280,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         analyzingTurn.current = null;
 
         // Log analysis (for debugging)
-        fs.appendFileSync(
-          path.join(options.cwd, 'tui-debug.log'),
+        debugLog(
           `[SIGMA] Turn analyzed: ${analysis.turn_id}\n` +
             `  Role: ${analysis.role}\n` +
             `  Novelty: ${analysis.novelty.toFixed(3)}\n` +
@@ -310,8 +316,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             });
           } catch (compressErr) {
             debug(' Compression failed:', compressErr);
-            fs.appendFileSync(
-              path.join(options.cwd, 'tui-debug.log'),
+            debugLog(
               `[SIGMA ERROR] Compression failed: ${(compressErr as Error).message}\n` +
                 `  Stack: ${(compressErr as Error).stack}\n\n`
             );
@@ -323,8 +328,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           setConversationLattice(compressionResult.lattice);
 
           // Log compression stats
-          fs.appendFileSync(
-            path.join(options.cwd, 'tui-debug.log'),
+          debugLog(
             `[SIGMA] Compression triggered at ${tokenCount.total} tokens\n` +
               `  Original: ${compressionResult.original_size} tokens\n` +
               `  Compressed: ${compressionResult.compressed_size} tokens\n` +
@@ -482,8 +486,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               ]);
 
               // 9. Log session switch with metrics
-              fs.appendFileSync(
-                path.join(options.cwd, 'tui-debug.log'),
+              debugLog(
                 `[SIGMA] Intelligent session switch completed\n` +
                   `  Mode detected: ${reconstructed.mode.toUpperCase()}\n` +
                   `  Old session: ${currentSessionId}\n` +
@@ -510,8 +513,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                   `  Ready for injection on first query\n\n`
               );
             } catch (switchErr) {
-              fs.appendFileSync(
-                path.join(options.cwd, 'tui-debug.log'),
+              debugLog(
                 `[SIGMA ERROR] Session switch failed: ${(switchErr as Error).message}\n` +
                   `  Stack: ${(switchErr as Error).stack}\n\n`
               );
@@ -524,8 +526,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
         // Log analysis errors but don't break the UI
         debug(' Error in analyzer:', err);
-        fs.appendFileSync(
-          path.join(options.cwd, 'tui-debug.log'),
+        debugLog(
           `[SIGMA ERROR] ${(err as Error).message}\n` +
             `  Stack: ${(err as Error).stack}\n\n`
         );
@@ -632,14 +633,12 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
         if (!transcriptPath) {
           // Debug: log where we looked
-          fs.appendFileSync(
-            path.join(process.cwd(), 'tui-debug.log'),
+          debugLog(
             `[TOKEN DEBUG] Transcript not found. Searched:\n${possiblePaths.join('\n')}\n\n`
           );
         } else {
           // Debug: log successful load
-          fs.appendFileSync(
-            path.join(process.cwd(), 'tui-debug.log'),
+          debugLog(
             `[TOKEN DEBUG] Loading transcript from: ${transcriptPath}\n`
           );
 
@@ -736,8 +735,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           );
           debug(' Turn analyses restored:', restoredAnalyses.length, 'turns');
 
-          fs.appendFileSync(
-            path.join(options.cwd, 'tui-debug.log'),
+          debugLog(
             `[SIGMA] Session state restored from lattice\n` +
               `  Session ID: ${sessionId}\n` +
               `  Nodes: ${restoredLattice.nodes.length}\n` +
@@ -769,8 +767,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       } catch (err) {
         // Silently fail - just start from 0
         console.error('Failed to load session state:', err);
-        fs.appendFileSync(
-          path.join(options.cwd, 'tui-debug.log'),
+        debugLog(
           `[SIGMA ERROR] Failed to restore session: ${(err as Error).message}\n` +
             `  Stack: ${(err as Error).stack}\n\n`
         );
@@ -822,8 +819,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           systemPrompt = injectedRecap;
           setInjectedRecap(null); // Clear after injection (one-time use)
 
-          fs.appendFileSync(
-            path.join(options.cwd, 'tui-debug.log'),
+          debugLog(
             `[SIGMA] Injecting intelligent recap into new session\n` +
               `  Length: ${injectedRecap.length} chars (~${Math.round(injectedRecap.length / 4)} tokens)\n\n`
           );
@@ -885,9 +881,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const processSDKMessage = (sdkMessage: SDKMessage) => {
     // Debug: log all SDK messages to a file
     try {
-      const logPath = path.join(options.cwd, 'tui-debug.log');
-      fs.appendFileSync(
-        logPath,
+      debugLog(
         `[${new Date().toISOString()}] ${sdkMessage.type}\n${JSON.stringify(sdkMessage, null, 2)}\n\n`
       );
     } catch (err) {
