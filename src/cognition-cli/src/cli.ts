@@ -20,7 +20,7 @@ const program = new Command();
 program
   .name('cognition-cli')
   .description('A meta-interpreter for verifiable, stateful AI cognition')
-  .version('1.8.2 (Cognition CLI)');
+  .version('2.0.0 (Cognition CLI - Sigma Release)');
 
 program
   .command('init')
