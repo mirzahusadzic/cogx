@@ -9,11 +9,13 @@ Welcome to the documentation for the Cognition Command-Line Interface (CLI). Thi
 ## Table of Contents
 
 **Core Concepts:**
+
 - [00 - Introduction to Cognition CLI](./00_Introduction.md)
 - [01 - Structural Analysis: Mapping the Codebase](./01_Structural_Analysis.md)
 - [02 - Core Infrastructure: The Grounded Context Pool (PGC)](./02_Core_Infrastructure.md)
 
 **Using the CLI:**
+
 - [03 - Getting Started](./03_Getting_Started.md) - Setup and first steps
 - [04 - Daily Workflow](./04_Daily_Workflow.md) - watch → status → update
 - [05 - Querying The Lattice](./05_Querying_The_Lattice.md) - Boolean algebra queries
@@ -22,6 +24,7 @@ Welcome to the documentation for the Cognition Command-Line Interface (CLI). Thi
 - [08 - Command Reference](./08_Command_Reference.md) - Complete command listing
 
 **Advanced Topics:**
+
 - [04 - Miners and Executors: Extracting and Processing Knowledge](./04_Miners_and_Executors.md)
 - [05 - Verification and Oracles: Ensuring PGC Integrity](./05_Verification_and_Oracles.md)
 - [06 - Testing and Deployment](./06_Testing_and_Deployment.md)

@@ -296,15 +296,15 @@ The saved file includes:
 
 ## Comparison: TUI vs Ask
 
-| Feature                | TUI                        | Ask               |
-| ---------------------- | -------------------------- | ----------------- |
-| **Interactive**        | ✅ Yes                     | ❌ No             |
-| **PGC Queries**        | ✅ Yes                     | ❌ No             |
-| **Manual Search**      | ✅ Yes                     | ✅ Yes            |
-| **Claude Integration** | ✅ Yes                     | ✅ Yes (one-shot) |
-| **Session Memory**     | ✅ Yes (Σ)                 | ❌ No             |
-| **Requires OAuth**     | ✅ Yes (via Claude Code)   | ❌ No             |
-| **Best For**           | Exploration, Analysis      | Quick questions   |
+| Feature                | TUI                      | Ask               |
+| ---------------------- | ------------------------ | ----------------- |
+| **Interactive**        | ✅ Yes                   | ❌ No             |
+| **PGC Queries**        | ✅ Yes                   | ❌ No             |
+| **Manual Search**      | ✅ Yes                   | ✅ Yes            |
+| **Claude Integration** | ✅ Yes                   | ✅ Yes (one-shot) |
+| **Session Memory**     | ✅ Yes (Σ)               | ❌ No             |
+| **Requires OAuth**     | ✅ Yes (via Claude Code) | ❌ No             |
+| **Best For**           | Exploration, Analysis    | Quick questions   |
 
 ---
 
