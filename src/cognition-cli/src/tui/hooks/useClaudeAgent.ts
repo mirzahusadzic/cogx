@@ -965,33 +965,34 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         // Collect stderr for better error messages
         const stderrLines: string[] = [];
 
-        // Check if we have intelligent recap to inject (from session switch)
-        let systemPrompt: string | undefined = undefined;
+        // Prepare prompt with optional recap injection
+        let finalPrompt = prompt;
         if (injectedRecap) {
-          systemPrompt = injectedRecap;
+          // Inject recap as part of the user prompt to preserve claude_code preset
+          finalPrompt = `${injectedRecap}\n\n---\n\nUser request: ${prompt}`;
           setInjectedRecap(null); // Clear after injection (one-time use)
 
           debugLog(
-            `[SIGMA] Injecting intelligent recap into new session\n` +
-              `  Length: ${injectedRecap.length} chars (~${Math.round(injectedRecap.length / 4)} tokens)\n\n`
+            `[SIGMA] Injecting intelligent recap into user prompt\n` +
+              `  Recap length: ${injectedRecap.length} chars (~${Math.round(injectedRecap.length / 4)} tokens)\n\n`
           );
         }
 
         // Get current resume session ID
         const currentResumeId = resumeSessionId;
 
-        // Create query with optional intelligent recap injection
-        // After compression, resumeSessionId will be undefined → SDK creates fresh session
+        // Create query with Claude Code system prompt preset
+        // This ensures the TUI has the same instructions as standard Claude Code CLI
         debugLog(
-          `[QUERY START] Creating query with resume=${currentResumeId}, hasRecap=${!!systemPrompt}\n`
+          `[QUERY START] Creating query with resume=${currentResumeId}, hasRecap=${!!injectedRecap}\n`
         );
 
         const q = query({
-          prompt,
+          prompt: finalPrompt,
           options: {
             cwd: options.cwd,
             resume: currentResumeId, // undefined after compression = fresh session!
-            systemPrompt, // Inject intelligent recap if available
+            systemPrompt: { type: 'preset', preset: 'claude_code' }, // Always use claude_code preset!
             includePartialMessages: true, // Get streaming updates
             stderr: (data: string) => {
               stderrLines.push(data);
@@ -1316,11 +1317,18 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             (usage.cache_read_input_tokens || 0);
           const totalOutput = usage.output_tokens;
 
-          // Replace with current message totals (not accumulate - SDK gives totals)
-          setTokenCount({
-            input: totalInput,
-            output: totalOutput,
-            total: totalInput + totalOutput,
+          // SDK gives cumulative totals per query, use Math.max to handle multi-query sessions
+          // This prevents token count from appearing to "drop" when a new query starts
+          setTokenCount((prev) => {
+            const newTotal = totalInput + totalOutput;
+            if (newTotal > prev.total) {
+              return {
+                input: totalInput,
+                output: totalOutput,
+                total: newTotal,
+              };
+            }
+            return prev; // Keep higher count from previous queries
           });
         }
 
