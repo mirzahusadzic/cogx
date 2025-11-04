@@ -20,7 +20,7 @@ const program = new Command();
 program
   .name('cognition-cli')
   .description('A meta-interpreter for verifiable, stateful AI cognition')
-  .version('2.0.4 (Cognition CLI - Sigma Release)');
+  .version('2.0.5 (Cognition CLI - Sigma Release)');
 
 program
   .command('init')
@@ -175,6 +175,7 @@ program
     process.cwd()
   )
   .option('--session-id <uuid>', 'Claude session ID to attach to')
+  .option('--alias <name>', 'Session alias (resolves to anchor ID)')
   .option(
     '-w, --workbench <url>',
     'URL of the egemma workbench',
@@ -190,6 +191,7 @@ program
     tuiCommand({
       projectRoot: options.projectRoot,
       sessionId: options.sessionId,
+      alias: options.alias,
       workbenchUrl: options.workbench,
       sessionTokens: parseInt(options.sessionTokens),
       debug: options.debug,

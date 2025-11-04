@@ -1,0 +1,428 @@
+/**
+ * Session State Management
+ *
+ * Manages the mapping between user-facing anchor IDs (or aliases)
+ * and the actual SDK session UUIDs that may change over time due to
+ * compression or session expiration.
+ */
+
+import fs from 'fs';
+import path from 'path';
+
+/**
+ * Session state file format
+ */
+export interface SessionState {
+  /** User-facing anchor ID (what user provides with --session-id) */
+  anchor_id: string;
+
+  /** Current active SDK session UUID */
+  current_session: string;
+
+  /** Optional human-readable alias */
+  alias?: string;
+
+  /** When this anchor was created */
+  created_at: string;
+
+  /** Last time current_session was updated */
+  last_updated: string;
+
+  /** History of SDK sessions (for debugging/audit) */
+  compression_history: Array<{
+    sdk_session: string;
+    timestamp: string;
+    reason: 'initial' | 'compression' | 'expiration';
+    tokens?: number;
+  }>;
+
+  /** Sigma statistics */
+  stats?: {
+    total_turns_analyzed: number;
+    paradigm_shifts: number;
+    routine_turns: number;
+    avg_novelty: string;
+    avg_importance: string;
+  };
+}
+
+/**
+ * Load session state from disk
+ */
+export function loadSessionState(
+  anchorId: string,
+  projectRoot: string
+): SessionState | null {
+  const stateFile = path.join(projectRoot, '.sigma', `${anchorId}.state.json`);
+
+  if (!fs.existsSync(stateFile)) {
+    return null;
+  }
+
+  try {
+    const content = fs.readFileSync(stateFile, 'utf-8');
+    return JSON.parse(content) as SessionState;
+  } catch (err) {
+    console.error(`Failed to load session state for ${anchorId}:`, err);
+    return null;
+  }
+}
+
+/**
+ * Save session state to disk
+ */
+export function saveSessionState(
+  state: SessionState,
+  projectRoot: string
+): void {
+  const sigmaDir = path.join(projectRoot, '.sigma');
+  fs.mkdirSync(sigmaDir, { recursive: true });
+
+  const stateFile = path.join(sigmaDir, `${state.anchor_id}.state.json`);
+  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));
+}
+
+/**
+ * Create initial session state
+ */
+export function createSessionState(
+  anchorId: string,
+  sdkSessionId: string,
+  alias?: string
+): SessionState {
+  return {
+    anchor_id: anchorId,
+    current_session: sdkSessionId,
+    alias,
+    created_at: new Date().toISOString(),
+    last_updated: new Date().toISOString(),
+    compression_history: [
+      {
+        sdk_session: sdkSessionId,
+        timestamp: new Date().toISOString(),
+        reason: 'initial',
+      },
+    ],
+  };
+}
+
+/**
+ * Update session state with new SDK session
+ * (after compression or expiration)
+ */
+export function updateSessionState(
+  state: SessionState,
+  newSdkSession: string,
+  reason: 'compression' | 'expiration',
+  tokens?: number
+): SessionState {
+  return {
+    ...state,
+    current_session: newSdkSession,
+    last_updated: new Date().toISOString(),
+    compression_history: [
+      ...state.compression_history,
+      {
+        sdk_session: newSdkSession,
+        timestamp: new Date().toISOString(),
+        reason,
+        tokens,
+      },
+    ],
+  };
+}
+
+/**
+ * Update Sigma statistics
+ */
+export function updateSessionStats(
+  state: SessionState,
+  stats: SessionState['stats']
+): SessionState {
+  return {
+    ...state,
+    stats,
+    last_updated: new Date().toISOString(),
+  };
+}
+
+/**
+ * Resolve alias to anchor ID
+ * Returns null if alias not found
+ * Throws error if multiple sessions have the same alias
+ */
+export function resolveAlias(
+  alias: string,
+  projectRoot: string
+): string | null {
+  const sigmaDir = path.join(projectRoot, '.sigma');
+
+  if (!fs.existsSync(sigmaDir)) {
+    return null;
+  }
+
+  const stateFiles = fs
+    .readdirSync(sigmaDir)
+    .filter((f) => f.endsWith('.state.json'));
+
+  const matches: string[] = [];
+
+  for (const file of stateFiles) {
+    try {
+      const content = fs.readFileSync(path.join(sigmaDir, file), 'utf-8');
+      const state = JSON.parse(content) as SessionState;
+
+      if (state.alias === alias) {
+        matches.push(state.anchor_id);
+      }
+    } catch (err) {
+      // Skip malformed state files
+      continue;
+    }
+  }
+
+  if (matches.length === 0) {
+    return null;
+  }
+
+  if (matches.length > 1) {
+    throw new Error(
+      `Multiple sessions found with alias "${alias}": ${matches.join(', ')}\n` +
+        `Please use --session-id with the specific anchor ID instead.`
+    );
+  }
+
+  return matches[0];
+}
+
+/**
+ * Set or update alias for a session
+ */
+export function setSessionAlias(
+  anchorId: string,
+  alias: string,
+  projectRoot: string
+): void {
+  const state = loadSessionState(anchorId, projectRoot);
+
+  if (!state) {
+    throw new Error(`Session not found: ${anchorId}`);
+  }
+
+  // Check if alias is already used by another session
+  const existing = resolveAlias(alias, projectRoot);
+  if (existing && existing !== anchorId) {
+    throw new Error(
+      `Alias "${alias}" is already used by session: ${existing}\n` +
+        `Please use a different alias or remove it from the other session first.`
+    );
+  }
+
+  const updated = {
+    ...state,
+    alias,
+    last_updated: new Date().toISOString(),
+  };
+
+  saveSessionState(updated, projectRoot);
+}
+
+/**
+ * List all sessions with their aliases
+ */
+export function listSessions(projectRoot: string): Array<{
+  anchor_id: string;
+  alias?: string;
+  created_at: string;
+  last_updated: string;
+  sessions_count: number;
+}> {
+  const sigmaDir = path.join(projectRoot, '.sigma');
+
+  if (!fs.existsSync(sigmaDir)) {
+    return [];
+  }
+
+  const stateFiles = fs
+    .readdirSync(sigmaDir)
+    .filter((f) => f.endsWith('.state.json'));
+
+  const sessions = [];
+
+  for (const file of stateFiles) {
+    try {
+      const content = fs.readFileSync(path.join(sigmaDir, file), 'utf-8');
+      const state = JSON.parse(content) as SessionState;
+
+      sessions.push({
+        anchor_id: state.anchor_id,
+        alias: state.alias,
+        created_at: state.created_at,
+        last_updated: state.last_updated,
+        sessions_count: state.compression_history.length,
+      });
+    } catch (err) {
+      continue;
+    }
+  }
+
+  // Sort by last_updated descending
+  return sessions.sort(
+    (a, b) =>
+      new Date(b.last_updated).getTime() - new Date(a.last_updated).getTime()
+  );
+}
+
+/**
+ * Migrate old state file format to new anchor-based format
+ *
+ * Old format had:
+ * - newSessionId field pointing to next compressed session
+ * - Multiple chained state files (uuid-sigma-timestamp.state.json)
+ *
+ * New format:
+ * - Single state file per anchor
+ * - current_session field with real SDK UUID
+ * - compression_history array
+ */
+export function migrateOldStateFile(
+  anchorId: string,
+  projectRoot: string
+): SessionState | null {
+  const sigmaDir = path.join(projectRoot, '.sigma');
+  const stateFile = path.join(sigmaDir, `${anchorId}.state.json`);
+
+  if (!fs.existsSync(stateFile)) {
+    return null;
+  }
+
+  try {
+    const content = fs.readFileSync(stateFile, 'utf-8');
+    const oldState = JSON.parse(content);
+
+    // Check if already in new format
+    if ('anchor_id' in oldState && 'compression_history' in oldState) {
+      return oldState as SessionState;
+    }
+
+    // Migrate old format
+    console.log(`🔄 Migrating old state file: ${anchorId}`);
+
+    const compressionHistory: SessionState['compression_history'] = [];
+
+    // Add initial session
+    compressionHistory.push({
+      sdk_session: anchorId,
+      timestamp: oldState.timestamp || new Date().toISOString(),
+      reason: 'initial',
+    });
+
+    // Follow compression chain if newSessionId exists
+    let currentId = anchorId;
+    let nextId = oldState.newSessionId;
+    let currentState = oldState;
+
+    while (nextId) {
+      compressionHistory.push({
+        sdk_session: nextId,
+        timestamp: currentState.timestamp || new Date().toISOString(),
+        reason: 'compression',
+        tokens: currentState.compression?.triggered_at_tokens,
+      });
+
+      // Try to load next in chain
+      const nextFile = path.join(sigmaDir, `${nextId}.state.json`);
+      if (!fs.existsSync(nextFile)) {
+        break;
+      }
+
+      try {
+        const nextContent = fs.readFileSync(nextFile, 'utf-8');
+        const nextState = JSON.parse(nextContent);
+
+        currentId = nextId;
+        currentState = nextState;
+        nextId = nextState.newSessionId; // May be undefined in leaf nodes
+
+        // Delete old chained file (but not if it's the anchor)
+        if (currentId !== anchorId && currentId !== nextId) {
+          fs.unlinkSync(nextFile);
+          console.log(
+            `  🗑️  Removed old chained file: ${currentId}.state.json`
+          );
+        }
+      } catch (err) {
+        console.error(`  ⚠️  Failed to process chain file ${nextId}:`, err);
+        break;
+      }
+    }
+
+    // Create new state
+    const newState: SessionState = {
+      anchor_id: anchorId,
+      current_session:
+        compressionHistory[compressionHistory.length - 1].sdk_session,
+      created_at: oldState.timestamp || new Date().toISOString(),
+      last_updated: new Date().toISOString(),
+      compression_history: compressionHistory,
+      stats: oldState.turnAnalysis
+        ? {
+            total_turns_analyzed:
+              oldState.turnAnalysis.total_turns_analyzed || 0,
+            paradigm_shifts: oldState.turnAnalysis.paradigm_shifts || 0,
+            routine_turns: oldState.turnAnalysis.routine_turns || 0,
+            avg_novelty: oldState.turnAnalysis.avg_novelty || '0',
+            avg_importance: oldState.turnAnalysis.avg_importance || '0',
+          }
+        : undefined,
+    };
+
+    // Save migrated state
+    saveSessionState(newState, projectRoot);
+    console.log(
+      `  ✅ Migrated to new format (${compressionHistory.length} sessions)`
+    );
+
+    return newState;
+  } catch (err) {
+    console.error(`Failed to migrate state file ${anchorId}:`, err);
+    return null;
+  }
+}
+
+/**
+ * Migrate all old state files in .sigma directory
+ */
+export function migrateAllOldStates(projectRoot: string): void {
+  const sigmaDir = path.join(projectRoot, '.sigma');
+
+  if (!fs.existsSync(sigmaDir)) {
+    return;
+  }
+
+  const stateFiles = fs
+    .readdirSync(sigmaDir)
+    .filter((f) => f.endsWith('.state.json'));
+
+  let migratedCount = 0;
+
+  for (const file of stateFiles) {
+    const anchorId = file.replace('.state.json', '');
+
+    // Skip files that look like old chained files (contain -sigma-)
+    if (anchorId.includes('-sigma-')) {
+      continue;
+    }
+
+    const result = migrateOldStateFile(anchorId, projectRoot);
+    if (result) {
+      migratedCount++;
+    }
+  }
+
+  if (migratedCount > 0) {
+    console.log(
+      `\n✅ Migrated ${migratedCount} session(s) to new anchor format\n`
+    );
+  }
+}

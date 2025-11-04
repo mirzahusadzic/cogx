@@ -9,6 +9,7 @@ import path from 'path';
 import os from 'os';
 import * as Diff from 'diff';
 import chalk from 'chalk';
+import { randomUUID } from 'crypto';
 import { EmbeddingService } from '../../core/services/embedding.js';
 import { analyzeTurn } from '../../sigma/analyzer-with-embeddings.js';
 import { compressContext } from '../../sigma/compressor.js';
@@ -27,7 +28,8 @@ import {
   saveSessionState,
   createSessionState,
   updateSessionState,
-  migrateOldStateFile,
+  updateSessionStats,
+  type SessionState,
 } from '../../sigma/session-state.js';
 import type { McpSdkServerConfigWithInstance } from '@anthropic-ai/claude-agent-sdk';
 import type {
@@ -526,6 +528,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                 const stateSummary = {
                   timestamp: new Date().toISOString(),
                   oldSessionId: currentSessionId,
+                  newSessionId: `${currentSessionId}-sigma-${Date.now()}`,
                   compression: {
                     triggered_at_tokens: tokenCount.total,
                     original_size: compressionResult.original_size,
@@ -588,8 +591,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                 // 5. Kill old session - start completely fresh (no resume!)
                 setResumeSessionId(undefined); // Don't resume any session - let SDK create new one
 
-                // 6. SDK will provide new UUID in next message, we'll update anchor state then
-                // Keep currentSessionId as-is (the anchor ID), SDK session will be captured in message handler
+                // 6. Update session ID for tracking (but SDK will create its own)
+                const newSessionId = `${currentSessionId}-sigma-${Date.now()}`;
+                setCurrentSessionId(newSessionId);
 
                 // 7. Reset state - new session will have true token count from SDK
                 setTokenCount({ input: 0, output: 0, total: 0 });
@@ -627,7 +631,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                   `[SIGMA] Intelligent session switch completed\n` +
                     `  Mode detected: ${reconstructed.mode.toUpperCase()}\n` +
                     `  Old session: ${currentSessionId}\n` +
-                    `  New session: SDK will provide UUID in next message\n` +
+                    `  New session: ${newSessionId}\n` +
                     `  Lattice saved: .sigma/${currentSessionId}.lattice.json\n` +
                     `  \n` +
                     `  Lattice Structure:\n` +
@@ -681,40 +685,94 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   useEffect(() => {
     if (!options.sessionId) return;
 
-    const loadAnchorSession = async () => {
+    const loadSessionState = async () => {
       try {
-        const anchorId = options.sessionId!;
+        let sessionId = options.sessionId!; // Guaranteed to exist by check above
+        let shouldResumeSDK = true;
 
-        // Try to migrate old state file if exists
-        let sessionState = loadSessionState(anchorId, options.cwd);
-        if (sessionState && !('compression_history' in sessionState)) {
-          sessionState = migrateOldStateFile(anchorId, options.cwd);
+        // ========================================
+        // 0. CHECK IF SESSION WAS COMPRESSED
+        // ========================================
+        const sigmaDir = path.join(options.cwd, '.sigma');
+        const statePath = path.join(sigmaDir, `${sessionId}.state.json`);
+
+        if (fs.existsSync(statePath)) {
+          debug(' Found compression state for session:', sessionId);
+          const state = JSON.parse(fs.readFileSync(statePath, 'utf-8'));
+
+          if (state.newSessionId) {
+            debug(
+              ' Session was compressed, forwarding to:',
+              state.newSessionId
+            );
+
+            // Follow compression chain recursively to find the LATEST session
+            let currentSessionId = state.newSessionId;
+            let compressionChain = [sessionId];
+
+            while (true) {
+              const nextStatePath = path.join(sigmaDir, `${currentSessionId}.state.json`);
+
+              if (!fs.existsSync(nextStatePath)) {
+                // No more compression states - this is the latest
+                break;
+              }
+
+              const nextState = JSON.parse(fs.readFileSync(nextStatePath, 'utf-8'));
+
+              if (!nextState.newSessionId) {
+                // This session is active (not compressed further)
+                break;
+              }
+
+              // Continue following the chain
+              compressionChain.push(currentSessionId);
+              currentSessionId = nextState.newSessionId;
+              debug('   Following chain to:', currentSessionId);
+            }
+
+            debug(' Compression chain:', compressionChain.join(' → '), '→', currentSessionId);
+
+            // This session was compressed - forward to latest session
+            sessionId = currentSessionId;
+
+            // Try to resume the latest session with SDK
+            // SDK will gracefully handle if session expired (creates new one)
+            shouldResumeSDK = true;
+
+            // Load recap ONLY if this is the FIRST compression
+            // (subsequent sessions in chain already have context)
+            if (compressionChain.length === 1) {
+              const recapPath = path.join(
+                sigmaDir,
+                `${compressionChain[0]}.recap.txt`
+              );
+              if (fs.existsSync(recapPath)) {
+                const recap = fs.readFileSync(recapPath, 'utf-8');
+                setInjectedRecap(recap);
+                debug(' Recap loaded for first compression');
+              }
+            } else {
+              debug(' Skipping recap - resuming from chain, SDK has context');
+            }
+
+            // Update current session to use the new one
+            setCurrentSessionId(sessionId);
+
+            // Show user we're resuming from compressed state
+            setMessages((prev) => [
+              ...prev,
+              {
+                type: 'system',
+                content: `🔄 Resumed most recent session: ${sessionId}\n📜 Compression chain: ${compressionChain.length} compression(s)`,
+                timestamp: new Date(),
+              },
+            ]);
+          }
         }
 
-        let sdkSessionToResume: string | undefined;
-        let sessionId: string;
-
-        if (!sessionState) {
-          debug('󱖫 No state - fresh session');
-          sdkSessionToResume = undefined;
-          sessionId = anchorId;
-        } else {
-          debug('󱖫 Found state, SDK session:', sessionState.current_session);
-          sdkSessionToResume = sessionState.current_session;
-          sessionId = sessionState.current_session;
-
-          setMessages((prev) => [
-            ...prev,
-            {
-              type: 'system',
-              content: `🔄 Resuming: ${anchorId} (${sessionState.compression_history.length} sessions)`,
-              timestamp: new Date(),
-            },
-          ]);
-        }
-
-        setResumeSessionId(sdkSessionToResume);
-        setCurrentSessionId(anchorId);
+        // Set resume session ID (undefined if compressed)
+        setResumeSessionId(shouldResumeSDK ? sessionId : undefined);
 
         // ========================================
         // 1. LOAD TOKEN COUNT FROM TRANSCRIPT
@@ -956,7 +1014,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       }
     };
 
-    loadAnchorSession();
+    loadSessionState();
   }, [options.sessionId]);
 
   // Effect: Set current session for LanceDB filtering
@@ -1186,48 +1244,12 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     if ('session_id' in sdkMessage && sdkMessage.session_id) {
       const sdkSessionId = sdkMessage.session_id;
       setCurrentSessionId((prev) => {
-        if (prev !== sdkSessionId) {
-          // SDK gave us a different session ID - update anchor state
-          if (prev.startsWith('tui-')) {
-            // Placeholder ID case
-            debug(
-              ' Updating session ID from',
-              prev,
-              'to SDK ID:',
-              sdkSessionId
-            );
-            debugLog(
-              `[SESSION] Updated from placeholder ${prev} to SDK session ID: ${sdkSessionId}\n\n`
-            );
-
-            // Update anchor state with new SDK session
-            const anchorId = options.sessionId || prev;
-            const state = loadSessionState(anchorId, options.cwd);
-            const updated = state
-              ? updateSessionState(state, sdkSessionId, 'expiration')
-              : createSessionState(anchorId, sdkSessionId);
-            saveSessionState(updated, options.cwd);
-            debug('󱖫 Updated anchor state:', anchorId, '→', sdkSessionId);
-          } else if (options.sessionId) {
-            // Anchor ID exists but SDK gave us new session (compression/expiration)
-            debug(' SDK session changed:', prev, '→', sdkSessionId);
-            const state = loadSessionState(options.sessionId, options.cwd);
-            if (state) {
-              const reason = compressionTriggered.current
-                ? 'compression'
-                : 'expiration';
-              const updated = updateSessionState(
-                state,
-                sdkSessionId,
-                reason,
-                reason === 'compression' ? tokenCount.total : undefined
-              );
-              saveSessionState(updated, options.cwd);
-              debug(
-                `󱖫 Updated anchor state: ${options.sessionId} → ${sdkSessionId} (${reason})`
-              );
-            }
-          }
+        if (prev !== sdkSessionId && prev.startsWith('tui-')) {
+          // We had a placeholder ID, switch to real SDK ID
+          debug(' Updating session ID from', prev, 'to SDK ID:', sdkSessionId);
+          debugLog(
+            `[SESSION] Updated from placeholder ${prev} to SDK session ID: ${sdkSessionId}\n\n`
+          );
 
           // Mark that we've received SDK session ID
           if (
