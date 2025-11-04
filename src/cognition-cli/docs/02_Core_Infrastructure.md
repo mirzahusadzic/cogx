@@ -40,3 +40,54 @@ The `StructuralOracle` is the PGC's immune system. Its sole purpose is to mainta
 
 - **Mechanism:** After major operations like the `genesis` process, the `Oracle` runs a series of rigorous checks. It sweeps through the `TransformLog` and verifies that every single input and output hash points to a real, existing memory in the `ObjectStore`. It ensures that the brain's history is complete and its current state is logically sound.
 - **Analogy:** This is the brain's ability to self-diagnose and detect when a memory has become corrupted or a line of reasoning is flawed, ensuring the entire system remains trustworthy.
+
+## The Lattice Structure: From Foundation to Insight
+
+The PGC's four pillars form the **bottom layer (⊥)** of what we call The Lattice - a mathematical structure that organizes knowledge through multiple specialized dimensions.
+
+### The Foundation (⊥)
+
+```
+ObjectStore ∪ TransformLog ∪ Index ∪ ReverseDeps = Foundation Layer
+```
+
+This immutable foundation provides:
+
+- **Content addressability** - Knowledge identified by cryptographic hash
+- **Verifiable provenance** - Complete audit trail of all transformations
+- **Bidirectional traversal** - Query dependencies in any direction
+- **Logical coherence** - Oracle-verified consistency
+
+### The Overlay Layers (O₁-O₇)
+
+Built atop this foundation, specialized overlays provide different analytical perspectives:
+
+- **O₁ Structural Patterns** - Architectural roles and signatures
+- **O₂ Security Guidelines** - Vulnerability analysis and safety constraints
+- **O₃ Lineage Patterns** - Dependency provenance through time
+- **O₄ Mission Concepts** - Strategic documentation alignment
+- **O₅ Operational Patterns** - Runtime behavior analysis
+- **O₆ Mathematical Proofs** - Formal verification and logical guarantees
+- **O₇ Strategic Coherence** - Mission alignment synthesis across all overlays
+
+Each overlay references elements in the foundation layer by their content hashes, creating a multi-dimensional knowledge graph where the same code element can be understood from structural, security, lineage, and mission-alignment perspectives simultaneously.
+
+### The Complete Picture
+
+```
+         ⊤ (Top - Synthesized Understanding)
+        /|\
+       / | \
+     O₇ O₆ O₅ O₄ O₃ O₂ O₁ (Specialized Overlays)
+      \     |     /
+       \    |    /
+    Index + ReverseDeps (Navigation)
+              |
+    ObjectStore + TransformLog (Immutable Truth)
+              |
+         ⊥ (Bottom - Foundation)
+```
+
+This structure enables what we call **lattice queries** - the ability to ask questions that span multiple analytical dimensions. For example: "Show me all classes with high structural similarity to `UserManager` that also have security vulnerabilities and low mission alignment." Such queries traverse multiple overlays while maintaining verifiable provenance back to the source code.
+
+The lattice structure is what transforms the PGC from a simple code database into a comprehensive analytical framework - a "cognitive prosthetic" that extends human architectural reasoning with verifiable, multi-dimensional understanding.

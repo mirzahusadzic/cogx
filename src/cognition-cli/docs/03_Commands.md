@@ -50,6 +50,15 @@ cognition-cli query MySymbol --lineage          # Get lineage JSON
 cognition-cli audit:transformations src/file.ts # Audit file history
 ```
 
+## Table of Contents
+
+1. [Foundational Commands](#1-foundational-commands-the-genesis-workflow) - Building the initial PGC
+2. [Live System Commands](#2-live-system-commands-event-driven-coherence) - Event-driven architecture (Monuments 1-3)
+3. [Analytical Commands](#3-analytical-commands-exploring-the-knowledge) - Exploring and querying the knowledge graph
+4. [Auditing Commands](#3-auditing-commands-verifying-the-truth) - Verifying transformation history
+5. [Strategic Coherence Commands](#4-strategic-coherence-commands) - Mission alignment analysis
+6. [Setup & Onboarding](#5-setup--onboarding-commands) - Getting started with the wizard
+
 ---
 
 ## 1. Foundational Commands (The Genesis Workflow)
@@ -579,7 +588,7 @@ cognition-cli blast-radius OrderManager --max-depth 2
 
 A direct and powerful tool for traversing the raw dependency graph of the PGC. Searches for symbols and traces their dependency lineage through the knowledge graph.
 
-- **When to Use It:** When you need to trace the specific, hard-coded dependency chain for a given symbol, step-by-step. It's more granular than `patterns compare` and excellent for deep-dive debugging.
+- **When to Use It:** When you need to trace the specific, hard-coded dependency chain for a given symbol, step-by-step. It's more granular than `patterns compare` and excellent for deep-dive debugging. The query command provides focused traversal through the lattice - you specify the target, and the system illuminates the path.
 - **Options:**
   - `-p, --project-root <path>` - Root directory of the project being queried (default: current directory)
   - `-d, --depth <level>` - Depth of dependency traversal (default: 0)

@@ -1,8 +1,14 @@
 # 00 - An Introduction to the Cognition CLI
 
-The `cognition-cli` is your command-line interface for the CogX ecosystem. It is the primary tool for transforming a chaotic, unstructured codebase into a **verifiable, intelligent, and queryable "digital brain."**
+The `cognition-cli` is your command-line interface for the CogX ecosystem. It is the primary tool for transforming a chaotic, unstructured codebase into a **verifiable, intelligent, and queryable knowledge structure.**
 
-This "brain," known as the Grounded Context Pool (PGC), serves as a perfect, persistent memory of your project's architecture, dependencies, and history, enabling a new era of AI-powered development that is grounded in truth, not just guesswork.
+This structure, known as the **Grounded Context Pool (PGC)**, serves as a content-addressable memory of your project's architecture, dependencies, and history. The PGC's defining property is **provenance**: every piece of knowledge is cryptographically grounded in its source, creating an immutable audit trail that enables AI-powered development based on verifiable truth rather than probabilistic guesswork.
+
+## The Lattice Architecture
+
+The PGC implements what we call **The Lattice** - a mathematical structure where knowledge is organized through multiple specialized layers (overlays O₁-O₇) built atop an immutable foundation. Think of it as a transparent knowledge sphere: you can query from any angle, traverse any path, and always trace back to the source.
+
+This architecture addresses a fundamental challenge in modern development: as codebases grow complex, understanding becomes distributed across documentation, code comments, commit history, and developer memory. The Lattice consolidates this understanding into a single, queryable, verifiable structure where semantic relationships are preserved and provenance is guaranteed.
 
 ## The Philosophy: Beyond Dumb Tools
 
@@ -31,7 +37,7 @@ By building and maintaining your project's PGC, the `cognition-cli` enables powe
 
 - **Create a Verifiable Knowledge Base:** Use the `init` and `genesis` commands to build the foundational, structural "skeleton" of your codebase.
 - **Perform Deep Architectural Analysis:** Go beyond simple text search. Use commands like `query` and `patterns` to trace intricate dependency lineages and find structurally similar code across your entire project.
-- **Enable True AI Collaboration:** The PGC created by the CLI serves as the perfect, grounded context for LLMs, dramatically reducing hallucinations and enabling them to reason about your code with genuine architectural awareness.
-- **Build an Auditable History:** Every change and analysis is recorded in an immutable log, creating a perfect, verifiable history of your project's evolution.
+- **Enable True AI Collaboration:** The PGC created by the CLI serves as verifiable, grounded context for LLMs, reducing hallucinations and enabling them to reason about your code with genuine architectural awareness.
+- **Build an Auditable History:** Every change and analysis is recorded in an immutable log, creating a complete, verifiable history of your project's evolution.
 
-This document series will guide you through the core concepts and commands needed to start building your own verifiable digital brain.
+This document series will guide you through the core concepts and commands needed to start building your own Grounded Context Pool.

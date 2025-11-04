@@ -2,7 +2,7 @@
 
 This document details the first and most critical phase of the `cognition-cli`: transforming raw, unstructured source code into a verifiable, content-addressable knowledge graph. This process, known as **Genesis**, forges the **immutable bedrock** upon which all future AI reasoning and analysis will be built.
 
-The goal of this phase is not to understand _why_ the code works, but to establish, with cryptographic certainty, _what_ objectively exists and _how_ it is structurally connected.
+The goal of this phase is not to understand _why_ the code works, but to establish, with cryptographic certainty, _what_ objectively exists and _how_ it is structurally connected. This forms the bottom layer (⊥) of The Lattice - the foundation from which all other knowledge layers derive their truth.
 
 ## The Genesis Process
 
@@ -10,7 +10,7 @@ The `cognition-cli genesis` command orchestrates this foundational analysis. It 
 
 ### 1. File Discovery
 
-The orchestrator begins by mapping the territory. It recursively scans the specified source path, identifying all relevant source files (`.ts`, `.js`, `.py`, etc.) while intelligently excluding noise (`node_modules`, `.git`, `__pycache__`). Each discovered file becomes a `SourceFile` object, the first, raw `GKe` in our system.
+The orchestrator begins by mapping the territory. It recursively scans the specified source path, identifying all relevant source files (`.ts`, `.js`, `.py`, etc.) while intelligently excluding noise (`node_modules`, `.git`, `__pycache__`). Each discovered file becomes a `SourceFile` object, the first, raw **Grounded Knowledge element (GKe)** in our system - a discrete unit of knowledge with verifiable provenance.
 
 ### 2. The Structural Mining Strategy
 
