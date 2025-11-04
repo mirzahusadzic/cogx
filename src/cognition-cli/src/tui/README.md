@@ -87,8 +87,14 @@ cognition-cli tui
 # With custom session ID (for resuming)
 cognition-cli tui --session-id <uuid>
 
+# Custom compression threshold (default: 150K tokens)
+cognition-cli tui --session-tokens 200000
+
 # Debug mode (shows turn analysis)
 cognition-cli tui --debug
+
+# Combined options
+cognition-cli tui --session-tokens 180000 --debug
 ```
 
 ## How Session Lifecycle Works

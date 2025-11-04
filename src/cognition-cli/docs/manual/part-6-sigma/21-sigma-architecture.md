@@ -173,9 +173,17 @@ Result: DISCARD (low importance)
 
 ## Session Lifecycle
 
-### Phase 1: Normal Operation (0-150K tokens)
+### Phase 1: Normal Operation (0-150K tokens, configurable)
 
 **State**: Single active session, conversation lattice building in-memory
+
+**Note**: The compression threshold is configurable via `--session-tokens`:
+
+```bash
+cognition-cli tui --session-tokens 200000  # Compress at 200K tokens
+cognition-cli tui --session-tokens 100000  # Compress earlier at 100K
+cognition-cli tui                          # Default: 150K tokens
+```
 
 **Operations**:
 
@@ -187,15 +195,15 @@ Result: DISCARD (low importance)
 
 **Visible to user**:
 
-```
+```text
 Overlays: O1[12] O2[3] O3[8] O4[15] O5[6] O6[2] O7[10]
 Nodes: 47 | Edges: 156 | Shifts: 23
 Tokens: 85.2K (42.6%) | Compress at: 150.0K
 ```
 
-### Phase 2: Compression Trigger (150K tokens)
+### Phase 2: Compression Trigger (Default: 150K tokens)
 
-**Threshold reached**: Token count ≥ 150,000
+**Threshold reached**: Token count ≥ configured threshold (default 150,000)
 
 **Compression sequence**:
 
@@ -678,13 +686,13 @@ const recallTool = createRecallMcpServer(conversationRegistry, workbenchUrl);
 
 ### Adaptive Compression Thresholds
 
-Current: Fixed 150K token threshold
+Current: ✅ **User-configurable threshold via `--session-tokens` CLI parameter** (default: 150K)
 
 Future: Dynamic adjustment based on:
 
 - Conversation complexity (high novelty → delay compression)
 - Overlay balance (uneven O1-O7 → compress earlier)
-- User preference (configurable threshold)
+- Automatic learning from user patterns
 
 ### Cross-Session Knowledge Transfer
 
