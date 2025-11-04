@@ -5,6 +5,33 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.4] - 2025-11-04
+
+### 🐛 Bug Fixes
+
+#### TUI Claude Code System Prompt Integration
+
+Fixed TUI not using `claude_code` preset system prompt, causing inconsistent behavior with standard CLI. TUI Claude was missing critical instructions (git safety, clarifying questions, task management) and would make assumptions on ambiguous requests instead of asking for clarification.
+
+**Fix**: Always pass `systemPrompt: { type: 'preset', preset: 'claude_code' }`. Compression recaps inject as user prompt instead of replacing system prompt.
+
+#### Token Count Accumulation
+
+Fixed token count resetting between queries instead of accumulating, preventing compression from triggering. Used `Math.max()` to track highest value across session.
+
+### 📚 Documentation
+
+- Updated TUI authentication docs to clarify Claude Code CLI dependency
+- Reorganized command docs into focused guides
+- Added "Getting Started with Lattice" walkthrough
+- Added The Lattice Book cover visual
+- Fixed markdown linting and formatting across all docs
+
+### 🛠️ Technical Improvements
+
+- Fixed LanceDB NAPI reference leaks causing test crashes
+- Improved OAuth token expiration error handling with clear messaging
+
 ## [2.0.3] - 2025-11-03
 
 ### ✨ Features
