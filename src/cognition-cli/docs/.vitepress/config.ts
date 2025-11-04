@@ -117,6 +117,20 @@ export default defineConfig({
                 text: '13 - Query Syntax',
                 link: '/manual/part-3-algebra/13-query-syntax',
               },
+              {
+                text: '14 - Set Operations',
+                link: '/manual/part-3-algebra/14-set-operations',
+              },
+            ],
+          },
+          {
+            text: 'Part IV: Portability',
+            collapsed: false,
+            items: [
+              {
+                text: '15 - The .cogx Format',
+                link: '/manual/part-4-portability/15-cogx-format',
+              },
             ],
           },
           {
