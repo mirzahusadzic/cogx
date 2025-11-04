@@ -32,29 +32,19 @@ cognition-cli tui --debug
 
 ### Prerequisites
 
-Before using the TUI, you need:
+Before using the TUI, you need to authenticate via Claude Code CLI:
 
-1. **Anthropic API Key** - Set environment variable:
+**Note:** Authentication is currently not supported directly in cognition-cli. Use Claude Code CLI to login before launching TUI mode.
 
-   ```bash
-   export ANTHROPIC_API_KEY="your-api-key-here"
-   ```
+If your token expires during a TUI session, you'll see a clear message:
 
-2. **OAuth Authentication** - Run the login command:
+```
+⎿ API Error: 401 - OAuth token has expired.
+  Please obtain a new token or refresh your existing token.
+· Please authenticate via Claude Code CLI
+```
 
-   ```bash
-   cognition-cli /login
-   ```
-
-   If your token expires, you'll see a clear message:
-
-   ```
-   ⎿ API Error: 401 - OAuth token has expired.
-     Please obtain a new token or refresh your existing token.
-   · Please run /login
-   ```
-
-   Simply run `/login` again to refresh.
+**This authentication is only required for TUI mode.** The `ask` command does not require authentication.
 
 ### Features
 
@@ -144,7 +134,6 @@ cognition-cli tui --session-id abc-123-def-456
 - `Ctrl+C` - Exit TUI
 - `Enter` - Send message
 - `Up/Down` - Scroll through history (planned)
-- `/login` - Refresh OAuth token
 
 ### Troubleshooting
 
@@ -154,7 +143,7 @@ cognition-cli tui --session-id abc-123-def-456
 ⎿ API Error: 401 - OAuth token has expired.
 ```
 
-**Solution:** Run the `/login` command in TUI or exit and run `cognition-cli /login`.
+**Solution:** Exit TUI and authenticate again via Claude Code CLI before relaunching.
 
 #### Compression Not Working
 
@@ -307,15 +296,15 @@ The saved file includes:
 
 ## Comparison: TUI vs Ask
 
-| Feature                | TUI                   | Ask               |
-| ---------------------- | --------------------- | ----------------- |
-| **Interactive**        | ✅ Yes                | ❌ No             |
-| **PGC Queries**        | ✅ Yes                | ❌ No             |
-| **Manual Search**      | ✅ Yes                | ✅ Yes            |
-| **Claude Integration** | ✅ Yes                | ✅ Yes (one-shot) |
-| **Session Memory**     | ✅ Yes (Σ)            | ❌ No             |
-| **Requires OAuth**     | ✅ Yes                | ❌ No             |
-| **Best For**           | Exploration, Analysis | Quick questions   |
+| Feature                | TUI                        | Ask               |
+| ---------------------- | -------------------------- | ----------------- |
+| **Interactive**        | ✅ Yes                     | ❌ No             |
+| **PGC Queries**        | ✅ Yes                     | ❌ No             |
+| **Manual Search**      | ✅ Yes                     | ✅ Yes            |
+| **Claude Integration** | ✅ Yes                     | ✅ Yes (one-shot) |
+| **Session Memory**     | ✅ Yes (Σ)                 | ❌ No             |
+| **Requires OAuth**     | ✅ Yes (via Claude Code)   | ❌ No             |
+| **Best For**           | Exploration, Analysis      | Quick questions   |
 
 ---
 
