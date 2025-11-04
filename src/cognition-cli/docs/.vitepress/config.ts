@@ -9,6 +9,10 @@ export default defineConfig({
     nav: [
       { text: 'Home', link: '/' },
       {
+        text: 'The Lattice Book',
+        link: '/the-lattice-book-cover',
+      },
+      {
         text: 'Manual',
         link: '/manual/part-1-foundation/01-cognitive-architecture',
       },
@@ -38,7 +42,8 @@ export default defineConfig({
         ],
       },
       {
-        text: 'Foundation Manual',
+        text: 'The Lattice Book',
+        link: '/the-lattice-book-cover',
         collapsed: false,
         items: [
           {
