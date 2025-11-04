@@ -27,6 +27,7 @@ import {
   saveSessionState,
   createSessionState,
   updateSessionState,
+  updateSessionStats,
   migrateOldStateFile,
 } from '../../sigma/session-state.js';
 import type { McpSdkServerConfigWithInstance } from '@anthropic-ai/claude-agent-sdk';
@@ -127,63 +128,48 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
    * Helper: Write session state file
    * Used for both initial flush and periodic flushes to ensure state is always tracked
    */
-  const writeSessionState = useCallback(
-    (sessionId: string, isCompressed: boolean = false) => {
-      try {
-        const sigmaDir = path.join(options.cwd, '.sigma');
-        fs.mkdirSync(sigmaDir, { recursive: true });
+  const updateAnchorStats = useCallback(() => {
+    try {
+      if (!options.sessionId) return;
 
-        const stateFile = path.join(sigmaDir, `${sessionId}.state.json`);
+      const anchorId = options.sessionId;
+      const state = loadSessionState(anchorId, options.cwd);
 
-        // Skip if state already exists and we're not compressing
-        // (compression creates a new state with newSessionId)
-        if (!isCompressed && fs.existsSync(stateFile)) {
-          return; // Already exists, don't overwrite
-        }
-
-        const stateSummary = {
-          timestamp: new Date().toISOString(),
-          sessionId: sessionId,
-          turnAnalysis: {
-            total_turns_analyzed: turnAnalyses.current.length,
-            paradigm_shifts: turnAnalyses.current.filter(
-              (t) => t.is_paradigm_shift
-            ).length,
-            routine_turns: turnAnalyses.current.filter((t) => t.is_routine)
-              .length,
-            avg_novelty:
-              turnAnalyses.current.length > 0
-                ? (
-                    turnAnalyses.current.reduce(
-                      (sum, t) => sum + t.novelty,
-                      0
-                    ) / turnAnalyses.current.length
-                  ).toFixed(3)
-                : '0.000',
-            avg_importance:
-              turnAnalyses.current.length > 0
-                ? (
-                    turnAnalyses.current.reduce(
-                      (sum, t) => sum + t.importance_score,
-                      0
-                    ) / turnAnalyses.current.length
-                  ).toFixed(1)
-                : '0.0',
-          },
-          files: {
-            state: `${sessionId}.state.json`,
-            overlays: '.sigma/overlays/*',
-          },
-        };
-
-        fs.writeFileSync(stateFile, JSON.stringify(stateSummary, null, 2));
-        debug(` Session state written: ${stateFile}`);
-      } catch (err) {
-        debug(' Failed to write session state:', err);
+      if (!state) {
+        // No state yet, skip (will be created on first SDK message)
+        return;
       }
-    },
-    [options.cwd, debug]
-  );
+
+      const stats = {
+        total_turns_analyzed: turnAnalyses.current.length,
+        paradigm_shifts: turnAnalyses.current.filter((t) => t.is_paradigm_shift)
+          .length,
+        routine_turns: turnAnalyses.current.filter((t) => t.is_routine).length,
+        avg_novelty:
+          turnAnalyses.current.length > 0
+            ? (
+                turnAnalyses.current.reduce((sum, t) => sum + t.novelty, 0) /
+                turnAnalyses.current.length
+              ).toFixed(3)
+            : '0.000',
+        avg_importance:
+          turnAnalyses.current.length > 0
+            ? (
+                turnAnalyses.current.reduce(
+                  (sum, t) => sum + t.importance_score,
+                  0
+                ) / turnAnalyses.current.length
+              ).toFixed(1)
+            : '0.0',
+      };
+
+      const updated = updateSessionStats(state, stats);
+      saveSessionState(updated, options.cwd);
+      debug(` Anchor stats updated: ${anchorId}`);
+    } catch (err) {
+      debug(' Failed to update anchor stats:', err);
+    }
+  }, [options.cwd, options.sessionId, debug]);
 
   // Initialize embedding service and registries
   useEffect(() => {
@@ -315,28 +301,19 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             })) as Array<ConversationTurn & { embedding: number[] }>,
           };
 
-          // Truncate content for embedding (first 1000 + last 500 chars)
-          // This preserves semantic meaning while reducing eGemma processing time
-          let embeddingContent = message.content;
-          if (embeddingContent.length > 1500) {
-            embeddingContent =
-              embeddingContent.substring(0, 1000) +
-              '\n...[truncated]...\n' +
-              embeddingContent.substring(embeddingContent.length - 500);
-          }
-
           debug(
             '   Calling analyzeTurn with content length:',
-            embeddingContent.length
+            message.content.length
           );
 
-          // Analyze this turn (with truncated content for embedding)
+          // Analyze this turn with FULL content
+          // analyzeTurn will handle embedding generation internally
           // Pass projectRegistry for Meet operation (Conversation ∧ Project)
           const analysis = await analyzeTurn(
             {
               id: `turn-${message.timestamp.getTime()}`,
               role: message.type as 'user' | 'assistant',
-              content: embeddingContent, // Truncated for faster embedding
+              content: message.content, // FULL content (not truncated)
               timestamp: message.timestamp.getTime(),
             },
             context,
@@ -379,8 +356,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                     currentSessionId
                   );
                   debug(' Conversation overlays flushed to disk');
-                  // Update session state file with current stats
-                  writeSessionState(currentSessionId, false);
+                  // Update anchor stats
+                  updateAnchorStats();
                 } catch (flushErr) {
                   debug(' Failed to flush conversation overlays:', flushErr);
                 }
@@ -522,65 +499,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                     reconstructed.recap
                 );
 
-                // 3b. State summary for debugging/handoff to new session
-                const stateSummary = {
-                  timestamp: new Date().toISOString(),
-                  oldSessionId: currentSessionId,
-                  compression: {
-                    triggered_at_tokens: tokenCount.total,
-                    original_size: compressionResult.original_size,
-                    compressed_nodes: compressionResult.lattice.nodes.length,
-                    compressed_edges: compressionResult.lattice.edges.length,
-                    recap_length_chars: reconstructed.recap.length,
-                    recap_tokens_estimate: Math.round(
-                      reconstructed.recap.length / 4
-                    ),
-                    mode_detected: reconstructed.mode,
-                    ratio:
-                      Math.round(
-                        (compressionResult.original_size /
-                          Math.round(reconstructed.recap.length / 4)) *
-                          10
-                      ) / 10,
-                  },
-                  turnAnalysis: {
-                    total_turns_analyzed: turnAnalyses.current.length,
-                    paradigm_shifts: turnAnalyses.current.filter(
-                      (t) => t.is_paradigm_shift
-                    ).length,
-                    routine_turns: turnAnalyses.current.filter(
-                      (t) => t.is_routine
-                    ).length,
-                    avg_novelty: (
-                      turnAnalyses.current.reduce(
-                        (sum, t) => sum + t.novelty,
-                        0
-                      ) / turnAnalyses.current.length
-                    ).toFixed(3),
-                    avg_importance: (
-                      turnAnalyses.current.reduce(
-                        (sum, t) => sum + t.importance_score,
-                        0
-                      ) / turnAnalyses.current.length
-                    ).toFixed(1),
-                  },
-                  files: {
-                    lattice: `${currentSessionId}.lattice.json`,
-                    recap: `${currentSessionId}.recap.txt`,
-                    state: `${currentSessionId}.state.json`,
-                  },
-                  nextSteps: [
-                    'Old session terminated',
-                    'New session will start with resume: undefined',
-                    'Recap will be injected via systemPrompt on first message',
-                    'Token count will restart from ~45 tokens (just the recap)',
-                  ],
-                };
-
-                fs.writeFileSync(
-                  path.join(latticeDir, `${currentSessionId}.state.json`),
-                  JSON.stringify(stateSummary, null, 2)
-                );
+                // 3b. Update anchor stats (state will be updated when SDK provides new UUID)
+                updateAnchorStats();
 
                 // 4. Store recap for injection on first query of NEW session
                 setInjectedRecap(reconstructed.recap);
@@ -872,6 +792,38 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               `  Edges: ${restoredLattice.edges.length}\n` +
               `  Turn analyses: ${restoredAnalyses.length}\n` +
               `  Paradigm shifts: ${restoredAnalyses.filter((t) => t.is_paradigm_shift).length}\n\n`
+          );
+
+          // Reset token count - compressed session starts fresh
+          // The old NDJSON transcript contains pre-compression tokens which are incorrect
+          // SDK will provide accurate token count on first new message
+          setTokenCount({ input: 0, output: 0, total: 0 });
+          debug(
+            ' Token count reset (compressed session - will get true count from SDK)'
+          );
+
+          // Load recap for injection on first query
+          const recapPath = path.join(latticeDir, `${sessionId}.recap.txt`);
+          if (fs.existsSync(recapPath)) {
+            const recapContent = fs.readFileSync(recapPath, 'utf-8');
+            // Extract just the recap text (skip the header lines)
+            const recapLines = recapContent.split('\n');
+            const recapStartIdx = recapLines.findIndex((line) =>
+              line.startsWith('='.repeat(80))
+            );
+            if (recapStartIdx >= 0) {
+              const recap = recapLines.slice(recapStartIdx + 2).join('\n');
+              setInjectedRecap(recap);
+              debug(
+                ` Loaded recap for injection (~${Math.round(recap.length / 4)} tokens)`
+              );
+            }
+          }
+
+          // Don't resume SDK session - let it create new one with recap injection
+          setResumeSessionId(undefined);
+          debug(
+            ' Resume cleared - new SDK session will start with recap injection'
           );
 
           // Add system message to UI
@@ -1245,8 +1197,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                   ' Initial flush completed with SDK session ID:',
                   sdkSessionId
                 );
-                // Write initial state file with SDK session ID
-                writeSessionState(sdkSessionId, false);
+                // Update anchor stats
+                updateAnchorStats();
               })
               .catch((err) => {
                 debug(' Initial flush failed:', err);

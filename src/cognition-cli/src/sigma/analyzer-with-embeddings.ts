@@ -141,7 +141,17 @@ export async function analyzeTurn(
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
   // 1. Generate embedding for this turn
-  const embeddingResponse = await embedder.getEmbedding(turn.content, 768);
+  // Truncate content for embedding API (first 1000 + last 500 chars)
+  // This preserves semantic meaning while reducing eGemma processing time
+  let embeddingContent = turn.content;
+  if (embeddingContent.length > 1500) {
+    embeddingContent =
+      embeddingContent.substring(0, 1000) +
+      '\n...[truncated]...\n' +
+      embeddingContent.substring(embeddingContent.length - 500);
+  }
+
+  const embeddingResponse = await embedder.getEmbedding(embeddingContent, 768);
 
   // eGemma returns embedding with dimension in key name: "embedding_768d"
   const turnEmbed =
