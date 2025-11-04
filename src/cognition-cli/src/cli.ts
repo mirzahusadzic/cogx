@@ -183,7 +183,7 @@ program
   .option(
     '--session-tokens <number>',
     'Token threshold for context compression',
-    '150000'
+    '120000'
   )
   .option('--debug', 'Enable debug logging for Sigma compression')
   .action((options) => {

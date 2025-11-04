@@ -403,8 +403,21 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           ) {
             compressionTriggered.current = true;
 
+            // User-visible notification (always shown, not debug-only)
+            setMessages((prev) => [
+              ...prev,
+              {
+                type: 'system',
+                content:
+                  `🗜️  Context compression triggered at ${(tokenCount.total / 1000).toFixed(1)}K tokens\n` +
+                  `Compressing ${turnAnalyses.current.length} turns into intelligent recap...\n` +
+                  `(Use --debug flag to see detailed compression metrics)`,
+                timestamp: new Date(),
+              },
+            ]);
+
             debug(
-              ' Triggering compression with',
+              '🗜️  Triggering compression with',
               turnAnalyses.current.length,
               'analyzed turns'
             );
@@ -417,7 +430,19 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                 preserve_threshold: 7, // Paradigm shifts
               });
             } catch (compressErr) {
-              debug(' Compression failed:', compressErr);
+              // User-visible error notification
+              setMessages((prev) => [
+                ...prev,
+                {
+                  type: 'system',
+                  content:
+                    `❌ Compression failed: ${(compressErr as Error).message}\n` +
+                    `Will retry on next turn. Use --debug for details.`,
+                  timestamp: new Date(),
+                },
+              ]);
+
+              debug('❌ Compression failed:', compressErr);
               debugLog(
                 `[SIGMA ERROR] Compression failed: ${(compressErr as Error).message}\n` +
                   `  Stack: ${(compressErr as Error).stack}\n\n`
