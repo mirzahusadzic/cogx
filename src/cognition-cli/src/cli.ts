@@ -180,12 +180,18 @@ program
     'URL of the egemma workbench',
     'http://localhost:8000'
   )
+  .option(
+    '--session-tokens <number>',
+    'Token threshold for context compression',
+    '150000'
+  )
   .option('--debug', 'Enable debug logging for Sigma compression')
   .action((options) => {
     tuiCommand({
       projectRoot: options.projectRoot,
       sessionId: options.sessionId,
       workbenchUrl: options.workbench,
+      sessionTokens: parseInt(options.sessionTokens),
       debug: options.debug,
     });
   });

@@ -31,6 +31,7 @@ interface CognitionTUIProps {
   projectRoot: string;
   sessionId?: string;
   workbenchUrl?: string;
+  sessionTokens?: number;
   debug?: boolean;
 }
 
@@ -39,6 +40,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   projectRoot,
   sessionId,
   workbenchUrl,
+  sessionTokens,
   debug,
 }) => {
   const [focused, setFocused] = useState(true);
@@ -51,6 +53,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     useClaudeAgent({
       sessionId,
       cwd: projectRoot, // Use project root, not .open_cognition dir
+      sessionTokens, // Pass custom token threshold
       debug, // Pass debug flag
     });
 
@@ -210,7 +213,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
             onInterrupt={interrupt}
           />
           <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>
-          <StatusBar sessionId={sessionId} focused={focused} tokenCount={tokenCount} mouseEnabled={mouseEnabled} />
+          <StatusBar sessionId={sessionId} focused={focused} tokenCount={tokenCount} mouseEnabled={mouseEnabled} compressionThreshold={sessionTokens} />
         </Box>
       </ThemeProvider>
     );

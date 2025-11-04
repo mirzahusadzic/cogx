@@ -28,6 +28,7 @@ import type {
 interface UseClaudeAgentOptions {
   sessionId?: string;
   cwd: string;
+  sessionTokens?: number;
   debug?: boolean;
 }
 
@@ -391,8 +392,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               `  Content: ${analysis.content.substring(0, 100)}${analysis.content.length > 100 ? '...' : ''}\n\n`
           );
 
-          // Check if compression needed (3K token threshold for testing)
-          const TOKEN_THRESHOLD = 150000; // Low for testing, will increase to 150K later
+          // Check if compression needed (configurable threshold, defaults to 150K)
+          const TOKEN_THRESHOLD = options.sessionTokens || 150000;
           const MIN_TURNS_FOR_COMPRESSION = 5; // Need at least 5 turns for meaningful compression
 
           if (
