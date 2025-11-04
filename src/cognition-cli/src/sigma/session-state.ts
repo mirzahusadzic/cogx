@@ -318,9 +318,9 @@ export function migrateOldStateFile(
     });
 
     // Follow compression chain if newSessionId exists
-    let currentId = anchorId;
     let nextId = oldState.newSessionId;
     let currentState = oldState;
+    const filesToDelete: string[] = []; // Track chained files to delete
 
     while (nextId) {
       compressionHistory.push({
@@ -336,32 +336,38 @@ export function migrateOldStateFile(
         break;
       }
 
+      // Mark this chained file for deletion
+      filesToDelete.push(nextFile);
+
       try {
         const nextContent = fs.readFileSync(nextFile, 'utf-8');
         const nextState = JSON.parse(nextContent);
 
-        currentId = nextId;
         currentState = nextState;
         nextId = nextState.newSessionId; // May be undefined in leaf nodes
-
-        // Delete old chained file (but not if it's the anchor)
-        if (currentId !== anchorId && currentId !== nextId) {
-          fs.unlinkSync(nextFile);
-          console.log(
-            `  🗑️  Removed old chained file: ${currentId}.state.json`
-          );
-        }
       } catch (err) {
         console.error(`  ⚠️  Failed to process chain file ${nextId}:`, err);
         break;
       }
     }
 
+    // Delete all chained files after successful migration
+    for (const file of filesToDelete) {
+      try {
+        fs.unlinkSync(file);
+        const filename = path.basename(file);
+        console.log(`  🗑️  Removed old chained file: ${filename}`);
+      } catch (err) {
+        console.error(`  ⚠️  Failed to delete ${file}:`, err);
+      }
+    }
+
     // Create new state
+    // IMPORTANT: Don't use fake chained session IDs as current_session
+    // Those are NOT real SDK UUIDs - just use the anchor ID
     const newState: SessionState = {
       anchor_id: anchorId,
-      current_session:
-        compressionHistory[compressionHistory.length - 1].sdk_session,
+      current_session: anchorId, // Use anchor ID, not fake chained ID
       created_at: oldState.timestamp || new Date().toISOString(),
       last_updated: new Date().toISOString(),
       compression_history: compressionHistory,
