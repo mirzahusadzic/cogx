@@ -5,6 +5,10 @@ export default defineConfig({
   description:
     'Verifiable AI memory through cryptographic grounding and multi-overlay knowledge graphs.',
   base: '/cogx/',
+  ignoreDeadLinks: [
+    // Ignore localhost links (eGemma workbench examples)
+    /^http:\/\/localhost/,
+  ],
   themeConfig: {
     nav: [
       { text: 'Home', link: '/' },
@@ -36,8 +40,28 @@ export default defineConfig({
             link: '/02_Core_Infrastructure',
           },
           {
-            text: 'Commands Overview',
-            link: '/03_Commands',
+            text: 'Getting Started',
+            link: '/03_Getting_Started',
+          },
+          {
+            text: 'Daily Workflow',
+            link: '/04_Daily_Workflow',
+          },
+          {
+            text: 'Querying The Lattice',
+            link: '/05_Querying_The_Lattice',
+          },
+          {
+            text: 'Interactive Mode',
+            link: '/06_Interactive_Mode',
+          },
+          {
+            text: 'Overlays & Analysis',
+            link: '/07_Overlays_And_Analysis',
+          },
+          {
+            text: 'Command Reference',
+            link: '/08_Command_Reference',
           },
         ],
       },
