@@ -67,75 +67,81 @@ export async function findSimilarConversations(
 
   // Initialize LanceDB store
   const lanceStore = new ConversationLanceStore(sigmaRoot);
-  await lanceStore.initialize('conversation_turns');
 
-  // Get query embedding
-  const workbench = new WorkbenchClient(workbenchUrl);
-  const embedResponse = await workbench.embed({
-    signature: query,
-    dimensions: 768,
-  });
+  try {
+    await lanceStore.initialize('conversation_turns');
 
-  const queryEmbedding = embedResponse['embedding_768d'] as number[];
-  if (!queryEmbedding || queryEmbedding.length !== 768) {
-    throw new Error('Failed to generate query embedding');
-  }
+    // Get query embedding
+    const workbench = new WorkbenchClient(workbenchUrl);
+    const embedResponse = await workbench.embed({
+      signature: query,
+      dimensions: 768,
+    });
 
-  // Build filters
-  const filters: ConversationQueryFilter = { ...options.filters };
+    const queryEmbedding = embedResponse['embedding_768d'] as number[];
+    if (!queryEmbedding || queryEmbedding.length !== 768) {
+      throw new Error('Failed to generate query embedding');
+    }
 
-  // Apply session inclusion/exclusion
-  if (options.includeSessions && options.includeSessions.length > 0) {
-    // For inclusion, we'd need to query multiple times (LanceDB doesn't support OR in WHERE)
-    // For now, we'll return all and filter in memory
-  }
+    // Build filters
+    const filters: ConversationQueryFilter = { ...options.filters };
 
-  // Query LanceDB across all sessions
-  const results = await lanceStore.similaritySearch(
-    queryEmbedding,
-    topK * 2, // Get extra for filtering
-    filters,
-    'cosine'
-  );
+    // Apply session inclusion/exclusion
+    if (options.includeSessions && options.includeSessions.length > 0) {
+      // For inclusion, we'd need to query multiple times (LanceDB doesn't support OR in WHERE)
+      // For now, we'll return all and filter in memory
+    }
 
-  // Apply session inclusion/exclusion in memory if needed
-  let filteredResults = results;
-  if (options.includeSessions && options.includeSessions.length > 0) {
-    filteredResults = results.filter((r) =>
-      options.includeSessions!.includes(r.session_id)
+    // Query LanceDB across all sessions
+    const results = await lanceStore.similaritySearch(
+      queryEmbedding,
+      topK * 2, // Get extra for filtering
+      filters,
+      'cosine'
     );
-  }
-  if (options.excludeSessions && options.excludeSessions.length > 0) {
-    filteredResults = filteredResults.filter(
-      (r) => !options.excludeSessions!.includes(r.session_id)
-    );
-  }
 
-  // Convert to CrossSessionResult format
-  return filteredResults.slice(0, topK).map((result) => ({
-    id: result.id,
-    session_id: result.session_id,
-    role: result.role,
-    content: result.content,
-    timestamp: result.timestamp,
-    similarity: result.similarity,
-    metadata: {
-      novelty: result.metadata.novelty,
-      importance: result.metadata.importance,
-      is_paradigm_shift: result.metadata.is_paradigm_shift,
-      alignment_scores: {
-        O1: result.metadata.alignment_O1,
-        O2: result.metadata.alignment_O2,
-        O3: result.metadata.alignment_O3,
-        O4: result.metadata.alignment_O4,
-        O5: result.metadata.alignment_O5,
-        O6: result.metadata.alignment_O6,
-        O7: result.metadata.alignment_O7,
+    // Apply session inclusion/exclusion in memory if needed
+    let filteredResults = results;
+    if (options.includeSessions && options.includeSessions.length > 0) {
+      filteredResults = results.filter((r) =>
+        options.includeSessions!.includes(r.session_id)
+      );
+    }
+    if (options.excludeSessions && options.excludeSessions.length > 0) {
+      filteredResults = filteredResults.filter(
+        (r) => !options.excludeSessions!.includes(r.session_id)
+      );
+    }
+
+    // Convert to CrossSessionResult format
+    return filteredResults.slice(0, topK).map((result) => ({
+      id: result.id,
+      session_id: result.session_id,
+      role: result.role,
+      content: result.content,
+      timestamp: result.timestamp,
+      similarity: result.similarity,
+      metadata: {
+        novelty: result.metadata.novelty,
+        importance: result.metadata.importance,
+        is_paradigm_shift: result.metadata.is_paradigm_shift,
+        alignment_scores: {
+          O1: result.metadata.alignment_O1,
+          O2: result.metadata.alignment_O2,
+          O3: result.metadata.alignment_O3,
+          O4: result.metadata.alignment_O4,
+          O5: result.metadata.alignment_O5,
+          O6: result.metadata.alignment_O6,
+          O7: result.metadata.alignment_O7,
+        },
+        semantic_tags: result.metadata.semantic_tags,
+        references: result.metadata.references,
       },
-      semantic_tags: result.metadata.semantic_tags,
-      references: result.metadata.references,
-    },
-  }));
+    }));
+  } finally {
+    // Ensure lanceStore is properly closed to avoid NAPI reference leaks
+    await lanceStore.close();
+  }
 }
 
 /**
@@ -146,34 +152,39 @@ export async function findAllParadigmShifts(
   sessionId?: string
 ): Promise<CrossSessionResult[]> {
   const lanceStore = new ConversationLanceStore(sigmaRoot);
-  await lanceStore.initialize('conversation_turns');
 
-  const shifts = await lanceStore.getParadigmShifts(sessionId);
+  try {
+    await lanceStore.initialize('conversation_turns');
 
-  return shifts.map((turn) => ({
-    id: turn.id,
-    session_id: turn.session_id,
-    role: turn.role,
-    content: turn.content,
-    timestamp: turn.timestamp,
-    similarity: 1.0, // Not a similarity search
-    metadata: {
-      novelty: turn.novelty,
-      importance: turn.importance,
-      is_paradigm_shift: turn.is_paradigm_shift,
-      alignment_scores: {
-        O1: turn.alignment_O1,
-        O2: turn.alignment_O2,
-        O3: turn.alignment_O3,
-        O4: turn.alignment_O4,
-        O5: turn.alignment_O5,
-        O6: turn.alignment_O6,
-        O7: turn.alignment_O7,
+    const shifts = await lanceStore.getParadigmShifts(sessionId);
+
+    return shifts.map((turn) => ({
+      id: turn.id,
+      session_id: turn.session_id,
+      role: turn.role,
+      content: turn.content,
+      timestamp: turn.timestamp,
+      similarity: 1.0, // Not a similarity search
+      metadata: {
+        novelty: turn.novelty,
+        importance: turn.importance,
+        is_paradigm_shift: turn.is_paradigm_shift,
+        alignment_scores: {
+          O1: turn.alignment_O1,
+          O2: turn.alignment_O2,
+          O3: turn.alignment_O3,
+          O4: turn.alignment_O4,
+          O5: turn.alignment_O5,
+          O6: turn.alignment_O6,
+          O7: turn.alignment_O7,
+        },
+        semantic_tags: JSON.parse(turn.semantic_tags),
+        references: JSON.parse(turn.references),
       },
-      semantic_tags: JSON.parse(turn.semantic_tags),
-      references: JSON.parse(turn.references),
-    },
-  }));
+    }));
+  } finally {
+    await lanceStore.close();
+  }
 }
 
 /**
@@ -186,45 +197,50 @@ export async function findByOverlayAlignment(
   topK: number = 20
 ): Promise<CrossSessionResult[]> {
   const lanceStore = new ConversationLanceStore(sigmaRoot);
-  await lanceStore.initialize('conversation_turns');
 
-  // Create a dummy query embedding (all zeros) since we're filtering by metadata
-  const dummyEmbedding = new Array(768).fill(0.0);
+  try {
+    await lanceStore.initialize('conversation_turns');
 
-  const results = await lanceStore.similaritySearch(
-    dummyEmbedding,
-    topK,
-    {
-      overlay,
-      min_overlay_alignment: minAlignment,
-    },
-    'cosine'
-  );
+    // Create a dummy query embedding (all zeros) since we're filtering by metadata
+    const dummyEmbedding = new Array(768).fill(0.0);
 
-  return results.map((result) => ({
-    id: result.id,
-    session_id: result.session_id,
-    role: result.role,
-    content: result.content,
-    timestamp: result.timestamp,
-    similarity: result.similarity,
-    metadata: {
-      novelty: result.metadata.novelty,
-      importance: result.metadata.importance,
-      is_paradigm_shift: result.metadata.is_paradigm_shift,
-      alignment_scores: {
-        O1: result.metadata.alignment_O1,
-        O2: result.metadata.alignment_O2,
-        O3: result.metadata.alignment_O3,
-        O4: result.metadata.alignment_O4,
-        O5: result.metadata.alignment_O5,
-        O6: result.metadata.alignment_O6,
-        O7: result.metadata.alignment_O7,
+    const results = await lanceStore.similaritySearch(
+      dummyEmbedding,
+      topK,
+      {
+        overlay,
+        min_overlay_alignment: minAlignment,
       },
-      semantic_tags: result.metadata.semantic_tags,
-      references: result.metadata.references,
-    },
-  }));
+      'cosine'
+    );
+
+    return results.map((result) => ({
+      id: result.id,
+      session_id: result.session_id,
+      role: result.role,
+      content: result.content,
+      timestamp: result.timestamp,
+      similarity: result.similarity,
+      metadata: {
+        novelty: result.metadata.novelty,
+        importance: result.metadata.importance,
+        is_paradigm_shift: result.metadata.is_paradigm_shift,
+        alignment_scores: {
+          O1: result.metadata.alignment_O1,
+          O2: result.metadata.alignment_O2,
+          O3: result.metadata.alignment_O3,
+          O4: result.metadata.alignment_O4,
+          O5: result.metadata.alignment_O5,
+          O6: result.metadata.alignment_O6,
+          O7: result.metadata.alignment_O7,
+        },
+        semantic_tags: result.metadata.semantic_tags,
+        references: result.metadata.references,
+      },
+    }));
+  } finally {
+    await lanceStore.close();
+  }
 }
 
 /**
@@ -247,24 +263,29 @@ export async function getConversationStats(sigmaRoot: string): Promise<{
   };
 }> {
   const lanceStore = new ConversationLanceStore(sigmaRoot);
-  await lanceStore.initialize('conversation_turns');
 
-  const stats = await lanceStore.getStats();
+  try {
+    await lanceStore.initialize('conversation_turns');
 
-  // Get average alignment scores by overlay (would need custom query)
-  // For now, return basic stats with placeholder overlay counts
-  return {
-    ...stats,
-    by_overlay: {
-      O1: 0, // Would need custom aggregation query
-      O2: 0,
-      O3: 0,
-      O4: 0,
-      O5: 0,
-      O6: 0,
-      O7: 0,
-    },
-  };
+    const stats = await lanceStore.getStats();
+
+    // Get average alignment scores by overlay (would need custom query)
+    // For now, return basic stats with placeholder overlay counts
+    return {
+      ...stats,
+      by_overlay: {
+        O1: 0, // Would need custom aggregation query
+        O2: 0,
+        O3: 0,
+        O4: 0,
+        O5: 0,
+        O6: 0,
+        O7: 0,
+      },
+    };
+  } finally {
+    await lanceStore.close();
+  }
 }
 
 /**
@@ -278,93 +299,98 @@ export async function queryByDateRange(
   options: CrossSessionQueryOptions = {}
 ): Promise<CrossSessionResult[]> {
   const lanceStore = new ConversationLanceStore(sigmaRoot);
-  await lanceStore.initialize('conversation_turns');
 
-  const filters: ConversationQueryFilter = {
-    min_timestamp: startDate.getTime(),
-    max_timestamp: endDate.getTime(),
-    ...options.filters,
-  };
+  try {
+    await lanceStore.initialize('conversation_turns');
 
-  if (searchQuery) {
-    // Semantic search with date range filter
-    const workbenchUrl = options.workbenchUrl || 'http://localhost:8000';
-    const workbench = new WorkbenchClient(workbenchUrl);
-    const embedResponse = await workbench.embed({
-      signature: searchQuery,
-      dimensions: 768,
-    });
+    const filters: ConversationQueryFilter = {
+      min_timestamp: startDate.getTime(),
+      max_timestamp: endDate.getTime(),
+      ...options.filters,
+    };
 
-    const queryEmbedding = embedResponse['embedding_768d'] as number[];
-    if (!queryEmbedding || queryEmbedding.length !== 768) {
-      throw new Error('Failed to generate query embedding');
+    if (searchQuery) {
+      // Semantic search with date range filter
+      const workbenchUrl = options.workbenchUrl || 'http://localhost:8000';
+      const workbench = new WorkbenchClient(workbenchUrl);
+      const embedResponse = await workbench.embed({
+        signature: searchQuery,
+        dimensions: 768,
+      });
+
+      const queryEmbedding = embedResponse['embedding_768d'] as number[];
+      if (!queryEmbedding || queryEmbedding.length !== 768) {
+        throw new Error('Failed to generate query embedding');
+      }
+
+      const results = await lanceStore.similaritySearch(
+        queryEmbedding,
+        options.topK || 20,
+        filters,
+        'cosine'
+      );
+
+      return results.map((result) => ({
+        id: result.id,
+        session_id: result.session_id,
+        role: result.role,
+        content: result.content,
+        timestamp: result.timestamp,
+        similarity: result.similarity,
+        metadata: {
+          novelty: result.metadata.novelty,
+          importance: result.metadata.importance,
+          is_paradigm_shift: result.metadata.is_paradigm_shift,
+          alignment_scores: {
+            O1: result.metadata.alignment_O1,
+            O2: result.metadata.alignment_O2,
+            O3: result.metadata.alignment_O3,
+            O4: result.metadata.alignment_O4,
+            O5: result.metadata.alignment_O5,
+            O6: result.metadata.alignment_O6,
+            O7: result.metadata.alignment_O7,
+          },
+          semantic_tags: result.metadata.semantic_tags,
+          references: result.metadata.references,
+        },
+      }));
+    } else {
+      // Get all turns in date range (use dummy embedding)
+      const dummyEmbedding = new Array(768).fill(0.0);
+      const results = await lanceStore.similaritySearch(
+        dummyEmbedding,
+        1000, // Large limit for date range queries
+        filters,
+        'cosine'
+      );
+
+      return results.map((result) => ({
+        id: result.id,
+        session_id: result.session_id,
+        role: result.role,
+        content: result.content,
+        timestamp: result.timestamp,
+        similarity: result.similarity,
+        metadata: {
+          novelty: result.metadata.novelty,
+          importance: result.metadata.importance,
+          is_paradigm_shift: result.metadata.is_paradigm_shift,
+          alignment_scores: {
+            O1: result.metadata.alignment_O1,
+            O2: result.metadata.alignment_O2,
+            O3: result.metadata.alignment_O3,
+            O4: result.metadata.alignment_O4,
+            O5: result.metadata.alignment_O5,
+            O6: result.metadata.alignment_O6,
+            O7: result.metadata.alignment_O7,
+          },
+          semantic_tags: result.metadata.semantic_tags,
+          references: result.metadata.references,
+        },
+      }));
     }
-
-    const results = await lanceStore.similaritySearch(
-      queryEmbedding,
-      options.topK || 20,
-      filters,
-      'cosine'
-    );
-
-    return results.map((result) => ({
-      id: result.id,
-      session_id: result.session_id,
-      role: result.role,
-      content: result.content,
-      timestamp: result.timestamp,
-      similarity: result.similarity,
-      metadata: {
-        novelty: result.metadata.novelty,
-        importance: result.metadata.importance,
-        is_paradigm_shift: result.metadata.is_paradigm_shift,
-        alignment_scores: {
-          O1: result.metadata.alignment_O1,
-          O2: result.metadata.alignment_O2,
-          O3: result.metadata.alignment_O3,
-          O4: result.metadata.alignment_O4,
-          O5: result.metadata.alignment_O5,
-          O6: result.metadata.alignment_O6,
-          O7: result.metadata.alignment_O7,
-        },
-        semantic_tags: result.metadata.semantic_tags,
-        references: result.metadata.references,
-      },
-    }));
-  } else {
-    // Get all turns in date range (use dummy embedding)
-    const dummyEmbedding = new Array(768).fill(0.0);
-    const results = await lanceStore.similaritySearch(
-      dummyEmbedding,
-      1000, // Large limit for date range queries
-      filters,
-      'cosine'
-    );
-
-    return results.map((result) => ({
-      id: result.id,
-      session_id: result.session_id,
-      role: result.role,
-      content: result.content,
-      timestamp: result.timestamp,
-      similarity: result.similarity,
-      metadata: {
-        novelty: result.metadata.novelty,
-        importance: result.metadata.importance,
-        is_paradigm_shift: result.metadata.is_paradigm_shift,
-        alignment_scores: {
-          O1: result.metadata.alignment_O1,
-          O2: result.metadata.alignment_O2,
-          O3: result.metadata.alignment_O3,
-          O4: result.metadata.alignment_O4,
-          O5: result.metadata.alignment_O5,
-          O6: result.metadata.alignment_O6,
-          O7: result.metadata.alignment_O7,
-        },
-        semantic_tags: result.metadata.semantic_tags,
-        references: result.metadata.references,
-      },
-    }));
+  } finally {
+    await lanceStore.close();
   }
 }
 
@@ -377,54 +403,59 @@ export async function findRelatedTurns(
   depth: number = 1
 ): Promise<CrossSessionResult[]> {
   const lanceStore = new ConversationLanceStore(sigmaRoot);
-  await lanceStore.initialize('conversation_turns');
 
-  const visited = new Set<string>();
-  const results: CrossSessionResult[] = [];
+  try {
+    await lanceStore.initialize('conversation_turns');
 
-  const explore = async (currentTurnId: string, currentDepth: number) => {
-    if (currentDepth > depth || visited.has(currentTurnId)) {
-      return;
-    }
+    const visited = new Set<string>();
+    const results: CrossSessionResult[] = [];
 
-    visited.add(currentTurnId);
+    const explore = async (currentTurnId: string, currentDepth: number) => {
+      if (currentDepth > depth || visited.has(currentTurnId)) {
+        return;
+      }
 
-    const turn = await lanceStore.getTurn(currentTurnId);
-    if (!turn) return;
+      visited.add(currentTurnId);
 
-    results.push({
-      id: turn.id,
-      session_id: turn.session_id,
-      role: turn.role,
-      content: turn.content,
-      timestamp: turn.timestamp,
-      similarity: 1.0 - currentDepth * 0.2, // Decrease similarity with depth
-      metadata: {
-        novelty: turn.novelty,
-        importance: turn.importance,
-        is_paradigm_shift: turn.is_paradigm_shift,
-        alignment_scores: {
-          O1: turn.alignment_O1,
-          O2: turn.alignment_O2,
-          O3: turn.alignment_O3,
-          O4: turn.alignment_O4,
-          O5: turn.alignment_O5,
-          O6: turn.alignment_O6,
-          O7: turn.alignment_O7,
+      const turn = await lanceStore.getTurn(currentTurnId);
+      if (!turn) return;
+
+      results.push({
+        id: turn.id,
+        session_id: turn.session_id,
+        role: turn.role,
+        content: turn.content,
+        timestamp: turn.timestamp,
+        similarity: 1.0 - currentDepth * 0.2, // Decrease similarity with depth
+        metadata: {
+          novelty: turn.novelty,
+          importance: turn.importance,
+          is_paradigm_shift: turn.is_paradigm_shift,
+          alignment_scores: {
+            O1: turn.alignment_O1,
+            O2: turn.alignment_O2,
+            O3: turn.alignment_O3,
+            O4: turn.alignment_O4,
+            O5: turn.alignment_O5,
+            O6: turn.alignment_O6,
+            O7: turn.alignment_O7,
+          },
+          semantic_tags: JSON.parse(turn.semantic_tags),
+          references: JSON.parse(turn.references),
         },
-        semantic_tags: JSON.parse(turn.semantic_tags),
-        references: JSON.parse(turn.references),
-      },
-    });
+      });
 
-    // Explore references
-    const references = JSON.parse(turn.references);
-    for (const refId of references) {
-      await explore(refId, currentDepth + 1);
-    }
-  };
+      // Explore references
+      const references = JSON.parse(turn.references);
+      for (const refId of references) {
+        await explore(refId, currentDepth + 1);
+      }
+    };
 
-  await explore(turnId, 0);
+    await explore(turnId, 0);
 
-  return results;
+    return results;
+  } finally {
+    await lanceStore.close();
+  }
 }

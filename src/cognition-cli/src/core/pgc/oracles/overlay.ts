@@ -98,6 +98,11 @@ export class OverlayOracle {
   async verifyManifestCompleteness(): Promise<VerificationResult> {
     const messages: string[] = [];
     let success = true;
+    let vectorDB:
+      | InstanceType<
+          typeof import('../../overlays/vector-db/lance-store.js').LanceVectorStore
+        >
+      | undefined;
 
     try {
       // Load manifest
@@ -110,7 +115,7 @@ export class OverlayOracle {
       const { LanceVectorStore } = await import(
         '../../overlays/vector-db/lance-store.js'
       );
-      const vectorDB = new LanceVectorStore(this.pgcManager.pgcRoot);
+      vectorDB = new LanceVectorStore(this.pgcManager.pgcRoot);
       await vectorDB.initialize('structural_patterns');
       const allVectors = await vectorDB.getAllVectors();
       const vectorSymbols = new Set(
@@ -183,6 +188,11 @@ export class OverlayOracle {
         )
       );
       success = false;
+    } finally {
+      // Ensure vectorDB is properly closed to avoid NAPI reference leaks
+      if (vectorDB) {
+        await vectorDB.close();
+      }
     }
 
     return { success, messages };
