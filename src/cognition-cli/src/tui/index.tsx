@@ -5,6 +5,8 @@ import {
   extendTheme,
   defaultTheme,
 } from '@inkjs/ui';
+import fs from 'fs';
+import path from 'path';
 import { OverlaysBar } from './components/OverlaysBar.js';
 import { ClaudePanelAgent } from './components/ClaudePanelAgent.js';
 import { InputBox } from './components/InputBox.js';
@@ -12,6 +14,7 @@ import { StatusBar } from './components/StatusBar.js';
 import { SigmaInfoPanel } from './components/SigmaInfoPanel.js';
 import { useClaudeAgent } from './hooks/useClaudeAgent.js';
 import { useOverlays } from './hooks/useOverlays.js';
+import type { ClaudeMessage } from './hooks/useClaudeAgent.js';
 
 // Custom theme with vivid AIEcho cyan spinner
 const customTheme = extendTheme(defaultTheme, {
@@ -47,6 +50,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   const [renderError, setRenderError] = useState<Error | null>(null);
   const [mouseEnabled, setMouseEnabled] = useState(true);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   const { overlays, loading } = useOverlays({ pgcRoot, workbenchUrl });
   const { messages, sendMessage, isThinking, error, tokenCount, interrupt, sigmaStats, avgOverlays } =
@@ -127,6 +131,37 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     return () => window.removeEventListener('error', errorHandler);
   }, []);
 
+  // Save conversation log to file
+  const saveConversationLog = () => {
+    try {
+      const sigmaDir = path.join(projectRoot, '.sigma');
+      fs.mkdirSync(sigmaDir, { recursive: true });
+
+      const logFileName = sessionId
+        ? `${sessionId}-claude-magic.log`
+        : `session-${Date.now()}-claude-magic.log`;
+      const logPath = path.join(sigmaDir, logFileName);
+
+      // Format messages for log
+      const logContent = messages
+        .map((msg: ClaudeMessage) => {
+          const timestamp = msg.timestamp.toISOString();
+          const type = msg.type.toUpperCase().padEnd(9);
+          const separator = '='.repeat(80);
+          return `${separator}\n[${timestamp}] ${type}\n${separator}\n${msg.content}\n`;
+        })
+        .join('\n');
+
+      fs.writeFileSync(logPath, logContent, 'utf-8');
+
+      setSaveMessage(`💾 Saved ${messages.length} messages to ${logFileName}`);
+      setTimeout(() => setSaveMessage(null), 3000);
+    } catch (err) {
+      setSaveMessage(`❌ Save failed: ${(err as Error).message}`);
+      setTimeout(() => setSaveMessage(null), 3000);
+    }
+  };
+
   // Handle input - make sure this is always active for Ctrl+C
   useInput((input, key) => {
     if (key.ctrl && input === 'c') {
@@ -138,6 +173,9 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
         // Ignore errors
       }
       process.abort(); // Immediate termination, no cleanup
+    } else if (key.ctrl && input === 's') {
+      // Save conversation log with Ctrl+S
+      saveConversationLog();
     } else if (key.tab) {
       // Toggle focus between input and panel
       setFocused((prev) => !prev);
@@ -213,6 +251,11 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
             onInterrupt={interrupt}
           />
           <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>
+          {saveMessage && (
+            <Box>
+              <Text color="green">{saveMessage}</Text>
+            </Box>
+          )}
           <StatusBar sessionId={sessionId} focused={focused} tokenCount={tokenCount} mouseEnabled={mouseEnabled} compressionThreshold={sessionTokens} />
         </Box>
       </ThemeProvider>

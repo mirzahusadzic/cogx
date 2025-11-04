@@ -53,6 +53,8 @@ export const StatusBar: React.FC<StatusBarProps> = ({
           <Text color="#8b949e"> | </Text>
         </>
       )}
+      <Text color="#8b949e">[Ctrl+S] Save Log</Text>
+      <Text color="#8b949e"> | </Text>
       <Text color="#8b949e">[Ctrl+C] Quit</Text>
       {sessionId && (
         <>
