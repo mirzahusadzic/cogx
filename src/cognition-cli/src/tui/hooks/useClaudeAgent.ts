@@ -173,6 +173,30 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
   // Initialize embedding service and registries
   useEffect(() => {
+    // Check if WORKBENCH_API_KEY is set
+    const hasApiKey = !!process.env.WORKBENCH_API_KEY;
+
+    if (!hasApiKey) {
+      // Show warning message in UI
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: 'system',
+          content:
+            '⚠️  WORKBENCH_API_KEY not set - Sigma features disabled\n' +
+            '   • Context compression: OFF\n' +
+            '   • Conversation history: OFF\n' +
+            '   • Intelligent recap: OFF\n' +
+            '   • Real-time context injection: OFF\n\n' +
+            '   Set WORKBENCH_API_KEY to enable infinite context via compression.',
+          timestamp: new Date(),
+        },
+      ]);
+      debug(
+        '⚠️  WORKBENCH_API_KEY not set - Sigma compression and history disabled'
+      );
+    }
+
     // Get workbench endpoint from environment or default
     const workbenchEndpoint =
       process.env.WORKBENCH_ENDPOINT || 'http://localhost:8000';
