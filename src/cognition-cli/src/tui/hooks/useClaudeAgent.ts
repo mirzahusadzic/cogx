@@ -1040,10 +1040,24 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
         // If query completed without assistant response, show error
         if (!hasAssistantMessage && messageCount <= 1) {
-          const errorMsg =
-            stderrLines.length > 0
-              ? `SDK error: ${stderrLines.join(' ')}`
-              : 'SDK completed without response - check authentication';
+          // Check for authentication errors in stderr
+          const stderrText = stderrLines.join(' ');
+          let errorMsg = '';
+
+          if (
+            stderrText.includes('401') &&
+            (stderrText.includes('authentication_error') ||
+              stderrText.includes('OAuth token has expired') ||
+              stderrText.includes('token has expired'))
+          ) {
+            errorMsg =
+              '⎿ API Error: 401 - OAuth token has expired. Please obtain a new token or refresh your existing token.\n· Please run /login';
+          } else if (stderrLines.length > 0) {
+            errorMsg = `SDK error: ${stderrText}`;
+          } else {
+            errorMsg = 'SDK completed without response - check authentication';
+          }
+
           setError(errorMsg);
           setMessages((prev) => [
             ...prev,
@@ -1057,13 +1071,28 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
         setIsThinking(false);
       } catch (err) {
-        const errorMsg = (err as Error).message;
+        const originalError = (err as Error).message;
+        let errorMsg = originalError;
+
+        // Check if this is an authentication error
+        if (
+          originalError.includes('401') &&
+          (originalError.includes('authentication_error') ||
+            originalError.includes('OAuth token has expired') ||
+            originalError.includes('token has expired'))
+        ) {
+          errorMsg =
+            '⎿ API Error: 401 - OAuth token has expired. Please obtain a new token or refresh your existing token.\n· Please run /login';
+        } else {
+          errorMsg = `Error: ${originalError}`;
+        }
+
         setError(errorMsg);
         setMessages((prev) => [
           ...prev,
           {
             type: 'system',
-            content: `❌ Error: ${errorMsg}`,
+            content: `❌ ${errorMsg}`,
             timestamp: new Date(),
           },
         ]);
