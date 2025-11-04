@@ -5,13 +5,13 @@ Complete alphabetical reference of all cognition-cli commands.
 ## Alphabetical Index
 
 - [ask](#ask) - Ask AI questions about the manual
-- [audit:docs](#auditdocs) - Audit document integrity
-- [audit:transformations](#audittransformations) - Audit file transformation history
+- [audit:docs](#audit-docs) - Audit document integrity
+- [audit:transformations](#audit-transformations) - Audit file transformation history
 - [blast-radius](#blast-radius) - Show impact graph for symbol changes
 - [coherence](#coherence) - Strategic coherence analysis
 - [concepts](#concepts) - Query mission concepts
 - [genesis](#genesis) - Build verifiable skeleton
-- [genesis:docs](#genesisdocs) - Ingest markdown documentation
+- [genesis:docs](#genesis-docs) - Ingest markdown documentation
 - [guide](#guide) - Show command guides
 - [init](#init) - Initialize PGC
 - [lattice](#lattice) - Boolean algebra across overlays
@@ -38,6 +38,7 @@ cognition-cli ask "<question>" [options]
 ```
 
 **Options:**
+
 - `--top-k <number>` - Number of similar concepts to retrieve (default: 5)
 - `--save` - Save Q&A as markdown document
 - `--verbose` - Show detailed processing steps
@@ -46,7 +47,7 @@ cognition-cli ask "<question>" [options]
 
 ---
 
-## audit:docs
+## audit-docs
 
 Audit document integrity in PGC (index/docs validation).
 
@@ -58,7 +59,7 @@ cognition-cli audit:docs [options]
 
 ---
 
-## audit:transformations
+## audit-transformations
 
 Audit transformation history of a specific file.
 
@@ -67,6 +68,7 @@ cognition-cli audit:transformations <filePath> [options]
 ```
 
 **Options:**
+
 - `-l, --limit <number>` - Number of transformations to show (default: 5)
 
 **See:** [Overlays & Analysis](./07_Overlays_And_Analysis.md#auditing-commands)
@@ -82,6 +84,7 @@ cognition-cli blast-radius <symbol> [options]
 ```
 
 **Options:**
+
 - `--max-depth <N>` - Maximum traversal depth (default: 3)
 - `--json` - Output raw JSON
 
@@ -130,13 +133,14 @@ cognition-cli genesis [sourcePath] [options]
 ```
 
 **Options:**
-- `-w, --workbench <url>` - eGemma workbench URL (default: http://localhost:8000)
+
+- `-w, --workbench <url>` - eGemma workbench URL (default: `http://localhost:8000`)
 
 **See:** [Getting Started](./03_Getting_Started.md#2-build-the-knowledge-graph)
 
 ---
 
-## genesis:docs
+## genesis-docs
 
 Ingest markdown documentation into PGC with full provenance.
 
@@ -187,12 +191,14 @@ cognition-cli lattice "<query>" [options]
 ```
 
 **Query Examples:**
+
 - `"O1 AND O2"` - Intersection
 - `"O1 - O2"` - Difference
 - `"O1 ~ O4"` - Similarity
 - `"O2[critical]"` - Filtered
 
 **Options:**
+
 - `-f, --format <format>` - Output format: table, json, summary (default: table)
 - `-l, --limit <number>` - Maximum results (default: 50)
 
@@ -211,6 +217,7 @@ cognition-cli overlay generate <type> [sourcePath] [options]
 **Types:** structural_patterns, lineage_patterns, mission_concepts, strategic_coherence
 
 **Options:**
+
 - `-f, --force` - Force regeneration
 - `--skip-gc` - Skip garbage collection
 
@@ -260,6 +267,7 @@ cognition-cli query <symbol> [options]
 ```
 
 **Options:**
+
 - `-d, --depth <level>` - Traversal depth (default: 0)
 - `--lineage` - Output lineage as JSON
 
@@ -290,10 +298,12 @@ cognition-cli status [options]
 ```
 
 **Options:**
+
 - `--json` - JSON output
 - `--verbose` - Show detailed symbol names
 
 **Exit Codes:**
+
 - 0 = Coherent
 - 1 = Incoherent
 
@@ -310,6 +320,7 @@ cognition-cli tui [options]
 ```
 
 **Options:**
+
 - `--session-id <uuid>` - Attach to existing session
 - `--session-tokens <number>` - Compression threshold (default: 120000)
 - `--debug` - Enable Sigma compression logging
@@ -327,6 +338,7 @@ cognition-cli update [options]
 ```
 
 **Options:**
+
 - `-w, --workbench <url>` - eGemma workbench URL
 
 **See:** [Daily Workflow](./04_Daily_Workflow.md#monument-3-the-healing-function-update)
@@ -342,6 +354,7 @@ cognition-cli watch [options]
 ```
 
 **Options:**
+
 - `--untracked` - Watch for new untracked files
 - `--debounce <ms>` - Debounce delay (default: 300)
 - `--verbose` - Show detailed change events

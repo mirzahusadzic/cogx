@@ -23,6 +23,7 @@ Before you begin, ensure you have the **eGemma workbench** running. The workbenc
    ```
 
 3. **Verify it's running:**
+
    ```bash
    curl http://localhost:8000/health
    # Should return: {"status":"healthy"}
