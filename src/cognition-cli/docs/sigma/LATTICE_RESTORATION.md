@@ -210,14 +210,16 @@ The `conversation_memory_assistant` persona ensures high-fidelity recall that pr
 cognition-cli tui
 # ... conversation continues ...
 # ... compression triggered at 150K tokens (default, configurable via --session-tokens) ...
-# Files saved:
-#   .sigma/tui-1704067200000.lattice.json
-#   .sigma/tui-1704067200000.recap.txt
-#   .sigma/overlays/conversation-structural/tui-1704067200000.yaml
-#   ... (6 more overlay files)
+# Files saved (session ID is a UUID generated at session start):
+#   .sigma/bf7b840e-4f78-41dc-bbb1-aab4470aedc9.lattice.json
+#   .sigma/bf7b840e-4f78-41dc-bbb1-aab4470aedc9.recap.txt
+#   .sigma/bf7b840e-4f78-41dc-bbb1-aab4470aedc9.state.json
+#   .sigma/overlays/conversation-structural/bf7b840e-4f78-41dc-bbb1-aab4470aedc9.yaml
+#   .sigma/overlays/conversation-lineage/bf7b840e-4f78-41dc-bbb1-aab4470aedc9.yaml
+#   ... (5 more overlay files)
 
-# Resume the original session (before compression)
-cognition-cli tui --session-id tui-1704067200000
+# Resume the original session (use the UUID from the saved files)
+cognition-cli tui --session-id bf7b840e-4f78-41dc-bbb1-aab4470aedc9
 
 # ✅ Lattice restored with all nodes and edges
 # ✅ Turn analyses rebuilt from lattice
