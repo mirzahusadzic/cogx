@@ -95,10 +95,10 @@ export async function injectRelevantContext(
 ): Promise<string> {
   const {
     debug = false,
-    minRelevance = 0.4,
-    windowSize = 20,
-    maxContextTurns = 3,
-    maxSnippetLength = 400,
+    minRelevance = 0.35, // Lower threshold to catch more relevant context
+    windowSize = 50, // Increased from 20 to scan more history
+    maxContextTurns = 5, // Increased from 3 to inject more context
+    maxSnippetLength = 500, // Increased from 400 for more detail
   } = options;
 
   // Skip if no history
@@ -113,22 +113,39 @@ export async function injectRelevantContext(
   try {
     // Embed the user message
     const embedResponse = await embedder.getEmbedding(userMessage, 768);
-    const userEmbed = embedResponse.embedding;
+
+    // eGemma returns embedding with dimension in key name: "embedding_768d"
+    // Try multiple possible response formats for compatibility
+    const userEmbed =
+      (embedResponse['embedding_768d'] as number[]) ||
+      (embedResponse['vector'] as number[]) ||
+      (embedResponse['embedding'] as number[]) ||
+      (embedResponse['embeddings'] as number[]) ||
+      (embedResponse['data'] as number[]);
 
     // Validate embedding is an array
     if (!Array.isArray(userEmbed)) {
       if (debug) {
-        console.log('[Context Injector] Invalid embedding format, skipping');
+        console.log(
+          `[Context Injector] Invalid embedding format, skipping. Got keys: ${Object.keys(embedResponse).join(', ')}`
+        );
       }
       return userMessage;
     }
 
     // Get recent turns (sliding window)
+    // Also include ALL paradigm shifts regardless of recency
     const recentTurns = turnAnalyses.slice(-windowSize);
+    const paradigmShifts = turnAnalyses.filter(
+      (t) => t.is_paradigm_shift && !recentTurns.includes(t)
+    );
+
+    // Combine recent turns with paradigm shifts for comprehensive context
+    const allCandidates = [...recentTurns, ...paradigmShifts];
 
     // Score and rank ALL turns by semantic relevance
     // Importance is already factored into relevance calculation, no need to pre-filter
-    const scoredTurns = recentTurns
+    const scoredTurns = allCandidates
       .map((turn) => ({
         turn,
         relevance: calculateRelevance(turn, userEmbed),

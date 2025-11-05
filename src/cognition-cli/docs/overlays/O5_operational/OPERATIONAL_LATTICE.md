@@ -497,9 +497,1176 @@ The chain continues. The lattice grows. The symbiosis deepens.
 
 ---
 
-## End of Operational Lattice v0.1
+## Future Enhancements: Quest-Based Operational Flows
 
-_This document will evolve as CoMPs are discovered and integrated._
+### Vision: From Manual Workflows to Automated Quest Orchestration
+
+The current Operational Lattice (v0.1) establishes the **philosophical foundation** and **manual patterns** for the Oracle-Scribe rhythm. The next evolution automates these patterns into **quest-based operational flows** backed by **cryptographic Proof-of-Work (cPOW)**.
+
+This section outlines the roadmap from current state to full cPOW implementation.
+
+---
+
+## Phase 1: Quest Formalization (Current → Near Future)
+
+### Goal
+
+Transform implicit workflow patterns into **explicit, queryable quest structures** that can be tracked, validated, and learned from.
+
+### Current State
+
+- Oracle-Scribe rhythm is **manually executed**
+- Sacred Pauses are **human-initiated**
+- Quest boundaries defined by **conversation context**
+- AQS scoring is **post-hoc analysis**
+- No formal cPOW generation
+
+### Target State
+
+- Quests have **structured lifecycle** (init → transform → verify → complete)
+- Sacred Pauses are **automatically triggered** at defined checkpoints
+- Quest metadata is **persisted in .sigma/** alongside conversation lattice
+- AQS scoring happens **in real-time** during quest execution
+- Preliminary cPOW-like receipts generated
+
+### Implementation Path
+
+#### Step 1.1: Quest Data Structure
+
+Define formal quest representation:
+
+```typescript
+interface Quest {
+  quest_id: string;              // "q_2025_11_05_001"
+  intent: string;                 // Natural language goal
+  status: 'genesis' | 'transform' | 'verification' | 'complete';
+
+  // Context
+  baseline_coherence: number;     // O7 coherence at start
+  mission_alignment: string[];    // O4 concepts
+  security_requirements: string[]; // O2 guidelines
+
+  // Structure
+  big_blocks: BigBlock[];         // Root stages
+  current_depth: number;          // Rabbit hole depth (0-3+)
+  attention_focus: string[];      // "where eyes go"
+
+  // Tracking
+  created_at: string;
+  updated_at: string;
+  transforms: Transform[];
+  verification_checkpoints: Checkpoint[];
+
+  // Metrics
+  aqs_components: {
+    steps: number;
+    corrections: number;
+    optimizations: number;
+  };
+}
+
+interface BigBlock {
+  id: string;
+  name: string;
+  status: 'pending' | 'in_progress' | 'complete';
+  dependencies: string[];         // Other block IDs
+  estimated_depth: number;        // Expected max depth
+  actual_depth: number;           // Actual max depth reached
+}
+
+interface Transform {
+  transform_id: string;
+  timestamp: string;
+  depth: number;
+  big_block_id: string;
+  action: string;                 // Description of change
+  files_modified: string[];
+  rationale: string;
+
+  // Validation
+  tests_passed: boolean;
+  coherence_delta: number;
+  security_validated: boolean;
+}
+
+interface Checkpoint {
+  checkpoint_id: string;
+  type: 'genesis' | 'verification' | 'final';
+  timestamp: string;
+  depth: number;
+
+  // Oracle feedback
+  oracle_approval: 'pass' | 'warning' | 'fail';
+  oracle_feedback: string;
+
+  // Metrics at checkpoint
+  coherence: number;
+  tests_status: string;
+  security_status: string;
+}
+```
+
+**Storage**: `.sigma/quests/{quest_id}.json`
+
+#### Step 1.2: Quest Lifecycle Commands
+
+Add CLI commands for quest management:
+
+```bash
+# Initialize quest (Genesis Pause)
+cognition-cli quest start "implement OAuth2 authentication"
+
+# Output:
+# Quest q_2025_11_05_001 initialized
+# Big blocks identified:
+#   1. [ ] Setup OAuth2 provider integration
+#   2. [ ] Implement token exchange flow
+#   3. [ ] Add protected route middleware
+#   4. [ ] Write integration tests
+#
+# Baseline coherence: 0.624
+# Mission concepts: zero-trust, least-privilege
+# Security requirements: secure token storage, HTTPS only
+#
+# 🔮 Genesis Pause: Review the plan above. Type 'approve' to continue.
+
+# Track progress
+cognition-cli quest status
+
+# Output:
+# Quest: q_2025_11_05_001
+# Status: transform (depth 2)
+# Progress:
+#   1. [✓] Setup OAuth2 provider integration (depth 1)
+#   2. [▶] Implement token exchange flow (depth 2)
+#   3. [ ] Add protected route middleware
+#   4. [ ] Write integration tests
+#
+# Current AQS: 0.78 (B grade)
+# Steps: 12, Corrections: 2, Optimizations: 1
+
+# Trigger verification checkpoint
+cognition-cli quest verify
+
+# Output:
+# 🔮 Verification Pause: Coherence Delta Report
+#
+# Coherence: 0.624 → 0.641 (Δ+0.017) ✓
+# Symbol alignment: 8/10 symbols aligned
+# Drift detected: None
+#
+# Tests: 12 passing, 0 failing ✓
+# Security: No new vulnerabilities ✓
+#
+# Verdict: PASS
+# Continue to next big block? (y/n)
+
+# Complete quest (Final Validation)
+cognition-cli quest complete
+
+# Output:
+# 🔮 Final Validation Pause: Running F.L.T.B
+#
+# [1/4] Format... ✓
+# [2/4] Lint... ✓
+# [3/4] Test... ✓
+# [4/4] Build... ✓
+#
+# All checks passed! Ready to commit.
+#
+# Final AQS: 0.847 (A grade)
+# Duration: 45 minutes
+# Transforms: 18
+# Corrections: 3
+#
+# Generate cPOW receipt? (y/n)
+```
+
+#### Step 1.3: Real-Time AQS Tracking
+
+Instrument quest execution to compute AQS components:
+
+```typescript
+// In TUI: useClaudeAgent.ts
+async function trackTransform(action: string, depth: number) {
+  const currentQuest = await loadActiveQuest();
+  if (!currentQuest) return;
+
+  // Increment steps
+  currentQuest.aqs_components.steps++;
+
+  // Detect corrections (test failures, lint errors)
+  if (action.includes('fix') || action.includes('retry')) {
+    currentQuest.aqs_components.corrections++;
+  }
+
+  // Detect optimizations (user suggestions applied)
+  if (action.includes('optimize') || action.includes('improve')) {
+    currentQuest.aqs_components.optimizations++;
+  }
+
+  // Save transform
+  currentQuest.transforms.push({
+    transform_id: `t_${Date.now()}`,
+    timestamp: new Date().toISOString(),
+    depth,
+    action,
+    // ... other fields
+  });
+
+  await saveQuest(currentQuest);
+
+  // Emit event for UI update
+  emit('quest:transform', currentQuest);
+}
+```
+
+#### Step 1.4: Sacred Pause Automation
+
+Automatically trigger Sacred Pauses at key moments:
+
+```typescript
+// Genesis Pause: After quest initialization
+async function onQuestStart(intent: string) {
+  const quest = await initializeQuest(intent);
+
+  // Present plan to Oracle
+  const briefing = formatQuestBriefing(quest);
+  await displayInTUI(briefing);
+
+  // Wait for Oracle approval
+  const approval = await promptUser('Approve plan? (y/n)');
+  if (approval !== 'y') {
+    await refineQuest(quest);
+  }
+
+  quest.status = 'transform';
+  await saveQuest(quest);
+}
+
+// Verification Pause: After completing a Big Block
+async function onBigBlockComplete(questId: string, blockId: string) {
+  const quest = await loadQuest(questId);
+  const block = quest.big_blocks.find(b => b.id === blockId);
+  block.status = 'complete';
+
+  // Run coherence check
+  const coherenceDelta = await computeCoherenceDelta(quest);
+
+  // Present to Oracle
+  const report = formatCoherenceReport(coherenceDelta);
+  await displayInTUI(report);
+
+  // Record checkpoint
+  quest.verification_checkpoints.push({
+    checkpoint_id: `cp_${Date.now()}`,
+    type: 'verification',
+    timestamp: new Date().toISOString(),
+    depth: quest.current_depth,
+    oracle_approval: 'pass', // user input
+    oracle_feedback: '',
+    coherence: coherenceDelta.after,
+    tests_status: 'passing',
+    security_status: 'clean',
+  });
+
+  await saveQuest(quest);
+}
+
+// Final Validation Pause: After all blocks complete
+async function onQuestComplete(questId: string) {
+  const quest = await loadQuest(questId);
+
+  // Run F.L.T.B
+  const fltbResult = await runFLTB();
+
+  if (!fltbResult.passed) {
+    throw new Error('F.L.T.B failed: ' + fltbResult.failures.join(', '));
+  }
+
+  // Compute final AQS
+  const aqs = computeAQS(quest.aqs_components);
+
+  // Generate preliminary cPOW receipt
+  const receipt = {
+    quest_id: quest.quest_id,
+    intent: quest.intent,
+    duration_minutes: (Date.now() - new Date(quest.created_at).getTime()) / 60000,
+    transforms: quest.transforms.length,
+    aqs,
+    checkpoints: quest.verification_checkpoints,
+  };
+
+  await saveReceipt(receipt);
+
+  quest.status = 'complete';
+  await saveQuest(quest);
+
+  // Display to Oracle
+  await displayInTUI(formatCompletionReport(quest, aqs));
+}
+```
+
+### Success Criteria
+
+- ✅ Quest lifecycle commands implemented
+- ✅ Quest metadata persisted in `.sigma/quests/`
+- ✅ Real-time AQS tracking during execution
+- ✅ Sacred Pauses automatically triggered
+- ✅ Quest receipts generated (preliminary cPOW)
+
+---
+
+## Phase 2: Oracle Integration (Near Future → Medium Term)
+
+### Goal
+
+Replace human Oracle with **external AI Oracle (eGemma)** for objective, automated validation at Sacred Pauses.
+
+### Current State (After Phase 1)
+
+- Oracle is **human-in-the-loop** (manual approval)
+- Validation is **subjective** (based on user judgment)
+- No formal scoring algorithm
+- Feedback is **unstructured text**
+
+### Target State
+
+- Oracle is **eGemma SLM** (small language model)
+- Validation is **objective** (semantic similarity + heuristics)
+- Formal scoring: **Accuracy × Efficiency × Adaptability**
+- Feedback is **structured JSON** with actionable suggestions
+
+### Implementation Path
+
+#### Step 2.1: Oracle Service Architecture
+
+Create dedicated Oracle service:
+
+```typescript
+// src/sigma/oracle-service.ts
+
+interface OracleRequest {
+  type: 'genesis' | 'verification' | 'final';
+  quest: Quest;
+  checkpoint_data: {
+    before_state: CodebaseSnapshot;
+    after_state: CodebaseSnapshot;
+    transforms: Transform[];
+  };
+}
+
+interface OracleResponse {
+  score: number;              // 0.0 - 1.0
+  verdict: 'pass' | 'warning' | 'fail';
+  components: {
+    accuracy: number;         // Did we achieve intent?
+    efficiency: number;       // Minimal transforms?
+    adaptability: number;     // Handled obstacles?
+  };
+  suggestions: string[];      // Actionable feedback
+  session_id: string;
+  timestamp: string;
+}
+
+class OracleService {
+  private workbenchUrl: string;
+  private apiKey: string;
+
+  constructor() {
+    this.workbenchUrl = process.env.WORKBENCH_URL!;
+    this.apiKey = process.env.WORKBENCH_API_KEY!;
+  }
+
+  async evaluate(request: OracleRequest): Promise<OracleResponse> {
+    // Prepare prompt for eGemma
+    const prompt = this.buildOraclePrompt(request);
+
+    // Call eGemma
+    const response = await fetch(`${this.workbenchUrl}/api/generate`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'egemma',
+        prompt,
+        temperature: 0.3, // Low temperature for consistent scoring
+      }),
+    });
+
+    const result = await response.json();
+
+    // Parse structured response
+    return this.parseOracleResponse(result.text, request);
+  }
+
+  private buildOraclePrompt(request: OracleRequest): string {
+    const { type, quest, checkpoint_data } = request;
+
+    switch (type) {
+      case 'genesis':
+        return `
+Quest Intent: ${quest.intent}
+
+Proposed Big Blocks:
+${quest.big_blocks.map((b, i) => `${i+1}. ${b.name}`).join('\n')}
+
+Baseline Coherence: ${quest.baseline_coherence}
+Mission Alignment: ${quest.mission_alignment.join(', ')}
+Security Requirements: ${quest.security_requirements.join(', ')}
+
+Evaluate this quest plan:
+1. Does the intent clearly state the goal?
+2. Are the big blocks logical and complete?
+3. Is the scope reasonable?
+4. Are security requirements adequate?
+
+Respond in JSON:
+{
+  "score": <0.0-1.0>,
+  "verdict": "pass|warning|fail",
+  "suggestions": ["<actionable feedback>"]
+}
+`;
+
+      case 'verification':
+        return `
+Quest Intent: ${quest.intent}
+Current Progress: ${quest.big_blocks.filter(b => b.status === 'complete').length}/${quest.big_blocks.length} blocks complete
+
+Transforms Since Last Checkpoint: ${checkpoint_data.transforms.length}
+Coherence Change: ${checkpoint_data.before_state.coherence} → ${checkpoint_data.after_state.coherence}
+
+Changes:
+${this.summarizeChanges(checkpoint_data)}
+
+Evaluate progress:
+1. Are we moving toward the intent?
+2. Is coherence improving or stable?
+3. Are transforms efficient (no redundancy)?
+4. Any security concerns?
+
+Respond in JSON:
+{
+  "score": <0.0-1.0>,
+  "verdict": "pass|warning|fail",
+  "components": {
+    "accuracy": <0.0-1.0>,
+    "efficiency": <0.0-1.0>,
+    "adaptability": <0.0-1.0>
+  },
+  "suggestions": ["<actionable feedback>"]
+}
+`;
+
+      case 'final':
+        return `
+Quest Intent: ${quest.intent}
+Total Transforms: ${quest.transforms.length}
+Duration: ${this.computeDuration(quest)} minutes
+Final Coherence: ${checkpoint_data.after_state.coherence}
+Coherence Delta: ${checkpoint_data.after_state.coherence - quest.baseline_coherence}
+
+F.L.T.B Results:
+- Format: ${checkpoint_data.after_state.fltb.format ? 'PASS' : 'FAIL'}
+- Lint: ${checkpoint_data.after_state.fltb.lint ? 'PASS' : 'FAIL'}
+- Test: ${checkpoint_data.after_state.fltb.test ? 'PASS' : 'FAIL'}
+- Build: ${checkpoint_data.after_state.fltb.build ? 'PASS' : 'FAIL'}
+
+Final evaluation:
+1. Was the intent fully achieved?
+2. Were transforms efficient overall?
+3. Did the quest handle obstacles well?
+4. Is the final state high quality?
+
+Respond in JSON:
+{
+  "score": <0.0-1.0>,
+  "verdict": "pass|warning|fail",
+  "components": {
+    "accuracy": <0.0-1.0>,
+    "efficiency": <0.0-1.0>,
+    "adaptability": <0.0-1.0>
+  },
+  "suggestions": ["<actionable feedback>"]
+}
+`;
+    }
+  }
+
+  private parseOracleResponse(text: string, request: OracleRequest): OracleResponse {
+    // Extract JSON from response
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('Oracle returned invalid format');
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    return {
+      score: parsed.score,
+      verdict: parsed.verdict,
+      components: parsed.components || {
+        accuracy: parsed.score,
+        efficiency: parsed.score,
+        adaptability: parsed.score,
+      },
+      suggestions: parsed.suggestions || [],
+      session_id: `oracle_${Date.now()}`,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  private summarizeChanges(checkpoint: any): string {
+    // Summarize file changes for Oracle
+    const added = checkpoint.transforms.filter((t: any) => t.action.includes('create'));
+    const modified = checkpoint.transforms.filter((t: any) => t.action.includes('modify'));
+    const deleted = checkpoint.transforms.filter((t: any) => t.action.includes('delete'));
+
+    return `
+- ${added.length} files created
+- ${modified.length} files modified
+- ${deleted.length} files deleted
+`;
+  }
+
+  private computeDuration(quest: Quest): number {
+    return (Date.now() - new Date(quest.created_at).getTime()) / 60000;
+  }
+}
+```
+
+#### Step 2.2: Update Sacred Pause Triggers
+
+Replace manual approval with Oracle calls:
+
+```typescript
+// Genesis Pause with Oracle
+async function onQuestStart(intent: string) {
+  const quest = await initializeQuest(intent);
+
+  // Call Oracle
+  const oracleService = new OracleService();
+  const response = await oracleService.evaluate({
+    type: 'genesis',
+    quest,
+    checkpoint_data: await captureCheckpointData(quest),
+  });
+
+  // Present to user
+  await displayInTUI({
+    title: '🔮 Genesis Pause: Oracle Evaluation',
+    score: response.score,
+    verdict: response.verdict,
+    suggestions: response.suggestions,
+  });
+
+  if (response.verdict === 'fail') {
+    throw new Error('Oracle rejected quest plan: ' + response.suggestions.join(', '));
+  }
+
+  // Record checkpoint
+  quest.verification_checkpoints.push({
+    checkpoint_id: `cp_genesis`,
+    type: 'genesis',
+    timestamp: new Date().toISOString(),
+    depth: 0,
+    oracle_approval: response.verdict,
+    oracle_feedback: response.suggestions.join('\n'),
+    coherence: quest.baseline_coherence,
+    tests_status: 'n/a',
+    security_status: 'n/a',
+  });
+
+  quest.status = 'transform';
+  await saveQuest(quest);
+}
+
+// Similar updates for Verification and Final pauses
+```
+
+#### Step 2.3: Oracle Feedback Loop
+
+If Oracle returns 'warning' or 'fail', enter feedback loop:
+
+```typescript
+async function handleOracleFailure(
+  quest: Quest,
+  response: OracleResponse,
+  maxRetries: number = 3
+) {
+  let attempts = 0;
+
+  while (attempts < maxRetries && response.verdict !== 'pass') {
+    attempts++;
+
+    // Display Oracle feedback
+    await displayInTUI({
+      title: `⚠️ Oracle Feedback (Attempt ${attempts}/${maxRetries})`,
+      suggestions: response.suggestions,
+    });
+
+    // Prompt user to address feedback
+    const action = await promptUser('How to proceed? (1) Fix issues (2) Override Oracle (3) Abort');
+
+    if (action === '1') {
+      // User makes changes, re-evaluate
+      await waitForUserChanges();
+
+      response = await oracleService.evaluate({
+        type: 'verification',
+        quest,
+        checkpoint_data: await captureCheckpointData(quest),
+      });
+
+    } else if (action === '2') {
+      // Override (requires justification)
+      const justification = await promptUser('Justification for override:');
+      quest.verification_checkpoints.push({
+        checkpoint_id: `cp_override_${Date.now()}`,
+        type: 'verification',
+        timestamp: new Date().toISOString(),
+        depth: quest.current_depth,
+        oracle_approval: 'pass', // overridden
+        oracle_feedback: `OVERRIDDEN: ${justification}`,
+        coherence: await computeCoherence(),
+        tests_status: 'passing',
+        security_status: 'clean',
+      });
+      break;
+
+    } else {
+      // Abort quest
+      quest.status = 'aborted';
+      await saveQuest(quest);
+      throw new Error('Quest aborted by user');
+    }
+  }
+
+  if (attempts >= maxRetries && response.verdict !== 'pass') {
+    throw new Error('Oracle validation failed after maximum retries');
+  }
+}
+```
+
+### Success Criteria
+
+- ✅ Oracle service integrated with eGemma
+- ✅ Genesis, Verification, and Final pauses use Oracle
+- ✅ Objective scoring (Accuracy × Efficiency × Adaptability)
+- ✅ Feedback loop for failed validations
+- ✅ Override mechanism with justification tracking
+
+---
+
+## Phase 3: cPOW Generation (Medium Term → Long Term)
+
+### Goal
+
+Generate **cryptographic Proof-of-Work (cPOW)** for completed quests, enabling verifiable mission alignment and wisdom extraction.
+
+### Current State (After Phase 2)
+
+- Quest receipts are **simple JSON**
+- No cryptographic verification
+- No wisdom distillation (CoMP)
+- No pattern reuse tracking
+
+### Target State
+
+- cPOW is **immutable, verifiable receipt** of quest completion
+- SHA-256 checksums of before/after states
+- Oracle signature validation
+- High-AQS quests produce **CoMP (Cognitive Micro-Tuning Payload)**
+- CoMP stored in O5 (Operational Patterns) for reuse
+
+### Implementation Path
+
+#### Step 3.1: cPOW Data Structure
+
+Implement full cPOW format from cPOW reference:
+
+```typescript
+// src/sigma/cpow.ts
+
+interface CPOW {
+  cpow_id: string;               // "cpow_q_2025_11_05_001"
+  version: string;               // "1.0"
+
+  // Quest metadata
+  quest: {
+    quest_id: string;
+    intent: string;
+    big_blocks: string[];
+  };
+
+  // Execution
+  execution: {
+    timestamp_start: string;
+    timestamp_end: string;
+    duration_minutes: number;
+    agent: string;               // "claude-sonnet-4"
+    transforms_count: number;
+  };
+
+  // States (cryptographic)
+  states: {
+    before_hash: string;         // SHA-256 of codebase before
+    after_hash: string;          // SHA-256 of codebase after
+    coherence_before: number;
+    coherence_after: number;
+    coherence_delta: number;
+  };
+
+  // Validation
+  validation: {
+    fltb_passed: boolean;
+    oracle_responses: OracleResponse[];
+    oracle_avg_score: number;
+    commit_sha: string;
+  };
+
+  // Quality
+  aqs: {
+    score: number;
+    grade: 'A' | 'B' | 'C' | 'D' | 'F';
+    components: {
+      oracle: number;
+      bonus: number;
+      breakdown: {
+        coherence_bonus: number;
+        pattern_reuse_bonus: number;
+        security_bonus: number;
+        efficiency_bonus: number;
+      };
+    };
+  };
+
+  // Wisdom
+  wisdom: {
+    comp_generated: boolean;
+    comp_id?: string;
+  };
+}
+
+async function generateCPOW(quest: Quest): Promise<CPOW> {
+  // Capture final state
+  const beforeState = await loadState(quest.quest_id, 'before');
+  const afterState = await loadState(quest.quest_id, 'after');
+
+  // Compute checksums
+  const beforeHash = sha256(serialize(beforeState));
+  const afterHash = sha256(serialize(afterState));
+
+  // Get commit SHA
+  const commitSHA = await execCommand('git rev-parse HEAD');
+
+  // Compute AQS
+  const aqs = computeAQS(quest);
+
+  // Create cPOW
+  const cpow: CPOW = {
+    cpow_id: `cpow_${quest.quest_id}`,
+    version: '1.0',
+    quest: {
+      quest_id: quest.quest_id,
+      intent: quest.intent,
+      big_blocks: quest.big_blocks.map(b => b.name),
+    },
+    execution: {
+      timestamp_start: quest.created_at,
+      timestamp_end: new Date().toISOString(),
+      duration_minutes: (Date.now() - new Date(quest.created_at).getTime()) / 60000,
+      agent: 'claude-sonnet-4',
+      transforms_count: quest.transforms.length,
+    },
+    states: {
+      before_hash: beforeHash,
+      after_hash: afterHash,
+      coherence_before: quest.baseline_coherence,
+      coherence_after: afterState.coherence,
+      coherence_delta: afterState.coherence - quest.baseline_coherence,
+    },
+    validation: {
+      fltb_passed: true,
+      oracle_responses: quest.verification_checkpoints.map(cp => cp.oracle_response),
+      oracle_avg_score: mean(quest.verification_checkpoints.map(cp => cp.oracle_response.score)),
+      commit_sha: commitSHA.trim(),
+    },
+    aqs,
+    wisdom: {
+      comp_generated: false,
+    },
+  };
+
+  // Store cPOW
+  await saveCPOW(cpow);
+
+  // Generate CoMP if eligible
+  if (aqs.score >= 0.70) {
+    const comp = await distillWisdom(cpow, quest);
+    cpow.wisdom = {
+      comp_generated: true,
+      comp_id: comp.comp_id,
+    };
+    await saveCPOW(cpow); // Update with CoMP reference
+  }
+
+  return cpow;
+}
+```
+
+#### Step 3.2: Wisdom Distillation (CoMP)
+
+Extract reusable patterns from high-AQS quests:
+
+```typescript
+// src/sigma/wisdom-distiller.ts
+
+interface CoMP {
+  comp_id: string;
+  source_cpow: string;
+  aqs: number;
+  domain: string;
+  pattern_name: string;
+
+  context: {
+    intent_pattern: string;      // Generalized intent
+    preconditions: string[];
+    postconditions: string[];
+  };
+
+  transforms: CompactTransform[];
+  security_considerations: string[];
+
+  mission_alignment: {
+    concepts: string[];
+    coherence: number;
+  };
+
+  reuse_count: number;
+  last_used: string;
+}
+
+async function distillWisdom(cpow: CPOW, quest: Quest): Promise<CoMP> {
+  // Extract pattern name from intent
+  const patternName = extractPatternName(quest.intent);
+
+  // Determine domain
+  const domain = categorizeDomain(quest);
+
+  // Generalize intent
+  const intentPattern = generalizeIntent(quest.intent);
+
+  // Extract preconditions/postconditions
+  const preconditions = extractPreconditions(quest);
+  const postconditions = extractPostconditions(quest);
+
+  // Compact transforms (remove project-specific details)
+  const compactTransforms = quest.transforms.map(t => ({
+    step: t.transform_id,
+    action: generalizeAction(t.action),
+    rationale: t.rationale,
+    patterns: extractPatterns(t),
+  }));
+
+  // Extract security considerations
+  const securityConsiderations = quest.security_requirements;
+
+  // Create CoMP
+  const comp: CoMP = {
+    comp_id: `comp_${domain}_${Date.now()}`,
+    source_cpow: cpow.cpow_id,
+    aqs: cpow.aqs.score,
+    domain,
+    pattern_name: patternName,
+    context: {
+      intent_pattern: intentPattern,
+      preconditions,
+      postconditions,
+    },
+    transforms: compactTransforms,
+    security_considerations: securityConsiderations,
+    mission_alignment: {
+      concepts: quest.mission_alignment,
+      coherence: cpow.states.coherence_after,
+    },
+    reuse_count: 0,
+    last_used: new Date().toISOString(),
+  };
+
+  // Store in O5 (Operational Patterns)
+  await saveCoMP(comp);
+
+  // Update pattern index
+  await updatePatternIndex(comp);
+
+  return comp;
+}
+```
+
+#### Step 3.3: Pattern Reuse System
+
+Query and reuse CoMP patterns in future quests:
+
+```typescript
+// During quest initialization
+async function initializeQuest(intent: string): Promise<Quest> {
+  // ... existing initialization ...
+
+  // Query relevant patterns
+  const relevantPatterns = await queryPatterns({
+    intent,
+    minAQS: 0.7,
+    limit: 5,
+  });
+
+  if (relevantPatterns.length > 0) {
+    // Display to user
+    await displayInTUI({
+      title: '📚 Relevant Patterns Found',
+      patterns: relevantPatterns.map(p => ({
+        name: p.pattern_name,
+        aqs: p.aqs,
+        reuse_count: p.reuse_count,
+        domain: p.domain,
+      })),
+    });
+
+    // Ask user if they want to reuse
+    const usePattern = await promptUser('Use existing pattern? (y/n)');
+
+    if (usePattern === 'y') {
+      // Select pattern
+      const selectedPattern = await selectPattern(relevantPatterns);
+
+      // Adapt pattern to current context
+      const adaptedBlocks = await adaptPattern(selectedPattern, intent);
+
+      quest.big_blocks = adaptedBlocks;
+      quest.aqs_components.optimizations++; // Pattern reuse is an optimization
+
+      // Update pattern reuse count
+      selectedPattern.reuse_count++;
+      selectedPattern.last_used = new Date().toISOString();
+      await saveCoMP(selectedPattern);
+    }
+  }
+
+  return quest;
+}
+
+async function queryPatterns(options: {
+  intent: string;
+  minAQS?: number;
+  domain?: string;
+  limit?: number;
+}): Promise<CoMP[]> {
+  // Load pattern index
+  const index = await loadPatternIndex();
+
+  // Embed intent
+  const intentEmbedding = await embed(options.intent);
+
+  // Score patterns by semantic similarity
+  const scored = index.patterns.map(p => ({
+    pattern: p,
+    similarity: cosineSimilarity(intentEmbedding, p.intent_embedding),
+  }));
+
+  // Filter and sort
+  return scored
+    .filter(s => s.pattern.aqs >= (options.minAQS || 0.7))
+    .filter(s => !options.domain || s.pattern.domain === options.domain)
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, options.limit || 10)
+    .map(s => s.pattern);
+}
+```
+
+#### Step 3.4: cPOW Verification
+
+Verify cPOW authenticity:
+
+```typescript
+async function verifyCPOW(cpow: CPOW): Promise<VerificationResult> {
+  const checks = {
+    checksum_before: false,
+    checksum_after: false,
+    oracle_signature: false,
+    transform_chain: false,
+    commit_exists: false,
+  };
+  const errors: string[] = [];
+
+  // 1. Verify before/after checksums
+  try {
+    const beforeState = await loadState(cpow.quest.quest_id, 'before');
+    const beforeHash = sha256(serialize(beforeState));
+    checks.checksum_before = beforeHash === cpow.states.before_hash;
+
+    const afterState = await loadState(cpow.quest.quest_id, 'after');
+    const afterHash = sha256(serialize(afterState));
+    checks.checksum_after = afterHash === cpow.states.after_hash;
+  } catch (err) {
+    errors.push(`Checksum verification failed: ${err.message}`);
+  }
+
+  // 2. Verify Oracle signatures
+  try {
+    checks.oracle_signature = cpow.validation.oracle_responses.every(
+      r => validateOracleSignature(r)
+    );
+  } catch (err) {
+    errors.push(`Oracle signature verification failed: ${err.message}`);
+  }
+
+  // 3. Verify commit exists
+  try {
+    const commitExists = await execCommand(`git cat-file -t ${cpow.validation.commit_sha}`);
+    checks.commit_exists = commitExists.trim() === 'commit';
+  } catch (err) {
+    errors.push(`Commit ${cpow.validation.commit_sha} not found`);
+  }
+
+  const valid = Object.values(checks).every(v => v === true);
+
+  return { valid, checks, errors };
+}
+```
+
+### Success Criteria
+
+- ✅ cPOW generated for completed quests
+- ✅ SHA-256 checksums verify before/after states
+- ✅ Oracle signatures validated
+- ✅ High-AQS quests produce CoMP
+- ✅ CoMP patterns queryable and reusable
+- ✅ cPOW verification API functional
+
+---
+
+## Phase 4: Cross-Project Wisdom Sharing (Long Term)
+
+### Goal
+
+Enable wisdom (CoMP) sharing across projects via `.cogx` packages and decentralized Matryoshka Echo network.
+
+### Vision
+
+Projects export their best patterns as `.cogx` files (verified by git commit hash). Other projects import these packages to bootstrap their operational knowledge.
+
+Eventually, a decentralized network (Matryoshka Echo) allows global pattern discovery and propagation.
+
+### Implementation (Future)
+
+See cPOW Reference Manual Chapter 20, Appendix H for full specification of:
+
+- `.cogx` file format
+- Export/import commands
+- Decentralized wisdom network (Matryoshka Echo)
+- Reputation and trust mechanisms
+
+---
+
+## Roadmap Summary
+
+| Phase | Timeline | Key Deliverable | Status |
+|-------|----------|----------------|--------|
+| **Phase 1: Quest Formalization** | Current → Q1 2026 | Quest lifecycle commands, real-time AQS tracking, automated Sacred Pauses | 🟡 In Planning |
+| **Phase 2: Oracle Integration** | Q1 → Q2 2026 | eGemma Oracle service, objective validation scoring, feedback loops | 🟡 In Planning |
+| **Phase 3: cPOW Generation** | Q2 → Q3 2026 | Full cPOW implementation, wisdom distillation (CoMP), pattern reuse system | 🟡 In Planning |
+| **Phase 4: Cross-Project Sharing** | Q4 2026+ | `.cogx` packages, Matryoshka Echo network, global wisdom propagation | ⚪ Future |
+
+---
+
+## Integration with Existing SIGMA Architecture
+
+The quest-based operational flows integrate seamlessly with SIGMA:
+
+### Quest Lifecycle ↔ SIGMA Compression
+
+- **Quest state** persisted in `.sigma/quests/`
+- **Quest transforms** analyzed alongside conversation turns
+- **Quest checkpoints** trigger SIGMA compression if token threshold exceeded
+- **Quest AQS** influences conversation lattice importance scoring
+
+### cPOW ↔ Conversation Lattice
+
+- **cPOW generated** after quest completion links to conversation session
+- **Conversation recap** includes quest summary (blocks, AQS, duration)
+- **Quest-based mode detection** (quest vs chat) influences recap structure
+- **CoMP patterns** surface in real-time context injection for similar queries
+
+### Operational Patterns (O5) ↔ Wisdom (CoMP)
+
+- **CoMP stored** in `.open_cognition/operational_patterns/comp/`
+- **Pattern embeddings** indexed in O5 overlay
+- **Pattern queries** use lattice algebra (O5 ∧ O4 for mission-aligned patterns)
+- **Pattern reuse** tracked via CoMP reuse_count field
+
+---
+
+## Migration Path from v0.1 to Quest-Based Flows
+
+For existing projects using Operational Lattice v0.1:
+
+### Step 1: Retrofit Quest Structure
+
+Analyze existing conversation turns to extract implicit quests:
+
+```bash
+# Analyze conversation history
+cognition-cli quest extract --from-conversation
+
+# Output:
+# Found 3 implicit quests in conversation:
+# 1. Quest "implement wizard" (turns 1-45, AQS: 0.82)
+# 2. Quest "add health check" (turns 46-78, AQS: 0.91)
+# 3. Quest "fix security issue" (turns 79-95, AQS: 0.74)
+#
+# Generate cPOW receipts? (y/n)
+```
+
+### Step 2: Generate Retrospective cPOW
+
+Create cPOW for past quests (without Oracle validation):
+
+```bash
+cognition-cli cpow generate-retro --quest-id q_retro_001
+
+# Output:
+# Generated retrospective cPOW: cpow_q_retro_001
+# Note: No Oracle validation available (manual workflow)
+# AQS estimated from conversation metrics
+# Eligible for CoMP? Yes (AQS: 0.91)
+```
+
+### Step 3: Enable Quest Mode
+
+Activate quest-based workflows for new conversations:
+
+```bash
+# In .cogxrc or via environment variable
+export COGX_QUEST_MODE=true
+
+# Next conversation automatically creates quests
+cognition-cli tui --session-id my-project
+```
+
+---
+
+## End of Operational Lattice v0.2
+
+_This document has evolved to incorporate quest-based operational flows and the roadmap to full cPOW implementation._
+
+**Version History:**
+- **v0.1** (2025-10-31): Manual Oracle-Scribe patterns, Sacred Pauses, AQS concept
+- **v0.2** (2025-11-05): Quest formalization roadmap, Oracle integration plan, cPOW specification
+
+**Next Update:** After Phase 1 implementation (Quest lifecycle commands functional)
 ````
 
 ```

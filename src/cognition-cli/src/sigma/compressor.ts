@@ -67,9 +67,17 @@ export async function compressContext(
       continue;
     }
 
-    // Discard routine turns (low value)
+    // Compress routine turns at high ratio instead of discarding
+    // Keep them for context continuity but with minimal token usage
     if (turn.is_routine) {
-      discarded.push(turn.turn_id);
+      const highlyCompressedSize = Math.ceil(turnSize * 0.1); // 10% compression for routine
+      if (budget >= highlyCompressedSize) {
+        summarized.push(turn.turn_id);
+        budget -= highlyCompressedSize;
+      } else {
+        // Only discard if absolutely no budget left
+        discarded.push(turn.turn_id);
+      }
       continue;
     }
 
@@ -81,8 +89,15 @@ export async function compressContext(
       summarized.push(turn.turn_id);
       budget -= compressedSize;
     } else {
-      // Budget exceeded, discard this turn
-      discarded.push(turn.turn_id);
+      // Budget exceeded - try high compression as last resort
+      const highlyCompressedSize = Math.ceil(turnSize * 0.1);
+      if (budget >= highlyCompressedSize) {
+        summarized.push(turn.turn_id);
+        budget -= highlyCompressedSize;
+      } else {
+        // Only discard if absolutely no budget left
+        discarded.push(turn.turn_id);
+      }
     }
   }
 

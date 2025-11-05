@@ -405,8 +405,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               `  Content: ${analysis.content.substring(0, 100)}${analysis.content.length > 100 ? '...' : ''}\n\n`
           );
 
-          // Check if compression needed (configurable threshold, defaults to 150K)
-          const TOKEN_THRESHOLD = options.sessionTokens || 150000;
+          // Check if compression needed (configurable threshold, defaults to 120K)
+          const TOKEN_THRESHOLD = options.sessionTokens || 120000;
           const MIN_TURNS_FOR_COMPRESSION = 5; // Need at least 5 turns for meaningful compression
 
           if (
@@ -561,7 +561,13 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                   ...prev,
                   {
                     type: 'system',
-                    content: `${modeIcon} Context compressed (${actualRatio}x ratio, ${reconstructed.mode} mode). Intelligent recap ready.`,
+                    content:
+                      `${modeIcon} Context compressed (${actualRatio}x ratio, ${reconstructed.mode} mode)\n` +
+                      `   • Preserved: ${compressionResult.preserved_turns.length} paradigm shifts\n` +
+                      `   • Compressed: ${compressionResult.summarized_turns.length} important turns\n` +
+                      `   • Discarded: ${compressionResult.discarded_turns.length} low-value turns\n` +
+                      `   • Message history remains visible in UI\n` +
+                      `   • Intelligent recap will inject on next query`,
                     timestamp: new Date(),
                   },
                 ]);
@@ -991,11 +997,14 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         if (injectedRecap) {
           // Inject recap as part of the user prompt to preserve claude_code preset
           finalPrompt = `${injectedRecap}\n\n---\n\nUser request: ${prompt}`;
-          setInjectedRecap(null); // Clear after injection (one-time use)
+          // Clear recap after first injection - subsequent queries use real-time context injection
+          // This ensures: 1st query = full recap, 2nd+ queries = semantic lattice search
+          setInjectedRecap(null);
 
           debugLog(
-            `[SIGMA] Injecting intelligent recap into user prompt\n` +
-              `  Recap length: ${injectedRecap.length} chars (~${Math.round(injectedRecap.length / 4)} tokens)\n\n`
+            `[SIGMA] Injecting intelligent recap into user prompt (one-time)\n` +
+              `  Recap length: ${injectedRecap.length} chars (~${Math.round(injectedRecap.length / 4)} tokens)\n` +
+              `  Subsequent queries will use real-time context injection\n\n`
           );
         } else if (embedderRef.current && turnAnalyses.current.length > 0) {
           // Real-time lattice context injection for fluent conversation
@@ -1233,6 +1242,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         }
         return prev; // Keep existing if already set or not a placeholder
       });
+
+      // CRITICAL FIX: Update resumeSessionId so next query continues from this session
+      // Without this, each query starts fresh and loses conversation context!
+      setResumeSessionId(sdkSessionId);
     }
 
     switch (sdkMessage.type) {

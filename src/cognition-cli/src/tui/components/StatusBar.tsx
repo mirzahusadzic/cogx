@@ -17,7 +17,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   focused,
   tokenCount,
   mouseEnabled = true,
-  compressionThreshold = 150000,
+  compressionThreshold = 120000,
 }) => {
   // Format token count with K suffix for readability
   const formatTokens = (count: number) => {
@@ -27,9 +27,9 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     return count.toString();
   };
 
-  // Calculate percentage of 200K limit
+  // Calculate percentage of compression threshold
   const tokenPercentage = tokenCount
-    ? ((tokenCount.total / 200000) * 100).toFixed(1)
+    ? ((tokenCount.total / compressionThreshold) * 100).toFixed(1)
     : '0.0';
 
   // Build status bar as single string to avoid wrapping issues
