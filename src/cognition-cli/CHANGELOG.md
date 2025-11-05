@@ -5,6 +5,40 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2025-11-05
+
+### 🐛 Critical Bug Fixes - Context Persistence
+
+Fixed 4 critical issues causing context loss in multi-turn conversations after compression.
+
+#### Persistent Recap Injection
+
+Removed premature recap clearing after first query (`useClaudeAgent.ts:994`). Recap now persists across all queries in new session until next compression, enabling natural follow-up questions without re-explaining context.
+
+#### Low-Importance Turn Preservation
+
+Changed from permanent deletion to 10% token budget compression for turns with importance < 3 (`compressor.ts:70-86`). Brief but critical constraints like "target device has 256MB RAM" now preserved even if initially low-scored.
+
+#### Expanded Context Window
+
+Increased real-time context injection window from 20→50 turns, injection count from 3→5 turns, and added paradigm shift inclusion regardless of recency (`context-injector.ts`). Enables access to architectural decisions from 50+ turns ago.
+
+#### Compression Feedback UI
+
+Enhanced system message with detailed breakdown showing preserved/compressed/discarded counts, compression ratio, and mode detection (`useClaudeAgent.ts:976-983`).
+
+### 🔧 Technical Improvements
+
+- **Compression Threshold Consistency**: Standardized default to 120K tokens across all components (configurable via `--session-tokens`)
+- Fixed `useClaudeAgent.ts:409` and `StatusBar.tsx:20` to match CLI default
+
+### 📚 Documentation
+
+- Added `SIGMA_CONTEXT_ARCHITECTURE.md` (1,223 lines) documenting dual-lattice infinite memory system
+- Updated `QUICK_REFERENCE.md` with fix details and testing scenarios
+- Enhanced `O5_OPERATIONAL_LATTICE.md` with operational patterns catalog (1,171 lines)
+- Fixed outdated "one-shot recap" statements and token threshold examples (150K→120K)
+
 ## [2.0.4] - 2025-11-04
 
 ### 🐛 Bug Fixes
