@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-**SIGMA** (Semantic Intelligence with Graph-based Memory Architecture) is a revolutionary context management system that achieves **infinite conversation length** through intelligent compression, dual-lattice architecture, and real-time semantic injection.
+**SIGMA** (Semantic Intelligence with Lattice-based Memory Architecture) is a revolutionary context management system that achieves **infinite conversation length** through intelligent compression, dual-lattice architecture, and real-time semantic injection.
 
 Unlike traditional LLM context windows that discard or truncate history, SIGMA:
 
