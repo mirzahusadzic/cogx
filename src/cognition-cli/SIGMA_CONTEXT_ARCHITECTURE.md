@@ -20,13 +20,14 @@ Unlike traditional LLM context windows that discard or truncate history, SIGMA:
 
 ### Key Metrics
 
-| Metric                          | Value    | Impact                    |
-| ------------------------------- | -------- | ------------------------- |
-| **Compression Ratio**           | 30-50x   | 150K tokens → 3-5K recap  |
-| **Context Window**              | 50 turns | Real-time semantic search |
-| **Paradigm Shift Preservation** | 100%     | Never discarded           |
-| **Lattice Query Time**          | <100ms   | Negligible overhead       |
-| **Session Transitions**         | Seamless | Zero data loss            |
+| Metric                          | Value    | Impact                           |
+| ------------------------------- | -------- | -------------------------------- |
+| **Compression Threshold**       | 120K     | Default (via --session-tokens)   |
+| **Compression Ratio**           | 30-50x   | 120K tokens → 3-4K recap         |
+| **Context Window**              | 50 turns | Real-time semantic search        |
+| **Paradigm Shift Preservation** | 100%     | Never discarded                  |
+| **Lattice Query Time**          | <100ms   | Negligible overhead              |
+| **Session Transitions**         | Seamless | Zero data loss across SDK resets |
 
 ---
 
@@ -381,7 +382,7 @@ sequenceDiagram
     Note over TUI,SDK: Turn 1-75: Normal operation
     User->>TUI: Query (turn 75)
     TUI->>SDK: resume=session-A
-    SDK-->>TUI: Response (150K tokens used)
+    SDK-->>TUI: Response (120K tokens used)
 
     Note over Sigma: Token threshold exceeded!
     TUI->>Sigma: Trigger compression
@@ -407,9 +408,10 @@ sequenceDiagram
 
 **Key Design Decisions:**
 
-1. **Recap is one-shot:** Injected on first query of new session, then cleared
-   - Rationale: Prevents token bloat in subsequent queries
-   - Mitigation: Real-time injection handles follow-ups
+1. **Recap persists across queries:** Injected on all queries in new session until next compression
+   - Fixed in v2.1.0: Removed premature clearing after first query
+   - Rationale: Maintains full context for multi-turn conversations post-compression
+   - Real-time injection supplements with recent context
 
 2. **resumeSessionId updated on every SDK message** (critical fix):
 
