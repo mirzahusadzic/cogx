@@ -71,7 +71,7 @@ Sigma uses **lattice Meet operations** to compute semantic alignment between con
 - **O₄**: Mission (goals, principles, strategic alignment)
 - **O₅**: Operational (workflows, quests, procedures)
 - **O₆**: Mathematical (proofs, theorems, formal properties)
-- **O₇**: Coherence (cross-layer synthesis, consistency)
+- **O₇**: Coherence (strategic testing, validation, reflection)
 
 **Purpose**: Ground truth about the codebase. Never changes during conversation.
 
@@ -89,7 +89,7 @@ Sigma uses **lattice Meet operations** to compute semantic alignment between con
 - **O₄**: Goals/objectives for session
 - **O₅**: Commands/actions executed
 - **O₆**: Algorithms/logic discussed
-- **O₇**: Conversation flow, topic drift
+- **O₇**: Strategic testing, validation discussions, coherence reflection
 
 **Purpose**: Capture project-relevant conversation. Built on-the-fly, flushed periodically (every 5 turns + on exit) and at compression.
 
@@ -126,54 +126,64 @@ for (const overlay of ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7']) {
 Once we have alignment scores across all 7 overlays, we compute turn importance:
 
 ```typescript
-importance = novelty × 5 + max(alignment_O1..O7) × 0.5
+// Base importance from novelty
+const baseImportance = novelty * 10; // 0-10 scale
+
+// Boost from top-3 overlay scores
+const topScores = Object.values(alignment)
+  .sort((a, b) => b - a)
+  .slice(0, 3);
+const overlayBoost = topScores.reduce((sum, score) => sum + score, 0) / 3;
+
+importance = baseImportance + overlayBoost; // Final: 1-10 range
 ```
 
 **Components**:
 
-1. **Novelty** (0-10): How semantically different is this turn from recent history?
+1. **Novelty** (0-1): How semantically different is this turn from recent history?
    - Computed via cosine distance from recent turn embeddings
+   - Formula: `0.7 × avg_distance + 0.3 × max_distance`
    - High novelty = new topic/concept introduced
 
-2. **Max Alignment** (0-10): Highest alignment across any overlay
-   - Represents strongest project connection
-   - `max(8, 2, 5, 9, 3, 1, 7) = 9`
+2. **Overlay Boost** (0-10): Average of top-3 alignment scores
+   - Represents strongest project connections across multiple dimensions
+   - Example: `(8 + 9 + 7) / 3 = 8.0`
 
-3. **Weight Ratio**: Novelty weighted 10× higher than alignment
-   - Prioritizes new information over repeated concepts
-   - Even low-alignment turns preserved if highly novel
+3. **Weight Balance**: Base novelty scaled 10×, then boosted by overlay alignment
+   - Prioritizes new information while recognizing project relevance
+   - Novel high-alignment turns get highest scores
 
 **Example Calculation**:
 
 ```
 Turn: "We need to implement JWT token refresh in the auth middleware"
 
-Novelty: 8.5 (new security pattern not discussed recently)
+Novelty: 0.85 (new security pattern not discussed recently)
 Alignment: O1=8, O2=9, O3=2, O4=7, O5=4, O6=3, O7=6
-Max Alignment: 9
+Top-3 Scores: [9, 8, 7] → Average: 8.0
 
-Importance = 8.5 × 5 + 9 × 0.5 = 42.5 + 4.5 = 47.0
+Importance = (0.85 × 10) + 8.0 = 8.5 + 8.0 = 16.5 (capped at 10)
 
-Result: PRESERVE (high importance)
+Result: PARADIGM SHIFT (novelty > 0.7 AND importance ≥ 7)
 ```
 
 ```
 Turn: "Thanks, that makes sense!"
 
-Novelty: 1.2 (common acknowledgment phrase)
+Novelty: 0.12 (common acknowledgment phrase)
 Alignment: O1=1, O2=0, O3=1, O4=2, O5=1, O6=0, O7=3
-Max Alignment: 3
+Top-3 Scores: [3, 2, 1] → Average: 2.0
 
-Importance = 1.2 × 5 + 3 × 0.5 = 6.0 + 1.5 = 7.5
+Importance = (0.12 × 10) + 2.0 = 1.2 + 2.0 = 3.2
 
-Result: DISCARD (low importance)
+Result: ROUTINE (importance < 3, compressed to 10%)
 ```
 
 ---
 
 ## Session Lifecycle
 
-### Phase 1: Normal Operation (0-150K tokens, configurable)
+### Phase 1: Normal Operation (0-120K tokens, configurable)
 
 **State**: Single active session, conversation lattice building in-memory
 
@@ -182,7 +192,7 @@ Result: DISCARD (low importance)
 ```bash
 cognition-cli tui --session-tokens 200000  # Compress at 200K tokens
 cognition-cli tui --session-tokens 100000  # Compress earlier at 100K
-cognition-cli tui                          # Default: 150K tokens
+cognition-cli tui                          # Default: 120K tokens
 ```
 
 **Operations**:
@@ -198,12 +208,12 @@ cognition-cli tui                          # Default: 150K tokens
 ```text
 Overlays: O1[12] O2[3] O3[8] O4[15] O5[6] O6[2] O7[10]
 Nodes: 47 | Edges: 156 | Shifts: 23
-Tokens: 85.2K (42.6%) | Compress at: 150.0K
+Tokens: 85.2K (71.0%) | Compress at: 120.0K
 ```
 
-### Phase 2: Compression Trigger (Default: 150K tokens)
+### Phase 2: Compression Trigger (Default: 120K tokens)
 
-**Threshold reached**: Token count ≥ configured threshold (default 150,000)
+**Threshold reached**: Token count ≥ configured threshold (default 120,000)
 
 **Compression sequence**:
 
@@ -214,14 +224,24 @@ Tokens: 85.2K (42.6%) | Compress at: 150.0K
    // Writes .sigma/overlays/O1-O7/*.json
    ```
 
-2. **Generate 7-dimensional intelligent recap**
+2. **Classify turns into 3 tiers**
 
    ```typescript
-   const recap = await compressContext(conversationLattice, {
-     alignmentThreshold: 6, // Preserve turns with alignment ≥ 6
-     minTurns: 5, // Need at least 5 turns
-     maxRecapTokens: 4000, // Target recap size
-   });
+   for (const turn of turns.sortedByImportance()) {
+     if (turn.is_paradigm_shift || turn.importance >= 7) {
+       preserved.push(turn); // Full content, never compressed
+     } else if (turn.importance >= 3) {
+       summarized.push(turn); // Full content now, future LLM summary
+     } else {
+       // Routine turns: compress to 10% token budget
+       const compressedSize = turnSize * 0.1;
+       if (budget >= compressedSize) {
+         summarized.push(turn); // Keep with minimal tokens
+       } else {
+         discarded.push(turn); // Only if absolutely no budget
+       }
+     }
+   }
    ```
 
 3. **Build structured recap by overlay**:
@@ -253,6 +273,10 @@ Tokens: 85.2K (42.6%) | Compress at: 150.0K
    // This ensures seamless session resumption with --session-id
    debug('Keeping conversation overlays in memory (continue accumulating)');
    ```
+
+5. **Persist recap for multi-turn use** (v2.1.0 fix)
+
+   The recap is injected on **all queries in the new session** until next compression, not just the first query. This maintains full context for multi-turn conversations post-compression, with real-time injection supplementing recent context.
 
 ### Phase 3: Session Resurrection (New Session)
 
@@ -308,15 +332,17 @@ Tokens: 85.2K (42.6%) | Compress at: 150.0K
 - Unexpected insights
 - Creative suggestions
 
-### What Gets Discarded
+### What Gets Compressed (10% Budget)
 
-**Low-alignment, low-novelty turns**:
+**Low-importance, routine turns** (importance < 3):
 
 - "That's great!"
 - "Thanks!"
 - "I see what you mean"
 - Repeated explanations
 - Off-topic chat
+
+These turns are preserved with minimal tokens (10% budget) and remain searchable via embeddings in LanceDB, ensuring no complete data loss.
 
 ### Continuity Achieved
 
@@ -532,8 +558,8 @@ where:
 
 **Example scores**:
 
-- Routine turn (importance=3, O1=2): `0.7 × 1.3 × 1.07 = 0.97`
-- Important turn (importance=8, O1=9, O5=7): `0.7 × 1.8 × 1.53 = 1.93` ✅
+- Routine turn (importance=3, O1=2, O4=1, O5=2): `0.7 × 1.3 × 1.17 = 1.06`
+- Important turn (importance=8, O1=9, O4=7, O5=7): `0.7 × 1.8 × 1.77 = 2.23` ✅
 
 ### When It Activates
 
@@ -541,7 +567,7 @@ where:
 
 - User sends continuation request (pattern detected)
 - Lattice has history (`turnAnalyses.length > 0`)
-- Relevant context found (relevance score > 0.4)
+- Relevant context found (relevance score ≥ 0.35)
 
 **Does NOT activate when:**
 
@@ -556,11 +582,11 @@ where:
 
 ```typescript
 await injectRelevantContext(userMessage, turnAnalyses, embedder, {
-  debug: true, // Enable logging
-  minRelevance: 0.4, // Threshold for injection (0-1)
-  windowSize: 20, // Recent turns to consider
-  maxContextTurns: 3, // Max snippets to inject
-  maxSnippetLength: 400, // Chars per snippet
+  windowSize: 50, // Scan last N turns
+  maxContextTurns: 5, // Inject top N relevant
+  minRelevance: 0.35, // Relevance threshold (0-1)
+  maxSnippetLength: 500, // Chars per snippet
+  debug: false, // Enable logging
 });
 ```
 
@@ -961,7 +987,7 @@ migrateAllOldStates(projectRoot);
 │   ├── O6-conversation-mathematical/
 │   │   └── {sessionId}.json        # Algorithms discussed
 │   └── O7-conversation-coherence/
-│       └── {sessionId}.json        # Conversation flow
+│       └── {sessionId}.json        # Strategic testing & validation
 ├── {sessionId}.recap.txt           # 7-dimensional intelligent recap
 ├── {sessionId}.lattice.json        # Full lattice snapshot
 └── {sessionId}.state.json          # Session metadata
@@ -1031,7 +1057,7 @@ migrateAllOldStates(projectRoot);
 - Alignment calculation: ~10ms (pure math)
 - **Total: ~300-500ms overhead per turn**
 
-**At compression** (150K tokens):
+**At compression** (120K tokens):
 
 - Lattice flush: ~1-2s (write to disk)
 - Recap generation: ~5-10s (LLM summarization)
@@ -1130,9 +1156,9 @@ migrateAllOldStates(projectRoot);
 
 **With Sigma**:
 
-- Continuous flow through 150K+ tokens
+- Continuous flow through 120K+ tokens (configurable threshold)
 - Full debugging history preserved
-- Natural multi-hour sessions
+- Natural multi-hour sessions with intelligent compression
 
 ### 4. Research & Prototyping
 
@@ -1156,7 +1182,7 @@ migrateAllOldStates(projectRoot);
 
 ### Adaptive Compression Thresholds
 
-Current: ✅ **User-configurable threshold via `--session-tokens` CLI parameter** (default: 150K)
+Current: ✅ **User-configurable threshold via `--session-tokens` CLI parameter** (default: 120K)
 
 Future: Dynamic adjustment based on:
 

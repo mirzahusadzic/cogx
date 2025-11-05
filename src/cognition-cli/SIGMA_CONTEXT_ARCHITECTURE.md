@@ -105,7 +105,7 @@ SIGMA maintains **two independent but interconnected lattices**:
 │   ├── O4/          # Mission (goals, principles, values)
 │   ├── O5/          # Operational (workflows, patterns)
 │   ├── O6/          # Mathematical (algorithms, proofs)
-│   └── O7/          # Strategic (testing, validation)
+│   └── O7/          # Coherence (strategic testing, validation, reflection)
 └── transforms/       # Audit trail of knowledge creation
 ```
 
@@ -143,7 +143,11 @@ SIGMA maintains **two independent but interconnected lattices**:
 
 ## The 7 Cognitive Overlays
 
-SIGMA uses **7 semantic overlays** to classify and score conversation turns. Each overlay represents a different cognitive dimension.
+SIGMA uses **7 semantic overlays** to classify and score conversation turns. Each overlay represents a different cognitive dimension operating across **two lattices**: the static Project Lattice and the dynamic Conversation Lattice.
+
+**Note**: The dual-lattice structure (showing both Project and Conversation layers within each overlay) is visualized in the [Dual-Lattice Overlay Structure](#dual-lattice-overlay-structure) section below.
+
+### Single-Layer View (Conversation Overlays)
 
 ```mermaid
 mindmap
@@ -172,10 +176,26 @@ mindmap
       Algorithms
       Formulas
       Code Logic
-    O7[O₇ Strategic]
-      Testing
+    O7[O₇ Coherence]
+      Strategic Testing
       Validation
       Reflection
+```
+
+### Dual-Lattice Overlay Structure
+
+Each overlay operates as a **dual-layer system** where conversation turns are scored against project knowledge:
+
+```mermaid
+mindmap
+  root((SIGMA<br/>∧<br/>Meet))
+    O1[**O₁ Structural**<br/>────────<br/>Project: Architecture<br/>Conversation: Design]
+    O2[**O₂ Security**<br/>────────<br/>Project: Threats<br/>Conversation: Concerns]
+    O3[**O₃ Lineage**<br/>────────<br/>Project: Dependencies<br/>Conversation: Evolution]
+    O4[**O₄ Mission**<br/>────────<br/>Project: Values<br/>Conversation: Goals]
+    O5[**O₅ Operational**<br/>────────<br/>Project: Workflows<br/>Conversation: Commands]
+    O6[**O₆ Mathematical**<br/>────────<br/>Project: Proofs<br/>Conversation: Logic]
+    O7[**O₇ Coherence**<br/>────────<br/>Project: Synthesis<br/>Conversation: Strategic]
 ```
 
 ### Overlay Scoring System
@@ -199,7 +219,7 @@ Each turn receives a **0-10 score** for each overlay based on:
     "O4_mission": 6, // Medium: aligns with security goals
     "O5_operational": 7, // High: workflow change
     "O6_mathematical": 2, // Low: not algorithmic
-    "O7_strategic": 5 // Medium: validation implications
+    "O7_coherence": 5 // Medium: validation implications
   },
   "importance_score": 8.5,
   "is_paradigm_shift": true
@@ -213,12 +233,12 @@ Each turn receives a **0-10 score** for each overlay based on:
 SIGMA processes every conversation turn through a **5-stage pipeline**:
 
 ```mermaid
-flowchart LR
-    subgraph "Stage 1: Capture"
+flowchart TD
+    subgraph S1["Stage 1: Capture"]
         MSG[New Message] --> EMB[Generate Embedding<br/>768-dim vector]
     end
 
-    subgraph "Stage 2: Analysis"
+    subgraph S2["Stage 2: Analysis"]
         EMB --> NOV[Calculate Novelty<br/>vs recent context]
         EMB --> MEET[Meet Operation<br/>Conv ∧ Project]
         MEET --> OVL[Overlay Scores<br/>O1-O7]
@@ -226,14 +246,14 @@ flowchart LR
         OVL --> IMP
     end
 
-    subgraph "Stage 3: Classification"
+    subgraph S3["Stage 3: Classification"]
         IMP --> PS{Paradigm<br/>Shift?}
         PS -->|novelty > 0.7| PRES[Preserved]
         PS -->|importance 3-7| SUMM[Summarized]
         PS -->|importance < 3| COMP[Compressed 10%]
     end
 
-    subgraph "Stage 4: Storage"
+    subgraph S4["Stage 4: Storage"]
         PRES --> LAT[Lattice Graph]
         SUMM --> LAT
         COMP --> LAT
@@ -241,10 +261,15 @@ flowchart LR
         LAT --> JSON[.lattice.json]
     end
 
-    subgraph "Stage 5: Injection"
+    subgraph S5["Stage 5: Injection"]
         LDB --> QUERY[Semantic Query]
         QUERY --> INJ[Context Injection<br/>Next turn]
     end
+
+    S1 --> S2
+    S2 --> S3
+    S3 --> S4
+    S4 --> S5
 ```
 
 ### Stage Breakdown
@@ -537,7 +562,7 @@ interface TurnAnalysis {
     O4_mission: number;
     O5_operational: number;
     O6_mathematical: number;
-    O7_strategic: number;
+    O7_coherence: number;
   };
 
   importance_score: number; // 1-10, overall significance
@@ -632,7 +657,7 @@ project-root/
 │           ├── O4_mission.lance/
 │           ├── O5_operational.lance/
 │           ├── O6_mathematical.lance/
-│           └── O7_strategic.lance/
+│           └── O7_coherence.lance/
 │
 └── .open_cognition/                     # Project lattice
     ├── objects/                         # Knowledge nodes
@@ -1118,9 +1143,6 @@ cognition-cli tui --session-tokens 200000
 
 # Enable debug mode
 cognition-cli tui --debug
-
-# Set working directory
-cognition-cli tui --cwd /path/to/project
 ```
 
 ### Tunable Parameters
