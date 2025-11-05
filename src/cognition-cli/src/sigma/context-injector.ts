@@ -41,29 +41,6 @@ function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 /**
- * Detect if message is a continuation request
- */
-function isContinuationRequest(message: string): boolean {
-  // Short messages with continuation keywords
-  if (message.length < 100) {
-    return /\b(implement|do it|continue|let'?s go|please do|make it|go ahead|proceed|start|begin)\b/i.test(
-      message
-    );
-  }
-
-  // Longer messages that start with continuation keywords
-  if (
-    /^(ok|yes|alright|sure|good),?\s+(implement|do it|let'?s|please|go)/i.test(
-      message
-    )
-  ) {
-    return true;
-  }
-
-  return false;
-}
-
-/**
  * Calculate relevance score for a turn
  * Combines semantic similarity + importance + overlay activation
  */
@@ -129,16 +106,8 @@ export async function injectRelevantContext(
     return userMessage;
   }
 
-  // Skip if not a continuation request
-  if (!isContinuationRequest(userMessage)) {
-    if (debug) {
-      console.log('[Context Injector] Not a continuation request, skipping');
-    }
-    return userMessage;
-  }
-
   if (debug) {
-    console.log('[Context Injector] Continuation detected, querying lattice');
+    console.log('[Context Injector] Querying lattice for relevant context');
   }
 
   try {
@@ -157,20 +126,9 @@ export async function injectRelevantContext(
     // Get recent turns (sliding window)
     const recentTurns = turnAnalyses.slice(-windowSize);
 
-    // Filter to only important turns (skip routine/noise)
-    const importantTurns = recentTurns.filter(
-      (turn) => turn.importance_score >= 5 || turn.is_paradigm_shift
-    );
-
-    if (importantTurns.length === 0) {
-      if (debug) {
-        console.log('[Context Injector] No important turns found in window');
-      }
-      return userMessage;
-    }
-
-    // Score and rank turns by relevance
-    const scoredTurns = importantTurns
+    // Score and rank ALL turns by semantic relevance
+    // Importance is already factored into relevance calculation, no need to pre-filter
+    const scoredTurns = recentTurns
       .map((turn) => ({
         turn,
         relevance: calculateRelevance(turn, userEmbed),
