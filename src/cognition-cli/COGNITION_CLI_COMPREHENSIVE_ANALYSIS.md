@@ -7,13 +7,13 @@
 **Repository Details:**
 
 - **Location:** `~src/cogx/src/cognition-cli`
-- **Lines of Code:** ~44,524 TypeScript (production code)
-  - Core: 28,364 lines (64%) — PGC, orchestrators, overlays, miners
-  - Commands: 7,094 lines (16%) — CLI commands
-  - **Sigma: 6,184 lines (14%) — Dual-lattice architecture, infinite context**
-  - **TUI: 1,666 lines (4%) — Interactive terminal interface**
-  - Other: 1,216 lines (2%) — Root files, utilities
-- **Current Version:** 2.0.0 (Sigma Release)
+- **Lines of Code:** ~44,148 TypeScript (production code, 159 files)
+  - Core: 28,374 lines (64%) — PGC, orchestrators, overlays, miners
+  - Commands: 7,096 lines (16%) — CLI commands
+  - **Sigma: 6,241 lines (14%) — Dual-lattice architecture, infinite context**
+  - **TUI: 2,738 lines (6%) — Interactive terminal interface (React Ink)**
+  - Other: ~700 lines (2%) — Root files, utilities
+- **Current Version:** 2.1.0 (Session State & Compression Fixes)
 - **License:** AGPL-3.0-or-later
 - **Author:** Mirza Husadzic
 - **Status:** Actively maintained with comprehensive documentation
@@ -729,29 +729,31 @@ The same architecture that understands code can preserve human identity through 
 
 ## Summary Statistics
 
-| Metric                      | Value                         |
-| --------------------------- | ----------------------------- |
-| Production TypeScript Lines | ~44,524 (+49.7% growth)       |
-| Sigma Module Lines          | 6,184 (infinite context)      |
-| TUI Module Lines            | 1,666 (interactive interface) |
-| Total Dependencies          | 26+ npm packages              |
-| Documentation Pages         | 25+                           |
-| Manual Chapters             | 16                            |
-| Cognitive Overlays          | 7 (O₁-O₇)                     |
-| Supported Languages         | 3 (TS/JS/Python)              |
-| Core Commands               | 15+                           |
-| Test Files                  | 18+                           |
-| Test Coverage               | 85+ tests                     |
-| Current Version             | 2.0.0 (Sigma Release)         |
-| License                     | AGPL-3.0-or-later             |
-| Zenodo DOI                  | 10.5281/zenodo.17509405       |
-| Innovations Published       | 46 (defensive patent pub)     |
+| Metric                      | Value                             |
+| --------------------------- | --------------------------------- |
+| Production TypeScript Lines | ~44,148 (159 files)               |
+| Core Module Lines           | 28,374 (64% - PGC/overlays)       |
+| Sigma Module Lines          | 6,241 (14% - infinite context)    |
+| TUI Module Lines            | 2,738 (6% - React Ink interface)  |
+| Commands Module Lines       | 7,096 (16% - CLI commands)        |
+| Total Dependencies          | 26+ npm packages                  |
+| Documentation Pages         | 30+                               |
+| Manual Chapters             | 16                                |
+| Cognitive Overlays          | 7 (O₁-O₇)                         |
+| Supported Languages         | 3 (TS/JS/Python)                  |
+| Core Commands               | 15+                               |
+| Test Files                  | 21+ (including Sigma tests)       |
+| Test Coverage               | 90+ tests                         |
+| Current Version             | 2.1.0 (Session State Fixes)       |
+| License                     | AGPL-3.0-or-later                 |
+| Zenodo DOI                  | 10.5281/zenodo.17509405           |
+| Innovations Published       | 46 (defensive patent publication) |
 
 ---
 
 ## Conclusion
 
-Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.0.0 (Sigma)** extends this vision from project knowledge to **infinite conversational memory**, solving the context window problem through dual-lattice architecture.
+Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.1.0** extends this vision from project knowledge to **infinite conversational memory**, solving the context window problem through dual-lattice architecture with robust session state management.
 
 It combines:
 
