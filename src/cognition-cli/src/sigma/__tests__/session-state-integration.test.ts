@@ -246,7 +246,7 @@ describe('Session State Integration Tests', () => {
       expect(finalState.current_session).toBe('sdk-20');
     });
 
-    it('should handle timestamps correctly across saves', () => {
+    it('should handle timestamps correctly across saves', async () => {
       const anchorId = 'tui-timestamps';
       const state = createSessionState(anchorId, 'sdk-1');
       saveSessionState(state, tempDir);
@@ -254,7 +254,9 @@ describe('Session State Integration Tests', () => {
       const firstLoad = loadSessionState(anchorId, tempDir)!;
       const firstTimestamp = firstLoad.last_updated;
 
-      // Wait a bit and update
+      // Wait a bit to ensure timestamps differ
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
       const updated = updateSessionState(firstLoad, 'sdk-2', 'compression');
       saveSessionState(updated, tempDir);
 
