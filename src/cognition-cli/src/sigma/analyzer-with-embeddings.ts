@@ -79,10 +79,15 @@ function calculateNovelty(
 /**
  * Detect overlay activation via Meet with project lattice
  * This is the KEY INNOVATION: Conversation ∧ Project
+ *
+ * @param turnContent - The turn content text
+ * @param projectRegistry - The project overlay registry
+ * @param precomputedEmbedding - Optional pre-computed embedding (avoids re-embedding)
  */
 async function detectOverlaysByProjectAlignment(
   turnContent: string,
-  projectRegistry: OverlayRegistry | null
+  projectRegistry: OverlayRegistry | null,
+  precomputedEmbedding?: number[]
 ): Promise<OverlayScores> {
   const scores: OverlayScores = {
     O1_structural: 0,
@@ -101,12 +106,18 @@ async function detectOverlaysByProjectAlignment(
 
   try {
     // Query ALL 7 project overlays with turn content
+    // Pass precomputed embedding to avoid re-embedding 7 times!
     const overlayIds = ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'] as const;
 
     for (const overlayId of overlayIds) {
       try {
         const overlay = await projectRegistry.get(overlayId);
-        const results = await overlay.query(turnContent, 3); // Top 3 matches
+        // Pass precomputed embedding to reuse it across all overlays
+        const results = await overlay.query(
+          turnContent,
+          3,
+          precomputedEmbedding
+        );
 
         if (results.length > 0) {
           // Max similarity from top 3 results
@@ -186,9 +197,11 @@ export async function analyzeTurn(
   const novelty = calculateNovelty(turnEmbed, recentEmbeds);
 
   // 3. Detect overlay activation via Meet with project lattice
+  // Pass the turn embedding to avoid re-embedding for each overlay!
   const overlayScores = await detectOverlaysByProjectAlignment(
     turn.content,
-    projectRegistry
+    projectRegistry,
+    turnEmbed
   );
 
   // 4. Calculate importance (novelty + project alignment)

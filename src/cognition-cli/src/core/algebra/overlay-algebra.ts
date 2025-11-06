@@ -112,13 +112,15 @@ export interface OverlayAlgebra<T extends OverlayMetadata = OverlayMetadata> {
 
   /**
    * Query items by semantic similarity to a text query
-   * @param query - Natural language query
+   * @param query - Natural language query or pre-computed embedding
    * @param topK - Number of results to return
+   * @param precomputedEmbedding - Optional pre-computed 768d embedding (avoids re-embedding)
    * @returns Items ranked by similarity to query
    */
   query(
     query: string,
-    topK?: number
+    topK?: number,
+    precomputedEmbedding?: number[]
   ): Promise<Array<{ item: OverlayItem<T>; similarity: number }>>;
 
   /**

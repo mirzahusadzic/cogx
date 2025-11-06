@@ -169,19 +169,27 @@ export class LineageAlgebraAdapter implements OverlayAlgebra<LineageMetadata> {
 
   async query(
     query: string,
-    topK: number = 10
+    topK: number = 10,
+    precomputedEmbedding?: number[]
   ): Promise<
     Array<{ item: OverlayItem<LineageMetadata>; similarity: number }>
   > {
-    // Generate embedding for query
-    const embedResponse = await this.workbench.embed({
-      signature: query,
-      dimensions: 768,
-    });
+    let queryEmbedding: number[];
 
-    const queryEmbedding = embedResponse['embedding_768d'] as number[];
-    if (!queryEmbedding || queryEmbedding.length !== 768) {
-      throw new Error('Failed to generate query embedding');
+    // Use pre-computed embedding if provided (optimization)
+    if (precomputedEmbedding && precomputedEmbedding.length === 768) {
+      queryEmbedding = precomputedEmbedding;
+    } else {
+      // Generate embedding for query
+      const embedResponse = await this.workbench.embed({
+        signature: query,
+        dimensions: 768,
+      });
+
+      queryEmbedding = embedResponse['embedding_768d'] as number[];
+      if (!queryEmbedding || queryEmbedding.length !== 768) {
+        throw new Error('Failed to generate query embedding');
+      }
     }
 
     // Get all items and compute similarity

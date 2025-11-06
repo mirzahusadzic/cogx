@@ -67,7 +67,12 @@ function replaceSDKDiffColors(text: string): string {
 export function useClaudeAgent(options: UseClaudeAgentOptions) {
   // Destructure options to get stable primitive values
   // This prevents the entire options object from causing re-renders
-  const { sessionId: sessionIdProp, cwd, sessionTokens, debug: debugFlag } = options;
+  const {
+    sessionId: sessionIdProp,
+    cwd,
+    sessionTokens,
+    debug: debugFlag,
+  } = options;
 
   // Debug logger (only logs if debug flag is set)
   const debug = useCallback(
