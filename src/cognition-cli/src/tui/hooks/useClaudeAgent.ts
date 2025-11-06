@@ -127,6 +127,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const analyzingTurn = useRef<number | null>(null); // Track timestamp of turn being analyzed
   const lastAnalyzedMessageIndex = useRef<number>(-1); // Track last analyzed message index
   const messagesRef = useRef<ClaudeMessage[]>(messages); // Ref to avoid effect re-running on every message change
+  const userMessageEmbeddingCache = useRef<Map<number, number[]>>(new Map()); // Cache user message embeddings by timestamp
 
   // Track count of ONLY user/assistant messages (not system/tool_progress)
   // This prevents infinite loop when compression adds system messages
@@ -380,19 +381,32 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           );
 
           // Analyze this turn with FULL content
-          // analyzeTurn will handle embedding generation internally
+          // For user messages, reuse cached embedding from context injection
           // Pass projectRegistry for Meet operation (Conversation ∧ Project)
+          const turnTimestamp = message.timestamp.getTime();
+          const cachedEmbedding =
+            message.type === 'user'
+              ? userMessageEmbeddingCache.current.get(turnTimestamp)
+              : undefined;
+
           const analysis = await analyzeTurn(
             {
-              id: `turn-${message.timestamp.getTime()}`,
+              id: `turn-${turnTimestamp}`,
               role: message.type as 'user' | 'assistant',
               content: message.content, // FULL content (not truncated)
-              timestamp: message.timestamp.getTime(),
+              timestamp: turnTimestamp,
             },
             context,
             embedder,
-            projectRegistryRef.current // KEY: enables project alignment
+            projectRegistryRef.current, // KEY: enables project alignment
+            {}, // options
+            cachedEmbedding // Reuse embedding from context injection!
           );
+
+          // Clean up cached embedding after use
+          if (cachedEmbedding) {
+            userMessageEmbeddingCache.current.delete(turnTimestamp);
+          }
 
           debug('   analyzeTurn completed! Novelty:', analysis.novelty);
           debug(
@@ -1048,13 +1062,14 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         setIsThinking(true);
         setError(null);
 
-        // Add user message immediately
+        // Add user message immediately (capture timestamp for embedding cache)
+        const userMessageTimestamp = new Date();
         setMessages((prev) => [
           ...prev,
           {
             type: 'user',
             content: prompt,
-            timestamp: new Date(),
+            timestamp: userMessageTimestamp,
           },
         ]);
 
@@ -1079,12 +1094,22 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         } else if (embedderRef.current && turnAnalyses.current.length > 0) {
           // Real-time lattice context injection for fluent conversation
           try {
-            finalPrompt = await injectRelevantContext(
+            const result = await injectRelevantContext(
               prompt,
               turnAnalyses.current,
               embedderRef.current,
               { debug: debugFlag }
             );
+
+            finalPrompt = result.message;
+
+            // Cache the user message embedding for reuse in analyzeTurn
+            if (result.embedding) {
+              userMessageEmbeddingCache.current.set(
+                userMessageTimestamp.getTime(),
+                result.embedding
+              );
+            }
 
             if (finalPrompt !== prompt) {
               debugLog(

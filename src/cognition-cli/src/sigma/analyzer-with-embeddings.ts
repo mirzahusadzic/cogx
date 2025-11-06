@@ -147,35 +147,46 @@ export async function analyzeTurn(
   context: ConversationContext,
   embedder: EmbeddingService,
   projectRegistry: OverlayRegistry | null = null,
-  options: AnalyzerOptions = {}
+  options: AnalyzerOptions = {},
+  precomputedEmbedding?: number[]
 ): Promise<TurnAnalysis> {
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
-  // 1. Generate embedding for this turn
-  // Truncate content for embedding API (first 1000 + last 500 chars)
-  // This preserves semantic meaning while reducing eGemma processing time
-  let embeddingContent = turn.content;
-  if (embeddingContent.length > 1500) {
-    embeddingContent =
-      embeddingContent.substring(0, 1000) +
-      '\n...[truncated]...\n' +
-      embeddingContent.substring(embeddingContent.length - 500);
-  }
+  let turnEmbed: number[];
 
-  const embeddingResponse = await embedder.getEmbedding(embeddingContent, 768);
+  // Use pre-computed embedding if provided (optimization for user messages)
+  if (precomputedEmbedding && precomputedEmbedding.length === 768) {
+    turnEmbed = precomputedEmbedding;
+  } else {
+    // 1. Generate embedding for this turn
+    // Truncate content for embedding API (first 1000 + last 500 chars)
+    // This preserves semantic meaning while reducing eGemma processing time
+    let embeddingContent = turn.content;
+    if (embeddingContent.length > 1500) {
+      embeddingContent =
+        embeddingContent.substring(0, 1000) +
+        '\n...[truncated]...\n' +
+        embeddingContent.substring(embeddingContent.length - 500);
+    }
 
-  // eGemma returns embedding with dimension in key name: "embedding_768d"
-  const turnEmbed =
-    (embeddingResponse['embedding_768d'] as number[]) ||
-    (embeddingResponse['vector'] as number[]) ||
-    (embeddingResponse['embedding'] as number[]) ||
-    (embeddingResponse['embeddings'] as number[]) ||
-    (embeddingResponse['data'] as number[]);
-
-  if (!Array.isArray(turnEmbed)) {
-    throw new Error(
-      `Expected embedding response to contain vector array. Got keys: ${Object.keys(embeddingResponse).join(', ')}`
+    const embeddingResponse = await embedder.getEmbedding(
+      embeddingContent,
+      768
     );
+
+    // eGemma returns embedding with dimension in key name: "embedding_768d"
+    turnEmbed =
+      (embeddingResponse['embedding_768d'] as number[]) ||
+      (embeddingResponse['vector'] as number[]) ||
+      (embeddingResponse['embedding'] as number[]) ||
+      (embeddingResponse['embeddings'] as number[]) ||
+      (embeddingResponse['data'] as number[]);
+
+    if (!Array.isArray(turnEmbed)) {
+      throw new Error(
+        `Expected embedding response to contain vector array. Got keys: ${Object.keys(embeddingResponse).join(', ')}`
+      );
+    }
   }
 
   // 2. Calculate novelty (distance from recent context)

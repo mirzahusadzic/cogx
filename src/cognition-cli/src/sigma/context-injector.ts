@@ -74,7 +74,7 @@ function calculateRelevance(
  * @param turnAnalyses - In-memory turn analyses (the lattice)
  * @param embedder - Embedding service for semantic search
  * @param options - Configuration options
- * @returns Enhanced message with injected context (or original if not needed)
+ * @returns Object with enhanced message and embedding (for reuse)
  */
 export async function injectRelevantContext(
   userMessage: string,
@@ -92,7 +92,7 @@ export async function injectRelevantContext(
     /** Maximum characters per context snippet */
     maxSnippetLength?: number;
   } = {}
-): Promise<string> {
+): Promise<{ message: string; embedding: number[] | null }> {
   const {
     debug = false,
     minRelevance = 0.35, // Lower threshold to catch more relevant context
@@ -103,7 +103,7 @@ export async function injectRelevantContext(
 
   // Skip if no history
   if (turnAnalyses.length === 0) {
-    return userMessage;
+    return { message: userMessage, embedding: null };
   }
 
   if (debug) {
@@ -130,7 +130,7 @@ export async function injectRelevantContext(
           `[Context Injector] Invalid embedding format, skipping. Got keys: ${Object.keys(embedResponse).join(', ')}`
         );
       }
-      return userMessage;
+      return { message: userMessage, embedding: null };
     }
 
     // Get recent turns (sliding window)
@@ -165,7 +165,7 @@ export async function injectRelevantContext(
           minRelevance
         );
       }
-      return userMessage;
+      return { message: userMessage, embedding: userEmbed };
     }
 
     if (debug) {
@@ -197,12 +197,12 @@ export async function injectRelevantContext(
       console.log('[Context Injector] Injected context successfully');
     }
 
-    return enrichedMessage;
+    return { message: enrichedMessage, embedding: userEmbed };
   } catch (err) {
     // On error, return original message (fail gracefully)
     if (debug) {
       console.error('[Context Injector] Error:', err);
     }
-    return userMessage;
+    return { message: userMessage, embedding: null };
   }
 }
