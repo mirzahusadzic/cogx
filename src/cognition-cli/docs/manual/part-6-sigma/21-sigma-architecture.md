@@ -657,10 +657,6 @@ cognition-cli tui
 # Resume with anchor ID
 cognition-cli tui --session-id bf7b840e-4f78-41dc-bbb1-aab4470aedc9
 # → Always loads LATEST session, even after multiple compressions
-
-# Resume with alias
-cognition-cli tui --alias jira-work
-# → Resolves to anchor, loads latest session
 ```
 
 ### Logic Flow
@@ -730,23 +726,12 @@ const anchorId = resolveAlias('jira-work', projectRoot);
 // Returns anchor ID or throws if multiple sessions share alias
 ```
 
-**Collision detection**:
-
-```bash
-cognition-cli tui --alias jira-work
-
-# If multiple sessions have "jira-work":
-❌ Multiple sessions found with alias "jira-work": uuid-1, uuid-2
-   Please use --session-id with the specific anchor ID instead.
-```
-
 ### Benefits
 
 ✅ **Single source of truth** - ONE file per conversation
 ✅ **Always up-to-date** - `current_session` reflects latest SDK session
 ✅ **User-friendly** - Same anchor ID works forever
 ✅ **Audit trail** - `compression_history` tracks all SDK sessions
-✅ **Alias support** - Human-readable names with collision detection
 ✅ **Handles expiration** - SDK gives new UUID, we update state
 ✅ **Handles compression** - SDK gives new UUID, we update state
 
@@ -754,9 +739,9 @@ cognition-cli tui --alias jira-work
 
 **Files**:
 
-- `src/sigma/session-state.ts` - Anchor management, alias resolution, migration
+- `src/sigma/session-state.ts` - Anchor management
 - `src/tui/hooks/useClaudeAgent.ts` - Integrated anchor system
-- `src/commands/tui.ts` - Added `--alias` flag
+- `src/commands/tui.ts` - Session management
 - `src/cli.ts` - Updated TUI command options
 
 ---

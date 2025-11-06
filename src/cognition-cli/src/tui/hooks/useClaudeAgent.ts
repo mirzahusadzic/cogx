@@ -115,12 +115,18 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   // Session management for Sigma compression
   // When we compress, we start a FRESH session (no resume) with intelligent recap
   // If resuming a compressed session, we forward to the new session automatically
+
+  // anchor_id = stable user-facing ID (from CLI --session-id or auto-generated)
+  // This is what we use for file naming: .sigma/{anchor_id}.state.json
+  // It NEVER changes across compressions/expirations
+  const anchorId = options.sessionId || `tui-${Date.now()}`;
+
   const [resumeSessionId, setResumeSessionId] = useState<string | undefined>(
     undefined
   ); // Will be set in loadSessionState
-  const [currentSessionId, setCurrentSessionId] = useState(
-    options.sessionId || `tui-${Date.now()}`
-  );
+
+  // currentSessionId = actual SDK session UUID (transient, changes on compression)
+  const [currentSessionId, setCurrentSessionId] = useState(anchorId);
   const [injectedRecap, setInjectedRecap] = useState<string | null>(null);
   const hasReceivedSDKSessionId = useRef(false); // Track if we've gotten real SDK session ID
 
@@ -130,9 +136,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
    */
   const updateAnchorStats = useCallback(() => {
     try {
-      if (!options.sessionId) return;
-
-      const anchorId = options.sessionId;
+      // Use the stable anchorId for file access
       const state = loadSessionState(anchorId, options.cwd);
 
       if (!state) {
@@ -169,7 +173,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     } catch (err) {
       debug(' Failed to update anchor stats:', err);
     }
-  }, [options.cwd, options.sessionId, debug]);
+  }, [anchorId, options.cwd, debug]);
 
   // Initialize embedding service and registries
   useEffect(() => {
@@ -629,11 +633,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   // Load initial token count from existing session transcript
   // AND restore Sigma lattice + conversation overlays
   useEffect(() => {
-    if (!options.sessionId) return;
-
     const loadAnchorSession = async () => {
       try {
-        const anchorId = options.sessionId!;
+        // anchorId is already defined at the top of the component
 
         // Try to migrate old state file if exists
         let sessionState = loadSessionState(anchorId, options.cwd);
@@ -939,7 +941,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     };
 
     loadAnchorSession();
-  }, [options.sessionId]);
+  }, [anchorId]);
 
   // Effect: Set current session for LanceDB filtering
   useEffect(() => {
@@ -1173,43 +1175,51 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       setCurrentSessionId((prev) => {
         if (prev !== sdkSessionId) {
           // SDK gave us a different session ID - update anchor state
+          // ALWAYS use anchorId for file access, never SDK session UUID
+          debug(' SDK session changed:', prev, '→', sdkSessionId);
+
           if (prev.startsWith('tui-')) {
-            // Placeholder ID case
-            debug(
-              ' Updating session ID from',
-              prev,
-              'to SDK ID:',
-              sdkSessionId
-            );
+            // First time getting real SDK session (was placeholder)
             debugLog(
               `[SESSION] Updated from placeholder ${prev} to SDK session ID: ${sdkSessionId}\n\n`
             );
+          }
 
-            // Update anchor state with new SDK session
-            const anchorId = options.sessionId || prev;
-            const state = loadSessionState(anchorId, options.cwd);
-            const updated = state
-              ? updateSessionState(state, sdkSessionId, 'expiration')
-              : createSessionState(anchorId, sdkSessionId);
+          // Load state by anchor_id (NOT by SDK session UUID!)
+          const state = loadSessionState(anchorId, options.cwd);
+
+          if (!state) {
+            // First time - create initial state
+            const newState = createSessionState(anchorId, sdkSessionId);
+            saveSessionState(newState, options.cwd);
+            debug('󱖫 Created anchor state:', anchorId, '→', sdkSessionId);
+          } else {
+            // Update existing state with new SDK session
+            const reason = compressionTriggered.current
+              ? 'compression'
+              : 'expiration';
+            const updated = updateSessionState(
+              state,
+              sdkSessionId,
+              reason,
+              reason === 'compression' ? tokenCount.total : undefined
+            );
             saveSessionState(updated, options.cwd);
-            debug('󱖫 Updated anchor state:', anchorId, '→', sdkSessionId);
-          } else if (options.sessionId) {
-            // Anchor ID exists but SDK gave us new session (compression/expiration)
-            debug(' SDK session changed:', prev, '→', sdkSessionId);
-            const state = loadSessionState(options.sessionId, options.cwd);
-            if (state) {
-              const reason = compressionTriggered.current
-                ? 'compression'
-                : 'expiration';
-              const updated = updateSessionState(
-                state,
-                sdkSessionId,
-                reason,
-                reason === 'compression' ? tokenCount.total : undefined
+            debug(
+              `󱖫 Updated anchor state: ${anchorId} → ${sdkSessionId} (${reason})`
+            );
+
+            // CRITICAL: Reset compression flag when new SDK session starts
+            // This allows compression to trigger again in the new session
+            if (compressionTriggered.current) {
+              compressionTriggered.current = false;
+              debugLog(
+                `[COMPRESSION FLAG RESET] New session: ${sdkSessionId}\n` +
+                  `  Previous session: ${prev}\n` +
+                  `  Reason: ${reason}\n\n`
               );
-              saveSessionState(updated, options.cwd);
               debug(
-                `󱖫 Updated anchor state: ${options.sessionId} → ${sdkSessionId} (${reason})`
+                ' Compression flag reset - can compress again in new session'
               );
             }
           }

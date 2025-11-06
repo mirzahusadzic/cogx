@@ -368,6 +368,7 @@ The comprehensive 16-chapter manual organized by parts:
 
 - [Manual: Complete 900+ Page Guide](./docs/manual/README.md)
 - [SIGMA Context Architecture](./SIGMA_CONTEXT_ARCHITECTURE.md) ⭐ **Official architecture document**
+- [Session Boundary Rationale](./docs/SESSION_BOUNDARY_RATIONALE.md) 📋 **Design patterns & decision rationale**
 - [Dual-Use Mandate](./docs/DUAL_USE_MANDATE.md)
 - [Operational Lattice](./docs/overlays/O5_operational/OPERATIONAL_LATTICE.md)
 

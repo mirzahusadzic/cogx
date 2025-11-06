@@ -1,9 +1,9 @@
 /**
  * Session State Management
  *
- * Manages the mapping between user-facing anchor IDs (or aliases)
- * and the actual SDK session UUIDs that may change over time due to
- * compression or session expiration.
+ * Manages the mapping between user-facing anchor IDs and the actual
+ * SDK session UUIDs that may change over time due to compression or
+ * session expiration.
  */
 
 import fs from 'fs';
@@ -18,9 +18,6 @@ export interface SessionState {
 
   /** Current active SDK session UUID */
   current_session: string;
-
-  /** Optional human-readable alias */
-  alias?: string;
 
   /** When this anchor was created */
   created_at: string;
@@ -87,13 +84,11 @@ export function saveSessionState(
  */
 export function createSessionState(
   anchorId: string,
-  sdkSessionId: string,
-  alias?: string
+  sdkSessionId: string
 ): SessionState {
   return {
     anchor_id: anchorId,
     current_session: sdkSessionId,
-    alias,
     created_at: new Date().toISOString(),
     last_updated: new Date().toISOString(),
     compression_history: [
@@ -147,92 +142,10 @@ export function updateSessionStats(
 }
 
 /**
- * Resolve alias to anchor ID
- * Returns null if alias not found
- * Throws error if multiple sessions have the same alias
- */
-export function resolveAlias(
-  alias: string,
-  projectRoot: string
-): string | null {
-  const sigmaDir = path.join(projectRoot, '.sigma');
-
-  if (!fs.existsSync(sigmaDir)) {
-    return null;
-  }
-
-  const stateFiles = fs
-    .readdirSync(sigmaDir)
-    .filter((f) => f.endsWith('.state.json'));
-
-  const matches: string[] = [];
-
-  for (const file of stateFiles) {
-    try {
-      const content = fs.readFileSync(path.join(sigmaDir, file), 'utf-8');
-      const state = JSON.parse(content) as SessionState;
-
-      if (state.alias === alias) {
-        matches.push(state.anchor_id);
-      }
-    } catch (err) {
-      // Skip malformed state files
-      continue;
-    }
-  }
-
-  if (matches.length === 0) {
-    return null;
-  }
-
-  if (matches.length > 1) {
-    throw new Error(
-      `Multiple sessions found with alias "${alias}": ${matches.join(', ')}\n` +
-        `Please use --session-id with the specific anchor ID instead.`
-    );
-  }
-
-  return matches[0];
-}
-
-/**
- * Set or update alias for a session
- */
-export function setSessionAlias(
-  anchorId: string,
-  alias: string,
-  projectRoot: string
-): void {
-  const state = loadSessionState(anchorId, projectRoot);
-
-  if (!state) {
-    throw new Error(`Session not found: ${anchorId}`);
-  }
-
-  // Check if alias is already used by another session
-  const existing = resolveAlias(alias, projectRoot);
-  if (existing && existing !== anchorId) {
-    throw new Error(
-      `Alias "${alias}" is already used by session: ${existing}\n` +
-        `Please use a different alias or remove it from the other session first.`
-    );
-  }
-
-  const updated = {
-    ...state,
-    alias,
-    last_updated: new Date().toISOString(),
-  };
-
-  saveSessionState(updated, projectRoot);
-}
-
-/**
- * List all sessions with their aliases
+ * List all sessions
  */
 export function listSessions(projectRoot: string): Array<{
   anchor_id: string;
-  alias?: string;
   created_at: string;
   last_updated: string;
   sessions_count: number;
@@ -256,7 +169,6 @@ export function listSessions(projectRoot: string): Array<{
 
       sessions.push({
         anchor_id: state.anchor_id,
-        alias: state.alias,
         created_at: state.created_at,
         last_updated: state.last_updated,
         sessions_count: state.compression_history.length,

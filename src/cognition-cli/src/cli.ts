@@ -174,8 +174,7 @@ program
     'Root directory of the project',
     process.cwd()
   )
-  .option('--session-id <uuid>', 'Claude session ID to attach to')
-  .option('--alias <name>', 'Session alias (resolves to anchor ID)')
+  .option('--session-id <uuid>', 'Anchor ID to resume session')
   .option(
     '-w, --workbench <url>',
     'URL of the egemma workbench',
@@ -191,7 +190,6 @@ program
     tuiCommand({
       projectRoot: options.projectRoot,
       sessionId: options.sessionId,
-      alias: options.alias,
       workbenchUrl: options.workbench,
       sessionTokens: parseInt(options.sessionTokens),
       debug: options.debug,

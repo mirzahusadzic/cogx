@@ -1,12 +1,10 @@
 import path from 'path';
 import { WorkspaceManager } from '../core/workspace-manager.js';
 import { startTUI } from '../tui/index.js';
-import { resolveAlias } from '../sigma/session-state.js';
 
 interface TUIOptions {
   projectRoot: string;
   sessionId?: string;
-  alias?: string;
   workbenchUrl?: string;
   sessionTokens?: number;
   debug?: boolean;
@@ -27,29 +25,6 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     process.exit(1);
   }
 
-  // Resolve alias to session ID if provided
-  let sessionId = options.sessionId;
-
-  if (options.alias) {
-    if (options.sessionId) {
-      console.error('❌ Cannot use both --session-id and --alias together');
-      process.exit(1);
-    }
-
-    try {
-      const resolved = resolveAlias(options.alias, projectRoot);
-      if (!resolved) {
-        console.error(`❌ No session found with alias: ${options.alias}`);
-        process.exit(1);
-      }
-      sessionId = resolved;
-      console.log(`🔗 Resolved alias "${options.alias}" → ${sessionId}`);
-    } catch (err) {
-      console.error(`❌ ${(err as Error).message}`);
-      process.exit(1);
-    }
-  }
-
   const pgcRoot = path.join(projectRoot, '.open_cognition');
   const workbenchUrl =
     options.workbenchUrl ||
@@ -64,11 +39,10 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
   }
 
   // Optional: Resume existing session or start fresh
-  if (!sessionId) {
+  if (!options.sessionId) {
     console.log(
-      '\n💡 Tip: Starting fresh Claude session. To resume:\n' +
-        '   cognition-cli tui --session-id <uuid>\n' +
-        '   cognition-cli tui --alias <name>\n'
+      '\n💡 Tip: Starting fresh Claude session. To resume, use:\n' +
+        '   cognition-cli tui --session-id <anchor-id>\n'
     );
   }
 
@@ -76,7 +50,7 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
   await startTUI({
     pgcRoot,
     projectRoot,
-    sessionId: sessionId, // Use resolved sessionId from alias if provided
+    sessionId: options.sessionId,
     workbenchUrl,
     sessionTokens: options.sessionTokens,
     debug: options.debug,

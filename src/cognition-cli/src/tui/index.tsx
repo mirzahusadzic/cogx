@@ -53,7 +53,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   const { overlays, loading } = useOverlays({ pgcRoot, workbenchUrl });
-  const { messages, sendMessage, isThinking, error, tokenCount, interrupt, sigmaStats, avgOverlays } =
+  const { messages, sendMessage, isThinking, error, tokenCount, interrupt, sigmaStats, avgOverlays, currentSessionId } =
     useClaudeAgent({
       sessionId,
       cwd: projectRoot, // Use project root, not .open_cognition dir
@@ -256,7 +256,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
               <Text color="green">{saveMessage}</Text>
             </Box>
           )}
-          <StatusBar sessionId={sessionId} focused={focused} tokenCount={tokenCount} mouseEnabled={mouseEnabled} compressionThreshold={sessionTokens} />
+          <StatusBar sessionId={currentSessionId} focused={focused} tokenCount={tokenCount} mouseEnabled={mouseEnabled} compressionThreshold={sessionTokens} />
         </Box>
       </ThemeProvider>
     );

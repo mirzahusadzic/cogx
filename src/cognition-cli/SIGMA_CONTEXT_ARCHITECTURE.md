@@ -1,9 +1,9 @@
 # SIGMA Context Architecture: Dual-Lattice Infinite Memory System
 
-**Version:** 1.0
-**Date:** November 5, 2025
-**Status:** Production
-**License:** AGPL-3.0-or-later
+- **Version:** 1.0
+- **Date:** November 6, 2025
+- **Status:** Working Implementation (Novel Architecture)
+- **License:** AGPL-3.0-or-later
 
 ---
 
@@ -20,14 +20,14 @@ Unlike traditional LLM context windows that discard or truncate history, SIGMA:
 
 ### Key Metrics
 
-| Metric                          | Value    | Impact                           |
-| ------------------------------- | -------- | -------------------------------- |
-| **Compression Threshold**       | 120K     | Default (via --session-tokens)   |
-| **Compression Ratio**           | 30-50x   | 120K tokens → 3-4K recap         |
-| **Context Window**              | 50 turns | Real-time semantic search        |
-| **Paradigm Shift Preservation** | 100%     | Never discarded                  |
-| **Lattice Query Time**          | <100ms   | Negligible overhead              |
-| **Session Transitions**         | Seamless | Zero data loss across SDK resets |
+| Metric                          | Value        | Impact                           |
+| ------------------------------- | ------------ | -------------------------------- |
+| **Compression Threshold**       | Configurable | Set via --session-tokens flag    |
+| **Compression Ratio**           | 30-50x       | Threshold → 3-4K recap           |
+| **Context Window**              | 50 turns     | Real-time semantic search        |
+| **Paradigm Shift Preservation** | 100%         | Never discarded                  |
+| **Lattice Query Time**          | <100ms       | Negligible overhead              |
+| **Session Transitions**         | Seamless     | Zero data loss across SDK resets |
 
 ---
 
@@ -323,7 +323,7 @@ stateDiagram-v2
     Active --> Analyzing: Each Turn
     Analyzing --> Active: Store in Lattice
 
-    Active --> Threshold: Token Count > 120K
+    Active --> Threshold: Token Count > Threshold
     Threshold --> Compressing: Trigger Compression
 
     Compressing --> Classification: Sort by Importance
@@ -354,7 +354,7 @@ stateDiagram-v2
 **Trigger Condition:**
 
 ```typescript
-tokenCount.total > 120_000  // Configurable via --session-tokens
+tokenCount.total > compressionThreshold  // Configurable via --session-tokens
 AND turnAnalyses.length >= 5  // Minimum turns for meaningful compression
 ```
 
@@ -386,13 +386,15 @@ for (const turn of turns.sortedByImportance()) {
 
 ### Session Transition Strategy
 
-**Why abandon old SDK session?**
+> **📖 Design Rationale:** For a comprehensive explanation of the session boundary pattern, including design alternatives, academic backing, and responses to common questions, see [Session Boundary Rationale](./docs/SESSION_BOUNDARY_RATIONALE.md).
 
-The old session contains **corrupted prefilled context** from Claude SDK (Cloud):
+**Why start a fresh SDK session?**
 
-- Unoptimal turn selection (no semantic scoring)
-- Excessive token consumption (no compression)
-- No graph structure (linear history only)
+The accumulated session history lacks SIGMA's semantic intelligence:
+
+- Turn selection without importance scoring
+- Token usage without compression
+- Linear history without graph structure
 
 **Solution: Fresh SDK session with intelligent recap**
 
@@ -404,29 +406,29 @@ sequenceDiagram
     participant Sigma as SIGMA Engine
     participant Lattice as Lattice Storage
 
-    Note over TUI,SDK: Turn 1-75: Normal operation
-    User->>TUI: Query (turn 75)
+    Note over TUI,SDK: Turns 1-N: Normal operation
+    User->>TUI: Query (turn N)
     TUI->>SDK: resume=session-A
-    SDK-->>TUI: Response (120K tokens used)
+    SDK-->>TUI: Response (threshold reached)
 
     Note over Sigma: Token threshold exceeded!
     TUI->>Sigma: Trigger compression
-    Sigma->>Sigma: Analyze 75 turns<br/>Classify: 12 paradigm, 45 important, 18 routine
+    Sigma->>Sigma: Analyze turns<br/>Classify: paradigm, important, routine
     Sigma->>Lattice: Save lattice.json
     Sigma->>Sigma: Reconstruct intelligent recap<br/>Mode: quest (high O1+O5)
     Sigma-->>TUI: Recap ready (3K tokens)
 
     Note over TUI: Abandon session-A<br/>Start fresh session
 
-    User->>TUI: Query (turn 76)
+    User->>TUI: Query (turn N+1)
     TUI->>TUI: Inject recap into prompt
     TUI->>SDK: resume=undefined<br/>prompt=recap + user query
     SDK->>SDK: Create new session-B
     SDK-->>TUI: Response (recap context available)
 
-    User->>TUI: Query (turn 77)
+    User->>TUI: Query (turn N+2)
     TUI->>Sigma: Semantic search in lattice
-    Sigma-->>TUI: Relevant snippets (turn 76 + similar)
+    Sigma-->>TUI: Relevant snippets (recent + similar)
     TUI->>SDK: resume=session-B<br/>prompt=snippets + user query
     SDK-->>TUI: Response (context preserved)
 ```
@@ -677,7 +679,7 @@ project-root/
 | Lattice Storage      | 10-50ms  | ~50 turns/sec        | JSON serialization              |
 | Vector Store Write   | 20-100ms | ~30 turns/sec        | LanceDB insertion               |
 | Semantic Search      | 50-200ms | ~15 queries/sec      | 50-turn window + paradigms      |
-| Compression          | 1-3 sec  | Once per 150K tokens | Includes recap generation       |
+| Compression          | 1-3 sec  | Once per threshold   | Includes recap generation       |
 | Session Switch       | 2-5 sec  | Once per compression | Includes lattice save + flush   |
 
 **Memory Footprint:**
@@ -773,23 +775,23 @@ query: '(O4 > 8) AND (O6 > 5)';
 **Without SIGMA (traditional LLM):**
 
 ```
-Turn 1-50:   50K tokens → Works fine
-Turn 51-100: 100K tokens → Context truncated
-Turn 101+:   150K+ tokens → Conversation reset required
+Turn 1-N:    Approaching limit → Works fine
+Turn N+1:    At limit → Context truncated
+Turn N+2+:   Over limit → Conversation reset required
               ❌ Context lost
 ```
 
 **With SIGMA:**
 
 ```
-Turn 1-75:   120K tokens → Works fine
-Turn 76:     Compression triggered
-             120K → 3K recap (40x ratio)
+Turn 1-N:    Below threshold → Works fine
+Turn N+1:    Compression triggered
+             Threshold → minimal recap (30-50x ratio)
              ✅ All paradigm shifts preserved in lattice
-Turn 77-150: Continue from 3K baseline
-             150K total → 33K effective (via injection)
+Turn N+2...: Continue from minimal baseline
+             Total tokens → effective via injection
              ✅ Can query full history via MCP tool
-Turn 151+:   Second compression
+Next cycle:  Second compression if needed
              ✅ Infinite conversation possible
 ```
 
@@ -1022,7 +1024,7 @@ flowchart TD
     EMB -->|3. TurnAnalysis| SIGMA
     SIGMA -->|4. Store| LAT[Lattice + LanceDB]
 
-    TUI -->|5. Check tokens| COMP{> 120K?}
+    TUI -->|5. Check tokens| COMP{> Threshold?}
     COMP -->|Yes| SIGMA
     SIGMA -->|6. Compress| LAT
     SIGMA -->|7. Generate recap| RECAP[Context Reconstructor]
@@ -1138,8 +1140,8 @@ SIGMA_DEBUG=true                           # Enable debug logging
 # Start TUI with custom session
 cognition-cli tui --session-id my-project-2024
 
-# Configure compression threshold (default: 150K tokens)
-cognition-cli tui --session-tokens 200000
+# Configure compression threshold (default: configurable)
+cognition-cli tui --session-tokens <desired-threshold>
 
 # Enable debug mode
 cognition-cli tui --debug
@@ -1241,7 +1243,7 @@ SIGMA represents a **paradigm shift** in LLM context management:
 ---
 
 - **Document Version:** 1.0
-- **Last Updated:** November 5, 2025
+- **Last Updated:** November 6, 2025
 - **Maintainer/Author:** Mirza Husadzic
 - **License:** AGPL-3.0-or-later
 - **Repository:** github.com/mirzahusadzic/cogx
