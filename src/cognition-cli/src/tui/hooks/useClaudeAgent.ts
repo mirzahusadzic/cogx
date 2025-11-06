@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   query,
   type SDKMessage,
@@ -65,19 +65,29 @@ function replaceSDKDiffColors(text: string): string {
  * Hook to manage Claude Agent SDK integration
  */
 export function useClaudeAgent(options: UseClaudeAgentOptions) {
+  // Destructure options to get stable primitive values
+  // This prevents the entire options object from causing re-renders
+  const { sessionId: sessionIdProp, cwd, sessionTokens, debug: debugFlag } = options;
+
   // Debug logger (only logs if debug flag is set)
-  const debug = (message: string, ...args: unknown[]) => {
-    if (options.debug) {
-      console.log(chalk.dim(`[Σ] ${message}`), ...args);
-    }
-  };
+  const debug = useCallback(
+    (message: string, ...args: unknown[]) => {
+      if (debugFlag) {
+        console.log(chalk.dim(`[Σ] ${message}`), ...args);
+      }
+    },
+    [debugFlag]
+  );
 
   // Debug file logger (only writes to file if debug flag is set)
-  const debugLog = (content: string) => {
-    if (options.debug) {
-      fs.appendFileSync(path.join(options.cwd, 'tui-debug.log'), content);
-    }
-  };
+  const debugLog = useCallback(
+    (content: string) => {
+      if (debugFlag) {
+        fs.appendFileSync(path.join(cwd, 'tui-debug.log'), content);
+      }
+    },
+    [debugFlag, cwd]
+  );
 
   // Initialize with welcome message (colors applied by ClaudePanelAgent)
   const [messages, setMessages] = useState<ClaudeMessage[]>([
@@ -111,6 +121,13 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const compressionTriggered = useRef(false);
   const analyzingTurn = useRef<number | null>(null); // Track timestamp of turn being analyzed
   const lastAnalyzedMessageIndex = useRef<number>(-1); // Track last analyzed message index
+  const messagesRef = useRef<ClaudeMessage[]>(messages); // Ref to avoid effect re-running on every message change
+
+  // Track count of ONLY user/assistant messages (not system/tool_progress)
+  // This prevents infinite loop when compression adds system messages
+  const userAssistantMessageCount = messages.filter(
+    (m) => m.type === 'user' || m.type === 'assistant'
+  ).length;
 
   // Session management for Sigma compression
   // When we compress, we start a FRESH session (no resume) with intelligent recap
@@ -119,7 +136,11 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   // anchor_id = stable user-facing ID (from CLI --session-id or auto-generated)
   // This is what we use for file naming: .sigma/{anchor_id}.state.json
   // It NEVER changes across compressions/expirations
-  const anchorId = options.sessionId || `tui-${Date.now()}`;
+  // Use useMemo to ensure it's only computed once
+  const anchorId = useMemo(
+    () => sessionIdProp || `tui-${Date.now()}`,
+    [sessionIdProp]
+  );
 
   const [resumeSessionId, setResumeSessionId] = useState<string | undefined>(
     undefined
@@ -134,10 +155,11 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
    * Helper: Write session state file
    * Used for both initial flush and periodic flushes to ensure state is always tracked
    */
-  const updateAnchorStats = useCallback(() => {
+  const updateAnchorStatsRef = useRef<() => void>(() => {});
+  updateAnchorStatsRef.current = () => {
     try {
       // Use the stable anchorId for file access
-      const state = loadSessionState(anchorId, options.cwd);
+      const state = loadSessionState(anchorId, cwd);
 
       if (!state) {
         // No state yet, skip (will be created on first SDK message)
@@ -168,12 +190,20 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       };
 
       const updated = updateSessionStats(state, stats);
-      saveSessionState(updated, options.cwd);
-      debug(` Anchor stats updated: ${anchorId}`);
+      saveSessionState(updated, cwd);
+      if (debugFlag) {
+        console.log(chalk.dim(`[Σ]  Anchor stats updated: ${anchorId}`));
+      }
     } catch (err) {
-      debug(' Failed to update anchor stats:', err);
+      if (debugFlag) {
+        console.log(chalk.dim('[Σ]  Failed to update anchor stats:'), err);
+      }
     }
-  }, [anchorId, options.cwd, debug]);
+  };
+
+  const updateAnchorStats = useCallback(() => {
+    updateAnchorStatsRef.current?.();
+  }, []);
 
   // Initialize embedding service and registries
   useEffect(() => {
@@ -208,7 +238,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
     // Initialize project registry (for querying .open_cognition/overlays/)
     try {
-      const pgcPath = path.join(options.cwd, '.open_cognition');
+      const pgcPath = path.join(cwd, '.open_cognition');
       if (fs.existsSync(pgcPath)) {
         projectRegistryRef.current = new OverlayRegistry(
           pgcPath,
@@ -223,11 +253,11 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     }
 
     // Initialize conversation registry (for storing conversation overlays in .sigma/)
-    const sigmaPath = path.join(options.cwd, '.sigma');
+    const sigmaPath = path.join(cwd, '.sigma');
     conversationRegistryRef.current = new ConversationOverlayRegistry(
       sigmaPath,
       workbenchEndpoint,
-      options.debug
+      debugFlag
     );
     debug(' Conversation registry initialized:', sigmaPath);
 
@@ -236,56 +266,66 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       conversationRegistryRef.current,
       workbenchEndpoint
     );
-    debug(' Recall MCP server initialized');
-  }, [options.cwd]);
+    if (debugFlag) {
+      console.log(chalk.dim('[Σ]  Recall MCP server initialized'));
+    }
+  }, [cwd, debugFlag, debug]);
+
+  // Keep messagesRef in sync with messages state
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   // Sigma: Analyze turns on-the-fly and trigger compression
   useEffect(() => {
-    if (messages.length === 0) return;
+    const currentMessages = messagesRef.current;
+    if (currentMessages.length === 0) return;
 
     const analyzeNewTurns = async () => {
       const embedder = embedderRef.current;
 
       // Skip if embedder not initialized yet
       if (!embedder) {
-        debug(' Embedder not initialized');
+        if (debugFlag) {
+          console.log(chalk.dim('[Σ]  Embedder not initialized'));
+        }
         return;
       }
 
-      debug(
-        ' Analyzer effect triggered, messages:',
-        messages.length,
-        'isThinking:',
-        isThinking
-      );
+      if (debugFlag) {
+        console.log(
+          chalk.dim('[Σ]  Analyzer effect triggered, messages:'),
+          currentMessages.length,
+          'isThinking:',
+          isThinking
+        );
+      }
 
-      // Find unanalyzed messages
-      const unanalyzedMessages = messages.slice(
-        lastAnalyzedMessageIndex.current + 1
-      );
+      // Find unanalyzed messages (ONLY user/assistant, skip system/tool_progress)
+      // This prevents infinite loop: compression adds system messages which would re-trigger this effect
+      const unanalyzedMessages = currentMessages
+        .slice(lastAnalyzedMessageIndex.current + 1)
+        .map((msg, idx) => ({
+          msg,
+          originalIndex: lastAnalyzedMessageIndex.current + 1 + idx,
+        }))
+        .filter(({ msg }) => msg.type === 'user' || msg.type === 'assistant');
 
       if (unanalyzedMessages.length === 0) {
         debug(' No unanalyzed messages');
         return;
       }
 
-      debug(' Unanalyzed messages:', unanalyzedMessages.length);
+      debug(' Unanalyzed user/assistant messages:', unanalyzedMessages.length);
 
       // Process each unanalyzed message
-      for (let i = 0; i < unanalyzedMessages.length; i++) {
-        const message = unanalyzedMessages[i];
-        const messageIndex = lastAnalyzedMessageIndex.current + 1 + i;
-
+      for (const {
+        msg: message,
+        originalIndex: messageIndex,
+      } of unanalyzedMessages) {
         debug(
           ` Processing message ${messageIndex}: type=${message.type}, isThinking=${isThinking}`
         );
-
-        // Only analyze user and assistant messages (not tool_progress/system)
-        if (message.type !== 'user' && message.type !== 'assistant') {
-          debug('   Skipping non-user/assistant message');
-          lastAnalyzedMessageIndex.current = messageIndex; // Mark as processed (but not analyzed)
-          continue;
-        }
 
         // For assistant messages, only analyze if we're NOT currently thinking
         // (i.e., the assistant has finished responding)
@@ -318,8 +358,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         try {
           // Build context from previous analyses
           const context: ConversationContext = {
-            projectRoot: options.cwd,
-            sessionId: currentSessionId, // Use current session ID (not undefined options.sessionId)
+            projectRoot: cwd,
+            sessionId: currentSessionId,
             history: turnAnalyses.current.map((a) => ({
               id: a.turn_id,
               role: a.role,
@@ -410,7 +450,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           );
 
           // Check if compression needed (configurable threshold, defaults to 120K)
-          const TOKEN_THRESHOLD = options.sessionTokens || 120000;
+          const TOKEN_THRESHOLD = sessionTokens || 120000;
           const MIN_TURNS_FOR_COMPRESSION = 5; // Need at least 5 turns for meaningful compression
 
           if (
@@ -487,7 +527,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             (async () => {
               try {
                 // 1. Save lattice to disk (graph structure preserved - ALIVE!)
-                const latticeDir = path.join(options.cwd, '.sigma');
+                const latticeDir = path.join(cwd, '.sigma');
                 fs.mkdirSync(latticeDir, { recursive: true });
                 fs.writeFileSync(
                   path.join(latticeDir, `${currentSessionId}.lattice.json`),
@@ -628,7 +668,18 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     };
 
     analyzeNewTurns();
-  }, [messages, tokenCount.total, options.cwd, isThinking]);
+  }, [
+    userAssistantMessageCount,
+    isThinking,
+    cwd,
+    currentSessionId,
+    debug,
+    debugLog,
+    updateAnchorStats,
+    tokenCount,
+    debugFlag,
+    sessionTokens,
+  ]);
 
   // Load initial token count from existing session transcript
   // AND restore Sigma lattice + conversation overlays
@@ -638,9 +689,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         // anchorId is already defined at the top of the component
 
         // Try to migrate old state file if exists
-        let sessionState = loadSessionState(anchorId, options.cwd);
+        let sessionState = loadSessionState(anchorId, cwd);
         if (sessionState && !('compression_history' in sessionState)) {
-          sessionState = migrateOldStateFile(anchorId, options.cwd);
+          sessionState = migrateOldStateFile(anchorId, cwd);
         }
 
         let sdkSessionToResume: string | undefined;
@@ -766,7 +817,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         // ========================================
         // 2. RESTORE SIGMA LATTICE
         // ========================================
-        const latticeDir = path.join(options.cwd, '.sigma');
+        const latticeDir = path.join(cwd, '.sigma');
         const latticePath = path.join(latticeDir, `${sessionId}.lattice.json`);
 
         if (fs.existsSync(latticePath)) {
@@ -876,7 +927,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             // Rebuild from LanceDB (the source of truth for embeddings)
             const rebuiltAnalyses = await rebuildTurnAnalysesFromLanceDB(
               sessionId,
-              options.cwd
+              cwd
             );
 
             if (rebuiltAnalyses.length > 0) {
@@ -898,7 +949,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               // Also rebuild the lattice structure for consistency
               const rebuiltLattice = await rebuildLatticeFromLanceDB(
                 sessionId,
-                options.cwd
+                cwd
               );
               setConversationLattice(rebuiltLattice);
 
@@ -941,7 +992,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     };
 
     loadAnchorSession();
-  }, [anchorId]);
+  }, [anchorId, cwd, debug, debugLog]);
 
   // Effect: Set current session for LanceDB filtering
   useEffect(() => {
@@ -949,13 +1000,21 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       conversationRegistryRef.current
         .setCurrentSession(currentSessionId)
         .then(() => {
-          debug(` Current session set for LanceDB: ${currentSessionId}`);
+          if (debugFlag) {
+            console.log(
+              chalk.dim(
+                `[Σ]  Current session set for LanceDB: ${currentSessionId}`
+              )
+            );
+          }
         })
         .catch((err) => {
-          debug(' Failed to set current session:', err);
+          if (debugFlag) {
+            console.log(chalk.dim('[Σ]  Failed to set current session:'), err);
+          }
         });
     }
-  }, [currentSessionId, debug]);
+  }, [currentSessionId, debugFlag]);
 
   // Cleanup effect: Flush conversation overlays when component unmounts
   useEffect(() => {
@@ -965,14 +1024,18 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         conversationRegistryRef.current
           .flushAll(currentSessionId)
           .then(() => {
-            debug(' Final flush on cleanup complete');
+            if (debugFlag) {
+              console.log(chalk.dim('[Σ]  Final flush on cleanup complete'));
+            }
           })
           .catch((err) => {
-            debug(' Failed to flush on cleanup:', err);
+            if (debugFlag) {
+              console.log(chalk.dim('[Σ]  Failed to flush on cleanup:'), err);
+            }
           });
       }
     };
-  }, [currentSessionId]); // Re-run if session changes
+  }, [currentSessionId, debugFlag]);
 
   const sendMessage = useCallback(
     async (prompt: string) => {
@@ -1015,7 +1078,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               prompt,
               turnAnalyses.current,
               embedderRef.current,
-              { debug: options.debug }
+              { debug: debugFlag }
             );
 
             if (finalPrompt !== prompt) {
@@ -1045,7 +1108,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         const q = query({
           prompt: finalPrompt,
           options: {
-            cwd: options.cwd,
+            cwd: cwd,
             resume: currentResumeId, // undefined after compression = fresh session!
             systemPrompt: { type: 'preset', preset: 'claude_code' }, // Always use claude_code preset!
             includePartialMessages: true, // Get streaming updates
@@ -1155,7 +1218,19 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         setIsThinking(false);
       }
     },
-    [options.cwd, resumeSessionId, injectedRecap]
+    [
+      cwd,
+      resumeSessionId,
+      injectedRecap,
+      debugLog,
+      embedderRef,
+      turnAnalyses,
+      debugFlag,
+      recallMcpServerRef,
+      anchorId,
+      setCurrentSessionId,
+      updateAnchorStats,
+    ]
   );
 
   const processSDKMessage = (sdkMessage: SDKMessage) => {
@@ -1186,12 +1261,12 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           }
 
           // Load state by anchor_id (NOT by SDK session UUID!)
-          const state = loadSessionState(anchorId, options.cwd);
+          const state = loadSessionState(anchorId, cwd);
 
           if (!state) {
             // First time - create initial state
             const newState = createSessionState(anchorId, sdkSessionId);
-            saveSessionState(newState, options.cwd);
+            saveSessionState(newState, cwd);
             debug('󱖫 Created anchor state:', anchorId, '→', sdkSessionId);
           } else {
             // Update existing state with new SDK session
@@ -1204,7 +1279,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               reason,
               reason === 'compression' ? tokenCount.total : undefined
             );
-            saveSessionState(updated, options.cwd);
+            saveSessionState(updated, cwd);
             debug(
               `󱖫 Updated anchor state: ${anchorId} → ${sdkSessionId} (${reason})`
             );
