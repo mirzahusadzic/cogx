@@ -468,15 +468,27 @@ export abstract class BaseConversationManager<
   /**
    * Flush in-memory turns to disk (dual-write: YAML + LanceDB).
    * v2 Format: YAML is human-readable metadata, LanceDB stores embeddings.
+   *
+   * FILTERING: Only stores turns relevant to this overlay (based on alignment score).
    */
   async flush(sessionId: string): Promise<void> {
     if (this.inMemoryTurns.length === 0) return;
+
+    // Filter turns relevant to THIS overlay
+    const relevantTurns = this.inMemoryTurns.filter((turn) =>
+      this.isRelevantToOverlay(turn)
+    );
+
+    if (relevantTurns.length === 0) {
+      // No relevant turns for this overlay - skip writing
+      return;
+    }
 
     // v2 Format: Remove embeddings from YAML (stored in LanceDB only)
     const overlay: ConversationOverlay = {
       session_id: sessionId,
       format_version: 2, // Mark as v2 format
-      turns: this.inMemoryTurns.map((turn) => {
+      turns: relevantTurns.map((turn) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { embedding, ...turnWithoutEmbedding } = turn;
         return turnWithoutEmbedding;
@@ -489,9 +501,9 @@ export abstract class BaseConversationManager<
     const filePath = path.join(this.overlayPath, `${sessionId}.yaml`);
     await fs.writeFile(filePath, YAML.stringify(overlay), 'utf-8');
 
-    // 2. Write to LanceDB (fast semantic search)
+    // 2. Write to LanceDB (fast semantic search) - only relevant turns
     try {
-      for (const turn of this.inMemoryTurns) {
+      for (const turn of relevantTurns) {
         // Extract alignment scores based on overlay type
         const alignmentScores = this.extractAlignmentScores(
           turn.project_alignment_score
@@ -520,6 +532,34 @@ export abstract class BaseConversationManager<
       );
       // Continue even if LanceDB write fails - YAML is the source of truth
     }
+  }
+
+  /**
+   * Check if a turn is relevant to this specific overlay.
+   * Override in subclasses for custom filtering logic.
+   *
+   * Default: Check if the overlay-specific alignment score > 0
+   */
+  protected isRelevantToOverlay(turn: {
+    turn_id: string;
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    timestamp: number;
+    embedding: number[];
+    project_alignment_score: number;
+    novelty: number;
+    importance: number;
+  }): boolean {
+    const alignmentScores = this.extractAlignmentScores(
+      turn.project_alignment_score
+    );
+
+    // Get this overlay's ID (O1, O2, etc.)
+    const overlayId = this.getOverlayId();
+    const scoreKey = `alignment_${overlayId}` as keyof typeof alignmentScores;
+
+    // Include if alignment score > 0 OR importance >= 8 (critical turns)
+    return alignmentScores[scoreKey] > 0 || turn.importance >= 8;
   }
 
   /**

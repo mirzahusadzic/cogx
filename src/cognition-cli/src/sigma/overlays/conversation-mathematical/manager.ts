@@ -26,4 +26,60 @@ export class ConversationMathematicalManager extends BaseConversationManager<Con
   getSupportedTypes(): string[] {
     return ['user', 'assistant'];
   }
+
+  /**
+   * Score turn relevance to O6 (Mathematical/Algorithmic).
+   * High scores for algorithms, logic, mathematical discussions.
+   */
+  protected extractAlignmentScores(baseScore: number): {
+    alignment_O1: number;
+    alignment_O2: number;
+    alignment_O3: number;
+    alignment_O4: number;
+    alignment_O5: number;
+    alignment_O6: number;
+    alignment_O7: number;
+  } {
+    return {
+      alignment_O1: 0,
+      alignment_O2: 0,
+      alignment_O3: 0,
+      alignment_O4: 0,
+      alignment_O5: 0,
+      alignment_O6: baseScore,
+      alignment_O7: 0,
+    };
+  }
+
+  /**
+   * Extract O6-specific semantic tags (mathematical keywords).
+   */
+  protected extractSemanticTags(content: string): string[] {
+    const mathematicalKeywords = [
+      'algorithm',
+      'complexity',
+      'optimization',
+      'calculate',
+      'formula',
+      'theorem',
+      'proof',
+      'logic',
+      'mathematical',
+      'computation',
+      'efficiency',
+      'performance',
+      'analysis',
+      'big-o',
+      'recursive',
+      'iterate',
+    ];
+
+    const lowerContent = content.toLowerCase();
+    const tags = mathematicalKeywords.filter((keyword) =>
+      lowerContent.includes(keyword)
+    );
+
+    const baseTags = super.extractSemanticTags(content);
+    return [...new Set([...tags, ...baseTags])].slice(0, 10);
+  }
 }
