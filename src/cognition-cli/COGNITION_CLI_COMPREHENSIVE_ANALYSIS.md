@@ -109,21 +109,17 @@ Project Lattice (PGC)          Conversation Lattice (Sigma)
 
 **The Problem with Standard LLM Sessions:**
 
-- Anthropic's SDK snaps at 150K tokens → compresses to 50K
-- Users only get **100K effective runway** (not 150K as advertised)
-- Compression is lossy (no intelligence, just truncation)
-- No memory across sessions
+- Compression is lossy
+- No true memory across sessions
 
 **Sigma's Solution:**
 
-1. **Proactive Compression at ~140K tokens**
-   - Beats Anthropic to the snap
+1. **Proactive Compression**
    - Uses intelligent importance formula: `novelty × 5 + max(alignment_O1..O7) × 0.5`
    - Preserves high-signal turns, discards noise
 
-2. **Fresh Start at <10K (not 50K!)**
-   - 5x better than Anthropic's compression
-   - Gives ~140K usable runway per session
+2. **Fresh Start at <20K**
+   - Gives larger usable runway per session
 
 3. **Session Lifecycle Management**
 
@@ -164,7 +160,7 @@ Sigma includes a production-ready terminal user interface built with **Ink** (Re
 **Features:**
 
 - ✅ **Live Lattice Visualization** — Real-time overlay counts (O1-O7)
-- ✅ **Token Tracking** — Exact count with compression threshold (vs Anthropic's spinner 🎰)
+- ✅ **Token Tracking** — Exact count with compression threshold
 - ✅ **Lattice Statistics** — Nodes, edges, context shifts
 - ✅ **Importance Scoring** — Novelty + alignment per turn
 - ✅ **Toggle Info Panel** — Detailed overlay breakdown
@@ -173,9 +169,9 @@ Sigma includes a production-ready terminal user interface built with **Ink** (Re
 
 **Why the TUI Matters:**
 
-The TUI provides **radical transparency** that stock Claude Code hides:
+The TUI provides **radical transparency**:
 
-- See exactly how many tokens you're using (not a slot machine spinner)
+- See exactly how many tokens you're using
 - Watch the lattice grow in real-time as you chat
 - Understand which overlays are being activated
 - Know when compression will trigger
@@ -488,14 +484,14 @@ Event-driven, self-healing architecture:
 
 **The first LLM wrapper to solve context limits through lattice-based compression:**
 
-- **Proactive Compression** beats Anthropic's 150K→50K lossy snap
-- **<10K Fresh Starts** (5x better than Anthropic's 50K overhead)
-- **~140K Usable Runway** per session (vs Anthropic's 100K)
+- **Proactive Compression**
+- **<20K Fresh Starts**
+- **~140K Usable Runway** per session
 - **Intelligent Preservation** via `novelty × 5 + max(alignment_O1..O7) × 0.5`
 - **Multi-Overlay Indexing** of every conversation turn across 7 dimensions
 - **Verifiable Memory Recall** with temporal re-ranking and multi-overlay search
 - **Session Resurrection** through automatic forwarding chain
-- **Radical Transparency** via live TUI (no slot machine spinner 🎰)
+- **Radical Transparency** via live TUI
 
 This is **not RAG or summarization** — it's a true dual-lattice architecture where conversation knowledge has the same mathematical rigor as project knowledge.
 
@@ -505,7 +501,7 @@ Built with **Ink** (React for terminals), the TUI demonstrates radical transpare
 
 **Real-time Visibility:**
 
-- Exact token count (not Anthropic's deceptive spinner)
+- Exact token count
 - Live lattice statistics (nodes, edges, context shifts)
 - Per-turn novelty and importance scores
 - Overlay activation patterns (O₁-O₇ alignment)
@@ -517,8 +513,6 @@ Built with **Ink** (React for terminals), the TUI demonstrates radical transpare
 - Catches Anthropic's compression before it happens
 - Enables informed decisions about session management
 - Proves the lattice is working in real-time
-
-The contrast is stark: stock Claude Code hides everything behind a 🎰 spinner, while Sigma shows you the mathematical truth of your conversation.
 
 ### 11. **Comprehensive Documentation**
 
