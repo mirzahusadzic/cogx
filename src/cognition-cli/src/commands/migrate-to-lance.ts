@@ -10,6 +10,7 @@ interface MigrateOptions {
   projectRoot: string;
   overlays?: string[]; // Specific overlays to migrate, or all if not specified
   dryRun?: boolean;
+  keepEmbeddings?: boolean; // Keep embeddings in YAML (default: false)
 }
 
 /**
@@ -19,7 +20,8 @@ interface MigrateOptions {
  * 1. Read existing YAML overlays from .open_cognition/overlays/
  * 2. Extract concepts with embeddings
  * 3. Store in LanceDB (.open_cognition/lance/documents.lancedb)
- * 4. Keep YAML files for provenance (DO NOT DELETE)
+ * 4. Strip embeddings from YAML (convert to v2 format)
+ * 5. Keep YAML files for provenance (metadata only)
  *
  * SUPPORTED OVERLAYS:
  * - O2: Security Guidelines (security_guidelines/)
@@ -148,6 +150,39 @@ export async function migrateToLanceCommand(options: MigrateOptions) {
 
           conceptsCount += validConcepts.length;
           documentsCount++;
+
+          // Strip embeddings from YAML to save disk space (unless --keep-embeddings)
+          if (!options.keepEmbeddings) {
+            const conceptsWithoutEmbeddings = concepts.map((c) => {
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              const { embedding, ...conceptWithoutEmbedding } = c;
+              return conceptWithoutEmbedding;
+            });
+
+            // Update overlay with stripped concepts
+            const updatedOverlay = {
+              ...overlay,
+              format_version: 2, // Mark as v2 format (embeddings in LanceDB)
+            };
+
+            // Update the concepts array based on overlay type
+            if (overlayName === 'mission_concepts') {
+              updatedOverlay.extracted_concepts = conceptsWithoutEmbeddings;
+            } else if (overlayName === 'security_guidelines') {
+              updatedOverlay.guidelines = conceptsWithoutEmbeddings;
+            } else if (overlayName === 'operational_patterns') {
+              updatedOverlay.patterns = conceptsWithoutEmbeddings;
+            } else if (overlayName === 'mathematical_proofs') {
+              updatedOverlay.knowledge = conceptsWithoutEmbeddings;
+            }
+
+            // Write back to YAML without embeddings
+            await fs.writeFile(
+              yamlPath,
+              YAML.stringify(updatedOverlay),
+              'utf-8'
+            );
+          }
         } catch (error) {
           log.error(
             chalk.red(
@@ -200,9 +235,20 @@ export async function migrateToLanceCommand(options: MigrateOptions) {
         )
       );
       log.info('');
-      log.info(
-        chalk.dim('Note: YAML files preserved for provenance tracking.')
-      );
+      if (options.keepEmbeddings) {
+        log.info(
+          chalk.dim('Note: Embeddings kept in YAML files (--keep-embeddings).')
+        );
+      } else {
+        log.info(
+          chalk.dim(
+            'Note: Embeddings stripped from YAML files to save disk space.'
+          )
+        );
+        log.info(
+          chalk.dim('      YAML files now contain metadata only (v2 format).')
+        );
+      }
       log.info(
         chalk.dim('LanceDB location: .open_cognition/lance/documents.lancedb')
       );

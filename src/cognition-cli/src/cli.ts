@@ -134,6 +134,10 @@ program
     (value) => value.split(',')
   )
   .option('--dry-run', 'Preview migration without making changes')
+  .option(
+    '--keep-embeddings',
+    'Keep embeddings in YAML files (default: strip for disk savings)'
+  )
   .action((options) => {
     migrateToLanceCommand(options);
   });
