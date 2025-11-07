@@ -607,28 +607,28 @@ export class DocumentLanceStore {
   ): DocumentConceptRecord | undefined {
     try {
       const plainRecord: DocumentConceptRecord = {
-        id: record.id,
-        overlay_type: record.overlay_type,
-        document_hash: record.document_hash,
-        document_path: record.document_path,
-        transform_id: record.transform_id,
-        text: record.text,
-        section: record.section,
-        section_hash: record.section_hash,
-        concept_type: record.concept_type,
-        weight: record.weight,
+        id: record.id as string,
+        overlay_type: record.overlay_type as string,
+        document_hash: record.document_hash as string,
+        document_path: record.document_path as string,
+        transform_id: record.transform_id as string,
+        text: record.text as string,
+        section: record.section as string,
+        section_hash: record.section_hash as string,
+        concept_type: record.concept_type as string,
+        weight: record.weight as number,
         occurrences:
           typeof record.occurrences === 'bigint'
             ? Number(record.occurrences)
-            : record.occurrences,
+            : (record.occurrences as number),
         embedding:
           record.embedding && typeof record.embedding === 'object'
-            ? Array.from(record.embedding)
-            : record.embedding,
+            ? Array.from(record.embedding as ArrayLike<number>)
+            : (record.embedding as number[]),
         generated_at:
           typeof record.generated_at === 'bigint'
             ? Number(record.generated_at)
-            : record.generated_at,
+            : (record.generated_at as number),
       };
 
       if (!this.isValidConceptRecord(plainRecord)) {
