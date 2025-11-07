@@ -120,6 +120,24 @@ program
     genesisDocsCommand(targetPath, options);
   });
 
+program
+  .command('migrate:lance')
+  .description('Migrate YAML overlay embeddings to LanceDB for fast queries')
+  .option(
+    '-p, --project-root <path>',
+    'Root directory of the project',
+    process.cwd()
+  )
+  .option(
+    '--overlays <overlays>',
+    'Comma-separated list of overlays to migrate (default: all)',
+    (value) => value.split(',')
+  )
+  .option('--dry-run', 'Preview migration without making changes')
+  .action((options) => {
+    migrateToLanceCommand(options);
+  });
+
 import { overlayCommand } from './commands/overlay.js';
 import { blastRadiusCommand } from './commands/blast-radius.js';
 import { createWatchCommand } from './commands/watch.js';
@@ -127,6 +145,7 @@ import { createStatusCommand } from './commands/status.js';
 import { createUpdateCommand } from './commands/update.js';
 import { createGuideCommand } from './commands/guide.js';
 import { genesisDocsCommand } from './commands/genesis-docs.js';
+import { migrateToLanceCommand } from './commands/migrate-to-lance.js';
 import { addCoherenceCommands } from './commands/coherence.js';
 import { addConceptsCommands } from './commands/concepts.js';
 import { wizardCommand } from './commands/wizard.js';
