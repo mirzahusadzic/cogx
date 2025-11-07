@@ -131,23 +131,35 @@ export async function wizardCommand(options: WizardOptions) {
     }
   }
 
-  // Step 2: Detect workbench
+  // Step 2: Check for WORKBENCH_URL environment variable first
+  const envWorkbenchUrl = process.env.WORKBENCH_URL;
+
+  // Step 3: Detect workbench if not set in environment
   const s = spinner();
-  s.start('Detecting workbench instance...');
 
-  const detectedWorkbench = await autodetectWorkbench();
+  let detectedWorkbench: string | null = null;
+  if (!envWorkbenchUrl) {
+    s.start('Detecting workbench instance...');
+    detectedWorkbench = await autodetectWorkbench();
 
-  if (detectedWorkbench) {
-    s.stop(chalk.green(`✓ Found workbench at ${detectedWorkbench}`));
+    if (detectedWorkbench) {
+      s.stop(chalk.green(`✓ Found workbench at ${detectedWorkbench}`));
+    } else {
+      s.stop(chalk.yellow('⚠ No workbench detected on common ports'));
+    }
   } else {
-    s.stop(chalk.yellow('⚠ No workbench detected on common ports'));
+    log.info(
+      chalk.green(`✓ Using WORKBENCH_URL from environment: ${envWorkbenchUrl}`)
+    );
   }
 
-  // Step 3: Get workbench URL
+  // Step 4: Get workbench URL (prioritize env var, then detected, then default)
+  const defaultUrl =
+    envWorkbenchUrl || detectedWorkbench || 'http://localhost:8000';
   const workbenchUrl = (await text({
     message: 'Workbench URL:',
     placeholder: 'http://localhost:8000',
-    initialValue: detectedWorkbench || 'http://localhost:8000',
+    initialValue: defaultUrl,
     validate: (value) => {
       if (!value) return 'Workbench URL is required';
       if (!value.startsWith('http://') && !value.startsWith('https://')) {
@@ -170,7 +182,7 @@ export async function wizardCommand(options: WizardOptions) {
 
   s.stop(chalk.green('✓ Workbench connection verified'));
 
-  // Step 4: Get API key
+  // Step 5: Get API key
   const apiKey = (await text({
     message: 'Workbench API Key:',
     placeholder: 'Enter your API key (or "dummy-key" for local)',
@@ -181,7 +193,7 @@ export async function wizardCommand(options: WizardOptions) {
     },
   })) as string;
 
-  // Step 5: Get source path
+  // Step 6: Get source path
   const sourcePath = (await text({
     message: 'Source path to analyze:',
     placeholder: 'src',
@@ -195,7 +207,7 @@ export async function wizardCommand(options: WizardOptions) {
     },
   })) as string;
 
-  // Step 6: Ask about documentation
+  // Step 7: Ask about documentation
   const hasCustomDocs = (await confirm({
     message: 'Do you have additional strategic documentation to ingest?',
     initialValue: false,
@@ -219,7 +231,7 @@ export async function wizardCommand(options: WizardOptions) {
     })) as string;
   }
 
-  // Step 7: Ask about overlays
+  // Step 8: Ask about overlays
   const overlayTypes = (await select({
     message: 'Which overlays would you like to generate?',
     options: [
@@ -251,7 +263,7 @@ export async function wizardCommand(options: WizardOptions) {
     );
   }
 
-  // Step 8: Confirm and execute
+  // Step 9: Confirm and execute
   log.step(chalk.bold('\nSetup Summary:'));
   log.info(`  Project Root: ${chalk.cyan(options.projectRoot)}`);
   log.info(`  Workbench URL: ${chalk.cyan(workbenchUrl)}`);
