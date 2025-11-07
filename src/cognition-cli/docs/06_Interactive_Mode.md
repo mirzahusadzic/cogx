@@ -12,8 +12,9 @@ Launch an interactive Terminal User Interface with Claude integration. This prov
 # Launch TUI in current project
 cognition-cli tui
 
-# Launch with specific session
-cognition-cli tui --session-id <uuid>
+# Launch with specific session (two ways)
+cognition-cli tui --session-id tui-1762546919034
+cognition-cli tui -f .sigma/tui-1762546919034.state.json
 
 # Configure compression threshold (default: 120K tokens)
 cognition-cli tui --session-tokens 150000
@@ -25,7 +26,8 @@ cognition-cli tui --debug
 ### Options
 
 - `-p, --project-root <path>` - Root directory of the project
-- `--session-id <uuid>` - Claude session ID to attach to
+- `--session-id <anchor-id>` - Anchor ID to resume session (e.g., tui-1762546919034)
+- `-f, --file <path>` - Path to session state file (convenient alternative to --session-id)
 - `-w, --workbench <url>` - eGemma workbench URL (default: `http://localhost:8000`)
 - `--session-tokens <number>` - Token threshold for context compression (default: `120000`)
 - `--debug` - Enable debug logging for Σ (Sigma) compression
@@ -119,8 +121,11 @@ cognition-cli tui
 **Continuing an existing session:**
 
 ```bash
-# Session ID shown in TUI header
-cognition-cli tui --session-id abc-123-def-456
+# Using session ID (anchor ID shown in TUI header)
+cognition-cli tui --session-id tui-1762546919034
+
+# Or using the state file directly (more convenient with tab completion)
+cognition-cli tui -f .sigma/tui-1762546919034.state.json
 ```
 
 **Session storage:**

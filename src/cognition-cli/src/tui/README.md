@@ -84,8 +84,9 @@ Result: Claude continues seamlessly, full continuity
 # Launch interactive TUI with Claude + Sigma
 cognition-cli tui
 
-# With custom session ID (for resuming)
-cognition-cli tui --session-id <uuid>
+# Resume an existing session (two ways)
+cognition-cli tui --session-id tui-1762546919034
+cognition-cli tui -f .sigma/tui-1762546919034.state.json
 
 # Custom compression threshold (default: 150K tokens)
 cognition-cli tui --session-tokens 200000

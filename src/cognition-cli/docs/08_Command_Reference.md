@@ -321,7 +321,8 @@ cognition-cli tui [options]
 
 **Options:**
 
-- `--session-id <uuid>` - Attach to existing session
+- `--session-id <anchor-id>` - Attach to existing session (e.g., tui-1762546919034)
+- `-f, --file <path>` - Path to session state file (convenient alternative to --session-id)
 - `--session-tokens <number>` - Compression threshold (default: 120000)
 - `--debug` - Enable Sigma compression logging
 

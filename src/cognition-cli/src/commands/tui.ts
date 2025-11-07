@@ -5,6 +5,7 @@ import { startTUI } from '../tui/index.js';
 interface TUIOptions {
   projectRoot: string;
   sessionId?: string;
+  sessionFile?: string;
   workbenchUrl?: string;
   sessionTokens?: number;
   debug?: boolean;
@@ -38,11 +39,28 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     process.stdout.write('\x1b[H'); // Move cursor to home
   }
 
+  // Resolve session ID from either --session-id or --file
+  let sessionId = options.sessionId;
+
+  if (options.sessionFile && options.sessionId) {
+    console.error(
+      'Error: Cannot specify both --session-id and --file options. Please use one or the other.'
+    );
+    process.exit(1);
+  }
+
+  if (options.sessionFile) {
+    // Extract session ID from filename: .sigma/tui-1762546919034.state.json -> tui-1762546919034
+    const basename = path.basename(options.sessionFile, '.state.json');
+    sessionId = basename;
+  }
+
   // Optional: Resume existing session or start fresh
-  if (!options.sessionId) {
+  if (!sessionId) {
     console.log(
       '\n💡 Tip: Starting fresh Claude session. To resume, use:\n' +
-        '   cognition-cli tui --session-id <anchor-id>\n'
+        '   cognition-cli tui --session-id <anchor-id>\n' +
+        '   or: cognition-cli tui -f .sigma/<session>.state.json\n'
     );
   }
 
@@ -50,7 +68,7 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
   await startTUI({
     pgcRoot,
     projectRoot,
-    sessionId: options.sessionId,
+    sessionId,
     workbenchUrl,
     sessionTokens: options.sessionTokens,
     debug: options.debug,

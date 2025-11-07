@@ -174,7 +174,11 @@ program
     'Root directory of the project',
     process.cwd()
   )
-  .option('--session-id <uuid>', 'Anchor ID to resume session')
+  .option('--session-id <anchor-id>', 'Anchor ID to resume session')
+  .option(
+    '-f, --file <path>',
+    'Path to session state file (e.g., .sigma/tui-1762546919034.state.json)'
+  )
   .option(
     '-w, --workbench <url>',
     'URL of the egemma workbench',
@@ -190,6 +194,7 @@ program
     tuiCommand({
       projectRoot: options.projectRoot,
       sessionId: options.sessionId,
+      sessionFile: options.file,
       workbenchUrl: options.workbench,
       sessionTokens: parseInt(options.sessionTokens),
       debug: options.debug,
