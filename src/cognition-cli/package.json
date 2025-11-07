@@ -15,7 +15,7 @@
     "start": "node dist/cli.js",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "test": "vitest run",
+    "test": "NODE_OPTIONS='--max-old-space-size=4096' vitest run",
     "test:watch": "vitest",
     "lint": "eslint src --ext .ts && markdownlint . --ignore node_modules",
     "format": "prettier --write \"**/*.{ts,js,json,md}\""

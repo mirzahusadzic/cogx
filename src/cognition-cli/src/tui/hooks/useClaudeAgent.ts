@@ -239,7 +239,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
     // Get workbench endpoint from environment or default
     const workbenchEndpoint =
-      process.env.WORKBENCH_ENDPOINT || 'http://localhost:8000';
+      process.env.WORKBENCH_URL || 'http://localhost:8000';
     embedderRef.current = new EmbeddingService(workbenchEndpoint);
 
     // Initialize project registry (for querying .open_cognition/overlays/)
