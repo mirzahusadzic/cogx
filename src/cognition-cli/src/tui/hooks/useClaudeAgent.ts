@@ -189,71 +189,16 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     sessionManager.updateStats(turnAnalysis.analyses);
   }, [sessionManager, turnAnalysis.analyses]);
 
-  // Initialize embedding service and registries
+  // Initialize services on mount
   useEffect(() => {
-    // Check if WORKBENCH_API_KEY is set
-    const hasApiKey = !!process.env.WORKBENCH_API_KEY;
-
-    if (!hasApiKey) {
-      // Show warning message in UI
-      setMessages((prev) => [
-        ...prev,
-        {
-          type: 'system',
-          content:
-            '⚠️  WORKBENCH_API_KEY not set - Sigma features disabled\n' +
-            '   • Context compression: OFF\n' +
-            '   • Conversation history: OFF\n' +
-            '   • Intelligent recap: OFF\n' +
-            '   • Real-time context injection: OFF\n\n' +
-            '   Set WORKBENCH_API_KEY to enable infinite context via compression.',
-          timestamp: new Date(),
-        },
-      ]);
-      debug(
-        '⚠️  WORKBENCH_API_KEY not set - Sigma compression and history disabled'
-      );
-    }
-
-    // Get workbench endpoint from environment or default
-    const workbenchEndpoint =
-      process.env.WORKBENCH_URL || 'http://localhost:8000';
-    embedderRef.current = new EmbeddingService(workbenchEndpoint);
-
-    // Initialize project registry (for querying .open_cognition/overlays/)
-    try {
-      const pgcPath = path.join(cwd, '.open_cognition');
-      if (fs.existsSync(pgcPath)) {
-        projectRegistryRef.current = new OverlayRegistry(
-          pgcPath,
-          workbenchEndpoint
-        );
-        debug(' Project registry initialized:', pgcPath);
-      } else {
-        debug(' No .open_cognition found, project alignment disabled');
-      }
-    } catch (err) {
-      debug(' Failed to initialize project registry:', err);
-    }
-
-    // Initialize conversation registry (for storing conversation overlays in .sigma/)
+    const endpoint = process.env.WORKBENCH_URL || 'http://localhost:8000';
+    embedderRef.current = new EmbeddingService(endpoint);
     const sigmaPath = path.join(cwd, '.sigma');
-    conversationRegistryRef.current = new ConversationOverlayRegistry(
-      sigmaPath,
-      workbenchEndpoint,
-      debugFlag
-    );
-    debug(' Conversation registry initialized:', sigmaPath);
-
-    // Initialize recall MCP server (for on-demand memory queries)
-    recallMcpServerRef.current = createRecallMcpServer(
-      conversationRegistryRef.current,
-      workbenchEndpoint
-    );
-    if (debugFlag) {
-      console.log(chalk.dim('[Σ]  Recall MCP server initialized'));
-    }
-  }, [cwd, debugFlag, debug]);
+    conversationRegistryRef.current = new ConversationOverlayRegistry(sigmaPath, endpoint, debugFlag);
+    recallMcpServerRef.current = createRecallMcpServer(conversationRegistryRef.current, endpoint);
+    const pgcPath = path.join(cwd, '.open_cognition');
+    if (fs.existsSync(pgcPath)) projectRegistryRef.current = new OverlayRegistry(pgcPath, endpoint);
+  }, [cwd, debugFlag]);
 
   // Keep messagesRef in sync with messages state
   useEffect(() => {
