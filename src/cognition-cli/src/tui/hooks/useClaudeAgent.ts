@@ -690,6 +690,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                 );
               }
             })();
+
+            // Exit loop immediately after triggering compression
+            // This prevents analyzing more turns while compression is in progress
+            return;
           }
         } catch (err) {
           // Clear analyzing flag on error
@@ -1351,9 +1355,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               : 'expiration';
 
             // Get compressed size from the last compression result
-            const compressedTokens = reason === 'compression'
-              ? lastCompressedSize.current || tokenCount.total
-              : undefined;
+            const compressedTokens =
+              reason === 'compression'
+                ? lastCompressedSize.current || tokenCount.total
+                : undefined;
 
             const updated = updateSessionState(
               state,
