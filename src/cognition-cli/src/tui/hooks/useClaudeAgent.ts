@@ -1,19 +1,12 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { SDKMessage, Query } from '@anthropic-ai/claude-agent-sdk';
-import fs from 'fs';
 import path from 'path';
-import os from 'os';
 import chalk from 'chalk';
 import { EmbeddingService } from '../../core/services/embedding.js';
 import { OverlayRegistry } from '../../core/algebra/overlay-registry.js';
 import { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
 import { createRecallMcpServer } from '../../sigma/recall-tool.js';
 import { injectRelevantContext } from '../../sigma/context-injector.js';
-// Lattice reconstruction functions disabled - re-embedding blocks UI
-// import {
-//   rebuildTurnAnalysesFromLanceDB,
-//   rebuildLatticeFromLanceDB,
-// } from '../../sigma/lattice-reconstructor.js';
 import { useTokenCount } from './tokens/useTokenCount.js';
 import { useSessionManager } from './session/useSessionManager.js';
 import {
@@ -25,10 +18,9 @@ import {
 import { formatToolUse } from './rendering/ToolFormatter.js';
 import { stripANSICodes } from './rendering/MessageRenderer.js';
 import { useTurnAnalysis } from './analysis/index.js';
-import type { AnalysisTask } from './analysis/types.js';
 import { useCompression } from './compression/useCompression.js';
 import type { McpSdkServerConfigWithInstance } from '@anthropic-ai/claude-agent-sdk';
-import type { ConversationLattice, TurnAnalysis } from '../../sigma/types.js';
+import type { ConversationLattice } from '../../sigma/types.js';
 
 interface UseClaudeAgentOptions {
   sessionId?: string;
@@ -92,8 +84,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const tokenCounter = useTokenCount();
 
   // Sigma state: conversation lattice and analysis
-  const [conversationLattice, setConversationLattice] =
-    useState<ConversationLattice | null>(null);
+  const [conversationLattice] = useState<ConversationLattice | null>(null);
   const embedderRef = useRef<EmbeddingService | null>(null);
   const projectRegistryRef = useRef<OverlayRegistry | null>(null);
   const conversationRegistryRef = useRef<ConversationOverlayRegistry | null>(
@@ -194,10 +185,18 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     const endpoint = process.env.WORKBENCH_URL || 'http://localhost:8000';
     embedderRef.current = new EmbeddingService(endpoint);
     const sigmaPath = path.join(cwd, '.sigma');
-    conversationRegistryRef.current = new ConversationOverlayRegistry(sigmaPath, endpoint, debugFlag);
-    recallMcpServerRef.current = createRecallMcpServer(conversationRegistryRef.current, endpoint);
+    conversationRegistryRef.current = new ConversationOverlayRegistry(
+      sigmaPath,
+      endpoint,
+      debugFlag
+    );
+    recallMcpServerRef.current = createRecallMcpServer(
+      conversationRegistryRef.current,
+      endpoint
+    );
     const pgcPath = path.join(cwd, '.open_cognition');
-    if (fs.existsSync(pgcPath)) projectRegistryRef.current = new OverlayRegistry(pgcPath, endpoint);
+    if (fs.existsSync(pgcPath))
+      projectRegistryRef.current = new OverlayRegistry(pgcPath, endpoint);
   }, [cwd, debugFlag]);
 
   // Keep messagesRef in sync with messages state
@@ -714,7 +713,21 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     tokenCount: tokenCounter.count,
     conversationLattice,
     currentSessionId,
-    sigmaStats: { nodes: turnAnalysis.stats.totalAnalyzed, edges: Math.max(0, turnAnalysis.stats.totalAnalyzed - 1), paradigmShifts: turnAnalysis.stats.paradigmShifts, avgNovelty: turnAnalysis.stats.avgNovelty, avgImportance: turnAnalysis.stats.avgImportance },
-    avgOverlays: { O1_structural: 0, O2_security: 0, O3_lineage: 0, O4_mission: 0, O5_operational: 0, O6_mathematical: 0, O7_strategic: 0 },
+    sigmaStats: {
+      nodes: turnAnalysis.stats.totalAnalyzed,
+      edges: Math.max(0, turnAnalysis.stats.totalAnalyzed - 1),
+      paradigmShifts: turnAnalysis.stats.paradigmShifts,
+      avgNovelty: turnAnalysis.stats.avgNovelty,
+      avgImportance: turnAnalysis.stats.avgImportance,
+    },
+    avgOverlays: {
+      O1_structural: 0,
+      O2_security: 0,
+      O3_lineage: 0,
+      O4_mission: 0,
+      O5_operational: 0,
+      O6_mathematical: 0,
+      O7_strategic: 0,
+    },
   };
 }
