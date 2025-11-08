@@ -30,6 +30,7 @@ import {
   updateSessionStats,
   migrateOldStateFile,
 } from '../../sigma/session-state.js';
+import { useTokenCount } from './tokens/useTokenCount.js';
 import type { McpSdkServerConfigWithInstance } from '@anthropic-ai/claude-agent-sdk';
 import type {
   ConversationLattice,
@@ -105,12 +106,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const [isThinking, setIsThinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentQuery, setCurrentQuery] = useState<Query | null>(null);
-  const [tokenCount, setTokenCount] = useState({
-    input: 0,
-    output: 0,
-    total: 0,
-  });
-  const tokenCountJustReset = useRef(false); // Track if we just reset token count
+
+  // Token counting with proper reset semantics
+  const tokenCounter = useTokenCount();
 
   // Sigma state: conversation lattice and analysis
   const [conversationLattice, setConversationLattice] =
@@ -475,7 +473,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           const MIN_TURNS_FOR_COMPRESSION = 5; // Need at least 5 turns for meaningful compression
 
           if (
-            tokenCount.total > TOKEN_THRESHOLD &&
+            tokenCounter.count.total > TOKEN_THRESHOLD &&
             !compressionTriggered.current &&
             turnAnalyses.current.length >= MIN_TURNS_FOR_COMPRESSION
           ) {
@@ -487,7 +485,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               {
                 type: 'system',
                 content:
-                  `🗜️  Context compression triggered at ${(tokenCount.total / 1000).toFixed(1)}K tokens\n` +
+                  `🗜️  Context compression triggered at ${(tokenCounter.count.total / 1000).toFixed(1)}K tokens\n` +
                   `Compressing ${turnAnalyses.current.length} turns into intelligent recap...\n` +
                   `(Use --debug flag to see detailed compression metrics)`,
                 timestamp: new Date(),
@@ -537,7 +535,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
             // Log compression stats
             debugLog(
-              `[SIGMA] Compression triggered at ${tokenCount.total} tokens\n` +
+              `[SIGMA] Compression triggered at ${tokenCounter.count.total} tokens\n` +
                 `  Original: ${compressionResult.original_size} tokens\n` +
                 `  Compressed: ${compressionResult.compressed_size} tokens\n` +
                 `  Ratio: ${compressionResult.compression_ratio.toFixed(1)}x\n` +
@@ -549,8 +547,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
             // Reset token count IMMEDIATELY (before async logic)
             // This prevents token count from continuing to accumulate during compression
-            setTokenCount({ input: 0, output: 0, total: 0 });
-            tokenCountJustReset.current = true; // Mark that we just reset
+            tokenCounter.reset();
             lastCompressedSize.current = compressionResult.compressed_size;
 
             // Reset lastAnalyzedMessageIndex to prevent re-analyzing compressed turns
@@ -729,7 +726,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     debug,
     debugLog,
     updateAnchorStats,
-    tokenCount,
+    tokenCounter.count,
     debugFlag,
     sessionTokens,
   ]);
@@ -860,7 +857,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             }
           }
 
-          setTokenCount({
+          tokenCounter.update({
             input: totalInput,
             output: totalOutput,
             total: totalInput + totalOutput,
@@ -962,8 +959,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           // Reset token count - compressed session starts fresh
           // The old NDJSON transcript contains pre-compression tokens which are incorrect
           // SDK will provide accurate token count on first new message
-          setTokenCount({ input: 0, output: 0, total: 0 });
-          tokenCountJustReset.current = true; // Mark that we just reset
+          tokenCounter.reset();
           debug(
             ' Token count reset (compressed session - will get true count from SDK)'
           );
@@ -1372,7 +1368,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             // Get compressed size from the last compression result
             const compressedTokens =
               reason === 'compression'
-                ? lastCompressedSize.current || tokenCount.total
+                ? lastCompressedSize.current || tokenCounter.count.total
                 : undefined;
 
             const updated = updateSessionState(
@@ -1597,20 +1593,11 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             (usage.cache_read_input_tokens || 0);
           const totalOutput = usage.output_tokens;
 
-          // SDK gives cumulative totals per query, use Math.max to handle multi-query sessions
-          // This prevents token count from appearing to "drop" when a new query starts
-          // UNLESS we just reset (compression/session load), then accept any value
-          setTokenCount((prev) => {
-            const newTotal = totalInput + totalOutput;
-            if (tokenCountJustReset.current || newTotal > prev.total) {
-              tokenCountJustReset.current = false; // Clear the flag
-              return {
-                input: totalInput,
-                output: totalOutput,
-                total: newTotal,
-              };
-            }
-            return prev; // Keep higher count from previous queries
+          // Update token count (hook automatically handles Math.max and reset logic)
+          tokenCounter.update({
+            input: totalInput,
+            output: totalOutput,
+            total: totalInput + totalOutput,
           });
         }
 
@@ -1679,18 +1666,11 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           // Result usage doesn't include cache tokens, so only update if it's higher
           const resultTotal = usage.input_tokens + usage.output_tokens;
 
-          setTokenCount((prev) => {
-            // Only update if the result total is higher than what we have
-            // UNLESS we just reset, then accept any value
-            if (tokenCountJustReset.current || resultTotal > prev.total) {
-              tokenCountJustReset.current = false; // Clear the flag
-              return {
-                input: usage.input_tokens,
-                output: usage.output_tokens,
-                total: resultTotal,
-              };
-            }
-            return prev; // Keep the higher count from message_delta
+          // Update token count (hook automatically handles Math.max and reset logic)
+          tokenCounter.update({
+            input: usage.input_tokens,
+            output: usage.output_tokens,
+            total: resultTotal,
           });
 
           setMessages((prev) => [
@@ -1785,7 +1765,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     interrupt,
     isThinking,
     error,
-    tokenCount,
+    tokenCount: tokenCounter.count,
     conversationLattice, // Sigma compressed context
     currentSessionId, // Active session ID (may switch)
     sigmaStats, // Lattice statistics for header display
