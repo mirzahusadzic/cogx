@@ -223,7 +223,11 @@ export class ConversationLanceStore {
 
   /**
    * Store a conversation turn with full Sigma metadata.
-   * Replaces existing turn with same ID.
+   * Uses LanceDB's mergeInsert for efficient upsert without version bloat.
+   *
+   * OPTIMIZATION: mergeInsert updates existing records in-place instead of
+   * delete+add, preventing the version explosion that caused 22K versions
+   * for 241 turns (700MB bloat).
    */
   async storeTurn(
     sessionId: string,
@@ -276,15 +280,15 @@ export class ConversationLanceStore {
       references: JSON.stringify(metadata.references || []),
     };
 
-    // Check if turn already exists to prevent duplicates
-    const existingTurn = await this.getTurn(turnId);
-    if (existingTurn) {
-      // Turn exists - delete old version first
-      await this.table!.delete(`id = '${this.escapeSqlString(turnId)}'`);
-    }
+    // Use mergeInsert for efficient upsert (no version bloat)
+    // - If turn exists (matched by id): updates in-place
+    // - If turn doesn't exist: inserts new record
+    // - No delete operation = no extra versions
+    await this.table!.mergeInsert('id')
+      .whenMatchedUpdateAll()
+      .whenNotMatchedInsertAll()
+      .execute([record]);
 
-    // Add new/updated record
-    await this.table!.add([record]);
     return turnId;
   }
 
