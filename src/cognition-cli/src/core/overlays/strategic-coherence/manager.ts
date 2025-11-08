@@ -173,11 +173,12 @@ export class StrategicCoherenceManager {
       );
     }
 
-    const missionConcepts = missionOverlay.extracted_concepts;
-
-    // Validate embeddings exist
-    const conceptsWithEmbeddings = missionConcepts.filter(
-      (c) => c.embedding && c.embedding.length === 768
+    // Load embeddings (v1 from YAML or v2 from LanceDB)
+    const { EmbeddingLoader } = await import('../../pgc/embedding-loader.js');
+    const loader = new EmbeddingLoader();
+    const conceptsWithEmbeddings = await loader.loadConceptsWithEmbeddings(
+      missionOverlay as unknown as import('../../pgc/embedding-loader.js').OverlayData,
+      this.pgcRoot
     );
 
     if (conceptsWithEmbeddings.length === 0) {
@@ -419,6 +420,10 @@ export class StrategicCoherenceManager {
     const allMissionConcepts: MissionConcept[] = [];
     const missionDocumentHashes: string[] = [];
 
+    // Load embeddings helper (v1/v2 compatible)
+    const { EmbeddingLoader } = await import('../../pgc/embedding-loader.js');
+    const loader = new EmbeddingLoader();
+
     for (const docHash of missionDocHashes) {
       const missionOverlay = await this.missionManager.retrieve(docHash);
 
@@ -430,23 +435,22 @@ export class StrategicCoherenceManager {
       }
 
       missionDocumentHashes.push(docHash);
-      allMissionConcepts.push(...missionOverlay.extracted_concepts);
+
+      // Load concepts with embeddings (v1 or v2)
+      const conceptsFromDoc = await loader.loadConceptsWithEmbeddings(
+        missionOverlay as unknown as import('../../pgc/embedding-loader.js').OverlayData,
+        this.pgcRoot
+      );
+      allMissionConcepts.push(...conceptsFromDoc);
     }
 
     if (allMissionConcepts.length === 0) {
       throw new Error(
-        'No mission concepts found in any of the provided documents'
+        'No mission concepts with embeddings found in any of the provided documents'
       );
     }
 
-    // Validate embeddings exist
-    const conceptsWithEmbeddings = allMissionConcepts.filter(
-      (c) => c.embedding && c.embedding.length === 768
-    );
-
-    if (conceptsWithEmbeddings.length === 0) {
-      throw new Error('No mission concepts with embeddings found');
-    }
+    const conceptsWithEmbeddings = allMissionConcepts;
 
     // 2. Load structural patterns (from O₁ vector store)
     const vectorRecords = await this.vectorStore.getAllVectors();
