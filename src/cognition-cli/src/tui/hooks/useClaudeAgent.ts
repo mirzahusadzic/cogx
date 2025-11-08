@@ -595,6 +595,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         // This allows compression to trigger again in the new session
         if (compression.state.triggered) {
           compression.reset();
+          tokenCounter.reset(); // Reset token count for new session
           debug(' Compression flag reset - can compress again in new session');
         }
 
