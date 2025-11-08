@@ -33,6 +33,7 @@ import { formatToolUse } from './rendering/ToolFormatter.js';
 import { stripANSICodes } from './rendering/MessageRenderer.js';
 import { useTurnAnalysis } from './analysis/index.js';
 import type { AnalysisTask } from './analysis/types.js';
+import { useCompression } from './compression/useCompression.js';
 import type { McpSdkServerConfigWithInstance } from '@anthropic-ai/claude-agent-sdk';
 import type { ConversationLattice, TurnAnalysis } from '../../sigma/types.js';
 
@@ -100,7 +101,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   // Sigma state: conversation lattice and analysis
   const [conversationLattice, setConversationLattice] =
     useState<ConversationLattice | null>(null);
-  const lastCompressedSize = useRef<number>(0); // Track compressed token count
   const embedderRef = useRef<EmbeddingService | null>(null);
   const projectRegistryRef = useRef<OverlayRegistry | null>(null);
   const conversationRegistryRef = useRef<ConversationOverlayRegistry | null>(
@@ -109,7 +109,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const recallMcpServerRef = useRef<McpSdkServerConfigWithInstance | null>(
     null
   );
-  const compressionTriggered = useRef(false);
   const messagesRef = useRef<ClaudeMessage[]>(messages); // Ref to avoid effect re-running on every message change
   const userMessageEmbeddingCache = useRef<Map<number, number[]>>(new Map()); // Cache user message embeddings by timestamp
 
@@ -149,6 +148,33 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     cwd,
     sessionId: currentSessionId,
     debug: debugFlag,
+  });
+
+  // Compression orchestration (replaces inline compression trigger logic)
+  const compression = useCompression({
+    tokenCount: tokenCounter.count.total,
+    analyzedTurns: turnAnalysis.stats.totalAnalyzed,
+    isThinking,
+    tokenThreshold: sessionTokens,
+    minTurns: 5,
+    enabled: true,
+    debug: debugFlag,
+    onCompressionTriggered: (tokens, turns) => {
+      debug('🗜️  Triggering compression');
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: 'system',
+          content:
+            `🗜️  Context compression triggered at ${(tokens / 1000).toFixed(1)}K tokens\n` +
+            `Compressing ${turns} turns into intelligent recap...\n` +
+            `(Use --debug flag to see detailed compression metrics)`,
+          timestamp: new Date(),
+        },
+      ]);
+      // TODO: Implement actual compression workflow
+      // For now, just show the message
+    },
   });
 
   /**
@@ -361,34 +387,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           userMessageEmbeddingCache.current.delete(turnTimestamp);
         }
 
-        // Check for compression trigger
-        const TOKEN_THRESHOLD = sessionTokens || 120000;
-        const MIN_TURNS_FOR_COMPRESSION = 5;
-
-        if (
-          tokenCounter.count.total > TOKEN_THRESHOLD &&
-          !compressionTriggered.current &&
-          turnAnalysis.stats.totalAnalyzed >= MIN_TURNS_FOR_COMPRESSION
-        ) {
-          compressionTriggered.current = true;
-          debug('🗜️  Triggering compression');
-
-          setMessages((prev) => [
-            ...prev,
-            {
-              type: 'system',
-              content:
-                `🗜️  Context compression triggered at ${(tokenCounter.count.total / 1000).toFixed(1)}K tokens\n` +
-                `Compressing ${turnAnalysis.stats.totalAnalyzed} turns into intelligent recap...\n` +
-                `(Use --debug flag to see detailed compression metrics)`,
-              timestamp: new Date(),
-            },
-          ]);
-
-          // TODO: Trigger compression asynchronously (will be implemented in Compression Layer)
-          // For now, compression logic is still inline below
-          return;
-        }
+        // Compression trigger is now handled by useCompression hook above
       }
     };
 
@@ -1020,14 +1019,14 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             debug('󱖫 Created anchor state:', anchorId, '→', sdkSessionId);
           } else {
             // Update existing state with new SDK session
-            const reason = compressionTriggered.current
+            const reason = compression.state.triggered
               ? 'compression'
               : 'expiration';
 
             // Get compressed size from the last compression result
             const compressedTokens =
               reason === 'compression'
-                ? lastCompressedSize.current || tokenCounter.count.total
+                ? compression.state.lastCompressedTokens || tokenCounter.count.total
                 : undefined;
 
             const updated = updateSessionState(
@@ -1043,8 +1042,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
             // CRITICAL: Reset compression flag when new SDK session starts
             // This allows compression to trigger again in the new session
-            if (compressionTriggered.current) {
-              compressionTriggered.current = false;
+            if (compression.state.triggered) {
+              compression.reset();
               debugLog(
                 `[COMPRESSION FLAG RESET] New session: ${sdkSessionId}\n` +
                   `  Previous session: ${prev}\n` +
