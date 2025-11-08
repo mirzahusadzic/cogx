@@ -27,6 +27,7 @@ export default defineConfig({
       'src/core/overlays/lineage/__tests__/interface-lineage.test.ts',
     ],
     dangerouslyIgnoreUnhandledErrors: true,
+    globalTeardown: './vitest.global-teardown.ts', // Share same teardown as main config
     maxConcurrency: 1,
     teardownTimeout: 5000,
     hookTimeout: 10000,
