@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { vol } from 'memfs';
-import { GenesisDocTransform } from './genesis-doc-transform.js';
+import { GenesisDocTransform } from '../genesis-doc-transform.js';
 import fs from 'fs-extra';
 import path from 'path';
 
@@ -51,7 +51,7 @@ vi.mock('fs', async () => {
 });
 
 // Mock WorkbenchClient to prevent hitting real API in tests
-vi.mock('../executors/workbench-client.js', () => {
+vi.mock('../../executors/workbench-client.js', () => {
   return {
     WorkbenchClient: vi.fn().mockImplementation(() => ({
       embed: vi.fn().mockResolvedValue({

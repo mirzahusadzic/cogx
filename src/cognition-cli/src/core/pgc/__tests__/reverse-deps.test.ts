@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { vol } from 'memfs';
-import { ReverseDeps } from './reverse-deps.js';
+import { ReverseDeps } from '../reverse-deps.js';
 
 // Mock fs-extra to use memfs
 vi.mock('fs-extra', async () => {

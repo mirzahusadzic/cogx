@@ -22,14 +22,14 @@ vi.mock('workerpool', () => ({
   })),
 }));
 
-import { queryCommand, QueryResult } from './query.js';
-import { PGCManager } from '../pgc/manager.js';
+import { queryCommand, QueryResult } from '../query.js';
+import { PGCManager } from '../../pgc/manager.js';
 import { IndexData } from '../../types/index.js';
-import { Index } from '../pgc/index.js';
-import { ObjectStore } from '../pgc/object-store.js';
+import { Index } from '../../pgc/index.js';
+import { ObjectStore } from '../../pgc/object-store.js';
 import { StructuralData } from '../../types/structural.js';
 
-vi.mock('../pgc/manager.js');
+vi.mock('../../pgc/manager.js');
 
 describe('queryCommand', () => {
   let mockIndex: Mocked<Index>;

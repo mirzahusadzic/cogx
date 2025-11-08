@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { vol } from 'memfs';
-import { PGCManager } from '../../pgc/manager.js';
+import { PGCManager } from '../../../pgc/manager.js';
 import {
   StructuralData,
   StructuralPatternMetadata,
-} from '../../types/structural.js';
+} from '../../../types/structural.js';
 
 // Mock workerpool to prevent Vite worker parsing errors
 vi.mock('workerpool', () => ({

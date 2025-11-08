@@ -10,7 +10,7 @@ describe('EmbeddingService - Integration', () => {
   skipIfNoEGemma(
     'should respect rate limits and queue requests',
     async () => {
-      const { EmbeddingService } = await import('./embedding.js');
+      const { EmbeddingService } = await import('../embedding.js');
       const service = new EmbeddingService(EGGEMMA_URL);
 
       const start = Date.now();
@@ -33,7 +33,7 @@ describe('EmbeddingService - Integration', () => {
 
 // Unit tests - no external dependencies (run in CI/CD)
 describe('EmbeddingService - Unit', () => {
-  let EmbeddingService: typeof import('./embedding.js').EmbeddingService;
+  let EmbeddingService: typeof import('../embedding.js').EmbeddingService;
   let service: InstanceType<typeof EmbeddingService>;
   let mockWorkbenchClient: {
     embed: ReturnType<typeof vi.fn>;
@@ -54,12 +54,12 @@ describe('EmbeddingService - Unit', () => {
     };
 
     // Mock WorkbenchClient module
-    vi.doMock('../executors/workbench-client.js', () => ({
+    vi.doMock('../../executors/workbench-client.js', () => ({
       WorkbenchClient: vi.fn().mockImplementation(() => mockWorkbenchClient),
     }));
 
     // Import after mocking
-    const module = await import('./embedding.js');
+    const module = await import('../embedding.js');
     EmbeddingService = module.EmbeddingService;
     service = new EmbeddingService('http://localhost:8000');
   });
@@ -69,7 +69,7 @@ describe('EmbeddingService - Unit', () => {
     if (service) {
       await service.shutdown().catch(() => {});
     }
-    vi.doUnmock('../executors/workbench-client.js');
+    vi.doUnmock('../../executors/workbench-client.js');
   });
 
   it('should queue requests and process sequentially', async () => {

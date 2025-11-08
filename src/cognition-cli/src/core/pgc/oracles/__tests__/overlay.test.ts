@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { vol } from 'memfs';
-import { OverlayOracle } from './overlay.js';
+import { OverlayOracle } from '../overlay.js';
 import type { PGCManager } from '../manager.js';
 
 // Mock fs-extra to use memfs

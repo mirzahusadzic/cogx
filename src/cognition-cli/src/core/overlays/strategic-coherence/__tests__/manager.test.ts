@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { StrategicCoherenceManager } from './manager.js';
+import { StrategicCoherenceManager } from '../manager.js';
 
 // Mock workerpool to prevent Vite worker parsing errors
 vi.mock('workerpool', () => ({

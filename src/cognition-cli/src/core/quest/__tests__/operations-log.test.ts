@@ -13,7 +13,7 @@ import {
   type TransformEntry,
   type OracleEvaluationEntry,
   type QuestCompleteEntry,
-} from './operations-log.js';
+} from '../operations-log.js';
 
 describe('QuestOperationsLog', () => {
   let log: QuestOperationsLog;

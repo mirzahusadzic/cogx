@@ -13,7 +13,7 @@ import type {
   ConversationLattice,
   ConversationNode,
   TurnAnalysis,
-} from './types.js';
+} from '../types.js';
 
 describe('Sigma Lattice Restoration', () => {
   let testDir: string;

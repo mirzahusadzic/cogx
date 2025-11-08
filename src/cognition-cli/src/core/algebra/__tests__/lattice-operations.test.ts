@@ -15,9 +15,9 @@ import {
   symbolDifference,
   symbolIntersection,
   symbolUnion,
-} from './lattice-operations.js';
-import { OverlayItem, OverlayMetadata } from './overlay-algebra.js';
-import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../config.js';
+} from '../lattice-operations.js';
+import { OverlayItem, OverlayMetadata } from '../overlay-algebra.js';
+import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../../config.js';
 
 // ========================================
 // UNIT TESTS (Mock Data - Always Run)

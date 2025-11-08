@@ -6,8 +6,8 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { LanceVectorStore } from './lance-store.js';
-import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../../config.js';
+import { LanceVectorStore } from '../lance-store.js';
+import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../../../config.js';
 import fs from 'fs-extra';
 import path from 'path';
 import os from 'os';

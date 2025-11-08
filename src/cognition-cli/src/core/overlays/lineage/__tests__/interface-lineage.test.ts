@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { PGCManager } from '../../pgc/manager.js';
-import { WorkerLogic } from './worker.js';
+import { PGCManager } from '../../../pgc/manager.js';
+import { WorkerLogic } from '../worker.js';
 import path from 'path';
 import fs from 'fs-extra';
 import os from 'os';
-import { StructuralData } from '../../types/structural.js';
+import { StructuralData } from '../../../types/structural.js';
 
 // Mock workerpool to prevent Vite worker parsing errors
 vi.mock('workerpool', () => ({

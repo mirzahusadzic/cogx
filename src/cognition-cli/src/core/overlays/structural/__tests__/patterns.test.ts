@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { vol } from 'memfs';
-import { StructuralPatternsManager } from './patterns.js';
+import { StructuralPatternsManager } from '../patterns.js';
 import type { PGCManager } from '../../pgc/manager.js';
 import type { LanceVectorStore } from '../vector-db/lance-store.js';
 import type { WorkbenchClient } from '../../executors/workbench-client.js';

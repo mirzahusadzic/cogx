@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { vol } from 'memfs';
-import { MarkdownParser } from './markdown-parser.js';
+import { MarkdownParser } from '../markdown-parser.js';
 
 // Mock fs to use memfs
 vi.mock('fs/promises', async () => {

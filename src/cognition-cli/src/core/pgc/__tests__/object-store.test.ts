@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { vol } from 'memfs';
 import crypto from 'node:crypto';
-import { ObjectStore } from './object-store.js';
+import { ObjectStore } from '../object-store.js';
 
 // Mock the fs-extra module to use memfs
 vi.mock('fs-extra', async () => {

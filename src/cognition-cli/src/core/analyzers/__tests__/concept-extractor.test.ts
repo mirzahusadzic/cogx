@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ConceptExtractor } from './concept-extractor.js';
+import { ConceptExtractor } from '../concept-extractor.js';
 import { MarkdownDocument } from '../parsers/markdown-parser.js';
 
 describe('ConceptExtractor', () => {

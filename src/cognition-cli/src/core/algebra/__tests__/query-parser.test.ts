@@ -6,10 +6,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { createQueryEngine } from './query-parser.js';
+import { createQueryEngine } from '../query-parser.js';
 
 // Mock the OverlayRegistry since we're testing parser logic only
-vi.mock('./overlay-registry.js', () => {
+vi.mock('../overlay-registry.js', () => {
   // Create mock items that can be used in operations
   const createMockItem = (id: string) => ({
     id,

@@ -22,12 +22,12 @@ vi.mock('workerpool', () => ({
   })),
 }));
 
-import { GenesisOrchestrator } from './genesis.js';
-import { PGCManager } from '../pgc/manager.js';
-import { StructuralMiner } from './miners/structural.js';
-import { WorkbenchClient } from '../executors/workbench-client.js';
-import type { StructuralData } from '../types/structural.js';
-import { StructuralOracle } from '../pgc/oracles/overlay.js';
+import { GenesisOrchestrator } from '../genesis.js';
+import { PGCManager } from '../../pgc/manager.js';
+import { StructuralMiner } from '../miners/structural.js';
+import { WorkbenchClient } from '../../executors/workbench-client.js';
+import type { StructuralData } from '../../types/structural.js';
+import { StructuralOracle } from '../../pgc/oracles/overlay.js';
 
 // Mock fs-extra to use memfs's vol
 vi.mock('fs-extra', async () => {

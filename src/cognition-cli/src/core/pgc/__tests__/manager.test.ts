@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { vol } from 'memfs';
 import path from 'path';
-import { PGCManager } from './manager.ts';
-import { ObjectStore } from './object-store.ts';
-import { GenesisOrchestrator } from '../orchestrators/genesis.ts';
+import { PGCManager } from '../manager.ts';
+import { ObjectStore } from '../object-store.ts';
+import { GenesisOrchestrator } from '../../orchestrators/genesis.ts';
 import { StructuralMiner } from '../../orchestrators/miners/structural.ts';
 import { WorkbenchClient } from '../../executors/workbench-client.ts';
-import { StructuralOracle } from './oracles/overlay.ts';
+import { StructuralOracle } from '../oracles/overlay.ts';
 
 // Mock workerpool to prevent real worker creation in tests
 vi.mock('workerpool', () => ({

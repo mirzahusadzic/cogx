@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { OverlayOrchestrator } from './overlay.js';
+import { OverlayOrchestrator } from '../overlay.js';
 
 // Mock workerpool to prevent Vite worker parsing errors
 vi.mock('workerpool', () => ({
