@@ -164,7 +164,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
   // Compression callback (stable reference to prevent infinite loops)
   const handleCompressionTriggered = useCallback(
-    (tokens: number, turns: number) => {
+    async (tokens: number, turns: number) => {
       debug('🗜️  Triggering compression');
       setMessages((prev) => [
         ...prev,
@@ -172,15 +172,40 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           type: 'system',
           content:
             `🗜️  Context compression triggered at ${(tokens / 1000).toFixed(1)}K tokens\n` +
-            `Compressing ${turns} turns into intelligent recap...\n` +
-            `(Use --debug flag to see detailed compression metrics)`,
+            `Compressing ${turns} turns into intelligent recap...`,
           timestamp: new Date(),
         },
       ]);
-      // TODO: Implement actual compression workflow
-      // For now, just show the message
+
+      try {
+        const { compressContext } = await import('../../sigma/compressor.js');
+        const result = await compressContext(turnAnalysis.analyses, {
+          target_size: 40000,
+        });
+
+        const recap =
+          `COMPRESSED CONVERSATION RECAP (${result.lattice.nodes.length} key turns)\n` +
+          `${(tokens / 1000).toFixed(1)}K → ${(result.compressed_size / 1000).toFixed(1)}K tokens\n\n` +
+          result.lattice.nodes
+            .map((n) => `[${n.role}]: ${n.content.slice(0, 200)}...`)
+            .join('\n\n');
+
+        fs.writeFileSync(
+          path.join(cwd, '.sigma', `${currentSessionId}.recap.txt`),
+          recap,
+          'utf-8'
+        );
+        setInjectedRecap(recap);
+        sessionManager.resetResumeSession();
+
+        debug(
+          `✅ Compression: ${result.lattice.nodes.length} nodes, ${(result.compressed_size / 1000).toFixed(1)}K tokens`
+        );
+      } catch (err) {
+        debug('❌ Compression failed:', (err as Error).message);
+      }
     },
-    [debug]
+    [debug, turnAnalysis, cwd, currentSessionId, sessionManager]
   );
 
   // Compression orchestration (replaces inline compression trigger logic)
