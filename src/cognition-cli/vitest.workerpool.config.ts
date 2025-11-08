@@ -8,10 +8,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    pool: 'vmThreads', // Use VM threads instead of Vite transformation
+    pool: 'forks', // Use forks instead of vmThreads - safer for native modules
     poolOptions: {
-      vmThreads: {
-        useAtomics: true,
+      forks: {
+        singleFork: true, // Run all tests in single fork for LanceDB compatibility
       },
     },
     include: [
