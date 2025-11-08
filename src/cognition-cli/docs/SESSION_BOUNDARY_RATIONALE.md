@@ -97,6 +97,8 @@ Result:
 
 **Key insight:** Proactive compression at a configured threshold (default: 120K tokens) triggers creation of a fresh session with the compressed recap (~3-4K tokens in practice) injected. The original session is archived, and the new session starts at ~15-20K tokens (recap + system prompt + overhead), enabling infinite conversation length.
 
+**Why 120K threshold?** The threshold is set conservatively because Claude may need to perform multiple tool calls and analysis steps (adding 10-20K tokens) before completing the response. Compression actually triggers after the response completes, which could be at 130-140K tokens. The 120K threshold provides a safety buffer to prevent hitting the 150K hard limit mid-task.
+
 ---
 
 ## Why Session Boundaries Are The Right Design
