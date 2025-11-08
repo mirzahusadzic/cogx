@@ -1,6 +1,7 @@
 import { connect, Connection, Table } from '@lancedb/lancedb';
 import path from 'path';
 import fs from 'fs-extra';
+import crypto from 'crypto';
 import {
   Field,
   Schema,
@@ -13,13 +14,26 @@ import {
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../config.js';
 
 /**
+ * Compute hash of embedding vector for content-based ID generation.
+ * Same approach as structural patterns for deduplication.
+ */
+function computeEmbeddingHash(embedding: number[]): string {
+  return crypto
+    .createHash('sha256')
+    .update(JSON.stringify(embedding))
+    .digest('hex')
+    .substring(0, 12); // First 12 chars for readability
+}
+
+/**
  * Represents a document concept record stored in LanceDB.
  * Unified schema for all overlay types (O2, O4, O5, O6).
  */
 export interface DocumentConceptRecord extends Record<string, unknown> {
   // Identity
-  id: string; // Unique ID: <overlay>:<doc_hash>:<concept_index>
+  id: string; // Unique ID: <overlay>:<doc_hash>:<embedding_hash>
   overlay_type: string; // 'O2' | 'O4' | 'O5' | 'O6'
+  embedding_hash: string; // SHA-256 hash of embedding (for deduplication)
 
   // Document provenance
   document_hash: string; // Content hash of source document
@@ -71,6 +85,7 @@ function createDocumentConceptSchema(): Schema {
     // Identity
     new Field('id', new Utf8()),
     new Field('overlay_type', new Utf8()),
+    new Field('embedding_hash', new Utf8()),
 
     // Document provenance
     new Field('document_hash', new Utf8()),
@@ -167,9 +182,13 @@ export class DocumentLanceStore {
         try {
           // Create the table with a complete dummy record
           const schema = createDocumentConceptSchema();
+          const dummyEmbedding = new Array(DEFAULT_EMBEDDING_DIMENSIONS).fill(
+            0.1
+          );
           const dummyRecord: DocumentConceptRecord = {
             id: 'schema_test_record',
             overlay_type: 'O4',
+            embedding_hash: computeEmbeddingHash(dummyEmbedding),
             document_hash: 'test_hash',
             document_path: 'test/path.md',
             transform_id: 'test_transform',
@@ -179,7 +198,7 @@ export class DocumentLanceStore {
             concept_type: 'concept',
             weight: 1.0,
             occurrences: 1,
-            embedding: new Array(DEFAULT_EMBEDDING_DIMENSIONS).fill(0.1),
+            embedding: dummyEmbedding,
             generated_at: Date.now(),
           };
 
@@ -237,7 +256,9 @@ export class DocumentLanceStore {
       );
     }
 
-    const id = `${overlayType}:${documentHash}:${conceptIndex}`;
+    // Generate content-based ID using embedding hash (like structural patterns)
+    const embeddingHash = computeEmbeddingHash(concept.embedding);
+    const id = `${overlayType}:${documentHash}:${embeddingHash}`;
 
     // Check for existing concept and replace if found
     const existingConcept = await this.getConcept(id);
@@ -248,6 +269,7 @@ export class DocumentLanceStore {
     const record: DocumentConceptRecord = {
       id,
       overlay_type: overlayType,
+      embedding_hash: embeddingHash,
       document_hash: documentHash,
       document_path: documentPath,
       transform_id: transformId,
@@ -295,11 +317,14 @@ export class DocumentLanceStore {
         );
       }
 
-      const id = `${overlayType}:${documentHash}:${index}`;
+      // Generate content-based ID using embedding hash (like structural patterns)
+      const embeddingHash = computeEmbeddingHash(concept.embedding);
+      const id = `${overlayType}:${documentHash}:${embeddingHash}`;
 
       return {
         id,
         overlay_type: overlayType,
+        embedding_hash: embeddingHash,
         document_hash: documentHash,
         document_path: documentPath,
         transform_id: transformId,
@@ -609,6 +634,7 @@ export class DocumentLanceStore {
       const plainRecord: DocumentConceptRecord = {
         id: record.id as string,
         overlay_type: record.overlay_type as string,
+        embedding_hash: record.embedding_hash as string,
         document_hash: record.document_hash as string,
         document_path: record.document_path as string,
         transform_id: record.transform_id as string,

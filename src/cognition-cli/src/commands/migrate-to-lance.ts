@@ -22,12 +22,24 @@ interface MigrateOptions {
  * 3. Store in LanceDB (.open_cognition/lance/documents.lancedb)
  * 4. Strip embeddings from YAML (convert to v2 format)
  * 5. Keep YAML files for provenance (metadata only)
+ * 6. Add lancedb_metadata to YAML for retrieval provenance
+ * 7. Migrate mission_integrity versions to LanceDB
+ *
+ * YAML PROVENANCE (v2 format):
+ * - format_version: 2 (indicates embeddings stored in LanceDB)
+ * - lancedb_metadata: Metadata for retrieving embeddings from LanceDB
+ *   - storage_path: Relative path to LanceDB directory
+ *   - overlay_type: Overlay type ID (O2, O4, O5, O6, mission_integrity)
+ *   - document_hash: Document hash for exact retrieval
+ *   - migrated_at: ISO timestamp of migration
+ *   - concepts_count: Number of concepts with embeddings
  *
  * SUPPORTED OVERLAYS:
  * - O2: Security Guidelines (security_guidelines/)
  * - O4: Mission Concepts (mission_concepts/)
  * - O5: Operational Patterns (operational_patterns/)
  * - O6: Mathematical Proofs (mathematical_proofs/)
+ * - Mission Integrity: Version history (mission_integrity/versions.json)
  */
 export async function migrateToLanceCommand(options: MigrateOptions) {
   intro(chalk.bold('Migrate Overlay Embeddings to LanceDB'));
@@ -159,21 +171,33 @@ export async function migrateToLanceCommand(options: MigrateOptions) {
               return conceptWithoutEmbedding;
             });
 
-            // Update overlay with stripped concepts
+            // Update overlay with stripped concepts and LanceDB provenance
             const updatedOverlay = {
               ...overlay,
               format_version: 2, // Mark as v2 format (embeddings in LanceDB)
+              lancedb_metadata: {
+                storage_path: '.open_cognition/lance/documents.lancedb',
+                overlay_type: overlayType,
+                document_hash: overlay.document_hash,
+                migrated_at: new Date().toISOString(),
+                concepts_count: validConcepts.length,
+              },
             };
 
             // Update the concepts array based on overlay type
             if (overlayName === 'mission_concepts') {
               updatedOverlay.extracted_concepts = conceptsWithoutEmbeddings;
             } else if (overlayName === 'security_guidelines') {
-              updatedOverlay.guidelines = conceptsWithoutEmbeddings;
+              updatedOverlay.extracted_knowledge = conceptsWithoutEmbeddings;
             } else if (overlayName === 'operational_patterns') {
-              updatedOverlay.patterns = conceptsWithoutEmbeddings;
+              updatedOverlay.extracted_patterns = conceptsWithoutEmbeddings;
             } else if (overlayName === 'mathematical_proofs') {
-              updatedOverlay.knowledge = conceptsWithoutEmbeddings;
+              // Handle both field names
+              if (overlay.extracted_statements) {
+                updatedOverlay.extracted_statements = conceptsWithoutEmbeddings;
+              } else {
+                updatedOverlay.knowledge = conceptsWithoutEmbeddings;
+              }
             }
 
             // Write back to YAML without embeddings
@@ -207,6 +231,112 @@ export async function migrateToLanceCommand(options: MigrateOptions) {
       });
     }
 
+    // Migrate mission_integrity versions
+    s.start('Migrating mission integrity versions...');
+    const missionIntegrityPath = path.join(pgcRoot, 'mission_integrity');
+    const versionsPath = path.join(missionIntegrityPath, 'versions.json');
+
+    let missionVersionsCount = 0;
+    let missionConceptsCount = 0;
+
+    if (await fs.pathExists(versionsPath)) {
+      try {
+        const versionsData = await fs.readFile(versionsPath, 'utf-8');
+        const versions = JSON.parse(versionsData) as Array<{
+          version: number;
+          hash: string;
+          timestamp: string;
+          author?: string;
+          commitHash?: string;
+          semanticFingerprint: string;
+          conceptEmbeddings: number[][];
+          conceptTexts: string[];
+        }>;
+
+        // Store each version's concepts in LanceDB
+        for (const version of versions) {
+          // Skip if already migrated (no conceptEmbeddings field)
+          if (
+            !version.conceptEmbeddings ||
+            version.conceptEmbeddings.length === 0
+          ) {
+            continue;
+          }
+
+          const concepts = version.conceptEmbeddings.map((embedding, idx) => ({
+            text: version.conceptTexts[idx] || `Concept ${idx}`,
+            section: 'mission',
+            sectionHash: version.hash,
+            type: 'mission_concept',
+            weight: 1.0,
+            occurrences: 1,
+            embedding,
+          }));
+
+          await lanceStore.storeConceptsBatch(
+            'mission_integrity',
+            version.hash,
+            `mission_version_${version.version}`,
+            `mission_integrity:v${version.version}:${version.timestamp}`,
+            concepts
+          );
+
+          missionVersionsCount++;
+          missionConceptsCount += concepts.length;
+        }
+
+        // Check if any versions were migrated
+        if (missionVersionsCount === 0) {
+          s.stop(
+            chalk.dim(
+              '○ mission_integrity: No embeddings found (already migrated)'
+            )
+          );
+        } else {
+          s.stop(
+            chalk.green(
+              `✓ mission_integrity: ${missionVersionsCount} versions, ${missionConceptsCount} concepts`
+            )
+          );
+        }
+
+        // Create v2 versions.json without embeddings
+        if (!options.keepEmbeddings && missionVersionsCount > 0) {
+          const strippedVersions = versions.map((v) => ({
+            version: v.version,
+            hash: v.hash,
+            timestamp: v.timestamp,
+            author: v.author,
+            commitHash: v.commitHash,
+            semanticFingerprint: v.semanticFingerprint,
+            conceptTexts: v.conceptTexts,
+            // Remove conceptEmbeddings, add provenance
+            lancedb_metadata: {
+              storage_path: '.open_cognition/lance/documents.lancedb',
+              overlay_type: 'mission_integrity',
+              document_hash: v.hash,
+              concepts_count: v.conceptEmbeddings.length,
+            },
+          }));
+
+          await fs.writeFile(
+            versionsPath,
+            JSON.stringify(strippedVersions, null, 2),
+            'utf-8'
+          );
+        }
+      } catch (error) {
+        s.stop(chalk.yellow('⚠ Failed to migrate mission_integrity'));
+        log.warn(
+          chalk.yellow(
+            `  Warning: Could not migrate mission_integrity: ${(error as Error).message}`
+          )
+        );
+      }
+    } else {
+      s.stop(chalk.dim('○ mission_integrity: No versions found'));
+    }
+
     await lanceStore.close();
 
     // Summary
@@ -217,9 +347,15 @@ export async function migrateToLanceCommand(options: MigrateOptions) {
         `  ${chalk.cyan(result.overlay)}: ${result.documents} documents, ${result.concepts} concepts`
       );
     });
+    if (missionVersionsCount > 0) {
+      log.info(
+        `  ${chalk.cyan('mission_integrity')}: ${missionVersionsCount} versions, ${missionConceptsCount} concepts`
+      );
+    }
     log.info('');
+    const totalWithMission = totalConcepts + missionConceptsCount;
     log.info(
-      `  ${chalk.bold('Total:')} ${totalDocuments} documents, ${totalConcepts} concepts`
+      `  ${chalk.bold('Total:')} ${totalDocuments} documents + ${missionVersionsCount} versions, ${totalWithMission} concepts`
     );
 
     if (options.dryRun) {
@@ -231,7 +367,7 @@ export async function migrateToLanceCommand(options: MigrateOptions) {
     } else {
       outro(
         chalk.green(
-          `✓ Migration complete! ${totalConcepts} concepts migrated to LanceDB.`
+          `✓ Migration complete! ${totalWithMission} concepts migrated to LanceDB.`
         )
       );
       log.info('');
@@ -274,9 +410,12 @@ function overlayNameToType(overlayName: string): string {
 
 interface OverlayDocument {
   extracted_concepts?: Array<MissionConcept & { type?: string }>;
-  guidelines?: Array<MissionConcept & { type?: string }>;
-  patterns?: Array<MissionConcept & { type?: string }>;
+  extracted_knowledge?: Array<MissionConcept & { type?: string }>;
+  extracted_patterns?: Array<MissionConcept & { type?: string }>;
   knowledge?: Array<MissionConcept & { type?: string }>;
+  extracted_statements?: Array<
+    MissionConcept & { type?: string; statementType?: string }
+  >;
 }
 
 /**
@@ -289,11 +428,12 @@ function extractConceptsFromOverlay(
   if (overlayName === 'mission_concepts') {
     return overlay.extracted_concepts || [];
   } else if (overlayName === 'security_guidelines') {
-    return overlay.guidelines || [];
+    return overlay.extracted_knowledge || [];
   } else if (overlayName === 'operational_patterns') {
-    return overlay.patterns || [];
+    return overlay.extracted_patterns || [];
   } else if (overlayName === 'mathematical_proofs') {
-    return overlay.knowledge || [];
+    // Try both 'knowledge' and 'extracted_statements' fields
+    return overlay.extracted_statements || overlay.knowledge || [];
   }
 
   return [];
