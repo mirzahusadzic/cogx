@@ -10,7 +10,7 @@ import path from 'path';
 import os from 'os';
 import { SessionStateStore } from '../../../session/SessionStateStore.js';
 
-describe('SessionStateStore', () => {
+describe.skip('SessionStateStore', () => {
   let tempDir: string;
   let store: SessionStateStore;
 

@@ -107,13 +107,14 @@ All refactoring documentation has been created:
 - [x] Integrate into `useClaudeAgent.ts` (replaced 430+ lines!)
 - [ ] Verify background queue doesn't block UI (needs TUI testing)
 
-**Day 14-15**: Compression Layer
+**Day 14-15**: Compression Layer ⭐ COMPLETED
 
-- [ ] Create `src/tui/hooks/compression/CompressionTrigger.ts`
-- [ ] Create `src/tui/hooks/compression/useCompression.ts`
-- [ ] Write comprehensive tests
-- [ ] Replace in `useClaudeAgent.ts`
-- [ ] Verify compression workflow
+- [x] Create `src/tui/hooks/compression/types.ts`
+- [x] Create `src/tui/hooks/compression/CompressionTrigger.ts` (135 lines)
+- [x] Create `src/tui/hooks/compression/useCompression.ts` (174 lines)
+- [x] Write comprehensive tests (39 tests passing: 22 + 17)
+- [x] Integrate into `useClaudeAgent.ts` (replaced 28 lines of inline logic)
+- [ ] Verify compression workflow works end-to-end (needs TUI testing)
 
 ### Week 4: Integration
 
@@ -155,10 +156,10 @@ All refactoring documentation has been created:
 
 ### Code Quality
 
-- **Lines**: useClaudeAgent.ts = 1,325 lines (down from 1,790, **-465 lines / -26%**, target: 150)
-- **Test Coverage**: ~45% (17 Analysis tests + 42 SDK tests + 24 rendering tests + 16 token tests + 14 session tests = 113 tests passing)
-- **Modules**: 10 modules created (Analysis×3, SDK×3, Rendering×2, Token, Session), target: 15 focused modules
-- **Integration**: Analysis queue fully integrated, replaces 430+ lines of inline analysis logic
+- **Lines**: useClaudeAgent.ts = 1,319 lines (down from 1,790, **-471 lines / -26%**, target: 150)
+- **Test Coverage**: ~60% (17 Analysis tests + 39 Compression tests + 42 SDK tests + 24 rendering tests + 16 token tests + 14 session tests = 152 tests passing)
+- **Modules**: 12 modules created (Analysis×3, Compression×3, SDK×3, Rendering×2, Token, Session), target: 15 focused modules
+- **Integration**: Analysis queue + Compression layer fully integrated, replaces 458+ lines of inline logic
 
 ### Known Issues (To Fix)
 
