@@ -538,7 +538,9 @@ export abstract class BaseConversationManager<
    * Check if a turn is relevant to this specific overlay.
    * Override in subclasses for custom filtering logic.
    *
-   * Default: Check if the overlay-specific alignment score > 0
+   * Default: For conversation overlays, store ALL turns in O1 (Structural)
+   * to ensure complete conversation history in LanceDB. Other overlays filter
+   * by alignment score.
    */
   protected isRelevantToOverlay(turn: {
     turn_id: string;
@@ -550,12 +552,18 @@ export abstract class BaseConversationManager<
     novelty: number;
     importance: number;
   }): boolean {
+    const overlayId = this.getOverlayId();
+
+    // O1 (Structural) stores ALL turns for complete conversation history
+    // This ensures embeddings are always written to LanceDB
+    if (overlayId === 'O1') {
+      return true;
+    }
+
+    // Other overlays filter by alignment score
     const alignmentScores = this.extractAlignmentScores(
       turn.project_alignment_score
     );
-
-    // Get this overlay's ID (O1, O2, etc.)
-    const overlayId = this.getOverlayId();
     const scoreKey = `alignment_${overlayId}` as keyof typeof alignmentScores;
 
     // Include if alignment score > 0 OR importance >= 8 (critical turns)
