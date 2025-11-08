@@ -380,6 +380,50 @@ export async function migrateToLanceCommand(options: MigrateOptions) {
       );
     }
 
+    // Compact LanceDB to remove version bloat
+    s.start('Compacting Sigma LanceDB...');
+    let lanceCompacted = false;
+    let lanceReduction = 0;
+
+    try {
+      const { compactConversationLanceDB } = await import(
+        '../sigma/compact-lancedb.js'
+      );
+      const compactionResult = await compactConversationLanceDB(
+        options.projectRoot,
+        {
+          dryRun: options.dryRun,
+          verbose: false,
+        }
+      );
+
+      lanceReduction = compactionResult.reduction.percentage;
+
+      if (compactionResult.reduction.bytes > 1024 * 1024) {
+        lanceCompacted = true;
+        const formatBytes = (bytes: number) => {
+          if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
+          return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+        };
+        s.stop(
+          chalk.green(
+            `✓ LanceDB compacted: ${formatBytes(compactionResult.before.dataSize)} → ${formatBytes(compactionResult.after.dataSize)} (${lanceReduction}% reduction)`
+          )
+        );
+      } else {
+        s.stop(chalk.dim('○ LanceDB: No compaction needed'));
+      }
+    } catch (error) {
+      s.stop(chalk.dim('○ LanceDB compaction skipped'));
+      if (options.dryRun === false) {
+        log.warn(
+          chalk.dim(
+            `  Note: Could not compact LanceDB: ${(error as Error).message}`
+          )
+        );
+      }
+    }
+
     // Summary
     console.log('');
     log.info(chalk.bold('Migration Summary:'));

@@ -77,7 +77,7 @@ interface ConversationSearchResult extends Record<string, unknown> {
  * Apache Arrow schema for conversation turn records.
  * Designed for Sigma's infinite context with dual-lattice architecture.
  */
-function createConversationTurnSchema(): Schema {
+export function createConversationTurnSchema(): Schema {
   return new Schema([
     // Identity
     new Field('id', new Utf8()),
@@ -255,12 +255,6 @@ export class ConversationLanceStore {
       );
     }
 
-    // Check for existing turn and replace if found
-    const existingTurn = await this.getTurn(turnId);
-    if (existingTurn) {
-      await this.deleteTurn(turnId);
-    }
-
     const record: ConversationTurnRecord = {
       id: turnId,
       session_id: sessionId,
@@ -282,6 +276,14 @@ export class ConversationLanceStore {
       references: JSON.stringify(metadata.references || []),
     };
 
+    // Check if turn already exists to prevent duplicates
+    const existingTurn = await this.getTurn(turnId);
+    if (existingTurn) {
+      // Turn exists - delete old version first
+      await this.table!.delete(`id = '${this.escapeSqlString(turnId)}'`);
+    }
+
+    // Add new/updated record
     await this.table!.add([record]);
     return turnId;
   }
