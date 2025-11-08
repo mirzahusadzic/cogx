@@ -115,6 +115,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const [conversationLattice, setConversationLattice] =
     useState<ConversationLattice | null>(null);
   const turnAnalyses = useRef<TurnAnalysis[]>([]);
+  const lastCompressedSize = useRef<number>(0); // Track compressed token count
   const embedderRef = useRef<EmbeddingService | null>(null);
   const projectRegistryRef = useRef<OverlayRegistry | null>(null);
   const conversationRegistryRef = useRef<ConversationOverlayRegistry | null>(
@@ -529,6 +530,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
             // Store compressed lattice
             setConversationLattice(compressionResult.lattice);
+
+            // Store compressed size for session state tracking
+            lastCompressedSize.current = compressionResult.compressed_size;
 
             // Log compression stats
             debugLog(
@@ -1345,11 +1349,17 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             const reason = compressionTriggered.current
               ? 'compression'
               : 'expiration';
+
+            // Get compressed size from the last compression result
+            const compressedTokens = reason === 'compression'
+              ? lastCompressedSize.current || tokenCount.total
+              : undefined;
+
             const updated = updateSessionState(
               state,
               sdkSessionId,
               reason,
-              reason === 'compression' ? tokenCount.total : undefined
+              compressedTokens
             );
             saveSessionState(updated, cwd);
             debug(
