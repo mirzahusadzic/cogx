@@ -406,7 +406,10 @@ export class ConversationLanceStore {
         session_id: result.session_id,
         role: result.role,
         content: result.content,
-        timestamp: result.timestamp,
+        timestamp:
+          typeof result.timestamp === 'bigint'
+            ? Number(result.timestamp)
+            : result.timestamp,
         similarity: this.calculateSimilarity(result._distance, distanceType),
         metadata: {
           novelty: result.novelty,
