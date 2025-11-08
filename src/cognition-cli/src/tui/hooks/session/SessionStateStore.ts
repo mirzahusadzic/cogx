@@ -163,7 +163,7 @@ export class SessionStateStore {
    */
   loadForResume(): SessionLoadResult {
     // Try to migrate if needed
-    let state = this.migrate();
+    const state = this.migrate();
 
     if (!state) {
       // No state - fresh session

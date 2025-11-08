@@ -5,10 +5,7 @@
  * Extracted from useClaudeAgent.ts to make trigger logic testable and maintainable.
  */
 
-import type {
-  CompressionOptions,
-  CompressionTriggerResult,
-} from './types.js';
+import type { CompressionOptions, CompressionTriggerResult } from './types.js';
 
 /**
  * Manages compression trigger logic

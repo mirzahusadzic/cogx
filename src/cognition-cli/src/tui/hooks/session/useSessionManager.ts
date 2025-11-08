@@ -13,7 +13,11 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { SessionStateStore } from './SessionStateStore.js';
-import type { SessionOptions, SessionState, SessionUpdateEvent } from './types.js';
+import type {
+  SessionOptions,
+  SessionState,
+  SessionUpdateEvent,
+} from './types.js';
 import type { TurnAnalysis } from '../../../sigma/types.js';
 
 export interface UseSessionManagerOptions extends SessionOptions {
@@ -67,7 +71,13 @@ export interface UseSessionManagerResult {
 export function useSessionManager(
   options: UseSessionManagerOptions
 ): UseSessionManagerResult {
-  const { sessionIdProp, cwd, debug = false, onSessionLoaded, onSDKSessionChanged } = options;
+  const {
+    sessionIdProp,
+    cwd,
+    debug = false,
+    onSessionLoaded,
+    onSDKSessionChanged,
+  } = options;
 
   // Generate stable anchor ID (only computed once)
   const anchorId = useMemo(

@@ -4,8 +4,8 @@
  * Week 1 Day 4-5: Extract Session Management
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
 import fs from 'fs-extra';
 import path from 'path';
 import os from 'os';

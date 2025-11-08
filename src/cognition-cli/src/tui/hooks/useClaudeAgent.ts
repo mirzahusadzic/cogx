@@ -1026,7 +1026,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             // Get compressed size from the last compression result
             const compressedTokens =
               reason === 'compression'
-                ? compression.state.lastCompressedTokens || tokenCounter.count.total
+                ? compression.state.lastCompressedTokens ||
+                  tokenCounter.count.total
                 : undefined;
 
             const updated = updateSessionState(

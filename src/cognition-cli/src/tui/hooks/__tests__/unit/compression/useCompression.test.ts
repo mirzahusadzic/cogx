@@ -194,16 +194,13 @@ describe('useCompression', () => {
   describe('Reset', () => {
     it('should reset triggered state', async () => {
       const onTrigger = vi.fn();
-      const { result, rerender } = renderHook(
-        (props) => useCompression(props),
-        {
-          initialProps: {
-            ...defaultOptions,
-            tokenCount: 130000,
-            onCompressionTriggered: onTrigger,
-          },
-        }
-      );
+      const { result } = renderHook((props) => useCompression(props), {
+        initialProps: {
+          ...defaultOptions,
+          tokenCount: 130000,
+          onCompressionTriggered: onTrigger,
+        },
+      });
 
       // Wait for trigger
       await waitFor(() => {
@@ -276,9 +273,12 @@ describe('useCompression', () => {
     });
 
     it('should reflect updated token count', () => {
-      const { result, rerender } = renderHook((props) => useCompression(props), {
-        initialProps: defaultOptions,
-      });
+      const { result, rerender } = renderHook(
+        (props) => useCompression(props),
+        {
+          initialProps: defaultOptions,
+        }
+      );
 
       rerender({
         ...defaultOptions,
@@ -380,7 +380,7 @@ describe('useCompression', () => {
   describe('Debug Mode', () => {
     it('should log when debug is enabled', async () => {
       const consoleSpy = vi.spyOn(console, 'log');
-      const { result } = renderHook(() =>
+      renderHook(() =>
         useCompression({
           ...defaultOptions,
           tokenCount: 130000,
