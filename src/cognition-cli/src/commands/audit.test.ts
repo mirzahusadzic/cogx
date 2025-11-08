@@ -7,6 +7,20 @@ import { PGCManager } from '../core/pgc/manager';
 import { IndexData } from '../core/types';
 import { TransformData } from '../core/types/transform';
 
+// Mock workerpool to prevent Vite worker parsing errors
+vi.mock('workerpool', () => ({
+  default: {
+    pool: vi.fn(() => ({
+      exec: vi.fn(),
+      terminate: vi.fn(),
+    })),
+  },
+  pool: vi.fn(() => ({
+    exec: vi.fn(),
+    terminate: vi.fn(),
+  })),
+}));
+
 vi.mock('fs-extra', async () => {
   const memfs = await vi.importActual<typeof import('memfs')>('memfs');
   const promises = memfs.fs.promises;

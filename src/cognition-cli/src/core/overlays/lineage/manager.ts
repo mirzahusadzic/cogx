@@ -101,10 +101,13 @@ export class LineagePatternsManager implements PatternManager {
       )
     );
 
-    this.workerPool = workerpool.pool(this.workerScriptPath, {
-      workerType: 'thread', // Use worker_threads instead of child processes for better cleanup
-      maxWorkers: workerCount,
-    });
+    this.workerPool = workerpool.pool(
+      this.workerScriptPath,
+      /* @vite-ignore */ {
+        workerType: 'thread', // Use worker_threads instead of child processes for better cleanup
+        maxWorkers: workerCount,
+      }
+    );
   }
 
   /**

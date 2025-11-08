@@ -1,9 +1,41 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig, Plugin } from 'vitest/config';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
+// Plugin to prevent Vite from analyzing workerpool's worker code
+const skipWorkerpoolPlugin = (): Plugin => ({
+  name: 'skip-workerpool-worker-analysis',
+  resolveId(id) {
+    if (id === 'workerpool') {
+      return { id: 'workerpool-mock', external: false };
+    }
+  },
+  load(id) {
+    if (id === 'workerpool-mock') {
+      return `
+        export const pool = () => ({ exec: async () => ({}), terminate: async () => {} });
+        export default { pool };
+      `;
+    }
+  },
+});
+
 export default defineConfig({
-  plugins: [tsconfigPaths()],
+  plugins: [tsconfigPaths(), skipWorkerpoolPlugin()],
   test: {
+    // Exclude workerpool tests - they run in a separate config with vmThreads pool
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      'src/commands/audit.test.ts',
+      'src/core/orchestrators/genesis.test.ts',
+      'src/core/orchestrators/genesis.gc.test.ts',
+      'src/core/orchestrators/overlay.test.ts',
+      'src/core/pgc/manager.test.ts',
+      'src/core/query/query.test.ts',
+      'src/core/overlays/lineage/worker.test.ts',
+      'src/core/overlays/strategic-coherence/manager.test.ts',
+      'src/core/overlays/lineage/interface-lineage.test.ts',
+    ],
     globals: true,
     environment: 'happy-dom',
     setupFiles: ['./vitest.setup.ts'],

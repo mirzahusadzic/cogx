@@ -1,5 +1,19 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { StrategicCoherenceManager } from './manager.js';
+
+// Mock workerpool to prevent Vite worker parsing errors
+vi.mock('workerpool', () => ({
+  default: {
+    pool: vi.fn(() => ({
+      exec: vi.fn(),
+      terminate: vi.fn(),
+    })),
+  },
+  pool: vi.fn(() => ({
+    exec: vi.fn(),
+    terminate: vi.fn(),
+  })),
+}));
 
 // Helper to access private methods for testing
 type ManagerWithPrivate = StrategicCoherenceManager & {

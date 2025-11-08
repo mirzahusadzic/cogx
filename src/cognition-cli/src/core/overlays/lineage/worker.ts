@@ -18,7 +18,8 @@ import {
 import { IndexData } from '../../types/index.js';
 
 // This class encapsulates the logic a worker can perform.
-class WorkerLogic {
+// Exported for testing purposes
+export class WorkerLogic {
   constructor(private pgc: PGCManager) {}
 
   private _formatAsLineageJSON(

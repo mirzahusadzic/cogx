@@ -1,10 +1,31 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { PGCManager } from '../../pgc/manager.js';
 import { WorkerLogic } from './worker.js';
 import path from 'path';
 import fs from 'fs-extra';
 import os from 'os';
 import { StructuralData } from '../../types/structural.js';
+
+// Mock workerpool to prevent Vite worker parsing errors
+vi.mock('workerpool', () => ({
+  default: {
+    pool: vi.fn(() => ({
+      exec: vi.fn(),
+      terminate: vi.fn(),
+    })),
+    worker: vi.fn(),
+  },
+  pool: vi.fn(() => ({
+    exec: vi.fn(),
+    terminate: vi.fn(),
+  })),
+  worker: vi.fn(),
+}));
+
+// Mock proper-lockfile for manifest updates
+vi.mock('proper-lockfile', () => ({
+  lock: vi.fn(async () => vi.fn(async () => {})),
+}));
 
 /**
  * Comprehensive tests for interface lineage extraction
@@ -20,13 +41,42 @@ describe('Interface Lineage Extraction', () => {
   let pgc: PGCManager;
   let workerLogic: WorkerLogic;
 
+  /**
+   * Helper function to add PGC transform history for a structural hash.
+   * This creates the transform log entry and reverse dependency mapping
+   * that the lineage worker requires to trace dependencies.
+   */
+  async function addTransformHistory(
+    filePath: string,
+    contentHash: string,
+    structuralHash: string
+  ): Promise<string> {
+    const transformId = await pgc.transformLog.record({
+      goal: {
+        objective: 'Extract structural metadata for test',
+        criteria: ['Valid syntax', 'Complete structure'],
+        phimin: 0.8,
+      },
+      inputs: [{ path: filePath, hash: contentHash }],
+      outputs: [{ path: filePath, hash: structuralHash }],
+      method: 'ast_native',
+      fidelity: 1.0,
+    });
+
+    // Add reverse dependencies so lineage worker can find this transform
+    await pgc.reverseDeps.add(contentHash, transformId);
+    await pgc.reverseDeps.add(structuralHash, transformId);
+
+    return transformId;
+  }
+
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pgc-interface-test-'));
     pgc = new PGCManager(tempDir);
     workerLogic = new WorkerLogic(pgc);
 
-    // Initialize PGC structure
-    await fs.ensureDir(path.join(tempDir, '.pgc'));
+    // Initialize PGC structure (.open_cognition/pgc)
+    await fs.ensureDir(path.join(tempDir, '.open_cognition', 'pgc'));
   });
 
   afterEach(async () => {
@@ -91,23 +141,33 @@ describe('Interface Lineage Extraction', () => {
       JSON.stringify(jobResultInterface)
     );
 
-    // Create index entries
-    await pgc.index.update(
+    // Create PGC transform history for both symbols
+    const structDataTransform = await addTransformHistory(
       'src/types/structural.ts',
-      'StructuralData',
-      structDataHash,
       'content-hash-1',
-      'Valid',
-      []
+      structDataHash
     );
-    await pgc.index.update(
+    const jobResultTransform = await addTransformHistory(
       'src/types/job.ts',
-      'JobResult',
-      jobResultHash,
       'content-hash-2',
-      'Valid',
-      []
+      jobResultHash
     );
+
+    // Create index entries
+    await pgc.index.set('src/types/structural.ts', {
+      path: 'src/types/structural.ts',
+      content_hash: 'content-hash-1',
+      structural_hash: structDataHash,
+      status: 'Valid',
+      history: [structDataTransform],
+    });
+    await pgc.index.set('src/types/job.ts', {
+      path: 'src/types/job.ts',
+      content_hash: 'content-hash-2',
+      structural_hash: jobResultHash,
+      status: 'Valid',
+      history: [jobResultTransform],
+    });
 
     // Create structural patterns manifest
     await pgc.overlays.updateManifest(
@@ -217,22 +277,32 @@ describe('Interface Lineage Extraction', () => {
       JSON.stringify(appConfigInterface)
     );
 
-    await pgc.index.update(
+    // Create PGC transform history
+    const dbConfigTransform = await addTransformHistory(
       'src/config/db.ts',
-      'DatabaseConfig',
-      dbConfigHash,
       'hash-1',
-      'Valid',
-      []
+      dbConfigHash
     );
-    await pgc.index.update(
+    const appConfigTransform = await addTransformHistory(
       'src/config/app.ts',
-      'AppConfig',
-      appConfigHash,
       'hash-2',
-      'Valid',
-      []
+      appConfigHash
     );
+
+    await pgc.index.set('src/config/db.ts', {
+      path: 'src/config/db.ts',
+      content_hash: 'hash-1',
+      structural_hash: dbConfigHash,
+      status: 'Valid',
+      history: [dbConfigTransform],
+    });
+    await pgc.index.set('src/config/app.ts', {
+      path: 'src/config/app.ts',
+      content_hash: 'hash-2',
+      structural_hash: appConfigHash,
+      status: 'Valid',
+      history: [appConfigTransform],
+    });
 
     await pgc.overlays.updateManifest(
       'structural_patterns',
@@ -327,15 +397,32 @@ describe('Interface Lineage Extraction', () => {
       JSON.stringify(collectionInterface)
     );
 
-    await pgc.index.update('src/item.ts', 'Item', itemHash, 'h1', 'Valid', []);
-    await pgc.index.update(
-      'src/collection.ts',
-      'Collection',
-      collectionHash,
-      'h2',
-      'Valid',
-      []
+    // Create PGC transform history
+    const itemTransform = await addTransformHistory(
+      'src/item.ts',
+      'h1',
+      itemHash
     );
+    const collectionTransform = await addTransformHistory(
+      'src/collection.ts',
+      'h2',
+      collectionHash
+    );
+
+    await pgc.index.set('src/item.ts', {
+      path: 'src/item.ts',
+      content_hash: 'h1',
+      structural_hash: itemHash,
+      status: 'Valid',
+      history: [itemTransform],
+    });
+    await pgc.index.set('src/collection.ts', {
+      path: 'src/collection.ts',
+      content_hash: 'h2',
+      structural_hash: collectionHash,
+      status: 'Valid',
+      history: [collectionTransform],
+    });
 
     await pgc.overlays.updateManifest(
       'structural_patterns',
@@ -430,22 +517,32 @@ describe('Interface Lineage Extraction', () => {
       JSON.stringify(resultInterface)
     );
 
-    await pgc.index.update(
+    // Create PGC transform history
+    const successTransform = await addTransformHistory(
       'src/success.ts',
-      'Success',
-      successHash,
       'h1',
-      'Valid',
-      []
+      successHash
     );
-    await pgc.index.update(
+    const resultTransform = await addTransformHistory(
       'src/result.ts',
-      'Result',
-      resultHash,
       'h2',
-      'Valid',
-      []
+      resultHash
     );
+
+    await pgc.index.set('src/success.ts', {
+      path: 'src/success.ts',
+      content_hash: 'h1',
+      structural_hash: successHash,
+      status: 'Valid',
+      history: [successTransform],
+    });
+    await pgc.index.set('src/result.ts', {
+      path: 'src/result.ts',
+      content_hash: 'h2',
+      structural_hash: resultHash,
+      status: 'Valid',
+      history: [resultTransform],
+    });
 
     await pgc.overlays.updateManifest(
       'structural_patterns',
@@ -524,14 +621,20 @@ describe('Interface Lineage Extraction', () => {
       JSON.stringify(simpleInterface)
     );
 
-    await pgc.index.update(
+    // Create PGC transform history
+    const simpleTransform = await addTransformHistory(
       'src/simple.ts',
-      'Simple',
-      simpleHash,
       'h1',
-      'Valid',
-      []
+      simpleHash
     );
+
+    await pgc.index.set('src/simple.ts', {
+      path: 'src/simple.ts',
+      content_hash: 'h1',
+      structural_hash: simpleHash,
+      status: 'Valid',
+      history: [simpleTransform],
+    });
     await pgc.overlays.updateManifest(
       'structural_patterns',
       'Simple',
@@ -603,22 +706,32 @@ describe('Interface Lineage Extraction', () => {
       JSON.stringify(asyncInterface)
     );
 
-    await pgc.index.update(
+    // Create PGC transform history
+    const responseTransform = await addTransformHistory(
       'src/response.ts',
-      'Response',
-      responseHash,
       'h1',
-      'Valid',
-      []
+      responseHash
     );
-    await pgc.index.update(
+    const asyncTransform = await addTransformHistory(
       'src/async.ts',
-      'AsyncOperation',
-      asyncHash,
       'h2',
-      'Valid',
-      []
+      asyncHash
     );
+
+    await pgc.index.set('src/response.ts', {
+      path: 'src/response.ts',
+      content_hash: 'h1',
+      structural_hash: responseHash,
+      status: 'Valid',
+      history: [responseTransform],
+    });
+    await pgc.index.set('src/async.ts', {
+      path: 'src/async.ts',
+      content_hash: 'h2',
+      structural_hash: asyncHash,
+      status: 'Valid',
+      history: [asyncTransform],
+    });
 
     await pgc.overlays.updateManifest(
       'structural_patterns',
@@ -741,30 +854,44 @@ describe('Interface Lineage Extraction', () => {
       JSON.stringify(serviceInterface)
     );
 
-    await pgc.index.update(
+    // Create PGC transform history
+    const configTransform = await addTransformHistory(
       'src/config.ts',
-      'Config',
-      configHash,
       'h1',
-      'Valid',
-      []
+      configHash
     );
-    await pgc.index.update(
+    const loggerTransform = await addTransformHistory(
       'src/logger.ts',
-      'Logger',
-      loggerHash,
       'h2',
-      'Valid',
-      []
+      loggerHash
     );
-    await pgc.index.update(
+    const serviceTransform = await addTransformHistory(
       'src/service.ts',
-      'Service',
-      serviceHash,
       'h3',
-      'Valid',
-      []
+      serviceHash
     );
+
+    await pgc.index.set('src/config.ts', {
+      path: 'src/config.ts',
+      content_hash: 'h1',
+      structural_hash: configHash,
+      status: 'Valid',
+      history: [configTransform],
+    });
+    await pgc.index.set('src/logger.ts', {
+      path: 'src/logger.ts',
+      content_hash: 'h2',
+      structural_hash: loggerHash,
+      status: 'Valid',
+      history: [loggerTransform],
+    });
+    await pgc.index.set('src/service.ts', {
+      path: 'src/service.ts',
+      content_hash: 'h3',
+      structural_hash: serviceHash,
+      status: 'Valid',
+      history: [serviceTransform],
+    });
 
     await pgc.overlays.updateManifest(
       'structural_patterns',

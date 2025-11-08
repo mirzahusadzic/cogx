@@ -8,6 +8,20 @@ import {
   Mocked,
 } from 'vitest';
 
+// Mock workerpool to prevent Vite worker parsing errors
+vi.mock('workerpool', () => ({
+  default: {
+    pool: vi.fn(() => ({
+      exec: vi.fn(),
+      terminate: vi.fn(),
+    })),
+  },
+  pool: vi.fn(() => ({
+    exec: vi.fn(),
+    terminate: vi.fn(),
+  })),
+}));
+
 import { queryCommand, QueryResult } from './query.js';
 import { PGCManager } from '../pgc/manager.js';
 import { IndexData } from '../../types/index.js';

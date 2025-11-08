@@ -6,6 +6,20 @@ import {
   StructuralPatternMetadata,
 } from '../../types/structural.js';
 
+// Mock workerpool to prevent Vite worker parsing errors
+vi.mock('workerpool', () => ({
+  default: {
+    pool: vi.fn(() => ({
+      exec: vi.fn(),
+      terminate: vi.fn(),
+    })),
+  },
+  pool: vi.fn(() => ({
+    exec: vi.fn(),
+    terminate: vi.fn(),
+  })),
+}));
+
 // Mock fs-extra to use memfs
 vi.mock('fs-extra', async () => {
   const actualMemfs = await vi.importActual<typeof import('memfs')>('memfs');

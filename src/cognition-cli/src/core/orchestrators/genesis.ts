@@ -205,7 +205,7 @@ export class GenesisOrchestrator {
 
     this.workerPool = workerpool.pool(
       path.resolve(__dirname, '../../../dist/genesis-worker.cjs'),
-      {
+      /* @vite-ignore */ {
         workerType: 'thread', // Use worker_threads instead of child processes for better cleanup
         maxWorkers: workerCount,
       }
