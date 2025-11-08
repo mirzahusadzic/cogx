@@ -69,8 +69,8 @@ export function useSessionManager(
     undefined
   );
 
-  // Track if we've received SDK session ID
-  const hasReceivedSDKSessionIdRef = useRef(false);
+  // Track if we've received SDK session ID (use state for observability)
+  const [hasReceivedSDKSessionId, setHasReceivedSDKSessionId] = useState(false);
 
   // Compression flag (used to determine reason for session change)
   const compressionTriggeredRef = useRef(false);
@@ -139,7 +139,7 @@ export function useSessionManager(
 
   // Mark that SDK session ID was received
   const markSDKSessionReceived = useCallback(() => {
-    hasReceivedSDKSessionIdRef.current = true;
+    setHasReceivedSDKSessionId(true);
   }, []);
 
   // Update session statistics
@@ -191,7 +191,7 @@ export function useSessionManager(
     anchorId,
     currentSessionId,
     resumeSessionId,
-    hasReceivedSDKSessionId: hasReceivedSDKSessionIdRef.current,
+    hasReceivedSDKSessionId,
     updateCurrentSession,
     updateResumeSession,
     markSDKSessionReceived,
