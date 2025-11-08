@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { SDKMessage, Query } from '@anthropic-ai/claude-agent-sdk';
 import path from 'path';
+import fs from 'fs';
 import chalk from 'chalk';
 import { EmbeddingService } from '../../core/services/embedding.js';
 import { OverlayRegistry } from '../../core/algebra/overlay-registry.js';
@@ -21,6 +22,7 @@ import { useTurnAnalysis } from './analysis/index.js';
 import { useCompression } from './compression/useCompression.js';
 import type { McpSdkServerConfigWithInstance } from '@anthropic-ai/claude-agent-sdk';
 import type { ConversationLattice } from '../../sigma/types.js';
+import type { AnalysisTask } from './analysis/types.js';
 
 interface UseClaudeAgentOptions {
   sessionId?: string;
@@ -102,24 +104,26 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     (m) => m.type === 'user' || m.type === 'assistant'
   ).length;
 
-  // Session management (extracted to useSessionManager hook)
-  const sessionManager = useSessionManager({
-    sessionIdProp,
-    cwd,
-    debug: debugFlag,
-    onSessionLoaded: (message) => {
-      if (message) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            type: 'system',
-            content: message,
-            timestamp: new Date(),
-          },
-        ]);
-      }
-    },
-    onSDKSessionChanged: (event) => {
+  // Session callbacks (stable references to prevent infinite loops)
+  const handleSessionLoaded = useCallback((message?: string) => {
+    if (message) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: 'system',
+          content: message,
+          timestamp: new Date(),
+        },
+      ]);
+    }
+  }, []);
+
+  const handleSDKSessionChanged = useCallback(
+    (event: {
+      previousSessionId: string;
+      newSessionId: string;
+      reason: string;
+    }) => {
       if (debugFlag) {
         console.log(
           chalk.dim(
@@ -128,6 +132,16 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         );
       }
     },
+    [debugFlag]
+  );
+
+  // Session management (extracted to useSessionManager hook)
+  const sessionManager = useSessionManager({
+    sessionIdProp,
+    cwd,
+    debug: debugFlag,
+    onSessionLoaded: handleSessionLoaded,
+    onSDKSessionChanged: handleSDKSessionChanged,
   });
 
   // Convenient aliases for session state
@@ -148,16 +162,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     debug: debugFlag,
   });
 
-  // Compression orchestration (replaces inline compression trigger logic)
-  const compression = useCompression({
-    tokenCount: tokenCounter.count.total,
-    analyzedTurns: turnAnalysis.stats.totalAnalyzed,
-    isThinking,
-    tokenThreshold: sessionTokens,
-    minTurns: 5,
-    enabled: true,
-    debug: debugFlag,
-    onCompressionTriggered: (tokens, turns) => {
+  // Compression callback (stable reference to prevent infinite loops)
+  const handleCompressionTriggered = useCallback(
+    (tokens: number, turns: number) => {
       debug('🗜️  Triggering compression');
       setMessages((prev) => [
         ...prev,
@@ -173,6 +180,19 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       // TODO: Implement actual compression workflow
       // For now, just show the message
     },
+    [debug]
+  );
+
+  // Compression orchestration (replaces inline compression trigger logic)
+  const compression = useCompression({
+    tokenCount: tokenCounter.count.total,
+    analyzedTurns: turnAnalysis.stats.totalAnalyzed,
+    isThinking,
+    tokenThreshold: sessionTokens,
+    minTurns: 5,
+    enabled: true,
+    debug: debugFlag,
+    onCompressionTriggered: handleCompressionTriggered,
   });
 
   // Update session stats (delegated to sessionManager)
@@ -296,14 +316,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   }, [
     userAssistantMessageCount,
     isThinking,
-    cwd,
-    currentSessionId,
     debug,
-    debugLog,
-    updateAnchorStats,
-    tokenCounter.count,
     debugFlag,
-    sessionTokens,
+    turnAnalysis.enqueueAnalysis,
+    turnAnalysis.hasAnalyzed,
   ]);
 
   // Minimal initialization - token counts come from SDK, lattice loading disabled for now  useEffect(() => {    debug('🚀 Session initialized:', anchorId);    if (resumeSessionId) debug('📂 Resuming from:', resumeSessionId);  }, [anchorId, resumeSessionId, debug]);
