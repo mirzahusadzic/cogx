@@ -4,6 +4,9 @@
   "type": "module",
   "license": "AGPL-3.0-or-later",
   "author": "Mirza Husadzic",
+  "engines": {
+    "node": ">=25.0.0"
+  },
   "bin": {
     "cognition-cli": "./dist/cli.js"
   },
