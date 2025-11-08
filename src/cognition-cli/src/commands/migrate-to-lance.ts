@@ -393,14 +393,14 @@ export async function migrateToLanceCommand(options: MigrateOptions) {
         `  ${chalk.cyan('mission_integrity')}: ${missionVersionsCount} versions, ${missionConceptsCount} concepts`
       );
     }
+    // Show sigma_lattice in same style as overlays
     if (latticeFilesCount > 0) {
       const formatBytes = (bytes: number) => {
-        if (bytes < 1024 * 1024)
-          return `${(bytes / 1024).toFixed(0)}KB`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
         return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
       };
       log.info(
-        `  ${chalk.cyan('sigma_lattice')}: ${latticeFilesCount} files (${formatBytes(latticeSizeBefore)} → ${formatBytes(latticeSizeAfter)})`
+        `  ${chalk.cyan('sigma_lattice')}: ${latticeFilesCount} files, ${formatBytes(latticeSizeBefore)} → ${formatBytes(latticeSizeAfter)}`
       );
     }
     log.info('');
