@@ -31,6 +31,7 @@ import { ConversationMissionManager } from './overlays/conversation-mission/mana
 import { ConversationOperationalManager } from './overlays/conversation-operational/manager.js';
 import { ConversationMathematicalManager } from './overlays/conversation-mathematical/manager.js';
 import { ConversationCoherenceManager } from './overlays/conversation-coherence/manager.js';
+import { AsyncMutex } from './utils/AsyncMutex.js';
 
 /**
  * Overlay identifiers (same as project)
@@ -63,6 +64,7 @@ export class ConversationOverlayRegistry {
   private managers = new Map<OverlayId, OverlayAlgebra>();
   private workbenchUrl?: string;
   private debug: boolean;
+  private writeMutex = new AsyncMutex(); // Serialize LanceDB writes
 
   constructor(
     private sigmaRoot: string,
@@ -213,22 +215,33 @@ export class ConversationOverlayRegistry {
 
   /**
    * Flush all in-memory overlays to disk
+   * Uses write mutex to prevent concurrent LanceDB writes
    */
   async flushAll(sessionId: string): Promise<void> {
-    const allOverlays: OverlayId[] = ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'];
+    return this.writeMutex.runLocked(async () => {
+      const allOverlays: OverlayId[] = [
+        'O1',
+        'O2',
+        'O3',
+        'O4',
+        'O5',
+        'O6',
+        'O7',
+      ];
 
-    for (const overlayId of allOverlays) {
-      const manager = await this.get(overlayId);
+      for (const overlayId of allOverlays) {
+        const manager = await this.get(overlayId);
 
-      // Use type assertion to access flush method
-      if (
-        'flush' in manager &&
-        typeof (manager as ConversationOverlayWithLifecycle).flush ===
-          'function'
-      ) {
-        await (manager as ConversationOverlayWithLifecycle).flush(sessionId);
+        // Use type assertion to access flush method
+        if (
+          'flush' in manager &&
+          typeof (manager as ConversationOverlayWithLifecycle).flush ===
+            'function'
+        ) {
+          await (manager as ConversationOverlayWithLifecycle).flush(sessionId);
+        }
       }
-    }
+    });
   }
 
   /**
