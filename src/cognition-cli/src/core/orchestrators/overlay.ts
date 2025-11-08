@@ -284,9 +284,12 @@ export class OverlayOrchestrator {
 
           const structuralData = await this.miner.extractStructure(file);
           const contentHash = this.pgc.objectStore.computeHash(file.content);
+
+          // Store both content and structural data in object store
+          await this.pgc.objectStore.store(file.content); // Store source content
           const structuralHash = await this.pgc.objectStore.store(
             JSON.stringify(structuralData, null, 2)
-          );
+          ); // Store structural data
 
           if (!structuralData) {
             skippedCount++;

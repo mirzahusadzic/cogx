@@ -18,11 +18,9 @@ export class OverlayOracle {
     const messages: string[] = [];
     let success = true;
 
-    const structuralPatternsManifest = await this.pgcManager.overlays.get(
-      'structural_patterns',
-      'manifest',
-      z.record(z.string())
-    );
+    // Use new getManifest() method instead of get()
+    const structuralPatternsManifest =
+      await this.pgcManager.overlays.getManifest('structural_patterns');
 
     // Log the manifest path for debugging (dimmed to reduce noise)
     const manifestPath = path.join(
@@ -34,10 +32,15 @@ export class OverlayOracle {
     const msg = `[OverlayOracle] Attempting to read manifest from: ${manifestPath}`;
     console.log(chalk?.dim ? chalk.dim(msg) : msg);
 
-    if (structuralPatternsManifest) {
-      for (const [symbolName, relativeFilePath] of Object.entries(
+    if (structuralPatternsManifest && Object.keys(structuralPatternsManifest).length > 0) {
+      for (const [symbolName, manifestEntry] of Object.entries(
         structuralPatternsManifest
       )) {
+        // Parse manifest entry (handles both old string and new object formats)
+        const relativeFilePath =
+          typeof manifestEntry === 'string'
+            ? manifestEntry
+            : manifestEntry.filePath || '';
         const overlayKey = `${relativeFilePath}#${symbolName}`;
         const metadata: StructuralPatternMetadata | undefined | null =
           await this.pgcManager.overlays.get(
