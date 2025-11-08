@@ -894,17 +894,21 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
           let latticeWithEmbeddings = restoredLattice;
 
+          // DISABLED: Re-embedding blocks UI - will be moved to background queue during refactor
+          // if (isV2Format) {
+          //   debug(' V2 lattice detected, loading embeddings from LanceDB...');
+          //   // Load embeddings from LanceDB for v2 format
+          //   const { rebuildLatticeFromLanceDB } = await import(
+          //     '../../sigma/lattice-reconstructor.js'
+          //   );
+          //   latticeWithEmbeddings = await rebuildLatticeFromLanceDB(
+          //     sessionId,
+          //     cwd
+          //   );
+          //   debug(' Embeddings loaded from LanceDB');
+          // }
           if (isV2Format) {
-            debug(' V2 lattice detected, loading embeddings from LanceDB...');
-            // Load embeddings from LanceDB for v2 format
-            const { rebuildLatticeFromLanceDB } = await import(
-              '../../sigma/lattice-reconstructor.js'
-            );
-            latticeWithEmbeddings = await rebuildLatticeFromLanceDB(
-              sessionId,
-              cwd
-            );
-            debug(' Embeddings loaded from LanceDB');
+            debug(' V2 lattice detected - embeddings will be lazy-loaded (re-embedding disabled)');
           }
 
           // Restore lattice to state
@@ -999,58 +1003,59 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           ]);
         } else {
           debug(
-            ' No existing lattice found, attempting LanceDB reconstruction'
+            ' No existing lattice found - skipping LanceDB reconstruction (re-embedding disabled)'
           );
 
-          try {
-            // Rebuild from LanceDB (the source of truth for embeddings)
-            const rebuiltAnalyses = await rebuildTurnAnalysesFromLanceDB(
-              sessionId,
-              cwd
-            );
-
-            if (rebuiltAnalyses.length > 0) {
-              turnAnalyses.current = rebuiltAnalyses;
-
-              debug(
-                ' Lattice reconstructed from LanceDB:',
-                rebuiltAnalyses.length,
-                'turns'
-              );
-              debugLog(
-                `[SIGMA] Session state reconstructed from LanceDB\n` +
-                  `  Session ID: ${sessionId}\n` +
-                  `  Turns reconstructed: ${rebuiltAnalyses.length}\n` +
-                  `  Paradigm shifts: ${rebuiltAnalyses.filter((t) => t.is_paradigm_shift).length}\n` +
-                  `  Avg importance: ${(rebuiltAnalyses.reduce((sum, t) => sum + t.importance_score, 0) / rebuiltAnalyses.length).toFixed(1)}\n\n`
-              );
-
-              // Also rebuild the lattice structure for consistency
-              const rebuiltLattice = await rebuildLatticeFromLanceDB(
-                sessionId,
-                cwd
-              );
-              setConversationLattice(rebuiltLattice);
-
-              // Add system message to UI
-              setMessages((prev) => [
-                ...prev,
-                {
-                  type: 'system',
-                  content: `🔄 Resumed session with ${rebuiltAnalyses.length} turns from LanceDB`,
-                  timestamp: new Date(),
-                },
-              ]);
-            } else {
-              debug(' No turns found in LanceDB for session:', sessionId);
-            }
-          } catch (err) {
-            debug(' Failed to reconstruct from LanceDB:', err);
-            debugLog(
-              `[SIGMA ERROR] LanceDB reconstruction failed: ${(err as Error).message}\n` +
-                `  Stack: ${(err as Error).stack}\n\n`
-            );
-          }
+          // DISABLED: Re-embedding blocks UI - will be moved to background queue during refactor
+          // try {
+          //   // Rebuild from LanceDB (the source of truth for embeddings)
+          //   const rebuiltAnalyses = await rebuildTurnAnalysesFromLanceDB(
+          //     sessionId,
+          //     cwd
+          //   );
+          //
+          //   if (rebuiltAnalyses.length > 0) {
+          //     turnAnalyses.current = rebuiltAnalyses;
+          //
+          //     debug(
+          //       ' Lattice reconstructed from LanceDB:',
+          //       rebuiltAnalyses.length,
+          //       'turns'
+          //     );
+          //     debugLog(
+          //       `[SIGMA] Session state reconstructed from LanceDB\n` +
+          //         `  Session ID: ${sessionId}\n` +
+          //         `  Turns reconstructed: ${rebuiltAnalyses.length}\n` +
+          //         `  Paradigm shifts: ${rebuiltAnalyses.filter((t) => t.is_paradigm_shift).length}\n` +
+          //         `  Avg importance: ${(rebuiltAnalyses.reduce((sum, t) => sum + t.importance_score, 0) / rebuiltAnalyses.length).toFixed(1)}\n\n`
+          //     );
+          //
+          //     // Also rebuild the lattice structure for consistency
+          //     const rebuiltLattice = await rebuildLatticeFromLanceDB(
+          //       sessionId,
+          //       cwd
+          //     );
+          //     setConversationLattice(rebuiltLattice);
+          //
+          //     // Add system message to UI
+          //     setMessages((prev) => [
+          //       ...prev,
+          //       {
+          //         type: 'system',
+          //         content: `🔄 Resumed session with ${rebuiltAnalyses.length} turns from LanceDB`,
+          //         timestamp: new Date(),
+          //       },
+          //     ]);
+          //   } else {
+          //     debug(' No turns found in LanceDB for session:', sessionId);
+          //   }
+          // } catch (err) {
+          //   debug(' Failed to reconstruct from LanceDB:', err);
+          //   debugLog(
+          //     `[SIGMA ERROR] LanceDB reconstruction failed: ${(err as Error).message}\n` +
+          //       `  Stack: ${(err as Error).stack}\n\n`
+          //   );
+          // }
         }
 
         // ========================================
