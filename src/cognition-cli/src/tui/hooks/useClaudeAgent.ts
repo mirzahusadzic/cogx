@@ -21,7 +21,7 @@ import { stripANSICodes } from './rendering/MessageRenderer.js';
 import { useTurnAnalysis } from './analysis/index.js';
 import { useCompression } from './compression/useCompression.js';
 import type { McpSdkServerConfigWithInstance } from '@anthropic-ai/claude-agent-sdk';
-import type { ConversationLattice, TurnAnalysis } from '../../sigma/types.js';
+import type { ConversationLattice } from '../../sigma/types.js';
 
 interface UseClaudeAgentOptions {
   sessionId?: string;
@@ -96,6 +96,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   );
   const messagesRef = useRef<ClaudeMessage[]>(messages); // Ref to avoid effect re-running on every message change
   const userMessageEmbeddingCache = useRef<Map<number, number[]>>(new Map()); // Cache user message embeddings by timestamp
+  const latticeLoadedRef = useRef<Set<string>>(new Set()); // Track which sessions have been loaded
 
   // Track count of ONLY user/assistant messages (not system/tool_progress)
   // This prevents infinite loop when compression adds system messages
@@ -218,18 +219,20 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       projectRegistryRef.current = new OverlayRegistry(pgcPath, endpoint);
   }, [cwd, debugFlag]);
 
-  // Load existing lattice on session resume from LanceDB
+  // Load existing lattice on session resume from LanceDB (only once per session)
   useEffect(() => {
     const loadLattice = async () => {
       const sessionId = resumeSessionId || anchorId;
 
+      // Skip if already loaded for this session
+      if (latticeLoadedRef.current.has(sessionId)) return;
+      latticeLoadedRef.current.add(sessionId);
+
       try {
-        // Dynamically import to avoid circular dependencies
         const { rebuildTurnAnalysesFromLanceDB } = await import(
           '../../sigma/lattice-reconstructor.js'
         );
 
-        // Rebuild from LanceDB (source of truth)
         const restoredAnalyses = await rebuildTurnAnalysesFromLanceDB(
           sessionId,
           cwd
@@ -238,9 +241,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         if (restoredAnalyses.length === 0) return;
 
         turnAnalysis.setAnalyses(restoredAnalyses);
-        debug(
-          `🕸️  Lattice restored from LanceDB: ${restoredAnalyses.length} turns`
-        );
 
         // Load recap for compression injection
         const recapPath = path.join(cwd, '.sigma', `${sessionId}.recap.txt`);
@@ -251,8 +251,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             line.startsWith('='.repeat(80))
           );
           if (recapStartIdx >= 0) {
-            const recap = recapLines.slice(recapStartIdx + 2).join('\n');
-            setInjectedRecap(recap);
+            setInjectedRecap(recapLines.slice(recapStartIdx + 2).join('\n'));
           }
         }
 
@@ -265,12 +264,12 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           },
         ]);
       } catch (err) {
-        debug('⚠️  Failed to load lattice from LanceDB:', (err as Error).message);
+        // Silent fail - new session will start fresh
       }
     };
 
     loadLattice();
-  }, [anchorId, resumeSessionId, cwd, turnAnalysis, debug]);
+  }, [anchorId, resumeSessionId, cwd]);
 
   // Keep messagesRef in sync with messages state
   useEffect(() => {

@@ -171,7 +171,7 @@ export function useSessionManager(
       // Update React state
       setState((prev) => ({
         ...prev,
-        currentSessionId: anchorId,
+        currentSessionId: newSessionId,
         resumeSessionId: newSessionId,
         hasReceivedSDKSessionId: true,
       }));
