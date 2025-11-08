@@ -94,16 +94,17 @@ All refactoring documentation has been created:
 - [x] Replace in SDK message handler
 - [x] Verify in TUI
 
-### Week 3: Complex Logic
+### Week 3: Complex Logic (IN PROGRESS)
 
 **Goal**: Extract Analysis & Compression (most critical)
 
-**Day 11-13**: Analysis Layer + Background Queue ⭐
+**Day 11-13**: Analysis Layer + Background Queue ⭐ (PARTIAL - Core built, integration pending)
 
-- [ ] Create `src/tui/hooks/analysis/AnalysisQueue.ts` (background processing!)
-- [ ] Create `src/tui/hooks/analysis/useTurnAnalysis.ts`
-- [ ] Write comprehensive tests
-- [ ] Replace in `useClaudeAgent.ts`
+- [x] Create `src/tui/hooks/analysis/types.ts`
+- [x] Create `src/tui/hooks/analysis/AnalysisQueue.ts` (background processing!)
+- [x] Create `src/tui/hooks/analysis/useTurnAnalysis.ts`
+- [x] Write comprehensive tests (17 tests passing)
+- [ ] Integrate into `useClaudeAgent.ts` (next step)
 - [ ] Verify background queue doesn't block UI
 
 **Day 14-15**: Compression Layer
@@ -155,8 +156,8 @@ All refactoring documentation has been created:
 ### Code Quality
 
 - **Lines**: useClaudeAgent.ts = 1,642 lines (down from 1,790, target: 150)
-- **Test Coverage**: ~40% (42 SDK tests + 24 rendering tests + 16 token tests + 14 session tests = 96 tests passing)
-- **Modules**: 7 modules created (Token, Session, Rendering×2, SDK×3), target: 15 focused modules
+- **Test Coverage**: ~45% (17 Analysis tests + 42 SDK tests + 24 rendering tests + 16 token tests + 14 session tests = 113 tests passing)
+- **Modules**: 10 modules created (Analysis×3, SDK×3, Rendering×2, Token, Session), target: 15 focused modules
 
 ### Known Issues (To Fix)
 
