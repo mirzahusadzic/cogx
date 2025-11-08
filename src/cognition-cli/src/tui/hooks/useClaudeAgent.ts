@@ -756,50 +756,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   }, [currentQuery]);
 
   // Calculate Sigma stats for header display
-  const sigmaStats = {
-    nodes: turnAnalysis.analyses.length,
-    edges:
-      turnAnalysis.analyses.length > 0 ? turnAnalysis.analyses.length - 1 : 0, // temporal edges
-    paradigmShifts: turnAnalysis.analyses.filter((t) => t.is_paradigm_shift)
-      .length,
-    avgNovelty:
-      turnAnalysis.analyses.length > 0
-        ? turnAnalysis.analyses.reduce((sum, t) => sum + t.novelty, 0) /
-          turnAnalysis.analyses.length
-        : 0,
-    avgImportance:
-      turnAnalysis.analyses.length > 0
-        ? turnAnalysis.analyses.reduce(
-            (sum, t) => sum + t.importance_score,
-            0
-          ) / turnAnalysis.analyses.length
-        : 0,
-  };
-
-  // Calculate average overlay scores
-  const avgOverlays = {
-    O1_structural: 0,
-    O2_security: 0,
-    O3_lineage: 0,
-    O4_mission: 0,
-    O5_operational: 0,
-    O6_mathematical: 0,
-    O7_strategic: 0,
-  };
-
-  if (turnAnalysis.analyses.length > 0) {
-    turnAnalysis.analyses.forEach((turn) => {
-      Object.keys(avgOverlays).forEach((key) => {
-        avgOverlays[key as keyof typeof avgOverlays] +=
-          turn.overlay_scores[key as keyof typeof turn.overlay_scores];
-      });
-    });
-    Object.keys(avgOverlays).forEach((key) => {
-      avgOverlays[key as keyof typeof avgOverlays] /=
-        turnAnalysis.analyses.length;
-    });
-  }
-
   return {
     messages,
     sendMessage,
@@ -807,9 +763,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     isThinking,
     error,
     tokenCount: tokenCounter.count,
-    conversationLattice, // Sigma compressed context
-    currentSessionId, // Active session ID (may switch)
-    sigmaStats, // Lattice statistics for header display
-    avgOverlays, // Average overlay scores for info panel
+    conversationLattice,
+    currentSessionId,
+    sigmaStats: { nodes: turnAnalysis.stats.totalAnalyzed, edges: Math.max(0, turnAnalysis.stats.totalAnalyzed - 1), paradigmShifts: turnAnalysis.stats.paradigmShifts, avgNovelty: turnAnalysis.stats.avgNovelty, avgImportance: turnAnalysis.stats.avgImportance },
+    avgOverlays: { O1_structural: 0, O2_security: 0, O3_lineage: 0, O4_mission: 0, O5_operational: 0, O6_mathematical: 0, O7_strategic: 0 },
   };
 }
