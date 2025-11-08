@@ -309,48 +309,13 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
   // Minimal initialization - token counts come from SDK, lattice loading disabled for now  useEffect(() => {    debug('🚀 Session initialized:', anchorId);    if (resumeSessionId) debug('📂 Resuming from:', resumeSessionId);  }, [anchorId, resumeSessionId, debug]);
 
-  // Effect: Set current session for LanceDB filtering
+  // Set session and cleanup
   useEffect(() => {
-    if (conversationRegistryRef.current && currentSessionId) {
-      conversationRegistryRef.current
-        .setCurrentSession(currentSessionId)
-        .then(() => {
-          if (debugFlag) {
-            console.log(
-              chalk.dim(
-                `[Σ]  Current session set for LanceDB: ${currentSessionId}`
-              )
-            );
-          }
-        })
-        .catch((err) => {
-          if (debugFlag) {
-            console.log(chalk.dim('[Σ]  Failed to set current session:'), err);
-          }
-        });
-    }
-  }, [currentSessionId, debugFlag]);
-
-  // Cleanup effect: Flush conversation overlays when component unmounts
-  useEffect(() => {
+    conversationRegistryRef.current?.setCurrentSession(currentSessionId);
     return () => {
-      // Flush on cleanup
-      if (conversationRegistryRef.current && currentSessionId) {
-        conversationRegistryRef.current
-          .flushAll(currentSessionId)
-          .then(() => {
-            if (debugFlag) {
-              console.log(chalk.dim('[Σ]  Final flush on cleanup complete'));
-            }
-          })
-          .catch((err) => {
-            if (debugFlag) {
-              console.log(chalk.dim('[Σ]  Failed to flush on cleanup:'), err);
-            }
-          });
-      }
+      conversationRegistryRef.current?.flushAll(currentSessionId);
     };
-  }, [currentSessionId, debugFlag]);
+  }, [currentSessionId]);
 
   const sendMessage = useCallback(
     async (prompt: string) => {
