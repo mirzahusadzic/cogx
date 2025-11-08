@@ -218,49 +218,28 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       projectRegistryRef.current = new OverlayRegistry(pgcPath, endpoint);
   }, [cwd, debugFlag]);
 
-  // Load existing lattice on session resume
+  // Load existing lattice on session resume from LanceDB
   useEffect(() => {
     const loadLattice = async () => {
       const sessionId = resumeSessionId || anchorId;
-      const latticePath = path.join(cwd, '.sigma', `${sessionId}.lattice.json`);
-
-      if (!fs.existsSync(latticePath)) return;
 
       try {
-        const latticeContent = fs.readFileSync(latticePath, 'utf-8');
-        const restoredLattice = JSON.parse(
-          latticeContent
-        ) as ConversationLattice;
-
-        // Rebuild turnAnalyses from lattice nodes
-        const restoredAnalyses: TurnAnalysis[] = restoredLattice.nodes.map(
-          (node) => ({
-            turn_id: node.id,
-            role: node.role,
-            content: node.content,
-            timestamp: node.timestamp,
-            embedding: node.embedding || [],
-            novelty: node.novelty || 0,
-            importance_score: node.importance_score || 0,
-            is_paradigm_shift: node.is_paradigm_shift || false,
-            is_routine: (node.importance_score || 0) < 3,
-            overlay_scores: node.overlay_scores || {
-              O1_structural: 0,
-              O2_security: 0,
-              O3_lineage: 0,
-              O4_mission: 0,
-              O5_operational: 0,
-              O6_mathematical: 0,
-              O7_strategic: 0,
-            },
-            references: [],
-            semantic_tags: node.semantic_tags || [],
-          })
+        // Dynamically import to avoid circular dependencies
+        const { rebuildTurnAnalysesFromLanceDB } = await import(
+          '../../sigma/lattice-reconstructor.js'
         );
+
+        // Rebuild from LanceDB (source of truth)
+        const restoredAnalyses = await rebuildTurnAnalysesFromLanceDB(
+          sessionId,
+          cwd
+        );
+
+        if (restoredAnalyses.length === 0) return;
 
         turnAnalysis.setAnalyses(restoredAnalyses);
         debug(
-          `🕸️  Lattice restored: ${restoredLattice.nodes.length} nodes, ${restoredLattice.edges.length} edges`
+          `🕸️  Lattice restored from LanceDB: ${restoredAnalyses.length} turns`
         );
 
         // Load recap for compression injection
@@ -281,12 +260,12 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           ...prev,
           {
             type: 'system',
-            content: `🕸️  Resumed session with ${restoredLattice.nodes.length} nodes, ${restoredLattice.edges.length} edges`,
+            content: `🕸️  Resumed session with ${restoredAnalyses.length} turns from LanceDB`,
             timestamp: new Date(),
           },
         ]);
       } catch (err) {
-        debug('⚠️  Failed to load lattice:', (err as Error).message);
+        debug('⚠️  Failed to load lattice from LanceDB:', (err as Error).message);
       }
     };
 
