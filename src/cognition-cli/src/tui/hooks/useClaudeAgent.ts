@@ -860,7 +860,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           debug(' Found existing lattice, restoring:', latticePath);
 
           const latticeContent = fs.readFileSync(latticePath, 'utf-8');
-          const restoredLattice = JSON.parse(latticeContent) as ConversationLattice & {
+          const restoredLattice = JSON.parse(
+            latticeContent
+          ) as ConversationLattice & {
             format_version?: number;
             lancedb_metadata?: {
               storage_path: string;

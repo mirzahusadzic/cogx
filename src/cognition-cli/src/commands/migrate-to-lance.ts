@@ -382,7 +382,6 @@ export async function migrateToLanceCommand(options: MigrateOptions) {
 
     // Compact LanceDB to remove version bloat
     s.start('Compacting Sigma LanceDB...');
-    let lanceCompacted = false;
     let lanceReduction = 0;
 
     try {
@@ -400,7 +399,6 @@ export async function migrateToLanceCommand(options: MigrateOptions) {
       lanceReduction = compactionResult.reduction.percentage;
 
       if (compactionResult.reduction.bytes > 1024 * 1024) {
-        lanceCompacted = true;
         const formatBytes = (bytes: number) => {
           if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
           return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;

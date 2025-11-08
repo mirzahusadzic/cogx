@@ -14,7 +14,7 @@
  * - Expected: 700MB → ~2MB (99% reduction)
  */
 
-import { connect, Connection } from '@lancedb/lancedb';
+import { connect } from '@lancedb/lancedb';
 import path from 'path';
 import fs from 'fs-extra';
 
@@ -112,10 +112,14 @@ export async function compactConversationLanceDB(
     );
     const schema = createConversationTurnSchema();
 
-    await db.createTable('conversation_turns', Array.from(uniqueRecords.values()), {
-      schema,
-      mode: 'create',
-    });
+    await db.createTable(
+      'conversation_turns',
+      Array.from(uniqueRecords.values()),
+      {
+        schema,
+        mode: 'create',
+      }
+    );
 
     if (verbose) {
       console.log('✓ Table recreated with deduplicated data');
