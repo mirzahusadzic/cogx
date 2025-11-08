@@ -14,15 +14,8 @@ import { injectRelevantContext } from '../../sigma/context-injector.js';
 //   rebuildTurnAnalysesFromLanceDB,
 //   rebuildLatticeFromLanceDB,
 // } from '../../sigma/lattice-reconstructor.js';
-import {
-  loadSessionState,
-  saveSessionState,
-  createSessionState,
-  updateSessionState,
-  updateSessionStats,
-  migrateOldStateFile,
-} from '../../sigma/session-state.js';
 import { useTokenCount } from './tokens/useTokenCount.js';
+import { useSessionManager } from './session/useSessionManager.js';
 import {
   createSDKQuery,
   isAuthenticationError,
@@ -118,27 +111,41 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     (m) => m.type === 'user' || m.type === 'assistant'
   ).length;
 
-  // Session management for Sigma compression
-  // When we compress, we start a FRESH session (no resume) with intelligent recap
-  // If resuming a compressed session, we forward to the new session automatically
+  // Session management (extracted to useSessionManager hook)
+  const sessionManager = useSessionManager({
+    sessionIdProp,
+    cwd,
+    debug: debugFlag,
+    onSessionLoaded: (message) => {
+      if (message) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: 'system',
+            content: message,
+            timestamp: new Date(),
+          },
+        ]);
+      }
+    },
+    onSDKSessionChanged: (event) => {
+      if (debugFlag) {
+        console.log(
+          chalk.dim(
+            `[Σ]  Session updated: ${event.previousSessionId} → ${event.newSessionId} (${event.reason})`
+          )
+        );
+      }
+    },
+  });
 
-  // anchor_id = stable user-facing ID (from CLI --session-id or auto-generated)
-  // This is what we use for file naming: .sigma/{anchor_id}.state.json
-  // It NEVER changes across compressions/expirations
-  // Use useMemo to ensure it's only computed once
-  const anchorId = useMemo(
-    () => sessionIdProp || `tui-${Date.now()}`,
-    [sessionIdProp]
-  );
+  // Convenient aliases for session state
+  const anchorId = sessionManager.state.anchorId;
+  const currentSessionId = sessionManager.state.currentSessionId;
+  const resumeSessionId = sessionManager.state.resumeSessionId;
 
-  const [resumeSessionId, setResumeSessionId] = useState<string | undefined>(
-    undefined
-  ); // Will be set in loadSessionState
-
-  // currentSessionId = actual SDK session UUID (transient, changes on compression)
-  const [currentSessionId, setCurrentSessionId] = useState(anchorId);
+  // Intelligent recap for compression (not part of session manager)
   const [injectedRecap, setInjectedRecap] = useState<string | null>(null);
-  const hasReceivedSDKSessionId = useRef(false); // Track if we've gotten real SDK session ID
 
   // Turn analysis with background queue (replaces inline analyzeNewTurns)
   const turnAnalysis = useTurnAnalysis({
@@ -177,60 +184,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     },
   });
 
-  /**
-   * Helper: Write session state file
-   * Used for both initial flush and periodic flushes to ensure state is always tracked
-   */
-  const updateAnchorStatsRef = useRef<() => void>(() => {});
-  updateAnchorStatsRef.current = () => {
-    try {
-      // Use the stable anchorId for file access
-      const state = loadSessionState(anchorId, cwd);
-
-      if (!state) {
-        // No state yet, skip (will be created on first SDK message)
-        return;
-      }
-
-      const stats = {
-        total_turns_analyzed: turnAnalysis.analyses.length,
-        paradigm_shifts: turnAnalysis.analyses.filter(
-          (t) => t.is_paradigm_shift
-        ).length,
-        routine_turns: turnAnalysis.analyses.filter((t) => t.is_routine).length,
-        avg_novelty:
-          turnAnalysis.analyses.length > 0
-            ? (
-                turnAnalysis.analyses.reduce((sum, t) => sum + t.novelty, 0) /
-                turnAnalysis.analyses.length
-              ).toFixed(3)
-            : '0.000',
-        avg_importance:
-          turnAnalysis.analyses.length > 0
-            ? (
-                turnAnalysis.analyses.reduce(
-                  (sum, t) => sum + t.importance_score,
-                  0
-                ) / turnAnalysis.analyses.length
-              ).toFixed(1)
-            : '0.0',
-      };
-
-      const updated = updateSessionStats(state, stats);
-      saveSessionState(updated, cwd);
-      if (debugFlag) {
-        console.log(chalk.dim(`[Σ]  Anchor stats updated: ${anchorId}`));
-      }
-    } catch (err) {
-      if (debugFlag) {
-        console.log(chalk.dim('[Σ]  Failed to update anchor stats:'), err);
-      }
-    }
-  };
-
+  // Update session stats (delegated to sessionManager)
   const updateAnchorStats = useCallback(() => {
-    updateAnchorStatsRef.current?.();
-  }, []);
+    sessionManager.updateStats(turnAnalysis.analyses);
+  }, [sessionManager, turnAnalysis.analyses]);
 
   // Initialize embedding service and registries
   useEffect(() => {
@@ -410,38 +367,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   useEffect(() => {
     const loadAnchorSession = async () => {
       try {
-        // anchorId is already defined at the top of the component
-
-        // Try to migrate old state file if exists
-        let sessionState = loadSessionState(anchorId, cwd);
-        if (sessionState && !('compression_history' in sessionState)) {
-          sessionState = migrateOldStateFile(anchorId, cwd);
-        }
-
-        let sdkSessionToResume: string | undefined;
-        let sessionId: string;
-
-        if (!sessionState) {
-          debug('󱖫 No state - fresh session');
-          sdkSessionToResume = undefined;
-          sessionId = anchorId;
-        } else {
-          debug('󱖫 Found state, SDK session:', sessionState.current_session);
-          sdkSessionToResume = sessionState.current_session;
-          sessionId = sessionState.current_session;
-
-          setMessages((prev) => [
-            ...prev,
-            {
-              type: 'system',
-              content: `🔄 Resuming: ${anchorId} (${sessionState.compression_history.length} sessions)`,
-              timestamp: new Date(),
-            },
-          ]);
-        }
-
-        setResumeSessionId(sdkSessionToResume);
-        setCurrentSessionId(anchorId);
+        // Session loading is now handled by useSessionManager
+        // Just use the sessionId from sessionManager for transcript loading
+        const sessionId = resumeSessionId || anchorId;
 
         // ========================================
         // 1. LOAD TOKEN COUNT FROM TRANSCRIPT
@@ -659,7 +587,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           }
 
           // Don't resume SDK session - let it create new one with recap injection
-          setResumeSessionId(undefined);
+          sessionManager.resetResumeSession();
           debug(
             ' Resume cleared - new SDK session will start with recap injection'
           );
@@ -977,7 +905,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       debugFlag,
       recallMcpServerRef,
       anchorId,
-      setCurrentSessionId,
+      sessionManager,
       updateAnchorStats,
     ]
   );
@@ -996,98 +924,71 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     // This is critical for session-less TUI starts where SDK creates its own ID
     if ('session_id' in sdkMessage && sdkMessage.session_id) {
       const sdkSessionId = sdkMessage.session_id;
-      setCurrentSessionId((prev) => {
-        if (prev !== sdkSessionId) {
-          // SDK gave us a different session ID - update anchor state
-          // ALWAYS use anchorId for file access, never SDK session UUID
-          debug(' SDK session changed:', prev, '→', sdkSessionId);
+      const prevSessionId = currentSessionId;
 
-          if (prev.startsWith('tui-')) {
-            // First time getting real SDK session (was placeholder)
-            debugLog(
-              `[SESSION] Updated from placeholder ${prev} to SDK session ID: ${sdkSessionId}\n\n`
-            );
-          }
+      if (prevSessionId !== sdkSessionId) {
+        // SDK gave us a different session ID - update via sessionManager
+        debug(' SDK session changed:', prevSessionId, '→', sdkSessionId);
 
-          // Load state by anchor_id (NOT by SDK session UUID!)
-          const state = loadSessionState(anchorId, cwd);
-
-          if (!state) {
-            // First time - create initial state
-            const newState = createSessionState(anchorId, sdkSessionId);
-            saveSessionState(newState, cwd);
-            debug('󱖫 Created anchor state:', anchorId, '→', sdkSessionId);
-          } else {
-            // Update existing state with new SDK session
-            const reason = compression.state.triggered
-              ? 'compression'
-              : 'expiration';
-
-            // Get compressed size from the last compression result
-            const compressedTokens =
-              reason === 'compression'
-                ? compression.state.lastCompressedTokens ||
-                  tokenCounter.count.total
-                : undefined;
-
-            const updated = updateSessionState(
-              state,
-              sdkSessionId,
-              reason,
-              compressedTokens
-            );
-            saveSessionState(updated, cwd);
-            debug(
-              `󱖫 Updated anchor state: ${anchorId} → ${sdkSessionId} (${reason})`
-            );
-
-            // CRITICAL: Reset compression flag when new SDK session starts
-            // This allows compression to trigger again in the new session
-            if (compression.state.triggered) {
-              compression.reset();
-              debugLog(
-                `[COMPRESSION FLAG RESET] New session: ${sdkSessionId}\n` +
-                  `  Previous session: ${prev}\n` +
-                  `  Reason: ${reason}\n\n`
-              );
-              debug(
-                ' Compression flag reset - can compress again in new session'
-              );
-            }
-          }
-
-          // Mark that we've received SDK session ID
-          if (
-            !hasReceivedSDKSessionId.current &&
-            conversationRegistryRef.current
-          ) {
-            hasReceivedSDKSessionId.current = true;
-
-            // Trigger immediate flush with correct session ID
-            // This ensures overlays are saved even if we never hit compression threshold
-            conversationRegistryRef.current
-              .flushAll(sdkSessionId)
-              .then(() => {
-                debug(
-                  ' Initial flush completed with SDK session ID:',
-                  sdkSessionId
-                );
-                // Update anchor stats
-                updateAnchorStats();
-              })
-              .catch((err) => {
-                debug(' Initial flush failed:', err);
-              });
-          }
-
-          return sdkSessionId;
+        if (prevSessionId.startsWith('tui-')) {
+          // First time getting real SDK session (was placeholder)
+          debugLog(
+            `[SESSION] Updated from placeholder ${prevSessionId} to SDK session ID: ${sdkSessionId}\n\n`
+          );
         }
-        return prev; // Keep existing if already set or not a placeholder
-      });
 
-      // CRITICAL FIX: Update resumeSessionId so next query continues from this session
-      // Without this, each query starts fresh and loses conversation context!
-      setResumeSessionId(sdkSessionId);
+        // Determine reason for session change
+        const reason = compression.state.triggered
+          ? 'compression'
+          : prevSessionId.startsWith('tui-')
+            ? 'initial'
+            : 'expiration';
+
+        // Get compressed token count if this was a compression
+        const compressedTokens =
+          reason === 'compression'
+            ? compression.state.lastCompressedTokens || tokenCounter.count.total
+            : undefined;
+
+        // Update session via sessionManager
+        sessionManager.updateSDKSession(sdkSessionId, reason, compressedTokens);
+
+        // CRITICAL: Reset compression flag when new SDK session starts
+        // This allows compression to trigger again in the new session
+        if (compression.state.triggered) {
+          compression.reset();
+          debugLog(
+            `[COMPRESSION FLAG RESET] New session: ${sdkSessionId}\n` +
+              `  Previous session: ${prevSessionId}\n` +
+              `  Reason: ${reason}\n\n`
+          );
+          debug(
+            ' Compression flag reset - can compress again in new session'
+          );
+        }
+
+        // Mark that we've received SDK session ID and trigger initial flush
+        if (
+          !sessionManager.state.hasReceivedSDKSessionId &&
+          conversationRegistryRef.current
+        ) {
+          // Trigger immediate flush with correct session ID
+          // This ensures overlays are saved even if we never hit compression threshold
+          conversationRegistryRef.current
+            .flushAll(sdkSessionId)
+            .then(() => {
+              debug(
+                ' Initial flush completed with SDK session ID:',
+                sdkSessionId
+              );
+              // Update anchor stats
+              updateAnchorStats();
+            })
+            .catch((err) => {
+              debug(' Initial flush failed:', err);
+            });
+        }
+      }
     }
 
     switch (sdkMessage.type) {
