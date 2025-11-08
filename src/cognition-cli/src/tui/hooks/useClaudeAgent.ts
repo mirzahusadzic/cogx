@@ -7,7 +7,6 @@ import {
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import * as Diff from 'diff';
 import chalk from 'chalk';
 import { EmbeddingService } from '../../core/services/embedding.js';
 import { analyzeTurn } from '../../sigma/analyzer-with-embeddings.js';
@@ -32,6 +31,15 @@ import {
   migrateOldStateFile,
 } from '../../sigma/session-state.js';
 import { useTokenCount } from './tokens/useTokenCount.js';
+import {
+  createSDKQuery,
+  isAuthenticationError,
+  formatAuthError,
+  formatSDKError,
+  processSDKMessage,
+} from './sdk/index.js';
+import { formatToolUse } from './rendering/ToolFormatter.js';
+import { stripANSICodes } from './rendering/MessageRenderer.js';
 import type { McpSdkServerConfigWithInstance } from '@anthropic-ai/claude-agent-sdk';
 import type {
   ConversationLattice,
@@ -51,16 +59,6 @@ export interface ClaudeMessage {
   type: 'user' | 'assistant' | 'system' | 'tool_progress';
   content: string;
   timestamp: Date;
-}
-
-/**
- * Strip ALL ANSI codes from SDK output to prevent color bleeding
- * We apply our own colors in ClaudePanelAgent instead
- */
-function replaceSDKDiffColors(text: string): string {
-  // Remove ALL ANSI escape codes (colors, bold, dim, etc.)
-  // eslint-disable-next-line no-control-regex
-  return text.replace(/\x1b\[[0-9;]*m/g, '');
 }
 
 /**
@@ -1199,34 +1197,30 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           `[QUERY START] Creating query with resume=${currentResumeId}, hasRecap=${!!injectedRecap}\n`
         );
 
-        const q = query({
+        const q = createSDKQuery({
           prompt: finalPrompt,
-          options: {
-            cwd: cwd,
-            resume: currentResumeId, // undefined after compression = fresh session!
-            systemPrompt: { type: 'preset', preset: 'claude_code' }, // Always use claude_code preset!
-            includePartialMessages: true, // Get streaming updates
-            stderr: (data: string) => {
-              stderrLines.push(data);
-              debugLog(`[STDERR] ${data}\n`);
-            },
-            canUseTool: async (toolName, input) => {
-              // Auto-approve all tools for now (we can add UI prompts later)
-              return {
-                behavior: 'allow',
-                updatedInput: input,
-              };
-            },
-            // Add recall MCP server for on-demand memory queries
-            // Only enable when there's conversation history (resuming or post-compression)
-            mcpServers:
-              recallMcpServerRef.current &&
-              (currentResumeId || turnAnalyses.current.length > 0)
-                ? {
-                    'conversation-memory': recallMcpServerRef.current,
-                  }
-                : undefined,
+          cwd: cwd,
+          resumeSessionId: currentResumeId, // undefined after compression = fresh session!
+          onStderr: (data: string) => {
+            stderrLines.push(data);
+            debugLog(`[STDERR] ${data}\n`);
           },
+          onCanUseTool: async (toolName, input) => {
+            // Auto-approve all tools for now (we can add UI prompts later)
+            return {
+              behavior: 'allow',
+              updatedInput: input,
+            };
+          },
+          // Add recall MCP server for on-demand memory queries
+          // Only enable when there's conversation history (resuming or post-compression)
+          mcpServers:
+            recallMcpServerRef.current &&
+            (currentResumeId || turnAnalyses.current.length > 0)
+              ? {
+                  'conversation-memory': recallMcpServerRef.current,
+                }
+              : undefined,
         });
 
         setCurrentQuery(q);
@@ -1254,21 +1248,12 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         // If query completed without assistant response, show error
         if (!hasAssistantMessage && messageCount <= 1) {
           // Check for authentication errors in stderr
-          const stderrText = stderrLines.join(' ');
           let errorMsg = '';
 
-          if (
-            stderrText.includes('401') &&
-            (stderrText.includes('authentication_error') ||
-              stderrText.includes('OAuth token has expired') ||
-              stderrText.includes('token has expired'))
-          ) {
-            errorMsg =
-              '⎿ API Error: 401 - OAuth token has expired. Please obtain a new token or refresh your existing token.\n· Please run /login';
-          } else if (stderrLines.length > 0) {
-            errorMsg = `SDK error: ${stderrText}`;
+          if (isAuthenticationError(stderrLines)) {
+            errorMsg = formatAuthError();
           } else {
-            errorMsg = 'SDK completed without response - check authentication';
+            errorMsg = formatSDKError(stderrLines, hasAssistantMessage);
           }
 
           setError(errorMsg);
@@ -1288,14 +1273,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         let errorMsg = originalError;
 
         // Check if this is an authentication error
-        if (
-          originalError.includes('401') &&
-          (originalError.includes('authentication_error') ||
-            originalError.includes('OAuth token has expired') ||
-            originalError.includes('token has expired'))
-        ) {
-          errorMsg =
-            '⎿ API Error: 401 - OAuth token has expired. Please obtain a new token or refresh your existing token.\n· Please run /login';
+        const mockStderr = [originalError];
+        if (isAuthenticationError(mockStderr)) {
+          errorMsg = formatAuthError();
         } else {
           errorMsg = `Error: ${originalError}`;
         }
@@ -1443,127 +1423,12 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         if (toolUses.length > 0) {
           toolUses.forEach(
             (tool: { name: string; input: Record<string, unknown> }) => {
-              // Format tool input - show description if available, otherwise full input
-              let inputDesc = '';
-              let toolIcon = '🔧';
-
-              // Special formatting for memory recall tool
-              if (
-                tool.name ===
-                'mcp__conversation-memory__recall_past_conversation'
-              ) {
-                toolIcon = '🧠';
-                if (tool.input.query) {
-                  inputDesc = `"${tool.input.query as string}"`;
-                } else {
-                  inputDesc = JSON.stringify(tool.input);
-                }
-              } else if (tool.input.description) {
-                inputDesc = tool.input.description as string;
-              } else if (tool.input.file_path) {
-                // For Edit tool, show character-level diff with background colors
-                if (
-                  tool.name === 'Edit' &&
-                  tool.input.old_string &&
-                  tool.input.new_string
-                ) {
-                  const diffLines: string[] = [];
-                  diffLines.push(tool.input.file_path as string);
-
-                  // Use diff library to get line changes
-                  const lineDiff = Diff.diffLines(
-                    tool.input.old_string as string,
-                    tool.input.new_string as string
-                  );
-
-                  lineDiff.forEach((part) => {
-                    const lines = part.value
-                      .split('\n')
-                      .filter(
-                        (line) => line.length > 0 || part.value.endsWith('\n')
-                      );
-
-                    if (part.added) {
-                      // Added lines - olive/dark green background with white text
-                      lines.forEach((line) => {
-                        if (line) {
-                          // \x1b[48;5;58m = dark olive background, \x1b[97m = bright white text
-                          diffLines.push(
-                            `  \x1b[32m+\x1b[0m \x1b[48;5;58m\x1b[97m${line}\x1b[0m`
-                          );
-                        }
-                      });
-                    } else if (part.removed) {
-                      // Removed lines - dark red background with white text
-                      lines.forEach((line) => {
-                        if (line) {
-                          // \x1b[48;5;52m = dark red background, \x1b[97m = bright white text
-                          diffLines.push(
-                            `  \x1b[31m-\x1b[0m \x1b[48;5;52m\x1b[97m${line}\x1b[0m`
-                          );
-                        }
-                      });
-                    } else {
-                      // Unchanged lines - no color
-                      lines.forEach((line) => {
-                        if (line) {
-                          diffLines.push(`   ${line}`);
-                        }
-                      });
-                    }
-                  });
-
-                  inputDesc = diffLines.join('\n');
-                } else {
-                  inputDesc = `file: ${tool.input.file_path as string}`;
-                }
-              } else if (tool.input.command) {
-                inputDesc = `cmd: ${tool.input.command as string}`;
-              } else if (tool.input.pattern) {
-                inputDesc = `pattern: ${tool.input.pattern as string}`;
-              } else if (tool.name === 'TodoWrite' && tool.input.todos) {
-                // Format TodoWrite with a nice visual display
-                const todos = tool.input.todos as Array<{
-                  content: string;
-                  status: string;
-                  activeForm: string;
-                }>;
-
-                const todoLines: string[] = [];
-                todos.forEach((todo) => {
-                  let statusIcon = '';
-                  let statusColor = '';
-
-                  if (todo.status === 'completed') {
-                    statusIcon = '✓';
-                    statusColor = '\x1b[32m'; // green
-                  } else if (todo.status === 'in_progress') {
-                    statusIcon = '→';
-                    statusColor = '\x1b[33m'; // yellow
-                  } else {
-                    statusIcon = '○';
-                    statusColor = '\x1b[90m'; // gray
-                  }
-
-                  const displayText =
-                    todo.status === 'in_progress'
-                      ? todo.activeForm
-                      : todo.content;
-                  todoLines.push(
-                    `  ${statusColor}${statusIcon}\x1b[0m ${displayText}`
-                  );
-                });
-
-                inputDesc = '\n' + todoLines.join('\n');
-              } else {
-                inputDesc = JSON.stringify(tool.input);
-              }
-
+              const formatted = formatToolUse(tool);
               setMessages((prev) => [
                 ...prev,
                 {
                   type: 'tool_progress',
-                  content: `${toolIcon} ${tool.name}: ${inputDesc}`,
+                  content: `${formatted.icon} ${formatted.name}: ${formatted.description}`,
                   timestamp: new Date(),
                 },
               ]);
@@ -1624,7 +1489,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         ) {
           // Text content streaming
           const delta = event.delta;
-          const colorReplacedText = replaceSDKDiffColors(delta.text);
+          const colorReplacedText = stripANSICodes(delta.text);
           setMessages((prev) => {
             const last = prev[prev.length - 1];
             if (last && last.type === 'assistant') {

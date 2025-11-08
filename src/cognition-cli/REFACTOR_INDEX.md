@@ -6,13 +6,13 @@ This directory contains a comprehensive plan for refactoring the `useClaudeAgent
 
 ## 📋 Quick Links
 
-| Document | Size | Purpose | Audience |
-|----------|------|---------|----------|
-| **[REFACTOR_SUMMARY.md](./REFACTOR_SUMMARY.md)** | 6.3K | Executive overview | Leadership, Product |
-| **[REFACTOR_QUICK_REFERENCE.md](./REFACTOR_QUICK_REFERENCE.md)** | 7.2K | Quick reference card | Everyone |
-| **[REFACTOR_PLAN_useClaudeAgent.md](./REFACTOR_PLAN_useClaudeAgent.md)** | 24K | Detailed technical plan | Engineering |
-| **[TESTING_GUIDE_useClaudeAgent.md](./TESTING_GUIDE_useClaudeAgent.md)** | 24K | Testing procedures | QA, Engineering |
-| **[REFACTOR_ARCHITECTURE_DIAGRAM.md](./REFACTOR_ARCHITECTURE_DIAGRAM.md)** | 17K | Visual architecture | Engineering, Architects |
+| Document                                                                   | Size | Purpose                 | Audience                |
+| -------------------------------------------------------------------------- | ---- | ----------------------- | ----------------------- |
+| **[REFACTOR_SUMMARY.md](./REFACTOR_SUMMARY.md)**                           | 6.3K | Executive overview      | Leadership, Product     |
+| **[REFACTOR_QUICK_REFERENCE.md](./REFACTOR_QUICK_REFERENCE.md)**           | 7.2K | Quick reference card    | Everyone                |
+| **[REFACTOR_PLAN_useClaudeAgent.md](./REFACTOR_PLAN_useClaudeAgent.md)**   | 24K  | Detailed technical plan | Engineering             |
+| **[TESTING_GUIDE_useClaudeAgent.md](./TESTING_GUIDE_useClaudeAgent.md)**   | 24K  | Testing procedures      | QA, Engineering         |
+| **[REFACTOR_ARCHITECTURE_DIAGRAM.md](./REFACTOR_ARCHITECTURE_DIAGRAM.md)** | 17K  | Visual architecture     | Engineering, Architects |
 
 **Total Documentation**: 84K (~20,000 words)
 
@@ -46,7 +46,9 @@ The `useClaudeAgent.ts` hook has become the most problematic component in our 50
 ## 📖 Reading Guide
 
 ### For Leadership / Product Managers
+
 **Start here**: [REFACTOR_SUMMARY.md](./REFACTOR_SUMMARY.md)
+
 - Problem statement and business impact
 - High-level solution overview
 - Timeline (5 weeks)
@@ -54,13 +56,16 @@ The `useClaudeAgent.ts` hook has become the most problematic component in our 50
 - Success metrics
 
 **Then**: [REFACTOR_QUICK_REFERENCE.md](./REFACTOR_QUICK_REFERENCE.md)
+
 - Quick reference for key concepts
 - Module breakdown
 - Critical improvements
 - FAQs
 
 ### For Engineers (Implementation)
+
 **Start here**: [REFACTOR_PLAN_useClaudeAgent.md](./REFACTOR_PLAN_useClaudeAgent.md)
+
 - Detailed architecture design
 - Module responsibilities
 - Migration strategy (5 phases)
@@ -68,12 +73,14 @@ The `useClaudeAgent.ts` hook has become the most problematic component in our 50
 - Known issues analysis
 
 **Then**: [REFACTOR_ARCHITECTURE_DIAGRAM.md](./REFACTOR_ARCHITECTURE_DIAGRAM.md)
+
 - Visual architecture diagrams
 - Data flow charts
 - Module dependencies
 - Before/after comparisons
 
 **Finally**: [TESTING_GUIDE_useClaudeAgent.md](./TESTING_GUIDE_useClaudeAgent.md)
+
 - Test infrastructure setup
 - Mock utilities
 - Unit test examples
@@ -82,13 +89,16 @@ The `useClaudeAgent.ts` hook has become the most problematic component in our 50
 - Manual testing checklist
 
 ### For QA / Test Engineers
+
 **Start here**: [TESTING_GUIDE_useClaudeAgent.md](./TESTING_GUIDE_useClaudeAgent.md)
+
 - Comprehensive testing procedures
 - Test coverage goals (>95%)
 - Manual testing checklist
 - Performance benchmarks
 
 **Then**: [REFACTOR_PLAN_useClaudeAgent.md](./REFACTOR_PLAN_useClaudeAgent.md) (Section: Testing Strategy)
+
 - Test categories and priorities
 - Critical test cases
 - Bug scenarios
@@ -98,12 +108,14 @@ The `useClaudeAgent.ts` hook has become the most problematic component in our 50
 ## 🏗️ Architecture Overview
 
 ### Current (Monolith)
+
 ```
 useClaudeAgent.ts [1,790 lines]
 └─ Everything (10+ responsibilities)
 ```
 
 ### Target (Modular)
+
 ```
 useClaudeAgent.ts [150 lines] - Orchestrator
 ├─ sdk/ [450 lines] - SDK integration
@@ -121,21 +133,25 @@ useClaudeAgent.ts [150 lines] - Orchestrator
 ## 🎯 Key Improvements
 
 ### 1. Background Analysis Queue ⭐
+
 **Problem**: Re-embedding blocks UI for 10+ seconds
 **Solution**: Background queue with progress bar
 **Impact**: Responsive UI, better UX
 
 ### 2. Isolated Token Counter
+
 **Problem**: Reset bug fixed twice, still fragile
 **Solution**: Dedicated module with clear semantics
 **Impact**: No more reset bugs
 
 ### 3. Session State Store
+
 **Problem**: Anchor ID vs SDK UUID confusion
 **Solution**: Clear ID mapping, tested thoroughly
 **Impact**: No more session state bugs
 
 ### 4. Compression Trigger
+
 **Problem**: Flag management brittle
 **Solution**: Dedicated class with clear logic
 **Impact**: Easy to test, modify thresholds
@@ -144,13 +160,13 @@ useClaudeAgent.ts [150 lines] - Orchestrator
 
 ## 📅 Timeline
 
-| Week | Focus | Deliverable |
-|------|-------|-------------|
-| 1 | Infrastructure | Token + Session modules tested |
-| 2 | Core Extraction | SDK + Rendering modules tested |
-| 3 | Complex Logic | Analysis + Compression tested |
-| 4 | Integration | Orchestrator + E2E tests |
-| 5 | Polish | Documentation + Bug fixes |
+| Week | Focus           | Deliverable                    |
+| ---- | --------------- | ------------------------------ |
+| 1    | Infrastructure  | Token + Session modules tested |
+| 2    | Core Extraction | SDK + Rendering modules tested |
+| 3    | Complex Logic   | Analysis + Compression tested  |
+| 4    | Integration     | Orchestrator + E2E tests       |
+| 5    | Polish          | Documentation + Bug fixes      |
 
 **Total**: 5 weeks
 
@@ -159,18 +175,21 @@ useClaudeAgent.ts [150 lines] - Orchestrator
 ## ✅ Success Metrics
 
 ### Code Quality
+
 - Lines per file < 250 ✅
 - Cyclomatic complexity < 10 ✅
 - Test coverage > 95% ✅
 - Zero eslint violations ✅
 
 ### Performance
+
 - Turn analysis < 200ms ✅
 - Compression < 5 seconds ✅
 - Session load < 2 seconds ✅
 - UI never blocks ✅
 
 ### Reliability
+
 - Zero token reset bugs ✅
 - Zero data loss ✅
 - 100% compression success ✅
@@ -181,6 +200,7 @@ useClaudeAgent.ts [150 lines] - Orchestrator
 ## 🔒 Risk Mitigation
 
 ### Rollback Mechanism
+
 ```typescript
 const USE_LEGACY = process.env.USE_LEGACY_HOOK === 'true';
 export const useClaudeAgent = USE_LEGACY
@@ -189,11 +209,13 @@ export const useClaudeAgent = USE_LEGACY
 ```
 
 ### Incremental Migration
+
 - Each module extracted independently
 - Tests before moving forward
 - Can pause/resume at any phase
 
 ### Comprehensive Testing
+
 - 50+ unit tests
 - 15 integration tests
 - 10 E2E tests
@@ -204,7 +226,9 @@ export const useClaudeAgent = USE_LEGACY
 ## 📝 Document Summaries
 
 ### REFACTOR_SUMMARY.md
+
 **Executive Summary** - For leadership and product managers
+
 - Problem statement with business impact
 - Solution overview with benefits
 - Architecture comparison (before/after)
@@ -214,7 +238,9 @@ export const useClaudeAgent = USE_LEGACY
 - Success metrics
 
 ### REFACTOR_QUICK_REFERENCE.md
+
 **Quick Reference Card** - For everyone
+
 - TL;DR summary
 - Module breakdown table
 - Critical fixes summary
@@ -224,7 +250,9 @@ export const useClaudeAgent = USE_LEGACY
 - FAQs
 
 ### REFACTOR_PLAN_useClaudeAgent.md
+
 **Detailed Technical Plan** - For engineering team
+
 - Current state analysis (responsibilities, issues, metrics)
 - Target architecture (15 modules, 2,300 lines)
 - Module responsibilities (detailed specs for each)
@@ -234,7 +262,9 @@ export const useClaudeAgent = USE_LEGACY
 - Success metrics
 
 ### TESTING_GUIDE_useClaudeAgent.md
+
 **Comprehensive Testing Guide** - For QA and engineering
+
 - Test infrastructure setup
 - Test utilities (mocks, fixtures, helpers)
 - Unit test examples (all modules)
@@ -245,7 +275,9 @@ export const useClaudeAgent = USE_LEGACY
 - CI/CD integration
 
 ### REFACTOR_ARCHITECTURE_DIAGRAM.md
+
 **Visual Architecture** - For architects and engineers
+
 - Current state diagram (monolith)
 - Target state diagram (modular)
 - Data flow charts (compression workflow)
@@ -271,6 +303,7 @@ export const useClaudeAgent = USE_LEGACY
 ## 📊 Test Coverage
 
 ### Unit Tests (50+)
+
 - Token reset logic
 - Session state operations
 - Compression triggers
@@ -280,12 +313,14 @@ export const useClaudeAgent = USE_LEGACY
 - SDK message parsing
 
 ### Integration Tests (15)
+
 - SDK ↔ Token updates
 - Analysis ↔ Compression
 - Session ↔ SDK query
 - All hook interactions
 
 ### E2E Tests (10)
+
 - Fresh session creation
 - Compression workflow
 - Session restoration
@@ -317,6 +352,7 @@ A: Yes. Each phase is independently deliverable.
 ## 📞 Contact
 
 For questions or clarifications:
+
 - Technical: See [REFACTOR_PLAN_useClaudeAgent.md](./REFACTOR_PLAN_useClaudeAgent.md)
 - Testing: See [TESTING_GUIDE_useClaudeAgent.md](./TESTING_GUIDE_useClaudeAgent.md)
 - Architecture: See [REFACTOR_ARCHITECTURE_DIAGRAM.md](./REFACTOR_ARCHITECTURE_DIAGRAM.md)

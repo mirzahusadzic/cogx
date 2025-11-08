@@ -17,6 +17,7 @@ The `useClaudeAgent.ts` hook (~1,790 lines) has become the most complex componen
 ## Current State Analysis
 
 ### File Metrics
+
 - **Lines**: 1,790 (largest file in codebase by 2.5x)
 - **Responsibilities**: 10+ distinct concerns
 - **Test coverage**: 0% (no tests exist)
@@ -84,6 +85,7 @@ src/tui/hooks/
 ### Module Responsibilities
 
 #### 1. useClaudeAgent.ts (Orchestrator) [150 lines]
+
 **Single Responsibility**: Compose sub-hooks and expose unified API
 
 ```typescript
@@ -92,7 +94,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const sessionManager = useSessionManager(options);
   const tokenCounter = useTokenCount();
   const analysisQueue = useTurnAnalysis(sessionManager.currentSessionId);
-  const compressionTrigger = useCompression(tokenCounter.total, analysisQueue.analyses);
+  const compressionTrigger = useCompression(
+    tokenCounter.total,
+    analysisQueue.analyses
+  );
   const sdkQuery = useSDKQuery(sessionManager, compressionTrigger);
 
   // Wire up event handlers
@@ -116,6 +121,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 ```
 
 **Benefits**:
+
 - Each sub-hook is independently testable
 - Clear data flow between modules
 - Easy to add/remove features
@@ -124,12 +130,14 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 #### 2. SDK Layer (sdk/)
 
 ##### useSDKQuery.ts [200 lines]
+
 - Manages SDK query lifecycle (start, stream, complete)
 - Handles resume logic
 - Orchestrates context injection
 - **Tested**: Query creation, resume logic, error handling
 
 ##### useSDKMessageHandler.ts [250 lines]
+
 - Processes SDK messages by type
 - Updates message state
 - Extracts session IDs
@@ -138,12 +146,14 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 #### 3. Analysis Layer (analysis/)
 
 ##### useTurnAnalysis.ts [200 lines]
+
 - Orchestrates turn analysis
 - Manages analysis queue
 - Handles embedding caching
 - **Tested**: Analysis triggering, deduplication, embedding reuse
 
 ##### AnalysisQueue.ts [150 lines]
+
 **KEY IMPROVEMENT**: Background processing queue
 
 ```typescript
@@ -172,6 +182,7 @@ class AnalysisQueue {
 ```
 
 **Benefits**:
+
 - Analysis never blocks the UI
 - Progress bar for re-embedding
 - Can be paused/resumed
@@ -180,6 +191,7 @@ class AnalysisQueue {
 #### 4. Compression Layer (compression/)
 
 ##### useCompression.ts [200 lines]
+
 - Orchestrates compression workflow
 - Manages compression flag
 - Handles lattice storage
@@ -187,11 +199,16 @@ class AnalysisQueue {
 - **Tested**: Trigger logic, flag reset, lattice persistence
 
 ##### CompressionTrigger.ts [100 lines]
+
 **Isolated trigger logic**:
 
 ```typescript
 class CompressionTrigger {
-  shouldTrigger(tokenCount: number, turnCount: number, alreadyTriggered: boolean): boolean {
+  shouldTrigger(
+    tokenCount: number,
+    turnCount: number,
+    alreadyTriggered: boolean
+  ): boolean {
     const TOKEN_THRESHOLD = this.options.sessionTokens || 120000;
     const MIN_TURNS = 5;
 
@@ -209,6 +226,7 @@ class CompressionTrigger {
 ```
 
 **Benefits**:
+
 - Testable in isolation
 - Clear logic for when compression happens
 - Easy to modify thresholds
@@ -217,24 +235,27 @@ class CompressionTrigger {
 #### 5. Session Layer (session/)
 
 ##### useSessionManager.ts [200 lines]
+
 - Manages session state lifecycle
 - Handles SDK session ID updates
 - Coordinates anchor ID vs SDK UUID
 - **Tested**: State transitions, ID mapping, persistence
 
 ##### SessionStateStore.ts [150 lines]
+
 **Extracted from session-state.ts**:
 
 ```typescript
 class SessionStateStore {
-  load(anchorId: string): SessionState | null
-  save(state: SessionState): void
-  updateSession(anchorId: string, sdkSessionId: string, reason: string): void
-  updateStats(anchorId: string, stats: Stats): void
+  load(anchorId: string): SessionState | null;
+  save(state: SessionState): void;
+  updateSession(anchorId: string, sdkSessionId: string, reason: string): void;
+  updateStats(anchorId: string, stats: Stats): void;
 }
 ```
 
 **Benefits**:
+
 - Clear separation of state persistence
 - Easier to mock for testing
 - Can swap implementations (e.g., SQLite)
@@ -243,6 +264,7 @@ class SessionStateStore {
 #### 6. Token Layer (tokens/)
 
 ##### useTokenCount.ts [100 lines]
+
 **Isolated token counting**:
 
 ```typescript
@@ -256,7 +278,7 @@ export function useTokenCount() {
   }, []);
 
   const update = useCallback((newCount: TokenCount) => {
-    setCount(prev => {
+    setCount((prev) => {
       // Only use Math.max if NOT just reset
       if (justReset.current) {
         justReset.current = false;
@@ -271,6 +293,7 @@ export function useTokenCount() {
 ```
 
 **Benefits**:
+
 - Reset logic is isolated and testable
 - Clear semantics for when to use Math.max
 - **Tested**: Reset behavior, Math.max logic, edge cases
@@ -278,12 +301,14 @@ export function useTokenCount() {
 #### 7. Rendering Layer (rendering/)
 
 ##### MessageRenderer.ts [200 lines]
+
 - Formats messages by type
 - Applies colors
 - Handles streaming updates
 - **Tested**: All message types, color stripping, streaming
 
 ##### ToolFormatter.ts [150 lines]
+
 - Formats tool calls
 - Generates diffs for Edit tool
 - Formats TodoWrite display
@@ -296,6 +321,7 @@ export function useTokenCount() {
 ### Phase 1: Setup & Infrastructure (Week 1)
 
 #### Day 1: Project Setup
+
 - [ ] Create new directory structure
 - [ ] Set up test framework (Vitest + React Testing Library)
 - [ ] Create shared test utilities
@@ -304,6 +330,7 @@ export function useTokenCount() {
 **Deliverable**: Working test infrastructure with sample tests
 
 #### Day 2-3: Extract Token Management
+
 - [ ] Create `tokens/useTokenCount.ts`
 - [ ] Create `tokens/TokenCounter.ts`
 - [ ] Write comprehensive tests (100% coverage)
@@ -311,19 +338,21 @@ export function useTokenCount() {
 - [ ] Verify token count behavior in TUI
 
 **Tests**:
+
 ```typescript
 describe('useTokenCount', () => {
-  it('resets to zero when reset() called')
-  it('uses Math.max when not just reset')
-  it('accepts any value immediately after reset')
-  it('handles multiple resets in sequence')
-  it('handles concurrent updates')
+  it('resets to zero when reset() called');
+  it('uses Math.max when not just reset');
+  it('accepts any value immediately after reset');
+  it('handles multiple resets in sequence');
+  it('handles concurrent updates');
 });
 ```
 
 **Deliverable**: Token management fully extracted and tested
 
 #### Day 4-5: Extract Session Management
+
 - [ ] Create `session/SessionStateStore.ts`
 - [ ] Create `session/useSessionManager.ts`
 - [ ] Write comprehensive tests
@@ -331,20 +360,21 @@ describe('useTokenCount', () => {
 - [ ] Verify session persistence
 
 **Tests**:
+
 ```typescript
 describe('SessionStateStore', () => {
-  it('creates initial state correctly')
-  it('updates SDK session on compression')
-  it('tracks compression history')
-  it('migrates old state files')
-  it('handles missing files gracefully')
+  it('creates initial state correctly');
+  it('updates SDK session on compression');
+  it('tracks compression history');
+  it('migrates old state files');
+  it('handles missing files gracefully');
 });
 
 describe('useSessionManager', () => {
-  it('loads existing session on mount')
-  it('creates new session if none exists')
-  it('updates anchor state when SDK session changes')
-  it('resets resume ID after compression')
+  it('loads existing session on mount');
+  it('creates new session if none exists');
+  it('updates anchor state when SDK session changes');
+  it('resets resume ID after compression');
 });
 ```
 
@@ -353,6 +383,7 @@ describe('useSessionManager', () => {
 ### Phase 2: Core Extraction (Week 2)
 
 #### Day 6-8: Extract SDK Layer
+
 - [ ] Create `sdk/useSDKQuery.ts`
 - [ ] Create `sdk/useSDKMessageHandler.ts`
 - [ ] Create `sdk/types.ts`
@@ -361,29 +392,31 @@ describe('useSessionManager', () => {
 - [ ] Verify query lifecycle
 
 **Tests**:
+
 ```typescript
 describe('useSDKQuery', () => {
-  it('creates query with correct options')
-  it('resumes from session ID')
-  it('injects recap on first query after compression')
-  it('injects real-time context on subsequent queries')
-  it('handles query errors')
-  it('interrupts query on demand')
+  it('creates query with correct options');
+  it('resumes from session ID');
+  it('injects recap on first query after compression');
+  it('injects real-time context on subsequent queries');
+  it('handles query errors');
+  it('interrupts query on demand');
 });
 
 describe('useSDKMessageHandler', () => {
-  it('processes assistant messages')
-  it('processes stream events')
-  it('updates token count from message_delta')
-  it('extracts session ID from all message types')
-  it('updates resume session ID')
-  it('handles tool calls')
+  it('processes assistant messages');
+  it('processes stream events');
+  it('updates token count from message_delta');
+  it('extracts session ID from all message types');
+  it('updates resume session ID');
+  it('handles tool calls');
 });
 ```
 
 **Deliverable**: SDK layer fully extracted and tested
 
 #### Day 9-10: Extract Rendering Layer
+
 - [ ] Create `rendering/MessageRenderer.ts`
 - [ ] Create `rendering/ToolFormatter.ts`
 - [ ] Write comprehensive tests
@@ -391,20 +424,21 @@ describe('useSDKMessageHandler', () => {
 - [ ] Verify message display
 
 **Tests**:
+
 ```typescript
 describe('MessageRenderer', () => {
-  it('strips ANSI codes from SDK output')
-  it('formats user messages')
-  it('formats assistant messages')
-  it('formats system messages')
-  it('handles streaming updates')
+  it('strips ANSI codes from SDK output');
+  it('formats user messages');
+  it('formats assistant messages');
+  it('formats system messages');
+  it('handles streaming updates');
 });
 
 describe('ToolFormatter', () => {
-  it('formats Edit tool with diff')
-  it('formats TodoWrite with status icons')
-  it('formats recall tool with query')
-  it('formats other tools generically')
+  it('formats Edit tool with diff');
+  it('formats TodoWrite with status icons');
+  it('formats recall tool with query');
+  it('formats other tools generically');
 });
 ```
 
@@ -413,6 +447,7 @@ describe('ToolFormatter', () => {
 ### Phase 3: Analysis & Compression (Week 3)
 
 #### Day 11-13: Extract Analysis Layer
+
 **CRITICAL**: Implement background queue here
 
 - [ ] Create `analysis/AnalysisQueue.ts`
@@ -422,30 +457,32 @@ describe('ToolFormatter', () => {
 - [ ] Verify analysis non-blocking
 
 **Tests**:
+
 ```typescript
 describe('AnalysisQueue', () => {
-  it('processes turns in order')
-  it('does not block on analysis')
-  it('reports progress')
-  it('handles analysis errors')
-  it('prevents duplicate analysis')
-  it('caches embeddings for reuse')
-  it('can be paused and resumed')
+  it('processes turns in order');
+  it('does not block on analysis');
+  it('reports progress');
+  it('handles analysis errors');
+  it('prevents duplicate analysis');
+  it('caches embeddings for reuse');
+  it('can be paused and resumed');
 });
 
 describe('useTurnAnalysis', () => {
-  it('analyzes new user messages')
-  it('waits for assistant to finish before analyzing')
-  it('does not re-analyze existing turns')
-  it('reuses cached embeddings')
-  it('populates conversation overlays')
-  it('flushes overlays periodically')
+  it('analyzes new user messages');
+  it('waits for assistant to finish before analyzing');
+  it('does not re-analyze existing turns');
+  it('reuses cached embeddings');
+  it('populates conversation overlays');
+  it('flushes overlays periodically');
 });
 ```
 
 **Deliverable**: Analysis layer with background queue, tested
 
 #### Day 14-15: Extract Compression Layer
+
 - [ ] Create `compression/CompressionTrigger.ts`
 - [ ] Create `compression/useCompression.ts`
 - [ ] Write comprehensive tests
@@ -453,24 +490,25 @@ describe('useTurnAnalysis', () => {
 - [ ] Verify compression workflow
 
 **Tests**:
+
 ```typescript
 describe('CompressionTrigger', () => {
-  it('triggers at token threshold')
-  it('requires minimum turns')
-  it('does not trigger twice')
-  it('resets when new session starts')
+  it('triggers at token threshold');
+  it('requires minimum turns');
+  it('does not trigger twice');
+  it('resets when new session starts');
 });
 
 describe('useCompression', () => {
-  it('triggers compression at threshold')
-  it('saves lattice to disk')
-  it('flushes conversation overlays')
-  it('generates recap')
-  it('resets token count')
-  it('clears resume session ID')
-  it('resets compression flag on new session')
-  it('updates anchor state')
-  it('shows user notifications')
+  it('triggers compression at threshold');
+  it('saves lattice to disk');
+  it('flushes conversation overlays');
+  it('generates recap');
+  it('resets token count');
+  it('clears resume session ID');
+  it('resets compression flag on new session');
+  it('updates anchor state');
+  it('shows user notifications');
 });
 ```
 
@@ -479,29 +517,33 @@ describe('useCompression', () => {
 ### Phase 4: Integration & Testing (Week 4)
 
 #### Day 16-17: Orchestrator Refactor
+
 - [ ] Rewrite `useClaudeAgent.ts` as orchestrator
 - [ ] Wire up all sub-hooks
 - [ ] Write integration tests
 - [ ] Verify all features work end-to-end
 
 **Tests**:
+
 ```typescript
 describe('useClaudeAgent (integration)', () => {
-  it('sends message and receives response')
-  it('analyzes turns in background')
-  it('triggers compression at threshold')
-  it('resumes from compressed session')
-  it('handles authentication errors')
-  it('interrupts query')
+  it('sends message and receives response');
+  it('analyzes turns in background');
+  it('triggers compression at threshold');
+  it('resumes from compressed session');
+  it('handles authentication errors');
+  it('interrupts query');
 });
 ```
 
 **Deliverable**: Orchestrator complete and tested
 
 #### Day 18-20: End-to-End Testing
+
 **CRITICAL**: Test real compression scenarios
 
 Test scenarios:
+
 1. **Fresh session** - Start TUI, send messages, verify analysis
 2. **Compression trigger** - Reach token threshold, verify compression
 3. **Resume compressed** - Restart TUI, verify lattice restoration
@@ -511,23 +553,24 @@ Test scenarios:
 7. **Token reset** - Verify token count resets correctly
 
 **Tests**:
+
 ```typescript
 describe('Compression Workflow (E2E)', () => {
-  it('compresses at 120K tokens with 5+ turns')
-  it('resets token count after compression')
-  it('starts fresh SDK session with recap')
-  it('saves lattice with embeddings to LanceDB')
-  it('updates anchor state with new SDK session')
-  it('resets compression flag when new session starts')
-  it('does not re-analyze compressed turns')
+  it('compresses at 120K tokens with 5+ turns');
+  it('resets token count after compression');
+  it('starts fresh SDK session with recap');
+  it('saves lattice with embeddings to LanceDB');
+  it('updates anchor state with new SDK session');
+  it('resets compression flag when new session starts');
+  it('does not re-analyze compressed turns');
 });
 
 describe('Session Restoration (E2E)', () => {
-  it('loads lattice from disk')
-  it('restores embeddings from LanceDB')
-  it('rebuilds turn analyses from lattice')
-  it('continues analysis for new turns')
-  it('does not re-embed existing turns')
+  it('loads lattice from disk');
+  it('restores embeddings from LanceDB');
+  it('rebuilds turn analyses from lattice');
+  it('continues analysis for new turns');
+  it('does not re-embed existing turns');
 });
 ```
 
@@ -536,18 +579,21 @@ describe('Session Restoration (E2E)', () => {
 ### Phase 5: Polish & Documentation (Week 5)
 
 #### Day 21-22: Bug Fixes & Edge Cases
+
 - [ ] Fix any issues found during E2E testing
 - [ ] Add missing error handling
 - [ ] Improve logging and debugging
 - [ ] Performance profiling
 
 #### Day 23-25: Documentation
+
 - [ ] Document each module's API
 - [ ] Create architecture diagrams
 - [ ] Write testing guide
 - [ ] Update main README
 
 **Deliverables**:
+
 - `docs/architecture/useClaudeAgent.md` - Architecture overview
 - `docs/testing/useClaudeAgent.md` - Testing guide
 - Inline JSDoc comments for all public APIs
@@ -566,6 +612,7 @@ describe('Session Restoration (E2E)', () => {
 ### Test Infrastructure
 
 #### Utilities
+
 ```typescript
 // test/utils/mockSDK.ts
 export function createMockQuery(options: Partial<QueryOptions> = {}) {
@@ -584,6 +631,7 @@ export function createTestSession(anchorId = 'test-session') {
 ```
 
 #### Fixtures
+
 ```typescript
 // test/fixtures/messages.ts
 export const sampleUserMessage: ClaudeMessage = { ... };
@@ -594,6 +642,7 @@ export const sampleSDKMessages: SDKMessage[] = [ ... ];
 ### Critical Test Cases
 
 #### 1. Compression & Token Reset
+
 **Most buggy area - needs exhaustive testing**
 
 ```typescript
@@ -603,7 +652,11 @@ describe('Compression + Token Reset (Critical)', () => {
 
     // Simulate reaching threshold
     act(() => {
-      result.current.tokenCount = { input: 60000, output: 60001, total: 120001 };
+      result.current.tokenCount = {
+        input: 60000,
+        output: 60001,
+        total: 120001,
+      };
     });
 
     // Should reset immediately
@@ -624,7 +677,9 @@ describe('Compression + Token Reset (Critical)', () => {
 
     // Next message should accept any token value (not use Math.max)
     act(() => {
-      result.current.processSDKMessage(createMessageDelta({ input: 1000, output: 500 }));
+      result.current.processSDKMessage(
+        createMessageDelta({ input: 1000, output: 500 })
+      );
     });
 
     expect(result.current.tokenCount.total).toBe(1500);
@@ -651,13 +706,16 @@ describe('Compression + Token Reset (Critical)', () => {
 ```
 
 #### 2. Session State Management
+
 ```typescript
 describe('Session State (Critical)', () => {
   it('uses anchor ID for file operations, SDK UUID for resume', () => {
     const anchorId = 'my-session';
     const sdkUuid = 'uuid-1234-5678';
 
-    const { result } = renderHook(() => useClaudeAgent({ sessionId: anchorId }));
+    const { result } = renderHook(() =>
+      useClaudeAgent({ sessionId: anchorId })
+    );
 
     // Should create state file with anchor ID
     const stateFile = path.join('.sigma', `${anchorId}.state.json`);
@@ -674,6 +732,7 @@ describe('Session State (Critical)', () => {
 ```
 
 #### 3. Re-Embedding (Background Queue)
+
 ```typescript
 describe('Re-Embedding After Compression (Critical)', () => {
   it('does not block UI during re-embedding', async () => {
@@ -744,22 +803,26 @@ export const useClaudeAgent = USE_LEGACY
 ## Success Metrics
 
 ### Code Quality
+
 - [ ] Lines per file < 250
 - [ ] Cyclomatic complexity < 10 per function
 - [ ] Test coverage > 95%
 - [ ] No eslint violations
 
 ### Performance
+
 - [ ] Turn analysis does not block UI (< 16ms on main thread)
 - [ ] Compression triggers within 1 second of threshold
 - [ ] Session restoration < 2 seconds
 
 ### Reliability
+
 - [ ] Zero token count reset bugs in production
 - [ ] Zero data loss from session state
 - [ ] Compression workflow succeeds 100% of time
 
 ### Developer Experience
+
 - [ ] New features can be added without touching orchestrator
 - [ ] Bugs can be isolated to single module
 - [ ] All modules have clear documentation
@@ -768,13 +831,13 @@ export const useClaudeAgent = USE_LEGACY
 
 ## Timeline Summary
 
-| Week | Focus | Deliverable |
-|------|-------|-------------|
-| 1 | Infrastructure & Foundation | Token + Session modules tested |
-| 2 | Core Extraction | SDK + Rendering modules tested |
-| 3 | Complex Logic | Analysis + Compression tested |
-| 4 | Integration | Orchestrator + E2E tests |
-| 5 | Polish | Documentation + Bug fixes |
+| Week | Focus                       | Deliverable                    |
+| ---- | --------------------------- | ------------------------------ |
+| 1    | Infrastructure & Foundation | Token + Session modules tested |
+| 2    | Core Extraction             | SDK + Rendering modules tested |
+| 3    | Complex Logic               | Analysis + Compression tested  |
+| 4    | Integration                 | Orchestrator + E2E tests       |
+| 5    | Polish                      | Documentation + Bug fixes      |
 
 **Total**: ~5 weeks for complete refactor with comprehensive tests
 
@@ -793,6 +856,7 @@ export const useClaudeAgent = USE_LEGACY
 ## Appendix: Testing Checklist
 
 ### Unit Test Checklist
+
 - [ ] Token counter reset logic
 - [ ] Token counter Math.max logic
 - [ ] Session state creation
@@ -808,6 +872,7 @@ export const useClaudeAgent = USE_LEGACY
 - [ ] Tool formatting (all tools)
 
 ### Integration Test Checklist
+
 - [ ] Token counter + Compression trigger
 - [ ] Session manager + SDK query
 - [ ] Analysis queue + Overlay population
@@ -816,6 +881,7 @@ export const useClaudeAgent = USE_LEGACY
 - [ ] Message handler + Renderer
 
 ### E2E Test Checklist
+
 - [ ] Fresh session creation
 - [ ] Send message → Analyze → Display
 - [ ] Reach threshold → Compress → Switch session

@@ -11,6 +11,7 @@
 ## O₁ - Structural Patterns
 
 ### Current State:
+
 - Manifest: `{ "symbolName": "filePath" }`
 - Metadata files: Store `validation.sourceHash`
 - Problem: All 484 jobs sent to workers even if 476 unchanged
@@ -18,6 +19,7 @@
 ### Proposed Changes:
 
 **1. Extend Manifest Format (Backward Compatible)**
+
 ```json
 {
   "DocumentSearchResult": {
@@ -25,52 +27,50 @@
     "sourceHash": "e4a644dd23176ec0e6507f8a1cbf5a7c6ff5ce2fbef7789f9b55cefa3dd84453",
     "lastUpdated": "2025-11-08T12:00:26.883Z"
   },
-  "OldPattern": "src/old/file.ts"  // Old format still supported
+  "OldPattern": "src/old/file.ts" // Old format still supported
 }
 ```
 
 **2. Orchestrator Pre-filtering**
+
 ```typescript
 // In overlay.ts, before creating jobs
 async preFilterStructuralJobs(allFiles, force) {
   const manifest = await this.pgc.overlays.getManifest('structural_patterns');
   const jobsToProcess = [];
-  
+
   for (const file of allFiles) {
     const currentContentHash = this.pgc.objectStore.computeHash(file.content);
     const structuralData = await this.miner.extractStructure(file);
-    
+
     for (const symbol of extractSymbols(structuralData)) {
       const manifestEntry = manifest[symbol.name];
-      
+
       // Backward compatible check
-      const needsProcessing = force || 
-        !manifestEntry || 
-        (typeof manifestEntry === 'object' && 
+      const needsProcessing = force ||
+        !manifestEntry ||
+        (typeof manifestEntry === 'object' &&
          manifestEntry.sourceHash !== currentContentHash);
-      
+
       if (needsProcessing) {
         jobsToProcess.push(createJob(symbol, file, currentContentHash));
       }
     }
   }
-  
+
   return jobsToProcess;
 }
 ```
 
 **3. Update Manifest Writer**
+
 ```typescript
 // When storing pattern metadata
-await this.pgc.overlays.updateManifest(
-  'structural_patterns',
-  symbolName,
-  {
-    filePath: relativePath,
-    sourceHash: contentHash,
-    lastUpdated: new Date().toISOString()
-  }
-);
+await this.pgc.overlays.updateManifest('structural_patterns', symbolName, {
+  filePath: relativePath,
+  sourceHash: contentHash,
+  lastUpdated: new Date().toISOString(),
+});
 ```
 
 ---
@@ -78,12 +78,14 @@ await this.pgc.overlays.updateManifest(
 ## O₂ - Security Guidelines
 
 ### Current State:
+
 - No manifest tracking
 - Regenerates all security rules every time
 
 ### Proposed Changes:
 
 **1. Create Manifest Tracking**
+
 ```json
 {
   "Input Validation Rule": {
@@ -95,20 +97,21 @@ await this.pgc.overlays.updateManifest(
 ```
 
 **2. Document-Based Incremental Logic**
+
 ```typescript
 async preFilterSecurityGuidelines(documents, force) {
   const manifest = await this.pgc.overlays.getManifest('security_guidelines');
   const docsToProcess = [];
-  
+
   for (const doc of documents) {
     const currentDocHash = computeDocumentHash(doc);
     const existingEntry = manifest[doc.name];
-    
+
     if (force || !existingEntry || existingEntry.documentHash !== currentDocHash) {
       docsToProcess.push(doc);
     }
   }
-  
+
   return docsToProcess;
 }
 ```
@@ -118,12 +121,14 @@ async preFilterSecurityGuidelines(documents, force) {
 ## O₃ - Lineage Patterns
 
 ### Current State:
+
 - Built from manifest (already efficient!)
 - No source file tracking
 
 ### Proposed Changes:
 
 **1. Track Source Hashes in Lineage Manifest**
+
 ```json
 {
   "src/core/pgc/manager.ts": {
@@ -136,20 +141,21 @@ async preFilterSecurityGuidelines(documents, force) {
 ```
 
 **2. Incremental Lineage Analysis**
+
 ```typescript
 async generateLineageIncremental(force) {
   const manifest = await this.lineagePatternManager.getManifest();
   const filesToAnalyze = [];
-  
+
   for (const file of allSourceFiles) {
     const currentHash = computeFileHash(file);
     const entry = manifest[file.path];
-    
+
     if (force || !entry || entry.sourceHash !== currentHash) {
       filesToAnalyze.push(file);
     }
   }
-  
+
   await this.lineagePatternManager.analyzeFiles(filesToAnalyze);
 }
 ```
@@ -159,12 +165,14 @@ async generateLineageIncremental(force) {
 ## O₄ - Mission Concepts
 
 ### Current State:
+
 - Extracts from ingested documents
 - No incremental tracking
 
 ### Proposed Changes:
 
 **1. Document-Level Tracking**
+
 ```json
 {
   "VISION.md": {
@@ -177,19 +185,20 @@ async generateLineageIncremental(force) {
 ```
 
 **2. Incremental Concept Extraction**
+
 ```typescript
 async preFilterMissionDocuments(documentHashes, force) {
   const manifest = await this.missionConceptsManager.getManifest();
   const docsToProcess = [];
-  
+
   for (const [docPath, docHash] of documentHashes) {
     const entry = manifest[docPath];
-    
+
     if (force || !entry || entry.documentHash !== docHash) {
       docsToProcess.push(docPath);
     }
   }
-  
+
   return docsToProcess;
 }
 ```
@@ -199,12 +208,14 @@ async preFilterMissionDocuments(documentHashes, force) {
 ## O₅ - Operational Patterns
 
 ### Current State:
+
 - Similar to structural patterns
 - Tracks runtime/operational characteristics
 
 ### Proposed Changes:
 
 **Same as O₁** - Use manifest with sourceHash tracking:
+
 ```json
 {
   "handleRequest": {
@@ -221,12 +232,14 @@ async preFilterMissionDocuments(documentHashes, force) {
 ## O₆ - Mathematical Proofs
 
 ### Current State:
+
 - Document-based extraction
 - Theorem/proof tracking
 
 ### Proposed Changes:
 
 **Document-Level Tracking** (like O₄):
+
 ```json
 {
   "MATHEMATICAL_PROOFS.md": {
@@ -243,12 +256,14 @@ async preFilterMissionDocuments(documentHashes, force) {
 ## O₇ - Strategic Coherence
 
 ### Current State:
+
 - Computes alignment between mission concepts and code
 - No incremental support
 
 ### Proposed Changes:
 
 **1. Track Input Dependencies**
+
 ```json
 {
   "dependencies": {
@@ -261,16 +276,17 @@ async preFilterMissionDocuments(documentHashes, force) {
 ```
 
 **2. Skip If Dependencies Unchanged**
+
 ```typescript
 async shouldRegenerateCoherence(force) {
   const manifest = await this.strategicCoherenceManager.getManifest();
-  
+
   if (force) return true;
-  
+
   // Check if inputs changed
   const missionHash = await computeMissionConceptsHash();
   const structuralHash = await computeStructuralPatternsHash();
-  
+
   return !manifest.dependencies ||
     manifest.dependencies.missionConceptsHash !== missionHash ||
     manifest.dependencies.structuralPatternsHash !== structuralHash;
@@ -287,20 +303,20 @@ async shouldRegenerateCoherence(force) {
 interface OverlayManifestEntry {
   // Common fields
   lastUpdated: string;
-  
+
   // Type-specific fields (union)
-  filePath?: string;           // For code patterns (O₁, O₅)
-  sourceHash?: string;          // For code patterns
-  documentHash?: string;        // For doc-based (O₂, O₄, O₆)
-  sourceFile?: string;          // For doc-based
-  dependencies?: object;        // For computed overlays (O₇)
-  
+  filePath?: string; // For code patterns (O₁, O₅)
+  sourceHash?: string; // For code patterns
+  documentHash?: string; // For doc-based (O₂, O₄, O₆)
+  sourceFile?: string; // For doc-based
+  dependencies?: object; // For computed overlays (O₇)
+
   // Backward compatibility
-  [key: string]: unknown;       // Allow old string format
+  [key: string]: unknown; // Allow old string format
 }
 
 interface OverlayManifest {
-  format_version?: number;      // For future migrations
+  format_version?: number; // For future migrations
   entries: Record<string, OverlayManifestEntry | string>; // String = old format
 }
 ```
@@ -310,25 +326,30 @@ interface OverlayManifest {
 ## Implementation Phases
 
 ### Phase 1: Core Infrastructure (Week 1)
+
 1. ✅ Create `ManifestManager` with backward-compatible reading
 2. ✅ Implement hash comparison utilities
 3. ✅ Add pre-filtering to orchestrator base class
 
 ### Phase 2: Code-Based Overlays (Week 2)
+
 1. ✅ Update O₁ (Structural Patterns)
 2. ✅ Update O₅ (Operational Patterns)
 3. ✅ Update O₃ (Lineage) - enhance existing
 
 ### Phase 3: Document-Based Overlays (Week 3)
+
 1. ✅ Update O₄ (Mission Concepts)
 2. ✅ Update O₂ (Security Guidelines)
 3. ✅ Update O₆ (Mathematical Proofs)
 
 ### Phase 4: Computed Overlay (Week 4)
+
 1. ✅ Update O₇ (Strategic Coherence)
 2. ✅ Dependency tracking
 
 ### Phase 5: Testing & Migration (Week 5)
+
 1. ✅ Test backward compatibility
 2. ✅ Gradual migration of existing manifests
 3. ✅ Performance benchmarks
@@ -346,19 +367,20 @@ function readManifestEntry(entry: unknown, symbolName: string) {
     return {
       filePath: entry,
       sourceHash: undefined, // Will trigger re-read from metadata
-      needsMigration: true
+      needsMigration: true,
     };
   }
-  
+
   // New format: "symbolName": { filePath, sourceHash, ... }
   return {
     ...entry,
-    needsMigration: false
+    needsMigration: false,
   };
 }
 ```
 
 **Gradual Migration:**
+
 - New overlays use new format immediately
 - Old overlays migrate on next `--force` regeneration
 - System works with mixed old/new formats indefinitely
@@ -368,15 +390,18 @@ function readManifestEntry(entry: unknown, symbolName: string) {
 ## Performance Impact
 
 **Before** (current):
+
 - O₁: 484 jobs → 476 skipped in workers → 8 embedded
 - Worker overhead: 476 × (spawn + IPC + overlay check)
 
 **After** (with pre-filtering):
+
 - O₁: 8 jobs → 8 embedded
 - Worker overhead: 8 × (spawn + IPC)
 - **~60x reduction in worker operations**
 
 **Expected improvements:**
+
 - 🚀 80-90% reduction in generation time for unchanged code
 - 🚀 No more need for `--force` flag
 - 🚀 True incremental updates without file watcher
@@ -387,6 +412,7 @@ function readManifestEntry(entry: unknown, symbolName: string) {
 ## Summary
 
 This plan provides:
+
 1. ✅ **Universal approach** for all 7 overlays
 2. ✅ **Backward compatibility** with existing manifests
 3. ✅ **No worker changes** - keeps them lightweight

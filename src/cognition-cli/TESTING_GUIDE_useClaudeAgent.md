@@ -155,10 +155,12 @@ export function createToolUseMessage(
 ```typescript
 import type { EmbeddingService } from '../../../core/services/embedding';
 
-export function createMockEmbedder(options: {
-  embeddings?: Map<string, number[]>;
-  shouldError?: boolean;
-} = {}): EmbeddingService {
+export function createMockEmbedder(
+  options: {
+    embeddings?: Map<string, number[]>;
+    shouldError?: boolean;
+  } = {}
+): EmbeddingService {
   const embeddings = options.embeddings || new Map();
 
   // Generate deterministic embeddings based on content hash
@@ -168,8 +170,12 @@ export function createMockEmbedder(options: {
     }
 
     // Simple hash-based deterministic embedding (768 dimensions)
-    const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return Array(768).fill(0).map((_, i) => (hash + i) / 1000);
+    const hash = text
+      .split('')
+      .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return Array(768)
+      .fill(0)
+      .map((_, i) => (hash + i) / 1000);
   };
 
   return {
@@ -198,7 +204,8 @@ export function setupMockFS() {
 
   return {
     vol,
-    readJSON: (path: string) => JSON.parse(vol.readFileSync(path, 'utf-8') as string),
+    readJSON: (path: string) =>
+      JSON.parse(vol.readFileSync(path, 'utf-8') as string),
     writeJSON: (path: string, data: unknown) => {
       vol.writeFileSync(path, JSON.stringify(data, null, 2));
     },
@@ -533,9 +540,24 @@ describe('AnalysisQueue', () => {
     };
 
     // Add 3 turns
-    await queue.add({ id: 'turn-1', role: 'user', content: 'First', timestamp: 1 });
-    await queue.add({ id: 'turn-2', role: 'assistant', content: 'Second', timestamp: 2 });
-    await queue.add({ id: 'turn-3', role: 'user', content: 'Third', timestamp: 3 });
+    await queue.add({
+      id: 'turn-1',
+      role: 'user',
+      content: 'First',
+      timestamp: 1,
+    });
+    await queue.add({
+      id: 'turn-2',
+      role: 'assistant',
+      content: 'Second',
+      timestamp: 2,
+    });
+    await queue.add({
+      id: 'turn-3',
+      role: 'user',
+      content: 'Third',
+      timestamp: 3,
+    });
 
     // Wait for processing
     await waitFor(() => {
@@ -552,7 +574,12 @@ describe('AnalysisQueue', () => {
 
     // Add turn (should return immediately)
     const start = Date.now();
-    await queue.add({ id: 'turn-1', role: 'user', content: 'Test', timestamp: 1 });
+    await queue.add({
+      id: 'turn-1',
+      role: 'user',
+      content: 'Test',
+      timestamp: 1,
+    });
     const elapsed = Date.now() - start;
 
     // Should be very fast (< 10ms)
@@ -570,7 +597,12 @@ describe('AnalysisQueue', () => {
 
     // Add 5 turns
     for (let i = 0; i < 5; i++) {
-      await queue.add({ id: `turn-${i}`, role: 'user', content: `Turn ${i}`, timestamp: i });
+      await queue.add({
+        id: `turn-${i}`,
+        role: 'user',
+        content: `Turn ${i}`,
+        timestamp: i,
+      });
     }
 
     // Wait for completion
@@ -592,7 +624,12 @@ describe('AnalysisQueue', () => {
     };
 
     // Add turn that will fail
-    await queue.add({ id: 'turn-1', role: 'user', content: 'Test', timestamp: 1 });
+    await queue.add({
+      id: 'turn-1',
+      role: 'user',
+      content: 'Test',
+      timestamp: 1,
+    });
 
     // Wait for processing
     await waitFor(() => {
@@ -613,8 +650,18 @@ describe('AnalysisQueue', () => {
     };
 
     // Add same turn twice
-    await queue.add({ id: 'turn-1', role: 'user', content: 'Test', timestamp: 1 });
-    await queue.add({ id: 'turn-1', role: 'user', content: 'Test', timestamp: 1 });
+    await queue.add({
+      id: 'turn-1',
+      role: 'user',
+      content: 'Test',
+      timestamp: 1,
+    });
+    await queue.add({
+      id: 'turn-1',
+      role: 'user',
+      content: 'Test',
+      timestamp: 1,
+    });
 
     // Wait for processing
     await waitFor(() => {
@@ -724,7 +771,9 @@ describe('Compression Workflow (E2E)', () => {
     expect(result.current.tokenCount.total).toBe(0);
 
     // 5. Verify lattice saved to disk
-    const latticeFile = mockFS.vol.existsSync('/.sigma/test-session.lattice.json');
+    const latticeFile = mockFS.vol.existsSync(
+      '/.sigma/test-session.lattice.json'
+    );
     expect(latticeFile).toBe(true);
 
     // 6. Verify recap generated
@@ -763,7 +812,9 @@ describe('Compression Workflow (E2E)', () => {
     });
 
     await waitFor(() => {
-      expect(result.current.conversationLattice?.metadata.compressed_turn_count).toBeGreaterThan(0);
+      expect(
+        result.current.conversationLattice?.metadata.compressed_turn_count
+      ).toBeGreaterThan(0);
     });
   });
 });

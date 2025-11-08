@@ -209,6 +209,7 @@ Key:
 ## Critical Path (Compression Bug)
 
 ### Before (Monolith)
+
 ```
 Token count update
    │
@@ -236,6 +237,7 @@ Token count keeps increasing ❌ BUG!
 ```
 
 ### After (Modular + Tested)
+
 ```
 Token count update
    │

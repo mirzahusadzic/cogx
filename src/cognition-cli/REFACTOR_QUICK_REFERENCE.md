@@ -11,21 +11,21 @@
 
 ## Module Breakdown
 
-| Module | Lines | Responsibility | Key Feature |
-|--------|-------|----------------|-------------|
-| **useClaudeAgent** | 150 | Orchestration | Compose sub-hooks |
-| useSDKQuery | 200 | SDK lifecycle | Query management |
-| useSDKMessageHandler | 250 | Message processing | Session ID extraction |
-| useTurnAnalysis | 200 | Analysis orchestration | Embedding cache |
-| **AnalysisQueue** ⭐ | 150 | Background queue | Non-blocking processing |
-| useCompression | 200 | Compression workflow | Lattice persistence |
-| CompressionTrigger | 100 | Trigger logic | Threshold detection |
-| useSessionManager | 200 | Session state | ID mapping |
-| SessionStateStore | 150 | State persistence | File operations |
-| useTokenCount | 100 | Token tracking | Reset semantics |
-| TokenCounter | 80 | Counter logic | Math.max handling |
-| MessageRenderer | 200 | Message display | Color stripping |
-| ToolFormatter | 150 | Tool display | Diff generation |
+| Module               | Lines | Responsibility         | Key Feature             |
+| -------------------- | ----- | ---------------------- | ----------------------- |
+| **useClaudeAgent**   | 150   | Orchestration          | Compose sub-hooks       |
+| useSDKQuery          | 200   | SDK lifecycle          | Query management        |
+| useSDKMessageHandler | 250   | Message processing     | Session ID extraction   |
+| useTurnAnalysis      | 200   | Analysis orchestration | Embedding cache         |
+| **AnalysisQueue** ⭐ | 150   | Background queue       | Non-blocking processing |
+| useCompression       | 200   | Compression workflow   | Lattice persistence     |
+| CompressionTrigger   | 100   | Trigger logic          | Threshold detection     |
+| useSessionManager    | 200   | Session state          | ID mapping              |
+| SessionStateStore    | 150   | State persistence      | File operations         |
+| useTokenCount        | 100   | Token tracking         | Reset semantics         |
+| TokenCounter         | 80    | Counter logic          | Math.max handling       |
+| MessageRenderer      | 200   | Message display        | Color stripping         |
+| ToolFormatter        | 150   | Tool display           | Diff generation         |
 
 **Total**: ~2,300 lines (split into 15 modules)
 
@@ -34,21 +34,25 @@
 ## Critical Fixes
 
 ### 1. Background Analysis Queue
+
 **Before**: Re-embedding blocks UI for 10+ seconds
 **After**: Background queue with progress bar
 **Impact**: Responsive UI, better UX
 
 ### 2. Token Reset Logic
+
 **Before**: Reset bug fixed twice, still fragile
 **After**: Isolated module, fully tested
 **Impact**: No more reset bugs
 
 ### 3. Session ID Mapping
+
 **Before**: Anchor ID vs SDK UUID confusion
 **After**: Clear separation, tested thoroughly
 **Impact**: No more session state bugs
 
 ### 4. Compression Trigger
+
 **Before**: Flag management brittle
 **After**: Dedicated class, clear logic
 **Impact**: Easy to test, modify thresholds
@@ -58,19 +62,22 @@
 ## Testing Strategy
 
 ### Coverage Targets
+
 - **Unit**: 95%+ (all modules)
 - **Integration**: All sub-hook interactions
 - **E2E**: All critical workflows
 
 ### Test Categories
-| Type | Count | Purpose |
-|------|-------|---------|
-| Unit | ~50 | Module isolation |
-| Integration | ~15 | Hook interactions |
-| E2E | ~10 | Real workflows |
-| Manual | ~20 | Pre-release validation |
+
+| Type        | Count | Purpose                |
+| ----------- | ----- | ---------------------- |
+| Unit        | ~50   | Module isolation       |
+| Integration | ~15   | Hook interactions      |
+| E2E         | ~10   | Real workflows         |
+| Manual      | ~20   | Pre-release validation |
 
 ### Key Test Scenarios
+
 - Fresh session creation ✓
 - Compression at threshold ✓
 - Token reset after compression ✓
@@ -84,23 +91,28 @@
 ## Migration Phases
 
 ### Week 1: Foundation
+
 ✅ Test infrastructure
 ✅ Token management
 ✅ Session management
 
 ### Week 2: Core
+
 ✅ SDK layer
 ✅ Rendering layer
 
 ### Week 3: Complex
+
 ✅ Analysis + Background queue
 ✅ Compression
 
 ### Week 4: Integration
+
 ✅ Orchestrator
 ✅ E2E tests
 
 ### Week 5: Polish
+
 ✅ Bug fixes
 ✅ Documentation
 
@@ -109,12 +121,16 @@
 ## Code Examples
 
 ### Orchestrator Pattern
+
 ```typescript
 export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const sessionManager = useSessionManager(options);
   const tokenCounter = useTokenCount();
   const analysisQueue = useTurnAnalysis(sessionManager.currentSessionId);
-  const compressionTrigger = useCompression(tokenCounter.total, analysisQueue.analyses);
+  const compressionTrigger = useCompression(
+    tokenCounter.total,
+    analysisQueue.analyses
+  );
 
   return {
     messages: sdkQuery.messages,
@@ -126,6 +142,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 ```
 
 ### Background Queue
+
 ```typescript
 class AnalysisQueue {
   async add(turn: ConversationTurn) {
@@ -149,6 +166,7 @@ class AnalysisQueue {
 ```
 
 ### Token Reset
+
 ```typescript
 export function useTokenCount() {
   const [count, setCount] = useState({ input: 0, output: 0, total: 0 });
@@ -160,7 +178,7 @@ export function useTokenCount() {
   };
 
   const update = (newCount: TokenCount) => {
-    setCount(prev => {
+    setCount((prev) => {
       if (justReset.current) {
         justReset.current = false;
         return newCount; // Accept any value
@@ -178,6 +196,7 @@ export function useTokenCount() {
 ## Risk Mitigation
 
 ### Rollback Ready
+
 ```typescript
 const USE_LEGACY = process.env.USE_LEGACY_HOOK === 'true';
 export const useClaudeAgent = USE_LEGACY
@@ -186,11 +205,13 @@ export const useClaudeAgent = USE_LEGACY
 ```
 
 ### Incremental Migration
+
 - Extract one module at a time
 - Test thoroughly before moving on
 - Can pause/resume at any phase
 
 ### Comprehensive Testing
+
 - Unit tests for all modules
 - Integration tests for interactions
 - E2E tests for workflows
@@ -201,6 +222,7 @@ export const useClaudeAgent = USE_LEGACY
 ## Success Criteria
 
 ### Must Have
+
 ✅ 95%+ test coverage
 ✅ All modules < 250 lines
 ✅ Zero token reset bugs
@@ -208,6 +230,7 @@ export const useClaudeAgent = USE_LEGACY
 ✅ All E2E tests passing
 
 ### Nice to Have
+
 ✅ <100 lines per function
 ✅ <10 cyclomatic complexity
 ✅ Performance benchmarks met
@@ -217,12 +240,12 @@ export const useClaudeAgent = USE_LEGACY
 
 ## Documents
 
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| **[REFACTOR_SUMMARY.md](./REFACTOR_SUMMARY.md)** | Executive summary | Leadership, Product |
-| **[REFACTOR_PLAN_useClaudeAgent.md](./REFACTOR_PLAN_useClaudeAgent.md)** | Detailed technical plan | Engineering |
-| **[TESTING_GUIDE_useClaudeAgent.md](./TESTING_GUIDE_useClaudeAgent.md)** | Testing procedures | QA, Engineering |
-| **This file** | Quick reference | Everyone |
+| Document                                                                 | Purpose                 | Audience            |
+| ------------------------------------------------------------------------ | ----------------------- | ------------------- |
+| **[REFACTOR_SUMMARY.md](./REFACTOR_SUMMARY.md)**                         | Executive summary       | Leadership, Product |
+| **[REFACTOR_PLAN_useClaudeAgent.md](./REFACTOR_PLAN_useClaudeAgent.md)** | Detailed technical plan | Engineering         |
+| **[TESTING_GUIDE_useClaudeAgent.md](./TESTING_GUIDE_useClaudeAgent.md)** | Testing procedures      | QA, Engineering     |
+| **This file**                                                            | Quick reference         | Everyone            |
 
 ---
 
@@ -253,24 +276,28 @@ npm test -- --run --coverage
 ## Key Decisions
 
 ### Why Split into 15 Modules?
+
 - Each module < 250 lines (readable in one session)
 - Single responsibility per module
 - Independent testing
 - Clear boundaries
 
 ### Why Background Queue?
+
 - Prevents UI blocking (critical UX issue)
 - Progress feedback to user
 - Can be paused/resumed
 - Error isolation
 
 ### Why 5 Weeks?
+
 - Week 1-2: Low-risk foundation (35% complete)
 - Week 3: High-risk complex logic (65% complete)
 - Week 4: Integration + E2E (90% complete)
 - Week 5: Polish + validation (100% complete)
 
 ### Why Not Rewrite from Scratch?
+
 - Too risky (lose working features)
 - Hard to test against moving target
 - Incremental migration is safer
