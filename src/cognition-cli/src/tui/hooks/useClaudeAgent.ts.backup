@@ -127,6 +127,16 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const messagesRef = useRef<ClaudeMessage[]>(messages); // Ref to avoid effect re-running on every message change
   const userMessageEmbeddingCache = useRef<Map<number, number[]>>(new Map()); // Cache user message embeddings by timestamp
 
+  // Turn analysis with background queue (replaces inline analyzeNewTurns)
+  const turnAnalysis = useTurnAnalysis({
+    embedder: embedderRef.current,
+    projectRegistry: projectRegistryRef.current,
+    conversationRegistry: conversationRegistryRef.current,
+    cwd,
+    sessionId: currentSessionId,
+    debug: debugFlag,
+  });
+
   // Track count of ONLY user/assistant messages (not system/tool_progress)
   // This prevents infinite loop when compression adds system messages
   const userAssistantMessageCount = messages.filter(
@@ -155,16 +165,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const [injectedRecap, setInjectedRecap] = useState<string | null>(null);
   const hasReceivedSDKSessionId = useRef(false); // Track if we've gotten real SDK session ID
 
-  // Turn analysis with background queue (replaces inline analyzeNewTurns)
-  const turnAnalysis = useTurnAnalysis({
-    embedder: embedderRef.current,
-    projectRegistry: projectRegistryRef.current,
-    conversationRegistry: conversationRegistryRef.current,
-    cwd,
-    sessionId: currentSessionId,
-    debug: debugFlag,
-  });
-
   /**
    * Helper: Write session state file
    * Used for both initial flush and periodic flushes to ensure state is always tracked
@@ -181,24 +181,24 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       }
 
       const stats = {
-        total_turns_analyzed: turnAnalysis.analyses.length,
-        paradigm_shifts: turnAnalysis.analyses.filter((t) => t.is_paradigm_shift)
+        total_turns_analyzed: turnAnalyses.current.length,
+        paradigm_shifts: turnAnalyses.current.filter((t) => t.is_paradigm_shift)
           .length,
-        routine_turns: turnAnalysis.analyses.filter((t) => t.is_routine).length,
+        routine_turns: turnAnalyses.current.filter((t) => t.is_routine).length,
         avg_novelty:
-          turnAnalysis.analyses.length > 0
+          turnAnalyses.current.length > 0
             ? (
-                turnAnalysis.analyses.reduce((sum, t) => sum + t.novelty, 0) /
-                turnAnalysis.analyses.length
+                turnAnalyses.current.reduce((sum, t) => sum + t.novelty, 0) /
+                turnAnalyses.current.length
               ).toFixed(3)
             : '0.000',
         avg_importance:
-          turnAnalysis.analyses.length > 0
+          turnAnalyses.current.length > 0
             ? (
-                turnAnalysis.analyses.reduce(
+                turnAnalyses.current.reduce(
                   (sum, t) => sum + t.importance_score,
                   0
-                ) / turnAnalysis.analyses.length
+                ) / turnAnalyses.current.length
               ).toFixed(1)
             : '0.0',
       };
@@ -296,8 +296,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     if (currentMessages.length === 0) return;
 
     const queueNewAnalyses = async () => {
+      const embedder = embedderRef.current;
+
       // Skip if embedder not initialized yet
-      if (!embedderRef.current) {
+      if (!embedder) {
         if (debugFlag) {
           console.log(chalk.dim('[Σ]  Embedder not initialized'));
         }
@@ -306,7 +308,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
       if (debugFlag) {
         console.log(
-          chalk.dim('[Σ]  Queue effect triggered, messages:'),
+          chalk.dim('[Σ]  Analyzer effect triggered, messages:'),
           currentMessages.length,
           'isThinking:',
           isThinking
@@ -314,12 +316,12 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       }
 
       // Find unanalyzed messages (ONLY user/assistant, skip system/tool_progress)
-      const lastIndex = turnAnalysis.analyses.length > 0 ? turnAnalysis.analyses.length - 1 : -1;
+      // This prevents infinite loop: compression adds system messages which would re-trigger this effect
       const unanalyzedMessages = currentMessages
-        .slice(lastIndex + 1)
+        .slice(lastAnalyzedMessageIndex.current + 1)
         .map((msg, idx) => ({
           msg,
-          originalIndex: lastIndex + 1 + idx,
+          originalIndex: lastAnalyzedMessageIndex.current + 1 + idx,
         }))
         .filter(({ msg }) => msg.type === 'user' || msg.type === 'assistant');
 
@@ -330,76 +332,400 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
       debug(' Unanalyzed user/assistant messages:', unanalyzedMessages.length);
 
-      // Queue each unanalyzed message for background processing
-      for (const { msg: message, originalIndex: messageIndex } of unanalyzedMessages) {
-        // For assistant messages, only queue if we're NOT currently thinking
+      // Process each unanalyzed message
+      for (const {
+        msg: message,
+        originalIndex: messageIndex,
+      } of unanalyzedMessages) {
+        debug(
+          ` Processing message ${messageIndex}: type=${message.type}, isThinking=${isThinking}`
+        );
+
+        // For assistant messages, only analyze if we're NOT currently thinking
+        // (i.e., the assistant has finished responding)
         if (message.type === 'assistant' && isThinking) {
           debug('   Skipping assistant message - still streaming');
-          return;
+          return; // Don't advance lastAnalyzedMessageIndex - will retry when isThinking becomes false
         }
 
         const turnTimestamp = message.timestamp.getTime();
 
-        // Skip if already analyzed
-        if (turnAnalysis.hasAnalyzed(turnTimestamp)) {
+        // Check if we've already analyzed this turn
+        const existingAnalysis = turnAnalyses.current.find(
+          (a) => a.timestamp === turnTimestamp
+        );
+        if (existingAnalysis) {
           debug('   Turn already analyzed, skipping');
+          lastAnalyzedMessageIndex.current = messageIndex;
           continue;
         }
 
-        // Get cached embedding for user messages
-        const cachedEmbedding =
-          message.type === 'user'
-            ? userMessageEmbeddingCache.current.get(turnTimestamp)
-            : undefined;
-
-        // Queue for background analysis (NON-BLOCKING!)
-        const task: AnalysisTask = {
-          message,
-          messageIndex,
-          timestamp: turnTimestamp,
-          cachedEmbedding,
-        };
-
-        debug(`   Queuing turn for analysis: ${turnTimestamp}`);
-        await turnAnalysis.enqueueAnalysis(task);
-
-        // Clean up cached embedding
-        if (cachedEmbedding) {
-          userMessageEmbeddingCache.current.delete(turnTimestamp);
+        // Check if we're already analyzing this turn (prevent concurrent analysis)
+        if (analyzingTurn.current === turnTimestamp) {
+          debug('   Turn analysis already in progress, skipping');
+          return; // Don't advance - wait for completion
         }
 
-        // Check for compression trigger
-        const TOKEN_THRESHOLD = sessionTokens || 120000;
-        const MIN_TURNS_FOR_COMPRESSION = 5;
+        debug('   Starting turn analysis...');
+        analyzingTurn.current = turnTimestamp; // Mark as analyzing
 
-        if (
-          tokenCounter.count.total > TOKEN_THRESHOLD &&
-          !compressionTriggered.current &&
-          turnAnalysis.stats.totalAnalyzed >= MIN_TURNS_FOR_COMPRESSION
-        ) {
-          compressionTriggered.current = true;
-          debug('🗜️  Triggering compression');
+        try {
+          // Build context from previous analyses
+          const context: ConversationContext = {
+            projectRoot: cwd,
+            sessionId: currentSessionId,
+            history: turnAnalyses.current.map((a) => ({
+              id: a.turn_id,
+              role: a.role,
+              content: a.content,
+              timestamp: a.timestamp,
+              embedding: a.embedding, // Include for novelty calculation
+            })) as Array<ConversationTurn & { embedding: number[] }>,
+          };
 
-          setMessages((prev) => [
-            ...prev,
+          debug(
+            '   Calling analyzeTurn with content length:',
+            message.content.length
+          );
+
+          // Analyze this turn with FULL content
+          // For user messages, reuse cached embedding from context injection
+          // Pass projectRegistry for Meet operation (Conversation ∧ Project)
+          const turnTimestamp = message.timestamp.getTime();
+          const cachedEmbedding =
+            message.type === 'user'
+              ? userMessageEmbeddingCache.current.get(turnTimestamp)
+              : undefined;
+
+          const analysis = await analyzeTurn(
             {
-              type: 'system',
-              content:
-                `🗜️  Context compression triggered at ${(tokenCounter.count.total / 1000).toFixed(1)}K tokens\n` +
-                `Compressing ${turnAnalysis.stats.totalAnalyzed} turns into intelligent recap...\n` +
-                `(Use --debug flag to see detailed compression metrics)`,
-              timestamp: new Date(),
+              id: `turn-${turnTimestamp}`,
+              role: message.type as 'user' | 'assistant',
+              content: message.content, // FULL content (not truncated)
+              timestamp: turnTimestamp,
             },
-          ]);
+            context,
+            embedder,
+            projectRegistryRef.current, // KEY: enables project alignment
+            {}, // options
+            cachedEmbedding // Reuse embedding from context injection!
+          );
 
-          // TODO: Trigger compression asynchronously (will be implemented in Compression Layer)
-          // For now, compression logic is still inline below
-          return;
+          // Clean up cached embedding after use
+          if (cachedEmbedding) {
+            userMessageEmbeddingCache.current.delete(turnTimestamp);
+          }
+
+          debug('   analyzeTurn completed! Novelty:', analysis.novelty);
+          debug(
+            '   Overlay scores:',
+            Object.entries(analysis.overlay_scores)
+              .map(([k, v]) => `${k}=${v}`)
+              .join(', ')
+          );
+
+          // Store analysis
+          turnAnalyses.current.push(analysis);
+
+          // Mark message as analyzed
+          lastAnalyzedMessageIndex.current = messageIndex;
+
+          // Populate conversation overlays based on project alignment
+          if (conversationRegistryRef.current) {
+            try {
+              await populateConversationOverlays(
+                analysis,
+                conversationRegistryRef.current
+              );
+              debug('   Conversation overlays populated');
+
+              // Periodic flush: Every 5 turns, flush overlays to disk
+              // This ensures data is persisted even if compression doesn't trigger
+              const FLUSH_INTERVAL = 5;
+              if (turnAnalyses.current.length % FLUSH_INTERVAL === 0) {
+                debug(
+                  ` Periodic flush triggered (${turnAnalyses.current.length} turns)`
+                );
+                try {
+                  await conversationRegistryRef.current.flushAll(
+                    currentSessionId
+                  );
+                  debug(' Conversation overlays flushed to disk');
+                  // Update anchor stats
+                  updateAnchorStats();
+                } catch (flushErr) {
+                  debug(' Failed to flush conversation overlays:', flushErr);
+                }
+              }
+            } catch (err) {
+              debug(' Failed to populate conversation overlays:', err);
+            }
+          }
+
+          // Clear analyzing flag
+          analyzingTurn.current = null;
+
+          // Log analysis (for debugging)
+          debugLog(
+            `[SIGMA] Turn analyzed: ${analysis.turn_id}\n` +
+              `  Role: ${analysis.role}\n` +
+              `  Novelty: ${analysis.novelty.toFixed(3)}\n` +
+              `  Importance: ${analysis.importance_score}\n` +
+              `  Paradigm shift: ${analysis.is_paradigm_shift}\n` +
+              `  Routine: ${analysis.is_routine}\n` +
+              `  Content: ${analysis.content.substring(0, 100)}${analysis.content.length > 100 ? '...' : ''}\n\n`
+          );
+
+          // Check if compression needed (configurable threshold, defaults to 120K)
+          const TOKEN_THRESHOLD = sessionTokens || 120000;
+          const MIN_TURNS_FOR_COMPRESSION = 5; // Need at least 5 turns for meaningful compression
+
+          if (
+            tokenCounter.count.total > TOKEN_THRESHOLD &&
+            !compressionTriggered.current &&
+            turnAnalyses.current.length >= MIN_TURNS_FOR_COMPRESSION
+          ) {
+            compressionTriggered.current = true;
+
+            // User-visible notification (always shown, not debug-only)
+            setMessages((prev) => [
+              ...prev,
+              {
+                type: 'system',
+                content:
+                  `🗜️  Context compression triggered at ${(tokenCounter.count.total / 1000).toFixed(1)}K tokens\n` +
+                  `Compressing ${turnAnalyses.current.length} turns into intelligent recap...\n` +
+                  `(Use --debug flag to see detailed compression metrics)`,
+                timestamp: new Date(),
+              },
+            ]);
+
+            debug(
+              '🗜️  Triggering compression with',
+              turnAnalyses.current.length,
+              'analyzed turns'
+            );
+
+            // Trigger compression
+            let compressionResult;
+            try {
+              compressionResult = await compressContext(turnAnalyses.current, {
+                target_size: 40000, // 40K tokens (20% of 200K limit)
+                preserve_threshold: 7, // Paradigm shifts
+              });
+            } catch (compressErr) {
+              // User-visible error notification
+              setMessages((prev) => [
+                ...prev,
+                {
+                  type: 'system',
+                  content:
+                    `❌ Compression failed: ${(compressErr as Error).message}\n` +
+                    `Will retry on next turn. Use --debug for details.`,
+                  timestamp: new Date(),
+                },
+              ]);
+
+              debug('❌ Compression failed:', compressErr);
+              debugLog(
+                `[SIGMA ERROR] Compression failed: ${(compressErr as Error).message}\n` +
+                  `  Stack: ${(compressErr as Error).stack}\n\n`
+              );
+              compressionTriggered.current = false; // Reset so it can try again
+              return; // Exit early
+            }
+
+            // Store compressed lattice
+            setConversationLattice(compressionResult.lattice);
+
+            // Store compressed size for session state tracking
+            lastCompressedSize.current = compressionResult.compressed_size;
+
+            // Log compression stats
+            debugLog(
+              `[SIGMA] Compression triggered at ${tokenCounter.count.total} tokens\n` +
+                `  Original: ${compressionResult.original_size} tokens\n` +
+                `  Compressed: ${compressionResult.compressed_size} tokens\n` +
+                `  Ratio: ${compressionResult.compression_ratio.toFixed(1)}x\n` +
+                `  Paradigm shifts: ${compressionResult.metrics.paradigm_shifts}\n` +
+                `  Preserved: ${compressionResult.preserved_turns.length} turns\n` +
+                `  Summarized: ${compressionResult.summarized_turns.length} turns\n` +
+                `  Discarded: ${compressionResult.discarded_turns.length} turns\n\n`
+            );
+
+            // Reset token count IMMEDIATELY (before async logic)
+            // This prevents token count from continuing to accumulate during compression
+            tokenCounter.reset();
+            lastCompressedSize.current = compressionResult.compressed_size;
+
+            // Reset lastAnalyzedMessageIndex to prevent re-analyzing compressed turns
+            lastAnalyzedMessageIndex.current = messages.length - 1;
+
+            // Intelligent session switch with dual-mode reconstruction
+            (async () => {
+              try {
+                // 1. Save lattice to disk (graph structure preserved - ALIVE!)
+                const latticeDir = path.join(cwd, '.sigma');
+                fs.mkdirSync(latticeDir, { recursive: true });
+
+                // Strip embeddings from lattice before saving (v2 format)
+                // Embeddings stored in LanceDB, not JSON (saves 90% disk space)
+                const latticeWithoutEmbeddings = {
+                  format_version: 2,
+                  lancedb_metadata: {
+                    storage_path: '.sigma/conversations.lancedb',
+                    session_id: currentSessionId,
+                  },
+                  ...compressionResult.lattice,
+                  nodes: compressionResult.lattice.nodes.map((node) => {
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const { embedding, ...nodeWithoutEmbedding } = node;
+                    return nodeWithoutEmbedding;
+                  }),
+                };
+
+                fs.writeFileSync(
+                  path.join(latticeDir, `${currentSessionId}.lattice.json`),
+                  JSON.stringify(latticeWithoutEmbeddings, null, 2)
+                );
+
+                // 1b. Flush conversation overlays to disk
+                if (conversationRegistryRef.current) {
+                  try {
+                    await conversationRegistryRef.current.flushAll(
+                      currentSessionId
+                    );
+                    debug(' Conversation overlays flushed to', latticeDir);
+                  } catch (flushErr) {
+                    debug(' Failed to flush conversation overlays:', flushErr);
+                  }
+                }
+
+                // 2. Intelligent reconstruction (quest vs chat mode)
+                // Pass conversationRegistry for better recap generation!
+                const reconstructed = await reconstructSessionContext(
+                  compressionResult.lattice,
+                  conversationRegistryRef.current || undefined
+                );
+
+                // 3. Write comprehensive state files
+
+                // 3a. Recap for human inspection
+                fs.writeFileSync(
+                  path.join(latticeDir, `${currentSessionId}.recap.txt`),
+                  `SIGMA INTELLIGENT RECAP\n` +
+                    `Mode: ${reconstructed.mode}\n` +
+                    `Generated: ${new Date().toISOString()}\n` +
+                    `Original tokens: ${compressionResult.original_size}\n` +
+                    `Recap tokens: ~${Math.round(reconstructed.recap.length / 4)}\n` +
+                    `\n${'='.repeat(80)}\n\n` +
+                    reconstructed.recap
+                );
+
+                // 3b. Update anchor stats (state will be updated when SDK provides new UUID)
+                updateAnchorStats();
+
+                // 4. Store recap for injection on first query of NEW session
+                setInjectedRecap(reconstructed.recap);
+
+                // 5. Kill old session - start completely fresh (no resume!)
+                setResumeSessionId(undefined); // Don't resume any session - let SDK create new one
+
+                // 6. SDK will provide new UUID in next message, we'll update anchor state then
+                // Keep currentSessionId as-is (the anchor ID), SDK session will be captured in message handler
+
+                // 7. State already reset (above, before async block)
+                // Keep compressionTriggered = true to prevent re-compression until new session establishes
+                // Keep turnAnalyses.current - we continue building on the lattice!
+
+                // 7b. DO NOT clear in-memory conversation overlays!
+                // They should continue accumulating across SDK session boundaries.
+                // When you resume with --session-id, we want ALL overlays (old + new).
+                // The overlays are flushed to disk above, but we keep them in memory
+                // so new turns continue building on the same overlay files.
+                debug(
+                  ' Keeping conversation overlays in memory (continue accumulating)'
+                );
+
+                // 7c. Calculate compression ratio
+                const recapTokens = Math.round(reconstructed.recap.length / 4);
+                const originalTokens = compressionResult.original_size;
+                const actualRatio =
+                  Math.round((originalTokens / recapTokens) * 10) / 10;
+
+                // 8. Add system message to UI
+                const modeIcon = reconstructed.mode === 'quest' ? '🎯' : '💬';
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    type: 'system',
+                    content:
+                      `${modeIcon} Context compressed (${actualRatio}x ratio, ${reconstructed.mode} mode)\n` +
+                      `   • Preserved: ${compressionResult.preserved_turns.length} paradigm shifts\n` +
+                      `   • Compressed: ${compressionResult.summarized_turns.length} important turns\n` +
+                      `   • Discarded: ${compressionResult.discarded_turns.length} low-value turns\n` +
+                      `   • Message history remains visible in UI\n` +
+                      `   • Intelligent recap will inject on next query`,
+                    timestamp: new Date(),
+                  },
+                ]);
+
+                // 9. Log session switch with metrics
+                debugLog(
+                  `[SIGMA] Intelligent session switch completed\n` +
+                    `  Mode detected: ${reconstructed.mode.toUpperCase()}\n` +
+                    `  Old session: ${currentSessionId}\n` +
+                    `  New session: SDK will provide UUID in next message\n` +
+                    `  Lattice saved: .sigma/${currentSessionId}.lattice.json\n` +
+                    `  \n` +
+                    `  Lattice Structure:\n` +
+                    `    Nodes: ${compressionResult.lattice.nodes.length}\n` +
+                    `    Edges: ${compressionResult.lattice.edges.length}\n` +
+                    `    Paradigm shifts: ${reconstructed.metrics.paradigm_shifts}\n` +
+                    `  \n` +
+                    `  Reconstruction:\n` +
+                    `    Original: ${originalTokens} tokens\n` +
+                    `    Recap: ${recapTokens} tokens (~${reconstructed.recap.length} chars)\n` +
+                    `    Compression ratio: ${actualRatio}x\n` +
+                    `  \n` +
+                    `  Mode Indicators:\n` +
+                    `    Tool uses: ${reconstructed.metrics.tool_uses}\n` +
+                    `    Code blocks: ${reconstructed.metrics.code_blocks}\n` +
+                    `    Avg structural (O1): ${reconstructed.metrics.avg_structural}\n` +
+                    `    Avg operational (O5): ${reconstructed.metrics.avg_operational}\n` +
+                    `  \n` +
+                    `  Context type: ${reconstructed.mode === 'quest' ? 'Mental map + query functions' : 'Linear important points'}\n` +
+                    `  Ready for injection on first query\n\n`
+                );
+              } catch (switchErr) {
+                debugLog(
+                  `[SIGMA ERROR] Session switch failed: ${(switchErr as Error).message}\n` +
+                    `  Stack: ${(switchErr as Error).stack}\n\n`
+                );
+              }
+            })();
+
+            // Exit loop immediately after triggering compression
+            // This prevents analyzing more turns while compression is in progress
+            return;
+          }
+        } catch (err) {
+          // Clear analyzing flag on error
+          analyzingTurn.current = null;
+
+          // Log analysis errors but don't break the UI
+          debug('   Error in analyzer:', err);
+          debugLog(
+            `[SIGMA ERROR] ${(err as Error).message}\n` +
+              `  Stack: ${(err as Error).stack}\n\n`
+          );
+          // Continue to next message on error
+          lastAnalyzedMessageIndex.current = messageIndex;
         }
-      }
+      } // end for loop
     };
 
-    queueNewAnalyses();
+    analyzeNewTurns();
   }, [
     userAssistantMessageCount,
     isThinking,
@@ -620,7 +946,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               semantic_tags: node.semantic_tags || [],
             }));
 
-          turnAnalysis.setAnalyses(restoredAnalyses);
+          turnAnalyses.current = restoredAnalyses;
 
           debug(
             ' Lattice restored:',
@@ -695,7 +1021,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           //   );
           //
           //   if (rebuiltAnalyses.length > 0) {
-          //     turnAnalysis.analyses = rebuiltAnalyses;
+          //     turnAnalyses.current = rebuiltAnalyses;
           //
           //     debug(
           //       ' Lattice reconstructed from LanceDB:',
@@ -836,12 +1162,12 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               `  Recap length: ${injectedRecap.length} chars (~${Math.round(injectedRecap.length / 4)} tokens)\n` +
               `  Subsequent queries will use real-time context injection\n\n`
           );
-        } else if (embedderRef.current && turnAnalysis.analyses.length > 0) {
+        } else if (embedderRef.current && turnAnalyses.current.length > 0) {
           // Real-time lattice context injection for fluent conversation
           try {
             const result = await injectRelevantContext(
               prompt,
-              turnAnalysis.analyses,
+              turnAnalyses.current,
               embedderRef.current,
               { debug: debugFlag }
             );
@@ -899,7 +1225,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           // Only enable when there's conversation history (resuming or post-compression)
           mcpServers:
             recallMcpServerRef.current &&
-            (currentResumeId || turnAnalysis.analyses.length > 0)
+            (currentResumeId || turnAnalyses.current.length > 0)
               ? {
                   'conversation-memory': recallMcpServerRef.current,
                 }
@@ -981,7 +1307,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       injectedRecap,
       debugLog,
       embedderRef,
-      turnAnalysis,
+      turnAnalyses,
       debugFlag,
       recallMcpServerRef,
       anchorId,
@@ -1269,20 +1595,20 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
   // Calculate Sigma stats for header display
   const sigmaStats = {
-    nodes: turnAnalysis.analyses.length,
+    nodes: turnAnalyses.current.length,
     edges:
-      turnAnalysis.analyses.length > 0 ? turnAnalysis.analyses.length - 1 : 0, // temporal edges
-    paradigmShifts: turnAnalysis.analyses.filter((t) => t.is_paradigm_shift)
+      turnAnalyses.current.length > 0 ? turnAnalyses.current.length - 1 : 0, // temporal edges
+    paradigmShifts: turnAnalyses.current.filter((t) => t.is_paradigm_shift)
       .length,
     avgNovelty:
-      turnAnalysis.analyses.length > 0
-        ? turnAnalysis.analyses.reduce((sum, t) => sum + t.novelty, 0) /
-          turnAnalysis.analyses.length
+      turnAnalyses.current.length > 0
+        ? turnAnalyses.current.reduce((sum, t) => sum + t.novelty, 0) /
+          turnAnalyses.current.length
         : 0,
     avgImportance:
-      turnAnalysis.analyses.length > 0
-        ? turnAnalysis.analyses.reduce((sum, t) => sum + t.importance_score, 0) /
-          turnAnalysis.analyses.length
+      turnAnalyses.current.length > 0
+        ? turnAnalyses.current.reduce((sum, t) => sum + t.importance_score, 0) /
+          turnAnalyses.current.length
         : 0,
   };
 
@@ -1297,8 +1623,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     O7_strategic: 0,
   };
 
-  if (turnAnalysis.analyses.length > 0) {
-    turnAnalysis.analyses.forEach((turn) => {
+  if (turnAnalyses.current.length > 0) {
+    turnAnalyses.current.forEach((turn) => {
       Object.keys(avgOverlays).forEach((key) => {
         avgOverlays[key as keyof typeof avgOverlays] +=
           turn.overlay_scores[key as keyof typeof turn.overlay_scores];
@@ -1306,7 +1632,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     });
     Object.keys(avgOverlays).forEach((key) => {
       avgOverlays[key as keyof typeof avgOverlays] /=
-        turnAnalysis.analyses.length;
+        turnAnalyses.current.length;
     });
   }
 
