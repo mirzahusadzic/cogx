@@ -110,6 +110,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     output: 0,
     total: 0,
   });
+  const tokenCountJustReset = useRef(false); // Track if we just reset token count
 
   // Sigma state: conversation lattice and analysis
   const [conversationLattice, setConversationLattice] =
@@ -549,6 +550,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             // Reset token count IMMEDIATELY (before async logic)
             // This prevents token count from continuing to accumulate during compression
             setTokenCount({ input: 0, output: 0, total: 0 });
+            tokenCountJustReset.current = true; // Mark that we just reset
             lastCompressedSize.current = compressionResult.compressed_size;
 
             // Reset lastAnalyzedMessageIndex to prevent re-analyzing compressed turns
@@ -957,6 +959,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           // The old NDJSON transcript contains pre-compression tokens which are incorrect
           // SDK will provide accurate token count on first new message
           setTokenCount({ input: 0, output: 0, total: 0 });
+          tokenCountJustReset.current = true; // Mark that we just reset
           debug(
             ' Token count reset (compressed session - will get true count from SDK)'
           );
@@ -1591,9 +1594,11 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
           // SDK gives cumulative totals per query, use Math.max to handle multi-query sessions
           // This prevents token count from appearing to "drop" when a new query starts
+          // UNLESS we just reset (compression/session load), then accept any value
           setTokenCount((prev) => {
             const newTotal = totalInput + totalOutput;
-            if (newTotal > prev.total) {
+            if (tokenCountJustReset.current || newTotal > prev.total) {
+              tokenCountJustReset.current = false; // Clear the flag
               return {
                 input: totalInput,
                 output: totalOutput,
@@ -1671,7 +1676,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
           setTokenCount((prev) => {
             // Only update if the result total is higher than what we have
-            if (resultTotal > prev.total) {
+            // UNLESS we just reset, then accept any value
+            if (tokenCountJustReset.current || resultTotal > prev.total) {
+              tokenCountJustReset.current = false; // Clear the flag
               return {
                 input: usage.input_tokens,
                 output: usage.output_tokens,
