@@ -158,7 +158,7 @@ All refactoring documentation has been created:
 
 ### Code Quality
 
-- **Lines**: useClaudeAgent.ts = 1,319 lines (down from 1,790, **-471 lines / -26%**, target: 150)
+- **Lines**: useClaudeAgent.ts = 850 lines (down from 1,790, **-940 lines / -52.5%**, target: 150)
 - **Test Coverage**: ~60% (17 Analysis tests + 39 Compression tests + 42 SDK tests + 24 rendering tests + 16 token tests = 138 tests passing, 2 session test files skipped pending API update)
 - **Modules**: 15 modules created (Analysis×4, Compression×3, Session×4, SDK×3, Rendering×2, Token), target: 15 focused modules ✅
 - **Integration**: Analysis queue + Compression layer fully integrated, replaces 458+ lines of inline logic
