@@ -60,21 +60,21 @@ This pattern is **identical to** well-established distributed systems patterns:
 Long conversations accumulate context until hitting the model's limits:
 
 ```
-Turn 1-50:   ~25% of limit
-Turn 51-100: ~50% of limit
-Turn 101-150: ~75% of limit ← SIGMA compression trigger (proactive)
-Turn 151-180: ~100% of limit ← Would hit hard limit (reactive - too late)
+Turn 1-50:   ~40K tokens
+Turn 51-100: ~80K tokens
+Turn 101-150: ~120K tokens ← SIGMA compression trigger (proactive)
+Turn 151-200: ~160K tokens ← Would eventually hit model's context limit
 ```
 
-**Without compression:** Conversation fails when context exceeds the model's limit.
+**Without compression:** Conversation eventually fails when context exceeds the model's limit.
 
-**With naive compression:** Waiting until 100% means you're already at the limit - no room to inject recap.
+**With naive append:** Appending recap to existing session provides no memory savings - still at 120K+ tokens.
 
 ---
 
 ### The Innovation
 
-SIGMA compresses proactively at ~60% of the model's limit, creating a session boundary with compressed context:
+SIGMA compresses proactively at a configured threshold (default: 120K tokens), creating a session boundary with compressed context:
 
 ```
 Active Session (compression threshold reached):
@@ -95,7 +95,7 @@ Result:
   └─ Capacity: Most of context window freed for new conversation
 ```
 
-**Key insight:** Proactive compression (at ~60% capacity) prevents hitting limits while leaving room to inject the compressed recap. This enables infinite conversation length.
+**Key insight:** Proactive compression at a configured threshold (e.g., 120K tokens) triggers creation of a fresh session with the compressed recap injected. The original session is archived, and the new session starts with minimal context, enabling infinite conversation length.
 
 ---
 
@@ -113,14 +113,14 @@ Reactive Compression (Limitation):
   └─ Result: Conversation ends ❌
 
 Proactive Compression (SIGMA):
-  ├─ Trigger at configured threshold
-  ├─ Sufficient capacity available for operations
-  ├─ Compress to minimal recap (~2-3% of original)
-  ├─ Start fresh session with recap
-  └─ Result: 97%+ capacity freed, conversation continues ✅
+  ├─ Trigger at configured threshold (e.g., 120K tokens)
+  ├─ Archive original session (no longer used)
+  ├─ Compress to minimal recap (~10K tokens)
+  ├─ Create new session with recap injected
+  └─ Result: New session starts fresh, conversation continues infinitely ✅
 ```
 
-**SIGMA's approach:** Create a clean session boundary at a configured threshold, inject the compressed recap into the new session's context, and continue with most of the context window available.
+**SIGMA's approach:** Create a clean session boundary at a configured threshold (e.g., 120K tokens), archive the original session, and start a fresh session with the compressed recap (~10K tokens) injected as system context.
 
 ---
 
@@ -523,7 +523,7 @@ await saveSessionMetadata({
 #### Positive
 
 - ✅ **Infinite Scaling:** Can compress N times (sessions are a DAG)
-- ✅ **Memory Efficiency:** New session starts at minimal size tokens vs approaching limit+
+- ✅ **Memory Efficiency:** New session starts at ~10K tokens (recap) vs 120K+ in original session
 - ✅ **Auditability:** Old sessions preserved with parent-child links
 - ✅ **Deterministic:** Clear compression boundaries
 - ✅ **SDK Compatible:** Uses only documented APIs
@@ -627,16 +627,16 @@ If a turn was routine (low importance), it's intentionally not preserved in deta
 **A:** Yes, you can adjust the compression threshold:
 
 ```bash
-# Default: compress when context exceeds compression threshold
+# Default: compress at 120K tokens (configurable in code)
 cognition-cli tui
 
 # Custom threshold: compress at specific token count
 cognition-cli tui --session-tokens <desired-threshold>
 
-# Higher threshold means fewer compressions but higher memory usage
+# Higher threshold means fewer compressions, lower means more frequent session switches
 ```
 
-Note: You cannot disable compression entirely - once you hit the model's context window limit the conversation would fail. Compression is necessary for infinite context.
+Note: You cannot disable compression entirely - once you hit the model's context window limit (~200K for Claude), the conversation would fail. Proactive compression with session boundaries is necessary for infinite context.
 
 ---
 

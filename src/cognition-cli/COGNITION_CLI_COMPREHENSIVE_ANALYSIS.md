@@ -7,12 +7,11 @@
 **Repository Details:**
 
 - **Location:** `~src/cogx/src/cognition-cli`
-- **Lines of Code:** ~44,148 TypeScript (production code, 159 files)
-  - Core: 28,374 lines (64%) — PGC, orchestrators, overlays, miners
-  - Commands: 7,096 lines (16%) — CLI commands
-  - **Sigma: 6,241 lines (14%) — Dual-lattice architecture, infinite context**
-  - **TUI: 2,738 lines (6%) — Interactive terminal interface (React Ink)**
-  - Other: ~700 lines (2%) — Root files, utilities
+- **Lines of Code:** ~41,686 TypeScript (production code)
+  - Core: 23,561 lines (56%) — PGC, orchestrators, overlays, miners
+  - Commands: 7,693 lines (18%) — CLI commands
+  - **Sigma: 6,754 lines (16%) — Dual-lattice architecture, infinite context**
+  - **TUI: 4,124 lines (10%) — Interactive terminal interface (React Ink)**
 - **Current Version:** 2.1.0 (Session State & Compression Fixes)
 - **License:** AGPL-3.0-or-later
 - **Author:** Mirza Husadzic
@@ -725,11 +724,11 @@ The same architecture that understands code can preserve human identity through 
 
 | Metric                      | Value                             |
 | --------------------------- | --------------------------------- |
-| Production TypeScript Lines | ~44,148 (159 files)               |
-| Core Module Lines           | 28,374 (64% - PGC/overlays)       |
-| Sigma Module Lines          | 6,241 (14% - infinite context)    |
-| TUI Module Lines            | 2,738 (6% - React Ink interface)  |
-| Commands Module Lines       | 7,096 (16% - CLI commands)        |
+| Production TypeScript Lines | ~41,686                           |
+| Core Module Lines           | 23,561 (56% - PGC/overlays)       |
+| Sigma Module Lines          | 6,754 (16% - infinite context)    |
+| TUI Module Lines            | 4,124 (10% - React Ink interface) |
+| Commands Module Lines       | 7,693 (18% - CLI commands)        |
 | Total Dependencies          | 26+ npm packages                  |
 | Documentation Pages         | 30+                               |
 | Manual Chapters             | 16                                |
