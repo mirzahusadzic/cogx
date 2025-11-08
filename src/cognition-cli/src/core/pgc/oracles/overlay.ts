@@ -1,6 +1,5 @@
 import { PGCManager } from '../manager.js';
 import { VerificationResult } from '../../types/verification.js';
-import { z } from 'zod';
 import {
   StructuralPatternMetadataSchema,
   StructuralPatternMetadata,
@@ -32,7 +31,10 @@ export class OverlayOracle {
     const msg = `[OverlayOracle] Attempting to read manifest from: ${manifestPath}`;
     console.log(chalk?.dim ? chalk.dim(msg) : msg);
 
-    if (structuralPatternsManifest && Object.keys(structuralPatternsManifest).length > 0) {
+    if (
+      structuralPatternsManifest &&
+      Object.keys(structuralPatternsManifest).length > 0
+    ) {
       for (const [symbolName, manifestEntry] of Object.entries(
         structuralPatternsManifest
       )) {

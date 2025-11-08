@@ -196,15 +196,12 @@ export abstract class BaseConversationManager<
             if (lanceRecord) {
               embedding = lanceRecord.embedding;
             } else {
-              // Regenerate if missing everywhere
+              // DISABLED: Re-embedding blocks UI - skip turns without embeddings
+              // These will be regenerated in background during future refactor
               console.warn(
-                `[BaseConversationManager] Regenerating embedding for ${turn.turn_id}`
+                `[BaseConversationManager] Skipping turn ${turn.turn_id} - no embedding in LanceDB (re-embedding disabled to prevent UI blocking)`
               );
-              const embedResponse = await this.workbench.embed({
-                signature: turn.content,
-                dimensions: 768,
-              });
-              embedding = embedResponse['embedding_768d'] as number[];
+              continue; // Skip this turn instead of blocking UI
             }
           }
 

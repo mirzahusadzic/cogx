@@ -18,10 +18,11 @@ import { ConversationOverlayRegistry } from '../../sigma/conversation-registry.j
 import { populateConversationOverlays } from '../../sigma/conversation-populator.js';
 import { createRecallMcpServer } from '../../sigma/recall-tool.js';
 import { injectRelevantContext } from '../../sigma/context-injector.js';
-import {
-  rebuildTurnAnalysesFromLanceDB,
-  rebuildLatticeFromLanceDB,
-} from '../../sigma/lattice-reconstructor.js';
+// Lattice reconstruction functions disabled - re-embedding blocks UI
+// import {
+//   rebuildTurnAnalysesFromLanceDB,
+//   rebuildLatticeFromLanceDB,
+// } from '../../sigma/lattice-reconstructor.js';
 import {
   loadSessionState,
   saveSessionState,
@@ -889,7 +890,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             restoredLattice.format_version === 2 &&
             restoredLattice.lancedb_metadata;
 
-          let latticeWithEmbeddings = restoredLattice;
+          const latticeWithEmbeddings = restoredLattice;
 
           // DISABLED: Re-embedding blocks UI - will be moved to background queue during refactor
           // if (isV2Format) {
@@ -905,7 +906,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           //   debug(' Embeddings loaded from LanceDB');
           // }
           if (isV2Format) {
-            debug(' V2 lattice detected - embeddings will be lazy-loaded (re-embedding disabled)');
+            debug(
+              ' V2 lattice detected - embeddings will be lazy-loaded (re-embedding disabled)'
+            );
           }
 
           // Restore lattice to state
