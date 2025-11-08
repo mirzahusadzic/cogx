@@ -636,7 +636,7 @@ cognition-cli tui --session-tokens <desired-threshold>
 # Higher threshold means fewer compressions, lower means more frequent session switches
 ```
 
-Note: You cannot disable compression entirely - once you hit the model's context window limit (~200K for Claude), the conversation would fail. Proactive compression with session boundaries is necessary for infinite context.
+Note: You cannot disable compression entirely - once you hit the model's context window limit (~150K for Claude), the conversation would fail. Proactive compression with session boundaries is necessary for infinite context.
 
 ---
 
