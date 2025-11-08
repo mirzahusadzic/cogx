@@ -19,9 +19,7 @@ describe('useSessionManager', () => {
   let options: UseSessionManagerOptions;
 
   beforeEach(async () => {
-    tempDir = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'session-manager-test-')
-    );
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'session-manager-test-'));
     options = {
       cwd: tempDir,
       debug: false,

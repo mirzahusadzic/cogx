@@ -101,11 +101,7 @@ describe('SessionStateStore', () => {
 
     it('updates SDK session on expiration', () => {
       const state = store.create('test-anchor', 'sdk-session-1');
-      const updated = store.updateSession(
-        state,
-        'sdk-session-2',
-        'expiration'
-      );
+      const updated = store.updateSession(state, 'sdk-session-2', 'expiration');
 
       expect(updated.current_session).toBe('sdk-session-2');
       expect(updated.compression_history[1].reason).toBe('expiration');

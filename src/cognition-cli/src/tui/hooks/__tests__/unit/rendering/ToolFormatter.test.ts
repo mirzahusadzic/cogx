@@ -216,7 +216,11 @@ describe('ToolFormatter', () => {
         name: 'TodoWrite',
         input: {
           todos: [
-            { content: 'Single task', status: 'pending', activeForm: 'Single task' },
+            {
+              content: 'Single task',
+              status: 'pending',
+              activeForm: 'Single task',
+            },
           ],
         },
       };

@@ -99,7 +99,9 @@ function formatEditDiff(
       lines.forEach((line) => {
         if (line) {
           // \x1b[48;5;58m = dark olive background, \x1b[97m = bright white text
-          diffLines.push(`  \x1b[32m+\x1b[0m \x1b[48;5;58m\x1b[97m${line}\x1b[0m`);
+          diffLines.push(
+            `  \x1b[32m+\x1b[0m \x1b[48;5;58m\x1b[97m${line}\x1b[0m`
+          );
         }
       });
     } else if (part.removed) {
@@ -107,7 +109,9 @@ function formatEditDiff(
       lines.forEach((line) => {
         if (line) {
           // \x1b[48;5;52m = dark red background, \x1b[97m = bright white text
-          diffLines.push(`  \x1b[31m-\x1b[0m \x1b[48;5;52m\x1b[97m${line}\x1b[0m`);
+          diffLines.push(
+            `  \x1b[31m-\x1b[0m \x1b[48;5;52m\x1b[97m${line}\x1b[0m`
+          );
         }
       });
     } else {

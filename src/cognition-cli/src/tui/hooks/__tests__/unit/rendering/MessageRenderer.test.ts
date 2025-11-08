@@ -83,7 +83,8 @@ describe('MessageRenderer', () => {
     });
 
     it('strips SDK diff colors', () => {
-      const message = 'File: \x1b[1msrc/test.ts\x1b[0m\n\x1b[32m+ new line\x1b[0m';
+      const message =
+        'File: \x1b[1msrc/test.ts\x1b[0m\n\x1b[32m+ new line\x1b[0m';
       expect(formatAssistantMessage(message)).toBe(
         'File: src/test.ts\n+ new line'
       );
