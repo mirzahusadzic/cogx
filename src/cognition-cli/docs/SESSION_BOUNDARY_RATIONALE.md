@@ -95,7 +95,7 @@ Result:
   └─ Capacity: Most of context window freed for new conversation
 ```
 
-**Key insight:** Proactive compression at a configured threshold (e.g., 120K tokens) triggers creation of a fresh session with the compressed recap injected. The original session is archived, and the new session starts with minimal context, enabling infinite conversation length.
+**Key insight:** Proactive compression at a configured threshold (default: 120K tokens) triggers creation of a fresh session with the compressed recap (default target: 40K tokens) injected. The original session is archived, and the new session starts at ~50K tokens (recap + system prompt), enabling infinite conversation length.
 
 ---
 
@@ -113,14 +113,14 @@ Reactive Compression (Limitation):
   └─ Result: Conversation ends ❌
 
 Proactive Compression (SIGMA):
-  ├─ Trigger at configured threshold (e.g., 120K tokens)
+  ├─ Trigger at configured threshold (default: 120K tokens)
   ├─ Archive original session (no longer used)
-  ├─ Compress to minimal recap (~10K tokens)
+  ├─ Compress to recap (default target: 40K tokens)
   ├─ Create new session with recap injected
-  └─ Result: New session starts fresh, conversation continues infinitely ✅
+  └─ Result: New session starts at ~50K tokens, conversation continues infinitely ✅
 ```
 
-**SIGMA's approach:** Create a clean session boundary at a configured threshold (e.g., 120K tokens), archive the original session, and start a fresh session with the compressed recap (~10K tokens) injected as system context.
+**SIGMA's approach:** Create a clean session boundary at a configured threshold (default: 120K tokens), archive the original session, and start a fresh session with the compressed recap (default target: 40K tokens) injected as system context.
 
 ---
 
@@ -523,7 +523,7 @@ await saveSessionMetadata({
 #### Positive
 
 - ✅ **Infinite Scaling:** Can compress N times (sessions are a DAG)
-- ✅ **Memory Efficiency:** New session starts at ~10K tokens (recap) vs 120K+ in original session
+- ✅ **Memory Efficiency:** New session starts at ~50K tokens (recap + overhead) vs 120K+ in original session
 - ✅ **Auditability:** Old sessions preserved with parent-child links
 - ✅ **Deterministic:** Clear compression boundaries
 - ✅ **SDK Compatible:** Uses only documented APIs
