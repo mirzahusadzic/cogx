@@ -12,8 +12,8 @@ export default async function globalTeardown() {
   }
 
   // Give LanceDB native bindings time to complete async cleanup
-  // Increased to 2s for CI environments which may have slower I/O
-  await new Promise((resolve) => setTimeout(resolve, 2000));
+  // Increased to 3s for CI environments which may have slower I/O
+  await new Promise((resolve) => setTimeout(resolve, 3000));
 
   // Second GC pass after native cleanup
   if (global.gc) {

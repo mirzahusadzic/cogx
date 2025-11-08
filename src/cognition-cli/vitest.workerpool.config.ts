@@ -29,7 +29,10 @@ export default defineConfig({
     dangerouslyIgnoreUnhandledErrors: true,
     globalTeardown: './vitest.global-teardown.ts', // Share same teardown as main config
     maxConcurrency: 1,
-    teardownTimeout: 5000,
-    hookTimeout: 10000,
+    sequence: {
+      shuffle: false, // Ensure consistent test order
+    },
+    teardownTimeout: 10000, // Increase from 5s to 10s
+    hookTimeout: 15000, // Increase from 10s to 15s
   },
 });
