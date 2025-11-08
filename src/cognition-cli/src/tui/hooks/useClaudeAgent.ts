@@ -548,9 +548,26 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                 // 1. Save lattice to disk (graph structure preserved - ALIVE!)
                 const latticeDir = path.join(cwd, '.sigma');
                 fs.mkdirSync(latticeDir, { recursive: true });
+
+                // Strip embeddings from lattice before saving (v2 format)
+                // Embeddings stored in LanceDB, not JSON (saves 90% disk space)
+                const latticeWithoutEmbeddings = {
+                  format_version: 2,
+                  lancedb_metadata: {
+                    storage_path: '.sigma/conversations.lancedb',
+                    session_id: currentSessionId,
+                  },
+                  ...compressionResult.lattice,
+                  nodes: compressionResult.lattice.nodes.map((node) => {
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const { embedding, ...nodeWithoutEmbedding } = node;
+                    return nodeWithoutEmbedding;
+                  }),
+                };
+
                 fs.writeFileSync(
                   path.join(latticeDir, `${currentSessionId}.lattice.json`),
-                  JSON.stringify(compressionResult.lattice, null, 2)
+                  JSON.stringify(latticeWithoutEmbeddings, null, 2)
                 );
 
                 // 1b. Flush conversation overlays to disk
@@ -843,16 +860,40 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           debug(' Found existing lattice, restoring:', latticePath);
 
           const latticeContent = fs.readFileSync(latticePath, 'utf-8');
-          const restoredLattice = JSON.parse(
-            latticeContent
-          ) as ConversationLattice;
+          const restoredLattice = JSON.parse(latticeContent) as ConversationLattice & {
+            format_version?: number;
+            lancedb_metadata?: {
+              storage_path: string;
+              session_id: string;
+            };
+          };
+
+          // Check if v2 format (embeddings in LanceDB)
+          const isV2Format =
+            restoredLattice.format_version === 2 &&
+            restoredLattice.lancedb_metadata;
+
+          let latticeWithEmbeddings = restoredLattice;
+
+          if (isV2Format) {
+            debug(' V2 lattice detected, loading embeddings from LanceDB...');
+            // Load embeddings from LanceDB for v2 format
+            const { rebuildLatticeFromLanceDB } = await import(
+              '../../sigma/lattice-reconstructor.js'
+            );
+            latticeWithEmbeddings = await rebuildLatticeFromLanceDB(
+              sessionId,
+              cwd
+            );
+            debug(' Embeddings loaded from LanceDB');
+          }
 
           // Restore lattice to state
-          setConversationLattice(restoredLattice);
+          setConversationLattice(latticeWithEmbeddings);
 
           // Rebuild turnAnalyses from lattice nodes
-          const restoredAnalyses: TurnAnalysis[] = restoredLattice.nodes.map(
-            (node) => ({
+          const restoredAnalyses: TurnAnalysis[] =
+            latticeWithEmbeddings.nodes.map((node) => ({
               turn_id: node.id,
               role: node.role,
               content: node.content,
@@ -873,8 +914,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               },
               references: [], // Not preserved in lattice nodes, start empty
               semantic_tags: node.semantic_tags || [],
-            })
-          );
+            }));
 
           turnAnalyses.current = restoredAnalyses;
 

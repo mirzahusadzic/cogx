@@ -339,6 +339,47 @@ export async function migrateToLanceCommand(options: MigrateOptions) {
 
     await lanceStore.close();
 
+    // Migrate Sigma lattice files (strip embeddings from lattice.json)
+    s.start('Migrating Sigma lattice files...');
+    let latticeFilesCount = 0;
+    let latticeSizeBefore = 0;
+    let latticeSizeAfter = 0;
+
+    try {
+      const { migrateLatticeToV2 } = await import(
+        '../sigma/migrate-lattice-to-v2.js'
+      );
+      const latticeResult = await migrateLatticeToV2(options.projectRoot, {
+        dryRun: options.dryRun,
+        verbose: false,
+        backup: true,
+      });
+
+      latticeFilesCount = latticeResult.successfulMigrations;
+      latticeSizeBefore = latticeResult.totalSizeBefore;
+      latticeSizeAfter = latticeResult.totalSizeAfter;
+
+      if (latticeFilesCount > 0) {
+        const reductionPct = Math.round(
+          (1 - latticeSizeAfter / latticeSizeBefore) * 100
+        );
+        s.stop(
+          chalk.green(
+            `✓ Sigma lattice: ${latticeFilesCount} files migrated (${reductionPct}% size reduction)`
+          )
+        );
+      } else {
+        s.stop(chalk.dim('○ Sigma lattice: No files to migrate'));
+      }
+    } catch (error) {
+      s.stop(chalk.yellow('⚠ Sigma lattice migration skipped'));
+      log.warn(
+        chalk.yellow(
+          `  Note: Could not migrate Sigma lattice: ${(error as Error).message}`
+        )
+      );
+    }
+
     // Summary
     console.log('');
     log.info(chalk.bold('Migration Summary:'));
@@ -352,10 +393,20 @@ export async function migrateToLanceCommand(options: MigrateOptions) {
         `  ${chalk.cyan('mission_integrity')}: ${missionVersionsCount} versions, ${missionConceptsCount} concepts`
       );
     }
+    if (latticeFilesCount > 0) {
+      const formatBytes = (bytes: number) => {
+        if (bytes < 1024 * 1024)
+          return `${(bytes / 1024).toFixed(0)}KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+      };
+      log.info(
+        `  ${chalk.cyan('sigma_lattice')}: ${latticeFilesCount} files (${formatBytes(latticeSizeBefore)} → ${formatBytes(latticeSizeAfter)})`
+      );
+    }
     log.info('');
     const totalWithMission = totalConcepts + missionConceptsCount;
     log.info(
-      `  ${chalk.bold('Total:')} ${totalDocuments} documents + ${missionVersionsCount} versions, ${totalWithMission} concepts`
+      `  ${chalk.bold('Total:')} ${totalDocuments} documents + ${missionVersionsCount} versions + ${latticeFilesCount} lattice files, ${totalWithMission} concepts`
     );
 
     if (options.dryRun) {
