@@ -6,7 +6,6 @@
  * Extracted from useClaudeAgent.ts as part of Week 2 Day 6-8 refactor.
  */
 
-import type { SDKMessage, Query } from '@anthropic-ai/claude-agent-sdk';
 import type { McpSdkServerConfigWithInstance } from '@anthropic-ai/claude-agent-sdk';
 
 /**
@@ -29,7 +28,11 @@ export interface SDKQueryOptions {
  */
 export interface MessageProcessingCallbacks {
   onSessionIdUpdate: (sessionId: string) => void;
-  onTokenUpdate: (tokens: { input: number; output: number; total: number }) => void;
+  onTokenUpdate: (tokens: {
+    input: number;
+    output: number;
+    total: number;
+  }) => void;
   onToolUse: (tool: { name: string; input: Record<string, unknown> }) => void;
   onAssistantContent: (content: string) => void;
   onDebugLog?: (message: string) => void;

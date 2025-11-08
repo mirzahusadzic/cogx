@@ -11,7 +11,7 @@ import type { TurnAnalysis } from '../../../../../sigma/types.js';
 
 // Mock analyzeTurn
 vi.mock('../../../../../sigma/analyzer-with-embeddings.js', () => ({
-  analyzeTurn: vi.fn(async (turn, context, embedder) => {
+  analyzeTurn: vi.fn(async (turn) => {
     // Return a mock analysis
     return {
       turn_id: turn.id,
@@ -33,6 +33,7 @@ describe('AnalysisQueue', () => {
 
   beforeEach(() => {
     mockOptions = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       embedder: {} as any,
       projectRegistry: null,
       cwd: '/test',
@@ -124,17 +125,29 @@ describe('AnalysisQueue', () => {
       const queue = new AnalysisQueue(mockOptions);
       const tasks: AnalysisTask[] = [
         {
-          message: { type: 'user', content: 'First', timestamp: new Date(1000) },
+          message: {
+            type: 'user',
+            content: 'First',
+            timestamp: new Date(1000),
+          },
           messageIndex: 0,
           timestamp: 1000,
         },
         {
-          message: { type: 'assistant', content: 'Second', timestamp: new Date(2000) },
+          message: {
+            type: 'assistant',
+            content: 'Second',
+            timestamp: new Date(2000),
+          },
           messageIndex: 1,
           timestamp: 2000,
         },
         {
-          message: { type: 'user', content: 'Third', timestamp: new Date(3000) },
+          message: {
+            type: 'user',
+            content: 'Third',
+            timestamp: new Date(3000),
+          },
           messageIndex: 2,
           timestamp: 3000,
         },

@@ -13,7 +13,6 @@ import type { EmbeddingService } from '../../../core/services/embedding.js';
 import type { OverlayRegistry } from '../../../core/algebra/overlay-registry.js';
 import type { ConversationOverlayRegistry } from '../../../sigma/conversation-registry.js';
 import type { TurnAnalysis } from '../../../sigma/types.js';
-import type { ClaudeMessage } from '../useClaudeAgent.js';
 import type { AnalysisQueueStatus, AnalysisTask } from './types.js';
 
 export interface UseTurnAnalysisOptions {
@@ -52,7 +51,14 @@ export interface UseTurnAnalysisReturn {
 export function useTurnAnalysis(
   options: UseTurnAnalysisOptions
 ): UseTurnAnalysisReturn {
-  const { embedder, projectRegistry, conversationRegistry, cwd, sessionId, debug } = options;
+  const {
+    embedder,
+    projectRegistry,
+    conversationRegistry,
+    cwd,
+    sessionId,
+    debug,
+  } = options;
 
   // Analysis queue (stable reference)
   const queueRef = useRef<AnalysisQueue | null>(null);
@@ -96,7 +102,7 @@ export function useTurnAnalysis(
 
             // Populate conversation overlays
             if (conversationRegistry) {
-              populateOverlays(result.analysis, conversationRegistry, sessionId);
+              populateOverlays(result.analysis, conversationRegistry);
             }
           },
           onProgress: (status) => {
@@ -154,7 +160,8 @@ export function useTurnAnalysis(
         : 0,
     avgImportance:
       analyses.length > 0
-        ? analyses.reduce((sum, a) => sum + a.importance_score, 0) / analyses.length
+        ? analyses.reduce((sum, a) => sum + a.importance_score, 0) /
+          analyses.length
         : 0,
   };
 
@@ -174,8 +181,7 @@ export function useTurnAnalysis(
  */
 async function populateOverlays(
   analysis: TurnAnalysis,
-  registry: ConversationOverlayRegistry,
-  sessionId: string
+  registry: ConversationOverlayRegistry
 ): Promise<void> {
   try {
     const { populateConversationOverlays } = await import(

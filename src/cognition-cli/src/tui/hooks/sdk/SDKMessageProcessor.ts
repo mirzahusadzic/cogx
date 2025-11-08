@@ -8,7 +8,6 @@
  */
 
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
-import type { MessageHandlerResult } from './types.js';
 import { stripANSICodes } from '../rendering/MessageRenderer.js';
 import { formatToolUse } from '../rendering/ToolFormatter.js';
 
@@ -52,7 +51,9 @@ export function extractSessionId(sdkMessage: SDKMessage): string | undefined {
 /**
  * Process assistant message (including tool uses)
  */
-export function processAssistantMessage(sdkMessage: SDKMessage): ProcessedMessage[] {
+export function processAssistantMessage(
+  sdkMessage: SDKMessage
+): ProcessedMessage[] {
   if (sdkMessage.type !== 'assistant') {
     return [];
   }
@@ -148,7 +149,9 @@ export function processStreamEvent(sdkMessage: SDKMessage): StreamEventData {
 /**
  * Process tool progress message
  */
-export function processToolProgress(sdkMessage: SDKMessage): ProcessedMessage | null {
+export function processToolProgress(
+  sdkMessage: SDKMessage
+): ProcessedMessage | null {
   if (sdkMessage.type !== 'tool_progress') {
     return null;
   }
@@ -201,7 +204,9 @@ export function processResult(sdkMessage: SDKMessage): {
 /**
  * Process system message
  */
-export function processSystemMessage(sdkMessage: SDKMessage): ProcessedMessage | null {
+export function processSystemMessage(
+  sdkMessage: SDKMessage
+): ProcessedMessage | null {
   if (sdkMessage.type !== 'system') {
     return null;
   }

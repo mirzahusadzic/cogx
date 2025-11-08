@@ -63,9 +63,7 @@ describe('SDKMessageProcessor', () => {
       const message = {
         type: 'assistant',
         message: {
-          content: [
-            { type: 'text', text: 'Hello' },
-          ],
+          content: [{ type: 'text', text: 'Hello' }],
         },
       } as unknown as SDKMessage;
 
@@ -106,7 +104,10 @@ describe('SDKMessageProcessor', () => {
             {
               type: 'tool_use',
               name: 'Edit',
-              input: { file_path: '/test/file2.ts', description: 'Update code' },
+              input: {
+                file_path: '/test/file2.ts',
+                description: 'Update code',
+              },
             },
           ],
         },

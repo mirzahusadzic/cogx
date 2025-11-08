@@ -20,7 +20,6 @@ import type {
   AnalysisOptions,
   AnalysisQueueHandlers,
   AnalysisQueueStatus,
-  AnalysisResult,
 } from './types.js';
 
 /**
@@ -89,7 +88,9 @@ export class AnalysisQueue {
     }
 
     // Skip if already in queue
-    const alreadyQueued = this.queue.some((t) => t.timestamp === task.timestamp);
+    const alreadyQueued = this.queue.some(
+      (t) => t.timestamp === task.timestamp
+    );
     if (alreadyQueued) {
       return;
     }

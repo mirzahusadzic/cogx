@@ -14,14 +14,8 @@ import type { SDKQueryOptions } from './types.js';
  * Create an SDK query with proper configuration
  */
 export function createSDKQuery(options: SDKQueryOptions): Query {
-  const {
-    prompt,
-    cwd,
-    resumeSessionId,
-    mcpServers,
-    onStderr,
-    onCanUseTool,
-  } = options;
+  const { prompt, cwd, resumeSessionId, mcpServers, onStderr, onCanUseTool } =
+    options;
 
   return query({
     prompt,
@@ -60,7 +54,10 @@ export function formatAuthError(): string {
 /**
  * Format generic SDK error
  */
-export function formatSDKError(stderrLines: string[], hadMessages: boolean): string {
+export function formatSDKError(
+  stderrLines: string[],
+  hadMessages: boolean
+): string {
   if (stderrLines.length === 0 && !hadMessages) {
     return 'SDK completed without response - check authentication';
   }

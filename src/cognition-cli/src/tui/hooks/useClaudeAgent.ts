@@ -1,20 +1,12 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import {
-  query,
-  type SDKMessage,
-  type Query,
-} from '@anthropic-ai/claude-agent-sdk';
+import type { SDKMessage, Query } from '@anthropic-ai/claude-agent-sdk';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import chalk from 'chalk';
 import { EmbeddingService } from '../../core/services/embedding.js';
-import { analyzeTurn } from '../../sigma/analyzer-with-embeddings.js';
-import { compressContext } from '../../sigma/compressor.js';
-import { reconstructSessionContext } from '../../sigma/context-reconstructor.js';
 import { OverlayRegistry } from '../../core/algebra/overlay-registry.js';
 import { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
-import { populateConversationOverlays } from '../../sigma/conversation-populator.js';
 import { createRecallMcpServer } from '../../sigma/recall-tool.js';
 import { injectRelevantContext } from '../../sigma/context-injector.js';
 // Lattice reconstruction functions disabled - re-embedding blocks UI
@@ -36,19 +28,13 @@ import {
   isAuthenticationError,
   formatAuthError,
   formatSDKError,
-  processSDKMessage,
 } from './sdk/index.js';
 import { formatToolUse } from './rendering/ToolFormatter.js';
 import { stripANSICodes } from './rendering/MessageRenderer.js';
 import { useTurnAnalysis } from './analysis/index.js';
 import type { AnalysisTask } from './analysis/types.js';
 import type { McpSdkServerConfigWithInstance } from '@anthropic-ai/claude-agent-sdk';
-import type {
-  ConversationLattice,
-  TurnAnalysis,
-  ConversationContext,
-  ConversationTurn,
-} from '../../sigma/types.js';
+import type { ConversationLattice, TurnAnalysis } from '../../sigma/types.js';
 
 interface UseClaudeAgentOptions {
   sessionId?: string;
@@ -182,8 +168,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
       const stats = {
         total_turns_analyzed: turnAnalysis.analyses.length,
-        paradigm_shifts: turnAnalysis.analyses.filter((t) => t.is_paradigm_shift)
-          .length,
+        paradigm_shifts: turnAnalysis.analyses.filter(
+          (t) => t.is_paradigm_shift
+        ).length,
         routine_turns: turnAnalysis.analyses.filter((t) => t.is_routine).length,
         avg_novelty:
           turnAnalysis.analyses.length > 0
@@ -314,7 +301,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       }
 
       // Find unanalyzed messages (ONLY user/assistant, skip system/tool_progress)
-      const lastIndex = turnAnalysis.analyses.length > 0 ? turnAnalysis.analyses.length - 1 : -1;
+      const lastIndex =
+        turnAnalysis.analyses.length > 0
+          ? turnAnalysis.analyses.length - 1
+          : -1;
       const unanalyzedMessages = currentMessages
         .slice(lastIndex + 1)
         .map((msg, idx) => ({
@@ -331,7 +321,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       debug(' Unanalyzed user/assistant messages:', unanalyzedMessages.length);
 
       // Queue each unanalyzed message for background processing
-      for (const { msg: message, originalIndex: messageIndex } of unanalyzedMessages) {
+      for (const {
+        msg: message,
+        originalIndex: messageIndex,
+      } of unanalyzedMessages) {
         // For assistant messages, only queue if we're NOT currently thinking
         if (message.type === 'assistant' && isThinking) {
           debug('   Skipping assistant message - still streaming');
@@ -1281,8 +1274,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         : 0,
     avgImportance:
       turnAnalysis.analyses.length > 0
-        ? turnAnalysis.analyses.reduce((sum, t) => sum + t.importance_score, 0) /
-          turnAnalysis.analyses.length
+        ? turnAnalysis.analyses.reduce(
+            (sum, t) => sum + t.importance_score,
+            0
+          ) / turnAnalysis.analyses.length
         : 0,
   };
 

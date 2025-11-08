@@ -4,7 +4,7 @@
  * Week 2 Day 6-8: Extract SDK Layer
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   isAuthenticationError,
   formatAuthError,
@@ -89,7 +89,9 @@ describe('SDKQueryManager', () => {
 
     it('returns default message when no stderr and no messages', () => {
       const result = formatSDKError([], false);
-      expect(result).toBe('SDK completed without response - check authentication');
+      expect(result).toBe(
+        'SDK completed without response - check authentication'
+      );
     });
 
     it('joins multiple stderr lines', () => {

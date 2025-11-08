@@ -6,7 +6,7 @@
  * Created as part of Week 3 Day 11-13 refactor.
  */
 
-import type { TurnAnalysis, ConversationContext } from '../../../sigma/types.js';
+import type { TurnAnalysis } from '../../../sigma/types.js';
 import type { EmbeddingService } from '../../../core/services/embedding.js';
 import type { OverlayRegistry } from '../../../core/algebra/overlay-registry.js';
 import type { ClaudeMessage } from '../useClaudeAgent.js';
