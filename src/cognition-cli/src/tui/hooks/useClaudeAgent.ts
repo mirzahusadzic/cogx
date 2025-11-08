@@ -546,6 +546,14 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                 `  Discarded: ${compressionResult.discarded_turns.length} turns\n\n`
             );
 
+            // Reset token count IMMEDIATELY (before async logic)
+            // This prevents token count from continuing to accumulate during compression
+            setTokenCount({ input: 0, output: 0, total: 0 });
+            lastCompressedSize.current = compressionResult.compressed_size;
+
+            // Reset lastAnalyzedMessageIndex to prevent re-analyzing compressed turns
+            lastAnalyzedMessageIndex.current = messages.length - 1;
+
             // Intelligent session switch with dual-mode reconstruction
             (async () => {
               try {
@@ -619,8 +627,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                 // 6. SDK will provide new UUID in next message, we'll update anchor state then
                 // Keep currentSessionId as-is (the anchor ID), SDK session will be captured in message handler
 
-                // 7. Reset state - new session will have true token count from SDK
-                setTokenCount({ input: 0, output: 0, total: 0 });
+                // 7. State already reset (above, before async block)
                 // Keep compressionTriggered = true to prevent re-compression until new session establishes
                 // Keep turnAnalyses.current - we continue building on the lattice!
 
