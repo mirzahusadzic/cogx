@@ -52,7 +52,8 @@ describe('DocumentLanceStore', () => {
         }
       );
 
-      expect(conceptId).toBe('O4:test-hash:0');
+      // ID format changed to use embedding hash instead of index
+      expect(conceptId).toMatch(/^O4:test-hash:[a-f0-9]+$/);
     });
   });
 
@@ -76,7 +77,8 @@ describe('DocumentLanceStore', () => {
         }
       );
 
-      expect(conceptId).toBe('O4:doc-hash-1:0');
+      // ID format changed to use embedding hash instead of index
+      expect(conceptId).toMatch(/^O4:doc-hash-1:[a-f0-9]+$/);
 
       // Verify it was stored
       const retrieved = await store.getConcept(conceptId);
@@ -88,32 +90,49 @@ describe('DocumentLanceStore', () => {
     });
 
     it('should replace existing concept with same ID', async () => {
-      const embedding1 = new Array(768).fill(0.3);
-      const embedding2 = new Array(768).fill(0.7);
+      // Same embedding = same content-based ID
+      const embedding = new Array(768).fill(0.5);
 
       // Store first version
-      await store.storeConcept('O4', 'doc-1', 'test.md', 'trans-1', 0, {
-        text: 'Version 1',
-        section: 'Section',
-        sectionHash: 'hash',
-        type: 'concept',
-        weight: 0.5,
-        occurrences: 1,
-        embedding: embedding1,
-      });
+      const id1 = await store.storeConcept(
+        'O4',
+        'doc-1',
+        'test.md',
+        'trans-1',
+        0,
+        {
+          text: 'Version 1',
+          section: 'Section',
+          sectionHash: 'hash',
+          type: 'concept',
+          weight: 0.5,
+          occurrences: 1,
+          embedding,
+        }
+      );
 
-      // Store second version (should replace)
-      await store.storeConcept('O4', 'doc-1', 'test.md', 'trans-1', 0, {
-        text: 'Version 2',
-        section: 'Section',
-        sectionHash: 'hash',
-        type: 'concept',
-        weight: 0.8,
-        occurrences: 2,
-        embedding: embedding2,
-      });
+      // Store second version with same embedding (should replace)
+      const id2 = await store.storeConcept(
+        'O4',
+        'doc-1',
+        'test.md',
+        'trans-1',
+        0,
+        {
+          text: 'Version 2',
+          section: 'Section',
+          sectionHash: 'hash',
+          type: 'concept',
+          weight: 0.8,
+          occurrences: 2,
+          embedding, // Same embedding = same content-based ID
+        }
+      );
 
-      const retrieved = await store.getConcept('O4:doc-1:0');
+      // Same embedding should produce same ID
+      expect(id1).toBe(id2);
+
+      const retrieved = await store.getConcept(id2);
       expect(retrieved?.text).toBe('Version 2');
       expect(retrieved?.weight).toBe(0.8);
     });
@@ -176,9 +195,12 @@ describe('DocumentLanceStore', () => {
       );
 
       expect(ids).toHaveLength(3);
-      expect(ids[0]).toBe('O4:doc-batch:0');
-      expect(ids[1]).toBe('O4:doc-batch:1');
-      expect(ids[2]).toBe('O4:doc-batch:2');
+      // ID format changed to use embedding hash instead of index
+      expect(ids[0]).toMatch(/^O4:doc-batch:[a-f0-9]+$/);
+      expect(ids[1]).toMatch(/^O4:doc-batch:[a-f0-9]+$/);
+      expect(ids[2]).toMatch(/^O4:doc-batch:[a-f0-9]+$/);
+      // Each should have a unique hash (different embeddings)
+      expect(new Set(ids).size).toBe(3);
 
       // Verify all were stored
       const retrieved = await store.getDocumentConcepts('O4', 'doc-batch');
