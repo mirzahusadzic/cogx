@@ -82,7 +82,7 @@ Active Session (compression threshold reached):
   ├─ Classify turns: paradigm shifts, important, routine
   ├─ Preserve high-importance content (lossless)
   ├─ Compress/discard low-importance content
-  └─ Generate compressed recap (~2-3% of original size)
+  └─ Generate compressed recap (~3% of original size, typically 3-4K tokens)
 
 Session Boundary:
   ├─ Archive old session
@@ -95,7 +95,7 @@ Result:
   └─ Capacity: Most of context window freed for new conversation
 ```
 
-**Key insight:** Proactive compression at a configured threshold (default: 120K tokens) triggers creation of a fresh session with the compressed recap (default target: 40K tokens) injected. The original session is archived, and the new session starts at ~50K tokens (recap + system prompt), enabling infinite conversation length.
+**Key insight:** Proactive compression at a configured threshold (default: 120K tokens) triggers creation of a fresh session with the compressed recap (~3-4K tokens in practice) injected. The original session is archived, and the new session starts at ~15-20K tokens (recap + system prompt + overhead), enabling infinite conversation length.
 
 ---
 
@@ -115,12 +115,12 @@ Reactive Compression (Limitation):
 Proactive Compression (SIGMA):
   ├─ Trigger at configured threshold (default: 120K tokens)
   ├─ Archive original session (no longer used)
-  ├─ Compress to recap (default target: 40K tokens)
+  ├─ Compress to recap (~3-4K tokens typical, 40K target max)
   ├─ Create new session with recap injected
-  └─ Result: New session starts at ~50K tokens, conversation continues infinitely ✅
+  └─ Result: New session starts at ~15-20K tokens, conversation continues infinitely ✅
 ```
 
-**SIGMA's approach:** Create a clean session boundary at a configured threshold (default: 120K tokens), archive the original session, and start a fresh session with the compressed recap (default target: 40K tokens) injected as system context.
+**SIGMA's approach:** Create a clean session boundary at a configured threshold (default: 120K tokens), archive the original session, and start a fresh session with the compressed recap (~3-4K tokens typical) injected as system context.
 
 ---
 
@@ -523,7 +523,7 @@ await saveSessionMetadata({
 #### Positive
 
 - ✅ **Infinite Scaling:** Can compress N times (sessions are a DAG)
-- ✅ **Memory Efficiency:** New session starts at ~50K tokens (recap + overhead) vs 120K+ in original session
+- ✅ **Memory Efficiency:** New session starts at ~15-20K tokens (recap + overhead) vs 120K+ in original session
 - ✅ **Auditability:** Old sessions preserved with parent-child links
 - ✅ **Deterministic:** Clear compression boundaries
 - ✅ **SDK Compatible:** Uses only documented APIs
