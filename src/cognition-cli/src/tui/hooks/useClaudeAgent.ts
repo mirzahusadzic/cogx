@@ -346,12 +346,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           // Clear recap after first injection - subsequent queries use real-time context injection
           // This ensures: 1st query = full recap, 2nd+ queries = semantic lattice search
           setInjectedRecap(null);
-
-          debugLog(
-            `[SIGMA] Injecting intelligent recap into user prompt (one-time)\n` +
-              `  Recap length: ${injectedRecap.length} chars (~${Math.round(injectedRecap.length / 4)} tokens)\n` +
-              `  Subsequent queries will use real-time context injection\n\n`
-          );
         } else if (embedderRef.current && turnAnalysis.analyses.length > 0) {
           // Real-time lattice context injection for fluent conversation
           try {
@@ -372,18 +366,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               );
             }
 
-            if (finalPrompt !== prompt) {
-              debugLog(
-                `[SIGMA] Real-time context injected from lattice\n` +
-                  `  Original length: ${prompt.length} chars\n` +
-                  `  Enhanced length: ${finalPrompt.length} chars\n\n`
-              );
-            }
+            // Context injected successfully
           } catch (err) {
             // Fail gracefully - use original prompt
-            debugLog(
-              `[SIGMA] Context injection failed: ${(err as Error).message}\n`
-            );
           }
         }
 
@@ -391,18 +376,12 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         const currentResumeId = resumeSessionId;
 
         // Create query with Claude Code system prompt preset
-        // This ensures the TUI has the same instructions as standard Claude Code CLI
-        debugLog(
-          `[QUERY START] Creating query with resume=${currentResumeId}, hasRecap=${!!injectedRecap}\n`
-        );
-
         const q = createSDKQuery({
           prompt: finalPrompt,
           cwd: cwd,
           resumeSessionId: currentResumeId, // undefined after compression = fresh session!
           onStderr: (data: string) => {
             stderrLines.push(data);
-            debugLog(`[STDERR] ${data}\n`);
           },
           onCanUseTool: async (toolName, input) => {
             // Auto-approve all tools for now (we can add UI prompts later)
@@ -424,24 +403,15 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
         setCurrentQuery(q);
 
-        debugLog(`[QUERY LOOP] Starting to process SDK messages\n`);
         // Process streaming messages
         let messageCount = 0;
         let hasAssistantMessage = false;
         for await (const message of q) {
           messageCount++;
-          debugLog(`[QUERY LOOP] Processing message type: ${message.type}\n`);
           if (message.type === 'assistant') {
             hasAssistantMessage = true;
           }
           processSDKMessage(message);
-        }
-
-        debugLog(
-          `[QUERY LOOP] Query completed. Messages: ${messageCount}, hadAssistant: ${hasAssistantMessage}\n`
-        );
-        if (stderrLines.length > 0) {
-          debugLog(`[STDERR SUMMARY] ${stderrLines.join('\n')}\n`);
         }
 
         // If query completed without assistant response, show error
@@ -507,15 +477,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   );
 
   const processSDKMessage = (sdkMessage: SDKMessage) => {
-    // Debug: log all SDK messages to a file
-    try {
-      debugLog(
-        `[${new Date().toISOString()}] ${sdkMessage.type}\n${JSON.stringify(sdkMessage, null, 2)}\n\n`
-      );
-    } catch (err) {
-      // Ignore logging errors
-    }
-
     // Extract session ID from SDK message (all SDK messages have it)
     // This is critical for session-less TUI starts where SDK creates its own ID
     if ('session_id' in sdkMessage && sdkMessage.session_id) {
@@ -525,13 +486,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       if (prevSessionId !== sdkSessionId) {
         // SDK gave us a different session ID - update via sessionManager
         debug(' SDK session changed:', prevSessionId, '→', sdkSessionId);
-
-        if (prevSessionId.startsWith('tui-')) {
-          // First time getting real SDK session (was placeholder)
-          debugLog(
-            `[SESSION] Updated from placeholder ${prevSessionId} to SDK session ID: ${sdkSessionId}\n\n`
-          );
-        }
 
         // Determine reason for session change
         const reason = compression.state.triggered
@@ -553,11 +507,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         // This allows compression to trigger again in the new session
         if (compression.state.triggered) {
           compression.reset();
-          debugLog(
-            `[COMPRESSION FLAG RESET] New session: ${sdkSessionId}\n` +
-              `  Previous session: ${prevSessionId}\n` +
-              `  Reason: ${reason}\n\n`
-          );
           debug(' Compression flag reset - can compress again in new session');
         }
 
