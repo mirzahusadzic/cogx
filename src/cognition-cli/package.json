@@ -18,7 +18,7 @@
     "start": "node dist/cli.js",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "test": "npm run test:main && npm run test:workerpool",
+    "test": "npm run test:main && sleep 3 && npm run test:workerpool",
     "test:main": "NODE_OPTIONS='--max-old-space-size=4096' vitest run --config vitest.config.ts",
     "test:workerpool": "NODE_OPTIONS='--max-old-space-size=4096' vitest run --config vitest.workerpool.config.ts",
     "test:watch": "vitest",
