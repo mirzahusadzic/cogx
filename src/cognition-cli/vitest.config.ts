@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
     globals: true,
+    environment: 'happy-dom',
     setupFiles: ['./vitest.setup.ts'],
     globalTeardown: './vitest.global-teardown.ts',
     /**
