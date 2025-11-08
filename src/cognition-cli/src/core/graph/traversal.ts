@@ -20,6 +20,15 @@ export class GraphTraversal {
   constructor(private pgc: PGCManager) {}
 
   /**
+   * Helper to extract filePath from manifest entry (handles both old and new formats)
+   */
+  private getFilePathFromManifestEntry(
+    entry: string | { filePath?: string; [key: string]: unknown }
+  ): string {
+    return typeof entry === 'string' ? entry : entry.filePath || '';
+  }
+
+  /**
    * Build a directed graph from structural patterns
    */
   async buildGraph(): Promise<DirectedGraph> {
@@ -32,7 +41,13 @@ export class GraphTraversal {
     const manifest = await this.pgc.overlays.getManifest('structural_patterns');
 
     // For each symbol in manifest
-    for (const [symbol, filePath] of Object.entries(manifest)) {
+    for (const [symbol, manifestEntry] of Object.entries(manifest)) {
+      // Parse manifest entry (handles both old string and new object formats)
+      const filePath =
+        typeof manifestEntry === 'string'
+          ? manifestEntry
+          : manifestEntry.filePath || '';
+
       // Load structural pattern metadata
       const overlayKey = `${filePath}#${symbol}`;
       const metadata = await this.pgc.overlays.get(
@@ -93,7 +108,9 @@ export class GraphTraversal {
               to: importedSymbol,
               type: 'imports',
               fromFile: filePath,
-              toFile: manifest[importedSymbol],
+              toFile: this.getFilePathFromManifestEntry(
+                manifest[importedSymbol]
+              ),
             };
             edges.push(edge);
 
@@ -119,7 +136,7 @@ export class GraphTraversal {
                 to: base,
                 type: 'extends',
                 fromFile: filePath,
-                toFile: manifest[base],
+                toFile: this.getFilePathFromManifestEntry(manifest[base]),
               });
               if (!outgoing.has(symbol)) outgoing.set(symbol, new Set());
               if (!incoming.has(base)) incoming.set(base, new Set());
@@ -136,7 +153,7 @@ export class GraphTraversal {
                 to: iface,
                 type: 'implements',
                 fromFile: filePath,
-                toFile: manifest[iface],
+                toFile: this.getFilePathFromManifestEntry(manifest[iface]),
               });
               if (!outgoing.has(symbol)) outgoing.set(symbol, new Set());
               if (!incoming.has(iface)) incoming.set(iface, new Set());
@@ -163,7 +180,9 @@ export class GraphTraversal {
                     to: cleanType,
                     type: 'uses',
                     fromFile: filePath,
-                    toFile: manifest[cleanType],
+                    toFile: this.getFilePathFromManifestEntry(
+                      manifest[cleanType]
+                    ),
                   });
                   if (!outgoing.has(symbol)) outgoing.set(symbol, new Set());
                   if (!incoming.has(cleanType))
@@ -189,7 +208,9 @@ export class GraphTraversal {
                   to: returnType,
                   type: 'uses',
                   fromFile: filePath,
-                  toFile: manifest[returnType],
+                  toFile: this.getFilePathFromManifestEntry(
+                    manifest[returnType]
+                  ),
                 });
                 if (!outgoing.has(symbol)) outgoing.set(symbol, new Set());
                 if (!incoming.has(returnType))

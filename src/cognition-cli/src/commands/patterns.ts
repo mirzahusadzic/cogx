@@ -132,8 +132,15 @@ export function addPatternsCommands(program: Command) {
       let totalPatterns = 0;
       let staleVectors = 0;
 
-      for (const [symbol, filePath] of Object.entries(manifest)) {
+      for (const [symbol, manifestEntry] of Object.entries(manifest)) {
         try {
+          // Parse manifest entry (handles both old string and new object formats)
+          const parsed =
+            typeof manifestEntry === 'string'
+              ? { filePath: manifestEntry }
+              : manifestEntry;
+          const filePath = parsed.filePath || '';
+
           // Try to get vector from pattern manager (uses manifest)
           const vector = await manager.getVectorForSymbol(symbol);
 

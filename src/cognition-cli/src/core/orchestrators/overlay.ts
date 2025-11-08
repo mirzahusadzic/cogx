@@ -251,6 +251,7 @@ export class OverlayOrchestrator {
 
       log.info(`[Overlay] Preparing jobs for ${allFiles.length} files...`);
       let skippedCount = 0;
+      let incrementalSkipCount = 0; // Track how many symbols were skipped due to unchanged content
       const BATCH_SIZE = 50;
 
       const allJobs: Array<{
@@ -262,6 +263,9 @@ export class OverlayOrchestrator {
         structuralData: StructuralData;
         force: boolean;
       }> = [];
+
+      // Pre-load manifest for incremental filtering
+      const manifest = await this.pgc.overlays.getManifest(overlayType);
 
       for (let i = 0; i < allFiles.length; i += BATCH_SIZE) {
         const batch = allFiles.slice(i, i + BATCH_SIZE);
@@ -289,45 +293,97 @@ export class OverlayOrchestrator {
             continue;
           }
 
+          // Helper function to check if symbol needs processing
+          const needsProcessing = (symbolName: string): boolean => {
+            if (force) return true;
+
+            const manifestEntry = manifest[symbolName];
+            if (!manifestEntry) return true; // New symbol
+
+            const parsedEntry =
+              this.pgc.overlays.parseManifestEntry(manifestEntry);
+
+            // If old format or no sourceHash, needs processing
+            if (parsedEntry.needsMigration || !parsedEntry.sourceHash) {
+              return true;
+            }
+
+            // Check if sourceHash changed (content changed)
+            if (parsedEntry.sourceHash !== contentHash) {
+              return true;
+            }
+
+            // Check if file path changed (symbol moved)
+            if (parsedEntry.filePath !== file.relativePath) {
+              return true;
+            }
+
+            return false; // Symbol unchanged, skip processing
+          };
+
           structuralData.classes?.forEach((c) => {
-            allJobs.push({
-              projectRoot: this.projectRoot,
-              symbolName: c.name,
-              filePath: file.relativePath,
-              contentHash,
-              structuralHash,
-              structuralData,
-              force,
-            });
+            if (needsProcessing(c.name)) {
+              allJobs.push({
+                projectRoot: this.projectRoot,
+                symbolName: c.name,
+                filePath: file.relativePath,
+                contentHash,
+                structuralHash,
+                structuralData,
+                force,
+              });
+            } else {
+              incrementalSkipCount++;
+            }
           });
 
           structuralData.functions?.forEach((f) => {
-            allJobs.push({
-              projectRoot: this.projectRoot,
-              symbolName: f.name,
-              filePath: file.relativePath,
-              contentHash,
-              structuralHash,
-              structuralData,
-              force,
-            });
+            if (needsProcessing(f.name)) {
+              allJobs.push({
+                projectRoot: this.projectRoot,
+                symbolName: f.name,
+                filePath: file.relativePath,
+                contentHash,
+                structuralHash,
+                structuralData,
+                force,
+              });
+            } else {
+              incrementalSkipCount++;
+            }
           });
 
           structuralData.interfaces?.forEach((i) => {
-            allJobs.push({
-              projectRoot: this.projectRoot,
-              symbolName: i.name,
-              filePath: file.relativePath,
-              contentHash,
-              structuralHash,
-              structuralData,
-              force,
-            });
+            if (needsProcessing(i.name)) {
+              allJobs.push({
+                projectRoot: this.projectRoot,
+                symbolName: i.name,
+                filePath: file.relativePath,
+                contentHash,
+                structuralHash,
+                structuralData,
+                force,
+              });
+            } else {
+              incrementalSkipCount++;
+            }
           });
         }
       }
 
       s.stop();
+
+      // Log incremental skip statistics
+      if (incrementalSkipCount > 0) {
+        log.info(
+          chalk.green(
+            `[Overlay] Incremental: Skipped ${incrementalSkipCount} unchanged symbols (${(
+              (incrementalSkipCount / (allJobs.length + incrementalSkipCount)) *
+              100
+            ).toFixed(1)}% reduction)`
+          )
+        );
+      }
 
       // Initialize workers with optimal count based on job size
       this.structuralPatternManager.initializeWorkers(allJobs.length);

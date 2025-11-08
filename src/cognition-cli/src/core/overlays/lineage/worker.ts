@@ -317,7 +317,17 @@ class WorkerLogic {
         if (processedSymbols.has(depSymbol)) continue;
 
         // Check if this symbol exists in the structural_patterns manifest
-        const filePath = structuralManifest[depSymbol];
+        const manifestEntry = structuralManifest[depSymbol];
+
+        if (!manifestEntry) {
+          continue;
+        }
+
+        // Parse manifest entry (handles both old string and new object formats)
+        const filePath =
+          typeof manifestEntry === 'string'
+            ? manifestEntry
+            : manifestEntry.filePath || '';
 
         if (!filePath) {
           continue;

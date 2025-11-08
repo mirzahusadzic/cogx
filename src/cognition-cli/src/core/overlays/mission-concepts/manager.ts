@@ -407,6 +407,40 @@ export class MissionConceptsManager
 
     const yamlContent = YAML.stringify(enrichedOverlay);
     await fs.writeFile(filePath, yamlContent, 'utf-8');
+
+    // Update manifest for incremental tracking
+    await this.updateManifest(overlay);
+  }
+
+  /**
+   * Update manifest with document metadata for incremental updates
+   */
+  private async updateManifest(overlay: MissionConceptsOverlay): Promise<void> {
+    const manifestPath = path.join(this.overlayPath, 'manifest.json');
+
+    let manifest: Record<
+      string,
+      {
+        documentHash: string;
+        sourceFile: string;
+        conceptCount: number;
+        lastProcessed: string;
+      }
+    > = {};
+
+    if (await fs.pathExists(manifestPath)) {
+      manifest = await fs.readJSON(manifestPath);
+    }
+
+    const documentName = path.basename(overlay.document_path);
+    manifest[documentName] = {
+      documentHash: overlay.document_hash,
+      sourceFile: overlay.document_path,
+      conceptCount: overlay.extracted_concepts.length,
+      lastProcessed: overlay.generated_at,
+    };
+
+    await fs.writeJSON(manifestPath, manifest, { spaces: 2 });
   }
 
   /**

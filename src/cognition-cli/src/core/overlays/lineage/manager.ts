@@ -315,11 +315,11 @@ export class LineagePatternsManager implements PatternManager {
     // CRITICAL: Update overlay metadata FIRST, then manifest
     // If overlay update fails, manifest won't have a stale entry
     await this.pgc.overlays.update('lineage_patterns', overlayKey, metadata);
-    await this.pgc.overlays.updateManifest(
-      'lineage_patterns',
-      symbolName,
-      filePath
-    );
+    await this.pgc.overlays.updateManifest('lineage_patterns', symbolName, {
+      filePath,
+      sourceHash: validationSourceHash,
+      lastUpdated: new Date().toISOString(),
+    });
 
     EmbedLogger.complete(symbolName, 'LineagePatterns');
   }

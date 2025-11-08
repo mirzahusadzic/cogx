@@ -1,6 +1,7 @@
 import path from 'path';
 import fs from 'fs-extra';
 import YAML from 'yaml';
+import crypto from 'crypto';
 import { MissionConceptsManager } from '../mission-concepts/manager.js';
 import { LanceVectorStore } from '../vector-db/lance-store.js';
 import { PGCManager } from '../../pgc/manager.js';
@@ -638,7 +639,7 @@ export class StrategicCoherenceManager {
   }
 
   /**
-   * Store strategic coherence overlay
+   * Store strategic coherence overlay with dependency tracking
    */
   async store(overlay: StrategicCoherenceOverlay): Promise<void> {
     await fs.ensureDir(this.overlayPath);
@@ -647,6 +648,56 @@ export class StrategicCoherenceManager {
 
     const yamlContent = YAML.stringify(overlay);
     await fs.writeFile(filePath, yamlContent, 'utf-8');
+
+    // Update manifest with dependency tracking for incremental updates
+    await this.updateManifest(overlay);
+  }
+
+  /**
+   * Update manifest with dependency hashes for incremental updates
+   * Tracks which mission concepts and structural patterns were used
+   */
+  private async updateManifest(
+    overlay: StrategicCoherenceOverlay
+  ): Promise<void> {
+    const manifestPath = path.join(this.overlayPath, 'manifest.json');
+
+    // Compute hash of mission concepts used
+    const missionConceptsHash = this.computeHash(
+      JSON.stringify(
+        overlay.mission_document_hashes.sort() // Sorted for consistent hashing
+      )
+    );
+
+    // Compute hash of structural patterns count (proxy for structural patterns state)
+    const structuralPatternsHash = this.computeHash(
+      JSON.stringify({
+        symbolCount: overlay.symbol_coherence.length,
+        missionConceptsCount: overlay.mission_concepts_count,
+      })
+    );
+
+    const manifest = {
+      dependencies: {
+        missionConceptsHash,
+        structuralPatternsHash,
+        missionDocumentHashes: overlay.mission_document_hashes,
+        lastComputed: overlay.generated_at,
+      },
+      coherenceScore: overlay.overall_metrics.average_coherence,
+      symbolCount: overlay.symbol_coherence.length,
+      alignedCount: overlay.overall_metrics.aligned_symbols_count,
+      driftedCount: overlay.overall_metrics.drifted_symbols_count,
+    };
+
+    await fs.writeJSON(manifestPath, manifest, { spaces: 2 });
+  }
+
+  /**
+   * Compute SHA-256 hash for dependency tracking
+   */
+  private computeHash(content: string): string {
+    return crypto.createHash('sha256').update(content, 'utf8').digest('hex');
   }
 
   /**
