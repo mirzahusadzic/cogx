@@ -137,25 +137,33 @@ export class MissionConceptsManager
     const hashes = await this.list();
     const items: OverlayItem<MissionConceptMetadata>[] = [];
 
+    // Load embeddings helper (v1/v2 compatible)
+    const { EmbeddingLoader } = await import('../../pgc/embedding-loader.js');
+    const loader = new EmbeddingLoader();
+
     for (const hash of hashes) {
       const overlay = await this.retrieve(hash);
       if (overlay) {
-        for (const concept of overlay.extracted_concepts) {
-          if (concept.embedding && concept.embedding.length === 768) {
-            items.push({
-              id: `${hash}:${concept.text}`,
-              embedding: concept.embedding,
-              metadata: {
-                text: concept.text,
-                type: this.classifyConceptType(concept.section),
-                weight: concept.weight,
-                occurrences: concept.occurrences,
-                section: concept.section || 'unknown',
-                sectionHash: concept.sectionHash || hash,
-                documentHash: hash,
-              },
-            });
-          }
+        // Load concepts with embeddings (v1 from YAML or v2 from LanceDB)
+        const conceptsWithEmbeddings = await loader.loadConceptsWithEmbeddings(
+          overlay as unknown as import('../../pgc/embedding-loader.js').OverlayData,
+          this.pgcRoot
+        );
+
+        for (const concept of conceptsWithEmbeddings) {
+          items.push({
+            id: `${hash}:${concept.text}`,
+            embedding: concept.embedding!,
+            metadata: {
+              text: concept.text,
+              type: this.classifyConceptType(concept.section),
+              weight: concept.weight,
+              occurrences: concept.occurrences,
+              section: concept.section || 'unknown',
+              sectionHash: concept.sectionHash || hash,
+              documentHash: hash,
+            },
+          });
         }
       }
     }

@@ -86,10 +86,20 @@ export class CoherenceAlgebraAdapter
     const missionHashes = overlay.mission_document_hashes;
     const allConcepts: Map<string, number[]> = new Map();
 
+    // Load embeddings helper (v1/v2 compatible)
+    const { EmbeddingLoader } = await import('../../pgc/embedding-loader.js');
+    const loader = new EmbeddingLoader();
+
     for (const hash of missionHashes) {
       const missionOverlay = await this.missionManager.retrieve(hash);
       if (missionOverlay) {
-        for (const concept of missionOverlay.extracted_concepts) {
+        // Load concepts with embeddings (v1 from YAML or v2 from LanceDB)
+        const conceptsWithEmbeddings = await loader.loadConceptsWithEmbeddings(
+          missionOverlay as unknown as import('../../pgc/embedding-loader.js').OverlayData,
+          this.pgcRoot
+        );
+
+        for (const concept of conceptsWithEmbeddings) {
           if (concept.embedding && concept.embedding.length === 768) {
             allConcepts.set(concept.text, concept.embedding);
           }
