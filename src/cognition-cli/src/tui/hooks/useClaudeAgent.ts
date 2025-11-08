@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { SDKMessage, Query } from '@anthropic-ai/claude-agent-sdk';
 import fs from 'fs';
 import path from 'path';
@@ -962,9 +962,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               `  Previous session: ${prevSessionId}\n` +
               `  Reason: ${reason}\n\n`
           );
-          debug(
-            ' Compression flag reset - can compress again in new session'
-          );
+          debug(' Compression flag reset - can compress again in new session');
         }
 
         // Mark that we've received SDK session ID and trigger initial flush
