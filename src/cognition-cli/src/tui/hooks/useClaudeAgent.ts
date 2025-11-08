@@ -21,8 +21,7 @@ import { stripANSICodes } from './rendering/MessageRenderer.js';
 import { useTurnAnalysis } from './analysis/index.js';
 import { useCompression } from './compression/useCompression.js';
 import type { McpSdkServerConfigWithInstance } from '@anthropic-ai/claude-agent-sdk';
-import type { ConversationLattice } from '../../sigma/types.js';
-import type { AnalysisTask } from './analysis/types.js';
+import type { ConversationLattice, TurnAnalysis } from '../../sigma/types.js';
 
 interface UseClaudeAgentOptions {
   sessionId?: string;
@@ -219,6 +218,81 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       projectRegistryRef.current = new OverlayRegistry(pgcPath, endpoint);
   }, [cwd, debugFlag]);
 
+  // Load existing lattice on session resume
+  useEffect(() => {
+    const loadLattice = async () => {
+      const sessionId = resumeSessionId || anchorId;
+      const latticePath = path.join(cwd, '.sigma', `${sessionId}.lattice.json`);
+
+      if (!fs.existsSync(latticePath)) return;
+
+      try {
+        const latticeContent = fs.readFileSync(latticePath, 'utf-8');
+        const restoredLattice = JSON.parse(
+          latticeContent
+        ) as ConversationLattice;
+
+        // Rebuild turnAnalyses from lattice nodes
+        const restoredAnalyses: TurnAnalysis[] = restoredLattice.nodes.map(
+          (node) => ({
+            turn_id: node.id,
+            role: node.role,
+            content: node.content,
+            timestamp: node.timestamp,
+            embedding: node.embedding || [],
+            novelty: node.novelty || 0,
+            importance_score: node.importance_score || 0,
+            is_paradigm_shift: node.is_paradigm_shift || false,
+            is_routine: (node.importance_score || 0) < 3,
+            overlay_scores: node.overlay_scores || {
+              O1_structural: 0,
+              O2_security: 0,
+              O3_lineage: 0,
+              O4_mission: 0,
+              O5_operational: 0,
+              O6_mathematical: 0,
+              O7_strategic: 0,
+            },
+            references: [],
+            semantic_tags: node.semantic_tags || [],
+          })
+        );
+
+        turnAnalysis.setAnalyses(restoredAnalyses);
+        debug(
+          `🕸️  Lattice restored: ${restoredLattice.nodes.length} nodes, ${restoredLattice.edges.length} edges`
+        );
+
+        // Load recap for compression injection
+        const recapPath = path.join(cwd, '.sigma', `${sessionId}.recap.txt`);
+        if (fs.existsSync(recapPath)) {
+          const recapContent = fs.readFileSync(recapPath, 'utf-8');
+          const recapLines = recapContent.split('\n');
+          const recapStartIdx = recapLines.findIndex((line) =>
+            line.startsWith('='.repeat(80))
+          );
+          if (recapStartIdx >= 0) {
+            const recap = recapLines.slice(recapStartIdx + 2).join('\n');
+            setInjectedRecap(recap);
+          }
+        }
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: 'system',
+            content: `🕸️  Resumed session with ${restoredLattice.nodes.length} nodes, ${restoredLattice.edges.length} edges`,
+            timestamp: new Date(),
+          },
+        ]);
+      } catch (err) {
+        debug('⚠️  Failed to load lattice:', (err as Error).message);
+      }
+    };
+
+    loadLattice();
+  }, [anchorId, resumeSessionId, cwd, turnAnalysis, debug]);
+
   // Keep messagesRef in sync with messages state
   useEffect(() => {
     messagesRef.current = messages;
@@ -292,16 +366,12 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             ? userMessageEmbeddingCache.current.get(turnTimestamp)
             : undefined;
 
-        // Queue for background analysis (NON-BLOCKING!)
-        const task: AnalysisTask = {
+        await turnAnalysis.enqueueAnalysis({
           message,
           messageIndex,
           timestamp: turnTimestamp,
           cachedEmbedding,
-        };
-
-        debug(`   Queuing turn for analysis: ${turnTimestamp}`);
-        await turnAnalysis.enqueueAnalysis(task);
+        });
 
         // Clean up cached embedding
         if (cachedEmbedding) {
