@@ -7,18 +7,16 @@
 **Repository Details:**
 
 - **Location:** `~src/cogx/src/cognition-cli`
-- **Lines of Code:** ~55,409 TypeScript (production code)
-  - Core: ~31,000 lines (56%) — PGC, orchestrators, overlays, miners
-  - Commands: ~10,000 lines (18%) — CLI commands
-  - **Sigma: ~8,900 lines (16%) — Dual-lattice architecture, infinite context**
-  - **TUI: ~5,500 lines (10%) — Interactive terminal interface (React Ink)**
-- **Current Version:** 2.2.0+ (LanceDB v2 Migration, GC Improvements, Overlay Fixes)
-- **Recent Updates (36 commits since Nov 8):**
-  - ✅ Complete LanceDB v2 migration with mergeInsert (no version bloat)
-  - ✅ GC Phase 5: Automatic cleanup of orphaned overlay entries across all 7 overlays
-  - ✅ Fixed overlay-specific alignment scores in Sigma Stats
-  - ✅ Sigma bloat cleanup: 410 MB → 1.2 MB (99.7% reduction)
-  - ✅ Dual-Claude code review workflow validation
+- **Lines of Code:** ~54,680 TypeScript total
+  - **Production Code:** ~42,824 lines (78%)
+    - Core: ~24,000 lines (56% of production) — PGC, orchestrators, overlays, miners
+    - Sigma: ~8,900 lines (21% of production) — Dual-lattice architecture, infinite context
+    - TUI: ~5,500 lines (13% of production) — Interactive terminal interface (React Ink)
+    - Commands: ~4,424 lines (10% of production) — CLI commands
+  - **Test Code:** ~11,856 lines (22%)
+    - 40 test files covering core functionality
+- **Current Version:** 2.2.0 (Document GC Fix, Session State Improvements)
+- **Previous Version:** 2.1.0 (LanceDB v2 Migration, GC Phase 5, Sigma Optimizations)
 - **License:** AGPL-3.0-or-later
 - **Author:** Mirza Husadzic
 - **Status:** Actively maintained with comprehensive documentation
@@ -750,9 +748,144 @@ The same architecture that understands code can preserve human identity through 
 
 ---
 
+## Version History & Changelog
+
+### Version 2.2.0 (Current - November 9, 2025)
+
+**Summary:** 105 commits from v2.1.0 focusing on stability, performance, and code quality. Builds on v2.1.0's context persistence and LanceDB foundation with critical bug fixes and enhancements.
+
+**1. Critical Fixes (10 commits)**
+
+- **Document GC Fix** (d24a945) - CRITICAL
+  - Fixed documents being deleted and re-ingested on every genesis run
+  - Root cause: Document-based vs symbol-based overlay manifest structure mismatch
+  - Impact: No wasted embedding API calls, faster wizard runs
+
+- **Session State Bloat Fix** (bc0a0aa)
+  - Prevented 1,237 duplicate "expiration" entries (347 during turn analysis)
+  - Root cause: React async state updates + rapid SDK message processing
+  - Fix: Synchronous ref tracking + defense-in-depth deduplication
+  - Cleaned up existing duplicates (6,216 lines → 37 lines)
+
+- **GC Phase 5** (98c75cd, 5cb8ad8, 0b6c359)
+  - Automatic cleanup of orphaned overlay entries across all 7 overlays
+  - Bidirectional GC: protect objects FROM deletion, purge overlays WITH orphaned refs
+  - Checks both sourceHash and symbolStructuralDataHash
+  - Supports both JSON and YAML overlay files
+
+- **Overlay Alignment Scores** (b9a792f, 707d4c0)
+  - Fixed all overlays reading alignment_O1 instead of overlay-specific scores
+  - Fixed in both getAllItems() and query() code paths
+  - Sigma Stats now shows accurate scores for all 7 overlays
+
+- **Orphaned Document Cleanup** (aec6542)
+  - Added automatic cleanup during Genesis GC
+  - Scans transform logs for genesis_doc outputs
+  - Safely removes 150 orphaned document objects
+  - Won't touch source files or patterns (only confirmed documents)
+
+**2. LanceDB Enhancements** (v2.1.0 introduced LanceDB, v2.2.0 enhanced it)
+
+**Note:** LanceDB integration was introduced in v2.1.0. Version 2.2.0 adds:
+
+- **Prevent version bloat** with mergeInsert (c5b1742)
+  - Before: 13,145 versioned files in .sigma
+  - After: 1 merged file per table
+- **EmbeddingLoader** for v1/v2 format compatibility (5e5d54c)
+- **Delete embeddings** on re-ingestion + compaction (90f9a18)
+- **Suppress warnings** in production/TUI mode (3d6b28b)
+- **Fixed CI/CD segfaults** with proper LanceDB cleanup
+- **Result:** .sigma reduced 550 MB → ~5 MB
+
+**3. Extended Thinking Mode** (406870f)
+
+- Added `--max-thinking-tokens` option to TUI
+- Support up to 10K thinking tokens for complex reasoning
+- Configurable via command line
+
+**4. TUI Improvements**
+
+- Fixed lattice display for JSON data (lineage patterns) (ae45222)
+- Fixed overlay scores computation from conversation data (691ab22)
+- Fixed input filter blocking brackets (7b00190)
+- Added colorful, formatted lattice command output (6bf972a)
+- Improved visual feedback and error handling
+
+**5. Code Refactoring: useClaudeAgent Decomposition (21 commits)**
+
+- **Massive code reduction:** 52.5% reduction in useClaudeAgent complexity
+  - Deleted 316-line init effect
+  - Deleted 49 lines of debugLog statements
+  - Simplified session effects: 40→5 lines
+  - Simplified service initialization: 64→9 lines
+- **Extracted layers:**
+  - Session Management layer with tests
+  - Compression layer with background trigger logic
+  - Analysis layer with background queue
+  - Token counting module
+  - SDK layer module
+  - Rendering layer module
+- Result: 15/15 modules achieved, cleaner architecture
+
+**6. Session & Compression Improvements**
+
+Building on v2.1.0's context persistence foundation:
+
+- Reset token counter when session switches after compression (f4dc56c)
+- Fixed Claude context limit: 200K → 150K tokens (7ecc71a)
+- Added buffer zone explanation to SESSION_BOUNDARY_RATIONALE (c3cd189)
+- Comprehensive session state tests
+
+**7. Tests & CI/CD**
+
+- Reorganized test files into **tests** directories
+- Added comprehensive tests for session management
+- Fixed failing tests with proper PGC infrastructure
+- Switch workerpool tests from vmThreads to forks (stability)
+- Require Node.js >=25.0.0 for CI/CD consistency
+- Fixed CI/CD segfaults with LanceDB cleanup
+- Increased test timeouts and memory limits
+
+**8. Performance Metrics**
+
+- **Disk Space:** .sigma reduced 550 MB → ~5 MB (LanceDB mergeInsert)
+- **Runtime:** Documents no longer re-embedded on every genesis run
+- **Code Quality:** 52.5% reduction in useClaudeAgent complexity
+
+**9. Code Quality**
+
+- All commits: Linted, type-safe, built successfully
+- Dual-Claude peer review workflow validated
+- Production-ready on first deploy
+- 105 commits with zero breaking changes
+
+### Version 2.1.0 (November 5, 2025)
+
+**Focus: Context Persistence & Real-Time Injection**
+
+- Fixed context persistence across multi-turn conversations
+- Implemented real-time context injection with anchor sessions
+- Added lattice reconstruction and session forwarding
+- Fixed recap generation to preserve full conversation content
+- Removed harmful filters blocking context injection
+- Ctrl+S shortcut to save conversation logs
+
+### Version 2.0.0 (Sigma Release - November 3, 2025)
+
+**Focus: Dual-Lattice Architecture for Infinite Context**
+
+- Introduced Sigma dual-lattice architecture
+- Implemented conversation overlay registry (7 cognitive dimensions)
+- Added session forwarding for compressed sessions
+- Memory recall with retry mechanism
+- Periodic overlay flush
+- Complete architectural redesign for infinite conversational memory
+
+---
+
 ## Conclusion
 
-Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.1.0** extends this vision from project knowledge to **infinite conversational memory**, solving the context window problem through dual-lattice architecture with robust session state management.
+Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.2.0** delivers critical stability fixes, complete LanceDB v2 migration, and garbage collection improvements that eliminate data loss and performance issues.
 
 It combines:
 

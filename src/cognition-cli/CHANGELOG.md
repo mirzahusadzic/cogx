@@ -5,6 +5,191 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2025-11-09
+
+### Summary
+
+105 commits from v2.1.0 focusing on stability, performance, and code quality. Critical fixes for document GC, session state bloat, GC improvements, and LanceDB enhancements (v2.1.0 introduced LanceDB, v2.2.0 enhanced it).
+
+### 🐛 Critical Bug Fixes
+
+#### Document GC Fix (d24a945, b0bcb15)
+
+Fixed documents being deleted and re-ingested on every genesis run, wasting embedding API calls.
+
+**Root Cause**: Document-based overlays (mission_concepts, security_guidelines, operational_patterns, mathematical_proofs) store document references differently than symbol-based overlays. Some overlays had no `manifest.json` files.
+
+**Fix**:
+
+- Check if overlay is document-based vs symbol-based
+- Scan YAML files directly when no manifest exists
+- Handle both `documentHash` (camelCase in overlays) and `document_hash` (snake_case in index)
+- Compare contentHash (overlay) vs objectHash (index) for orphan detection
+
+**Impact**: Wizard runs no longer waste embedding API calls re-ingesting unchanged documents.
+
+#### Session State Bloat Fix (bc0a0aa)
+
+Prevented 1,237 duplicate "expiration" entries during turn analysis (347 duplicates in 6 seconds).
+
+**Root Cause**: React state updates are async. During rapid SDK message processing, `processSDKMessage()` reads stale `currentSessionId` from state before `updateSDKSession()` completes, logging duplicate entries.
+
+**Fix**:
+
+- Added `currentSessionIdRef` for synchronous session tracking (Option 1)
+- Added duplicate check in `updateSessionState()` for defense-in-depth (Option 3)
+- Cleaned up existing duplicate entries in state file
+
+**Impact**: State file reduced from 6,216 lines (87,963 tokens) to 37 lines.
+
+#### Orphaned Document Cleanup (aec6542)
+
+Added automatic cleanup of orphaned document objects during Genesis GC.
+
+**Root Cause**: Documents created by genesis_doc transforms but index entries were deleted (by GC bug). These orphaned objects accumulate in the object store.
+
+**Fix**:
+
+- Scan transform logs for genesis_doc outputs
+- Compare against current document index
+- Delete objects that are in transform logs but not indexed
+- Only touches objects confirmed as documents (safe, won't delete source files or patterns)
+
+**Impact**: 150 orphaned document objects cleaned up automatically during GC.
+
+#### GC Phase 5 - All 7 Overlays (98c75cd, 5cb8ad8, 0b6c359)
+
+Fixed GC only checking 4/7 overlays before deleting objects, causing documents and patterns to be incorrectly deleted.
+
+**Root Cause**: `getOverlayReferencedHashes()` hardcoded array only included structural_patterns, lineage_patterns, mission_concepts, strategic_coherence.
+
+**Fix**:
+
+- Added missing overlays: security_guidelines, operational_patterns, mathematical_proofs
+- Bidirectional GC: protect objects FROM deletion, purge overlays WITH orphaned refs
+- Check both sourceHash and symbolStructuralDataHash
+- Support both JSON and YAML overlay files
+
+**Impact**: Documents and patterns no longer incorrectly deleted during GC.
+
+#### Overlay Alignment Scores (b9a792f, 707d4c0)
+
+Fixed all 7 overlays reading `alignment_O1` (structural) instead of overlay-specific alignment scores.
+
+**Root Cause**: `getAllItems()` and `query()` methods hardcoded `turn.alignment_O1` for all overlays.
+
+**Fix**: Use `getOverlayId()` to dynamically read the correct alignment score (alignment_O1 through alignment_O7).
+
+**Impact**: Sigma Stats and similarity search now show accurate overlay-specific scores.
+
+### 🚀 Performance Improvements
+
+#### LanceDB Enhancements (v2.1.0 introduced LanceDB, v2.2.0 enhanced it)
+
+**Note:** LanceDB integration was introduced in v2.1.0. Version 2.2.0 adds critical enhancements:
+
+- **Prevent version bloat** with `mergeInsert` (c5b1742)
+  - Before: 13,145 versioned files in .sigma
+  - After: 1 merged file per table
+- **EmbeddingLoader** for v1/v2 format compatibility (5e5d54c)
+  - Graceful migration between formats
+  - Backward compatible with v1 YAML files
+- **Delete embeddings on re-ingestion** + compaction (90f9a18)
+  - Prevents duplicate embeddings
+  - Automatic cleanup during re-ingestion
+- **Suppress warnings** in production/TUI mode (3d6b28b)
+  - Cleaner output for end users
+- **Fixed CI/CD segfaults** with proper LanceDB cleanup
+
+**Disk Space Reductions**:
+
+- `.sigma`: 550 MB → ~5 MB (embeddings moved to LanceDB)
+- `.sigma` versions: 13,145 files → 1 file (mergeInsert)
+- `.open_cognition/overlays`: 90%+ per YAML file (embeddings stripped)
+- Total saved: ~545 MB across both directories
+
+**Runtime Performance**:
+
+- Documents: No re-embedding waste (GC fix)
+- Compression: 2-3 minutes → seconds (metadata-only lattice files)
+
+### ✨ New Features
+
+#### Extended Thinking Mode (406870f)
+
+Added support for extended thinking mode in the TUI, allowing Claude to use up to 10K thinking tokens for complex reasoning tasks.
+
+- Added `--max-thinking-tokens` option to TUI
+- Configurable via command line
+- Enables deeper reasoning for complex problems
+
+### 🎨 TUI Improvements
+
+- Fixed lattice display for JSON data (lineage patterns) (ae45222)
+- Fixed overlay scores computation from conversation data (691ab22)
+- Fixed input filter blocking brackets (7b00190)
+- Added colorful, formatted output for lattice command (6bf972a)
+- Improved visual feedback and error handling
+
+### 🔨 Code Refactoring (21 commits)
+
+#### useClaudeAgent Decomposition
+
+Massive code reduction: **52.5% reduction** in useClaudeAgent complexity
+
+**Deleted**:
+
+- 316-line init effect
+- 49 lines of debugLog statements
+- Simplified session effects: 40→5 lines
+- Simplified service initialization: 64→9 lines
+
+**Extracted Layers**:
+
+- Session Management layer with tests
+- Compression layer with background trigger logic
+- Analysis layer with background queue
+- Token counting module
+- SDK layer module
+- Rendering layer module
+
+**Result**: 15/15 modules achieved, cleaner architecture
+
+### 🔧 Session & Compression Improvements
+
+Building on v2.1.0's context persistence foundation:
+
+- Reset token counter when session switches after compression (f4dc56c)
+- Fixed Claude context limit: 200K → 150K tokens (7ecc71a)
+- Added buffer zone explanation to SESSION_BOUNDARY_RATIONALE (c3cd189)
+- Comprehensive session state tests
+
+### 🧪 Tests & CI/CD (16 commits)
+
+- Reorganized test files into **tests** directories
+- Added comprehensive tests for session management
+- Fixed failing tests with proper PGC infrastructure
+- Switch workerpool tests from vmThreads to forks (stability)
+- Require Node.js >=25.0.0 for CI/CD consistency
+- Fixed CI/CD segfaults with LanceDB cleanup
+- Increased test timeouts and memory limits
+
+### 📊 Metrics
+
+- **Lines of Code**: ~54,680 TypeScript total
+  - Production: ~42,824 lines (78%)
+  - Tests: ~11,856 lines (22%)
+- **Commits**: 105 from v2.1.0
+- **Test Coverage**: 40 test files covering core functionality
+- **Code Quality**: All commits linted, type-safe, built successfully
+
+### 🎯 Code Quality
+
+- All commits: Linted, type-safe, built successfully
+- Dual-Claude peer review workflow validated
+- Production-ready on first deploy
+- 105 commits with zero breaking changes
+
 ## [2.1.0] - 2025-11-05
 
 ### 🐛 Critical Bug Fixes - Context Persistence
