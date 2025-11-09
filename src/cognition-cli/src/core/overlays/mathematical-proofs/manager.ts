@@ -146,23 +146,30 @@ export class MathematicalProofsManager
         this.pgcRoot
       );
 
-      for (const statement of statementsWithEmbeddings) {
+      for (const concept of statementsWithEmbeddings) {
+        // Map back to original statement for overlay-specific fields
+        const originalStatement = overlay.extracted_statements?.find(
+          (s) => s.text === concept.text
+        );
+
         items.push({
-          id: `${documentHash}:${statement.text}`,
-          embedding: statement.embedding!,
+          id: `${documentHash}:${concept.text}`,
+          embedding: concept.embedding!,
           metadata: {
-            text: statement.text,
-            statementType: statement.statementType,
-            weight: statement.weight,
-            occurrences: statement.occurrences,
-            section: statement.section || 'unknown',
-            sectionHash: statement.sectionHash || documentHash,
+            text: concept.text,
+            statementType: originalStatement?.statementType || 'theorem',
+            weight: concept.weight,
+            occurrences: concept.occurrences,
+            section: concept.section || 'unknown',
+            sectionHash: concept.sectionHash || documentHash,
             documentHash: documentHash,
-            proofSteps: statement.metadata?.proofSteps as string[] | undefined,
-            dependencies: statement.metadata?.dependencies as
+            proofSteps: originalStatement?.metadata?.proofSteps as
               | string[]
               | undefined,
-            formalNotation: statement.metadata?.formalNotation as
+            dependencies: originalStatement?.metadata?.dependencies as
+              | string[]
+              | undefined,
+            formalNotation: originalStatement?.metadata?.formalNotation as
               | string
               | undefined,
           },

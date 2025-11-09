@@ -143,21 +143,26 @@ export class OperationalPatternsManager
         this.pgcRoot
       );
 
-      for (const pattern of patternsWithEmbeddings) {
+      for (const concept of patternsWithEmbeddings) {
+        // Map back to original pattern for overlay-specific fields
+        const originalPattern = overlay.extracted_patterns?.find(
+          (p) => p.text === concept.text
+        );
+
         items.push({
-          id: `${documentHash}:${pattern.text}`,
-          embedding: pattern.embedding!,
+          id: `${documentHash}:${concept.text}`,
+          embedding: concept.embedding!,
           metadata: {
-            text: pattern.text,
-            patternType: pattern.patternType,
-            weight: pattern.weight,
-            occurrences: pattern.occurrences,
-            section: pattern.section || 'unknown',
-            sectionHash: pattern.sectionHash || documentHash,
+            text: concept.text,
+            patternType: originalPattern?.patternType || 'explanation',
+            weight: concept.weight,
+            occurrences: concept.occurrences,
+            section: concept.section || 'unknown',
+            sectionHash: concept.sectionHash || documentHash,
             documentHash: documentHash,
-            steps: pattern.metadata?.steps as string[] | undefined,
-            formula: pattern.metadata?.formula as string | undefined,
-            example: pattern.metadata?.example as string | undefined,
+            steps: originalPattern?.metadata?.steps as string[] | undefined,
+            formula: originalPattern?.metadata?.formula as string | undefined,
+            example: originalPattern?.metadata?.example as string | undefined,
           },
         });
       }

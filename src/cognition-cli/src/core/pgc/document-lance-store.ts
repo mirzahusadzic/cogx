@@ -387,6 +387,23 @@ export class DocumentLanceStore {
       };
     }>
   > {
+    type Result = {
+      id: string;
+      overlay_type: string;
+      document_hash: string;
+      document_path: string;
+      text: string;
+      section: string;
+      similarity: number;
+      metadata: {
+        concept_type: string;
+        weight: number;
+        occurrences: number;
+        section_hash: string;
+        transform_id: string;
+        generated_at: number;
+      };
+    };
     if (!this.isInitialized) await this.initialize();
 
     if (queryEmbedding.length !== DEFAULT_EMBEDDING_DIMENSIONS) {
@@ -482,7 +499,7 @@ export class DocumentLanceStore {
               : result.generated_at,
         },
       }))
-      .sort((a, b) => b.similarity - a.similarity);
+      .sort((a: Result, b: Result) => b.similarity - a.similarity);
   }
 
   /**

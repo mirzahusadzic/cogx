@@ -171,10 +171,10 @@ export class SecurityGuidelinesManager
 
         items.push({
           id: `${documentHash}:${concept.text}`,
-          embedding: concept.embedding,
+          embedding: concept.embedding!,
           metadata: {
             text: concept.text,
-            securityType: originalKnowledge?.securityType || 'general',
+            securityType: originalKnowledge?.securityType || 'vulnerability',
             severity: originalKnowledge?.severity || 'low',
             weight: concept.weight,
             occurrences: concept.occurrences,
