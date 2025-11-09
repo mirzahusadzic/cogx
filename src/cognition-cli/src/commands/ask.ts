@@ -39,7 +39,8 @@ interface AskOptions {
  */
 export async function askCommand(question: string, options: AskOptions) {
   const startTime = Date.now();
-  const workbenchUrl = options.workbench || 'http://localhost:8000';
+  const workbenchUrl =
+    options.workbench || process.env.WORKBENCH_URL || 'http://localhost:8000';
   const topK = options.topK || 5;
   const verbose = options.verbose || false;
 

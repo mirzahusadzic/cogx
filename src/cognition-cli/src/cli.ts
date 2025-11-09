@@ -33,8 +33,7 @@ program
   .description('Builds the verifiable skeleton of a codebase')
   .option(
     '-w, --workbench <url>',
-    'URL of the egemma workbench',
-    'http://localhost:8000'
+    'URL of the egemma workbench (defaults to WORKBENCH_URL env var or http://localhost:8000)'
   )
   .option(
     '-p, --project-root <path>',
@@ -204,8 +203,7 @@ program
   )
   .option(
     '-w, --workbench <url>',
-    'URL of the egemma workbench',
-    'http://localhost:8000'
+    'URL of the egemma workbench (defaults to WORKBENCH_URL env var or http://localhost:8000)'
   )
   .option(
     '--session-tokens <number>',
@@ -236,8 +234,7 @@ program
   )
   .option(
     '-w, --workbench <url>',
-    'URL of the egemma workbench',
-    'http://localhost:8000'
+    'URL of the egemma workbench (defaults to WORKBENCH_URL env var or http://localhost:8000)'
   )
   .option('--top-k <number>', 'Number of similar concepts to retrieve', '5')
   .option('--save', 'Save Q&A as markdown document', false)
