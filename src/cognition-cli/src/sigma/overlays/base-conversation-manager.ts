@@ -138,6 +138,12 @@ export abstract class BaseConversationManager<
           if (lanceTurns.length > 0) {
             // LanceDB has data - use it! (skip YAML)
             for (const turn of lanceTurns) {
+              // Get overlay-specific alignment score
+              const overlayId = this.getOverlayId();
+              const alignmentKey =
+                `alignment_${overlayId}` as keyof typeof turn;
+              const alignmentScore = (turn[alignmentKey] as number) || 0;
+
               items.push({
                 id: turn.id,
                 embedding: turn.embedding,
@@ -146,7 +152,7 @@ export abstract class BaseConversationManager<
                   turn_id: turn.id,
                   role: turn.role as 'user' | 'assistant' | 'system',
                   timestamp: turn.timestamp,
-                  project_alignment_score: turn.alignment_O1, // Use O1 as default
+                  project_alignment_score: alignmentScore,
                   novelty: turn.novelty,
                   importance: turn.importance,
                   session_id: turn.session_id,
