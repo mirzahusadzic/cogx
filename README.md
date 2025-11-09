@@ -14,7 +14,7 @@ _And I'll show you how deep this rabbit hole really goes._
 
 <div align="center">
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17509405.svg)](https://doi.org/10.5281/zenodo.17509405)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17567109.svg)](https://doi.org/10.5281/zenodo.17567109)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 </div>
@@ -44,6 +44,21 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 ---
 
 ## 🎯 Recent Innovations
+
+**November 9, 2025** — [v2.2.0: Stability & Performance](https://github.com/mirzahusadzic/cogx/releases/tag/v2.2.0) ([DOI: 10.5281/zenodo.17567109](https://zenodo.org/records/17567109)):
+
+- ✅ **Critical Document GC Fix** - Scan overlays without manifests directly (security_guidelines, operational_patterns, mathematical_proofs)
+- ✅ **Orphaned Document Cleanup** - Automatic detection and removal of 150+ orphaned document objects via transform logs
+- ✅ **Session State Bloat Fix** - Eliminated 1,237 duplicate expiration entries with useRef + deduplication (6,216 lines → 37 lines)
+- ✅ **GC Phase 5 Enhancement** - Check all 7 overlays before deletion (was only 4/7), bidirectional protection
+- ✅ **Overlay Alignment Scores Fixed** - All overlays now read correct scores (O1-O7) instead of hardcoded alignment_O1
+- ✅ **Extended Thinking Mode** - Support up to 10K thinking tokens for complex reasoning via --max-thinking-tokens
+- ✅ **LanceDB Optimizations** - .sigma reduced from 550 MB → ~5 MB through mergeInsert, embedding cleanup, and compaction
+- ✅ **Production-Ready Stability** - 105 commits of critical bug fixes and garbage collection improvements
+
+**Impact**: Eliminates critical data integrity bugs causing wasted embedding API calls and state bloat. Document GC now correctly handles overlays without manifest files, GC checks all 7 overlays, and session state remains clean across compressions.
+
+---
 
 **November 3, 2025** — [v2.0.0: Σ (Sigma) - Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0):
 
