@@ -73,6 +73,31 @@ export function colorSimilarity(similarity: number): string {
 export function cleanText(text: string): string {
   let cleaned = text;
 
+  // Check if text is JSON - parse and format inline
+  if (cleaned.trim().startsWith('{') || cleaned.trim().startsWith('[')) {
+    try {
+      const parsed = JSON.parse(cleaned);
+      // Format JSON for lineage patterns
+      if (parsed.symbol && Array.isArray(parsed.lineage)) {
+        const lineageCount = parsed.lineage.length;
+        if (lineageCount === 0) {
+          return `${parsed.symbol} (no dependencies)`;
+        }
+        const relationships = parsed.lineage
+          .map(
+            (l: { type: string; relationship: string }) =>
+              `${l.relationship} ${l.type}`
+          )
+          .join(', ');
+        return `${parsed.symbol} → ${relationships}`;
+      }
+      // Fallback: inline JSON
+      return JSON.stringify(parsed);
+    } catch {
+      // Not valid JSON, continue with text processing
+    }
+  }
+
   // Remove repeated sentences (common in malformed data)
   const sentences = text.split(/\.\s+/);
   if (sentences.length > 1) {
