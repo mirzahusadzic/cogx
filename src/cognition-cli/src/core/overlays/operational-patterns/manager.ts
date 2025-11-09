@@ -135,25 +135,31 @@ export class OperationalPatternsManager
       );
       const overlay = YAML.parse(content) as OperationalPatternsOverlay;
 
-      for (const pattern of overlay.extracted_patterns) {
-        if (pattern.embedding && pattern.embedding.length === 768) {
-          items.push({
-            id: `${documentHash}:${pattern.text}`,
-            embedding: pattern.embedding,
-            metadata: {
-              text: pattern.text,
-              patternType: pattern.patternType,
-              weight: pattern.weight,
-              occurrences: pattern.occurrences,
-              section: pattern.section || 'unknown',
-              sectionHash: pattern.sectionHash || documentHash,
-              documentHash: documentHash,
-              steps: pattern.metadata?.steps as string[] | undefined,
-              formula: pattern.metadata?.formula as string | undefined,
-              example: pattern.metadata?.example as string | undefined,
-            },
-          });
-        }
+      // Load embeddings using EmbeddingLoader (supports both v1 and v2 formats)
+      const { EmbeddingLoader } = await import('../../pgc/embedding-loader.js');
+      const loader = new EmbeddingLoader();
+      const patternsWithEmbeddings = await loader.loadConceptsWithEmbeddings(
+        overlay as unknown as import('../../pgc/embedding-loader.js').OverlayData,
+        this.pgcRoot
+      );
+
+      for (const pattern of patternsWithEmbeddings) {
+        items.push({
+          id: `${documentHash}:${pattern.text}`,
+          embedding: pattern.embedding!,
+          metadata: {
+            text: pattern.text,
+            patternType: pattern.patternType,
+            weight: pattern.weight,
+            occurrences: pattern.occurrences,
+            section: pattern.section || 'unknown',
+            sectionHash: pattern.sectionHash || documentHash,
+            documentHash: documentHash,
+            steps: pattern.metadata?.steps as string[] | undefined,
+            formula: pattern.metadata?.formula as string | undefined,
+            example: pattern.metadata?.example as string | undefined,
+          },
+        });
       }
     }
 

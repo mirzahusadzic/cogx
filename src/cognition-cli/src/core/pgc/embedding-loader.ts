@@ -38,6 +38,7 @@ export type OverlayData = {
   };
   document_hash?: string;
   extracted_concepts?: MissionConcept[];
+  extracted_knowledge?: MissionConcept[];
   mission_concepts?: MissionConcept[];
   security_concepts?: MissionConcept[];
   operational_patterns?: MissionConcept[];
@@ -138,6 +139,7 @@ export class EmbeddingLoader {
     // Try common concept field names
     const possibleFields = [
       'extracted_concepts',
+      'extracted_knowledge',
       'mission_concepts',
       'security_concepts',
       'operational_patterns',

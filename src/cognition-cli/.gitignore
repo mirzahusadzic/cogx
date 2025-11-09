@@ -27,4 +27,7 @@ yarn-error.log*
 # Sigma session files (runtime state)
 .sigma/
 
+# Debug output
+output.txt
+
 :memory:/

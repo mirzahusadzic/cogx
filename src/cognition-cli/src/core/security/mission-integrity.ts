@@ -85,14 +85,13 @@ export class MissionIntegrityMonitor {
     // 2. Get git metadata (best effort, non-blocking)
     const gitInfo = await this.getGitInfo(visionPath);
 
-    // 3. Extract embeddings and texts
-    const conceptEmbeddings = concepts
-      .filter((c) => c.embedding && c.embedding.length === 768)
-      .map((c) => c.embedding!);
+    // 3. Extract embeddings and texts (filter for valid embeddings)
+    const validConcepts = concepts.filter(
+      (c) => c.embedding && Array.isArray(c.embedding) && c.embedding.length > 0
+    );
 
-    const conceptTexts = concepts
-      .filter((c) => c.embedding && c.embedding.length === 768)
-      .map((c) => c.text);
+    const conceptEmbeddings = validConcepts.map((c) => c.embedding!);
+    const conceptTexts = validConcepts.map((c) => c.text);
 
     if (conceptEmbeddings.length === 0) {
       throw new Error(

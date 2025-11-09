@@ -138,31 +138,35 @@ export class MathematicalProofsManager
       );
       const overlay = YAML.parse(content) as MathematicalProofsOverlay;
 
-      for (const statement of overlay.extracted_statements) {
-        if (statement.embedding && statement.embedding.length === 768) {
-          items.push({
-            id: `${documentHash}:${statement.text}`,
-            embedding: statement.embedding,
-            metadata: {
-              text: statement.text,
-              statementType: statement.statementType,
-              weight: statement.weight,
-              occurrences: statement.occurrences,
-              section: statement.section || 'unknown',
-              sectionHash: statement.sectionHash || documentHash,
-              documentHash: documentHash,
-              proofSteps: statement.metadata?.proofSteps as
-                | string[]
-                | undefined,
-              dependencies: statement.metadata?.dependencies as
-                | string[]
-                | undefined,
-              formalNotation: statement.metadata?.formalNotation as
-                | string
-                | undefined,
-            },
-          });
-        }
+      // Load embeddings using EmbeddingLoader (supports both v1 and v2 formats)
+      const { EmbeddingLoader } = await import('../../pgc/embedding-loader.js');
+      const loader = new EmbeddingLoader();
+      const statementsWithEmbeddings = await loader.loadConceptsWithEmbeddings(
+        overlay as unknown as import('../../pgc/embedding-loader.js').OverlayData,
+        this.pgcRoot
+      );
+
+      for (const statement of statementsWithEmbeddings) {
+        items.push({
+          id: `${documentHash}:${statement.text}`,
+          embedding: statement.embedding!,
+          metadata: {
+            text: statement.text,
+            statementType: statement.statementType,
+            weight: statement.weight,
+            occurrences: statement.occurrences,
+            section: statement.section || 'unknown',
+            sectionHash: statement.sectionHash || documentHash,
+            documentHash: documentHash,
+            proofSteps: statement.metadata?.proofSteps as string[] | undefined,
+            dependencies: statement.metadata?.dependencies as
+              | string[]
+              | undefined,
+            formalNotation: statement.metadata?.formalNotation as
+              | string
+              | undefined,
+          },
+        });
       }
     }
 

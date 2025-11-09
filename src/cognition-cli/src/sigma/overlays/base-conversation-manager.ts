@@ -208,7 +208,7 @@ export abstract class BaseConversationManager<
             }
           }
 
-          if (embedding && embedding.length === 768) {
+          if (embedding && Array.isArray(embedding) && embedding.length > 0) {
             items.push({
               id: turn.turn_id,
               embedding: embedding,
@@ -230,7 +230,11 @@ export abstract class BaseConversationManager<
 
     // 2. Add in-memory turns (current session)
     for (const turn of this.inMemoryTurns) {
-      if (turn.embedding && turn.embedding.length === 768) {
+      if (
+        turn.embedding &&
+        Array.isArray(turn.embedding) &&
+        turn.embedding.length > 0
+      ) {
         items.push({
           id: turn.turn_id,
           embedding: turn.embedding,

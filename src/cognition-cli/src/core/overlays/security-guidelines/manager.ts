@@ -141,6 +141,10 @@ export class SecurityGuidelinesManager
 
     const overlayFiles = await fs.readdir(this.overlayPath);
 
+    // Load EmbeddingLoader for v1/v2 compatibility
+    const { EmbeddingLoader } = await import('../../pgc/embedding-loader.js');
+    const loader = new EmbeddingLoader();
+
     for (const file of overlayFiles) {
       if (!file.endsWith('.yaml')) continue;
 
@@ -151,31 +155,44 @@ export class SecurityGuidelinesManager
       );
       const overlay = YAML.parse(content) as SecurityGuidelinesOverlay;
 
-      for (const knowledge of overlay.extracted_knowledge) {
-        if (knowledge.embedding && knowledge.embedding.length === 768) {
-          items.push({
-            id: `${documentHash}:${knowledge.text}`,
-            embedding: knowledge.embedding,
-            metadata: {
-              text: knowledge.text,
-              securityType: knowledge.securityType,
-              severity: knowledge.severity || 'low',
-              weight: knowledge.weight,
-              occurrences: knowledge.occurrences,
-              section: knowledge.section || 'unknown',
-              sectionHash: knowledge.sectionHash || documentHash,
-              documentHash: documentHash,
-              cveId: knowledge.metadata?.cveId as string | undefined,
-              affectedVersions: knowledge.metadata?.affectedVersions as
-                | string
-                | undefined,
-              mitigation: knowledge.metadata?.mitigation as string | undefined,
-              references: knowledge.metadata?.references as
-                | string[]
-                | undefined,
-            },
-          });
-        }
+      // Load concepts with embeddings (v1 from YAML or v2 from LanceDB)
+      const conceptsWithEmbeddings = await loader.loadConceptsWithEmbeddings(
+        overlay as unknown as import('../../pgc/embedding-loader.js').OverlayData,
+        this.pgcRoot
+      );
+
+      // For v1 format, map from original extracted_knowledge with all fields
+      // For v2 format, we get basic concepts from LanceDB (some fields may be missing)
+      for (const concept of conceptsWithEmbeddings) {
+        // Try to find the original knowledge item for full metadata
+        const originalKnowledge = overlay.extracted_knowledge?.find(
+          (k) => k.text === concept.text
+        );
+
+        items.push({
+          id: `${documentHash}:${concept.text}`,
+          embedding: concept.embedding,
+          metadata: {
+            text: concept.text,
+            securityType: originalKnowledge?.securityType || 'general',
+            severity: originalKnowledge?.severity || 'low',
+            weight: concept.weight,
+            occurrences: concept.occurrences,
+            section: concept.section || 'unknown',
+            sectionHash: concept.sectionHash || documentHash,
+            documentHash: documentHash,
+            cveId: originalKnowledge?.metadata?.cveId as string | undefined,
+            affectedVersions: originalKnowledge?.metadata?.affectedVersions as
+              | string
+              | undefined,
+            mitigation: originalKnowledge?.metadata?.mitigation as
+              | string
+              | undefined,
+            references: originalKnowledge?.metadata?.references as
+              | string[]
+              | undefined,
+          },
+        });
       }
     }
 

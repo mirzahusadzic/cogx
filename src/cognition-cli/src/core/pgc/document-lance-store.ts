@@ -310,6 +310,11 @@ export class DocumentLanceStore {
   ): Promise<string[]> {
     if (!this.isInitialized) await this.initialize();
 
+    // Delete existing concepts for this document first
+    // This ensures batch replacement behavior (not additive)
+    await this.deleteDocumentConcepts(overlayType, documentHash);
+
+    const baseTimestamp = Date.now();
     const records: DocumentConceptRecord[] = concepts.map((concept, index) => {
       if (concept.embedding.length !== DEFAULT_EMBEDDING_DIMENSIONS) {
         throw new Error(
@@ -335,7 +340,8 @@ export class DocumentLanceStore {
         weight: concept.weight,
         occurrences: concept.occurrences,
         embedding: concept.embedding,
-        generated_at: Date.now(),
+        // Add index as millisecond offset to preserve batch order
+        generated_at: baseTimestamp + index,
       };
     });
 
@@ -475,7 +481,8 @@ export class DocumentLanceStore {
               ? Number(result.generated_at)
               : result.generated_at,
         },
-      }));
+      }))
+      .sort((a, b) => b.similarity - a.similarity);
   }
 
   /**
@@ -517,9 +524,8 @@ export class DocumentLanceStore {
 
     return records
       .map((record) => this.toPlainRecord(record))
-      .filter(
-        (record): record is DocumentConceptRecord => record !== undefined
-      );
+      .filter((record): record is DocumentConceptRecord => record !== undefined)
+      .sort((a, b) => a.generated_at - b.generated_at);
   }
 
   /**

@@ -362,7 +362,8 @@ export class MissionValidator {
 
       // Filter to only concepts with valid embeddings
       const validConcepts = conceptsWithEmbeddings.filter(
-        (c) => c.embedding && c.embedding.length === 768
+        (c) =>
+          c.embedding && Array.isArray(c.embedding) && c.embedding.length > 0
       );
 
       if (validConcepts.length === 0) {

@@ -591,7 +591,8 @@ export class GenesisDocTransform {
       // If concepts were already embedded during security validation, reuse them
       if (preEmbeddedConcepts && preEmbeddedConcepts.length > 0) {
         validConcepts = preEmbeddedConcepts.filter(
-          (c) => c.embedding && c.embedding.length === 768
+          (c) =>
+            c.embedding && Array.isArray(c.embedding) && c.embedding.length > 0
         );
       } else {
         // Fallback: Extract and embed (shouldn't happen in normal flow)
@@ -615,7 +616,8 @@ export class GenesisDocTransform {
 
         // Filter to valid embeddings
         validConcepts = conceptsWithEmbeddings.filter(
-          (c) => c.embedding && c.embedding.length === 768
+          (c) =>
+            c.embedding && Array.isArray(c.embedding) && c.embedding.length > 0
         );
       }
 
