@@ -430,27 +430,81 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
       };
     }> = [];
 
-    // Match CVE identifiers
-    const cveRegex = /CVE-\d{4}-\d{4,}/g;
-    let match;
+    // Strip code blocks before processing
+    const contentWithoutCodeBlocks = this.stripCodeBlocks(content);
 
-    while ((match = cveRegex.exec(content)) !== null) {
-      const cveId = match[0];
-      // Get surrounding context (up to 200 chars)
-      const start = Math.max(0, match.index - 100);
-      const end = Math.min(content.length, match.index + 100);
-      const context = content.substring(start, end).trim();
+    const lines = contentWithoutCodeBlocks.split('\n');
+    const processedCVEs = new Set<string>();
 
-      vulnerabilities.push({
-        text: `${cveId}: ${context.split('\n')[0]}`,
-        severity: this.inferSeverity(context),
-        metadata: {
-          cveId,
-        },
-      });
+    // Match CVE identifiers and extract complete context
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const cveMatch = line.match(/CVE-\d{4}-\d{4,}/g);
+
+      if (cveMatch) {
+        for (const cveId of cveMatch) {
+          // Skip if already processed
+          if (processedCVEs.has(cveId)) continue;
+          processedCVEs.add(cveId);
+
+          // Extract meaningful description from the same line or nearby lines
+          let description = line
+            .replace(cveId, '')
+            .replace(/^[-*#\s]+/, '')
+            .trim();
+
+          // If description is too short or looks like code/JSON, try next lines
+          if (
+            description.length < 10 ||
+            /^[{}[\],"':]+$/.test(description) ||
+            description.endsWith(',') ||
+            description.endsWith(':')
+          ) {
+            // Look for description in next few lines
+            for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
+              const nextLine = lines[j].trim();
+              if (
+                nextLine &&
+                !nextLine.startsWith('-') &&
+                !nextLine.startsWith('*') &&
+                !nextLine.startsWith('#') &&
+                !/^[{}[\],"':]+$/.test(nextLine)
+              ) {
+                description = nextLine;
+                break;
+              }
+            }
+          }
+
+          // Still invalid? Skip this CVE (likely from documentation example)
+          if (
+            !description ||
+            description.length < 10 ||
+            /^[{}[\],"':]+$/.test(description)
+          ) {
+            continue; // Skip instead of using placeholder
+          }
+
+          vulnerabilities.push({
+            text: `${cveId}: ${description}`,
+            severity: this.inferSeverity(line),
+            metadata: {
+              cveId,
+            },
+          });
+        }
+      }
     }
 
     return vulnerabilities;
+  }
+
+  /**
+   * Strip code blocks (```...```) from content to avoid extracting from examples
+   */
+  private stripCodeBlocks(content: string): string {
+    // Remove fenced code blocks
+    return content.replace(/```[\s\S]*?```/g, '');
   }
 
   /**
