@@ -31,7 +31,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
     filtered = filtered.replace(/\[?<\d+;\d+;\d+[Mm]/g, ''); // Mouse: [<64;76;16M or <64;76;16M
     filtered = filtered.replace(/\[<\d+;\d+;\d+[Mm]/g, ''); // Mouse: [<64;76;16M explicitly
     filtered = filtered.replace(/<\d+;\d+;\d+[Mm]/g, ''); // Mouse: <64;76;16M without bracket
-    filtered = filtered.replace(/\[[\w\d;<>]+/g, ''); // Any bracket sequence
+    // Note: Removed overly aggressive bracket filter that blocked legitimate input like [O2]
 
     if (filtered !== value) {
       setValue(filtered);
