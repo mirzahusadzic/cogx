@@ -280,7 +280,8 @@ function displayMeetResults(
     `Showing ${Math.min(limit, results.length)} of ${results.length} pairs\n`
   );
 
-  for (const { itemA, itemB, similarity } of results.slice(0, limit)) {
+  results.slice(0, limit).forEach((result, index) => {
+    const { itemA, itemB, similarity } = result;
     const content = [
       formatKeyValue('Match', colorSimilarity(similarity)),
       '',
@@ -291,14 +292,9 @@ function displayMeetResults(
       `  ${cleanText(itemB.metadata.text)}`,
     ];
 
-    console.log(
-      createBox(
-        content,
-        `Alignment ${results.indexOf({ itemA, itemB, similarity }) + 1}`
-      )
-    );
+    console.log(createBox(content, `Alignment ${index + 1}`));
     console.log('');
-  }
+  });
 
   if (results.length > limit) {
     console.log(

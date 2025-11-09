@@ -1,0 +1,29 @@
+mirza@DESKTOP-T6RRJ7V:~/src/cogx/src/cognition-cli$ cognition-cli lattice "O2 -> O5"
+│
+◇  Query parsed
+│
+◇  Query executed
+
+Meet Results: 2 alignment(s)
+
+Showing 2 of 2 pairs
+
+┌─ Alignment 0 ────────────────────────────────────────────────────────┐
+│ Match       : 60.5%                                                  │
+│                                                                      │
+│ Item A      : 4fdd2fa8                                               │
+│   O₁ (Structural) overlay generated: O₂ maps threats to code symbols │
+│                                                                      │
+│ Item B      : 3ccd3526                                               │
+│   Dependency Graph O₁ (Structure) [...]                              │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌─ Alignment 0 ────────────────────────────────────────────────────────┐
+│ Match       : 60.5%                                                  │
+│                                                                      │
+│ Item A      : 4fdd2fa8                                               │
+│   O₁ (Structural) overlay generated: O₂ maps threats to code symbols │
+│                                                                      │
+│ Item B      : 3ccd3526                                               │
+│   Dependency Graph O₁ (Structure) [...]                              │
+└──────────────────────────────────────────────────────────────────────┘
