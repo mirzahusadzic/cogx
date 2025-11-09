@@ -297,23 +297,31 @@ export abstract class BaseConversationManager<
       );
 
       // Convert LanceDB results to OverlayItem format
-      return lanceResults.map((result) => ({
-        item: {
-          id: result.id,
-          embedding: queryEmbedding, // We don't return embeddings from LanceDB to save memory
-          metadata: {
-            text: result.content,
-            turn_id: result.id,
-            role: result.role,
-            timestamp: result.timestamp,
-            project_alignment_score: result.metadata.alignment_O1, // Use O1 (structural) as default
-            novelty: result.metadata.novelty,
-            importance: result.metadata.importance,
-            session_id: result.session_id,
-          } as T,
-        },
-        similarity: result.similarity,
-      }));
+      // Get overlay-specific alignment score dynamically
+      const overlayId = this.getOverlayId();
+
+      return lanceResults.map((result) => {
+        const alignmentKey = `alignment_${overlayId}` as 'alignment_O1' | 'alignment_O2' | 'alignment_O3' | 'alignment_O4' | 'alignment_O5' | 'alignment_O6' | 'alignment_O7';
+        const alignmentScore = result.metadata[alignmentKey] || 0;
+
+        return {
+          item: {
+            id: result.id,
+            embedding: queryEmbedding, // We don't return embeddings from LanceDB to save memory
+            metadata: {
+              text: result.content,
+              turn_id: result.id,
+              role: result.role,
+              timestamp: result.timestamp,
+              project_alignment_score: alignmentScore,
+              novelty: result.metadata.novelty,
+              importance: result.metadata.importance,
+              session_id: result.session_id,
+            } as T,
+          },
+          similarity: result.similarity,
+        };
+      });
     } catch (error) {
       // Fallback to in-memory search if LanceDB fails
       console.warn(
