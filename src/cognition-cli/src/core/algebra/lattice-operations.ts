@@ -115,8 +115,17 @@ export async function meet<
 
   await tempStore.close();
 
+  // Deduplicate results (same itemA.id + itemB.id pair)
+  const seen = new Set<string>();
+  const uniqueResults = results.filter((result) => {
+    const key = `${result.itemA.id}:${result.itemB.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
   // Sort by similarity descending
-  return results.sort((a, b) => b.similarity - a.similarity);
+  return uniqueResults.sort((a, b) => b.similarity - a.similarity);
 }
 
 /**
