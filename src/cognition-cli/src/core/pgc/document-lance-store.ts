@@ -310,10 +310,6 @@ export class DocumentLanceStore {
   ): Promise<string[]> {
     if (!this.isInitialized) await this.initialize();
 
-    // Delete existing concepts for this document first
-    // This ensures batch replacement behavior (not additive)
-    await this.deleteDocumentConcepts(overlayType, documentHash);
-
     const baseTimestamp = Date.now();
     const records: DocumentConceptRecord[] = concepts.map((concept, index) => {
       if (concept.embedding.length !== DEFAULT_EMBEDDING_DIMENSIONS) {

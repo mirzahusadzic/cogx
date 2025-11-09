@@ -11,6 +11,7 @@ import {
   OverlayMetadata,
   SelectOptions,
 } from '../../algebra/overlay-algebra.js';
+import type { OverlayData } from '../../pgc/embedding-loader.js';
 
 /**
  * Security guidelines overlay (O₂)
@@ -157,17 +158,20 @@ export class SecurityGuidelinesManager
 
       // Load concepts with embeddings (v1 from YAML or v2 from LanceDB)
       const conceptsWithEmbeddings = await loader.loadConceptsWithEmbeddings(
-        overlay as unknown as import('../../pgc/embedding-loader.js').OverlayData,
+        overlay as unknown as OverlayData,
         this.pgcRoot
+      );
+
+      // Build lookup map for O(1) access to original knowledge items
+      const knowledgeMap = new Map(
+        overlay.extracted_knowledge?.map((k) => [k.text, k]) || []
       );
 
       // For v1 format, map from original extracted_knowledge with all fields
       // For v2 format, we get basic concepts from LanceDB (some fields may be missing)
       for (const concept of conceptsWithEmbeddings) {
-        // Try to find the original knowledge item for full metadata
-        const originalKnowledge = overlay.extracted_knowledge?.find(
-          (k) => k.text === concept.text
-        );
+        // O(1) lookup for original knowledge item
+        const originalKnowledge = knowledgeMap.get(concept.text);
 
         items.push({
           id: `${documentHash}:${concept.text}`,

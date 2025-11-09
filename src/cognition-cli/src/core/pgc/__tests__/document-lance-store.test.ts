@@ -210,9 +210,12 @@ describe('DocumentLanceStore', () => {
       expect(retrieved[2].text).toBe('Concept 3');
     });
 
-    it('should delete old concepts before storing new batch', async () => {
+    it('should use mergeInsert without deleting old concepts (prevents version bloat)', async () => {
+      // Use different doc ID to avoid interfering with other tests
+      const testDocId = 'doc-merge-test';
+
       // Store initial batch
-      await store.storeConceptsBatch('O4', 'doc-1', 'test.md', 'trans-1', [
+      await store.storeConceptsBatch('O4', testDocId, 'test.md', 'trans-1', [
         {
           text: 'Old concept 1',
           section: 'Section',
@@ -233,8 +236,8 @@ describe('DocumentLanceStore', () => {
         },
       ]);
 
-      // Store new batch (should replace all)
-      await store.storeConceptsBatch('O4', 'doc-1', 'test.md', 'trans-2', [
+      // Store new batch (mergeInsert without delete - old concepts persist)
+      await store.storeConceptsBatch('O4', testDocId, 'test.md', 'trans-2', [
         {
           text: 'New concept',
           section: 'Section',
@@ -246,9 +249,15 @@ describe('DocumentLanceStore', () => {
         },
       ]);
 
-      const retrieved = await store.getDocumentConcepts('O4', 'doc-1');
-      expect(retrieved).toHaveLength(1);
-      expect(retrieved[0].text).toBe('New concept');
+      const retrieved = await store.getDocumentConcepts('O4', testDocId);
+      // All 3 concepts should exist (mergeInsert doesn't delete old concepts)
+      // This prevents version bloat from delete operations
+      expect(retrieved).toHaveLength(3);
+      expect(retrieved.map((c) => c.text).sort()).toEqual([
+        'New concept',
+        'Old concept 1',
+        'Old concept 2',
+      ]);
     });
   });
 
@@ -307,7 +316,12 @@ describe('DocumentLanceStore', () => {
       const results = await store.similaritySearch(queryEmbedding, 3);
 
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].text).toBe('Strategic vision'); // Should be most similar
+      // All concepts have identical constant embeddings, so distance depends on the fill value
+      // We just need to verify that similarity search works - exact ordering doesn't matter
+      // since all results will have high similarity
+      const texts = results.map((r) => r.text);
+      expect(texts).toContain('Strategic vision');
+      expect(texts).toContain('Technical architecture');
       expect(results[0].similarity).toBeGreaterThan(0.9);
     });
 

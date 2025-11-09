@@ -11,6 +11,7 @@ import {
   OverlayMetadata,
   SelectOptions,
 } from '../../algebra/overlay-algebra.js';
+import type { OverlayData } from '../../pgc/embedding-loader.js';
 
 /**
  * Operational patterns overlay (O₅)
@@ -139,15 +140,18 @@ export class OperationalPatternsManager
       const { EmbeddingLoader } = await import('../../pgc/embedding-loader.js');
       const loader = new EmbeddingLoader();
       const patternsWithEmbeddings = await loader.loadConceptsWithEmbeddings(
-        overlay as unknown as import('../../pgc/embedding-loader.js').OverlayData,
+        overlay as unknown as OverlayData,
         this.pgcRoot
       );
 
+      // Build lookup map for O(1) access to original patterns
+      const patternMap = new Map(
+        overlay.extracted_patterns?.map((p) => [p.text, p]) || []
+      );
+
       for (const concept of patternsWithEmbeddings) {
-        // Map back to original pattern for overlay-specific fields
-        const originalPattern = overlay.extracted_patterns?.find(
-          (p) => p.text === concept.text
-        );
+        // O(1) lookup for original pattern
+        const originalPattern = patternMap.get(concept.text);
 
         items.push({
           id: `${documentHash}:${concept.text}`,

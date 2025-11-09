@@ -11,6 +11,7 @@ import {
   OverlayMetadata,
   SelectOptions,
 } from '../../algebra/overlay-algebra.js';
+import type { OverlayData } from '../../pgc/embedding-loader.js';
 
 /**
  * Mathematical proofs overlay (O₆)
@@ -142,15 +143,18 @@ export class MathematicalProofsManager
       const { EmbeddingLoader } = await import('../../pgc/embedding-loader.js');
       const loader = new EmbeddingLoader();
       const statementsWithEmbeddings = await loader.loadConceptsWithEmbeddings(
-        overlay as unknown as import('../../pgc/embedding-loader.js').OverlayData,
+        overlay as unknown as OverlayData,
         this.pgcRoot
       );
 
+      // Build lookup map for O(1) access to original statements
+      const statementMap = new Map(
+        overlay.extracted_statements?.map((s) => [s.text, s]) || []
+      );
+
       for (const concept of statementsWithEmbeddings) {
-        // Map back to original statement for overlay-specific fields
-        const originalStatement = overlay.extracted_statements?.find(
-          (s) => s.text === concept.text
-        );
+        // O(1) lookup for original statement
+        const originalStatement = statementMap.get(concept.text);
 
         items.push({
           id: `${documentHash}:${concept.text}`,
