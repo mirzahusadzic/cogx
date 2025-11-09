@@ -309,10 +309,16 @@ export class GenesisOrchestrator {
         `Transform: Removed ${gcSummary.cleanedTransformLogEntries} stale transform log entries.`
       );
     }
+    if (gcSummary.cleanedOverlayEntries > 0) {
+      log.success(
+        `Transform: Removed ${gcSummary.cleanedOverlayEntries} orphaned structural overlay entries.`
+      );
+    }
     if (
       gcSummary.staleEntries === 0 &&
       gcSummary.cleanedReverseDeps === 0 &&
-      gcSummary.cleanedTransformLogEntries === 0
+      gcSummary.cleanedTransformLogEntries === 0 &&
+      gcSummary.cleanedOverlayEntries === 0
     ) {
       log.info('Transform: No stale entries found. PGC is clean.');
     }
@@ -707,7 +713,73 @@ export class GenesisOrchestrator {
     await this.pgc.objectStore.removeEmptyShardedDirectories();
     await this.pgc.reverseDeps.removeEmptyShardedDirectories();
 
-    return { staleEntries, cleanedReverseDeps, cleanedTransformLogEntries };
+    // Phase 5: Clean up orphaned structural pattern overlay entries
+    const cleanedOverlayEntries = await this.garbageCollectStructuralOverlays();
+
+    return {
+      staleEntries,
+      cleanedReverseDeps,
+      cleanedTransformLogEntries,
+      cleanedOverlayEntries,
+    };
+  }
+
+  /**
+   * Garbage collect structural pattern overlay entries with orphaned sourceHash references
+   * This handles the reverse direction: overlay entries pointing to non-existent file hashes
+   */
+  private async garbageCollectStructuralOverlays(): Promise<number> {
+    let cleanedCount = 0;
+    const overlayRoot = path.join(
+      this.pgc.pgcRoot,
+      'overlays',
+      'structural_patterns'
+    );
+
+    if (!(await fs.pathExists(overlayRoot))) {
+      return 0;
+    }
+
+    // Recursively find all overlay JSON files
+    const findOverlayFiles = async (dir: string): Promise<string[]> => {
+      const files: string[] = [];
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          files.push(...(await findOverlayFiles(fullPath)));
+        } else if (entry.name.endsWith('.json')) {
+          files.push(fullPath);
+        }
+      }
+      return files;
+    };
+
+    const overlayFiles = await findOverlayFiles(overlayRoot);
+
+    for (const overlayFile of overlayFiles) {
+      try {
+        const overlayData = await fs.readJSON(overlayFile);
+
+        // Check if the sourceHash exists in the object store
+        if (
+          overlayData.validation?.sourceHash &&
+          !(await this.pgc.objectStore.exists(
+            overlayData.validation.sourceHash
+          ))
+        ) {
+          // Orphaned reference - delete the overlay file
+          await fs.remove(overlayFile);
+          cleanedCount++;
+        }
+      } catch (error) {
+        // Skip malformed overlay files
+        console.warn(`[GC] Could not process overlay ${overlayFile}:`, error);
+      }
+    }
+
+    return cleanedCount;
   }
 
   /**
