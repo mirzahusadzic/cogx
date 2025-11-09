@@ -211,8 +211,11 @@ export class DocsOracle {
             if (log.type === 'genesis_doc' && log.outputs) {
               for (const output of log.outputs) {
                 if (output.type === 'markdown_document') {
-                  // Check if this output is indexed
-                  if (!indexedHashes.has(output.hash)) {
+                  // Check if this output is NOT indexed BUT still exists in store (orphaned)
+                  if (
+                    !indexedHashes.has(output.hash) &&
+                    (await this.pgcManager.objectStore.exists(output.hash))
+                  ) {
                     orphaned.push(output.hash);
                   }
                 }
