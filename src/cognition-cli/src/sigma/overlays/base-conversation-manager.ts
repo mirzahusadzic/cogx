@@ -198,9 +198,12 @@ export abstract class BaseConversationManager<
             } else {
               // DISABLED: Re-embedding blocks UI - skip turns without embeddings
               // These will be regenerated in background during future refactor
-              console.warn(
-                `[BaseConversationManager] Skipping turn ${turn.turn_id} - no embedding in LanceDB (re-embedding disabled to prevent UI blocking)`
-              );
+              // Only log in debug mode to avoid spamming TUI
+              if (process.env.DEBUG) {
+                console.warn(
+                  `[BaseConversationManager] Skipping turn ${turn.turn_id} - no embedding in LanceDB`
+                );
+              }
               continue; // Skip this turn instead of blocking UI
             }
           }
