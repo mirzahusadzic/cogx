@@ -334,6 +334,15 @@ export class GenesisOrchestrator {
       );
     }
 
+    // Document GC Phase 2: Clean up orphaned document objects
+    // (objects in store but not indexed - leftovers from previous GC bugs)
+    const removedOrphans = await this.docsOracle.cleanupOrphanedObjects();
+    if (removedOrphans > 0) {
+      log.success(
+        `Transform: Cleaned ${removedOrphans} orphaned document object(s).`
+      );
+    }
+
     // The Oracle
     log.info('Oracle: Verifying PGC structural coherence after maintenance.');
     const verificationResult = await this.genesisOracle.verify();

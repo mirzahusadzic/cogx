@@ -306,4 +306,30 @@ export class DocsOracle {
 
     return removedCount;
   }
+
+  /**
+   * Clean up orphaned document objects (in object store but not indexed)
+   * This is the reverse of removeStaleEntries - it removes orphaned objects, not index entries
+   */
+  async cleanupOrphanedObjects(): Promise<number> {
+    const orphanedHashes = await this.findOrphanedDocuments();
+    let removedCount = 0;
+
+    for (const hash of orphanedHashes) {
+      try {
+        await this.pgcManager.objectStore.delete(hash);
+        removedCount++;
+      } catch (error) {
+        // Log but continue - object might have been deleted already
+        if (process.env.DEBUG) {
+          console.warn(
+            `[DocsOracle] Failed to delete orphaned object ${hash}:`,
+            error
+          );
+        }
+      }
+    }
+
+    return removedCount;
+  }
 }
