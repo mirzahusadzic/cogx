@@ -92,7 +92,17 @@ export async function compactConversationLanceDB(
     const uniqueRecords = new Map();
     for (const record of allRecords) {
       const id = record.id as string;
-      uniqueRecords.set(id, record);
+      // Clean the record - convert LanceDB Vector types to plain arrays
+      const cleanedRecord = { ...record };
+      if (
+        cleanedRecord.embedding &&
+        typeof cleanedRecord.embedding === 'object'
+      ) {
+        cleanedRecord.embedding = Array.from(
+          cleanedRecord.embedding as ArrayLike<number>
+        );
+      }
+      uniqueRecords.set(id, cleanedRecord);
     }
 
     if (verbose) {

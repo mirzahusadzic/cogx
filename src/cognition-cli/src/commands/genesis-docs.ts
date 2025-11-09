@@ -256,7 +256,7 @@ async function findExistingDocumentHash(
 }
 
 /**
- * Delete an existing document from the PGC (index and overlays)
+ * Delete an existing document from the PGC (index, overlays, and LanceDB embeddings)
  */
 async function deleteExistingDocument(
   pgcRoot: string,
@@ -314,5 +314,28 @@ async function deleteExistingDocument(
         }
       }
     }
+  }
+
+  // Delete LanceDB embeddings with matching document_hash
+  try {
+    const { DocumentLanceStore } = await import(
+      '../core/pgc/document-lance-store.js'
+    );
+    const lanceStore = new DocumentLanceStore(pgcRoot);
+    await lanceStore.initialize();
+
+    // Delete concepts for all overlay types that might have this document
+    const overlayTypes = ['O2', 'O4', 'O5', 'O6'];
+    for (const overlayType of overlayTypes) {
+      await lanceStore.deleteDocumentConcepts(overlayType, objectHash);
+    }
+
+    await lanceStore.close();
+  } catch (error) {
+    // LanceDB might not be initialized yet, skip silently
+    console.warn(
+      `Warning: Could not delete LanceDB embeddings for ${objectHash}:`,
+      (error as Error).message
+    );
   }
 }
