@@ -210,6 +210,10 @@ program
     'Token threshold for context compression',
     '120000'
   )
+  .option(
+    '--max-thinking-tokens <number>',
+    'Maximum tokens for extended thinking mode (default: 10000)'
+  )
   .option('--debug', 'Enable debug logging for Sigma compression')
   .action((options) => {
     tuiCommand({
@@ -218,6 +222,9 @@ program
       sessionFile: options.file,
       workbenchUrl: options.workbench,
       sessionTokens: parseInt(options.sessionTokens),
+      maxThinkingTokens: options.maxThinkingTokens
+        ? parseInt(options.maxThinkingTokens)
+        : undefined,
       debug: options.debug,
     });
   });

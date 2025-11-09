@@ -14,8 +14,15 @@ import type { SDKQueryOptions } from './types.js';
  * Create an SDK query with proper configuration
  */
 export function createSDKQuery(options: SDKQueryOptions): Query {
-  const { prompt, cwd, resumeSessionId, mcpServers, onStderr, onCanUseTool } =
-    options;
+  const {
+    prompt,
+    cwd,
+    resumeSessionId,
+    maxThinkingTokens,
+    mcpServers,
+    onStderr,
+    onCanUseTool,
+  } = options;
 
   return query({
     prompt,
@@ -24,6 +31,7 @@ export function createSDKQuery(options: SDKQueryOptions): Query {
       resume: resumeSessionId, // undefined = fresh session, string = resume
       systemPrompt: { type: 'preset', preset: 'claude_code' }, // Always use claude_code preset
       includePartialMessages: true, // Get streaming updates
+      maxThinkingTokens, // Enable extended thinking if specified
       stderr: onStderr,
       canUseTool: onCanUseTool,
       mcpServers,

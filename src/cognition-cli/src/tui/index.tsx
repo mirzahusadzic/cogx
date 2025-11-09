@@ -35,6 +35,7 @@ interface CognitionTUIProps {
   sessionId?: string;
   workbenchUrl?: string;
   sessionTokens?: number;
+  maxThinkingTokens?: number;
   debug?: boolean;
 }
 
@@ -44,6 +45,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   sessionId,
   workbenchUrl,
   sessionTokens,
+  maxThinkingTokens,
   debug,
 }) => {
   const [focused, setFocused] = useState(true);
@@ -58,6 +60,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       sessionId,
       cwd: projectRoot, // Use project root, not .open_cognition dir
       sessionTokens, // Pass custom token threshold
+      maxThinkingTokens, // Pass extended thinking token limit
       debug, // Pass debug flag
     });
 

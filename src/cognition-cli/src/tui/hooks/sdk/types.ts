@@ -15,6 +15,7 @@ export interface SDKQueryOptions {
   prompt: string;
   cwd: string;
   resumeSessionId?: string;
+  maxThinkingTokens?: number;
   mcpServers?: Record<string, McpSdkServerConfigWithInstance>;
   onStderr?: (data: string) => void;
   onCanUseTool?: (

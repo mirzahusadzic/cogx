@@ -8,6 +8,7 @@ interface TUIOptions {
   sessionFile?: string;
   workbenchUrl?: string;
   sessionTokens?: number;
+  maxThinkingTokens?: number;
   debug?: boolean;
 }
 
@@ -71,6 +72,7 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     sessionId,
     workbenchUrl,
     sessionTokens: options.sessionTokens,
+    maxThinkingTokens: options.maxThinkingTokens ?? 10000, // Default: 10K tokens for extended thinking
     debug: options.debug,
   });
 }

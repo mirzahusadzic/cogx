@@ -27,6 +27,7 @@ interface UseClaudeAgentOptions {
   sessionId?: string;
   cwd: string;
   sessionTokens?: number;
+  maxThinkingTokens?: number;
   debug?: boolean;
 }
 
@@ -46,6 +47,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     sessionId: sessionIdProp,
     cwd,
     sessionTokens,
+    maxThinkingTokens,
     debug: debugFlag,
   } = options;
 
@@ -545,6 +547,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           prompt: finalPrompt,
           cwd: cwd,
           resumeSessionId: currentResumeId, // undefined after compression = fresh session!
+          maxThinkingTokens, // Enable extended thinking if specified
           onStderr: (data: string) => {
             stderrLines.push(data);
           },
