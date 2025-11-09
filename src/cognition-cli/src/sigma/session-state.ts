@@ -111,6 +111,15 @@ export function updateSessionState(
   reason: 'compression' | 'expiration',
   tokens?: number
 ): SessionState {
+  // Defense-in-depth: Check if last entry already has this session ID
+  // This prevents duplicate entries from React async state updates during rapid message processing
+  const lastEntry =
+    state.compression_history[state.compression_history.length - 1];
+  if (lastEntry && lastEntry.sdk_session === newSdkSession) {
+    // Skip duplicate - already logged this session
+    return state;
+  }
+
   return {
     ...state,
     current_session: newSdkSession,

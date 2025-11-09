@@ -158,6 +158,16 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const currentSessionId = sessionManager.state.currentSessionId;
   const resumeSessionId = sessionManager.state.resumeSessionId;
 
+  // Ref to track current session ID synchronously (prevents duplicate session entries during rapid SDK messages)
+  // React state updates are async, so during rapid message processing (347 msgs in 6s during turn analysis),
+  // the state variable lags behind and causes duplicate "expiration" entries in compression_history
+  const currentSessionIdRef = useRef(currentSessionId);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    currentSessionIdRef.current = currentSessionId;
+  }, [currentSessionId]);
+
   // Intelligent recap for compression (not part of session manager)
   const [injectedRecap, setInjectedRecap] = useState<string | null>(null);
 
@@ -636,7 +646,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     // This is critical for session-less TUI starts where SDK creates its own ID
     if ('session_id' in sdkMessage && sdkMessage.session_id) {
       const sdkSessionId = sdkMessage.session_id;
-      const prevSessionId = currentSessionId;
+      const prevSessionId = currentSessionIdRef.current; // Read from ref (synchronous, prevents duplicates)
 
       if (prevSessionId !== sdkSessionId) {
         // SDK gave us a different session ID - update via sessionManager
