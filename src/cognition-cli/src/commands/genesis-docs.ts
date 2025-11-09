@@ -97,6 +97,13 @@ export async function genesisDocsCommand(
           contentHash
         );
 
+        // Debug logging
+        if (process.env.DEBUG) {
+          console.log(
+            `[DEBUG] ${path.basename(file)}: contentHash=${contentHash.substring(0, 12)}, existingHash=${existingHash?.substring(0, 12) || 'null'}, force=${options.force}`
+          );
+        }
+
         if (existingHash) {
           if (options.force) {
             // Force re-ingestion: delete existing document first

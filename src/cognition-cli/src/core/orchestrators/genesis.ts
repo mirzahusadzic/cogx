@@ -554,8 +554,11 @@ export class GenesisOrchestrator {
     const referencedHashes = new Set<string>();
     const allOverlays = [
       'structural_patterns',
+      'security_guidelines',
       'lineage_patterns',
       'mission_concepts',
+      'operational_patterns',
+      'mathematical_proofs',
       'strategic_coherence',
     ];
 
