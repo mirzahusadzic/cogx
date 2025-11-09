@@ -33,13 +33,14 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 ## 📖 Documentation
 
-**[📚 Complete Documentation Site](https://mirzahusadzic.github.io/cogx/)** — 16-chapter manual covering cognitive architecture, 7 overlays (O₁-O₇), lattice algebra, and the complete reference implementation.
+**[📚 Complete Documentation Site](https://mirzahusadzic.github.io/cogx/)** — 21-chapter manual covering cognitive architecture, 7 overlays (O₁-O₇), lattice algebra, Σ (Sigma) dual-lattice architecture, and the complete reference implementation.
 
 **Quick Links:**
 - [Foundation Manual](https://mirzahusadzic.github.io/cogx/manual/part-1-foundation/01-cognitive-architecture) — Start here for comprehensive understanding
 - [Core Security](https://mirzahusadzic.github.io/cogx/manual/part-1-foundation/04.5-core-security) — 7+ Gemini personas protecting the lattice
 - [The Seven Overlays](https://mirzahusadzic.github.io/cogx/manual/part-2-seven-layers/05-o1-structure) — O₁ through O₇ explained
 - [Lattice Algebra](https://mirzahusadzic.github.io/cogx/manual/part-3-algebra/12-boolean-operations) — Boolean operations across overlays
+- [Σ (Sigma) Architecture](https://mirzahusadzic.github.io/cogx/manual/part-6-sigma/21-sigma-architecture) — Dual-lattice system with infinite context
 
 ---
 
