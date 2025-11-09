@@ -6,6 +6,7 @@ import { log, spinner } from '@clack/prompts';
 import chalk from 'chalk';
 import * as workerpool from 'workerpool';
 import os from 'os';
+import YAML from 'yaml';
 
 import type { PGCManager } from '../pgc/manager.js';
 import type { StructuralMiner } from './miners/structural.js';
@@ -725,22 +726,25 @@ export class GenesisOrchestrator {
   }
 
   /**
-   * Garbage collect structural pattern overlay entries with orphaned sourceHash references
+   * Garbage collect overlay entries with orphaned hash references across ALL 7 overlays
    * This handles the reverse direction: overlay entries pointing to non-existent file hashes
+   * Checks both sourceHash and symbolStructuralDataHash
    */
   private async garbageCollectStructuralOverlays(): Promise<number> {
     let cleanedCount = 0;
-    const overlayRoot = path.join(
-      this.pgc.pgcRoot,
-      'overlays',
-      'structural_patterns'
-    );
 
-    if (!(await fs.pathExists(overlayRoot))) {
-      return 0;
-    }
+    // All 7 overlay directories
+    const overlayDirs = [
+      'structural_patterns',
+      'security_guidelines',
+      'lineage_patterns',
+      'mission_concepts',
+      'operational_patterns',
+      'mathematical_proofs',
+      'strategic_coherence',
+    ];
 
-    // Recursively find all overlay JSON files
+    // Recursively find all overlay JSON files in a directory
     const findOverlayFiles = async (dir: string): Promise<string[]> => {
       const files: string[] = [];
       const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -749,33 +753,69 @@ export class GenesisOrchestrator {
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory()) {
           files.push(...(await findOverlayFiles(fullPath)));
-        } else if (entry.name.endsWith('.json')) {
+        } else if (
+          entry.name.endsWith('.json') ||
+          entry.name.endsWith('.yaml')
+        ) {
           files.push(fullPath);
         }
       }
       return files;
     };
 
-    const overlayFiles = await findOverlayFiles(overlayRoot);
+    // Process each overlay directory
+    for (const overlayDir of overlayDirs) {
+      const overlayRoot = path.join(this.pgc.pgcRoot, 'overlays', overlayDir);
 
-    for (const overlayFile of overlayFiles) {
-      try {
-        const overlayData = await fs.readJSON(overlayFile);
+      if (!(await fs.pathExists(overlayRoot))) {
+        continue;
+      }
 
-        // Check if the sourceHash exists in the object store
-        if (
-          overlayData.validation?.sourceHash &&
-          !(await this.pgc.objectStore.exists(
-            overlayData.validation.sourceHash
-          ))
-        ) {
-          // Orphaned reference - delete the overlay file
-          await fs.remove(overlayFile);
-          cleanedCount++;
+      const overlayFiles = await findOverlayFiles(overlayRoot);
+
+      for (const overlayFile of overlayFiles) {
+        try {
+          // Read file based on extension
+          let overlayData: {
+            validation?: { sourceHash?: string };
+            symbolStructuralDataHash?: string;
+          };
+          if (overlayFile.endsWith('.json')) {
+            overlayData = await fs.readJSON(overlayFile);
+          } else if (overlayFile.endsWith('.yaml')) {
+            const content = await fs.readFile(overlayFile, 'utf-8');
+            overlayData = YAML.parse(content);
+          } else {
+            continue; // Skip unknown file types
+          }
+
+          // Check both hash types that might reference the object store
+          const sourceHashOrphaned =
+            overlayData.validation?.sourceHash &&
+            !(await this.pgc.objectStore.exists(
+              overlayData.validation.sourceHash
+            ));
+
+          const symbolHashOrphaned =
+            overlayData.symbolStructuralDataHash &&
+            !(await this.pgc.objectStore.exists(
+              overlayData.symbolStructuralDataHash
+            ));
+
+          // Delete if either hash is orphaned
+          if (sourceHashOrphaned || symbolHashOrphaned) {
+            await fs.remove(overlayFile);
+            cleanedCount++;
+          }
+        } catch (error) {
+          // Skip malformed overlay files (only log in debug mode to avoid spam)
+          if (process.env.DEBUG) {
+            console.warn(
+              `[GC] Could not process overlay ${overlayFile}:`,
+              error
+            );
+          }
         }
-      } catch (error) {
-        // Skip malformed overlay files
-        console.warn(`[GC] Could not process overlay ${overlayFile}:`, error);
       }
     }
 

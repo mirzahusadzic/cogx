@@ -301,7 +301,14 @@ export abstract class BaseConversationManager<
       const overlayId = this.getOverlayId();
 
       return lanceResults.map((result) => {
-        const alignmentKey = `alignment_${overlayId}` as 'alignment_O1' | 'alignment_O2' | 'alignment_O3' | 'alignment_O4' | 'alignment_O5' | 'alignment_O6' | 'alignment_O7';
+        const alignmentKey = `alignment_${overlayId}` as
+          | 'alignment_O1'
+          | 'alignment_O2'
+          | 'alignment_O3'
+          | 'alignment_O4'
+          | 'alignment_O5'
+          | 'alignment_O6'
+          | 'alignment_O7';
         const alignmentScore = result.metadata[alignmentKey] || 0;
 
         return {
