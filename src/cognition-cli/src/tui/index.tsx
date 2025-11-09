@@ -14,6 +14,7 @@ import { StatusBar } from './components/StatusBar.js';
 import { SigmaInfoPanel } from './components/SigmaInfoPanel.js';
 import { useClaudeAgent } from './hooks/useClaudeAgent.js';
 import { useOverlays } from './hooks/useOverlays.js';
+import { isAuthenticationError } from './hooks/sdk/index.js';
 import type { ClaudeMessage } from './hooks/useClaudeAgent.js';
 
 // Custom theme with vivid AIEcho cyan spinner
@@ -133,6 +134,52 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     window.addEventListener('error', errorHandler);
     return () => window.removeEventListener('error', errorHandler);
   }, []);
+
+  // Graceful exit on OAuth token expiration
+  useEffect(() => {
+    if (error && isAuthenticationError([error])) {
+      const sessionStateFile = sessionId
+        ? path.join(projectRoot, '.sigma', `${sessionId}.state.json`)
+        : 'session state file';
+
+      // Display error message
+      console.error('\n\n╔════════════════════════════════════════════════════════════════════════════╗');
+      console.error('║                     OAuth Token Expired                                    ║');
+      console.error('╚════════════════════════════════════════════════════════════════════════════╝\n');
+      console.error('  Your OAuth token has expired and the TUI must exit.\n');
+      console.error('  📝 Your session has been saved automatically.\n');
+      console.error('  To continue:\n');
+      console.error('  1. Run: claude /login');
+      console.error('  2. Restart with: cognition tui --file ' + sessionStateFile + '\n');
+      console.error('  Press any key to exit...\n');
+
+      // Clean up and exit after user presses a key or 5 seconds
+      let exited = false;
+      const cleanup = () => {
+        if (exited) return;
+        exited = true;
+        try {
+          process.stdout.write('\x1b[0m'); // Reset colors
+          process.stdout.write('\x1b[?1000l\x1b[?1002l\x1b[?1015l\x1b[?1006l'); // Disable mouse
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+        process.exit(1);
+      };
+
+      // Exit on any key press
+      const keyHandler = () => cleanup();
+      process.stdin.once('data', keyHandler);
+
+      // Auto-exit after 5 seconds
+      const timeout = setTimeout(cleanup, 5000);
+
+      return () => {
+        clearTimeout(timeout);
+        process.stdin.removeListener('data', keyHandler);
+      };
+    }
+  }, [error, sessionId, projectRoot]);
 
   // Save conversation log to file
   const saveConversationLog = () => {
