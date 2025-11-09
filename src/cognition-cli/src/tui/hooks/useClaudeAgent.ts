@@ -86,6 +86,15 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
   // Sigma state: conversation lattice and analysis
   const [conversationLattice] = useState<ConversationLattice | null>(null);
+  const [overlayScores, setOverlayScores] = useState({
+    O1_structural: 0,
+    O2_security: 0,
+    O3_lineage: 0,
+    O4_mission: 0,
+    O5_operational: 0,
+    O6_mathematical: 0,
+    O7_strategic: 0,
+  });
   const embedderRef = useRef<EmbeddingService | null>(null);
   const projectRegistryRef = useRef<OverlayRegistry | null>(null);
   const conversationRegistryRef = useRef<ConversationOverlayRegistry | null>(
@@ -404,6 +413,64 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       conversationRegistryRef.current?.flushAll(currentSessionId);
     };
   }, [currentSessionId]);
+
+  // Compute overlay scores from conversation registry
+  useEffect(() => {
+    async function computeOverlayScores() {
+      if (!conversationRegistryRef.current || !currentSessionId) return;
+
+      try {
+        const registry = conversationRegistryRef.current;
+        const scores = {
+          O1_structural: 0,
+          O2_security: 0,
+          O3_lineage: 0,
+          O4_mission: 0,
+          O5_operational: 0,
+          O6_mathematical: 0,
+          O7_strategic: 0,
+        };
+
+        // Compute average alignment score for each overlay
+        const overlayIds: Array<
+          'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'
+        > = ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'];
+
+        for (const overlayId of overlayIds) {
+          try {
+            const manager = await registry.get(overlayId);
+            const items = await manager.getAllItems();
+
+            if (items.length > 0) {
+              // Calculate average project_alignment_score
+              const total = items.reduce((sum, item) => {
+                // @ts-expect-error - metadata might have project_alignment_score
+                return sum + (item.metadata?.project_alignment_score || 0);
+              }, 0);
+              const avg = total / items.length;
+
+              // Map to overlay name format
+              const key =
+                `${overlayId}_${overlayId === 'O1' ? 'structural' : overlayId === 'O2' ? 'security' : overlayId === 'O3' ? 'lineage' : overlayId === 'O4' ? 'mission' : overlayId === 'O5' ? 'operational' : overlayId === 'O6' ? 'mathematical' : 'strategic'}` as keyof typeof scores;
+              scores[key] = avg;
+            }
+          } catch (err) {
+            // Skip if overlay not available
+            debug(`Failed to compute ${overlayId} scores: ${err}`);
+          }
+        }
+
+        setOverlayScores(scores);
+      } catch (err) {
+        debug('Failed to compute overlay scores:', err);
+      }
+    }
+
+    // Recompute when analyses change
+    if (turnAnalysis.stats.totalAnalyzed > 0) {
+      computeOverlayScores();
+    }
+  }, [turnAnalysis.stats.totalAnalyzed, currentSessionId, debug]);
 
   const sendMessage = useCallback(
     async (prompt: string) => {
@@ -810,14 +877,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       avgNovelty: turnAnalysis.stats.avgNovelty,
       avgImportance: turnAnalysis.stats.avgImportance,
     },
-    avgOverlays: {
-      O1_structural: 0,
-      O2_security: 0,
-      O3_lineage: 0,
-      O4_mission: 0,
-      O5_operational: 0,
-      O6_mathematical: 0,
-      O7_strategic: 0,
-    },
+    avgOverlays: overlayScores,
   };
 }
