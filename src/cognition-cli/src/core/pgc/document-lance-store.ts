@@ -229,7 +229,7 @@ export class DocumentLanceStore {
 
   /**
    * Store a document concept with full metadata.
-   * Replaces existing concept with same ID.
+   * Uses LanceDB's mergeInsert for efficient upsert without version bloat.
    */
   async storeConcept(
     overlayType: string,
@@ -260,12 +260,6 @@ export class DocumentLanceStore {
     const embeddingHash = computeEmbeddingHash(concept.embedding);
     const id = `${overlayType}:${documentHash}:${embeddingHash}`;
 
-    // Check for existing concept and replace if found
-    const existingConcept = await this.getConcept(id);
-    if (existingConcept) {
-      await this.deleteConcept(id);
-    }
-
     const record: DocumentConceptRecord = {
       id,
       overlay_type: overlayType,
@@ -283,12 +277,21 @@ export class DocumentLanceStore {
       generated_at: Date.now(),
     };
 
-    await this.table!.add([record]);
+    // Use mergeInsert for efficient upsert (no version bloat)
+    // - If concept exists (matched by id): updates in-place
+    // - If concept doesn't exist: inserts new record
+    // - No delete operation = no extra versions
+    await this.table!.mergeInsert('id')
+      .whenMatchedUpdateAll()
+      .whenNotMatchedInsertAll()
+      .execute([record]);
+
     return id;
   }
 
   /**
    * Store multiple concepts in batch (more efficient).
+   * Uses LanceDB's mergeInsert for efficient batch upsert without version bloat.
    */
   async storeConceptsBatch(
     overlayType: string,
@@ -306,9 +309,6 @@ export class DocumentLanceStore {
     }>
   ): Promise<string[]> {
     if (!this.isInitialized) await this.initialize();
-
-    // Delete existing concepts for this document
-    await this.deleteDocumentConcepts(overlayType, documentHash);
 
     const records: DocumentConceptRecord[] = concepts.map((concept, index) => {
       if (concept.embedding.length !== DEFAULT_EMBEDDING_DIMENSIONS) {
@@ -340,7 +340,14 @@ export class DocumentLanceStore {
     });
 
     if (records.length > 0) {
-      await this.table!.add(records);
+      // Use mergeInsert for batch upsert (no version bloat)
+      // - Updates existing records in-place
+      // - Inserts new records
+      // - No delete operation = no extra versions
+      await this.table!.mergeInsert('id')
+        .whenMatchedUpdateAll()
+        .whenNotMatchedInsertAll()
+        .execute(records);
     }
 
     return records.map((r) => r.id);

@@ -172,6 +172,10 @@ export class LanceVectorStore {
     }
   }
 
+  /**
+   * Store a vector with metadata.
+   * Uses LanceDB's mergeInsert for efficient upsert without version bloat.
+   */
   async storeVector(
     id: string,
     embedding: number[],
@@ -196,12 +200,6 @@ export class LanceVectorStore {
       );
     }
 
-    // ✅ CHECK FOR EXISTING VECTOR WITH SAME ID
-    const existingVector = await this.getVector(id);
-    if (existingVector) {
-      await this.deleteVector(id); // Remove the old one first
-    }
-
     const record: VectorRecord = {
       id: id,
       embedding: embedding,
@@ -216,8 +214,14 @@ export class LanceVectorStore {
       structuralHash: (metadata.structuralHash as string) || 'unknown',
     };
 
-    // After deleting the old one, we can simply add the new record.
-    await this.table!.add([record]);
+    // Use mergeInsert for efficient upsert (no version bloat)
+    // - If vector exists (matched by id): updates in-place
+    // - If vector doesn't exist: inserts new record
+    // - No delete operation = no extra versions
+    await this.table!.mergeInsert('id')
+      .whenMatchedUpdateAll()
+      .whenNotMatchedInsertAll()
+      .execute([record]);
 
     return id;
   }
