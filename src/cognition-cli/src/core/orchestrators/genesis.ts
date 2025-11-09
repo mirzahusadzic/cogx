@@ -552,31 +552,138 @@ export class GenesisOrchestrator {
    */
   private async getOverlayReferencedHashes(): Promise<Set<string>> {
     const referencedHashes = new Set<string>();
-    const allOverlays = [
-      'structural_patterns',
+
+    // Overlays that store document-based data without manifests
+    // These are scanned directly for YAML files
+    const directScanOverlays = [
       'security_guidelines',
-      'lineage_patterns',
-      'mission_concepts',
       'operational_patterns',
       'mathematical_proofs',
+    ];
+
+    // Overlays that have manifests (symbol-based + some document-based)
+    const manifestOverlays = [
+      'structural_patterns',
+      'lineage_patterns',
+      'mission_concepts',
       'strategic_coherence',
     ];
 
-    for (const overlayType of allOverlays) {
+    // First, scan overlays that don't have manifests
+    for (const overlayType of directScanOverlays) {
+      try {
+        const overlayDir = path.join(this.pgc.pgcRoot, 'overlays', overlayType);
+
+        if (await fs.pathExists(overlayDir)) {
+          // Read all YAML files in the directory
+          const files = await fs.readdir(overlayDir);
+
+          for (const file of files) {
+            if (!file.endsWith('.yaml')) continue;
+
+            try {
+              const overlayPath = path.join(overlayDir, file);
+              const content = await fs.readFile(overlayPath, 'utf-8');
+              const overlayData = YAML.parse(content);
+
+              // Extract document_hash from the overlay
+              const docHash =
+                overlayData.document_hash || overlayData.documentHash;
+              if (docHash) {
+                referencedHashes.add(docHash);
+              }
+            } catch (error) {
+              // If we can't read/parse an overlay, log but continue
+              if (process.env.DEBUG) {
+                console.warn(
+                  `[GC] Could not read overlay ${overlayType}/${file}:`,
+                  error
+                );
+              }
+            }
+          }
+        }
+      } catch (error) {
+        // If overlay type doesn't exist, that's fine - just skip it
+      }
+    }
+
+    // Then scan manifest-based overlays
+    for (const overlayType of manifestOverlays) {
       try {
         const manifest = await this.pgc.overlays.getManifest(overlayType);
-        for (const [symbolName, overlayFilePath] of Object.entries(manifest)) {
-          const overlayKey = `${overlayFilePath}#${symbolName}`;
 
-          // Try to get overlay data - it might have different schemas for different overlay types
-          // We use a permissive approach to extract hashes
+        for (const [key, value] of Object.entries(manifest)) {
           try {
-            const overlayPath = this.pgc.overlays.getOverlayPath(
-              overlayType,
-              overlayKey
-            );
+            let overlayPath: string;
+
+            // Determine overlay path based on type
+            if (overlayType === 'mission_concepts') {
+              // Mission concepts uses document hashes in manifest
+              const manifestEntry = value as {
+                document_hash?: string;
+                documentHash?: string;
+              };
+              const docHash =
+                manifestEntry.document_hash || manifestEntry.documentHash;
+              if (!docHash) continue;
+
+              overlayPath = path.join(
+                this.pgc.pgcRoot,
+                'overlays',
+                overlayType,
+                `${docHash}.yaml`
+              );
+
+              // Also add the hash from manifest directly
+              referencedHashes.add(docHash);
+            } else if (overlayType === 'strategic_coherence') {
+              // Strategic coherence also uses document hashes
+              const manifestEntry = value as {
+                document_hash?: string;
+                documentHash?: string;
+              };
+              const docHash =
+                manifestEntry.document_hash || manifestEntry.documentHash;
+              if (!docHash) continue;
+
+              overlayPath = path.join(
+                this.pgc.pgcRoot,
+                'overlays',
+                overlayType,
+                `${docHash}.yaml`
+              );
+
+              referencedHashes.add(docHash);
+            } else {
+              // Symbol-based overlays (structural_patterns, lineage_patterns)
+              const overlayKey = `${value}#${key}`;
+              overlayPath = this.pgc.overlays.getOverlayPath(
+                overlayType,
+                overlayKey
+              );
+            }
+
             if (await fs.pathExists(overlayPath)) {
-              const overlayData = await fs.readJSON(overlayPath);
+              // Read overlay data (handle both JSON and YAML files)
+              let overlayData: {
+                symbolStructuralDataHash?: string;
+                embeddingHash?: string;
+                lineageHash?: string;
+                validation?: { sourceHash?: string };
+                document_hash?: string;
+                documentHash?: string;
+                mission_document_hash?: string;
+                missionDocumentHash?: string;
+              };
+              if (overlayPath.endsWith('.json')) {
+                overlayData = await fs.readJSON(overlayPath);
+              } else if (overlayPath.endsWith('.yaml')) {
+                const content = await fs.readFile(overlayPath, 'utf-8');
+                overlayData = YAML.parse(content);
+              } else {
+                continue; // Skip unknown file types
+              }
 
               // Collect all hash fields that might exist
               if (overlayData.symbolStructuralDataHash) {
@@ -591,18 +698,25 @@ export class GenesisOrchestrator {
               if (overlayData.validation?.sourceHash) {
                 referencedHashes.add(overlayData.validation.sourceHash);
               }
-              // Document hashes from mission_concepts and strategic_coherence
-              if (overlayData.document_hash) {
-                referencedHashes.add(overlayData.document_hash);
+              // Document hashes from overlays
+              const docHash =
+                overlayData.document_hash || overlayData.documentHash;
+              if (docHash) {
+                referencedHashes.add(docHash);
               }
-              if (overlayData.mission_document_hash) {
-                referencedHashes.add(overlayData.mission_document_hash);
+              const missionDocHash =
+                overlayData.mission_document_hash ||
+                overlayData.missionDocumentHash;
+              if (missionDocHash) {
+                referencedHashes.add(missionDocHash);
               }
             }
           } catch (error) {
             // If we can't read/parse an overlay, log but continue
             // We don't want to fail GC just because one overlay is malformed
-            console.warn(`[GC] Could not read overlay ${overlayKey}:`, error);
+            if (process.env.DEBUG) {
+              console.warn(`[GC] Could not read overlay ${key}:`, error);
+            }
           }
         }
       } catch (error) {
@@ -841,10 +955,16 @@ export class GenesisOrchestrator {
     for (const doc of docs) {
       const objectExists = await this.pgc.objectStore.exists(doc.objectHash);
 
+      // Check if either contentHash or objectHash is referenced by overlays
+      // Overlays may store document_hash (contentHash) OR reference the objectHash
+      const isReferenced =
+        overlayReferencedHashes.has(doc.objectHash) ||
+        overlayReferencedHashes.has(doc.contentHash);
+
       // Mark as stale if:
       // 1. Object doesn't exist in object store, OR
-      // 2. Object exists but is not referenced by any overlay
-      if (!objectExists || !overlayReferencedHashes.has(doc.objectHash)) {
+      // 2. Object exists but is not referenced by any overlay (neither hash)
+      if (!objectExists || !isReferenced) {
         staleHashes.add(doc.objectHash);
       }
     }
