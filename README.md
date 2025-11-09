@@ -540,11 +540,19 @@ Because knowledge is a lattice, we can:
 
 This vision is realized through working implementations that demonstrate the architectural principles:
 
-## Cognition CLI - [The Structural Engine](src/cognition-cli/README.md) ⭐ **VALIDATED**
+## COGNITION Σ CLI - [The Dual-Lattice Engine](src/cognition-cli/README.md) ⭐ **PRODUCTION READY**
 
-The command-line interface that builds verifiable, content-addressable knowledge graphs from codebases. It performs structural mining to create the "skeleton" of project understanding—the immutable bedrock for all AI reasoning.
+The production-ready implementation of verifiable AI-human symbiosis. Combines the Grounded Context Pool (PGC) with Σ (Sigma) dual-lattice architecture to enable stateful AI with infinite context.
 
-**First Achievement (Oct 24, 2025):** cognition-cli performed the first grounded architecture analysis **on itself**, proving that structured PGC metadata is sufficient for deep architectural understanding without reading source code. This meta-cognitive breakthrough demonstrates the viability of verifiable AI cognition in production. [See the analysis](src/cognition-cli/docs/07_AI_Grounded_Architecture_Analysis.md)
+**Core Capabilities:**
+- **Project Lattice (PGC):** Content-addressable knowledge graph with 7-dimensional overlays (O₁-O₇) analyzing structure, security, lineage, mission, operations, proofs, and coherence
+- **Conversation Lattice (Σ):** Real-time conversation indexing with intelligent compression, preserving high-value insights across unlimited sessions
+- **Interactive TUI:** Production-ready terminal interface with live lattice visualization, token tracking, and extended thinking mode (up to 10K tokens)
+- **Production Scale:** Successfully analyzed 55K+ line codebases with zero hallucinations and sub-second semantic queries
+
+**Breakthrough Achievement (Oct 24, 2025):** First grounded architecture analysis performed **on itself**, proving structured PGC metadata is sufficient for deep architectural understanding without reading source code. [See the analysis](src/cognition-cli/docs/07_AI_Grounded_Architecture_Analysis.md)
+
+**Latest Release:** [v2.2.0 - Stability & Performance](https://github.com/mirzahusadzic/cogx/releases/tag/v2.2.0) — 105 commits of critical bug fixes, garbage collection improvements, and LanceDB optimizations (.sigma: 550 MB → ~5 MB)
 
 ## eGemma – [The Deterministic Workbench](https://github.com/mirzahusadzic/egemma)
 
