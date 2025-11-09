@@ -44,6 +44,14 @@ import {
   MeetResult,
 } from '../core/algebra/overlay-algebra.js';
 import { WorkspaceManager } from '../core/workspace-manager.js';
+import {
+  formatId,
+  cleanText,
+  colorSimilarity,
+  colorSeverity,
+  createBox,
+  formatKeyValue,
+} from '../utils/formatter.js';
 
 interface LatticeOptions {
   projectRoot: string;
@@ -194,19 +202,32 @@ function displayItemList(
   );
 
   for (const item of items.slice(0, limit)) {
-    console.log(`${item.id}`);
-    console.log(`  Type: ${item.metadata.type || 'unknown'}`);
-    console.log(`  Text: ${truncate(item.metadata.text, 100)}`);
+    const content = [formatId(item.id)];
 
-    // Show additional metadata
+    // Type
+    if (item.metadata.type) {
+      content.push(formatKeyValue('Type', item.metadata.type));
+    }
+
+    // Text (clean up, box will wrap)
+    content.push(formatKeyValue('Text', cleanText(item.metadata.text)));
+
+    // Additional metadata (severity, section, etc.)
     const otherKeys = Object.keys(item.metadata).filter(
       (k) => !['text', 'type', 'weight'].includes(k)
     );
     if (otherKeys.length > 0) {
       for (const key of otherKeys.slice(0, 3)) {
-        console.log(`  ${key}: ${item.metadata[key]}`);
+        const rawValue = item.metadata[key];
+        const value =
+          key === 'severity'
+            ? colorSeverity(String(rawValue))
+            : String(rawValue);
+        content.push(formatKeyValue(key, value));
       }
     }
+
+    console.log(createBox(content));
     console.log('');
   }
 
@@ -260,11 +281,22 @@ function displayMeetResults(
   );
 
   for (const { itemA, itemB, similarity } of results.slice(0, limit)) {
-    console.log(`Similarity: ${(similarity * 100).toFixed(1)}%`);
-    console.log(`  A: ${itemA.id}`);
-    console.log(`     ${truncate(itemA.metadata.text, 80)}`);
-    console.log(`  B: ${itemB.id}`);
-    console.log(`     ${truncate(itemB.metadata.text, 80)}`);
+    const content = [
+      formatKeyValue('Match', colorSimilarity(similarity)),
+      '',
+      formatKeyValue('Item A', formatId(itemA.id)),
+      `  ${cleanText(itemA.metadata.text)}`,
+      '',
+      formatKeyValue('Item B', formatId(itemB.id)),
+      `  ${cleanText(itemB.metadata.text)}`,
+    ];
+
+    console.log(
+      createBox(
+        content,
+        `Alignment ${results.indexOf({ itemA, itemB, similarity }) + 1}`
+      )
+    );
     console.log('');
   }
 
