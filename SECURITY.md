@@ -6,9 +6,8 @@ We release patches for security vulnerabilities for the following versions:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.8.x   | :white_check_mark: |
-| 1.7.x   | :white_check_mark: |
-| < 1.7   | :x:                |
+| 2.2.x   | :white_check_mark: |
+| < 2.2   | :x:                |
 
 ## Reporting a Vulnerability
 
@@ -222,4 +221,4 @@ This security policy is inspired by best practices from:
 
 ---
 
-**Last updated**: November 1, 2025
+**Last updated**: November 9, 2025
