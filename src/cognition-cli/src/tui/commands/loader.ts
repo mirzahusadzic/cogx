@@ -2,12 +2,12 @@ import fs from 'fs';
 import path from 'path';
 
 export interface Command {
-  name: string;           // "quest-start"
-  content: string;        // Full markdown content
-  description?: string;   // Extracted from frontmatter or first # heading
-  filePath: string;       // Absolute path to .md file
-  aliases?: string[];     // ["qs"] for /qs shortcut (future)
-  category?: string;      // "quest", "analyze", "security" (extracted from prefix)
+  name: string; // "quest-start"
+  content: string; // Full markdown content
+  description?: string; // Extracted from frontmatter or first # heading
+  filePath: string; // Absolute path to .md file
+  aliases?: string[]; // ["qs"] for /qs shortcut (future)
+  category?: string; // "quest", "analyze", "security" (extracted from prefix)
 }
 
 export interface LoadCommandsResult {
@@ -20,7 +20,9 @@ export interface LoadCommandsResult {
  * Load all commands from .claude/commands/ directory
  * with comprehensive validation and error reporting
  */
-export async function loadCommands(projectRoot: string): Promise<LoadCommandsResult> {
+export async function loadCommands(
+  projectRoot: string
+): Promise<LoadCommandsResult> {
   const commands = new Map<string, Command>();
   const errors: Array<{ file: string; error: string }> = [];
   const warnings: Array<{ file: string; warning: string }> = [];
@@ -35,11 +37,13 @@ export async function loadCommands(projectRoot: string): Promise<LoadCommandsRes
   // 2. Read all .md files (exclude README.md)
   let files: string[];
   try {
-    files = fs.readdirSync(commandsDir).filter(f => f.endsWith('.md') && f !== 'README.md');
+    files = fs
+      .readdirSync(commandsDir)
+      .filter((f) => f.endsWith('.md') && f !== 'README.md');
   } catch (error) {
     errors.push({
       file: commandsDir,
-      error: `Failed to read directory: ${error instanceof Error ? error.message : 'Unknown error'}`
+      error: `Failed to read directory: ${error instanceof Error ? error.message : 'Unknown error'}`,
     });
     return { commands, errors, warnings };
   }
@@ -51,7 +55,10 @@ export async function loadCommands(projectRoot: string): Promise<LoadCommandsRes
       // 3. Security: Prevent directory traversal
       const normalizedPath = path.normalize(filePath);
       if (!normalizedPath.startsWith(commandsDir)) {
-        errors.push({ file, error: 'Invalid path (directory traversal attempt)' });
+        errors.push({
+          file,
+          error: 'Invalid path (directory traversal attempt)',
+        });
         continue;
       }
 
@@ -78,7 +85,7 @@ export async function loadCommands(projectRoot: string): Promise<LoadCommandsRes
       if (commands.has(commandName)) {
         warnings.push({
           file,
-          warning: `Duplicate command '${commandName}', overwriting`
+          warning: `Duplicate command '${commandName}', overwriting`,
         });
       }
 
@@ -88,13 +95,12 @@ export async function loadCommands(projectRoot: string): Promise<LoadCommandsRes
         content,
         description,
         filePath,
-        category
+        category,
       });
-
     } catch (error) {
       errors.push({
         file,
-        error: `Failed to load: ${error instanceof Error ? error.message : 'Unknown error'}`
+        error: `Failed to load: ${error instanceof Error ? error.message : 'Unknown error'}`,
       });
     }
   }
@@ -105,7 +111,10 @@ export async function loadCommands(projectRoot: string): Promise<LoadCommandsRes
 /**
  * Validate command file for basic correctness
  */
-function validateCommandFile(filePath: string, content: string): { valid: boolean; error?: string } {
+function validateCommandFile(
+  filePath: string,
+  content: string
+): { valid: boolean; error?: string } {
   // 1. Empty file
   if (content.trim().length === 0) {
     return { valid: false, error: 'Empty file' };
@@ -131,7 +140,7 @@ function extractDescription(content: string): string | undefined {
   }
 
   // Fallback: use first non-empty line
-  const firstLine = content.split('\n').find(line => line.trim().length > 0);
+  const firstLine = content.split('\n').find((line) => line.trim().length > 0);
   if (firstLine) {
     return firstLine.trim().slice(0, 80); // Max 80 chars
   }
@@ -143,25 +152,32 @@ function extractDescription(content: string): string | undefined {
  * Filter commands by prefix (case-insensitive)
  * Returns all commands if prefix is empty
  */
-export function filterCommands(prefix: string, commands: Map<string, Command>): Command[] {
+export function filterCommands(
+  prefix: string,
+  commands: Map<string, Command>
+): Command[] {
   if (prefix.trim() === '') {
     return Array.from(commands.values());
   }
 
   const lowerPrefix = prefix.toLowerCase();
-  return Array.from(commands.values())
-    .filter(cmd => cmd.name.toLowerCase().startsWith(lowerPrefix));
+  return Array.from(commands.values()).filter((cmd) =>
+    cmd.name.toLowerCase().startsWith(lowerPrefix)
+  );
 }
 
 /**
  * Expand command with argument substitution
  * Supports: {{FILE_PATH}}, {{SYMBOL_NAME}}, {{ALL_ARGS}}
  */
-export function expandCommand(input: string, commands: Map<string, Command>): string | null {
+export function expandCommand(
+  input: string,
+  commands: Map<string, Command>
+): string | null {
   // Parse: /command-name arg1 arg2 arg3
   const parts = input.slice(1).split(' ');
   const commandName = parts[0];
-  const args = parts.slice(1).filter(arg => arg.trim().length > 0); // Filter empty args
+  const args = parts.slice(1).filter((arg) => arg.trim().length > 0); // Filter empty args
 
   const command = commands.get(commandName);
   if (!command) {
@@ -175,7 +191,7 @@ export function expandCommand(input: string, commands: Map<string, Command>): st
     const placeholders: Record<string, string> = {
       FILE_PATH: args[0] || '',
       SYMBOL_NAME: args[1] || args[0] || '',
-      ALL_ARGS: args.join(' ')
+      ALL_ARGS: args.join(' '),
     };
 
     expanded = expanded.replace(/\{\{(\w+)\}\}/g, (match, key) => {

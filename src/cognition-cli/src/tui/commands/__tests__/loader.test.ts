@@ -1,5 +1,10 @@
 import { describe, test, expect } from 'vitest';
-import { loadCommands, filterCommands, expandCommand, Command } from '../loader.js';
+import {
+  loadCommands,
+  filterCommands,
+  expandCommand,
+  Command,
+} from '../loader.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -73,7 +78,8 @@ describe('loadCommands', () => {
     fs.mkdirSync(commandsDir, { recursive: true });
 
     // Create valid command file
-    const commandContent = '# Test Command\n\nThis is a test command for validation.';
+    const commandContent =
+      '# Test Command\n\nThis is a test command for validation.';
     fs.writeFileSync(path.join(commandsDir, 'test-cmd.md'), commandContent);
 
     const result = await loadCommands(tempDir);
@@ -120,8 +126,14 @@ describe('loadCommands', () => {
     fs.mkdirSync(commandsDir, { recursive: true });
 
     // Create README.md and a regular command
-    fs.writeFileSync(path.join(commandsDir, 'README.md'), '# README\n\nThis should be ignored.');
-    fs.writeFileSync(path.join(commandsDir, 'real-cmd.md'), '# Real Command\n\nThis should be loaded.');
+    fs.writeFileSync(
+      path.join(commandsDir, 'README.md'),
+      '# README\n\nThis should be ignored.'
+    );
+    fs.writeFileSync(
+      path.join(commandsDir, 'real-cmd.md'),
+      '# Real Command\n\nThis should be loaded.'
+    );
 
     const result = await loadCommands(tempDir);
 
@@ -140,10 +152,12 @@ describe('loadCommands', () => {
     const result = await loadCommands(process.cwd());
 
     // All loaded commands should have safe paths
-    const allCommandsHaveSafePaths = Array.from(result.commands.values()).every(cmd => {
-      const commandsDir = path.join(process.cwd(), '.claude', 'commands');
-      return cmd.filePath.startsWith(commandsDir);
-    });
+    const allCommandsHaveSafePaths = Array.from(result.commands.values()).every(
+      (cmd) => {
+        const commandsDir = path.join(process.cwd(), '.claude', 'commands');
+        return cmd.filePath.startsWith(commandsDir);
+      }
+    );
 
     expect(allCommandsHaveSafePaths).toBe(true);
   });
@@ -151,19 +165,52 @@ describe('loadCommands', () => {
 
 describe('filterCommands', () => {
   const mockCommands = new Map<string, Command>([
-    ['quest-start', { name: 'quest-start', content: '', filePath: '', category: 'quest' }],
-    ['quest-milestone', { name: 'quest-milestone', content: '', filePath: '', category: 'quest' }],
-    ['quest-reflect', { name: 'quest-reflect', content: '', filePath: '', category: 'quest' }],
-    ['analyze-impact', { name: 'analyze-impact', content: '', filePath: '', category: 'analyze' }],
-    ['analyze-coherence', { name: 'analyze-coherence', content: '', filePath: '', category: 'analyze' }],
-    ['security-check', { name: 'security-check', content: '', filePath: '', category: 'security' }],
+    [
+      'quest-start',
+      { name: 'quest-start', content: '', filePath: '', category: 'quest' },
+    ],
+    [
+      'quest-milestone',
+      { name: 'quest-milestone', content: '', filePath: '', category: 'quest' },
+    ],
+    [
+      'quest-reflect',
+      { name: 'quest-reflect', content: '', filePath: '', category: 'quest' },
+    ],
+    [
+      'analyze-impact',
+      {
+        name: 'analyze-impact',
+        content: '',
+        filePath: '',
+        category: 'analyze',
+      },
+    ],
+    [
+      'analyze-coherence',
+      {
+        name: 'analyze-coherence',
+        content: '',
+        filePath: '',
+        category: 'analyze',
+      },
+    ],
+    [
+      'security-check',
+      {
+        name: 'security-check',
+        content: '',
+        filePath: '',
+        category: 'security',
+      },
+    ],
   ]);
 
   test('filters commands by prefix (case-insensitive)', () => {
     const filtered = filterCommands('quest', mockCommands);
 
     expect(filtered.length).toBe(3);
-    expect(filtered.every(c => c.name.startsWith('quest'))).toBe(true);
+    expect(filtered.every((c) => c.name.startsWith('quest'))).toBe(true);
   });
 
   test('filters with uppercase prefix', () => {
@@ -194,40 +241,55 @@ describe('filterCommands', () => {
   test('filters by partial prefix', () => {
     const filtered = filterCommands('ana', mockCommands);
     expect(filtered.length).toBe(2);
-    expect(filtered.every(c => c.name.startsWith('analyze'))).toBe(true);
+    expect(filtered.every((c) => c.name.startsWith('analyze'))).toBe(true);
   });
 });
 
 describe('expandCommand', () => {
   const mockCommands = new Map<string, Command>([
-    ['test-command', {
-      name: 'test-command',
-      content: 'Analyze {{FILE_PATH}} and check {{SYMBOL_NAME}}',
-      filePath: '',
-      category: 'test'
-    }],
-    ['simple-command', {
-      name: 'simple-command',
-      content: 'This is a simple command without placeholders',
-      filePath: '',
-      category: 'simple'
-    }],
-    ['all-args-command', {
-      name: 'all-args-command',
-      content: 'Process {{ALL_ARGS}}',
-      filePath: '',
-      category: 'all'
-    }],
-    ['unknown-placeholder', {
-      name: 'unknown-placeholder',
-      content: 'Test {{UNKNOWN_PLACEHOLDER}} here',
-      filePath: '',
-      category: 'test'
-    }],
+    [
+      'test-command',
+      {
+        name: 'test-command',
+        content: 'Analyze {{FILE_PATH}} and check {{SYMBOL_NAME}}',
+        filePath: '',
+        category: 'test',
+      },
+    ],
+    [
+      'simple-command',
+      {
+        name: 'simple-command',
+        content: 'This is a simple command without placeholders',
+        filePath: '',
+        category: 'simple',
+      },
+    ],
+    [
+      'all-args-command',
+      {
+        name: 'all-args-command',
+        content: 'Process {{ALL_ARGS}}',
+        filePath: '',
+        category: 'all',
+      },
+    ],
+    [
+      'unknown-placeholder',
+      {
+        name: 'unknown-placeholder',
+        content: 'Test {{UNKNOWN_PLACEHOLDER}} here',
+        filePath: '',
+        category: 'test',
+      },
+    ],
   ]);
 
   test('expands command with placeholders', () => {
-    const expanded = expandCommand('/test-command src/cli.ts main', mockCommands);
+    const expanded = expandCommand(
+      '/test-command src/cli.ts main',
+      mockCommands
+    );
 
     expect(expanded).not.toBeNull();
     expect(expanded).toContain('src/cli.ts');
@@ -242,13 +304,19 @@ describe('expandCommand', () => {
   });
 
   test('expands SYMBOL_NAME placeholder', () => {
-    const expanded = expandCommand('/test-command src/cli.ts main', mockCommands);
+    const expanded = expandCommand(
+      '/test-command src/cli.ts main',
+      mockCommands
+    );
 
     expect(expanded).toContain('check main');
   });
 
   test('expands ALL_ARGS placeholder', () => {
-    const expanded = expandCommand('/all-args-command arg1 arg2 arg3', mockCommands);
+    const expanded = expandCommand(
+      '/all-args-command arg1 arg2 arg3',
+      mockCommands
+    );
 
     expect(expanded).toContain('Process arg1 arg2 arg3');
   });
@@ -291,10 +359,15 @@ describe('expandCommand', () => {
   });
 
   test('handles multiple arguments', () => {
-    const expanded = expandCommand('/test-command src/core/index.ts MyClass some extra context', mockCommands);
+    const expanded = expandCommand(
+      '/test-command src/core/index.ts MyClass some extra context',
+      mockCommands
+    );
 
     expect(expanded).toContain('src/core/index.ts');
     expect(expanded).toContain('MyClass');
-    expect(expanded).toContain('User provided context: src/core/index.ts MyClass some extra context');
+    expect(expanded).toContain(
+      'User provided context: src/core/index.ts MyClass some extra context'
+    );
   });
 });

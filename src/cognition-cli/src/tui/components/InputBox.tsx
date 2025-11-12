@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
+import { CommandDropdown } from './CommandDropdown.js';
+import { loadCommands, filterCommands, Command } from '../commands/loader.js';
 
 interface InputBoxProps {
   onSubmit: (value: string) => void;
@@ -21,6 +23,26 @@ export const InputBox: React.FC<InputBoxProps> = ({
   const [value, setValue] = useState('');
   const lastEscapeTime = useRef<number>(0);
 
+  // Command dropdown state
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [allCommands, setAllCommands] = useState<Map<string, Command>>(new Map());
+  const [filteredCommands, setFilteredCommands] = useState<Command[]>([]);
+  const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
+
+  // Load commands on mount
+  useEffect(() => {
+    loadCommands(process.cwd()).then((result) => {
+      setAllCommands(result.commands);
+      // Log any errors/warnings
+      if (result.errors.length > 0) {
+        console.error('Command loading errors:', result.errors);
+      }
+      if (result.warnings.length > 0) {
+        console.warn('Command loading warnings:', result.warnings);
+      }
+    });
+  }, []);
+
   const handleChange = (newValue: string) => {
     // Only update if the value actually changed (prevent re-render loops)
     if (newValue === value) return;
@@ -35,6 +57,18 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
     if (filtered !== value) {
       setValue(filtered);
+
+      // Detect slash command and show dropdown
+      if (filtered.startsWith('/') && allCommands.size > 0) {
+        const prefix = filtered.slice(1).split(' ')[0]; // Get command part only
+        const filtered2 = filterCommands(prefix, allCommands);
+
+        setFilteredCommands(filtered2);
+        setShowDropdown(filtered2.length > 0);
+        setSelectedCommandIndex(0); // Reset selection
+      } else {
+        setShowDropdown(false);
+      }
     }
   };
 
@@ -83,26 +117,35 @@ export const InputBox: React.FC<InputBoxProps> = ({
   }
 
   return (
-    <Box borderTop borderBottom borderColor="#56d364" paddingX={1} width="100%">
-      <Text color="#56d364">{'> '}</Text>
-      <Text color="#56d364">
-        <TextInput
-          value={value}
-          onChange={handleChange}
-          onSubmit={handleSubmit}
-          placeholder={
-            disabled
-              ? 'Claude is thinking... (ESC to interrupt)'
-              : 'Type a message... (ESC ESC to clear)'
-          }
-          showCursor={!disabled}
-          // Disable any autocorrect/autocomplete features
-          // @ts-ignore - these props might not be in type definitions but work
-          autoComplete="off"
-          autoCorrect="off"
-          spellCheck={false}
-        />
-      </Text>
+    <Box flexDirection="column" width="100%">
+      <Box borderTop borderBottom borderColor="#56d364" paddingX={1} width="100%">
+        <Text color="#56d364">{'> '}</Text>
+        <Text color="#56d364">
+          <TextInput
+            value={value}
+            onChange={handleChange}
+            onSubmit={handleSubmit}
+            placeholder={
+              disabled
+                ? 'Claude is thinking... (ESC to interrupt)'
+                : 'Type a message... (ESC ESC to clear)'
+            }
+            showCursor={!disabled}
+            // Disable any autocorrect/autocomplete features
+            // @ts-ignore - these props might not be in type definitions but work
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+        </Text>
+      </Box>
+
+      {/* Command dropdown */}
+      <CommandDropdown
+        commands={filteredCommands}
+        selectedIndex={selectedCommandIndex}
+        isVisible={showDropdown && focused}
+      />
     </Box>
   );
 };
