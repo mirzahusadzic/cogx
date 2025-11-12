@@ -22,6 +22,7 @@
     "test:main": "NODE_OPTIONS='--max-old-space-size=4096' vitest run --config vitest.config.ts",
     "test:workerpool": "NODE_OPTIONS='--max-old-space-size=4096' vitest run --config vitest.workerpool.config.ts",
     "test:watch": "vitest",
+    "test:commands": "npm run build && node dist/scripts/test-commands.js",
     "lint": "eslint src --ext .ts && markdownlint . --ignore node_modules",
     "format": "prettier --write \"**/*.{ts,js,json,md}\""
   },
