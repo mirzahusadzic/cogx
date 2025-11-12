@@ -22,6 +22,7 @@ import { useTurnAnalysis } from './analysis/index.js';
 import { useCompression } from './compression/useCompression.js';
 import type { McpSdkServerConfigWithInstance } from '@anthropic-ai/claude-agent-sdk';
 import type { ConversationLattice } from '../../sigma/types.js';
+import { loadCommands, expandCommand, type Command } from '../commands/loader.js';
 
 interface UseClaudeAgentOptions {
   sessionId?: string;
@@ -108,6 +109,11 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const messagesRef = useRef<ClaudeMessage[]>(messages); // Ref to avoid effect re-running on every message change
   const userMessageEmbeddingCache = useRef<Map<number, number[]>>(new Map()); // Cache user message embeddings by timestamp
   const latticeLoadedRef = useRef<Set<string>>(new Set()); // Track which sessions have been loaded
+
+  // Slash commands: Load commands cache
+  const [commandsCache, setCommandsCache] = useState<Map<string, Command>>(
+    new Map()
+  );
 
   // Track count of ONLY user/assistant messages (not system/tool_progress)
   // This prevents infinite loop when compression adds system messages
@@ -263,6 +269,20 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     const pgcPath = path.join(cwd, '.open_cognition');
     if (fs.existsSync(pgcPath))
       projectRegistryRef.current = new OverlayRegistry(pgcPath, endpoint);
+  }, [cwd, debugFlag]);
+
+  // Load slash commands on mount
+  useEffect(() => {
+    loadCommands(cwd).then((result) => {
+      setCommandsCache(result.commands);
+      // Log any errors/warnings
+      if (result.errors.length > 0 && debugFlag) {
+        console.error('Command loading errors:', result.errors);
+      }
+      if (result.warnings.length > 0 && debugFlag) {
+        console.warn('Command loading warnings:', result.warnings);
+      }
+    });
   }, [cwd, debugFlag]);
 
   // Load existing lattice on session resume from LanceDB (only once per session)
@@ -490,13 +510,49 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         setIsThinking(true);
         setError(null);
 
-        // Add user message immediately (capture timestamp for embedding cache)
+        // STEP 1: Expand slash command FIRST (before adding user message)
+        let finalPrompt = prompt;
+        let wasExpanded = false;
+
+        if (prompt.startsWith('/') && commandsCache.size > 0) {
+          const expanded = expandCommand(prompt, commandsCache);
+
+          if (expanded) {
+            finalPrompt = expanded;
+            wasExpanded = true;
+
+            // Show system message about expansion
+            setMessages((prev) => [
+              ...prev,
+              {
+                type: 'system',
+                content: `🔧 Expanding command: ${prompt.split(' ')[0]}`,
+                timestamp: new Date(),
+              },
+            ]);
+          } else {
+            // Unknown command - provide helpful error
+            const commandName = prompt.split(' ')[0];
+            const availableCommands = Array.from(commandsCache.keys())
+              .slice(0, 5)
+              .map((c) => `/${c}`)
+              .join(', ');
+
+            throw new Error(
+              `Unknown command: ${commandName}\n` +
+                `Available commands: ${availableCommands}...\n` +
+                `Type '/' to see all commands.`
+            );
+          }
+        }
+
+        // STEP 2: Add user message (show ORIGINAL input, not expanded)
         const userMessageTimestamp = new Date();
         setMessages((prev) => [
           ...prev,
           {
             type: 'user',
-            content: prompt,
+            content: prompt, // Show what user typed
             timestamp: userMessageTimestamp,
           },
         ]);
@@ -504,12 +560,13 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         // Collect stderr for better error messages
         const stderrLines: string[] = [];
 
+        // STEP 3: Continue with existing logic (context injection, SDK query, etc.)
         // Prepare prompt with optional recap injection OR real-time context injection
-        let finalPrompt = prompt;
+        // Use finalPrompt instead of prompt from here on
 
         if (injectedRecap) {
           // Inject recap as part of the user prompt to preserve claude_code preset
-          finalPrompt = `${injectedRecap}\n\n---\n\nUser request: ${prompt}`;
+          finalPrompt = `${injectedRecap}\n\n---\n\nUser request: ${finalPrompt}`;
           // Clear recap after first injection - subsequent queries use real-time context injection
           // This ensures: 1st query = full recap, 2nd+ queries = semantic lattice search
           setInjectedRecap(null);
@@ -517,7 +574,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           // Real-time lattice context injection for fluent conversation
           try {
             const result = await injectRelevantContext(
-              prompt,
+              finalPrompt,
               turnAnalysis.analyses,
               embedderRef.current,
               { debug: debugFlag }
@@ -641,6 +698,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       anchorId,
       sessionManager,
       updateAnchorStats,
+      commandsCache,
     ]
   );
 
