@@ -94,6 +94,13 @@ export const InputBox: React.FC<InputBoxProps> = ({
         const now = Date.now();
         const timeSinceLastEsc = now - lastEscapeTime.current;
 
+        // If dropdown is visible, ESC closes it
+        if (showDropdown) {
+          setShowDropdown(false);
+          lastEscapeTime.current = now;
+          return;
+        }
+
         if (disabled && onInterrupt) {
           // When thinking, single ESC interrupts
           onInterrupt();
@@ -103,6 +110,25 @@ export const InputBox: React.FC<InputBoxProps> = ({
         }
 
         lastEscapeTime.current = now;
+      } else if (key.upArrow && showDropdown) {
+        // Navigate up in dropdown (wrap around)
+        setSelectedCommandIndex((prev) =>
+          prev > 0 ? prev - 1 : filteredCommands.length - 1
+        );
+      } else if (key.downArrow && showDropdown) {
+        // Navigate down in dropdown (wrap around)
+        setSelectedCommandIndex((prev) =>
+          prev < filteredCommands.length - 1 ? prev + 1 : 0
+        );
+      } else if (key.return && showDropdown) {
+        // Select command with Enter
+        const selected = filteredCommands[selectedCommandIndex];
+        if (selected) {
+          // Replace current input with selected command
+          const args = value.split(' ').slice(1).join(' '); // Preserve args if any
+          setValue(`/${selected.name}${args ? ' ' + args : ''}`);
+          setShowDropdown(false);
+        }
       }
     },
     { isActive: focused }
