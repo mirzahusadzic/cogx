@@ -22,7 +22,11 @@ import { useTurnAnalysis } from './analysis/index.js';
 import { useCompression } from './compression/useCompression.js';
 import type { McpSdkServerConfigWithInstance } from '@anthropic-ai/claude-agent-sdk';
 import type { ConversationLattice } from '../../sigma/types.js';
-import { loadCommands, expandCommand, type Command } from '../commands/loader.js';
+import {
+  loadCommands,
+  expandCommand,
+  type Command,
+} from '../commands/loader.js';
 
 interface UseClaudeAgentOptions {
   sessionId?: string;
@@ -512,14 +516,12 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
         // STEP 1: Expand slash command FIRST (before adding user message)
         let finalPrompt = prompt;
-        let wasExpanded = false;
 
         if (prompt.startsWith('/') && commandsCache.size > 0) {
           const expanded = expandCommand(prompt, commandsCache);
 
           if (expanded) {
             finalPrompt = expanded;
-            wasExpanded = true;
 
             // Show system message about expansion
             setMessages((prev) => [
@@ -531,18 +533,37 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               },
             ]);
           } else {
-            // Unknown command - provide helpful error
+            // Unknown command - provide helpful error with fuzzy matching
             const commandName = prompt.split(' ')[0];
-            const availableCommands = Array.from(commandsCache.keys())
-              .slice(0, 5)
-              .map((c) => `/${c}`)
-              .join(', ');
+            const allCommandNames = Array.from(commandsCache.keys());
 
-            throw new Error(
-              `Unknown command: ${commandName}\n` +
-                `Available commands: ${availableCommands}...\n` +
-                `Type '/' to see all commands.`
-            );
+            // Try to find similar commands (simple string distance)
+            const lowerInput = commandName.slice(1).toLowerCase();
+            const similar = allCommandNames
+              .filter((name) => {
+                const lowerName = name.toLowerCase();
+                return (
+                  lowerName.includes(lowerInput) ||
+                  lowerInput.includes(lowerName)
+                );
+              })
+              .slice(0, 3);
+
+            let errorMessage = `Unknown command: ${commandName}\n`;
+
+            if (similar.length > 0) {
+              errorMessage += `Did you mean: ${similar.map((s) => `/${s}`).join(', ')}?\n`;
+            } else {
+              const firstFive = allCommandNames
+                .slice(0, 5)
+                .map((c) => `/${c}`)
+                .join(', ');
+              errorMessage += `Available commands: ${firstFive}...\n`;
+            }
+
+            errorMessage += `Type '/' to see all ${commandsCache.size} available commands.`;
+
+            throw new Error(errorMessage);
           }
         }
 

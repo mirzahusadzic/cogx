@@ -21,6 +21,48 @@ These commands integrate cognition-cli's lattice algebra system with Claude Code
 
 - **`/consult-echo [topic]`** - Consult Echo's wisdom from mission docs and past work
 
+## Using Commands in TUI
+
+The Cognition CLI TUI (Σ SIGMA CLI) supports all commands in this directory via slash command syntax with an interactive dropdown.
+
+### Interactive Dropdown:
+
+1. **Type `/`** in the TUI input to see all available commands
+2. **Continue typing** to filter: `/quest` shows quest-* commands
+3. **Use ↑/↓ arrows** to navigate through filtered commands
+4. **Press Enter** to select a command
+5. **Add arguments** after the command name: `/analyze-impact src/cli.ts`
+6. **Press Enter** to submit and expand the command
+7. **Press Esc** to close the dropdown
+
+### Features:
+
+- **Auto-complete**: Dropdown filters commands as you type
+- **Keyboard navigation**: Arrow keys with wrap-around
+- **Loading indicator**: Shows when commands are loading
+- **Error suggestions**: "Did you mean?" for typos
+- **Terminal adaptive**: Adjusts to small terminal sizes
+
+### Creating Custom Commands:
+
+1. Create a new `.md` file in this directory
+2. Name it descriptively: `my-command.md` → `/my-command`
+3. Write your prompt in markdown
+4. Use placeholders: `{{FILE_PATH}}`, `{{SYMBOL_NAME}}`, `{{ALL_ARGS}}`
+5. Restart TUI to load new commands
+
+### Example Session:
+
+```
+> /                          # Dropdown shows all 25 commands
+> /quest                     # Filters to quest-* commands
+> /quest-start               # Arrow keys to select
+> /quest-start new feature   # Add arguments
+[System] 🔧 Expanding command: /quest-start
+[User] /quest-start new feature
+[Claude] Starting quest...
+```
+
 ## Usage
 
 ### Starting a New Quest

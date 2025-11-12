@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Text } from 'ink';
+import { Box, Text, useStdout } from 'ink';
 import { Command } from '../commands/loader.js';
 
 export interface CommandDropdownProps {
@@ -15,13 +15,19 @@ export function CommandDropdown({
   isVisible,
   maxHeight = 10,
 }: CommandDropdownProps): React.ReactElement | null {
+  const { stdout } = useStdout();
+
   if (!isVisible || commands.length === 0) {
     return null;
   }
 
+  // Adjust max height for small terminals
+  const terminalHeight = stdout?.rows || 24;
+  const adjustedMaxHeight = Math.min(maxHeight, Math.floor(terminalHeight / 3));
+
   // Limit visible commands (handle scrolling in Layer 5)
-  const visibleCommands = commands.slice(0, maxHeight);
-  const hasMore = commands.length > maxHeight;
+  const visibleCommands = commands.slice(0, adjustedMaxHeight);
+  const hasMore = commands.length > adjustedMaxHeight;
 
   return (
     <Box
@@ -62,7 +68,7 @@ export function CommandDropdown({
       {hasMore && (
         <Box marginTop={1}>
           <Text color="gray" dimColor>
-            ... and {commands.length - maxHeight} more
+            ... and {commands.length - adjustedMaxHeight} more
           </Text>
         </Box>
       )}

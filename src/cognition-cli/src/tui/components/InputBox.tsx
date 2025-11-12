@@ -28,19 +28,27 @@ export const InputBox: React.FC<InputBoxProps> = ({
   const [allCommands, setAllCommands] = useState<Map<string, Command>>(new Map());
   const [filteredCommands, setFilteredCommands] = useState<Command[]>([]);
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
+  const [commandsLoading, setCommandsLoading] = useState(true);
 
   // Load commands on mount
   useEffect(() => {
-    loadCommands(process.cwd()).then((result) => {
-      setAllCommands(result.commands);
-      // Log any errors/warnings
-      if (result.errors.length > 0) {
-        console.error('Command loading errors:', result.errors);
-      }
-      if (result.warnings.length > 0) {
-        console.warn('Command loading warnings:', result.warnings);
-      }
-    });
+    setCommandsLoading(true);
+    loadCommands(process.cwd())
+      .then((result) => {
+        setAllCommands(result.commands);
+        setCommandsLoading(false);
+        // Log any errors/warnings
+        if (result.errors.length > 0) {
+          console.error('Command loading errors:', result.errors);
+        }
+        if (result.warnings.length > 0) {
+          console.warn('Command loading warnings:', result.warnings);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load commands:', error);
+        setCommandsLoading(false);
+      });
   }, []);
 
   const handleChange = (newValue: string) => {
@@ -166,11 +174,18 @@ export const InputBox: React.FC<InputBoxProps> = ({
         </Text>
       </Box>
 
+      {/* Loading indicator */}
+      {commandsLoading && value.startsWith('/') && focused && (
+        <Box marginTop={1} paddingX={1}>
+          <Text color="yellow">⏳ Loading commands...</Text>
+        </Box>
+      )}
+
       {/* Command dropdown */}
       <CommandDropdown
         commands={filteredCommands}
         selectedIndex={selectedCommandIndex}
-        isVisible={showDropdown && focused}
+        isVisible={showDropdown && focused && !commandsLoading}
       />
     </Box>
   );
