@@ -14,7 +14,7 @@ The Cognition CLI is the reference implementation of the **Grounded Context Pool
 
 **v2.3.0** - TUI enhancements focusing on slash command dropdown menu, improved tool display formatting, and bug fixes. Interactive dropdown for slash commands with keyboard navigation, enhanced tool display with color-coded formatting (amber-orange tool names, muted gray commands), bold text processing, and file path detection fixes.
 
-**v2.0 introduced Σ (Sigma)**: A dual-lattice architecture enabling **infinite context** for stateful AI through intelligent compression, conversation memory, and session lifecycle management. Not just RAG or summarization - this is **AI with real memory**.
+**v2.0.0 introduced Σ (Sigma)**: A dual-lattice architecture enabling **infinite context** for stateful AI through intelligent compression, conversation memory, and session lifecycle management. Not just RAG or summarization - this is **AI with real memory**.
 
 ---
 
