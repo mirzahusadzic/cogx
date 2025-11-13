@@ -79,7 +79,7 @@ describe('ToolFormatter', () => {
 
       const result = formatToolUse(tool);
 
-      expect(result.description).toBe('cmd: npm test');
+      expect(result.description).toBe('npm test');
     });
 
     it('formats Grep tool with pattern', () => {
