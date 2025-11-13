@@ -10,7 +10,9 @@
 
 The Cognition CLI is the reference implementation of the **Grounded Context Pool (PGC)**, a core component of the [CogX Architectural Blueprint](https://github.com/mirzahusadzic/cogx). It transforms unstructured code and documentation into a rich, queryable, verifiably-grounded knowledge graph with **seven specialized cognitive overlays** (O₁-O₇), enabling AI-powered development grounded in cryptographic truth, not statistical approximation.
 
-**v2.2.0 (Latest)**: Production-ready stability with critical bug fixes and optimizations. Document GC improvements, session state cleanup, GC Phase 5 enhancements, and LanceDB optimizations (.sigma: 550 MB → ~5 MB).
+## Latest Release
+
+**v2.3.0** - TUI enhancements focusing on slash command dropdown menu, improved tool display formatting, and bug fixes. Interactive dropdown for slash commands with keyboard navigation, enhanced tool display with color-coded formatting (amber-orange tool names, muted gray commands), bold text processing, and file path detection fixes.
 
 **v2.0 introduced Σ (Sigma)**: A dual-lattice architecture enabling **infinite context** for stateful AI through intelligent compression, conversation memory, and session lifecycle management. Not just RAG or summarization - this is **AI with real memory**.
 
