@@ -853,20 +853,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         }
 
         if (
-          event.type === 'content_block_start' &&
-          event.content_block?.type === 'tool_use'
-        ) {
-          // Tool starting - show indicator immediately
-          const toolBlock = event.content_block;
-          setMessages((prev) => [
-            ...prev,
-            {
-              type: 'tool_progress',
-              content: `🔧 ${toolBlock.name}...`,
-              timestamp: new Date(),
-            },
-          ]);
-        } else if (
           event.type === 'content_block_delta' &&
           event.delta?.type === 'text_delta'
         ) {

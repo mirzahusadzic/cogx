@@ -44,9 +44,13 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
           color = '#8b949e'; // Muted gray
           break;
         case 'assistant':
-        case 'tool_progress':
           prefix = '';
           color = '#58a6ff'; // O1 structural blue
+          break;
+        case 'tool_progress':
+          prefix = '  ';
+          // Use orange for tool commands, but blue for Edit diffs (they have their own formatting)
+          color = msg.content.includes('🔧 Edit:') ? '#58a6ff' : '#f0883e';
           break;
       }
 

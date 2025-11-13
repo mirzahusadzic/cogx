@@ -35,6 +35,9 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
     } else {
       inputDesc = JSON.stringify(tool.input);
     }
+  } else if (tool.input.command) {
+    // For Bash, show the actual command (not the description)
+    inputDesc = `${tool.input.command as string}`;
   } else if (tool.input.description) {
     inputDesc = tool.input.description as string;
   } else if (tool.input.file_path) {
@@ -52,8 +55,6 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
     } else {
       inputDesc = `file: ${tool.input.file_path as string}`;
     }
-  } else if (tool.input.command) {
-    inputDesc = `cmd: ${tool.input.command as string}`;
   } else if (tool.input.pattern) {
     inputDesc = `pattern: ${tool.input.pattern as string}`;
   } else if (tool.name === 'TodoWrite' && tool.input.todos) {
