@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { render, Box, Text, useInput, type TextProps } from 'ink';
 import {
   ThemeProvider,
@@ -221,6 +221,11 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     // We just need to not interfere with them
   }, { isActive: true });
 
+  // Memoize callback to prevent ClaudePanelAgent re-renders
+  const handleScrollDetected = useCallback(() => {
+    setFocused(false);
+  }, []);
+
   if (renderError) {
     return (
       <Box flexDirection="column" padding={1}>
@@ -266,7 +271,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
               messages={messages}
               isThinking={isThinking}
               focused={!focused}
-              onScrollDetected={() => setFocused(false)}
+              onScrollDetected={handleScrollDetected}
             />
             {showInfoPanel && sigmaStats && (
               <Box marginLeft={1}>
