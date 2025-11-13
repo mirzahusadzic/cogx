@@ -96,9 +96,22 @@ export const ClaudePanelAgent: React.FC<ClaudePanelAgentProps> = ({
     { isActive: focused }
   );
 
-  // Handle mouse scrolling
+  // Handle mouse scrolling - ONLY in chat area
   useMouse(
     (event) => {
+      // Calculate chat area Y bounds
+      // Layout: OverlaysBar(1) + separator(1) + chat(flexible) + separator(1) + InputBox(3) + separator(1) + StatusBar(3)
+      const terminalRows = stdout?.rows || 24;
+      const HEADER_HEIGHT = 2; // OverlaysBar + separator
+      const FOOTER_HEIGHT = 8; // separator + InputBox + separator + StatusBar
+      const chatStartY = HEADER_HEIGHT + 1; // +1 for 1-indexed coordinates
+      const chatEndY = terminalRows - FOOTER_HEIGHT;
+
+      // Only handle scroll if mouse is in chat area
+      if (event.y < chatStartY || event.y > chatEndY) {
+        return;
+      }
+
       if (!focused && onScrollDetected) {
         const now = Date.now();
         if (now - lastScrollFocus.current > 100) {

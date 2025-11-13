@@ -1041,7 +1041,7 @@ Enhance the selected item styling:
 - User presses ↓ → Green highlight moves to 2nd command
 - User presses ↓↓ → Highlight on 4th command
 - User presses ↓ → Wraps to 1st command
-- User presses Enter → Input shows `/quest-start `
+- User presses Enter → Input shows `/quest-start`
 
 **👤 USER DECISION:**
 

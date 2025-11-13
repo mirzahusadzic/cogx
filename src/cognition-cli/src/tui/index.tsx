@@ -70,10 +70,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     const sigintHandler = () => {
       try {
         process.stdout.write('\x1b[0m'); // Reset colors
-        process.stdout.write('\x1b[?1000l'); // Disable mouse
-        process.stdout.write('\x1b[?1002l');
-        process.stdout.write('\x1b[?1015l');
-        process.stdout.write('\x1b[?1006l');
+        process.stdout.write('\x1b[?1000l\x1b[?1006l'); // Disable mouse
       } catch (e) {
         // Ignore errors during cleanup
       }
@@ -84,15 +81,18 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     process.on('SIGINT', sigintHandler);
 
     if (process.stdin.isTTY && typeof process.stdin.setRawMode === 'function') {
-      // ALWAYS enable scroll wheel (1007) but disable click/drag tracking
-      // This allows scrolling to work while preventing paste issues from clicks
-      process.stdout.write('\x1b[?1007h'); // Enable alternate scroll mode (wheel only)
+      // Enable mouse scroll tracking
+      // 1000 = Basic mouse tracking (needed for scroll wheel events)
+      // 1006 = SGR mouse mode (better coordinate encoding)
+      process.stdout.write('\x1b[?1000h'); // Basic mouse tracking (clicks + scroll)
+      process.stdout.write('\x1b[?1006h'); // SGR encoding (position-aware)
 
-      // Text selection should work natively in terminal (no special mode needed)
+      // Text selection still works (terminal handles it at lower level)
 
       return () => {
-        // Disable scroll tracking on cleanup
-        process.stdout.write('\x1b[?1007l');
+        // Disable mouse tracking on cleanup
+        process.stdout.write('\x1b[?1000l');
+        process.stdout.write('\x1b[?1006l');
         // Reset colors on exit
         process.stdout.write('\x1b[0m');
         // Remove SIGINT handler
@@ -143,7 +143,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
         exited = true;
         try {
           process.stdout.write('\x1b[0m'); // Reset colors
-          process.stdout.write('\x1b[?1000l\x1b[?1002l\x1b[?1015l\x1b[?1006l'); // Disable mouse
+          process.stdout.write('\x1b[?1000l\x1b[?1006l'); // Disable mouse
         } catch (e) {
           // Ignore cleanup errors
         }
@@ -201,7 +201,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       // Force immediate exit - use process.abort() to bypass event loop
       try {
         process.stdout.write('\x1b[0m'); // Reset colors
-        process.stdout.write('\x1b[?1000l\x1b[?1002l\x1b[?1015l\x1b[?1006l'); // Disable mouse
+        process.stdout.write('\x1b[?1000l\x1b[?1006l'); // Disable mouse
       } catch (e) {
         // Ignore errors
       }
