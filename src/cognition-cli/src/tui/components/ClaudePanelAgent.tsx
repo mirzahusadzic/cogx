@@ -14,7 +14,7 @@ interface ClaudePanelAgentProps {
 /**
  * Panel showing Claude Agent SDK messages
  */
-export const ClaudePanelAgent: React.FC<ClaudePanelAgentProps> = ({
+const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   messages,
   isThinking,
   focused,
@@ -188,3 +188,7 @@ export const ClaudePanelAgent: React.FC<ClaudePanelAgentProps> = ({
     </Box>
   );
 };
+
+// Memoize to prevent re-renders when parent re-renders but props haven't changed
+// This fixes flickering when navigating dropdown with keyboard
+export const ClaudePanelAgent = React.memo(ClaudePanelAgentComponent);
