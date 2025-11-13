@@ -530,13 +530,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             if (expanded) {
               finalPrompt = expanded;
 
-              // DEBUG: Log expansion
-              console.log('[CMD EXPAND]', {
-                original: prompt,
-                expandedLength: expanded.length,
-                first100: expanded.slice(0, 100),
-              });
-
               // Show system message about expansion
               setMessages((prev) => [
                 ...prev,
