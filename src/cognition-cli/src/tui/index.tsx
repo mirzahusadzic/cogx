@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { render, Box, Text, useInput, type TextProps } from 'ink';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { render, Box, Text, useInput, useStdout, type TextProps } from 'ink';
 import {
   ThemeProvider,
   extendTheme,
@@ -7,6 +7,9 @@ import {
 } from '@inkjs/ui';
 import fs from 'fs';
 import path from 'path';
+
+// Toggle mouse tracking - disable to restore native terminal text selection
+const ENABLE_MOUSE_TRACKING = false;
 import { OverlaysBar } from './components/OverlaysBar.js';
 import { ClaudePanelAgent } from './components/ClaudePanelAgent.js';
 import { InputBox } from './components/InputBox.js';
@@ -49,10 +52,23 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   maxThinkingTokens,
   debug,
 }) => {
+  const { stdout } = useStdout();
   const [focused, setFocused] = useState(true);
   const [renderError, setRenderError] = useState<Error | null>(null);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+
+  // Calculate fixed chat area height to prevent InputBox from shifting
+  // when messages populate - memoize to avoid recalculation on every render
+  const chatAreaHeight = useMemo(() => {
+    const terminalHeight = stdout?.rows || 24;
+    // Dynamic reserved space: expand when dropdown is visible
+    // OverlaysBar(1) + separator(1) + separator(1) + InputBox+Dropdown(variable) + separator(1) + saveMessage(1) + StatusBar(3)
+    const inputAndDropdownHeight = isDropdownVisible ? 9 : 1; // 9 lines when dropdown open, 1 when closed (just input)
+    const reservedHeight = 3 + inputAndDropdownHeight + 5; // 3 top + input area + 5 bottom
+    return Math.max(5, terminalHeight - reservedHeight); // Minimum 5 lines for chat
+  }, [stdout?.rows, isDropdownVisible]);
 
   const { overlays, loading } = useOverlays({ pgcRoot, workbenchUrl });
   const { messages, sendMessage, isThinking, error, tokenCount, interrupt, sigmaStats, avgOverlays, currentSessionId } =
@@ -64,30 +80,37 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       debug, // Pass debug flag
     });
 
-  // Enable mouse support and add Ctrl+C handler (colors set in tui.ts command)
+  // Add Ctrl+C handler and optionally enable mouse tracking
   useEffect(() => {
-    // Add direct SIGINT handler for Ctrl+C
+    // Add direct SIGINT handler for Ctrl+C - use 'once' to ensure it only fires once
     const sigintHandler = () => {
       try {
         process.stdout.write('\x1b[0m'); // Reset colors
-        process.stdout.write('\x1b[?1000l\x1b[?1006l'); // Disable mouse
+        if (ENABLE_MOUSE_TRACKING) {
+          process.stdout.write('\x1b[?1000l\x1b[?1006l'); // Disable mouse
+        }
       } catch (e) {
         // Ignore errors during cleanup
       }
-      // Use process.abort() - truly immediate, bypasses everything
-      process.abort();
+      // Kill the entire process group to ensure workers die too
+      // SIGKILL (-9) is unblockable and immediate
+      try {
+        process.kill(-process.pid, 'SIGKILL');
+      } catch (e) {
+        // If that fails, use abort as fallback
+        process.abort();
+      }
     };
 
-    process.on('SIGINT', sigintHandler);
+    // Use 'once' instead of 'on' to prevent multiple firings
+    process.once('SIGINT', sigintHandler);
 
-    if (process.stdin.isTTY && typeof process.stdin.setRawMode === 'function') {
+    if (ENABLE_MOUSE_TRACKING && process.stdin.isTTY && typeof process.stdin.setRawMode === 'function') {
       // Enable mouse scroll tracking
       // 1000 = Basic mouse tracking (needed for scroll wheel events)
       // 1006 = SGR mouse mode (better coordinate encoding)
       process.stdout.write('\x1b[?1000h'); // Basic mouse tracking (clicks + scroll)
       process.stdout.write('\x1b[?1006h'); // SGR encoding (position-aware)
-
-      // Text selection still works (terminal handles it at lower level)
 
       return () => {
         // Disable mouse tracking on cleanup
@@ -95,13 +118,12 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
         process.stdout.write('\x1b[?1006l');
         // Reset colors on exit
         process.stdout.write('\x1b[0m');
-        // Remove SIGINT handler
-        process.off('SIGINT', sigintHandler);
       };
     }
 
     return () => {
-      process.off('SIGINT', sigintHandler);
+      // Reset colors on exit
+      process.stdout.write('\x1b[0m');
     };
   }, []);
 
@@ -198,14 +220,21 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   // Handle input - make sure this is always active for Ctrl+C
   useInput((input, key) => {
     if (key.ctrl && input === 'c') {
-      // Force immediate exit - use process.abort() to bypass event loop
+      // Force immediate exit - kill entire process group including workers
       try {
         process.stdout.write('\x1b[0m'); // Reset colors
-        process.stdout.write('\x1b[?1000l\x1b[?1006l'); // Disable mouse
+        if (ENABLE_MOUSE_TRACKING) {
+          process.stdout.write('\x1b[?1000l\x1b[?1006l'); // Disable mouse
+        }
       } catch (e) {
         // Ignore errors
       }
-      process.abort(); // Immediate termination, no cleanup
+      // Kill process group to ensure workers die
+      try {
+        process.kill(-process.pid, 'SIGKILL');
+      } catch (e) {
+        process.abort(); // Fallback if process group kill fails
+      }
     } else if (key.ctrl && input === 's') {
       // Save conversation log with Ctrl+S
       saveConversationLog();
@@ -216,15 +245,9 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       // Toggle info panel with 'i' key (only when NOT in input box)
       setShowInfoPanel((prev) => !prev);
     }
-    // Mouse mode removed - scroll always enabled, text selection always works
     // Note: Arrow keys, etc. are handled by TextInput component
     // We just need to not interfere with them
   }, { isActive: true });
-
-  // Memoize callback to prevent ClaudePanelAgent re-renders
-  const handleScrollDetected = useCallback(() => {
-    setFocused(false);
-  }, []);
 
   if (renderError) {
     return (
@@ -266,12 +289,11 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
         <Box flexDirection="column" width="100%" height="100%" paddingTop={0} marginTop={0}>
           <OverlaysBar sigmaStats={sigmaStats} />
           <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>
-          <Box flexGrow={1} flexShrink={1} minHeight={0} width="100%" overflow="hidden" flexDirection="row">
+          <Box height={chatAreaHeight} width="100%" overflow="hidden" flexDirection="row">
             <ClaudePanelAgent
               messages={messages}
               isThinking={isThinking}
               focused={!focused}
-              onScrollDetected={handleScrollDetected}
             />
             {showInfoPanel && sigmaStats && (
               <Box marginLeft={1}>
@@ -280,18 +302,21 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
             )}
           </Box>
           <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>
-          <InputBox
-            onSubmit={sendMessage}
-            focused={focused}
-            disabled={isThinking}
-            onInterrupt={interrupt}
-          />
+          {/* Reserved space for dropdown - dynamically sized based on visibility */}
+          <Box height={isDropdownVisible ? 9 : 1} flexDirection="column" justifyContent="flex-end">
+            <InputBox
+              onSubmit={sendMessage}
+              focused={focused}
+              disabled={isThinking}
+              onInterrupt={interrupt}
+              onDropdownVisibleChange={setIsDropdownVisible}
+            />
+          </Box>
           <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>
-          {saveMessage && (
-            <Box>
-              <Text color="green">{saveMessage}</Text>
-            </Box>
-          )}
+          {/* Always reserve space for save message to prevent layout shift */}
+          <Box height={1}>
+            {saveMessage && <Text color="green">{saveMessage}</Text>}
+          </Box>
           <StatusBar sessionId={currentSessionId} focused={focused} tokenCount={tokenCount} compressionThreshold={sessionTokens} />
         </Box>
       </ThemeProvider>
@@ -317,15 +342,15 @@ export function startTUI(options: CognitionTUIProps) {
   const { unmount, waitUntilExit } = render(<CognitionTUI {...options} />, {
     patchConsole: true, // Patch console to prevent output mixing
     debug: false,
-    maxFps: 15, // Lower FPS to reduce flicker from rapid updates (default is 30)
+    maxFps: 120, // Higher FPS for smoother rendering and less visible flicker
   });
 
-  // Graceful shutdown
+  // Only handle SIGTERM gracefully (kill command)
+  // SIGINT (Ctrl+C) is handled inside the component with immediate kill
   const cleanup = () => {
     unmount();
   };
 
-  process.on('SIGINT', cleanup);
   process.on('SIGTERM', cleanup);
 
   return waitUntilExit();

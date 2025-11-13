@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Text, useStdout } from 'ink';
 import { Command } from '../commands/loader.js';
 
@@ -13,10 +13,16 @@ const CommandDropdownComponent = ({
   commands,
   selectedIndex,
   isVisible,
-  maxHeight = 10,
+  maxHeight = 5, // Reduced from 10 for more compact display
 }: CommandDropdownProps): React.ReactElement | null => {
   const { stdout } = useStdout();
   const [scrollOffset, setScrollOffset] = useState(0);
+
+  // Memoize terminal height calculation to prevent recalculation on every render
+  const adjustedMaxHeight = useMemo(
+    () => Math.min(maxHeight, Math.floor((stdout?.rows || 24) / 4)), // Changed from /3 to /4 for smaller dropdown
+    [maxHeight, stdout?.rows]
+  );
 
   // Reset scroll when dropdown closes or commands change
   useEffect(() => {
@@ -33,8 +39,6 @@ const CommandDropdownComponent = ({
   useEffect(() => {
     if (!isVisible) return;
 
-    const adjustedMaxHeight = Math.min(maxHeight, Math.floor((stdout?.rows || 24) / 3));
-
     // If selected item is below visible window, scroll down to show it
     if (selectedIndex >= scrollOffset + adjustedMaxHeight) {
       setScrollOffset(selectedIndex - adjustedMaxHeight + 1);
@@ -43,15 +47,11 @@ const CommandDropdownComponent = ({
     else if (selectedIndex < scrollOffset) {
       setScrollOffset(selectedIndex);
     }
-  }, [selectedIndex, isVisible, scrollOffset, maxHeight, stdout?.rows]);
+  }, [selectedIndex, isVisible, scrollOffset, adjustedMaxHeight]);
 
   if (!isVisible || commands.length === 0) {
     return null;
   }
-
-  // Adjust max height for small terminals
-  const terminalHeight = stdout?.rows || 24;
-  const adjustedMaxHeight = Math.min(maxHeight, Math.floor(terminalHeight / 3));
 
   // Calculate visible window with scroll offset
   const totalCommands = commands.length;
@@ -66,23 +66,14 @@ const CommandDropdownComponent = ({
       borderStyle="round"
       borderColor="cyan"
       paddingX={1}
-      marginTop={1}
     >
-      {/* Header */}
-      <Box marginBottom={1}>
-        <Text color="cyan" bold>
-          Commands ({commands.length})
-        </Text>
-      </Box>
-
-      {/* Command list */}
+      {/* Command list - compact, no header */}
       {visibleCommands.map((command, visibleIndex) => {
-        // Calculate actual index in full commands array
         const actualIndex = actualOffset + visibleIndex;
         const isSelected = actualIndex === selectedIndex;
 
         return (
-          <Box key={command.name} marginBottom={0}>
+          <Box key={command.name}>
             <Text color={isSelected ? 'green' : 'white'}>
               {isSelected ? '▸ ' : '  '}
               /{command.name}
@@ -90,28 +81,25 @@ const CommandDropdownComponent = ({
             {command.description && (
               <Text color="gray" dimColor>
                 {' - '}
-                {command.description.slice(0, 40)}
-                {command.description.length > 40 ? '...' : ''}
+                {command.description.slice(0, 25)}
+                {command.description.length > 25 ? '…' : ''}
               </Text>
             )}
           </Box>
         );
       })}
 
-      {hasMore && (
-        <Box marginTop={1}>
-          <Text color="gray" dimColor>
-            {actualOffset > 0 && `↑ ${actualOffset} above `}
-            {actualOffset < maxOffset && `↓ ${maxOffset - actualOffset} below`}
-          </Text>
-        </Box>
-      )}
-
-      {/* Footer */}
-      <Box marginTop={1} borderStyle="single" borderTop borderColor="gray">
+      {/* Compact footer with scroll indicator */}
+      <Box borderTop borderColor="gray" justifyContent="space-between">
         <Text color="gray" dimColor>
-          ↑↓ Navigate • Enter Select • Esc Cancel
+          ↑↓ ⏎ Esc
         </Text>
+        {hasMore && (
+          <Text color="gray" dimColor>
+            {actualOffset > 0 && `↑${actualOffset} `}
+            {actualOffset < maxOffset && `↓${maxOffset - actualOffset}`}
+          </Text>
+        )}
       </Box>
     </Box>
   );

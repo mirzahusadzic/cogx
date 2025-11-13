@@ -9,6 +9,7 @@ interface InputBoxProps {
   focused: boolean;
   disabled?: boolean;
   onInterrupt?: () => void;
+  onDropdownVisibleChange?: (visible: boolean) => void;
 }
 
 /**
@@ -19,6 +20,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
   focused,
   disabled = false,
   onInterrupt,
+  onDropdownVisibleChange,
 }) => {
   const [value, setValue] = useState('');
   const lastEscapeTime = useRef<number>(0);
@@ -32,6 +34,13 @@ export const InputBox: React.FC<InputBoxProps> = ({
   const [filteredCommands, setFilteredCommands] = useState<Command[]>([]);
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
   const [commandsLoading, setCommandsLoading] = useState(true);
+
+  // Notify parent when dropdown visibility changes
+  useEffect(() => {
+    if (onDropdownVisibleChange) {
+      onDropdownVisibleChange(showDropdown && focused && !commandsLoading);
+    }
+  }, [showDropdown, focused, commandsLoading, onDropdownVisibleChange]);
 
   // Load commands on mount
   useEffect(() => {
@@ -212,6 +221,15 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
   return (
     <Box flexDirection="column" width="100%">
+      {/* Command dropdown - render ABOVE input, overlaying the chat area */}
+      {showDropdown && focused && !commandsLoading && (
+        <CommandDropdown
+          commands={filteredCommands}
+          selectedIndex={selectedCommandIndex}
+          isVisible={true}
+        />
+      )}
+
       <Box borderTop borderBottom borderColor="#56d364" paddingX={1} width="100%">
         <Text color="#56d364">{'> '}</Text>
         <Text color="#56d364">
@@ -236,17 +254,10 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
       {/* Loading indicator */}
       {commandsLoading && value.startsWith('/') && focused && (
-        <Box marginTop={1} paddingX={1}>
-          <Text color="yellow">⏳ Loading commands...</Text>
+        <Box paddingX={1}>
+          <Text color="yellow">⏳ Loading...</Text>
         </Box>
       )}
-
-      {/* Command dropdown */}
-      <CommandDropdown
-        commands={filteredCommands}
-        selectedIndex={selectedCommandIndex}
-        isVisible={showDropdown && focused && !commandsLoading}
-      />
     </Box>
   );
 };

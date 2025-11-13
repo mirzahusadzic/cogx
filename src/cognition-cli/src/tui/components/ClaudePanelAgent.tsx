@@ -1,14 +1,12 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
 import { Spinner } from '@inkjs/ui';
 import type { ClaudeMessage } from '../hooks/useClaudeAgent.js';
-import { useMouse } from '../hooks/useMouse.js';
 
 interface ClaudePanelAgentProps {
   messages: ClaudeMessage[];
   isThinking: boolean;
   focused: boolean;
-  onScrollDetected?: () => void;
 }
 
 /**
@@ -18,14 +16,15 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   messages,
   isThinking,
   focused,
-  onScrollDetected,
 }) => {
   const { stdout } = useStdout();
   const [scrollOffset, setScrollOffset] = useState(0);
-  const lastScrollFocus = useRef<number>(0);
 
-  // Calculate available height
-  const availableHeight = (stdout?.rows || 24) - 11;
+  // Calculate available height - memoize to prevent recalculation on every render
+  const availableHeight = useMemo(
+    () => (stdout?.rows || 24) - 11,
+    [stdout?.rows]
+  );
 
   // Build colored text lines with color metadata
   const allLines = useMemo(() => {
@@ -94,41 +93,6 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       }
     },
     { isActive: focused }
-  );
-
-  // Handle mouse scrolling - ONLY in chat area
-  useMouse(
-    (event) => {
-      // Calculate chat area Y bounds
-      // Layout: OverlaysBar(1) + separator(1) + chat(flexible) + separator(1) + InputBox(3) + separator(1) + StatusBar(3)
-      const terminalRows = stdout?.rows || 24;
-      const HEADER_HEIGHT = 2; // OverlaysBar + separator
-      const FOOTER_HEIGHT = 8; // separator + InputBox + separator + StatusBar
-      const chatStartY = HEADER_HEIGHT + 1; // +1 for 1-indexed coordinates
-      const chatEndY = terminalRows - FOOTER_HEIGHT;
-
-      // Only handle scroll if mouse is in chat area
-      if (event.y < chatStartY || event.y > chatEndY) {
-        return;
-      }
-
-      if (!focused && onScrollDetected) {
-        const now = Date.now();
-        if (now - lastScrollFocus.current > 100) {
-          lastScrollFocus.current = now;
-          onScrollDetected();
-        }
-      }
-
-      const maxOffset = Math.max(0, allLines.length - availableHeight);
-
-      if (event.type === 'scroll_up') {
-        setScrollOffset((prev) => Math.min(prev + 3, maxOffset));
-      } else if (event.type === 'scroll_down') {
-        setScrollOffset((prev) => Math.max(0, prev - 3));
-      }
-    },
-    { isActive: true }
   );
 
   // Calculate visible window - return line objects, not joined string
