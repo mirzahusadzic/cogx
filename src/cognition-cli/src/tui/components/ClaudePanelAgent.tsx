@@ -30,6 +30,11 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   const allLines = useMemo(() => {
     const lines: Array<{ text: string; color: string }> = [];
 
+    // Helper to convert markdown bold (**text**) to amber-orange ANSI codes
+    const processBold = (text: string): string => {
+      return text.replace(/\*\*([^*]+)\*\*/g, '\x1b[38;2;245;166;35m$1\x1b[0m');
+    };
+
     messages.forEach((msg) => {
       let prefix = '';
       let color = '#58a6ff'; // Default: O1 structural blue
@@ -51,13 +56,30 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
           prefix = '  ';
           // Use amber-orange for tool commands, but blue for Edit diffs (they have their own formatting)
           color = msg.content.includes('🔧 Edit:') ? '#58a6ff' : '#f5a623';
+
+          // Special handling: split tool name from command/details
+          // Format: "🔧 ToolName: command/details"
+          const toolMatch = msg.content.match(/^(🔧\s+\S+:)\s*(.*)$/);
+          if (toolMatch && !msg.content.includes('🔧 Edit:')) {
+            // Tool name in amber-orange, details in muted gray (with bold processing)
+            const toolName = toolMatch[1];
+            const details = processBold(toolMatch[2]);
+            lines.push({
+              text: `${prefix}${toolName} \x1b[38;2;138;145;153m${details}\x1b[0m`,
+              color
+            });
+            lines.push({ text: '', color }); // Empty line between messages
+            return; // Skip normal processing
+          }
           break;
       }
 
       // Split content into lines and store with color
       const contentLines = (prefix + msg.content).split('\n');
       contentLines.forEach((line) => {
-        lines.push({ text: line, color });
+        // Process markdown bold syntax
+        const processedLine = processBold(line);
+        lines.push({ text: processedLine, color });
       });
       lines.push({ text: '', color }); // Empty line between messages
     });

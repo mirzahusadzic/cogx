@@ -72,7 +72,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
     if (isPaste) {
       // Accumulate paste chunks within 50ms window
-      if (timeSinceLastPaste < 50 && pasteBuffer.current) {
+      if (timeSinceLastPaste < 50) {
         // This is continuation of previous paste
         if (!newValue.startsWith(pasteBuffer.current)) {
           // New chunk, append it
@@ -82,8 +82,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
           pasteBuffer.current = newValue.length > pasteBuffer.current.length ? newValue : pasteBuffer.current;
         }
       } else {
-        // New paste started - capture the full value as-is
-        // This includes any previously typed text + the pasted content
+        // New paste started
         pasteBuffer.current = newValue;
       }
       lastPasteTime.current = now;
