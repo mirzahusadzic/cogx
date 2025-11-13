@@ -5,6 +5,49 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2025-11-13
+
+### Summary
+
+TUI enhancements focusing on slash command dropdown menu, improved tool display formatting, and bug fixes.
+
+### ✨ New Features
+
+#### Slash Command Dropdown Menu
+- Interactive dropdown menu for slash commands with fuzzy filtering
+- Keyboard navigation (up/down arrows, Enter to select, Escape to close)
+- Shows command descriptions from .claude/commands/*.md files
+- Auto-filters as you type after `/`
+- 9 lines reserved when open, 1 line when closed (dynamic sizing)
+
+### 🎨 UI Improvements
+
+#### Enhanced Tool Display Formatting
+- Split tool command display: tool name in amber-orange (#f5a623), command details in muted gray
+- Removed duplicate tool call preview (was showing "🔧 Read..." then "🔧 Read: file: ...")
+- Each tool now appears exactly once with full information
+- Added markdown bold processing (**text** → amber-orange) for all messages
+- Tool commands stand out clearly from assistant text
+
+#### Color Scheme Updates
+- User messages: #56d364 (green)
+- Assistant messages: #58a6ff (blue)
+- Tool calls: #f5a623 (amber-orange)
+- System messages: #8b949e (muted gray)
+- Tool command details: rgb(138,145,153) (theme muted gray)
+
+### 🐛 Bug Fixes
+
+#### File Path Detection
+- Fixed absolute paths (e.g., /home/user/file.txt) being treated as slash commands
+- System now distinguishes between slash commands and file paths
+- Prevents "Unknown command" errors when pasting file paths
+
+### 📝 Technical Changes
+- Improved ToolFormatter priority for Bash commands
+- Added processBold() helper for markdown formatting
+- Removed stream event preview for cleaner tool display
+
 ## [2.2.0] - 2025-11-09
 
 ### Summary
