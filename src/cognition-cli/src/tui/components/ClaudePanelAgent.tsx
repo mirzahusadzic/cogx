@@ -30,9 +30,9 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   const allLines = useMemo(() => {
     const lines: Array<{ text: string; color: string }> = [];
 
-    // Helper to convert markdown bold (**text**) to amber-orange ANSI codes
+    // Helper to convert markdown bold (**text**) to electric cyan/green ANSI codes
     const processBold = (text: string): string => {
-      return text.replace(/\*\*([^*]+)\*\*/g, '\x1b[38;2;245;166;35m$1\x1b[0m');
+      return text.replace(/\*\*([^*]+)\*\*/g, '\x1b[38;2;46;181;114m$1\x1b[0m');
     };
 
     messages.forEach((msg) => {
