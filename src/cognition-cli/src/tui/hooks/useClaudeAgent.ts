@@ -517,7 +517,13 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         // STEP 1: Expand slash command FIRST (before adding user message)
         let finalPrompt = prompt;
 
-        if (prompt.startsWith('/') && commandsCache.size > 0) {
+        // Only treat as command if it starts with / but is NOT a file path
+        // File paths have another / in the first word (e.g., /home/user/file.txt)
+        const firstWord = prompt.split(' ')[0];
+        const isCommand =
+          prompt.startsWith('/') && !firstWord.slice(1).includes('/'); // No / after first character
+
+        if (isCommand && commandsCache.size > 0) {
           const commandName = prompt.split(' ')[0];
 
           // Skip expansion if user just typed "/" alone

@@ -72,7 +72,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
     if (isPaste) {
       // Accumulate paste chunks within 50ms window
-      if (timeSinceLastPaste < 50) {
+      if (timeSinceLastPaste < 50 && pasteBuffer.current) {
         // This is continuation of previous paste
         if (!newValue.startsWith(pasteBuffer.current)) {
           // New chunk, append it
@@ -82,7 +82,8 @@ export const InputBox: React.FC<InputBoxProps> = ({
           pasteBuffer.current = newValue.length > pasteBuffer.current.length ? newValue : pasteBuffer.current;
         }
       } else {
-        // New paste started
+        // New paste started - capture the full value as-is
+        // This includes any previously typed text + the pasted content
         pasteBuffer.current = newValue;
       }
       lastPasteTime.current = now;
@@ -121,7 +122,13 @@ export const InputBox: React.FC<InputBoxProps> = ({
       setValue(filtered);
 
       // Detect slash command and show dropdown
-      if (filtered.startsWith('/') && allCommands.size > 0) {
+      // Only treat as command if it starts with / but is NOT a file path
+      // File paths have another / in the first word (e.g., /home/user/file.txt)
+      const firstWord = filtered.split(' ')[0];
+      const isCommand = filtered.startsWith('/') &&
+                       !firstWord.slice(1).includes('/'); // No / after first character
+
+      if (isCommand && allCommands.size > 0) {
         const prefix = filtered.slice(1).split(' ')[0]; // Get command part only
         const filtered2 = filterCommands(prefix, allCommands);
 
