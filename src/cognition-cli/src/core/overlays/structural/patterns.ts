@@ -681,18 +681,18 @@ export class StructuralPatternsManager implements PatternManager {
       explanation: string;
     }>
   > {
-    const manifest = await this.pgc.overlays.get(
-      'structural_patterns',
-      'manifest',
-      z.record(z.string())
-    );
+    const manifest = await this.pgc.overlays.getManifest('structural_patterns');
 
-    if (!manifest) {
+    if (!manifest || Object.keys(manifest).length === 0) {
       console.log(chalk.yellow(`No structural patterns manifest found.`));
       return [];
     }
 
-    const filePath = manifest[symbol];
+    const manifestEntry = manifest[symbol];
+    const filePath =
+      typeof manifestEntry === 'string'
+        ? manifestEntry
+        : manifestEntry?.filePath;
 
     if (!filePath) {
       console.log(chalk.yellow(`No pattern found for symbol: ${symbol}`));
@@ -749,18 +749,18 @@ export class StructuralPatternsManager implements PatternManager {
   public async getVectorForSymbol(
     symbol: string
   ): Promise<VectorRecord | undefined> {
-    const manifest = await this.pgc.overlays.get(
-      'structural_patterns',
-      'manifest',
-      z.record(z.string())
-    );
+    const manifest = await this.pgc.overlays.getManifest('structural_patterns');
 
-    if (!manifest) {
+    if (!manifest || Object.keys(manifest).length === 0) {
       console.log(chalk.yellow(`No structural patterns manifest found.`));
       return undefined;
     }
 
-    const filePath = manifest[symbol];
+    const manifestEntry = manifest[symbol];
+    const filePath =
+      typeof manifestEntry === 'string'
+        ? manifestEntry
+        : manifestEntry?.filePath;
 
     if (!filePath) {
       console.log(chalk.yellow(`No pattern found for symbol: ${symbol}`));

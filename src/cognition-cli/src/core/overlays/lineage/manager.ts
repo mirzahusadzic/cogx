@@ -1,7 +1,6 @@
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import chalk from 'chalk';
-import { z } from 'zod';
 import * as workerpool from 'workerpool';
 import os from 'os';
 
@@ -135,13 +134,11 @@ export class LineagePatternsManager implements PatternManager {
       chalk.blue('[LineagePatterns] Starting generation with options:', options)
     );
 
-    const structuralManifest = await this.pgc.overlays.get(
-      'structural_patterns',
-      'manifest',
-      z.record(z.string())
+    const structuralManifest = await this.pgc.overlays.getManifest(
+      'structural_patterns'
     );
 
-    if (!structuralManifest) {
+    if (!structuralManifest || Object.keys(structuralManifest).length === 0) {
       console.warn(
         chalk.yellow(
           '[LineagePatterns] Structural patterns manifest not found. Skipping.'
@@ -150,9 +147,12 @@ export class LineagePatternsManager implements PatternManager {
       return;
     }
 
-    const targetEntries = Object.entries(structuralManifest).filter(
-      ([, filePath]) => files.length === 0 || files.includes(filePath as string)
-    );
+    const targetEntries = Object.entries(structuralManifest)
+      .map(([symbol, entry]) => {
+        const filePath = typeof entry === 'string' ? entry : entry.filePath;
+        return [symbol, filePath] as [string, string];
+      })
+      .filter(([, filePath]) => files.length === 0 || files.includes(filePath));
 
     const jobs: PatternJobPacket[] = targetEntries
       .map(([symbolName, filePath]) => ({

@@ -117,12 +117,6 @@ export function addPatternsCommands(program: Command) {
       const tableName = `${options.type}_patterns`;
       await vectorDB.initialize(tableName);
 
-      const workbench = new WorkbenchClient(process.env.WORKBENCH_URL!);
-      const manager: PatternManager =
-        options.type === 'structural'
-          ? new StructuralPatternsManager(pgc, vectorDB, workbench)
-          : new LineagePatternsManager(pgc, vectorDB, workbench);
-
       // Group by architectural role with symbols and file paths
       // Only include symbols that are in the manifest (source of truth)
       const roleGroups: Record<
@@ -132,31 +126,32 @@ export function addPatternsCommands(program: Command) {
       let totalPatterns = 0;
       let staleVectors = 0;
 
+      // Get all vectors at once (much faster than calling getVectorForSymbol 711 times)
+      const allVectors = await vectorDB.getAllVectors();
+      const vectorsBySymbol = new Map(
+        allVectors.map((v) => [v.symbol as string, v])
+      );
+
       for (const [symbol, manifestEntry] of Object.entries(manifest)) {
-        try {
-          // Parse manifest entry (handles both old string and new object formats)
-          const parsed =
-            typeof manifestEntry === 'string'
-              ? { filePath: manifestEntry }
-              : manifestEntry;
-          const filePath = parsed.filePath || '';
+        // Parse manifest entry (handles both old string and new object formats)
+        const parsed =
+          typeof manifestEntry === 'string'
+            ? { filePath: manifestEntry }
+            : manifestEntry;
+        const filePath = parsed.filePath || '';
 
-          // Try to get vector from pattern manager (uses manifest)
-          const vector = await manager.getVectorForSymbol(symbol);
+        // Check if vector exists for this symbol
+        const vector = vectorsBySymbol.get(symbol);
 
-          if (vector) {
-            const role = (vector.architectural_role as string) || 'unknown';
-            if (!roleGroups[role]) {
-              roleGroups[role] = [];
-            }
-            roleGroups[role].push({ symbol, filePath });
-            totalPatterns++;
-          } else {
-            // Symbol in manifest but not in vector DB - will be generated on next overlay run
-            staleVectors++;
+        if (vector) {
+          const role = (vector.architectural_role as string) || 'unknown';
+          if (!roleGroups[role]) {
+            roleGroups[role] = [];
           }
-        } catch (e) {
-          // Symbol not in vector DB yet
+          roleGroups[role].push({ symbol, filePath });
+          totalPatterns++;
+        } else {
+          // Symbol in manifest but not in vector DB - will be generated on next overlay run
           staleVectors++;
         }
       }
