@@ -518,52 +518,66 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         let finalPrompt = prompt;
 
         if (prompt.startsWith('/') && commandsCache.size > 0) {
-          const expanded = expandCommand(prompt, commandsCache);
+          const commandName = prompt.split(' ')[0];
 
-          if (expanded) {
-            finalPrompt = expanded;
-
-            // Show system message about expansion
-            setMessages((prev) => [
-              ...prev,
-              {
-                type: 'system',
-                content: `🔧 Expanding command: ${prompt.split(' ')[0]}`,
-                timestamp: new Date(),
-              },
-            ]);
+          // Skip expansion if user just typed "/" alone
+          if (commandName === '/') {
+            // Just treat as normal text, don't try to expand
+            // This allows "/" to be used in regular conversation
           } else {
-            // Unknown command - provide helpful error with fuzzy matching
-            const commandName = prompt.split(' ')[0];
-            const allCommandNames = Array.from(commandsCache.keys());
+            const expanded = expandCommand(prompt, commandsCache);
 
-            // Try to find similar commands (simple string distance)
-            const lowerInput = commandName.slice(1).toLowerCase();
-            const similar = allCommandNames
-              .filter((name) => {
-                const lowerName = name.toLowerCase();
-                return (
-                  lowerName.includes(lowerInput) ||
-                  lowerInput.includes(lowerName)
-                );
-              })
-              .slice(0, 3);
+            if (expanded) {
+              finalPrompt = expanded;
 
-            let errorMessage = `Unknown command: ${commandName}\n`;
+              // DEBUG: Log expansion
+              console.log('[CMD EXPAND]', {
+                original: prompt,
+                expandedLength: expanded.length,
+                first100: expanded.slice(0, 100),
+              });
 
-            if (similar.length > 0) {
-              errorMessage += `Did you mean: ${similar.map((s) => `/${s}`).join(', ')}?\n`;
+              // Show system message about expansion
+              setMessages((prev) => [
+                ...prev,
+                {
+                  type: 'system',
+                  content: `🔧 Expanding command: ${commandName} (${expanded.length} chars)`,
+                  timestamp: new Date(),
+                },
+              ]);
             } else {
-              const firstFive = allCommandNames
-                .slice(0, 5)
-                .map((c) => `/${c}`)
-                .join(', ');
-              errorMessage += `Available commands: ${firstFive}...\n`;
+              // Unknown command - provide helpful error with fuzzy matching
+              const allCommandNames = Array.from(commandsCache.keys());
+
+              // Try to find similar commands (simple string distance)
+              const lowerInput = commandName.slice(1).toLowerCase();
+              const similar = allCommandNames
+                .filter((name) => {
+                  const lowerName = name.toLowerCase();
+                  return (
+                    lowerName.includes(lowerInput) ||
+                    lowerInput.includes(lowerName)
+                  );
+                })
+                .slice(0, 3);
+
+              let errorMessage = `Unknown command: ${commandName}\n`;
+
+              if (similar.length > 0) {
+                errorMessage += `Did you mean: ${similar.map((s) => `/${s}`).join(', ')}?\n`;
+              } else {
+                const firstFive = allCommandNames
+                  .slice(0, 5)
+                  .map((c) => `/${c}`)
+                  .join(', ');
+                errorMessage += `Available commands: ${firstFive}...\n`;
+              }
+
+              errorMessage += `Type '/' to see all ${commandsCache.size} available commands.`;
+
+              throw new Error(errorMessage);
             }
-
-            errorMessage += `Type '/' to see all ${commandsCache.size} available commands.`;
-
-            throw new Error(errorMessage);
           }
         }
 
@@ -594,14 +608,22 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         } else if (embedderRef.current && turnAnalysis.analyses.length > 0) {
           // Real-time lattice context injection for fluent conversation
           try {
+            // For slash commands, use original prompt (not expanded) for context search
+            const searchPrompt = prompt.startsWith('/') ? prompt : finalPrompt;
+
             const result = await injectRelevantContext(
-              finalPrompt,
+              searchPrompt,
               turnAnalysis.analyses,
               embedderRef.current,
               { debug: debugFlag }
             );
 
-            finalPrompt = result.message;
+            // If this was a command expansion, prepend context to expanded command
+            if (prompt.startsWith('/') && finalPrompt !== prompt) {
+              finalPrompt = `${result.message}\n\n---\n\n${finalPrompt}`;
+            } else {
+              finalPrompt = result.message;
+            }
 
             // Cache the user message embedding for reuse in analyzeTurn
             if (result.embedding) {

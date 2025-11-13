@@ -22,6 +22,9 @@ export const InputBox: React.FC<InputBoxProps> = ({
 }) => {
   const [value, setValue] = useState('');
   const lastEscapeTime = useRef<number>(0);
+  const valueRef = useRef<string>(''); // Track actual current value for paste
+  const lastPasteTime = useRef<number>(0);
+  const pasteBuffer = useRef<string>(''); // Accumulate paste chunks
 
   // Command dropdown state
   const [showDropdown, setShowDropdown] = useState(false);
@@ -52,18 +55,60 @@ export const InputBox: React.FC<InputBoxProps> = ({
   }, []);
 
   const handleChange = (newValue: string) => {
-    // Only update if the value actually changed (prevent re-render loops)
-    if (newValue === value) return;
+    const now = Date.now();
+    const timeSinceLastPaste = now - lastPasteTime.current;
 
-    // Filter out ALL escape sequences and mouse events aggressively
+    // Detect if this is a paste (large sudden change or rapid successive calls)
+    const isPaste = newValue.length > valueRef.current.length + 5 || timeSinceLastPaste < 10;
+
+    if (isPaste) {
+      // Accumulate paste chunks within 50ms window
+      if (timeSinceLastPaste < 50) {
+        // This is continuation of previous paste
+        if (!newValue.startsWith(pasteBuffer.current)) {
+          // New chunk, append it
+          pasteBuffer.current += newValue;
+        } else {
+          // Replacement, use longer value
+          pasteBuffer.current = newValue.length > pasteBuffer.current.length ? newValue : pasteBuffer.current;
+        }
+      } else {
+        // New paste started
+        pasteBuffer.current = newValue;
+      }
+      lastPasteTime.current = now;
+
+      // Debounce - wait 50ms for more chunks before committing
+      setTimeout(() => {
+        if (Date.now() - lastPasteTime.current >= 45) {
+          // No more chunks, commit the paste
+          handleChangeInternal(pasteBuffer.current);
+          pasteBuffer.current = '';
+        }
+      }, 50);
+
+      return; // Don't process yet, wait for all chunks
+    }
+
+    // Normal typing
+    handleChangeInternal(newValue);
+  };
+
+  const handleChangeInternal = (newValue: string) => {
+    // Use ref for comparison
+    if (newValue === valueRef.current) return;
+
+    // Filter out escape sequences and mouse events
     // eslint-disable-next-line no-control-regex
-    let filtered = newValue.replace(/\x1b\[[^\x1b]*[a-zA-Z~]/g, ''); // Standard escape sequences
-    filtered = filtered.replace(/\[?<\d+;\d+;\d+[Mm]/g, ''); // Mouse: [<64;76;16M or <64;76;16M
-    filtered = filtered.replace(/\[<\d+;\d+;\d+[Mm]/g, ''); // Mouse: [<64;76;16M explicitly
-    filtered = filtered.replace(/<\d+;\d+;\d+[Mm]/g, ''); // Mouse: <64;76;16M without bracket
-    // Note: Removed overly aggressive bracket filter that blocked legitimate input like [O2]
+    let filtered = newValue;
 
-    if (filtered !== value) {
+    // Comprehensive escape sequence removal
+    filtered = filtered.replace(/\x1b\[[\d;]*[a-zA-Z~]/g, ''); // CSI sequences
+    filtered = filtered.replace(/\x1b\[<[\d;]+[mM]/g, ''); // SGR mouse
+    filtered = filtered.replace(/\[?<\d+;\d+;\d+[Mm]/g, ''); // Legacy mouse
+
+    if (filtered !== valueRef.current) {
+      valueRef.current = filtered; // Update ref immediately
       setValue(filtered);
 
       // Detect slash command and show dropdown
@@ -81,8 +126,14 @@ export const InputBox: React.FC<InputBoxProps> = ({
   };
 
   const handleSubmit = () => {
+    // Don't submit if dropdown is open - let the dropdown handle Enter
+    if (showDropdown) {
+      return;
+    }
+
     if (value.trim() && !disabled) {
       onSubmit(value.trim());
+      valueRef.current = '';
       setValue('');
     }
   };
@@ -114,6 +165,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
           onInterrupt();
         } else if (timeSinceLastEsc < 500) {
           // Double ESC within 500ms clears input
+          valueRef.current = '';
           setValue('');
         }
 
@@ -128,15 +180,19 @@ export const InputBox: React.FC<InputBoxProps> = ({
         setSelectedCommandIndex((prev) =>
           prev < filteredCommands.length - 1 ? prev + 1 : 0
         );
-      } else if (key.return && showDropdown) {
-        // Select command with Enter
+      } else if (key.return && showDropdown && filteredCommands.length > 0) {
+        // Select command with Enter (prevent TextInput from submitting)
         const selected = filteredCommands[selectedCommandIndex];
         if (selected) {
           // Replace current input with selected command
           const args = value.split(' ').slice(1).join(' '); // Preserve args if any
-          setValue(`/${selected.name}${args ? ' ' + args : ''}`);
+          const newValue = `/${selected.name}${args ? ' ' + args : ''}`;
+          valueRef.current = newValue;
+          setValue(newValue);
           setShowDropdown(false);
         }
+        // Prevent event from reaching TextInput's onSubmit
+        return false;
       }
     },
     { isActive: focused }

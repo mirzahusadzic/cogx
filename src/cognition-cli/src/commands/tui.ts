@@ -72,7 +72,7 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     sessionId,
     workbenchUrl,
     sessionTokens: options.sessionTokens,
-    maxThinkingTokens: options.maxThinkingTokens ?? 10000, // Default: 10K tokens for extended thinking
+    maxThinkingTokens: options.maxThinkingTokens ?? 32000, // Default: 32K tokens for extended thinking (matches Claude Code)
     debug: options.debug,
   });
 }

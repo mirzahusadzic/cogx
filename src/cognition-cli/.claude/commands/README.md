@@ -28,7 +28,7 @@ The Cognition CLI TUI (Σ SIGMA CLI) supports all commands in this directory via
 ### Interactive Dropdown:
 
 1. **Type `/`** in the TUI input to see all available commands
-2. **Continue typing** to filter: `/quest` shows quest-* commands
+2. **Continue typing** to filter: `/quest` shows quest-\* commands
 3. **Use ↑/↓ arrows** to navigate through filtered commands
 4. **Press Enter** to select a command
 5. **Add arguments** after the command name: `/analyze-impact src/cli.ts`

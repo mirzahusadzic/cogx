@@ -51,7 +51,6 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
 }) => {
   const [focused, setFocused] = useState(true);
   const [renderError, setRenderError] = useState<Error | null>(null);
-  const [mouseEnabled, setMouseEnabled] = useState(true);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
@@ -85,20 +84,15 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     process.on('SIGINT', sigintHandler);
 
     if (process.stdin.isTTY && typeof process.stdin.setRawMode === 'function') {
-      // Enable mouse tracking on startup
-      if (mouseEnabled) {
-        process.stdout.write('\x1b[?1000h'); // Enable mouse click tracking
-        process.stdout.write('\x1b[?1002h'); // Enable mouse drag tracking
-        process.stdout.write('\x1b[?1015h'); // Enable extended mouse mode
-        process.stdout.write('\x1b[?1006h'); // Enable SGR mouse mode
-      }
+      // ALWAYS enable scroll wheel (1007) but disable click/drag tracking
+      // This allows scrolling to work while preventing paste issues from clicks
+      process.stdout.write('\x1b[?1007h'); // Enable alternate scroll mode (wheel only)
+
+      // Text selection should work natively in terminal (no special mode needed)
 
       return () => {
-        // Disable mouse tracking on cleanup
-        process.stdout.write('\x1b[?1000l');
-        process.stdout.write('\x1b[?1002l');
-        process.stdout.write('\x1b[?1015l');
-        process.stdout.write('\x1b[?1006l');
+        // Disable scroll tracking on cleanup
+        process.stdout.write('\x1b[?1007l');
         // Reset colors on exit
         process.stdout.write('\x1b[0m');
         // Remove SIGINT handler
@@ -110,17 +104,6 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       process.off('SIGINT', sigintHandler);
     };
   }, []);
-
-  // Toggle mouse mode when 'm' is pressed
-  useEffect(() => {
-    if (process.stdin.isTTY) {
-      if (mouseEnabled) {
-        process.stdout.write('\x1b[?1000h\x1b[?1002h\x1b[?1015h\x1b[?1006h');
-      } else {
-        process.stdout.write('\x1b[?1000l\x1b[?1002l\x1b[?1015l\x1b[?1006l');
-      }
-    }
-  }, [mouseEnabled]);
 
   // Error boundary - catch render errors
   useEffect(() => {
@@ -232,10 +215,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     } else if (input === 'i' && !key.ctrl && !key.shift && !key.meta && !focused) {
       // Toggle info panel with 'i' key (only when NOT in input box)
       setShowInfoPanel((prev) => !prev);
-    } else if (input === 'm' && !key.ctrl && !key.shift && !key.meta && !focused) {
-      // Toggle mouse mode with 'm' key (only when NOT in input box)
-      setMouseEnabled((prev) => !prev);
     }
+    // Mouse mode removed - scroll always enabled, text selection always works
     // Note: Arrow keys, etc. are handled by TextInput component
     // We just need to not interfere with them
   }, { isActive: true });
@@ -306,7 +287,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
               <Text color="green">{saveMessage}</Text>
             </Box>
           )}
-          <StatusBar sessionId={currentSessionId} focused={focused} tokenCount={tokenCount} mouseEnabled={mouseEnabled} compressionThreshold={sessionTokens} />
+          <StatusBar sessionId={currentSessionId} focused={focused} tokenCount={tokenCount} compressionThreshold={sessionTokens} />
         </Box>
       </ThemeProvider>
     );

@@ -5,7 +5,6 @@ interface StatusBarProps {
   sessionId?: string;
   focused: boolean;
   tokenCount?: { input: number; output: number; total: number };
-  mouseEnabled?: boolean;
   compressionThreshold?: number;
 }
 
@@ -16,7 +15,6 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   sessionId,
   focused,
   tokenCount,
-  mouseEnabled = true,
   compressionThreshold = 120000,
 }) => {
   // Format token count with K suffix for readability
@@ -34,8 +32,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 
   // Build status bar as single string to avoid wrapping issues
   const buildStatusText = () => {
-    let text = '[Tab] Toggle Focus | [M] Mouse: ';
-    text += mouseEnabled ? 'ON' : 'OFF';
+    let text = '[Tab] Toggle Focus';
 
     if (!focused) {
       text += ' | [↑↓/🖱️ ] Scroll';
