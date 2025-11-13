@@ -9,12 +9,12 @@ export interface CommandDropdownProps {
   maxHeight?: number;
 }
 
-export function CommandDropdown({
+const CommandDropdownComponent = ({
   commands,
   selectedIndex,
   isVisible,
   maxHeight = 10,
-}: CommandDropdownProps): React.ReactElement | null {
+}: CommandDropdownProps): React.ReactElement | null => {
   const { stdout } = useStdout();
   const [scrollOffset, setScrollOffset] = useState(0);
 
@@ -115,4 +115,8 @@ export function CommandDropdown({
       </Box>
     </Box>
   );
-}
+};
+
+// Memoize to prevent re-renders when parent (InputBox) re-renders
+// This prevents terminal flickering when navigating the dropdown
+export const CommandDropdown = React.memo(CommandDropdownComponent);

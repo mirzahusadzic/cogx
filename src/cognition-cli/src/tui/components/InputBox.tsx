@@ -172,14 +172,18 @@ export const InputBox: React.FC<InputBoxProps> = ({
         lastEscapeTime.current = now;
       } else if (key.upArrow && showDropdown) {
         // Navigate up in dropdown (wrap around)
-        setSelectedCommandIndex((prev) =>
-          prev > 0 ? prev - 1 : filteredCommands.length - 1
-        );
+        // Use functional update to avoid triggering re-renders with same value
+        setSelectedCommandIndex((prev) => {
+          const next = prev > 0 ? prev - 1 : filteredCommands.length - 1;
+          return next === prev ? prev : next;
+        });
       } else if (key.downArrow && showDropdown) {
         // Navigate down in dropdown (wrap around)
-        setSelectedCommandIndex((prev) =>
-          prev < filteredCommands.length - 1 ? prev + 1 : 0
-        );
+        // Use functional update to avoid triggering re-renders with same value
+        setSelectedCommandIndex((prev) => {
+          const next = prev < filteredCommands.length - 1 ? prev + 1 : 0;
+          return next === prev ? prev : next;
+        });
       } else if (key.return && showDropdown && filteredCommands.length > 0) {
         // Select command with Enter (prevent TextInput from submitting)
         const selected = filteredCommands[selectedCommandIndex];

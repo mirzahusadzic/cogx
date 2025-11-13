@@ -314,7 +314,11 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
  * Start the TUI
  */
 export function startTUI(options: CognitionTUIProps) {
-  const { unmount, waitUntilExit } = render(<CognitionTUI {...options} />);
+  const { unmount, waitUntilExit } = render(<CognitionTUI {...options} />, {
+    patchConsole: true, // Patch console to prevent output mixing
+    debug: false,
+    maxFps: 15, // Lower FPS to reduce flicker from rapid updates (default is 30)
+  });
 
   // Graceful shutdown
   const cleanup = () => {
