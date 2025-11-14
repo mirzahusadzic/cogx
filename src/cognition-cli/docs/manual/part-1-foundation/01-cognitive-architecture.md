@@ -366,11 +366,11 @@ export async function authenticate(
 }
 ```
 
-**O₁ (Structure)**: Function `authenticate` exists at line 2, exports `Token`, imports `bcrypt`, `jwt`, `db`
+**O₁ (Structure)**: Function `authenticate(user: string, password: string): Promise<Token>` at line 2, exported, async function signature
 
 **O₂ (Security)**: Implements "Password Hashing" mitigation (bcrypt), "Token Expiry" mitigation (1h), vulnerable to timing attacks (missing constant-time comparison)
 
-**O₃ (Lineage)**: Called by `loginHandler`, `registerHandler`, `refreshHandler`; calls `bcrypt.hash`, `db.validateCredentials`, `jwt.sign`
+**O₃ (Lineage)**: Imports `bcrypt`, `jwt`, `db`; called by `loginHandler`, `registerHandler`, `refreshHandler`; calls `bcrypt.hash`, `db.validateCredentials`, `jwt.sign`
 
 **O₄ (Mission)**: Implements "Privacy-first authentication" concept (hashed passwords), aligns with "Minimize data collection" principle (no PII in tokens)
 

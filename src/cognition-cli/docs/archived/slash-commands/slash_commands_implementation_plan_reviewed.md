@@ -72,7 +72,9 @@ fs.mkdirSync(commandsDir, { recursive: true });
 // (This is defensive - path.normalize should already prevent it)
 
 const result = await loadCommands(tempDir);
-expect(result.errors.some(e => e.error.includes('directory traversal'))).toBe(false);
+expect(result.errors.some((e) => e.error.includes('directory traversal'))).toBe(
+  false
+);
 
 fs.rmSync(tempDir, { recursive: true, force: true });
 ```
@@ -107,7 +109,7 @@ const [errors, setErrors] = useState<Array<{file: string, error: string}>>([]);
 
 ```ts
 useEffect(() => {
-  loadCommands(process.cwd()).then(result => {
+  loadCommands(process.cwd()).then((result) => {
     setCommands(result.commands);
     setErrors(result.errors);
     setLoading(false);
