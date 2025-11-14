@@ -78,18 +78,21 @@ The Cognition CLI implements a **layered architecture** with clear separation of
 Mathematical abstraction layer providing algebraic operations over knowledge overlays.
 
 **Used By (from blast-radius):**
+
 - All 7 conversation managers (BaseConversationManager + 6 specialized)
 - OverlayRegistry (query system)
 - QueryEngine, Parser, Lexer
 - Algebra adapters (Coherence, Lineage, Security, etc.)
 
 **PGC Metadata:**
+
 ```
 interface:OverlayAlgebra | properties:0 | exports:9
 Dependencies: OverlayMetadata (depth 1)
 ```
 
 **📖 Operations Provided (from source):**
+
 - `meet(other)` - Lattice intersection (∧)
 - `join(other)` - Lattice union (∨)
 - `select(predicate)` - Filter items
@@ -97,6 +100,7 @@ Dependencies: OverlayMetadata (depth 1)
 - `diff(other)` - Set difference (Δ)
 
 **Critical Path:**
+
 ```
 OverlayAlgebra → BaseConversationManager → SelectOptions (20 consumers)
 ```
@@ -117,6 +121,7 @@ Changes to OverlayAlgebra cascade through the entire overlay system. This is the
 Central coordinator for Project Graph Code operations. Single source of truth for the knowledge graph.
 
 **Used By (from blast-radius analysis):**
+
 - All 3 orchestrators (Genesis, Update, Overlay)
 - GraphTraversal (dependency analysis)
 - All 3 oracles (Genesis, Overlay, Docs)
@@ -126,11 +131,13 @@ Central coordinator for Project Graph Code operations. Single source of truth fo
 **Dependencies (from PGC):** None (leaf component)
 
 **PGC Signature:**
+
 ```
 class:PGCManager | methods:6 | decorators:0 | imports:10 | exports:1
 ```
 
 **📖 Key Methods (from source):**
+
 - `getIndex()` - Access index subsystem
 - `getObjectStore()` - Access content-addressable storage
 - `getReverseDeps()` - Access O(1) reverse lookup
@@ -139,6 +146,7 @@ class:PGCManager | methods:6 | decorators:0 | imports:10 | exports:1
 - `save()` - Persist changes
 
 **Critical Path (from blast-radius):**
+
 ```
 PGCManager → UpdateOrchestrator → WorkbenchClient (17 consumers)
 ```
@@ -159,22 +167,26 @@ Core infrastructure component. No dependencies but many consumers. Changes here 
 Single integration point for all AI/ML operations via external workbench service (eGemma).
 
 **Used By (from blast-radius):**
+
 - UpdateOrchestrator, GenesisOrchestrator
 - EmbeddingService
 - StructuralPatternsManager, LineagePatternsManager
 - StructuralMiner, SLMExtractor, LLMSupervisor
 
 **Dependencies (from blast-radius):**
+
 - `SummarizeRequest` - Text summarization
 - `EmbedRequest` - Vector embeddings
 - `ASTParseRequest` - AST parsing
 
 **PGC Signature:**
+
 ```
 class:WorkbenchClient | methods:11 | decorators:0 | imports:7 | exports:1
 ```
 
 **📖 Key Methods (from source):**
+
 - `embed()` - Generate embeddings
 - `summarize()` - Summarize content
 - `parseAST()` - Parse abstract syntax trees
@@ -182,6 +194,7 @@ class:WorkbenchClient | methods:11 | decorators:0 | imports:7 | exports:1
 - Queue management for rate limiting
 
 **Critical Path (from blast-radius):**
+
 ```
 WorkbenchClient → UpdateOrchestrator → PGCManager (19 consumers)
 ```
@@ -201,20 +214,24 @@ Bottleneck for all AI operations. Handles retries, rate limiting, and queue mana
 Registry for managing overlay lifecycle and enabling algebraic queries.
 
 **Used By:**
+
 - QueryEngine, Parser, Lexer (query system)
 - All query algebra operations
 
 **Depends On:**
+
 - OverlayAlgebra (foundational abstraction)
 - OverlayInfo (metadata types)
 
 **Operations:**
+
 - `register(name, algebra)` - Register overlay
 - `get(name)` - Retrieve overlay
 - `list()` - List all overlays
 - `query(expression)` - Execute algebraic queries
 
 **Critical Path:**
+
 ```
 OverlayRegistry → OverlayAlgebra (44 impacts)
 ```
@@ -236,6 +253,7 @@ The system uses **3 specialized orchestrators** to coordinate complex workflows:
 Initializes project graph from source code. First-time knowledge extraction.
 
 **📖 Workflow (derived from understanding dependencies):**
+
 ```
 1. Scan source directory
 2. Parse files via StructuralMiner
@@ -247,6 +265,7 @@ Initializes project graph from source code. First-time knowledge extraction.
 ```
 
 **Dependencies (from `patterns inspect`):**
+
 ```
 GenesisOrchestrator
 ├─ PGCManager (graph coordination)
@@ -257,11 +276,13 @@ GenesisOrchestrator
 ```
 
 **PGC Signature:**
+
 ```
 class:GenesisOrchestrator | methods:10 | decorators:0 | imports:11 | exports:1
 ```
 
 **📖 Key Methods (from source):**
+
 - `initialize()` - Start genesis process
 - `processFiles()` - Batch file processing
 - `validateResults()` - Oracle-based verification
@@ -279,6 +300,7 @@ class:GenesisOrchestrator | methods:10 | decorators:0 | imports:11 | exports:1
 Incremental updates when files change. Maintains graph coherence.
 
 **📖 Workflow (derived from understanding system):**
+
 ```
 1. Read dirty_state.json (from FileWatcher)
 2. Identify changed files
@@ -290,6 +312,7 @@ Incremental updates when files change. Maintains graph coherence.
 ```
 
 **Dependencies (from `patterns inspect`):** (Same as GenesisOrchestrator)
+
 ```
 UpdateOrchestrator
 ├─ PGCManager
@@ -313,6 +336,7 @@ Only processes changed files and their direct dependents, not entire codebase.
 Manages overlay lifecycle (generation, updates, compaction).
 
 **📖 Workflow (derived from understanding system):**
+
 ```
 1. Receive overlay generation request
 2. Load relevant patterns from PGCManager
@@ -323,6 +347,7 @@ Manages overlay lifecycle (generation, updates, compaction).
 ```
 
 **Coordinates (inferred from overlay system):**
+
 - StructuralPatternsManager (O₁)
 - SecurityGuidelinesManager (O₂)
 - LineagePatternsManager (O₃)
@@ -344,6 +369,7 @@ Pattern managers extract and maintain specialized knowledge overlays:
 - **Purpose:** Extract structural patterns from AST (O₁)
 
 **Workflow:**
+
 ```
 1. Load StructuralData from PGCManager
 2. Spawn worker pool for parallel processing
@@ -354,11 +380,13 @@ Pattern managers extract and maintain specialized knowledge overlays:
 ```
 
 **Dependencies:**
+
 - PGCManager (data source)
 - WorkbenchClient (embeddings)
 - LanceVectorStore (storage)
 
 **Worker Architecture:**
+
 ```
 Main Thread
   ├─ Worker 1 (processStructuralPattern)
@@ -376,6 +404,7 @@ Main Thread
 - **Purpose:** Track dependencies and provenance (O₃)
 
 **Workflow:**
+
 ```
 1. Build dependency graph from PGCManager
 2. Spawn worker pool
@@ -385,11 +414,12 @@ Main Thread
 ```
 
 **📖 Key Type (from source: `src/core/overlays/lineage/types.ts:82-86`):**
+
 ```typescript
 interface Dependency {
-  path: string;            // File path of dependency
-  depth: number;           // Depth in dependency graph
-  structuralData: StructuralData;  // Full AST data for the file
+  path: string; // File path of dependency
+  depth: number; // Depth in dependency graph
+  structuralData: StructuralData; // Full AST data for the file
 }
 ```
 
@@ -537,17 +567,20 @@ Status checks are fast (claimed <10ms in README) by reading `dirty_state.json` w
 **Solution:** Abstract algebraic operations (meet, join, select, project) over overlays.
 
 **Implementation:**
+
 - `OverlayAlgebra` interface defines operations
 - `BaseConversationManager` provides base implementation
 - 7 conversation managers extend with domain-specific logic
 - `OverlayRegistry` enables runtime composition
 
 **Benefits:**
+
 - Query overlays like databases: `(O1 ∧ O4) ∪ O7`
 - Type-safe operations
 - Composable, reusable logic
 
 **Metrics:**
+
 - 44 consumers implement this abstraction
 - Core to both project and conversation lattices
 
@@ -560,11 +593,13 @@ Status checks are fast (claimed <10ms in README) by reading `dirty_state.json` w
 **Solution:** Dedicated orchestrator classes coordinate workflow steps.
 
 **Implementation:**
+
 - 3 orchestrators (Genesis, Update, Overlay)
 - All depend on PGCManager + WorkbenchClient
 - Clear separation: init (Genesis), sync (Update), compute (Overlay)
 
 **Benefits:**
+
 - Clear workflow boundaries
 - Easier testing (mock orchestrator)
 - Separation of coordination from execution
@@ -578,26 +613,34 @@ Status checks are fast (claimed <10ms in README) by reading `dirty_state.json` w
 **Solution:** Specialized manager classes per overlay type.
 
 **Implementation:**
+
 - **StructuralPatternsManager** - AST analysis (O₁)
 - **LineagePatternsManager** - Dependency tracking (O₃)
 - **MissionConceptsManager** - Strategic concepts (O₄)
 - **StrategicCoherenceManager** - Cross-overlay synthesis (O₇)
 
 **📖 Common Interface (from source: `src/core/pgc/patterns.ts:6-20`):**
+
 ```typescript
 interface PatternManager {
-  findSimilarPatterns(symbol: string, topK: number): Promise<Array<{
-    symbol: string;
-    filePath: string;
-    similarity: number;
-    architecturalRole: string;
-    explanation: string;
-  }>>;
+  findSimilarPatterns(
+    symbol: string,
+    topK: number
+  ): Promise<
+    Array<{
+      symbol: string;
+      filePath: string;
+      similarity: number;
+      architecturalRole: string;
+      explanation: string;
+    }>
+  >;
   getVectorForSymbol(symbol: string): Promise<VectorRecord | undefined>;
 }
 ```
 
 **Benefits:**
+
 - Domain expertise encapsulated
 - Independent evolution
 - Parallel processing (worker pools)
@@ -611,6 +654,7 @@ interface PatternManager {
 **Solution:** Registry classes providing lazy initialization and type-safe access.
 
 **Implementation (from PGC):**
+
 - `OverlayRegistry` - Project overlays (O1-O7)
   - **Role:** component
   - **Blast radius:** 13 symbols
@@ -619,6 +663,7 @@ interface PatternManager {
 - `ConversationOverlayRegistry` - Conversation overlays
 
 **📖 Operations (from source: `src/core/algebra/overlay-registry.ts`):**
+
 ```typescript
 // Get overlay (lazy initialization)
 const overlay = await registry.get('O4');
@@ -637,6 +682,7 @@ const info = registry.getOverlayInfo();
 ```
 
 **📖 Design (verified from source):**
+
 - Hard-coded overlay types (O1-O7) for type safety
 - Lazy initialization (managers created on first access)
 - No dynamic registration (prevents runtime injection)
@@ -651,7 +697,7 @@ Analysis of **523 classified patterns** reveals:
 ### By Role
 
 | Role          | Count | Percentage | Description                     |
-|---------------|-------|------------|---------------------------------|
+| ------------- | ----- | ---------- | ------------------------------- |
 | Utility       | 232   | 44%        | Business logic, transformations |
 | Type          | 218   | 42%        | Data structures, interfaces     |
 | Component     | 68    | 13%        | Stateful classes, managers      |
@@ -660,6 +706,7 @@ Analysis of **523 classified patterns** reveals:
 | Configuration | 1     | <1%        | SecurityConfig                  |
 
 **Insights:**
+
 - **High utility ratio (44%)** - Rich transformation logic
 - **Type-heavy (42%)** - Strong TypeScript typing
 - **Few orchestrators (3)** - Focused coordination layer
@@ -670,28 +717,34 @@ Analysis of **523 classified patterns** reveals:
 ### By Domain
 
 **Core PGC Infrastructure:**
+
 - PGCManager, Index, ObjectStore, ReverseDeps, Overlays
 
 **Overlay System:**
+
 - 10+ overlay managers
 - OverlayAlgebra, OverlayRegistry
 - Algebra adapters
 
 **Mining/Extraction:**
+
 - StructuralMiner, SLMExtractor, LLMSupervisor
 - AST parsers (TypeScript, JavaScript)
 
 **Conversation (Σ):**
+
 - 7 conversation managers
 - BaseConversationManager
 - Session state management
 
 **TUI:**
+
 - React hooks, components
 - Rendering system
 - SDK integration
 
 **Commands:**
+
 - CLI command implementations
 - Sugar commands (simplified interfaces)
 
@@ -712,6 +765,7 @@ OverlayAlgebra (44 impacts)
 **Risk:** Changes to algebraic operations affect entire overlay query system.
 
 **Mitigation:**
+
 - Comprehensive unit tests for algebra operations
 - Integration tests for meet/join/select/project
 - Immutable operation results
@@ -729,6 +783,7 @@ PGCManager (20 impacts)
 **Risk:** Core infrastructure changes ripple through orchestration layer.
 
 **Mitigation:**
+
 - Stable PGCManager API
 - Version transforms for breaking changes
 - Oracle validation at every step
@@ -746,6 +801,7 @@ WorkbenchClient (23 impacts)
 **Risk:** External service changes affect all AI operations.
 
 **Mitigation:**
+
 - Queue-based rate limiting
 - Retry logic with exponential backoff
 - Graceful degradation (fallback to deterministic extraction)
@@ -760,16 +816,19 @@ WorkbenchClient (23 impacts)
 **Role:** Single integration point for AI/ML
 
 **All AI operations flow through here:**
+
 - Embeddings (vector search)
 - Summarization (content compression)
 - AST parsing (structural extraction)
 
 **Risk Factors:**
+
 - Network latency
 - Rate limiting (429 errors)
 - Service availability
 
 **Mitigations:**
+
 - Queue management
 - Batch operations
 - Local caching
@@ -783,16 +842,19 @@ WorkbenchClient (23 impacts)
 **Role:** Single source of truth for graph
 
 **All graph operations require PGCManager:**
+
 - Read operations (index lookup, object retrieval)
 - Write operations (store objects, update index)
 - Query operations (reverse deps, traversal)
 
 **Risk Factors:**
+
 - File I/O performance
 - Concurrent access
 - Index consistency
 
 **Mitigations:**
+
 - Immutable objects
 - Append-only transforms
 - Content addressing (no overwrites)
@@ -808,16 +870,19 @@ Both pattern managers use worker pools for performance:
 **📖 Worker Calculation (from source: `src/core/overlays/structural/patterns.ts:25-38`):**
 
 The system uses a tiered approach for optimal worker allocation:
+
 - Small jobs (≤10): 2 workers max
 - Medium jobs (≤50): 4 workers max
 - Large jobs (>50): Up to 8 workers (75% of CPU cores)
 
 **Worker Distribution:**
+
 - Main thread coordinates
 - N workers process patterns in parallel
 - Results aggregated in main thread
 
 **Expected Behavior:**
+
 - 711 patterns (from this codebase)
 - 8 CPU cores → 6 workers (large job tier)
 - ~120 patterns per worker
@@ -852,6 +917,7 @@ Both project and conversation overlays use **LanceDB** for vector storage:
 **Purpose:** Vector database for semantic search across overlays using Apache Arrow schema.
 
 **📖 Key Features (from source):**
+
 - Uses Apache Arrow schema with FixedSizeList for embeddings
 - Stores structural signatures, architectural roles, and lineage hashes
 - Supports configurable embedding dimensions (default: from config)
@@ -867,11 +933,13 @@ Both project and conversation overlays use **LanceDB** for vector storage:
 **Role:** Configuration
 
 **Modes:**
+
 - `off` - No security checks
 - `advisory` - Warnings only
 - `strict` - Block on violations
 
 **📖 Validation (from source: `src/core/security/security-config.ts:228-271`):**
+
 ```typescript
 validateSecurityConfig(config: SecurityConfig): { valid: boolean; errors: string[] } {
   // Validates security mode ('off' | 'advisory' | 'strict')
@@ -890,6 +958,7 @@ validateSecurityConfig(config: SecurityConfig): { valid: boolean; errors: string
 **Purpose:** Append-only audit trail for mission operations.
 
 **Log Format:**
+
 ```jsonl
 {
   "timestamp": "2025-11-14T...",
@@ -902,6 +971,7 @@ validateSecurityConfig(config: SecurityConfig): { valid: boolean; errors: string
 ```
 
 **Guarantees:**
+
 - Append-only (no edits)
 - Local control
 - Transparent to user
@@ -916,11 +986,13 @@ Enables algebraic queries over overlays:
 
 **Location:** `src/core/algebra/query-parser.ts`
 **Components:**
+
 - **Lexer** - Tokenizes query string
 - **Parser** - Builds AST
 - **QueryEngine** - Executes query
 
 **Query Syntax:**
+
 ```
 (O1 ∧ O4) ∪ O7
 O2 Δ O6
@@ -928,6 +1000,7 @@ O1[role=component] ∩ O3
 ```
 
 **Execution:**
+
 ```
 1. Lexer: "(O1 ∧ O4) ∪ O7" → Tokens
 2. Parser: Tokens → Query AST
@@ -945,12 +1018,14 @@ All operations type-checked at compile time via TypeScript.
 ### 1. Layered Architecture
 
 Clear separation of concerns:
+
 - **Infrastructure** - PGC storage, graph, index
 - **Orchestration** - Workflow coordination
 - **Domain** - Overlays, patterns, conversations
 - **Interface** - TUI, CLI
 
 **Benefits:**
+
 - Independent layer evolution
 - Clear testing boundaries
 - Easier onboarding
@@ -960,6 +1035,7 @@ Clear separation of concerns:
 ### 2. Algebraic Abstraction
 
 OverlayAlgebra provides mathematical rigor:
+
 - **Composability** - Combine overlays algebraically
 - **Type Safety** - Compile-time guarantees
 - **Expressiveness** - Complex queries in simple syntax
@@ -972,6 +1048,7 @@ Dual-lattice Meet operations enable semantic alignment scoring between project a
 ### 3. Event-Driven Updates
 
 DirtyStateManager + UpdateOrchestrator enable:
+
 - **Incremental processing** - Only changed files
 - **Fast status checks** - Via dirty state file (no graph traversal)
 - **Selective invalidation** - Blast radius limits updates
@@ -981,6 +1058,7 @@ DirtyStateManager + UpdateOrchestrator enable:
 ### 4. Vector-Based Search
 
 LanceVectorStore integration:
+
 - **Semantic search** - Beyond keyword matching
 - **Cross-overlay queries** - Find alignments
 - **Efficient storage** - 300-dim embeddings, IVF-PQ indexing
@@ -990,6 +1068,7 @@ LanceVectorStore integration:
 ### 5. Parallel Processing
 
 Worker-based pattern mining:
+
 - **Optimal worker calculation** - Based on CPU cores and job count
 - **No coordination overhead** - Disjoint symbol sets
 - **Expected speedup** - Near-linear due to independent symbol processing
@@ -1001,18 +1080,22 @@ Worker-based pattern mining:
 > **Note:** Performance numbers below are from README claims, not verified benchmarks. Actual performance depends on codebase size, hardware, and workbench latency.
 
 ### Status Check
+
 ```
 cognition-cli status
 ```
+
 **Claimed:** <10ms
 **Why:** Reads `dirty_state.json`, no graph traversal
 
 ---
 
 ### Genesis (Initial Build)
+
 ```
 cognition-cli genesis src/
 ```
+
 **Claimed:** ~2-5 minutes (depends on codebase size)
 **Bottleneck:** AST parsing + embeddings
 **Parallelism:** Worker pool
@@ -1020,9 +1103,11 @@ cognition-cli genesis src/
 ---
 
 ### Update (Incremental)
+
 ```
 cognition-cli update
 ```
+
 **Claimed:** ~5-30 seconds (depends on changed file count)
 **Optimization:** Only processes dirty files + direct dependents
 **Blast Radius:** Limits update scope
@@ -1030,18 +1115,22 @@ cognition-cli update
 ---
 
 ### Overlay Generation
+
 ```
 cognition-cli overlay generate structural_patterns
 ```
+
 **Bottleneck:** Embedding generation via WorkbenchClient
 **Parallelism:** Worker pool + batch embedding
 
 ---
 
 ### Query Execution
+
 ```
 cognition-cli query "find usages of PGCManager"
 ```
+
 **Why:** O(1) reverse dependency lookup
 **Data Structure:** `reverse_deps/` hash table
 
@@ -1054,6 +1143,7 @@ Based on architectural analysis:
 ### Unit Tests
 
 **Target:** Utilities and types (44% + 42% = 86% of codebase)
+
 - Algebra operations (meet, join, select, project)
 - Transform functions
 - Type validators
@@ -1063,6 +1153,7 @@ Based on architectural analysis:
 ### Integration Tests
 
 **Target:** Components and orchestrators (13% + 1% = 14% of codebase)
+
 - GenesisOrchestrator full workflow
 - UpdateOrchestrator incremental sync
 - Pattern manager generation
@@ -1072,6 +1163,7 @@ Based on architectural analysis:
 ### End-to-End Tests
 
 **Target:** Complete workflows
+
 - `init → genesis → overlay generate → query`
 - `watch → status → update` (real-time sync)
 - `tui` session with compression
@@ -1089,24 +1181,53 @@ Based on architectural analysis:
 **📖 From Source (verified against `src/core/algebra/overlay-algebra.ts`):** To add a new overlay:
 
 **Step 1:** Create manager class implementing `OverlayAlgebra` interface
+
 ```typescript
 class CustomOverlayManager implements OverlayAlgebra {
-  getOverlayId(): string { return 'O8'; }
-  getOverlayName(): string { return 'Custom'; }
-  getSupportedTypes(): string[] { return ['custom_type']; }
-  async getAllItems(): Promise<OverlayItem[]> { /* Return all items */ }
-  async getItemsByType(type: string): Promise<OverlayItem[]> { /* Filter by type */ }
-  async filter(predicate: (metadata) => boolean): Promise<OverlayItem[]> { /* Filter */ }
-  async query(query: string, topK?: number): Promise<Array<{ item: OverlayItem; similarity: number }>> { /* Semantic search */ }
-  async select(options: SelectOptions): Promise<OverlayItem[]> { /* Set operations */ }
-  async exclude(options: SelectOptions): Promise<OverlayItem[]> { /* Set exclusion */ }
-  async getSymbolSet(): Promise<Set<string>> { /* Symbol coverage */ }
-  async getIdSet(): Promise<Set<string>> { /* ID set */ }
-  getPgcRoot(): string { return this.pgcRoot; }
+  getOverlayId(): string {
+    return 'O8';
+  }
+  getOverlayName(): string {
+    return 'Custom';
+  }
+  getSupportedTypes(): string[] {
+    return ['custom_type'];
+  }
+  async getAllItems(): Promise<OverlayItem[]> {
+    /* Return all items */
+  }
+  async getItemsByType(type: string): Promise<OverlayItem[]> {
+    /* Filter by type */
+  }
+  async filter(predicate: (metadata) => boolean): Promise<OverlayItem[]> {
+    /* Filter */
+  }
+  async query(
+    query: string,
+    topK?: number
+  ): Promise<Array<{ item: OverlayItem; similarity: number }>> {
+    /* Semantic search */
+  }
+  async select(options: SelectOptions): Promise<OverlayItem[]> {
+    /* Set operations */
+  }
+  async exclude(options: SelectOptions): Promise<OverlayItem[]> {
+    /* Set exclusion */
+  }
+  async getSymbolSet(): Promise<Set<string>> {
+    /* Symbol coverage */
+  }
+  async getIdSet(): Promise<Set<string>> {
+    /* ID set */
+  }
+  getPgcRoot(): string {
+    return this.pgcRoot;
+  }
 }
 ```
 
 **Step 2:** Modify `src/core/algebra/overlay-registry.ts`
+
 ```typescript
 // Add to OverlayId type
 export type OverlayId = 'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7' | 'O8';
@@ -1132,6 +1253,7 @@ The Cognition CLI implements a **sophisticated layered architecture** grounded i
 6. **Dual-lattice innovation** - Project ∧ Conversation alignment (Σ System)
 
 **Metrics verified from PGC analysis:**
+
 - ✓ 711 structural patterns discovered (`patterns list`)
 - ✓ 523 patterns classified by role (`patterns analyze`)
 - ✓ 7 core components evaluated by blast radius
@@ -1158,5 +1280,5 @@ By clearly separating what PGC tools reveal (structure, relationships, metrics) 
 - [00 - Introduction](./00_Introduction.md)
 - [02 - Core Infrastructure (PGC)](./02_Core_Infrastructure.md)
 - [07 - AI-Grounded Architecture Analysis](./07_AI_Grounded_Architecture_Analysis.md)
-- [SIGMA Context Architecture](../SIGMA_CONTEXT_ARCHITECTURE.md)
+- [SIGMA Context Architecture](https://github.com/mirzahusadzic/cogx/blob/main/src/cognition-cli/SIGMA_CONTEXT_ARCHITECTURE.md)
 - [CogX Architectural Blueprint](https://github.com/mirzahusadzic/cogx)

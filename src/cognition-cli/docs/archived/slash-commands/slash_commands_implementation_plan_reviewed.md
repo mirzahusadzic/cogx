@@ -8,7 +8,7 @@
 2. Keyboard Event Priority - Added priority system with isActive flag (lines 831-882) ✅
 3. Command Validation - Added validateCommandFile() and schema checking (lines 250-262) ✅
 4. Security - Added directory traversal prevention (lines 196-201) ✅
-5. Structured Placeholders - Changed from [FILE_PATH] to {{FILE_PATH}} (lines 304-318) ✅
+5. Structured Placeholders - Changed from [FILE_PATH] to `{{FILE_PATH}}` (lines 304-318) ✅
 6. Error Reporting - Added LoadCommandsResult with errors/warnings arrays (lines 152-156) ✅
 7. Unit Tests - Comprehensive test suite included (lines 327-446) ✅
 8. Loading State - Added commandsLoading state (lines 1171-1192) ✅
@@ -39,14 +39,17 @@ return placeholders[key as keyof typeof placeholders] || match;
 Issue: TypeScript as assertion could fail silently.
 
 Better approach:
+
+```ts
 expanded = expanded.replace(/\{\{(\w+)\}\}/g, (match, key) => {
-if (key in placeholders) {
-return placeholders[key as keyof typeof placeholders];
-}
-// Log warning for unknown placeholder
-console.warn(`Unknown placeholder: {{${key}}}`);
-return match; // Leave as-is
+  if (key in placeholders) {
+    return placeholders[key as keyof typeof placeholders];
+  }
+  // Log warning for unknown placeholder
+  console.warn(`Unknown placeholder: ${match}`);
+  return match; // Leave as-is
 });
+```
 
 2. Test Coverage Gap (Low Priority)
 
@@ -63,14 +66,16 @@ const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'test-commands-'));
 const commandsDir = path.join(tempDir, '.claude', 'commands');
 fs.mkdirSync(commandsDir, { recursive: true });
 
-    // Try to create file with traversal path (simulated)
-    // The loader should reject it
-    // (This is defensive - path.normalize should already prevent it)
+```ts
+// Try to create file with traversal path (simulated)
+// The loader should reject it
+// (This is defensive - path.normalize should already prevent it)
 
-    const result = await loadCommands(tempDir);
-    expect(result.errors.some(e => e.error.includes('directory traversal'))).toBe(false);
+const result = await loadCommands(tempDir);
+expect(result.errors.some(e => e.error.includes('directory traversal'))).toBe(false);
 
-    fs.rmSync(tempDir, { recursive: true, force: true });
+fs.rmSync(tempDir, { recursive: true, force: true });
+```
 
 });
 
@@ -100,15 +105,17 @@ const [commands, setCommands] = useState<Map<string, Command>>(new Map());
 const [loading, setLoading] = useState(true);
 const [errors, setErrors] = useState<Array<{file: string, error: string}>>([]);
 
-    useEffect(() => {
-      loadCommands(process.cwd()).then(result => {
-        setCommands(result.commands);
-        setErrors(result.errors);
-        setLoading(false);
-      });
-    }, []);
+```ts
+useEffect(() => {
+  loadCommands(process.cwd()).then(result => {
+    setCommands(result.commands);
+    setErrors(result.errors);
+    setLoading(false);
+  });
+}, []);
 
-    return { commands, loading, errors };
+return { commands, loading, errors };
+```
 
 }
 
