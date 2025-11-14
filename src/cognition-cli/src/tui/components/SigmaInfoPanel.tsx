@@ -66,7 +66,7 @@ export const SigmaInfoPanel: React.FC<SigmaInfoPanelProps> = ({
 
       <Box flexDirection="column" marginBottom={1}>
         <Text color="#8b949e">Lattice:</Text>
-        <Text color="#58a6ff"> 🕸️  Nodes: {sigmaStats.nodes}</Text>
+        <Text color="#58a6ff"> 🕸️ Nodes: {sigmaStats.nodes}</Text>
         <Text color="#79c0ff"> 🔗 Edges: {sigmaStats.edges}</Text>
         <Text color="#d29922"> ⚡ Shifts: {sigmaStats.paradigmShifts}</Text>
       </Box>

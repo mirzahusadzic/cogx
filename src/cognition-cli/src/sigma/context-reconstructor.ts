@@ -8,6 +8,8 @@
  * This is the HEART of Sigma's compression intelligence.
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import type { ConversationLattice } from './types.js';
 import type { ConversationOverlayRegistry } from './conversation-registry.js';
 import { filterConversationByAlignment } from './query-conversation.js';
@@ -51,6 +53,74 @@ interface MentalMapBlock {
   name: string;
   status: 'complete' | 'in-progress' | 'pending';
   importance: number;
+}
+
+/**
+ * Detect available slash commands from .claude/commands directory
+ */
+function detectSlashCommands(cwd: string): string[] {
+  try {
+    const commandsDir = path.join(cwd, '.claude', 'commands');
+    if (!fs.existsSync(commandsDir)) {
+      return [];
+    }
+
+    const files = fs.readdirSync(commandsDir);
+    return files
+      .filter((f) => f.endsWith('.md') && f !== 'README.md')
+      .map((f) => `/${f.replace('.md', '')}`)
+      .sort();
+  } catch (err) {
+    return [];
+  }
+}
+
+/**
+ * Generate system identity fingerprint
+ * This is prepended to all compressed recaps to preserve meta-context
+ */
+function getSystemFingerprint(
+  cwd: string,
+  mode: ConversationMode,
+  isCompressed: boolean
+): string {
+  const slashCommands = detectSlashCommands(cwd);
+  const commandsList =
+    slashCommands.length > 0
+      ? slashCommands.map((cmd) => `\`${cmd}\``).join(', ')
+      : 'None detected';
+
+  return `# SYSTEM IDENTITY
+
+You are **Claude Code** (Anthropic SDK) running inside **Cognition Σ (Sigma) CLI** - a verifiable AI-human symbiosis architecture with dual-lattice knowledge representation.
+
+## What is Cognition Σ?
+A portable cognitive layer that can be initialized in **any repository**. Creates \`.sigma/\` (conversation memory) and \`.open_cognition/\` (PGC project knowledge store) in the current working directory.
+
+## Architecture Overview
+- **Dual-lattice**: Local (project-specific) + Global (cross-project patterns)
+- **Seven Overlays** (O1-O7): Structural, Security, Lineage, Mission, Operational, Mathematical, Coherence
+- **PGC**: Content-addressable storage with SHA-256 hashing
+- **Shadow Architecture**: Body (structural) + Shadow (semantic) embeddings
+- **Blast radius**: Dependency tracking via lineage overlay (4 relationships: imports, extends, implements, uses)
+
+## Available Tools
+- \`recall_past_conversation\`: Semantic search across conversation history
+- Query overlays for architectural reasoning (structural patterns, dependencies, mission alignment)
+- Analyze coherence drift and blast radius
+- Access both local lattice (this repo) and global lattice (cross-project knowledge)
+
+## Slash Commands (from .claude/commands/)
+${commandsList}
+
+## Current Session
+- **Working Directory**: \`${cwd}\`
+- **Lattice Stores**: \`.sigma/\` (conversation), \`.open_cognition/\` (PGC)
+- **Session Type**: ${mode}
+- **Post-Compression**: ${isCompressed ? 'Yes' : 'No'}
+
+---
+`;
 }
 
 /**
@@ -266,15 +336,22 @@ function getCurrentDepth(lattice: ConversationLattice): {
  * Reconstruct context in Quest Mode
  */
 async function reconstructQuestContext(
-  lattice: ConversationLattice
+  lattice: ConversationLattice,
+  cwd: string
 ): Promise<string> {
   const quest = detectCurrentQuest(lattice);
   const mentalMap = buildMentalMap(lattice);
   const currentDepth = getCurrentDepth(lattice);
+  const { turns, pendingTask } = getLastConversationTurns(lattice);
 
   const statusEmoji = quest.completed ? '✅' : '🔄';
 
-  return `# Quest Context Recap
+  const fingerprint = getSystemFingerprint(cwd, 'quest', true);
+
+  return (
+    fingerprint +
+    `
+# Quest Context Recap
 
 ## Current Quest: ${quest.name}
 ${statusEmoji} Status: ${quest.completed ? 'Complete' : 'In Progress'}
@@ -300,8 +377,7 @@ ${currentDepth.description}
 **Files Involved:**
 ${currentDepth.files.length > 0 ? currentDepth.files.map((f) => `- \`${f}\``).join('\n') : '- (No specific files)'}
 
-**Last Action:**
-${currentDepth.lastAction}
+${formatLastTurns(turns, pendingTask)}
 
 ## Query Functions Available
 Use these to retrieve specific context from the lattice:
@@ -315,42 +391,100 @@ Use these to retrieve specific context from the lattice:
 ---
 
 *Continue working or query the lattice for specific context.*
-`.trim();
+`.trim()
+  );
 }
 
 /**
- * Find last unfinished topic in chat
- * FIX: Now includes both user and assistant turns, looks back further
+ * Get last conversation turns with role attribution for continuity
+ * FIX: Returns structured context with roles to preserve state across compression
  */
-function findLastUnfinishedTopic(lattice: ConversationLattice): string {
+function getLastConversationTurns(lattice: ConversationLattice): {
+  turns: Array<{ role: string; content: string; timestamp: number }>;
+  pendingTask: string | null;
+} {
   const nodes = lattice.nodes;
 
-  // FIX: Increased from 5 to 15 turns for better context
-  const recentNodes = nodes.slice(-15);
+  // Get last 5 turns for context
+  const recentNodes = nodes.slice(-5);
 
-  // FIX: Include BOTH user and assistant turns, not just user
-  const lastImportantTurn = recentNodes
-    .filter((n) => n.importance_score >= 3) // Filter for meaningful content
-    .sort((a, b) => b.timestamp - a.timestamp)[0];
+  // Extract turns with roles
+  const turns = recentNodes.map((node) => ({
+    role: node.role,
+    content: node.content,
+    timestamp: node.timestamp,
+  }));
 
-  // Fallback to last turn if no important turns found
-  const lastTurn = lastImportantTurn || recentNodes[recentNodes.length - 1];
+  // Detect if assistant has a pending task (last turn is assistant with action items)
+  const lastTurn = turns[turns.length - 1];
+  let pendingTask: string | null = null;
 
-  return lastTurn ? lastTurn.content : 'No recent topic';
+  if (lastTurn && lastTurn.role === 'assistant') {
+    // Check for task indicators
+    const content = lastTurn.content;
+    const hasTodoList =
+      content.includes('TodoWrite') || /\d+\.\s/.test(content);
+    const hasToolUse = content.includes('🔧') || content.includes('Let me');
+    const hasActionWords = /I'll|I will|Let me|Going to|Next I'll/.test(
+      content
+    );
+
+    if (hasTodoList || hasToolUse || hasActionWords) {
+      // Extract first 200 chars as pending task
+      pendingTask = content.substring(0, 200).replace(/\n/g, ' ').trim();
+    }
+  }
+
+  return { turns, pendingTask };
+}
+
+/**
+ * Format last conversation turns for recap
+ */
+function formatLastTurns(
+  turns: Array<{ role: string; content: string; timestamp: number }>,
+  pendingTask: string | null
+): string {
+  if (turns.length === 0) {
+    return '(No recent conversation)';
+  }
+
+  // Format each turn with role attribution
+  const formattedTurns = turns
+    .map((turn) => {
+      const roleLabel = turn.role.toUpperCase();
+      const preview = turn.content.substring(0, 150).replace(/\n/g, ' ');
+      const ellipsis = turn.content.length > 150 ? '...' : '';
+      return `**[${roleLabel}]**: ${preview}${ellipsis}`;
+    })
+    .join('\n\n');
+
+  let result = `## Recent Conversation\n\n${formattedTurns}`;
+
+  // Add pending task warning if present
+  if (pendingTask) {
+    result += `\n\n## ⚠️ Assistant's Pending Task\n\nThe assistant was in the middle of:\n> ${pendingTask}\n\n**Continue from where the assistant left off.**`;
+  }
+
+  return result;
 }
 
 /**
  * Reconstruct context in Chat Mode
  * FIX: Now uses conversation overlays for better context preservation
+ * FIX: Includes last conversation turns with roles for continuity
  */
 async function reconstructChatContext(
   lattice: ConversationLattice,
+  cwd: string,
   conversationRegistry?: ConversationOverlayRegistry
 ): Promise<string> {
   const nodes = lattice.nodes;
 
-  // Find last unfinished topic
-  const lastTopic = findLastUnfinishedTopic(lattice);
+  // Get last conversation turns with role attribution
+  const { turns, pendingTask } = getLastConversationTurns(lattice);
+
+  const fingerprint = getSystemFingerprint(cwd, 'chat', true);
 
   // If we have conversation registry, use overlay filtering (BETTER!)
   if (conversationRegistry) {
@@ -370,7 +504,10 @@ async function reconstructChatContext(
         filtered.coherence.length > 0;
 
       if (hasContent) {
-        return `# Conversation Recap
+        return (
+          fingerprint +
+          `
+# Conversation Recap
 
 ## Architecture & Design (O1 Structural)
 ${
@@ -456,13 +593,13 @@ ${
     : '(None)'
 }
 
-## Current Focus
-${lastTopic.substring(0, 300)}${lastTopic.length > 300 ? '...' : ''}
+${formatLastTurns(turns, pendingTask)}
 
 ---
 
 **Memory Tool Available**: You have access to \`recall_past_conversation\` tool. Use it anytime you need to remember specific past discussions. The tool uses semantic search across all conversation history.
-`.trim();
+`.trim()
+        );
       }
     } catch (err) {
       // Fall back to old method
@@ -476,7 +613,10 @@ ${lastTopic.substring(0, 300)}${lastTopic.length > 300 ? '...' : ''}
     .sort((a, b) => b.importance_score - a.importance_score)
     .slice(0, 5);
 
-  return `# Conversation Recap
+  return (
+    fingerprint +
+    `
+# Conversation Recap
 
 ## Key Points Discussed
 ${
@@ -490,13 +630,13 @@ ${
     : '(No major points yet)'
 }
 
-## Last Topic
-${lastTopic.substring(0, 300)}${lastTopic.length > 300 ? '...' : ''}
+${formatLastTurns(turns, pendingTask)}
 
 ---
 
-*Continue from here or start a new topic.*
-`.trim();
+*Continue from where the assistant left off.*
+`.trim()
+  );
 }
 
 /**
@@ -504,6 +644,7 @@ ${lastTopic.substring(0, 300)}${lastTopic.length > 300 ? '...' : ''}
  */
 export async function reconstructSessionContext(
   lattice: ConversationLattice,
+  cwd: string,
   conversationRegistry?: ConversationOverlayRegistry
 ): Promise<ReconstructedSessionContext> {
   // 1. Classify conversation mode
@@ -528,8 +669,8 @@ export async function reconstructSessionContext(
   // 3. Reconstruct based on mode (pass conversationRegistry!)
   const recap =
     mode === 'quest'
-      ? await reconstructQuestContext(lattice)
-      : await reconstructChatContext(lattice, conversationRegistry);
+      ? await reconstructQuestContext(lattice, cwd)
+      : await reconstructChatContext(lattice, cwd, conversationRegistry);
 
   return {
     mode,
