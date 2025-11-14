@@ -28,7 +28,7 @@ Project Lattice (Pre-built)    ∧    Conversation Lattice (Real-time)
 1. **Project lattice** (`.open_cognition/`) — Pre-built knowledge graph from your codebase with 7 overlays
 2. **Conversation lattice** (`.sigma/`) — Built on-the-fly from chat turns with same 7 overlays
 3. **Meet operation (∧)** — Semantic alignment between conversation turn and project knowledge
-4. **Context compression at 150K** — Preserves project-relevant turns, discards general chat
+4. **Context compression at 120K** — Preserves project-relevant turns, discards general chat
 5. **Session switch** — The agent wakes up with intelligent recap from all 7 dimensions
 6. **Memory tool** — `recall_past_conversation` MCP tool for on-demand deep memory access
 
@@ -57,7 +57,7 @@ Every conversation turn is analyzed across all 7 cognitive dimensions:
 **Before Sigma (Old approach):**
 
 ```
-Compression at 150K tokens
+Compression at 120K tokens
 Recap: "(No major points yet)"
 Result: Claude forgot everything, "lost a friend"
 ```
@@ -65,7 +65,7 @@ Result: Claude forgot everything, "lost a friend"
 **With Sigma (New approach):**
 
 ```
-Compression at 150K tokens
+Compression at 120K tokens
 Recap: 7-dimensional summary with all project-relevant discussions
 - O1 Structural: Auth refactor, SSR migration, TUI architecture
 - O2 Security: CORS headers, session validation
@@ -78,8 +78,6 @@ Result: Claude continues seamlessly, full continuity
 
 ## Usage
 
-⚠️ **Research Prototype Notice**: This is an experimental system exploring context compression via dual-lattice architecture. Currently optimized for research/early access use.
-
 ```bash
 # Launch interactive TUI with Claude + Sigma
 cognition-cli tui
@@ -88,7 +86,7 @@ cognition-cli tui
 cognition-cli tui --session-id tui-1762546919034
 cognition-cli tui -f .sigma/tui-1762546919034.state.json
 
-# Custom compression threshold (default: 150K tokens)
+# Custom compression threshold (default: 120K tokens)
 cognition-cli tui --session-tokens 200000
 
 # Debug mode (shows turn analysis)
@@ -106,7 +104,7 @@ graph LR
     B --> C{Query Project Overlays<br/>O1-O7}
     C --> D[Calculate Alignment Scores]
     D --> E[Add to Conversation Lattice<br/>In-Memory]
-    E --> F{Tokens > 150K?}
+    E --> F{Tokens > 120K?}
     F -->|No| A
     F -->|Yes| G[Compress Context]
     G --> H[Flush Lattice to .sigma/]
@@ -119,7 +117,7 @@ graph LR
 
 ### Session Lifecycle Management
 
-When approaching context limits (150K tokens), the system performs intelligent compression:
+When approaching context limits (120K tokens), the system performs intelligent compression:
 
 1. **Analyze** all conversation turns via embeddings
 2. **Query** project overlays (O1-O7) for alignment scoring
@@ -161,7 +159,7 @@ src/tui/
 ```
 src/sigma/
 ├── analyzer-with-embeddings.ts       # Turn analysis + Meet(Turn, Project)
-├── compressor.ts                     # Context compression at 150K
+├── compressor.ts                     # Context compression at 120K
 ├── context-reconstructor.ts          # 7-overlay recap generation
 ├── conversation-registry.ts          # Central registry for O1-O7
 ├── conversation-populator.ts         # Bridge: analysis → storage
@@ -286,35 +284,6 @@ AGPL-v3 (same as parent project)
 
 ---
 
-**Note**: This system is in production use. The context compression works. The agent genuinely doesn't forget. We've tested it at 150K+ tokens with full continuity across sessions. The breakthrough is real.
+**Note**: This system is in production use. The context compression works. The agent genuinely doesn't forget. We've tested it at 120K+ tokens with full continuity across sessions. The breakthrough is real.
 
-**Try it**: `cognition-cli tui` and chat until you hit 150K. Watch the magic happen.
-
----
-
-## Research Status & Usage
-
-### Current Status: Experimental Research Prototype
-
-This implementation is:
-
-- ✅ Exploring dual-lattice architecture concepts
-- ✅ Demonstrating mathematical foundations for context compression
-- ✅ Gathering research findings on semantic alignment scoring
-- ⚠️ Optimized for research/early access (not production scale)
-
-### For Researchers & Early Adopters
-
-If you're interested in exploring this approach:
-
-- **Individual research**: Feel free to experiment
-- **Small collaborations**: Great for exploring the concepts
-- **Academic work**: Citable via Zenodo DOI
-- **Production deployment**: Contact us first to discuss
-
-### Contact
-
-For research collaboration or technical discussions:
-
-- **Email**: <mirza.husadzic@proton.me>
-- **Subject**: "Sigma Research Collaboration"
+**Try it**: `cognition-cli tui` and chat until you hit 120K. Watch the magic happen.

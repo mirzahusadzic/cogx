@@ -181,7 +181,7 @@ Project Lattice ∧ Conversation Lattice = Project Alignment Score
 - **Smart compression** — Preserves project-relevant turns, discards general chat
 - **Infinite context** — The agent never forgets, maintains continuity across sessions
 
-**At 150K tokens:**
+**At 120K tokens:**
 
 1. Flush conversation lattice to `.sigma/overlays/`
 2. Query all 7 overlays for high-alignment turns
@@ -190,8 +190,6 @@ Project Lattice ∧ Conversation Lattice = Project Alignment Score
 5. Add `recall_past_conversation` MCP tool for on-demand deep memory
 
 **Result:** True stateful AI with infinite context. [Read more →](./src/tui/README.md)
-
-⚠️ **Research Prototype**: The TUI is experimental research exploring dual-lattice architecture. Optimized for research/early access, not production deployment at scale.
 
 ---
 
@@ -369,6 +367,7 @@ The comprehensive 16-chapter manual organized by parts:
 - [08 - Claude Code Integration](./docs/08_Claude_CLI_Integration.md) 🤖
 - [09 - Mission Concept Extraction](./docs/09_Mission_Concept_Extraction.md)
 - [10 - Mission Security Validation](./docs/10_Mission_Security_Validation.md)
+- [11 - Internal Architecture](./docs/11_Internal_Architecture.md) 🏗️ **PGC-grounded system analysis**
 
 ### Additional Resources
 
@@ -392,7 +391,7 @@ The comprehensive 16-chapter manual organized by parts:
 - ✅ **Intelligent compression** - Preserves project-relevant, discards general chat
 - ✅ **Session lifecycle** - Kill → Recap → Resurrect with full continuity
 - ✅ **MCP memory tool** - `recall_past_conversation` for on-demand deep memory
-- ✅ **Production tested** - 150K+ token sessions with zero context loss
+- ✅ **Production tested** - 120K+ token sessions with zero context loss
 
 **The Problem We Solved:**
 Traditional AI hits context limits and loses everything. We use lattice algebra to preserve what matters.
@@ -484,10 +483,10 @@ These innovations are protected from patent restrictions via defensive publicati
 
 39. **Σ (Sigma) Dual-Lattice Architecture:** Project lattice (`.open_cognition/`) ∧ Conversation lattice (`.sigma/`) with Meet operations for semantic alignment scoring across 7 dimensions, enabling stateful AI with infinite context
 40. **7-Dimensional Conversation Overlays (O1-O7):** Real-time conversation indexing mirroring project overlays (O₁: Architecture, O₂: Security, O₃: Knowledge evolution, O₄: Goals, O₅: Commands, O₆: Algorithms, O₇: Coherence) with on-the-fly lattice building from chat turns
-41. **Intelligent Context Compression at 150K Tokens:** Importance-based filtering using formula `novelty × 5 + max(alignment_O1..O7) × 0.5` with high-alignment preservation (≥6) and low-value chat discarding, generating 7-dimensional intelligent recaps via lattice algebra
+41. **Intelligent Context Compression at 120K Tokens:** Importance-based filtering using formula `novelty × 5 + max(alignment_O1..O7) × 0.5` with high-alignment preservation (≥6) and low-value chat discarding, generating 7-dimensional intelligent recaps via lattice algebra
 42. **Session Lifecycle Management:** Three-phase system (normal operation with periodic flush → compression trigger with overlay flush → session resurrection from intelligent recap) enabling seamless continuity across unlimited sessions with zero perceived context loss
 43. **High-Fidelity Memory Recall System:** Specialized `conversation_memory_assistant` persona with query deconstruction, multi-overlay embedding search, temporal re-ranking (chronological sorting), enhanced context synthesis with importance/alignment/overlay metadata, 5-retry exponential backoff for 429 errors, increased topK (5→10), preserving technical details (file names, function names, decisions)
-44. **Periodic Overlay Persistence:** Automatic flush every 5 turns preventing data loss in short sessions, cleanup flush on TUI exit/unmount guaranteeing data preservation, overlays remaining in memory across SDK session boundaries, memory available before 150K compression trigger
+44. **Periodic Overlay Persistence:** Automatic flush every 5 turns preventing data loss in short sessions, cleanup flush on TUI exit/unmount guaranteeing data preservation, overlays remaining in memory across SDK session boundaries, memory available before 120K compression trigger
 45. **Session Forwarding for Compressed Sessions:** Automatic forwarding of `--session-id` to compressed session via `.sigma/{id}.state.json` state detection, recap loading with fresh SDK session start (no dead session resume), user always uses original session ID while Sigma manages internal chain
 46. **Interactive TUI with Real-Time Lattice Visualization:** Production-ready terminal interface with live overlay status bar showing counts (O1-O7), lattice statistics (nodes/edges/shifts), token tracking with compression threshold, toggle info panel, persistent scroll history with mouse support, and BBS-style aesthetics
 
