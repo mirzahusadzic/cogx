@@ -5,6 +5,63 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.1] - 2025-11-14
+
+### Summary
+
+Smart multiline paste handling with visual streaming, line ending normalization, and intelligent chunk buffering.
+
+### ✨ New Features
+
+#### Smart Paste Detection & Handling
+
+- **Automatic paste detection**: Triggers on >10 character changes or newline detection
+- **Intelligent chunk buffering**: Accumulates paste chunks within 200ms window
+- **Visual streaming**: Fast line-by-line display (5ms per line) with "📋 Pasting..." indicator
+- **Direct content transmission**: Content sent directly to agent without redundant file I/O
+- **Temp file backup**: Content saved to `/tmp/cognition-paste-{timestamp}.txt` for debugging
+
+#### Content Normalization
+
+- **Line ending normalization**: Automatically converts Windows `\r\n` to Unix `\n`
+- **Escape sequence cleanup**: Removes bracketed paste markers (`[200~`, `[201~`)
+- **Clean content delivery**: No escape sequences or formatting artifacts
+
+### 🎨 UI Improvements
+
+- **Paste notification**: Shows `📋 Paste saved to: /path/to/file` above input box
+- **Streaming display**: Content streams line-by-line in amber-orange color
+- **No UI overflow**: Input cleared immediately on paste detection
+
+### 🐛 Bug Fixes
+
+- Fixed multiline pastes being split into multiple separate files
+- Fixed Windows line ending (`\r\n`) corruption showing as `^M` characters
+- Fixed bracketed paste escape sequences leaking into content
+- Fixed UI overflow when pasting large content blocks
+- Fixed redundant paste content display after streaming
+
+### 🛠️ Developer Experience
+
+#### Smart Lint/Format Scripts
+
+- `npm run lint:changed`: Lint only uncommitted changed files
+- `npm run lint:staged`: Lint only staged files
+- `npm run format:changed`: Format only uncommitted changed files
+- `npm run format:staged`: Format only staged files
+
+### 📝 Technical Changes
+
+- **InputBox.tsx**: Added paste detection, buffering, normalization, and temp file save logic
+- **index.tsx**: Implemented streaming handler that sends content directly after visual playback
+- **ClaudePanelAgent.tsx**: Added streaming paste display, removed redundant post-paste display
+
+### Performance Improvements
+
+- Eliminated redundant file reads (content already in memory)
+- Fast streaming (125 lines in ~625ms)
+- Efficient chunk accumulation with overlap detection
+
 ## [2.3.0] - 2025-11-13
 
 ### Summary

@@ -20,7 +20,7 @@ const program = new Command();
 program
   .name('cognition-cli')
   .description('A meta-interpreter for verifiable, stateful AI cognition')
-  .version('2.3.0 (Cognition CLI - TUI Enhancements)');
+  .version('2.3.1 (Smart Multiline Paste)');
 
 program
   .command('init')
