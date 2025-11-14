@@ -56,7 +56,7 @@ export const SigmaInfoPanel: React.FC<SigmaInfoPanelProps> = ({
       borderColor="cyan"
       paddingX={1}
       paddingY={0}
-      width={48}
+      width={50}
     >
       <Box marginBottom={1} marginTop={1}>
         <Text bold color="cyan">
@@ -66,18 +66,23 @@ export const SigmaInfoPanel: React.FC<SigmaInfoPanelProps> = ({
 
       <Box flexDirection="column" marginBottom={1}>
         <Text color="#8b949e">Lattice:</Text>
-        <Text color="#58a6ff"> 🕸️ Nodes: {sigmaStats.nodes}</Text>
-        <Text color="#79c0ff"> 🔗 Edges: {sigmaStats.edges}</Text>
-        <Text color="#d29922"> ⚡ Shifts: {sigmaStats.paradigmShifts}</Text>
+        <Text color="#58a6ff"> Nodes: {sigmaStats.nodes ?? 0} 🕸️</Text>
+        <Text color="#79c0ff"> Edges: {sigmaStats.edges ?? 0} 🔗</Text>
+        <Text color="#d29922">
+          {' '}
+          Shifts: {sigmaStats.paradigmShifts ?? 0} ⚡
+        </Text>
       </Box>
 
       <Box flexDirection="column" marginBottom={1}>
         <Text color="#8b949e">Averages:</Text>
         <Text color="#56d364">
-         📊 Novelty: {sigmaStats.avgNovelty.toFixed(3)}
+          {' '}
+          Novelty: {(sigmaStats.avgNovelty ?? 0).toFixed(3)} 📊
         </Text>
         <Text color="#bc8cff">
-         🎯 Importance: {sigmaStats.avgImportance.toFixed(1)}
+          {' '}
+          Importance: {(sigmaStats.avgImportance ?? 0).toFixed(1)} 🎯
         </Text>
       </Box>
 
@@ -89,7 +94,8 @@ export const SigmaInfoPanel: React.FC<SigmaInfoPanelProps> = ({
           const score = overlays[key as keyof OverlayScores];
           return (
             <Text key={key} color={info.color}>
-             {info.icon} {info.label.padEnd(12)} {renderBar(score)} {score.toFixed(1)}/10
+              {info.icon} {info.label.padEnd(12)} {renderBar(score)}{' '}
+              {score.toFixed(1)}/10
             </Text>
           );
         })}

@@ -28,36 +28,41 @@ interface OverlaysBarProps {
  */
 export const OverlaysBar: React.FC<OverlaysBarProps> = ({ sigmaStats }) => {
   return (
-    <Box paddingX={1} borderBottom borderColor="#30363d" flexDirection="row" justifyContent="space-between" width="100%">
+    <Box
+      paddingX={1}
+      borderBottom
+      borderColor="#30363d"
+      flexDirection="row"
+      justifyContent="space-between"
+      width="100%"
+    >
       <Box flexDirection="row" gap={1}>
         {!sigmaStats || sigmaStats.nodes === 0 ? (
           <Text color="#8b949e">Lattice: Warming up...</Text>
         ) : (
           <>
-            <Text color="#58a6ff">
-              🕸️  {sigmaStats.nodes} nodes
-            </Text>
+            <Text color="#58a6ff">{sigmaStats.nodes ?? 0} nodes 🕸️</Text>
             <Text color="#8b949e">|</Text>
-            <Text color="#79c0ff">
-              🔗 {sigmaStats.edges} edges
-            </Text>
+            <Text color="#79c0ff">{sigmaStats.edges ?? 0} edges 🔗</Text>
             <Text color="#8b949e">|</Text>
             <Text color="#d29922">
-              ⚡ {sigmaStats.paradigmShifts} shifts
+              {sigmaStats.paradigmShifts ?? 0} shifts ⚡
             </Text>
             <Text color="#8b949e">|</Text>
             <Text color="#56d364">
-              📊 novelty: {sigmaStats.avgNovelty.toFixed(2)}
+              novelty: {(sigmaStats.avgNovelty ?? 0).toFixed(2)} 📊
             </Text>
             <Text color="#8b949e">|</Text>
             <Text color="#bc8cff">
-              🎯 importance: {sigmaStats.avgImportance.toFixed(1)}
+              importance: {(sigmaStats.avgImportance ?? 0).toFixed(1)} 🎯
             </Text>
           </>
         )}
       </Box>
       <Box>
-        <Text bold color="cyan">COGNITION Σ CLI v{VERSION} 🧠</Text>
+        <Text bold color="cyan">
+          COGNITION Σ CLI v{VERSION} 🧠
+        </Text>
       </Box>
     </Box>
   );

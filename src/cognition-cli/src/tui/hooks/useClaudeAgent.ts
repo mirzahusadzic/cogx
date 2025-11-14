@@ -1057,11 +1057,11 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     conversationLattice,
     currentSessionId,
     sigmaStats: {
-      nodes: turnAnalysis.stats.totalAnalyzed,
-      edges: Math.max(0, turnAnalysis.stats.totalAnalyzed - 1),
-      paradigmShifts: turnAnalysis.stats.paradigmShifts,
-      avgNovelty: turnAnalysis.stats.avgNovelty,
-      avgImportance: turnAnalysis.stats.avgImportance,
+      nodes: turnAnalysis?.stats?.totalAnalyzed ?? 0,
+      edges: Math.max(0, (turnAnalysis?.stats?.totalAnalyzed ?? 0) - 1),
+      paradigmShifts: turnAnalysis?.stats?.paradigmShifts ?? 0,
+      avgNovelty: turnAnalysis?.stats?.avgNovelty ?? 0,
+      avgImportance: turnAnalysis?.stats?.avgImportance ?? 0,
     },
     avgOverlays: overlayScores,
   };
