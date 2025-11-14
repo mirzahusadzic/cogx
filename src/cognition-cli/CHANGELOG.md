@@ -5,6 +5,47 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.2] - 2025-11-15
+
+### Summary
+
+Critical fixes for conversation continuity across compression and session state persistence. Sigma's infinite context now maintains true continuity - the assistant continues tasks instead of restarting them after compression events.
+
+### 🐛 Critical Bug Fixes
+
+#### Conversation Continuity Across Compression
+
+- **Role-attributed context**: Compressed recaps now include explicit role labels (`**[USER]**:`, `**[ASSISTANT]**:`) for last 5 conversation turns
+- **Pending task detection**: Automatically detects when assistant has pending work via action words and todo lists
+- **Continuity warnings**: Adds explicit `⚠️ Assistant's Pending Task` section with instruction to continue
+- **System identity fingerprint**: Recaps include system context (Cognition Σ CLI, available tools, slash commands) to prevent identity amnesia
+
+**Impact**: Assistant now continues tasks seamlessly across 120K token compression events instead of restarting from scratch.
+
+#### Session State Persistence
+
+- **Fixed state corruption on resume**: TUI resume no longer overwrites existing compression history
+- **Preserved compression history**: All compression events now persist correctly across TUI restarts
+
+**Impact**: Compression history maintained across sessions - no more losing session state on restart.
+
+### 🎨 UI Fixes
+
+- **Sigma Stats panel alignment**: Changed from fixed `width={48}` to `minWidth={48}` to prevent text clipping
+- **Double-digit node counts**: Panel now expands as needed - no more cutting off second digit when displaying 10+ nodes
+
+### 📚 Documentation
+
+- **O1/O3 overlay separation**: Clarified distinction between Structure (O1) and Lineage (O3) overlays
+- **Concrete examples**: Added authenticate() function example showing all 7 overlays in action
+
+### 📝 Technical Changes
+
+- **context-reconstructor.ts**: Added `getLastConversationTurns()`, `formatLastTurns()`, `getSystemFingerprint()`
+- **useClaudeAgent.ts**: Implemented pending turn carry-forward and system fingerprint integration
+- **useSessionManager.ts**: Fixed state creation logic to prevent overwrites on resume
+- **SigmaInfoPanel.tsx**: Panel width fix for proper text display
+
 ## [2.3.1] - 2025-11-14
 
 ### Summary
