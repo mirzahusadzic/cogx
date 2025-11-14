@@ -1,10 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { render, Box, Text, useInput, useStdout, type TextProps } from 'ink';
-import {
-  ThemeProvider,
-  extendTheme,
-  defaultTheme,
-} from '@inkjs/ui';
+import { ThemeProvider, extendTheme, defaultTheme } from '@inkjs/ui';
 import fs from 'fs';
 import path from 'path';
 
@@ -58,6 +54,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+  const [streamingPaste, setStreamingPaste] = useState<string>('');
 
   // Calculate fixed chat area height to prevent InputBox from shifting
   // when messages populate - memoize to avoid recalculation on every render
@@ -70,15 +67,36 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     return Math.max(5, terminalHeight - reservedHeight); // Minimum 5 lines for chat
   }, [stdout?.rows, isDropdownVisible]);
 
-  const { overlays, loading } = useOverlays({ pgcRoot, workbenchUrl });
-  const { messages, sendMessage, isThinking, error, tokenCount, interrupt, sigmaStats, avgOverlays, currentSessionId } =
-    useClaudeAgent({
-      sessionId,
-      cwd: projectRoot, // Use project root, not .open_cognition dir
-      sessionTokens, // Pass custom token threshold
-      maxThinkingTokens, // Pass extended thinking token limit
-      debug, // Pass debug flag
-    });
+  const { loading } = useOverlays({ pgcRoot, workbenchUrl });
+  const {
+    messages,
+    sendMessage: originalSendMessage,
+    isThinking,
+    error,
+    tokenCount,
+    interrupt,
+    sigmaStats,
+    avgOverlays,
+    currentSessionId,
+  } = useClaudeAgent({
+    sessionId,
+    cwd: projectRoot, // Use project root, not .open_cognition dir
+    sessionTokens, // Pass custom token threshold
+    maxThinkingTokens, // Pass extended thinking token limit
+    debug, // Pass debug flag
+  });
+
+  // Wrap sendMessage to clear streaming paste on regular messages
+  const sendMessage = useCallback(
+    (msg: string) => {
+      // Clear streaming paste when sending a regular message
+      if (!msg.startsWith('[Pasted content')) {
+        setStreamingPaste('');
+      }
+      originalSendMessage(msg);
+    },
+    [originalSendMessage]
+  );
 
   // Add Ctrl+C handler and optionally enable mouse tracking
   useEffect(() => {
@@ -105,7 +123,11 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     // Use 'once' instead of 'on' to prevent multiple firings
     process.once('SIGINT', sigintHandler);
 
-    if (ENABLE_MOUSE_TRACKING && process.stdin.isTTY && typeof process.stdin.setRawMode === 'function') {
+    if (
+      ENABLE_MOUSE_TRACKING &&
+      process.stdin.isTTY &&
+      typeof process.stdin.setRawMode === 'function'
+    ) {
       // Enable mouse scroll tracking
       // 1000 = Basic mouse tracking (needed for scroll wheel events)
       // 1006 = SGR mouse mode (better coordinate encoding)
@@ -148,14 +170,22 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
         : 'session state file';
 
       // Display error message
-      console.error('\n\n╔════════════════════════════════════════════════════════════════════════════╗');
-      console.error('║                     OAuth Token Expired                                    ║');
-      console.error('╚════════════════════════════════════════════════════════════════════════════╝\n');
+      console.error(
+        '\n\n╔════════════════════════════════════════════════════════════════════════════╗'
+      );
+      console.error(
+        '║                     OAuth Token Expired                                    ║'
+      );
+      console.error(
+        '╚════════════════════════════════════════════════════════════════════════════╝\n'
+      );
       console.error('  Your OAuth token has expired and the TUI must exit.\n');
       console.error('  📝 Your session has been saved automatically.\n');
       console.error('  To continue:\n');
       console.error('  1. Run: claude /login');
-      console.error('  2. Restart with: cognition tui --file ' + sessionStateFile + '\n');
+      console.error(
+        '  2. Restart with: cognition tui --file ' + sessionStateFile + '\n'
+      );
       console.error('  Press any key to exit...\n');
 
       // Clean up and exit after user presses a key or 5 seconds
@@ -185,6 +215,31 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       };
     }
   }, [error, sessionId, projectRoot]);
+
+  // Handle pasted content - stream it line by line
+  const handlePasteContent = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    (content: string, filepath: string) => {
+      const lines = content.split('\n');
+      let currentLine = 0;
+
+      // Stream lines rapidly
+      const streamInterval = setInterval(() => {
+        if (currentLine < lines.length) {
+          const displayedLines = lines.slice(0, currentLine + 1).join('\n');
+          setStreamingPaste(displayedLines);
+          currentLine++;
+        } else {
+          // Streaming complete
+          clearInterval(streamInterval);
+          setStreamingPaste('');
+          // Send the actual content (it's already in memory, no need to reference file)
+          sendMessage(content);
+        }
+      }, 5); // 5ms per line = very fast streaming
+    },
+    [sendMessage]
+  );
 
   // Save conversation log to file
   const saveConversationLog = () => {
@@ -218,36 +273,45 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   };
 
   // Handle input - make sure this is always active for Ctrl+C
-  useInput((input, key) => {
-    if (key.ctrl && input === 'c') {
-      // Force immediate exit - kill entire process group including workers
-      try {
-        process.stdout.write('\x1b[0m'); // Reset colors
-        if (ENABLE_MOUSE_TRACKING) {
-          process.stdout.write('\x1b[?1000l\x1b[?1006l'); // Disable mouse
+  useInput(
+    (input, key) => {
+      if (key.ctrl && input === 'c') {
+        // Force immediate exit - kill entire process group including workers
+        try {
+          process.stdout.write('\x1b[0m'); // Reset colors
+          if (ENABLE_MOUSE_TRACKING) {
+            process.stdout.write('\x1b[?1000l\x1b[?1006l'); // Disable mouse
+          }
+        } catch (e) {
+          // Ignore errors
         }
-      } catch (e) {
-        // Ignore errors
+        // Kill process group to ensure workers die
+        try {
+          process.kill(-process.pid, 'SIGKILL');
+        } catch (e) {
+          process.abort(); // Fallback if process group kill fails
+        }
+      } else if (key.ctrl && input === 's') {
+        // Save conversation log with Ctrl+S
+        saveConversationLog();
+      } else if (key.tab) {
+        // Toggle focus between input and panel
+        setFocused((prev) => !prev);
+      } else if (
+        input === 'i' &&
+        !key.ctrl &&
+        !key.shift &&
+        !key.meta &&
+        !focused
+      ) {
+        // Toggle info panel with 'i' key (only when NOT in input box)
+        setShowInfoPanel((prev) => !prev);
       }
-      // Kill process group to ensure workers die
-      try {
-        process.kill(-process.pid, 'SIGKILL');
-      } catch (e) {
-        process.abort(); // Fallback if process group kill fails
-      }
-    } else if (key.ctrl && input === 's') {
-      // Save conversation log with Ctrl+S
-      saveConversationLog();
-    } else if (key.tab) {
-      // Toggle focus between input and panel
-      setFocused((prev) => !prev);
-    } else if (input === 'i' && !key.ctrl && !key.shift && !key.meta && !focused) {
-      // Toggle info panel with 'i' key (only when NOT in input box)
-      setShowInfoPanel((prev) => !prev);
-    }
-    // Note: Arrow keys, etc. are handled by TextInput component
-    // We just need to not interfere with them
-  }, { isActive: true });
+      // Note: Arrow keys, etc. are handled by TextInput component
+      // We just need to not interfere with them
+    },
+    { isActive: true }
+  );
 
   if (renderError) {
     return (
@@ -259,7 +323,9 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           <Text>{renderError.message}</Text>
         </Box>
         <Box paddingTop={1}>
-          <Text dimColor>{renderError.stack?.split('\n').slice(0, 5).join('\n')}</Text>
+          <Text dimColor>
+            {renderError.stack?.split('\n').slice(0, 5).join('\n')}
+          </Text>
         </Box>
       </Box>
     );
@@ -286,30 +352,50 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   try {
     return (
       <ThemeProvider theme={customTheme}>
-        <Box flexDirection="column" width="100%" height="100%" paddingTop={0} marginTop={0}>
+        <Box
+          flexDirection="column"
+          width="100%"
+          height="100%"
+          paddingTop={0}
+          marginTop={0}
+        >
           <OverlaysBar sigmaStats={sigmaStats} />
           <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>
-          <Box height={chatAreaHeight} width="100%" overflow="hidden" flexDirection="row">
+          <Box
+            height={chatAreaHeight}
+            width="100%"
+            overflow="hidden"
+            flexDirection="row"
+          >
             <ClaudePanelAgent
               messages={messages}
               isThinking={isThinking}
               focused={!focused}
+              streamingPaste={streamingPaste}
             />
             {showInfoPanel && sigmaStats && (
               <Box marginLeft={1}>
-                <SigmaInfoPanel sigmaStats={sigmaStats} overlays={avgOverlays} />
+                <SigmaInfoPanel
+                  sigmaStats={sigmaStats}
+                  overlays={avgOverlays}
+                />
               </Box>
             )}
           </Box>
           <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>
           {/* Reserved space for dropdown - dynamically sized based on visibility */}
-          <Box height={isDropdownVisible ? 9 : 1} flexDirection="column" justifyContent="flex-end">
+          <Box
+            height={isDropdownVisible ? 9 : 1}
+            flexDirection="column"
+            justifyContent="flex-end"
+          >
             <InputBox
               onSubmit={sendMessage}
               focused={focused}
               disabled={isThinking}
               onInterrupt={interrupt}
               onDropdownVisibleChange={setIsDropdownVisible}
+              onPasteContent={handlePasteContent}
             />
           </Box>
           <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>
@@ -317,7 +403,12 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           <Box height={1}>
             {saveMessage && <Text color="green">{saveMessage}</Text>}
           </Box>
-          <StatusBar sessionId={currentSessionId} focused={focused} tokenCount={tokenCount} compressionThreshold={sessionTokens} />
+          <StatusBar
+            sessionId={currentSessionId}
+            focused={focused}
+            tokenCount={tokenCount}
+            compressionThreshold={sessionTokens}
+          />
         </Box>
       </ThemeProvider>
     );

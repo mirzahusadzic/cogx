@@ -3,6 +3,9 @@ import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import { CommandDropdown } from './CommandDropdown.js';
 import { loadCommands, filterCommands, Command } from '../commands/loader.js';
+import { writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
 interface InputBoxProps {
   onSubmit: (value: string) => void;
@@ -10,6 +13,7 @@ interface InputBoxProps {
   disabled?: boolean;
   onInterrupt?: () => void;
   onDropdownVisibleChange?: (visible: boolean) => void;
+  onPasteContent?: (content: string, filepath: string) => void;
 }
 
 /**
@@ -21,16 +25,21 @@ export const InputBox: React.FC<InputBoxProps> = ({
   disabled = false,
   onInterrupt,
   onDropdownVisibleChange,
+  onPasteContent,
 }) => {
   const [value, setValue] = useState('');
   const lastEscapeTime = useRef<number>(0);
-  const valueRef = useRef<string>(''); // Track actual current value for paste
-  const lastPasteTime = useRef<number>(0);
+  const valueRef = useRef<string>(''); // Track actual current value for paste detection
+  const [pasteNotification, setPasteNotification] = useState<string>('');
   const pasteBuffer = useRef<string>(''); // Accumulate paste chunks
+  const lastPasteTime = useRef<number>(0);
+  const pasteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Command dropdown state
   const [showDropdown, setShowDropdown] = useState(false);
-  const [allCommands, setAllCommands] = useState<Map<string, Command>>(new Map());
+  const [allCommands, setAllCommands] = useState<Map<string, Command>>(
+    new Map()
+  );
   const [filteredCommands, setFilteredCommands] = useState<Command[]>([]);
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
   const [commandsLoading, setCommandsLoading] = useState(true);
@@ -64,22 +73,29 @@ export const InputBox: React.FC<InputBoxProps> = ({
   }, []);
 
   const handleChange = (newValue: string) => {
+    const previousValue = valueRef.current;
     const now = Date.now();
-    const timeSinceLastPaste = now - lastPasteTime.current;
 
-    // Detect if this is a paste (large sudden change or rapid successive calls)
-    const isPaste = newValue.length > valueRef.current.length + 5 || timeSinceLastPaste < 10;
+    // Paste detection: large change (10+ chars) OR contains newlines
+    const changeSize = Math.abs(newValue.length - previousValue.length);
+    const hasNewlines = newValue.includes('\n') || newValue.includes('\r');
+    const isPaste = changeSize > 10 || hasNewlines;
 
     if (isPaste) {
-      // Accumulate paste chunks within 50ms window
-      if (timeSinceLastPaste < 50) {
-        // This is continuation of previous paste
-        if (!newValue.startsWith(pasteBuffer.current)) {
-          // New chunk, append it
-          pasteBuffer.current += newValue;
+      const timeSinceLastPaste = now - lastPasteTime.current;
+
+      // If this is a continuation of a previous paste (within 200ms), accumulate
+      if (timeSinceLastPaste < 200 && pasteBuffer.current) {
+        // Check if this is overlapping (newValue starts with buffer) or separate chunk
+        if (newValue.startsWith(pasteBuffer.current)) {
+          // Progressive chunk - keep the longer one
+          pasteBuffer.current = newValue;
+        } else if (pasteBuffer.current.startsWith(newValue)) {
+          // Old buffer is longer, keep it
+          // (do nothing)
         } else {
-          // Replacement, use longer value
-          pasteBuffer.current = newValue.length > pasteBuffer.current.length ? newValue : pasteBuffer.current;
+          // Separate chunk - append it
+          pasteBuffer.current += newValue;
         }
       } else {
         // New paste started
@@ -87,16 +103,54 @@ export const InputBox: React.FC<InputBoxProps> = ({
       }
       lastPasteTime.current = now;
 
-      // Debounce - wait 50ms for more chunks before committing
-      setTimeout(() => {
-        if (Date.now() - lastPasteTime.current >= 45) {
-          // No more chunks, commit the paste
-          handleChangeInternal(pasteBuffer.current);
-          pasteBuffer.current = '';
-        }
-      }, 50);
+      // Immediately clear the input to prevent UI overflow
+      valueRef.current = '';
+      setValue('');
 
-      return; // Don't process yet, wait for all chunks
+      // Clear any existing timeout
+      if (pasteTimeoutRef.current) {
+        clearTimeout(pasteTimeoutRef.current);
+      }
+
+      // Debounce - wait 200ms for more chunks before saving
+      pasteTimeoutRef.current = setTimeout(() => {
+        const content = pasteBuffer.current;
+        pasteBuffer.current = '';
+        pasteTimeoutRef.current = null;
+
+        // Normalize line endings and clean up escape sequences
+        const normalizedContent = content
+          .replace(/\r\n/g, '\n')
+          .replace(/\r/g, '\n')
+          .replace(/\[200~/g, '') // Bracketed paste start
+          .replace(/\[201~/g, ''); // Bracketed paste end
+
+        // Save to temp file
+        const timestamp = Date.now();
+        const filename = `cognition-paste-${timestamp}.txt`;
+        const filepath = join(tmpdir(), filename);
+
+        try {
+          writeFileSync(filepath, normalizedContent, 'utf-8');
+
+          // Show notification
+          setPasteNotification(`📋 Paste saved to: ${filepath}`);
+
+          // Notify parent to display the content
+          if (onPasteContent) {
+            onPasteContent(normalizedContent, filepath);
+          }
+
+          // Clear notification after 5 seconds
+          setTimeout(() => setPasteNotification(''), 5000);
+        } catch (error) {
+          // If save fails, just paste normally
+          console.error('Failed to save paste:', error);
+          handleChangeInternal(normalizedContent);
+        }
+      }, 200);
+
+      return;
     }
 
     // Normal typing
@@ -112,7 +166,9 @@ export const InputBox: React.FC<InputBoxProps> = ({
     let filtered = newValue;
 
     // Comprehensive escape sequence removal
+    // eslint-disable-next-line no-control-regex
     filtered = filtered.replace(/\x1b\[[\d;]*[a-zA-Z~]/g, ''); // CSI sequences
+    // eslint-disable-next-line no-control-regex
     filtered = filtered.replace(/\x1b\[<[\d;]+[mM]/g, ''); // SGR mouse
     filtered = filtered.replace(/\[?<\d+;\d+;\d+[Mm]/g, ''); // Legacy mouse
 
@@ -124,8 +180,8 @@ export const InputBox: React.FC<InputBoxProps> = ({
       // Only treat as command if it starts with / but is NOT a file path
       // File paths have another / in the first word (e.g., /home/user/file.txt)
       const firstWord = filtered.split(' ')[0];
-      const isCommand = filtered.startsWith('/') &&
-                       !firstWord.slice(1).includes('/'); // No / after first character
+      const isCommand =
+        filtered.startsWith('/') && !firstWord.slice(1).includes('/'); // No / after first character
 
       if (isCommand && allCommands.size > 0) {
         const prefix = filtered.slice(1).split(' ')[0]; // Get command part only
@@ -219,7 +275,13 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
   if (!focused) {
     return (
-      <Box borderTop borderBottom borderColor="#30363d" paddingX={1} width="100%">
+      <Box
+        borderTop
+        borderBottom
+        borderColor="#30363d"
+        paddingX={1}
+        width="100%"
+      >
         <Text color="#8b949e">Press Tab to focus input</Text>
       </Box>
     );
@@ -227,6 +289,13 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
   return (
     <Box flexDirection="column" width="100%">
+      {/* Paste notification - show ABOVE input */}
+      {pasteNotification && (
+        <Box paddingX={1} paddingY={0}>
+          <Text color="#2eb572">{pasteNotification}</Text>
+        </Box>
+      )}
+
       {/* Command dropdown - render ABOVE input, overlaying the chat area */}
       {showDropdown && focused && !commandsLoading && (
         <CommandDropdown
@@ -236,7 +305,13 @@ export const InputBox: React.FC<InputBoxProps> = ({
         />
       )}
 
-      <Box borderTop borderBottom borderColor="#56d364" paddingX={1} width="100%">
+      <Box
+        borderTop
+        borderBottom
+        borderColor="#56d364"
+        paddingX={1}
+        width="100%"
+      >
         <Text color="#56d364">{'> '}</Text>
         <Text color="#56d364">
           <TextInput
@@ -250,7 +325,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
             }
             showCursor={!disabled}
             // Disable any autocorrect/autocomplete features
-            // @ts-ignore - these props might not be in type definitions but work
+            // @ts-expect-error - these props might not be in type definitions but work
             autoComplete="off"
             autoCorrect="off"
             spellCheck={false}

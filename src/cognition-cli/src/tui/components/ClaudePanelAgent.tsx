@@ -7,6 +7,7 @@ interface ClaudePanelAgentProps {
   messages: ClaudeMessage[];
   isThinking: boolean;
   focused: boolean;
+  streamingPaste?: string;
 }
 
 /**
@@ -16,6 +17,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   messages,
   isThinking,
   focused,
+  streamingPaste = '',
 }) => {
   const { stdout } = useStdout();
   const [scrollOffset, setScrollOffset] = useState(0);
@@ -25,6 +27,9 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
     () => (stdout?.rows || 24) - 11,
     [stdout?.rows]
   );
+
+  // Note: Paste streaming is handled by parent component (index.tsx)
+  // The [PASTE:filepath] message is sent after streaming completes
 
   // Build colored text lines with color metadata
   const allLines = useMemo(() => {
@@ -52,7 +57,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
           prefix = '';
           color = '#58a6ff'; // O1 structural blue
           break;
-        case 'tool_progress':
+        case 'tool_progress': {
           prefix = '  ';
           // Use amber-orange for tool commands, but blue for Edit diffs (they have their own formatting)
           color = msg.content.includes('🔧 Edit:') ? '#58a6ff' : '#f5a623';
@@ -66,12 +71,13 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
             const details = processBold(toolMatch[2]);
             lines.push({
               text: `${prefix}${toolName} \x1b[38;2;138;145;153m${details}\x1b[0m`,
-              color
+              color,
             });
             lines.push({ text: '', color }); // Empty line between messages
             return; // Skip normal processing
           }
           break;
+        }
       }
 
       // Split content into lines and store with color
@@ -84,8 +90,18 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       lines.push({ text: '', color }); // Empty line between messages
     });
 
+    // Add streaming paste content if present
+    if (streamingPaste) {
+      const pasteLines = streamingPaste.split('\n');
+      const pasteColor = '#f5a623'; // Amber-orange for pasted content
+      lines.push({ text: '📋 Pasting...', color: '#2eb572' }); // Green header
+      pasteLines.forEach((line) => {
+        lines.push({ text: line, color: pasteColor });
+      });
+    }
+
     return lines;
-  }, [messages]);
+  }, [messages, streamingPaste]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
