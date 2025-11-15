@@ -15,6 +15,20 @@ import type { ConversationOverlayRegistry } from './conversation-registry.js';
  *
  * This MCP server provides Claude with the ability to search past conversation
  * using semantic search across all conversation overlays (O1-O7).
+ *
+ * DESIGN:
+ * - MCP tool integration via SDK's createSdkMcpServer
+ * - Natural language queries (e.g., "What did we discuss about TUI scrolling?")
+ * - Semantic search across LanceDB conversation stores
+ * - SLM + LLM synthesis for accurate answers
+ *
+ * @param conversationRegistry - Registry of conversation overlay managers
+ * @param workbenchUrl - Optional URL for workbench API access
+ * @returns MCP server instance with recall_past_conversation tool
+ *
+ * @example
+ * const server = createRecallMcpServer(registry, 'http://localhost:3001');
+ * // Claude can now use: "recall_past_conversation" tool to query history
  */
 export function createRecallMcpServer(
   conversationRegistry: ConversationOverlayRegistry,

@@ -77,7 +77,16 @@ export class ConversationOverlayRegistry {
 
   /**
    * Get conversation overlay manager by ID
-   * Lazy-initializes the manager on first access
+   *
+   * Lazy-initializes the manager on first access and caches it for reuse.
+   * Automatically initializes the LanceDB store if supported by the manager.
+   *
+   * @param overlayId - Overlay identifier (O1-O7)
+   * @returns Promise resolving to the overlay manager instance
+   *
+   * @example
+   * const structural = await registry.get('O1');
+   * const results = await structural.query("TUI architecture", 5);
    */
   async get(overlayId: OverlayId): Promise<OverlayAlgebra> {
     // Return cached manager if exists
@@ -104,6 +113,9 @@ export class ConversationOverlayRegistry {
 
   /**
    * Get multiple overlays at once
+   *
+   * @param overlayIds - Array of overlay identifiers to retrieve
+   * @returns Promise resolving to a map of overlay IDs to their managers
    */
   async getAll(
     overlayIds: OverlayId[]
@@ -117,6 +129,8 @@ export class ConversationOverlayRegistry {
 
   /**
    * Get information about all conversation overlays
+   *
+   * @returns Array of metadata for all 7 conversation overlays
    */
   getOverlayInfo(): ConversationOverlayInfo[] {
     return [
@@ -160,6 +174,13 @@ export class ConversationOverlayRegistry {
 
   /**
    * Create manager instance based on overlay ID
+   *
+   * @param overlayId - Overlay identifier to create manager for
+   * @returns Overlay manager instance implementing OverlayAlgebra interface
+   *
+   * @throws Error if overlay ID is unknown
+   *
+   * @private
    */
   private createManager(overlayId: OverlayId): OverlayAlgebra {
     const workbenchUrl = this.workbenchUrl;
@@ -215,7 +236,15 @@ export class ConversationOverlayRegistry {
 
   /**
    * Flush all in-memory overlays to disk
-   * Uses write mutex to prevent concurrent LanceDB writes
+   *
+   * Uses write mutex to serialize LanceDB writes and prevent
+   * "Too many concurrent writers" errors.
+   *
+   * @param sessionId - Session UUID to flush turns for
+   *
+   * @example
+   * await registry.flushAll(sessionId);
+   * console.log('All conversation overlays persisted to LanceDB');
    */
   async flushAll(sessionId: string): Promise<void> {
     return this.writeMutex.runLocked(async () => {
@@ -246,6 +275,9 @@ export class ConversationOverlayRegistry {
 
   /**
    * Clear all in-memory overlays (after flush)
+   *
+   * Frees memory after overlay data has been persisted to disk.
+   * Call this after flushAll() to reset in-memory state.
    */
   async clearAllMemory(): Promise<void> {
     const allOverlays: OverlayId[] = ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'];
@@ -266,6 +298,11 @@ export class ConversationOverlayRegistry {
 
   /**
    * Set current session ID for all managers (for LanceDB filtering)
+   *
+   * Updates all initialized overlay managers to filter queries by the current session.
+   * Only affects managers that have already been lazy-loaded.
+   *
+   * @param sessionId - Session UUID to set as current
    */
   async setCurrentSession(sessionId: string): Promise<void> {
     const allOverlays: OverlayId[] = ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'];
