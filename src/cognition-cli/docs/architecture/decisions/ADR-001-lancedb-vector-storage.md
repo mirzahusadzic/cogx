@@ -9,7 +9,7 @@
 
 The Cognition CLI requires a vector database to enable semantic search across code symbols, documentation concepts, and mission alignment. With 4,000+ embeddings per 32K LOC codebase (each 768 dimensions), we needed a storage solution that could:
 
-1. **Perform sub-millisecond similarity searches** for interactive queries
+1. **Perform single-digit millisecond similarity searches** for interactive queries
 2. **Operate offline-first** to align with PGC's self-contained philosophy
 3. **Support content-addressable portability** where `.lancedb` files travel with the PGC
 4. **Handle ~36 MB storage efficiently** with minimal overhead
@@ -39,7 +39,7 @@ We chose **LanceDB v0.22.2** as the serverless vector database for all overlay v
 - **Cons**:
   - Requires internet connectivity (violates offline-first principle)
   - Data sent to third-party servers (privacy concern)
-  - 10-100ms network latency vs. sub-millisecond local queries
+  - 10-100ms network latency vs. ~5ms local queries
   - Costs scale with usage (not free for local compute)
   - `.lancedb` files cannot travel with PGC (requires migration scripts)
 - **Why rejected**: Incompatible with PGC's self-contained, portable knowledge pool philosophy
@@ -121,7 +121,7 @@ LanceDB was chosen because it uniquely satisfies all requirements:
 
 ### Positive
 
-- **Sub-millisecond local queries** enable interactive workflows
+- **~5ms local queries** enable interactive workflows
 - **Zero cloud costs** for vector storage and queries
 - **Privacy by design** - data never leaves the machine
 - **True portability** - entire knowledge graph in version control
@@ -166,7 +166,7 @@ LanceDB was chosen because it uniquely satisfies all requirements:
 | --------------- | ------------------------------ | ---------------------------------- |
 | **Deployment**  | Embedded (no server)           | Cloud-hosted or self-hosted server |
 | **Storage**     | Local filesystem               | Remote database                    |
-| **Latency**     | Sub-millisecond (local)        | 10-100ms (network RTT)             |
+| **Latency**     | ~5ms (local)              | 10-100ms (network RTT)             |
 | **Portability** | .lancedb files travel with PGC | Requires migration scripts         |
 | **Cost**        | Free (local compute)           | Pay per query/storage              |
 | **Privacy**     | Data never leaves machine      | Data sent to third-party servers   |
