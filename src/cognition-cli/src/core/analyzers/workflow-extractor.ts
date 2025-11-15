@@ -1,3 +1,27 @@
+/**
+ * Operational Workflow Extraction
+ *
+ * Extracts operational patterns from workflow and process documentation for O₅ (Operational) overlay.
+ * Captures quest structures, sacred sequences, depth rules, terminology, and formulas that
+ * guide operational execution.
+ *
+ * OVERLAY TARGET: O₅ (Operational)
+ *
+ * EXTRACTION PATTERNS (by weight):
+ * 1. Sacred sequences (1.0) - F.L.T.B invariant steps
+ * 2. Quest structures (0.95) - What/Why/Success criteria
+ * 3. Workflow patterns (0.9) - Depth tracking, rebalancing
+ * 4. Formulas/metrics (0.9) - AQS calculation, depth levels
+ * 5. Explanatory content (0.85) - Purpose statements, definitions
+ * 6. Depth rules (0.85) - Depth 0/1/2 semantics
+ * 7. Terminology (0.8) - Quest, oracle, scribe, AQS
+ *
+ * @example
+ * const extractor = new WorkflowExtractor();
+ * const patterns = extractor.extract(operationalDoc);
+ * // Returns: [{ text: "F.L.T.B Sacred Sequence", patternType: "sacred_sequence", ... }, ...]
+ */
+
 import {
   MarkdownDocument,
   MarkdownSection,
@@ -12,22 +36,37 @@ import {
  * WorkflowExtractor
  *
  * Extracts operational patterns from workflow/process documents.
- * Targets O₅ (Operational) overlay.
+ * Targets O₅ (Operational) overlay for procedural knowledge.
  *
- * Handles: OPERATIONAL_LATTICE.md, workflow guides, process documentation
+ * PATTERN TYPES:
+ * - quest_structure: What/Why/Success patterns
+ * - sacred_sequence: Invariant step sequences (F.L.T.B)
+ * - workflow_pattern: Process guidance (depth, rebalancing)
+ * - depth_rule: Depth-specific semantics
+ * - terminology: Domain-specific vocabulary
+ * - explanation: Conceptual documentation
  *
- * EXTRACTION PATTERNS:
- * 1. Quest structures (What/Why/Success criteria)
- * 2. Sacred sequences (F.L.T.B, invariant steps)
- * 3. Workflow patterns (depth tracking, rebalancing)
- * 4. Terminology (quest, oracle, scribe, AQS)
- * 5. Formulas/metrics (AQS calculation, depth levels)
+ * @example
+ * const extractor = new WorkflowExtractor();
+ * const patterns = extractor.extract(workflowDoc);
+ * const sequences = patterns.filter(p => p.patternType === 'sacred_sequence');
  */
 export class WorkflowExtractor
   implements DocumentExtractor<OperationalKnowledge>
 {
   /**
    * Extract operational patterns from document
+   *
+   * Flattens nested sections and extracts patterns from each section
+   * with position-based weighting.
+   *
+   * @param doc - Parsed markdown document
+   * @returns Array of operational knowledge patterns
+   *
+   * @example
+   * const doc = parser.parse(operationalMd);
+   * const patterns = extractor.extract(doc);
+   * console.log(patterns.find(p => p.text.includes('F.L.T.B')));
    */
   extract(doc: MarkdownDocument): OperationalKnowledge[] {
     const patterns: OperationalKnowledge[] = [];
@@ -45,6 +84,13 @@ export class WorkflowExtractor
 
   /**
    * Flatten nested sections into a single array
+   *
+   * Recursively traverses section hierarchy to create a flat list
+   * for sequential processing.
+   *
+   * @private
+   * @param sections - Array of sections (possibly nested)
+   * @returns Flattened array of all sections
    */
   private flattenSections(sections: MarkdownSection[]): MarkdownSection[] {
     const flattened: MarkdownSection[] = [];
@@ -61,6 +107,9 @@ export class WorkflowExtractor
 
   /**
    * Supports operational documents
+   *
+   * @param docType - Document type to check
+   * @returns True if document type is OPERATIONAL
    */
   supports(docType: DocumentType): boolean {
     return docType === DocumentType.OPERATIONAL;
@@ -68,6 +117,8 @@ export class WorkflowExtractor
 
   /**
    * Targets O₅ (Operational) overlay
+   *
+   * @returns Overlay layer identifier "O5_Operational"
    */
   getOverlayLayer(): string {
     return 'O5_Operational';
@@ -75,6 +126,16 @@ export class WorkflowExtractor
 
   /**
    * Extract patterns from a single section
+   *
+   * Applies all extraction patterns (quest structures, sacred sequences,
+   * workflow patterns, depth rules, terminology, formulas, explanations)
+   * with position-based weighting.
+   *
+   * @private
+   * @param section - Section to extract from
+   * @param sectionIndex - Position in flattened array
+   * @param totalSections - Total number of sections
+   * @returns Array of extracted operational patterns
    */
   private extractFromSection(
     section: MarkdownSection,
@@ -189,7 +250,13 @@ export class WorkflowExtractor
 
   /**
    * Extract quest structure patterns
-   * Pattern: **What is...?**, **Why...?**, **Success criteria:**
+   *
+   * Identifies bold text matching quest patterns: What/Why/Success/Big Blocks/Eyes Go.
+   * These represent the structural elements of operational quests.
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @returns Array of quest pattern text
    */
   private extractQuestPatterns(content: string): string[] {
     const patterns: string[] = [];
@@ -212,7 +279,13 @@ export class WorkflowExtractor
 
   /**
    * Extract sacred sequences (step-by-step invariants)
-   * Pattern: Numbered lists in "Sacred Sequence" sections
+   *
+   * Identifies F.L.T.B (Format, Lint, Test, Build) patterns - the
+   * invariant sequences that must be preserved across operations.
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @returns Array of sacred sequence objects with steps
    */
   private extractSacredSequences(
     content: string
@@ -253,7 +326,13 @@ export class WorkflowExtractor
 
   /**
    * Extract workflow patterns
-   * Pattern: Bold statements about process
+   *
+   * Identifies bold complete sentences that describe workflow patterns.
+   * Filters for workflow-related keywords (depth, rebalancing, quest, etc.)
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @returns Array of workflow pattern text
    */
   private extractWorkflowPatterns(content: string): string[] {
     const patterns: string[] = [];
@@ -274,6 +353,12 @@ export class WorkflowExtractor
 
   /**
    * Check if text describes a workflow pattern
+   *
+   * Tests for workflow-related keywords to filter operational guidance.
+   *
+   * @private
+   * @param text - Text to check
+   * @returns True if text contains workflow keywords
    */
   private isWorkflowPattern(text: string): boolean {
     const workflowKeywords = [
@@ -295,7 +380,13 @@ export class WorkflowExtractor
 
   /**
    * Extract depth rules
-   * Pattern: "Depth 0:", "Depth 1:", etc.
+   *
+   * Pattern: "Depth 0:", "Depth 1:", "Depth 2:", etc.
+   * Captures depth-specific operational semantics.
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @returns Array of depth rule text
    */
   private extractDepthRules(content: string): string[] {
     const rules: string[] = [];
@@ -316,7 +407,14 @@ export class WorkflowExtractor
 
   /**
    * Extract terminology definitions
+   *
    * Pattern: **Term** - Definition
+   * Only extracts from "Terminology" or "Purpose" sections to avoid noise.
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @param sectionHeading - Section heading to filter by
+   * @returns Array of terminology objects with definitions
    */
   private extractTerminology(
     content: string,
@@ -352,7 +450,13 @@ export class WorkflowExtractor
 
   /**
    * Extract formulas (AQS, calculations)
-   * Pattern: Code blocks or explicit formula markers
+   *
+   * Identifies formulas and metrics like AQS (Agentic Quality Score).
+   * Looks for equation patterns in content.
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @returns Array of formula objects with formula text
    */
   private extractFormulas(
     content: string
@@ -378,10 +482,16 @@ export class WorkflowExtractor
    * substantial explanatory content, not just pattern fragments.
    *
    * This method extracts:
-   * - Paragraphs with key concept definitions
-   * - Sections tagged with overlay markers (O4-MISSION, O5-DEPENDENCIES, etc.)
-   * - Multi-sentence explanations (>50 chars)
-   * - Purpose/why statements
+   * - "What is X?" section content
+   * - Overlay-tagged content (O4-MISSION:, O5-DEPENDENCIES:, etc.)
+   * - Purpose/why statements (PURPOSE:, ENABLES:, etc.)
+   * - Paragraphs with concept indicators (is the, enables, provides)
+   * - Definition-style content ("X is Y" patterns)
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @param heading - Section heading for context
+   * @returns Array of explanatory paragraph text (max 20)
    */
   private extractExplanatoryParagraphs(
     content: string,
