@@ -1178,11 +1178,16 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             },
           ]);
         } else {
+          // Check if this is an interrupt (user pressed ESC ESC)
+          const isInterrupt = sdkMessage.subtype === 'error_during_execution';
+
           setMessages((prev) => [
             ...prev,
             {
               type: 'system',
-              content: `✗ Error: ${sdkMessage.subtype}`,
+              content: isInterrupt
+                ? '⏸️  Interrupted · What should Claude do instead?'
+                : `✗ Error: ${sdkMessage.subtype}`,
               timestamp: new Date(),
             },
           ]);
