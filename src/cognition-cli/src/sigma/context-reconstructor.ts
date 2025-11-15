@@ -8,8 +8,6 @@
  * This is the HEART of Sigma's compression intelligence.
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
 import type { ConversationLattice } from './types.js';
 import type { ConversationOverlayRegistry } from './conversation-registry.js';
 import { filterConversationByAlignment } from './query-conversation.js';
@@ -56,26 +54,6 @@ interface MentalMapBlock {
 }
 
 /**
- * Detect available slash commands from .claude/commands directory
- */
-function detectSlashCommands(cwd: string): string[] {
-  try {
-    const commandsDir = path.join(cwd, '.claude', 'commands');
-    if (!fs.existsSync(commandsDir)) {
-      return [];
-    }
-
-    const files = fs.readdirSync(commandsDir);
-    return files
-      .filter((f) => f.endsWith('.md') && f !== 'README.md')
-      .map((f) => `/${f.replace('.md', '')}`)
-      .sort();
-  } catch (err) {
-    return [];
-  }
-}
-
-/**
  * Generate system identity fingerprint
  * This is prepended to all compressed recaps to preserve meta-context
  */
@@ -84,12 +62,6 @@ function getSystemFingerprint(
   mode: ConversationMode,
   isCompressed: boolean
 ): string {
-  const slashCommands = detectSlashCommands(cwd);
-  const commandsList =
-    slashCommands.length > 0
-      ? slashCommands.map((cmd) => `\`${cmd}\``).join(', ')
-      : 'None detected';
-
   return `# SYSTEM IDENTITY
 
 You are **Claude Code** (Anthropic SDK) running inside **Cognition Σ (Sigma) CLI** - a verifiable AI-human symbiosis architecture with dual-lattice knowledge representation.
@@ -111,7 +83,20 @@ A portable cognitive layer that can be initialized in **any repository**. Create
 - Access both local lattice (this repo) and global lattice (cross-project knowledge)
 
 ## Slash Commands (from .claude/commands/)
-${commandsList}
+
+**Discovery**: List all \`.md\` files in \`.claude/commands/\` directory (each filename without extension is a command)
+
+**Execution**: When user invokes a slash command (e.g., \`/check-alignment "concept"\`):
+1. Read \`.claude/commands/[command-name].md\`
+2. Parse the markdown sections:
+   - **Your Task**: What to accomplish
+   - **Commands to Run**: cognition-cli commands with placeholders
+   - **Output Template**: How to format response
+3. Replace placeholders (\`[CONCEPT]\`, \`{{FILE_PATH}}\`, \`{{ALL_ARGS}}\`) with user arguments
+4. Execute cognition-cli commands via Bash tool
+5. Format output following the template
+
+**Example**: \`/check-alignment "zero-trust"\` → Read check-alignment.md → Execute commands → Format results
 
 ## Current Session
 - **Working Directory**: \`${cwd}\`
