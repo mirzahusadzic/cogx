@@ -35,8 +35,47 @@ export interface CompactionResult {
 }
 
 /**
- * Compact LanceDB conversation storage.
- * Removes historical versions, keeping only the latest.
+ * Compact LanceDB conversation storage by removing historical versions
+ *
+ * Solves the version bloat problem where LanceDB creates multiple versions
+ * per turn due to delete+add pattern during compression. This function
+ * deduplicates the database to keep only the latest version of each turn.
+ *
+ * Problem: Old code used delete+add pattern, creating 2-3 versions per turn.
+ * After 3 compression cycles: 22,820 versions for 241 turns = 700MB storage.
+ *
+ * Solution: Read all records, deduplicate by turn ID, drop table, recreate
+ * with deduplicated data. Expected: 700MB → ~2MB (99% reduction).
+ *
+ * Algorithm:
+ * 1. Measure size and version count before compaction
+ * 2. Read all records from conversation_turns table
+ * 3. Deduplicate by turn ID (keep latest version)
+ * 4. Drop old table and recreate with deduplicated records
+ * 5. Measure size and version count after compaction
+ * 6. Return reduction metrics
+ *
+ * @param projectRoot - Path to project root containing .sigma directory
+ * @param options - Compaction options (dryRun, verbose)
+ * @param options.dryRun - If true, measure impact without modifying database
+ * @param options.verbose - If true, log detailed progress information
+ * @returns Promise resolving to compaction result with before/after metrics
+ * @throws {Error} If LanceDB path not found
+ *
+ * @example
+ * // Compact database and get metrics
+ * const result = await compactConversationLanceDB('/path/to/project', {
+ *   verbose: true
+ * });
+ * console.log(`Reduced ${result.reduction.percentage}%`);
+ * console.log(`Saved ${formatBytes(result.reduction.bytes)}`);
+ *
+ * @example
+ * // Dry run to see impact without changes
+ * const result = await compactConversationLanceDB('/path/to/project', {
+ *   dryRun: true,
+ *   verbose: true
+ * });
  */
 export async function compactConversationLanceDB(
   projectRoot: string,
@@ -166,7 +205,18 @@ export async function compactConversationLanceDB(
 }
 
 /**
- * Get total size of directory recursively
+ * Calculate total size of directory recursively
+ *
+ * Traverses directory tree and sums file sizes to measure total disk usage.
+ * Used to measure LanceDB storage size before and after compaction.
+ *
+ * @param dirPath - Path to directory to measure
+ * @returns Promise resolving to total size in bytes
+ * @private
+ *
+ * @example
+ * const size = await getDirectorySize('.sigma/conversations.lancedb');
+ * console.log(`Database size: ${size} bytes`);
  */
 async function getDirectorySize(dirPath: string): Promise<number> {
   let totalSize = 0;
@@ -188,7 +238,19 @@ async function getDirectorySize(dirPath: string): Promise<number> {
 }
 
 /**
- * Count version files in LanceDB
+ * Count version files in LanceDB _versions directory
+ *
+ * LanceDB stores historical versions of data in _versions directory.
+ * This count indicates version bloat - high count means many unnecessary
+ * historical versions consuming disk space.
+ *
+ * @param lanceDbPath - Path to LanceDB database directory
+ * @returns Promise resolving to number of version files
+ * @private
+ *
+ * @example
+ * const count = await countVersionFiles('.sigma/conversations.lancedb');
+ * console.log(`Found ${count} version files`); // e.g., "Found 22,820 version files"
  */
 async function countVersionFiles(lanceDbPath: string): Promise<number> {
   const versionsPath = path.join(
@@ -206,7 +268,19 @@ async function countVersionFiles(lanceDbPath: string): Promise<number> {
 }
 
 /**
- * Format bytes to human-readable string
+ * Format bytes to human-readable string with appropriate units
+ *
+ * Converts byte count to B, KB, MB, or GB with one decimal place.
+ * Used for displaying file sizes in compaction results.
+ *
+ * @param bytes - Number of bytes to format
+ * @returns Human-readable size string (e.g., "2.5MB", "700.0MB")
+ * @private
+ *
+ * @example
+ * formatBytes(1024) // "1.0KB"
+ * formatBytes(1048576) // "1.0MB"
+ * formatBytes(734003200) // "700.0MB"
  */
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`;

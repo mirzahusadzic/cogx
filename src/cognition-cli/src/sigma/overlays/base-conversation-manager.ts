@@ -93,15 +93,36 @@ export abstract class BaseConversationManager<
   }
 
   /**
-   * Initialize the LanceDB store (must be called before use).
-   * This is async so it can't be done in constructor.
+   * Initialize the LanceDB store for fast semantic search
+   *
+   * Must be called before using query operations. Cannot be done in constructor
+   * because it's async and constructors must be synchronous.
+   *
+   * Creates/opens the conversation_turns table in LanceDB with proper schema.
+   *
+   * @returns Promise that resolves when LanceDB is initialized
+   *
+   * @example
+   * const manager = new ConversationStructuralManager('.sigma');
+   * await manager.initializeLanceStore();
+   * // Now ready to query
    */
   async initializeLanceStore(): Promise<void> {
     await this.lanceStore.initialize('conversation_turns');
   }
 
   /**
-   * Set the current session ID for filtering queries.
+   * Set the current session ID for filtering queries
+   *
+   * When set, all query operations will only return results from the
+   * specified session. This is used during compression to ensure we only
+   * query turns from the current conversation, not all historical conversations.
+   *
+   * @param sessionId - Session ID to filter by (e.g., "abc-123")
+   *
+   * @example
+   * manager.setCurrentSession('abc-123');
+   * // Now all queries only return turns from session abc-123
    */
   setCurrentSession(sessionId: string): void {
     this.currentSessionId = sessionId;
@@ -416,7 +437,27 @@ export abstract class BaseConversationManager<
   // ========================================
 
   /**
-   * Add turn to in-memory overlay
+   * Add conversation turn to in-memory overlay
+   *
+   * Accumulates turns in memory during compression. Turns are held in memory
+   * until flush() is called to write them to disk (YAML + LanceDB).
+   *
+   * This enables batching: collect all turns during compression, then write
+   * once instead of writing each turn individually.
+   *
+   * @param turn - Turn to add to in-memory buffer
+   *
+   * @example
+   * manager.addTurn({
+   *   turn_id: 'turn_1',
+   *   role: 'user',
+   *   content: 'Add authentication',
+   *   timestamp: Date.now(),
+   *   embedding: [0.1, 0.2, ...],
+   *   project_alignment_score: 8.5,
+   *   novelty: 0.7,
+   *   importance: 9
+   * });
    */
   addTurn(turn: {
     turn_id: string;
@@ -432,15 +473,36 @@ export abstract class BaseConversationManager<
   }
 
   /**
-   * Clear in-memory turns (after flush)
+   * Clear in-memory turn buffer
+   *
+   * Called after flush() to reset in-memory state for next compression cycle.
+   * Prevents duplicate writes and memory bloat.
+   *
+   * @example
+   * await manager.flush('session-123');
+   * manager.clearMemory(); // Clear buffer for next session
    */
   clearMemory(): void {
     this.inMemoryTurns = [];
   }
 
   /**
-   * Migrate a v1 YAML session to LanceDB (v2 format).
-   * Called automatically when v1 format is detected.
+   * Migrate a v1 YAML session to LanceDB (v2 format)
+   *
+   * Called automatically when v1 format (embeddings in YAML) is detected
+   * during getAllItems(). Migrates embeddings to LanceDB for fast search.
+   *
+   * Algorithm:
+   * 1. Extract turns with embeddings from v1 YAML
+   * 2. Validate embedding dimensions (must be 768D)
+   * 3. Map to alignment scores for all overlays
+   * 4. Store in LanceDB with full metadata
+   * 5. Log migration statistics
+   *
+   * @param sessionId - Session ID being migrated
+   * @param overlay - v1 overlay data with embedded arrays
+   * @returns Promise that resolves when migration completes
+   * @private
    */
   private async migrateSessionToLanceDB(
     sessionId: string,
@@ -491,10 +553,34 @@ export abstract class BaseConversationManager<
   }
 
   /**
-   * Flush in-memory turns to disk (dual-write: YAML + LanceDB).
-   * v2 Format: YAML is human-readable metadata, LanceDB stores embeddings.
+   * Flush in-memory turns to disk with dual-write (YAML + LanceDB)
    *
-   * FILTERING: Only stores turns relevant to this overlay (based on alignment score).
+   * Writes accumulated turns to both storage formats:
+   * - YAML: Human-readable metadata (NO embeddings in v2)
+   * - LanceDB: Fast semantic search with full embeddings
+   *
+   * v2 Format advantages:
+   * - YAML is 90% smaller (no 768D arrays)
+   * - Fast writes (<10 seconds vs 2-3 minutes)
+   * - LanceDB enables millisecond semantic queries
+   *
+   * FILTERING: Only stores turns relevant to this overlay based on
+   * alignment scores. O1 (Structural) stores ALL turns to ensure complete
+   * conversation history in LanceDB. Other overlays filter by alignment score.
+   *
+   * @param sessionId - Session ID for the conversation
+   * @returns Promise that resolves when both writes complete
+   *
+   * @example
+   * // Add turns during compression
+   * manager.addTurn(turn1);
+   * manager.addTurn(turn2);
+   *
+   * // Flush to disk
+   * await manager.flush('session-123');
+   *
+   * // Clear memory for next session
+   * manager.clearMemory();
    */
   async flush(sessionId: string): Promise<void> {
     if (this.inMemoryTurns.length === 0) return;
@@ -560,12 +646,31 @@ export abstract class BaseConversationManager<
   }
 
   /**
-   * Check if a turn is relevant to this specific overlay.
+   * Check if a turn is relevant to this specific overlay
+   *
+   * Determines whether a turn should be stored in this overlay's YAML file.
    * Override in subclasses for custom filtering logic.
    *
-   * Default: For conversation overlays, store ALL turns in O1 (Structural)
-   * to ensure complete conversation history in LanceDB. Other overlays filter
-   * by alignment score.
+   * Default behavior:
+   * - O1 (Structural): Store ALL turns for complete conversation history
+   * - Other overlays: Filter by alignment score OR high importance
+   *
+   * Why O1 stores everything:
+   * - Ensures embeddings are always written to LanceDB
+   * - Provides complete conversation record
+   * - Other overlays can reference O1's LanceDB data
+   *
+   * @param turn - Turn to check for relevance
+   * @returns True if turn should be stored in this overlay
+   * @protected
+   *
+   * @example
+   * // O1 accepts all turns
+   * isRelevantToOverlay(anyTurn) // → true
+   *
+   * // O2 filters by alignment
+   * isRelevantToOverlay({ alignment_O2: 8.5, ... }) // → true
+   * isRelevantToOverlay({ alignment_O2: 0, importance: 3, ... }) // → false
    */
   protected isRelevantToOverlay(turn: {
     turn_id: string;
@@ -596,8 +701,26 @@ export abstract class BaseConversationManager<
   }
 
   /**
-   * Extract alignment scores for all 7 overlays.
-   * Subclasses can override to provide overlay-specific scores.
+   * Extract alignment scores for all 7 overlays from base project score
+   *
+   * Maps a single project alignment score to scores for all 7 overlays.
+   * Subclasses SHOULD override to boost their specific overlay score.
+   *
+   * Default: All overlays get the same base score
+   * Override: Set specific overlay higher (e.g., O2 manager boosts alignment_O2)
+   *
+   * @param projectAlignmentScore - Base alignment score from turn analysis
+   * @returns Alignment scores for all 7 overlays (O1-O7)
+   * @protected
+   *
+   * @example
+   * // Base class: all overlays get same score
+   * extractAlignmentScores(5.0)
+   * // → { alignment_O1: 5, alignment_O2: 5, ..., alignment_O7: 5 }
+   *
+   * // Subclass (e.g., SecurityManager): boost O2
+   * extractAlignmentScores(5.0)
+   * // → { alignment_O1: 0, alignment_O2: 5, alignment_O3: 0, ... }
    */
   protected extractAlignmentScores(projectAlignmentScore: number): {
     alignment_O1: number;
@@ -622,8 +745,31 @@ export abstract class BaseConversationManager<
   }
 
   /**
-   * Extract semantic tags from content.
-   * Override in subclasses for domain-specific extraction.
+   * Extract semantic tags from turn content
+   *
+   * Identifies keywords for indexing and filtering. Override in subclasses
+   * to add domain-specific keywords.
+   *
+   * Base extraction:
+   * - Generic technical words longer than 4 characters
+   * - Limited to top 10 unique tags
+   *
+   * Subclass enhancement:
+   * - Add domain keywords (e.g., "security", "authentication" for O2)
+   * - Merge with base tags
+   *
+   * @param content - Turn content to extract tags from
+   * @returns Array of unique semantic tags (max 10)
+   * @protected
+   *
+   * @example
+   * // Base extraction
+   * extractSemanticTags('Update the authentication module')
+   * // → ['update', 'authentication', 'module']
+   *
+   * // O2 Security override adds domain keywords
+   * extractSemanticTags('Fix XSS vulnerability')
+   * // → ['security', 'vulnerability', 'fix']
    */
   protected extractSemanticTags(content: string): string[] {
     // Simple extraction: extract words longer than 4 characters
@@ -636,8 +782,20 @@ export abstract class BaseConversationManager<
   }
 
   /**
-   * Extract references to other turns from content.
-   * Override in subclasses for domain-specific extraction.
+   * Extract references to other conversation turns
+   *
+   * Detects patterns that reference other turns, enabling lattice edge
+   * construction. Override in subclasses for domain-specific patterns.
+   *
+   * Base pattern: "turn_123" format
+   *
+   * @param content - Turn content to extract references from
+   * @returns Array of unique turn IDs referenced
+   * @protected
+   *
+   * @example
+   * extractReferences('As discussed in turn_42...')
+   * // → ['turn_42']
    */
   protected extractReferences(content: string): string[] {
     // Simple extraction: look for patterns like "turn_1", "turn_2", etc.
@@ -647,7 +805,15 @@ export abstract class BaseConversationManager<
   }
 
   /**
-   * Get in-memory turn count
+   * Get count of turns currently in memory buffer
+   *
+   * Used for monitoring and debugging to check how many turns are pending
+   * flush to disk.
+   *
+   * @returns Number of turns in memory buffer
+   *
+   * @example
+   * console.log(`Buffered: ${manager.getInMemoryCount()} turns`);
    */
   getInMemoryCount(): number {
     return this.inMemoryTurns.length;

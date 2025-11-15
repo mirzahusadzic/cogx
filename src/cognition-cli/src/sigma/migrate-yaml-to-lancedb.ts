@@ -37,7 +37,62 @@ export interface MigrationResult {
 }
 
 /**
- * Migrate all YAML conversation files to LanceDB.
+ * Migrate all YAML conversation files to LanceDB for fast semantic search
+ *
+ * Imports existing YAML conversation overlay files into LanceDB to enable
+ * fast vector similarity search. This migration preserves all metadata
+ * including embeddings, alignment scores, and sigma metrics while enabling
+ * millisecond-scale semantic queries.
+ *
+ * Before migration:
+ * - YAML files with embeddings stored as arrays
+ * - Slow linear search through all turns
+ * - No efficient semantic similarity queries
+ *
+ * After migration:
+ * - LanceDB vector database with indexed embeddings
+ * - Fast ANN (Approximate Nearest Neighbor) search
+ * - Millisecond semantic queries across all conversations
+ *
+ * Migration process:
+ * 1. Initialize LanceDB store at .sigma/conversations.lancedb
+ * 2. For each overlay (O1-O7):
+ *    a. Read all YAML files in overlay directory
+ *    b. Parse conversation turns with embeddings
+ *    c. Map overlay to alignment scores
+ *    d. Store in LanceDB with full metadata
+ *
+ * Overlay mapping:
+ * - conversation-structural → O1
+ * - conversation-security → O2
+ * - conversation-lineage → O3
+ * - conversation-mission → O4
+ * - conversation-operational → O5
+ * - conversation-mathematical → O6
+ * - conversation-coherence → O7
+ *
+ * @param sigmaRoot - Path to .sigma directory containing overlay YAML files
+ * @param options - Migration options
+ * @param options.overlays - Specific overlays to migrate (default: all 7)
+ * @param options.dryRun - If true, parse files without writing to LanceDB
+ * @param options.verbose - If true, log detailed progress information
+ * @returns Promise resolving to migration result with statistics
+ *
+ * @example
+ * // Migrate all overlays to LanceDB
+ * const result = await migrateYAMLToLanceDB('.sigma', {
+ *   verbose: true
+ * });
+ * console.log(`Migrated ${result.successfulTurns} turns from ${result.totalFiles} files`);
+ * console.log(`By overlay: ${JSON.stringify(result.byOverlay)}`);
+ *
+ * @example
+ * // Dry run specific overlays
+ * const result = await migrateYAMLToLanceDB('.sigma', {
+ *   overlays: ['conversation-structural', 'conversation-security'],
+ *   dryRun: true,
+ *   verbose: true
+ * });
  */
 export async function migrateYAMLToLanceDB(
   sigmaRoot: string,
@@ -252,7 +307,24 @@ export async function migrateYAMLToLanceDB(
 }
 
 /**
- * Extract semantic tags from content.
+ * Extract semantic tags from conversation turn content
+ *
+ * Identifies keywords, entities, and technical terms for indexing and
+ * categorization. Tags enable fast filtering during context reconstruction.
+ *
+ * Extraction patterns:
+ * - File references: *.ts, *.tsx, *.js, *.jsx, *.py, *.md, *.json
+ * - NPM packages: @scope/package
+ * - Technical terms: PascalCase or camelCase identifiers
+ * - Technical keywords: words longer than 4 characters
+ *
+ * @param content - Turn content to extract tags from
+ * @returns Array of unique semantic tags (max 15, deduplicated)
+ * @private
+ *
+ * @example
+ * const tags = extractSemanticTags('Update AuthService in auth.ts using @types/node');
+ * // Returns: ['auth.ts', '@types/node', 'AuthService', 'update', 'using', ...]
  */
 function extractSemanticTags(content: string): string[] {
   const tags: string[] = [];
@@ -287,7 +359,20 @@ function extractSemanticTags(content: string): string[] {
 }
 
 /**
- * Extract references to other turns.
+ * Extract references to other conversation turns
+ *
+ * Identifies patterns in content that reference other turns, enabling
+ * lattice edge construction for semantic relationships.
+ *
+ * Detection pattern: "turn-123" or "turn_123" format
+ *
+ * @param content - Turn content to extract references from
+ * @returns Array of unique turn reference IDs
+ * @private
+ *
+ * @example
+ * const refs = extractReferences('As discussed in turn-42 and turn_50...');
+ * // Returns: ['turn-42', 'turn_50']
  */
 function extractReferences(content: string): string[] {
   const turnPattern = /turn[-_]\d+/gi;
@@ -296,7 +381,26 @@ function extractReferences(content: string): string[] {
 }
 
 /**
- * CLI-friendly migration function with progress reporting.
+ * CLI-friendly migration function with progress reporting
+ *
+ * Wrapper around migrateYAMLToLanceDB with user-friendly console output
+ * and formatted progress reporting. Suitable for command-line tools.
+ *
+ * Features:
+ * - Progress indicators for each overlay
+ * - Summary statistics with counts by overlay
+ * - Error reporting with details
+ * - Exit codes (0 = success, 1 = failure)
+ *
+ * @param sigmaRoot - Path to .sigma directory
+ * @param options - Migration options (dryRun, overlays)
+ * @param options.dryRun - If true, parse without writing to LanceDB
+ * @param options.overlays - Specific overlays to migrate
+ * @returns Promise resolving when migration completes
+ *
+ * @example
+ * // Run from CLI
+ * await runMigration('.sigma', { dryRun: false });
  */
 export async function runMigration(
   sigmaRoot: string,
