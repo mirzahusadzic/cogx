@@ -14,6 +14,9 @@ import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../../config.js';
 /**
  * Creates Apache Arrow schema for lineage pattern records.
  * Updated for The Shadow architecture (Monument 4.7) with dual embeddings.
+ *
+ * @returns Apache Arrow schema for lineage patterns
+ * @private
  */
 function createLineagePatternSchema(): Schema {
   return new Schema([
@@ -89,6 +92,17 @@ export const VECTOR_RECORD_SCHEMA = new Schema([
 
 /**
  * Manages vector storage and similarity search using LanceDB.
+ *
+ * Provides a high-level interface for storing and querying vector embeddings
+ * with associated metadata. Supports the Shadow architecture (Monument 4.7)
+ * with dual embeddings (structural and semantic).
+ *
+ * Features:
+ * - Efficient upsert using mergeInsert (no version bloat)
+ * - Automatic deduplication by symbol
+ * - Multiple distance metrics (cosine, L2, dot product)
+ * - SQL injection protection
+ * - Concurrent initialization safety
  */
 export class LanceVectorStore {
   private db: Connection | undefined;
@@ -96,8 +110,22 @@ export class LanceVectorStore {
   private isInitialized = false;
   private initializationPromise: Promise<void> | null = null;
 
+  /**
+   * Create a new LanceDB vector store
+   *
+   * @param pgcRoot - Root directory of the PGC (Grounded Context Pool)
+   */
   constructor(private pgcRoot: string) {}
 
+  /**
+   * Initialize the vector store connection and table
+   *
+   * Creates or opens a LanceDB table with the appropriate schema.
+   * Safe for concurrent calls - will return the same initialization promise.
+   *
+   * @param tableName - Name of the table to initialize (default: 'structural_patterns')
+   * @returns Promise that resolves when initialization is complete
+   */
   async initialize(tableName: string = 'structural_patterns'): Promise<void> {
     // Prevent multiple simultaneous initializations
     if (this.initializationPromise) {
@@ -115,6 +143,15 @@ export class LanceVectorStore {
     return this.initializationPromise;
   }
 
+  /**
+   * Internal initialization implementation
+   *
+   * @param tableName - Table name to create/open
+   * @param schema - Apache Arrow schema to use
+   * @returns Promise that resolves when initialization is complete
+   * @throws Error if initialization fails
+   * @private
+   */
   private async doInitialize(tableName: string, schema: Schema): Promise<void> {
     try {
       const dbPath = path.join(this.pgcRoot, 'patterns.lancedb');
@@ -175,6 +212,20 @@ export class LanceVectorStore {
   /**
    * Store a vector with metadata.
    * Uses LanceDB's mergeInsert for efficient upsert without version bloat.
+   *
+   * @param id - Unique identifier for the vector
+   * @param embedding - Vector embedding (must match DEFAULT_EMBEDDING_DIMENSIONS)
+   * @param metadata - Associated metadata (architectural_role, lineage_hash required)
+   * @returns Promise resolving to the stored vector's ID
+   * @throws Error if required fields are missing or embedding dimensions mismatch
+   *
+   * @example
+   * await store.storeVector('my-symbol', embedding, {
+   *   symbol: 'myFunction',
+   *   architectural_role: 'service',
+   *   lineage_hash: 'abc123',
+   *   computed_at: new Date().toISOString()
+   * });
    */
   async storeVector(
     id: string,
@@ -226,6 +277,26 @@ export class LanceVectorStore {
     return id;
   }
 
+  /**
+   * Perform similarity search to find nearest neighbors
+   *
+   * Searches for vectors similar to the query embedding using the specified
+   * distance metric. Results are automatically deduplicated by symbol and
+   * sorted by similarity (highest first).
+   *
+   * @param queryEmbedding - Query vector for similarity search
+   * @param topK - Number of top results to return
+   * @param filter - Optional filters for symbol or architectural_role
+   * @param distanceType - Distance metric: 'cosine' | 'l2' | 'dot' (default: 'cosine')
+   * @returns Promise resolving to array of search results with similarity scores
+   * @throws Error if query embedding dimensions mismatch
+   *
+   * @example
+   * const results = await store.similaritySearch(queryVector, 5, {
+   *   architectural_role: 'service'
+   * }, 'cosine');
+   * console.log(`Found ${results.length} similar vectors`);
+   */
   async similaritySearch(
     queryEmbedding: number[],
     topK: number,
@@ -307,6 +378,12 @@ export class LanceVectorStore {
     return value.replace(/'/g, "''");
   }
 
+  /**
+   * Retrieve a vector by its ID
+   *
+   * @param id - Vector ID to retrieve
+   * @returns Promise resolving to vector record or undefined if not found
+   */
   async getVector(id: string): Promise<VectorRecord | undefined> {
     if (!this.isInitialized) await this.initialize();
 
@@ -338,6 +415,12 @@ export class LanceVectorStore {
     return record as VectorRecord;
   }
 
+  /**
+   * Delete a vector by its ID
+   *
+   * @param id - Vector ID to delete
+   * @returns Promise resolving to true if deletion was successful
+   */
   async deleteVector(id: string): Promise<boolean> {
     if (!this.isInitialized) await this.initialize();
 
@@ -347,6 +430,11 @@ export class LanceVectorStore {
     return true;
   }
 
+  /**
+   * Retrieve all vectors from the store
+   *
+   * @returns Promise resolving to array of all valid vector records (excludes dummy records)
+   */
   async getAllVectors(): Promise<VectorRecord[]> {
     if (!this.isInitialized) await this.initialize();
 
@@ -379,6 +467,11 @@ export class LanceVectorStore {
     }) as VectorRecord[];
   }
 
+  /**
+   * Remove duplicate vectors, keeping the most recent one for each symbol
+   *
+   * @returns Promise resolving to the number of duplicate vectors removed
+   */
   async removeDuplicateVectors(): Promise<number> {
     if (!this.isInitialized) await this.initialize();
 
@@ -417,6 +510,11 @@ export class LanceVectorStore {
     return duplicatesToDelete.length;
   }
 
+  /**
+   * Close the database connection and reset state
+   *
+   * @returns Promise that resolves when the connection is closed
+   */
   async close(): Promise<void> {
     if (this.db) {
       await this.db.close();
@@ -429,6 +527,13 @@ export class LanceVectorStore {
 
   // Type guards for safety
 
+  /**
+   * Type guard to validate vector record structure
+   *
+   * @param record - Unknown record to validate
+   * @returns True if record is a valid VectorRecord
+   * @private
+   */
   private isValidVectorRecord(record: unknown): record is VectorRecord {
     const r = record as VectorRecord;
 
@@ -474,6 +579,13 @@ export class LanceVectorStore {
     return true;
   }
 
+  /**
+   * Type guard to validate search result structure
+   *
+   * @param result - Unknown result to validate
+   * @returns True if result is a valid LanceDBSearchResult
+   * @private
+   */
   private isValidSearchResult(result: unknown): result is LanceDBSearchResult {
     const r = result as LanceDBSearchResult;
 
@@ -515,6 +627,18 @@ export class LanceVectorStore {
     return true;
   }
 
+  /**
+   * Convert distance metric to similarity score
+   *
+   * Converts LanceDB distance values to normalized similarity scores (0-1).
+   * - Cosine: distance is [0,2], similarity = 1 - distance
+   * - Dot: distance is already similarity (higher = more similar)
+   * - L2: distance is converted using 1/(1+distance)
+   *
+   * @param distance - Distance value from LanceDB
+   * @param distanceType - Type of distance metric used
+   * @returns Normalized similarity score (0-1, higher is more similar)
+   */
   public calculateSimilarity(
     distance: number,
     distanceType: 'l2' | 'cosine' | 'dot' = 'cosine'
@@ -534,6 +658,17 @@ export class LanceVectorStore {
     }
   }
 
+  /**
+   * Calculate cosine similarity between two vectors
+   *
+   * Computes the cosine of the angle between two vectors, normalized to [0,1].
+   * Formula: (A·B) / (||A|| ||B||), then normalized: (similarity + 1) / 2
+   *
+   * @param vecA - First vector
+   * @param vecB - Second vector
+   * @returns Normalized cosine similarity (0-1, higher is more similar)
+   * @throws Error if vectors have different dimensions
+   */
   public cosineSimilarity(vecA: number[], vecB: number[]): number {
     if (vecA.length !== vecB.length) {
       throw new Error('Vectors must have the same dimensions');
