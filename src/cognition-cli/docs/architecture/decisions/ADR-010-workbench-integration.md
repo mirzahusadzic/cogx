@@ -1,8 +1,9 @@
 # ADR-010: Workbench API Integration (Optional External Service)
 
-**Date**: 2025  
-**Status**: Accepted  
-**Deciders**: Core team
+- **Date**: 2025
+- **Status**: Accepted
+- **Deciders**: Core team
+- **Related**: Innovation #4 (Structural Mining Pipeline with multi-tier understanding)
 
 ## Context
 

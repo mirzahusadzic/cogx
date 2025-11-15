@@ -1,9 +1,9 @@
 # ADR-008: Session Continuity (LanceDB-Based Conversation Memory)
 
-**Date**: 2025 (Sigma v2.0)  
-**Status**: Accepted  
-**Deciders**: Core team
-**Related**: Innovation #39-46 (Sigma Dual-Lattice Architecture)
+- **Date**: 2025
+- **Status**: Accepted
+- **Deciders**: Core team
+- **Related**: Innovation #39-46 (Sigma Dual-Lattice Architecture)
 
 ## Context
 

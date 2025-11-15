@@ -1,8 +1,9 @@
 # ADR-004: Content-Addressable Storage with SHA-256
 
-**Date**: 2025  
-**Status**: Accepted  
-**Deciders**: Core team
+- **Date**: 2025
+- **Status**: Accepted
+- **Deciders**: Core team
+- **Related**: Innovation #3 (Grounded Context Pool - PGC)
 
 ## Context
 
