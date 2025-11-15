@@ -40,6 +40,15 @@ Critical fixes for conversation continuity across compression, session state per
 
 **Impact**: Command `cognition-cli overlay generate mathematical_proofs` now correctly extracts theorems, lemmas, axioms, and proofs from already-ingested markdown documents without triggering confusing mission concept extraction in the console output. Run `mission_concepts` generation first to ingest strategic documents.
 
+#### EmbeddingLoader Field Name Support
+
+- **Added `extracted_patterns` field**: Operational overlay (O5) can now load embeddings from both v1 (YAML) and v2 (LanceDB) formats
+- **Added `extracted_statements` field**: Mathematical overlay (O6) can now load embeddings from both v1 (YAML) and v2 (LanceDB) formats
+- **Added `knowledge` fallback**: Mathematical proofs overlay supports legacy field name for backward compatibility
+- **Complete overlay coverage**: All seven overlays (O1-O7) now work with the unified EmbeddingLoader abstraction
+
+**Impact**: The EmbeddingLoader abstraction layer now correctly recognizes all overlay field names, enabling seamless migration between v1 (embeddings in YAML) and v2 (embeddings in LanceDB) storage formats. This ensures `mathematical_proofs` and `operational_patterns` overlay managers work correctly with both legacy and modern storage backends.
+
 ### 🎨 UI Fixes
 
 - **Sigma Stats panel alignment**: Changed from fixed `width={48}` to `minWidth={48}` to prevent text clipping
@@ -57,6 +66,7 @@ Critical fixes for conversation continuity across compression, session state per
 - **useSessionManager.ts**: Fixed state creation logic to prevent overwrites on resume
 - **SigmaInfoPanel.tsx**: Panel width fix for proper text display
 - **overlay.ts**: Added `MathematicalProofsManager` and `ProofExtractor` initialization, implemented explicit handler for `mathematical_proofs` overlay type with document extraction pipeline
+- **embedding-loader.ts**: Added `extracted_patterns`, `extracted_statements`, and `knowledge` fields to OverlayData type and possibleFields array for complete overlay field name coverage
 
 ## [2.3.1] - 2025-11-14
 
