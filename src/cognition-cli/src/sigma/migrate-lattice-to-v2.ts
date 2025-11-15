@@ -29,7 +29,56 @@ export interface MigrationResult {
 }
 
 /**
- * Migrate all lattice.json files in .sigma directory to v2 format.
+ * Migrate all lattice.json files from v1 to v2 format
+ *
+ * Strips 768D embedding arrays from lattice JSON files, moving them to LanceDB
+ * for fast semantic search. This reduces lattice file size by ~90% and speeds
+ * up compression from minutes to seconds.
+ *
+ * Before (v1):
+ * - 4.7MB lattice.json with full embeddings in every node
+ * - Slow compression: 2-3 minutes to write/parse JSON
+ * - 550MB .sigma directory size
+ *
+ * After (v2):
+ * - 50-100KB lattice.json (metadata only)
+ * - Fast compression: <10 seconds
+ * - 50MB .sigma directory (10x reduction)
+ *
+ * Migration process:
+ * 1. Find all *.lattice.json files in .sigma directory
+ * 2. For each file:
+ *    a. Check if already v2 (skip if yes)
+ *    b. Strip embedding arrays from nodes
+ *    c. Add format_version=2 and lancedb_metadata
+ *    d. Backup original (if backup=true)
+ *    e. Write v2 format
+ *
+ * Note: Embeddings remain in LanceDB - they are NOT lost, just moved to
+ * a more efficient storage format for vector search.
+ *
+ * @param projectRoot - Path to project root containing .sigma directory
+ * @param options - Migration options
+ * @param options.dryRun - If true, calculate metrics without modifying files
+ * @param options.verbose - If true, log detailed progress for each file
+ * @param options.backup - If true, create .backup files (default: true)
+ * @returns Promise resolving to migration result with metrics
+ * @throws {Error} If .sigma directory not found
+ *
+ * @example
+ * // Migrate all lattices with backup
+ * const result = await migrateLatticeToV2('/path/to/project', {
+ *   verbose: true
+ * });
+ * console.log(`Migrated ${result.successfulMigrations} files`);
+ * console.log(`Size reduction: ${formatBytes(result.totalSizeBefore - result.totalSizeAfter)}`);
+ *
+ * @example
+ * // Dry run to preview changes
+ * const result = await migrateLatticeToV2('/path/to/project', {
+ *   dryRun: true,
+ *   verbose: true
+ * });
  */
 export async function migrateLatticeToV2(
   projectRoot: string,
@@ -163,7 +212,19 @@ export async function migrateLatticeToV2(
 }
 
 /**
- * Format bytes to human-readable string
+ * Format bytes to human-readable string with appropriate units
+ *
+ * Converts byte count to B, KB, or MB with one decimal place.
+ * Used for displaying file size reductions in migration results.
+ *
+ * @param bytes - Number of bytes to format
+ * @returns Human-readable size string (e.g., "4.7MB", "50.0KB")
+ * @private
+ *
+ * @example
+ * formatBytes(4915200) // "4.7MB"
+ * formatBytes(51200) // "50.0KB"
+ * formatBytes(500) // "500B"
  */
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`;
