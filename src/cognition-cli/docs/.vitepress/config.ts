@@ -71,6 +71,16 @@ export default defineConfig({
         collapsed: false,
         items: [
           {
+            text: 'Part 0: Quick Start',
+            collapsed: false,
+            items: [
+              {
+                text: '00 - Quick Start Guide',
+                link: '/manual/part-0-quickstart/00-quick-start',
+              },
+            ],
+          },
+          {
             text: 'Part I: Foundation',
             collapsed: false,
             items: [
@@ -167,6 +177,14 @@ export default defineConfig({
             collapsed: false,
             items: [
               {
+                text: '18 - Operational Flow',
+                link: '/manual/part-5-cpow-loop/18-operational-flow',
+              },
+              {
+                text: '19 - Quest Structures',
+                link: '/manual/part-5-cpow-loop/19-quest-structures',
+              },
+              {
                 text: '20 - cPoW Reference',
                 link: '/manual/part-5-cpow-loop/20-cpow-reference',
               },
@@ -183,6 +201,16 @@ export default defineConfig({
               {
                 text: 'Lattice Restoration',
                 link: '/sigma/LATTICE_RESTORATION',
+              },
+            ],
+          },
+          {
+            text: 'Appendices',
+            collapsed: false,
+            items: [
+              {
+                text: 'Appendix A - Troubleshooting',
+                link: '/manual/appendix-a-troubleshooting',
               },
             ],
           },
