@@ -325,6 +325,25 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
         const waitTime = Date.now() - startTime;
 
+        // 🆕 STEP 2b: FINAL PROGRESS UPDATE (ensure UI shows 100% before "complete" message)
+        // Fix for bug where progress bar gets stuck (e.g., 4/8) due to throttling
+        const finalStatus = turnAnalysis.queueStatus;
+        setMessages((prev) => {
+          if (progressMessageIndex < 0 || progressMessageIndex >= prev.length) {
+            return prev;
+          }
+
+          const updated = [...prev];
+          updated[progressMessageIndex] = {
+            type: 'system',
+            content:
+              `⏳ Analyzing conversation turns... ${buildProgressBar(finalStatus.totalProcessed, finalStatus.totalProcessed)}\n` +
+              `   Elapsed: ${(waitTime / 1000).toFixed(1)}s`,
+            timestamp: prev[progressMessageIndex].timestamp,
+          };
+          return updated;
+        });
+
         // 🆕 STEP 3: UPDATE USER WITH COMPLETION
         setMessages((prev) => [
           ...prev,
