@@ -1,7 +1,7 @@
 # ADR-001: LanceDB for Vector Storage
 
-**Date**: Circa 2024
-**Status**: Accepted
+**Date**: 2025  
+**Status**: Accepted  
 **Deciders**: Core team
 
 ## Context

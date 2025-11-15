@@ -1,7 +1,7 @@
 # ADR-010: Workbench API Integration (Optional External Service)
 
-**Date**: Circa 2024
-**Status**: Accepted
+**Date**: 2025  
+**Status**: Accepted  
 **Deciders**: Core team
 
 ## Context

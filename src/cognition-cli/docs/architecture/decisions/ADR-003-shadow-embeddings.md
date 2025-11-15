@@ -1,7 +1,7 @@
 # ADR-003: Shadow Embeddings (Dual Embedding System)
 
-**Date**: October 28, 2025 (Monument 4.7)
-**Status**: Accepted
+**Date**: October 28, 2025 (Monument 4.7)  
+**Status**: Accepted  
 **Deciders**: Core team
 **Monument**: 4.7 - "The Shadow"
 

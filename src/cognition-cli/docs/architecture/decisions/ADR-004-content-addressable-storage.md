@@ -1,7 +1,7 @@
 # ADR-004: Content-Addressable Storage with SHA-256
 
-**Date**: Circa 2024
-**Status**: Accepted
+**Date**: 2025  
+**Status**: Accepted  
 **Deciders**: Core team
 
 ## Context
