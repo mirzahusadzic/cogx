@@ -45,6 +45,10 @@ export interface SessionState {
 
 /**
  * Load session state from disk
+ *
+ * @param anchorId - User-facing anchor ID for the session
+ * @param projectRoot - Project root directory
+ * @returns Session state object or null if not found or invalid
  */
 export function loadSessionState(
   anchorId: string,
@@ -67,6 +71,9 @@ export function loadSessionState(
 
 /**
  * Save session state to disk
+ *
+ * @param state - Session state to save
+ * @param projectRoot - Project root directory
  */
 export function saveSessionState(
   state: SessionState,
@@ -81,6 +88,10 @@ export function saveSessionState(
 
 /**
  * Create initial session state
+ *
+ * @param anchorId - User-facing anchor ID
+ * @param sdkSessionId - SDK session UUID
+ * @returns New session state object
  */
 export function createSessionState(
   anchorId: string,
@@ -104,6 +115,12 @@ export function createSessionState(
 /**
  * Update session state with new SDK session
  * (after compression or expiration)
+ *
+ * @param state - Current session state
+ * @param newSdkSession - New SDK session UUID
+ * @param reason - Reason for session change ('compression' or 'expiration')
+ * @param tokens - Optional token count at time of change
+ * @returns Updated session state
  */
 export function updateSessionState(
   state: SessionState,
@@ -138,6 +155,10 @@ export function updateSessionState(
 
 /**
  * Update Sigma statistics
+ *
+ * @param state - Current session state
+ * @param stats - Updated statistics object
+ * @returns Updated session state with new stats
  */
 export function updateSessionStats(
   state: SessionState,
@@ -152,6 +173,9 @@ export function updateSessionStats(
 
 /**
  * List all sessions
+ *
+ * @param projectRoot - Project root directory
+ * @returns Array of session summaries sorted by last_updated (descending)
  */
 export function listSessions(projectRoot: string): Array<{
   anchor_id: string;
@@ -205,6 +229,10 @@ export function listSessions(projectRoot: string): Array<{
  * - Single state file per anchor
  * - current_session field with real SDK UUID
  * - compression_history array
+ *
+ * @param anchorId - Anchor ID to migrate
+ * @param projectRoot - Project root directory
+ * @returns Migrated session state or null if migration fails
  */
 export function migrateOldStateFile(
   anchorId: string,
@@ -319,6 +347,12 @@ export function migrateOldStateFile(
 
 /**
  * Migrate all old state files in .sigma directory
+ *
+ * Scans .sigma directory and migrates all old-format state files
+ * to the new anchor-based format. Skips already-migrated files and
+ * old chained state files.
+ *
+ * @param projectRoot - Project root directory
  */
 export function migrateAllOldStates(projectRoot: string): void {
   const sigmaDir = path.join(projectRoot, '.sigma');
