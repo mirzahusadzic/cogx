@@ -49,6 +49,16 @@ Critical fixes for conversation continuity across compression, session state per
 
 **Impact**: The EmbeddingLoader abstraction layer now correctly recognizes all overlay field names, enabling seamless migration between v1 (embeddings in YAML) and v2 (embeddings in LanceDB) storage formats. This ensures `mathematical_proofs` and `operational_patterns` overlay managers work correctly with both legacy and modern storage backends.
 
+#### Dynamic Slash Command Discovery
+
+- **Removed hardcoded command list**: System identity no longer lists slash commands as static comma-separated string
+- **Documented execution mechanism**: System fingerprint now explains HOW to discover and execute slash commands
+- **Self-documenting commands**: New slash commands work immediately without updating system identity
+- **5-step execution guide**: Read .md file → Parse sections → Replace placeholders → Execute cognition-cli → Format output
+- **Cleaned up code**: Removed `detectSlashCommands()` function and unused `fs`/`path` imports
+
+**Impact**: Slash commands are now truly **self-contained instruction files**. Adding a new command to `.claude/commands/` makes it immediately available - no synchronization needed with system identity or conversation recaps. Claude discovers commands dynamically by reading the directory and understands how to execute them by parsing the markdown instruction files.
+
 ### 🎨 UI Fixes
 
 - **Sigma Stats panel alignment**: Changed from fixed `width={48}` to `minWidth={48}` to prevent text clipping
@@ -61,12 +71,13 @@ Critical fixes for conversation continuity across compression, session state per
 
 ### 📝 Technical Changes
 
-- **context-reconstructor.ts**: Added `getLastConversationTurns()`, `formatLastTurns()`, `getSystemFingerprint()`
+- **context-reconstructor.ts**: Added `getLastConversationTurns()`, `formatLastTurns()`, updated `getSystemFingerprint()` to document slash command mechanism instead of hardcoding list, removed `detectSlashCommands()` function
 - **useClaudeAgent.ts**: Implemented pending turn carry-forward and system fingerprint integration
 - **useSessionManager.ts**: Fixed state creation logic to prevent overwrites on resume
 - **SigmaInfoPanel.tsx**: Panel width fix for proper text display
 - **overlay.ts**: Added `MathematicalProofsManager` and `ProofExtractor` initialization, implemented explicit handler for `mathematical_proofs` overlay type with document extraction pipeline
 - **embedding-loader.ts**: Added `extracted_patterns`, `extracted_statements`, and `knowledge` fields to OverlayData type and possibleFields array for complete overlay field name coverage
+- **.claude/commands/README.md**: Added documentation explaining slash command discovery and execution mechanism for conversation recaps
 
 ## [2.3.1] - 2025-11-14
 
