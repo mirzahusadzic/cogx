@@ -1,5 +1,57 @@
 /**
- * Graph traversal for blast radius analysis
+ * Graph Traversal Engine for Blast Radius Analysis
+ *
+ * Builds and traverses dependency graphs from structural patterns stored in the
+ * Grounded Context Pool (PGC). Enables impact analysis by computing blast radius
+ * for code changes.
+ *
+ * ALGORITHM OVERVIEW:
+ * 1. Graph Construction:
+ *    - Load all symbols from structural overlay (O1) in PGC
+ *    - Parse import statements, type references, and inheritance relationships
+ *    - Build directed graph with adjacency lists for O(1) traversal
+ *
+ * 2. Blast Radius Calculation:
+ *    - BFS traversal upstream (consumers) and downstream (dependencies)
+ *    - Depth-limited to prevent infinite recursion
+ *    - Deduplication to handle diamond dependencies
+ *
+ * 3. Critical Path Detection:
+ *    - Identify symbols with high fan-in (architectural bottlenecks)
+ *    - Find shortest paths to these high-impact symbols
+ *    - Rank by consumer count and depth
+ *
+ * PERFORMANCE CHARACTERISTICS:
+ * - Graph construction: O(N × M) where N=symbols, M=avg imports per symbol
+ * - Traversal: O(V + E) where V=vertices, E=edges (standard BFS)
+ * - Memory: O(N + E) for adjacency lists
+ *
+ * DESIGN DECISIONS:
+ * - Adjacency lists over adjacency matrix (sparse graphs in real codebases)
+ * - In-memory graph (fast repeated queries, acceptable for <100k symbols)
+ * - Structural hashes enable incremental updates (future optimization)
+ *
+ * @example
+ * // Initialize traversal engine with PGC access
+ * const traversal = new GraphTraversal(pgcManager);
+ *
+ * // Build the complete dependency graph
+ * const graph = await traversal.buildGraph();
+ * console.log(`Graph: ${graph.nodes.size} symbols, ${graph.edges.length} edges`);
+ *
+ * // Analyze blast radius for a symbol change
+ * const blast = await traversal.getBlastRadius('AuthManager', {
+ *   maxDepth: 3,
+ *   direction: 'both',
+ *   includeTransitive: true
+ * });
+ *
+ * // Report impact
+ * console.log(`Changing AuthManager impacts ${blast.metrics.totalImpacted} symbols`);
+ * console.log(`Critical paths:`);
+ * for (const path of blast.metrics.criticalPaths) {
+ *   console.log(`  ${path.path.join(' → ')} (${path.reason})`);
+ * }
  */
 
 import { PGCManager } from '../pgc/manager.js';
@@ -15,12 +67,26 @@ import {
 
 /**
  * Performs graph traversal operations for blast radius and dependency analysis.
+ *
+ * Coordinates with Grounded Context Pool (PGC) to build and query dependency graphs.
  */
 export class GraphTraversal {
+  /**
+   * Creates a new graph traversal engine.
+   *
+   * @param pgc - Manager for accessing structural patterns in Grounded Context Pool (PGC)
+   */
   constructor(private pgc: PGCManager) {}
 
   /**
-   * Helper to extract filePath from manifest entry (handles both old and new formats)
+   * Helper to extract filePath from manifest entry (handles both old and new formats).
+   *
+   * BACKWARDS COMPATIBILITY:
+   * Manifest format evolved from simple strings to rich objects.
+   * This helper normalizes both formats.
+   *
+   * @param entry - Manifest entry (string or object)
+   * @returns File path for the symbol
    */
   private getFilePathFromManifestEntry(
     entry: string | { filePath?: string; [key: string]: unknown }
@@ -29,7 +95,36 @@ export class GraphTraversal {
   }
 
   /**
-   * Build a directed graph from structural patterns
+   * Build a directed graph from structural patterns in the Grounded Context Pool (PGC).
+   *
+   * ALGORITHM:
+   * 1. Load structural overlay manifest (symbol → file mapping)
+   * 2. For each symbol:
+   *    a. Load structural metadata (types, methods, params)
+   *    b. Parse imports to identify direct dependencies
+   *    c. Extract type usage from method signatures
+   *    d. Follow inheritance (extends/implements)
+   * 3. Build adjacency lists for O(1) traversal
+   *
+   * EDGE TYPES:
+   * - imports: Direct import statements (strongest coupling)
+   * - uses: Type usage in parameters/returns (interface coupling)
+   * - extends: Class inheritance (structural coupling)
+   * - implements: Interface implementation (contract coupling)
+   *
+   * PERFORMANCE:
+   * - Typical: O(N × M) where N=symbols, M=avg imports per symbol
+   * - Worst case: O(N²) for fully interconnected graph (rare in practice)
+   * - Optimization: Structural hashes enable incremental updates
+   *
+   * @returns Complete directed graph with nodes, edges, and adjacency lists
+   *
+   * @example
+   * const graph = await traversal.buildGraph();
+   * console.log(`Graph statistics:`);
+   * console.log(`- Nodes: ${graph.nodes.size}`);
+   * console.log(`- Edges: ${graph.edges.length}`);
+   * console.log(`- Avg fan-out: ${graph.edges.length / graph.nodes.size}`);
    */
   async buildGraph(): Promise<DirectedGraph> {
     const nodes = new Map<string, GraphNode>();
@@ -233,7 +328,50 @@ export class GraphTraversal {
   }
 
   /**
-   * Get blast radius for a symbol
+   * Get blast radius for a symbol change.
+   *
+   * Computes the complete impact of modifying a symbol by traversing
+   * both upstream (consumers) and downstream (dependencies).
+   *
+   * ALGORITHM:
+   * 1. Build the complete dependency graph
+   * 2. Locate the target symbol node
+   * 3. Traverse upstream via BFS (find consumers)
+   * 4. Traverse downstream via BFS (find dependencies)
+   * 5. Calculate metrics:
+   *    - Total impact: unique symbols in consumers + dependencies
+   *    - Max depths: longest path in each direction
+   *    - Critical paths: shortest paths to high-leverage symbols
+   *
+   * USE CASES:
+   * - Pre-refactoring impact assessment
+   * - Test scope planning (which tests to run)
+   * - Architectural analysis (identifying bottlenecks)
+   * - Code review prioritization
+   *
+   * @param symbol - The symbol name to analyze (e.g., 'AuthManager')
+   * @param options - Traversal configuration (depth, direction, transitivity)
+   * @returns Complete blast radius analysis with metrics
+   * @throws Error if symbol not found in graph
+   *
+   * @example
+   * // Full blast radius (consumers + dependencies, depth 3)
+   * const blast = await traversal.getBlastRadius('AuthManager');
+   *
+   * @example
+   * // Only consumers (what needs retesting)
+   * const blast = await traversal.getBlastRadius('validateToken', {
+   *   direction: 'up',
+   *   maxDepth: 5
+   * });
+   *
+   * @example
+   * // Only direct dependencies (no transitive)
+   * const blast = await traversal.getBlastRadius('UserService', {
+   *   direction: 'down',
+   *   maxDepth: 1,
+   *   includeTransitive: false
+   * });
    */
   async getBlastRadius(
     symbol: string,
@@ -314,7 +452,23 @@ export class GraphTraversal {
   }
 
   /**
-   * Traverse up (find consumers)
+   * Traverse up (find consumers) using breadth-first search.
+   *
+   * Finds all symbols that depend on the given symbol (upstream impact).
+   * Uses the incoming adjacency list for O(1) neighbor lookup.
+   *
+   * ALGORITHM:
+   * - BFS traversal following incoming edges (reverse dependencies)
+   * - Depth-limited to prevent unbounded searches
+   * - Visited set prevents cycles and duplicates
+   *
+   * @param symbol - Starting symbol
+   * @param graph - The complete dependency graph
+   * @param result - Accumulator for discovered consumer nodes
+   * @param visited - Set of already-visited symbols (prevents cycles)
+   * @param maxDepth - Maximum traversal depth
+   * @param includeTransitive - Whether to follow transitive dependencies
+   * @param currentDepth - Current depth in traversal (internal)
    */
   private async traverseUp(
     symbol: string,
@@ -352,7 +506,23 @@ export class GraphTraversal {
   }
 
   /**
-   * Traverse down (find dependencies)
+   * Traverse down (find dependencies) using breadth-first search.
+   *
+   * Finds all symbols that this symbol depends on (downstream risk).
+   * Uses the outgoing adjacency list for O(1) neighbor lookup.
+   *
+   * ALGORITHM:
+   * - BFS traversal following outgoing edges (direct dependencies)
+   * - Depth-limited to prevent unbounded searches
+   * - Visited set prevents cycles and duplicates
+   *
+   * @param symbol - Starting symbol
+   * @param graph - The complete dependency graph
+   * @param result - Accumulator for discovered dependency nodes
+   * @param visited - Set of already-visited symbols (prevents cycles)
+   * @param maxDepth - Maximum traversal depth
+   * @param includeTransitive - Whether to follow transitive dependencies
+   * @param currentDepth - Current depth in traversal (internal)
    */
   private async traverseDown(
     symbol: string,
@@ -390,7 +560,24 @@ export class GraphTraversal {
   }
 
   /**
-   * Calculate maximum depth reached
+   * Calculate maximum depth reached during traversal.
+   *
+   * Finds the longest path from the starting symbol in the specified direction.
+   * Used to measure how far impact propagates through the dependency graph.
+   *
+   * INTERPRETATION:
+   * - High upstream depth: Impact propagates far (many levels of consumers)
+   * - High downstream depth: Complex dependency tree (fragile architecture)
+   *
+   * @param symbol - Starting symbol
+   * @param graph - The complete dependency graph
+   * @param direction - 'up' for consumers, 'down' for dependencies
+   * @param maxDepth - Maximum depth to search
+   * @returns The deepest level reached
+   *
+   * @example
+   * const depth = calculateMaxDepth('AuthManager', graph, 'up', 10);
+   * console.log(`Impact propagates ${depth} levels upstream`);
    */
   private calculateMaxDepth(
     symbol: string,
@@ -423,7 +610,33 @@ export class GraphTraversal {
   }
 
   /**
-   * Find critical paths (high-impact chains)
+   * Find critical paths (high-impact dependency chains).
+   *
+   * Identifies paths from the target symbol to architectural bottlenecks
+   * (symbols with many consumers). These paths deserve special attention
+   * during refactoring because changes propagate widely.
+   *
+   * ALGORITHM:
+   * 1. Calculate consumer count for all symbols (fan-in)
+   * 2. Identify top 5 symbols by consumer count
+   * 3. Find shortest path from target to each high-impact symbol
+   * 4. Return paths sorted by impact
+   *
+   * RANKING CRITERIA:
+   * - Primary: Consumer count (more consumers = higher impact)
+   * - Secondary: Path length (shorter = more direct impact)
+   *
+   * @param symbol - Starting symbol
+   * @param graph - The complete dependency graph
+   * @param maxDepth - Maximum path length to consider
+   * @returns Array of critical paths sorted by impact
+   *
+   * @example
+   * const paths = findCriticalPaths('LoginButton', graph, 5);
+   * for (const path of paths) {
+   *   console.log(`${path.path.join(' → ')}`);
+   *   console.log(`  ${path.reason}`);
+   * }
    */
   private findCriticalPaths(
     symbol: string,
@@ -459,7 +672,27 @@ export class GraphTraversal {
   }
 
   /**
-   * Find shortest path between two symbols
+   * Find shortest path between two symbols using BFS.
+   *
+   * Explores the graph bidirectionally (both incoming and outgoing edges)
+   * to find the shortest path regardless of dependency direction.
+   *
+   * ALGORITHM:
+   * - Breadth-first search (guarantees shortest path)
+   * - Bidirectional edge following (allows traversal in both directions)
+   * - Queue-based exploration (FIFO for BFS property)
+   *
+   * @param from - Starting symbol
+   * @param to - Target symbol
+   * @param graph - The complete dependency graph
+   * @param maxDepth - Maximum path length
+   * @returns Array of symbols forming the path, or null if no path exists
+   *
+   * @example
+   * const path = findPath('LoginButton', 'Database', graph, 10);
+   * if (path) {
+   *   console.log(`Path: ${path.join(' → ')}`);
+   * }
    */
   private findPath(
     from: string,
@@ -506,7 +739,13 @@ export class GraphTraversal {
   }
 
   /**
-   * Infer symbol type from structural signature
+   * Infer symbol type from structural signature.
+   *
+   * Structural signatures encode the symbol type as a prefix.
+   * This helper extracts the type for graph node classification.
+   *
+   * @param signature - Structural signature (e.g., "class:AuthManager:...")
+   * @returns Symbol type or 'class' as default
    */
   private inferSymbolType(
     signature: string
@@ -518,7 +757,24 @@ export class GraphTraversal {
   }
 
   /**
-   * Clean type name to extract the base type
+   * Clean type name to extract the base type identifier.
+   *
+   * Removes TypeScript/JavaScript type syntax to extract the core type name.
+   * Only returns user-defined types (starts with uppercase).
+   *
+   * TRANSFORMATIONS:
+   * - Array syntax: User[] → User
+   * - Generics: Promise<User> → Promise
+   * - Unions: User | Admin → User
+   * - Primitives: string, number → null (not tracked)
+   *
+   * @param type - Raw type string from AST
+   * @returns Clean type name or null if not a user-defined type
+   *
+   * @example
+   * cleanTypeName('User[]') // → 'User'
+   * cleanTypeName('Promise<User>') // → 'Promise'
+   * cleanTypeName('string') // → null (primitive)
    */
   private cleanTypeName(type: string | undefined): string | null {
     if (!type) return null;
