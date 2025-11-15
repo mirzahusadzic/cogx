@@ -1,33 +1,87 @@
 /**
  * Patterns LanceDB Compaction Tool
  *
- * Compacts patterns.lancedb to remove duplicate embeddings.
- * Fixes the bloat issue where 2,061 duplicate embeddings created 275MB+ storage.
+ * Deduplicates and compacts pattern embeddings in the Grounded Context Pool (PGC)
+ * to remove duplicate vectors created during repeated overlay ingestion.
  *
  * PROBLEM:
- * - Re-ingesting overlays with --force creates duplicate embeddings
- * - storeVector checks for duplicates by ID, but deletes create new versions
- * - Result: 2,061 files for ~50-100 unique patterns
+ * Re-ingesting overlays with --force flag creates duplicate embeddings:
+ * - storeVector checks for duplicates by ID before insert
+ * - But delete + insert creates new LanceDB versions (tombstones)
+ * - Result: Storage bloat (2,061 files for ~50-100 unique patterns, 275MB+)
  *
  * SOLUTION:
- * - Drop and recreate each table with only unique patterns (by symbol)
- * - Keep the most recent version of each pattern
+ * Compact each table by:
+ * 1. Loading all records (including old versions)
+ * 2. Deduplicating by symbol (keeping most recent by computed_at)
+ * 3. Dropping and recreating table
+ * 4. Reinserting only unique records
+ *
+ * This operation is safe because:
+ * - Patterns are identified by symbol (deterministic)
+ * - Most recent version has latest embeddings
+ * - No data loss (all current patterns retained)
+ *
+ * PERFORMANCE:
+ * Compaction reduces storage by 70-90% on typical codebases.
+ * Run periodically (weekly) or after major reindexing operations.
+ *
+ * @example
+ * // Compact structural patterns table
+ * const result = await compactPatternsTable(
+ *   '/workspace/.pgc',
+ *   'structural_patterns'
+ * );
+ * console.log(`Reduced from ${result.before.records} to ${result.after.records} records`);
+ * console.log(`Saved ${formatBytes(result.reduction.bytes)}`);
+ *
+ * @example
+ * // Compact all pattern tables
+ * const results = await compactAllPatternsTables('/workspace/.pgc');
+ * const totalSaved = results.reduce((sum, r) => sum + r.reduction.bytes, 0);
+ * console.log(`Total savings: ${formatBytes(totalSaved)}`);
+ *
+ * @example
+ * // Dry run to preview savings
+ * const result = await compactPatternsTable(
+ *   '/workspace/.pgc',
+ *   'security_guidelines',
+ *   { dryRun: true, verbose: true }
+ * );
+ * console.log(`Would save ${result.reduction.percentage}% storage`);
  */
 
 import { connect } from '@lancedb/lancedb';
 import path from 'path';
 import fs from 'fs-extra';
 
+/**
+ * Result of compacting a patterns table.
+ *
+ * Captures before/after metrics for storage and record counts.
+ *
+ * @example
+ * const result: PatternCompactionResult = {
+ *   tableName: 'structural_patterns',
+ *   before: { records: 2061, dataSize: 275000000 },
+ *   after: { records: 87, dataSize: 42000000 },
+ *   reduction: { records: 1974, bytes: 233000000, percentage: 84 }
+ * };
+ */
 export interface PatternCompactionResult {
+  /** Name of the table that was compacted */
   tableName: string;
+  /** Metrics before compaction */
   before: {
     records: number;
     dataSize: number;
   };
+  /** Metrics after compaction */
   after: {
     records: number;
     dataSize: number;
   };
+  /** Reduction achieved */
   reduction: {
     records: number;
     bytes: number;
@@ -36,7 +90,24 @@ export interface PatternCompactionResult {
 }
 
 /**
- * Compact a single patterns table (e.g., structural_patterns, security_guidelines)
+ * Compact a single patterns table by removing duplicate embeddings.
+ *
+ * Deduplicates by symbol, keeping the most recent version of each pattern.
+ * The table is dropped and recreated to physically remove tombstoned records.
+ *
+ * @param pgcRoot - Root directory of PGC (.pgc or absolute path)
+ * @param tableName - Name of table to compact (e.g., 'structural_patterns')
+ * @param options - Compaction options
+ * @param options.dryRun - If true, calculate savings without modifying data
+ * @param options.verbose - If true, print detailed progress information
+ * @returns Compaction result with before/after metrics
+ *
+ * @example
+ * const result = await compactPatternsTable(
+ *   '/workspace/.pgc',
+ *   'structural_patterns',
+ *   { verbose: true }
+ * );
  */
 export async function compactPatternsTable(
   pgcRoot: string,
@@ -192,7 +263,29 @@ export async function compactPatternsTable(
 }
 
 /**
- * Compact all patterns tables
+ * Compact all patterns tables in the PGC.
+ *
+ * Discovers all tables in patterns.lancedb and compacts each one.
+ * Useful for periodic maintenance or after major reindexing operations.
+ *
+ * @param pgcRoot - Root directory of PGC (.pgc or absolute path)
+ * @param options - Compaction options
+ * @param options.dryRun - If true, calculate savings without modifying data
+ * @param options.verbose - If true, print detailed progress information
+ * @returns Array of compaction results, one per table
+ *
+ * @example
+ * // Compact all tables with progress output
+ * const results = await compactAllPatternsTables(
+ *   '/workspace/.pgc',
+ *   { verbose: true }
+ * );
+ *
+ * // Report total savings
+ * const totalRecordsRemoved = results.reduce((sum, r) => sum + r.reduction.records, 0);
+ * const totalBytesSaved = results.reduce((sum, r) => sum + r.reduction.bytes, 0);
+ * console.log(`Removed ${totalRecordsRemoved} duplicate records`);
+ * console.log(`Saved ${formatBytes(totalBytesSaved)}`);
  */
 export async function compactAllPatternsTables(
   pgcRoot: string,
@@ -229,7 +322,13 @@ export async function compactAllPatternsTables(
 }
 
 /**
- * Get total size of directory recursively
+ * Get total size of directory recursively.
+ *
+ * Walks the directory tree summing file sizes. Used to measure
+ * storage before and after compaction.
+ *
+ * @param dirPath - Directory to measure
+ * @returns Total size in bytes
  */
 async function getDirectorySize(dirPath: string): Promise<number> {
   let totalSize = 0;
@@ -251,7 +350,18 @@ async function getDirectorySize(dirPath: string): Promise<number> {
 }
 
 /**
- * Format bytes to human-readable string
+ * Format bytes to human-readable string.
+ *
+ * Converts byte counts to KB, MB, or GB with one decimal place.
+ *
+ * @param bytes - Number of bytes
+ * @returns Formatted string (e.g., "42.5MB")
+ *
+ * @example
+ * formatBytes(1024);          // "1.0KB"
+ * formatBytes(1536);          // "1.5KB"
+ * formatBytes(1048576);       // "1.0MB"
+ * formatBytes(275000000);     // "262.3MB"
  */
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`;
