@@ -261,7 +261,8 @@ export const InputBox: React.FC<InputBoxProps> = ({
         if (selected) {
           // Replace current input with selected command
           const args = value.split(' ').slice(1).join(' '); // Preserve args if any
-          const newValue = `/${selected.name}${args ? ' ' + args : ''}`;
+          // Add trailing space to position cursor at end (ready for argument typing)
+          const newValue = `/${selected.name} ${args}`.trim() + ' ';
           valueRef.current = newValue;
           setValue(newValue);
           setShowDropdown(false);
