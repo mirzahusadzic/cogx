@@ -30,20 +30,30 @@ interface EmbeddingJob {
  * - Queue-based processing ensures embeddings are generated sequentially
  * - Integrates with WorkbenchClient's rate limiting for coordinated throttling
  * - Event emitter for monitoring and debugging
+ * - LRU cache for embeddings (10K capacity) to reduce API calls
+ * - Queue size limit (1K capacity) to prevent OOM
  *
  * ALGORITHM:
  * 1. Accept embedding request via getEmbedding()
- * 2. Add to internal queue
- * 3. Process queue sequentially:
+ * 2. Check LRU cache (30-40% hit rate expected)
+ * 3. On cache miss: Check queue size limit
+ * 4. Add to internal queue
+ * 5. Process queue sequentially:
  *    a. Wait for rate limit clearance (via WorkbenchClient)
  *    b. Generate embedding
- *    c. Resolve/reject promise
- * 4. Continue until queue empty
+ *    c. Cache result with LRU eviction
+ *    d. Resolve/reject promise
+ * 6. Continue until queue empty
  *
  * RATE LIMITING:
  * - Delegates to WorkbenchClient.waitForEmbedRateLimit()
  * - All callers share the same rate limit state
  * - No local throttling - pure coordination layer
+ *
+ * BACKPRESSURE:
+ * - Queue size limited to MAX_QUEUE_SIZE (1,000 items)
+ * - Rejects new requests when queue is full
+ * - Prevents OOM from unbounded queue growth
  *
  * @example
  * // Initialize service
@@ -71,6 +81,9 @@ export class EmbeddingService extends EventEmitter {
   private embeddingCache = new Map<string, EmbedResponse>();
   private readonly MAX_CACHE_SIZE = 10000;
 
+  // Queue size limit to prevent OOM with unbounded growth
+  private readonly MAX_QUEUE_SIZE = 1000;
+
   /**
    * Initialize embedding service with Workbench endpoint.
    *
@@ -91,19 +104,26 @@ export class EmbeddingService extends EventEmitter {
    * ALGORITHM:
    * 1. Check service is not shutdown
    * 2. Check cache for existing embedding (cache hit = instant return)
-   * 3. On cache miss: Create promise and add to queue
-   * 4. Trigger queue processing
-   * 5. Return promise (resolves when embedding ready)
+   * 3. On cache miss: Check queue size limit (prevents OOM)
+   * 4. Create promise and add to queue
+   * 5. Trigger queue processing
+   * 6. Return promise (resolves when embedding ready)
    *
    * CACHE STRATEGY:
    * - LRU eviction when cache exceeds MAX_CACHE_SIZE (10,000 items)
    * - Cache key: `${signature}:${dimensions}`
    * - Map maintains insertion order (oldest entries evicted first)
    *
+   * QUEUE LIMITS:
+   * - Maximum queue size: MAX_QUEUE_SIZE (1,000 items)
+   * - Rejects with error when queue is full (backpressure)
+   * - Prevents OOM from unbounded queue growth
+   *
    * @param signature - Text to embed (structural/semantic pattern)
    * @param dimensions - Embedding dimensions (768 for eGemma)
    * @returns Promise resolving to embedding response from eGemma
    * @throws {Error} If service has been shutdown
+   * @throws {Error} If queue is full (MAX_QUEUE_SIZE exceeded)
    *
    * @example
    * // Embed a structural pattern signature
@@ -131,6 +151,14 @@ export class EmbeddingService extends EventEmitter {
       this.embeddingCache.delete(cacheKey);
       this.embeddingCache.set(cacheKey, cached);
       return Promise.resolve(cached);
+    }
+
+    // Check queue size to prevent OOM
+    if (this.queue.length >= this.MAX_QUEUE_SIZE) {
+      throw new Error(
+        `EmbeddingService queue is full (${this.MAX_QUEUE_SIZE} items). ` +
+          `Please wait for pending embeddings to complete or increase cache hit rate.`
+      );
     }
 
     // Cache miss - queue for processing
