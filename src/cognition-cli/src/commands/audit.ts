@@ -1,3 +1,51 @@
+/**
+ * PGC Audit Commands
+ *
+ * Provides comprehensive auditing capabilities for the Grounded Context Pool (PGC),
+ * enabling verification of transformation history, document integrity, and overlay
+ * consistency. Audit commands ensure PGC maintains verifiable provenance for all
+ * stored knowledge.
+ *
+ * AUDIT TYPES:
+ * 1. **Transformation Audit** (`audit <file>`):
+ *    - Shows transformation history for a specific file
+ *    - Displays goal, fidelity (φ), verification results
+ *    - Traces inputs and outputs for each iteration
+ *
+ * 2. **Document Integrity Audit** (`audit:docs`):
+ *    - Verifies all ingested documents are properly indexed
+ *    - Detects orphaned documents (in objects/ but not indexed)
+ *    - Lists all indexed documents with metadata
+ *
+ * DESIGN:
+ * The audit system leverages PGC's immutable object storage and transformation
+ * logs to provide complete auditability:
+ * - Every transformation is logged with cryptographic hashes
+ * - Object provenance is traceable via transform_id
+ * - Document integrity verified via content hashing
+ *
+ * VERIFICATION WORKFLOW:
+ * 1. Read index entry for file/document
+ * 2. Retrieve transformation history from transform log
+ * 3. Verify each transformation's inputs/outputs
+ * 4. Check for consistency with current state
+ *
+ * INTEGRATION:
+ * - Used in CI/CD to verify PGC integrity before deployment
+ * - Supports compliance requirements for verifiable ML/AI systems
+ * - Enables debugging of transformation failures
+ *
+ * @example
+ * // Audit transformation history
+ * cognition-cli audit src/utils/helpers.ts --limit 5
+ * // → Shows last 5 transformations with φ scores
+ *
+ * @example
+ * // Audit document integrity
+ * cognition-cli audit:docs
+ * // → Verifies all docs, lists ingested documents
+ */
+
 import { PGCManager } from '../core/pgc/manager.js';
 import { TransformLog } from '../core/pgc/transform-log.js';
 import { TransformData } from '../core/types/transform.js';
@@ -5,15 +53,31 @@ import { DocsOracle } from '../core/pgc/oracles/docs.js';
 import chalk from 'chalk';
 
 /**
- * Represents options for the audit command.
+ * Options for the audit command
  */
 interface AuditOptions {
+  /** Root directory of the project containing .open_cognition */
   projectRoot: string;
+  /** Maximum number of transformations to display */
   limit: string;
 }
 
 /**
- * Audits transformation history for a specific file path.
+ * Audits transformation history for a specific file path
+ *
+ * Retrieves and displays the transformation history from the PGC index,
+ * showing each iteration's goal, fidelity score, verification result,
+ * and input/output hashes.
+ *
+ * @param filePath - Path to file to audit (relative to project root)
+ * @param options - Audit command options
+ *
+ * @example
+ * await auditCommand('src/utils/helpers.ts', {
+ *   projectRoot: '/path/to/project',
+ *   limit: '10'
+ * });
+ * // → Shows last 10 transformations for helpers.ts
  */
 export async function auditCommand(filePath: string, options: AuditOptions) {
   const pgc = new PGCManager(options.projectRoot);
@@ -55,6 +119,14 @@ export async function auditCommand(filePath: string, options: AuditOptions) {
   }
 }
 
+/**
+ * Displays transformation data in human-readable format
+ *
+ * Formats and prints transformation metadata including goal, fidelity score,
+ * verification status, and input/output hashes.
+ *
+ * @param data - Transformation data to display
+ */
 function displayTransformData(data: TransformData) {
   console.log(`  Goal: ${data.goal}`);
   console.log(`  Fidelity (Phi): ${data.phi}`);
@@ -70,7 +142,28 @@ function displayTransformData(data: TransformData) {
 }
 
 /**
- * Audits document integrity using the DocsOracle.
+ * Audits document integrity using the DocsOracle
+ *
+ * Verifies that all ingested documents are properly indexed and detects
+ * orphaned documents. Displays comprehensive report including document
+ * metadata (content hash, object hash, timestamp).
+ *
+ * VERIFICATION CHECKS:
+ * - All documents in index/docs/ have corresponding objects
+ * - All document objects have corresponding index entries
+ * - Content hashes match stored objects
+ * - No orphaned documents in objects/
+ *
+ * EXIT BEHAVIOR:
+ * - Exits with code 0 if all checks pass
+ * - Exits with code 1 if integrity issues found
+ *
+ * @param options - Audit docs command options
+ * @param options.projectRoot - Root directory of the project
+ *
+ * @example
+ * await auditDocsCommand({ projectRoot: '/path/to/project' });
+ * // → Verifies document integrity, lists all docs
  */
 export async function auditDocsCommand(options: {
   projectRoot: string;
