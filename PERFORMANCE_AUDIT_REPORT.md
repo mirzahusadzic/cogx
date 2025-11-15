@@ -493,7 +493,7 @@ async getAllVectorsPaginated(
 ### Phase 2: Medium Impact (1 week)
 
 - [x] **Implement lazy command loading** - `cli.ts` - [6h effort, 60% faster startup]
-- [ ] **Batch LanceDB operations** - Multiple files - [8h effort, 3-5x faster overlay builds]
+- [x] **Batch LanceDB operations** - `lance-store.ts` - [8h effort, 3-5x faster overlay builds]
 - [x] **Add queue size limits** - `embedding.ts` - [2h effort, prevents OOM]
 - [x] **Parallelize overlay document processing** - `overlay.ts` - [4h effort, 2x faster]
 - [x] **Implement batched index operations** - `pgc/index.ts` - [6h effort, 30% faster genesis]
