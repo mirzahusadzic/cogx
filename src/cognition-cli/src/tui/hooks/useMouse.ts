@@ -1,14 +1,92 @@
+/**
+ * Terminal Mouse Event Handler
+ *
+ * React hook for capturing and processing mouse events in terminal-based UIs.
+ * Intercepts ANSI escape sequences for mouse tracking while preserving native
+ * terminal features (text selection, context menu, paste).
+ *
+ * DESIGN:
+ * The terminal emits mouse events as ANSI escape sequences in SGR 1006 format:
+ *   ESC[<button;x;y;M/m
+ *
+ * This hook intercepts these sequences to enable:
+ * - Scroll wheel navigation (buttons 64/65 or 4/5)
+ * - Pass-through for click/drag events (preserves native terminal behavior)
+ *
+ * The key design decision is selective interception:
+ * - CAPTURE: Scroll events (for custom scroll handling)
+ * - PASS THROUGH: Click/drag events (for native selection/copy/paste)
+ *
+ * This allows users to select text, right-click for context menu, and middle-click
+ * to paste while still enabling scroll wheel navigation in the TUI.
+ *
+ * @example
+ * // Capture scroll events for custom scrolling
+ * const [scrollOffset, setScrollOffset] = useState(0);
+ *
+ * useMouse((event) => {
+ *   if (event.type === 'scroll_up') {
+ *     setScrollOffset(prev => Math.max(0, prev - 1));
+ *   } else if (event.type === 'scroll_down') {
+ *     setScrollOffset(prev => prev + 1);
+ *   }
+ * }, { isActive: true });
+ *
+ * @example
+ * // Conditionally enable mouse tracking
+ * const [panelFocused, setPanelFocused] = useState(false);
+ *
+ * useMouse((event) => {
+ *   // Only scroll when panel is focused
+ *   handleScroll(event);
+ * }, { isActive: panelFocused });
+ */
+
 import { useEffect } from 'react';
 import { useStdin } from 'ink';
 
+/**
+ * Mouse event types supported by terminal
+ */
 interface MouseEvent {
+  /** Type of mouse event */
   type: 'scroll_up' | 'scroll_down' | 'click' | 'drag';
+
+  /** Column position (1-indexed) */
   x: number;
+
+  /** Row position (1-indexed) */
   y: number;
 }
 
 /**
- * Hook to capture mouse events including scroll wheel
+ * Captures mouse events from terminal stdin and dispatches to callback.
+ *
+ * ALGORITHM:
+ * 1. Store original stdin 'data' listeners
+ * 2. Remove existing listeners to intercept mouse events
+ * 3. Parse ANSI SGR 1006 sequences: ESC[<button;x;y;M/m
+ * 4. Identify scroll events (buttons 64/65 or 4/5)
+ * 5. Pass scroll events to callback, pass-through all other events
+ * 6. Restore original listeners on cleanup
+ *
+ * The hook prepends its listener to intercept data before Ink processes it,
+ * allowing selective filtering of mouse events.
+ *
+ * @param callback - Function called when scroll events occur
+ * @param options - Configuration for hook behavior
+ * @param options.isActive - Whether to actively capture events (default: true)
+ *
+ * @example
+ * // Simple scroll handler
+ * useMouse((event) => {
+ *   console.log(`${event.type} at (${event.x}, ${event.y})`);
+ * });
+ *
+ * @example
+ * // Toggle-able mouse tracking
+ * const [enabled, setEnabled] = useState(true);
+ * useMouse(handleMouseEvent, { isActive: enabled });
  */
 export function useMouse(
   callback: (event: MouseEvent) => void,
