@@ -238,7 +238,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         // STEP 2: Wait for analysis queue to complete (configurable timeout)
         const startTime = Date.now();
         const timeout = parseInt(
-          process.env.SIGMA_COMPRESSION_TIMEOUT_MS || '15000',
+          process.env.SIGMA_COMPRESSION_TIMEOUT_MS || '60000', // 60s for network workbench
           10
         );
 

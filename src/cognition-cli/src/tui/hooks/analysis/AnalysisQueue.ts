@@ -255,13 +255,13 @@ export class AnalysisQueue {
 
   /**
    * ✅ NEW: Wait for queue to become ready for compression
-   * @param timeout Maximum time to wait (ms), default from env or 15000
+   * @param timeout Maximum time to wait (ms), default from env or 60000
    * @param onProgress Optional progress callback (elapsed ms, current status)
    * @returns Promise that resolves when ready or rejects on timeout
    */
   async waitForCompressionReady(
     timeout: number = parseInt(
-      process.env.SIGMA_COMPRESSION_TIMEOUT_MS || '15000',
+      process.env.SIGMA_COMPRESSION_TIMEOUT_MS || '60000', // 60s for network workbench
       10
     ),
     onProgress?: (elapsed: number, status: AnalysisQueueStatus) => void

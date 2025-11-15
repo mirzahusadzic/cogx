@@ -9,75 +9,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Summary
 
-Critical fixes for conversation continuity across compression, session state persistence, and overlay generation. Sigma's infinite context now maintains true continuity - the assistant continues tasks instead of restarting them after compression events. Mathematical proofs overlay (O₆) generation now works correctly.
+Critical compression race condition fix (50%+ context loss), conversation continuity enhancements, slash command UX improvements, TUI visual upgrades, and memory architecture guidance for Claude's recall tool. Sigma now maintains true continuity across compression events.
 
 ### 🐛 Critical Bug Fixes
 
-#### Conversation Continuity Across Compression
+**Compression Race Condition ** - Eliminated React effect race between compression and message queueing causing 50%+ context loss. Automatic compression effect disabled; now triggers sequentially after queue populates. Updated 17 tests (10 converted to manual-only triggering). **Impact**: Conversation history fully preserved across compression events.
 
-- **Role-attributed context**: Compressed recaps now include explicit role labels (`**[USER]**:`, `**[ASSISTANT]**:`) for last 5 conversation turns
-- **Pending task detection**: Automatically detects when assistant has pending work via action words and todo lists
-- **Continuity warnings**: Adds explicit `⚠️ Assistant's Pending Task` section with instruction to continue
-- **System identity fingerprint**: Recaps include system context (Cognition Σ CLI, available tools, slash commands) to prevent identity amnesia
+**Conversation Continuity** - Recaps include role-attributed last 5 turns, pending task detection, system identity fingerprint, and explicit continuity warnings. **Impact**: Assistant continues tasks seamlessly across 120K compression events instead of restarting.
 
-**Impact**: Assistant now continues tasks seamlessly across 120K token compression events instead of restarting from scratch.
+**Session State Persistence** - Fixed TUI resume state corruption. Compression history persists correctly across restarts.
 
-#### Session State Persistence
+**Slash Command Cursor Positioning** - Force TextInput remount via dynamic `key` prop. Cursor now positions at end of selected command instead of stuck at partial match position (e.g., `/c` → `/consult-echo` left cursor after 'c').
 
-- **Fixed state corruption on resume**: TUI resume no longer overwrites existing compression history
-- **Preserved compression history**: All compression events now persist correctly across TUI restarts
+**Mathematical Proofs Overlay (O₆)** - Fixed handler, prevented fallthrough to `structural_patterns`, removed document ingestion side-effect. Command `cognition-cli overlay generate mathematical_proofs` now works correctly.
 
-**Impact**: Compression history maintained across sessions - no more losing session state on restart.
+**EmbeddingLoader Field Names** - Added `extracted_patterns`, `extracted_statements`, `knowledge` fields for complete O1-O7 coverage. Enables seamless v1 (YAML) ↔ v2 (LanceDB) migration.
 
-#### Mathematical Proofs Overlay (O₆) Generation
+**Dynamic Slash Command Discovery** - Removed hardcoded list. System identity documents discovery mechanism. Commands are self-contained instruction files - no synchronization needed.
 
-- **Fixed overlay type handler**: `mathematical_proofs` overlay now has proper handler in OverlayOrchestrator
-- **Prevented fallthrough**: Previously fell through to `structural_patterns` generation instead of extracting mathematical statements
-- **Removed document ingestion side-effect**: Mathematical proofs generation no longer calls `autoIngestStrategicDocs()` which was triggering mission concept extraction as a side effect
-- **Cleaner separation of concerns**: `mission_concepts` overlay handles document ingestion, other overlays work on already-ingested documents
-- **Implemented extraction pipeline**: Added document discovery, proof extraction, and embedding generation flow
-- **Complete implementation**: Added `generateMathematicalProofs()` and `generateMathematicalProofsForDocument()` methods
+### 🎨 UI/UX
 
-**Impact**: Command `cognition-cli overlay generate mathematical_proofs` now correctly extracts theorems, lemmas, axioms, and proofs from already-ingested markdown documents without triggering confusing mission concept extraction in the console output. Run `mission_concepts` generation first to ingest strategic documents.
-
-#### EmbeddingLoader Field Name Support
-
-- **Added `extracted_patterns` field**: Operational overlay (O5) can now load embeddings from both v1 (YAML) and v2 (LanceDB) formats
-- **Added `extracted_statements` field**: Mathematical overlay (O6) can now load embeddings from both v1 (YAML) and v2 (LanceDB) formats
-- **Added `knowledge` fallback**: Mathematical proofs overlay supports legacy field name for backward compatibility
-- **Complete overlay coverage**: All seven overlays (O1-O7) now work with the unified EmbeddingLoader abstraction
-
-**Impact**: The EmbeddingLoader abstraction layer now correctly recognizes all overlay field names, enabling seamless migration between v1 (embeddings in YAML) and v2 (embeddings in LanceDB) storage formats. This ensures `mathematical_proofs` and `operational_patterns` overlay managers work correctly with both legacy and modern storage backends.
-
-#### Dynamic Slash Command Discovery
-
-- **Removed hardcoded command list**: System identity no longer lists slash commands as static comma-separated string
-- **Documented execution mechanism**: System fingerprint now explains HOW to discover and execute slash commands
-- **Self-documenting commands**: New slash commands work immediately without updating system identity
-- **5-step execution guide**: Read .md file → Parse sections → Replace placeholders → Execute cognition-cli → Format output
-- **Cleaned up code**: Removed `detectSlashCommands()` function and unused `fs`/`path` imports
-
-**Impact**: Slash commands are now truly **self-contained instruction files**. Adding a new command to `.claude/commands/` makes it immediately available - no synchronization needed with system identity or conversation recaps. Claude discovers commands dynamically by reading the directory and understands how to execute them by parsing the markdown instruction files.
-
-### 🎨 UI Fixes
-
-- **Sigma Stats panel alignment**: Changed from fixed `width={48}` to `minWidth={48}` to prevent text clipping
-- **Double-digit node counts**: Panel now expands as needed - no more cutting off second digit when displaying 10+ nodes
+- **Live progress bar** for compression analysis queue
+- **Symbiosis Trinity banner** on TUI startup
+- **Friendly interrupt message** when stopping mid-response
+- **Sigma stats panel** width fix (`minWidth={48}`) prevents text clipping
 
 ### 📚 Documentation
 
-- **O1/O3 overlay separation**: Clarified distinction between Structure (O1) and Lineage (O3) overlays
-- **Concrete examples**: Added authenticate() function example showing all 7 overlays in action
+**Memory Architecture Guidance** - System identity (`context-reconstructor.ts`), recall tool description (`recall-tool.ts`), and recap footer now explain two-layer memory: (1) 150-char truncated recap with "..." pointers, (2) full untruncated messages via `recall_past_conversation` tool. Claude understands when to retrieve full context.
+
+**Slash Command Mechanism** - Documented 5-step execution: read `.md` → parse → replace placeholders → execute cognition-cli → format output
+
+**Overlay Clarity** - Distinguished Structure (O1) vs Lineage (O3) with concrete examples
 
 ### 📝 Technical Changes
 
-- **context-reconstructor.ts**: Added `getLastConversationTurns()`, `formatLastTurns()`, updated `getSystemFingerprint()` to document slash command mechanism instead of hardcoding list, removed `detectSlashCommands()` function
-- **useClaudeAgent.ts**: Implemented pending turn carry-forward and system fingerprint integration
-- **useSessionManager.ts**: Fixed state creation logic to prevent overwrites on resume
-- **SigmaInfoPanel.tsx**: Panel width fix for proper text display
-- **overlay.ts**: Added `MathematicalProofsManager` and `ProofExtractor` initialization, implemented explicit handler for `mathematical_proofs` overlay type with document extraction pipeline
-- **embedding-loader.ts**: Added `extracted_patterns`, `extracted_statements`, and `knowledge` fields to OverlayData type and possibleFields array for complete overlay field name coverage
-- **.claude/commands/README.md**: Added documentation explaining slash command discovery and execution mechanism for conversation recaps
+**Compression**: `useCompression.ts` (disabled automatic effect), `useCompression.test.ts` (17 tests updated), `useClaudeAgent.ts` (sequential trigger)
+**Memory**: `context-reconstructor.ts` (architecture docs, pending turn carry-forward, dynamic slash commands), `recall-tool.ts` (updated description)
+**UI**: `TextInput.tsx` (dynamic key), `TUI.tsx` (banner, interrupt), `CompressionQueue.tsx` (progress bar), `SigmaInfoPanel.tsx` (width fix)
+**Overlays**: `overlay.ts` (mathematical proofs handler), `embedding-loader.ts` (complete field names)
+**Session**: `useSessionManager.ts` (fixed state creation)
 
 ## [2.3.1] - 2025-11-14
 
@@ -215,8 +186,8 @@ Prevented 1,237 duplicate "expiration" entries during turn analysis (347 duplica
 
 **Fix**:
 
-- Added `currentSessionIdRef` for synchronous session tracking (Option 1)
-- Added duplicate check in `updateSessionState()` for defense-in-depth (Option 3)
+- Added `currentSessionIdRef` for synchronous session tracking
+- Added duplicate check in `updateSessionState()` for defense-in-depth
 - Cleaned up existing duplicate entries in state file
 
 **Impact**: State file reduced from 6,216 lines (87,963 tokens) to 37 lines.
