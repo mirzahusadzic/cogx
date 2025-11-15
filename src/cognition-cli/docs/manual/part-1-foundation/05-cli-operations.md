@@ -574,10 +574,10 @@ content: |
 metadata:
   source: docs/VISION.md
   hash: a7f3b9c...
-  ingested_at: "2025-11-15T10:30:45Z"
+  ingested_at: '2025-11-15T10:30:45Z'
   weight: 0.85
 embedding:
-  vector: [0.123, -0.456, ...]  # 768-dimensional
+  vector: [0.123, -0.456, ...] # 768-dimensional
   model: egemma-v1
 ```
 
@@ -1660,10 +1660,10 @@ PGC Status: ✓ Coherent
 
 ### vs. Full Genesis
 
-| Command | Use Case | Speed | Coverage |
-|---------|----------|-------|----------|
-| `genesis` | Initial setup, major refactor | Slow (minutes) | Full codebase |
-| `update` | Incremental changes | Fast (seconds) | Changed files only |
+| Command   | Use Case                      | Speed          | Coverage           |
+| --------- | ----------------------------- | -------------- | ------------------ |
+| `genesis` | Initial setup, major refactor | Slow (minutes) | Full codebase      |
+| `update`  | Incremental changes           | Fast (seconds) | Changed files only |
 
 **When to use update**:
 

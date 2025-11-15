@@ -5,7 +5,10 @@ export default defineConfig({
   description:
     'Verifiable AI memory through cryptographic grounding and multi-overlay knowledge graphs.',
   base: '/cogx/',
-  ignoreDeadLinks: true, // Temporarily ignore all dead links (pre-existing issues to be fixed separately)
+  ignoreDeadLinks: [
+    // Ignore localhost links (eGemma workbench examples)
+    /^http:\/\/localhost/,
+  ],
   themeConfig: {
     nav: [
       { text: 'Home', link: '/' },

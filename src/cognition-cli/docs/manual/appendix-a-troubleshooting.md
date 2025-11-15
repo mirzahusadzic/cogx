@@ -491,10 +491,10 @@ workbench exited with code 137
 services:
   workbench:
     image: egemma/workbench:latest
-    mem_limit: 8g  # Increase from 4g to 8g
+    mem_limit: 8g # Increase from 4g to 8g
     memswap_limit: 8g
     ports:
-      - "8000:8000"
+      - '8000:8000'
 ```
 
 **Option 2: Reduce batch size**
@@ -502,8 +502,8 @@ services:
 ```yaml
 # .cogxrc.yml
 workbench:
-  batch_size: 16  # Reduce from 32
-  max_concurrent: 2  # Reduce from 4
+  batch_size: 16 # Reduce from 32
+  max_concurrent: 2 # Reduce from 4
 ```
 
 **Option 3: Use smaller models**
@@ -511,7 +511,7 @@ workbench:
 ```yaml
 # .cogxrc.yml
 embeddings:
-  model: egemma-384  # Instead of egemma-768
+  model: egemma-384 # Instead of egemma-768
 ```
 
 ---
@@ -540,8 +540,8 @@ Analyzing files: [=========>........] 45% (234/520) ETA: 27m
 ```yaml
 # .cogxrc.yml
 performance:
-  max_concurrent_files: 8  # Increase from 4
-  batch_size: 32  # Increase from 16
+  max_concurrent_files: 8 # Increase from 4
+  batch_size: 32 # Increase from 16
 ```
 
 **Option 2: Exclude unnecessary files**
@@ -613,7 +613,7 @@ cognition-cli ask "what is PGC" --limit 5
 embeddings:
   cache:
     enabled: true
-    ttl: 3600  # 1 hour
+    ttl: 3600 # 1 hour
 ```
 
 **Option 3: Compact LanceDB**
@@ -631,7 +631,7 @@ du -sh .open_cognition/lancedb/
 ```yaml
 # .cogxrc.yml
 workbench:
-  url: http://localhost:8000  # Not remote server
+  url: http://localhost:8000 # Not remote server
 ```
 
 ---
@@ -931,7 +931,7 @@ Failed to generate embeddings for src/core/pgc.ts
 ```yaml
 # .cogxrc.yml
 workbench:
-  timeout: 60000  # Increase from 30s to 60s
+  timeout: 60000 # Increase from 30s to 60s
 ```
 
 **Option 2: Reduce batch size**
@@ -939,8 +939,8 @@ workbench:
 ```yaml
 # .cogxrc.yml
 workbench:
-  batch_size: 8  # Reduce from 16
-  max_concurrent: 2  # Reduce from 4
+  batch_size: 8 # Reduce from 16
+  max_concurrent: 2 # Reduce from 4
 ```
 
 **Option 3: Split large files**
@@ -998,9 +998,9 @@ cognition-cli genesis src/
 ```yaml
 # .cogxrc.yml
 workbench:
-  max_concurrent: 1  # Serialize requests
+  max_concurrent: 1 # Serialize requests
   rate_limit:
-    requests_per_minute: 30  # Limit to 30/min
+    requests_per_minute: 30 # Limit to 30/min
 ```
 
 **Option 3: Use local workbench**
@@ -1452,18 +1452,18 @@ git commit -m "Update PGC overlays"
 
 ## Quick Reference: Error Code Table
 
-| Error Code | Meaning | Quick Fix |
-|------------|---------|-----------|
-| ECONNREFUSED | Workbench not running | `docker compose up -d` |
-| ENOSPC | Disk full | `docker system prune -a` |
-| EACCES | Permission denied | Use `npx` or fix npm permissions |
-| ETIMEDOUT | Network timeout | Increase timeout in `.cogxrc.yml` |
-| YAML parse error | Invalid YAML | Fix syntax or restore backup |
-| PGC not initialized | Missing `.open_cognition/` | Run `cognition-cli wizard` |
-| No results | Empty overlays | Run `cognition-cli overlay generate --all` |
-| 429 Rate limit | Too many requests | Reduce concurrency or wait |
-| 137 (Docker) | Out of memory | Increase Docker memory limit |
-| Circular dependency | Import cycle | Fix with `madge --circular` |
+| Error Code          | Meaning                    | Quick Fix                                  |
+| ------------------- | -------------------------- | ------------------------------------------ |
+| ECONNREFUSED        | Workbench not running      | `docker compose up -d`                     |
+| ENOSPC              | Disk full                  | `docker system prune -a`                   |
+| EACCES              | Permission denied          | Use `npx` or fix npm permissions           |
+| ETIMEDOUT           | Network timeout            | Increase timeout in `.cogxrc.yml`          |
+| YAML parse error    | Invalid YAML               | Fix syntax or restore backup               |
+| PGC not initialized | Missing `.open_cognition/` | Run `cognition-cli wizard`                 |
+| No results          | Empty overlays             | Run `cognition-cli overlay generate --all` |
+| 429 Rate limit      | Too many requests          | Reduce concurrency or wait                 |
+| 137 (Docker)        | Out of memory              | Increase Docker memory limit               |
+| Circular dependency | Import cycle               | Fix with `madge --circular`                |
 
 ---
 

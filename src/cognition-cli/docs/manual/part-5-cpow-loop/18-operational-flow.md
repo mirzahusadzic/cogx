@@ -200,11 +200,11 @@ Each oracle uses structured prompts:
 
 ```typescript
 interface OraclePrompt {
-  system: string;        // Role and constraints
-  context: string;       // Relevant code/docs
-  task: string;          // Specific extraction task
-  format: string;        // Expected output format
-  examples: Example[];   // Few-shot examples
+  system: string; // Role and constraints
+  context: string; // Relevant code/docs
+  task: string; // Specific extraction task
+  format: string; // Expected output format
+  examples: Example[]; // Few-shot examples
 }
 ```
 
@@ -371,7 +371,7 @@ interface GenesisProgress {
 Every transformation includes a **fidelity score** (0.0-1.0):
 
 ```yaml
-fidelity: 0.94  # 94% confidence in extraction quality
+fidelity: 0.94 # 94% confidence in extraction quality
 ```
 
 **Calculation**:
@@ -427,9 +427,9 @@ After Phase II, **O₇ Coherence** overlay validates alignment:
 ```typescript
 interface CoherenceScore {
   symbol: string;
-  score: number;  // 0.0-1.0
+  score: number; // 0.0-1.0
   topConcepts: Array<{ concept: string; similarity: number }>;
-  percentile: number;  // Position in distribution
+  percentile: number; // Position in distribution
 }
 ```
 
@@ -457,25 +457,25 @@ Every transformation creates an **immutable receipt** in the Transform Log.
 ```yaml
 # .open_cognition/index/transforms/<hash>.yaml
 type: transform_receipt
-timestamp: "2025-11-15T14:32:11Z"
+timestamp: '2025-11-15T14:32:11Z'
 goal:
-  intent: "Extract structural patterns from source code"
+  intent: 'Extract structural patterns from source code'
   depth: 1
-  success_criteria: "All TypeScript files parsed and indexed"
+  success_criteria: 'All TypeScript files parsed and indexed'
 transform:
-  input_hash: "a7f3b9c..."
-  output_hash: "d4e8f2a..."
-  method: "AST_EXTRACTION"
+  input_hash: 'a7f3b9c...'
+  output_hash: 'd4e8f2a...'
+  method: 'AST_EXTRACTION'
   duration_ms: 1234
 oracle:
-  validator: "GenesisOracle"
+  validator: 'GenesisOracle'
   fidelity: 0.94
   verified: true
   issues: []
 provenance:
-  source_files: ["src/core/mission/validator.ts"]
-  dependencies: ["WorkbenchClient", "MissionConceptsManager"]
-  overlays_affected: ["O1_structure"]
+  source_files: ['src/core/mission/validator.ts']
+  dependencies: ['WorkbenchClient', 'MissionConceptsManager']
+  overlays_affected: ['O1_structure']
 ```
 
 ### Audit Queries
