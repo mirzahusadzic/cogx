@@ -1,3 +1,41 @@
+/**
+ * PGC File Watcher Command
+ *
+ * Provides real-time monitoring of file changes to maintain the Grounded Context Pool (PGC)
+ * dirty state. The watcher tracks modifications, additions, and deletions of tracked files,
+ * enabling downstream systems to detect when PGC synchronization is needed.
+ *
+ * COHERENCE TRACKING:
+ * - Monitors all git-tracked files for changes
+ * - Detects content modifications via SHA-256 hashing
+ * - Identifies new untracked files (with --untracked flag)
+ * - Updates dirty_state.json in real-time
+ * - Provides visual feedback for each change event
+ *
+ * DESIGN:
+ * The watcher uses git to identify tracked files, avoiding expensive filesystem traversals.
+ * File changes are detected through:
+ * 1. Git diff detection for modified files
+ * 2. Hash comparison against index to detect actual content changes
+ * 3. Git status for untracked files (optional)
+ * 4. Debouncing to batch rapid changes (configurable via --debounce)
+ *
+ * INTEGRATION:
+ * Works with the `status` command to provide real-time coherence state:
+ * - Watch detects changes → Updates dirty_state.json
+ * - Status reads dirty_state.json → Reports coherence (< 10ms)
+ *
+ * @example
+ * // Start watching with default settings
+ * cognition-cli watch
+ * // → Monitors tracked files, 300ms debounce
+ *
+ * @example
+ * // Watch including untracked files with verbose output
+ * cognition-cli watch --untracked --verbose
+ * // → Shows full hashes and change details
+ */
+
 import { Command } from 'commander';
 import chalk from 'chalk';
 import path from 'path';
@@ -7,7 +45,9 @@ import { ChangeEvent } from '../core/types/watcher.js';
 import { WorkspaceManager } from '../core/workspace-manager.js';
 
 /**
- * Creates the watch command for monitoring file changes and maintaining PGC coherence state.
+ * Creates the watch command for monitoring file changes and maintaining PGC coherence state
+ *
+ * @returns Commander command instance configured with watch options
  */
 export function createWatchCommand(): Command {
   const cmd = new Command('watch');
@@ -29,6 +69,30 @@ export function createWatchCommand(): Command {
   return cmd;
 }
 
+/**
+ * Executes the watch command to monitor file changes
+ *
+ * Sets up a FileWatcher instance and registers event handlers for:
+ * - 'ready': Watcher initialization complete
+ * - 'change': File modification detected
+ * - 'error': Watcher error occurred
+ *
+ * The function runs indefinitely until the user terminates with SIGINT/SIGTERM.
+ * Graceful shutdown ensures dirty state is properly persisted.
+ *
+ * @param options - Watch command options
+ * @param options.untracked - Include untracked files in watch (default: false)
+ * @param options.debounce - Debounce delay in milliseconds (default: '300')
+ * @param options.verbose - Show detailed change events including hashes (default: false)
+ *
+ * @example
+ * // Watch tracked files only with 500ms debounce
+ * await runWatch({ debounce: '500' });
+ *
+ * @example
+ * // Watch all files including untracked, show full details
+ * await runWatch({ untracked: true, verbose: true });
+ */
 async function runWatch(options: {
   untracked?: boolean;
   debounce?: string;

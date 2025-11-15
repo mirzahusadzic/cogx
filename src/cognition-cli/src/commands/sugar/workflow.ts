@@ -1,8 +1,50 @@
 /**
- * Workflow Sugar Commands
+ * Workflow Sugar Commands (O₅ Operational Patterns)
  *
- * Convenience wrappers around lattice algebra for operational pattern queries.
- * These commands translate to lattice expressions for better UX.
+ * Provides syntactic convenience for querying operational patterns from the
+ * Grounded Context Pool (PGC). These "sugar" commands translate to lattice
+ * algebra expressions, offering a simpler CLI interface for common O₅ queries.
+ *
+ * SUGAR CONCEPT:
+ * Sugar commands wrap the lattice algebra query language with named commands
+ * that are easier to remember and use. Instead of writing:
+ *   `cognition-cli lattice "O5[workflow_pattern]"`
+ * Users can simply write:
+ *   `cognition-cli workflow patterns`
+ *
+ * This improves UX while maintaining the full power of the algebra layer.
+ *
+ * OVERLAY REFERENCE (O₅):
+ * - workflow_pattern: Operational workflow templates and patterns
+ * - quest_structure: Multi-step task structures with dependencies
+ * - depth_rule: Rules governing operational depth and recursion limits
+ *
+ * DESIGN RATIONALE:
+ * 1. User-Friendly Interface: Named commands are more discoverable than query syntax
+ * 2. Guided Exploration: Each command has specific semantics (patterns vs quests vs rules)
+ * 3. Cross-Overlay Queries: Supports semantic alignment with O₂ (security) and O₄ (mission)
+ * 4. Consistent Output: Unified display functions work across all query types
+ *
+ * @example
+ * // Show all workflow patterns in O₅
+ * await workflowPatternsCommand({ projectRoot: '.' });
+ * // Translates to: lattice "O5[workflow_pattern]"
+ *
+ * @example
+ * // Show workflows aligned with security boundaries (O₂)
+ * await workflowPatternsCommand({
+ *   projectRoot: '.',
+ *   secure: true
+ * });
+ * // Translates to: lattice "O5[workflow_pattern] ~ O2[boundary]"
+ *
+ * @example
+ * // Show workflows aligned with mission principles (O₄)
+ * await workflowPatternsCommand({
+ *   projectRoot: '.',
+ *   aligned: true
+ * });
+ * // Translates to: lattice "O5[workflow_pattern] ~ O4"
  */
 
 import { intro, outro, spinner, log } from '@clack/prompts';
@@ -17,7 +59,19 @@ import {
 import { WorkspaceManager } from '../../core/workspace-manager.js';
 
 /**
- * Helper to resolve PGC root with walk-up
+ * Resolve Grounded Context Pool (PGC) root directory
+ *
+ * Walks up the directory tree from startPath to find the nearest
+ * .open_cognition workspace. This enables running commands from any
+ * subdirectory within a project.
+ *
+ * @param startPath - Starting directory for the walk-up search
+ * @returns Absolute path to .open_cognition directory
+ * @throws {Error} Exits process if no workspace found
+ *
+ * @example
+ * const pgcRoot = resolvePgcRoot('/path/to/project/src');
+ * // Returns: /path/to/project/.open_cognition
  */
 function resolvePgcRoot(startPath: string): string {
   const workspaceManager = new WorkspaceManager();
@@ -45,8 +99,40 @@ interface WorkflowOptions {
 }
 
 /**
- * Show all workflow patterns
- * Translates to: lattice "O5[workflow_pattern]"
+ * Display workflow patterns from O₅ overlay
+ *
+ * Retrieves and displays all workflow_pattern items from the operational
+ * overlay (O₅). Optionally filters to show only workflows that align with
+ * security boundaries (O₂) or mission principles (O₄).
+ *
+ * LATTICE TRANSLATION:
+ * - Default: `O5[workflow_pattern]` (all patterns)
+ * - With --secure: `O5[workflow_pattern] ~ O2[boundary]` (security-aligned)
+ * - With --aligned: `O5[workflow_pattern] ~ O4` (mission-aligned)
+ *
+ * The ~ operator performs semantic alignment (meet operation) between overlays.
+ *
+ * @param options - Command options including project root and filters
+ * @param options.projectRoot - Root directory of the project
+ * @param options.format - Output format: 'table' | 'json' | 'summary'
+ * @param options.limit - Maximum number of results to display
+ * @param options.verbose - Enable verbose error output
+ * @param options.secure - Filter to security-aligned workflows
+ * @param options.aligned - Filter to mission-aligned workflows
+ * @returns Promise that resolves when display is complete
+ *
+ * @example
+ * // Show all workflow patterns
+ * await workflowPatternsCommand({ projectRoot: '.' });
+ *
+ * @example
+ * // Show workflows aligned with security boundaries
+ * await workflowPatternsCommand({
+ *   projectRoot: '.',
+ *   secure: true,
+ *   format: 'table',
+ *   limit: 20
+ * });
  */
 export async function workflowPatternsCommand(
   options: WorkflowOptions
@@ -98,8 +184,28 @@ export async function workflowPatternsCommand(
 }
 
 /**
- * Show quest structures
- * Translates to: lattice "O5[quest_structure]"
+ * Display quest structures from O₅ overlay
+ *
+ * Retrieves and displays all quest_structure items from the operational
+ * overlay. Quest structures represent multi-step workflows with dependencies,
+ * goals, and success criteria.
+ *
+ * LATTICE TRANSLATION: `O5[quest_structure]`
+ *
+ * @param options - Command options including project root and display settings
+ * @param options.projectRoot - Root directory of the project
+ * @param options.format - Output format: 'table' | 'json' | 'summary'
+ * @param options.limit - Maximum number of results to display
+ * @param options.verbose - Enable verbose error output
+ * @returns Promise that resolves when display is complete
+ *
+ * @example
+ * // Show all quest structures
+ * await workflowQuestsCommand({
+ *   projectRoot: '.',
+ *   format: 'summary',
+ *   limit: 10
+ * });
  */
 export async function workflowQuestsCommand(
   options: WorkflowOptions
@@ -133,8 +239,27 @@ export async function workflowQuestsCommand(
 }
 
 /**
- * Show depth rules
- * Translates to: lattice "O5[depth_rule]"
+ * Display depth rules from O₅ overlay
+ *
+ * Retrieves and displays all depth_rule items from the operational overlay.
+ * Depth rules govern operational recursion limits, nesting constraints, and
+ * complexity boundaries for workflows.
+ *
+ * LATTICE TRANSLATION: `O5[depth_rule]`
+ *
+ * @param options - Command options including project root and display settings
+ * @param options.projectRoot - Root directory of the project
+ * @param options.format - Output format: 'table' | 'json' | 'summary'
+ * @param options.limit - Maximum number of results to display
+ * @param options.verbose - Enable verbose error output
+ * @returns Promise that resolves when display is complete
+ *
+ * @example
+ * // Show all depth rules
+ * await workflowDepthRulesCommand({
+ *   projectRoot: '.',
+ *   format: 'table'
+ * });
  */
 export async function workflowDepthRulesCommand(
   options: WorkflowOptions
@@ -168,7 +293,20 @@ export async function workflowDepthRulesCommand(
 }
 
 /**
- * Display results (handles different result types)
+ * Display list of overlay items (set operations or item arrays)
+ *
+ * Handles both direct OverlayItem arrays and SetOperationResult objects,
+ * formatting output based on user preferences (table, json, or summary).
+ * Supports multiple metadata fields with intelligent truncation.
+ *
+ * @param result - Query result (OverlayItem[] or SetOperationResult)
+ * @param options - Display options including format and limit
+ * @param options.format - Output format: 'table' | 'json' | 'summary'
+ * @param options.limit - Maximum items to display (default: 50)
+ *
+ * @example
+ * const items = await engine.execute('O5[workflow_pattern]');
+ * displayItemList(items, { format: 'table', limit: 20 });
  */
 function displayItemList(result: unknown, options: WorkflowOptions): void {
   const format = options.format || 'table';
@@ -276,7 +414,21 @@ function displayItemList(result: unknown, options: WorkflowOptions): void {
 }
 
 /**
- * Display Meet results (semantic alignment)
+ * Display semantic alignment results (meet operation)
+ *
+ * Formats and displays MeetResult arrays showing pairs of items from
+ * different overlays with their similarity scores. Color-codes similarity
+ * to highlight strong (>90%), moderate (70-90%), and weak (<70%) alignments.
+ *
+ * @param result - Meet operation result with itemA, itemB, and similarity
+ * @param options - Display options including format and limit
+ * @param options.format - Output format: 'table' | 'json'
+ * @param options.limit - Maximum pairs to display (default: 50)
+ *
+ * @example
+ * const aligned = await engine.execute('O5[workflow_pattern] ~ O2[boundary]');
+ * displayMeetResults(aligned, { format: 'table', limit: 10 });
+ * // Shows workflow-security alignment pairs with similarity scores
  */
 function displayMeetResults(result: unknown, options: WorkflowOptions): void {
   const format = options.format || 'table';
@@ -352,7 +504,15 @@ function displayMeetResults(result: unknown, options: WorkflowOptions): void {
 }
 
 /**
- * Truncate text to max length
+ * Truncate text with ellipsis if exceeds maximum length
+ *
+ * @param text - Text to truncate
+ * @param maxLength - Maximum length before truncation
+ * @returns Truncated text with '...' suffix if needed
+ *
+ * @example
+ * truncate('This is a very long description', 20);
+ * // Returns: 'This is a very lo...'
  */
 function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
