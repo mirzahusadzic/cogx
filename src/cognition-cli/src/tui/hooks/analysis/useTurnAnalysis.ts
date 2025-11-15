@@ -36,7 +36,10 @@ export interface UseTurnAnalysisReturn {
   clear: () => void;
 
   // ✅ NEW: Compression coordination methods
-  waitForCompressionReady: (timeout?: number) => Promise<void>;
+  waitForCompressionReady: (
+    timeout?: number,
+    onProgress?: (elapsed: number, status: AnalysisQueueStatus) => void
+  ) => Promise<void>;
   getUnanalyzedMessages: (
     messages: Array<{ timestamp: Date; type: string; id?: string }>
   ) => Array<{ timestamp: number; messageId: string; index: number }>;
@@ -157,12 +160,18 @@ export function useTurnAnalysis(
   }, []);
 
   // ✅ NEW: Expose queue methods for compression coordination
-  const waitForCompressionReady = useCallback(async (timeout?: number) => {
-    if (!queueRef.current) {
-      throw new Error('Analysis queue not initialized');
-    }
-    await queueRef.current.waitForCompressionReady(timeout);
-  }, []);
+  const waitForCompressionReady = useCallback(
+    async (
+      timeout?: number,
+      onProgress?: (elapsed: number, status: AnalysisQueueStatus) => void
+    ) => {
+      if (!queueRef.current) {
+        throw new Error('Analysis queue not initialized');
+      }
+      await queueRef.current.waitForCompressionReady(timeout, onProgress);
+    },
+    []
+  );
 
   const getUnanalyzedMessages = useCallback(
     (messages: Array<{ timestamp: Date; type: string; id?: string }>) => {

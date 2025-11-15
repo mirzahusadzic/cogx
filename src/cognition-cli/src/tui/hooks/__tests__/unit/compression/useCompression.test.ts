@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useCompression } from '../../../compression/useCompression.js';
 
 describe('useCompression', () => {
@@ -45,7 +45,7 @@ describe('useCompression', () => {
   });
 
   describe('Automatic Triggering', () => {
-    it('should trigger when token threshold exceeded', async () => {
+    it('should calculate shouldTrigger when token threshold exceeded', async () => {
       const onTrigger = vi.fn();
       const { result, rerender } = renderHook(
         (props) => useCompression(props),
@@ -58,8 +58,9 @@ describe('useCompression', () => {
         }
       );
 
-      // Should not trigger initially
+      // Should not auto-trigger (automatic effect disabled in Option C)
       expect(onTrigger).not.toHaveBeenCalled();
+      expect(result.current.shouldTrigger).toBe(false);
 
       // Increase token count above threshold
       rerender({
@@ -68,44 +69,49 @@ describe('useCompression', () => {
         onCompressionTriggered: onTrigger,
       });
 
-      await waitFor(() => {
-        expect(onTrigger).toHaveBeenCalledWith(130000, 10);
+      // Should calculate shouldTrigger=true but not auto-trigger
+      expect(result.current.shouldTrigger).toBe(true);
+      expect(onTrigger).not.toHaveBeenCalled();
+
+      // Manual trigger should work
+      act(() => {
+        result.current.triggerCompression();
       });
 
+      expect(onTrigger).toHaveBeenCalledWith(130000, 10);
       expect(result.current.state.triggered).toBe(true);
       expect(result.current.state.compressionCount).toBe(1);
     });
 
-    it('should not trigger when isThinking is true', async () => {
+    it('should not auto-trigger (automatic effect disabled)', async () => {
       const onTrigger = vi.fn();
-      const { rerender } = renderHook((props) => useCompression(props), {
+      const { result } = renderHook((props) => useCompression(props), {
         initialProps: {
           ...defaultOptions,
           tokenCount: 130000,
-          isThinking: true,
+          isThinking: false,
           onCompressionTriggered: onTrigger,
         },
       });
 
-      // Wait a bit to ensure no trigger
+      // Wait to ensure no automatic trigger
       await new Promise((resolve) => setTimeout(resolve, 100));
 
+      // Should not auto-trigger (Option C: automatic effect disabled)
       expect(onTrigger).not.toHaveBeenCalled();
 
-      // Now set isThinking to false
-      rerender({
-        ...defaultOptions,
-        tokenCount: 130000,
-        isThinking: false,
-        onCompressionTriggered: onTrigger,
+      // But shouldTrigger should be true
+      expect(result.current.shouldTrigger).toBe(true);
+
+      // Manual trigger should work
+      act(() => {
+        result.current.triggerCompression();
       });
 
-      await waitFor(() => {
-        expect(onTrigger).toHaveBeenCalled();
-      });
+      expect(onTrigger).toHaveBeenCalledWith(130000, 10);
     });
 
-    it('should not trigger twice without reset', async () => {
+    it('should calculate shouldTrigger=false after first manual trigger', async () => {
       const onTrigger = vi.fn();
       const { result, rerender } = renderHook(
         (props) => useCompression(props),
@@ -118,9 +124,13 @@ describe('useCompression', () => {
         }
       );
 
-      await waitFor(() => {
-        expect(onTrigger).toHaveBeenCalledTimes(1);
+      // Manual trigger
+      act(() => {
+        result.current.triggerCompression();
       });
+
+      expect(onTrigger).toHaveBeenCalledTimes(1);
+      expect(result.current.state.triggered).toBe(true);
 
       // Increase tokens even more
       rerender({
@@ -129,12 +139,16 @@ describe('useCompression', () => {
         onCompressionTriggered: onTrigger,
       });
 
-      // Wait a bit
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // shouldTrigger should now be false (already triggered)
+      expect(result.current.shouldTrigger).toBe(false);
 
-      // Should still only be called once
-      expect(onTrigger).toHaveBeenCalledTimes(1);
-      expect(result.current.state.triggered).toBe(true);
+      // But manual triggering still works (user has full control)
+      act(() => {
+        result.current.triggerCompression();
+      });
+
+      expect(onTrigger).toHaveBeenCalledTimes(2);
+      expect(result.current.state.compressionCount).toBe(2);
     });
 
     it('should not trigger when below minimum turns', async () => {
@@ -194,18 +208,32 @@ describe('useCompression', () => {
   describe('Reset', () => {
     it('should reset triggered state', async () => {
       const onTrigger = vi.fn();
-      const { result } = renderHook((props) => useCompression(props), {
-        initialProps: {
-          ...defaultOptions,
-          tokenCount: 130000,
-          onCompressionTriggered: onTrigger,
-        },
+      const { result, rerender } = renderHook(
+        (props) => useCompression(props),
+        {
+          initialProps: {
+            ...defaultOptions,
+            tokenCount: 130000,
+            onCompressionTriggered: onTrigger,
+          },
+        }
+      );
+
+      // Manual trigger
+      act(() => {
+        result.current.triggerCompression();
       });
 
-      // Wait for trigger
-      await waitFor(() => {
-        expect(result.current.state.triggered).toBe(true);
+      expect(result.current.state.triggered).toBe(true);
+
+      // Force re-render to see updated shouldTrigger value
+      rerender({
+        ...defaultOptions,
+        tokenCount: 130000,
+        onCompressionTriggered: onTrigger,
       });
+
+      expect(result.current.shouldTrigger).toBe(false); // Can't auto-trigger again
 
       // Reset
       act(() => {
@@ -213,6 +241,14 @@ describe('useCompression', () => {
       });
 
       expect(result.current.state.triggered).toBe(false);
+
+      // Force re-render to see updated shouldTrigger value
+      rerender({
+        ...defaultOptions,
+        tokenCount: 130000,
+        onCompressionTriggered: onTrigger,
+      });
+
       expect(result.current.shouldTrigger).toBe(true); // Can trigger again
     });
 
@@ -229,27 +265,43 @@ describe('useCompression', () => {
         }
       );
 
-      // Wait for first trigger
-      await waitFor(() => {
-        expect(onTrigger).toHaveBeenCalledTimes(1);
+      // First manual trigger
+      act(() => {
+        result.current.triggerCompression();
       });
+
+      expect(onTrigger).toHaveBeenCalledTimes(1);
+
+      // Force re-render to see updated shouldTrigger value
+      rerender({
+        ...defaultOptions,
+        tokenCount: 130000,
+        onCompressionTriggered: onTrigger,
+      });
+
+      expect(result.current.shouldTrigger).toBe(false);
 
       // Reset
       act(() => {
         result.current.reset();
       });
 
-      // Trigger again
+      expect(result.current.state.triggered).toBe(false);
+
+      // Trigger again manually with higher token count
       rerender({
         ...defaultOptions,
         tokenCount: 200000,
         onCompressionTriggered: onTrigger,
       });
 
-      await waitFor(() => {
-        expect(onTrigger).toHaveBeenCalledTimes(2);
+      expect(result.current.shouldTrigger).toBe(true); // Can auto-trigger again
+
+      act(() => {
+        result.current.triggerCompression();
       });
 
+      expect(onTrigger).toHaveBeenCalledTimes(2);
       expect(result.current.state.compressionCount).toBe(2);
     });
   });
@@ -293,57 +345,92 @@ describe('useCompression', () => {
   describe('Option Updates', () => {
     it('should update threshold dynamically', async () => {
       const onTrigger = vi.fn();
-      const { rerender } = renderHook((props) => useCompression(props), {
-        initialProps: {
-          ...defaultOptions,
-          tokenCount: 130000,
-          tokenThreshold: 150000,
-          onCompressionTriggered: onTrigger,
-        },
-      });
+      const { result, rerender } = renderHook(
+        (props) => useCompression(props),
+        {
+          initialProps: {
+            ...defaultOptions,
+            tokenCount: 130000,
+            tokenThreshold: 150000,
+            onCompressionTriggered: onTrigger,
+          },
+        }
+      );
 
-      // Should not trigger with higher threshold
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      expect(onTrigger).not.toHaveBeenCalled();
+      // Verify getTriggerInfo reflects initial state (130k < 150k)
+      const initialInfo = result.current.getTriggerInfo();
+      expect(initialInfo.currentTokens).toBe(130000);
+      expect(initialInfo.threshold).toBe(150000);
+      expect(initialInfo.reason).toContain('130000 tokens');
 
-      // Lower threshold and trigger re-check by changing tokenCount slightly
+      // Lower threshold (130k > 120k)
       rerender({
         ...defaultOptions,
-        tokenCount: 130001, // Change value to trigger useEffect
+        tokenCount: 130001,
         tokenThreshold: 120000,
         onCompressionTriggered: onTrigger,
       });
 
-      await waitFor(() => {
-        expect(onTrigger).toHaveBeenCalled();
+      // Verify getTriggerInfo reflects updated state
+      const updatedInfo = result.current.getTriggerInfo();
+      expect(updatedInfo.currentTokens).toBe(130001);
+      expect(updatedInfo.threshold).toBe(120000);
+      expect(updatedInfo.reason).toContain('130001 tokens > 120000 threshold');
+
+      // But still no auto-trigger (automatic effect disabled)
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(onTrigger).not.toHaveBeenCalled();
+
+      // Manual trigger works with updated threshold
+      act(() => {
+        result.current.triggerCompression();
       });
+
+      expect(onTrigger).toHaveBeenCalledWith(130001, 10);
     });
 
     it('should respect enabled flag', async () => {
       const onTrigger = vi.fn();
-      const { rerender } = renderHook((props) => useCompression(props), {
-        initialProps: {
-          ...defaultOptions,
-          tokenCount: 130000,
-          enabled: false,
-          onCompressionTriggered: onTrigger,
-        },
-      });
+      const { result, rerender } = renderHook(
+        (props) => useCompression(props),
+        {
+          initialProps: {
+            ...defaultOptions,
+            tokenCount: 130000,
+            enabled: false,
+            onCompressionTriggered: onTrigger,
+          },
+        }
+      );
 
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      expect(onTrigger).not.toHaveBeenCalled();
+      // Verify getTriggerInfo reflects disabled state
+      const disabledInfo = result.current.getTriggerInfo();
+      expect(disabledInfo.reason).toBe('Compression is disabled');
 
-      // Enable and trigger re-check by changing tokenCount slightly
+      // Enable compression (130k > 120k threshold)
       rerender({
         ...defaultOptions,
-        tokenCount: 130001, // Change value to trigger useEffect
+        tokenCount: 130001,
         enabled: true,
         onCompressionTriggered: onTrigger,
       });
 
-      await waitFor(() => {
-        expect(onTrigger).toHaveBeenCalled();
+      // Verify getTriggerInfo reflects enabled state
+      const enabledInfo = result.current.getTriggerInfo();
+      expect(enabledInfo.currentTokens).toBe(130001);
+      expect(enabledInfo.threshold).toBe(120000);
+      expect(enabledInfo.reason).toContain('130001 tokens > 120000 threshold');
+
+      // But still no auto-trigger (automatic effect disabled)
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(onTrigger).not.toHaveBeenCalled();
+
+      // Manual trigger works when enabled
+      act(() => {
+        result.current.triggerCompression();
       });
+
+      expect(onTrigger).toHaveBeenCalledWith(130001, 10);
     });
   });
 
@@ -356,10 +443,12 @@ describe('useCompression', () => {
         })
       );
 
-      await waitFor(() => {
-        expect(result.current.state.lastCompression).toBeDefined();
+      // Manual trigger
+      act(() => {
+        result.current.triggerCompression();
       });
 
+      expect(result.current.state.lastCompression).toBeDefined();
       expect(result.current.state.lastCompression).toBeInstanceOf(Date);
     });
 
@@ -371,16 +460,19 @@ describe('useCompression', () => {
         })
       );
 
-      await waitFor(() => {
-        expect(result.current.state.lastCompressedTokens).toBe(135000);
+      // Manual trigger
+      act(() => {
+        result.current.triggerCompression();
       });
+
+      expect(result.current.state.lastCompressedTokens).toBe(135000);
     });
   });
 
   describe('Debug Mode', () => {
     it('should log when debug is enabled', async () => {
       const consoleSpy = vi.spyOn(console, 'log');
-      renderHook(() =>
+      const { result } = renderHook(() =>
         useCompression({
           ...defaultOptions,
           tokenCount: 130000,
@@ -388,9 +480,15 @@ describe('useCompression', () => {
         })
       );
 
-      await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalled();
+      // Manual trigger
+      act(() => {
+        result.current.triggerCompression();
       });
+
+      expect(consoleSpy).toHaveBeenCalled();
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[useCompression] Manual compression trigger'
+      );
 
       consoleSpy.mockRestore();
     });

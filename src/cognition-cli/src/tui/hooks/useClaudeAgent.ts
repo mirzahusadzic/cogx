@@ -220,16 +220,20 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         debug('🗜️  Triggering compression');
 
         // 🆕 STEP 1: IMMEDIATELY NOTIFY USER (P0 UX REQUIREMENT)
-        setMessages((prev) => [
-          ...prev,
-          {
-            type: 'system',
-            content:
-              `⏳ Preparing context compression at ${(tokens / 1000).toFixed(1)}K tokens\n` +
-              `   Analyzing ${turns} conversation turns (this may take 5-10s)...`,
-            timestamp: new Date(),
-          },
-        ]);
+        let progressMessageIndex = -1;
+        setMessages((prev) => {
+          progressMessageIndex = prev.length; // Track index for updates
+          return [
+            ...prev,
+            {
+              type: 'system',
+              content:
+                `⏳ Preparing context compression at ${(tokens / 1000).toFixed(1)}K tokens\n` +
+                `   Analyzing ${turns} conversation turns (this may take 5-10s)...`,
+              timestamp: new Date(),
+            },
+          ];
+        });
 
         // STEP 2: Wait for analysis queue to complete (configurable timeout)
         const startTime = Date.now();
@@ -238,8 +242,55 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           10
         );
 
+        // Throttle progress updates to every 500ms
+        let lastProgressUpdate = 0;
+        const PROGRESS_THROTTLE_MS = 500;
+
+        // Helper to build progress bar: [▓▓▓▓▓░░░░░] 12/18
+        const buildProgressBar = (current: number, total: number): string => {
+          const barLength = 10;
+          const filled = Math.floor((current / total) * barLength);
+          const empty = barLength - filled;
+          return (
+            '[' + '▓'.repeat(filled) + '░'.repeat(empty) + ']' + ` ${current}/${total}`
+          );
+        };
+
         try {
-          await turnAnalysis.waitForCompressionReady(timeout);
+          await turnAnalysis.waitForCompressionReady(
+            timeout,
+            (elapsed, status) => {
+              // Throttle updates
+              const now = Date.now();
+              if (now - lastProgressUpdate < PROGRESS_THROTTLE_MS) {
+                return;
+              }
+              lastProgressUpdate = now;
+
+              const processed = status.totalProcessed;
+              const remaining = status.queueLength;
+              const total = processed + remaining;
+              const elapsedSecs = (elapsed / 1000).toFixed(1);
+
+              // Update progress message in-place
+              setMessages((prev) => {
+                // Validate index still exists
+                if (progressMessageIndex < 0 || progressMessageIndex >= prev.length) {
+                  return prev;
+                }
+
+                const updated = [...prev];
+                updated[progressMessageIndex] = {
+                  type: 'system',
+                  content:
+                    `⏳ Analyzing conversation turns... ${buildProgressBar(processed, total)}\n` +
+                    `   Elapsed: ${elapsedSecs}s`,
+                  timestamp: prev[progressMessageIndex].timestamp,
+                };
+                return updated;
+              });
+            }
+          );
         } catch (waitError) {
           // 🆕 STEP 2a: USER-FRIENDLY TIMEOUT MESSAGE
           const timeoutSecs = ((Date.now() - startTime) / 1000).toFixed(1);

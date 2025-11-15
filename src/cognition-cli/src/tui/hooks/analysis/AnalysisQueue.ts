@@ -256,19 +256,28 @@ export class AnalysisQueue {
   /**
    * ✅ NEW: Wait for queue to become ready for compression
    * @param timeout Maximum time to wait (ms), default from env or 15000
+   * @param onProgress Optional progress callback (elapsed ms, current status)
    * @returns Promise that resolves when ready or rejects on timeout
    */
   async waitForCompressionReady(
     timeout: number = parseInt(
       process.env.SIGMA_COMPRESSION_TIMEOUT_MS || '15000',
       10
-    )
+    ),
+    onProgress?: (elapsed: number, status: AnalysisQueueStatus) => void
   ): Promise<void> {
     const startTime = Date.now();
 
     while (!this.isReadyForCompression()) {
+      const elapsed = Date.now() - startTime;
+
+      // Report progress
+      if (onProgress) {
+        onProgress(elapsed, this.getStatus());
+      }
+
       // Check timeout
-      if (Date.now() - startTime > timeout) {
+      if (elapsed > timeout) {
         throw new Error(
           `Timeout waiting for analysis queue (${this.queue.length} pending, processing: ${this.processing}, pendingPersistence: ${this.pendingPersistence})`
         );
