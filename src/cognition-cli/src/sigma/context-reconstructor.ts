@@ -6,6 +6,48 @@
  * - Chat Mode: Discussion-oriented with linear important points
  *
  * This is the HEART of Sigma's compression intelligence.
+ *
+ * DESIGN PHILOSOPHY:
+ * When a conversation exceeds the compression threshold (50 turns), Sigma doesn't
+ * just truncate or summarize. Instead, it intelligently reconstructs context
+ * based on the conversation's NATURE:
+ *
+ * **Quest Mode** (Task/Implementation-Oriented):
+ * - Detected when: High tool use, code blocks, structural/operational overlay scores
+ * - Recap structure:
+ *   1. Current Quest (what's being built/fixed)
+ *   2. Mental Map (architectural blocks and their status)
+ *   3. Current Depth 0 (immediate working context)
+ *   4. Recent conversation turns (last 5 with role attribution)
+ *   5. Query functions available (how to retrieve more context)
+ *
+ * **Chat Mode** (Discussion-Oriented):
+ * - Detected when: Low tool use, conversational flow, lower structural scores
+ * - Recap structure:
+ *   1. Key points by overlay dimension (O1-O7 alignment filtering)
+ *   2. Recent conversation turns (last 5 with role attribution)
+ *   3. Recall tool availability notice
+ *
+ * THREE-STAGE PIPELINE:
+ * 1. **Classification**: Analyze lattice metrics to determine mode
+ * 2. **Extraction**: Pull relevant context (paradigm shifts, high-importance turns, overlay-aligned content)
+ * 3. **Reconstruction**: Format markdown recap with system fingerprint + mode-specific content
+ *
+ * CRITICAL FEATURE - Pending Task Preservation:
+ * The reconstructor preserves assistant state across compression. If the last turn
+ * shows the assistant was mid-task (has TodoWrite, tool usage, action words like
+ * "I'll", "Let me"), the recap includes a prominent warning to continue from
+ * where the assistant left off. This prevents lost work and maintains continuity.
+ *
+ * MEMORY ARCHITECTURE:
+ * - Truncated messages (150 chars) with "..." serve as POINTERS, not complete history
+ * - Full context retrieval via recall_past_conversation tool (semantic search in LanceDB)
+ * - System fingerprint prepended to ALL recaps to preserve meta-context
+ *
+ * @see classifyConversationMode - Determines quest vs chat mode
+ * @see reconstructQuestContext - Builds quest-mode recap
+ * @see reconstructChatContext - Builds chat-mode recap with overlay filtering
+ * @see getLastConversationTurns - Extracts recent turns and detects pending tasks
  */
 
 import type { ConversationLattice } from './types.js';
@@ -55,7 +97,36 @@ interface MentalMapBlock {
 
 /**
  * Generate system identity fingerprint
- * This is prepended to all compressed recaps to preserve meta-context
+ *
+ * Creates the standardized header prepended to all compressed recaps. This
+ * preserves critical meta-context about the Sigma system, memory architecture,
+ * and available tools so the assistant understands its operating environment
+ * after compression.
+ *
+ * DESIGN:
+ * The fingerprint is a markdown document explaining:
+ * 1. System identity (Claude Code + Cognition Σ)
+ * 2. Architecture overview (dual-lattice, 7 overlays, PGC, shadow embeddings)
+ * 3. Memory architecture (truncated pointers vs full retrieval)
+ * 4. Available tools (recall, query overlays)
+ * 5. Slash commands (discovery and execution)
+ * 6. Current session context (working directory, lattice stores, mode)
+ *
+ * This ensures that after compression, the assistant knows:
+ * - What system it's running in
+ * - How memory works (truncated messages are POINTERS, use recall for full content)
+ * - What tools are available
+ * - Current session state
+ *
+ * CRITICAL: The "Memory Architecture" section explicitly tells the assistant
+ * that "..." means more content is available and should trigger recall_past_conversation.
+ * This is the key to making compressed context work effectively.
+ *
+ * @private
+ * @param cwd - Current working directory
+ * @param mode - Conversation mode (quest or chat)
+ * @param isCompressed - Whether this recap is post-compression
+ * @returns Markdown-formatted system fingerprint
  */
 function getSystemFingerprint(
   cwd: string,
@@ -123,6 +194,66 @@ A portable cognitive layer that can be initialized in **any repository**. Create
 
 /**
  * Classify conversation mode based on lattice characteristics
+ *
+ * Analyzes conversation patterns to determine whether the session is task-oriented
+ * (Quest Mode) or discussion-oriented (Chat Mode). This classification drives
+ * how context is reconstructed after compression.
+ *
+ * ALGORITHM:
+ * 1. Count quest indicators:
+ *    - Tool usage markers (🔧, tool_use, Edit:, Write:, Bash:)
+ *    - Code blocks (```, typescript, python, javascript)
+ *    - File references (.ts, .tsx, .js, .jsx, .py, .md, .json)
+ * 2. Calculate average overlay scores:
+ *    - O1 (Structural): Architecture/code structure
+ *    - O5 (Operational): Actions/workflows
+ *    - O6 (Mathematical): Algorithms/logic
+ * 3. Compute quest score from indicators:
+ *    - +3 points if tool uses > 5
+ *    - +3 points if (O1 + O5 + O6) > 15
+ *    - +2 points if code blocks > 3
+ *    - +2 points if file references > 5
+ * 4. Return "quest" if score >= 5, else "chat"
+ *
+ * DESIGN:
+ * Quest mode conversations involve building, fixing, or implementing things.
+ * They have high structural engagement, tool usage, and code manipulation.
+ * Chat mode conversations are exploratory, discussing ideas, asking questions,
+ * or planning without heavy implementation.
+ *
+ * The threshold (score >= 5) balances sensitivity:
+ * - Too low: Casual coding chat becomes quest mode
+ * - Too high: Active implementation becomes chat mode
+ *
+ * Score of 5 requires at least TWO strong indicators (e.g., lots of tools + code)
+ * or ONE very strong indicator (e.g., many tools + high structural scores).
+ *
+ * @param lattice - Conversation lattice with nodes and metadata
+ * @returns 'quest' for task-oriented sessions, 'chat' for discussion-oriented sessions
+ *
+ * @example
+ * // Classify a development session
+ * const lattice = await rebuildLatticeFromLanceDB(sessionId, cwd);
+ * const mode = classifyConversationMode(lattice);
+ *
+ * console.log(`Session mode: ${mode}`);
+ * if (mode === 'quest') {
+ *   console.log('Task-oriented - will reconstruct with mental map');
+ * } else {
+ *   console.log('Discussion-oriented - will reconstruct with key points');
+ * }
+ *
+ * @example
+ * // Analyze session characteristics
+ * const mode = classifyConversationMode(lattice);
+ * const nodes = lattice.nodes;
+ *
+ * const toolUses = nodes.filter(n => n.content.includes('🔧')).length;
+ * const avgO1 = nodes.reduce((s, n) => s + n.overlay_scores.O1_structural, 0) / nodes.length;
+ *
+ * console.log(`Mode: ${mode}`);
+ * console.log(`Tool uses: ${toolUses}`);
+ * console.log(`Avg structural score: ${avgO1.toFixed(2)}`);
  */
 export function classifyConversationMode(
   lattice: ConversationLattice
@@ -185,6 +316,33 @@ export function classifyConversationMode(
 
 /**
  * Detect current quest from lattice
+ *
+ * Identifies the active task/objective by analyzing paradigm shifts and
+ * recent high-importance turns. Extracts quest name, completion status,
+ * involved files, and last action.
+ *
+ * ALGORITHM:
+ * 1. Find all paradigm shifts, sort by timestamp descending
+ * 2. Use most recent paradigm shift as quest milestone
+ * 3. Extract quest name from shift content (implementation keywords)
+ * 4. Determine completion status:
+ *    - Check last 10 turns for completion markers (✅, complete, done, working, passes)
+ *    - If 3+ completion markers found → completed = true
+ * 5. Extract involved files from paradigm shift content (.ts, .tsx, etc.)
+ * 6. Find last action from most recent high-importance turn (importance >= 7)
+ * 7. Return QuestInfo with all extracted metadata
+ *
+ * DESIGN:
+ * Paradigm shifts mark significant cognitive moments - usually when a major
+ * task begins or a breakthrough occurs. The most recent shift indicates the
+ * current quest focus. Completion is inferred from recent markers rather than
+ * explicit state, as conversations often continue briefly after completion.
+ *
+ * Default quest info is returned if no paradigm shifts exist (new/simple sessions).
+ *
+ * @private
+ * @param lattice - Conversation lattice with nodes and metadata
+ * @returns Quest information (name, status, description, files, last action)
  */
 function detectCurrentQuest(lattice: ConversationLattice): QuestInfo {
   const nodes = lattice.nodes;
@@ -248,6 +406,39 @@ function detectCurrentQuest(lattice: ConversationLattice): QuestInfo {
 
 /**
  * Build mental map (high-level architecture blocks)
+ *
+ * Extracts high-level architectural components discussed in the conversation
+ * and determines their status (complete, in-progress, pending). The mental
+ * map provides a structural overview of the system being built/modified.
+ *
+ * ALGORITHM:
+ * 1. Filter turns with high structural alignment (O1 >= 7)
+ * 2. Sort by importance descending
+ * 3. Take top 5 structural turns
+ * 4. For each turn:
+ *    a. Extract component name (PascalCase pattern or file name)
+ *    b. Find recent mentions of this component
+ *    c. Determine status:
+ *       - No recent mentions → complete (discussion ended)
+ *       - Recent high-importance mentions → in-progress (active work)
+ *       - Recent low-importance mentions → pending (planned/deferred)
+ * 5. Return array of mental map blocks
+ *
+ * DESIGN:
+ * The mental map is a high-level architecture snapshot showing what components
+ * were discussed and their current state. It's like a "architecture todo list"
+ * derived from conversation patterns rather than explicit tracking.
+ *
+ * Status inference:
+ * - Complete: Discussed earlier but no longer mentioned (work done)
+ * - In-progress: Recently mentioned with high importance (active focus)
+ * - Pending: Recently mentioned casually (acknowledged but not actively worked)
+ *
+ * Limit to 5 blocks prevents overwhelming the recap with minor components.
+ *
+ * @private
+ * @param lattice - Conversation lattice with nodes and metadata
+ * @returns Array of mental map blocks (up to 5 architecture components)
  */
 function buildMentalMap(lattice: ConversationLattice): MentalMapBlock[] {
   const nodes = lattice.nodes;
@@ -293,6 +484,33 @@ function buildMentalMap(lattice: ConversationLattice): MentalMapBlock[] {
 
 /**
  * Get current depth 0 (what user is working on NOW)
+ *
+ * Extracts the immediate working context - what the user is actively focused
+ * on right now. This is the "top of stack" in the conversation's attention.
+ *
+ * ALGORITHM:
+ * 1. Take last 10 turns as recent context window
+ * 2. Find most important turn in this window (highest importance_score)
+ * 3. Extract description from that turn's content (first 200 chars)
+ * 4. Collect all file references from the 10-turn window
+ * 5. Get last action from the very last turn (most recent message)
+ * 6. Return current focus (description, files, last action)
+ *
+ * DESIGN:
+ * "Depth 0" refers to the current attention level in the conversation's
+ * mental stack. Deeper levels would be background context, earlier topics,
+ * foundational decisions. Depth 0 is "what we're doing RIGHT NOW."
+ *
+ * The 10-turn window balances recency with context:
+ * - Too small (5 turns): Might miss important context just mentioned
+ * - Too large (20+ turns): Includes stale context no longer relevant
+ *
+ * Most important turn in this window represents the current focus because
+ * importance indicates what matters most to the user/assistant right now.
+ *
+ * @private
+ * @param lattice - Conversation lattice with nodes and metadata
+ * @returns Current working context (description, involved files, last action)
  */
 function getCurrentDepth(lattice: ConversationLattice): {
   description: string;
@@ -332,6 +550,52 @@ function getCurrentDepth(lattice: ConversationLattice): {
 
 /**
  * Reconstruct context in Quest Mode
+ *
+ * Builds a task-oriented recap for implementation/development sessions.
+ * Includes quest objectives, mental map of architecture, current working
+ * context, recent turns, and available query functions.
+ *
+ * ALGORITHM:
+ * 1. Detect current quest (what's being built/fixed)
+ * 2. Build mental map (architecture blocks and status)
+ * 3. Get current depth 0 (immediate working context)
+ * 4. Get last conversation turns (recent exchanges + pending task)
+ * 5. Generate system fingerprint
+ * 6. Format markdown recap with sections:
+ *    - System fingerprint (identity, architecture, memory, tools)
+ *    - Quest Context Recap
+ *      - Current Quest (name, status, description)
+ *      - Mental Map (architecture blocks with status icons)
+ *      - Current Depth 0 (active focus + files)
+ *      - Recent Conversation (last 5 turns with roles)
+ *      - Query Functions Available (how to retrieve more context)
+ * 7. Return complete markdown string
+ *
+ * DESIGN - Quest Mode Structure:
+ * Quest mode assumes the user is BUILDING something. The recap is organized
+ * like a project dashboard:
+ *
+ * **Quest**: What we're trying to achieve (objective)
+ * **Mental Map**: High-level components and their status (architecture overview)
+ * **Current Depth 0**: What we're working on RIGHT NOW (immediate focus)
+ * **Recent Conversation**: Last few exchanges (conversational continuity)
+ * **Query Functions**: How to get more context (discoverability)
+ *
+ * The mental map is unique to quest mode - it's not useful for chat mode
+ * because discussions don't have "architecture blocks."
+ *
+ * Status emojis make the recap scannable:
+ * - ✅ Complete
+ * - 🔄 In Progress
+ * - ⏳ Pending
+ *
+ * Query functions section teaches the assistant how to use Sigma's retrieval
+ * tools for specific context needs.
+ *
+ * @private
+ * @param lattice - Conversation lattice with nodes and metadata
+ * @param cwd - Current working directory
+ * @returns Markdown-formatted quest mode recap
  */
 async function reconstructQuestContext(
   lattice: ConversationLattice,
@@ -395,7 +659,42 @@ Use these to retrieve specific context from the lattice:
 
 /**
  * Get last conversation turns with role attribution for continuity
- * FIX: Returns structured context with roles to preserve state across compression
+ *
+ * Extracts the most recent conversation turns (last 5) with role attribution
+ * to preserve conversation flow across compression. Also detects if the assistant
+ * has a pending task (was mid-work when compression occurred).
+ *
+ * ALGORITHM:
+ * 1. Extract last 5 turns from lattice with role, content, timestamp
+ * 2. Examine the very last turn
+ * 3. If last turn is from assistant, check for pending task indicators:
+ *    - Has TodoWrite (explicit task list)
+ *    - Has tool usage markers (🔧, "Let me")
+ *    - Has action words ("I'll", "I will", "Let me", "Going to", "Next I'll")
+ * 4. If indicators found, extract first 200 chars as pending task description
+ * 5. Return turns array + pending task (or null)
+ *
+ * DESIGN - CRITICAL FEATURE:
+ * This function solves a major problem with conversation compression: losing
+ * assistant state. When compression truncates messages, the assistant might
+ * forget it was in the middle of a task.
+ *
+ * By detecting pending tasks from the last assistant turn, we can:
+ * - Show a prominent warning in the recap
+ * - Remind the assistant what it was doing
+ * - Ensure continuity across compression boundary
+ *
+ * Pending task detection looks for:
+ * - TodoWrite: Explicit task tracking
+ * - Tool markers: Active work in progress
+ * - Action verbs: Commitments like "I'll implement X"
+ *
+ * The 5-turn window provides immediate conversational context - enough to
+ * understand the current exchange without overwhelming the recap.
+ *
+ * @private
+ * @param lattice - Conversation lattice with nodes and metadata
+ * @returns Recent turns (last 5 with roles) and optional pending task description
  */
 function getLastConversationTurns(lattice: ConversationLattice): {
   turns: Array<{ role: string; content: string; timestamp: number }>;
@@ -438,6 +737,40 @@ function getLastConversationTurns(lattice: ConversationLattice): {
 
 /**
  * Format last conversation turns for recap
+ *
+ * Formats the recent conversation turns into markdown with role attribution
+ * and truncated content. Adds a prominent warning if the assistant has a
+ * pending task.
+ *
+ * ALGORITHM:
+ * 1. For each turn:
+ *    a. Format role as uppercase label [USER], [ASSISTANT], [SYSTEM]
+ *    b. Truncate content to 150 characters
+ *    c. Add "..." ellipsis if content was truncated
+ *    d. Format as markdown: **[ROLE]**: content...
+ * 2. Join all formatted turns with double newlines
+ * 3. If pending task exists:
+ *    a. Add "## ⚠️ Assistant's Pending Task" section
+ *    b. Show the pending task description
+ *    c. Add "Continue from where the assistant left off" instruction
+ * 4. Return formatted markdown string
+ *
+ * DESIGN:
+ * The truncated turns serve as POINTERS, not complete history. The "..." is
+ * a deliberate signal to use recall_past_conversation for full content.
+ *
+ * Role attribution ([USER], [ASSISTANT]) is critical for:
+ * - Understanding conversation flow
+ * - Knowing who said what
+ * - Maintaining continuity across compression
+ *
+ * The pending task warning is PROMINENT (⚠️ emoji, blockquote, bold instruction)
+ * to ensure the assistant notices it and continues the work.
+ *
+ * @private
+ * @param turns - Recent conversation turns (role, content, timestamp)
+ * @param pendingTask - Optional pending task description from assistant
+ * @returns Markdown-formatted recent conversation with optional pending task warning
  */
 function formatLastTurns(
   turns: Array<{ role: string; content: string; timestamp: number }>,
@@ -469,8 +802,66 @@ function formatLastTurns(
 
 /**
  * Reconstruct context in Chat Mode
- * FIX: Now uses conversation overlays for better context preservation
- * FIX: Includes last conversation turns with roles for continuity
+ *
+ * Builds a discussion-oriented recap organized by overlay dimensions (O1-O7).
+ * Uses conversation overlays for intelligent filtering, showing high-alignment
+ * turns for each dimension. Includes recent turns and recall tool notice.
+ *
+ * ALGORITHM:
+ * 1. Get last conversation turns (recent exchanges + pending task)
+ * 2. Generate system fingerprint
+ * 3. If conversation registry available (PREFERRED PATH):
+ *    a. Query conversation overlays with min_alignment = 6
+ *    b. For each overlay dimension (O1-O7):
+ *       - Filter turns with alignment >= 6 for that overlay
+ *       - Format as numbered list with scores
+ *       - Truncate content to 150 chars (pointers, not full text)
+ *    c. Build markdown recap by overlay section
+ *    d. Include recent conversation turns
+ *    e. Add recall tool instructions
+ * 4. If no conversation registry (FALLBACK PATH):
+ *    a. Extract paradigm shifts from lattice
+ *    b. Show top 5 paradigm shifts as key points
+ *    c. Include recent conversation turns
+ *    d. Add recall tool instructions
+ * 5. Return complete markdown string
+ *
+ * DESIGN - Chat Mode Structure:
+ * Chat mode assumes the user is DISCUSSING something. The recap is organized
+ * by semantic dimensions (overlays) rather than task structure:
+ *
+ * **Architecture & Design (O1)**: Structural discussions
+ * **Security Concerns (O2)**: Security-focused turns
+ * **Knowledge Evolution (O3)**: Lineage and dependencies
+ * **Goals & Objectives (O4)**: Mission-aligned discussions
+ * **Actions Taken (O5)**: Operational turns
+ * **Algorithms & Logic (O6)**: Mathematical/algorithmic discussions
+ * **Conversation Flow (O7)**: Coherence and strategic alignment
+ *
+ * This organization helps the assistant understand WHAT was discussed and
+ * FROM WHAT PERSPECTIVE. A security-focused discussion will have high O2
+ * scores, while architectural planning will have high O1 scores.
+ *
+ * TWO PATHS:
+ * 1. **Overlay-based** (preferred): Rich filtering by alignment scores
+ * 2. **Paradigm shifts** (fallback): Basic important points extraction
+ *
+ * The overlay-based path is superior because it:
+ * - Provides multi-dimensional view of conversation
+ * - Shows alignment scores (how relevant to each dimension)
+ * - Preserves more nuanced context
+ *
+ * Fallback exists for backward compatibility when conversation registry
+ * is not available.
+ *
+ * CRITICAL: Includes strong notice about truncated messages being POINTERS
+ * and "..." meaning "use recall_past_conversation to get full content."
+ *
+ * @private
+ * @param lattice - Conversation lattice with nodes and metadata
+ * @param cwd - Current working directory
+ * @param conversationRegistry - Optional conversation overlay registry (enables better filtering)
+ * @returns Markdown-formatted chat mode recap
  */
 async function reconstructChatContext(
   lattice: ConversationLattice,
@@ -640,7 +1031,125 @@ ${formatLastTurns(turns, pendingTask)}
 }
 
 /**
- * Main reconstruction function - intelligently chooses mode
+ * Main reconstruction function - intelligently chooses mode and builds context
+ *
+ * This is the PRIMARY ENTRY POINT for context reconstruction. Analyzes the
+ * conversation lattice, classifies the mode (quest vs chat), extracts metrics,
+ * and generates an intelligent compressed recap appropriate for the conversation type.
+ *
+ * THREE-STAGE PIPELINE:
+ * 1. **Classification**: Determine conversation mode (quest or chat)
+ * 2. **Metrics Calculation**: Extract quality/engagement metrics
+ * 3. **Reconstruction**: Build mode-appropriate markdown recap
+ *
+ * ALGORITHM:
+ * 1. Classify conversation mode using classifyConversationMode()
+ * 2. Calculate conversation metrics:
+ *    - Total nodes (turn count)
+ *    - Paradigm shifts (breakthrough moments)
+ *    - Tool uses (implementation activity)
+ *    - Code blocks (code engagement)
+ *    - Average structural score (O1)
+ *    - Average operational score (O5)
+ * 3. Based on mode:
+ *    - Quest: Call reconstructQuestContext()
+ *    - Chat: Call reconstructChatContext() with conversationRegistry
+ * 4. Return ReconstructedSessionContext with mode, recap, metrics
+ *
+ * DESIGN:
+ * This function orchestrates the entire reconstruction process. It's called
+ * when:
+ * - Compression threshold reached (50 turns)
+ * - Session resume after compression
+ * - Manual context reconstruction requested
+ *
+ * The returned object contains:
+ * - **mode**: How the conversation was classified
+ * - **recap**: Markdown text to inject as system message
+ * - **metrics**: Quantitative measures of conversation quality/type
+ *
+ * Metrics are useful for:
+ * - Logging/analytics (track conversation patterns)
+ * - Debugging (understand why classification chose quest vs chat)
+ * - Future enhancements (adaptive compression based on metrics)
+ *
+ * CRITICAL PARAMETER - conversationRegistry:
+ * If provided, enables rich overlay-based filtering in chat mode. Without it,
+ * chat mode falls back to basic paradigm shift extraction. Always pass this
+ * when available for best results.
+ *
+ * @param lattice - Conversation lattice with nodes, edges, and metadata
+ * @param cwd - Current working directory (for system fingerprint)
+ * @param conversationRegistry - Optional conversation overlay registry (enables overlay-based filtering)
+ * @returns Reconstructed context with mode, markdown recap, and metrics
+ *
+ * @example
+ * // Reconstruct context after compression
+ * const lattice = await rebuildLatticeFromLanceDB(sessionId, cwd);
+ * const context = await reconstructSessionContext(
+ *   lattice,
+ *   cwd,
+ *   conversationRegistry
+ * );
+ *
+ * console.log(`Session classified as: ${context.mode}`);
+ * console.log(`Nodes: ${context.metrics.nodes}`);
+ * console.log(`Paradigm shifts: ${context.metrics.paradigm_shifts}`);
+ * console.log(`Tool uses: ${context.metrics.tool_uses}`);
+ *
+ * // Inject recap as system message
+ * messages.push({
+ *   role: 'system',
+ *   content: context.recap
+ * });
+ *
+ * @example
+ * // Analyze conversation patterns
+ * const context = await reconstructSessionContext(lattice, cwd);
+ *
+ * if (context.mode === 'quest') {
+ *   console.log('Implementation session detected');
+ *   console.log(`Avg structural score: ${context.metrics.avg_structural}`);
+ *   console.log(`Avg operational score: ${context.metrics.avg_operational}`);
+ * } else {
+ *   console.log('Discussion session detected');
+ * }
+ *
+ * // Log compression event
+ * console.log(`Compressed ${context.metrics.nodes} turns`);
+ * console.log(`Found ${context.metrics.paradigm_shifts} paradigm shifts`);
+ * console.log(`${context.metrics.tool_uses} tool uses`);
+ * console.log(`${context.metrics.code_blocks} code blocks`);
+ *
+ * @example
+ * // Use in compression workflow
+ * async function compressSession(sessionId: string, cwd: string) {
+ *   // 1. Rebuild lattice from LanceDB
+ *   const lattice = await rebuildLatticeFromLanceDB(sessionId, cwd);
+ *
+ *   // 2. Reconstruct context intelligently
+ *   const context = await reconstructSessionContext(
+ *     lattice,
+ *     cwd,
+ *     conversationRegistry
+ *   );
+ *
+ *   // 3. Clear old messages, inject recap
+ *   const systemMessage = {
+ *     role: 'system',
+ *     content: context.recap
+ *   };
+ *
+ *   // 4. Log compression event
+ *   await logCompression(sessionId, {
+ *     mode: context.mode,
+ *     original_turns: context.metrics.nodes,
+ *     paradigm_shifts: context.metrics.paradigm_shifts,
+ *     compressed_at: Date.now()
+ *   });
+ *
+ *   return systemMessage;
+ * }
  */
 export async function reconstructSessionContext(
   lattice: ConversationLattice,
