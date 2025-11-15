@@ -1,7 +1,71 @@
+/**
+ * Semantic Drift Detector - Mission Poisoning Defense System
+ *
+ * Analyzes semantic changes between mission document versions using embedding-based
+ * distance metrics and pattern-based heuristics. Detects gradual mission poisoning
+ * attacks through 6 documented attack patterns.
+ *
+ * MISSION ALIGNMENT:
+ * - Embodies "Verification Over Trust" principle (VISION.md:122, 74.3% importance)
+ * - Implements "Oracle Validation" pattern for mission changes (Innovation #2, 88.1%)
+ * - Defends "National Security Through Transparency" via audit trails (81.2%)
+ * - Provides cryptographic proof of mission integrity ("Cryptographic Truth", 86.7%)
+ * - Core component of O2 (Security) overlay - FOUNDATIONAL and non-negotiable
+ *
+ * THREAT MODEL (Innovation #19: 5-Pattern Attack Detection):
+ * Defends against gradual mission poisoning via:
+ * 1. Security weakening - Remove "security first", add "pragmatic security"
+ * 2. Trust erosion - Add "trust experienced contributors"
+ * 3. Permission creep - Shift from "strict" to "permissive"
+ * 4. Ambiguity injection - Add "balanced", "flexible", "context-dependent"
+ * 5. Velocity prioritization - Emphasize speed, deprioritize safety
+ * 6. Error tolerance increase - "fail gracefully" replaces "fail safe"
+ *
+ * These patterns are empirically observed in real supply chain attacks
+ * (XZ Utils backdoor, event-stream NPM compromise).
+ *
+ * DESIGN RATIONALE:
+ * - Embedding-based distance (quantitative, objective)
+ * - Pattern detection (qualitative, interpretable)
+ * - Combined severity scoring (holistic risk assessment)
+ * - Transparent recommendations (evidence-based, auditable)
+ *
+ * ALGORITHM:
+ * 1. Compute semantic distance (cosine distance between centroids)
+ * 2. Identify concept changes (added/removed/shifted)
+ * 3. Run pattern detection (6 attack patterns)
+ * 4. Classify severity (none/low/medium/high/critical)
+ * 5. Generate recommendation (approve/review/reject)
+ *
+ * TRANSPARENCY:
+ * All detection patterns are fully documented and auditable.
+ * False positives are intentional - better to review than miss attacks.
+ *
+ * @example
+ * const detector = new SemanticDriftDetector();
+ * const drift = await detector.analyzeDrift(oldVersion, newVersion);
+ * console.log(`Drift: ${drift.distance.toFixed(4)} (${drift.severity})`);
+ * if (drift.suspiciousPatterns.length > 0) {
+ *   console.log('Suspicious patterns:', drift.suspiciousPatterns);
+ * }
+ *
+ * @example
+ * // Custom thresholds for high-security environments
+ * const detector = new SemanticDriftDetector({
+ *   low: 0.03,      // More sensitive
+ *   medium: 0.10,
+ *   high: 0.20,
+ *   critical: 0.35
+ * });
+ */
+
 import { MissionVersion } from './mission-integrity.js';
 
 /**
  * Result of drift analysis between two mission versions
+ *
+ * Combines quantitative metrics (distance) with qualitative analysis
+ * (pattern detection) to provide holistic risk assessment.
  */
 export interface DriftAnalysis {
   severity: 'none' | 'low' | 'medium' | 'high' | 'critical';
@@ -20,35 +84,21 @@ export interface DriftAnalysis {
 }
 
 /**
- * SemanticDriftDetector
+ * SemanticDriftDetector - Mission integrity analyzer
  *
- * MISSION ALIGNMENT:
- * - Embodies "Verification Over Trust" principle (VISION.md:122, 74.3% importance)
- * - Implements "Oracle Validation" pattern for mission document changes (Innovation #2, 88.1%)
- * - Defends "National Security Through Transparency" via audit trails (81.2% importance)
- * - Provides cryptographic proof of mission integrity ("Cryptographic Truth", 86.7%)
+ * Detects semantic drift and attack patterns in mission document changes.
+ * Provides quantitative (embedding distance) and qualitative (pattern matching)
+ * analysis of version changes.
  *
- * PURPOSE:
- * Detects semantic drift and suspicious patterns in mission document changes.
- * Analyzes changes between versions using embedding-based distance metrics
- * and pattern-based heuristics.
+ * @example
+ * const detector = new SemanticDriftDetector();
+ * const analysis = await detector.analyzeDrift(v1, v2);
  *
- * SECURITY ROLE:
- * - Detects gradual mission poisoning attacks (Innovation #19: 5-Pattern Attack Detection)
- * - Flags suspicious language patterns (trust erosion, security weakening)
- * - Provides evidence-based recommendations (approve/review/reject)
- *
- * TRANSPARENCY:
- * All detection patterns are fully documented and auditable.
- * Users can inspect pattern matching logic and suggest improvements.
- *
- * THREAT MODEL (Innovation #19: 5-Pattern Attack Detection):
- * Defends against:
- * - Security weakening (removing "security first", adding "pragmatic")
- * - Trust erosion (adding "trust experienced users")
- * - Permission creep (shifting from "strict" to "permissive")
- * - Ambiguity injection (adding "balanced", "flexible")
- * - Velocity prioritization (emphasizing speed over safety)
+ * @example
+ * // High-security thresholds
+ * const detector = new SemanticDriftDetector({
+ *   low: 0.03, medium: 0.10, high: 0.20, critical: 0.35
+ * });
  */
 export class SemanticDriftDetector {
   // Thresholds calibrated for threat detection
@@ -62,6 +112,24 @@ export class SemanticDriftDetector {
 
   private thresholds: typeof this.DEFAULT_THRESHOLDS;
 
+  /**
+   * Creates a SemanticDriftDetector with configurable thresholds
+   *
+   * @param thresholds - Optional threshold overrides
+   * @param thresholds.low - Low drift threshold (default: 0.05)
+   * @param thresholds.medium - Medium drift threshold (default: 0.15)
+   * @param thresholds.high - High drift threshold (default: 0.30)
+   * @param thresholds.critical - Critical drift threshold (default: 0.50)
+   *
+   * @example
+   * const detector = new SemanticDriftDetector(); // Use defaults
+   *
+   * @example
+   * const strictDetector = new SemanticDriftDetector({
+   *   low: 0.02,  // More sensitive
+   *   critical: 0.30
+   * });
+   */
   constructor(
     thresholds?: Partial<
       typeof SemanticDriftDetector.prototype.DEFAULT_THRESHOLDS
@@ -73,12 +141,37 @@ export class SemanticDriftDetector {
   /**
    * Analyze drift between two mission versions
    *
+   * Performs comprehensive drift analysis combining quantitative distance
+   * measurement with qualitative pattern detection.
+   *
    * ALGORITHM:
    * 1. Compute semantic distance (cosine distance between centroids)
    * 2. Identify added/removed/shifted concepts
-   * 3. Run pattern detection (security weakening, trust erosion, etc.)
+   * 3. Run pattern detection (6 attack patterns)
    * 4. Classify severity based on distance and patterns
-   * 5. Generate recommendation
+   * 5. Generate recommendation (approve/review/reject)
+   *
+   * DISTANCE INTERPRETATION:
+   * - 0.00 = Identical semantic meaning
+   * - 0.05 = Minor refinement (low)
+   * - 0.15 = Significant reframing (medium)
+   * - 0.30 = Major shift (high)
+   * - 0.50+ = Fundamental change (critical)
+   *
+   * @param oldVersion - Previous mission version
+   * @param newVersion - New mission version
+   * @returns Drift analysis with severity and recommendations
+   *
+   * @example
+   * const monitor = new MissionIntegrityMonitor(pgcRoot);
+   * const v1 = await monitor.getVersion(1);
+   * const v2 = await monitor.getLatestVersion();
+   * const drift = await detector.analyzeDrift(v1, v2);
+   *
+   * if (drift.severity === 'critical') {
+   *   console.error('CRITICAL drift detected!');
+   *   drift.suspiciousPatterns.forEach(p => console.error(`  - ${p}`));
+   * }
    */
   async analyzeDrift(
     oldVersion: MissionVersion,

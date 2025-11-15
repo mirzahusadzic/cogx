@@ -1,14 +1,56 @@
 /**
- * Embedded Dual-Use Mandate
+ * Embedded Dual-Use Mandate - Security Documentation Built Into Binary
  *
- * This content is embedded in the binary so it's always available,
- * regardless of where the CLI is run from.
+ * Contains the full dual-use technology mandate embedded in the cognition-cli binary.
+ * This ensures documentation is always available, even without network access.
+ *
+ * MISSION ALIGNMENT:
+ * - Core implementation of "National Security Through Transparency" (81.2% importance)
+ * - Enforces "Verification Over Trust" via explicit user education (VISION.md:122, 74.3%)
+ * - Part of O2 (Security) overlay - FOUNDATIONAL and non-negotiable
+ *
+ * PURPOSE:
+ * Educates users about:
+ * 1. Dual-use nature of semantic alignment measurement
+ * 2. Potential for weaponization (ideological conformity enforcement)
+ * 3. User's ethical responsibility for deployment
+ * 4. Implemented safeguards (transparency, not prevention)
+ * 5. Prohibited use cases (red lines)
+ *
+ * DESIGN RATIONALE:
+ * - Embedded in binary (always available, no docs/ dependency)
+ * - Comprehensive (covers threat model, architecture, safeguards)
+ * - Honest (acknowledges what we can't prevent)
+ * - Version-stamped (tracks mandate evolution)
+ *
+ * CONTENT STRUCTURE:
+ * 1. Executive summary (dual-use nature)
+ * 2. Technology explanation (what cognition-cli does)
+ * 3. Dual-use threat model (weaponization scenarios)
+ * 4. Architecture (measurement vs ethics separation)
+ * 5. Implemented safeguards (transparency, user control)
+ * 6. Prohibited use cases (red lines)
+ * 7. License and liability (AGPL-v3, no warranty)
+ *
+ * @example
+ * import { DUAL_USE_MANDATE } from './dual-use-mandate.js';
+ * console.log(DUAL_USE_MANDATE);  // Print full mandate
+ *
+ * @example
+ * import { DUAL_USE_SUMMARY } from './dual-use-mandate.js';
+ * console.log(DUAL_USE_SUMMARY);  // Print short summary
+ */
+
+/**
+ * Full dual-use mandate document
+ *
+ * Comprehensive explanation of dual-use risks and safeguards.
+ * Displayed during first-run acknowledgment.
  *
  * Source: docs/DUAL_USE_MANDATE.md
  * Version: 1.0
  * Last Updated: 2025-10-30
  */
-
 export const DUAL_USE_MANDATE = `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   DUAL-USE TECHNOLOGY MANDATE
@@ -274,6 +316,15 @@ Deploy responsibly. The world is watching.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `;
 
+/**
+ * Concise dual-use summary
+ *
+ * Short version for quick reference or inline warnings.
+ * Highlights key points: dual-use nature, user control, liability.
+ *
+ * @example
+ * console.log(DUAL_USE_SUMMARY);  // Print quick summary
+ */
 export const DUAL_USE_SUMMARY = `
 cognition-cli is dual-use measurement infrastructure.
 

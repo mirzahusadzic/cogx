@@ -1,3 +1,64 @@
+/**
+ * Security Configuration - O2 (Security) Overlay Configuration System
+ *
+ * Manages security settings for mission integrity validation and drift detection.
+ * Implements configurable defense-in-depth with user-controlled security modes.
+ *
+ * MISSION ALIGNMENT:
+ * - Implements "Verification Over Trust" principle (VISION.md:122, 74.3% importance)
+ * - Part of O2 (Security) overlay - FOUNDATIONAL and non-negotiable
+ * - Supports "National Security Through Transparency" via audit controls (81.2%)
+ * - Enables configurable "Oracle Validation" thresholds (Innovation #2, 88.1%)
+ *
+ * DESIGN PHILOSOPHY:
+ * 1. Advisory by default (warn, don't block)
+ *    - Open source requires developer autonomy
+ *    - Warnings inform without blocking workflow
+ *    - Users can escalate to strict mode when needed
+ *
+ * 2. Complete transparency
+ *    - All detection patterns are documented
+ *    - No black-box filtering or hidden heuristics
+ *    - Users can inspect and modify logic
+ *
+ * 3. User control
+ *    - Easy to configure via .cogx/config.ts
+ *    - Easy to disable (but logged transparently)
+ *    - No phone-home or telemetry
+ *
+ * 4. Augment humans, don't replace
+ *    - Provide evidence for human review
+ *    - Flag suspicious patterns for investigation
+ *    - Final decisions remain with developers
+ *
+ * CONFIGURATION HIERARCHY:
+ * 1. Default config (DEFAULT_SECURITY_CONFIG)
+ * 2. Project config (.cogx/config.ts)
+ * 3. Deep merge (project overrides defaults at leaf level)
+ *
+ * SECURITY MODES:
+ * - 'off': No security checks (for testing, not recommended)
+ * - 'advisory': Warnings only, never blocks (DEFAULT)
+ * - 'strict': Can block on critical threats (opt-in)
+ *
+ * @example
+ * // Load security config
+ * const config = await loadSecurityConfig('/path/to/workspace');
+ *
+ * @example
+ * // Custom config in .cogx/config.ts
+ * export default {
+ *   security: {
+ *     mode: 'strict',
+ *     missionIntegrity: {
+ *       drift: {
+ *         warnThreshold: 0.05  // More sensitive
+ *       }
+ *     }
+ *   }
+ * };
+ */
+
 import fs from 'fs-extra';
 import path from 'path';
 import {
@@ -7,18 +68,30 @@ import {
 
 /**
  * Security operating mode
+ *
+ * - 'off': No security checks (disabled)
+ * - 'advisory': Warnings only, never blocks (DEFAULT)
+ * - 'strict': Can block on critical threats (opt-in)
  */
 export type SecurityMode = 'off' | 'advisory' | 'strict';
 
 /**
- * Security configuration
+ * Security configuration structure
  *
- * PHILOSOPHY:
- * - Advisory by default (warn, don't block)
- * - Transparent (all patterns documented)
- * - User control (easy to configure/disable)
- * - No telemetry (all analysis local)
- * - Augment humans (help reviewers, don't replace)
+ * Defines all security controls for O2 (Security) overlay.
+ * Users can override any setting via .cogx/config.ts.
+ *
+ * CONFIGURATION SECTIONS:
+ * - mode: Overall security operating mode
+ * - missionIntegrity: Drift detection and pattern analysis
+ * - contentFiltering: Pre-ingestion content validation
+ *
+ * @example
+ * const config: SecurityConfig = {
+ *   mode: 'advisory',
+ *   missionIntegrity: { enabled: true, ... },
+ *   contentFiltering: { enabled: true, ... }
+ * };
  */
 export interface SecurityConfig {
   /**
@@ -151,13 +224,33 @@ export const DEFAULT_SECURITY_CONFIG: SecurityConfig = {
 /**
  * Load security config from user's project
  *
- * LOADING ORDER:
- * 1. Check for .cogx/config.ts
- * 2. If exists, import and merge with defaults
- * 3. If not exists, use defaults
+ * Loads and merges project-specific security configuration from .cogx/config.ts.
+ * Falls back to defaults if no config file exists.
+ *
+ * LOADING ALGORITHM:
+ * 1. Check for .cogx/config.ts in project root
+ * 2. If exists: dynamic import and deep merge with defaults
+ * 3. If not exists or import fails: use DEFAULT_SECURITY_CONFIG
  *
  * MERGE STRATEGY:
- * Deep merge: user config overrides defaults at leaf level
+ * - Deep merge at leaf level (not shallow object replace)
+ * - User values override defaults
+ * - Undefined values are ignored (don't override)
+ * - Arrays are replaced, not merged
+ *
+ * @param projectRoot - Project root directory (contains .cogx/)
+ * @returns Merged SecurityConfig
+ *
+ * @example
+ * const config = await loadSecurityConfig('/path/to/workspace');
+ * if (config.mode === 'strict') {
+ *   console.log('Strict mode enabled');
+ * }
+ *
+ * @example
+ * // Graceful fallback on missing config
+ * const config = await loadSecurityConfig('/no/config/here');
+ * // Returns DEFAULT_SECURITY_CONFIG (advisory mode)
  */
 export async function loadSecurityConfig(
   projectRoot: string
@@ -186,8 +279,28 @@ export async function loadSecurityConfig(
 }
 
 /**
- * Deep merge two objects
- * User values override defaults at leaf level
+ * Deep merge two objects at leaf level
+ *
+ * Recursively merges nested objects, preserving structure while
+ * allowing selective overrides. Arrays and primitives are replaced,
+ * not merged.
+ *
+ * ALGORITHM:
+ * 1. Start with shallow copy of defaults
+ * 2. For each key in overrides:
+ *    - If both are objects: recursively merge
+ *    - Otherwise: replace with override value
+ * 3. Undefined overrides are ignored
+ *
+ * @param defaults - Base configuration object
+ * @param overrides - User overrides (partial structure)
+ * @returns Merged configuration
+ *
+ * @example
+ * const defaults = { a: { b: 1, c: 2 }, d: 3 };
+ * const overrides = { a: { b: 99 } };
+ * const result = deepMerge(defaults, overrides);
+ * // { a: { b: 99, c: 2 }, d: 3 }
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function deepMerge<T extends Record<string, any>>(
@@ -222,8 +335,33 @@ function deepMerge<T extends Record<string, any>>(
 }
 
 /**
- * Validate security config
- * Ensures all required fields are present and valid
+ * Validate security configuration
+ *
+ * Checks that all configuration values are within valid ranges
+ * and logical constraints are satisfied.
+ *
+ * VALIDATION RULES:
+ * - mode: Must be 'off' | 'advisory' | 'strict'
+ * - Thresholds: Must be 0-1 (cosine distance range)
+ * - Threshold ordering: warn <= alert <= block
+ *
+ * @param config - SecurityConfig to validate
+ * @returns Validation result with error messages
+ *
+ * @example
+ * const config = await loadSecurityConfig(root);
+ * const validation = validateSecurityConfig(config);
+ * if (!validation.valid) {
+ *   console.error('Invalid config:', validation.errors);
+ *   process.exit(1);
+ * }
+ *
+ * @example
+ * // Check specific errors
+ * const validation = validateSecurityConfig(config);
+ * const thresholdErrors = validation.errors.filter(e =>
+ *   e.includes('Threshold')
+ * );
  */
 export function validateSecurityConfig(config: SecurityConfig): {
   valid: boolean;
