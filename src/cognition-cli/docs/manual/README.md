@@ -154,13 +154,13 @@ Building reusable overlays for common libraries (React, TypeScript, Node.js).
 
 ### Part V: The cPOW Loop (~120 pages)
 
-**Chapter 18: Operational Flow**
+**Chapter 18: Operational Flow** ✅
 `part-5-cpow-loop/18-operational-flow.md`
-Oracle → Scribe → AQS → Receipt. The complete computational Proof of Work cycle.
+Transform pipeline (Genesis → Overlay Generation → Continuous Coherence). Orchestrators (GenesisOrchestrator, UpdateOrchestrator, OverlayOrchestrator). Quality assurance (Fidelity scores, AQS). Audit trail (TransformLog). Complete operational flow documentation.
 
-**Chapter 19: Quest Structures**
+**Chapter 19: Quest Structures** ✅
 `part-5-cpow-loop/19-quest-structures.md`
-What/Why/Success. Depth tracking (Depth 0-3). Sacred sequences (F.L.T.B: Format, Lint, Test, Build).
+Quest anatomy (What/Why/Success/Big Blocks/Eyes Go). Depth tracking (Depth 0-3 with time limits). Sacred sequences (F.L.T.B: Format, Lint, Test, Build). Complete 9-phase quest lifecycle. Mission alignment and coherence checks. Operations Log format and analysis.
 
 **Chapter 20: Validation Oracles**
 `part-5-cpow-loop/20-validation-oracles.md`
@@ -173,6 +173,14 @@ eGemma personas. Coherence validators. Mission validators. Security validators.
 **Chapter 21: Sigma Architecture**
 `part-6-sigma/21-sigma-architecture.md`
 Dual-lattice architecture. Meet operations. Conversation overlays (O1-O7). Session lifecycle management. Intelligent compression at 150K tokens. Context reconstruction. The symmetric machine (perfect memory) meets the asymmetric human (creative projection). Stateful AI with infinite continuity.
+
+---
+
+### Part VII: Appendices (~80 pages)
+
+**Appendix A: Troubleshooting Guide** ✅
+`appendix-a-troubleshooting.md`
+Comprehensive troubleshooting reference covering installation issues, PGC corruption recovery, workbench connectivity, performance optimization, query/overlay problems, LanceDB errors, coherence issues, common error messages with solutions, and recovery procedures. Complete diagnostic and prevention guide.
 
 ---
 
@@ -262,15 +270,21 @@ Read sequentially from Part 0 through Part VI.
 - 📋 Chapter 16: Dependency Security Inheritance
 - 📋 Chapter 17: Ecosystem Seeding
 
-### Part V: cPOW Loop
+### Part V: cPOW Loop ✅ COMPLETE
 
-- 🔄 Chapter 18: Operational Flow (migrate from CPOW_OPERATIONAL_LOOP.md)
-- 📋 Chapter 19: Quest Structures
+- ✅ Chapter 18: Operational Flow (COMPLETE - 400 lines)
+- ✅ Chapter 19: Quest Structures (COMPLETE - 1,400 lines)
 - 📋 Chapter 20: Validation Oracles
 
 ### Part VI: Σ (Sigma) — Infinite Context ✅ COMPLETE
 
 - ✅ Chapter 21: Sigma Architecture (COMPLETE - 800 lines)
+
+---
+
+### Part VII: Appendices ✅ COMPLETE
+
+- ✅ Appendix A: Troubleshooting Guide (COMPLETE - 800 lines)
 
 ---
 
