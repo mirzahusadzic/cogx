@@ -22,8 +22,8 @@
  * @example
  * // Configure watcher for TypeScript files only
  * const options: WatcherOptions = {
- *   paths: ['src/**/*.ts'],
- *   ignored: ['**/*.test.ts', 'node_modules/**'],
+ *   paths: ['src/**\/*.ts'],
+ *   ignored: ['**\/*.test.ts', 'node_modules/**'],
  *   watchUntracked: true,
  *   debounceMs: 500
  * };
@@ -175,8 +175,8 @@ export type DirtyState = z.infer<typeof DirtyStateSchema>;
  *
  * @example
  * const options: WatcherOptions = {
- *   paths: ['src/**/*.{ts,tsx}', 'docs/**/*.md'],
- *   ignored: ['**/*.test.ts', '**/node_modules/**', '**/.pgc/**'],
+ *   paths: ['src/**\/*.ts', 'docs/**\/*.md'],
+ *   ignored: ['**\/*.test.ts', '**/ node_modules; /**', '**\/.pgc/**'],
  *   watchUntracked: true,
  *   debounceMs: 1000 // Wait 1s after last change before processing
  * };
