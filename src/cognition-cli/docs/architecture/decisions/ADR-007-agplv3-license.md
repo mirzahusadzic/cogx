@@ -1,7 +1,7 @@
 # ADR-007: AGPLv3 License (Copyleft)
 
-**Date**: Circa 2024
-**Status**: Accepted
+**Date**: 2025  
+**Status**: Accepted  
 **Deciders**: Core team
 
 ## Context
