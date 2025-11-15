@@ -221,7 +221,9 @@ export class EmbeddingService extends EventEmitter {
           // Evict oldest entry if cache is full (LRU policy)
           if (this.embeddingCache.size >= this.MAX_CACHE_SIZE) {
             const firstKey = this.embeddingCache.keys().next().value;
-            this.embeddingCache.delete(firstKey);
+            if (firstKey) {
+              this.embeddingCache.delete(firstKey);
+            }
           }
 
           this.embeddingCache.set(cacheKey, response);

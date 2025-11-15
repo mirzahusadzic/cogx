@@ -428,6 +428,12 @@ export class OverlayOrchestrator {
 
           const { file, structuralData, contentHash, structuralHash } = result;
 
+          // Type assertion: after skip check, these fields are guaranteed to exist
+          if (!contentHash || !structuralHash) {
+            console.warn(`Missing hash for file: ${file.relativePath}`);
+            continue;
+          }
+
           // Helper function to check if symbol needs processing
           const needsProcessing = (symbolName: string): boolean => {
             if (force) return true;
@@ -767,7 +773,7 @@ export class OverlayOrchestrator {
   }
 
   private async discoverFiles(rootPath: string): Promise<SourceFile[]> {
-    const files: SourceFile[] = [];
+    let files: SourceFile[] = [];
     const extensions = DEFAULT_FILE_EXTENSIONS;
 
     if (!(await fs.pathExists(rootPath))) {
@@ -832,13 +838,7 @@ export class OverlayOrchestrator {
     );
 
     // Filter out null entries (skipped large files)
-    files = fileReads.filter((f) => f !== null) as Array<{
-      path: string;
-      relativePath: string;
-      name: string;
-      language: string;
-      content: string;
-    }>;
+    files = fileReads.filter((f) => f !== null) as SourceFile[];
 
     return files;
   }
