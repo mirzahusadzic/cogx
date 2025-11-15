@@ -67,6 +67,10 @@ export class EmbeddingService extends EventEmitter {
   private processing = false;
   private isShutdown = false;
 
+  // LRU cache for embeddings: Map maintains insertion order
+  private embeddingCache = new Map<string, EmbedResponse>();
+  private readonly MAX_CACHE_SIZE = 10000;
+
   /**
    * Initialize embedding service with Workbench endpoint.
    *
@@ -80,15 +84,21 @@ export class EmbeddingService extends EventEmitter {
   /**
    * Request an embedding for a text signature.
    *
-   * This method is queue-based and rate-limited. Embeddings are generated
-   * sequentially to respect Workbench rate limits. The promise resolves
-   * when the embedding is ready.
+   * This method is queue-based and rate-limited with LRU caching.
+   * Embeddings are generated sequentially to respect Workbench rate limits.
+   * Cached embeddings are returned immediately without API calls.
    *
    * ALGORITHM:
    * 1. Check service is not shutdown
-   * 2. Create promise and add to queue
-   * 3. Trigger queue processing
-   * 4. Return promise (resolves when embedding ready)
+   * 2. Check cache for existing embedding (cache hit = instant return)
+   * 3. On cache miss: Create promise and add to queue
+   * 4. Trigger queue processing
+   * 5. Return promise (resolves when embedding ready)
+   *
+   * CACHE STRATEGY:
+   * - LRU eviction when cache exceeds MAX_CACHE_SIZE (10,000 items)
+   * - Cache key: `${signature}:${dimensions}`
+   * - Map maintains insertion order (oldest entries evicted first)
    *
    * @param signature - Text to embed (structural/semantic pattern)
    * @param dimensions - Embedding dimensions (768 for eGemma)
@@ -111,6 +121,19 @@ export class EmbeddingService extends EventEmitter {
       throw new Error('EmbeddingService has been shutdown');
     }
 
+    // Check cache first (LRU cache for performance)
+    const cacheKey = `${signature}:${dimensions}`;
+    const cached = this.embeddingCache.get(cacheKey);
+
+    if (cached) {
+      // Cache hit - return immediately without API call
+      // Move to end of Map (LRU update)
+      this.embeddingCache.delete(cacheKey);
+      this.embeddingCache.set(cacheKey, cached);
+      return Promise.resolve(cached);
+    }
+
+    // Cache miss - queue for processing
     return new Promise((resolve, reject) => {
       this.queue.push({ signature, dimensions, resolve, reject });
       this.processQueue().catch(reject);
@@ -118,10 +141,10 @@ export class EmbeddingService extends EventEmitter {
   }
 
   /**
-   * Process the embedding queue sequentially.
+   * Process the embedding queue sequentially with caching.
    *
    * This method runs continuously while there are jobs in the queue,
-   * processing them one by one with rate limiting.
+   * processing them one by one with rate limiting and caching results.
    *
    * ALGORITHM:
    * 1. Check if already processing or queue empty (guard)
@@ -130,8 +153,14 @@ export class EmbeddingService extends EventEmitter {
    *    a. Dequeue next job
    *    b. Wait for rate limit clearance
    *    c. Generate embedding via Workbench
-   *    d. Resolve/reject job promise
+   *    d. Cache the result (with LRU eviction if needed)
+   *    e. Resolve/reject job promise
    * 4. Clear processing flag
+   *
+   * CACHE MANAGEMENT:
+   * - After each successful embedding, add to cache
+   * - If cache exceeds MAX_CACHE_SIZE, evict oldest entry (LRU)
+   * - Map maintains insertion order for efficient LRU
    *
    * CRITICAL: Uses WorkbenchClient.waitForEmbedRateLimit() to coordinate
    * rate limiting across all embedding requests system-wide.
@@ -158,6 +187,17 @@ export class EmbeddingService extends EventEmitter {
             dimensions: job.dimensions,
           });
 
+          // Cache the result (LRU eviction if needed)
+          const cacheKey = `${job.signature}:${job.dimensions}`;
+
+          // Evict oldest entry if cache is full (LRU policy)
+          if (this.embeddingCache.size >= this.MAX_CACHE_SIZE) {
+            const firstKey = this.embeddingCache.keys().next().value;
+            this.embeddingCache.delete(firstKey);
+          }
+
+          this.embeddingCache.set(cacheKey, response);
+
           job.resolve(response);
         } catch (error) {
           job.reject(error as Error);
@@ -171,13 +211,14 @@ export class EmbeddingService extends EventEmitter {
   /**
    * Shutdown the embedding service gracefully.
    *
-   * Rejects all pending jobs and prevents new jobs from being accepted.
+   * Rejects all pending jobs, clears cache, and prevents new jobs from being accepted.
    * This is a critical cleanup step to prevent resource leaks.
    *
    * ALGORITHM:
    * 1. Set shutdown flag (prevents new jobs)
    * 2. Reject all queued jobs with shutdown error
    * 3. Clear queue
+   * 4. Clear embedding cache
    *
    * @example
    * // Always shutdown when done
@@ -194,6 +235,8 @@ export class EmbeddingService extends EventEmitter {
       const job = this.queue.shift()!;
       job.reject(new Error('EmbeddingService shutdown'));
     }
+    // Clear cache to free memory
+    this.embeddingCache.clear();
   }
 
   /**
@@ -229,5 +272,28 @@ export class EmbeddingService extends EventEmitter {
    */
   getWorkbenchClient(): WorkbenchClient {
     return this.workbench;
+  }
+
+  /**
+   * Get cache statistics for monitoring and performance analysis.
+   *
+   * @returns Object containing cache size and maximum capacity
+   *
+   * @example
+   * const stats = service.getCacheStats();
+   * console.log(`Cache: ${stats.size}/${stats.maxSize} (${stats.hitRate}%)`);
+   */
+  getCacheStats(): {
+    size: number;
+    maxSize: number;
+    utilizationPercent: number;
+  } {
+    return {
+      size: this.embeddingCache.size,
+      maxSize: this.MAX_CACHE_SIZE,
+      utilizationPercent: Math.round(
+        (this.embeddingCache.size / this.MAX_CACHE_SIZE) * 100
+      ),
+    };
   }
 }

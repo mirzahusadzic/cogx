@@ -220,21 +220,37 @@ export class GenesisOrchestrator {
     }
 
     // Phase 2: Process all files (use parsed results for native, parse remote sequentially)
+
+    // Parallel change detection: Check all files for changes concurrently
+    const changeChecks = await Promise.all(
+      files.map(async (file) => {
+        const existingIndex = await this.pgc.index.get(file.relativePath);
+        const contentHash = this.pgc.objectStore.computeHash(file.content);
+
+        return {
+          file,
+          existingIndex,
+          contentHash,
+          isChanged: !existingIndex || existingIndex.content_hash !== contentHash
+        };
+      })
+    );
+
+    // Filter to only changed files
+    const changedFileChecks = changeChecks.filter(check => check.isChanged);
+    const unchangedCount = files.length - changedFileChecks.length;
+
+    if (unchangedCount > 0) {
+      log.info(chalk.dim(`Skipping ${unchangedCount} unchanged file(s)`));
+    }
+
+    // Process changed files serially (to maintain spinner state)
     let processed = 0;
+    const totalToProcess = changedFileChecks.length;
 
-    for (const file of files) {
-      // Check if file is unchanged BEFORE starting spinner to avoid empty spinner stops
-      const existingIndex = await this.pgc.index.get(file.relativePath);
-      const contentHash = this.pgc.objectStore.computeHash(file.content);
-
-      if (existingIndex && existingIndex.content_hash === contentHash) {
-        // Skip unchanged files silently - don't even start the spinner
-        processed++;
-        continue;
-      }
-
+    for (const { file, existingIndex, contentHash } of changedFileChecks) {
       s.start(
-        `Processing ${chalk.cyan(file.relativePath)} (${++processed}/${files.length})`
+        `Processing ${chalk.cyan(file.relativePath)} (${++processed}/${totalToProcess})`
       );
       try {
         const preParsedStructural = nativeResults.get(file.relativePath);
