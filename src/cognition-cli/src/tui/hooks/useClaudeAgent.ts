@@ -83,7 +83,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const [messages, setMessages] = useState<ClaudeMessage[]>([
     {
       type: 'system',
-      content: `Welcome to Cognition CLI with AIEcho Theme 🎨\n\nStart typing to chat with Claude...`,
+      content: `
+           ⬢      ↔       👤     ↔     💎
+       Traversal      Projection    Resonance
+      `,
       timestamp: new Date(),
     },
   ]);
