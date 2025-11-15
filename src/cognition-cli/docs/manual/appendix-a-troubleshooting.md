@@ -88,10 +88,10 @@ npm install -g cognition-cli
 **Symptoms**:
 ```bash
 error cognition-cli@2.3.2: The engine "node" is incompatible with this module.
-Expected version ">=18.0.0". Got "16.14.0"
+Expected version ">=25.0.0". Got "20.14.0"
 ```
 
-**Cause**: cognition-cli requires Node.js 18+
+**Cause**: cognition-cli requires Node.js 25+
 
 **Solution**:
 
@@ -100,21 +100,21 @@ Expected version ">=18.0.0". Got "16.14.0"
 node --version
 
 # Option 1: Update via nvm
-nvm install 18
-nvm use 18
-nvm alias default 18
+nvm install 25
+nvm use 25
+nvm alias default 25
 
 # Option 2: Update via package manager
 # Ubuntu/Debian
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_25.x | sudo -E bash -
 sudo apt-get install -y nodejs
 
 # macOS (Homebrew)
-brew install node@18
-brew link --overwrite node@18
+brew install node@25
+brew link --overwrite node@25
 
 # Verify
-node --version  # Should show 18.x.x
+node --version  # Should show 25.x.x
 ```
 
 ---
