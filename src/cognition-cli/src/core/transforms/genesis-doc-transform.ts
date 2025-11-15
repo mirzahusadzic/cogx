@@ -1,3 +1,61 @@
+/**
+ * Genesis Documentation Transform
+ *
+ * Ingests markdown documentation into the Grounded Context Pool (PGC)
+ * with full provenance tracking, security validation, and multi-overlay
+ * routing. Transforms strategic documents into semantic overlays.
+ *
+ * DESIGN:
+ * This is the primary entry point for documentation ingestion. It:
+ * 1. Parses markdown into AST (using remark)
+ * 2. Classifies document type (strategic/operational/security/mathematical)
+ * 3. Validates against mission integrity (detects drift, policy violations)
+ * 4. Routes to appropriate overlay managers for knowledge extraction
+ * 5. Records provenance in transform logs for auditability
+ *
+ * SECURITY ARCHITECTURE:
+ * Multi-layered validation protects against mission drift:
+ * - Layer 1: Structural validation (file format, size limits)
+ * - Layer 2: Semantic validation (mission drift detection via embeddings)
+ * - Layer 3: Pattern detection (suspicious content, policy violations)
+ * - Mode: Advisory (warn) or Strict (block) based on config
+ *
+ * MULTI-OVERLAY ROUTING:
+ * Documents are routed to overlays based on classification:
+ * - Strategic → O₄ (Mission Concepts): Principles, values, constraints
+ * - Operational → O₅ (Operational Patterns): Workflows, quests, depth rules
+ * - Security → O₂ (Security Guidelines): Threat models, mitigations, boundaries
+ * - Mathematical → O₆ (Mathematical Proofs): Theorems, lemmas, proofs
+ *
+ * PROVENANCE TRACKING:
+ * Every document creates:
+ * - DocumentObject: Stored in objects/ (content-addressed)
+ * - TransformLog: Stored in logs/transforms/ (who, when, how)
+ * - Index Entry: Stored in index/docs/ (fast lookup)
+ * - Mission Version: Stored in mission_integrity/ (drift detection)
+ *
+ * @example
+ * // Ingest VISION.md with security validation
+ * const transform = new GenesisDocTransform(pgcRoot, workbenchUrl);
+ * const result = await transform.execute('/path/to/VISION.md');
+ * console.log(`Transform ID: ${result.transformId}`);
+ * console.log(`Fidelity: ${result.fidelity}`);
+ *
+ * @example
+ * // Document will be classified and routed
+ * // Strategic doc → O₄ Mission Concepts
+ * // Security doc → O₂ Security Guidelines
+ * // Workflow doc → O₅ Operational Patterns
+ *
+ * @example
+ * // Security validation flow
+ * // 1. Load security config (.cogx/config.ts)
+ * // 2. Extract and embed concepts
+ * // 3. Compare against previous versions (drift detection)
+ * // 4. Check for suspicious patterns
+ * // 5. Warn (advisory) or block (strict) based on mode
+ */
+
 import { MarkdownParser } from '../parsers/markdown-parser.js';
 import { ObjectStore } from '../pgc/object-store.js';
 import {
@@ -33,16 +91,6 @@ import {
 import { getTransparencyLog } from '../security/transparency-log.js';
 import chalk from 'chalk';
 
-/**
- * Genesis transform for documentation
- * Ingests markdown files into PGC with full provenance tracking
- *
- * SECURITY:
- * - Validates mission documents before ingestion
- * - Detects semantic drift and suspicious patterns
- * - Records version history for audit trail
- * - Advisory mode by default (warn, don't block)
- */
 export class GenesisDocTransform {
   private parser: MarkdownParser;
   private classifier: DocumentClassifier;
@@ -60,6 +108,18 @@ export class GenesisDocTransform {
   private mathManager: MathematicalProofsManager;
   private workbenchUrl?: string;
 
+  /**
+   * Create a new GenesisDocTransform instance
+   *
+   * @param pgcRoot - Path to .open_cognition directory
+   * @param workbenchUrl - Optional URL to egemma workbench for embeddings
+   *
+   * @example
+   * const transform = new GenesisDocTransform(
+   *   '/path/to/project/.open_cognition',
+   *   'http://localhost:8000'
+   * );
+   */
   constructor(pgcRoot: string, workbenchUrl?: string) {
     this.parser = new MarkdownParser();
     this.classifier = new DocumentClassifier();
@@ -82,6 +142,11 @@ export class GenesisDocTransform {
 
   /**
    * Initialize security (lazy load on first use)
+   *
+   * Loads security config and initializes validator/monitor only when needed.
+   * Skips initialization if security mode is 'off'.
+   *
+   * @private
    */
   private async initializeSecurity(): Promise<void> {
     if (this.securityConfig) {
@@ -104,13 +169,37 @@ export class GenesisDocTransform {
   /**
    * Execute genesis transform on a markdown file
    *
-   * SECURITY FLOW:
-   * 1. Basic file validation
-   * 2. SECURITY GATE: Validate mission document
-   * 3. Parse and store if validation passes
-   * 4. Record version for future drift detection
+   * Main entry point for document ingestion. Orchestrates the full pipeline:
+   * validation → parsing → classification → security check → overlay routing
+   * → provenance recording.
    *
-   * @param filePath - Path to markdown file to ingest
+   * ALGORITHM:
+   * 1. Validate file (exists, is markdown, under size limit)
+   * 2. Parse markdown into AST using remark
+   * 3. Classify document type (strategic/operational/security/mathematical)
+   * 4. SECURITY GATE: Run domain-specific validation
+   *    - Advisory mode: Warn but continue
+   *    - Strict mode: Block on critical failures
+   * 5. Compute content hash (SHA-256)
+   * 6. Create DocumentObject (AST + metadata + embedded concepts)
+   * 7. Store in objects/ (content-addressed)
+   * 8. Create and store TransformLog (provenance)
+   * 9. Invalidate stale overlays if document changed
+   * 10. Update index (file path → hashes mapping)
+   * 11. Record mission version (for drift detection)
+   * 12. Route to overlay managers (O₂/O₄/O₅/O₆)
+   * 13. Log to transparency trail (audit)
+   *
+   * @param filePath - Absolute path to markdown file
+   * @returns Transform result with ID, hash, fidelity
+   * @throws Error if file invalid or validation fails in strict mode
+   *
+   * @example
+   * const transform = new GenesisDocTransform(pgcRoot);
+   * const result = await transform.execute('/path/to/VISION.md');
+   * console.log(`Ingested: ${result.transformId}`);
+   * console.log(`Hash: ${result.outputHash}`);
+   * console.log(`Verified: ${result.verified}`);
    */
   async execute(filePath: string): Promise<TransformResult> {
     // 1. Validate file exists and is markdown
