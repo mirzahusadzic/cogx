@@ -10,6 +10,7 @@ dist/
 # Documentation artifacts
 docs/.vitepress/cache/
 docs/.vitepress/dist/
+docs/api/
 
 # Logs
 *.log
