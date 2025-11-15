@@ -33,10 +33,12 @@ Critical fixes for conversation continuity across compression, session state per
 
 - **Fixed overlay type handler**: `mathematical_proofs` overlay now has proper handler in OverlayOrchestrator
 - **Prevented fallthrough**: Previously fell through to `structural_patterns` generation instead of extracting mathematical statements
+- **Removed document ingestion side-effect**: Mathematical proofs generation no longer calls `autoIngestStrategicDocs()` which was triggering mission concept extraction as a side effect
+- **Cleaner separation of concerns**: `mission_concepts` overlay handles document ingestion, other overlays work on already-ingested documents
 - **Implemented extraction pipeline**: Added document discovery, proof extraction, and embedding generation flow
 - **Complete implementation**: Added `generateMathematicalProofs()` and `generateMathematicalProofsForDocument()` methods
 
-**Impact**: Command `cognition-cli overlay generate mathematical_proofs --force` now correctly extracts theorems, lemmas, axioms, and proofs from markdown documents instead of incorrectly regenerating structural patterns.
+**Impact**: Command `cognition-cli overlay generate mathematical_proofs` now correctly extracts theorems, lemmas, axioms, and proofs from already-ingested markdown documents without triggering confusing mission concept extraction in the console output. Run `mission_concepts` generation first to ingest strategic documents.
 
 ### 🎨 UI Fixes
 
