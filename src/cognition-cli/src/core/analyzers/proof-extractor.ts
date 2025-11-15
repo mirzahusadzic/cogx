@@ -1,3 +1,29 @@
+/**
+ * Mathematical Proof Extraction
+ *
+ * Extracts mathematical statements and proofs from formal documentation for O₆ (Mathematical) overlay.
+ * This is Echo's domain - enabling formal reasoning about system properties, correctness proofs,
+ * and theoretical foundations.
+ *
+ * OVERLAY TARGET: O₆ (Mathematical)
+ *
+ * EXTRACTION PATTERNS (by weight):
+ * 1. Theorems (1.0) - Formal statements with proofs
+ * 2. Axioms (1.0) - Foundational truths
+ * 3. Lemmas (0.95) - Supporting propositions
+ * 4. Proofs (0.9) - Step-by-step derivations
+ * 5. Identities (0.85) - Mathematical equalities and invariants
+ *
+ * FUTURE:
+ * This will enable the system to reason about formal properties,
+ * verify mathematical correctness, and apply Echo's theoretical framework.
+ *
+ * @example
+ * const extractor = new ProofExtractor();
+ * const knowledge = extractor.extract(theoremsDoc);
+ * // Returns: [{ text: "Theorem 1: Overlay composition is associative", statementType: "theorem", ... }, ...]
+ */
+
 import {
   MarkdownDocument,
   MarkdownSection,
@@ -14,24 +40,34 @@ import {
  * Extracts mathematical statements from formal documentation.
  * Targets O₆ (Mathematical) overlay - Echo's domain.
  *
- * Handles: ECHO_PROOFS.md, THEOREMS.md, mathematical properties
+ * STATEMENT TYPES:
+ * - theorem: Formal statements with proofs
+ * - lemma: Supporting propositions
+ * - axiom: Foundational truths
+ * - proof: Step-by-step derivations
+ * - identity: Mathematical equalities and invariants
  *
- * EXTRACTION PATTERNS:
- * 1. Theorems (formal statements with proofs)
- * 2. Lemmas (supporting propositions)
- * 3. Axioms (foundational truths)
- * 4. Corollaries (derived results)
- * 5. Proofs (step-by-step derivations)
- * 6. Mathematical identities (equalities, invariants)
- *
- * FUTURE: This will enable the system to reason about formal properties,
- * verify mathematical correctness, and apply Echo's theoretical framework.
+ * @example
+ * const extractor = new ProofExtractor();
+ * const knowledge = extractor.extract(proofsDoc);
+ * const theorems = knowledge.filter(k => k.statementType === 'theorem');
  */
 export class ProofExtractor
   implements DocumentExtractor<MathematicalKnowledge>
 {
   /**
    * Extract mathematical knowledge from document
+   *
+   * Recursively processes all sections to extract theorems, lemmas,
+   * axioms, proofs, and identities.
+   *
+   * @param doc - Parsed markdown document
+   * @returns Array of mathematical knowledge items
+   *
+   * @example
+   * const doc = parser.parse(theoremsmd);
+   * const knowledge = extractor.extract(doc);
+   * console.log(knowledge.find(k => k.text.startsWith('Theorem')));
    */
   extract(doc: MarkdownDocument): MathematicalKnowledge[] {
     const knowledge: MathematicalKnowledge[] = [];
@@ -48,6 +84,15 @@ export class ProofExtractor
 
   /**
    * Recursively extract from section and all its children
+   *
+   * Processes section tree to extract mathematical statements from
+   * all levels of the document hierarchy.
+   *
+   * @private
+   * @param section - Section to extract from
+   * @param sectionIndex - Position in parent array
+   * @param totalSections - Total sections at this level
+   * @returns Array of extracted mathematical knowledge
    */
   private extractFromSectionRecursive(
     section: MarkdownSection,
@@ -79,6 +124,9 @@ export class ProofExtractor
 
   /**
    * Supports mathematical documents
+   *
+   * @param docType - Document type to check
+   * @returns True if document type is MATHEMATICAL
    */
   supports(docType: DocumentType): boolean {
     return docType === DocumentType.MATHEMATICAL;
@@ -86,6 +134,8 @@ export class ProofExtractor
 
   /**
    * Targets O₆ (Mathematical) overlay
+   *
+   * @returns Overlay layer identifier "O6_Mathematical"
    */
   getOverlayLayer(): string {
     return 'O6_Mathematical';
@@ -93,6 +143,15 @@ export class ProofExtractor
 
   /**
    * Extract mathematical knowledge from a single section
+   *
+   * Applies all extraction patterns (theorems, lemmas, axioms, proofs,
+   * identities) based on section heading and content.
+   *
+   * @private
+   * @param section - Section to extract from
+   * @param sectionIndex - Position in parent array
+   * @param totalSections - Total sections at this level
+   * @returns Array of extracted mathematical knowledge
    */
   private extractFromSection(
     section: MarkdownSection,
@@ -179,6 +238,10 @@ export class ProofExtractor
 
   /**
    * Check if section contains theorems
+   *
+   * @private
+   * @param heading - Section heading text
+   * @returns True if heading contains "theorem"
    */
   private isTheoremSection(heading: string): boolean {
     const lower = heading.toLowerCase();
@@ -187,6 +250,10 @@ export class ProofExtractor
 
   /**
    * Check if section contains lemmas
+   *
+   * @private
+   * @param heading - Section heading text
+   * @returns True if heading contains "lemma"
    */
   private isLemmaSection(heading: string): boolean {
     const lower = heading.toLowerCase();
@@ -195,7 +262,13 @@ export class ProofExtractor
 
   /**
    * Extract theorems
+   *
    * Pattern: **Theorem N:** Statement
+   * Extracts formal theorem statements for the mathematical overlay.
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @returns Array of theorem objects
    */
   private extractTheorems(
     content: string
@@ -228,7 +301,13 @@ export class ProofExtractor
 
   /**
    * Extract lemmas (supporting propositions)
+   *
    * Pattern: **Lemma N:** Statement
+   * Lemmas are supporting propositions used in proofs of larger theorems.
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @returns Array of lemma objects
    */
   private extractLemmas(
     content: string
@@ -259,7 +338,13 @@ export class ProofExtractor
 
   /**
    * Extract proofs
+   *
    * Pattern: **Proof:** ... Q.E.D. or ∎
+   * Extracts proof blocks with optional step-by-step structure.
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @returns Array of proof objects with optional proof steps
    */
   private extractProofs(
     content: string
@@ -291,7 +376,13 @@ export class ProofExtractor
 
   /**
    * Extract axioms (foundational truths)
+   *
    * Pattern: **Axiom N:** Statement
+   * Axioms are the foundational truths upon which theorems are built.
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @returns Array of axiom objects
    */
   private extractAxioms(content: string): Array<{ text: string }> {
     const axioms: Array<{ text: string }> = [];
@@ -317,7 +408,13 @@ export class ProofExtractor
 
   /**
    * Extract mathematical identities/invariants
-   * Pattern: Equations, invariant statements
+   *
+   * Pattern: Equations in code blocks (LaTeX-like notation)
+   * Looks for equality statements (contains '=').
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @returns Array of identity objects with formal notation
    */
   private extractIdentities(
     content: string
