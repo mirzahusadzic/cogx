@@ -1,3 +1,30 @@
+/**
+ * Genesis Command: Build the Verifiable Skeleton
+ *
+ * The genesis command constructs the foundational representation of source code by:
+ * - Mining structural patterns (symbols, functions, classes, types)
+ * - Extracting semantic meaning via embedding-based analysis
+ * - Building the Grounded Context Pool (PGC) with complete lineage tracking
+ * - Creating O1 (Structural Patterns overlay) with full architectural role assignments
+ *
+ * This is the first step in the cognitive architecture pipeline (Monument 1).
+ *
+ * WORKFLOW:
+ * 1. Validate PGC initialization (.open_cognition directory structure)
+ * 2. Connect to workbench (eGemma for embedding generation)
+ * 3. Initialize structural miner (three-layer pipeline)
+ * 4. Execute bottom-up aggregation phase
+ * 5. Persist O1 overlay with vector embeddings
+ *
+ * @example
+ * // Build the skeleton from source code
+ * cognition-cli genesis --source src/
+ *
+ * @example
+ * // Specify custom workbench URL
+ * cognition-cli genesis --source src/ --workbench http://localhost:8000
+ */
+
 import { intro, outro, spinner, log } from '@clack/prompts';
 import chalk from 'chalk';
 import fs from 'fs-extra';
@@ -26,6 +53,14 @@ interface GenesisOptions {
   projectRoot: string;
 }
 
+/**
+ * Validates that PGC is properly initialized in the project root.
+ *
+ * @param projectRoot - Root directory of the project containing .open_cognition
+ * @throws {PGCInitializationError} If .open_cognition directory or metadata.json not found
+ * @example
+ * await validatePgcInitialized(process.cwd());
+ */
 async function validatePgcInitialized(projectRoot: string): Promise<void> {
   const pgcRoot = path.join(projectRoot, '.open_cognition');
   const metadataPath = path.join(pgcRoot, 'metadata.json');
@@ -47,6 +82,21 @@ async function validatePgcInitialized(projectRoot: string): Promise<void> {
 
 /**
  * Executes the genesis command to build the verifiable skeleton from source code.
+ *
+ * Orchestrates the full bottom-up aggregation pipeline:
+ * - Validates PGC structure
+ * - Initializes workbench connection for embeddings
+ * - Runs structural mining (three-layer pipeline: tokenization → AST → symbol extraction)
+ * - Persists O1 overlay with vector embeddings and lineage tracking
+ *
+ * @param options - Genesis command options (source path, workbench URL, project root)
+ * @throws Error if workbench is unreachable, source code invalid, or mining fails
+ * @example
+ * await genesisCommand({
+ *   source: 'src/',
+ *   workbench: 'http://localhost:8000',
+ *   projectRoot: process.cwd()
+ * });
  */
 export async function genesisCommand(options: GenesisOptions) {
   intro(chalk.bold('Genesis: Building the Verifiable Skeleton'));
