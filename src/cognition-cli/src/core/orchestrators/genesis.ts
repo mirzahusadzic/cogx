@@ -27,7 +27,48 @@ import {
 } from '../../config.js';
 
 /**
- * Calculates optimal worker count for parallel native AST parsing.
+ * Genesis Orchestrator: Main entry point for structural data extraction and PGC initialization
+ *
+ * Implements the bottom-up aggregation phase of the Genesis process:
+ * 1. Discover and parse source files (native TS/JS in parallel, remote Python sequentially)
+ * 2. Extract structural metadata (classes, functions, interfaces, dependencies)
+ * 3. Store in Grounded Context Pool (PGC) with content & structural hashing
+ * 4. Record transformation lineage in transformLog and reverseDeps
+ * 5. Run garbage collection to maintain PGC coherence
+ * 6. Verify structural consistency via GenesisOracle
+ *
+ * DESIGN PATTERNS:
+ * - Two-phase processing: Parallel native parsing → Sequential remote parsing
+ * - PGC anchoring: All structural data stored as immutable objects via content hashing
+ * - Lineage tracking: Every transformation recorded for audit trail and invalidation
+ * - Incremental: Skips unchanged files (content hash comparison)
+ * - Optimized GC: Preserves hashes referenced by overlays
+ *
+ * @example
+ * const pgc = new PGCManager(projectRoot);
+ * const orchestrator = new GenesisOrchestrator(pgc, miner, workbench, genesisOracle, projectRoot);
+ * await orchestrator.executeBottomUpAggregation('src');
+ * // → Extracts all TypeScript/JavaScript/Python files from src/
+ * // → Stores in .open_cognition/index/, .open_cognition/objects/
+ * // → PGC is now ready for overlay generation
+ */
+
+/**
+ * Calculates optimal worker count for parallel native AST parsing
+ *
+ * Uses adaptive scaling based on file count and available CPU cores:
+ * - Small codebases (≤10 files): 2 workers
+ * - Medium codebases (≤50 files): 4 workers
+ * - Large codebases (>50 files): up to 8 workers (75% of CPUs)
+ *
+ * @param fileCount - Number of files to parse in parallel
+ * @returns Optimal number of worker threads for this codebase size
+ *
+ * @example
+ * const workerCount = calculateOptimalWorkersForParsing(150);
+ * // On 8-core machine: returns Math.min(8, Math.floor(8 * 0.75)) = 6 workers
+ *
+ * @private
  */
 function calculateOptimalWorkersForParsing(fileCount: number): number {
   const cpuCount = os.cpus().length;
@@ -45,7 +86,18 @@ function calculateOptimalWorkersForParsing(fileCount: number): number {
 }
 
 /**
- * Orchestrates the Genesis process for extracting structural data from source files.
+ * GenesisOrchestrator: Orchestrates the bottom-up structural data extraction process
+ *
+ * Responsibilities:
+ * - Discover source files across the project
+ * - Parse native TS/JS files in parallel using worker threads (speed optimization)
+ * - Parse remote files (Python) sequentially via eGemma workbench
+ * - Extract structural metadata: classes, functions, interfaces, dependencies, imports
+ * - Store immutable objects in PGC (Grounded Context Pool) via content hashing
+ * - Record all transformations in transformLog for audit trails
+ * - Maintain reverse dependencies for surgical invalidation during updates
+ * - Perform garbage collection to remove stale entries while preserving overlay references
+ * - Verify PGC structural coherence via GenesisOracle
  */
 export class GenesisOrchestrator {
   private maxFileSize = DEFAULT_MAX_FILE_SIZE;
@@ -64,6 +116,39 @@ export class GenesisOrchestrator {
     this.docsOracle = new DocsOracle(pgc);
   }
 
+  /**
+   * Execute the Genesis bottom-up aggregation process
+   *
+   * This is the main entry point that orchestrates the entire structural extraction pipeline:
+   * 1. Verify workbench (eGemma) is available for semantic analysis
+   * 2. Discover all source files (TS/JS/Python/Java/Rust/Go)
+   * 3. Parse native files in parallel (TS/JS with tree-sitter)
+   * 4. Process files sequentially with structural extraction & storage
+   * 5. Aggregate directory-level summaries (bottom-up)
+   * 6. Perform garbage collection to maintain PGC coherence
+   * 7. Verify structural integrity via GenesisOracle
+   *
+   * LINEAGE TRACKING:
+   * - Stores content hash in object store for each file
+   * - Stores structural data hash for extracted metadata
+   * - Records transformation ID linking inputs → outputs
+   * - Maintains reverse deps for invalidation during updates
+   *
+   * @param sourcePath - Relative path to source directory (e.g., 'src', 'lib')
+   * @returns Promise<void> - Updates PGC in-place. Throws if critical verification fails.
+   *
+   * @throws {Error} If workbench health check fails for workbench-dependent extraction methods
+   * @throws {Error} If PGC verification fails after garbage collection
+   *
+   * @example
+   * const pgc = new PGCManager('.');
+   * const miner = new StructuralMiner(workbench);
+   * const orchestrator = new GenesisOrchestrator(pgc, miner, workbench, oracle, '.');
+   * await orchestrator.executeBottomUpAggregation('src');
+   * // Processes all files in src/, stores in .open_cognition/
+   *
+   * @public
+   */
   async executeBottomUpAggregation(sourcePath: string) {
     const s = spinner();
     const errors: { file: string; message: string }[] = [];
@@ -190,6 +275,21 @@ export class GenesisOrchestrator {
 
   /**
    * Initialize worker pool for parallel native AST parsing
+   *
+   * Creates a pool of worker threads (using Node's worker_threads) to parallelize
+   * the expensive tree-sitter AST parsing for TypeScript/JavaScript files.
+   * Uses adaptive worker count based on codebase size and available CPUs.
+   *
+   * CLEANUP:
+   * - Workers are explicitly terminated in shutdownWorkers() after processing
+   * - Uses thread-based workers (not child processes) for better resource cleanup
+   * - Graceful timeout (5s) to prevent worker hangs
+   *
+   * @param fileCount - Number of files that will be parsed (determines worker count)
+   * @returns Promise<void> - Resolves when pool is ready
+   * @throws {Error} If worker initialization fails
+   *
+   * @private
    */
   private async initializeWorkers(fileCount: number): Promise<void> {
     if (this.workerPool) return;
@@ -214,7 +314,18 @@ export class GenesisOrchestrator {
   }
 
   /**
-   * Shutdown worker pool
+   * Shutdown worker pool gracefully
+   *
+   * Terminates all worker threads to free system resources. Implements:
+   * - Force termination with 5-second timeout
+   * - Logging of warnings (not errors) to prevent startup failure on cleanup issues
+   * - Cleanup guaranteed via finally block
+   *
+   * IMPORTANT: Even if shutdown fails, we continue (graceful degradation).
+   * OS will kill any lingering threads when process exits.
+   *
+   * @returns Promise<void> - Completes when pool is terminated
+   * @private
    */
   private async shutdownWorkers(): Promise<void> {
     if (this.workerPool) {
@@ -240,7 +351,29 @@ export class GenesisOrchestrator {
   }
 
   /**
-   * Parse native files in parallel using workers
+   * Parse native files in parallel using worker threads
+   *
+   * Distributes TypeScript/JavaScript files across worker pool for parallel AST parsing.
+   * Each worker runs independently on tree-sitter parser.
+   *
+   * ALGORITHM:
+   * 1. Create job packets with file content and content hash
+   * 2. Submit jobs to worker pool (handles distribution and load balancing)
+   * 3. Collect results (success/error status + structural data or error message)
+   * 4. Report success/failure counts to user
+   *
+   * @param files - Array of SourceFile objects (all should be TS/JS)
+   * @param s - Spinner for user feedback
+   * @returns Promise<GenesisJobResult[]> - Array of parsing results (success or error)
+   * @throws {Error} If worker pool execution fails (propagates Promise.all() rejection)
+   *
+   * @example
+   * const files = [{ path: 'src/index.ts', language: 'typescript', content: '...' }];
+   * const results = await this.parseNativeFilesParallel(files, spinner);
+   * // → results[0] = { status: 'success', structuralData: {...} }
+   * // → or { status: 'error', error: 'message' }
+   *
+   * @private
    */
   private async parseNativeFilesParallel(
     files: SourceFile[],
