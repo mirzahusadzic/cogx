@@ -1,0 +1,40 @@
+{
+  "entryPoints": ["./src"],
+  "entryPointStrategy": "expand",
+  "out": "./docs/api",
+  "exclude": [
+    "**/*.test.ts",
+    "**/__tests__/**",
+    "**/node_modules/**"
+  ],
+  "excludePrivate": false,
+  "excludeProtected": false,
+  "excludeInternal": false,
+  "includeVersion": true,
+  "readme": "README.md",
+  "name": "Cognition CLI API Documentation",
+  "categorizeByGroup": true,
+  "categoryOrder": [
+    "Commands",
+    "Core",
+    "Sigma",
+    "TUI",
+    "Overlays",
+    "Security",
+    "PGC",
+    "*"
+  ],
+  "plugin": [],
+  "theme": "default",
+  "navigation": {
+    "includeCategories": true,
+    "includeGroups": true
+  },
+  "sort": ["source-order"],
+  "gitRevision": "main",
+  "sourceLinkTemplate": "https://github.com/mirzahusadzic/cogx/blob/{gitRevision}/{path}#L{line}",
+  "compilerOptions": {
+    "skipLibCheck": true
+  },
+  "skipErrorChecking": true
+}
