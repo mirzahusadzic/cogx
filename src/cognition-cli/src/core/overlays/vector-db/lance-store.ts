@@ -502,10 +502,10 @@ export class LanceVectorStore {
       }
     });
 
-    // Delete all duplicates
-    for (const id of duplicatesToDelete) {
-      await this.deleteVector(id);
-    }
+    // Delete all duplicates in parallel for better performance
+    await Promise.all(
+      duplicatesToDelete.map((id) => this.deleteVector(id))
+    );
 
     return duplicatesToDelete.length;
   }
