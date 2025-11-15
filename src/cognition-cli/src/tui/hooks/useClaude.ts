@@ -1,13 +1,87 @@
+/**
+ * Claude PTY Session Manager (Legacy)
+ *
+ * React hook for managing Claude CLI sessions via pseudo-terminal (PTY).
+ * Spawns a child Claude process in a real terminal emulator, enabling
+ * interactive session management with terminal escape sequences.
+ *
+ * DESIGN:
+ * This is a legacy hook - modern TUI uses useClaudeAgent with Agent SDK instead.
+ * Kept for backward compatibility and reference.
+ *
+ * The PTY approach provides:
+ * - Real terminal emulation (colors, cursor control, etc.)
+ * - Session resumption via --resume flag
+ * - Exit code handling
+ *
+ * However, it has limitations:
+ * - Limited programmatic control over Claude behavior
+ * - No access to internal state (thinking tokens, tool calls)
+ * - Difficult to parse streaming output
+ *
+ * For new code, prefer useClaudeAgent which uses the Agent SDK
+ * for deeper integration.
+ *
+ * @example
+ * // Legacy PTY-based Claude session
+ * const { ptySession, write, error } = useClaude({
+ *   sessionId: 'my-session-123'
+ * });
+ *
+ * if (ptySession) {
+ *   ptySession.onData((data) => {
+ *     console.log('Claude output:', data);
+ *   });
+ *
+ *   write('What is 2+2?\n');
+ * }
+ */
+
 import { useEffect, useState } from 'react';
 import * as pty from 'node-pty';
 import { IPty } from 'node-pty';
 
+/**
+ * Configuration options for PTY-based Claude session
+ */
 interface UseClaudeOptions {
+  /**
+   * Session ID to resume (passed to --resume flag)
+   * If not provided, starts fresh session
+   */
   sessionId?: string;
 }
 
 /**
- * Hook to manage Claude PTY session
+ * Manages Claude CLI session via pseudo-terminal (PTY).
+ *
+ * ALGORITHM:
+ * 1. Spawn Claude process with node-pty
+ * 2. Configure terminal size from current stdout
+ * 3. Attach exit handler to track session end
+ * 4. Return session handle for reading/writing
+ * 5. Clean up on unmount
+ *
+ * The PTY provides bidirectional communication:
+ * - write() sends input to Claude's stdin
+ * - onData() receives output from Claude's stdout/stderr
+ *
+ * @param options - Configuration for session management
+ * @returns Object with PTY session, write function, and error state
+ *
+ * @example
+ * // Start new PTY session
+ * const { ptySession, write } = useClaude({});
+ *
+ * @example
+ * // Resume existing session
+ * const { ptySession, write, error } = useClaude({
+ *   sessionId: 'abc-123'
+ * });
+ *
+ * if (error) {
+ *   console.error('Session failed:', error);
+ * }
  */
 export function useClaude(options: UseClaudeOptions) {
   const [ptySession, setPtySession] = useState<IPty | null>(null);
