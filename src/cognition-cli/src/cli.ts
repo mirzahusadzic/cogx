@@ -1,4 +1,64 @@
 #!/usr/bin/env node
+
+/**
+ * Cognition CLI - Main Entry Point
+ *
+ * A meta-interpreter for verifiable, stateful AI cognition built on the
+ * Grounded Context Pool (PGC) architecture. Provides commands for:
+ * - Initializing and building PGC workspaces
+ * - Ingesting code and documentation with full provenance
+ * - Querying across semantic overlays using lattice algebra
+ * - Real-time file watching and incremental updates
+ * - Interactive TUI with Claude integration
+ * - Security validation and coherence analysis
+ *
+ * DESIGN:
+ * The CLI uses Commander.js for command registration and routing.
+ * Commands are organized into categories:
+ * 1. Core: init, genesis, query, watch, update
+ * 2. Overlays: overlay, patterns, concepts, coherence
+ * 3. Algebra: lattice (boolean operations across overlays)
+ * 4. Sugar: security, workflow, proofs (convenience wrappers)
+ * 5. Interactive: tui, ask (LLM-powered interfaces)
+ * 6. Audit: audit:transformations, audit:docs (transparency)
+ *
+ * ARCHITECTURE:
+ * - All commands operate on a PGC workspace (.open_cognition directory)
+ * - Commands follow a functional style: parse options → execute → format output
+ * - Security is bootstrapped on startup (one-time mandate acknowledgment)
+ * - Workbench URL can be overridden via --workbench flag or WORKBENCH_URL env var
+ *
+ * @example
+ * // Initialize new PGC workspace
+ * $ cognition-cli init
+ *
+ * // Build structural overlay from code
+ * $ cognition-cli genesis src/
+ *
+ * // Ingest documentation into mission overlay
+ * $ cognition-cli genesis:docs VISION.md
+ *
+ * // Query using lattice algebra
+ * $ cognition-cli lattice "O2[attack_vector] ~ O4"
+ *
+ * // Launch interactive TUI
+ * $ cognition-cli tui
+ *
+ * @example
+ * // Security analysis workflow
+ * $ cognition-cli genesis src/           # O₁: Structural
+ * $ cognition-cli genesis:docs VISION.md # O₄: Mission
+ * $ cognition-cli security attacks        # Find policy violations
+ * $ cognition-cli security coverage-gaps  # Find uncovered symbols
+ *
+ * @example
+ * // Watch mode for incremental updates
+ * $ cognition-cli watch
+ * # Edit files... changes detected and PGC updated automatically
+ * $ cognition-cli status  # Check dirty state
+ * $ cognition-cli update  # Apply pending changes
+ */
+
 import { Command } from 'commander';
 import path from 'path';
 import { genesisCommand } from './commands/genesis.js';
@@ -47,14 +107,48 @@ program
     });
   });
 
+/**
+ * Options for the query command
+ *
+ * Controls query behavior and output formatting
+ */
 interface QueryCommandOptions {
+  /** Root directory of the project being queried */
   projectRoot: string;
+  /** Depth of dependency traversal (string to support CLI parsing) */
   depth: string;
+  /** Output dependency lineage in JSON format instead of human-readable */
   lineage: boolean;
-  // Test property to trigger Monument 4.7 overlay invalidation
+  /** Test property to trigger Monument 4.7 overlay invalidation */
   testOverlayInvalidation?: boolean;
 }
 
+/**
+ * Execute query command and format output
+ *
+ * Queries the PGC for information and formats the response based on
+ * the --lineage flag. By default, outputs human-readable text.
+ * With --lineage, outputs structured JSON with dependency chains.
+ *
+ * @param question - Natural language query to execute
+ * @param options - Query options including output format
+ *
+ * @example
+ * // Human-readable output (default)
+ * await queryAction("What does handleAuth do?", {
+ *   projectRoot: '/path/to/project',
+ *   depth: '0',
+ *   lineage: false
+ * });
+ *
+ * @example
+ * // JSON lineage output
+ * await queryAction("What does handleAuth do?", {
+ *   projectRoot: '/path/to/project',
+ *   depth: '2',
+ *   lineage: true
+ * });
+ */
 async function queryAction(question: string, options: QueryCommandOptions) {
   const queryResult = await queryCommand(question, options);
   if (options.lineage) {

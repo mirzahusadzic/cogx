@@ -1,21 +1,81 @@
-import chalk from 'chalk';
-
 /**
- * Shared formatter utilities for consistent, colorful CLI output
+ * CLI Output Formatting Utilities
+ *
+ * Provides consistent, colorful formatting for CLI output including:
+ * - Overlay type badges with color coding
+ * - Severity level formatting (critical/high/medium/low)
+ * - Similarity scores with visual feedback
+ * - Text cleaning and truncation
+ * - Box drawing and table formatting
+ *
+ * DESIGN:
+ * Uses chalk for ANSI color codes. Color schemes are centralized
+ * for consistency across all commands. Formatters are pure functions
+ * that take data and return styled strings.
+ *
+ * COLOR SCHEME:
+ * - O₁ (Structural): Blue
+ * - O₂ (Security): Red
+ * - O₃ (Lineage): Yellow
+ * - O₄ (Mission): Magenta
+ * - O₅ (Operational): Cyan
+ * - O₆ (Mathematical): Green
+ * - O₇ (Strategic Coherence): White
+ *
+ * DESIGN RATIONALE:
+ * - stripAnsi is used for accurate width calculations when wrapping
+ * - cleanText removes artifacts (ASCII art, repeated sentences) before display
+ * - smartTruncate preserves word boundaries for readability
+ * - Box formatting auto-wraps long lines to 80 chars max
+ *
+ * @example
+ * // Format an overlay badge
+ * const badge = colorOverlayBadge('O2'); // "[O2]" in red
+ *
+ * // Format a similarity score
+ * const score = colorSimilarity(0.87); // "87.0%" in green
+ *
+ * // Create a formatted box
+ * const box = createBox([
+ *   formatKeyValue('Type', 'attack_vector'),
+ *   formatKeyValue('Severity', colorSeverity('critical'))
+ * ], 'Security Alert');
+ *
+ * @example
+ * // Table formatting
+ * console.log(tableHeader(['ID', 'Type', 'Severity']));
+ * console.log(separator());
+ * console.log(tableRow([
+ *   formatId('abc123...[O2]'),
+ *   'threat_model',
+ *   colorSeverity('high')
+ * ]));
  */
 
-// Color schemes for different overlay types
+import chalk from 'chalk';
+
+// ========================================
+// COLOR SCHEMES
+// ========================================
+
+/**
+ * Color schemes for different overlay types
+ * Maps overlay identifier (O1-O7) to chalk color function
+ */
 const OVERLAY_COLORS: Record<string, (text: string) => string> = {
-  O1: chalk.blue,
-  O2: chalk.red,
-  O3: chalk.yellow,
-  O4: chalk.magenta,
-  O5: chalk.cyan,
-  O6: chalk.green,
-  O7: chalk.white,
+  O1: chalk.blue, // Structural
+  O2: chalk.red, // Security
+  O3: chalk.yellow, // Lineage
+  O4: chalk.magenta, // Mission
+  O5: chalk.cyan, // Operational
+  O6: chalk.green, // Mathematical
+  O7: chalk.white, // Strategic Coherence
 };
 
-// Severity colors
+/**
+ * Color schemes for severity levels
+ * Maps severity string to chalk color function
+ */
 const SEVERITY_COLORS: Record<string, (text: string) => string> = {
   critical: chalk.red.bold,
   high: chalk.red,
@@ -24,15 +84,39 @@ const SEVERITY_COLORS: Record<string, (text: string) => string> = {
   info: chalk.gray,
 };
 
+// ========================================
+// HASH AND ID FORMATTING
+// ========================================
+
 /**
  * Truncate hash to first 8 characters
+ *
+ * Makes hashes readable in table output while maintaining
+ * enough entropy for human disambiguation.
+ *
+ * @param hash - Full SHA-256 hash (64 chars)
+ * @returns First 8 characters of hash
+ *
+ * @example
+ * truncateHash('abc123def456...') // 'abc123de'
  */
 export function truncateHash(hash: string): string {
   return hash.substring(0, 8);
 }
 
 /**
- * Extract overlay type from ID (e.g., "[O2]" from the ID string)
+ * Extract overlay type from ID
+ *
+ * Parses the overlay identifier from a PGC ID string.
+ * IDs follow the format: "hash:[O2]:semantic_path"
+ *
+ * @param id - PGC item ID
+ * @returns Overlay type (e.g., "O2") or null if not found
+ *
+ * @example
+ * extractOverlayType('abc123:[O2]:auth.handleLogin') // 'O2'
+ * extractOverlayType('def456:[o4]:principle.trust')  // 'O4'
+ * extractOverlayType('xyz789:no-overlay')            // null
  */
 export function extractOverlayType(id: string): string | null {
   const match = id.match(/\[([O]\d+)\]/i);
@@ -41,14 +125,39 @@ export function extractOverlayType(id: string): string | null {
 
 /**
  * Color code an overlay type badge
+ *
+ * Returns the overlay identifier wrapped in brackets with
+ * the appropriate color from OVERLAY_COLORS scheme.
+ *
+ * @param type - Overlay identifier (e.g., 'O2', 'O4')
+ * @returns Colored badge string
+ *
+ * @example
+ * colorOverlayBadge('O2') // "[O2]" in red
+ * colorOverlayBadge('O4') // "[O4]" in magenta
  */
 export function colorOverlayBadge(type: string): string {
   const colorFn = OVERLAY_COLORS[type] || chalk.white;
   return colorFn(`[${type}]`);
 }
 
+// ========================================
+// SEVERITY AND SCORE FORMATTING
+// ========================================
+
 /**
  * Color code a severity level
+ *
+ * Applies consistent color coding to severity strings.
+ * Case-insensitive matching against SEVERITY_COLORS.
+ *
+ * @param severity - Severity level (critical|high|medium|low|info)
+ * @returns Colored severity string
+ *
+ * @example
+ * colorSeverity('critical') // "critical" in red bold
+ * colorSeverity('HIGH')     // "HIGH" in red
+ * colorSeverity('medium')   // "medium" in yellow
  */
 export function colorSeverity(severity: string): string {
   const colorFn = SEVERITY_COLORS[severity.toLowerCase()] || chalk.white;
@@ -57,6 +166,22 @@ export function colorSeverity(severity: string): string {
 
 /**
  * Color code a similarity score (percentage)
+ *
+ * Visual feedback for semantic similarity scores from vector search.
+ * Color intensity indicates match quality:
+ * - Green: >= 80% (strong match)
+ * - Yellow: 60-79% (moderate match)
+ * - Yellow dim: 40-59% (weak match)
+ * - Red dim: < 40% (very weak match)
+ *
+ * @param similarity - Similarity score (0.0 to 1.0)
+ * @returns Colored percentage string
+ *
+ * @example
+ * colorSimilarity(0.87) // "87.0%" in green bold
+ * colorSimilarity(0.65) // "65.0%" in yellow
+ * colorSimilarity(0.42) // "42.0%" in yellow dim
+ * colorSimilarity(0.15) // "15.0%" in red dim
  */
 export function colorSimilarity(similarity: number): string {
   const percent = similarity * 100;
@@ -66,9 +191,42 @@ export function colorSimilarity(similarity: number): string {
   return chalk.red.dim(`${percent.toFixed(1)}%`);
 }
 
+// ========================================
+// TEXT CLEANING AND TRUNCATION
+// ========================================
+
 /**
  * Clean text - remove repeated sentences and ASCII art artifacts
- * (no truncation, just cleanup)
+ *
+ * Preprocesses text before display by:
+ * 1. Detecting and inline-formatting JSON (lineage patterns)
+ * 2. Removing duplicate sentences (common in malformed data)
+ * 3. Stripping ASCII art boxes and keeping text before them
+ *
+ * Does NOT truncate - use smartTruncate() if length limit needed.
+ *
+ * ALGORITHM:
+ * - JSON Detection: Try parsing, format as "symbol → relationships"
+ * - Deduplication: Split by sentence, filter duplicates
+ * - ASCII Art: Detect box-drawing chars, extract text before
+ *
+ * @param text - Raw text to clean
+ * @returns Cleaned text (no length limit)
+ *
+ * @example
+ * // JSON lineage formatting
+ * cleanText('{"symbol":"auth.login","lineage":[...]}')
+ * // → "auth.login → depends on user, calls db"
+ *
+ * @example
+ * // Duplicate sentence removal
+ * cleanText('Hello world. Hello world. Goodbye.')
+ * // → "Hello world. Goodbye."
+ *
+ * @example
+ * // ASCII art stripping
+ * cleanText('Data before ┌──────┐\n│ Box │\n└──────┘')
+ * // → "Data before [...]"
  */
 export function cleanText(text: string): string {
   let cleaned = text;
@@ -127,7 +285,28 @@ export function cleanText(text: string): string {
 
 /**
  * Smart truncate - break at word boundaries, preserve readability
- * (use cleanText instead if you don't need truncation)
+ *
+ * Truncates text to maxLength while preserving word boundaries.
+ * First cleans text using cleanText(), then truncates intelligently.
+ *
+ * ALGORITHM:
+ * 1. Clean text first (remove artifacts)
+ * 2. If under limit, return as-is
+ * 3. Find last space within 80% of maxLength
+ * 4. Truncate at space boundary and append '...'
+ *
+ * Use cleanText() directly if you don't need length limit.
+ *
+ * @param text - Text to truncate
+ * @param maxLength - Maximum character length
+ * @returns Truncated text with '...' suffix if needed
+ *
+ * @example
+ * smartTruncate('The quick brown fox jumps over the lazy dog', 20)
+ * // → "The quick brown..."
+ *
+ * smartTruncate('Short', 100)
+ * // → "Short" (no truncation)
  */
 export function smartTruncate(text: string, maxLength: number): string {
   const cleaned = cleanText(text);
@@ -146,6 +325,20 @@ export function smartTruncate(text: string, maxLength: number): string {
 
 /**
  * Format an ID for display (hash + overlay type if present)
+ *
+ * Formats PGC item IDs for table display:
+ * - Truncates hash to 8 chars (dimmed)
+ * - Extracts and color-codes overlay badge if present
+ *
+ * @param id - PGC item ID (format: "hash:[O2]:path")
+ * @returns Formatted ID with colored overlay badge
+ *
+ * @example
+ * formatId('abc123def:[O2]:auth.login')
+ * // → "abc123de [O2]" (hash dimmed, O2 in red)
+ *
+ * formatId('xyz789abc:no-overlay')
+ * // → "xyz789ab" (hash only, dimmed)
  */
 export function formatId(id: string): string {
   const parts = id.split(':');
@@ -159,8 +352,25 @@ export function formatId(id: string): string {
   return chalk.dim(hash);
 }
 
+// ========================================
+// BOX AND TABLE FORMATTING
+// ========================================
+
 /**
  * Wrap a long line into multiple lines at word boundaries
+ *
+ * Internal helper for createBox(). Wraps text to fit within maxWidth
+ * while respecting ANSI color codes (uses stripAnsi for width calc).
+ *
+ * ALGORITHM:
+ * 1. Strip ANSI codes to measure actual display width
+ * 2. If under limit, return as-is
+ * 3. Split into words, accumulate until width exceeded
+ * 4. If single word exceeds limit, truncate with '...'
+ *
+ * @param line - Line to wrap (may contain ANSI codes)
+ * @param maxWidth - Maximum display width
+ * @returns Array of wrapped lines (preserving ANSI codes)
  */
 function wrapLine(line: string, maxWidth: number): string[] {
   const stripped = stripAnsi(line);
@@ -209,6 +419,39 @@ function wrapLine(line: string, maxWidth: number): string[] {
 
 /**
  * Create a box border for grouping related content
+ *
+ * Draws a Unicode box around content with optional title.
+ * Auto-wraps long lines to 80 chars max. Handles ANSI colors correctly.
+ *
+ * DESIGN:
+ * - Uses Unicode box-drawing characters (┌─┐│└┘)
+ * - Title integrated into top border if provided
+ * - Content auto-wrapped at 76 chars (80 - 4 for borders)
+ * - Preserves ANSI color codes in content
+ *
+ * @param content - Array of content lines (may contain ANSI codes)
+ * @param title - Optional title for top border
+ * @returns Formatted box as multiline string
+ *
+ * @example
+ * createBox([
+ *   'Type: attack_vector',
+ *   'Severity: critical'
+ * ], 'Security Alert')
+ * // ┌─ Security Alert ──────┐
+ * // │ Type: attack_vector   │
+ * // │ Severity: critical    │
+ * // └───────────────────────┘
+ *
+ * @example
+ * // Auto-wrapping
+ * createBox([
+ *   'This is a very long line that exceeds the maximum width and will be wrapped automatically'
+ * ])
+ * // ┌──────────────────────────────┐
+ * // │ This is a very long line     │
+ * // │ that exceeds the maximum...  │
+ * // └──────────────────────────────┘
  */
 export function createBox(content: string[], title?: string): string {
   const maxBoxWidth = 80;
@@ -243,6 +486,17 @@ export function createBox(content: string[], title?: string): string {
 
 /**
  * Create a simple separator line
+ *
+ * Draws a horizontal separator using repeated characters.
+ * Output is dimmed for visual hierarchy.
+ *
+ * @param char - Character to repeat (default: box-drawing horizontal)
+ * @param length - Number of repetitions (default: 60)
+ * @returns Dimmed separator string
+ *
+ * @example
+ * separator() // ──────────... (60 chars, dimmed)
+ * separator('=', 40) // ======== (40 chars, dimmed)
  */
 export function separator(char: string = '─', length: number = 60): string {
   return chalk.dim(char.repeat(length));
@@ -250,6 +504,13 @@ export function separator(char: string = '─', length: number = 60): string {
 
 /**
  * Strip ANSI color codes for length calculation
+ *
+ * Internal utility for accurate width measurement when text
+ * contains ANSI escape sequences. Essential for proper box
+ * formatting and text wrapping.
+ *
+ * @param text - Text with ANSI codes
+ * @returns Plain text without ANSI codes
  */
 function stripAnsi(text: string): string {
   // eslint-disable-next-line no-control-regex
@@ -258,6 +519,21 @@ function stripAnsi(text: string): string {
 
 /**
  * Format a key-value pair with aligned colons
+ *
+ * Creates consistent key-value formatting with dimmed keys
+ * and aligned colons for readability.
+ *
+ * @param key - Key name (will be dimmed and padded)
+ * @param value - Value (may contain ANSI codes)
+ * @param keyWidth - Width to pad key to (default: 12)
+ * @returns Formatted "key: value" string
+ *
+ * @example
+ * formatKeyValue('Type', 'attack_vector')
+ * // "Type        : attack_vector" (key dimmed)
+ *
+ * formatKeyValue('ID', formatId('abc123:[O2]'), 15)
+ * // "ID             : abc123de [O2]" (15-char key width)
  */
 export function formatKeyValue(
   key: string,
@@ -270,6 +546,16 @@ export function formatKeyValue(
 
 /**
  * Create a table header
+ *
+ * Formats column headers with bold text and vertical separators.
+ * Used with tableRow() for consistent table formatting.
+ *
+ * @param columns - Array of column header strings
+ * @returns Bold header with separators
+ *
+ * @example
+ * tableHeader(['ID', 'Type', 'Severity'])
+ * // "ID  │  Type  │  Severity" (bold)
  */
 export function tableHeader(columns: string[]): string {
   return chalk.bold(columns.join('  │  '));
@@ -277,6 +563,20 @@ export function tableHeader(columns: string[]): string {
 
 /**
  * Create a table row
+ *
+ * Formats row values with vertical separators matching tableHeader().
+ * Values may contain ANSI codes for coloring.
+ *
+ * @param values - Array of cell values
+ * @returns Row with separators
+ *
+ * @example
+ * tableRow([
+ *   formatId('abc123:[O2]'),
+ *   'threat_model',
+ *   colorSeverity('critical')
+ * ])
+ * // "abc123de [O2]  │  threat_model  │  critical"
  */
 export function tableRow(values: string[]): string {
   return values.join('  │  ');

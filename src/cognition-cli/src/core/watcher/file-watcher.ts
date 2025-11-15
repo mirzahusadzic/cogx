@@ -1,3 +1,54 @@
+/**
+ * Real-Time File System Watcher
+ *
+ * Monitors indexed files for changes and maintains dirty_state.json
+ * for incremental PGC updates. Emits events when files are modified,
+ * deleted, or added, enabling real-time synchronization between
+ * source code and the Grounded Context Pool (PGC).
+ *
+ * DESIGN:
+ * Uses chokidar for efficient file watching with debouncing to handle
+ * rapid successive changes (e.g., during file saves). Only watches
+ * files already in the PGC index - untracked files are ignored unless
+ * watchUntracked option is enabled.
+ *
+ * ARCHITECTURE:
+ * - EventEmitter: Emits 'change', 'error', 'ready' events
+ * - Debouncing: Prevents duplicate events during rapid saves (300ms default)
+ * - Hash Comparison: Detects actual content changes, not just file modifications
+ * - Dirty State: Maintains dirty_state.json with tracked vs current hashes
+ *
+ * ALGORITHM (Change Detection):
+ * 1. File modification event received from chokidar
+ * 2. Debounce for 300ms (configurable)
+ * 3. Read current file content and compute SHA-256 hash
+ * 4. Compare against tracked hash from index
+ * 5. If different, add to dirty_state.json and emit 'change' event
+ * 6. If same, ignore (no actual content change)
+ *
+ * @example
+ * // Start watching indexed files
+ * const watcher = new FileWatcher(pgcRoot, projectRoot);
+ * watcher.on('change', (event) => {
+ *   console.log(`File ${event.type}: ${event.path}`);
+ * });
+ * await watcher.start();
+ *
+ * @example
+ * // Custom debounce and ignore patterns
+ * const watcher = new FileWatcher(pgcRoot, projectRoot, {
+ *   debounceMs: 500,
+ *   ignored: ['**\/test\/**', '**\/*.test.ts'],
+ *   watchUntracked: true
+ * });
+ * await watcher.start();
+ *
+ * @example
+ * // Stop watching
+ * await watcher.stop();
+ * console.log('Watcher stopped');
+ */
+
 import chokidar, { FSWatcher } from 'chokidar';
 import path from 'path';
 import fs from 'fs-extra';
@@ -13,10 +64,6 @@ import {
   UntrackedFile,
 } from '../types/watcher.js';
 
-/**
- * File system watcher that tracks changes to indexed files
- * and maintains dirty_state.json
- */
 export class FileWatcher extends EventEmitter {
   private watcher?: FSWatcher;
   private index: Index;
@@ -25,6 +72,13 @@ export class FileWatcher extends EventEmitter {
   private isWatching = false;
   private debounceTimers = new Map<string, NodeJS.Timeout>();
 
+  /**
+   * Create a new FileWatcher instance
+   *
+   * @param pgcRoot - Path to .open_cognition directory
+   * @param projectRoot - Path to project root
+   * @param options - Watcher configuration options
+   */
   constructor(
     private pgcRoot: string,
     private projectRoot: string,
@@ -38,6 +92,24 @@ export class FileWatcher extends EventEmitter {
 
   /**
    * Start watching for file changes
+   *
+   * Initializes chokidar watcher for all indexed files. Throws if
+   * no files are indexed (genesis must be run first) or if already watching.
+   *
+   * Emits:
+   * - 'ready': Watcher initialized and monitoring
+   * - 'change': File modified, deleted, or added
+   * - 'error': Watcher encountered an error
+   *
+   * @throws Error if no files to watch or watcher already running
+   *
+   * @example
+   * const watcher = new FileWatcher(pgcRoot, projectRoot);
+   * watcher.on('ready', () => console.log('Watching...'));
+   * watcher.on('change', (event) => {
+   *   console.log(`${event.type}: ${event.path}`);
+   * });
+   * await watcher.start();
    */
   async start(): Promise<void> {
     if (this.isWatching) {
@@ -86,6 +158,12 @@ export class FileWatcher extends EventEmitter {
 
   /**
    * Stop watching
+   *
+   * Closes the chokidar watcher and cleans up resources.
+   * Safe to call even if watcher is not running.
+   *
+   * @example
+   * await watcher.stop();
    */
   async stop(): Promise<void> {
     if (this.watcher) {
@@ -98,6 +176,13 @@ export class FileWatcher extends EventEmitter {
 
   /**
    * Check if watcher is running
+   *
+   * @returns true if actively watching, false otherwise
+   *
+   * @example
+   * if (watcher.isRunning()) {
+   *   console.log('Watcher active');
+   * }
    */
   isRunning(): boolean {
     return this.isWatching;
