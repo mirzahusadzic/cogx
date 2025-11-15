@@ -119,7 +119,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const messagesRef = useRef<ClaudeMessage[]>(messages); // Ref to avoid effect re-running on every message change
   const userMessageEmbeddingCache = useRef<Map<number, number[]>>(new Map()); // Cache user message embeddings by timestamp
   const latticeLoadedRef = useRef<Set<string>>(new Set()); // Track which sessions have been loaded
-  const compressionInProgressRef = useRef(false); // ✅ NEW: Guard against concurrent compression requests
+  const compressionInProgressRef = useRef(false); // ✅ Guard against concurrent compression requests
 
   // Slash commands: Load commands cache
   const [commandsCache, setCommandsCache] = useState<Map<string, Command>>(
@@ -526,83 +526,100 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     if (currentMessages.length === 0) return;
 
     const queueNewAnalyses = async () => {
-      // Skip if embedder not initialized yet
-      if (!embedderRef.current) {
+      try {
+        // Skip if embedder not initialized yet
+        if (!embedderRef.current) {
+          if (debugFlag) {
+            console.log(chalk.dim('[Σ]  Embedder not initialized'));
+          }
+          return;
+        }
+
         if (debugFlag) {
-          console.log(chalk.dim('[Σ]  Embedder not initialized'));
-        }
-        return;
-      }
-
-      if (debugFlag) {
-        console.log(
-          chalk.dim('[Σ]  Queue effect triggered, messages:'),
-          currentMessages.length,
-          'isThinking:',
-          isThinking
-        );
-      }
-
-      // Find unanalyzed messages (ONLY user/assistant, skip system/tool_progress)
-      const lastIndex =
-        turnAnalysis.analyses.length > 0
-          ? turnAnalysis.analyses.length - 1
-          : -1;
-      const unanalyzedMessages = currentMessages
-        .slice(lastIndex + 1)
-        .map((msg, idx) => ({
-          msg,
-          originalIndex: lastIndex + 1 + idx,
-        }))
-        .filter(({ msg }) => msg.type === 'user' || msg.type === 'assistant');
-
-      if (unanalyzedMessages.length === 0) {
-        debug(' No unanalyzed messages');
-        return;
-      }
-
-      debug(' Unanalyzed user/assistant messages:', unanalyzedMessages.length);
-
-      // Queue each unanalyzed message for background processing
-      for (const {
-        msg: message,
-        originalIndex: messageIndex,
-      } of unanalyzedMessages) {
-        // For assistant messages, only queue if we're NOT currently thinking
-        if (message.type === 'assistant' && isThinking) {
-          debug(
-            '   Skipping assistant message - still streaming (will retry after stream completes)'
+          console.log(
+            chalk.dim('[Σ]  Queue effect triggered, messages:'),
+            currentMessages.length,
+            'isThinking:',
+            isThinking
           );
-          continue; // ✅ CRITICAL FIX: Skip THIS message, continue to next (not return!)
         }
 
-        const turnTimestamp = message.timestamp.getTime();
+        // Find unanalyzed messages (ONLY user/assistant, skip system/tool_progress)
+        const lastIndex =
+          turnAnalysis.analyses.length > 0
+            ? turnAnalysis.analyses.length - 1
+            : -1;
+        const unanalyzedMessages = currentMessages
+          .slice(lastIndex + 1)
+          .map((msg, idx) => ({
+            msg,
+            originalIndex: lastIndex + 1 + idx,
+          }))
+          .filter(({ msg }) => msg.type === 'user' || msg.type === 'assistant');
 
-        // Skip if already analyzed
-        if (turnAnalysis.hasAnalyzed(turnTimestamp)) {
-          debug('   Turn already analyzed, skipping');
-          continue;
+        if (unanalyzedMessages.length === 0) {
+          debug(' No unanalyzed messages');
+          return;
         }
 
-        // Get cached embedding for user messages
-        const cachedEmbedding =
-          message.type === 'user'
-            ? userMessageEmbeddingCache.current.get(turnTimestamp)
-            : undefined;
+        debug(
+          ' Unanalyzed user/assistant messages:',
+          unanalyzedMessages.length
+        );
 
-        await turnAnalysis.enqueueAnalysis({
-          message,
-          messageIndex,
-          timestamp: turnTimestamp,
-          cachedEmbedding,
-        });
+        // Queue each unanalyzed message for background processing
+        for (const {
+          msg: message,
+          originalIndex: messageIndex,
+        } of unanalyzedMessages) {
+          // For assistant messages, only queue if we're NOT currently thinking
+          if (message.type === 'assistant' && isThinking) {
+            debug(
+              '   Skipping assistant message - still streaming (will retry after stream completes)'
+            );
+            continue; // ✅ CRITICAL FIX: Skip THIS message, continue to next (not return!)
+          }
 
-        // Clean up cached embedding
-        if (cachedEmbedding) {
-          userMessageEmbeddingCache.current.delete(turnTimestamp);
+          const turnTimestamp = message.timestamp.getTime();
+
+          // Skip if already analyzed
+          if (turnAnalysis.hasAnalyzed(turnTimestamp)) {
+            debug('   Turn already analyzed, skipping');
+            continue;
+          }
+
+          // Get cached embedding for user messages
+          const cachedEmbedding =
+            message.type === 'user'
+              ? userMessageEmbeddingCache.current.get(turnTimestamp)
+              : undefined;
+
+          await turnAnalysis.enqueueAnalysis({
+            message,
+            messageIndex,
+            timestamp: turnTimestamp,
+            cachedEmbedding,
+          });
+
+          // Clean up cached embedding
+          if (cachedEmbedding) {
+            userMessageEmbeddingCache.current.delete(turnTimestamp);
+          }
         }
 
-        // Compression trigger is now handled by useCompression hook above
+        // 🔄 OPTION C: Check compression AFTER all messages queued
+        // This ensures queueing completes before compression is evaluated
+        if (!isThinking && !compressionInProgressRef.current) {
+          const shouldCompress = compression.shouldTrigger;
+
+          if (shouldCompress) {
+            debug(' 🔄 Triggering compression from queueing effect');
+            compression.triggerCompression();
+          }
+        }
+      } catch (error) {
+        // Log queueing errors but don't block conversation flow
+        debug('❌ Queueing error:', error);
       }
     };
 
@@ -614,6 +631,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     debugFlag,
     turnAnalysis.enqueueAnalysis,
     turnAnalysis.hasAnalyzed,
+    compression.shouldTrigger,
+    compression.triggerCompression,
   ]);
 
   // Minimal initialization - token counts come from SDK, lattice loading disabled for now  useEffect(() => {    debug('🚀 Session initialized:', anchorId);    if (resumeSessionId) debug('📂 Resuming from:', resumeSessionId);  }, [anchorId, resumeSessionId, debug]);

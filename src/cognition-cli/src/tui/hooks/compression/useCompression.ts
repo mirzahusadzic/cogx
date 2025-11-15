@@ -83,7 +83,7 @@ export function useCompression(
   const {
     tokenCount,
     analyzedTurns,
-    isThinking,
+    // isThinking, // ✅ No longer needed - automatic effect disabled (Option C)
     onCompressionTriggered,
     tokenThreshold,
     minTurns,
@@ -107,31 +107,44 @@ export function useCompression(
     triggerRef.current.updateOptions({ tokenThreshold, minTurns, enabled });
   }, [tokenThreshold, minTurns, enabled]);
 
-  // Check for compression trigger
-  useEffect(() => {
-    // Don't check during streaming
-    if (isThinking) {
-      return;
-    }
+  // 🔄 OPTION C: Automatic compression effect DISABLED
+  // Compression is now triggered manually from the queueing effect in useClaudeAgent.ts
+  // This prevents the race condition where compression fires before messages are queued.
+  //
+  // See: .sigma/case/post-fix-failure-analysis.md for details
+  //
+  // The previous automatic effect would race with the queueing effect:
+  // - Both triggered by isThinking: false
+  // - React effect execution order is undefined
+  // - If compression ran first, queue was empty (0.0s wait time)
+  // - Result: 50%+ context loss
+  //
+  // Solution: Trigger compression sequentially after queueing completes
 
-    const result = triggerRef.current.shouldTrigger(tokenCount, analyzedTurns);
-
-    if (result.shouldTrigger) {
-      if (debug) {
-        console.log('[useCompression] Triggering compression:', result.reason);
-      }
-
-      // Mark as triggered
-      triggerRef.current.markTriggered();
-      stateRef.current.triggered = true;
-      stateRef.current.lastCompression = new Date();
-      stateRef.current.lastCompressedTokens = tokenCount;
-      stateRef.current.compressionCount++;
-
-      // Notify parent
-      onCompressionTriggered?.(tokenCount, analyzedTurns);
-    }
-  }, [tokenCount, analyzedTurns, isThinking, onCompressionTriggered, debug]);
+  // useEffect(() => {
+  //   // Don't check during streaming
+  //   if (isThinking) {
+  //     return;
+  //   }
+  //
+  //   const result = triggerRef.current.shouldTrigger(tokenCount, analyzedTurns);
+  //
+  //   if (result.shouldTrigger) {
+  //     if (debug) {
+  //       console.log('[useCompression] Triggering compression:', result.reason);
+  //     }
+  //
+  //     // Mark as triggered
+  //     triggerRef.current.markTriggered();
+  //     stateRef.current.triggered = true;
+  //     stateRef.current.lastCompression = new Date();
+  //     stateRef.current.lastCompressedTokens = tokenCount;
+  //     stateRef.current.compressionCount++;
+  //
+  //     // Notify parent
+  //     onCompressionTriggered?.(tokenCount, analyzedTurns);
+  //   }
+  // }, [tokenCount, analyzedTurns, isThinking, onCompressionTriggered, debug]);
 
   const triggerCompression = useCallback(() => {
     if (debug) {
