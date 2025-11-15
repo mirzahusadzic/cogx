@@ -22,12 +22,14 @@ Traditional terminal libraries (blessed, blessed-contrib, curses) use imperative
 We chose **Ink (React for CLIs)** as the TUI framework:
 
 **Stack:**
+
 - **ink@6.4.0** - Core rendering engine
 - **react@19.2.0** - Component lifecycle and hooks
 - **ink-text-input@6.0.0** - Terminal text input component
 - **@inkjs/ui@2.0.0** - Pre-built UI components (Spinner, etc.)
 
 **Architecture:**
+
 - Declarative React components with JSX
 - Flexbox-based layout (`<Box flexDirection="row" gap={1}>`)
 - Hook-based state management (`useState`, `useRef`, `useMemo`)
@@ -35,6 +37,7 @@ We chose **Ink (React for CLIs)** as the TUI framework:
 - Custom hooks for complex logic (`useClaudeAgent`, `useCompression`, `useSessionManager`)
 
 **Code Reference:**
+
 - TUI entry point: `src/tui/index.tsx`
 - Components: `src/tui/components/`
 - Hooks: `src/tui/hooks/`
@@ -42,6 +45,7 @@ We chose **Ink (React for CLIs)** as the TUI framework:
 ## Alternatives Considered
 
 ### Option 1: blessed (Low-Level Terminal Library)
+
 - **Pros**: Mature, full-featured, low-level control, widely used
 - **Cons**:
   - Imperative API (manual element manipulation)
@@ -52,6 +56,7 @@ We chose **Ink (React for CLIs)** as the TUI framework:
 - **Why rejected**: Too low-level; would require building component abstraction ourselves
 
 ### Option 2: blessed-contrib (Dashboard Widgets for blessed)
+
 - **Pros**: Pre-built charts/dashboards, good for monitoring tools
 - **Cons**:
   - Built on blessed (inherits imperatives API)
@@ -61,6 +66,7 @@ We chose **Ink (React for CLIs)** as the TUI framework:
 - **Why rejected**: Not suited for interactive conversational UI
 
 ### Option 3: ncurses / node-ncurses
+
 - **Pros**: C library standard, extremely performant
 - **Cons**:
   - C bindings (FFI complexity)
@@ -70,6 +76,7 @@ We chose **Ink (React for CLIs)** as the TUI framework:
 - **Why rejected**: Too low-level, poor developer experience
 
 ### Option 4: Charm (Bubble Tea - Go TUI Framework)
+
 - **Pros**: Modern, composable, Elm-inspired architecture
 - **Cons**:
   - Go language (would require separate binary)
@@ -79,6 +86,7 @@ We chose **Ink (React for CLIs)** as the TUI framework:
 - **Why rejected**: Language barrier incompatible with TypeScript codebase
 
 ### Option 5: Raw ANSI Escape Codes
+
 - **Pros**: Maximum control, zero dependencies
 - **Cons**:
   - Extremely low-level (manual cursor, color, clear operations)
@@ -110,6 +118,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 ```
 
 **Benefits:**
+
 - JSX declarative syntax (describe UI, not imperative steps)
 - Component composition (reusable UI building blocks)
 - Props for data flow (parent → child)
@@ -126,6 +135,7 @@ const sessionManager = useSessionManager({ ... });
 ```
 
 **Benefits:**
+
 - Encapsulated state logic (hooks abstract complexity)
 - No global state management needed (useState + useRef sufficient)
 - `useRef` for stable references (prevent re-render loops)
@@ -146,6 +156,7 @@ const sessionManager = useSessionManager({ ... });
 ```
 
 **Benefits:**
+
 - No manual positioning (flexbox auto-layout)
 - Responsive to terminal size (`stdout.rows`, `stdout.columns`)
 - Gap, padding, margin work like CSS
@@ -158,9 +169,9 @@ useInput(
     if (key.ctrl && input === 'c') {
       process.kill(-process.pid, 'SIGKILL');
     } else if (key.tab) {
-      setFocused(prev => !prev);
+      setFocused((prev) => !prev);
     } else if (input === 'i' && !focused) {
-      setShowInfoPanel(prev => !prev);
+      setShowInfoPanel((prev) => !prev);
     }
   },
   { isActive: true }
@@ -168,6 +179,7 @@ useInput(
 ```
 
 **Benefits:**
+
 - Declarative keyboard handling (no event listener management)
 - Key modifiers (`key.ctrl`, `key.shift`, `key.meta`)
 - Arrow keys, Page Up/Down built-in
@@ -188,6 +200,7 @@ const allLines = useMemo(() => {
 ```
 
 **Benefits:**
+
 - High FPS prevents flickering
 - Memoization avoids unnecessary work
 - Console patching prevents output mixing
@@ -195,6 +208,7 @@ const allLines = useMemo(() => {
 ## Consequences
 
 ### Positive
+
 - **Familiar patterns** - React developers productive immediately
 - **Component reusability** - StatusBar, OverlaysBar, ClaudePanel composable
 - **Complex state** - Hooks abstract async compression, session management
@@ -203,12 +217,14 @@ const allLines = useMemo(() => {
 - **Maintainability** - Declarative code easier to reason about than imperative
 
 ### Negative
+
 - **Bundle size** - React + Ink adds ~2-3 MB (acceptable for CLI tool)
 - **Framework dependency** - Tied to Ink release cycle (currently v6.4.0)
 - **React learning curve** - Developers unfamiliar with React must learn hooks
 - **Limited terminal support** - Some features require modern terminals (mouse tracking)
 
 ### Neutral
+
 - **Re-render performance** - Must use `useMemo`/`useCallback` carefully to avoid loops
 - **Error handling** - React error boundaries needed for graceful failures
 - **Testing complexity** - Component testing requires Ink test renderer
@@ -216,6 +232,7 @@ const allLines = useMemo(() => {
 ## Evidence
 
 ### Code Implementation
+
 - TUI entry: `src/tui/index.tsx:1-500`
 - Components:
   - `src/tui/components/OverlaysBar.tsx`
@@ -228,7 +245,9 @@ const allLines = useMemo(() => {
 - CLI integration: `src/cli.ts:192-230`, `src/commands/tui.ts:18-78`
 
 ### Dependencies
+
 From `package.json`:
+
 ```json
 {
   "dependencies": {
@@ -241,12 +260,15 @@ From `package.json`:
 ```
 
 ### Documentation
+
 - TUI architecture: `src/tui/README.md:134-139`
 - Technology stack explanation
 - Dual-lattice visualization design
 
 ### Performance Characteristics
+
 From `index.tsx:59-68`:
+
 ```typescript
 const chatAreaHeight = useMemo(() => {
   const terminalHeight = stdout?.rows || 24;
@@ -263,6 +285,7 @@ Dynamic layout responds to terminal resize in real-time.
 **Why Not Just Use Console Logs?**
 
 The Sigma system requires real-time visualization of:
+
 - Token count approaching 120K threshold
 - Turn analysis queue processing
 - Overlay scores (O1-O7)
@@ -273,6 +296,7 @@ Console logs are linear and ephemeral—TUI provides persistent, structured visu
 **Alternative Considered: Web-Based UI**
 
 A browser-based UI (Electron, web server) was considered but rejected because:
+
 - Violates CLI-first philosophy
 - Adds complexity (HTTP server, bundler)
 - Breaks SSH/remote workflows
@@ -280,21 +304,23 @@ A browser-based UI (Electron, web server) was considered but rejected because:
 
 **Performance Comparison:**
 
-| Framework | Bundle Size | FPS | Flexbox | Hooks | Mouse |
-|-----------|-------------|-----|---------|-------|-------|
-| Ink | ~2.5 MB | 120 | ✓ | ✓ (React) | ✓ |
-| blessed | ~200 KB | ~30 | ✗ | ✗ | ✓ |
-| ncurses | ~50 KB | ~60 | ✗ | ✗ | ✗ |
+| Framework | Bundle Size | FPS | Flexbox | Hooks     | Mouse |
+| --------- | ----------- | --- | ------- | --------- | ----- |
+| Ink       | ~2.5 MB     | 120 | ✓       | ✓ (React) | ✓     |
+| blessed   | ~200 KB     | ~30 | ✗       | ✗         | ✓     |
+| ncurses   | ~50 KB      | ~60 | ✗       | ✗         | ✗     |
 
 Ink trades bundle size for developer experience and feature richness.
 
 **Future Enhancements:**
+
 - Split panes (multiple conversations)
 - Inline rendering of file diffs
 - Graph visualization (dependency trees)
 - Color themes (user-configurable)
 
 **Related Decisions:**
+
 - ADR-006 (Compression) - TUI displays compression progress
 - ADR-008 (Session Continuity) - TUI handles session transitions
 - ADR-009 (Quest System) - TUI could visualize quest workflows

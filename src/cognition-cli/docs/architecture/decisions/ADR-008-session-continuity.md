@@ -40,6 +40,7 @@ We implemented **LanceDB-based conversation memory with anchor ID indirection**:
    - Queryable: Semantic search across all sessions
 
 **Session Lifecycle:**
+
 ```
 Active Session (120K+ tokens)
   ├─ Accumulate turns in memory
@@ -62,6 +63,7 @@ Session Resumption
 ```
 
 **Code References:**
+
 - Session state: `src/sigma/session-state.ts`
 - State store: `src/tui/hooks/session/SessionStateStore.ts`
 - LanceDB conversation store: `src/sigma/conversation-lance-store.ts`
@@ -70,6 +72,7 @@ Session Resumption
 ## Alternatives Considered
 
 ### Option 1: Single Long Session (No Compression)
+
 - **Pros**: Simple, no complexity
 - **Cons**:
   - Hits 200K hard limit
@@ -78,6 +81,7 @@ Session Resumption
 - **Why rejected**: Violates infinite context goal
 
 ### Option 2: File-Based Recaps (No Vector Storage)
+
 - **Pros**: Simple, no database dependency
 - **Cons**:
   - Cannot perform semantic search on compressed sessions
@@ -87,6 +91,7 @@ Session Resumption
 - **Why rejected**: Lossy; no semantic recovery capability
 
 ### Option 3: Full Conversation in System Prompt
+
 - **Pros**: Claude has all context always
 - **Cons**:
   - Token cost scales linearly (expensive)
@@ -95,6 +100,7 @@ Session Resumption
 - **Why rejected**: Doesn't solve context window problem
 
 ### Option 4: External Database (PostgreSQL, MongoDB)
+
 - **Pros**: Mature, well-understood, rich query capabilities
 - **Cons**:
   - Requires server (not serverless)
@@ -104,6 +110,7 @@ Session Resumption
 - **Why rejected**: Server dependency incompatible with serverless PGC
 
 ### Option 5: In-Memory Only (No Persistence)
+
 - **Pros**: Fast, no disk I/O
 - **Cons**:
   - Lost on TUI exit
@@ -119,12 +126,13 @@ LanceDB-based conversation memory was chosen because it enables **semantic recov
 ### 1. Anchor ID Indirection (Stable User Interface)
 
 **From `session-state.ts`:**
+
 ```typescript
 export interface SessionState {
-  anchor_id: string;                    // User-facing, stable
-  current_session: string;              // SDK session UUID (transient)
+  anchor_id: string; // User-facing, stable
+  current_session: string; // SDK session UUID (transient)
   compression_history: Array<{
-    sdk_session: string;                // Actual session used
+    sdk_session: string; // Actual session used
     timestamp: string;
     reason: 'initial' | 'compression' | 'expiration';
     tokens?: number;
@@ -133,6 +141,7 @@ export interface SessionState {
 ```
 
 **User Experience:**
+
 ```bash
 # Day 1: Start session
 $ cognition-cli tui --session-id auth-refactor
@@ -142,6 +151,7 @@ $ cognition-cli tui --session-id auth-refactor  # Same ID works!
 ```
 
 **Behind the scenes:**
+
 - Anchor `auth-refactor` → SDK session `uuid-1` (initial)
 - Compression at 120K → Create SDK session `uuid-2`
 - User resumes with `auth-refactor` → System loads `uuid-2`
@@ -149,34 +159,36 @@ $ cognition-cli tui --session-id auth-refactor  # Same ID works!
 ### 2. LanceDB Conversation Store (Semantic Memory)
 
 **From `conversation-lance-store.ts`:**
+
 ```typescript
 export interface ConversationTurnRecord {
-  id: string;           // turn_id
-  session_id: string;   // SDK session UUID
-  role: string;         // 'user' | 'assistant' | 'system'
-  content: string;      // Full turn text
-  timestamp: number;    // Unix milliseconds
-  embedding: number[];  // 768D semantic vector
+  id: string; // turn_id
+  session_id: string; // SDK session UUID
+  role: string; // 'user' | 'assistant' | 'system'
+  content: string; // Full turn text
+  timestamp: number; // Unix milliseconds
+  embedding: number[]; // 768D semantic vector
 
   // SIGMA Analysis
-  novelty: number;      // 0-1
-  importance: number;   // 1-10
+  novelty: number; // 0-1
+  importance: number; // 1-10
   is_paradigm_shift: boolean;
 
   // Overlay Alignment (O1-O7)
-  alignment_O1: number;  // Architecture
-  alignment_O2: number;  // Security
+  alignment_O1: number; // Architecture
+  alignment_O2: number; // Security
   // ... O3-O7
 
   // Relationships
-  semantic_tags: string;  // JSON array
-  references: string;     // JSON array of turn_ids
+  semantic_tags: string; // JSON array
+  references: string; // JSON array of turn_ids
 }
 ```
 
 **Storage Location:** `.sigma/conversations.lancedb`
 
 **Capabilities:**
+
 - **Semantic search**: "Find discussions about user privacy"
 - **Temporal queries**: "What happened between Nov 1-5?"
 - **Importance filtering**: "Show paradigm shifts only"
@@ -185,6 +197,7 @@ export interface ConversationTurnRecord {
 ### 3. Cross-Session Queries (Infinite Memory)
 
 **From `cross-session-query.ts`:**
+
 ```typescript
 // Find similar conversations across ALL sessions
 export async function findSimilarConversations(
@@ -207,6 +220,7 @@ export async function findByOverlayAlignment(
 ```
 
 **Example:**
+
 ```typescript
 // User asks: "What did we decide about authentication?"
 // System:
@@ -219,6 +233,7 @@ export async function findByOverlayAlignment(
 ### 4. Session Forwarding (Automatic Resume)
 
 **From `SessionStateStore.ts`:**
+
 ```typescript
 loadForResume(): SessionLoadResult {
   const state = this.load();
@@ -245,6 +260,7 @@ loadForResume(): SessionLoadResult {
 ### 5. Audit Trail (Compression History)
 
 **From `.sigma/{anchorId}.state.json`:**
+
 ```json
 {
   "anchor_id": "auth-refactor",
@@ -280,6 +296,7 @@ loadForResume(): SessionLoadResult {
 ```
 
 **Forensic Capability:**
+
 - When was session compressed?
 - How many tokens at compression time?
 - How many paradigm shifts identified?
@@ -287,6 +304,7 @@ loadForResume(): SessionLoadResult {
 ## Consequences
 
 ### Positive
+
 - **Infinite context** - Compression doesn't mean forgetting
 - **Semantic recovery** - Find information from months ago via embeddings
 - **Stable UX** - User always references anchor ID
@@ -295,12 +313,14 @@ loadForResume(): SessionLoadResult {
 - **Resumable** - Pick up conversations after weeks
 
 ### Negative
+
 - **Storage growth** - LanceDB grows unbounded (needs periodic compaction)
 - **Complexity** - Three-layer architecture (anchor/SDK session/LanceDB)
 - **Query latency** - Semantic search across large conversation history
 - **Storage cost** - ~2 MB per 250 turns (acceptable)
 
 ### Neutral
+
 - **LanceDB dependency** - Same as ADR-001 (vector storage)
 - **State file format** - JSON (human-readable but not transactional)
 - **Compaction needed** - Periodic cleanup of old sessions (future work)
@@ -308,6 +328,7 @@ loadForResume(): SessionLoadResult {
 ## Evidence
 
 ### Code Implementation
+
 - Session state: `src/sigma/session-state.ts:1-100`
 - State store: `src/tui/hooks/session/SessionStateStore.ts:1-200`
 - Session manager hook: `src/tui/hooks/session/useSessionManager.ts:1-150`
@@ -316,19 +337,22 @@ loadForResume(): SessionLoadResult {
 - LanceDB compaction: `src/sigma/compact-lancedb.ts:1-100`
 
 ### Documentation
+
 - Architecture: `docs/SESSION_BOUNDARY_RATIONALE.md:1-766`
 - Sigma system: `SIGMA_CONTEXT_ARCHITECTURE.md:1-600`
 - TUI README: `src/tui/README.md` (session continuity section)
 
 ### Innovation Disclosure
+
 From `VISION.md:201-208`:
+
 > **Published**: November 3, 2025
 >
 > 42. **Session Lifecycle Management:** Three-phase system (normal operation with periodic flush → compression trigger with overlay flush → session resurrection from intelligent recap) enabling seamless continuity across unlimited sessions with zero perceived context loss
->
-> 45. **Session Forwarding for Compressed Sessions:** Automatic forwarding of `--session-id` to compressed session via `.sigma/{id}.state.json` state detection, recap loading with fresh SDK session start (no dead session resume), user always uses original session ID while Sigma manages internal chain
+> 43. **Session Forwarding for Compressed Sessions:** Automatic forwarding of `--session-id` to compressed session via `.sigma/{id}.state.json` state detection, recap loading with fresh SDK session start (no dead session resume), user always uses original session ID while Sigma manages internal chain
 
 ### Storage Structure
+
 ```
 .sigma/
 ├── {anchor-id}.state.json          # Session state mapping
@@ -348,6 +372,7 @@ From `VISION.md:201-208`:
 SDK sessions are implementation details that change on compression. Exposing them to users would be confusing:
 
 **Bad UX (No Anchor IDs):**
+
 ```bash
 # Day 1
 $ cognition-cli tui --session-id 8a3f9d2e-1b4c-4a7e-9f3d-2c1b8a7e6f5d
@@ -358,6 +383,7 @@ Error: Session not found. Did you mean 7f2e8c1d-5a3b-4e9f-8d2c-1a7b6e5f4d3c?
 ```
 
 **Good UX (With Anchor IDs):**
+
 ```bash
 # Day 1
 $ cognition-cli tui --session-id auth-refactor
@@ -377,17 +403,20 @@ Acceptable for long-term conversation storage.
 **LanceDB Compaction:**
 
 From `compact-lancedb.ts`:
+
 - Problem: Delete+add patterns create version bloat (700 MB for 2 MB data)
 - Solution: Keep only latest version of each turn
 - Result: 99% reduction (700 MB → 2 MB)
 
 **Future Enhancements:**
+
 - Distributed session storage (multiple machines)
 - Hierarchical compression (hot/warm/cold tiers)
 - Session merging (combine related sessions)
 - Expiration policies (delete old sessions after N days)
 
 **Related Decisions:**
+
 - ADR-001 (LanceDB) - Provides vector storage for conversation memory
 - ADR-006 (Compression) - Triggers session boundaries
 - ADR-010 (Workbench) - Generates embeddings for semantic search

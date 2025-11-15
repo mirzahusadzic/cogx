@@ -17,6 +17,7 @@ The Cognition CLI needed a workflow tracking system that could:
 6. **Formalize collaboration** - Structure human-AI interaction rhythm (Oracle and Scribe)
 
 Traditional task tracking (GitHub Issues, Jira) focuses on status (todo/done) without capturing:
+
 - **How** work was accomplished (transform sequence)
 - **Why** decisions were made (rationale)
 - **Quality metrics** (efficiency, corrections, optimizations)
@@ -42,6 +43,7 @@ We implemented **QuestOperationsLog (Block 2: Lops)** - a structured, append-onl
 8. **Lattice Integration** - Ingest CoMP into semantic knowledge graph
 
 **Entry Types:**
+
 ```typescript
 // Quest start
 { action: 'quest_start', intent: '...', baseline_coherence: 0.585 }
@@ -58,6 +60,7 @@ We implemented **QuestOperationsLog (Block 2: Lops)** - a structured, append-onl
 ```
 
 **Code References:**
+
 - Operations log: `src/core/quest/operations-log.ts`
 - Transform log: `src/core/pgc/transform-log.ts`
 - Demo: `examples/quest-demo.ts`
@@ -65,6 +68,7 @@ We implemented **QuestOperationsLog (Block 2: Lops)** - a structured, append-onl
 ## Alternatives Considered
 
 ### Option 1: GitHub Issues (External Tracking)
+
 - **Pros**: Familiar, integrated with code review, widely used
 - **Cons**:
   - No transform-level granularity (only issue-level)
@@ -75,6 +79,7 @@ We implemented **QuestOperationsLog (Block 2: Lops)** - a structured, append-onl
 - **Why rejected**: Too coarse-grained; no quality measurement capability
 
 ### Option 2: Git Commits Only (Version Control)
+
 - **Pros**: Built-in, deterministic, cryptographic (commit hashes)
 - **Cons**:
   - No pre-commit tracking (can't log proposed transforms)
@@ -84,6 +89,7 @@ We implemented **QuestOperationsLog (Block 2: Lops)** - a structured, append-onl
 - **Why rejected**: Git tracks results, not process; no quality measurement
 
 ### Option 3: Structured Logging (Winston, Bunyan)
+
 - **Pros**: Mature ecosystem, query capabilities
 - **Cons**:
   - General-purpose (not quest-specific)
@@ -94,6 +100,7 @@ We implemented **QuestOperationsLog (Block 2: Lops)** - a structured, append-onl
 - **Why rejected**: Logging tools for debugging, not workflow epistemology
 
 ### Option 4: Database (PostgreSQL, MongoDB)
+
 - **Pros**: ACID transactions, rich queries, relationships
 - **Cons**:
   - Requires server (not serverless)
@@ -103,6 +110,7 @@ We implemented **QuestOperationsLog (Block 2: Lops)** - a structured, append-onl
 - **Why rejected**: Too heavyweight; JSONL suffices for append-only tracking
 
 ### Option 5: No Tracking (Code Changes Only)
+
 - **Pros**: Zero overhead, simple
 - **Cons**:
   - Cannot compute AQS (no data)
@@ -118,6 +126,7 @@ Quest-based workflow tracking was chosen because it enables **verifiable work me
 ### 1. Formalized Human-AI Collaboration (Oracle and Scribe)
 
 **From OPERATIONAL_LATTICE.md:**
+
 ```
 Oracle-Scribe Rhythm:
 1. Question - User/Oracle initiates work
@@ -129,6 +138,7 @@ Oracle-Scribe Rhythm:
 ```
 
 **Quest Operations Log Captures:**
+
 - Oracle checkpoints (quest_start, oracle_evaluation)
 - Transform execution (transform_proposed, transform_applied)
 - Quality gates (F.L.T.B validation)
@@ -139,6 +149,7 @@ Oracle-Scribe Rhythm:
 ### 2. Cryptographic Proof of Work (cPOW)
 
 **From quest-demo.ts:**
+
 ```typescript
 // Quest generates immutable computational receipt
 {
@@ -158,6 +169,7 @@ Oracle-Scribe Rhythm:
 ```
 
 **Why cPOW Matters:**
+
 - Cryptographic proof work was done
 - Cost was paid (computational resources)
 - Oracle validated quality
@@ -166,17 +178,20 @@ Oracle-Scribe Rhythm:
 ### 3. Agentic Quality Score (AQS)
 
 **Formula:**
+
 ```
 AQS = (1/steps) × (1/(1+corrections)) × (1 + optimizations×0.1)
 ```
 
 **Interpretation:**
+
 - `> 0.9`: Excellent (highly efficient, accurate, adaptive)
 - `0.7 - 0.9`: Good (triggers wisdom distillation)
 - `0.5 - 0.7`: Moderate (completed but inefficient)
 - `< 0.5`: Poor (many corrections, low efficiency)
 
 **Metrics:**
+
 - `steps`: Total transform count (lower better)
 - `corrections`: Oracle failures + F.L.T.B failures
 - `optimizations`: Proactive improvements made
@@ -193,6 +208,7 @@ AQS = (1/steps) × (1/(1+corrections)) × (1 + optimizations×0.1)
 4. Ingest into lattice for future queries
 
 **Example CoMP:**
+
 ```markdown
 ## Pattern: Health Check Auto-Detection for CLI Setup
 
@@ -201,6 +217,7 @@ AQS = (1/steps) × (1/(1+corrections)) × (1 + optimizations×0.1)
 **Discovery**: Auto-detect services on common ports before prompting user
 
 **Pattern**:
+
 1. Define common service URLs
 2. Check health endpoints in parallel
 3. Pre-fill prompt with detected URL
@@ -218,6 +235,7 @@ AQS = (1/steps) × (1/(1+corrections)) × (1 + optimizations×0.1)
 ### 5. Append-Only Audit Trail (Transparency)
 
 **From transparency-log.ts:**
+
 ```typescript
 /**
  * PURPOSE:
@@ -237,6 +255,7 @@ AQS = (1/steps) × (1/(1+corrections)) × (1 + optimizations×0.1)
 ```
 
 **Format:** JSONL (one JSON per line)
+
 - Git-friendly diffs
 - Easy to parse (streaming)
 - Human-readable
@@ -245,6 +264,7 @@ AQS = (1/steps) × (1/(1+corrections)) × (1 + optimizations×0.1)
 ## Consequences
 
 ### Positive
+
 - **Verifiable work** - cPOW provides cryptographic proof
 - **Quality measurement** - AQS quantifies efficiency/accuracy/adaptability
 - **Wisdom extraction** - High-quality workflows become reusable patterns
@@ -253,12 +273,14 @@ AQS = (1/steps) × (1/(1+corrections)) × (1 + optimizations×0.1)
 - **Continuous improvement** - Feedback loop from AQS to pattern library
 
 ### Negative
+
 - **Logging overhead** - Every quest operation writes to disk
 - **Storage growth** - JSONL file grows unbounded (needs periodic archiving)
 - **Manual quest creation** - Developers must explicitly start quests (not automatic)
 - **AQS computation cost** - Requires parsing entire log for analysis
 
 ### Neutral
+
 - **JSONL format** - Simple but not queryable like database
 - **Quest-level granularity** - Transform-level tracking available, but manual
 - **Dry-run mode** - Can test workflows without writing (good for development)
@@ -266,23 +288,28 @@ AQS = (1/steps) × (1/(1+corrections)) × (1 + optimizations×0.1)
 ## Evidence
 
 ### Code Implementation
+
 - Operations log: `src/core/quest/operations-log.ts:1-400`
 - Transform log: `src/core/pgc/transform-log.ts:1-200`
 - Demo example: `examples/quest-demo.ts:1-150`
 - Operational overlay: `src/core/overlays/operational-patterns/manager.ts`
 
 ### Documentation
+
 - cPOW operational loop: `docs/CPOW_OPERATIONAL_LOOP.md`
 - Operational lattice: `docs/overlays/O5_operational/OPERATIONAL_LATTICE.md`
 - Quest examples: `examples/quest-demo.ts`
 
 ### Innovation Disclosure
+
 From `VISION.md:196-197`:
+
 > **Published**: November 1, 2025
 >
 > 37. **Quest Operations Logging (Block 2 - Lops):** Transparency logging infrastructure for quest execution provenance and cPOW lineage tracking with immutable audit trails
 
 ### Storage Structure
+
 ```
 .open_cognition/
 ├── workflow_log.jsonl             # Quest operations log (Lops)
@@ -302,6 +329,7 @@ From `VISION.md:196-197`:
 **Why "Lops" (Operations Log)?**
 
 From cPOW documentation:
+
 - **Block 1**: Genesis (initial state)
 - **Block 2**: Lops (operations log)
 - **Block 3**: Oracle (validation)
@@ -317,6 +345,7 @@ Lops is the second foundational block in the cPOW generation pipeline.
 Quests contain multiple transforms. Operations log tracks both.
 
 **AQS Example Calculation:**
+
 ```
 Quest: Implement Block 2 (Lops)
 ├─ Steps: 3 transforms
@@ -331,6 +360,7 @@ AQS = (1/3) × (1/(1+0)) × (1 + 1×0.1)
 **Sacred Sequence (F.L.T.B):**
 
 Invariant validation sequence:
+
 1. **Format** (npm run format)
 2. **Lint** (npm run lint)
 3. **Test** (npm run test)
@@ -339,6 +369,7 @@ Invariant validation sequence:
 All must pass before quest completion. Logged in operations log.
 
 **Future Enhancements:**
+
 - Real-time AQS dashboard
 - Automated CoMP suggestions
 - Quest templates (pre-configured workflows)
@@ -346,6 +377,7 @@ All must pass before quest completion. Logged in operations log.
 - Quest dependencies (quest graphs)
 
 **Related Decisions:**
+
 - ADR-002 (Seven Overlays) - Quest patterns stored in O₅ operational overlay
 - ADR-004 (Content-Addressable) - cPOW uses hash-based provenance
 - ADR-007 (AGPLv3) - Transparency logging aligns with open philosophy

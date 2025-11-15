@@ -56,6 +56,8 @@ The PGC is not just a dependency graph - it's a **multi-dimensional knowledge la
 
 Each overlay is **content-addressed**, **cryptographically grounded**, and **independently verifiable**. They form a queryable lattice where overlays can interact via Boolean algebra operations (∩, ∪, ¬, Δ).
 
+> **💡 Why these architectural decisions?** See our [Architecture Decision Records (ADRs)](./src/cognition-cli/docs/architecture/decisions/README.md) for the detailed rationale behind LanceDB, seven overlays, shadow embeddings, AGPLv3 licensing, and more.
+
 ---
 
 ## The PGC: Four Pillars of Truth
@@ -372,6 +374,7 @@ The comprehensive 16-chapter manual organized by parts:
 ### Additional Resources
 
 - [Manual: Complete 900+ Page Guide](./docs/manual/README.md)
+- [Architecture Decision Records (ADRs)](./src/cognition-cli/docs/architecture/decisions/README.md) 🏛️ **Why major architectural decisions were made**
 - [SIGMA Context Architecture](./SIGMA_CONTEXT_ARCHITECTURE.md) ⭐ **Official architecture document**
 - [Session Boundary Rationale](./docs/SESSION_BOUNDARY_RATIONALE.md) 📋 **Design patterns & decision rationale**
 - [Dual-Use Mandate](./docs/DUAL_USE_MANDATE.md)
