@@ -37,7 +37,7 @@ Every quest has five structural elements that define its purpose, scope, and suc
 **Format**:
 
 ```typescript
-intent: "Add JWT authentication to user service"
+intent: 'Add JWT authentication to user service';
 ```
 
 **Properties**:
@@ -51,14 +51,14 @@ intent: "Add JWT authentication to user service"
 
 ```typescript
 // ✅ Good: Clear, bounded, actionable
-"Implement email validation for user registration form"
-"Fix memory leak in background sync worker"
-"Add dark mode toggle to settings page"
+'Implement email validation for user registration form';
+'Fix memory leak in background sync worker';
+'Add dark mode toggle to settings page';
 
 // ❌ Bad: Vague, unbounded, not actionable
-"Make the app better"
-"Improve performance"
-"Add features users want"
+'Make the app better';
+'Improve performance';
+'Add features users want';
 ```
 
 **Implementation**:
@@ -74,7 +74,7 @@ await log.logQuestStart({
   intent: 'Add JWT authentication to user service',
   baseline_coherence: 0.82,
   mission_concepts: ['security', 'authentication'],
-  security_level: 'high'
+  security_level: 'high',
 });
 ```
 
@@ -87,7 +87,7 @@ await log.logQuestStart({
 **Format**:
 
 ```typescript
-mission_concepts: ['security', 'user-experience', 'compliance']
+mission_concepts: ['security', 'user-experience', 'compliance'];
 ```
 
 **Properties**:
@@ -109,10 +109,10 @@ mission_concepts: ['security', 'user-experience', 'compliance']
 
    ```typescript
    mission_concepts: [
-     'security',          // Primary: Authentication is security-critical
-     'user-experience',   // Secondary: Login flow affects UX
-     'compliance'         // Tertiary: GDPR/auth requirements
-   ]
+     'security', // Primary: Authentication is security-critical
+     'user-experience', // Secondary: Login flow affects UX
+     'compliance', // Tertiary: GDPR/auth requirements
+   ];
    ```
 
 3. **Validate alignment** during quest:
@@ -136,20 +136,20 @@ mission_concepts: ['security', 'user-experience', 'compliance']
 await log.logQuestStart({
   quest_id: 'quest-auth-001',
   intent: 'Add JWT authentication to user service',
-  baseline_coherence: 0.82,  // Before quest
+  baseline_coherence: 0.82, // Before quest
   mission_concepts: [
-    'security',          // Primary alignment
-    'user-management',   // Secondary alignment
-    'api-design'         // Tertiary alignment
+    'security', // Primary alignment
+    'user-management', // Secondary alignment
+    'api-design', // Tertiary alignment
   ],
-  security_level: 'high'  // Security-sensitive quest
+  security_level: 'high', // Security-sensitive quest
 });
 
 // After quest completion
 await log.logQuestComplete({
   quest_id: 'quest-auth-001',
-  final_coherence: 0.87,    // After quest
-  coherence_delta: +0.05,   // ✅ Positive = aligned work
+  final_coherence: 0.87, // After quest
+  coherence_delta: +0.05, // ✅ Positive = aligned work
   // ... other metrics
 });
 ```
@@ -170,8 +170,8 @@ success_criteria: [
   'All tests passing (unit + integration)',
   'F.L.T.B sequence completes without errors',
   'API endpoints return 401 for invalid tokens',
-  'Documentation updated in README.md'
-]
+  'Documentation updated in README.md',
+];
 ```
 
 **Properties**:
@@ -208,13 +208,13 @@ await log.logQuestComplete({
   duration_minutes: 45.2,
   transforms_count: 3,
   final_coherence: 0.87,
-  coherence_delta: +0.05,        // ✅ Mission aligned
+  coherence_delta: +0.05, // ✅ Mission aligned
   commit_sha: 'a7b3c9d...',
-  fltb_passed: true,             // ✅ Sacred sequence passed
-  aqs_score: 0.91,               // ✅ High quality (AAA metrics)
+  fltb_passed: true, // ✅ Sacred sequence passed
+  aqs_score: 0.91, // ✅ High quality (AAA metrics)
   aqs_grade: 'A',
-  comp_generated: true,          // ✅ Wisdom extracted
-  comp_id: 'comp-auth-pattern-001'
+  comp_generated: true, // ✅ Wisdom extracted
+  comp_id: 'comp-auth-pattern-001',
 });
 ```
 
@@ -231,8 +231,8 @@ big_blocks: [
   'Create JWTService class',
   'Add authentication middleware',
   'Update user login endpoint',
-  'Add integration tests'
-]
+  'Add integration tests',
+];
 ```
 
 **Properties**:
@@ -248,14 +248,14 @@ Big blocks help manage depth (complexity):
 
 ```typescript
 // Depth 0-1: Single big block (trivial/simple)
-big_blocks: ['Add email validation regex']
+big_blocks: ['Add email validation regex'];
 
 // Depth 2: Multiple big blocks (moderate)
 big_blocks: [
   'Create validation utility',
   'Add to registration form',
-  'Add tests'
-]
+  'Add tests',
+];
 
 // Depth 3: Complex decomposition (complex)
 big_blocks: [
@@ -264,8 +264,8 @@ big_blocks: [
   'Add middleware layer',
   'Update all endpoints',
   'Add comprehensive tests',
-  'Update documentation'
-]
+  'Update documentation',
+];
 ```
 
 **Anti-Pattern**: Depth 3+ without explicit big blocks leads to scope creep.
@@ -279,7 +279,7 @@ big_blocks: [
 **Format**:
 
 ```typescript
-attention_priorities: ['truth', 'security', 'performance']
+attention_priorities: ['truth', 'security', 'performance'];
 ```
 
 **Common Priorities**:
@@ -298,19 +298,20 @@ The Oracle uses `attention_priorities` to weight its AAA scoring:
 
 ```typescript
 // Quest with security priority
-attention_priorities: ['security', 'truth', 'UX']
+attention_priorities: ['security', 'truth', 'UX'];
 
 // Oracle evaluation emphasizes security
 await log.logOracleEvaluation({
   quest_id: 'quest-auth-001',
   transform_id: 'transform-001',
   oracle_score: 0.89,
-  accuracy: 0.92,      // ✅ Truth dimension
-  efficiency: 0.85,    // Moderate performance
-  adaptability: 0.90,  // ✅ Security-focused: good boundary design
-  feedback: 'Excellent security boundaries. Consider caching tokens for performance.',
+  accuracy: 0.92, // ✅ Truth dimension
+  efficiency: 0.85, // Moderate performance
+  adaptability: 0.9, // ✅ Security-focused: good boundary design
+  feedback:
+    'Excellent security boundaries. Consider caching tokens for performance.',
   session_id: 'oracle-session-123',
-  accepted: true
+  accepted: true,
 });
 ```
 
@@ -322,13 +323,13 @@ Depth tracks **how deep you are in the problem space**. It prevents runaway comp
 
 ### Depth Semantics
 
-| Depth | Label | Time Limit | Characteristics | Example |
-|-------|-------|-----------|----------------|---------|
-| **Depth 0** | Trivial | < 5 min | Single-file edit, no dependencies | Fix typo in README |
-| **Depth 1** | Simple | < 30 min | Few files, isolated change | Add email validation |
-| **Depth 2** | Moderate | < 2 hours | Multiple files, some dependencies | Add JWT authentication |
-| **Depth 3** | Complex | < 1 day | Architecture changes, cross-cutting concerns | Refactor auth system |
-| **Depth 3+** | ⚠️ **Halt** | N/A | Requires justification or surfacing to user | Major rewrite |
+| Depth        | Label       | Time Limit | Characteristics                              | Example                |
+| ------------ | ----------- | ---------- | -------------------------------------------- | ---------------------- |
+| **Depth 0**  | Trivial     | < 5 min    | Single-file edit, no dependencies            | Fix typo in README     |
+| **Depth 1**  | Simple      | < 30 min   | Few files, isolated change                   | Add email validation   |
+| **Depth 2**  | Moderate    | < 2 hours  | Multiple files, some dependencies            | Add JWT authentication |
+| **Depth 3**  | Complex     | < 1 day    | Architecture changes, cross-cutting concerns | Refactor auth system   |
+| **Depth 3+** | ⚠️ **Halt** | N/A        | Requires justification or surfacing to user  | Major rewrite          |
 
 ### Depth Tracking in Operations Log
 
@@ -522,9 +523,9 @@ await log.logQuestComplete({
   final_coherence: 0.87,
   coherence_delta: +0.05,
   commit_sha: 'a7b3c9d...',
-  fltb_passed: true,        // ✅ Sacred sequence passed
+  fltb_passed: true, // ✅ Sacred sequence passed
   aqs_score: 0.91,
-  aqs_grade: 'A'
+  aqs_grade: 'A',
 });
 ```
 
@@ -576,9 +577,9 @@ Phase 9: Quest Completion
 await log.logQuestStart({
   quest_id: 'quest-2025-11-15-001',
   intent: 'Add JWT authentication to user service',
-  baseline_coherence: 0.82,              // Current O₇ score
+  baseline_coherence: 0.82, // Current O₇ score
   mission_concepts: ['security', 'api-design'],
-  security_level: 'high'
+  security_level: 'high',
 });
 ```
 
@@ -610,11 +611,11 @@ Define the specific outcome for this transform:
 
 ```typescript
 Goal = {
-  what: "Create JWTService class with sign() and verify() methods",
-  why: "Centralize token logic for reusability",
-  success: "Class exported, unit tests pass, no lint errors",
-  files: ['src/auth/JWTService.ts', 'src/auth/__tests__/JWTService.test.ts']
-}
+  what: 'Create JWTService class with sign() and verify() methods',
+  why: 'Centralize token logic for reusability',
+  success: 'Class exported, unit tests pass, no lint errors',
+  files: ['src/auth/JWTService.ts', 'src/auth/__tests__/JWTService.test.ts'],
+};
 ```
 
 #### 2b. Transform Execution
@@ -629,7 +630,7 @@ await log.logTransform({
   transform_id: 'transform-001',
   transform_type: 'create',
   files_affected: ['src/auth/JWTService.ts'],
-  rationale: 'Centralize JWT token generation and validation'
+  rationale: 'Centralize JWT token generation and validation',
 });
 
 // Apply transform (after Oracle approval)
@@ -640,7 +641,7 @@ await log.logTransform({
   transform_type: 'create',
   files_affected: ['src/auth/JWTService.ts'],
   rationale: 'Centralize JWT token generation and validation',
-  coherence_delta: +0.02                // Coherence improved
+  coherence_delta: +0.02, // Coherence improved
 });
 ```
 
@@ -665,13 +666,14 @@ Evaluate transform quality using **Accuracy, Efficiency, Adaptability**:
 await log.logOracleEvaluation({
   quest_id: 'quest-2025-11-15-001',
   transform_id: 'transform-001',
-  oracle_score: 0.89,                    // Weighted average
-  accuracy: 0.92,                        // Correctness (0-1)
-  efficiency: 0.85,                      // Performance (0-1)
-  adaptability: 0.90,                    // Maintainability (0-1)
-  feedback: 'Well-structured implementation. Consider adding token expiry checks.',
+  oracle_score: 0.89, // Weighted average
+  accuracy: 0.92, // Correctness (0-1)
+  efficiency: 0.85, // Performance (0-1)
+  adaptability: 0.9, // Maintainability (0-1)
+  feedback:
+    'Well-structured implementation. Consider adding token expiry checks.',
   session_id: 'oracle-session-123',
-  accepted: true                         // ✅ Transform approved
+  accepted: true, // ✅ Transform approved
 });
 ```
 
@@ -686,19 +688,15 @@ Score: 0.890 (ACCEPTED)
 
 **AAA Scoring Details**:
 
-| Dimension | Weight | Criteria |
-|-----------|--------|----------|
-| **Accuracy** | 40% | Does it solve the intent? Correct logic? Edge cases handled? |
-| **Efficiency** | 30% | Is it performant? Resource-conscious? Avoids waste? |
-| **Adaptability** | 30% | Is it maintainable? Well-documented? Extensible? |
+| Dimension        | Weight | Criteria                                                     |
+| ---------------- | ------ | ------------------------------------------------------------ |
+| **Accuracy**     | 40%    | Does it solve the intent? Correct logic? Edge cases handled? |
+| **Efficiency**   | 30%    | Is it performant? Resource-conscious? Avoids waste?          |
+| **Adaptability** | 30%    | Is it maintainable? Well-documented? Extensible?             |
 
 ```typescript
 // Oracle score formula
-oracle_score = (
-  accuracy * 0.4 +
-  efficiency * 0.3 +
-  adaptability * 0.3
-);
+oracle_score = accuracy * 0.4 + efficiency * 0.3 + adaptability * 0.3;
 ```
 
 **Repeat** 2a-2c for each big block in the quest.
@@ -784,12 +782,12 @@ cognition-cli coherence check  # Validate O₇ (Coherence)
 cpow:
   magnitude: 0.85
   computation:
-    extraction_method: "AST traversal + eGemma embeddings"
-    embedding_model: "eGemma-768"
+    extraction_method: 'AST traversal + eGemma embeddings'
+    embedding_model: 'eGemma-768'
     api_calls: 42
-    oracle_validation: "APPROVED"
-  timestamp: "2025-11-15T14:32:11Z"
-  git_commit: "a7b3c9d2e5f8..."
+    oracle_validation: 'APPROVED'
+  timestamp: '2025-11-15T14:32:11Z'
+  git_commit: 'a7b3c9d2e5f8...'
 ```
 
 **Purpose**:
@@ -808,20 +806,19 @@ cpow:
 **Formula** (from README.md):
 
 ```typescript
-AQS = (
-  path_efficiency * 0.4 +          // Fewer steps = better
+AQS =
+  path_efficiency * 0.4 + // Fewer steps = better
   (1 - correction_penalty) * 0.3 + // Fewer errors = better
-  proactive_bonus * 0.3            // More optimizations = better
-)
+  proactive_bonus * 0.3; // More optimizations = better
 
 // Path Efficiency: Ratio of transforms to big blocks
-path_efficiency = min_transforms / actual_transforms
+path_efficiency = min_transforms / actual_transforms;
 
 // Correction Penalty: Ratio of rejected to total transforms
-correction_penalty = oracle_rejections / total_transforms
+correction_penalty = oracle_rejections / total_transforms;
 
 // Proactive Bonus: Ratio of improvements to total transforms
-proactive_bonus = proactive_improvements / total_transforms
+proactive_bonus = proactive_improvements / total_transforms;
 ```
 
 **Example**:
@@ -851,13 +848,13 @@ const aqs_grade = 'C';  // 0.60-0.79 = C
 
 **Grading Scale**:
 
-| Score | Grade | Quality |
-|-------|-------|---------|
-| 0.90+ | A | Excellent (efficient, few errors, proactive) |
-| 0.80-0.89 | B | Good (efficient, some errors) |
-| 0.70-0.79 | C | Acceptable (moderate efficiency) |
-| 0.60-0.69 | D | Poor (many errors, inefficient) |
-| < 0.60 | F | Failing (excessive errors, wasteful) |
+| Score     | Grade | Quality                                      |
+| --------- | ----- | -------------------------------------------- |
+| 0.90+     | A     | Excellent (efficient, few errors, proactive) |
+| 0.80-0.89 | B     | Good (efficient, some errors)                |
+| 0.70-0.79 | C     | Acceptable (moderate efficiency)             |
+| 0.60-0.69 | D     | Poor (many errors, inefficient)              |
+| < 0.60    | F     | Failing (excessive errors, wasteful)         |
 
 ---
 
@@ -882,8 +879,8 @@ aqs_score: 0.91
 aqs_grade: A
 
 pattern:
-  name: "JWT Authentication Pattern"
-  context: "Adding token-based auth to REST API"
+  name: 'JWT Authentication Pattern'
+  context: 'Adding token-based auth to REST API'
   solution: |
     1. Create JWTService class (sign, verify)
     2. Add authentication middleware
@@ -891,14 +888,14 @@ pattern:
     4. Add comprehensive tests
 
   big_blocks:
-    - "Create JWTService class"
-    - "Add middleware layer"
-    - "Update endpoints"
-    - "Add integration tests"
+    - 'Create JWTService class'
+    - 'Add middleware layer'
+    - 'Update endpoints'
+    - 'Add integration tests'
 
   sacred_sequence: F.L.T.B
 
-  depth: 2  # Moderate complexity
+  depth: 2 # Moderate complexity
 
   mission_alignment:
     concepts: ['security', 'api-design']
@@ -908,7 +905,7 @@ pattern:
 
 provenance:
   git_commit: a7b3c9d2e5f8...
-  timestamp: "2025-11-15T14:35:22Z"
+  timestamp: '2025-11-15T14:35:22Z'
   author: user@example.com
 ```
 
@@ -938,17 +935,17 @@ cognition-cli ask "how do I add authentication"
 ```typescript
 await log.logQuestComplete({
   quest_id: 'quest-2025-11-15-001',
-  duration_minutes: 87.5,            // 1.5 hours (Depth 2)
-  transforms_count: 4,                // 4 transforms applied
-  final_coherence: 0.87,              // After quest
-  coherence_delta: +0.05,             // ✅ Improved alignment
-  commit_sha: 'a7b3c9d2e5f8...',      // Git commit
-  fltb_passed: true,                  // ✅ Sacred sequence
-  cpow_id: 'cpow-quest-001',          // cPOW identifier
-  aqs_score: 0.91,                    // ✅ Grade A
+  duration_minutes: 87.5, // 1.5 hours (Depth 2)
+  transforms_count: 4, // 4 transforms applied
+  final_coherence: 0.87, // After quest
+  coherence_delta: +0.05, // ✅ Improved alignment
+  commit_sha: 'a7b3c9d2e5f8...', // Git commit
+  fltb_passed: true, // ✅ Sacred sequence
+  cpow_id: 'cpow-quest-001', // cPOW identifier
+  aqs_score: 0.91, // ✅ Grade A
   aqs_grade: 'A',
-  comp_generated: true,               // ✅ Wisdom extracted
-  comp_id: 'comp-auth-pattern-001'    // CoMP identifier
+  comp_generated: true, // ✅ Wisdom extracted
+  comp_id: 'comp-auth-pattern-001', // CoMP identifier
 });
 ```
 
@@ -1010,19 +1007,19 @@ await log.logTransform({
   action: 'transform_applied',
   transform_id: 'transform-001',
   // ...
-  coherence_delta: +0.02  // ✅ Positive = moving toward mission
+  coherence_delta: +0.02, // ✅ Positive = moving toward mission
 });
 ```
 
 **Interpretation**:
 
-| Coherence Delta | Meaning | Action |
-|-----------------|---------|--------|
-| +0.05 to +0.10 | Strong alignment | ✅ Continue quest |
-| +0.01 to +0.04 | Moderate alignment | ✅ Continue quest |
-| -0.01 to +0.01 | Neutral (refactoring) | ⚠️ Monitor |
-| -0.02 to -0.04 | Drift detected | ⚠️ Rebalance |
-| < -0.05 | Severe drift | 🛑 Halt quest |
+| Coherence Delta | Meaning               | Action            |
+| --------------- | --------------------- | ----------------- |
+| +0.05 to +0.10  | Strong alignment      | ✅ Continue quest |
+| +0.01 to +0.04  | Moderate alignment    | ✅ Continue quest |
+| -0.01 to +0.01  | Neutral (refactoring) | ⚠️ Monitor        |
+| -0.02 to -0.04  | Drift detected        | ⚠️ Rebalance      |
+| < -0.05         | Severe drift          | 🛑 Halt quest     |
 
 **Example**:
 
@@ -1059,13 +1056,13 @@ cognition-cli coherence check
 
 **Validation Rules**:
 
-| Final Delta | Status | Grade Impact |
-|-------------|--------|--------------|
-| +0.05+ | ✅ Excellent | AQS bonus +0.05 |
-| +0.02 to +0.04 | ✅ Good | No penalty |
-| -0.01 to +0.01 | ⚠️ Neutral | No penalty |
-| -0.02 to -0.04 | ⚠️ Drift | AQS penalty -0.05 |
-| < -0.05 | 🛑 Severe drift | AQS penalty -0.10 |
+| Final Delta    | Status          | Grade Impact      |
+| -------------- | --------------- | ----------------- |
+| +0.05+         | ✅ Excellent    | AQS bonus +0.05   |
+| +0.02 to +0.04 | ✅ Good         | No penalty        |
+| -0.01 to +0.01 | ⚠️ Neutral      | No penalty        |
+| -0.02 to -0.04 | ⚠️ Drift        | AQS penalty -0.05 |
+| < -0.05        | 🛑 Severe drift | AQS penalty -0.10 |
 
 **Example**:
 
@@ -1075,9 +1072,9 @@ await log.logQuestComplete({
   quest_id: 'quest-001',
   baseline_coherence: 0.82,
   final_coherence: 0.87,
-  coherence_delta: +0.05,    // ✅ Strong alignment
-  aqs_score: 0.91 + 0.05,    // Bonus applied
-  aqs_grade: 'A'
+  coherence_delta: +0.05, // ✅ Strong alignment
+  aqs_score: 0.91 + 0.05, // Bonus applied
+  aqs_grade: 'A',
 });
 
 // Quest with drift
@@ -1085,9 +1082,9 @@ await log.logQuestComplete({
   quest_id: 'quest-002',
   baseline_coherence: 0.85,
   final_coherence: 0.82,
-  coherence_delta: -0.03,    // ⚠️ Drift detected
-  aqs_score: 0.85 - 0.05,    // Penalty applied
-  aqs_grade: 'B'             // Downgraded from A
+  coherence_delta: -0.03, // ⚠️ Drift detected
+  aqs_score: 0.85 - 0.05, // Penalty applied
+  aqs_grade: 'B', // Downgraded from A
 });
 ```
 
@@ -1346,7 +1343,7 @@ await log.logQuestStart({
   intent: 'Add JWT authentication to user service',
   baseline_coherence: 0.82,
   mission_concepts: ['security', 'api-design', 'user-management'],
-  security_level: 'high'
+  security_level: 'high',
 });
 ```
 
@@ -1362,7 +1359,7 @@ await log.logTransform({
   transform_id: 't-001',
   transform_type: 'create',
   files_affected: ['src/auth/JWTService.ts'],
-  rationale: 'Centralize JWT token generation and validation'
+  rationale: 'Centralize JWT token generation and validation',
 });
 
 // Oracle evaluation
@@ -1372,10 +1369,10 @@ await log.logOracleEvaluation({
   oracle_score: 0.89,
   accuracy: 0.92,
   efficiency: 0.85,
-  adaptability: 0.90,
+  adaptability: 0.9,
   feedback: 'Well-structured. Consider adding token expiry validation.',
   session_id: 'oracle-001',
-  accepted: true
+  accepted: true,
 });
 
 // Apply
@@ -1386,7 +1383,7 @@ await log.logTransform({
   transform_type: 'create',
   files_affected: ['src/auth/JWTService.ts'],
   rationale: 'Centralize JWT token generation and validation',
-  coherence_delta: +0.02
+  coherence_delta: +0.02,
 });
 ```
 
@@ -1434,7 +1431,7 @@ await log.logQuestComplete({
   aqs_score: 0.91,
   aqs_grade: 'A',
   comp_generated: true,
-  comp_id: 'comp-auth-pattern-001'
+  comp_id: 'comp-auth-pattern-001',
 });
 ```
 
