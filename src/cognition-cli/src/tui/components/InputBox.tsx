@@ -28,6 +28,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
   onPasteContent,
 }) => {
   const [value, setValue] = useState('');
+  const [inputKey, setInputKey] = useState(0); // Force remount to reset cursor position
   const lastEscapeTime = useRef<number>(0);
   const valueRef = useRef<string>(''); // Track actual current value for paste detection
   const [pasteNotification, setPasteNotification] = useState<string>('');
@@ -266,6 +267,8 @@ export const InputBox: React.FC<InputBoxProps> = ({
           valueRef.current = newValue;
           setValue(newValue);
           setShowDropdown(false);
+          // Force TextInput remount to reset cursor position to end
+          setInputKey((prev) => prev + 1);
         }
         // Prevent event from reaching TextInput's onSubmit
         return false;
@@ -316,6 +319,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
         <Text color="#56d364">{'> '}</Text>
         <Text color="#56d364">
           <TextInput
+            key={inputKey}
             value={value}
             onChange={handleChange}
             onSubmit={handleSubmit}
