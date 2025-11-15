@@ -16,6 +16,16 @@ import type { EmbeddingService } from '../core/services/embedding.js';
 
 /**
  * Cosine similarity between two vectors
+ *
+ * Formula: dot(a, b) / (||a|| × ||b||)
+ *
+ * @param a - First vector
+ * @param b - Second vector
+ * @returns Similarity score from -1 (opposite) to 1 (identical)
+ *
+ * @throws Error if vectors have different dimensions
+ *
+ * @private
  */
 function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) {
@@ -42,7 +52,17 @@ function cosineSimilarity(a: number[], b: number[]): number {
 
 /**
  * Calculate relevance score for a turn
- * Combines semantic similarity + importance + overlay activation
+ *
+ * Combines three signals:
+ * 1. Semantic similarity (cosine distance between embeddings)
+ * 2. Importance boost (1-10 scale → 1.0-2.0x multiplier)
+ * 3. Overlay boost (O1+O5+O4 activation → 0-2x multiplier)
+ *
+ * @param turn - Turn analysis with embedding and scores
+ * @param queryEmbedding - Embedded user query
+ * @returns Combined relevance score
+ *
+ * @private
  */
 function calculateRelevance(
   turn: TurnAnalysis,
@@ -70,11 +90,33 @@ function calculateRelevance(
 /**
  * Inject relevant context from lattice into user message
  *
+ * ALGORITHM:
+ * 1. Embed user query
+ * 2. Get recent turns (sliding window) + ALL paradigm shifts
+ * 3. Score all candidates by semantic relevance (similarity × importance × overlay)
+ * 4. Take top-K above relevance threshold
+ * 5. Inject context snippets before user message
+ *
+ * DESIGN:
+ * - Transparent real-time injection (no explicit LLM call)
+ * - Uses in-memory lattice data (turnAnalyses)
+ * - Filters by overlay activation (O1 structural + O5 operational + O4 mission)
+ * - Always includes paradigm shifts for critical context
+ *
  * @param userMessage - The raw user input
  * @param turnAnalyses - In-memory turn analyses (the lattice)
  * @param embedder - Embedding service for semantic search
- * @param options - Configuration options
+ * @param options - Configuration options (thresholds, window size, max context)
  * @returns Object with enhanced message and embedding (for reuse)
+ *
+ * @example
+ * const result = await injectRelevantContext(
+ *   "continue with the TUI refactor",
+ *   turnAnalyses,
+ *   embedder,
+ *   { minRelevance: 0.4, maxContextTurns: 5 }
+ * );
+ * // result.message now includes relevant past context automatically
  */
 export async function injectRelevantContext(
   userMessage: string,
