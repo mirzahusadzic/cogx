@@ -21,6 +21,7 @@ The choice of vector database is architectural—it determines whether the PGC i
 We chose **LanceDB v0.22.2** as the serverless vector database for all overlay vector storage.
 
 **Implementation Details:**
+
 - Storage location: `.open_cognition/patterns.lancedb/`
 - Vector dimensions: 768 (EmbeddingGemma-300M model)
 - Distance metrics: Cosine (default), L2, Dot product
@@ -32,6 +33,7 @@ We chose **LanceDB v0.22.2** as the serverless vector database for all overlay v
 ## Alternatives Considered
 
 ### Option 1: Pinecone (Cloud-Hosted)
+
 - **Pros**: Production-ready, managed infrastructure, excellent documentation
 - **Cons**:
   - Requires internet connectivity (violates offline-first principle)
@@ -42,6 +44,7 @@ We chose **LanceDB v0.22.2** as the serverless vector database for all overlay v
 - **Why rejected**: Incompatible with PGC's self-contained, portable knowledge pool philosophy
 
 ### Option 2: Weaviate (Self-Hosted Server)
+
 - **Pros**: Open source, supports multiple embedding models, GraphQL API
 - **Cons**:
   - Requires server deployment (infrastructure overhead)
@@ -51,6 +54,7 @@ We chose **LanceDB v0.22.2** as the serverless vector database for all overlay v
 - **Why rejected**: Too heavyweight for embedded use case; violates simplicity principle
 
 ### Option 3: Qdrant (Self-Hosted or Cloud)
+
 - **Pros**: High performance, Rust-based, good API
 - **Cons**:
   - Requires server (embedded mode exists but not mature at decision time)
@@ -59,6 +63,7 @@ We chose **LanceDB v0.22.2** as the serverless vector database for all overlay v
 - **Why rejected**: Server requirement incompatible with serverless PGC architecture
 
 ### Option 4: Chroma (Embedded Vector DB)
+
 - **Pros**: Python-based, simple API, embedded mode
 - **Cons**:
   - Python dependency (Cognition CLI is TypeScript/Node.js)
@@ -67,6 +72,7 @@ We chose **LanceDB v0.22.2** as the serverless vector database for all overlay v
 - **Why rejected**: Language mismatch and less mature ecosystem
 
 ### Option 5: FAISS (Facebook AI Similarity Search)
+
 - **Pros**: Extremely fast, widely used, no server required
 - **Cons**:
   - Low-level C++ library (complex integration)
@@ -113,6 +119,7 @@ LanceDB was chosen because it uniquely satisfies all requirements:
 ## Consequences
 
 ### Positive
+
 - **Sub-millisecond local queries** enable interactive workflows
 - **Zero cloud costs** for vector storage and queries
 - **Privacy by design** - data never leaves the machine
@@ -121,12 +128,14 @@ LanceDB was chosen because it uniquely satisfies all requirements:
 - **Consistent performance** - no network variability
 
 ### Negative
+
 - **No built-in replication** - must use file-system level sync for backups
 - **Single-machine scale** - cannot distribute across cluster (acceptable for per-project use case)
 - **TypeScript bindings maturity** - LanceDB is newer than Python alternatives
 - **Storage overhead** - ~36 MB per 32K LOC (acceptable for modern systems)
 
 ### Neutral
+
 - **Apache Arrow dependency** - adds to bundle size but provides zero-copy benefits
 - **Version compatibility** - tied to LanceDB releases (currently v0.22.2)
 - **Index rebuilding** - HNSW index must be rebuilt if LanceDB version changes significantly
@@ -134,42 +143,48 @@ LanceDB was chosen because it uniquely satisfies all requirements:
 ## Evidence
 
 ### Code Implementation
+
 - Core implementation: `src/core/overlays/vector-db/lance-store.ts:1-310`
 - Test coverage: `src/core/overlays/vector-db/__tests__/lance-store.test.ts:1-310`
 - Schema definition: `lance-store.ts:70-88` (VECTOR_RECORD_SCHEMA with Apache Arrow types)
 
 ### Documentation
+
 - Embeddings architecture: `docs/manual/part-1-foundation/04-embeddings.md:161-174`
 - Query performance: `docs/05_Querying_The_Lattice.md` (performance benchmarks)
 - Lattice integration: `docs/02_Core_Infrastructure.md` (LanceVectorStore role)
 
 ### Dependencies
+
 - Package: `@lancedb/lancedb@^0.22.2` (package.json)
 - Apache Arrow: Implicit dependency via LanceDB
 
 ### Comparative Table from Documentation
 
-| Feature         | LanceDB                        | Alternatives (Pinecone, Weaviate) |
-|-----------------|--------------------------------|----------------------------------|
+| Feature         | LanceDB                        | Alternatives (Pinecone, Weaviate)  |
+| --------------- | ------------------------------ | ---------------------------------- |
 | **Deployment**  | Embedded (no server)           | Cloud-hosted or self-hosted server |
 | **Storage**     | Local filesystem               | Remote database                    |
-| **Latency**     | Sub-millisecond (local)        | 10-100ms (network RTT)            |
-| **Portability** | .lancedb files travel with PGC | Requires migration scripts        |
-| **Cost**        | Free (local compute)           | Pay per query/storage             |
-| **Privacy**     | Data never leaves machine      | Data sent to third-party servers  |
+| **Latency**     | Sub-millisecond (local)        | 10-100ms (network RTT)             |
+| **Portability** | .lancedb files travel with PGC | Requires migration scripts         |
+| **Cost**        | Free (local compute)           | Pay per query/storage              |
+| **Privacy**     | Data never leaves machine      | Data sent to third-party servers   |
 
 ## Notes
 
 **Design Philosophy Alignment:**
 From `docs/manual/part-1-foundation/04-embeddings.md`:
+
 > "LanceDB's serverless architecture aligns perfectly with PGC's 'self-contained knowledge pool' philosophy."
 
 **Future Considerations:**
+
 - If multi-machine distribution becomes required, consider LanceDB Cloud or hybrid approach
 - Monitor LanceDB TypeScript binding maturity for API changes
 - Evaluate storage compression improvements as LanceDB evolves
 
 **Related Decisions:**
+
 - ADR-003 (Shadow Embeddings) - Builds on LanceDB's dual vector storage capability
 - ADR-008 (Session Continuity) - Uses LanceDB for conversation lattice storage
 - ADR-010 (Workbench Integration) - External API generates embeddings, LanceDB stores them locally
