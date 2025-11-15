@@ -13,7 +13,7 @@ Critical compression race condition fix (50%+ context loss), conversation contin
 
 ### 🐛 Critical Bug Fixes
 
-**Compression Race Condition ** - Eliminated React effect race between compression and message queueing causing 50%+ context loss. Automatic compression effect disabled; now triggers sequentially after queue populates. Updated 17 tests (10 converted to manual-only triggering). **Impact**: Conversation history fully preserved across compression events.
+**Compression Race Condition** - Eliminated React effect race between compression and message queueing causing 50%+ context loss. Automatic compression effect disabled; now triggers sequentially after queue populates. Updated 17 tests (10 converted to manual-only triggering). **Impact**: Conversation history fully preserved across compression events.
 
 **Conversation Continuity** - Recaps include role-attributed last 5 turns, pending task detection, system identity fingerprint, and explicit continuity warnings. **Impact**: Assistant continues tasks seamlessly across 120K compression events instead of restarting.
 
