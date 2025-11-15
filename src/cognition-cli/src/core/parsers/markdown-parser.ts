@@ -1,3 +1,77 @@
+/**
+ * Markdown Parser for Overlay Documents
+ *
+ * Hierarchical parser for markdown documents that extracts structured sections
+ * with content hashing for incremental updates. Used primarily for ingesting
+ * strategic overlays (mission, security, operational) into the Grounded Context Pool (PGC).
+ *
+ * DESIGN:
+ * The parser transforms flat markdown into a hierarchical tree based on heading levels:
+ * - Each heading (H1-H6) starts a new section
+ * - Sections are nested based on heading hierarchy (H2 under H1, H3 under H2, etc.)
+ * - Each section has a structural hash for change detection
+ * - Frontmatter (YAML) provides metadata like document type and target overlay
+ *
+ * STRUCTURAL HASHING:
+ * Each section's hash is computed from:
+ * - Heading text
+ * - Section content
+ * - Hashes of child sections
+ *
+ * This enables incremental updates: if a section's hash hasn't changed,
+ * skip re-embedding it during overlay ingestion.
+ *
+ * OVERLAY INGESTION:
+ * Markdown documents are the primary format for strategic guidance:
+ * - O1 Mission: docs/mission/principles.md
+ * - O2 Security: docs/security/guidelines.md
+ * - O5 Operational: docs/operations/workflows.md
+ *
+ * The parser extracts sections as distinct overlay items, each embedded
+ * separately for fine-grained semantic search.
+ *
+ * @example
+ * // Parse security guidelines
+ * const parser = new MarkdownParser();
+ * const doc = await parser.parse('docs/security/guidelines.md');
+ *
+ * console.log(`Title: ${doc.metadata.title}`);
+ * console.log(`Overlay: ${doc.metadata.overlay}`); // 'security'
+ * console.log(`Sections: ${doc.sections.length}`);
+ *
+ * // Process each section
+ * for (const section of doc.sections) {
+ *   console.log(`${section.heading} (hash: ${section.structuralHash})`);
+ *   await embedSection(section);
+ * }
+ *
+ * @example
+ * // Incremental update using hashes
+ * const previousDoc = await loadPreviousVersion();
+ * const currentDoc = await parser.parse('docs/mission/principles.md');
+ *
+ * for (const section of currentDoc.sections) {
+ *   const prevSection = findSection(previousDoc, section.heading);
+ *   if (prevSection?.structuralHash !== section.structuralHash) {
+ *     console.log(`Section changed: ${section.heading}`);
+ *     await reEmbedSection(section);
+ *   }
+ * }
+ *
+ * @example
+ * // Parse with frontmatter
+ * // File: docs/security/auth.md
+ * // ---
+ * // type: guideline
+ * // overlay: security
+ * // priority: critical
+ * // ---
+ * const doc = await parser.parse('docs/security/auth.md');
+ * console.log(doc.metadata.type);     // 'guideline'
+ * console.log(doc.metadata.overlay);  // 'security'
+ * console.log(doc.metadata.priority); // 'critical'
+ */
+
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import { visit } from 'unist-util-visit';
@@ -7,14 +81,46 @@ import { Root, Heading, Node, PhrasingContent } from 'mdast';
 import yaml from 'js-yaml';
 
 /**
- * Represents a hierarchical section extracted from a markdown document.
+ * Hierarchical section extracted from a markdown document.
+ *
+ * Sections form a tree structure based on heading levels.
+ * Each section includes position information for source mapping
+ * and a structural hash for change detection.
+ *
+ * @example
+ * const section: MarkdownSection = {
+ *   heading: 'Authentication Requirements',
+ *   level: 2,
+ *   content: 'All API endpoints must validate JWT tokens...',
+ *   children: [
+ *     {
+ *       heading: 'Token Validation',
+ *       level: 3,
+ *       content: 'Tokens must be verified using RS256...',
+ *       children: [],
+ *       structuralHash: 'abc123...',
+ *       position: { ... }
+ *     }
+ *   ],
+ *   structuralHash: 'def456...',
+ *   position: {
+ *     start: { line: 5, column: 1, offset: 123 },
+ *     end: { line: 15, column: 1, offset: 456 }
+ *   }
+ * };
  */
 export interface MarkdownSection {
+  /** Heading text (without # prefix) */
   heading: string;
-  level: number; // 1-6 (H1-H6)
+  /** Heading level: 1-6 (H1-H6) */
+  level: number;
+  /** Content between this heading and next heading */
   content: string;
+  /** Child sections (higher-level headings) */
   children: MarkdownSection[];
+  /** Hash of heading + content + children (for change detection) */
   structuralHash: string;
+  /** Position in source file */
   position: {
     start: { line: number; column: number; offset?: number };
     end: { line: number; column: number; offset?: number };
@@ -22,12 +128,34 @@ export interface MarkdownSection {
 }
 
 /**
- * Represents a parsed markdown document with structured sections.
+ * Parsed markdown document with structured sections and metadata.
+ *
+ * The document includes both the hierarchical section tree and
+ * metadata extracted from frontmatter (if present).
+ *
+ * @example
+ * const doc: MarkdownDocument = {
+ *   filePath: 'docs/security/guidelines.md',
+ *   hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+ *   sections: [
+ *     { heading: 'Security Guidelines', level: 1, ... }
+ *   ],
+ *   metadata: {
+ *     title: 'Security Guidelines',
+ *     type: 'guideline',
+ *     overlay: 'security'
+ *   },
+ *   rawContent: '# Security Guidelines\n\n...'
+ * };
  */
 export interface MarkdownDocument {
+  /** Original file path */
   filePath: string;
-  hash: string; // SHA-256 of entire document
+  /** SHA-256 hash of entire document */
+  hash: string;
+  /** Hierarchical sections extracted from document */
   sections: MarkdownSection[];
+  /** Metadata from frontmatter and first heading */
   metadata: {
     title?: string;
     author?: string;
@@ -36,11 +164,14 @@ export interface MarkdownDocument {
     overlay?: string; // Target overlay from frontmatter
     [key: string]: unknown; // Additional frontmatter fields
   };
+  /** Raw markdown content */
   rawContent: string;
 }
 
 /**
- * Represents a position in the markdown source file.
+ * Position in the markdown source file.
+ *
+ * Used internally to track where sections appear in the original file.
  */
 interface Position {
   start: { line: number; column: number; offset?: number };
@@ -48,7 +179,9 @@ interface Position {
 }
 
 /**
- * Represents heading metadata extracted during parsing.
+ * Heading metadata extracted during AST traversal.
+ *
+ * Used internally to accumulate headings before creating sections.
  */
 interface HeadingInfo {
   text: string;
@@ -57,11 +190,34 @@ interface HeadingInfo {
 }
 
 /**
- * Parses markdown files into structured, hierarchical representations.
+ * Parser for markdown documents with hierarchical section extraction.
+ *
+ * Converts flat markdown into structured, content-hashed sections
+ * suitable for overlay ingestion and incremental updates.
+ *
+ * @example
+ * const parser = new MarkdownParser();
+ * const doc = await parser.parse('docs/mission/principles.md');
+ *
+ * // Access sections
+ * for (const section of doc.sections) {
+ *   console.log(`${section.heading}: ${section.content.substring(0, 100)}...`);
+ * }
  */
 export class MarkdownParser {
   /**
-   * Parse a markdown file into structured format
+   * Parse a markdown file into structured format.
+   *
+   * Reads the file, parses it into an AST, extracts hierarchical sections,
+   * and computes hashes for change detection.
+   *
+   * @param filePath - Absolute path to markdown file
+   * @returns Parsed document with sections and metadata
+   *
+   * @example
+   * const parser = new MarkdownParser();
+   * const doc = await parser.parse('/docs/security/guidelines.md');
+   * console.log(`Found ${doc.sections.length} top-level sections`);
    */
   async parse(filePath: string): Promise<MarkdownDocument> {
     // Read file
@@ -96,7 +252,14 @@ export class MarkdownParser {
   }
 
   /**
-   * Extract hierarchical sections from AST
+   * Extract hierarchical sections from markdown AST.
+   *
+   * Traverses the AST accumulating content under each heading.
+   * Sections are nested based on heading levels: H2 becomes child of H1, etc.
+   *
+   * @param ast - Remark AST root node
+   * @param content - Original markdown content for position mapping
+   * @returns Array of top-level sections with nested children
    */
   private extractSections(ast: Root, content: string): MarkdownSection[] {
     const sections: MarkdownSection[] = [];
@@ -151,7 +314,16 @@ export class MarkdownParser {
   }
 
   /**
-   * Create a section with structural hash
+   * Create a section with structural hash.
+   *
+   * The structural hash is computed from heading, content, and child hashes,
+   * enabling efficient change detection during incremental updates.
+   *
+   * @param heading - Heading text
+   * @param level - Heading level (1-6)
+   * @param content - Section content
+   * @param position - Position in source file
+   * @returns Section with computed structural hash
    */
   private createSection(
     heading: string,
@@ -178,7 +350,14 @@ export class MarkdownParser {
   }
 
   /**
-   * Add section to hierarchy based on heading levels
+   * Add section to hierarchy based on heading levels.
+   *
+   * Uses a stack to track the current section nesting. Sections with higher
+   * level numbers (H2, H3, etc.) become children of lower level headings (H1).
+   *
+   * @param section - Section to add
+   * @param rootSections - Array of top-level sections
+   * @param stack - Stack tracking current nesting context
    */
   private addSectionToHierarchy(
     section: MarkdownSection,
@@ -203,7 +382,12 @@ export class MarkdownParser {
   }
 
   /**
-   * Extract text from heading node
+   * Extract text from heading node.
+   *
+   * Handles inline formatting (strong, emphasis, code) within headings.
+   *
+   * @param heading - Heading AST node
+   * @returns Plain text heading content
    */
   private extractHeadingText(heading: Heading): string {
     return heading.children
@@ -222,7 +406,14 @@ export class MarkdownParser {
   }
 
   /**
-   * Convert AST node to text (for content accumulation)
+   * Convert AST node to text for content accumulation.
+   *
+   * Uses source position offsets to extract original text, preserving
+   * exact formatting from the source file.
+   *
+   * @param node - AST node to convert
+   * @param fullContent - Original markdown content
+   * @returns Text representation of node
    */
   private nodeToText(node: Node, fullContent: string): string {
     if (!node.position) return '';
@@ -234,15 +425,25 @@ export class MarkdownParser {
   }
 
   /**
-   * Compute SHA-256 hash of content
+   * Compute SHA-256 hash of content.
+   *
+   * @param content - Content to hash
+   * @returns Hex-encoded SHA-256 hash
    */
   private computeHash(content: string): string {
     return createHash('sha256').update(content).digest('hex');
   }
 
   /**
-   * Compute structural hash for a section
-   * Hash = hash(heading + content + children_hashes)
+   * Compute structural hash for a section.
+   *
+   * The hash is computed from heading, content, and child hashes,
+   * creating a Merkle tree structure. This enables efficient
+   * change detection: if a section's hash matches the previous
+   * version, neither it nor its children have changed.
+   *
+   * @param section - Section to hash
+   * @returns SHA-256 hash of section structure
    */
   private computeSectionHash(section: MarkdownSection): string {
     const data = [
@@ -255,7 +456,13 @@ export class MarkdownParser {
   }
 
   /**
-   * Extract metadata from document
+   * Extract metadata from document.
+   *
+   * Uses the first H1 heading as the document title if present.
+   * Additional metadata comes from frontmatter (see extractFrontmatter).
+   *
+   * @param sections - Parsed sections
+   * @returns Metadata object with title
    */
   private extractMetadata(sections: MarkdownSection[]): {
     title?: string;
@@ -272,7 +479,23 @@ export class MarkdownParser {
   }
 
   /**
-   * Extract YAML frontmatter from markdown content
+   * Extract YAML frontmatter from markdown content.
+   *
+   * Frontmatter is YAML between --- delimiters at the start of the file:
+   * ```
+   * ---
+   * type: guideline
+   * overlay: security
+   * ---
+   * ```
+   *
+   * This metadata is used to:
+   * - Determine target overlay for ingestion
+   * - Classify document type (guideline, principle, workflow)
+   * - Add custom metadata fields
+   *
+   * @param content - Markdown content
+   * @returns Parsed frontmatter object, or null if not present
    */
   private extractFrontmatter(content: string): Record<string, unknown> | null {
     // Match YAML frontmatter: ---\n...content...\n---
