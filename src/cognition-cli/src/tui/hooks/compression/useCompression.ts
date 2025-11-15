@@ -1,11 +1,82 @@
 /**
  * Compression Hook
  *
- * React hook that orchestrates the compression workflow:
- * - Monitors token count and turns
- * - Triggers compression when thresholds met
- * - Manages compression state
- * - Notifies when compression occurs
+ * React hook that orchestrates the context compression workflow for the TUI layer.
+ * Monitors token usage and conversation turns, triggering compression when thresholds
+ * are exceeded to prevent context window exhaustion.
+ *
+ * DESIGN:
+ * The useCompression hook bridges the React component layer with the core compression
+ * logic (CompressionTrigger). It manages:
+ * 1. CompressionTrigger instance lifecycle
+ * 2. Compression state tracking (React refs for persistence)
+ * 3. Option updates when props change
+ * 4. Callbacks for compression events
+ *
+ * Architecture:
+ * ```
+ * useClaudeAgent (parent hook)
+ *       ↓
+ *   useCompression (this hook)
+ *       ↓
+ * CompressionTrigger (decision logic)
+ * ```
+ *
+ * The hook provides:
+ * - state: Current compression state (triggered, count, etc.)
+ * - shouldTrigger: Whether compression should occur now
+ * - triggerCompression: Manual trigger function
+ * - reset: Reset for new session
+ * - getTriggerInfo: Diagnostic information
+ *
+ * IMPORTANT - Manual Triggering (Option C):
+ * The automatic compression effect has been DISABLED to prevent race conditions.
+ * Previously, the effect would race with message queueing, causing 50%+ context loss.
+ *
+ * Compression is now triggered manually from the queueing effect in useClaudeAgent.ts,
+ * ensuring sequential execution:
+ * 1. isThinking becomes false (assistant finished)
+ * 2. Queue effect processes pending messages
+ * 3. Queue effect calls triggerCompression() if needed
+ * 4. Compression runs with full message queue
+ *
+ * See .sigma/case/post-fix-failure-analysis.md for race condition details.
+ *
+ * Integration with Grounded Context Pool (PGC):
+ * - Monitors token counts from PGC updates
+ * - Triggers compression to free context window
+ * - Preserves semantic context via PGC during compression
+ *
+ * @example
+ * // Using in a component
+ * const compression = useCompression({
+ *   tokenCount: totalTokens,
+ *   analyzedTurns: turnCount,
+ *   isThinking: false,
+ *   tokenThreshold: 120000,
+ *   minTurns: 5,
+ *   onCompressionTriggered: (tokens, turns) => {
+ *     console.log(`Compressing at ${tokens} tokens, ${turns} turns`);
+ *     performCompression();
+ *   }
+ * });
+ *
+ * @example
+ * // Manual triggering after queueing
+ * useEffect(() => {
+ *   if (!isThinking && queueEmpty) {
+ *     const { shouldTrigger } = compression;
+ *     if (shouldTrigger) {
+ *       compression.triggerCompression();
+ *     }
+ *   }
+ * }, [isThinking, queueEmpty]);
+ *
+ * @example
+ * // Resetting for new session
+ * if (newSessionStarted) {
+ *   compression.reset();
+ * }
  *
  * Extracted from useClaudeAgent.ts for better testability and maintainability.
  */
@@ -14,56 +85,116 @@ import { useRef, useCallback, useEffect } from 'react';
 import { CompressionTrigger } from './CompressionTrigger.js';
 import type { CompressionOptions, CompressionState } from './types.js';
 
+/**
+ * Options for useCompression hook
+ *
+ * Extends CompressionOptions with React-specific props for monitoring
+ * current state and handling compression events.
+ *
+ * @example
+ * const options: UseCompressionOptions = {
+ *   tokenCount: 125000,
+ *   analyzedTurns: 8,
+ *   isThinking: false,
+ *   tokenThreshold: 120000,
+ *   minTurns: 5,
+ *   onCompressionTriggered: (tokens, turns) => {
+ *     performCompression();
+ *   }
+ * };
+ */
 export interface UseCompressionOptions extends CompressionOptions {
   /**
-   * Current token count
+   * Current token count from PGC
+   *
+   * Total tokens used in conversation, updated by SDK messages.
    */
   tokenCount: number;
 
   /**
    * Number of analyzed turns
+   *
+   * Count of user-assistant exchange pairs completed.
    */
   analyzedTurns: number;
 
   /**
    * Whether assistant is currently thinking (don't trigger during streaming)
+   *
+   * Note: This is preserved for interface compatibility but no longer used
+   * in automatic compression (see OPTION C comment below).
    */
   isThinking: boolean;
 
   /**
    * Callback when compression should be triggered
+   *
+   * Called when compression conditions are met and compression should begin.
+   * Parent should initiate actual compression process.
+   *
+   * @param tokens - Token count at compression time
+   * @param turns - Turn count at compression time
    */
   onCompressionTriggered?: (tokens: number, turns: number) => void;
 
   /**
    * Whether to enable debug logging
+   *
+   * Logs compression decisions to console for troubleshooting.
    */
   debug?: boolean;
 }
 
+/**
+ * Result returned by useCompression hook
+ *
+ * Provides access to compression state, trigger status, and control functions.
+ *
+ * @example
+ * const { state, shouldTrigger, triggerCompression, reset } = useCompression(options);
+ *
+ * if (shouldTrigger && messagesQueued) {
+ *   triggerCompression();
+ * }
+ */
 export interface UseCompressionResult {
   /**
    * Current compression state
+   *
+   * Includes triggered flag, last compression time, compression count, etc.
    */
   state: CompressionState;
 
   /**
    * Whether compression should trigger now
+   *
+   * Based on current token count, turn count, and configuration.
+   * Does not automatically trigger - use triggerCompression() to execute.
    */
   shouldTrigger: boolean;
 
   /**
    * Manually trigger compression
+   *
+   * Call this function to execute compression when shouldTrigger is true.
+   * Updates state and invokes onCompressionTriggered callback.
    */
   triggerCompression: () => void;
 
   /**
    * Reset compression state (call when new session starts)
+   *
+   * Clears triggered flag and resets counters for a fresh session.
    */
   reset: () => void;
 
   /**
    * Get compression trigger details
+   *
+   * Returns diagnostic information about current compression state
+   * and why it should/shouldn't trigger.
+   *
+   * @returns Object with current metrics and reasoning
    */
   getTriggerInfo: () => {
     currentTokens: number;
@@ -76,6 +207,42 @@ export interface UseCompressionResult {
 
 /**
  * Hook for managing compression lifecycle
+ *
+ * Provides a React interface to the compression system, managing trigger logic,
+ * state persistence, and compression event coordination.
+ *
+ * ALGORITHM:
+ * 1. Initialize CompressionTrigger instance (persisted via useRef)
+ * 2. Track compression state (triggered, count, timestamps)
+ * 3. Update trigger options when props change (via useEffect)
+ * 4. Provide manual trigger function (triggerCompression)
+ * 5. Provide reset function for new sessions
+ * 6. Provide diagnostic function (getTriggerInfo)
+ * 7. Return state and control functions
+ *
+ * Note: Automatic compression effect is DISABLED (see Option C comment in code).
+ * Compression must be triggered manually after message queueing completes.
+ *
+ * @param options - Hook configuration including current metrics and thresholds
+ * @returns Compression state and control functions
+ *
+ * @example
+ * const compression = useCompression({
+ *   tokenCount: 125000,
+ *   analyzedTurns: 8,
+ *   isThinking: false,
+ *   tokenThreshold: 120000,
+ *   minTurns: 5,
+ *   onCompressionTriggered: (tokens, turns) => {
+ *     console.log(`Compressing ${tokens} tokens`);
+ *     performCompression();
+ *   }
+ * });
+ *
+ * // Later, after messages are queued:
+ * if (compression.shouldTrigger) {
+ *   compression.triggerCompression();
+ * }
  */
 export function useCompression(
   options: UseCompressionOptions
@@ -83,7 +250,7 @@ export function useCompression(
   const {
     tokenCount,
     analyzedTurns,
-    // isThinking, // ✅ No longer needed - automatic effect disabled (Option C)
+    // isThinking, // No longer needed - automatic effect disabled (Option C)
     onCompressionTriggered,
     tokenThreshold,
     minTurns,
@@ -91,18 +258,19 @@ export function useCompression(
     debug = false,
   } = options;
 
-  // Compression trigger instance
+  // Compression trigger instance (persisted across renders)
   const triggerRef = useRef<CompressionTrigger>(
     new CompressionTrigger({ tokenThreshold, minTurns, enabled })
   );
 
-  // Compression state
+  // Compression state (persisted across renders)
   const stateRef = useRef<CompressionState>({
     triggered: false,
     compressionCount: 0,
   });
 
   // Update trigger options when they change
+  // This allows dynamic threshold adjustments without recreating trigger
   useEffect(() => {
     triggerRef.current.updateOptions({ tokenThreshold, minTurns, enabled });
   }, [tokenThreshold, minTurns, enabled]);
@@ -146,6 +314,22 @@ export function useCompression(
   //   }
   // }, [tokenCount, analyzedTurns, isThinking, onCompressionTriggered, debug]);
 
+  /**
+   * Manually trigger compression
+   *
+   * Updates compression state and invokes callback. Should be called
+   * from parent when shouldTrigger is true AND message queue is processed.
+   *
+   * ALGORITHM:
+   * 1. Log debug message if debug enabled
+   * 2. Mark trigger as triggered (prevent re-trigger)
+   * 3. Update state ref with:
+   *    - triggered = true
+   *    - lastCompression = now
+   *    - lastCompressedTokens = current count
+   *    - compressionCount incremented
+   * 4. Invoke onCompressionTriggered callback
+   */
   const triggerCompression = useCallback(() => {
     if (debug) {
       console.log('[useCompression] Manual compression trigger');
@@ -160,6 +344,12 @@ export function useCompression(
     onCompressionTriggered?.(tokenCount, analyzedTurns);
   }, [tokenCount, analyzedTurns, onCompressionTriggered, debug]);
 
+  /**
+   * Reset compression state
+   *
+   * Clears triggered flag to allow compression in new session.
+   * Call when starting fresh conversation or after compression completes.
+   */
   const reset = useCallback(() => {
     if (debug) {
       console.log('[useCompression] Resetting compression state');
@@ -169,6 +359,12 @@ export function useCompression(
     stateRef.current.triggered = false;
   }, [debug]);
 
+  /**
+   * Get compression trigger diagnostic info
+   *
+   * Returns current compression decision details including
+   * token counts, thresholds, and reasoning.
+   */
   const getTriggerInfo = useCallback(() => {
     const result = triggerRef.current.shouldTrigger(tokenCount, analyzedTurns);
     return {

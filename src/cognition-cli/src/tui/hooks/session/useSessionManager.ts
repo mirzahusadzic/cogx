@@ -1,14 +1,57 @@
 /**
  * Session Manager Hook
  *
- * React hook for managing session lifecycle:
- * - Initializes anchor ID and SDK session ID
- * - Loads existing session state on mount
- * - Tracks SDK session changes
- * - Updates session state when SDK session changes
- * - Manages resume session ID for continuity
+ * React hook for orchestrating the dual-identity session model in the TUI.
+ * Manages the lifecycle of both stable anchor IDs and transient SDK session IDs
+ * across the conversation lifecycle.
  *
- * Extracted from useClaudeAgent.ts for better testability.
+ * DESIGN:
+ * This hook bridges React state management with persistent session state:
+ *
+ * Key responsibilities:
+ * 1. Initialize anchor ID (stable, user-facing)
+ * 2. Initialize SDK session ID (transient, changes on compression)
+ * 3. Load existing session state on mount
+ * 4. Track SDK session changes (compression, expiration)
+ * 5. Update session statistics from turn analyses
+ * 6. Manage resume session ID for continuity
+ *
+ * SESSION FLOW:
+ * 1. Mount: Load state from disk, determine if resuming
+ * 2. First query: SDK assigns session UUID, create() saves state
+ * 3. Compression: SDK creates new session, update() records transition
+ * 4. Stats update: updateStats() saves conversation metrics
+ * 5. Unmount: State persists for future resume
+ *
+ * EXTRACTION RATIONALE:
+ * Originally embedded in useClaudeAgent, this was extracted to:
+ * - Improve testability (session logic isolated)
+ * - Reduce complexity (useClaudeAgent was 1200+ lines)
+ * - Enable reuse (other hooks can use session management)
+ * - Clarify responsibilities (session vs. SDK vs. Sigma)
+ *
+ * @example
+ * // Basic usage in TUI component
+ * const sessionManager = useSessionManager({
+ *   sessionIdProp: cliArgs.sessionId,
+ *   cwd: process.cwd(),
+ *   debug: true,
+ *   onSessionLoaded: (msg) => console.log(msg),
+ *   onSDKSessionChanged: (evt) => console.log(evt)
+ * });
+ *
+ * // Access session state
+ * console.log(`Anchor: ${sessionManager.state.anchorId}`);
+ * console.log(`Current: ${sessionManager.state.currentSessionId}`);
+ * console.log(`Resume: ${sessionManager.state.resumeSessionId}`);
+ *
+ * @example
+ * // Update SDK session after compression
+ * sessionManager.updateSDKSession('new-sdk-uuid', 'compression', 95000);
+ *
+ * @example
+ * // Update stats after turn analysis
+ * sessionManager.updateStats(turnAnalyses);
  */
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
@@ -66,7 +109,76 @@ export interface UseSessionManagerResult {
 }
 
 /**
- * Hook for managing session state
+ * Hook for managing session state across conversation lifecycle.
+ *
+ * This hook orchestrates the dual-identity session model:
+ * - Anchor ID: Stable user-facing identifier
+ * - SDK Session ID: Transient identifier that changes on compression
+ *
+ * LIFECYCLE:
+ * 1. Mount Effect:
+ *    - Generate stable anchor ID from sessionIdProp or timestamp
+ *    - Create SessionStateStore instance
+ *    - Load existing state from disk (if resuming)
+ *    - Update React state with loaded values
+ *    - Call onSessionLoaded callback
+ *
+ * 2. SDK Session Updates:
+ *    - First query: SDK assigns UUID, call updateSDKSession('initial')
+ *    - Compression: SDK creates new session, call updateSDKSession('compression')
+ *    - Expiration: SDK rotates session, call updateSDKSession('expiration')
+ *
+ * 3. Statistics Updates:
+ *    - After turn analysis completes, call updateStats()
+ *    - Saves conversation metrics to state file
+ *
+ * 4. Unmount:
+ *    - State persists on disk for future resume
+ *
+ * RETURN VALUE:
+ * Returns object with:
+ * - state: Current session state (anchorId, currentSessionId, resumeSessionId)
+ * - store: SessionStateStore instance for direct access
+ * - updateSDKSession(): Update SDK session ID
+ * - updateStats(): Update conversation statistics
+ * - resetResumeSession(): Clear resume ID (after compression)
+ *
+ * @param options - Configuration and callbacks
+ * @returns Object with session state and update functions
+ *
+ * @example
+ * // Initialize session manager
+ * const sessionManager = useSessionManager({
+ *   sessionIdProp: 'my-project',
+ *   cwd: '/home/user/project',
+ *   debug: true,
+ *   onSessionLoaded: (message) => {
+ *     if (message) showUserMessage(message);
+ *   },
+ *   onSDKSessionChanged: (event) => {
+ *     console.log(`Session changed: ${event.reason}`);
+ *   }
+ * });
+ *
+ * @example
+ * // Handle SDK session assignment
+ * if (sdkMessage.session_id !== sessionManager.state.currentSessionId) {
+ *   sessionManager.updateSDKSession(
+ *     sdkMessage.session_id,
+ *     'initial',
+ *     undefined
+ *   );
+ * }
+ *
+ * @example
+ * // Handle compression
+ * await compressContext(analyses);
+ * sessionManager.updateSDKSession(
+ *   newSdkSessionId,
+ *   'compression',
+ *   tokenCount
+ * );
+ * sessionManager.resetResumeSession();
  */
 export function useSessionManager(
   options: UseSessionManagerOptions

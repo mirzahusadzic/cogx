@@ -1,3 +1,113 @@
+/**
+ * Claude Agent SDK Integration Hook
+ *
+ * The central orchestrator for the TUI's Claude integration. Manages the complete
+ * lifecycle of AI-assisted conversations with Sigma (Σ) conversation lattice,
+ * context compression, and semantic memory.
+ *
+ * ARCHITECTURE:
+ * This hook composes several specialized hooks and services:
+ *
+ * 1. SESSION MANAGEMENT (useSessionManager):
+ *    - Dual-identity session model (anchor ID + SDK session ID)
+ *    - Session persistence across compressions
+ *    - State tracking (.sigma/{session}.state.json)
+ *
+ * 2. TOKEN TRACKING (useTokenCount):
+ *    - Real-time token usage monitoring
+ *    - Compression threshold detection
+ *    - Proper reset semantics for new sessions
+ *
+ * 3. TURN ANALYSIS (useTurnAnalysis):
+ *    - Background semantic analysis of conversation turns
+ *    - Embedding generation and novelty scoring
+ *    - Paradigm shift detection
+ *    - LanceDB persistence for conversation memory
+ *
+ * 4. COMPRESSION (useCompression):
+ *    - Automatic context compression at token thresholds
+ *    - Lattice-based intelligent recap generation
+ *    - Session boundary management
+ *
+ * 5. SIGMA SERVICES:
+ *    - EmbeddingService: Vector embeddings via workbench
+ *    - ConversationOverlayRegistry: Conversation memory overlays (O1-O7)
+ *    - RecallMcpServer: MCP tool for on-demand memory queries
+ *    - ContextInjector: Real-time semantic context retrieval
+ *
+ * DATA FLOW:
+ * User Input → Slash Command Expansion → Context Injection → SDK Query
+ *   ↓
+ * Streaming Response → Message State → Turn Analysis (background)
+ *   ↓
+ * Token Threshold → Compression → Lattice Recap → New SDK Session
+ *   ↓
+ * Persistent State → Resume on Restart
+ *
+ * DESIGN RATIONALE:
+ *
+ * WHY COMPOSITION OVER MONOLITH?
+ * Originally a 1200+ line hook, this was refactored to compose smaller hooks.
+ * Benefits:
+ * - Testability: Each hook can be tested independently
+ * - Reusability: Hooks can be used in other contexts
+ * - Clarity: Clear separation of concerns
+ * - Maintainability: Easier to understand and modify
+ *
+ * WHY BACKGROUND TURN ANALYSIS?
+ * Turn analysis is CPU-intensive (embeddings, vector search). Running it
+ * synchronously would block the UI. The queue-based approach ensures:
+ * - Non-blocking conversation flow
+ * - Ordered analysis (FIFO queue)
+ * - Graceful degradation (analysis can lag without breaking UX)
+ *
+ * WHY DUAL-IDENTITY SESSIONS?
+ * The SDK creates new session UUIDs on compression. Without stable anchor IDs:
+ * - Users would lose track of their work
+ * - State files would proliferate
+ * - No clear audit trail
+ * The dual model solves this: anchor ID = user-facing, SDK ID = internal.
+ *
+ * WHY LATTICE-BASED COMPRESSION?
+ * Traditional summarization loses nuance and context. The conversation lattice:
+ * - Preserves high-importance turns verbatim
+ * - Clusters related concepts
+ * - Maintains temporal coherence
+ * - Enables semantic queries across history
+ *
+ * @example
+ * // Basic TUI integration
+ * const agent = useClaudeAgent({
+ *   sessionId: 'my-project',
+ *   cwd: process.cwd(),
+ *   sessionTokens: 80000,
+ *   debug: true
+ * });
+ *
+ * // Send message
+ * await agent.sendMessage('Explain the overlay system');
+ *
+ * // Display messages
+ * agent.messages.map(msg => (
+ *   <Message type={msg.type} content={msg.content} />
+ * ));
+ *
+ * @example
+ * // Monitor Sigma statistics
+ * console.log(`Lattice nodes: ${agent.sigmaStats.nodes}`);
+ * console.log(`Paradigm shifts: ${agent.sigmaStats.paradigmShifts}`);
+ * console.log(`Avg novelty: ${agent.sigmaStats.avgNovelty}`);
+ *
+ * @example
+ * // Handle compression
+ * useEffect(() => {
+ *   if (agent.tokenCount.total > 80000) {
+ *     // Compression will trigger automatically via useCompression
+ *     console.log('Approaching compression threshold...');
+ *   }
+ * }, [agent.tokenCount.total]);
+ */
+
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { SDKMessage, Query } from '@anthropic-ai/claude-agent-sdk';
 import path from 'path';
@@ -31,22 +141,132 @@ import {
   type Command,
 } from '../commands/loader.js';
 
+/**
+ * Configuration options for Claude Agent SDK integration
+ */
 interface UseClaudeAgentOptions {
+  /**
+   * User-provided session ID (from CLI --session-id flag)
+   * If not provided, auto-generates timestamp-based ID
+   */
   sessionId?: string;
+
+  /**
+   * Current working directory for .sigma/ state files
+   */
   cwd: string;
+
+  /**
+   * Token threshold for automatic context compression
+   * @default 80000
+   */
   sessionTokens?: number;
+
+  /**
+   * Maximum tokens for extended thinking (experimental)
+   * Enables Claude to think longer on complex problems
+   */
   maxThinkingTokens?: number;
+
+  /**
+   * Enable debug logging to console and tui-debug.log
+   * @default false
+   */
   debug?: boolean;
 }
 
+/**
+ * Message object displayed in conversation UI
+ */
 export interface ClaudeMessage {
+  /** Message role */
   type: 'user' | 'assistant' | 'system' | 'tool_progress';
+
+  /** Message text content */
   content: string;
+
+  /** When message was created */
   timestamp: Date;
 }
 
 /**
- * Hook to manage Claude Agent SDK integration
+ * Manages Claude Agent SDK integration with Sigma conversation lattice.
+ *
+ * This is the primary hook for the TUI. It orchestrates:
+ * - SDK query lifecycle
+ * - Message streaming and display
+ * - Token tracking
+ * - Turn analysis (background)
+ * - Context compression
+ * - Session management
+ * - Slash command expansion
+ * - Semantic context injection
+ *
+ * LIFECYCLE:
+ * 1. Mount:
+ *    - Initialize services (embedder, registries, MCP server)
+ *    - Load session state (if resuming)
+ *    - Load conversation lattice from LanceDB
+ *    - Load slash commands from .claude/commands/
+ *
+ * 2. User Input:
+ *    - Expand slash commands (if applicable)
+ *    - Inject semantic context from lattice
+ *    - Create SDK query with Claude Code preset
+ *    - Attach recall MCP server for memory queries
+ *
+ * 3. Streaming Response:
+ *    - Process SDK messages (assistant, tool_use, stream_event)
+ *    - Update token counts
+ *    - Display tool progress
+ *    - Update message state
+ *
+ * 4. Turn Completion:
+ *    - Queue turn for background analysis
+ *    - Update overlay scores
+ *    - Check compression threshold
+ *
+ * 5. Compression (if needed):
+ *    - Wait for analysis queue to complete
+ *    - Build conversation lattice
+ *    - Generate intelligent recap
+ *    - Create new SDK session
+ *    - Update session state
+ *
+ * 6. Unmount:
+ *    - Flush conversation overlays to LanceDB
+ *    - Save session state
+ *
+ * @param options - Configuration for SDK, session, and compression
+ * @returns Object with messages, sendMessage, and Sigma statistics
+ *
+ * @example
+ * // Initialize agent
+ * const agent = useClaudeAgent({
+ *   sessionId: 'my-work',
+ *   cwd: '/home/user/project',
+ *   sessionTokens: 80000,
+ *   debug: true
+ * });
+ *
+ * // Send user message
+ * const handleSubmit = async (input: string) => {
+ *   await agent.sendMessage(input);
+ * };
+ *
+ * // Interrupt long-running query
+ * const handleInterrupt = async () => {
+ *   await agent.interrupt();
+ * };
+ *
+ * // Display conversation
+ * {agent.messages.map((msg, i) => (
+ *   <Box key={i}>
+ *     <Text color={msg.type === 'user' ? 'blue' : 'white'}>
+ *       {msg.content}
+ *     </Text>
+ *   </Box>
+ * ))}
  */
 export function useClaudeAgent(options: UseClaudeAgentOptions) {
   // Destructure options to get stable primitive values
@@ -58,6 +278,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     maxThinkingTokens,
     debug: debugFlag,
   } = options;
+
+  // ========================================
+  // DEBUG UTILITIES
+  // ========================================
 
   // Debug logger (only logs if debug flag is set)
   const debug = useCallback(
@@ -79,6 +303,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     [debugFlag, cwd]
   );
 
+  // ========================================
+  // STATE MANAGEMENT
+  // ========================================
+
   // Initialize with welcome message (colors applied by ClaudePanelAgent)
   const [messages, setMessages] = useState<ClaudeMessage[]>([
     {
@@ -94,8 +322,16 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const [error, setError] = useState<string | null>(null);
   const [currentQuery, setCurrentQuery] = useState<Query | null>(null);
 
+  // ========================================
+  // COMPOSED HOOKS
+  // ========================================
+
   // Token counting with proper reset semantics
   const tokenCounter = useTokenCount();
+
+  // ========================================
+  // SIGMA STATE & SERVICES
+  // ========================================
 
   // Sigma state: conversation lattice and analysis
   const [conversationLattice] = useState<ConversationLattice | null>(null);
@@ -131,6 +367,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const userAssistantMessageCount = messages.filter(
     (m) => m.type === 'user' || m.type === 'assistant'
   ).length;
+
+  // ========================================
+  // SESSION MANAGEMENT
+  // ========================================
 
   // Session callbacks (stable references to prevent infinite loops)
   const handleSessionLoaded = useCallback((message?: string) => {
@@ -186,6 +426,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   useEffect(() => {
     currentSessionIdRef.current = currentSessionId;
   }, [currentSessionId]);
+
+  // ========================================
+  // TURN ANALYSIS & COMPRESSION
+  // ========================================
 
   // Intelligent recap for compression (not part of session manager)
   const [injectedRecap, setInjectedRecap] = useState<string | null>(null);
@@ -505,12 +749,28 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     onCompressionTriggered: handleCompressionTriggered,
   });
 
+  // ========================================
+  // HELPER FUNCTIONS
+  // ========================================
+
   // Update session stats (delegated to sessionManager)
   const updateAnchorStats = useCallback(() => {
     sessionManager.updateStats(turnAnalysis.analyses);
   }, [sessionManager, turnAnalysis.analyses]);
 
-  // Initialize services on mount
+  // ========================================
+  // INITIALIZATION EFFECTS
+  // ========================================
+
+  /**
+   * Initialize Sigma services on mount.
+   *
+   * Creates:
+   * - EmbeddingService: For generating semantic embeddings
+   * - ConversationOverlayRegistry: For O1-O7 conversation overlays
+   * - RecallMcpServer: MCP tool for memory queries
+   * - OverlayRegistry: For project PGC overlays (if exists)
+   */
   useEffect(() => {
     const endpoint = process.env.WORKBENCH_URL || 'http://localhost:8000';
     embedderRef.current = new EmbeddingService(endpoint);
@@ -529,7 +789,12 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       projectRegistryRef.current = new OverlayRegistry(pgcPath, endpoint);
   }, [cwd, debugFlag]);
 
-  // Load slash commands on mount
+  /**
+   * Load slash commands from .claude/commands/ directory.
+   *
+   * Commands are markdown files that expand into full prompts.
+   * Loaded once on mount and cached for the session.
+   */
   useEffect(() => {
     loadCommands(cwd).then((result) => {
       setCommandsCache(result.commands);
@@ -543,7 +808,12 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     });
   }, [cwd, debugFlag]);
 
-  // Load existing lattice on session resume from LanceDB (only once per session)
+  /**
+   * Load existing conversation lattice from LanceDB on session resume.
+   *
+   * Reconstructs turn analyses from persisted LanceDB vectors.
+   * Only runs once per session (tracked by latticeLoadedRef).
+   */
   useEffect(() => {
     const loadLattice = async () => {
       const sessionId = resumeSessionId || anchorId;
@@ -595,12 +865,44 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     loadLattice();
   }, [anchorId, resumeSessionId, cwd]);
 
-  // Keep messagesRef in sync with messages state
+  // ========================================
+  // MESSAGE SYNCHRONIZATION
+  // ========================================
+
+  /**
+   * Keep messagesRef in sync with messages state.
+   *
+   * Required for turn analysis effect to access latest messages
+   * without re-triggering the effect on every message change.
+   */
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
 
-  // Sigma: Queue turn analysis in background (non-blocking!)
+  // ========================================
+  // TURN ANALYSIS QUEUEING
+  // ========================================
+
+  /**
+   * Queue turn analysis in background (non-blocking).
+   *
+   * CRITICAL DESIGN:
+   * This effect must NOT block the conversation flow. Turn analysis
+   * is CPU-intensive (embeddings, vector search) and happens asynchronously
+   * in a background queue.
+   *
+   * ALGORITHM:
+   * 1. Find unanalyzed messages (user/assistant only)
+   * 2. Skip if embedder not initialized
+   * 3. Skip assistant messages if still streaming (isThinking)
+   * 4. Queue each unanalyzed message for background processing
+   * 5. Check compression threshold after queueing
+   *
+   * DEPENDENCIES:
+   * - userAssistantMessageCount: Triggers only on user/assistant messages
+   *   (NOT on system/tool_progress to prevent infinite loops)
+   * - isThinking: Ensures assistant messages fully streamed before analysis
+   */
   useEffect(() => {
     const currentMessages = messagesRef.current;
     if (currentMessages.length === 0) return;
@@ -715,9 +1017,16 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     compression.triggerCompression,
   ]);
 
-  // Minimal initialization - token counts come from SDK, lattice loading disabled for now  useEffect(() => {    debug('🚀 Session initialized:', anchorId);    if (resumeSessionId) debug('📂 Resuming from:', resumeSessionId);  }, [anchorId, resumeSessionId, debug]);
+  // ========================================
+  // SESSION LIFECYCLE
+  // ========================================
 
-  // Set session and cleanup
+  /**
+   * Set current session ID and cleanup on unmount.
+   *
+   * Ensures conversation registry knows which session is active.
+   * Flushes all conversation overlays to LanceDB on unmount.
+   */
   useEffect(() => {
     conversationRegistryRef.current?.setCurrentSession(currentSessionId);
     return () => {
@@ -725,7 +1034,16 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     };
   }, [currentSessionId]);
 
-  // Compute overlay scores from conversation registry
+  // ========================================
+  // OVERLAY STATISTICS
+  // ========================================
+
+  /**
+   * Compute overlay scores from conversation registry.
+   *
+   * Calculates average project alignment scores for each overlay (O1-O7).
+   * Updates when turn analysis completes.
+   */
   useEffect(() => {
     async function computeOverlayScores() {
       if (!conversationRegistryRef.current || !currentSessionId) return;
@@ -783,6 +1101,43 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     }
   }, [turnAnalysis.stats.totalAnalyzed, currentSessionId, debug]);
 
+  /**
+   * Send a message to Claude and process the response.
+   *
+   * ALGORITHM:
+   * 1. Expand slash commands (if input starts with /)
+   * 2. Add user message to conversation
+   * 3. Inject semantic context from lattice (if available)
+   * 4. Create SDK query with Claude Code preset
+   * 5. Stream response and update messages
+   * 6. Queue turn for background analysis
+   * 7. Check compression threshold
+   *
+   * SLASH COMMAND EXPANSION:
+   * Commands are loaded from .claude/commands/*.md files.
+   * Format: /command-name args
+   * Example: /review-pr 123 → expands to full PR review prompt
+   *
+   * CONTEXT INJECTION:
+   * If conversation lattice exists, inject relevant context via semantic search:
+   * - Embed user query
+   * - Search lattice for similar turns
+   * - Prepend relevant context to prompt
+   * - Improves coherence and reduces repetition
+   *
+   * ERROR HANDLING:
+   * - Authentication errors: Show friendly auth setup message
+   * - SDK errors: Parse stderr for helpful diagnostics
+   * - Network errors: Display connection issues
+   *
+   * @param prompt - User input (may be slash command or regular text)
+   *
+   * @example
+   * await sendMessage('Explain the overlay system');
+   *
+   * @example
+   * await sendMessage('/review-pr 42');
+   */
   const sendMessage = useCallback(
     async (prompt: string) => {
       try {
@@ -1019,6 +1374,29 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     ]
   );
 
+  /**
+   * Process streaming SDK messages and update UI state.
+   *
+   * Handles all SDK message types:
+   * - assistant: Tool calls, text responses
+   * - stream_event: Content deltas, token counts
+   * - tool_progress: Tool execution updates
+   * - result: Final query outcome
+   * - system: SDK initialization messages
+   *
+   * SESSION ID TRACKING:
+   * All SDK messages include session_id field. This is critical for
+   * detecting session changes (compression, expiration). The hook
+   * compares against currentSessionIdRef (synchronous) to prevent
+   * duplicate state updates during rapid message processing.
+   *
+   * TOKEN COUNT UPDATES:
+   * SDK sends token counts in message_delta events. These are cumulative
+   * within a session. The hook uses Math.max to prevent decreases, but
+   * allows reset after compression via useTokenCount's justReset flag.
+   *
+   * @param sdkMessage - Message from Claude Agent SDK
+   */
   const processSDKMessage = (sdkMessage: SDKMessage) => {
     // Extract session ID from SDK message (all SDK messages have it)
     // This is critical for session-less TUI starts where SDK creates its own ID
@@ -1232,6 +1610,16 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     }
   };
 
+  /**
+   * Interrupt the current SDK query.
+   *
+   * Sends interrupt signal to Claude Agent SDK, stopping tool execution
+   * and response generation. Used for ESC ESC keyboard shortcut in TUI.
+   *
+   * @example
+   * // Interrupt long-running query
+   * await interrupt();
+   */
   const interrupt = useCallback(async () => {
     if (currentQuery) {
       await currentQuery.interrupt();
@@ -1239,7 +1627,25 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     }
   }, [currentQuery]);
 
-  // Calculate Sigma stats for header display
+  // ========================================
+  // RETURN VALUE
+  // ========================================
+
+  /**
+   * Return hook interface for TUI components.
+   *
+   * Provides:
+   * - messages: Conversation history
+   * - sendMessage: Send user input to Claude
+   * - interrupt: Stop current query
+   * - isThinking: Whether Claude is responding
+   * - error: Error message (if any)
+   * - tokenCount: Current token usage
+   * - conversationLattice: Sigma conversation graph
+   * - currentSessionId: Active SDK session
+   * - sigmaStats: Conversation analysis metrics
+   * - avgOverlays: Average overlay alignment scores
+   */
   return {
     messages,
     sendMessage,
