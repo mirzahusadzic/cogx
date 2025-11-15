@@ -58,7 +58,63 @@ export interface LineageQueryResult {
 }
 
 /**
- * Manages lineage pattern generation and similarity search using worker-based mining and sequential embedding.
+ * Lineage Patterns Manager (O₃) - DEPENDENCY PROVENANCE
+ *
+ * Manages lineage pattern generation and similarity search using worker-based
+ * mining and sequential embedding. Lineage patterns capture the COMPLETE
+ * dependency tree of a symbol via provenance-grounded traversal.
+ *
+ * LATTICE POSITION: O₃ (Structural/Derived)
+ * - Derives from: O₁ (structural patterns) via transform log traversal
+ * - Uses: PGC reverse_deps for time-traveling dependency discovery
+ * - Informs: O₇ (coherence) via dependency-aware weighting
+ *
+ * ARCHITECTURE:
+ * - Two-phase generation:
+ *   Phase 1: Mine lineage in parallel (workers traverse transform log)
+ *   Phase 2: Generate embeddings sequentially (rate-limited via EmbeddingService)
+ * - Worker pool: Optimal sizing based on CPU count and job size
+ * - Centralized embedding: Single service coordinates all embedding requests
+ *
+ * LINEAGE ALGORITHM ("Time-Traveling Archaeologist"):
+ * 1. Find symbol in index → get structural_hash
+ * 2. Find transform that CREATED this hash (reverse_deps)
+ * 3. Get transform manifest → extract INPUT hashes
+ * 4. Load input structures → find all dependencies
+ * 5. Repeat for each dependency (recursive traversal)
+ * 6. Build complete dependency tree with provenance
+ *
+ * DESIGN RATIONALE:
+ * - Provenance-grounded: Uses actual transform log (not just imports)
+ * - Parallel mining: Workers handle expensive traversal
+ * - Sequential embedding: Centralized service prevents rate limit violations
+ * - Complete lineage: Captures full dependency context, not just direct imports
+ *
+ * EMBEDDINGS:
+ * - Each lineage pattern has a 768D vector from eGemma
+ * - Embeds the ENTIRE dependency tree structure
+ * - Enables queries: "Find symbols with similar dependencies"
+ *
+ * STORAGE:
+ * - Metadata: .open_cognition/overlays/lineage_patterns/<file>#<symbol>.json
+ * - Vectors: .open_cognition/lance/lineage_patterns/ (LanceDB)
+ * - Manifest: .open_cognition/overlays/lineage_patterns/manifest.json
+ *
+ * @example
+ * // Generate lineage patterns for entire codebase
+ * const manager = new LineagePatternsManager(pgc, vectorDB, workbench);
+ * await manager.generate({ force: false });
+ * await manager.shutdown(); // Critical cleanup
+ *
+ * @example
+ * // Find symbols with similar dependencies
+ * const similar = await manager.findSimilarPatterns('MyClass', 10);
+ * console.log(`Found ${similar.length} symbols with similar lineage`);
+ *
+ * @example
+ * // Monitor embedding queue
+ * const stats = manager.getEmbeddingStats();
+ * console.log(`Queue: ${stats.queueSize}, Processing: ${stats.isProcessing}`);
  */
 export class LineagePatternsManager implements PatternManager {
   private workerPool: workerpool.Pool | null = null;

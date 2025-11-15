@@ -14,20 +14,60 @@ import {
 import type { OverlayData } from '../../pgc/embedding-loader.js';
 
 /**
- * Security guidelines overlay (O₂)
- * Stores extracted security knowledge for safe development guidance
+ * Security Guidelines Overlay (O₂) - FOUNDATIONAL LAYER
  *
- * PURPOSE:
- * - Foundational security layer (checked before mission alignment)
- * - PORTABLE: Can be exported/imported via .cogx files
- * - Enables security inheritance from dependencies
+ * Stores extracted security knowledge for safe development guidance.
+ * This is the foundational security layer in the lattice - checked BEFORE
+ * mission alignment to ensure safety constraints are never violated.
  *
- * REUSABILITY:
+ * LATTICE POSITION: O₂ (Foundational)
+ * - Below mission (O₄) - security constraints cannot be overridden by mission
+ * - Composes with operational (O₅) - guides secure workflows
+ * - Informs coherence (O₇) - ensures aligned code is also secure
+ *
+ * KNOWLEDGE TYPES:
+ * - threat_model: Attack scenarios and threat actors
+ * - attack_vector: Specific exploit methods (SQL injection, XSS, etc.)
+ * - mitigation: Countermeasures and defenses
+ * - boundary: Security boundaries and trust zones
+ * - constraint: Security requirements and policies
+ * - vulnerability: Known issues, CVEs from dependencies
+ *
+ * PORTABILITY (.cogx):
+ * O₂ overlays can be exported/imported for security knowledge reuse:
+ * ```
  * express.cogx → O₂ (CVEs, safe patterns)
  *   ↓ import
  * Your Project → Inherits express security knowledge
  *   ↓ query
  * "Safe input handling?" → Combines your O₂ + express O₂
+ * ```
+ *
+ * DESIGN RATIONALE:
+ * - Foundational: Security is never negotiable
+ * - Portable: Reuse security knowledge across projects
+ * - Queryable: "What mitigations exist for X attack?"
+ * - Composable: Combine project + dependency security layers
+ *
+ * STORAGE:
+ * - YAML: .open_cognition/overlays/security_guidelines/<doc_hash>.yaml
+ * - LanceDB: .open_cognition/lance/documents.lancedb (overlay_type='O2')
+ *
+ * @example
+ * // Query security guidelines semantically
+ * const manager = new SecurityGuidelinesManager(pgcRoot);
+ * const results = await manager.query('SQL injection prevention', 5);
+ *
+ * @example
+ * // Get all CVEs
+ * const cves = await manager.getCVEs();
+ * console.log(`Found ${cves.length} known vulnerabilities`);
+ *
+ * @example
+ * // Export for .cogx packaging
+ * const overlay = await manager.exportForCogx(documentHash);
+ * // Import into another project
+ * await otherManager.importFromCogx(overlay, 'express', 'abc123');
  */
 export interface SecurityGuidelinesOverlay {
   document_hash: string; // Content hash of source document

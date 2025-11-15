@@ -3,14 +3,54 @@ import fs from 'fs-extra';
 import path from 'path';
 
 /**
- * Manages content-addressable storage for immutable objects using SHA-256 hashing.
+ * Content-Addressable Object Store
+ *
+ * Git-style content-addressable storage for immutable objects using SHA-256 hashing.
+ * This is the foundational layer of the PGC system - all derived data is stored here.
+ *
+ * ARCHITECTURE:
+ * - Content-addressable: hash(content) → storage location
+ * - Immutable: objects never change (hash guarantees identity)
+ * - Deduplication: same content → same hash → stored once
+ * - Git-style sharding: first 2 chars of hash as directory (256 buckets)
+ *
+ * STORAGE LAYOUT:
+ * .open_cognition/objects/<2-char-prefix>/<remaining-hash>
+ * Example: hash 7f3a9b2c... → objects/7f/3a9b2c...
+ *
+ * BENEFITS:
+ * - Automatic deduplication (same structural pattern stored once)
+ * - Cache invalidation (different content → different hash)
+ * - Provenance (hash proves content hasn't changed)
+ * - Efficient lookup (O(1) via hash)
+ *
+ * @example
+ * const store = new ObjectStore('/path/to/.open_cognition');
+ *
+ * // Store structural data
+ * const hash = await store.store(JSON.stringify(structuralData));
+ *
+ * // Retrieve by hash
+ * const data = await store.retrieve(hash);
+ * const structural = JSON.parse(data.toString());
+ *
+ * @example
+ * // Check existence without loading
+ * if (await store.exists(hash)) {
+ *   console.log('Pattern already processed');
+ * }
  */
 export class ObjectStore {
   constructor(private rootPath: string) {}
 
   /**
-   * Store content in content-addressable storage
-   * Returns the hash of the stored object
+   * Store content in content-addressable storage.
+   *
+   * @param content - Content to store (structural data, documents, etc.)
+   * @returns SHA-256 hash of the content (storage key)
+   *
+   * @example
+   * const hash = await store.store(JSON.stringify({ class: 'Foo' }));
    */
   async store(content: string | Buffer): Promise<string> {
     const hash = this.computeHash(content);
@@ -26,7 +66,11 @@ export class ObjectStore {
   }
 
   /**
-   * Retrieve content by hash
+   * Retrieve content by hash.
+   *
+   * @param hash - SHA-256 hash of content
+   * @returns Content buffer
+   * @throws {Error} If object doesn't exist
    */
   async retrieve(hash: string): Promise<Buffer> {
     const objectPath = this.getObjectPath(hash);

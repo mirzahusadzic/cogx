@@ -5,8 +5,19 @@
  * - v1 format: Embeddings stored in YAML files (legacy)
  * - v2 format: Embeddings stored in LanceDB (current)
  *
+ * MIGRATION CONTEXT:
  * This solves the critical migration bug where all overlay managers
  * broke after migrate:lance because they expected embeddings in YAML.
+ *
+ * ALGORITHM:
+ * 1. Check overlay.format_version
+ * 2. If v2 and has lancedb_metadata → load from LanceDB
+ * 3. Otherwise → load from YAML (v1 format)
+ * 4. Return unified MissionConcept[] format
+ *
+ * FORMAT DETECTION:
+ * - v2: overlay.format_version === 2 && overlay.lancedb_metadata exists
+ * - v1: everything else (no version field or version 1)
  *
  * USAGE:
  * ```typescript
@@ -17,7 +28,26 @@
  * );
  * ```
  *
+ * BENEFITS:
+ * - Transparent to overlay managers (same API for both formats)
+ * - Gradual migration (can have mix of v1/v2 overlays)
+ * - No breaking changes (existing YAML overlays still work)
+ *
  * Related: CRITICAL_LANCE_MIGRATION_BUG.md - Phase 1
+ *
+ * @example
+ * // Load embeddings transparently (v1 or v2)
+ * const loader = new EmbeddingLoader();
+ * const concepts = await loader.loadConceptsWithEmbeddings(overlay, pgcRoot);
+ * console.log(`Loaded ${concepts.length} concepts from ${loader.getFormatVersion(overlay)}`);
+ *
+ * @example
+ * // Check format version
+ * if (loader.isV2Format(overlay)) {
+ *   console.log('Using LanceDB storage');
+ * } else {
+ *   console.log('Using YAML storage (legacy)');
+ * }
  */
 
 import { DocumentLanceStore } from './document-lance-store.js';
