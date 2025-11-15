@@ -24,6 +24,22 @@ const DEFAULT_OPTIONS: Required<AnalyzerOptions> = {
 
 /**
  * Analyze a conversation turn
+ *
+ * Evaluates a single conversation turn for novelty, overlay activation,
+ * importance, and semantic relationships. This is the core analysis function
+ * for the Context Sampling Sigma system.
+ *
+ * @param turn - Conversation turn to analyze
+ * @param _context - Analysis context (reserved for future use)
+ * @param options - Analyzer configuration options
+ * @returns Promise resolving to turn analysis results
+ *
+ * @example
+ * const analysis = await analyzeTurn(turn, context, {
+ *   overlay_threshold: 5,
+ *   paradigm_shift_threshold: 7
+ * });
+ * console.log(`Importance: ${analysis.importance_score}/10`);
  */
 export async function analyzeTurn(
   turn: ConversationTurn,
@@ -65,6 +81,14 @@ export async function analyzeTurn(
 
 /**
  * Detect which overlays are active in this turn
+ *
+ * Uses keyword matching to determine which overlay layers (O1-O7) are
+ * relevant to the conversation turn. Returns scores (0-10) for each overlay.
+ *
+ * @param turn - Conversation turn to analyze
+ * @param _context - Analysis context (reserved for future use)
+ * @returns Promise resolving to overlay activation scores
+ * @private
  */
 async function detectOverlayActivation(
   turn: ConversationTurn,
@@ -189,6 +213,11 @@ async function detectOverlayActivation(
 
 /**
  * Calculate keyword match score (0-10)
+ *
+ * @param content - Content to analyze (should be lowercase)
+ * @param keywords - Array of keywords to match against
+ * @returns Score from 0-10 based on keyword matches
+ * @private
  */
 function calculateKeywordScore(content: string, keywords: string[]): number {
   let matches = 0;
@@ -205,6 +234,19 @@ function calculateKeywordScore(content: string, keywords: string[]): number {
 
 /**
  * Calculate overall importance score (1-10)
+ *
+ * Combines multiple factors to determine turn importance:
+ * - Overlay activation strength
+ * - Content length and complexity
+ * - Presence of questions, code blocks
+ * - Paradigm shift indicators
+ * - Problem-solving keywords
+ *
+ * @param turn - Conversation turn to evaluate
+ * @param overlayScores - Overlay activation scores
+ * @param _context - Analysis context (reserved for future use)
+ * @returns Importance score from 1-10
+ * @private
  */
 function calculateImportance(
   turn: ConversationTurn,
@@ -271,6 +313,13 @@ function calculateImportance(
 
 /**
  * Find references to previous turns
+ *
+ * Detects temporal references and cross-references in conversation content.
+ *
+ * @param turn - Conversation turn to analyze
+ * @param _context - Analysis context (reserved for future use)
+ * @returns Array of reference IDs (currently placeholder implementation)
+ * @private
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function findReferences(turn: ConversationTurn, _context: unknown): string[] {
@@ -292,6 +341,15 @@ function findReferences(turn: ConversationTurn, _context: unknown): string[] {
 
 /**
  * Extract semantic tags (keywords, entities)
+ *
+ * Extracts notable keywords and entities from turn content including:
+ * - File references (e.g., "useClaudeAgent.ts")
+ * - Package names (e.g., "@anthropic-ai/sdk")
+ * - Technical terms (camelCase, PascalCase)
+ *
+ * @param turn - Conversation turn to analyze
+ * @returns Array of extracted semantic tags (deduplicated)
+ * @private
  */
 function extractSemanticTags(turn: ConversationTurn): string[] {
   const tags: string[] = [];
@@ -321,6 +379,18 @@ function extractSemanticTags(turn: ConversationTurn): string[] {
 
 /**
  * Batch analyze multiple turns
+ *
+ * Analyzes an array of conversation turns sequentially. Use this for
+ * processing entire conversation histories.
+ *
+ * @param turns - Array of conversation turns to analyze
+ * @param _context - Analysis context (reserved for future use)
+ * @param options - Analyzer configuration options
+ * @returns Promise resolving to array of turn analyses
+ *
+ * @example
+ * const analyses = await analyzeTurns(conversationHistory, context);
+ * const importantTurns = analyses.filter(a => a.importance_score >= 7);
  */
 export async function analyzeTurns(
   turns: ConversationTurn[],

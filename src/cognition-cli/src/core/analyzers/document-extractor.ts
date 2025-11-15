@@ -114,6 +114,8 @@ export class ExtractorRegistry {
 
   /**
    * Register a new extractor
+   *
+   * @param extractor - Document extractor to register
    */
   register(extractor: DocumentExtractor): void {
     this.extractors.push(extractor);
@@ -121,6 +123,9 @@ export class ExtractorRegistry {
 
   /**
    * Get the appropriate extractor for a document type
+   *
+   * @param docType - Type of document to find extractor for
+   * @returns Matching extractor or undefined if none found
    */
   getExtractor(docType: DocumentType): DocumentExtractor | undefined {
     return this.extractors.find((e) => e.supports(docType));
@@ -128,6 +133,8 @@ export class ExtractorRegistry {
 
   /**
    * Get all registered extractors
+   *
+   * @returns Array of all registered extractors
    */
   getAllExtractors(): DocumentExtractor[] {
     return [...this.extractors];
@@ -135,6 +142,9 @@ export class ExtractorRegistry {
 
   /**
    * Get extractors by overlay layer
+   *
+   * @param layer - Overlay layer identifier (e.g., 'O2', 'O4')
+   * @returns Array of extractors targeting the specified layer
    */
   getExtractorsByLayer(layer: string): DocumentExtractor[] {
     return this.extractors.filter((e) => e.getOverlayLayer() === layer);

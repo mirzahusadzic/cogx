@@ -23,6 +23,10 @@ const DEFAULT_OPTIONS: Required<CompressorOptions> = {
 /**
  * Estimate token count for text (rough approximation)
  * Rule: ~4 characters per token average
+ *
+ * @param text - Text to estimate token count for
+ * @returns Estimated number of tokens
+ * @private
  */
 function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
@@ -30,6 +34,25 @@ function estimateTokens(text: string): number {
 
 /**
  * Compress conversation context into lattice
+ *
+ * Converts analyzed conversation turns into a compressed lattice representation
+ * by prioritizing important turns and paradigm shifts. Achieves 30-50x compression
+ * while preserving critical context.
+ *
+ * Strategy:
+ * - Always preserve paradigm shifts (high importance)
+ * - Compress routine turns to 10% size
+ * - Compress medium-importance turns to 30% size
+ * - Build lattice with semantic and temporal edges
+ *
+ * @param turns - Array of analyzed conversation turns
+ * @param options - Compression configuration options
+ * @returns Promise resolving to compression result with lattice and metrics
+ *
+ * @example
+ * const result = await compressContext(analyses, { target_size: 40000 });
+ * console.log(`Compressed ${result.compression_ratio.toFixed(1)}x`);
+ * console.log(`Preserved ${result.preserved_turns.length} paradigm shifts`);
  */
 export async function compressContext(
   turns: TurnAnalysis[],
@@ -135,6 +158,15 @@ export async function compressContext(
 
 /**
  * Build conversation lattice from analyzed turns
+ *
+ * Creates a graph structure with nodes for conversation turns and edges
+ * representing relationships (temporal sequence and explicit references).
+ * Discarded turns are excluded from the lattice.
+ *
+ * @param turns - Array of analyzed conversation turns
+ * @param classification - Turn classification (preserved, summarized, discarded)
+ * @returns Conversation lattice with nodes and edges
+ * @private
  */
 function buildConversationLattice(
   turns: TurnAnalysis[],
@@ -214,6 +246,11 @@ function buildConversationLattice(
 /**
  * Add semantic similarity edges (for future enhancement)
  * Connects turns with similar content/topics
+ *
+ * @param lattice - Conversation lattice to enhance
+ * @param _similarityThreshold - Similarity threshold for creating edges (0-1)
+ * @returns Enhanced lattice with semantic edges (currently unchanged)
+ * @todo Implement embedding-based similarity in Phase 4
  */
 export function addSemanticEdges(
   lattice: ConversationLattice,
@@ -228,6 +265,12 @@ export function addSemanticEdges(
 
 /**
  * Summarize a turn using LLM (for future enhancement)
+ *
+ * @param turn - Turn to summarize
+ * @param compressionRatio - Target compression ratio (0-1)
+ * @returns Promise resolving to summarized content
+ * @todo Implement LLM-based summarization in Phase 4
+ * @private
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function _summarizeTurn(
@@ -242,6 +285,16 @@ async function _summarizeTurn(
 
 /**
  * Get lattice statistics (for debugging/monitoring)
+ *
+ * Calculates useful metrics about the conversation lattice including
+ * node/edge counts, importance scores, and estimated memory usage.
+ *
+ * @param lattice - Conversation lattice to analyze
+ * @returns Object containing lattice statistics
+ *
+ * @example
+ * const stats = getLatticeStats(result.lattice);
+ * console.log(`Lattice: ${stats.node_count} nodes, ${stats.estimated_size_kb}KB`);
  */
 export function getLatticeStats(lattice: ConversationLattice): {
   node_count: number;

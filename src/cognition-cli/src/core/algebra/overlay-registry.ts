@@ -63,6 +63,12 @@ export class OverlayRegistry {
   private managers = new Map<OverlayId, OverlayAlgebra>();
   private workbenchUrl?: string;
 
+  /**
+   * Create a new overlay registry
+   *
+   * @param pgcRoot - Root directory of the PGC (Grounded Context Pool)
+   * @param workbenchUrl - Optional URL for workbench API access
+   */
   constructor(
     private pgcRoot: string,
     workbenchUrl?: string
@@ -73,6 +79,9 @@ export class OverlayRegistry {
   /**
    * Get overlay manager by ID
    * Lazy-initializes the manager on first access
+   *
+   * @param overlayId - Overlay identifier (O1-O7)
+   * @returns Promise resolving to the overlay manager instance
    */
   async get(overlayId: OverlayId): Promise<OverlayAlgebra> {
     // Return cached manager if exists
@@ -88,6 +97,9 @@ export class OverlayRegistry {
 
   /**
    * Get multiple overlays at once
+   *
+   * @param overlayIds - Array of overlay identifiers to retrieve
+   * @returns Promise resolving to a map of overlay IDs to their managers
    */
   async getAll(
     overlayIds: OverlayId[]
@@ -101,6 +113,8 @@ export class OverlayRegistry {
 
   /**
    * Get information about all available overlays
+   *
+   * @returns Array of overlay metadata including IDs, names, descriptions, and supported types
    */
   getOverlayInfo(): OverlayInfo[] {
     return [
@@ -164,6 +178,9 @@ export class OverlayRegistry {
 
   /**
    * Check if an overlay exists and has data
+   *
+   * @param overlayId - Overlay identifier to check
+   * @returns Promise resolving to true if the overlay has data, false otherwise
    */
   async hasData(overlayId: OverlayId): Promise<boolean> {
     try {
@@ -177,6 +194,8 @@ export class OverlayRegistry {
 
   /**
    * Get list of overlays that have data
+   *
+   * @returns Promise resolving to array of overlay IDs that contain data
    */
   async getPopulatedOverlays(): Promise<OverlayId[]> {
     const overlayIds: OverlayId[] = ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'];
@@ -194,6 +213,10 @@ export class OverlayRegistry {
   /**
    * Create manager instance for overlay
    * Note: Managers will need to be refactored to implement OverlayAlgebra
+   *
+   * @param overlayId - Overlay identifier to create manager for
+   * @returns Overlay manager instance implementing OverlayAlgebra interface
+   * @private
    */
   private createManager(overlayId: OverlayId): OverlayAlgebra {
     switch (overlayId) {
@@ -226,6 +249,14 @@ export class OverlayRegistry {
 
 /**
  * Create a registry instance for a PGC root
+ *
+ * @param pgcRoot - Root directory of the PGC (Grounded Context Pool)
+ * @param workbenchUrl - Optional URL for workbench API access
+ * @returns New OverlayRegistry instance
+ *
+ * @example
+ * const registry = createOverlayRegistry('/path/to/pgc');
+ * const security = await registry.get('O2');
  */
 export function createOverlayRegistry(
   pgcRoot: string,
