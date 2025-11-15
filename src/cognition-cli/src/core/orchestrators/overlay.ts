@@ -7,7 +7,9 @@ import { StructuralPatternsManager } from '../overlays/structural/patterns.js';
 import { LineagePatternsManager } from '../overlays/lineage/manager.js';
 import { MissionConceptsManager } from '../overlays/mission-concepts/manager.js';
 import { StrategicCoherenceManager } from '../overlays/strategic-coherence/manager.js';
+import { MathematicalProofsManager } from '../overlays/mathematical-proofs/manager.js';
 import { ConceptExtractor } from '../analyzers/concept-extractor.js';
+import { ProofExtractor } from '../analyzers/proof-extractor.js';
 import { StructuralMiner } from './miners/structural.js';
 import { OverlayOracle } from '../pgc/oracles/overlay.js';
 import {
@@ -40,7 +42,9 @@ export class OverlayOrchestrator {
   private lineagePatternManager: LineagePatternsManager;
   private missionConceptsManager: MissionConceptsManager;
   private strategicCoherenceManager: StrategicCoherenceManager;
+  private mathematicalProofsManager: MathematicalProofsManager;
   private conceptExtractor: ConceptExtractor;
+  private proofExtractor: ProofExtractor;
   private overlayOracle: OverlayOracle;
   private genesisOracle: GenesisOracle;
   private miner: StructuralMiner;
@@ -72,7 +76,12 @@ export class OverlayOrchestrator {
       path.join(this.projectRoot, '.open_cognition'),
       workbenchUrl
     );
+    this.mathematicalProofsManager = new MathematicalProofsManager(
+      path.join(this.projectRoot, '.open_cognition'),
+      workbenchUrl
+    );
     this.conceptExtractor = new ConceptExtractor();
+    this.proofExtractor = new ProofExtractor();
     this.overlayOracle = new OverlayOracle(this.pgc);
     this.genesisOracle = new GenesisOracle(this.pgc);
   }
@@ -221,6 +230,12 @@ export class OverlayOrchestrator {
     // Strategic coherence has a different flow - computes from existing overlays
     if (overlayType === 'strategic_coherence') {
       await this.generateStrategicCoherence(force);
+      return;
+    }
+
+    // Mathematical proofs - extract from documents
+    if (overlayType === 'mathematical_proofs') {
+      await this.generateMathematicalProofs(force);
       return;
     }
 
@@ -896,6 +911,156 @@ export class OverlayOrchestrator {
     console.log(
       chalk.green(
         `  [MissionConcepts] ${filePath} - ✓ complete (${concepts.length} concepts embedded)`
+      )
+    );
+  }
+
+  /**
+   * Generate mathematical proofs overlay (O₆)
+   * Extracts theorems, lemmas, axioms, and proofs from documents
+   */
+  private async generateMathematicalProofs(force: boolean): Promise<void> {
+    const s = spinner();
+
+    // Auto-discover and ingest strategic docs (same as mission concepts)
+    s.start(
+      '[MathematicalProofs] Discovering and ingesting strategic documents...'
+    );
+    const ingestedCount = await this.autoIngestStrategicDocs();
+    if (ingestedCount > 0) {
+      s.stop(
+        `[MathematicalProofs] Ingested ${ingestedCount} strategic document(s)`
+      );
+    } else {
+      s.stop('[MathematicalProofs] All strategic documents already ingested');
+    }
+
+    s.start('[MathematicalProofs] Discovering markdown documents in PGC...');
+    const docIndex = await this.discoverDocuments();
+    s.stop(`[MathematicalProofs] Found ${docIndex.length} document(s) in PGC.`);
+
+    if (docIndex.length === 0) {
+      log.warn(
+        chalk.yellow(
+          '[MathematicalProofs] No documents found. Add markdown files to docs/ folder or VISION.md in project root.'
+        )
+      );
+      return;
+    }
+
+    console.log(
+      chalk.blue(
+        `[MathematicalProofs] Extracting mathematical statements from ${docIndex.length} document(s)...`
+      )
+    );
+
+    for (let i = 0; i < docIndex.length; i++) {
+      const docEntry = docIndex[i];
+      await this.generateMathematicalProofsForDocument(docEntry, force);
+
+      // Add delay between documents to avoid API rate limiting
+      if (i < docIndex.length - 1) {
+        console.log(chalk.dim('  ⏱  Waiting 5s to avoid rate limits...'));
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+      }
+    }
+
+    console.log(
+      chalk.green(
+        '[MathematicalProofs] Mathematical proofs generation complete.'
+      )
+    );
+  }
+
+  /**
+   * Generate mathematical proofs for a single document
+   */
+  private async generateMathematicalProofsForDocument(
+    docEntry: { filePath: string; contentHash: string; objectHash: string },
+    force: boolean
+  ): Promise<void> {
+    const { filePath, contentHash, objectHash } = docEntry;
+
+    // Check if overlay already exists (unless force=true)
+    if (!force) {
+      const existing =
+        await this.mathematicalProofsManager.loadOverlay(contentHash);
+      if (existing) {
+        console.log(
+          chalk.dim(
+            `  [MathematicalProofs] ${filePath} - skipped (already exists)`
+          )
+        );
+        return;
+      }
+    }
+
+    console.log(
+      chalk.blue(`  [MathematicalProofs] ${filePath} - extracting proofs...`)
+    );
+
+    // Load document object from PGC using objectHash
+    const docObjectBuffer = await this.pgc.objectStore.retrieve(objectHash);
+    if (!docObjectBuffer) {
+      console.log(
+        chalk.yellow(
+          `  [MathematicalProofs] ${filePath} - skipped (document not found in PGC)`
+        )
+      );
+      return;
+    }
+
+    const parsedDoc = JSON.parse(
+      docObjectBuffer.toString('utf-8')
+    ) as DocumentObject;
+
+    if (parsedDoc.type !== 'markdown_document') {
+      console.log(
+        chalk.yellow(
+          `  [MathematicalProofs] ${filePath} - skipped (not a markdown document)`
+        )
+      );
+      return;
+    }
+
+    // Extract mathematical statements using ProofExtractor
+    const markdownDoc = {
+      filePath: parsedDoc.filePath,
+      hash: parsedDoc.hash,
+      sections: parsedDoc.ast.sections,
+      metadata: parsedDoc.ast.metadata,
+      rawContent: parsedDoc.content,
+    };
+
+    const statements = this.proofExtractor.extract(markdownDoc);
+
+    if (statements.length === 0) {
+      console.log(
+        chalk.yellow(
+          `  [MathematicalProofs] ${filePath} - skipped (no mathematical statements found)`
+        )
+      );
+      return;
+    }
+
+    console.log(
+      chalk.blue(
+        `  [MathematicalProofs] ${filePath} - found ${statements.length} statements, generating embeddings...`
+      )
+    );
+
+    // Generate overlay with embeddings
+    const transformId = `mathematical_proofs:${contentHash}:${new Date().toISOString()}`;
+    await this.mathematicalProofsManager.generateOverlay(
+      filePath,
+      contentHash,
+      statements,
+      transformId
+    );
+
+    console.log(
+      chalk.green(
+        `  [MathematicalProofs] ${filePath} - ✓ complete (${statements.length} statements embedded)`
       )
     );
   }
