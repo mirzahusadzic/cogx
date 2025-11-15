@@ -54,6 +54,12 @@ THE LATTICE BOOK is the complete reference manual for building, querying, and re
 
 ## Book Structure
 
+### Part 0: Quick Start (10 Minutes)
+
+**Quick Start Guide**
+`part-0-quickstart/00-quick-start.md`
+Get from zero to first query in under 10 minutes. Installation, setup, and first queries.
+
 ### Part I: Foundation (~100 pages)
 
 **Chapter 1: Cognitive Architecture**
@@ -172,9 +178,16 @@ Dual-lattice architecture. Meet operations. Conversation overlays (O1-O7). Sessi
 
 ## Reading Paths
 
+### For New Users (Fast Start) ⭐
+
+1. **Quick Start Guide** (10 minutes) ⭐
+2. Chapter 2: The PGC (understand storage)
+3. Chapter 5: CLI Operations (command reference)
+4. Start querying!
+
 ### For Implementers (Full Path)
 
-Read sequentially from Part I through Part VI.
+Read sequentially from Part 0 through Part VI.
 
 ### For Query Users (Fast Path)
 
@@ -318,5 +331,7 @@ Built with:
 ---
 
 **Next Chapter**: [Chapter 12: Boolean Operations on Knowledge](part-3-algebra/12-boolean-operations.md) 🚧
+
+**Quick Start**: [10-Minute Quick Start Guide](part-0-quickstart/00-quick-start.md) ⚡
 
 **Start Reading**: [Chapter 1: Cognitive Architecture](part-1-foundation/01-cognitive-architecture.md) 📋
