@@ -2,11 +2,7 @@
   "entryPoints": ["./src"],
   "entryPointStrategy": "expand",
   "out": "./docs/api",
-  "exclude": [
-    "**/*.test.ts",
-    "**/__tests__/**",
-    "**/node_modules/**"
-  ],
+  "exclude": ["**/*.test.ts", "**/__tests__/**", "**/node_modules/**"],
   "excludePrivate": false,
   "excludeProtected": false,
   "excludeInternal": false,
