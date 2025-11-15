@@ -85,31 +85,63 @@ interface Token {
 // LEXER (Tokenizer)
 // ========================================
 
+/**
+ * Lexer for tokenizing lattice query expressions
+ *
+ * Converts raw query strings into a stream of tokens for parsing.
+ * Supports overlay IDs, filters, operators, and keywords.
+ *
+ * @internal
+ */
 class Lexer {
   private position = 0;
   private currentChar: string | null;
 
+  /**
+   * Create a new lexer
+   *
+   * @param input - Query string to tokenize
+   */
   constructor(private input: string) {
     this.currentChar = input.length > 0 ? input[0] : null;
   }
 
+  /**
+   * Advance to next character in input stream
+   * @private
+   */
   private advance(): void {
     this.position++;
     this.currentChar =
       this.position < this.input.length ? this.input[this.position] : null;
   }
 
+  /**
+   * Peek ahead at upcoming character without consuming it
+   * @param offset - Number of characters to look ahead (default: 1)
+   * @returns Character at peek position or null if out of bounds
+   * @private
+   */
   private peek(offset: number = 1): string | null {
     const peekPos = this.position + offset;
     return peekPos < this.input.length ? this.input[peekPos] : null;
   }
 
+  /**
+   * Skip whitespace characters in input stream
+   * @private
+   */
   private skipWhitespace(): void {
     while (this.currentChar && /\s/.test(this.currentChar)) {
       this.advance();
     }
   }
 
+  /**
+   * Read overlay identifier token (e.g., O1, O2, O7)
+   * @returns Token containing overlay ID
+   * @private
+   */
   private readOverlayId(): Token {
     const start = this.position;
     let value = '';
@@ -128,6 +160,11 @@ class Lexer {
     return { type: TokenType.OVERLAY_ID, value, position: start };
   }
 
+  /**
+   * Read filter expression token (e.g., [attacks], [severity=critical])
+   * @returns Token containing filter expression
+   * @private
+   */
   private readFilter(): Token {
     const start = this.position;
     let value = '';
@@ -149,6 +186,12 @@ class Lexer {
     return { type: TokenType.FILTER, value, position: start };
   }
 
+  /**
+   * Read keyword token (AND, OR, NOT, MEET, TO)
+   * @returns Token with mapped keyword type
+   * @throws Error if keyword is unknown
+   * @private
+   */
   private readKeyword(): Token {
     const start = this.position;
     let value = '';
@@ -175,6 +218,11 @@ class Lexer {
     }
   }
 
+  /**
+   * Tokenize the input query string into array of tokens
+   * @returns Array of tokens representing the query
+   * @throws Error if unexpected character is encountered
+   */
   tokenize(): Token[] {
     const tokens: Token[] = [];
 
@@ -345,19 +393,44 @@ interface BinaryOpNode {
 // PARSER
 // ========================================
 
+/**
+ * Recursive descent parser for lattice query expressions
+ *
+ * Parses token stream into Abstract Syntax Tree (AST) following
+ * operator precedence rules. Supports parentheses, filters, and
+ * all lattice operations.
+ *
+ * @internal
+ */
 class Parser {
   private position = 0;
   private currentToken: Token;
 
+  /**
+   * Create a new parser
+   *
+   * @param tokens - Array of tokens from lexer
+   */
   constructor(private tokens: Token[]) {
     this.currentToken = tokens[0];
   }
 
+  /**
+   * Advance to next token in stream
+   * @private
+   */
   private advance(): void {
     this.position++;
     this.currentToken = this.tokens[this.position];
   }
 
+  /**
+   * Consume current token if it matches expected type
+   * @param type - Expected token type
+   * @returns The consumed token
+   * @throws Error if token type doesn't match
+   * @private
+   */
   private expect(type: TokenType): Token {
     if (this.currentToken.type !== type) {
       throw new Error(
@@ -371,6 +444,10 @@ class Parser {
 
   /**
    * Parse filter expression: [attacks] or [severity=critical] or [severity=critical,high]
+   *
+   * @param filterValue - Filter string content (without brackets)
+   * @returns Parsed filter expression object
+   * @private
    */
   private parseFilter(filterValue: string): FilterExpression {
     // Simple type filter: [attacks]
@@ -391,6 +468,12 @@ class Parser {
 
   /**
    * Parse primary expression (overlay with optional filter)
+   *
+   * Handles: overlay IDs, filtered overlays, parenthesized expressions, and unary complement
+   *
+   * @returns AST node representing the primary expression
+   * @throws Error if unexpected token encountered
+   * @private
    */
   private parsePrimary(): ASTNode {
     // Parenthesized expression
@@ -437,11 +520,19 @@ class Parser {
    * 2. & (intersection)
    * 3. - (difference), \ (difference)
    * 4. + (union), | (union)
+   *
+   * @returns AST node representing the expression
+   * @private
    */
   private parseExpression(): ASTNode {
     return this.parseUnion();
   }
 
+  /**
+   * Parse union operations (lowest precedence)
+   * @returns AST node for union expression
+   * @private
+   */
   private parseUnion(): ASTNode {
     let left = this.parseDifference();
 
@@ -454,6 +545,11 @@ class Parser {
     return left;
   }
 
+  /**
+   * Parse difference operations
+   * @returns AST node for difference expression
+   * @private
+   */
   private parseDifference(): ASTNode {
     let left = this.parseIntersection();
 
@@ -466,6 +562,11 @@ class Parser {
     return left;
   }
 
+  /**
+   * Parse intersection operations
+   * @returns AST node for intersection expression
+   * @private
+   */
   private parseIntersection(): ASTNode {
     let left = this.parseMeet();
 
@@ -478,6 +579,11 @@ class Parser {
     return left;
   }
 
+  /**
+   * Parse meet and project operations (highest precedence)
+   * @returns AST node for meet/project expression
+   * @private
+   */
   private parseMeet(): ASTNode {
     let left = this.parsePrimary();
 
@@ -500,6 +606,11 @@ class Parser {
     return left;
   }
 
+  /**
+   * Parse token stream into Abstract Syntax Tree
+   * @returns Root AST node representing the query
+   * @throws Error if parse fails or EOF not reached
+   */
   parse(): ASTNode {
     const ast = this.parseExpression();
     this.expect(TokenType.EOF);
@@ -512,10 +623,24 @@ class Parser {
 // ========================================
 
 export class QueryEngine {
+  /**
+   * Create a new query engine
+   *
+   * @param registry - Overlay registry for accessing overlay managers
+   */
   constructor(private registry: OverlayRegistry) {}
 
   /**
    * Parse and execute a lattice query
+   *
+   * @param query - Query string in lattice algebra syntax
+   * @returns Promise resolving to query result (items, sets, or meet results)
+   * @throws Error if query is invalid or execution fails
+   *
+   * @example
+   * const engine = new QueryEngine(registry);
+   * const result = await engine.execute('O1 - O2');
+   * console.log(`Found ${result.items.length} symbols without security coverage`);
    */
   async execute(query: string): Promise<QueryResult> {
     // Tokenize
@@ -532,6 +657,11 @@ export class QueryEngine {
 
   /**
    * Evaluate AST node recursively
+   *
+   * @param node - AST node to evaluate
+   * @returns Promise resolving to evaluation result
+   * @throws Error if node type is unknown or evaluation fails
+   * @private
    */
   private async evaluate(node: ASTNode): Promise<QueryResult> {
     switch (node.type) {
@@ -554,11 +684,24 @@ export class QueryEngine {
     }
   }
 
+  /**
+   * Evaluate overlay node by fetching all items from the overlay
+   * @param node - Overlay AST node
+   * @returns Promise resolving to array of overlay items
+   * @private
+   */
   private async evaluateOverlay(node: OverlayNode): Promise<OverlayItem[]> {
     const overlay = await this.registry.get(node.overlayId);
     return overlay.getAllItems();
   }
 
+  /**
+   * Evaluate filtered overlay node by applying type or metadata filters
+   * @param node - Filtered overlay AST node
+   * @returns Promise resolving to filtered array of overlay items
+   * @throws Error if filter is invalid
+   * @private
+   */
   private async evaluateFilteredOverlay(
     node: FilteredOverlayNode
   ): Promise<OverlayItem[]> {
@@ -584,6 +727,13 @@ export class QueryEngine {
     throw new Error(`Invalid filter: ${JSON.stringify(filter)}`);
   }
 
+  /**
+   * Evaluate unary operation node (complement)
+   * @param node - Unary operation AST node
+   * @returns Promise resolving to operation result
+   * @throws Error - Complement operation requires explicit difference syntax
+   * @private
+   */
   private async evaluateUnaryOp(node: UnaryOpNode): Promise<QueryResult> {
     if (node.operator === 'complement') {
       // Complement requires a universal set context
@@ -603,6 +753,13 @@ export class QueryEngine {
     throw new Error(`Unknown unary operator: ${node.operator}`);
   }
 
+  /**
+   * Evaluate binary operation node (union, intersection, difference, meet, project)
+   * @param node - Binary operation AST node
+   * @returns Promise resolving to operation result
+   * @throws Error if operands are invalid for the operation
+   * @private
+   */
   private async evaluateBinaryOp(node: BinaryOpNode): Promise<QueryResult> {
     const left = await this.evaluate(node.left);
     const right = await this.evaluate(node.right);
@@ -732,6 +889,15 @@ export class QueryEngine {
 
 /**
  * Create a query engine for a PGC root
+ *
+ * @param pgcRoot - Root directory of the PGC (Grounded Context Pool)
+ * @param workbenchUrl - Optional URL for workbench API access
+ * @returns New QueryEngine instance
+ *
+ * @example
+ * const engine = createQueryEngine('/path/to/pgc');
+ * const result = await engine.execute('O2[critical] ~ O4');
+ * console.log(`Found ${result.length} critical items aligned with mission`);
  */
 export function createQueryEngine(
   pgcRoot: string,
