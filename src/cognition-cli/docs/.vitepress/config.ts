@@ -217,6 +217,56 @@ export default defineConfig({
         ],
       },
       {
+        text: 'Architecture Decisions',
+        collapsed: true,
+        items: [
+          {
+            text: 'ADR Overview',
+            link: '/architecture/decisions/README',
+          },
+          {
+            text: 'ADR-001: LanceDB Vector Storage',
+            link: '/architecture/decisions/ADR-001-lancedb-vector-storage',
+          },
+          {
+            text: 'ADR-002: Seven Overlay Architecture',
+            link: '/architecture/decisions/ADR-002-seven-overlay-architecture',
+          },
+          {
+            text: 'ADR-003: Shadow Embeddings',
+            link: '/architecture/decisions/ADR-003-shadow-embeddings',
+          },
+          {
+            text: 'ADR-004: Content-Addressable Storage',
+            link: '/architecture/decisions/ADR-004-content-addressable-storage',
+          },
+          {
+            text: 'ADR-005: React-Based TUI',
+            link: '/architecture/decisions/ADR-005-react-based-tui',
+          },
+          {
+            text: 'ADR-006: Compression Strategy',
+            link: '/architecture/decisions/ADR-006-compression-strategy',
+          },
+          {
+            text: 'ADR-007: AGPLv3 License',
+            link: '/architecture/decisions/ADR-007-agplv3-license',
+          },
+          {
+            text: 'ADR-008: Session Continuity',
+            link: '/architecture/decisions/ADR-008-session-continuity',
+          },
+          {
+            text: 'ADR-009: Quest System',
+            link: '/architecture/decisions/ADR-009-quest-system',
+          },
+          {
+            text: 'ADR-010: Workbench Integration',
+            link: '/architecture/decisions/ADR-010-workbench-integration',
+          },
+        ],
+      },
+      {
         text: 'Advanced Topics',
         collapsed: true,
         items: [
