@@ -61,15 +61,12 @@
 
 import { Command } from 'commander';
 import path from 'path';
-import { genesisCommand } from './commands/genesis.js';
-import { initCommand } from './commands/init.js';
-import {
-  queryCommand,
-  formatAsHumanReadable,
-  formatAsLineageJSON,
-} from './core/query/query.js';
-import { auditCommand, auditDocsCommand } from './commands/audit.js';
-import { addPatternsCommands } from './commands/patterns.js';
+// Lazy loading optimization: Commands imported dynamically on-demand
+// import { genesisCommand } from './commands/genesis.js';
+// import { initCommand } from './commands/init.js';
+// import { queryCommand, formatAsHumanReadable, formatAsLineageJSON } from './core/query/query.js';
+// import { auditCommand, auditDocsCommand } from './commands/audit.js';
+// import { addPatternsCommands } from './commands/patterns.js';
 import { bootstrapSecurity } from './core/security/security-bootstrap.js';
 import dotenv from 'dotenv';
 
@@ -86,7 +83,10 @@ program
   .command('init')
   .description('Initialize a new Grounded Context Pool (PGC)')
   .option('-p, --path <path>', 'Project path', process.cwd())
-  .action(initCommand);
+  .action(async (options) => {
+    const { initCommand } = await import('./commands/init.js');
+    await initCommand(options);
+  });
 
 program
   .command('genesis [sourcePath]')
@@ -100,8 +100,9 @@ program
     'Root directory of the project being analyzed',
     process.cwd()
   )
-  .action((sourcePath, options) => {
-    genesisCommand({
+  .action(async (sourcePath, options) => {
+    const { genesisCommand } = await import('./commands/genesis.js');
+    await genesisCommand({
       ...options,
       source: sourcePath || options.source || 'src',
     });
@@ -124,7 +125,7 @@ interface QueryCommandOptions {
 }
 
 /**
- * Execute query command and format output
+ * Execute query command and format output (with lazy loading)
  *
  * Queries the PGC for information and formats the response based on
  * the --lineage flag. By default, outputs human-readable text.
@@ -150,6 +151,9 @@ interface QueryCommandOptions {
  * });
  */
 async function queryAction(question: string, options: QueryCommandOptions) {
+  const { queryCommand, formatAsHumanReadable, formatAsLineageJSON } =
+    await import('./core/query/query.js');
+
   const queryResult = await queryCommand(question, options);
   if (options.lineage) {
     const jsonOutput = formatAsLineageJSON(queryResult);
@@ -181,7 +185,10 @@ program
     process.cwd()
   )
   .option('-l, --limit <number>', 'Number of transformations to show', '5')
-  .action(auditCommand);
+  .action(async (filePath, options) => {
+    const { auditCommand } = await import('./commands/audit.js');
+    await auditCommand(filePath, options);
+  });
 
 program
   .command('audit:docs')
@@ -191,7 +198,10 @@ program
     'Root directory of the project being audited',
     process.cwd()
   )
-  .action(auditDocsCommand);
+  .action(async (options) => {
+    const { auditDocsCommand } = await import('./commands/audit.js');
+    await auditDocsCommand(options);
+  });
 
 program
   .command('genesis:docs [path]')
@@ -207,10 +217,11 @@ program
     '-f, --force',
     'Force re-ingestion by removing existing entries first'
   )
-  .action((pathArg, options) => {
+  .action(async (pathArg, options) => {
+    const { genesisDocsCommand } = await import('./commands/genesis-docs.js');
     const defaultPath = path.join(options.projectRoot, '../../VISION.md');
     const targetPath = pathArg || defaultPath;
-    genesisDocsCommand(targetPath, options);
+    await genesisDocsCommand(targetPath, options);
   });
 
 program
@@ -231,46 +242,32 @@ program
     '--keep-embeddings',
     'Keep embeddings in YAML files (default: strip for disk savings)'
   )
-  .action((options) => {
-    migrateToLanceCommand(options);
+  .action(async (options) => {
+    const { migrateToLanceCommand } = await import('./commands/migrate-to-lance.js');
+    await migrateToLanceCommand(options);
   });
 
-import { overlayCommand } from './commands/overlay.js';
-import { blastRadiusCommand } from './commands/blast-radius.js';
-import { createWatchCommand } from './commands/watch.js';
-import { createStatusCommand } from './commands/status.js';
-import { createUpdateCommand } from './commands/update.js';
-import { createGuideCommand } from './commands/guide.js';
-import { genesisDocsCommand } from './commands/genesis-docs.js';
-import { migrateToLanceCommand } from './commands/migrate-to-lance.js';
-import { addCoherenceCommands } from './commands/coherence.js';
-import { addConceptsCommands } from './commands/concepts.js';
-import { wizardCommand } from './commands/wizard.js';
-import { latticeCommand } from './commands/lattice.js';
-import { showMandate } from './commands/security/mandate.js';
-import { askCommand } from './commands/ask.js';
-import { tuiCommand } from './commands/tui.js';
-// Sugar commands (convenience wrappers around lattice algebra)
-import {
-  securityAttacksCommand,
-  securityCoverageGapsCommand,
-  securityBoundariesCommand,
-  securityListCommand,
-  securityCVEsCommand,
-  securityQueryCommand,
-} from './commands/sugar/security.js';
-import { securityCoherenceCommand } from './commands/sugar/security-coherence.js';
-import {
-  workflowPatternsCommand,
-  workflowQuestsCommand,
-  workflowDepthRulesCommand,
-} from './commands/sugar/workflow.js';
-import {
-  proofsTheoremsCommand,
-  proofsLemmasCommand,
-  proofsListCommand,
-  proofsAlignedCommand,
-} from './commands/sugar/proofs.js';
+// Lazy loading optimization: Commands imported dynamically on-demand
+// import { overlayCommand } from './commands/overlay.js';
+// import { blastRadiusCommand } from './commands/blast-radius.js';
+// import { createWatchCommand } from './commands/watch.js';
+// import { createStatusCommand } from './commands/status.js';
+// import { createUpdateCommand } from './commands/update.js';
+// import { createGuideCommand } from './commands/guide.js';
+// import { genesisDocsCommand } from './commands/genesis-docs.js';
+// import { migrateToLanceCommand } from './commands/migrate-to-lance.js';
+// import { addCoherenceCommands } from './commands/coherence.js';
+// import { addConceptsCommands } from './commands/concepts.js';
+// import { wizardCommand } from './commands/wizard.js';
+// import { latticeCommand } from './commands/lattice.js';
+// import { showMandate } from './commands/security/mandate.js';
+// import { askCommand } from './commands/ask.js';
+// import { tuiCommand } from './commands/tui.js';
+// Lazy loading optimization: Sugar commands imported dynamically on-demand
+// import { securityAttacksCommand, securityCoverageGapsCommand, securityBoundariesCommand, securityListCommand, securityCVEsCommand, securityQueryCommand } from './commands/sugar/security.js';
+// import { securityCoherenceCommand } from './commands/sugar/security-coherence.js';
+// import { workflowPatternsCommand, workflowQuestsCommand, workflowDepthRulesCommand } from './commands/sugar/workflow.js';
+// import { proofsTheoremsCommand, proofsLemmasCommand, proofsListCommand, proofsAlignedCommand } from './commands/sugar/proofs.js';
 
 program
   .command('wizard')
@@ -280,7 +277,10 @@ program
     'Root directory of the project',
     process.cwd()
   )
-  .action(wizardCommand);
+  .action(async (options) => {
+    const { wizardCommand } = await import('./commands/wizard.js');
+    await wizardCommand(options);
+  });
 
 program
   .command('tui')
@@ -309,8 +309,9 @@ program
     'Maximum tokens for extended thinking mode (default: 10000)'
   )
   .option('--debug', 'Enable debug logging for Sigma compression')
-  .action((options) => {
-    tuiCommand({
+  .action(async (options) => {
+    const { tuiCommand } = await import('./commands/tui.js');
+    await tuiCommand({
       projectRoot: options.projectRoot,
       sessionId: options.sessionId,
       sessionFile: options.file,
@@ -340,12 +341,25 @@ program
   .option('--top-k <number>', 'Number of similar concepts to retrieve', '5')
   .option('--save', 'Save Q&A as markdown document', false)
   .option('--verbose', 'Show detailed processing steps', false)
-  .action((question, options) => {
-    askCommand(question, {
+  .action(async (question, options) => {
+    const { askCommand } = await import('./commands/ask.js');
+    await askCommand(question, {
       ...options,
       topK: parseInt(options.topK),
     });
   });
+
+// NOTE: Complex command groups (overlay, patterns, etc.) loaded eagerly for now
+// TODO: Refactor to lazy-load these commands in a future optimization pass
+const { overlayCommand } = await import('./commands/overlay.js');
+const { blastRadiusCommand } = await import('./commands/blast-radius.js');
+const { createWatchCommand } = await import('./commands/watch.js');
+const { createStatusCommand } = await import('./commands/status.js');
+const { createUpdateCommand } = await import('./commands/update.js');
+const { createGuideCommand } = await import('./commands/guide.js');
+const { addPatternsCommands } = await import('./commands/patterns.js');
+const { addCoherenceCommands } = await import('./commands/coherence.js');
+const { addConceptsCommands } = await import('./commands/concepts.js');
 
 program.addCommand(overlayCommand);
 program.addCommand(blastRadiusCommand);
@@ -375,7 +389,10 @@ program
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(latticeCommand);
+  .action(async (query, options) => {
+    const { latticeCommand } = await import('./commands/lattice.js');
+    await latticeCommand(query, options);
+  });
 
 // ========================================
 // SUGAR COMMANDS (Convenience Wrappers)
@@ -389,7 +406,10 @@ const securityCmd = program
 securityCmd
   .command('mandate')
   .description('📜 Display the Dual-Use Technology Mandate')
-  .action(showMandate);
+  .action(async () => {
+    const { showMandate } = await import('./commands/security/mandate.js');
+    await showMandate();
+  });
 
 securityCmd
   .command('attacks')
@@ -406,7 +426,10 @@ securityCmd
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(securityAttacksCommand);
+  .action(async (options) => {
+    const { securityAttacksCommand } = await import('./commands/sugar/security.js');
+    await securityAttacksCommand(options);
+  });
 
 securityCmd
   .command('coverage-gaps')
