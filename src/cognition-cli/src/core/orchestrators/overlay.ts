@@ -922,19 +922,8 @@ export class OverlayOrchestrator {
   private async generateMathematicalProofs(force: boolean): Promise<void> {
     const s = spinner();
 
-    // Auto-discover and ingest strategic docs (same as mission concepts)
-    s.start(
-      '[MathematicalProofs] Discovering and ingesting strategic documents...'
-    );
-    const ingestedCount = await this.autoIngestStrategicDocs();
-    if (ingestedCount > 0) {
-      s.stop(
-        `[MathematicalProofs] Ingested ${ingestedCount} strategic document(s)`
-      );
-    } else {
-      s.stop('[MathematicalProofs] All strategic documents already ingested');
-    }
-
+    // Discover already-ingested documents from PGC
+    // Note: Does NOT ingest new documents - run mission_concepts generation first
     s.start('[MathematicalProofs] Discovering markdown documents in PGC...');
     const docIndex = await this.discoverDocuments();
     s.stop(`[MathematicalProofs] Found ${docIndex.length} document(s) in PGC.`);
@@ -942,7 +931,8 @@ export class OverlayOrchestrator {
     if (docIndex.length === 0) {
       log.warn(
         chalk.yellow(
-          '[MathematicalProofs] No documents found. Add markdown files to docs/ folder or VISION.md in project root.'
+          '[MathematicalProofs] No documents found in PGC.\n' +
+            'Run `cognition-cli overlay generate mission_concepts` first to ingest strategic documents.'
         )
       );
       return;
