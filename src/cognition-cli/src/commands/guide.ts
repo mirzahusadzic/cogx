@@ -1,3 +1,51 @@
+/**
+ * Interactive Guide Command
+ *
+ * Provides colorful, candid guides for using cognition-cli commands. Guides are
+ * written in Markdown and rendered directly in the terminal with syntax highlighting,
+ * code blocks, and emoji support.
+ *
+ * GUIDE LOCATIONS:
+ * Guides are stored as Markdown files in .claude/commands/:
+ * - Project-specific guides: <project>/.claude/commands/<topic>.md
+ * - Built-in guides: cognition-cli/.claude/commands/<topic>.md
+ * - Fallback to built-in if project-specific guide doesn't exist
+ *
+ * AVAILABLE GUIDES:
+ * - watch: Monitor file changes & maintain dirty state
+ * - status: Check PGC coherence (< 10ms!)
+ * - explore-architecture: Explore codebase architecture with PGC
+ * - analyze-symbol: Deep-dive into a specific symbol
+ * - trace-dependency: Follow dependency chains
+ * - analyze-impact: Understand blast radius of changes
+ *
+ * MARKDOWN RENDERING:
+ * The guide renderer supports:
+ * - Headers (# ## ###)
+ * - Code blocks (```)
+ * - Lists (- * 1.)
+ * - Blockquotes (>)
+ * - Inline code (`code`)
+ * - Bold (**text**) and italic (*text*)
+ * - Emojis (preserved as-is)
+ *
+ * DESIGN:
+ * Guides serve as in-terminal documentation that is:
+ * - More accessible than external docs (no context switching)
+ * - Richer than --help text (examples, explanations)
+ * - Project-customizable (override built-in guides)
+ *
+ * @example
+ * // Show guide index
+ * cognition-cli guide
+ * // → Lists all available guides
+ *
+ * @example
+ * // Show specific guide
+ * cognition-cli guide watch
+ * // → Renders watch.md with colors and formatting
+ */
+
 import { Command } from 'commander';
 import chalk from 'chalk';
 import fs from 'fs-extra';
@@ -8,7 +56,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * Creates the guide command for displaying colorful, candid guides for CLI commands.
+ * Creates the guide command for displaying colorful, candid guides for CLI commands
+ *
+ * @returns Commander command instance configured to show guides
  */
 export function createGuideCommand(): Command {
   const cmd = new Command('guide');
@@ -35,6 +85,16 @@ export function createGuideCommand(): Command {
   return cmd;
 }
 
+/**
+ * Displays the guide index listing all available guides
+ *
+ * Shows a formatted list of guide topics with emojis and descriptions.
+ * This is the default view when no topic is specified.
+ *
+ * @example
+ * await showGuideIndex();
+ * // → "📚 Cognition CLI Guides\n Available guides:\n  👀 watch  Monitor file changes..."
+ */
 async function showGuideIndex(): Promise<void> {
   console.log(chalk.bold.cyan('📚 Cognition CLI Guides'));
   console.log('');
@@ -80,6 +140,23 @@ async function showGuideIndex(): Promise<void> {
   console.log(chalk.gray(`  $ cognition-cli guide ${chalk.cyan('watch')}`));
 }
 
+/**
+ * Displays a specific guide by topic
+ *
+ * Searches for the guide in project-specific .claude/commands/ directory first,
+ * then falls back to built-in guides. Renders the Markdown content with colors
+ * and formatting.
+ *
+ * SEARCH ORDER:
+ * 1. <project>/.claude/commands/<topic>.md (project-specific override)
+ * 2. cognition-cli/.claude/commands/<topic>.md (built-in guide)
+ *
+ * @param topic - The guide topic to display (e.g., 'watch', 'status')
+ *
+ * @example
+ * await showGuide('watch');
+ * // → Renders .claude/commands/watch.md with colors
+ */
 async function showGuide(topic: string): Promise<void> {
   // Try to find guide in .claude/commands/ directory (from project root)
   const projectRoot = process.cwd();
@@ -123,6 +200,31 @@ async function showGuide(topic: string): Promise<void> {
   console.log(chalk.gray(`📖 Source: ${sourcePath}`));
 }
 
+/**
+ * Renders Markdown content as formatted terminal output
+ *
+ * Implements a basic Markdown parser that converts Markdown syntax to
+ * chalk-colored terminal output. Supports common Markdown features without
+ * requiring external dependencies.
+ *
+ * SUPPORTED FEATURES:
+ * - Headers (# ## ###) → Bold colored text
+ * - Code blocks (```) → Gray text
+ * - Lists (- * 1.) → Cyan bullets
+ * - Blockquotes (>) → Italic gray text
+ * - Inline code (`code`) → Cyan text
+ * - Bold (**text**) → Bold text
+ * - Italic (*text*) → Italic text
+ * - Emojis → Preserved as-is
+ *
+ * @param content - Raw Markdown content to render
+ * @returns Formatted string with ANSI color codes
+ *
+ * @example
+ * const output = renderMarkdown('# Hello\n\nThis is **bold** text.');
+ * console.log(output);
+ * // → Colored output: "Hello" in cyan bold, "This is bold text." with bold styling
+ */
 function renderMarkdown(content: string): string {
   const lines = content.split('\n');
   const output: string[] = [];

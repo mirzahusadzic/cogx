@@ -1,31 +1,23 @@
-import { intro, outro, spinner, log } from '@clack/prompts';
-import chalk from 'chalk';
-import fs from 'fs-extra';
-import path from 'path';
-import YAML from 'yaml';
-import { DocumentLanceStore } from '../core/pgc/document-lance-store.js';
-import { MissionConcept } from '../core/analyzers/concept-extractor.js';
-
-interface MigrateOptions {
-  projectRoot: string;
-  overlays?: string[]; // Specific overlays to migrate, or all if not specified
-  dryRun?: boolean;
-  keepEmbeddings?: boolean; // Keep embeddings in YAML (default: false)
-}
-
 /**
- * Migrate YAML overlay embeddings to LanceDB.
+ * LanceDB Migration Command
+ *
+ * Migrates overlay embeddings from YAML files to LanceDB for improved performance
+ * and reduced disk usage. This migration is essential for scaling to larger codebases
+ * where embedding storage in YAML files becomes prohibitively expensive.
  *
  * MIGRATION STRATEGY:
  * 1. Read existing YAML overlays from .open_cognition/overlays/
- * 2. Extract concepts with embeddings
+ * 2. Extract concepts with embeddings (768-dimensional vectors)
  * 3. Store in LanceDB (.open_cognition/lance/documents.lancedb)
  * 4. Strip embeddings from YAML (convert to v2 format)
  * 5. Keep YAML files for provenance (metadata only)
  * 6. Add lancedb_metadata to YAML for retrieval provenance
  * 7. Migrate mission_integrity versions to LanceDB
+ * 8. Migrate Sigma lattice files (strip embeddings from lattice.json)
+ * 9. Compact Sigma LanceDB to remove version bloat
  *
  * YAML PROVENANCE (v2 format):
+ * After migration, YAML files serve as metadata records with:
  * - format_version: 2 (indicates embeddings stored in LanceDB)
  * - lancedb_metadata: Metadata for retrieving embeddings from LanceDB
  *   - storage_path: Relative path to LanceDB directory
@@ -35,11 +27,87 @@ interface MigrateOptions {
  *   - concepts_count: Number of concepts with embeddings
  *
  * SUPPORTED OVERLAYS:
- * - O2: Security Guidelines (security_guidelines/)
- * - O4: Mission Concepts (mission_concepts/)
- * - O5: Operational Patterns (operational_patterns/)
- * - O6: Mathematical Proofs (mathematical_proofs/)
- * - Mission Integrity: Version history (mission_integrity/versions.json)
+ * - O₂ (security_guidelines): Security constraints and attack vectors
+ * - O₄ (mission_concepts): Strategic concepts from documentation
+ * - O₅ (operational_patterns): Workflow patterns and procedures
+ * - O₆ (mathematical_proofs): Formal statements and theorems
+ * - mission_integrity: Version history with semantic fingerprints
+ * - sigma_lattice: Conversation lattice files
+ *
+ * PERFORMANCE BENEFITS:
+ * - Reduces overlay file sizes by 80-95% (embeddings removed)
+ * - Enables efficient vector similarity search via LanceDB indexes
+ * - Supports batch concept retrieval for faster overlay generation
+ * - Eliminates redundant embedding storage across versions
+ *
+ * @example
+ * // Migrate all overlays (dry run)
+ * cognition-cli migrate-to-lance --dry-run
+ * // → Shows migration plan without making changes
+ *
+ * @example
+ * // Migrate specific overlays
+ * cognition-cli migrate-to-lance --overlays mission_concepts,security_guidelines
+ * // → Migrates only O4 and O2, preserves others
+ *
+ * @example
+ * // Migrate and keep embeddings in YAML (debugging)
+ * cognition-cli migrate-to-lance --keep-embeddings
+ * // → Stores in LanceDB but doesn't strip from YAML
+ */
+
+import { intro, outro, spinner, log } from '@clack/prompts';
+import chalk from 'chalk';
+import fs from 'fs-extra';
+import path from 'path';
+import YAML from 'yaml';
+import { DocumentLanceStore } from '../core/pgc/document-lance-store.js';
+import { MissionConcept } from '../core/analyzers/concept-extractor.js';
+
+/**
+ * Options for the migrate-to-lance command
+ */
+interface MigrateOptions {
+  /** Root directory of the project containing .open_cognition */
+  projectRoot: string;
+  /** Specific overlays to migrate (default: all) */
+  overlays?: string[];
+  /** Perform dry run without making changes (default: false) */
+  dryRun?: boolean;
+  /** Keep embeddings in YAML after migration (default: false) */
+  keepEmbeddings?: boolean;
+}
+
+/**
+ * Migrate YAML overlay embeddings to LanceDB
+ *
+ * Orchestrates the complete migration workflow including overlay concepts,
+ * mission integrity versions, Sigma lattice files, and LanceDB compaction.
+ *
+ * WORKFLOW PHASES:
+ * 1. Validate PGC initialization
+ * 2. Initialize LanceDB document store
+ * 3. For each overlay (O2, O4, O5, O6):
+ *    a. Extract concepts from YAML files
+ *    b. Store embeddings in LanceDB
+ *    c. Strip embeddings from YAML (unless --keep-embeddings)
+ *    d. Add lancedb_metadata for provenance
+ * 4. Migrate mission_integrity version history
+ * 5. Migrate Sigma lattice files
+ * 6. Compact Sigma LanceDB
+ * 7. Report summary statistics
+ *
+ * @param options - Migration options
+ *
+ * @example
+ * // Full migration with all optimizations
+ * await migrateToLanceCommand({ projectRoot: '/path/to/project' });
+ * // → Migrates all overlays, strips embeddings, compacts LanceDB
+ *
+ * @example
+ * // Dry run to preview migration
+ * await migrateToLanceCommand({ projectRoot: '/path/to/project', dryRun: true });
+ * // → Shows what would be migrated without making changes
  */
 export async function migrateToLanceCommand(options: MigrateOptions) {
   intro(chalk.bold('Migrate Overlay Embeddings to LanceDB'));
@@ -490,6 +558,12 @@ export async function migrateToLanceCommand(options: MigrateOptions) {
 
 /**
  * Map overlay directory name to overlay type ID
+ *
+ * Converts human-readable overlay directory names to standardized overlay
+ * type identifiers used throughout the PGC system.
+ *
+ * @param overlayName - Directory name (e.g., 'mission_concepts')
+ * @returns Overlay type ID (e.g., 'O4')
  */
 function overlayNameToType(overlayName: string): string {
   const mapping: Record<string, string> = {
@@ -513,6 +587,19 @@ interface OverlayDocument {
 
 /**
  * Extract concepts from YAML overlay based on overlay type
+ *
+ * Handles different overlay schemas and concept field names to extract
+ * mission concepts for LanceDB storage.
+ *
+ * OVERLAY SCHEMAS:
+ * - mission_concepts: extracted_concepts
+ * - security_guidelines: extracted_knowledge
+ * - operational_patterns: extracted_patterns
+ * - mathematical_proofs: extracted_statements or knowledge
+ *
+ * @param overlay - Parsed YAML overlay document
+ * @param overlayName - Overlay directory name
+ * @returns Array of mission concepts with embeddings
  */
 function extractConceptsFromOverlay(
   overlay: OverlayDocument,
@@ -534,6 +621,11 @@ function extractConceptsFromOverlay(
 
 /**
  * Get default concept type for overlay
+ *
+ * Determines the default concept type based on overlay purpose.
+ *
+ * @param overlayName - Overlay directory name
+ * @returns Default concept type
  */
 function getDefaultConceptType(overlayName: string): string {
   const mapping: Record<string, string> = {

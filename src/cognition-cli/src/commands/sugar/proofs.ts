@@ -1,8 +1,57 @@
 /**
- * Proofs Sugar Commands
+ * Mathematical Proofs Sugar Commands (O₆ Mathematical Proofs)
  *
- * Convenience wrappers around lattice algebra for mathematical overlay queries.
- * These commands translate to lattice expressions for better UX.
+ * Provides syntactic convenience for querying mathematical statements from the
+ * Grounded Context Pool (PGC). These "sugar" commands translate to lattice
+ * algebra expressions, offering a simpler CLI interface for proof exploration.
+ *
+ * SUGAR CONCEPT:
+ * Sugar commands wrap the lattice algebra query language with named commands
+ * that are easier to remember and use. Instead of writing:
+ *   `cognition-cli lattice "O6[theorem]"`
+ * Users can simply write:
+ *   `cognition-cli proofs theorems`
+ *
+ * This improves UX while maintaining the full power of the algebra layer.
+ *
+ * OVERLAY REFERENCE (O₆):
+ * - theorem: Proven mathematical theorems
+ * - lemma: Supporting mathematical lemmas
+ * - axiom: Foundational mathematical axioms
+ * - proof: Detailed proof structures
+ * - identity: Mathematical identities and equivalences
+ *
+ * DESIGN RATIONALE:
+ * 1. Mathematical Rigor: O₆ captures formal mathematical knowledge
+ * 2. Proof Discovery: Find theorems/lemmas by semantic meaning
+ * 3. Mission Alignment: Cross-reference proofs with mission principles (O₄)
+ * 4. Type Categorization: Separate queries for different proof types
+ *
+ * USE CASES:
+ * - Research: Find relevant theorems for a mathematical concept
+ * - Verification: Check which lemmas support a given theorem
+ * - Alignment: Identify proofs that embody mission principles
+ * - Documentation: Export mathematical foundations as structured data
+ *
+ * @example
+ * // List all theorems in the system
+ * await proofsTheoremsCommand({ projectRoot: '.' });
+ * // Translates to: lattice "O6[theorem]"
+ *
+ * @example
+ * // Find proofs aligned with mission principles
+ * await proofsAlignedCommand({ projectRoot: '.' });
+ * // Translates to: lattice "O6 ~ O4[principle]"
+ * // Shows which mathematical statements embody mission values
+ *
+ * @example
+ * // List all mathematical statements (theorems, lemmas, axioms, etc.)
+ * await proofsListCommand({
+ *   projectRoot: '.',
+ *   type: 'identity',
+ *   format: 'json'
+ * });
+ * // Translates to: lattice "O6[identity]"
  */
 
 import { intro, outro, spinner, log } from '@clack/prompts';
@@ -25,7 +74,11 @@ interface ProofsOptions {
 }
 
 /**
- * Helper to resolve PGC root with walk-up
+ * Resolve Grounded Context Pool (PGC) root directory
+ *
+ * @param startPath - Starting directory for the walk-up search
+ * @returns Absolute path to .open_cognition directory
+ * @throws {Error} Exits process if no workspace found
  */
 function resolvePgcRoot(startPath: string): string {
   const workspaceManager = new WorkspaceManager();
@@ -44,8 +97,26 @@ function resolvePgcRoot(startPath: string): string {
 }
 
 /**
- * Show all theorems
- * Translates to: lattice "O6[theorem]"
+ * Display all mathematical theorems from O₆ overlay
+ *
+ * Retrieves and displays proven theorems from the mathematical proofs overlay.
+ * Theorems represent established mathematical results with verified proofs.
+ *
+ * LATTICE TRANSLATION: `O6[theorem]`
+ *
+ * @param options - Command options
+ * @param options.projectRoot - Root directory of the project
+ * @param options.format - Output format: 'table' | 'json' | 'summary'
+ * @param options.limit - Maximum theorems to display
+ * @param options.verbose - Enable verbose error output
+ * @returns Promise that resolves when display is complete
+ *
+ * @example
+ * await proofsTheoremsCommand({
+ *   projectRoot: '.',
+ *   format: 'table',
+ *   limit: 20
+ * });
  */
 export async function proofsTheoremsCommand(
   options: ProofsOptions
@@ -79,8 +150,25 @@ export async function proofsTheoremsCommand(
 }
 
 /**
- * Show all lemmas
- * Translates to: lattice "O6[lemma]"
+ * Display all mathematical lemmas from O₆ overlay
+ *
+ * Retrieves and displays lemmas from the mathematical proofs overlay.
+ * Lemmas are supporting mathematical results that help prove theorems.
+ *
+ * LATTICE TRANSLATION: `O6[lemma]`
+ *
+ * @param options - Command options
+ * @param options.projectRoot - Root directory of the project
+ * @param options.format - Output format: 'table' | 'json' | 'summary'
+ * @param options.limit - Maximum lemmas to display
+ * @param options.verbose - Enable verbose error output
+ * @returns Promise that resolves when display is complete
+ *
+ * @example
+ * await proofsLemmasCommand({
+ *   projectRoot: '.',
+ *   format: 'summary'
+ * });
  */
 export async function proofsLemmasCommand(
   options: ProofsOptions
@@ -114,8 +202,34 @@ export async function proofsLemmasCommand(
 }
 
 /**
- * Show all mathematical statements (axioms, identities, etc.)
- * Translates to: lattice "O6"
+ * Display all mathematical statements from O₆ overlay
+ *
+ * Retrieves all mathematical content from O₆, including theorems, lemmas,
+ * axioms, proofs, and identities. Optionally filters by specific type.
+ *
+ * LATTICE TRANSLATION:
+ * - Default: `O6` (all mathematical statements)
+ * - With type: `O6[<type>]` (e.g., O6[axiom])
+ *
+ * @param options - Command options
+ * @param options.projectRoot - Root directory of the project
+ * @param options.format - Output format: 'table' | 'json' | 'summary'
+ * @param options.limit - Maximum items to display
+ * @param options.verbose - Enable verbose error output
+ * @param options.type - Filter by type: 'theorem' | 'lemma' | 'axiom' | 'proof' | 'identity'
+ * @returns Promise that resolves when display is complete
+ *
+ * @example
+ * // List all mathematical statements
+ * await proofsListCommand({ projectRoot: '.' });
+ *
+ * @example
+ * // List only mathematical identities
+ * await proofsListCommand({
+ *   projectRoot: '.',
+ *   type: 'identity',
+ *   format: 'json'
+ * });
  */
 export async function proofsListCommand(options: ProofsOptions): Promise<void> {
   intro(chalk.bold('Proofs: All Mathematical Statements'));
@@ -155,8 +269,36 @@ export async function proofsListCommand(options: ProofsOptions): Promise<void> {
 }
 
 /**
- * Find proofs that align with mission principles
- * Translates to: lattice "O6 ~ O4[principle]"
+ * Display mathematical proofs aligned with mission principles
+ *
+ * Performs semantic alignment between mathematical statements (O₆) and
+ * mission principles (O₄) to identify proofs that embody or support
+ * core mission values through formal mathematical reasoning.
+ *
+ * LATTICE TRANSLATION: `O6 ~ O4[principle]`
+ *
+ * The ~ (meet) operator finds semantic similarities between mathematical
+ * content and mission principles, revealing philosophical-mathematical connections.
+ *
+ * @param options - Command options
+ * @param options.projectRoot - Root directory of the project
+ * @param options.format - Output format: 'table' | 'json'
+ * @param options.limit - Maximum alignment pairs to display
+ * @param options.verbose - Enable verbose error output
+ * @returns Promise that resolves when display is complete
+ *
+ * @example
+ * await proofsAlignedCommand({
+ *   projectRoot: '.',
+ *   format: 'table',
+ *   limit: 10
+ * });
+ * // Shows:
+ * // Similarity: 82.1%
+ * //   Proof: commutativity_theorem
+ * //     Demonstrates order-independence in operations
+ * //   Principle: fairness
+ * //     All inputs should be treated equally regardless of order
  */
 export async function proofsAlignedCommand(
   options: ProofsOptions

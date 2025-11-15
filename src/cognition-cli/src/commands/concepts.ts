@@ -1,3 +1,56 @@
+/**
+ * Mission Concepts Query Commands
+ *
+ * Provides comprehensive commands for exploring and analyzing strategic concepts
+ * extracted from documentation in the Grounded Context Pool (PGC). Mission concepts
+ * represent the strategic foundation of the codebase, enabling mission-code alignment
+ * analysis through overlay O7 (strategic_coherence).
+ *
+ * MISSION CONCEPTS:
+ * Concepts are extracted from strategic documentation (VISION.md, etc.) with:
+ * - Text: The actual concept text
+ * - Section: Document section (Vision, Mission, Principles, etc.)
+ * - Weight: Importance score (0-1) based on occurrences and position
+ * - Occurrences: Number of times concept appears in document
+ * - Embedding: 768-dimensional semantic vector
+ *
+ * COMMANDS:
+ * - `concepts list`: List all mission concepts with weights
+ * - `concepts top [N]`: Show top N concepts by weight
+ * - `concepts search <keyword>`: Find concepts matching keyword
+ * - `concepts by-section <section>`: Filter by section
+ * - `concepts inspect <text>`: Detailed concept information
+ *
+ * WEIGHT CALCULATION:
+ * Concept weight is calculated based on:
+ * - Position in document (earlier = higher weight)
+ * - Section importance (Vision > Mission > Principles)
+ * - Number of occurrences (more = higher weight)
+ * - TF-IDF scoring across all documents
+ *
+ * INTEGRATION WITH O7:
+ * Mission concepts from O4 are compared with code patterns from O1-O6 to
+ * generate the strategic coherence overlay (O7), which identifies:
+ * - Concepts well-represented in code
+ * - Concepts lacking implementation
+ * - Code patterns misaligned with mission
+ *
+ * @example
+ * // Show top mission concepts
+ * cognition-cli concepts top 20
+ * // → Lists top 20 concepts by weight with progress bars
+ *
+ * @example
+ * // Search for security-related concepts
+ * cognition-cli concepts search security
+ * // → Shows all concepts containing "security"
+ *
+ * @example
+ * // Inspect specific concept
+ * cognition-cli concepts inspect "transparent verifiability"
+ * // → Shows weight, section, occurrences, embedding
+ */
+
 import { Command } from 'commander';
 import path from 'path';
 import chalk from 'chalk';
@@ -6,7 +59,14 @@ import { MissionConcept } from '../core/analyzers/concept-extractor.js';
 import { WorkspaceManager } from '../core/workspace-manager.js';
 
 /**
- * Helper to resolve PGC root with walk-up
+ * Resolve PGC root with walk-up
+ *
+ * Uses WorkspaceManager to find .open_cognition directory by walking up
+ * the directory tree from the starting path.
+ *
+ * @param startPath - Starting directory for walk-up search
+ * @returns Absolute path to .open_cognition directory
+ * @throws Exits with code 1 if no workspace found
  */
 function resolvePgcRoot(startPath: string): string {
   const workspaceManager = new WorkspaceManager();
@@ -25,7 +85,12 @@ function resolvePgcRoot(startPath: string): string {
 }
 
 /**
- * Adds mission concept query commands to the CLI program.
+ * Adds mission concept query commands to the CLI program
+ *
+ * Registers all concept-related subcommands under the `concepts` command group.
+ * Each subcommand operates on mission concepts stored in the O4 overlay.
+ *
+ * @param program - Commander program instance to add commands to
  */
 export function addConceptsCommands(program: Command) {
   const conceptsCommand = program
