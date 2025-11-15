@@ -1,54 +1,189 @@
 /**
  * Overlay Algebra Foundation
  *
- * Universal interface for lattice operations across all overlays.
- * Enables boolean algebra: Meet (∧), Union (∪), Intersection (∩), Difference (\), Complement (¬)
+ * Universal interface for lattice operations across all overlays in the system.
+ * Enables boolean algebra and semantic queries over distributed knowledge graphs.
  *
- * DESIGN PRINCIPLE:
- * Build powerful primitives first, then compose UX sugar on top.
- * Every overlay implements this interface → every overlay gains algebraic operations.
+ * THEORETICAL FOUNDATION:
+ * Overlays form a lattice structure where:
+ * - Meet (∧): Greatest lower bound (semantic alignment)
+ * - Join (∨): Least upper bound (union of concepts)
+ * - Partial ordering: Defined by semantic similarity
  *
- * OPERATIONS:
+ * This algebraic structure enables compositional reasoning:
+ * "Which security threats (O2) align with mission principles (O4)?"
+ * = meet(O2.filter(type='threat'), O4.filter(type='principle'))
+ *
+ * DESIGN PHILOSOPHY:
+ * "Build powerful primitives first, then compose UX sugar on top."
+ * - Every overlay implements OverlayAlgebra → every overlay is queryable
+ * - Operations compose: filter().select().meet() chains naturally
+ * - Type-safe: TypeScript generics preserve metadata types across operations
+ *
+ * ALGEBRAIC OPERATIONS:
  * - Meet (∧): Semantic alignment via vector similarity
- * - Union (∪): All items from multiple overlays
- * - Intersection (∩): Items present in all overlays
- * - Difference (\): Items in A but not in B
+ * - Union (∪): All items from multiple overlays (set union)
+ * - Intersection (∩): Items present in all overlays (set intersection)
+ * - Difference (\): Items in A but not in B (set difference)
  * - Complement (¬): Items NOT in set (relative to universal set)
- * - Select: Filter by symbol/id set
- * - Exclude: Remove items matching symbol/id set
+ * - Select: Filter by symbol/id set (projection)
+ * - Exclude: Remove items matching symbol/id set (anti-projection)
  * - Project (→): Query-guided traversal between overlays
+ *
+ * IMPLEMENTATION STRATEGY:
+ * - Vector embeddings: Enable semantic operations (meet, project)
+ * - Symbol sets: Enable exact set operations (union, intersection, difference)
+ * - Lazy evaluation: Operations return promises (allows optimization)
+ * - Metadata preservation: Generic types maintain domain-specific fields
+ *
+ * OVERLAY INTEGRATION:
+ * Each overlay (O1-O7) implements this interface in the Grounded Context Pool (PGC):
+ * - O1 (Structural): Code symbols and patterns
+ * - O2 (Security): Threats, vulnerabilities, mitigations
+ * - O3 (Semantic): Natural language descriptions
+ * - O4 (Mission): Strategic principles and values
+ * - O5 (Operational): Workflows and processes
+ * - O6 (Assessment): Test coverage and quality metrics
+ * - O7 (Context): Runtime behavior and traces
+ *
+ * @example
+ * // Find security threats that violate mission principles
+ * const security = await overlayRegistry.get('O2');
+ * const mission = await overlayRegistry.get('O4');
+ *
+ * const violations = await meet(
+ *   security.filter(m => m.type === 'threat'),
+ *   mission.filter(m => m.type === 'principle'),
+ *   { threshold: 0.75 }
+ * );
+ *
+ * @example
+ * // Find code symbols lacking security coverage
+ * const structural = await overlayRegistry.get('O1');
+ * const codeSymbols = await structural.getSymbolSet();
+ * const secureSymbols = await security.getSymbolSet();
+ * const uncovered = symbolDifference(codeSymbols, secureSymbols);
  */
 
 /**
  * Metadata associated with overlay items.
- * Each overlay extends this with domain-specific fields.
+ *
+ * Base interface that all overlay metadata extends.
+ * Provides common fields while allowing domain-specific extensions.
+ *
+ * REQUIRED FIELDS:
+ * - text: Semantic content for embedding and display
+ *
+ * OPTIONAL FIELDS:
+ * - type: Domain-specific classification (e.g., 'threat', 'principle', 'pattern')
+ * - weight: Importance/confidence score [0, 1]
+ *
+ * EXTENSIBILITY:
+ * Each overlay extends this with domain-specific fields:
+ * - SecurityMetadata: severity, attack_vector, cwe_id
+ * - MissionMetadata: category, stakeholder, priority
+ * - StructuralMetadata: language, symbols, complexity
+ *
+ * @example
+ * interface SecurityMetadata extends OverlayMetadata {
+ *   text: string;
+ *   type: 'threat' | 'vulnerability' | 'mitigation';
+ *   severity: 'low' | 'medium' | 'high' | 'critical';
+ *   cwe_id?: string;
+ * }
  */
 export interface OverlayMetadata {
+  /** Arbitrary domain-specific fields */
   [key: string]: unknown;
-  text: string; // The semantic content (for embedding)
-  type?: string; // Domain-specific type (e.g., 'attack_vector', 'quest_structure')
-  weight?: number; // Importance/confidence score
+
+  /** Semantic content for embedding and display */
+  text: string;
+
+  /** Domain-specific type classification */
+  type?: string;
+
+  /** Importance or confidence score [0, 1] */
+  weight?: number;
 }
 
 /**
- * Universal overlay item with embedding and metadata
+ * Universal overlay item with embedding and metadata.
+ *
+ * Core data structure for all overlay entries in the Grounded Context Pool (PGC).
+ * Combines semantic vectors with structured metadata.
+ *
+ * COMPONENTS:
+ * - id: Content-addressable identifier (typically hash-based)
+ * - embedding: 768-dimensional vector for semantic similarity
+ * - metadata: Domain-specific structured data
+ *
+ * EMBEDDING MODEL:
+ * - Dimensions: 768 (Gemma embedding model)
+ * - Normalized: Unit vectors (cosine similarity = dot product)
+ * - Semantic: Similar concepts have high cosine similarity (>0.7)
+ *
+ * @example
+ * const item: OverlayItem<SecurityMetadata> = {
+ *   id: 'sec:threat:sql-injection',
+ *   embedding: [0.12, -0.34, ...], // 768 dimensions
+ *   metadata: {
+ *     text: 'SQL injection via user input',
+ *     type: 'threat',
+ *     severity: 'critical',
+ *     cwe_id: 'CWE-89'
+ *   }
+ * };
  */
 export interface OverlayItem<T extends OverlayMetadata = OverlayMetadata> {
-  id: string; // Unique identifier
-  embedding: number[]; // 768-dimensional vector
-  metadata: T; // Domain-specific metadata
+  /** Unique identifier (content-addressable) */
+  id: string;
+
+  /** 768-dimensional semantic embedding vector */
+  embedding: number[];
+
+  /** Domain-specific metadata */
+  metadata: T;
 }
 
 /**
- * Result of a Meet operation between two overlay items
+ * Result of a Meet operation between two overlay items.
+ *
+ * Represents a semantic alignment between items from different overlays.
+ * The similarity score quantifies the strength of the alignment.
+ *
+ * INTERPRETATION:
+ * - similarity >= 0.9: Very strong alignment (nearly identical concepts)
+ * - similarity >= 0.7: Strong alignment (related concepts)
+ * - similarity >= 0.5: Moderate alignment (tangentially related)
+ * - similarity < 0.5: Weak alignment (unrelated)
+ *
+ * @example
+ * const result: MeetResult<SecurityMetadata, MissionMetadata> = {
+ *   itemA: { // Security threat
+ *     id: 'sec:threat:data-leak',
+ *     embedding: [...],
+ *     metadata: { text: 'User data exposure', type: 'threat' }
+ *   },
+ *   itemB: { // Mission principle
+ *     id: 'mission:principle:privacy',
+ *     embedding: [...],
+ *     metadata: { text: 'Protect user privacy', type: 'principle' }
+ *   },
+ *   similarity: 0.82 // Strong semantic alignment
+ * };
  */
 export interface MeetResult<
   A extends OverlayMetadata,
   B extends OverlayMetadata,
 > {
+  /** Item from overlay A */
   itemA: OverlayItem<A>;
+
+  /** Item from overlay B */
   itemB: OverlayItem<B>;
-  similarity: number; // Cosine similarity [0, 1]
+
+  /** Cosine similarity between embeddings [0, 1] */
+  similarity: number;
 }
 
 /**
