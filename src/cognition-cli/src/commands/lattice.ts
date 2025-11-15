@@ -61,7 +61,36 @@ interface LatticeOptions {
 }
 
 /**
- * Execute a lattice query
+ * Execute a lattice query: Boolean algebra over cognitive overlays
+ *
+ * Interprets lattice algebra expressions to compose queries across analytical overlays
+ * using set operations (union, intersection, difference) and semantic operations (meet, project).
+ *
+ * Expression syntax supports:
+ * - Set Operations: + | & - (union, intersection, difference)
+ * - Semantic Ops: ~ -> (meet/alignment, project/guided traversal)
+ * - Filters: O2[attacks] O2[severity=critical] (type and metadata filtering)
+ * - Grouping: (O1 & O2) - O3 (parenthesized composition)
+ *
+ * Overlays available:
+ * - O1: Structural (symbols, functions, classes)
+ * - O2: Security (threats, mitigations)
+ * - O3: Mathematical (proofs, lemmas)
+ * - O4: Mission (concepts, principles)
+ * - O5: Operational (workflows, patterns)
+ * - O6: Lineage (dependencies)
+ * - O7: Coherence (alignment scores)
+ *
+ * @param query - Lattice algebra expression (e.g., "O1 - O2" for gaps)
+ * @param options - Display options (format, limit, verbose)
+ * @throws Error if query syntax invalid, overlay missing, or parsing fails
+ * @example
+ * // Find code without security coverage
+ * await latticeCommand("O1 - O2", { projectRoot: ".", format: "table" });
+ *
+ * @example
+ * // Security threats aligned with mission principles
+ * await latticeCommand("O2[threat] ~ O4[principle]", { projectRoot: ".", limit: 20 });
  */
 export async function latticeCommand(
   query: string,
@@ -109,7 +138,17 @@ export async function latticeCommand(
 }
 
 /**
- * Display query results
+ * Display query results in appropriate format based on result type.
+ *
+ * Routes to specialized display functions:
+ * - MeetResult: Pairwise semantic alignments with similarity scores
+ * - SetOperationResult: Union/intersection/difference results with metadata
+ * - OverlayItem[]: Simple list of items from single overlay
+ *
+ * @param result - Query result from lattice engine
+ * @param options - Display options (format, limit, verbose)
+ * @example
+ * displayResults(queryResult, { format: 'table', limit: 50 });
  */
 function displayResults(result: unknown, options: LatticeOptions): void {
   const format = options.format || 'table';
@@ -168,7 +207,18 @@ function displayResults(result: unknown, options: LatticeOptions): void {
 }
 
 /**
- * Display list of overlay items
+ * Display list of overlay items in requested format.
+ *
+ * Supports three formats:
+ * - table: Detailed boxes with metadata fields
+ * - json: Raw JSON output
+ * - summary: Compact ID + text snippet format
+ *
+ * @param items - Array of overlay items to display
+ * @param format - Output format (table, json, summary)
+ * @param limit - Maximum items to show
+ * @example
+ * displayItemList(items, 'table', 50);
  */
 function displayItemList(
   items: OverlayItem[],
@@ -239,7 +289,16 @@ function displayItemList(
 }
 
 /**
- * Display set operation result
+ * Display set operation result with metadata.
+ *
+ * Shows operation type (union/intersection/difference), source overlays,
+ * and delegates to displayItemList for actual item rendering.
+ *
+ * @param result - Set operation result with items and metadata
+ * @param format - Output format (table, json, summary)
+ * @param limit - Maximum items to show
+ * @example
+ * displaySetOperationResult(result, 'table', 50);
  */
 function displaySetOperationResult(
   result: SetOperationResult<OverlayMetadata>,
@@ -257,7 +316,20 @@ function displaySetOperationResult(
 }
 
 /**
- * Display meet results (semantic alignment)
+ * Display meet results showing semantic alignments between overlays.
+ *
+ * For each MeetResult pair, displays:
+ * - Similarity score (cosine distance)
+ * - Item A with metadata
+ * - Item B with metadata
+ *
+ * Useful for visualizing cross-overlay relationships and semantic coherence.
+ *
+ * @param results - Array of meet/alignment results
+ * @param format - Output format (table, json, summary)
+ * @param limit - Maximum results to show
+ * @example
+ * displayMeetResults(alignments, 'table', 50);
  */
 function displayMeetResults(
   results: MeetResult<OverlayMetadata, OverlayMetadata>[],
@@ -304,7 +376,15 @@ function displayMeetResults(
 }
 
 /**
- * Truncate text to max length
+ * Truncate text to maximum length with ellipsis.
+ *
+ * Utility for truncating long metadata text in output displays.
+ *
+ * @param text - Text to truncate
+ * @param maxLength - Maximum length including ellipsis
+ * @returns Truncated text with '...' suffix if longer than maxLength
+ * @example
+ * truncate("Very long metadata here", 20); // "Very long metada..."
  */
 function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;

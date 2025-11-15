@@ -1,3 +1,33 @@
+/**
+ * Update Command: Incremental Synchronization with Monument 3
+ *
+ * The update command synchronizes the PGC (Grounded Context Pool) with recent source code changes
+ * through incremental re-analysis, without rebuilding the entire overlay system.
+ *
+ * RATIONALE:
+ * After genesis (Monument 1), code changes frequently. Rather than re-running the full pipeline,
+ * update performs surgical re-analysis based on dirty_state.json:
+ * - Identifies changed files and symbols
+ * - Re-mines affected structural patterns
+ * - Regenerates embeddings only for changed items
+ * - Updates coherence scores for impacted relationships
+ *
+ * DIRTY STATE TRACKING:
+ * The system maintains dirty_state.json with:
+ * - Modified file paths
+ * - Timestamp of last analysis
+ * - Affected symbol hashes
+ * - Overlay invalidation flags
+ *
+ * @example
+ * // Incremental sync after code changes
+ * cognition-cli update
+ *
+ * @example
+ * // Specify custom project and workbench
+ * cognition-cli update --project-root /path/to/project --workbench http://localhost:8000
+ */
+
 import { Command } from 'commander';
 import { intro, outro, log } from '@clack/prompts';
 import chalk from 'chalk';
@@ -25,6 +55,15 @@ interface UpdateOptions {
   workbench: string;
 }
 
+/**
+ * Validates PGC is initialized and resolves project root by walking directory tree.
+ *
+ * @param startPath - Starting directory for PGC root search
+ * @returns Resolved project root containing .open_cognition
+ * @throws {PGCInitializationError} If PGC not found or metadata.json missing
+ * @example
+ * const projectRoot = await validatePgcInitialized(process.cwd());
+ */
 async function validatePgcInitialized(startPath: string): Promise<string> {
   const workspaceManager = new WorkspaceManager();
   const projectRoot = workspaceManager.resolvePgcRoot(startPath);
@@ -47,6 +86,24 @@ async function validatePgcInitialized(startPath: string): Promise<string> {
   return projectRoot;
 }
 
+/**
+ * Executes the incremental update of the PGC.
+ *
+ * Reads dirty_state.json and performs surgical re-analysis:
+ * 1. Validate PGC structure and find workspace root
+ * 2. Initialize core components (PGC, workbench, miner)
+ * 3. Create update orchestrator with genesis oracle
+ * 4. Execute incremental update based on dirty state
+ * 5. Regenerate affected overlays and coherence scores
+ *
+ * @param options - Update command options (project root, workbench URL)
+ * @throws Error if dirty_state.json invalid, workbench unreachable, or update fails
+ * @example
+ * await runUpdate({
+ *   projectRoot: process.cwd(),
+ *   workbench: 'http://localhost:8000'
+ * });
+ */
 async function runUpdate(options: UpdateOptions) {
   intro(chalk.bold('🔄 Update: Syncing PGC with Changes'));
 
@@ -92,6 +149,15 @@ async function runUpdate(options: UpdateOptions) {
 
 /**
  * Creates the update command for incremental PGC synchronization.
+ *
+ * Configures CLI options:
+ * - --project-root: Directory to search for .open_cognition (walks up tree)
+ * - --workbench: URL of eGemma workbench for embedding generation
+ *
+ * @returns Commander command instance for 'update'
+ * @example
+ * const cmd = createUpdateCommand();
+ * program.addCommand(cmd);
  */
 export function createUpdateCommand(): Command {
   const cmd = new Command('update');
