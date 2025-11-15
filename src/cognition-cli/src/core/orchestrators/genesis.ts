@@ -231,13 +231,14 @@ export class GenesisOrchestrator {
           file,
           existingIndex,
           contentHash,
-          isChanged: !existingIndex || existingIndex.content_hash !== contentHash
+          isChanged:
+            !existingIndex || existingIndex.content_hash !== contentHash,
         };
       })
     );
 
     // Filter to only changed files
-    const changedFileChecks = changeChecks.filter(check => check.isChanged);
+    const changedFileChecks = changeChecks.filter((check) => check.isChanged);
     const unchangedCount = files.length - changedFileChecks.length;
 
     if (unchangedCount > 0) {

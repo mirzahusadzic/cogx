@@ -627,9 +627,7 @@ export class LanceVectorStore {
     });
 
     // Delete all duplicates in parallel for better performance
-    await Promise.all(
-      duplicatesToDelete.map((id) => this.deleteVector(id))
-    );
+    await Promise.all(duplicatesToDelete.map((id) => this.deleteVector(id)));
 
     return duplicatesToDelete.length;
   }
