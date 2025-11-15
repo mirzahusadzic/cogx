@@ -1,22 +1,43 @@
 /**
- * SecurityBootstrap - Minimal dual-use acknowledgment and transparency
+ * Security Bootstrap - Dual-Use Acknowledgment and Transparency Initialization
+ *
+ * Ensures users acknowledge dual-use risks before using cognition-cli.
+ * Implements minimal, honest safeguards focused on transparency and user awareness.
  *
  * MISSION ALIGNMENT:
  * - Implements "National Security Through Transparency" (81.2% importance)
- * - Enforces "Verification Over Trust" via explicit user acknowledgment (74.3%)
+ * - Enforces "Verification Over Trust" via explicit user acknowledgment (VISION.md:122, 74.3%)
  * - Provides audit trails for responsible AI deployment (VISION.md:97-104)
+ * - Part of O2 (Security) overlay - FOUNDATIONAL and non-negotiable
  *
- * PURPOSE:
- * cognition-cli is measurement infrastructure. It does not make ethical judgments.
+ * DESIGN PHILOSOPHY:
+ * cognition-cli is measurement infrastructure - it does NOT make ethical judgments.
  * This module ensures users:
- * 1. Acknowledge dual-use risks (one-time, stored in ~/.cognition-cli/settings.json)
+ * 1. Acknowledge dual-use risks (one-time, annually renewed)
  * 2. Understand their responsibility for ethical deployment
  * 3. Are informed about transparency logging
+ * 4. Control which workbench/models to trust
  *
  * SECURITY ROLE:
- * - One-time dual-use mandate acknowledgment
- * - Transparent security initialization
- * - User-controlled transparency settings
+ * - One-time dual-use mandate acknowledgment (stored in ~/.cognition-cli/)
+ * - Annual re-acknowledgment (1 year expiry)
+ * - Transparent security directory initialization
+ * - User-controlled settings (no telemetry, local storage)
+ *
+ * THREAT MODEL:
+ * This is NOT a security control - it's a transparency measure.
+ * Can be bypassed by forking (intentional - bypass is visible).
+ * Goal: Make users aware, not prevent misuse.
+ *
+ * @example
+ * // Called at CLI entry point
+ * await bootstrapSecurity();
+ * // If first run, prompts for acknowledgment
+ * // If acknowledged, continues silently
+ *
+ * @example
+ * // Custom project root
+ * await bootstrapSecurity('/path/to/workspace');
  */
 
 import fs from 'fs';
@@ -25,11 +46,18 @@ import os from 'os';
 import { createInterface } from 'readline';
 import { WorkspaceManager } from '../workspace-manager.js';
 
+/**
+ * Global settings stored in ~/.cognition-cli/settings.json
+ */
 interface Settings {
   dual_use_acknowledgment?: UserAcknowledgment;
   version: string;
 }
 
+/**
+ * User acknowledgment record
+ * Stored persistently to avoid repeated prompts
+ */
 interface UserAcknowledgment {
   timestamp: string;
   user: string;
@@ -38,11 +66,33 @@ interface UserAcknowledgment {
   acknowledged: boolean;
 }
 
+/**
+ * SecurityBootstrap - Manages dual-use acknowledgment flow
+ *
+ * Handles first-run initialization, acknowledgment prompts,
+ * and security directory setup.
+ *
+ * @example
+ * const bootstrap = new SecurityBootstrap();
+ * await bootstrap.bootstrap();
+ */
 export class SecurityBootstrap {
   private settingsDir: string;
   private settingsPath: string;
   private projectSecurityDir: string | null;
 
+  /**
+   * Creates a SecurityBootstrap instance
+   *
+   * Initializes paths for global settings and project-specific security directory.
+   * Uses workspace walk-up to find .open_cognition/.
+   *
+   * @param startDir - Starting directory for workspace resolution (default: cwd)
+   *
+   * @example
+   * const bootstrap = new SecurityBootstrap();
+   * const bootstrap = new SecurityBootstrap('/path/to/project');
+   */
   constructor(startDir: string = process.cwd()) {
     // Global settings in ~/.cognition-cli/
     this.settingsDir = path.join(os.homedir(), '.cognition-cli');
@@ -66,6 +116,24 @@ export class SecurityBootstrap {
 
   /**
    * Main bootstrap function - called before any cognition-cli operation
+   *
+   * FLOW:
+   * 1. Ensure global settings directory exists (~/.cognition-cli/)
+   * 2. Create project security directory if workspace exists
+   * 3. Load settings from disk
+   * 4. Check if acknowledgment exists and is valid (< 1 year old)
+   * 5. If needed, prompt for acknowledgment
+   * 6. Save acknowledgment to global settings
+   *
+   * ANNUAL RENEWAL:
+   * Acknowledgments expire after 1 year. Users must re-acknowledge
+   * to ensure continued awareness of dual-use risks.
+   *
+   * @example
+   * const bootstrap = new SecurityBootstrap();
+   * await bootstrap.bootstrap();
+   * // Continues silently if already acknowledged
+   * // Prompts if first run or acknowledgment expired
    */
   async bootstrap(): Promise<void> {
     // Ensure global settings directory exists
@@ -232,6 +300,11 @@ Do you acknowledge and accept these terms? [yes/NO]: `);
 
 /**
  * Custom error for security violations
+ *
+ * Thrown when security checks fail or user denies acknowledgment.
+ *
+ * @example
+ * throw new SecurityViolationError('User denied dual-use acknowledgment');
  */
 export class SecurityViolationError extends Error {
   constructor(message: string) {
@@ -241,7 +314,20 @@ export class SecurityViolationError extends Error {
 }
 
 /**
- * Bootstrap function to be called at CLI entry point
+ * Bootstrap security system - call at CLI entry point
+ *
+ * Convenience function that creates a SecurityBootstrap instance
+ * and runs the bootstrap flow.
+ *
+ * @param projectRoot - Optional project root (default: cwd)
+ *
+ * @example
+ * // In CLI entry point (bin/cogx.ts)
+ * await bootstrapSecurity();
+ *
+ * @example
+ * // With custom root
+ * await bootstrapSecurity('/path/to/workspace');
  */
 export async function bootstrapSecurity(projectRoot?: string): Promise<void> {
   const bootstrap = new SecurityBootstrap(projectRoot);
