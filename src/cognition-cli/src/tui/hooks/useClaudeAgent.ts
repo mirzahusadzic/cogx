@@ -317,6 +317,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             '[Σ] Compression aborted: analysis queue timeout',
             waitError
           );
+
+          // Reset compression state so it can be attempted again
+          compression.reset();
           return;
         }
 
