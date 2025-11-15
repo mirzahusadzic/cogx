@@ -22,6 +22,13 @@ const DEFAULT_OPTIONS: Required<ReconstructorOptions> = {
 
 /**
  * Estimate token count for text
+ *
+ * Uses a simple heuristic: 1 token ≈ 4 characters
+ *
+ * @param text - Input text to estimate
+ * @returns Estimated token count
+ *
+ * @private
  */
 function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
@@ -29,6 +36,27 @@ function estimateTokens(text: string): number {
 
 /**
  * Reconstruct context from lattice for a query
+ *
+ * ALGORITHM:
+ * 1. Analyze query to detect required overlay activation (O1-O7)
+ * 2. Find nodes matching overlay patterns via graph traversal
+ * 3. Expand to include temporal neighbors (conversation flow)
+ * 4. Sort by importance or recency
+ * 5. Build prompt within token budget
+ *
+ * @param query - Natural language query describing what context is needed
+ * @param lattice - Compressed conversation lattice to search
+ * @param options - Reconstruction options (token budget, max nodes, sorting)
+ * @returns Reconstructed context with prompt, included turns, and relevance score
+ *
+ * @example
+ * const context = await reconstructContext(
+ *   "What did we discuss about security guidelines?",
+ *   lattice,
+ *   { token_budget: 30000, sort_by: 'importance' }
+ * );
+ * console.log(`Reconstructed ${context.turns_included.length} turns (${context.token_count} tokens)`);
+ * console.log(`Relevance: ${context.relevance_score.toFixed(2)}`);
  */
 export async function reconstructContext(
   query: string,
@@ -95,6 +123,20 @@ export async function reconstructContext(
 
 /**
  * Analyze query to detect which overlays are needed
+ *
+ * Uses keyword matching to activate overlays:
+ * - O1: architecture, structure, design, component
+ * - O2: security, auth, credential, vulnerability
+ * - O3: earlier, before, previous, mentioned (historical references)
+ * - O4: goal, plan, strategy, purpose
+ * - O5: run, execute, command, workflow, implement
+ * - O6: code, function, algorithm, formula
+ * - O7: test, validate, verify, check
+ *
+ * @param query - Natural language query text
+ * @returns Overlay scores (0-10 scale) indicating which overlays to activate
+ *
+ * @private
  */
 function analyzeQuery(query: string): OverlayScores {
   const content = query.toLowerCase();
@@ -155,6 +197,16 @@ function analyzeQuery(query: string): OverlayScores {
 
 /**
  * Find nodes matching overlay activation patterns
+ *
+ * Scores each node by how well its overlay activation aligns with
+ * the query's overlay requirements. Returns top-N most relevant nodes.
+ *
+ * @param lattice - Conversation lattice to search
+ * @param queryOverlays - Required overlay activation from query analysis
+ * @param maxNodes - Maximum number of nodes to return
+ * @returns Array of most relevant conversation nodes
+ *
+ * @private
  */
 function findNodesByOverlay(
   lattice: ConversationLattice,
@@ -176,6 +228,17 @@ function findNodesByOverlay(
 
 /**
  * Calculate how relevant a node is to the query overlays
+ *
+ * Relevance formula:
+ * - Base: sum of (nodeScore × queryScore) for each overlay
+ * - Boost: +10 for paradigm shifts (always relevant)
+ * - Boost: +importance_score (1-10 scale)
+ *
+ * @param node - Conversation node to score
+ * @param queryOverlays - Required overlay activation from query
+ * @returns Relevance score (higher = more relevant)
+ *
+ * @private
  */
 function calculateNodeRelevance(
   node: ConversationNode,
@@ -206,6 +269,15 @@ function calculateNodeRelevance(
 
 /**
  * Expand node set to include temporal neighbors
+ *
+ * Follows temporal edges in the conversation lattice to include
+ * adjacent turns that provide conversational context.
+ *
+ * @param lattice - Conversation lattice with temporal edges
+ * @param nodes - Initial set of relevant nodes
+ * @returns Expanded set including temporal neighbors
+ *
+ * @private
  */
 function expandWithNeighbors(
   lattice: ConversationLattice,
@@ -238,6 +310,12 @@ function expandWithNeighbors(
 
 /**
  * Sort nodes by importance or recency
+ *
+ * @param nodes - Nodes to sort
+ * @param sortBy - Sort criteria: 'importance' (high to low) or 'recency' (chronological)
+ * @returns Sorted array of nodes
+ *
+ * @private
  */
 function sortNodes(
   nodes: ConversationNode[],
@@ -256,6 +334,16 @@ function sortNodes(
 
 /**
  * Format a turn for inclusion in Claude prompt
+ *
+ * Adds metadata headers for high-importance turns:
+ * - Role indicator (USER/ASSISTANT)
+ * - ⚡ marker for paradigm shifts
+ * - Importance score for highly important turns (≥8)
+ *
+ * @param node - Conversation node to format
+ * @returns Formatted string for Claude context
+ *
+ * @private
  */
 function formatTurn(node: ConversationNode): string {
   const role = node.role.toUpperCase();
@@ -274,6 +362,17 @@ function formatTurn(node: ConversationNode): string {
 
 /**
  * Calculate relevance score (0-1) for reconstruction
+ *
+ * Combines two metrics:
+ * - Coverage: what fraction of relevant nodes were included? (60% weight)
+ * - Overlay match: how well do included nodes match query overlays? (40% weight)
+ *
+ * @param includedIds - Turn IDs that were included in reconstruction
+ * @param relevantNodes - All nodes identified as relevant
+ * @param queryOverlays - Required overlay activation from query
+ * @returns Relevance score from 0 (poor) to 1 (excellent)
+ *
+ * @private
  */
 function calculateRelevance(
   includedIds: string[],
@@ -301,6 +400,21 @@ function calculateRelevance(
 
 /**
  * Get reconstruction statistics (for debugging)
+ *
+ * Provides metrics about a reconstructed context:
+ * - turn_count: number of turns included
+ * - token_count: total tokens used
+ * - relevance_score: how well reconstruction matched query (0-1)
+ * - active_overlays: which overlays were activated
+ * - token_efficiency: average tokens per turn
+ *
+ * @param context - Reconstructed context to analyze
+ * @returns Statistics object with metrics for analysis
+ *
+ * @example
+ * const stats = getReconstructionStats(context);
+ * console.log(`Used ${stats.turn_count} turns, ${stats.token_count} tokens`);
+ * console.log(`Active overlays: ${stats.active_overlays.join(', ')}`);
  */
 export function getReconstructionStats(context: ReconstructedContext): {
   turn_count: number;
