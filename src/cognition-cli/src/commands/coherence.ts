@@ -1,8 +1,41 @@
 /**
- * Coherence Commands (Refactored to use Algebra Layer)
+ * Coherence Commands: Analyze Strategic Alignment with Mission
  *
- * Uses CoherenceAlgebraAdapter instead of direct StrategicCoherenceManager.
- * This provides better integration with the lattice algebra system.
+ * The coherence command suite analyzes how well code symbols align with organizational mission,
+ * principles, and constraints. It identifies both high-alignment components and drift risks.
+ *
+ * COHERENCE METRICS:
+ * - Average Coherence: Equal-weighted alignment across all symbols
+ * - Weighted Coherence: Centrality-adjusted (more used = more important)
+ * - Lattice Coherence: Synthesized via Gaussian distribution + lattice algebra
+ * - Distribution Analysis: Top/median/bottom quartile breakdown
+ * - Drift Detection: Identifies symbols at risk of mission misalignment
+ *
+ * COMMANDS:
+ * - coherence report: Dashboard with overall metrics and thresholds
+ * - coherence aligned: List symbols meeting alignment threshold (default >= 0.7)
+ * - coherence drifted: List symbols in bottom quartile (high risk)
+ * - coherence list: All symbols with coherence scores
+ *
+ * THRESHOLDS:
+ * - Alignment: >= 0.7 (configurable per overlay metadata)
+ * - Drift: <= bottom_quartile_coherence (bottom 25% of distribution)
+ *
+ * @example
+ * // View strategic coherence dashboard
+ * cognition-cli coherence report
+ *
+ * @example
+ * // Find well-aligned symbols
+ * cognition-cli coherence aligned --min-score 0.8
+ *
+ * @example
+ * // Identify at-risk components
+ * cognition-cli coherence drifted
+ *
+ * @example
+ * // Export coherence data as JSON
+ * cognition-cli coherence list --format json --limit 1000
  */
 
 import { Command } from 'commander';
@@ -17,6 +50,18 @@ import { WorkspaceManager } from '../core/workspace-manager.js';
 
 /**
  * Adds strategic coherence query commands to the CLI program.
+ *
+ * Registers four subcommands:
+ * - report: Overall metrics dashboard
+ * - aligned: Filter by minimum coherence score
+ * - drifted: Filter by maximum coherence score
+ * - list: Show all symbols
+ *
+ * Each uses OverlayRegistry to access O7 (Strategic Coherence overlay) via algebra interface.
+ *
+ * @param program - Commander program instance to add commands to
+ * @example
+ * addCoherenceCommands(program);
  */
 export function addCoherenceCommands(program: Command) {
   const coherenceCommand = program
@@ -478,7 +523,19 @@ export function addCoherenceCommands(program: Command) {
 }
 
 /**
- * Display coherence items
+ * Display coherence items in requested format.
+ *
+ * Supports three output formats:
+ * - table: Visual progress bars and detailed metadata
+ * - json: Raw JSON data suitable for further processing
+ * - summary: Compact list of symbol names with scores
+ *
+ * @param items - Array of coherence items with metadata and embeddings
+ * @param options - Display options (format, limit)
+ * @param threshold - Optional threshold for filtering display message
+ * @param isDrifted - Whether displaying drifted (low) symbols vs aligned (high)
+ * @example
+ * displayCoherenceItems(coherenceItems, { format: 'table', limit: '50' }, 0.7);
  */
 function displayCoherenceItems(
   items: Array<{
@@ -559,7 +616,13 @@ function displayCoherenceItems(
 }
 
 /**
- * Truncate text to max length
+ * Truncate text to maximum length with ellipsis.
+ *
+ * @param text - Text to truncate
+ * @param maxLength - Maximum length including ellipsis
+ * @returns Truncated text with '...' if longer than maxLength
+ * @example
+ * truncate("Long concept text here", 20); // "Long concept tex..."
  */
 function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;

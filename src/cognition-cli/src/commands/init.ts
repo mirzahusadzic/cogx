@@ -1,3 +1,40 @@
+/**
+ * Init Command: Initialize the Grounded Context Pool (PGC)
+ *
+ * The init command sets up the foundational directory structure for the cognitive architecture.
+ * It creates the four pillars of the PGC:
+ * 1. objects/ - Content-addressable storage of code artifacts
+ * 2. transforms/ - Intermediate processing state and lineage tracking
+ * 3. index/ - Indexing structures for efficient lookup
+ * 4. reverse_deps/ - Reverse dependency maps for impact analysis
+ *
+ * Plus supporting directories:
+ * - overlays/ - Analytical overlay storage (O1-O7)
+ * - metadata.json - System initialization metadata with version and timestamp
+ * - .gitignore - Excludes large objects/ directory from version control
+ *
+ * STATUS CODES:
+ * - empty: Just initialized, no analysis performed yet
+ * - mining: Currently running structural analysis (genesis)
+ * - complete: Genesis finished, overlays generated
+ * - updating: Incremental update in progress
+ *
+ * This must be run ONCE before genesis, overlay, or other commands.
+ *
+ * @example
+ * // Initialize PGC in current directory
+ * cognition-cli init
+ *
+ * @example
+ * // Initialize PGC in specific directory
+ * cognition-cli init --path /path/to/project
+ *
+ * @example
+ * // Verify initialization
+ * ls .open_cognition/
+ * # objects/ transforms/ index/ reverse_deps/ overlays/ metadata.json .gitignore
+ */
+
 import fs from 'fs-extra';
 import path from 'path';
 import { intro, outro, spinner } from '@clack/prompts';
@@ -5,6 +42,19 @@ import chalk from 'chalk';
 
 /**
  * Initializes the PGC directory structure at the specified path.
+ *
+ * Creates the complete four-pillar architecture:
+ * 1. Creates .open_cognition root directory
+ * 2. Sets up objects/, transforms/, index/, reverse_deps/, overlays/ subdirectories
+ * 3. Initializes metadata.json with version and timestamp
+ * 4. Creates .gitignore to exclude large object store
+ *
+ * If directory already exists, ensures all required subdirectories are present.
+ *
+ * @param options - Init command options (path where to create .open_cognition)
+ * @throws Error if filesystem permissions insufficient or write fails
+ * @example
+ * await initCommand({ path: process.cwd() });
  */
 export async function initCommand(options: { path: string }) {
   console.log(chalk.cyan('📦 PGC = Grounded Context Pool'));

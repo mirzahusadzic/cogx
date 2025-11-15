@@ -1,5 +1,39 @@
 /**
- * Blast radius command - show impact of changing a symbol
+ * Blast Radius Command: Analyze Impact of Symbol Changes
+ *
+ * The blast-radius command visualizes the complete dependency graph and impact propagation
+ * when a code symbol changes. It identifies all consumers (symbols that depend on it) and
+ * all dependencies (symbols it depends on) across the codebase.
+ *
+ * IMPACT ANALYSIS:
+ * - Upstream (Consumers): Which symbols will be affected if this changes
+ * - Downstream (Dependencies): Which symbols this depends on
+ * - Critical Paths: High-impact chains through the architecture
+ * - Impact Metrics: Total impacted count, max depth, architectural distribution
+ *
+ * FILTERS:
+ * - --direction: up (find consumers), down (find dependencies), both (default)
+ * - --max-depth: Limit traversal depth (default: 3)
+ * - --no-transitive: Only show direct relationships (1-hop)
+ *
+ * ARCHITECTURAL ROLES:
+ * Results are grouped by architectural role:
+ * - core: Central/fundamental components
+ * - integration: Integration points with other systems
+ * - utility: Reusable utility functions
+ * - presentation: UI/presentation layer
+ *
+ * @example
+ * // Analyze impact of changing a symbol
+ * cognition-cli blast-radius handleUserInput
+ *
+ * @example
+ * // Find only consumers (what breaks if we change this?)
+ * cognition-cli blast-radius validateToken --direction up --max-depth 5
+ *
+ * @example
+ * // Export impact graph as JSON for further analysis
+ * cognition-cli blast-radius DatabaseConnection --json
  */
 
 import { Command } from 'commander';
@@ -183,7 +217,17 @@ export const blastRadiusCommand = new Command('blast-radius')
   });
 
 /**
- * Group array by key function
+ * Group array items by the result of a key function.
+ *
+ * Partitions array into a record where keys are determined by keyFn output.
+ * Used for grouping impact results by architectural role.
+ *
+ * @param arr - Array of items to group
+ * @param keyFn - Function that returns grouping key for each item
+ * @returns Record mapping keys to arrays of items
+ * @example
+ * const byRole = groupBy(items, item => item.architecturalRole);
+ * // { core: [...], utility: [...], integration: [...] }
  */
 function groupBy<T>(arr: T[], keyFn: (item: T) => string): Record<string, T[]> {
   return arr.reduce(

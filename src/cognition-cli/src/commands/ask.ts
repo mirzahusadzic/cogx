@@ -1,3 +1,34 @@
+/**
+ * Ask Command: Semantic Q&A over the PGC and Overlays
+ *
+ * The ask command provides natural language question-answering over the entire knowledge base,
+ * synthesizing answers from across all analytical overlays via semantic search and LLM synthesis.
+ *
+ * PIPELINE (4-step process):
+ * 1. Query Deconstruction (SLM): Parse natural language question into intent, entities, scope
+ * 2. Multi-Overlay Search (Lattice Algebra): Vector similarity search across all O1-O6 overlays
+ * 3. Answer Synthesis (LLM): Generate coherent answer from top-K semantically similar concepts
+ * 4. Optional Caching: Store Q&A pairs with question_hash for instant retrieval
+ *
+ * CACHING STRATEGY:
+ * - Maintains knowledge/qa/ directory with markdown Q&A documents
+ * - Stores SHA256(question) as frontmatter metadata
+ * - Returns cached answers without LLM calls on repeat questions
+ * - Enables knowledge base growth over time
+ *
+ * @example
+ * // Ask a simple question
+ * cognition-cli ask "What security measures should we implement?"
+ *
+ * @example
+ * // Ask with result caching and verbose output
+ * cognition-cli ask "How do we handle authentication?" --save --verbose
+ *
+ * @example
+ * // Customize search breadth (defaults to 5 results per overlay)
+ * cognition-cli ask "What are our mission principles?" --top-k 10
+ */
+
 import chalk from 'chalk';
 import path from 'path';
 import crypto from 'crypto';
@@ -35,7 +66,27 @@ interface AskOptions {
 
 /**
  * Semantic Q&A command - ask questions about the manual and get synthesized answers.
- * Uses SLM for query deconstruction, embedding-based similarity search, and LLM for synthesis.
+ *
+ * Executes full four-step pipeline:
+ * 1. Checks cache first (SHA256 of question) - if hit, returns immediately
+ * 2. Deconstructs query using SLM to extract intent, entities, scope
+ * 3. Searches all overlays (O1-O6) using lattice algebra vector similarity
+ * 4. Synthesizes answer from top-K results using LLM
+ * 5. Optionally caches result to knowledge/qa/ with frontmatter metadata
+ *
+ * Uses SLM for query deconstruction, embedding-based similarity search via lattice algebra,
+ * and LLM for answer synthesis. Results include source attribution and similarity scores.
+ *
+ * @param question - Natural language question to ask
+ * @param options - Ask command options (project root, workbench URL, top-K, save, verbose)
+ * @throws Error if PGC not found, no overlay data available, or workbench unreachable
+ * @example
+ * await askCommand("What is the authentication flow?", {
+ *   projectRoot: process.cwd(),
+ *   topK: 5,
+ *   save: true,
+ *   verbose: true
+ * });
  */
 export async function askCommand(question: string, options: AskOptions) {
   const startTime = Date.now();
