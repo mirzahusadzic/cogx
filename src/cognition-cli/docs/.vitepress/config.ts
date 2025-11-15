@@ -229,10 +229,6 @@ export default defineConfig({
             link: '/05_Verification_and_Oracles',
           },
           {
-            text: 'Testing and Deployment',
-            link: '/06_Testing_and_Deployment',
-          },
-          {
             text: 'AI-Grounded Architecture Analysis',
             link: '/07_AI_Grounded_Architecture_Analysis',
           },
