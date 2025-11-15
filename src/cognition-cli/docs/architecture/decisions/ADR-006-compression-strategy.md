@@ -1,8 +1,9 @@
 # ADR-006: Compression Strategy (120K Token Threshold)
 
-**Date**: 2025  
-**Status**: Accepted  
-**Deciders**: Core team
+- **Date**: 2025
+- **Status**: Accepted
+- **Deciders**: Core team
+- **Related**: Innovation #41 (Intelligent Context Compression)
 
 ## Context
 

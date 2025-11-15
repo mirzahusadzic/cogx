@@ -1,8 +1,9 @@
 # ADR-001: LanceDB for Vector Storage
 
-**Date**: 2025  
-**Status**: Accepted  
-**Deciders**: Core team
+- **Date**: 2025
+- **Status**: Accepted
+- **Deciders**: Core team
+- **Related**: Innovation #5 (Overlay System with vector embeddings)
 
 ## Context
 

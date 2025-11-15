@@ -1,8 +1,9 @@
 # ADR-007: AGPLv3 License (Copyleft)
 
-**Date**: 2025  
-**Status**: Accepted  
-**Deciders**: Core team
+- **Date**: 2025
+- **Status**: Accepted
+- **Deciders**: Core team
+- **Related**: Defensive Publication (Innovations #1-46 via Zenodo DOI)
 
 ## Context
 
