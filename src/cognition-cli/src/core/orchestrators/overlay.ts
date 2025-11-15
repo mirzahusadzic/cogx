@@ -32,7 +32,54 @@ import { GenesisOracle } from '../pgc/oracles/genesis.js';
 import { GenesisDocTransform } from '../transforms/genesis-doc-transform.js';
 
 /**
- * Orchestrates overlay generation including structural patterns, lineage, and mission concepts.
+ * Overlay Orchestrator: Orchestrates multi-layer semantic overlay generation
+ *
+ * Generates the 7 semantic overlays (O₀-O₆) that implement the CogX lattice architecture:
+ * - O₁: Structural Patterns (classes, functions, interfaces, dependencies)
+ * - O₂: Lineage Patterns (call graphs, import chains, dependency propagation)
+ * - O₃: Mission Concepts (extracted from strategic documents via LLM)
+ * - O₄: Strategic Coherence (alignment between code O₁ and mission O₃)
+ * - O₅: Security Guidelines (domain-specific security constraints)
+ * - O₆: Mathematical Proofs (theorems, lemmas, axioms from documentation)
+ * - O₇: Operational Patterns (workflows, execution patterns)
+ *
+ * DESIGN PATTERNS:
+ * - Symbol-based indexing: Each code symbol (class, function) gets unique overlay entries
+ * - Vector database storage: All overlays vectorized for semantic search via Lance
+ * - Incremental generation: Skips unchanged symbols using manifest + content hashing
+ * - Manifest-driven: Maintains manifest.json to track generation status
+ * - PGC anchoring: All overlays reference structural data hashes in PGC
+ * - Pre-flight validation: Verifies all source hashes exist before expensive embedding
+ * - Oracle verification: Validates overlay consistency and completeness
+ *
+ * WORKFLOW:
+ * 1. Discover source files and extract structural data from PGC
+ * 2. Identify symbols (classes, functions, interfaces) needing processing
+ * 3. Check manifest for incremental skipping (same source hash = skip)
+ * 4. Validate all structural hashes exist before embedding (pre-flight oracle)
+ * 5. Generate overlays in parallel with worker threads
+ * 6. Store overlays in vector DB with embeddings
+ * 7. Verify overlay completeness and PGC coherence
+ *
+ * @example
+ * const orchestrator = await OverlayOrchestrator.create('/path/to/project');
+ * await orchestrator.run('structural_patterns', { force: false });
+ * // → Generates O₁: Structural patterns for all code symbols
+ * // → Stores in .open_cognition/overlays/structural_patterns/
+ * // → Vectorizes for semantic search
+ *
+ * @example
+ * await orchestrator.run('mission_concepts', { force: false });
+ * // → Auto-discovers strategic docs (VISION.md, PRINCIPLES.md)
+ * // → Performs security validation on each document
+ * // → Extracts mission concepts via LLM
+ * // → Stores in .open_cognition/overlays/mission_concepts/
+ *
+ * @example
+ * await orchestrator.run('strategic_coherence', { force: false });
+ * // → Computes alignment between O₁ (code) and O₃ (mission)
+ * // → Identifies aligned vs drifted symbols
+ * // → Stores metrics and per-symbol coherence scores
  */
 export class OverlayOrchestrator {
   private maxFileSize = DEFAULT_MAX_FILE_SIZE;
@@ -146,6 +193,57 @@ export class OverlayOrchestrator {
     return new OverlayOrchestrator(projectRoot, vectorDB, pgc);
   }
 
+  /**
+   * Generate a specific overlay type (O₁-O₆)
+   *
+   * Main entry point for overlay generation. Handles specialized workflows for each overlay type:
+   *
+   * STRUCTURAL_PATTERNS (O₁):
+   * - Discovers source files from PGC index
+   * - Extracts all symbols (classes, functions, interfaces)
+   * - Incrementally skips unchanged symbols (manifest + content hash)
+   * - Generates embeddings via SLM/LLM
+   * - Verifies completeness and stores in vector DB
+   *
+   * MISSION_CONCEPTS (O₃):
+   * - Auto-discovers strategic docs (VISION.md, PATTERN_LIBRARY.md, etc.)
+   * - Performs security validation (threat detection via LLM)
+   * - Extracts mission concepts from validated documents
+   * - Generates embeddings and stores with document association
+   * - Enables strategic coherence alignment via O₄
+   *
+   * STRATEGIC_COHERENCE (O₄):
+   * - Loads O₁ (code symbols) from vector DB
+   * - Aggregates O₃ (mission concepts) from all documents
+   * - Computes alignment scores (meet operation) between code and mission
+   * - Identifies aligned vs drifted symbols
+   * - Stores metrics (overall coherence, per-symbol scores)
+   *
+   * @param overlayType - Which semantic overlay to generate
+   * @param options - Generation options
+   *   - force: Ignore existing overlays, regenerate from scratch
+   *   - skipGc: Skip garbage collection (useful for debugging)
+   *   - sourcePath: Source directory for file discovery (default '.')
+   * @returns Promise<void> - Updates overlays in place
+   *
+   * @throws {Error} If workbench is unavailable and required for overlay type
+   * @throws {Error} If pre-flight validation detects missing structural hashes
+   * @throws {Error} If overlay verification fails after generation
+   *
+   * @example
+   * // Generate structural patterns (O₁)
+   * await orchestrator.run('structural_patterns', { force: false });
+   *
+   * @example
+   * // Regenerate all patterns, skip GC (for fast iteration)
+   * await orchestrator.run('structural_patterns', { force: true, skipGc: true });
+   *
+   * @example
+   * // Generate mission concepts with auto-discovery and security validation
+   * await orchestrator.run('mission_concepts');
+   *
+   * @public
+   */
   public async run(
     overlayType:
       | 'structural_patterns'
