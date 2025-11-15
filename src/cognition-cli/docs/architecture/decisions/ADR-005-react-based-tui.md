@@ -1,8 +1,9 @@
 # ADR-005: React-Based TUI with Ink
 
-**Date**: 2025  
-**Status**: Accepted  
-**Deciders**: Core team
+- **Date**: 2025
+- **Status**: Accepted
+- **Deciders**: Core team
+- **Related**: Innovation #46 (Interactive TUI with Real-Time Lattice Visualization)
 
 ## Context
 
