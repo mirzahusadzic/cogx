@@ -15,7 +15,19 @@ import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../config.js';
 
 /**
  * Compute hash of embedding vector for content-based ID generation.
- * Same approach as structural patterns for deduplication.
+ *
+ * Uses the same SHA-256 approach as structural patterns to enable
+ * automatic deduplication of identical embeddings.
+ *
+ * DESIGN:
+ * - Content-addressable: same embedding → same hash
+ * - Deduplication: prevents storing duplicate embeddings
+ * - 12-char prefix: readability while maintaining uniqueness
+ *
+ * @param embedding - 768-dimensional vector from eGemma
+ * @returns First 12 characters of SHA-256 hash
+ *
+ * @private
  */
 function computeEmbeddingHash(embedding: number[]): string {
   return crypto
@@ -131,19 +143,70 @@ export interface DocumentQueryFilter {
 }
 
 /**
+ * Document Vector Store (LanceDB)
+ *
  * Manages document concept storage and semantic search using LanceDB.
- * Unified store for all overlay types: O2 (Security), O4 (Mission), O5 (Operational), O6 (Mathematical).
+ * Unified store for all document-based overlays: O₂ (Security), O₄ (Mission),
+ * O₅ (Operational), O₆ (Mathematical).
  *
  * ARCHITECTURE:
  * - Single LanceDB table for all document embeddings
  * - Overlay type stored as metadata field for filtering
  * - YAML files retained for git-trackable provenance
- * - LanceDB provides fast vector similarity search
+ * - LanceDB provides fast vector similarity search (native GPU acceleration)
  *
- * MIGRATION:
- * - Existing YAML overlays can be migrated to LanceDB
+ * UNIFIED SCHEMA:
+ * All overlay types share the same schema with polymorphic metadata:
+ * - id: <overlay>:<doc_hash>:<embedding_hash> (content-addressable)
+ * - overlay_type: 'O2' | 'O4' | 'O5' | 'O6'
+ * - document_hash: Source document hash (provenance)
+ * - text: Concept/guideline/pattern text
+ * - section: Source section heading
+ * - concept_type: Type varies by overlay (guideline, concept, pattern, theorem)
+ * - weight: Importance score (0-1)
+ * - embedding: 768D vector from eGemma
+ *
+ * MIGRATION (v1 → v2):
+ * - v1: Embeddings in YAML files (.open_cognition/overlays/<type>/<hash>.yaml)
+ * - v2: Embeddings in LanceDB (.open_cognition/lance/documents.lancedb)
  * - Both formats coexist during transition
+ * - EmbeddingLoader provides unified access
  * - LanceDB used for queries, YAML for provenance tracking
+ *
+ * DEDUPLICATION:
+ * - Uses embedding hash for content-addressable IDs
+ * - Same embedding → same ID → automatic deduplication
+ * - mergeInsert for efficient upserts without version bloat
+ *
+ * PERFORMANCE:
+ * - LanceDB's native vector search (much faster than in-memory cosine)
+ * - GPU acceleration for large-scale similarity search
+ * - Efficient filtering with SQL-like WHERE clauses
+ *
+ * @example
+ * // Initialize store
+ * const store = new DocumentLanceStore('/path/to/.open_cognition');
+ * await store.initialize();
+ *
+ * // Store mission concepts
+ * await store.storeConceptsBatch(
+ *   'O4',
+ *   documentHash,
+ *   'VISION.md',
+ *   transformId,
+ *   missionConcepts
+ * );
+ *
+ * // Semantic search across all overlays
+ * const results = await store.similaritySearch(queryEmbedding, 10);
+ *
+ * @example
+ * // Filter by overlay type
+ * const securityResults = await store.similaritySearch(
+ *   queryEmbedding,
+ *   10,
+ *   { overlay_type: 'O2' }
+ * );
  */
 export class DocumentLanceStore {
   private db: Connection | undefined;
@@ -228,8 +291,45 @@ export class DocumentLanceStore {
   }
 
   /**
-   * Store a document concept with full metadata.
-   * Uses LanceDB's mergeInsert for efficient upsert without version bloat.
+   * Store a single document concept with embeddings.
+   *
+   * Uses LanceDB's mergeInsert for efficient upsert without version bloat:
+   * - If concept exists (matched by id): updates in-place
+   * - If concept doesn't exist: inserts new record
+   * - No delete operation = no extra versions
+   *
+   * ALGORITHM:
+   * 1. Validate embedding dimensions (must be 768)
+   * 2. Generate content-addressable ID (overlay:doc:embedding_hash)
+   * 3. Build complete concept record
+   * 4. Execute mergeInsert (upsert operation)
+   *
+   * @param overlayType - Overlay type ('O2' | 'O4' | 'O5' | 'O6')
+   * @param documentHash - Content hash of source document
+   * @param documentPath - Relative path to source markdown
+   * @param transformId - Transform that generated this overlay
+   * @param conceptIndex - Index of concept in batch (for ordering)
+   * @param concept - Concept data with embedding
+   * @returns Content-addressable ID of stored concept
+   * @throws {Error} If embedding dimensions don't match (not 768D)
+   *
+   * @example
+   * await store.storeConcept(
+   *   'O4',
+   *   '7f3a9b2c...',
+   *   'docs/VISION.md',
+   *   'transform_123',
+   *   0,
+   *   {
+   *     text: 'Verifiable AI systems',
+   *     section: 'Mission',
+   *     sectionHash: 'abc123',
+   *     type: 'concept',
+   *     weight: 0.95,
+   *     occurrences: 3,
+   *     embedding: [0.1, 0.2, ...] // 768 dims
+   *   }
+   * );
    */
   async storeConcept(
     overlayType: string,
@@ -357,7 +457,50 @@ export class DocumentLanceStore {
 
   /**
    * Semantic similarity search across document concepts.
+   *
    * Uses LanceDB's native vector operations for maximum performance.
+   * Supports filtering by overlay type, document, concept type, etc.
+   *
+   * ALGORITHM:
+   * 1. Validate query embedding dimensions (must be 768)
+   * 2. Build LanceDB similarity search query
+   * 3. Set distance metric (cosine, l2, or dot product)
+   * 4. Apply filters via SQL WHERE clauses
+   * 5. Execute native vector search (GPU-accelerated)
+   * 6. Convert distances to similarity scores
+   * 7. Sort by similarity descending
+   *
+   * PERFORMANCE:
+   * - LanceDB's native search is ~100x faster than in-memory cosine
+   * - GPU acceleration for large-scale searches
+   * - WHERE clause filtering happens in-database (efficient)
+   *
+   * @param queryEmbedding - 768D query vector
+   * @param topK - Number of top results to return
+   * @param filter - Optional filters for overlay type, document, etc.
+   * @param distanceType - Distance metric ('cosine', 'l2', or 'dot')
+   * @returns Array of matching concepts with similarity scores
+   * @throws {Error} If query embedding dimensions don't match (not 768D)
+   *
+   * @example
+   * // Search across all overlays
+   * const results = await store.similaritySearch(queryEmbedding, 10);
+   *
+   * @example
+   * // Search only security guidelines
+   * const securityResults = await store.similaritySearch(
+   *   queryEmbedding,
+   *   10,
+   *   { overlay_type: 'O2', min_weight: 0.7 }
+   * );
+   *
+   * @example
+   * // Search specific document
+   * const docResults = await store.similaritySearch(
+   *   queryEmbedding,
+   *   5,
+   *   { document_hash: '7f3a9b2c...' }
+   * );
    */
   async similaritySearch(
     queryEmbedding: number[],
