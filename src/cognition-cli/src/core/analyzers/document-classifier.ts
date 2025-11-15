@@ -56,6 +56,13 @@ export interface ClassificationResult {
 export class DocumentClassifier {
   /**
    * Classify a document by analyzing multiple signals
+   *
+   * Uses a multi-signal approach combining filename, frontmatter,
+   * section structure, and content patterns for robust classification.
+   *
+   * @param doc - Parsed markdown document to classify
+   * @param filePath - File path for filename-based classification
+   * @returns Classification result with type, confidence, and reasoning
    */
   classify(doc: MarkdownDocument, filePath: string): ClassificationResult {
     const signals: ClassificationResult[] = [];
@@ -80,6 +87,10 @@ export class DocumentClassifier {
 
   /**
    * Classify by filename patterns
+   *
+   * @param filePath - Path to the document file
+   * @returns Classification result based on filename keywords
+   * @private
    */
   private classifyByFilename(filePath: string): ClassificationResult {
     const filename = filePath.toLowerCase();
@@ -167,6 +178,13 @@ export class DocumentClassifier {
 
   /**
    * Classify by frontmatter metadata
+   *
+   * Checks for explicit 'type' field in frontmatter. Frontmatter
+   * classification is authoritative (confidence 1.0) when present.
+   *
+   * @param metadata - Frontmatter metadata object
+   * @returns Classification result based on frontmatter type field
+   * @private
    */
   private classifyByFrontmatter(metadata: {
     [key: string]: unknown;
@@ -229,6 +247,13 @@ export class DocumentClassifier {
 
   /**
    * Classify by section structure
+   *
+   * Analyzes document headings for patterns that indicate document type.
+   * Requires at least 2 matching sections for classification.
+   *
+   * @param doc - Parsed markdown document
+   * @returns Classification result based on section headings
+   * @private
    */
   private classifyBySectionStructure(
     doc: MarkdownDocument
@@ -328,6 +353,13 @@ export class DocumentClassifier {
 
   /**
    * Classify by content patterns (keyword density)
+   *
+   * Analyzes document content for domain-specific keywords.
+   * Requires at least 3 keyword matches for classification (2 for strategic).
+   *
+   * @param doc - Parsed markdown document
+   * @returns Classification result based on keyword density
+   * @private
    */
   private classifyByContentPatterns(
     doc: MarkdownDocument
@@ -447,7 +479,11 @@ export class DocumentClassifier {
    *
    * PRAGMATIC RULE: Frontmatter is authoritative.
    * If frontmatter provides a type with 1.0 confidence, use it directly.
-   * Otherwise, fall back to weighted voting.
+   * Otherwise, fall back to weighted voting across all signals.
+   *
+   * @param signals - Array of classification results from different signals
+   * @returns Combined classification result with aggregated reasoning
+   * @private
    */
   private combineSignals(
     signals: ClassificationResult[]
