@@ -15,11 +15,13 @@ This guide gets you from zero to querying your codebase in under 10 minutes.
 ## Prerequisites (2 minutes)
 
 **Required**:
+
 - Node.js 18+ (`node --version`)
 - Git repository with source code
 - Docker (for eGemma workbench)
 
 **Optional**:
+
 - npm/yarn for global install
 
 ---
@@ -74,6 +76,7 @@ cognition-cli wizard
 3. **Overlays to generate**: Select all (recommended) or minimum: O₁, O₄, O₇
 
 **What happens**:
+
 - ✅ Creates `.open_cognition/` directory (PGC)
 - ✅ Analyzes source code (genesis)
 - ✅ Ingests documentation (genesis:docs)
@@ -220,6 +223,7 @@ cognition-cli update
 ```
 
 **Benefits**:
+
 - **Fast updates**: Only processes changed files (seconds vs minutes)
 - **Always coherent**: PGC stays in sync with code
 - **CI/CD ready**: Use `status` exit codes in scripts
@@ -333,7 +337,7 @@ cognition-cli ask "what is the purpose of Y"       # Documentation questions
 - **In-CLI help**: `cognition-cli guide`
 - **Command reference**: `cognition-cli <command> --help`
 - **Full manual**: [The Lattice Book](../README.md)
-- **Issues**: https://github.com/mirzahusadzic/cogx/issues
+- **Issues**: <https://github.com/mirzahusadzic/cogx/issues>
 
 ---
 
