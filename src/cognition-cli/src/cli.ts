@@ -446,7 +446,10 @@ securityCmd
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(securityCoverageGapsCommand);
+  .action(async (options) => {
+    const { securityCoverageGapsCommand } = await import('./commands/sugar/security.js');
+    await securityCoverageGapsCommand(options);
+  });
 
 securityCmd
   .command('boundaries')
@@ -463,7 +466,10 @@ securityCmd
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(securityBoundariesCommand);
+  .action(async (options) => {
+    const { securityBoundariesCommand } = await import('./commands/sugar/security.js');
+    await securityBoundariesCommand(options);
+  });
 
 // Direct O₂ overlay queries
 securityCmd
@@ -487,7 +493,7 @@ securityCmd
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
   .action(
-    (options: {
+    async (options: {
       projectRoot: string;
       type?: string;
       severity?: string;
@@ -495,7 +501,8 @@ securityCmd
       limit?: string;
       verbose?: boolean;
     }) => {
-      securityListCommand({
+      const { securityListCommand } = await import('./commands/sugar/security.js');
+      await securityListCommand({
         projectRoot: options.projectRoot,
         type: options.type,
         severity: options.severity as
@@ -526,7 +533,10 @@ securityCmd
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(securityCVEsCommand);
+  .action(async (options) => {
+    const { securityCVEsCommand } = await import('./commands/sugar/security.js');
+    await securityCVEsCommand(options);
+  });
 
 securityCmd
   .command('query <searchTerm>')
@@ -543,7 +553,10 @@ securityCmd
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '10')
   .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(securityQueryCommand);
+  .action(async (searchTerm, options) => {
+    const { securityQueryCommand } = await import('./commands/sugar/security.js');
+    await securityQueryCommand(searchTerm, options);
+  });
 
 securityCmd
   .command('coherence')
@@ -555,7 +568,10 @@ securityCmd
   )
   .option('-f, --format <format>', 'Output format: table, json', 'table')
   .option('-v, --verbose', 'Show detailed security class breakdown', false)
-  .action(securityCoherenceCommand);
+  .action(async (options) => {
+    const { securityCoherenceCommand } = await import('./commands/sugar/security-coherence.js');
+    await securityCoherenceCommand(options);
+  });
 
 // Workflow commands
 const workflowCmd = program
@@ -579,7 +595,10 @@ workflowCmd
   .option('-v, --verbose', 'Show detailed error messages', false)
   .option('--secure', 'Show workflows aligned with security boundaries', false)
   .option('--aligned', 'Show workflows aligned with mission', false)
-  .action(workflowPatternsCommand);
+  .action(async (options) => {
+    const { workflowPatternsCommand } = await import('./commands/sugar/workflow.js');
+    await workflowPatternsCommand(options);
+  });
 
 workflowCmd
   .command('quests')
@@ -596,7 +615,10 @@ workflowCmd
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(workflowQuestsCommand);
+  .action(async (options) => {
+    const { workflowQuestsCommand } = await import('./commands/sugar/workflow.js');
+    await workflowQuestsCommand(options);
+  });
 
 workflowCmd
   .command('depth-rules')
@@ -613,7 +635,10 @@ workflowCmd
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(workflowDepthRulesCommand);
+  .action(async (options) => {
+    const { workflowDepthRulesCommand } = await import('./commands/sugar/workflow.js');
+    await workflowDepthRulesCommand(options);
+  });
 
 // Proofs commands
 const proofsCmd = program
@@ -635,7 +660,12 @@ proofsCmd
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(proofsTheoremsCommand);
+  .action(async (options) => {
+    const { proofsTheoremsCommand } = await import(
+      './commands/sugar/proofs.js'
+    );
+    await proofsTheoremsCommand(options);
+  });
 
 proofsCmd
   .command('lemmas')
@@ -652,7 +682,10 @@ proofsCmd
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(proofsLemmasCommand);
+  .action(async (options) => {
+    const { proofsLemmasCommand } = await import('./commands/sugar/proofs.js');
+    await proofsLemmasCommand(options);
+  });
 
 proofsCmd
   .command('list')
@@ -673,7 +706,10 @@ proofsCmd
     '--type <type>',
     'Filter by type: theorem, lemma, axiom, proof, identity'
   )
-  .action(proofsListCommand);
+  .action(async (options) => {
+    const { proofsListCommand } = await import('./commands/sugar/proofs.js');
+    await proofsListCommand(options);
+  });
 
 proofsCmd
   .command('aligned')
@@ -690,7 +726,10 @@ proofsCmd
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(proofsAlignedCommand);
+  .action(async (options) => {
+    const { proofsAlignedCommand } = await import('./commands/sugar/proofs.js');
+    await proofsAlignedCommand(options);
+  });
 
 // Bootstrap security layer (one-time acknowledgment)
 await bootstrapSecurity();
