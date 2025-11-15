@@ -1760,6 +1760,402 @@ O4 (Mission) Status:
 
 ---
 
+## migrate-to-lance — Database Migration
+
+**Command**: `cognition-cli migrate-to-lance`
+
+**Purpose**: Migrate YAML overlay embeddings to LanceDB for fast semantic queries.
+
+### Why Migrate?
+
+**Before migration**: Embeddings stored in YAML files (large, slow queries)
+**After migration**: Embeddings in LanceDB (fast vector search) + slim YAML (metadata only)
+
+**Benefits**:
+- **10-100x faster** semantic queries
+- **50-70% disk space savings** (embeddings removed from YAML)
+- **Scalability**: Handle 100K+ vectors efficiently
+
+### Usage
+
+```bash
+# Migrate all overlays (recommended)
+cognition-cli migrate-to-lance
+
+# Dry run (preview changes)
+cognition-cli migrate-to-lance --dry-run
+
+# Migrate specific overlays
+cognition-cli migrate-to-lance --overlays mission_concepts,security_guidelines
+
+# Keep embeddings in YAML (not recommended, for backup)
+cognition-cli migrate-to-lance --keep-embeddings
+```
+
+### Command Options
+
+```bash
+cognition-cli migrate-to-lance [options]
+
+# Options:
+#   -p, --project-root <path>         Root directory
+#   --overlays <overlays>             Comma-separated overlay list
+#   --dry-run                         Preview without making changes
+#   --keep-embeddings                 Keep embeddings in YAML (not recommended)
+```
+
+### What Gets Migrated
+
+1. **Overlay embeddings**: mission_concepts, security_guidelines, operational_patterns, mathematical_proofs
+2. **Mission integrity versions**: Full version history
+3. **Sigma lattice files**: Conversation overlays (O1-O7)
+
+### Example
+
+```bash
+$ cognition-cli migrate-to-lance
+
+LanceDB Migration
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1/5] Migrating mission_concepts...
+  ✓ Migrated 67 embeddings to LanceDB
+  ✓ Created YAML v2 format (embeddings stripped)
+  Disk savings: 8.2 MB → 1.3 MB (84% reduction)
+
+[2/5] Migrating security_guidelines...
+  ✓ Migrated 234 embeddings
+  Disk savings: 32.1 MB → 4.7 MB (85% reduction)
+
+[3/5] Migrating operational_patterns...
+  ✓ Migrated 156 embeddings
+  Disk savings: 21.4 MB → 3.2 MB (85% reduction)
+
+[4/5] Migrating mathematical_proofs...
+  ✓ Migrated 89 embeddings
+  Disk savings: 12.3 MB → 1.8 MB (85% reduction)
+
+[5/5] Compacting LanceDB...
+  ✓ Removed 47 orphaned vectors
+  ✓ Compacted database
+
+Summary:
+  Total embeddings migrated: 546
+  Disk space saved: 60.8 MB (85% reduction)
+  LanceDB size: 42.3 MB
+
+Migration complete! Semantic queries now use LanceDB.
+```
+
+### Rollback
+
+If migration causes issues, restore from backup:
+
+```bash
+# Backups created at:
+.open_cognition/overlays/o4_mission/concepts.backup/
+```
+
+---
+
+## tui — Interactive Terminal
+
+**Command**: `cognition-cli tui`
+
+**Purpose**: Launch interactive terminal UI with Claude integration for conversational analysis.
+
+### What It Provides
+
+- **Interactive Chat**: Converse with Claude about your codebase
+- **Lattice Visualization**: Real-time overlay counts and statistics
+- **Session Persistence**: Resume previous conversations
+- **Σ (Sigma) Integration**: Infinite context via dual-lattice compression
+- **Extended Thinking**: Up to 10K thinking tokens for complex reasoning
+
+### Usage
+
+```bash
+# Start new session
+cognition-cli tui
+
+# Resume existing session
+cognition-cli tui --session-id <anchor-id>
+
+# Resume from state file
+cognition-cli tui --file .sigma/tui-1762546919034.state.json
+
+# Extended thinking mode (complex reasoning)
+cognition-cli tui --max-thinking-tokens 10000
+
+# Debug mode (show compression details)
+cognition-cli tui --debug
+```
+
+### Command Options
+
+```bash
+cognition-cli tui [options]
+
+# Options:
+#   -p, --project-root <path>           Root directory
+#   --session-id <anchor-id>            Resume session by ID
+#   -f, --file <path>                   Resume from .sigma state file
+#   -w, --workbench <url>               eGemma workbench URL
+#   --session-tokens <number>           Compression threshold (default: 120000)
+#   --max-thinking-tokens <number>      Extended thinking limit (default: 10000)
+#   --debug                             Enable debug logging
+```
+
+### Example Session
+
+```bash
+$ cognition-cli tui
+
+╔══════════════════════════════════════════════════════════════╗
+║  Cognition Σ (Sigma) - Interactive TUI                       ║
+║  Dual-Lattice Architecture with Infinite Context             ║
+╚══════════════════════════════════════════════════════════════╝
+
+Lattice Status:
+  O₁ Structure: 1,073 items
+  O₂ Security: 234 items
+  O₃ Lineage: 847 items
+  O₄ Mission: 67 items
+  O₅ Operational: 156 items
+  O₆ Mathematical: 89 items
+  O₇ Coherence: 1,073 scores
+
+Session: tui-1762546919034
+Tokens: 0 / 120,000
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You: Explain the coherence calculation
+
+Claude: The coherence calculation uses a dual-lattice architecture...
+[Extended response with source citations from O₇ overlay]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You: /quit
+
+Session saved to .sigma/tui-1762546919034.state.json
+Resume with: cognition-cli tui --file .sigma/tui-1762546919034.state.json
+```
+
+### Features
+
+**Session Management**:
+- Automatic checkpointing every 5 turns
+- Resume from any previous session
+- Compression at 150K tokens (importance-based)
+- Session forwarding for continuity
+
+**Lattice Visualization**:
+- Live overlay statistics
+- Token usage tracking
+- Coherence metrics
+
+**Commands** (within TUI):
+- `/quit` - Exit and save session
+- `/status` - Show lattice status
+- `/clear` - Clear screen
+
+---
+
+## guide — Contextual Help
+
+**Command**: `cognition-cli guide [topic]`
+
+**Purpose**: Show colorful, contextual guides for CLI commands and workflows.
+
+### Available Guides
+
+```bash
+cognition-cli guide                    # Show guide index
+cognition-cli guide watch              # File monitoring workflow
+cognition-cli guide status             # PGC coherence checking
+cognition-cli guide explore-architecture  # Codebase exploration
+cognition-cli guide analyze-symbol        # Symbol deep-dive
+cognition-cli guide trace-dependency      # Dependency chains
+cognition-cli guide analyze-impact        # Blast radius analysis
+```
+
+### Example
+
+```bash
+$ cognition-cli guide watch
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Guide: File Change Monitoring
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The watch command keeps your PGC in sync with file changes.
+
+Usage:
+
+  cognition-cli watch [--untracked] [--verbose]
+
+What it does:
+
+  1. Monitors source files for changes
+  2. Updates dirty_state.json automatically
+  3. Records file hashes for change detection
+
+Integration:
+
+  # Terminal 1: Watch for changes
+  cognition-cli watch
+
+  # Terminal 2: Check coherence
+  cognition-cli status
+
+  # Terminal 2: Sync PGC
+  cognition-cli update
+
+Pro tip: Run watch in tmux/screen for persistent monitoring!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Next: cognition-cli guide status
+```
+
+### Custom Guides
+
+Create project-specific guides in `.claude/commands/guide-*.md`.
+
+---
+
+## security — Security Analysis
+
+**Command**: `cognition-cli security <subcommand>`
+
+**Purpose**: Convenience commands for security analysis (wraps lattice algebra).
+
+### Subcommands
+
+```bash
+cognition-cli security attacks           # O2[attack_vector] ~ O4[principle]
+cognition-cli security coverage-gaps      # O1 - O2
+cognition-cli security boundaries         # O2[boundary] | O2[constraint]
+cognition-cli security list [--type]      # Direct O2 overlay listing
+cognition-cli security cves               # List tracked CVEs
+cognition-cli security query <term>       # Search security knowledge
+```
+
+### Examples
+
+**Find attack vectors aligned with mission principles**:
+
+```bash
+$ cognition-cli security attacks
+
+Attack Vectors vs Mission Principles:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+mission_drift_poisoning (87.3% aligned with "verifiable_alignment")
+  Attack: Gradual mission drift via malicious context
+  Defense Priority: CRITICAL
+
+prompt_injection (82.1% aligned with "transparency")
+  Attack: Hidden instructions in user input
+  Defense Priority: HIGH
+
+Total: 12 attack vectors analyzed
+```
+
+**Find security coverage gaps**:
+
+```bash
+$ cognition-cli security coverage-gaps
+
+Code Symbols Without Security Documentation:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function:processPayment (src/payments.ts:45)
+  Risk: HIGH - Payment processing undocumented
+
+function:handleAdminAction (src/admin.ts:78)
+  Risk: CRITICAL - Admin functionality undocumented
+
+Total: 23 uncovered symbols
+Recommendation: Document high-risk symbols first
+```
+
+---
+
+## workflow — Operational Patterns
+
+**Command**: `cognition-cli workflow <subcommand>`
+
+**Purpose**: Query operational patterns and quest structures.
+
+### Subcommands
+
+```bash
+cognition-cli workflow patterns [--secure] [--aligned]
+cognition-cli workflow quests
+cognition-cli workflow depth-rules
+```
+
+### Examples
+
+```bash
+$ cognition-cli workflow patterns --secure
+
+Workflow Patterns Aligned with Security:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+pre_commit_validation (0.91 alignment)
+  Ensures security checks before commits
+
+code_review_process (0.88 alignment)
+  Enforces security review gates
+
+deployment_checklist (0.85 alignment)
+  Validates security boundaries
+
+Total: 7 secure workflow patterns
+```
+
+---
+
+## proofs — Mathematical Proofs
+
+**Command**: `cognition-cli proofs <subcommand>`
+
+**Purpose**: Query mathematical proofs and theorems from O₆ overlay.
+
+### Subcommands
+
+```bash
+cognition-cli proofs theorems
+cognition-cli proofs lemmas
+cognition-cli proofs list [--type <type>]
+cognition-cli proofs aligned    # Proofs aligned with mission
+```
+
+### Examples
+
+```bash
+$ cognition-cli proofs theorems
+
+Mathematical Theorems:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Lattice Completeness Theorem
+  Statement: Every overlay operation has a unique result
+  Proof: See O6_Mathematical/theorems/lattice-completeness.yaml
+
+Coherence Convergence Theorem
+  Statement: Coherence scores converge with more embeddings
+  Proof: See O6_Mathematical/theorems/coherence-convergence.yaml
+
+Total: 12 theorems
+```
+
+---
+
 ## Command Dependencies
 
 **Visual Summary**:
