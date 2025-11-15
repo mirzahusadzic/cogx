@@ -37,13 +37,16 @@ export type OverlayData = {
     concepts_count: number;
   };
   document_hash?: string;
-  extracted_concepts?: MissionConcept[];
-  extracted_knowledge?: MissionConcept[];
-  mission_concepts?: MissionConcept[];
-  security_concepts?: MissionConcept[];
-  operational_patterns?: MissionConcept[];
-  mathematical_proofs?: MissionConcept[];
-  coherence_links?: MissionConcept[];
+  extracted_concepts?: MissionConcept[]; // Mission concepts (v1/v2)
+  extracted_knowledge?: MissionConcept[]; // Security guidelines (v1/v2)
+  extracted_patterns?: MissionConcept[]; // Operational patterns (v1/v2)
+  extracted_statements?: MissionConcept[]; // Mathematical proofs (v1/v2)
+  mission_concepts?: MissionConcept[]; // Alternative name (legacy)
+  security_concepts?: MissionConcept[]; // Alternative name (legacy)
+  operational_patterns?: MissionConcept[]; // Alternative name (legacy)
+  mathematical_proofs?: MissionConcept[]; // Alternative name (legacy)
+  coherence_links?: MissionConcept[]; // Coherence overlay
+  knowledge?: MissionConcept[]; // Fallback for mathematical proofs
 } & Record<string, unknown>;
 
 /**
@@ -138,13 +141,16 @@ export class EmbeddingLoader {
   private getConceptField(overlayData: OverlayData): string | null {
     // Try common concept field names
     const possibleFields = [
-      'extracted_concepts',
-      'extracted_knowledge',
-      'mission_concepts',
-      'security_concepts',
-      'operational_patterns',
-      'mathematical_proofs',
-      'coherence_links',
+      'extracted_concepts', // Mission concepts (v1/v2)
+      'extracted_knowledge', // Security guidelines (v1/v2)
+      'extracted_patterns', // Operational patterns (v1/v2)
+      'extracted_statements', // Mathematical proofs (v1/v2)
+      'mission_concepts', // Alternative name (legacy)
+      'security_concepts', // Alternative name (legacy)
+      'operational_patterns', // Alternative name (legacy)
+      'mathematical_proofs', // Alternative name (legacy)
+      'coherence_links', // Coherence overlay
+      'knowledge', // Fallback for mathematical proofs
     ];
 
     for (const field of possibleFields) {
