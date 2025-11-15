@@ -1,3 +1,61 @@
+/**
+ * Natural Language Query Interface for Grounded Context Pool (PGC)
+ *
+ * Enables developers to query their codebase using natural language questions.
+ * Extracts code symbols from questions, retrieves structural data from PGC,
+ * and performs dependency graph traversal to build complete context.
+ *
+ * DESIGN PHILOSOPHY:
+ * Traditional code search operates on text patterns. This query system operates
+ * on semantic structure - it understands symbols, dependencies, and architectural
+ * relationships.
+ *
+ * QUERY ALGORITHM:
+ * 1. Entity Extraction: Parse question for code symbols (PascalCase, camelCase)
+ * 2. Context Retrieval: Fetch structural data for identified symbols
+ * 3. Dependency Traversal: Follow type references to depth N
+ * 4. Lineage Construction: Build dependency path from root to leaves
+ * 5. Result Formatting: Present as human-readable or JSON lineage
+ *
+ * SUPPORTED QUERIES:
+ * - "How does UserService work?"
+ *   → Finds UserService + dependencies
+ *
+ * - "What does AuthController depend on?"
+ *   → Finds AuthController + transitive dependencies
+ *
+ * - "Show me the DatabaseConnection implementation"
+ *   → Finds DatabaseConnection + related types
+ *
+ * DEPTH CONTROL:
+ * - depth=0: Only direct matches (no dependencies)
+ * - depth=1: Direct dependencies (classes, interfaces, return types)
+ * - depth=2+: Transitive dependencies
+ *
+ * @example
+ * // Simple query for a single symbol
+ * const result = await queryCommand(
+ *   'How does PGCManager work?',
+ *   { projectRoot: '/path/to/project', depth: '1' }
+ * );
+ * console.log(formatAsHumanReadable(result));
+ *
+ * @example
+ * // Deep dependency analysis
+ * const result = await queryCommand(
+ *   'What does OverlayOracle depend on?',
+ *   { projectRoot: '/path/to/project', depth: '2' }
+ * );
+ * console.log(formatAsLineageJSON(result));
+ *
+ * @example
+ * // Multiple symbols in one query
+ * const result = await queryCommand(
+ *   'How do Index and ObjectStore interact?',
+ *   { projectRoot: '/path/to/project', depth: '1' }
+ * );
+ */
+
 import { PGCManager } from '../pgc/manager.js';
 import { IndexData } from '../types/index.js';
 import {
@@ -9,28 +67,61 @@ import {
 
 /**
  * Represents a dependency discovered during query traversal.
+ *
+ * Each dependency includes its position in the dependency graph
+ * (depth and lineage path) and the full structural data.
  */
 export interface DependencyResult {
+  /** Lineage path showing how this dependency was reached (e.g., "User -> AuthService -> Database") */
   path: string;
+
+  /** Depth level in dependency graph (1 = direct dependency, 2 = transitive, etc.) */
   depth: number;
+
+  /** Complete structural data for this dependency */
   structuralData: StructuralData;
 }
 
 /**
  * Represents the complete result of a query operation.
+ *
+ * Contains the original question, initial context (direct matches),
+ * and discovered dependencies.
  */
 export interface QueryResult {
+  /** Original natural language question */
   question: string;
+
+  /** Structural data for symbols directly matched in question */
   initialContext: StructuralData[];
+
+  /** Dependencies discovered by traversal */
   dependencies: DependencyResult[];
 }
 
+/**
+ * Options for configuring query behavior
+ */
 interface QueryOptions {
+  /** Root directory of the project */
   projectRoot: string;
+
+  /** Maximum dependency depth to traverse (e.g., '0', '1', '2') */
   depth: string;
 }
 
-// Helper to find the single best file for a symbol (highest fidelity)
+/**
+ * Find the best index result for a symbol (highest fidelity)
+ *
+ * ALGORITHM:
+ * When multiple files define the same symbol (e.g., barrel exports),
+ * prefer the one with highest fidelity score (most accurate structural data).
+ *
+ * @param pgc - PGC manager instance
+ * @param symbolName - Symbol to search for
+ * @param context - Search context for debugging
+ * @returns Best matching index entry, or null if not found
+ */
 async function findBestResultForSymbol(
   pgc: PGCManager,
   symbolName: string,
@@ -57,7 +148,51 @@ async function findBestResultForSymbol(
 }
 
 /**
- * Executes a query to find code symbols and their dependencies based on a natural language question.
+ * Execute a natural language query against the Grounded Context Pool (PGC)
+ *
+ * ALGORITHM:
+ * Phase 1 - Entity Extraction:
+ *   - Parse question for code symbols (PascalCase, camelCase)
+ *   - Extract unique symbol names
+ *
+ * Phase 2 - Initial Context:
+ *   - For each symbol, find best matching index entry
+ *   - Retrieve structural data from object store
+ *
+ * Phase 3 - Dependency Traversal (if depth > 0):
+ *   - For each symbol in current level:
+ *     - Extract type references (base classes, interfaces, params, returns)
+ *     - Find structural data for referenced types
+ *     - Add to next level
+ *   - Repeat for each depth level
+ *   - Track lineage path (A -> B -> C)
+ *
+ * Phase 4 - Result Construction:
+ *   - Combine initial context + dependencies
+ *   - Return as QueryResult
+ *
+ * @param question - Natural language question
+ * @param options - Query configuration (projectRoot, depth)
+ * @returns Query result with context and dependencies
+ *
+ * @example
+ * // Find a class and its direct dependencies
+ * const result = await queryCommand(
+ *   'How does UserService work?',
+ *   { projectRoot: '/path/to/project', depth: '1' }
+ * );
+ * console.log(`Found ${result.initialContext.length} symbols`);
+ * console.log(`Found ${result.dependencies.length} dependencies`);
+ *
+ * @example
+ * // Deep dependency analysis
+ * const result = await queryCommand(
+ *   'What does AuthController depend on?',
+ *   { projectRoot: '/path/to/project', depth: '2' }
+ * );
+ * result.dependencies.forEach(dep => {
+ *   console.log(`${dep.path} (depth ${dep.depth})`);
+ * });
  */
 export async function queryCommand(
   question: string,
@@ -211,6 +346,30 @@ export async function queryCommand(
   return queryResult;
 }
 
+/**
+ * Extract code symbols from a natural language question
+ *
+ * ALGORITHM:
+ * - Match PascalCase patterns (e.g., UserService, AuthController)
+ * - Match camelCase patterns (e.g., parseJSON, getUserById)
+ * - Deduplicate results
+ *
+ * LIMITATIONS:
+ * - Simple regex-based extraction (no NLP)
+ * - May capture non-code words (e.g., "This" in "This is...")
+ * - Does not understand context or semantics
+ *
+ * @param question - Natural language question
+ * @returns Array of unique symbol names
+ *
+ * @example
+ * extractEntities('How does UserService work?')
+ * // Returns: ['How', 'UserService', 'does', 'work']
+ *
+ * @example
+ * extractEntities('What does parseJSON return?')
+ * // Returns: ['What', 'parseJSON', 'does', 'return']
+ */
 function extractEntities(question: string): string[] {
   const patterns = [
     /\b[A-Z][a-zA-Z0-9]+\b/g, // PascalCase (classes)
@@ -227,7 +386,27 @@ function extractEntities(question: string): string[] {
 }
 
 /**
- * Formats a query result as human-readable text.
+ * Format a query result as human-readable text
+ *
+ * Produces indented, hierarchical output showing:
+ * - Query question
+ * - Initial context (direct matches)
+ * - Dependencies (indented by depth)
+ *
+ * @param queryResult - Query result to format
+ * @returns Formatted string for console output
+ *
+ * @example
+ * const result = await queryCommand('How does UserService work?', options);
+ * console.log(formatAsHumanReadable(result));
+ * // Output:
+ * // Query: "How does UserService work?"
+ * // --- Relevant Context ---
+ * // Result 1:
+ * // { class: "UserService", ... }
+ * // --- Dependencies ---
+ * //   Lineage: UserService -> Database
+ * //   { class: "Database", ... }
  */
 export function formatAsHumanReadable(queryResult: QueryResult): string {
   let output = '';
@@ -257,7 +436,32 @@ export function formatAsHumanReadable(queryResult: QueryResult): string {
 }
 
 /**
- * Formats a query result as lineage JSON structure.
+ * Format a query result as lineage JSON structure
+ *
+ * Produces a structured JSON representation showing:
+ * - Root symbol
+ * - Lineage array with type, relationship, and depth
+ *
+ * RELATIONSHIP TYPES:
+ * - extends: Class inheritance
+ * - implements: Interface implementation
+ * - returns: Function return type
+ * - uses: Parameter type or general usage
+ *
+ * @param queryResult - Query result to format
+ * @returns JSON string with lineage structure
+ *
+ * @example
+ * const result = await queryCommand('How does UserService work?', options);
+ * console.log(formatAsLineageJSON(result));
+ * // Output:
+ * // {
+ * //   "symbol": "How does UserService work?",
+ * //   "lineage": [
+ * //     { "type": "Database", "relationship": "uses", "depth": 1 },
+ * //     { "type": "UserRepository", "relationship": "uses", "depth": 1 }
+ * //   ]
+ * // }
  */
 export function formatAsLineageJSON(queryResult: QueryResult): string {
   const { question, dependencies } = queryResult;
@@ -297,6 +501,20 @@ export function formatAsLineageJSON(queryResult: QueryResult): string {
   return JSON.stringify({ symbol: question, lineage: uniqueLineage }, null, 2);
 }
 
+/**
+ * Infer the relationship type between parent and child symbol
+ *
+ * ALGORITHM:
+ * - Check if child is a base class → 'extends'
+ * - Check if child is an interface → 'implements'
+ * - Check if child appears in return type → 'returns'
+ * - Check if child appears in parameters → 'uses'
+ * - Default → 'uses'
+ *
+ * @param parent - Parent symbol's structural data
+ * @param childSymbol - Child symbol name
+ * @returns Relationship type ('extends' | 'implements' | 'returns' | 'uses')
+ */
 function inferRelationship(
   parent: StructuralData,
   childSymbol: string
