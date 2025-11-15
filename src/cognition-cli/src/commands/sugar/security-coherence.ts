@@ -1,8 +1,55 @@
 /**
- * Security Coherence Metrics
+ * Security Coherence Metrics (O₇ Specialized Analysis)
  *
- * Measures how well security implementation aligns with security principles.
- * Provides dedicated security-focused coherence tracking.
+ * Provides focused analysis of security implementation alignment with mission
+ * principles by filtering O₇ (Strategic Coherence) data to security-related
+ * symbols. This enables tracking mission-security integration health.
+ *
+ * DESIGN RATIONALE:
+ * While O₇ provides general code-to-mission coherence, security requires
+ * special attention due to:
+ * 1. Critical Impact: Security misalignment can violate core mission principles
+ * 2. Component Tracking: Specific validators, drift detectors require monitoring
+ * 3. Coverage Analysis: Must verify all security mechanisms align with mission
+ * 4. Compliance: Security coherence often has threshold requirements
+ *
+ * MEASURED ASPECTS:
+ * - Security class coherence scores (overall alignment with mission)
+ * - Top mission concept alignments (which principles guide security?)
+ * - Implementation coverage (are key security components present?)
+ * - Median vs average scores (detect outliers vs systematic drift)
+ *
+ * DATA SOURCE:
+ * Reads from O₇ (strategic_coherence overlay) and filters to security symbols
+ * based on file path patterns and symbol naming conventions.
+ *
+ * INTEGRATION WITH O₇:
+ * This is a specialized view of O₇ data. For general coherence:
+ * - Use: `cognition-cli coherence report`
+ * For security-specific coherence:
+ * - Use: `cognition-cli security-coherence`
+ *
+ * @example
+ * // Analyze security coherence
+ * await securityCoherenceCommand({
+ *   projectRoot: '.',
+ *   format: 'table',
+ *   verbose: true
+ * });
+ * // Shows:
+ * // - Overall security coherence score
+ * // - Top mission concepts security aligns with
+ * // - Security component coverage (validator, drift detector, etc.)
+ * // - Detailed per-class breakdown (with --verbose)
+ *
+ * @example
+ * // Export security coherence as JSON for CI/CD
+ * await securityCoherenceCommand({
+ *   projectRoot: '.',
+ *   format: 'json'
+ * });
+ * // Can be piped to jq for threshold checks:
+ * // jq '.overallSecurityCoherence >= 0.7'
  */
 
 import { intro, outro, spinner, log } from '@clack/prompts';
@@ -18,7 +65,14 @@ interface SecurityCoherenceOptions {
 }
 
 /**
- * Helper to resolve PGC root with walk-up
+ * Resolve Grounded Context Pool (PGC) root directory
+ *
+ * Walks up the directory tree from startPath to find the nearest
+ * .open_cognition workspace.
+ *
+ * @param startPath - Starting directory for the walk-up search
+ * @returns Absolute path to .open_cognition directory
+ * @throws {Error} Exits process if no workspace found
  */
 function resolvePgcRoot(startPath: string): string {
   const workspaceManager = new WorkspaceManager();
@@ -72,7 +126,39 @@ interface SecurityCoherenceMetrics {
 }
 
 /**
- * Calculate security coherence metrics
+ * Calculate and display security coherence metrics
+ *
+ * Analyzes how well security implementation aligns with mission principles
+ * by filtering O₇ coherence data to security-related symbols. Provides
+ * overall scores, component coverage, and alignment insights.
+ *
+ * ANALYSIS PROCESS:
+ * 1. Load all coherence data from O₇
+ * 2. Filter to security symbols (file path or name contains security keywords)
+ * 3. Calculate aggregate metrics (average, median, component presence)
+ * 4. Group by top mission concepts to identify alignment patterns
+ * 5. Display formatted report with recommendations
+ *
+ * @param options - Command options
+ * @param options.projectRoot - Root directory of the project
+ * @param options.format - Output format: 'table' | 'json'
+ * @param options.verbose - Show detailed per-class breakdown
+ * @returns Promise that resolves when analysis is complete
+ *
+ * @example
+ * // Show security coherence report
+ * await securityCoherenceCommand({
+ *   projectRoot: '.',
+ *   format: 'table',
+ *   verbose: false
+ * });
+ *
+ * @example
+ * // Detailed analysis with all security classes
+ * await securityCoherenceCommand({
+ *   projectRoot: '.',
+ *   verbose: true
+ * });
  */
 export async function securityCoherenceCommand(
   options: SecurityCoherenceOptions
@@ -148,7 +234,23 @@ interface CoherenceSymbol {
 }
 
 /**
- * Calculate security coherence metrics
+ * Calculate security-specific coherence metrics
+ *
+ * Processes security symbols from O₇ to extract:
+ * - Per-class coherence scores
+ * - Top mission concept alignments
+ * - Security component coverage
+ * - Statistical aggregates (mean, median)
+ *
+ * @param securitySymbols - Filtered security symbols from O₇ coherence data
+ * @returns Structured security coherence metrics
+ *
+ * @example
+ * const symbols = allItems.filter(item =>
+ *   item.metadata.filePath.includes('security')
+ * );
+ * const metrics = await calculateSecurityMetrics(symbols);
+ * // Returns: { overallSecurityCoherence, topMissionConcepts, ... }
  */
 async function calculateSecurityMetrics(
   securitySymbols: CoherenceSymbol[]
@@ -254,7 +356,25 @@ async function calculateSecurityMetrics(
 }
 
 /**
- * Display security coherence report
+ * Display formatted security coherence report
+ *
+ * Renders security coherence metrics with:
+ * - Color-coded overall score (green ≥70%, yellow ≥50%, red <50%)
+ * - Top mission concepts security aligns with
+ * - Component coverage checklist
+ * - Actionable recommendations
+ * - Optional verbose per-class breakdown
+ *
+ * @param metrics - Calculated security coherence metrics
+ * @param verbose - Include detailed per-class scores
+ *
+ * @example
+ * displaySecurityCoherenceReport(metrics, true);
+ * // Shows:
+ * // Overall: 78.5% (green)
+ * // Top Concepts: ["transparency", "verifiability", ...]
+ * // Coverage: ✓ Validator, ✓ Drift Detector, ✗ Transparency Log
+ * // Classes: MissionValidator (85%), SemanticDriftDetector (72%), ...
  */
 function displaySecurityCoherenceReport(
   metrics: SecurityCoherenceMetrics,
@@ -393,7 +513,15 @@ function displaySecurityCoherenceReport(
 }
 
 /**
- * Get color for score
+ * Get color function for coherence score
+ *
+ * Returns chalk color function based on score thresholds:
+ * - Green: ≥70% (well-aligned)
+ * - Yellow: ≥50% (needs attention)
+ * - Red: <50% (drifted)
+ *
+ * @param score - Coherence score (0.0 to 1.0)
+ * @returns Chalk color function for formatting
  */
 function formatScoreColor(score: number): (text: string) => string {
   if (score >= 0.7) {

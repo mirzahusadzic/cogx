@@ -1,19 +1,104 @@
+/**
+ * Terminal User Interface (TUI) Command
+ *
+ * Launches an interactive terminal interface for conversational Claude sessions
+ * with full Grounded Context Pool (PGC) integration. The TUI provides a rich
+ * conversation experience with message history, session persistence, and extended
+ * thinking capabilities.
+ *
+ * FEATURES:
+ * - Multi-turn conversations with Claude (via workbench)
+ * - Session persistence and resume (.sigma/*.state.json)
+ * - Extended thinking mode (up to 32K tokens for complex reasoning)
+ * - PGC context injection for overlay-aware responses
+ * - AIEcho-branded terminal UI (dark theme: #0d1117)
+ * - Keyboard navigation and message scrolling
+ *
+ * SESSION MANAGEMENT:
+ * Sessions are stored in .sigma/ directory with the format:
+ * - .sigma/tui-<timestamp>.state.json (new sessions)
+ * - Session ID can be provided to resume existing sessions
+ * - Each session maintains full message history and context
+ *
+ * DESIGN:
+ * The TUI integrates with the Sigma lattice system for:
+ * - Persistent conversation anchors (session IDs)
+ * - Message reconstruction from lattice
+ * - Extended thinking token budget (maxThinkingTokens)
+ * - Debug mode for development and troubleshooting
+ *
+ * @example
+ * // Start fresh Claude session
+ * cognition-cli tui
+ * // → Creates new session in .sigma/tui-<timestamp>.state.json
+ *
+ * @example
+ * // Resume existing session by ID
+ * cognition-cli tui --session-id tui-1762546919034
+ * // → Loads conversation history and continues
+ *
+ * @example
+ * // Resume from session file
+ * cognition-cli tui -f .sigma/tui-1762546919034.state.json
+ * // → Extracts session ID and resumes conversation
+ */
+
 import path from 'path';
 import { WorkspaceManager } from '../core/workspace-manager.js';
 import { startTUI } from '../tui/index.js';
 
+/**
+ * Options for the TUI command
+ */
 interface TUIOptions {
+  /** Root directory of the project containing .open_cognition */
   projectRoot: string;
+  /** Session ID to resume (e.g., 'tui-1762546919034') */
   sessionId?: string;
+  /** Path to session state file (alternative to sessionId) */
   sessionFile?: string;
+  /** Workbench URL for Claude API (default: http://localhost:8000) */
   workbenchUrl?: string;
+  /** Maximum tokens for the session (not currently used) */
   sessionTokens?: number;
+  /** Maximum tokens for extended thinking mode (default: 32000) */
   maxThinkingTokens?: number;
+  /** Enable debug mode for troubleshooting */
   debug?: boolean;
 }
 
 /**
  * Launch interactive TUI with Claude integration
+ *
+ * Initializes the terminal UI with PGC context and starts a conversational
+ * session. Handles session ID resolution from either --session-id or --file,
+ * validates PGC workspace existence, and configures the terminal display.
+ *
+ * TERMINAL SETUP:
+ * - Sets background color to AIEcho dark (#0d1117)
+ * - Clears screen for clean slate
+ * - Configures TTY for interactive input
+ *
+ * ERROR HANDLING:
+ * - Exits with code 1 if no .open_cognition workspace found
+ * - Exits with code 1 if both --session-id and --file provided
+ *
+ * @param options - TUI command options
+ *
+ * @example
+ * // Fresh session with extended thinking
+ * await tuiCommand({
+ *   projectRoot: '/path/to/project',
+ *   maxThinkingTokens: 64000
+ * });
+ *
+ * @example
+ * // Resume session with debug mode
+ * await tuiCommand({
+ *   projectRoot: '/path/to/project',
+ *   sessionId: 'tui-1762546919034',
+ *   debug: true
+ * });
  */
 export async function tuiCommand(options: TUIOptions): Promise<void> {
   // Find .open_cognition workspace

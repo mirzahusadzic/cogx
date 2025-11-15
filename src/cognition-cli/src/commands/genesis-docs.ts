@@ -1,3 +1,55 @@
+/**
+ * Genesis Documentation Ingestion Command
+ *
+ * Ingests Markdown documentation files into the Grounded Context Pool (PGC) to enable
+ * mission-driven overlay generation. Documentation serves as the strategic foundation
+ * for overlays O4 (mission_concepts) and O7 (strategic_coherence).
+ *
+ * WORKFLOW:
+ * 1. Validate PGC initialization (.open_cognition/ exists)
+ * 2. Find Markdown files (single file or directory recursion)
+ * 3. For each Markdown file:
+ *    a. Calculate content hash (SHA-256)
+ *    b. Check if document already exists (by content hash)
+ *    c. Skip if exists (unless --force flag provided)
+ *    d. Execute GenesisDocTransform to:
+ *       - Store document in PGC objects/
+ *       - Create index entry in index/docs/
+ *       - Generate overlay metadata
+ *
+ * CONTENT HASHING:
+ * Documents are deduplicated by content hash to prevent redundant storage:
+ * - SHA-256 hash calculated from raw Markdown content
+ * - Index lookup by content hash to detect existing documents
+ * - --force flag bypasses deduplication and re-ingests
+ *
+ * OVERLAY INTEGRATION:
+ * Ingested documents enable downstream overlay generation:
+ * - O₄ (mission_concepts): Extracts strategic concepts from documentation
+ * - O₇ (strategic_coherence): Analyzes mission-code alignment
+ *
+ * DESIGN:
+ * The genesis-docs command is idempotent:
+ * - Running multiple times on the same docs is safe
+ * - Only new or modified documents are ingested
+ * - --force flag allows re-ingestion for debugging
+ *
+ * @example
+ * // Ingest single Markdown file
+ * cognition-cli genesis:docs docs/VISION.md
+ * // → Stores VISION.md in PGC, creates index entry
+ *
+ * @example
+ * // Ingest entire directory
+ * cognition-cli genesis:docs docs/strategic/
+ * // → Recursively ingests all .md files
+ *
+ * @example
+ * // Force re-ingestion (replace existing)
+ * cognition-cli genesis:docs docs/VISION.md --force
+ * // → Deletes old VISION.md entry, ingests fresh copy
+ */
+
 import { intro, outro, spinner, log } from '@clack/prompts';
 import chalk from 'chalk';
 import fs from 'fs-extra';
@@ -6,16 +58,19 @@ import { createHash } from 'crypto';
 import { GenesisDocTransform } from '../core/transforms/genesis-doc-transform.js';
 
 /**
- * Represents options for the genesis-docs command.
+ * Options for the genesis-docs command
  */
 interface GenesisDocsOptions {
+  /** Root directory of the project containing .open_cognition */
   projectRoot: string;
+  /** Glob pattern for finding Markdown files (not currently used) */
   pattern?: string;
+  /** Force re-ingestion of existing documents */
   force?: boolean;
 }
 
 /**
- * Represents errors during PGC initialization validation.
+ * Error thrown when PGC is not initialized
  */
 class PGCInitializationError extends Error {
   constructor(message: string) {
@@ -24,6 +79,15 @@ class PGCInitializationError extends Error {
   }
 }
 
+/**
+ * Validates that PGC has been initialized in the project
+ *
+ * Checks for the existence of .open_cognition/ directory and metadata.json file.
+ * Throws PGCInitializationError if either is missing.
+ *
+ * @param projectRoot - Root directory of the project
+ * @throws {PGCInitializationError} If PGC not initialized or metadata missing
+ */
 async function validatePgcInitialized(projectRoot: string): Promise<void> {
   const pgcRoot = path.join(projectRoot, '.open_cognition');
   const metadataPath = path.join(pgcRoot, 'metadata.json');
@@ -42,7 +106,37 @@ async function validatePgcInitialized(projectRoot: string): Promise<void> {
 }
 
 /**
- * Ingests markdown documentation files into the PGC.
+ * Ingests markdown documentation files into the PGC
+ *
+ * Orchestrates the complete documentation ingestion workflow including file
+ * discovery, deduplication, transformation, and index management.
+ *
+ * WORKFLOW:
+ * 1. Increase max listeners to prevent warnings during batch processing
+ * 2. Validate PGC initialization
+ * 3. Initialize GenesisDocTransform with workbench URL
+ * 4. Find Markdown files (single file or directory)
+ * 5. For each file:
+ *    a. Calculate content hash
+ *    b. Check for existing document
+ *    c. Skip or re-ingest based on --force flag
+ *    d. Execute transformation
+ * 6. Report summary statistics
+ * 7. Restore original max listeners
+ *
+ * @param pathOrPattern - Path to Markdown file or directory
+ * @param options - Genesis docs command options
+ *
+ * @example
+ * // Ingest single file
+ * await genesisDocsCommand('docs/VISION.md', { projectRoot: '/path/to/project' });
+ *
+ * @example
+ * // Force re-ingestion
+ * await genesisDocsCommand('docs/VISION.md', {
+ *   projectRoot: '/path/to/project',
+ *   force: true
+ * });
  */
 export async function genesisDocsCommand(
   pathOrPattern: string,
@@ -177,6 +271,21 @@ export async function genesisDocsCommand(
 
 /**
  * Find markdown files matching the pattern
+ *
+ * Determines if the path is a file or directory and returns appropriate
+ * Markdown file list. For directories, recursively finds all .md files.
+ *
+ * @param pathOrPattern - Path to file or directory
+ * @returns Array of absolute paths to Markdown files
+ * @throws {Error} If path is not a file or directory, or file is not .md
+ *
+ * @example
+ * const files = await findMarkdownFiles('docs/VISION.md');
+ * // → ['/absolute/path/to/docs/VISION.md']
+ *
+ * @example
+ * const files = await findMarkdownFiles('docs/');
+ * // → ['/absolute/path/to/docs/VISION.md', '/absolute/path/to/docs/MISSION.md', ...]
  */
 async function findMarkdownFiles(pathOrPattern: string): Promise<string[]> {
   const stats = await fs.stat(pathOrPattern);
@@ -199,6 +308,17 @@ async function findMarkdownFiles(pathOrPattern: string): Promise<string[]> {
 
 /**
  * Recursively find markdown files in a directory
+ *
+ * Traverses directory tree and collects all .md files. Skips node_modules,
+ * .git, and hidden directories for performance.
+ *
+ * @param dir - Directory to search
+ * @param results - Array to accumulate file paths (mutated in-place)
+ *
+ * @example
+ * const results: string[] = [];
+ * await findMarkdownFilesRecursive('docs/', results);
+ * // results → ['/abs/path/docs/VISION.md', '/abs/path/docs/guide/setup.md', ...]
  */
 async function findMarkdownFilesRecursive(
   dir: string,
@@ -228,7 +348,19 @@ async function findMarkdownFilesRecursive(
 
 /**
  * Check if a document with this content hash already exists in the PGC
- * Returns the object hash if found, null otherwise
+ *
+ * Searches the index/docs/ directory for an index entry matching the given
+ * content hash. This enables deduplication of documents.
+ *
+ * @param pgcRoot - Path to .open_cognition directory
+ * @param contentHash - SHA-256 hash of document content
+ * @returns Object hash if document exists, null otherwise
+ *
+ * @example
+ * const existingHash = await findExistingDocumentHash(pgcRoot, contentHash);
+ * if (existingHash) {
+ *   console.log('Document already ingested');
+ * }
  */
 async function findExistingDocumentHash(
   pgcRoot: string,
@@ -263,7 +395,22 @@ async function findExistingDocumentHash(
 }
 
 /**
- * Delete an existing document from the PGC (index, overlays, and LanceDB embeddings)
+ * Delete an existing document from the PGC
+ *
+ * Removes all traces of a document including:
+ * - Index entry (index/docs/<hash>.json)
+ * - Overlay YAML files (overlays/*/<objectHash>*.yaml)
+ * - LanceDB embeddings (lance/documents.lancedb)
+ *
+ * This enables --force re-ingestion by cleaning up the old document first.
+ *
+ * @param pgcRoot - Path to .open_cognition directory
+ * @param contentHash - SHA-256 hash of document content
+ * @param objectHash - Object hash (used in overlay filenames)
+ *
+ * @example
+ * await deleteExistingDocument(pgcRoot, contentHash, objectHash);
+ * // → Removes all traces of document from PGC
  */
 async function deleteExistingDocument(
   pgcRoot: string,

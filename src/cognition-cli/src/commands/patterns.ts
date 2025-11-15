@@ -1,3 +1,53 @@
+/**
+ * Pattern Management and Query Commands
+ *
+ * Provides a comprehensive suite of commands for exploring, analyzing, and comparing
+ * structural and lineage patterns stored in the Grounded Context Pool (PGC). These
+ * patterns represent semantic embeddings of code symbols with their architectural roles
+ * and dependency relationships.
+ *
+ * PATTERN TYPES:
+ * - **Structural Patterns (O₁)**: Code structure and architectural roles
+ *   - Stored in structural_patterns overlay
+ *   - Contains: symbol name, architectural role, structural signature
+ *   - Vector embeddings for semantic similarity search
+ *
+ * - **Lineage Patterns (O₃)**: Dependency chains and type lineage
+ *   - Stored in lineage_patterns overlay
+ *   - Contains: symbol name, dependency graph, lineage signature
+ *   - Vector embeddings for dependency-aware search
+ *
+ * COMMANDS:
+ * - `patterns find-similar <symbol>`: Find architecturally similar symbols
+ * - `patterns analyze`: Show architectural role distribution
+ * - `patterns list`: List all patterns with optional filtering
+ * - `patterns inspect <symbol>`: Detailed symbol information
+ * - `patterns graph <symbol>`: Visualize dependency graph
+ * - `patterns compare <symbol1> <symbol2>`: Compare two symbols
+ *
+ * DESIGN:
+ * All commands use the manifest as source of truth (Monument 4.8):
+ * 1. Read manifest to determine which patterns should exist
+ * 2. Verify corresponding vectors exist in LanceDB
+ * 3. Report stale vectors (in manifest but not in vector DB)
+ * 4. Suggest regeneration if vectors are missing
+ *
+ * @example
+ * // Find symbols similar to a function
+ * cognition-cli patterns find-similar handleUserInput
+ * // → Shows top 10 similar symbols with cosine similarity scores
+ *
+ * @example
+ * // Analyze architectural pattern distribution
+ * cognition-cli patterns analyze --verbose
+ * // → Shows role counts and sample symbols for each role
+ *
+ * @example
+ * // Compare two symbols
+ * cognition-cli patterns compare UserManager AuthService
+ * // → Shows similarity score and structural differences
+ */
+
 import { Command } from 'commander';
 import { PGCManager } from '../core/pgc/manager.js';
 import {
@@ -13,7 +63,12 @@ import { z } from 'zod';
 import { PatternManager } from '../core/pgc/patterns.js';
 
 /**
- * Adds pattern management and query commands to the CLI program.
+ * Adds pattern management and query commands to the CLI program
+ *
+ * Registers all pattern-related subcommands under the `patterns` command group.
+ * Each subcommand operates on structural or lineage patterns stored in the PGC.
+ *
+ * @param program - Commander program instance to add commands to
  */
 export function addPatternsCommands(program: Command) {
   const patternsCommand = program

@@ -1,3 +1,46 @@
+/**
+ * Interactive PGC Setup Wizard
+ *
+ * Provides a guided, interactive setup experience for initializing a complete
+ * Grounded Context Pool (PGC) from scratch. The wizard orchestrates multiple
+ * CLI commands in sequence to create a production-ready PGC workspace.
+ *
+ * WORKFLOW:
+ * 1. Detect or prompt for workbench URL and API key
+ * 2. Initialize PGC directory structure (.open_cognition/)
+ * 3. Run genesis to build verifiable skeleton from source code
+ * 4. Ingest strategic documentation (VISION.md, custom docs)
+ * 5. Generate selected overlays (O1-O7)
+ *
+ * DESIGN:
+ * The wizard implements a conversational flow that:
+ * - Auto-detects existing PGC and workbench instances
+ * - Validates user inputs before execution
+ * - Handles both fresh initialization and incremental updates
+ * - Provides clear progress feedback via spinners and logs
+ * - Supports environment-based configuration (WORKBENCH_URL, WORKBENCH_API_KEY)
+ *
+ * OVERLAY GENERATION:
+ * Generates semantic overlays in dependency order:
+ * - O₁ (structural_patterns): Code structure and architectural roles
+ * - O₂ (security_guidelines): Security constraints and attack vectors
+ * - O₃ (lineage_patterns): Dependency chains and type lineage
+ * - O₄ (mission_concepts): Strategic concepts from documentation
+ * - O₅ (operational_patterns): Workflow patterns and procedures
+ * - O₆ (mathematical_proofs): Formal statements and theorems
+ * - O₇ (strategic_coherence): Mission-code alignment analysis
+ *
+ * @example
+ * // Run wizard to set up a new PGC
+ * await wizardCommand({ projectRoot: '/path/to/project' });
+ * // → Guides user through initialization, genesis, and overlay generation
+ *
+ * @example
+ * // Update existing PGC with new overlays
+ * await wizardCommand({ projectRoot: '/path/to/project' });
+ * // → Detects existing PGC, prompts to update or reinit
+ */
+
 import {
   intro,
   outro,
@@ -17,12 +60,28 @@ import { genesisDocsCommand } from './genesis-docs.js';
 import { OverlayOrchestrator } from '../core/orchestrators/overlay.js';
 import { WorkspaceManager } from '../core/workspace-manager.js';
 
+/**
+ * Options for the wizard command
+ */
 interface WizardOptions {
+  /** Root directory where PGC will be initialized */
   projectRoot: string;
 }
 
 /**
  * Checks if a workbench URL is healthy and accessible
+ *
+ * Sends a GET request to the /health endpoint to verify the workbench
+ * server is running and accepting connections.
+ *
+ * @param url - The workbench URL to check (e.g., 'http://localhost:8000')
+ * @returns True if the /health endpoint responds with 200 OK, false otherwise
+ *
+ * @example
+ * const isHealthy = await checkWorkbenchHealth('http://localhost:8000');
+ * if (isHealthy) {
+ *   console.log('Workbench is ready for embedding generation');
+ * }
  */
 async function checkWorkbenchHealth(url: string): Promise<boolean> {
   try {
@@ -38,6 +97,25 @@ async function checkWorkbenchHealth(url: string): Promise<boolean> {
 
 /**
  * Attempts to autodetect a running workbench instance
+ *
+ * Probes common local development ports to find a running workbench server.
+ * This reduces friction for developers by eliminating manual URL entry when
+ * the workbench is running on a standard port.
+ *
+ * ALGORITHM:
+ * - Checks ports 8000 and 8080 on localhost and 127.0.0.1
+ * - Tests each URL's /health endpoint sequentially
+ * - Returns the first healthy URL found, or null if none are healthy
+ *
+ * @returns The URL of the first healthy workbench found, or null if none detected
+ *
+ * @example
+ * const detected = await autodetectWorkbench();
+ * if (detected) {
+ *   console.log(`Found workbench at ${detected}`);
+ * } else {
+ *   console.log('No workbench detected, please enter URL manually');
+ * }
  */
 async function autodetectWorkbench(): Promise<string | null> {
   const commonUrls = [
@@ -58,6 +136,41 @@ async function autodetectWorkbench(): Promise<string | null> {
 
 /**
  * Interactive wizard for setting up a complete PGC from scratch
+ *
+ * Orchestrates the complete PGC initialization workflow through an interactive
+ * conversational interface. Handles both fresh setup and updates to existing
+ * PGC workspaces.
+ *
+ * WORKFLOW PHASES:
+ * 1. **Detection**: Check for existing PGC, detect workbench
+ * 2. **Configuration**: Collect workbench URL, API key, source path, docs path
+ * 3. **Initialization**: Run init command if needed
+ * 4. **Genesis**: Build verifiable skeleton from source code
+ * 5. **Documentation**: Ingest VISION.md and custom strategic docs
+ * 6. **Overlays**: Generate selected semantic overlays (O1-O7)
+ *
+ * ENVIRONMENT VARIABLES:
+ * - WORKBENCH_URL: Pre-configured workbench URL (overrides detection)
+ * - WORKBENCH_API_KEY: API key for workbench authentication
+ *
+ * EXIT BEHAVIOR:
+ * - Calls process.exit(0) on success (to terminate worker pools)
+ * - Calls process.exit(1) on failure
+ *
+ * @param options - Wizard configuration options
+ *
+ * @example
+ * // Fresh PGC setup with all overlays
+ * await wizardCommand({ projectRoot: '/path/to/project' });
+ * // → User selects "All 7 overlays (recommended)"
+ * // → Generates O1-O7 and exits successfully
+ *
+ * @example
+ * // Update existing PGC with new overlays
+ * // (PGC already exists at /path/to/project/.open_cognition)
+ * await wizardCommand({ projectRoot: '/path/to/project' });
+ * // → User selects "Update Existing Overlays"
+ * // → Re-generates selected overlays without wiping data
  */
 export async function wizardCommand(options: WizardOptions) {
   intro(chalk.bold.cyan('🧙 PGC Setup Wizard'));

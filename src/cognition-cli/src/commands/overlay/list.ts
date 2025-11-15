@@ -1,3 +1,60 @@
+/**
+ * Overlay Status Listing Command
+ *
+ * Lists all available overlay types in the Grounded Context Pool (PGC) and
+ * shows their generation status. This provides visibility into which overlays
+ * have been generated and how much data each contains.
+ *
+ * OVERLAY REFERENCE (O₁-O₇):
+ * - O₁ structural_patterns: Code symbol embeddings
+ * - O₂ security_guidelines: Security knowledge base
+ * - O₃ lineage_patterns: Dependency graph embeddings
+ * - O₄ mission_concepts: Mission document concept embeddings
+ * - O₅ operational_patterns: Workflow and quest patterns
+ * - O₆ mathematical_proofs: Mathematical statement embeddings
+ * - O₇ strategic_coherence: Code-to-mission alignment metrics
+ *
+ * STATUS REPORTING:
+ * For each overlay, the command shows:
+ * - Name and description
+ * - Generation status: "not generated" | "X patterns" | "X documents"
+ * - Detailed counts (manifest entries, vector embeddings, YAML files)
+ * - Alignment metrics for O₇ (aligned vs drifted symbols)
+ *
+ * DESIGN RATIONALE:
+ * 1. Visibility: Quick overview of PGC state
+ * 2. Debugging: Identify missing or incomplete overlays
+ * 3. Validation: Verify generation succeeded
+ * 4. Planning: See which overlays need regeneration
+ *
+ * IMPLEMENTATION DETAILS:
+ * - Checks manifest.json for O₁/O₃ (pattern overlays)
+ * - Checks LanceDB vector stores for embedding counts
+ * - Scans YAML files for O₂/O₄/O₅/O₆ (document overlays)
+ * - Parses coherence.yaml for O₇ (coherence overlay)
+ * - Reports mismatches between manifest and embeddings
+ *
+ * @example
+ * // List all overlays with status
+ * $ cognition-cli overlay list
+ * // Shows:
+ * // structural_patterns
+ * //   O₁: Code symbol embeddings
+ * //   Status: 234 patterns
+ * //
+ * // security_guidelines
+ * //   O₂: Security threats, attack vectors, mitigations
+ * //   Status: 3 security document(s)
+ * //
+ * // strategic_coherence
+ * //   O₇: Code-to-mission alignment
+ * //   Status: 234 symbols (198 aligned, 36 drifted)
+ *
+ * @example
+ * // Use with project root option
+ * $ cognition-cli overlay list --project-root /path/to/project
+ */
+
 import { Command } from 'commander';
 import fs from 'fs-extra';
 import path from 'path';
@@ -6,7 +63,10 @@ import chalk from 'chalk';
 import { WorkspaceManager } from '../../core/workspace-manager.js';
 
 /**
- * Represents metadata for an available overlay type.
+ * Represents metadata for an available overlay type
+ *
+ * Each overlay has a name, description, and flag indicating whether
+ * it can be generated via the `overlay generate` command.
  */
 interface OverlayInfo {
   name: string;
@@ -59,7 +119,11 @@ const OVERLAY_TYPES: OverlayInfo[] = [
 ];
 
 /**
- * Command for listing available overlay types and their status.
+ * Command for listing available overlay types and their status
+ *
+ * Scans the .open_cognition/overlays directory to determine which
+ * overlays have been generated and provides detailed status information
+ * for each overlay type.
  */
 const listCommand = new Command('list')
   .description('List available overlay types and their status.')

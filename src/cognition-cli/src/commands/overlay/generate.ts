@@ -1,10 +1,61 @@
+/**
+ * Overlay Generation Command
+ *
+ * Generates specific analytical overlays (O₁-O₇) in the Grounded Context Pool (PGC).
+ * Each overlay type extracts and embeds different aspects of the codebase and
+ * documentation, enabling semantic queries and cross-overlay analysis.
+ *
+ * OVERLAY SYSTEM (O₁-O₇):
+ * - O₁ structural_patterns: Code symbols (functions, classes, interfaces)
+ * - O₂ security_guidelines: Security threats, boundaries, mitigations
+ * - O₃ lineage_patterns: Dependency relationships (imports, calls)
+ * - O₄ mission_concepts: Mission document concepts (VISION.md, etc.)
+ * - O₅ operational_patterns: Workflow patterns, quest structures
+ * - O₆ mathematical_proofs: Theorems, lemmas, axioms, identities
+ * - O₇ strategic_coherence: Code-to-mission alignment scores
+ *
+ * DESIGN RATIONALE:
+ * 1. Separation of Concerns: Each overlay captures one aspect
+ * 2. Composability: Overlays can be combined via lattice algebra
+ * 3. Incremental Updates: Regenerate only changed overlays
+ * 4. Version Control: Overlays track lineage and timestamps
+ *
+ * GENERATION PROCESS:
+ * 1. Extract: Parse source code/docs to identify items
+ * 2. Embed: Generate vector embeddings via embedding service
+ * 3. Store: Save to LanceDB vector store and YAML manifests
+ * 4. Index: Update metadata for fast retrieval
+ *
+ * OPTIONS:
+ * - --force: Regenerate all patterns, even if they exist
+ * - --skip-gc: Skip garbage collection (useful after deletions)
+ *
+ * @example
+ * // Generate structural patterns (O₁)
+ * $ cognition-cli overlay generate structural_patterns
+ * // Extracts all code symbols and creates embeddings
+ *
+ * @example
+ * // Regenerate security guidelines (O₂) with force
+ * $ cognition-cli overlay generate security_guidelines --force
+ * // Forces complete regeneration, overwriting existing data
+ *
+ * @example
+ * // Generate strategic coherence (O₇) without garbage collection
+ * $ cognition-cli overlay generate strategic_coherence --skip-gc
+ * // Useful when switching branches to preserve old embeddings
+ */
+
 import { Command } from 'commander';
 import { getGlobalDispatcher } from 'undici';
 import chalk from 'chalk';
 import { OverlayOrchestrator } from '../../core/orchestrators/overlay.js';
 
 /**
- * Command for generating specific types of analytical overlays.
+ * Command for generating specific types of analytical overlays
+ *
+ * Delegates to OverlayOrchestrator which handles the extraction,
+ * embedding, and storage pipeline for each overlay type.
  */
 const generateCommand = new Command('generate')
   .description(

@@ -1,8 +1,69 @@
 /**
- * Coherence Commands (Refactored to use Algebra Layer)
+ * Strategic Coherence Sugar Commands (O₇ Strategic Coherence)
  *
- * Uses CoherenceAlgebraAdapter instead of direct StrategicCoherenceManager.
- * This provides better integration with the lattice algebra system.
+ * Provides convenient access to O₇ (Strategic Coherence) overlay data,
+ * which measures semantic alignment between code symbols (O₁) and mission
+ * concepts (O₄). These commands use the CoherenceAlgebraAdapter for
+ * integration with the lattice algebra system.
+ *
+ * COHERENCE CONCEPT:
+ * Strategic coherence measures how well implementation aligns with mission:
+ * - For each code symbol (function, class) in O₁
+ * - Calculate embedding similarity with all mission concepts in O₄
+ * - Store top alignment and overall coherence score in O₇
+ * - Enables drift detection and mission-code integration tracking
+ *
+ * OVERLAY REFERENCE (O₇):
+ * O₇ is a derived overlay containing:
+ * - symbolName: Code symbol (from O₁)
+ * - filePath: Location of symbol
+ * - overallCoherence: Average alignment with mission (0.0-1.0)
+ * - topConceptText: Most aligned mission concept
+ * - topConceptScore: Similarity score for top concept
+ *
+ * COMMAND CATEGORIES:
+ * 1. report: Overall coherence statistics (avg, median, distribution)
+ * 2. aligned: High-scoring symbols (≥70% default, mission-aligned)
+ * 3. drifted: Low-scoring symbols (<50% default, mission drift detected)
+ * 4. list: All symbols with coherence scores
+ *
+ * DESIGN RATIONALE:
+ * 1. Mission Integrity: Track whether code stays true to mission over time
+ * 2. Refactoring Guidance: Identify drifted code for realignment
+ * 3. Quality Metrics: Coherence as proxy for intentional design
+ * 4. Algebra Integration: Use CoherenceAlgebraAdapter for lattice queries
+ *
+ * INTEGRATION WITH LATTICE:
+ * While these sugar commands provide direct access to O₇, you can also
+ * use lattice queries for cross-overlay analysis:
+ * - `lattice "O7 ~ O2"` - Coherence vs security alignment
+ * - `lattice "O7[overallCoherence > 0.8]"` - High coherence symbols
+ *
+ * @example
+ * // Show overall coherence report
+ * await coherenceReportCommand({ projectRoot: '.' });
+ * // Shows:
+ * // - Average coherence: 72.3%
+ * // - Median: 75.1%
+ * // - High alignment (≥70%): 42 symbols
+ * // - Drifted (<50%): 8 symbols
+ *
+ * @example
+ * // Find symbols that have drifted from mission
+ * await coherenceDriftedCommand({
+ *   projectRoot: '.',
+ *   maxScore: 0.4,
+ *   format: 'table'
+ * });
+ * // Shows symbols with coherence <40%, requiring attention
+ *
+ * @example
+ * // List all symbols with coherence details
+ * await coherenceListCommand({
+ *   projectRoot: '.',
+ *   format: 'summary',
+ *   limit: 100
+ * });
  */
 
 import { intro, outro, spinner, log } from '@clack/prompts';
@@ -25,7 +86,11 @@ interface CoherenceOptions {
 }
 
 /**
- * Helper to resolve PGC root with walk-up
+ * Resolve Grounded Context Pool (PGC) root directory
+ *
+ * @param startPath - Starting directory for the walk-up search
+ * @returns Absolute path to .open_cognition directory
+ * @throws {Error} Exits process if no workspace found
  */
 function resolvePgcRoot(startPath: string): string {
   const workspaceManager = new WorkspaceManager();
@@ -44,7 +109,28 @@ function resolvePgcRoot(startPath: string): string {
 }
 
 /**
- * Show overall coherence report
+ * Display overall strategic coherence report
+ *
+ * Provides high-level statistics about code-mission alignment across
+ * the entire codebase. Shows distribution of coherence scores and
+ * identifies areas requiring attention.
+ *
+ * @param options - Command options
+ * @param options.projectRoot - Root directory of the project
+ * @param options.format - Output format: 'table' | 'json'
+ * @param options.verbose - Enable verbose error output
+ * @returns Promise that resolves when display is complete
+ *
+ * @example
+ * await coherenceReportCommand({ projectRoot: '.' });
+ * // Shows:
+ * // Analysis Scope:
+ * //   Code symbols analyzed: 156
+ * // Coherence Metrics:
+ * //   Average coherence: 72.3%
+ * //   Median coherence: 75.1%
+ * //   High alignment (≥70%): 98 symbols
+ * //   Drifted (<50%): 12 symbols
  */
 export async function coherenceReportCommand(
   options: CoherenceOptions
@@ -157,7 +243,30 @@ export async function coherenceReportCommand(
 }
 
 /**
- * Show aligned symbols (high coherence)
+ * Display symbols with high mission alignment
+ *
+ * Shows code symbols that strongly align with mission concepts.
+ * These represent well-designed, mission-coherent implementations.
+ *
+ * @param options - Command options
+ * @param options.projectRoot - Root directory of the project
+ * @param options.format - Output format: 'table' | 'json' | 'summary'
+ * @param options.limit - Maximum symbols to display
+ * @param options.verbose - Enable verbose error output
+ * @param options.minScore - Minimum coherence score (default: 0.7)
+ * @returns Promise that resolves when display is complete
+ *
+ * @example
+ * // Show symbols with ≥80% coherence
+ * await coherenceAlignedCommand({
+ *   projectRoot: '.',
+ *   minScore: 0.8,
+ *   format: 'table'
+ * });
+ * // Shows:
+ * // MissionValidator [src/security/validator.ts]
+ * //   ████████████████████ 87.2%
+ * //   Top concept: verification and transparency (89.1%)
  */
 export async function coherenceAlignedCommand(
   options: CoherenceOptions
@@ -209,7 +318,32 @@ export async function coherenceAlignedCommand(
 }
 
 /**
- * Show drifted symbols (low coherence)
+ * Display symbols with low mission alignment (drift detected)
+ *
+ * Shows code symbols with weak alignment to mission concepts.
+ * These may require refactoring or better documentation to restore
+ * mission coherence.
+ *
+ * @param options - Command options
+ * @param options.projectRoot - Root directory of the project
+ * @param options.format - Output format: 'table' | 'json' | 'summary'
+ * @param options.limit - Maximum symbols to display
+ * @param options.verbose - Enable verbose error output
+ * @param options.maxScore - Maximum coherence score (default: 0.5)
+ * @returns Promise that resolves when display is complete
+ *
+ * @example
+ * // Show symbols with <40% coherence
+ * await coherenceDriftedCommand({
+ *   projectRoot: '.',
+ *   maxScore: 0.4,
+ *   format: 'table'
+ * });
+ * // Shows:
+ * // utilityFunction [src/utils/misc.ts]
+ * //   ██████ 32.1%
+ * //   Top concept: helper utilities (35.2%)
+ * // WARNING: Low coherence indicates mission drift
  */
 export async function coherenceDriftedCommand(
   options: CoherenceOptions
@@ -261,7 +395,25 @@ export async function coherenceDriftedCommand(
 }
 
 /**
- * List all symbols with coherence scores
+ * Display all code symbols with coherence scores
+ *
+ * Lists all symbols from O₇ with their coherence metrics, sorted by
+ * alignment score. Provides comprehensive view of code-mission integration.
+ *
+ * @param options - Command options
+ * @param options.projectRoot - Root directory of the project
+ * @param options.format - Output format: 'table' | 'json' | 'summary'
+ * @param options.limit - Maximum symbols to display
+ * @param options.verbose - Enable verbose error output
+ * @returns Promise that resolves when display is complete
+ *
+ * @example
+ * await coherenceListCommand({
+ *   projectRoot: '.',
+ *   format: 'summary',
+ *   limit: 50
+ * });
+ * // Shows all symbols sorted by coherence with summary view
  */
 export async function coherenceListCommand(
   options: CoherenceOptions
