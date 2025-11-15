@@ -22,7 +22,7 @@ export function createRecallMcpServer(
 ) {
   const recallTool = tool(
     'recall_past_conversation',
-    'Search your memory for relevant past conversation context. Use this when you need to remember what was discussed earlier, especially after context compression. Queries are semantic - you can ask about topics, not just exact phrases.',
+    'Retrieve FULL untruncated messages from conversation history. The recap you see is truncated to 150 chars - when you see "..." it means more content is available. Use this tool to get complete details. Searches all 7 overlays (O1-O7) in LanceDB with semantic search. Ask about topics, not exact phrases.',
     {
       query: z
         .string()

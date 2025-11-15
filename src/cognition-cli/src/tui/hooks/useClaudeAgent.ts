@@ -252,7 +252,11 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           const filled = Math.floor((current / total) * barLength);
           const empty = barLength - filled;
           return (
-            '[' + '▓'.repeat(filled) + '░'.repeat(empty) + ']' + ` ${current}/${total}`
+            '[' +
+            '▓'.repeat(filled) +
+            '░'.repeat(empty) +
+            ']' +
+            ` ${current}/${total}`
           );
         };
 
@@ -275,7 +279,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               // Update progress message in-place
               setMessages((prev) => {
                 // Validate index still exists
-                if (progressMessageIndex < 0 || progressMessageIndex >= prev.length) {
+                if (
+                  progressMessageIndex < 0 ||
+                  progressMessageIndex >= prev.length
+                ) {
                   return prev;
                 }
 

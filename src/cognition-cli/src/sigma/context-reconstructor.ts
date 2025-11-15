@@ -76,8 +76,21 @@ A portable cognitive layer that can be initialized in **any repository**. Create
 - **Shadow Architecture**: Body (structural) + Shadow (semantic) embeddings
 - **Blast radius**: Dependency tracking via lineage overlay (4 relationships: imports, extends, implements, uses)
 
-## Available Tools
-- \`recall_past_conversation\`: Semantic search across conversation history
+## Memory Architecture
+
+**Compressed Recap (What You See Above):**
+- Recent conversation messages are truncated to 150 characters
+- \`...\` indicates more content available - this is your signal to use the recall tool
+- Think of these as **pointers/needles**, not complete verbatim history
+- Designed for token efficiency while preserving navigation context
+
+**Full Context Retrieval (Use When You See \`...\`):**
+- \`recall_past_conversation\`: Retrieves FULL untruncated messages from LanceDB
+- Semantic search across all 7 overlays (O1-O7) with complete conversation history
+- When you see truncated content like "**File Modif...", query for full details
+- Example: \`recall_past_conversation("cursor positioning implementation details")\`
+
+## Other Available Tools
 - Query overlays for architectural reasoning (structural patterns, dependencies, mission alignment)
 - Analyze coherence drift and blast radius
 - Access both local lattice (this repo) and global lattice (cross-project knowledge)
@@ -583,6 +596,8 @@ ${formatLastTurns(turns, pendingTask)}
 ---
 
 **Memory Tool Available**: You have access to \`recall_past_conversation\` tool. Use it anytime you need to remember specific past discussions. The tool uses semantic search across all conversation history.
+
+**IMPORTANT**: The recap above shows messages truncated to 150 characters. When you see \`...\` it's a **signal** that more content is available. Use \`recall_past_conversation\` to retrieve the FULL untruncated message. Think of the recap as navigation pointers, not complete verbatim history.
 `.trim()
         );
       }
