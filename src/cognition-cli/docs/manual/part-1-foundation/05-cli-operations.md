@@ -15,13 +15,15 @@ This chapter documents the core CLI commands that build, populate, and query the
 ## Table of Contents
 
 ### Core Setup & Initialization
+
 1. [Command Lifecycle](#command-lifecycle)
 2. [init — Initialize the PGC](#init--initialize-the-pgc)
 3. [wizard — Interactive Setup](#wizard--interactive-setup)
 4. [genesis — Build the Verifiable Skeleton](#genesis--build-the-verifiable-skeleton)
-5. [genesis:docs — Document Ingestion](#genesisdocs--document-ingestion)
+5. [genesis docs — Document Ingestion](#genesis-docs--document-ingestion)
 
 ### Query & Analysis
+
 6. [query — Codebase Queries](#query--codebase-queries)
 7. [ask — Semantic Q&A](#ask--semantic-qa)
 8. [lattice — Boolean Algebra](#lattice--boolean-algebra)
@@ -31,17 +33,20 @@ This chapter documents the core CLI commands that build, populate, and query the
 12. [blast-radius — Impact Analysis](#blast-radius--impact-analysis)
 
 ### Maintenance & Monitoring
+
 13. [watch — File Monitoring](#watch--file-monitoring)
 14. [status — Coherence State](#status--coherence-state)
 15. [update — Incremental Sync](#update--incremental-sync)
 16. [migrate-to-lance — Database Migration](#migrate-to-lance--database-migration)
 
 ### Interactive & Tools
+
 17. [tui — Interactive Terminal](#tui--interactive-terminal)
 18. [guide — Contextual Help](#guide--contextual-help)
 19. [overlay — Overlay Management](#overlay--overlay-management)
 
 ### Sugar Commands (Convenience Wrappers)
+
 20. [security — Security Analysis](#security--security-analysis)
 21. [workflow — Operational Patterns](#workflow--operational-patterns)
 22. [proofs — Mathematical Proofs](#proofs--mathematical-proofs)
@@ -231,6 +236,7 @@ cognition-cli wizard [options]
 ### Advantages over Manual Setup
 
 **Manual**:
+
 ```bash
 cognition-cli init
 cognition-cli genesis src/
@@ -241,6 +247,7 @@ cognition-cli overlay generate security_guidelines
 ```
 
 **Wizard** (interactive, handles all above):
+
 ```bash
 cognition-cli wizard
 ```
@@ -511,7 +518,7 @@ NODE_OPTIONS=--max-old-space-size=8192 cognition-cli genesis src/
 
 ---
 
-## genesis:docs — Document Ingestion
+## genesis docs — Document Ingestion
 
 **Command**: `cognition-cli genesis:docs [path]`
 
@@ -919,6 +926,7 @@ cognition-cli lattice <query> [options]
 ### Output Formats
 
 **Table** (default):
+
 ```bash
 $ cognition-cli lattice "O1 - O2" --format table
 
@@ -929,6 +937,7 @@ handleUserInput            | src/input.ts:12           | Medium
 ```
 
 **JSON**:
+
 ```bash
 $ cognition-cli lattice "O2 ~ O4" --format json
 
@@ -945,6 +954,7 @@ $ cognition-cli lattice "O2 ~ O4" --format json
 ```
 
 **Summary**:
+
 ```bash
 $ cognition-cli lattice "O1 - O2" --format summary
 
@@ -1262,6 +1272,7 @@ Related Concepts (by similarity):
 ### Use Cases
 
 **Mission Alignment Audit**:
+
 ```bash
 # Find all mission concepts
 cognition-cli concepts list
@@ -1772,6 +1783,7 @@ O4 (Mission) Status:
 **After migration**: Embeddings in LanceDB (fast vector search) + slim YAML (metadata only)
 
 **Benefits**:
+
 - **10-100x faster** semantic queries
 - **50-70% disk space savings** (embeddings removed from YAML)
 - **Scalability**: Handle 100K+ vectors efficiently
@@ -1946,17 +1958,20 @@ Resume with: cognition-cli tui --file .sigma/tui-1762546919034.state.json
 ### Features
 
 **Session Management**:
+
 - Automatic checkpointing every 5 turns
 - Resume from any previous session
 - Compression at 150K tokens (importance-based)
 - Session forwarding for continuity
 
 **Lattice Visualization**:
+
 - Live overlay statistics
 - Token usage tracking
 - Coherence metrics
 
 **Commands** (within TUI):
+
 - `/quit` - Exit and save session
 - `/status` - Show lattice status
 - `/clear` - Clear screen

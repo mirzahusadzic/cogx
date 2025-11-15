@@ -51,6 +51,7 @@ Phase III: Continuous Coherence (Watch → Update)
 ### Why This Matters
 
 Traditional build systems track **what changed**. The cPOW operational flow tracks:
+
 - **What changed** (files, symbols)
 - **Why it changed** (intent, goals)
 - **How well it changed** (fidelity, quality)
@@ -71,6 +72,7 @@ Input → [Oracle Validation] → [Scribe Execution] → [Receipt Generation] �
 ```
 
 This is the **G→T→O** loop:
+
 - **G**oal (intent, what we're trying to accomplish)
 - **T**ransform (execution, the actual work)
 - **O**racle (validation, quality assurance)
@@ -102,18 +104,21 @@ This is the **G→T→O** loop:
 #### Key Components
 
 **StructuralMiner** (`src/core/structural/miner.ts`):
+
 - Parses TypeScript/JavaScript using AST
 - Extracts functions, classes, interfaces, types
 - Captures import/export relationships
 - Records structural signatures
 
 **GenesisOracle** (`src/core/oracle/genesis-oracle.ts`):
+
 - Validates PGC initialization
 - Manages checkpointing for resumption
 - Tracks processed files
 - Ensures idempotency
 
 **GenesisOrchestrator** (`src/core/orchestrators/genesis.ts`):
+
 - Coordinates multi-step pipeline
 - Handles errors and retries
 - Reports progress
@@ -134,6 +139,7 @@ interface GenesisCheckpoint {
 ```
 
 **Benefits**:
+
 - Resume after interruption
 - Skip already-processed files
 - Handle large codebases (5K+ files)
@@ -168,18 +174,21 @@ interface GenesisCheckpoint {
 Each overlay has specialized validation:
 
 **SecurityGuidelinesOracle**:
+
 - Validates threat models
 - Ensures attack vector completeness
 - Verifies mitigation strategies
 - Checks boundary definitions
 
 **MissionConceptsOracle**:
+
 - Validates strategic alignment
 - Ensures concept weights are reasonable
 - Verifies no mission drift
 - Checks principle coverage
 
 **OperationalPatternsOracle**:
+
 - Validates workflow patterns
 - Ensures quest structure completeness
 - Verifies depth rules
@@ -267,6 +276,7 @@ async function update(dirtyState: DirtyState): Promise<UpdateReceipt> {
 ```
 
 **Performance**:
+
 - **Full genesis**: 2-5 minutes for 500 files
 - **Incremental update**: 10-30 seconds for 5 changed files
 - **Speedup**: 10-20x faster
@@ -282,6 +292,7 @@ Orchestrators coordinate multi-step workflows.
 **Purpose**: Coordinate Phase I (bottom-up aggregation)
 
 **Responsibilities**:
+
 1. Initialize PGC and workbench connection
 2. Discover source files
 3. Extract structural patterns
@@ -291,6 +302,7 @@ Orchestrators coordinate multi-step workflows.
 7. Report progress
 
 **Error Handling**:
+
 - Retry on network failures (3 attempts)
 - Skip files with parse errors (log warnings)
 - Resume from checkpoint on interruption
@@ -313,6 +325,7 @@ interface GenesisProgress {
 **Purpose**: Coordinate Phase III (incremental sync)
 
 **Responsibilities**:
+
 1. Read dirty state
 2. Re-process changed files
 3. Update affected overlays
@@ -321,6 +334,7 @@ interface GenesisProgress {
 6. Report summary
 
 **Optimization**:
+
 - Only process changed files (not full codebase)
 - Only regenerate affected overlays (O₁, O₃, O₇)
 - Batch embedding requests
@@ -331,6 +345,7 @@ interface GenesisProgress {
 **Purpose**: Coordinate Phase II (overlay generation)
 
 **Responsibilities**:
+
 1. Read O₁ structure (baseline)
 2. Send context to LLM
 3. Parse LLM responses
@@ -340,6 +355,7 @@ interface GenesisProgress {
 7. Update manifest
 
 **Quality Gates**:
+
 - Validate YAML structure
 - Check required fields present
 - Verify embedding dimensions (768)
@@ -379,6 +395,7 @@ function calculateFidelity(extraction: Extraction): number {
 ```
 
 **Usage**:
+
 - Filter low-fidelity items in queries (e.g., `fidelity > 0.7`)
 - Identify incomplete extractions for re-processing
 - Track quality trends over time
@@ -392,11 +409,13 @@ AQS = 0.4 × Fidelity + 0.3 × Coherence + 0.3 × Completeness
 ```
 
 **Components**:
+
 - **Fidelity**: Extraction accuracy
 - **Coherence**: Mission alignment
 - **Completeness**: Coverage of requirements
 
 **Thresholds**:
+
 - **AQS > 0.7**: High quality, produces reusable wisdom (CoMP)
 - **AQS 0.5-0.7**: Acceptable, minor improvements needed
 - **AQS < 0.5**: Low quality, rework required
@@ -415,12 +434,14 @@ interface CoherenceScore {
 ```
 
 **Process**:
+
 1. For each symbol in O₁
 2. Compute embedding similarity to all concepts in O₄
 3. Take weighted average of top-K similarities
 4. Store score in O₇
 
 **Alerts**:
+
 - **Low coherence** (< 0.5): Potential mission drift
 - **Zero coherence**: Symbol has no mission alignment
 - **Negative trend**: Codebase drifting from mission
@@ -508,6 +529,7 @@ cognition-cli audit src/core/mission/validator.ts
 ```
 
 **Outputs**:
+
 - O₁ Structure overlay: 1,073 items
 - LanceDB vectors: 1,073 embeddings
 - Transform receipts: 156 logs
@@ -546,6 +568,7 @@ cognition-cli audit src/core/mission/validator.ts
 ```
 
 **Outputs**:
+
 - O₄ Mission overlay: 67 concepts
 - LanceDB vectors: 67 embeddings
 - Transform receipt: 1 log
@@ -587,6 +610,7 @@ cognition-cli audit src/core/mission/validator.ts
 ```
 
 **Outputs**:
+
 - O₁ Structure: +4 items (1,073 → 1,077)
 - O₃ Lineage: Updated dependency graph
 - O₇ Coherence: Recalculated scores for 31 symbols
@@ -600,26 +624,31 @@ cognition-cli audit src/core/mission/validator.ts
 The operational flow powers all CLI commands:
 
 ### genesis
+
 **Orchestrator**: GenesisOrchestrator
 **Oracle**: GenesisOracle
 **Output**: O₁ overlay, transform logs
 
 ### genesis:docs
+
 **Orchestrator**: DocsOrchestrator
 **Oracle**: DocsOracle
 **Output**: O₄ overlay (concepts), document index
 
 ### overlay generate
+
 **Orchestrator**: OverlayOrchestrator
 **Oracle**: Type-specific (MissionConceptsOracle, SecurityGuidelinesOracle, etc.)
 **Output**: O₂-O₇ overlays, transform logs
 
 ### update
+
 **Orchestrator**: UpdateOrchestrator
 **Oracle**: GenesisOracle (for structural validation)
 **Output**: Updated overlays (O₁, O₃, O₇), cleared dirty state
 
 ### coherence
+
 **Query**: O₇ overlay (no transformation)
 **Output**: Alignment scores, drift detection
 

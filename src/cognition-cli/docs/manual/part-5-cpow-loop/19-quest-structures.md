@@ -11,6 +11,7 @@ status: complete
 Quest Structures define the **operational framework** for executing work in the cognition-cli system. This chapter documents the anatomy of quests, depth tracking, sacred sequences (F.L.T.B), quest lifecycle, and mission alignment mechanisms.
 
 **Why Quests Matter**:
+
 - **Structured execution**: Transforms follow a predictable pattern
 - **Verifiable quality**: Oracle validation at every step
 - **Depth awareness**: Complexity tracking prevents runaway work
@@ -18,6 +19,7 @@ Quest Structures define the **operational framework** for executing work in the 
 - **Learning loops**: Successful patterns become reusable wisdom (CoMP)
 
 **Reference Implementation**:
+
 - Quest Operations Log: `src/cognition-cli/src/core/quest/operations-log.ts`
 - Workflow Extraction: `src/cognition-cli/src/core/analyzers/workflow-extractor.ts`
 - Operations Log Storage: `.open_cognition/workflow_log.jsonl`
@@ -33,11 +35,13 @@ Every quest has five structural elements that define its purpose, scope, and suc
 **Purpose**: Clearly state the objective in natural language.
 
 **Format**:
+
 ```typescript
 intent: "Add JWT authentication to user service"
 ```
 
 **Properties**:
+
 - **Clear**: Unambiguous goal statement
 - **Actionable**: Describes what will change
 - **Bounded**: Finite scope (not open-ended)
@@ -81,11 +85,13 @@ await log.logQuestStart({
 **Purpose**: Connect the quest to strategic mission concepts from O₄ (Mission).
 
 **Format**:
+
 ```typescript
 mission_concepts: ['security', 'user-experience', 'compliance']
 ```
 
 **Properties**:
+
 - **Aligned**: Maps to O₄ concepts (not arbitrary tags)
 - **Ranked**: Most important concepts first
 - **Traceable**: Can measure alignment via coherence
@@ -94,11 +100,13 @@ mission_concepts: ['security', 'user-experience', 'compliance']
 **Mission Alignment Process**:
 
 1. **Extract concepts** from O₄ (Mission) overlay:
+
    ```bash
    cognition-cli concepts top 20
    ```
 
 2. **Select relevant concepts** for the quest:
+
    ```typescript
    mission_concepts: [
      'security',          // Primary: Authentication is security-critical
@@ -108,12 +116,14 @@ mission_concepts: ['security', 'user-experience', 'compliance']
    ```
 
 3. **Validate alignment** during quest:
+
    ```bash
    cognition-cli coherence aligned --limit 10
    # Shows which symbols align with mission concepts
    ```
 
 4. **Measure drift** after completion:
+
    ```bash
    cognition-cli coherence check
    # Coherence should increase (positive delta)
@@ -153,6 +163,7 @@ await log.logQuestComplete({
 **Purpose**: Define what "done" looks like in measurable terms.
 
 **Format**:
+
 ```typescript
 success_criteria: [
   'JWT tokens generated and validated',
@@ -164,6 +175,7 @@ success_criteria: [
 ```
 
 **Properties**:
+
 - **Measurable**: Can verify programmatically
 - **Complete**: Covers all aspects (code, tests, docs)
 - **Explicit**: No implicit assumptions
@@ -213,6 +225,7 @@ await log.logQuestComplete({
 **Purpose**: Break complex quests into manageable stages.
 
 **Format**:
+
 ```typescript
 big_blocks: [
   'Create JWTService class',
@@ -223,6 +236,7 @@ big_blocks: [
 ```
 
 **Properties**:
+
 - **Sequential**: Logical order of execution
 - **Independent**: Each block is self-contained
 - **Testable**: Can validate each block separately
@@ -263,6 +277,7 @@ big_blocks: [
 **Purpose**: Direct focus to critical quality dimensions.
 
 **Format**:
+
 ```typescript
 attention_priorities: ['truth', 'security', 'performance']
 ```
@@ -568,6 +583,7 @@ await log.logQuestStart({
 ```
 
 **Output**:
+
 ```
 🎯 Quest started: "Add JWT authentication to user service"
 Quest ID: quest-2025-11-15-001
@@ -576,6 +592,7 @@ Baseline coherence: 0.820
 ```
 
 **What Happens**:
+
 - Quest ID generated (timestamp-based)
 - Baseline coherence measured (from O₇)
 - Mission concepts validated (from O₄)
@@ -628,6 +645,7 @@ await log.logTransform({
 ```
 
 **Output**:
+
 ```
 🔨 Transform Proposed: transform-001
 Type: create, Files: 1
@@ -658,6 +676,7 @@ await log.logOracleEvaluation({
 ```
 
 **Output**:
+
 ```
 🔮 Oracle evaluated: transform-001
 Score: 0.890 (ACCEPTED)
@@ -699,6 +718,7 @@ npm run build   # ✅ Build succeeds
 ```
 
 **If any step fails**:
+
 - Fix the issue
 - Re-run F.L.T.B
 - Do NOT proceed to commit until all pass
@@ -724,6 +744,7 @@ F.L.T.B ✓ | Depth 2 | Coherence +0.05"
 ```
 
 **Commit Message Best Practices**:
+
 - First line: Imperative summary (< 72 chars)
 - Body: What changed, why it changed
 - Footer: F.L.T.B status, depth, coherence delta
@@ -745,6 +766,7 @@ cognition-cli coherence check  # Validate O₇ (Coherence)
 ```
 
 **What Updates**:
+
 - **O₁ (Structure)**: If code structure changed (new classes/functions)
 - **O₃ (Lineage)**: If dependencies changed (new imports/calls)
 - **O₄ (Mission)**: If documentation changed (mission concepts)
@@ -771,6 +793,7 @@ cpow:
 ```
 
 **Purpose**:
+
 - **Provenance**: What work was done
 - **Verification**: How it was computed
 - **Immutability**: Cannot be forged or modified
@@ -843,6 +866,7 @@ const aqs_grade = 'C';  // 0.60-0.79 = C
 **Purpose**: Extract reusable wisdom (Crystallized Mission Patterns) from successful quests.
 
 **When to Distill**:
+
 - AQS grade ≥ B (0.80+)
 - Positive coherence delta (mission-aligned)
 - F.L.T.B passed
@@ -929,6 +953,7 @@ await log.logQuestComplete({
 ```
 
 **Output**:
+
 ```
 ✅ Quest completed: quest-2025-11-15-001
 Duration: 87.5 minutes
@@ -967,6 +992,7 @@ mission_concepts: ['security', 'api-design']
 ```
 
 **Validation**:
+
 - Concepts MUST exist in O₄ (reject unknown concepts)
 - At least 1 concept required (cannot be empty)
 - Ranked by relevance (most important first)
@@ -1206,12 +1232,14 @@ console.log(`Average quality: ${(avgScore! * 100).toFixed(1)}%`);
 ### 1. Quest Initialization
 
 ✅ **Do**:
+
 - Write clear, bounded intent statements
 - Select mission concepts from O₄ (verify with `concepts top`)
 - Set realistic depth expectations
 - Measure baseline coherence before starting
 
 ❌ **Don't**:
+
 - Use vague intents ("make it better")
 - Invent mission concepts (must exist in O₄)
 - Start Depth 3+ quests without justification
@@ -1222,12 +1250,14 @@ console.log(`Average quality: ${(avgScore! * 100).toFixed(1)}%`);
 ### 2. Transform Execution
 
 ✅ **Do**:
+
 - Break complex changes into multiple transforms
 - Log proposed transforms BEFORE applying
 - Include rationale for every transform
 - Track coherence delta at each step
 
 ❌ **Don't**:
+
 - Apply transforms without Oracle evaluation
 - Batch multiple unrelated changes
 - Ignore negative coherence deltas
@@ -1238,12 +1268,14 @@ console.log(`Average quality: ${(avgScore! * 100).toFixed(1)}%`);
 ### 3. Oracle Validation
 
 ✅ **Do**:
+
 - Provide detailed feedback (what's good, what's improvable)
 - Use AAA framework consistently (Accuracy, Efficiency, Adaptability)
 - Accept high-quality transforms (score ≥ 0.80)
 - Reject transforms with critical issues
 
 ❌ **Don't**:
+
 - Auto-approve all transforms
 - Ignore accuracy/efficiency/adaptability dimensions
 - Skip feedback messages
@@ -1254,12 +1286,14 @@ console.log(`Average quality: ${(avgScore! * 100).toFixed(1)}%`);
 ### 4. F.L.T.B Sacred Sequence
 
 ✅ **Do**:
+
 - Run F.L.T.B before EVERY commit
 - Fix all errors (format, lint, test, build)
 - Use pre-commit hooks to enforce
 - Document F.L.T.B status in commit messages
 
 ❌ **Don't**:
+
 - Commit without F.L.T.B passing
 - Skip tests ("I'll fix them later")
 - Ignore lint warnings
@@ -1270,12 +1304,14 @@ console.log(`Average quality: ${(avgScore! * 100).toFixed(1)}%`);
 ### 5. Mission Alignment
 
 ✅ **Do**:
+
 - Check coherence after every transform
 - Rebalance if coherence delta < 0
 - Validate mission concepts from O₄
 - Celebrate positive alignment (+0.05+)
 
 ❌ **Don't**:
+
 - Ignore coherence drift
 - Continue quests with negative deltas
 - Use arbitrary tags as mission concepts
@@ -1403,6 +1439,7 @@ await log.logQuestComplete({
 ```
 
 **Output**:
+
 ```
 ✅ Quest completed: quest-2025-11-15-auth
 Duration: 87.5 minutes (Depth 2)
@@ -1427,6 +1464,7 @@ AQS: 0.910 (Grade: A)
 5. **Mission Alignment**: Coherence checks at every step
 
 **Key Invariants**:
+
 - ✅ Every quest has a clear intent and success criteria
 - ✅ Every transform is validated by Oracle (AAA framework)
 - ✅ Every commit passes F.L.T.B sacred sequence
@@ -1435,6 +1473,7 @@ AQS: 0.910 (Grade: A)
 - ✅ High-quality quests (AQS ≥ 0.80) distill wisdom (CoMP)
 
 **Anti-Patterns**:
+
 - ❌ Depth 3+ without justification (runaway complexity)
 - ❌ Negative coherence delta (drift from mission)
 - ❌ Skipping F.L.T.B (technical debt)
@@ -1442,18 +1481,21 @@ AQS: 0.910 (Grade: A)
 - ❌ Vague intent statements (scope creep)
 
 **Next Steps**:
+
 - **Chapter 20: Validation Oracles** — Deep dive into AAA framework, Oracle personas (eGemma), and quality scoring
 - **Chapter 18: Operational Flow** — Transform pipeline, orchestrators, and audit trails
 
 ---
 
 **Related Documentation**:
+
 - [Chapter 5: CLI Operations](../part-1-foundation/05-cli-operations.md) — `cognition-cli` commands (`watch`, `status`, `update`)
 - [Chapter 9: O₅ Operational](../part-2-seven-layers/09-o5-operational.md) — Operational overlay and workflow patterns
 - [Chapter 11: O₇ Coherence](../part-2-seven-layers/11-o7-coherence.md) — Coherence scoring and alignment
 - [Quick Start Guide](../part-0-quickstart/00-quick-start.md) — 10-minute onboarding with first queries
 
 **Implementation Reference**:
+
 - Quest Operations Log: `src/cognition-cli/src/core/quest/operations-log.ts:1`
 - Workflow Extractor: `src/cognition-cli/src/core/analyzers/workflow-extractor.ts:1`
 - cPOW Architecture: `src/cognition-cli/docs/architecture/CPOW_OPERATIONAL_LOOP.md`

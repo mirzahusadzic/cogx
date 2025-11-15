@@ -11,6 +11,7 @@ status: complete
 This comprehensive troubleshooting guide covers common issues, error messages, and recovery procedures for the cognition-cli system. Use this reference to diagnose and resolve problems quickly.
 
 **Organization**:
+
 1. [Installation Issues](#installation-issues)
 2. [PGC Initialization & Corruption](#pgc-initialization--corruption)
 3. [Workbench Connectivity](#workbench-connectivity)
@@ -29,6 +30,7 @@ This comprehensive troubleshooting guide covers common issues, error messages, a
 ### Problem: `npm install -g cognition-cli` fails
 
 **Symptoms**:
+
 ```bash
 npm ERR! code EACCES
 npm ERR! syscall access
@@ -38,12 +40,14 @@ npm ERR! Error: EACCES: permission denied
 ```
 
 **Causes**:
+
 - Insufficient permissions for global npm install
 - npm installed with sudo (owned by root)
 
 **Solutions**:
 
 **Option 1: Use npx (no installation)**
+
 ```bash
 # Run without installing
 npx cognition-cli --version
@@ -51,6 +55,7 @@ npx cognition-cli wizard
 ```
 
 **Option 2: Fix npm permissions**
+
 ```bash
 # Create npm directory in home folder
 mkdir ~/.npm-global
@@ -69,6 +74,7 @@ npm install -g cognition-cli
 ```
 
 **Option 3: Use nvm (Node Version Manager)**
+
 ```bash
 # Install nvm
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
@@ -86,6 +92,7 @@ npm install -g cognition-cli
 ### Problem: Node.js version too old
 
 **Symptoms**:
+
 ```bash
 error cognition-cli@2.3.2: The engine "node" is incompatible with this module.
 Expected version ">=25.0.0". Got "20.14.0"
@@ -122,12 +129,14 @@ node --version  # Should show 25.x.x
 ### Problem: Command not found after install
 
 **Symptoms**:
+
 ```bash
 $ cognition-cli --version
 -bash: cognition-cli: command not found
 ```
 
 **Causes**:
+
 - npm bin directory not in PATH
 - Installation failed silently
 
@@ -158,6 +167,7 @@ cognition-cli --version
 ### Problem: "PGC not initialized"
 
 **Symptoms**:
+
 ```bash
 $ cognition-cli status
 Error: PGC not initialized in /path/to/project
@@ -169,12 +179,14 @@ Run 'cognition-cli init' to initialize.
 **Solutions**:
 
 **Option 1: Run wizard (recommended)**
+
 ```bash
 cognition-cli wizard
 # Interactive setup with guided prompts
 ```
 
 **Option 2: Manual initialization**
+
 ```bash
 # Initialize PGC
 cognition-cli init
@@ -188,6 +200,7 @@ cognition-cli overlay generate security_guidelines
 ```
 
 **Verification**:
+
 ```bash
 # Check PGC exists
 ls -la .open_cognition/
@@ -205,6 +218,7 @@ ls -la .open_cognition/
 ### Problem: PGC corruption (broken manifest)
 
 **Symptoms**:
+
 ```bash
 $ cognition-cli status
 Error: Failed to parse PGC manifest
@@ -216,6 +230,7 @@ YAMLException: Unexpected token at line 12
 **Solutions**:
 
 **Option 1: Restore from backup**
+
 ```bash
 # Check for backups
 ls .open_cognition/backups/
@@ -229,6 +244,7 @@ cognition-cli status
 ```
 
 **Option 2: Rebuild manifest**
+
 ```bash
 # Backup corrupted manifest
 mv .open_cognition/pgc.manifest.yaml \
@@ -246,6 +262,7 @@ cognition-cli status
 ```
 
 **Prevention**:
+
 ```bash
 # Enable automatic backups (in .cogxrc.yml)
 pgc:
@@ -260,6 +277,7 @@ pgc:
 ### Problem: LanceDB corruption
 
 **Symptoms**:
+
 ```bash
 $ cognition-cli ask "what is PGC"
 Error: LanceDB query failed
@@ -271,6 +289,7 @@ File /path/to/.open_cognition/lancedb/vectors.lance is corrupted
 **Solutions**:
 
 **Option 1: Rebuild LanceDB from overlays**
+
 ```bash
 # Remove corrupted LanceDB
 rm -rf .open_cognition/lancedb/
@@ -287,6 +306,7 @@ cognition-cli ask "test query"
 ```
 
 **Option 2: Complete reset (nuclear option)**
+
 ```bash
 # Backup overlays
 cp -r .open_cognition/overlays /tmp/overlays-backup
@@ -311,6 +331,7 @@ cognition-cli genesis src/
 ### Problem: "Workbench not running"
 
 **Symptoms**:
+
 ```bash
 $ cognition-cli wizard
 Error: Cannot connect to eGemma workbench at http://localhost:8000
@@ -318,6 +339,7 @@ Is the workbench running?
 ```
 
 **Causes**:
+
 - Docker container not started
 - Wrong port configuration
 - Network issues
@@ -325,6 +347,7 @@ Is the workbench running?
 **Solutions**:
 
 **Step 1: Check Docker status**
+
 ```bash
 # Check if Docker is running
 docker ps
@@ -333,6 +356,7 @@ docker ps
 ```
 
 **Step 2: Start workbench**
+
 ```bash
 # Start workbench
 docker compose up -d
@@ -346,6 +370,7 @@ docker compose logs -f
 ```
 
 **Step 3: Verify connectivity**
+
 ```bash
 # Test health endpoint
 curl http://localhost:8000/health
@@ -354,6 +379,7 @@ curl http://localhost:8000/health
 ```
 
 **Step 4: Check port conflicts**
+
 ```bash
 # If health check fails, check if port 8000 is in use
 lsof -i :8000
@@ -379,12 +405,14 @@ docker compose up -d
 ### Problem: "Connection timeout" or "ECONNREFUSED"
 
 **Symptoms**:
+
 ```bash
 $ cognition-cli ask "test"
 Error: connect ECONNREFUSED 127.0.0.1:8000
 ```
 
 **Causes**:
+
 - Workbench crashed
 - Firewall blocking
 - Docker networking issues
@@ -392,6 +420,7 @@ Error: connect ECONNREFUSED 127.0.0.1:8000
 **Solutions**:
 
 **Step 1: Check workbench logs**
+
 ```bash
 docker compose logs workbench | tail -50
 
@@ -402,6 +431,7 @@ docker compose logs workbench | tail -50
 ```
 
 **Step 2: Restart workbench**
+
 ```bash
 # Restart container
 docker compose restart workbench
@@ -412,6 +442,7 @@ docker compose up --build -d
 ```
 
 **Step 3: Check firewall**
+
 ```bash
 # Allow Docker bridge network
 sudo ufw allow from 172.17.0.0/16
@@ -423,6 +454,7 @@ sudo ufw enable
 ```
 
 **Step 4: Check Docker network**
+
 ```bash
 # List networks
 docker network ls
@@ -441,6 +473,7 @@ docker compose up -d
 ### Problem: Workbench out of memory
 
 **Symptoms**:
+
 ```bash
 $ docker compose logs workbench
 workbench | Killed
@@ -452,6 +485,7 @@ workbench exited with code 137
 **Solutions**:
 
 **Option 1: Increase Docker memory limit**
+
 ```yaml
 # docker-compose.yml
 services:
@@ -464,6 +498,7 @@ services:
 ```
 
 **Option 2: Reduce batch size**
+
 ```yaml
 # .cogxrc.yml
 workbench:
@@ -472,6 +507,7 @@ workbench:
 ```
 
 **Option 3: Use smaller models**
+
 ```yaml
 # .cogxrc.yml
 embeddings:
@@ -485,12 +521,14 @@ embeddings:
 ### Problem: `genesis` takes too long (> 30 minutes)
 
 **Symptoms**:
+
 ```bash
 $ cognition-cli genesis src/
 Analyzing files: [=========>........] 45% (234/520) ETA: 27m
 ```
 
 **Causes**:
+
 - Large codebase (> 1000 files)
 - Slow embedding generation
 - Insufficient memory
@@ -498,6 +536,7 @@ Analyzing files: [=========>........] 45% (234/520) ETA: 27m
 **Solutions**:
 
 **Option 1: Increase concurrency**
+
 ```yaml
 # .cogxrc.yml
 performance:
@@ -506,6 +545,7 @@ performance:
 ```
 
 **Option 2: Exclude unnecessary files**
+
 ```yaml
 # .cogxignore
 node_modules/
@@ -517,6 +557,7 @@ coverage/
 ```
 
 **Option 3: Use incremental mode**
+
 ```bash
 # First run: Full genesis (slow)
 cognition-cli genesis src/
@@ -526,6 +567,7 @@ cognition-cli update  # Only processes changed files
 ```
 
 **Option 4: Increase Node.js heap**
+
 ```bash
 # For large codebases (> 500 files)
 NODE_OPTIONS=--max-old-space-size=8192 cognition-cli genesis src/
@@ -536,6 +578,7 @@ NODE_OPTIONS=--max-old-space-size=8192 cognition-cli genesis src/
 ### Problem: Queries very slow (> 10 seconds)
 
 **Symptoms**:
+
 ```bash
 $ time cognition-cli ask "what is PGC"
 [...output...]
@@ -543,6 +586,7 @@ real    0m47.521s  # Too slow!
 ```
 
 **Causes**:
+
 - Large overlay collections (> 10,000 items)
 - Slow embeddings
 - Network latency to workbench
@@ -550,6 +594,7 @@ real    0m47.521s  # Too slow!
 **Solutions**:
 
 **Option 1: Limit query scope**
+
 ```bash
 # Instead of querying all overlays
 cognition-cli ask "what is PGC"
@@ -562,6 +607,7 @@ cognition-cli ask "what is PGC" --limit 5
 ```
 
 **Option 2: Use cached embeddings**
+
 ```yaml
 # .cogxrc.yml
 embeddings:
@@ -571,6 +617,7 @@ embeddings:
 ```
 
 **Option 3: Compact LanceDB**
+
 ```bash
 # Reduce database fragmentation
 cognition-cli migrate-to-lance --compact
@@ -580,6 +627,7 @@ du -sh .open_cognition/lancedb/
 ```
 
 **Option 4: Use local workbench**
+
 ```yaml
 # .cogxrc.yml
 workbench:
@@ -591,6 +639,7 @@ workbench:
 ### Problem: High memory usage during `update`
 
 **Symptoms**:
+
 ```bash
 $ cognition-cli update
 <--- Last few GCs --->
@@ -602,11 +651,13 @@ $ cognition-cli update
 **Solutions**:
 
 **Option 1: Increase heap size**
+
 ```bash
 NODE_OPTIONS=--max-old-space-size=8192 cognition-cli update
 ```
 
 **Option 2: Update in batches**
+
 ```bash
 # Instead of updating all files
 cognition-cli update
@@ -617,6 +668,7 @@ cognition-cli update src/commands/
 ```
 
 **Option 3: Clear old overlays**
+
 ```bash
 # Remove unused overlays
 cognition-cli overlay remove old-overlay-name
@@ -632,12 +684,14 @@ cognition-cli migrate-to-lance --compact
 ### Problem: "No results from queries"
 
 **Symptoms**:
+
 ```bash
 $ cognition-cli ask "what is PGC"
 No results found.
 ```
 
 **Causes**:
+
 - Overlays not generated
 - Empty overlays
 - Query too specific
@@ -645,6 +699,7 @@ No results found.
 **Solutions**:
 
 **Step 1: Check overlays exist**
+
 ```bash
 # List all overlays
 cognition-cli overlay list
@@ -659,6 +714,7 @@ cognition-cli overlay generate --all
 ```
 
 **Step 2: Verify overlay content**
+
 ```bash
 # Check specific overlay
 ls -lh .open_cognition/overlays/mission_concepts/
@@ -669,6 +725,7 @@ ls -lh .open_cognition/overlays/mission_concepts/
 ```
 
 **Step 3: Try broader query**
+
 ```bash
 # Instead of specific
 cognition-cli ask "what is the PGC module"
@@ -679,6 +736,7 @@ cognition-cli ask "grounded context"
 ```
 
 **Step 4: Check embeddings**
+
 ```bash
 # Verify LanceDB has vectors
 du -sh .open_cognition/lancedb/
@@ -693,6 +751,7 @@ cognition-cli genesis src/
 ### Problem: Lattice query returns empty set
 
 **Symptoms**:
+
 ```bash
 $ cognition-cli lattice "O1 - O2"
 Code Symbols NOT Covered by Security:
@@ -702,6 +761,7 @@ Total: 0 uncovered symbols  # Expected to find some
 ```
 
 **Causes**:
+
 - O₁ or O₂ overlays empty
 - All symbols actually covered (rare)
 - Overlay mismatch
@@ -709,6 +769,7 @@ Total: 0 uncovered symbols  # Expected to find some
 **Solutions**:
 
 **Step 1: Verify overlays populated**
+
 ```bash
 # Check O₁ (Structure)
 cognition-cli overlay list | grep structure
@@ -722,6 +783,7 @@ cognition-cli overlay generate security_guidelines  # Generates O₂
 ```
 
 **Step 2: Inspect overlay content**
+
 ```bash
 # Check O₁ has symbols
 ls .open_cognition/overlays/structure/
@@ -731,6 +793,7 @@ ls .open_cognition/overlays/security_guidelines/
 ```
 
 **Step 3: Try different query**
+
 ```bash
 # Try union instead of difference
 cognition-cli lattice "O1 + O2"  # Should show all items
@@ -744,6 +807,7 @@ cognition-cli lattice "O1 & O2"  # Should show covered items
 ### Problem: "Overlay generation failed"
 
 **Symptoms**:
+
 ```bash
 $ cognition-cli overlay generate mission_concepts
 Error: Failed to generate mission_concepts overlay
@@ -751,6 +815,7 @@ No mission documents found in documentation/
 ```
 
 **Causes**:
+
 - Missing documentation files
 - Wrong document type classification
 - Parsing errors
@@ -758,6 +823,7 @@ No mission documents found in documentation/
 **Solutions**:
 
 **Step 1: Check documentation exists**
+
 ```bash
 # List documentation
 ls -lah docs/
@@ -769,6 +835,7 @@ ls -lah docs/
 ```
 
 **Step 2: Run genesis:docs**
+
 ```bash
 # Ingest documentation first
 cognition-cli genesis:docs docs/
@@ -778,6 +845,7 @@ cognition-cli overlay generate mission_concepts
 ```
 
 **Step 3: Check document classification**
+
 ```bash
 # View overlay generation with verbose logging
 DEBUG=cognition:* cognition-cli overlay generate mission_concepts
@@ -787,6 +855,7 @@ DEBUG=cognition:* cognition-cli overlay generate mission_concepts
 ```
 
 **Step 4: Manual verification**
+
 ```bash
 # Check if overlays were created
 ls .open_cognition/overlays/mission_concepts/
@@ -809,6 +878,7 @@ cat docs/VISION.md | head -10
 ### Problem: "LanceDB query failed"
 
 **Symptoms**:
+
 ```bash
 $ cognition-cli ask "test"
 Error: LanceDB query failed: Table 'mission_concepts' does not exist
@@ -841,6 +911,7 @@ ls .open_cognition/lancedb/
 ### Problem: "Embedding generation timeout"
 
 **Symptoms**:
+
 ```bash
 $ cognition-cli genesis src/
 Error: Embedding timeout after 30000ms
@@ -848,6 +919,7 @@ Failed to generate embeddings for src/core/pgc.ts
 ```
 
 **Causes**:
+
 - Workbench overloaded
 - File too large (> 10,000 lines)
 - Network issues
@@ -855,6 +927,7 @@ Failed to generate embeddings for src/core/pgc.ts
 **Solutions**:
 
 **Option 1: Increase timeout**
+
 ```yaml
 # .cogxrc.yml
 workbench:
@@ -862,6 +935,7 @@ workbench:
 ```
 
 **Option 2: Reduce batch size**
+
 ```yaml
 # .cogxrc.yml
 workbench:
@@ -870,6 +944,7 @@ workbench:
 ```
 
 **Option 3: Split large files**
+
 ```bash
 # If file is > 10,000 lines, consider refactoring
 wc -l src/core/pgc.ts
@@ -882,6 +957,7 @@ wc -l src/core/pgc.ts
 ```
 
 **Option 4: Retry with exponential backoff**
+
 ```yaml
 # .cogxrc.yml (automatic retry)
 workbench:
@@ -896,6 +972,7 @@ workbench:
 ### Problem: "Rate limit exceeded (429)"
 
 **Symptoms**:
+
 ```bash
 $ cognition-cli genesis src/
 Error: Rate limit exceeded (429 Too Many Requests)
@@ -907,6 +984,7 @@ Retry after: 60 seconds
 **Solutions**:
 
 **Option 1: Wait and retry**
+
 ```bash
 # Wait 60 seconds
 sleep 60
@@ -916,6 +994,7 @@ cognition-cli genesis src/
 ```
 
 **Option 2: Reduce concurrency**
+
 ```yaml
 # .cogxrc.yml
 workbench:
@@ -925,6 +1004,7 @@ workbench:
 ```
 
 **Option 3: Use local workbench**
+
 ```bash
 # Self-hosted workbench has no rate limits
 docker compose up -d
@@ -941,6 +1021,7 @@ workbench:
 ### Problem: Coherence score always 0.0
 
 **Symptoms**:
+
 ```bash
 $ cognition-cli coherence check
 Coherence Score: 0.000
@@ -948,6 +1029,7 @@ Status: ⚠️ INCOHERENT
 ```
 
 **Causes**:
+
 - O₇ (Coherence) overlay not generated
 - No mission concepts in O₄
 - Embeddings missing
@@ -955,6 +1037,7 @@ Status: ⚠️ INCOHERENT
 **Solutions**:
 
 **Step 1: Generate O₄ (Mission)**
+
 ```bash
 # Ingest mission documentation
 cognition-cli genesis:docs docs/
@@ -964,6 +1047,7 @@ cognition-cli overlay generate mission_concepts
 ```
 
 **Step 2: Generate O₇ (Coherence)**
+
 ```bash
 # Coherence overlay requires O₁ and O₄
 cognition-cli genesis src/  # O₁
@@ -975,6 +1059,7 @@ cognition-cli coherence check
 ```
 
 **Step 3: Check mission concepts exist**
+
 ```bash
 # List mission concepts
 cognition-cli concepts top 20
@@ -988,6 +1073,7 @@ cognition-cli concepts top 20
 ### Problem: "Negative coherence delta" warnings
 
 **Symptoms**:
+
 ```bash
 $ cognition-cli update
 ⚠️ Warning: Coherence decreased by -0.03
@@ -1000,6 +1086,7 @@ Possible mission drift detected.
 **Solutions**:
 
 **Step 1: Identify drift source**
+
 ```bash
 # Check recent commits
 git log -5 --oneline
@@ -1009,6 +1096,7 @@ git diff HEAD~1
 ```
 
 **Step 2: Analyze misaligned code**
+
 ```bash
 # Find low-coherence symbols
 cognition-cli coherence aligned --limit 10 --threshold 0.0
@@ -1017,6 +1105,7 @@ cognition-cli coherence aligned --limit 10 --threshold 0.0
 ```
 
 **Step 3: Fix alignment**
+
 ```bash
 # Option 1: Add mission-aligned documentation
 # In src/problematic-file.ts, add comments referencing mission concepts:
@@ -1044,6 +1133,7 @@ cognition-cli coherence check
 ### Error: "YAML parse error at line X"
 
 **Full Message**:
+
 ```
 Error: Failed to parse YAML
 YAMLException: Unexpected token 'foo' at line 12, column 5
@@ -1052,6 +1142,7 @@ YAMLException: Unexpected token 'foo' at line 12, column 5
 **Cause**: Invalid YAML syntax in manifest or overlay
 
 **Solution**:
+
 ```bash
 # Find corrupted file
 grep -r "foo" .open_cognition/
@@ -1067,6 +1158,7 @@ cat .open_cognition/pgc.manifest.yaml | yaml-lint
 ### Error: "ENOSPC: no space left on device"
 
 **Full Message**:
+
 ```
 Error: ENOSPC: no space left on device, write
 ```
@@ -1074,6 +1166,7 @@ Error: ENOSPC: no space left on device, write
 **Cause**: Disk full
 
 **Solutions**:
+
 ```bash
 # Check disk usage
 df -h
@@ -1097,6 +1190,7 @@ npm cache clean --force
 ### Error: "Maximum call stack size exceeded"
 
 **Full Message**:
+
 ```
 RangeError: Maximum call stack size exceeded
 at Object.exports.parse
@@ -1105,6 +1199,7 @@ at Object.exports.parse
 **Cause**: Circular dependency or infinite recursion
 
 **Solutions**:
+
 ```bash
 # Increase stack size
 NODE_OPTIONS=--stack-size=4096 cognition-cli genesis src/
@@ -1120,6 +1215,7 @@ madge --circular src/
 ### Error: "Cannot find module 'X'"
 
 **Full Message**:
+
 ```
 Error: Cannot find module '@cognition/core'
 ```
@@ -1127,6 +1223,7 @@ Error: Cannot find module '@cognition/core'
 **Cause**: Missing dependency
 
 **Solutions**:
+
 ```bash
 # Reinstall dependencies
 npm install
@@ -1227,6 +1324,7 @@ cognition-cli ask "test query"
 ### Self-Service Resources
 
 1. **In-CLI Help**:
+
    ```bash
    cognition-cli guide
    cognition-cli <command> --help
@@ -1238,11 +1336,13 @@ cognition-cli ask "test query"
    - [The Lattice Book](README.md)
 
 3. **Verbose Logging**:
+
    ```bash
    DEBUG=cognition:* cognition-cli <command>
    ```
 
 4. **Check Logs**:
+
    ```bash
    # Workbench logs
    docker compose logs -f workbench
@@ -1256,10 +1356,11 @@ cognition-cli ask "test query"
 ### Community Support
 
 1. **GitHub Issues**:
-   - Report bugs: https://github.com/mirzahusadzic/cogx/issues
+   - Report bugs: <https://github.com/mirzahusadzic/cogx/issues>
    - Search existing issues for solutions
 
 2. **Diagnostic Information** (include when reporting issues):
+
    ```bash
    # System info
    cognition-cli --version
@@ -1280,6 +1381,7 @@ cognition-cli ask "test query"
    ```
 
 3. **Minimal Reproducible Example**:
+
    ```bash
    # Provide exact steps to reproduce
    # Example:
@@ -1368,6 +1470,7 @@ git commit -m "Update PGC overlays"
 ## Summary
 
 **Troubleshooting Philosophy**:
+
 - ✅ Start with simplest solutions (restart, regenerate)
 - ✅ Use verbose logging (`DEBUG=cognition:*`)
 - ✅ Check logs (workbench, operations log)
@@ -1375,6 +1478,7 @@ git commit -m "Update PGC overlays"
 - ✅ Document what worked (for next time)
 
 **Most Common Issues**:
+
 1. Workbench not running → `docker compose up -d`
 2. PGC not initialized → `cognition-cli wizard`
 3. Empty overlays → `cognition-cli overlay generate --all`
@@ -1382,11 +1486,13 @@ git commit -m "Update PGC overlays"
 5. Coherence drift → Check mission alignment
 
 **When All Else Fails**:
+
 - Nuclear reset (rebuild PGC from scratch)
 - Report issue on GitHub with full diagnostic info
 - Check documentation for recent updates
 
 **Prevention > Recovery**:
+
 - Enable automatic backups
 - Monitor coherence regularly
 - Use pre-commit hooks
@@ -1395,6 +1501,7 @@ git commit -m "Update PGC overlays"
 ---
 
 **Related Documentation**:
+
 - [Quick Start Guide](part-0-quickstart/00-quick-start.md) — Basic troubleshooting
 - [CLI Operations](part-1-foundation/05-cli-operations.md) — Command reference
 - [Chapter 2: The PGC](part-1-foundation/02-the-pgc.md) — PGC structure
