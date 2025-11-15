@@ -166,7 +166,7 @@ LanceDB was chosen because it uniquely satisfies all requirements:
 | --------------- | ------------------------------ | ---------------------------------- |
 | **Deployment**  | Embedded (no server)           | Cloud-hosted or self-hosted server |
 | **Storage**     | Local filesystem               | Remote database                    |
-| **Latency**     | ~5ms (local)              | 10-100ms (network RTT)             |
+| **Latency**     | ~5ms (local)                   | 10-100ms (network RTT)             |
 | **Portability** | .lancedb files travel with PGC | Requires migration scripts         |
 | **Cost**        | Free (local compute)           | Pay per query/storage              |
 | **Privacy**     | Data never leaves machine      | Data sent to third-party servers   |
