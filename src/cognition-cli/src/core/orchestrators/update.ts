@@ -16,17 +16,49 @@ import {
 } from '../../config.js';
 
 /**
- * UpdateOrchestrator implements the Invalidate algorithm from CogX:
+ * Update Orchestrator: Implements surgical invalidation for incremental PGC updates
  *
- * Change(⊥) → Invalidate(⊥) → Propagate_Up(Join_edges) → Invalidate(⊤)
+ * Handles dynamic updates to the PGC when source code changes (Monument 4):
  *
- * Propagation Model 1: Horizontal Shockwave (Bottom-Up Change)
- * 1. File watcher detects Sraw change (dirty_state.json)
- * 2. Update re-processes file (using GenesisOrchestrator logic)
- * 3. Invalidate upward through Genesis (using reverse_deps)
- * 4. Propagate horizontally to Overlays
+ * ALGORITHM:
+ * Invalidate(⊥) → Propagate_Up(Join_edges) → Invalidate(⊤) → Invalidate_Overlays
  *
- * This keeps the PGC coherent after source code changes.
+ * This enables:
+ * 1. Detect dirty files (from dirty_state.json written by file watcher)
+ * 2. Re-process changed/new files (same as Genesis but incremental)
+ * 3. Propagate invalidation upward through reverse_deps (surgical cascade)
+ * 4. Invalidate dependent overlays (structural_patterns, lineage_patterns)
+ * 5. Invalidate cross-file dependencies (O₂ layer coherence)
+ * 6. Verify PGC structural integrity via GenesisOracle
+ *
+ * SURGICAL INVALIDATION:
+ * - Only invalidates transforms that consumed changed structural hash
+ * - Preserves unchanged transformations (enables incremental CI/CD)
+ * - Cross-file propagation: If file A imports B and B changes, invalidate A's lineage
+ * - Overlay invalidation: Deletes individual overlay entries, not entire manifests
+ *
+ * DESIGN PATTERNS:
+ * - Delta-driven: Only processes changed files
+ * - Hash-based change detection: Skips files with unchanged content
+ * - Lineage-aware: Uses transformLog and reverseDeps for surgical invalidation
+ * - Lazy verification: Only verifies if files were actually processed
+ *
+ * @example
+ * const orchestrator = new UpdateOrchestrator(pgc, miner, workbench, oracle, '.');
+ * await orchestrator.executeIncrementalUpdate();
+ * // → Reads dirty_state.json written by file watcher
+ * // → Re-processes 3 changed files, processes 2 new files
+ * // → Invalidates 15 dependent overlay entries
+ * // → Verifies PGC coherence
+ * // → Clears dirty_state
+ *
+ * MONUMENT 4.9: Cross-file invalidation
+ * When file A changes and file B imports A, B's lineage_patterns become stale.
+ * This orchestrator detects and invalidates B's O₂ patterns automatically.
+ *
+ * @see GenesisOrchestrator - Used for initial structural extraction
+ * @see DirtyStateManager - Reads dirty_state.json from file watcher
+ * @see reverseDeps - Used for surgical invalidation propagation
  */
 export class UpdateOrchestrator {
   private maxFileSize = DEFAULT_MAX_FILE_SIZE;
@@ -41,6 +73,36 @@ export class UpdateOrchestrator {
 
   /**
    * Execute incremental update based on dirty_state.json
+   *
+   * Main entry point for handling dynamic code changes. Workflow:
+   * 1. Read dirty_state.json from file watcher (contains changed + new files)
+   * 2. Check workbench health for semantic analysis capability
+   * 3. Process dirty files (modified, already in PGC)
+   *    - Re-extract structural data
+   *    - Record new transformation
+   *    - Propagate invalidation if structure changed
+   * 4. Process untracked files (new files not in PGC)
+   *    - Same extraction + storage as dirty files
+   *    - No propagation needed (nothing depended on new files)
+   * 5. Clear dirty_state.json after successful processing
+   * 6. Verify PGC coherence (only if files were processed)
+   *
+   * CHANGE DETECTION:
+   * - Content hash comparison to detect actual changes (prevents false positives)
+   * - If content hash matches, skip processing (file didn't actually change)
+   * - Lazy PGC verification (skip if no files processed)
+   *
+   * @returns Promise<void> - Updates PGC in place, clears dirty_state
+   * @throws {Error} If PGC verification fails after update
+   *
+   * @example
+   * const orchestrator = new UpdateOrchestrator(pgc, miner, workbench, oracle, '.');
+   * await orchestrator.executeIncrementalUpdate();
+   * // → Processes 3 dirty files + 2 new files
+   * // → Invalidates dependent overlays
+   * // → Verifies PGC structural coherence
+   *
+   * @public
    */
   async executeIncrementalUpdate(): Promise<void> {
     const s = spinner();
