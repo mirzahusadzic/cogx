@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Summary
 
-Critical fixes for conversation continuity across compression and session state persistence. Sigma's infinite context now maintains true continuity - the assistant continues tasks instead of restarting them after compression events.
+Critical fixes for conversation continuity across compression, session state persistence, and overlay generation. Sigma's infinite context now maintains true continuity - the assistant continues tasks instead of restarting them after compression events. Mathematical proofs overlay (O₆) generation now works correctly.
 
 ### 🐛 Critical Bug Fixes
 
@@ -29,6 +29,15 @@ Critical fixes for conversation continuity across compression and session state 
 
 **Impact**: Compression history maintained across sessions - no more losing session state on restart.
 
+#### Mathematical Proofs Overlay (O₆) Generation
+
+- **Fixed overlay type handler**: `mathematical_proofs` overlay now has proper handler in OverlayOrchestrator
+- **Prevented fallthrough**: Previously fell through to `structural_patterns` generation instead of extracting mathematical statements
+- **Implemented extraction pipeline**: Added document discovery, proof extraction, and embedding generation flow
+- **Complete implementation**: Added `generateMathematicalProofs()` and `generateMathematicalProofsForDocument()` methods
+
+**Impact**: Command `cognition-cli overlay generate mathematical_proofs --force` now correctly extracts theorems, lemmas, axioms, and proofs from markdown documents instead of incorrectly regenerating structural patterns.
+
 ### 🎨 UI Fixes
 
 - **Sigma Stats panel alignment**: Changed from fixed `width={48}` to `minWidth={48}` to prevent text clipping
@@ -45,6 +54,7 @@ Critical fixes for conversation continuity across compression and session state 
 - **useClaudeAgent.ts**: Implemented pending turn carry-forward and system fingerprint integration
 - **useSessionManager.ts**: Fixed state creation logic to prevent overwrites on resume
 - **SigmaInfoPanel.tsx**: Panel width fix for proper text display
+- **overlay.ts**: Added `MathematicalProofsManager` and `ProofExtractor` initialization, implemented explicit handler for `mathematical_proofs` overlay type with document extraction pipeline
 
 ## [2.3.1] - 2025-11-14
 
