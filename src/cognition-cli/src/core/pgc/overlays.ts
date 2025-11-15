@@ -29,8 +29,56 @@ export interface OverlayManifestEntry {
 export type ManifestEntryRaw = string | OverlayManifestEntry;
 
 /**
+ * Overlay Metadata Manager
+ *
  * Manages overlay storage and retrieval for pattern metadata and manifests.
- * Supports backward-compatible manifest format migration.
+ * Coordinates between different overlay types and handles versioning.
+ *
+ * OVERLAY ARCHITECTURE:
+ * - O₁: Structural patterns (code symbols, types)
+ * - O₂: Security guidelines (CVEs, mitigations, constraints)
+ * - O₃: Lineage patterns (dependency trees, provenance)
+ * - O₄: Mission concepts (vision, principles, goals)
+ * - O₅: Operational patterns (workflows, processes)
+ * - O₆: Mathematical proofs (theorems, axioms, identities)
+ * - O₇: Strategic coherence (symbol-to-mission alignments)
+ *
+ * STORAGE:
+ * .open_cognition/overlays/<overlay_type>/<source_path>.json
+ * .open_cognition/overlays/<overlay_type>/manifest.json
+ *
+ * MANIFEST FORMAT MIGRATION:
+ * - v1 (old): { "symbol": "file/path" }
+ * - v2 (new): { "symbol": { filePath, sourceHash, lastUpdated, ... } }
+ * - Supports both formats for backward compatibility
+ *
+ * DESIGN:
+ * - Separation of concerns (structure vs semantics)
+ * - Incremental updates (sourceHash for change detection)
+ * - Provenance tracking (transform_id, timestamps)
+ *
+ * @example
+ * const overlays = new Overlays('/path/to/.open_cognition');
+ *
+ * // Store pattern metadata
+ * await overlays.update('structural_patterns', 'src/foo.ts', metadata);
+ *
+ * // Update manifest
+ * await overlays.updateManifest('structural_patterns', 'Foo', {
+ *   filePath: 'src/foo.ts',
+ *   sourceHash: '7f3a9b2c...',
+ *   lastUpdated: new Date().toISOString()
+ * });
+ *
+ * @example
+ * // Backward-compatible manifest reading
+ * const manifest = await overlays.getManifest('structural_patterns');
+ * for (const [symbol, entry] of Object.entries(manifest)) {
+ *   const parsed = overlays.parseManifestEntry(entry);
+ *   if (parsed.needsMigration) {
+ *     console.log(`Needs migration: ${symbol}`);
+ *   }
+ * }
  */
 export class Overlays {
   private overlaysPath: string;
