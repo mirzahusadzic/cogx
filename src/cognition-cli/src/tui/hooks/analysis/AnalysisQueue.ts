@@ -31,6 +31,8 @@ export class AnalysisQueue {
   private totalProcessed = 0;
   private currentTask: AnalysisTask | null = null;
   private analyzedTimestamps = new Set<number>();
+  private analyzedMessageIds = new Set<string>(); // ✅ NEW: Track by message ID not just timestamp
+  private pendingPersistence = 0; // ✅ NEW: Track async LanceDB writes
   private turnAnalyses: TurnAnalysis[] = [];
 
   constructor(
@@ -68,7 +70,12 @@ export class AnalysisQueue {
   setAnalyses(analyses: TurnAnalysis[]): void {
     this.turnAnalyses = [...analyses];
     this.analyzedTimestamps.clear();
-    analyses.forEach((a) => this.analyzedTimestamps.add(a.timestamp));
+    this.analyzedMessageIds.clear(); // ✅ NEW: Clear message IDs too
+    analyses.forEach((a) => {
+      this.analyzedTimestamps.add(a.timestamp);
+      // ✅ NEW: Track message ID (use turn_id as fallback)
+      this.analyzedMessageIds.add(a.turn_id);
+    });
   }
 
   /**
@@ -134,13 +141,26 @@ export class AnalysisQueue {
         // Store analysis
         this.turnAnalyses.push(analysis);
         this.analyzedTimestamps.add(task.timestamp);
+
+        // ✅ NEW: Track message ID (use messageIndex as unique identifier)
+        const messageId = `msg-${task.messageIndex}`;
+        this.analyzedMessageIds.add(messageId);
+
         this.totalProcessed++;
 
-        // Notify completion
-        this.handlers.onAnalysisComplete?.({
-          analysis,
-          messageIndex: task.messageIndex,
-        });
+        // ✅ NEW: Track persistence (increment before async operation)
+        this.pendingPersistence++;
+
+        try {
+          // Notify completion (this may trigger async LanceDB writes)
+          await this.handlers.onAnalysisComplete?.({
+            analysis,
+            messageIndex: task.messageIndex,
+          });
+        } finally {
+          // ✅ NEW: Decrement after persistence completes
+          this.pendingPersistence--;
+        }
 
         // Notify progress
         this.handlers.onProgress?.(this.getStatus());
@@ -205,8 +225,10 @@ export class AnalysisQueue {
     this.queue = [];
     this.turnAnalyses = [];
     this.analyzedTimestamps.clear();
+    this.analyzedMessageIds.clear(); // ✅ NEW: Clear message IDs too
     this.totalProcessed = 0;
     this.currentTask = null;
+    this.pendingPersistence = 0; // ✅ NEW: Reset persistence counter
   }
 
   /**
@@ -216,5 +238,75 @@ export class AnalysisQueue {
     while (this.processing || this.queue.length > 0) {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
+  }
+
+  /**
+   * ✅ NEW: Check if queue is ready for compression
+   * @returns true if no pending analysis work AND all persistence complete
+   */
+  isReadyForCompression(): boolean {
+    return (
+      this.queue.length === 0 && // No queued tasks
+      !this.processing && // Not currently processing
+      this.currentTask === null && // No task in progress
+      this.pendingPersistence === 0 // All LanceDB writes complete
+    );
+  }
+
+  /**
+   * ✅ NEW: Wait for queue to become ready for compression
+   * @param timeout Maximum time to wait (ms), default from env or 15000
+   * @returns Promise that resolves when ready or rejects on timeout
+   */
+  async waitForCompressionReady(
+    timeout: number = parseInt(
+      process.env.SIGMA_COMPRESSION_TIMEOUT_MS || '15000',
+      10
+    )
+  ): Promise<void> {
+    const startTime = Date.now();
+
+    while (!this.isReadyForCompression()) {
+      // Check timeout
+      if (Date.now() - startTime > timeout) {
+        throw new Error(
+          `Timeout waiting for analysis queue (${this.queue.length} pending, processing: ${this.processing}, pendingPersistence: ${this.pendingPersistence})`
+        );
+      }
+
+      // Wait 100ms before checking again
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+
+  /**
+   * ✅ NEW: Get all unanalyzed messages (by message ID, not timestamp)
+   * Handles duplicate timestamps correctly
+   */
+  getUnanalyzedMessages(
+    allMessages: Array<{ timestamp: Date; type: string; id?: string }>
+  ): Array<{ timestamp: number; messageId: string; index: number }> {
+    const unanalyzed: Array<{
+      timestamp: number;
+      messageId: string;
+      index: number;
+    }> = [];
+
+    allMessages
+      .filter((m) => m.type === 'user' || m.type === 'assistant')
+      .forEach((m, index) => {
+        const messageId = `msg-${index}`;
+
+        // Check if THIS SPECIFIC MESSAGE was analyzed (not just timestamp)
+        if (!this.analyzedMessageIds.has(messageId)) {
+          unanalyzed.push({
+            timestamp: m.timestamp.getTime(),
+            messageId,
+            index,
+          });
+        }
+      });
+
+    return unanalyzed;
   }
 }

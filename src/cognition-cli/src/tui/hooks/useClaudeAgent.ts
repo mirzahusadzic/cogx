@@ -119,6 +119,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const messagesRef = useRef<ClaudeMessage[]>(messages); // Ref to avoid effect re-running on every message change
   const userMessageEmbeddingCache = useRef<Map<number, number[]>>(new Map()); // Cache user message embeddings by timestamp
   const latticeLoadedRef = useRef<Set<string>>(new Set()); // Track which sessions have been loaded
+  const compressionInProgressRef = useRef(false); // ✅ NEW: Guard against concurrent compression requests
 
   // Slash commands: Load commands cache
   const [commandsCache, setCommandsCache] = useState<Map<string, Command>>(
@@ -202,131 +203,214 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   // Compression callback (stable reference to prevent infinite loops)
   const handleCompressionTriggered = useCallback(
     async (tokens: number, turns: number) => {
-      debug('🗜️  Triggering compression');
-
-      // FIX: Detect pending (unanalyzed) turn before compression
-      // This fixes the bug where assistant's last message is dropped from compressed recap
-      const lastMessage = messages[messages.length - 1];
-      const lastAnalyzed =
-        turnAnalysis.analyses[turnAnalysis.analyses.length - 1];
-
-      const hasPendingTurn =
-        lastMessage &&
-        lastMessage.type !== 'system' &&
-        lastMessage.type !== 'tool_progress' &&
-        (!lastAnalyzed ||
-          lastMessage.timestamp.getTime() > lastAnalyzed.timestamp);
-
-      const pendingTurn = hasPendingTurn
-        ? {
-            message: lastMessage,
-            messageIndex: messages.length - 1,
-            timestamp: lastMessage.timestamp.getTime(),
-          }
-        : null;
-
-      if (pendingTurn) {
+      // ✅ CRITICAL FIX: Guard against concurrent compression requests
+      if (compressionInProgressRef.current) {
         debug(
-          `🔄 Detected pending turn (${pendingTurn.message.type}) - will re-analyze after compression`
+          '⏭️  Compression already in progress, skipping duplicate request'
         );
+        return;
       }
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          type: 'system',
-          content:
-            `🗜️  Context compression triggered at ${(tokens / 1000).toFixed(1)}K tokens\n` +
-            `Compressing ${turns} turns into intelligent recap...`,
-          timestamp: new Date(),
-        },
-      ]);
+      compressionInProgressRef.current = true;
 
       try {
-        const { compressContext } = await import('../../sigma/compressor.js');
-        const { reconstructSessionContext } = await import(
-          '../../sigma/context-reconstructor.js'
+        // Snapshot session ID before waiting (prevents session boundary race)
+        const compressionSessionId = currentSessionId;
+
+        debug('🗜️  Triggering compression');
+
+        // 🆕 STEP 1: IMMEDIATELY NOTIFY USER (P0 UX REQUIREMENT)
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: 'system',
+            content:
+              `⏳ Preparing context compression at ${(tokens / 1000).toFixed(1)}K tokens\n` +
+              `   Analyzing ${turns} conversation turns (this may take 5-10s)...`,
+            timestamp: new Date(),
+          },
+        ]);
+
+        // STEP 2: Wait for analysis queue to complete (configurable timeout)
+        const startTime = Date.now();
+        const timeout = parseInt(
+          process.env.SIGMA_COMPRESSION_TIMEOUT_MS || '15000',
+          10
         );
 
-        const result = await compressContext(turnAnalysis.analyses, {
-          target_size: 40000,
-        });
+        try {
+          await turnAnalysis.waitForCompressionReady(timeout);
+        } catch (waitError) {
+          // 🆕 STEP 2a: USER-FRIENDLY TIMEOUT MESSAGE
+          const timeoutSecs = ((Date.now() - startTime) / 1000).toFixed(1);
 
-        // FIX: Add pending turn to lattice BEFORE building recap
-        // This ensures the assistant's final message is included in the compressed recap
-        const latticeWithPending = { ...result.lattice };
-        if (pendingTurn) {
-          const msgType = pendingTurn.message.type;
-          const role: 'user' | 'assistant' | 'system' =
-            msgType === 'user'
-              ? 'user'
-              : msgType === 'system'
-                ? 'system'
-                : 'assistant';
-          const content = pendingTurn.message.content;
-
-          // Create a minimal node for the pending turn
-          const pendingNode: ConversationNode = {
-            id: `pending_${Date.now()}`,
-            type: 'conversation_turn',
-            turn_id: `pending_${Date.now()}`,
-            role,
-            content,
-            timestamp: pendingTurn.timestamp,
-            embedding: [], // No embedding yet
-            novelty: 0.5,
-            overlay_scores: {
-              O1_structural: 0,
-              O2_security: 0,
-              O3_lineage: 0,
-              O4_mission: 0,
-              O5_operational: 0,
-              O6_mathematical: 0,
-              O7_strategic: 0,
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: 'system',
+              content:
+                `⚠️  Analysis timeout after ${timeoutSecs}s\n` +
+                `   Compression postponed - your conversation continues normally`,
+              timestamp: new Date(),
             },
-            importance_score: 5, // Medium importance by default
-            is_paradigm_shift: false,
-            semantic_tags: [],
-          };
+          ]);
 
-          latticeWithPending.nodes = [...result.lattice.nodes, pendingNode];
-          debug(`📝 Added pending turn to lattice (${role})`);
+          console.error(
+            '[Σ] Compression aborted: analysis queue timeout',
+            waitError
+          );
+          return;
         }
 
-        // FIX: Use reconstructSessionContext to build recap with system fingerprint
-        const sessionContext = await reconstructSessionContext(
-          latticeWithPending,
-          cwd,
-          conversationRegistryRef.current || undefined
-        );
+        const waitTime = Date.now() - startTime;
 
-        const recap =
-          `COMPRESSED CONVERSATION RECAP (${latticeWithPending.nodes.length} key turns)\n` +
-          `${(tokens / 1000).toFixed(1)}K → ${(result.compressed_size / 1000).toFixed(1)}K tokens\n\n` +
-          sessionContext.recap;
+        // 🆕 STEP 3: UPDATE USER WITH COMPLETION
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: 'system',
+            content: `✓ Analysis complete (${(waitTime / 1000).toFixed(1)}s) - compressing conversation...`,
+            timestamp: new Date(),
+          },
+        ]);
 
-        fs.writeFileSync(
-          path.join(cwd, '.sigma', `${currentSessionId}.recap.txt`),
-          recap,
-          'utf-8'
-        );
-        setInjectedRecap(recap);
-        sessionManager.resetResumeSession();
+        debug('✅ Analysis queue ready, proceeding with compression');
 
-        // FIX: Re-analyze pending turn in NEW session after compression
+        // FIX: Detect pending (unanalyzed) turn before compression
+        // This fixes the bug where assistant's last message is dropped from compressed recap
+        const lastMessage = messages[messages.length - 1];
+        const lastAnalyzed =
+          turnAnalysis.analyses[turnAnalysis.analyses.length - 1];
+
+        const hasPendingTurn =
+          lastMessage &&
+          lastMessage.type !== 'system' &&
+          lastMessage.type !== 'tool_progress' &&
+          (!lastAnalyzed ||
+            lastMessage.timestamp.getTime() > lastAnalyzed.timestamp);
+
+        const pendingTurn = hasPendingTurn
+          ? {
+              message: lastMessage,
+              messageIndex: messages.length - 1,
+              timestamp: lastMessage.timestamp.getTime(),
+            }
+          : null;
+
         if (pendingTurn) {
-          debug('🔄 Re-analyzing pending turn in new session');
-          await turnAnalysis.enqueueAnalysis(pendingTurn);
+          debug(
+            `🔄 Detected pending turn (${pendingTurn.message.type}) - will re-analyze after compression`
+          );
         }
 
-        debug(
-          `✅ Compression: ${result.lattice.nodes.length} nodes, ${(result.compressed_size / 1000).toFixed(1)}K tokens`
-        );
-      } catch (err) {
-        debug('❌ Compression failed:', (err as Error).message);
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: 'system',
+            content:
+              `🗜️  Context compression triggered at ${(tokens / 1000).toFixed(1)}K tokens\n` +
+              `Compressing ${turns} turns into intelligent recap...`,
+            timestamp: new Date(),
+          },
+        ]);
+
+        try {
+          const { compressContext } = await import('../../sigma/compressor.js');
+          const { reconstructSessionContext } = await import(
+            '../../sigma/context-reconstructor.js'
+          );
+
+          const result = await compressContext(turnAnalysis.analyses, {
+            target_size: 40000,
+          });
+
+          // FIX: Add pending turn to lattice BEFORE building recap
+          // This ensures the assistant's final message is included in the compressed recap
+          const latticeWithPending = { ...result.lattice };
+          if (pendingTurn) {
+            const msgType = pendingTurn.message.type;
+            const role: 'user' | 'assistant' | 'system' =
+              msgType === 'user'
+                ? 'user'
+                : msgType === 'system'
+                  ? 'system'
+                  : 'assistant';
+            const content = pendingTurn.message.content;
+
+            // Create a minimal node for the pending turn
+            const pendingNode: ConversationNode = {
+              id: `pending_${Date.now()}`,
+              type: 'conversation_turn',
+              turn_id: `pending_${Date.now()}`,
+              role,
+              content,
+              timestamp: pendingTurn.timestamp,
+              embedding: [], // No embedding yet
+              novelty: 0.5,
+              overlay_scores: {
+                O1_structural: 0,
+                O2_security: 0,
+                O3_lineage: 0,
+                O4_mission: 0,
+                O5_operational: 0,
+                O6_mathematical: 0,
+                O7_strategic: 0,
+              },
+              importance_score: 5, // Medium importance by default
+              is_paradigm_shift: false,
+              semantic_tags: [],
+            };
+
+            latticeWithPending.nodes = [...result.lattice.nodes, pendingNode];
+            debug(`📝 Added pending turn to lattice (${role})`);
+          }
+
+          // FIX: Use reconstructSessionContext to build recap with system fingerprint
+          const sessionContext = await reconstructSessionContext(
+            latticeWithPending,
+            cwd,
+            conversationRegistryRef.current || undefined
+          );
+
+          const recap =
+            `COMPRESSED CONVERSATION RECAP (${latticeWithPending.nodes.length} key turns)\n` +
+            `${(tokens / 1000).toFixed(1)}K → ${(result.compressed_size / 1000).toFixed(1)}K tokens\n\n` +
+            sessionContext.recap;
+
+          fs.writeFileSync(
+            path.join(cwd, '.sigma', `${compressionSessionId}.recap.txt`),
+            recap,
+            'utf-8'
+          );
+          setInjectedRecap(recap);
+          sessionManager.resetResumeSession();
+
+          // FIX: Re-analyze pending turn in NEW session after compression
+          if (pendingTurn) {
+            debug('🔄 Re-analyzing pending turn in new session');
+            await turnAnalysis.enqueueAnalysis(pendingTurn);
+          }
+
+          debug(
+            `✅ Compression: ${result.lattice.nodes.length} nodes, ${(result.compressed_size / 1000).toFixed(1)}K tokens`
+          );
+        } catch (err) {
+          debug('❌ Compression failed:', (err as Error).message);
+        }
+      } finally {
+        // ✅ CRITICAL: Always release lock
+        compressionInProgressRef.current = false;
       }
     },
-    [debug, messages, turnAnalysis, cwd, currentSessionId, sessionManager]
+    [
+      debug,
+      messages,
+      turnAnalysis,
+      cwd,
+      currentSessionId,
+      sessionManager,
+      setMessages,
+    ]
   );
 
   // Compression orchestration (replaces inline compression trigger logic)
@@ -486,8 +570,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       } of unanalyzedMessages) {
         // For assistant messages, only queue if we're NOT currently thinking
         if (message.type === 'assistant' && isThinking) {
-          debug('   Skipping assistant message - still streaming');
-          return;
+          debug(
+            '   Skipping assistant message - still streaming (will retry after stream completes)'
+          );
+          continue; // ✅ CRITICAL FIX: Skip THIS message, continue to next (not return!)
         }
 
         const turnTimestamp = message.timestamp.getTime();

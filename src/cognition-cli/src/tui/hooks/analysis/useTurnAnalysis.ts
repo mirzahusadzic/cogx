@@ -35,6 +35,13 @@ export interface UseTurnAnalysisReturn {
   hasAnalyzed: (timestamp: number) => boolean;
   clear: () => void;
 
+  // ✅ NEW: Compression coordination methods
+  waitForCompressionReady: (timeout?: number) => Promise<void>;
+  getUnanalyzedMessages: (
+    messages: Array<{ timestamp: Date; type: string; id?: string }>
+  ) => Array<{ timestamp: number; messageId: string; index: number }>;
+  isReadyForCompression: () => boolean;
+
   // Stats
   stats: {
     totalAnalyzed: number;
@@ -149,6 +156,27 @@ export function useTurnAnalysis(
     }
   }, []);
 
+  // ✅ NEW: Expose queue methods for compression coordination
+  const waitForCompressionReady = useCallback(async (timeout?: number) => {
+    if (!queueRef.current) {
+      throw new Error('Analysis queue not initialized');
+    }
+    await queueRef.current.waitForCompressionReady(timeout);
+  }, []);
+
+  const getUnanalyzedMessages = useCallback(
+    (messages: Array<{ timestamp: Date; type: string; id?: string }>) => {
+      if (!queueRef.current) return [];
+      return queueRef.current.getUnanalyzedMessages(messages);
+    },
+    []
+  );
+
+  const isReadyForCompression = useCallback(() => {
+    if (!queueRef.current) return true; // No queue = ready
+    return queueRef.current.isReadyForCompression();
+  }, []);
+
   // Calculate stats
   const stats = {
     totalAnalyzed: analyses.length,
@@ -172,6 +200,10 @@ export function useTurnAnalysis(
     setAnalyses,
     hasAnalyzed,
     clear,
+    // ✅ NEW: Compression coordination methods
+    waitForCompressionReady,
+    getUnanalyzedMessages,
+    isReadyForCompression,
     stats,
   };
 }
