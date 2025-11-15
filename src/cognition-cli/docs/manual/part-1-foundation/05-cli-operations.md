@@ -14,14 +14,37 @@ This chapter documents the core CLI commands that build, populate, and query the
 
 ## Table of Contents
 
+### Core Setup & Initialization
 1. [Command Lifecycle](#command-lifecycle)
 2. [init — Initialize the PGC](#init--initialize-the-pgc)
-3. [genesis — Build the Verifiable Skeleton](#genesis--build-the-verifiable-skeleton)
-4. [ask — Semantic Q&A](#ask--semantic-qa)
-5. [patterns — Pattern Detection](#patterns--pattern-detection)
-6. [coherence — Consistency Validation](#coherence--consistency-validation)
-7. [blast-radius — Impact Analysis](#blast-radius--impact-analysis)
-8. [overlay — Overlay Management](#overlay--overlay-management)
+3. [wizard — Interactive Setup](#wizard--interactive-setup)
+4. [genesis — Build the Verifiable Skeleton](#genesis--build-the-verifiable-skeleton)
+5. [genesis:docs — Document Ingestion](#genesisdocs--document-ingestion)
+
+### Query & Analysis
+6. [query — Codebase Queries](#query--codebase-queries)
+7. [ask — Semantic Q&A](#ask--semantic-qa)
+8. [lattice — Boolean Algebra](#lattice--boolean-algebra)
+9. [patterns — Pattern Detection](#patterns--pattern-detection)
+10. [concepts — Mission Concepts](#concepts--mission-concepts)
+11. [coherence — Consistency Validation](#coherence--consistency-validation)
+12. [blast-radius — Impact Analysis](#blast-radius--impact-analysis)
+
+### Maintenance & Monitoring
+13. [watch — File Monitoring](#watch--file-monitoring)
+14. [status — Coherence State](#status--coherence-state)
+15. [update — Incremental Sync](#update--incremental-sync)
+16. [migrate-to-lance — Database Migration](#migrate-to-lance--database-migration)
+
+### Interactive & Tools
+17. [tui — Interactive Terminal](#tui--interactive-terminal)
+18. [guide — Contextual Help](#guide--contextual-help)
+19. [overlay — Overlay Management](#overlay--overlay-management)
+
+### Sugar Commands (Convenience Wrappers)
+20. [security — Security Analysis](#security--security-analysis)
+21. [workflow — Operational Patterns](#workflow--operational-patterns)
+22. [proofs — Mathematical Proofs](#proofs--mathematical-proofs)
 
 ---
 
@@ -109,7 +132,138 @@ This chapter documents the core CLI commands that build, populate, and query the
 
 **Prerequisites**: None
 
-**Next Step**: Run `genesis` to populate the PGC.
+**Next Step**: Run `wizard` for interactive setup or `genesis` to populate the PGC.
+
+---
+
+## wizard — Interactive Setup
+
+**Command**: `cognition-cli wizard`
+
+**Purpose**: Interactive wizard for complete PGC setup from scratch. **Recommended for first-time users.**
+
+**What It Does**:
+
+This command guides you through the entire setup process:
+
+1. **PGC Detection**: Checks for existing `.open_cognition/` directory
+2. **Workbench Verification**: Validates eGemma workbench is running
+3. **API Configuration**: Optionally configures API keys for embeddings
+4. **Source Selection**: Prompts for source code directory
+5. **Documentation Ingestion**: Ingests strategic documents (VISION.md, etc.)
+6. **Overlay Generation**: Selectively generates overlays (O₁-O₇)
+
+### Interactive Flow
+
+```bash
+$ cognition-cli wizard
+
+🧙 Cognition CLI Setup Wizard
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ Detected existing PGC at .open_cognition/
+
+? Do you want to:
+  › Update existing PGC
+    Create fresh PGC (will backup existing)
+
+✓ Workbench running at http://localhost:8000
+
+? Source code directory to analyze:
+  › src/
+
+? Ingest documentation? (Y/n) › Yes
+
+? Which overlays to generate?
+  ✓ O₁ Structure (required)
+  ✓ O₂ Security
+  ✓ O₃ Lineage
+  ✓ O₄ Mission
+  ✓ O₅ Operational
+  ✓ O₆ Mathematical
+  ✓ O₇ Coherence
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Starting setup...
+
+[1/5] Initializing PGC...
+✓ PGC initialized
+
+[2/5] Running genesis on src/...
+⠋ Processing files... [34/156]
+✓ Genesis complete (156 files, 1,073 patterns)
+
+[3/5] Ingesting documentation...
+✓ Ingested 12 documents
+
+[4/5] Generating overlays...
+⠋ Generating O₂ Security overlay...
+✓ All overlays generated
+
+[5/5] Validating setup...
+✓ Setup complete!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Next steps:
+  cognition-cli status          # Check PGC coherence
+  cognition-cli lattice "O1"    # Query structural patterns
+  cognition-cli ask "..."       # Ask questions about docs
+```
+
+### Command Options
+
+```bash
+cognition-cli wizard [options]
+
+# Options:
+#   -p, --project-root <path>   Root directory (default: current directory)
+```
+
+### When to Use
+
+- **First-time setup**: Initial PGC initialization
+- **Onboarding new projects**: Quick setup for new codebases
+- **Recovery**: Rebuilding corrupted PGC
+- **Overlay regeneration**: Selectively regenerate specific overlays
+
+### Advantages over Manual Setup
+
+**Manual**:
+```bash
+cognition-cli init
+cognition-cli genesis src/
+cognition-cli genesis:docs VISION.md
+cognition-cli overlay generate structural_patterns
+cognition-cli overlay generate security_guidelines
+# ... repeat for all 7 overlays
+```
+
+**Wizard** (interactive, handles all above):
+```bash
+cognition-cli wizard
+```
+
+### Troubleshooting
+
+**Error: "No workbench detected"**
+
+```bash
+# Start eGemma workbench first:
+docker compose up -d
+
+# Or set custom URL:
+export WORKBENCH_URL=http://your-workbench:8000
+cognition-cli wizard
+```
+
+**Error: "Permission denied"**
+
+```bash
+# Ensure write permissions in project directory:
+chmod -R u+w .
+```
 
 ---
 
@@ -357,6 +511,178 @@ NODE_OPTIONS=--max-old-space-size=8192 cognition-cli genesis src/
 
 ---
 
+## genesis:docs — Document Ingestion
+
+**Command**: `cognition-cli genesis:docs [path]`
+
+**Purpose**: Ingest markdown documentation into the PGC with full provenance tracking.
+
+### What It Does
+
+This command processes markdown files into the mission concepts overlay (O₄):
+
+1. **Content Hashing**: Deduplicates documents using SHA256 hashes
+2. **Frontmatter Parsing**: Extracts metadata from YAML frontmatter
+3. **Embedding Generation**: Creates 768-dimensional semantic vectors
+4. **Overlay Storage**: Stores in `.open_cognition/overlays/o4_mission/`
+5. **Index Updates**: Maintains document index for integrity auditing
+
+### Usage
+
+```bash
+# Ingest single file (defaults to VISION.md)
+cognition-cli genesis:docs
+
+# Ingest specific file
+cognition-cli genesis:docs docs/ARCHITECTURE.md
+
+# Ingest directory (recursive)
+cognition-cli genesis:docs docs/
+
+# Force re-ingestion (removes existing entries first)
+cognition-cli genesis:docs docs/ --force
+```
+
+### Command Options
+
+```bash
+cognition-cli genesis:docs [path] [options]
+
+# Options:
+#   -p, --project-root <path>   Root directory (default: current directory)
+#   -f, --force                 Force re-ingestion (removes existing entries)
+```
+
+### What Gets Created
+
+**For each document**:
+
+```yaml
+# .open_cognition/overlays/o4_mission/concepts/vision-strategic-alignment.yaml
+type: mission_concept
+content: |
+  # Strategic Alignment
+
+  Our mission is to create verifiable AI-human symbiosis...
+metadata:
+  source: docs/VISION.md
+  hash: a7f3b9c...
+  ingested_at: "2025-11-15T10:30:45Z"
+  weight: 0.85
+embedding:
+  vector: [0.123, -0.456, ...]  # 768-dimensional
+  model: egemma-v1
+```
+
+### Incremental Processing
+
+The command automatically skips already-ingested documents:
+
+```bash
+$ cognition-cli genesis:docs docs/
+
+⠋ Scanning for markdown files...
+Found 15 files
+
+⠋ Processing documents...
+  ✓ docs/VISION.md (already ingested, skipping)
+  ⠋ docs/SECURITY.md (ingesting...)
+  ✓ docs/ARCHITECTURE.md (already ingested, skipping)
+
+✓ Ingested 1 new document, skipped 14 existing
+```
+
+### Force Re-ingestion
+
+Use `--force` to remove and re-ingest:
+
+```bash
+$ cognition-cli genesis:docs docs/ --force
+
+⚠️  Force mode: removing existing entries...
+Deleted 15 overlay entries
+Deleted 15 LanceDB embeddings
+
+⠋ Re-ingesting documents...
+✓ Ingested 15 documents
+```
+
+### When to Use
+
+- **Initial setup**: Ingest strategic documents (VISION, MISSION, etc.)
+- **Documentation updates**: Re-ingest after major doc changes
+- **Mission drift recovery**: Refresh mission concepts after refactoring
+
+### Integration with Overlays
+
+Documents ingested via `genesis:docs` populate:
+
+- **O₄ (Mission)**: Strategic concepts, vision, principles
+- **Ask command**: Enables semantic Q&A about documentation
+- **Coherence**: Enables alignment scoring between code and mission
+
+---
+
+## query — Codebase Queries
+
+**Command**: `cognition-cli query <question>`
+
+**Purpose**: Query the codebase structure for information (functions, classes, dependencies).
+
+### Difference from `ask`
+
+- **query**: Structural/dependency queries (uses O₁, O₃)
+- **ask**: Semantic Q&A about documentation (uses O₄, embeddings)
+
+### Usage
+
+```bash
+# Find function definition
+cognition-cli query "where is parseConfig defined"
+
+# Find dependencies
+cognition-cli query "what does UserService depend on" --lineage
+
+# Find usage
+cognition-cli query "where is SecurityValidator used"
+```
+
+### Command Options
+
+```bash
+cognition-cli query <question> [options]
+
+# Options:
+#   -p, --project-root <path>   Root directory (default: current directory)
+#   -d, --depth <level>         Depth of dependency traversal (default: 0)
+#   --lineage                   Output dependency lineage as JSON
+```
+
+### Example
+
+```bash
+$ cognition-cli query "what does MissionValidator depend on" --lineage
+
+{
+  "symbol": "MissionValidator",
+  "filePath": "src/core/mission/validator.ts",
+  "dependencies": [
+    {
+      "symbol": "WorkbenchClient",
+      "filePath": "src/core/executors/workbench-client.ts",
+      "type": "import"
+    },
+    {
+      "symbol": "MissionConceptsManager",
+      "filePath": "src/core/overlays/mission-concepts/manager.ts",
+      "type": "import"
+    }
+  ]
+}
+```
+
+---
+
 ## ask — Semantic Q&A
 
 **Command**: `cognition-cli ask "<question>" [--verbose]`
@@ -460,20 +786,506 @@ Coverage by Overlay:
 
 ---
 
+## lattice — Boolean Algebra
+
+**Command**: `cognition-cli lattice <query>`
+
+**Purpose**: Execute boolean algebra operations across overlays using lattice algebra. **This is the core query interface** for compositional analysis.
+
+**Prerequisites**: At least one overlay must be generated.
+
+### Why Lattice Algebra?
+
+Traditional searches find individual items. Lattice algebra finds **relationships** between overlays:
+
+- **Coverage gaps**: What code lacks security documentation?
+- **Alignment**: Which security threats align with mission principles?
+- **Projection**: Which operational patterns ensure security?
+
+### Operators
+
+#### Set Operations (Exact ID Matching)
+
+```bash
++, |, OR       # Union (combine items from both overlays)
+&, AND         # Intersection (items in both overlays)
+-, \           # Difference (items in A but not B)
+```
+
+#### Semantic Operations (Embedding Similarity)
+
+```bash
+~, MEET        # Meet (find aligned items via embeddings)
+->, TO         # Project (find B items similar to A items)
+```
+
+#### Filters
+
+```bash
+O2[type]                    # Filter by type field
+O2[severity=critical]       # Filter by metadata value
+O2[severity=critical,high]  # Multiple values (OR logic)
+```
+
+### Usage Examples
+
+#### Coverage Gaps
+
+Find code symbols without security documentation:
+
+```bash
+$ cognition-cli lattice "O1 - O2"
+
+Code Symbols NOT Covered by Security:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function:processPayment (src/payments.ts)
+  Risk: Payment processing without documented security constraints
+
+function:handleUserInput (src/input.ts)
+  Risk: Input handling without validation guidelines
+
+class:AdminController (src/admin.ts)
+  Risk: Admin functionality without access control docs
+
+Total: 23 uncovered symbols
+```
+
+#### Security Alignment
+
+Find attacks that align with mission principles (to prioritize defense):
+
+```bash
+$ cognition-cli lattice "O2[attack_vector] ~ O4[principle]"
+
+Attack Vectors Aligned with Mission Principles:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+mission_drift_poisoning (87.3% aligned with "verifiable_alignment")
+  Principle: Verifiable mission alignment
+  Attack: Gradual mission drift via malicious context
+
+prompt_injection (82.1% aligned with "transparency")
+  Principle: Transparent AI behavior
+  Attack: Hidden instructions in user input
+
+Total: 12 high-alignment attacks
+```
+
+#### Operational Security
+
+Find workflows that ensure security boundaries:
+
+```bash
+$ cognition-cli lattice "O5[workflow] -> O2[boundary]"
+
+Workflows Projecting to Security Boundaries:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+workflow:pre_commit_validation → boundary:input_sanitization (0.91)
+workflow:code_review_process → boundary:access_control (0.88)
+workflow:deployment_checklist → boundary:data_encryption (0.85)
+
+Total: 7 workflow-boundary projections
+```
+
+#### Complex Queries
+
+Combine operators with parentheses:
+
+```bash
+# Critical security issues in mission-aligned code
+cognition-cli lattice "(O2[severity=critical] ~ O4) & O1"
+
+# Workflows that don't align with security OR mission
+cognition-cli lattice "O5 - (O5 ~ O2 | O5 ~ O4)"
+
+# Mathematical proofs about security-critical code
+cognition-cli lattice "(O6[theorem] ~ O2) & (O1 - O3)"
+```
+
+### Command Options
+
+```bash
+cognition-cli lattice <query> [options]
+
+# Options:
+#   -p, --project-root <path>   Root directory (default: current directory)
+#   -f, --format <format>       Output format: table, json, summary (default: table)
+#   -l, --limit <number>        Maximum results to show (default: 50)
+#   -v, --verbose               Show detailed error messages
+```
+
+### Output Formats
+
+**Table** (default):
+```bash
+$ cognition-cli lattice "O1 - O2" --format table
+
+Symbol                     | File                      | Risk Level
+---------------------------|---------------------------|------------
+processPayment             | src/payments.ts:45        | High
+handleUserInput            | src/input.ts:12           | Medium
+```
+
+**JSON**:
+```bash
+$ cognition-cli lattice "O2 ~ O4" --format json
+
+{
+  "query": "O2 ~ O4",
+  "results": [
+    {
+      "left_item": { "type": "attack_vector", "content": "..." },
+      "right_item": { "type": "principle", "content": "..." },
+      "similarity": 0.873
+    }
+  ]
+}
+```
+
+**Summary**:
+```bash
+$ cognition-cli lattice "O1 - O2" --format summary
+
+Query: O1 - O2
+Results: 23 items
+Coverage: 23/156 symbols (14.7%) lack security docs
+Recommendation: Document high-risk symbols first
+```
+
+### Advanced: Meet Operation Deep-Dive
+
+The Meet operation (`~`) is the most powerful:
+
+```bash
+# How it works:
+# 1. Compute embeddings for all items in O2
+# 2. Compute embeddings for all items in O4
+# 3. Calculate cosine similarity between all pairs
+# 4. Return pairs with similarity > 0.7 (default threshold)
+# 5. Sort by descending similarity
+```
+
+**Why this matters**:
+
+Traditional search finds exact matches. Meet finds **conceptual alignment**:
+
+```
+O2 item: "SQL injection via user input fields"
+O4 item: "Transparency in data handling"
+
+Meet score: 0.82  ← High alignment!
+Insight: SQL injection violates transparency principle
+```
+
+### Troubleshooting
+
+**Error: "No overlay O5 found"**
+
+```bash
+# Generate the missing overlay:
+cognition-cli overlay generate operational_patterns
+```
+
+**Error: "Parse error: unexpected token"**
+
+```bash
+# Check query syntax:
+# - Use quotes for queries with spaces: "O1 - O2"
+# - Escape shell special characters
+# - Valid operators: +, -, &, |, ~, ->
+```
+
+**Empty Results**
+
+```bash
+# Check overlay population:
+cognition-cli overlay list
+
+# Verify embeddings exist (for ~ and -> operators):
+# LanceDB must be initialized for semantic operations
+```
+
+### Links to Deeper Dives
+
+- **[Chapter 12: Boolean Operations](../part-3-algebra/12-boolean-operations.md)** — Formal algebra specification
+- **[Chapter 13: Query Syntax](../part-3-algebra/13-query-syntax.md)** — Parser implementation
+- **[Chapter 14: Set Operations](../part-3-algebra/14-set-operations.md)** — Symbol algebra
+
+---
+
 ## patterns — Pattern Detection
 
-**Command**: `cognition-cli patterns <pattern-type>`
+**Command**: `cognition-cli patterns <subcommand>`
 
-**Purpose**: Detect structural and semantic patterns in the codebase.
+**Purpose**: Manage and query structural and lineage patterns in the codebase.
 
 **Prerequisites**: Genesis must have run.
 
-**Pattern Types**:
+### Subcommands
+
+#### find-similar
+
+Find patterns similar to a given symbol using embedding similarity.
 
 ```bash
-cognition-cli patterns security     # Detect security patterns
-cognition-cli patterns architecture # Detect architectural patterns
-cognition-cli patterns idioms       # Detect language idioms
+cognition-cli patterns find-similar <symbol> [options]
+
+# Options:
+#   -k, --top-k <number>   Number of similar patterns (default: 10)
+#   --type <type>          Type: 'structural' or 'lineage' (default: structural)
+#   --json                 Output raw JSON
+```
+
+**Example**:
+
+```bash
+$ cognition-cli patterns find-similar "SecurityValidator" --top-k 5
+
+🔍 Structural patterns similar to SecurityValidator:
+
+1. MissionValidator [validator]
+   📁 src/core/mission/validator.ts
+   ████████████████ 87.3%
+   Validates mission alignment and drift detection
+
+2. IntegrityValidator [validator]
+   📁 src/core/security/integrity.ts
+   ██████████████ 82.1%
+   Validates data integrity and checksums
+
+...
+```
+
+#### analyze
+
+Analyze architectural patterns across the codebase, grouped by role.
+
+```bash
+cognition-cli patterns analyze [options]
+
+# Options:
+#   --type <type>    Type: 'structural' or 'lineage' (default: structural)
+#   --verbose        Show detailed information including file paths
+```
+
+**Example**:
+
+```bash
+$ cognition-cli patterns analyze
+
+📊 Architectural Pattern Distribution:
+
+validator: 12 patterns
+  - SecurityValidator, MissionValidator, IntegrityValidator...
+
+service: 34 patterns
+  - WorkbenchClient, PGCManager, OverlayManager...
+
+util: 18 patterns
+  - hashContent, formatTimestamp, parseFrontmatter...
+```
+
+#### list
+
+List all patterns, optionally filtered by role.
+
+```bash
+cognition-cli patterns list [options]
+
+# Options:
+#   --role <role>    Filter by architectural role
+#   --type <type>    Type: 'structural' or 'lineage' (default: structural)
+#   --json           Output raw JSON
+```
+
+#### inspect
+
+Deep-dive into a specific symbol with full details.
+
+```bash
+cognition-cli patterns inspect <symbol> [options]
+
+# Options:
+#   --type <type>    Type: 'structural' or 'lineage' (default: structural)
+```
+
+#### graph
+
+Visualize dependency graph for a symbol.
+
+```bash
+cognition-cli patterns graph <symbol> [options]
+
+# Options:
+#   --max-depth <number>  Maximum depth to traverse
+#   --json                Output as JSON instead of ASCII tree
+```
+
+#### compare
+
+Compare similarity between two symbols.
+
+```bash
+cognition-cli patterns compare <symbol1> <symbol2>
+```
+
+---
+
+## concepts — Mission Concepts
+
+**Command**: `cognition-cli concepts <subcommand>`
+
+**Purpose**: Query mission concepts from strategic documents ingested via `genesis:docs`.
+
+**Prerequisites**: Run `genesis:docs` to ingest documentation first.
+
+### Subcommands
+
+#### list
+
+List all mission concepts sorted by weight (importance).
+
+```bash
+cognition-cli concepts list [options]
+
+# Options:
+#   -p, --project-root <path>   Root directory
+#   --json                      Output as JSON
+#   --limit <number>            Number of results (default: all)
+```
+
+**Example**:
+
+```bash
+$ cognition-cli concepts list --limit 10
+
+Mission Concepts (by weight):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Verifiable AI Alignment (weight: 0.92)
+   Section: Vision
+   Occurrences: 15
+
+2. Cognitive Proof of Work (weight: 0.89)
+   Section: Core Concepts
+   Occurrences: 12
+
+3. Lattice Knowledge Structure (weight: 0.87)
+   Section: Architecture
+   Occurrences: 18
+
+...
+```
+
+#### top
+
+Show top N concepts (default: 20).
+
+```bash
+cognition-cli concepts top [count]
+```
+
+#### search
+
+Find concepts by keyword.
+
+```bash
+cognition-cli concepts search <keyword> [options]
+
+# Options:
+#   --json    Output as JSON
+```
+
+**Example**:
+
+```bash
+$ cognition-cli concepts search "security"
+
+Concepts matching "security":
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Security Boundary Enforcement (weight: 0.84)
+  "Enforce strict boundaries between overlays..."
+
+Mission Drift Security (weight: 0.81)
+  "Detect and prevent mission drift attacks..."
+
+Total: 5 matches
+```
+
+#### by-section
+
+Filter concepts by document section.
+
+```bash
+cognition-cli concepts by-section <section> [options]
+
+# Common sections: Vision, Mission, Principles, Architecture, Security
+```
+
+#### inspect
+
+Detailed information about a specific concept.
+
+```bash
+cognition-cli concepts inspect <text> [options]
+```
+
+**Example**:
+
+```bash
+$ cognition-cli concepts inspect "Verifiable AI"
+
+Concept: Verifiable AI Alignment
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Content:
+  Our core mission is to create verifiable AI-human symbiosis
+  through mathematically grounded cognitive architectures...
+
+Metadata:
+  Source: VISION.md
+  Section: Strategic Intent
+  Weight: 0.92
+  Occurrences: 15
+
+Embedding: ✓ Available (768-dimensional)
+
+Related Concepts (by similarity):
+  1. Cognitive Proof of Work (0.87)
+  2. Mission Integrity (0.84)
+  3. Transparent AI Behavior (0.82)
+```
+
+### Use Cases
+
+**Mission Alignment Audit**:
+```bash
+# Find all mission concepts
+cognition-cli concepts list
+
+# Check if security principles are captured
+cognition-cli concepts search "security"
+
+# Find concepts in specific sections
+cognition-cli concepts by-section "Principles"
+```
+
+**Integration with Coherence**:
+
+Concepts from `concepts` command feed into coherence scoring:
+
+```bash
+# 1. Ingest mission documents
+cognition-cli genesis:docs VISION.md
+
+# 2. Query concepts
+cognition-cli concepts top 20
+
+# 3. Check code alignment
+cognition-cli coherence aligned
 ```
 
 ---
@@ -537,6 +1349,324 @@ Risk Assessment: 🔴 HIGH
   - Wide dependency graph
   - Recommend thorough testing
 ```
+
+---
+
+## watch — File Monitoring
+
+**Command**: `cognition-cli watch`
+
+**Purpose**: Monitor file changes and maintain PGC coherence state in real-time.
+
+### What It Does
+
+Watches source files for changes and maintains `dirty_state.json`:
+
+1. **File Change Detection**: Monitors modifications, additions, deletions
+2. **Hash Tracking**: Records SHA256 hashes for each file
+3. **Dirty State**: Maintains list of changed files since last genesis/update
+4. **Debouncing**: Groups rapid changes (default: 300ms)
+
+### Usage
+
+```bash
+# Watch tracked files only
+cognition-cli watch
+
+# Also watch for new untracked files
+cognition-cli watch --untracked
+
+# Custom debounce delay
+cognition-cli watch --debounce 1000
+
+# Verbose output (show all events)
+cognition-cli watch --verbose
+```
+
+### Command Options
+
+```bash
+cognition-cli watch [options]
+
+# Options:
+#   --untracked           Also watch for new untracked files
+#   --debounce <ms>       Debounce delay in milliseconds (default: 300)
+#   --verbose             Show detailed change events
+```
+
+### Example Output
+
+```bash
+$ cognition-cli watch --verbose
+
+🔍 Watching for file changes...
+Press Ctrl+C to stop
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[10:34:12] ✎ MODIFIED: src/core/mission/validator.ts
+           Hash: a7f3b9c... → d4e8f2a...
+
+[10:34:15] + ADDED: src/utils/helpers.ts
+           Hash: b8c9d3e...
+
+[10:34:20] - DELETED: src/deprecated/old-logic.ts
+
+Dirty state updated: 3 files changed
+```
+
+### Integration with status and update
+
+**Typical workflow**:
+
+```bash
+# Terminal 1: Watch for changes
+cognition-cli watch
+
+# Terminal 2: Make code changes...
+vim src/core/mission/validator.ts
+
+# Terminal 2: Check coherence
+cognition-cli status
+# Output: Incoherent (3 files modified)
+
+# Terminal 2: Sync PGC
+cognition-cli update
+
+# Terminal 2: Verify
+cognition-cli status
+# Output: Coherent ✓
+```
+
+### Graceful Shutdown
+
+Press `Ctrl+C` to stop watching. The tool handles `SIGINT` and `SIGTERM` gracefully.
+
+---
+
+## status — Coherence State
+
+**Command**: `cognition-cli status`
+
+**Purpose**: Check PGC coherence state (< 10ms!) by reading `dirty_state.json`.
+
+### What It Checks
+
+- **Modified files**: Files changed since last genesis/update
+- **Untracked files**: New files not in PGC
+- **Blast radius**: Impacted symbols (if `--verbose`)
+- **Exit code**: 0 (coherent) or 1 (incoherent)
+
+### Usage
+
+```bash
+# Quick check
+cognition-cli status
+
+# Detailed output with blast radius
+cognition-cli status --verbose
+
+# JSON output (for scripts/CI)
+cognition-cli status --json
+```
+
+### Command Options
+
+```bash
+cognition-cli status [options]
+
+# Options:
+#   --json       Output as JSON
+#   --verbose    Show detailed blast radius information
+```
+
+### Example Output
+
+**Coherent**:
+
+```bash
+$ cognition-cli status
+
+PGC Status: ✓ Coherent
+
+No changes detected since last sync.
+```
+
+**Incoherent**:
+
+```bash
+$ cognition-cli status
+
+PGC Status: ⚠️ Incoherent
+
+Modified files: 3
+  - src/core/mission/validator.ts
+  - src/utils/helpers.ts
+  - src/api/routes.ts
+
+Untracked files: 1
+  - src/new-feature.ts
+
+Recommendation: Run `cognition-cli update` to restore coherence
+```
+
+**Verbose mode**:
+
+```bash
+$ cognition-cli status --verbose
+
+PGC Status: ⚠️ Incoherent
+
+Modified files: 3
+
+Blast Radius Analysis:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+src/core/mission/validator.ts (23 symbols impacted)
+  → MissionValidator class
+  → validateAlignment function
+  → 21 other symbols
+
+src/utils/helpers.ts (8 symbols impacted)
+  → hashContent function
+  → formatTimestamp function
+  → 6 other symbols
+
+Total impacted: 31 symbols across 12 files
+```
+
+### CI/CD Integration
+
+Use exit codes in scripts:
+
+```bash
+#!/bin/bash
+# Check coherence before deploy
+
+cognition-cli status
+if [ $? -ne 0 ]; then
+  echo "PGC is incoherent! Run update before deploying."
+  exit 1
+fi
+
+echo "PGC coherent, proceeding with deploy..."
+```
+
+**JSON mode**:
+
+```bash
+$ cognition-cli status --json
+
+{
+  "coherent": false,
+  "modified": ["src/core/mission/validator.ts", "src/utils/helpers.ts"],
+  "untracked": ["src/new-feature.ts"],
+  "impactedSymbols": 31
+}
+```
+
+---
+
+## update — Incremental Sync
+
+**Command**: `cognition-cli update`
+
+**Purpose**: Incrementally sync PGC with file changes (Monument 3 feature).
+
+### What It Does
+
+Reads `dirty_state.json` and updates only changed files:
+
+1. **Read Dirty State**: Gets list of modified/added/deleted files
+2. **Incremental Processing**: Re-processes only changed files
+3. **Overlay Updates**: Updates affected overlays (O₁, O₃, O₇)
+4. **Coherence Restoration**: Clears dirty state when complete
+
+### Usage
+
+```bash
+# Update PGC based on dirty_state.json
+cognition-cli update
+
+# Specify custom project root
+cognition-cli update --project-root /path/to/project
+
+# Custom workbench URL
+cognition-cli update --workbench http://localhost:9000
+```
+
+### Command Options
+
+```bash
+cognition-cli update [options]
+
+# Options:
+#   -p, --project-root <path>   Root directory (default: current directory)
+#   -w, --workbench <url>       eGemma workbench URL
+```
+
+### Example
+
+```bash
+$ cognition-cli status
+PGC Status: ⚠️ Incoherent (3 files modified)
+
+$ cognition-cli update
+
+Incremental PGC Update
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Reading dirty state...
+  Modified: 3 files
+  Added: 1 file
+  Deleted: 0 files
+
+[1/4] Re-processing modified files...
+⠋ src/core/mission/validator.ts
+⠋ src/utils/helpers.ts
+⠋ src/api/routes.ts
+✓ Processed 3 files
+
+[2/4] Updating overlays...
+⠋ O₁ Structure
+⠋ O₃ Lineage
+✓ Overlays updated
+
+[3/4] Regenerating coherence scores...
+✓ O₇ Coherence updated
+
+[4/4] Clearing dirty state...
+✓ PGC coherent
+
+Summary:
+  Files processed: 4
+  Symbols updated: 31
+  Time: 12.3s (vs 2m 34s for full genesis)
+
+$ cognition-cli status
+PGC Status: ✓ Coherent
+```
+
+### vs. Full Genesis
+
+| Command | Use Case | Speed | Coverage |
+|---------|----------|-------|----------|
+| `genesis` | Initial setup, major refactor | Slow (minutes) | Full codebase |
+| `update` | Incremental changes | Fast (seconds) | Changed files only |
+
+**When to use update**:
+
+- Daily development workflow
+- After merging PRs
+- Before commits (pre-commit hook)
+- Continuous integration
+
+**When to use genesis**:
+
+- Initial PGC setup
+- Major refactoring (100+ files changed)
+- After upgrading CLI version
+- PGC corruption recovery
 
 ---
 
