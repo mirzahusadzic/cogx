@@ -1,3 +1,55 @@
+/**
+ * Mission Integrity Monitor - Version Control for Mission Documents
+ *
+ * Creates an immutable, append-only audit trail of all mission document versions.
+ * Enables semantic drift detection by tracking embedding evolution over time.
+ *
+ * MISSION ALIGNMENT:
+ * - Implements "Cryptographic Truth" via content-addressable versioning (86.7% importance)
+ * - Supports "Verification Over Trust" through immutable audit trails (VISION.md:122, 74.3%)
+ * - Enables "Oracle Validation" by preserving version history (Innovation #2, 88.1%)
+ * - Part of O2 (Security) overlay - FOUNDATIONAL and non-negotiable
+ *
+ * DESIGN RATIONALE:
+ * - Immutable versioning prevents evidence tampering
+ * - Semantic fingerprints enable drift detection
+ * - Git integration provides provenance when available
+ * - Full embedding snapshots enable temporal analysis
+ *
+ * SECURITY GUARANTEES:
+ * - Append-only: Versions never deleted or modified
+ * - Monotonic: Version numbers always increase
+ * - Content-addressable: SHA-256 hashes verify integrity
+ * - Atomic writes: Temp file + rename prevents corruption
+ *
+ * THREAT MODEL:
+ * Defends against:
+ * - Mission poisoning (gradual drift is detectable)
+ * - Evidence destruction (append-only log)
+ * - Version confusion (monotonic versioning)
+ *
+ * Does NOT defend against:
+ * - Full directory deletion (.open_cognition/)
+ * - Disk corruption (no redundancy)
+ * - Git history rewriting (best-effort git integration)
+ *
+ * STORAGE:
+ * - Location: .open_cognition/mission_integrity/versions.json
+ * - Format: JSON array of MissionVersion objects
+ * - Atomicity: Temp file + rename
+ *
+ * @example
+ * const monitor = new MissionIntegrityMonitor(pgcRoot);
+ * await monitor.recordVersion('/path/to/VISION.md', concepts);
+ *
+ * @example
+ * // Check for drift
+ * const latest = await monitor.getLatestVersion();
+ * if (latest) {
+ *   const drift = detector.analyzeDrift(latest, newVersion);
+ * }
+ */
+
 import { createHash } from 'crypto';
 import fs from 'fs-extra';
 import path from 'path';
@@ -6,7 +58,12 @@ import { execSync } from 'child_process';
 
 /**
  * Represents a single version of a mission document
- * Creates an immutable audit trail for drift detection
+ *
+ * Creates an immutable snapshot of mission state including:
+ * - Content hash (SHA-256)
+ * - Concept embeddings (full snapshot)
+ * - Semantic fingerprint (centroid hash)
+ * - Git provenance (when available)
  */
 export interface MissionVersion {
   version: number; // Monotonically increasing version number
@@ -20,7 +77,7 @@ export interface MissionVersion {
 }
 
 /**
- * Git metadata for a file
+ * Git metadata for a file (best-effort provenance)
  */
 interface GitInfo {
   author?: string;
@@ -28,29 +85,34 @@ interface GitInfo {
 }
 
 /**
- * MissionIntegrityMonitor
+ * MissionIntegrityMonitor - Mission version tracker
  *
- * PURPOSE:
- * Creates an immutable audit trail of all mission document versions.
- * Enables semantic drift detection by tracking embedding evolution over time.
+ * Manages the immutable audit trail of mission document versions.
+ * Provides methods to record, retrieve, and analyze version history.
  *
- * SECURITY ROLE:
- * - Prevents attackers from erasing evidence of gradual poisoning
- * - Provides forensic trail for investigating mission changes
- * - Enables "rewind" to previous mission state if needed
- *
- * STORAGE:
- * .open_cognition/mission_integrity/versions.json
- *
- * INVARIANTS:
+ * INVARIANTS (enforced by design):
  * - Versions are append-only (never deleted or modified)
  * - Version numbers are monotonically increasing
  * - Each version includes full snapshot of embeddings
+ * - Atomic writes prevent partial updates
+ *
+ * @example
+ * const monitor = new MissionIntegrityMonitor('/path/to/.open_cognition');
+ * const version = await monitor.recordVersion(visionPath, concepts);
+ * console.log(`Recorded v${version.version} with hash ${version.hash}`);
  */
 export class MissionIntegrityMonitor {
   private versionsPath: string;
   private versionsDir: string;
 
+  /**
+   * Creates a MissionIntegrityMonitor
+   *
+   * @param pgcRoot - Path to Grounded Context Pool (PGC) root (.open_cognition/)
+   *
+   * @example
+   * const monitor = new MissionIntegrityMonitor('/workspace/.open_cognition');
+   */
   constructor(private pgcRoot: string) {
     this.versionsDir = path.join(pgcRoot, 'mission_integrity');
     this.versionsPath = path.join(this.versionsDir, 'versions.json');
@@ -59,17 +121,32 @@ export class MissionIntegrityMonitor {
   /**
    * Record a new version of a mission document
    *
+   * Creates an immutable snapshot of mission state with content hash,
+   * embeddings, semantic fingerprint, and git provenance (if available).
+   *
    * ALGORITHM:
    * 1. Hash the document content (SHA-256)
-   * 2. Get git metadata (author, commit) if available
-   * 3. Compute semantic fingerprint from concept embeddings
-   * 4. Create version record
-   * 5. Append to immutable log
+   * 2. Get git metadata (author, commit) - best effort, non-blocking
+   * 3. Extract valid embeddings from concepts
+   * 4. Compute semantic fingerprint (centroid hash)
+   * 5. Get next version number (monotonic)
+   * 6. Create version record
+   * 7. Append to log (atomic write: temp + rename)
    *
-   * SECURITY:
-   * - Never overwrites existing versions
-   * - Atomic writes (write to temp, then rename)
-   * - Version numbers cannot go backwards
+   * ATOMICITY:
+   * - Writes to temp file first
+   * - Renames to versions.json (atomic on POSIX)
+   * - Prevents partial updates
+   *
+   * @param visionPath - Path to mission document
+   * @param concepts - Extracted concepts with embeddings
+   * @returns Recorded MissionVersion
+   * @throws Error if no concepts have embeddings
+   *
+   * @example
+   * const concepts = [{text: "Security first", embedding: [...], weight: 0.9}];
+   * const version = await monitor.recordVersion('/path/to/VISION.md', concepts);
+   * console.log(`Recorded version ${version.version} (hash: ${version.hash.slice(0,8)})`);
    */
   async recordVersion(
     visionPath: string,
@@ -126,7 +203,16 @@ export class MissionIntegrityMonitor {
 
   /**
    * Get the latest mission version
-   * Returns null if no versions exist (first ingestion)
+   *
+   * @returns Most recent MissionVersion, or null if no versions exist
+   *
+   * @example
+   * const latest = await monitor.getLatestVersion();
+   * if (latest) {
+   *   console.log(`Latest: v${latest.version} from ${latest.timestamp}`);
+   * } else {
+   *   console.log('No versions recorded yet (first ingestion)');
+   * }
    */
   async getLatestVersion(): Promise<MissionVersion | null> {
     const versions = await this.loadVersions();
@@ -134,14 +220,32 @@ export class MissionIntegrityMonitor {
   }
 
   /**
-   * Get all versions (for auditing/debugging)
+   * Get all versions for audit trail analysis
+   *
+   * @returns Array of all MissionVersions in chronological order
+   *
+   * @example
+   * const versions = await monitor.getAllVersions();
+   * console.log(`Total versions: ${versions.length}`);
+   * versions.forEach(v => {
+   *   console.log(`v${v.version}: ${v.timestamp} by ${v.author || 'unknown'}`);
+   * });
    */
   async getAllVersions(): Promise<MissionVersion[]> {
     return await this.loadVersions();
   }
 
   /**
-   * Get a specific version by number
+   * Get a specific version by version number
+   *
+   * @param versionNumber - Version number to retrieve
+   * @returns MissionVersion if found, null otherwise
+   *
+   * @example
+   * const v1 = await monitor.getVersion(1);
+   * if (v1) {
+   *   console.log(`v1 hash: ${v1.hash}`);
+   * }
    */
   async getVersion(versionNumber: number): Promise<MissionVersion | null> {
     const versions = await this.loadVersions();
@@ -149,22 +253,31 @@ export class MissionIntegrityMonitor {
   }
 
   /**
-   * Compute semantic fingerprint from embeddings
+   * Compute semantic fingerprint from concept embeddings
+   *
+   * Creates a compact, comparable identifier representing the "average meaning"
+   * of the mission document. Changes to this fingerprint indicate semantic drift.
    *
    * ALGORITHM:
-   * 1. Take top 10 concepts by weight (or all if < 10)
-   * 2. Compute centroid of their embeddings (768-dim average)
-   * 3. Hash the centroid with 6 decimal precision
+   * 1. Compute centroid (average) of all embeddings
+   * 2. Round each dimension to 6 decimal places
+   * 3. Hash the rounded centroid (SHA-256)
    *
-   * WHY:
-   * - Centroid represents "average meaning" of mission
-   * - Hash creates compact, comparable identifier
+   * WHY THIS WORKS:
+   * - Centroid represents average semantic position in embedding space
    * - 6 decimal precision balances stability vs. sensitivity
-   * - Changes to this fingerprint indicate semantic drift
+   * - Hash creates compact identifier for comparison
+   * - Different fingerprints = different meaning
    *
-   * NOTE: We use all embeddings here, not just top 10, since concepts
-   * are already weighted by the ConceptExtractor. Taking top 10 would
-   * require weight information which we don't have access to here.
+   * NOTE: Uses all embeddings (already weighted by ConceptExtractor).
+   * Taking top-K would require weight information not available here.
+   *
+   * @param embeddings - Array of concept embeddings
+   * @returns SHA-256 hash of rounded centroid
+   *
+   * @example
+   * const fingerprint = computeSemanticFingerprint(embeddings);
+   * // "a3f2e1c4..." (SHA-256 hash)
    */
   private computeSemanticFingerprint(embeddings: number[][]): string {
     // Use all embeddings (they're already ranked by importance)
