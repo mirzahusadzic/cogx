@@ -1,11 +1,50 @@
-// src/core/search-worker.ts
+/**
+ * Search Worker - Parallel Symbol Search
+ *
+ * Worker thread for parallelizing symbol search across the PGC index.
+ * Each worker processes a chunk of index entries, searching structural
+ * data for matching symbols.
+ *
+ * ARCHITECTURE:
+ * - Main thread: Splits index into chunks, spawns workers
+ * - Workers: Process chunks in parallel, return matches
+ * - Main thread: Aggregates results
+ *
+ * ALGORITHM:
+ * 1. Receive chunk of index entries + search term
+ * 2. For each entry:
+ *    a. Load structural data from object store
+ *    b. Deep search for symbol in all structures (classes, functions, etc.)
+ *    c. If found, add to matches
+ * 3. Send matches back to main thread
+ *
+ * PERFORMANCE:
+ * - Parallel search across CPU cores
+ * - Self-contained (no shared state between workers)
+ * - Minimal data transfer (only matches sent back)
+ *
+ * @module search-worker
+ */
 
 import { parentPort, workerData } from 'worker_threads';
 import { ObjectStore } from './object-store.js';
 import { IndexData } from '../types/index.js';
 import { StructuralData } from '../types/structural.js';
 
-// This helper function is duplicated here to make the worker self-contained.
+/**
+ * Canonicalize symbol name for comparison.
+ *
+ * Converts camelCase/PascalCase to kebab-case for case-insensitive matching.
+ * Duplicated here to make worker self-contained (no dependencies on main thread).
+ *
+ * @param symbol - Symbol name to canonicalize
+ * @returns Canonicalized symbol in kebab-case
+ * @private
+ *
+ * @example
+ * canonicalizeSymbol('FooBar') // → 'foo-bar'
+ * canonicalizeSymbol('fooBar') // → 'foo-bar'
+ */
 function canonicalizeSymbol(symbol: string): string {
   let canonical = symbol
     .replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, '$1-$2')
@@ -17,7 +56,18 @@ function canonicalizeSymbol(symbol: string): string {
 }
 
 /**
- * This is the main function for the worker thread. It performs the heavy lifting.
+ * Main worker function - performs parallel search across assigned chunk.
+ *
+ * ALGORITHM:
+ * 1. Receive data from main thread (chunk, term, pgcRoot)
+ * 2. Initialize object store
+ * 3. For each index entry in chunk:
+ *    a. Load structural data
+ *    b. Deep search for symbol
+ *    c. If found, add to matches
+ * 4. Send matches back to main thread
+ *
+ * @private
  */
 async function performSearch() {
   // Receive the data chunk and search term from the main thread.

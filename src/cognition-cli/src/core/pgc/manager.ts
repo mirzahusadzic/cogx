@@ -15,7 +15,63 @@ import { LineageQueryResult, Dependency } from '../overlays/lineage/manager.js';
 import { EmbedResponse } from '../types/workbench.js';
 
 /**
- * Manages the Provenance-Grounded Computation system including index, objects, transforms, and overlays.
+ * Provenance-Grounded Computation (PGC) Manager
+ *
+ * Central coordinator for the PGC system - a content-addressable, provenance-tracked
+ * computation framework that ensures all derived data is traceable to its source.
+ *
+ * ARCHITECTURE:
+ * The PGC maintains a complete DAG (Directed Acyclic Graph) of transformations:
+ * - Source files → Structural extraction → Code patterns (O₁)
+ * - Documents → Concept extraction → Overlays (O₂, O₄, O₅, O₆)
+ * - Patterns + Concepts → Strategic coherence (O₇)
+ *
+ * COMPONENTS:
+ * - Index: Fast symbol lookup (name → structural_hash)
+ * - ObjectStore: Content-addressable storage (hash → content)
+ * - TransformLog: Transformation provenance (transform_id → inputs/outputs)
+ * - ReverseDeps: Dependency graph (output_hash → transform_ids that used it)
+ * - Overlays: Pattern metadata and embeddings storage
+ *
+ * GROUNDED CONTEXT POOL (PGC Root):
+ * All data lives in .open_cognition/:
+ * - objects/: Content-addressable blobs (git-style sharding)
+ * - index.jsonl: Symbol → hash mapping
+ * - transform.jsonl: Transform provenance log
+ * - reverse_deps.jsonl: Dependency graph edges
+ * - overlays/: Pattern metadata by overlay type
+ * - lance/: Vector embeddings (LanceDB)
+ *
+ * PROVENANCE:
+ * Every piece of derived data has a complete provenance chain:
+ * 1. Source file (hash, path, timestamp)
+ * 2. Transform that processed it (id, method, timestamp)
+ * 3. Output artifacts (hashes, types)
+ * 4. Dependencies (what used this output)
+ *
+ * DESIGN RATIONALE:
+ * - Content-addressable: Automatic deduplication, cache invalidation
+ * - Provenance tracking: Reproducibility, debugging, incremental updates
+ * - Overlay architecture: Separation of concerns (structure vs semantics)
+ * - Embedding-first: Enables semantic search across all overlays
+ *
+ * @example
+ * // Initialize PGC for a project
+ * const pgc = new PGCManager('/path/to/project');
+ *
+ * // Query structural patterns
+ * const results = await pgc.index.search('MyClass', pgc.objectStore);
+ *
+ * // Get lineage for a symbol (reverse dependency traversal)
+ * const lineage = await pgc.getLineageForSymbol('MyClass', { maxDepth: 3 });
+ *
+ * @example
+ * // Setup embedding service integration
+ * const workbench = new WorkbenchClient('http://localhost:8000');
+ * const embeddingService = new EmbeddingService(workbench.getBaseUrl());
+ * pgc.setEmbeddingRequestHandler(async (params) => {
+ *   return embeddingService.getEmbedding(params.signature, params.dimensions);
+ * });
  */
 export class PGCManager {
   public readonly pgcRoot: string;
@@ -32,6 +88,14 @@ export class PGCManager {
     dimensions: number;
   }) => Promise<EmbedResponse>;
 
+  /**
+   * Initialize PGC manager for a project.
+   *
+   * Creates or opens the .open_cognition directory and initializes
+   * all subsystems (index, object store, logs, overlays).
+   *
+   * @param projectRoot - Path to project root (not .open_cognition itself)
+   */
   constructor(projectRoot: string) {
     this.projectRoot = projectRoot;
     this.pgcRoot = path.join(projectRoot, '.open_cognition');
@@ -43,8 +107,24 @@ export class PGCManager {
   }
 
   /**
-   * Sets the embedding request handler - used by pattern managers
-   * to provide centralized embedding services to workers
+   * Set embedding request handler for centralized embedding coordination.
+   *
+   * Pattern managers use this to delegate embedding generation to a
+   * centralized service, ensuring rate limiting and fair resource allocation.
+   *
+   * DESIGN:
+   * - Workers call pgc.requestEmbedding()
+   * - This handler routes to EmbeddingService
+   * - Service queues and rate-limits all requests
+   * - No worker directly calls Workbench (prevents rate limit violations)
+   *
+   * @param handler - Function that generates embeddings via centralized service
+   *
+   * @example
+   * const embeddingService = new EmbeddingService('http://localhost:8000');
+   * pgc.setEmbeddingRequestHandler(async (params) => {
+   *   return embeddingService.getEmbedding(params.signature, params.dimensions);
+   * });
    */
   public setEmbeddingRequestHandler(
     handler: (params: {
@@ -56,7 +136,25 @@ export class PGCManager {
   }
 
   /**
-   * Request an embedding - used by workers to get embeddings via centralized service
+   * Request an embedding via centralized service.
+   *
+   * Workers use this method to generate embeddings without directly accessing
+   * Workbench. The request is routed through the embedding handler which
+   * queues and rate-limits all requests.
+   *
+   * @param params - Embedding request parameters
+   * @param params.signature - Text to embed (structural/semantic pattern)
+   * @param params.dimensions - Embedding dimensions (768 for eGemma)
+   * @returns Promise resolving to embedding response
+   * @throws {Error} If embedding handler not configured
+   *
+   * @example
+   * // Worker requesting embedding
+   * const response = await pgc.requestEmbedding({
+   *   signature: JSON.stringify(structuralPattern),
+   *   dimensions: 768
+   * });
+   * const embedding = response.embedding_768d;
    */
   public async requestEmbedding(params: {
     signature: string;
@@ -72,13 +170,31 @@ export class PGCManager {
   }
 
   /**
-   * Check if embedding requests are available
+   * Check if embedding requests are available.
+   *
+   * @returns True if embedding handler is configured
    */
   public canRequestEmbeddings(): boolean {
     return this.embeddingRequestHandler !== undefined;
   }
 
-  // This method is COPIED from query.ts to be reused by the overlay command
+  /**
+   * Find best structural match for a symbol by fidelity.
+   *
+   * When multiple results exist for a symbol (e.g., class with same name
+   * in different files), this returns the one with highest fidelity score.
+   *
+   * ALGORITHM:
+   * 1. Search index for symbol
+   * 2. For each result, load structural data
+   * 3. Compare fidelity scores
+   * 4. Return highest-fidelity result
+   *
+   * @param symbolName - Symbol to find (class, function, interface)
+   * @param context - Optional context for disambiguation
+   * @returns Best match or null if not found
+   * @private
+   */
   private async findBestResultForSymbol(
     symbolName: string,
     context?: string
@@ -108,8 +224,63 @@ export class PGCManager {
   }
 
   /**
-   * THE GEM: The Time-Traveling Archaeologist.
-   * This method performs the true, grounded, reverse traversal to build a symbol's lineage.
+   * THE GEM: The Time-Traveling Archaeologist
+   *
+   * Perform provenance-grounded lineage traversal to build a symbol's complete
+   * dependency tree by traveling backwards through time via the transform log.
+   *
+   * ALGORITHM ("The Reversal"):
+   * 1. FIND: Locate symbol in index → get structural_hash
+   * 2. REVERSE: Find transform that CREATED this hash (via reverseDeps)
+   * 3. RECEIPT: Get transform manifest → extract INPUT hash (source file)
+   * 4. PAYLOAD: Load source file structure → find all dependencies
+   * 5. EXPANSION: For each dependency, repeat steps 1-4 (recursive traversal)
+   * 6. Stop at maxDepth or when no more dependencies found
+   *
+   * DESIGN RATIONALE:
+   * Unlike typical dependency trackers that parse imports/requires, this method
+   * uses the PGC's transform log to traverse backwards through TIME:
+   * - Each symbol has a moment of creation (transform)
+   * - That transform has inputs (source files, dependencies)
+   * - Those inputs contain the full structural context at that moment
+   * - By following this chain, we reconstruct the ACTUAL lineage
+   *
+   * This approach handles:
+   * - Dynamic dependencies (computed at runtime)
+   * - Type dependencies (not just import statements)
+   * - Historical context (what the code looked like when it was written)
+   * - Full provenance chain (complete audit trail)
+   *
+   * @param symbolName - Symbol to trace (class, function, interface)
+   * @param options - Lineage options
+   * @param options.maxDepth - Maximum traversal depth (prevents infinite loops)
+   * @returns Complete lineage tree with dependencies at each depth level
+   *
+   * @example
+   * // Get 3-level lineage for a class
+   * const lineage = await pgc.getLineageForSymbol('StrategicCoherenceManager', {
+   *   maxDepth: 3
+   * });
+   *
+   * // Result structure:
+   * // {
+   * //   initialContext: [StructuralData for StrategicCoherenceManager],
+   * //   dependencies: [
+   * //     { path: "VISION.md -> MissionConcept", depth: 1, structuralData: {...} },
+   * //     { path: "VISION.md -> MissionConcept -> Embedding", depth: 2, structuralData: {...} },
+   * //     ...
+   * //   ]
+   * // }
+   *
+   * @example
+   * // Find all types used by a function
+   * const lineage = await pgc.getLineageForSymbol('computeCoherence', {
+   *   maxDepth: 2
+   * });
+   * const types = lineage.dependencies
+   *   .filter(d => d.depth === 1)
+   *   .map(d => d.structuralData.interfaces?.map(i => i.name))
+   *   .flat();
    */
   public async getLineageForSymbol(
     symbolName: string,

@@ -67,43 +67,75 @@ export interface StrategicCoherenceOverlay {
 }
 
 /**
- * StrategicCoherenceManager
+ * Strategic Coherence Manager (O₇) - LATTICE SYNTHESIS
  *
- * Computes semantic alignment between code (O₁) and mission (O₃) using The Shadow
- * architecture's dual embedding system with lattice-aware Gaussian weighting.
+ * Computes semantic alignment between code (O₁) and mission (O₄) using
+ * The Shadow architecture's dual embedding system with lattice-aware
+ * Gaussian weighting. This is the SYNTHESIS layer - where all overlays
+ * come together to answer: "Does this code serve the mission?"
+ *
+ * LATTICE POSITION: O₇ (Synthesis/Derived)
+ * - Synthesizes: O₁ (code structure) + O₄ (mission concepts)
+ * - Uses: O₂ (reverse_deps graph) for centrality weighting
+ * - Respects: O₂ (security) - coherence never overrides safety
  *
  * ALGORITHM:
  * 1. Load structural pattern embeddings (code symbols from O₁)
- * 2. Load mission concept embeddings (strategic docs from O₃)
+ * 2. Load mission concept embeddings (strategic docs from O₄)
  * 3. For each symbol, compute cosine similarity with all concepts
  * 4. Store top N alignments per symbol
  * 5. Generate reverse mapping (concept → implementing symbols)
  * 6. Compute three coherence metrics:
  *    - Average: Simple arithmetic mean (baseline)
- *    - Weighted: Centrality-based weighting from O₁ graph structure
+ *    - Weighted: Centrality-based from reverse_deps graph
  *    - Lattice: Gaussian + centrality synthesis (filters noise, amplifies signal)
  *
  * LATTICE-AWARE WEIGHTING (Monument 5.1):
  * The lattice coherence metric synthesizes data across overlays:
- * - O₁ (structure): Graph centrality via reverse_deps (dependency count)
- * - O₃ (mission): Semantic similarity scores
+ * - O₁ (structure): Semantic embeddings for alignment
+ * - O₂ (reverse_deps): Graph centrality (dependency count)
+ * - O₄ (mission): Concept embeddings and similarity scores
  * - Gaussian statistics: Z-scores for signal/noise separation
  *
  * Weight formula: w = centrality × gaussian_significance
- * - centrality = log10(dependency_count + 1)
- * - gaussian_significance = max(0.1, 1.0 + z_score)
- * - Filters noise: symbols below μ - σ are excluded entirely
+ * - centrality = log10(dependency_count + 1)  // pure lattice derivation
+ * - gaussian_significance = max(0.1, 1.0 + z_score)  // amplify outliers
+ * - Filters noise: symbols below μ - σ excluded entirely
  * - NO HARDCODED CONSTANTS: all weights derived from lattice structure
  *
- * OVERLAY STRUCTURE:
+ * USE CASES:
+ * - Alignment queries: "Which functions are most aligned with mission?"
+ * - Drift detection: "Which code has drifted from strategic intent?"
+ * - Impact analysis: "What implements 'verifiable AI' concept?"
+ * - PR reviews: "Show me coherence report for this PR"
+ * - Quality metrics: "What's the lattice coherence score?"
+ *
+ * COHERENCE METRICS:
+ * 1. average_coherence: Simple mean (baseline)
+ * 2. weighted_coherence: Centrality-weighted (important symbols matter more)
+ * 3. lattice_coherence: Gaussian-filtered synthesis (noise removed, signal amplified)
+ * 4. median_coherence: 50th percentile (robust to outliers)
+ * 5. top_quartile_coherence: 75th percentile (best performers)
+ * 6. bottom_quartile_coherence: 25th percentile (needs attention)
+ *
+ * STORAGE:
  * .open_cognition/overlays/strategic_coherence/coherence.yaml
  *
- * USE CASES:
- * - "Which functions are most aligned with mission?"
- * - "Which code has drifted from strategic intent?"
- * - "What implements 'verifiable AI' concept?"
- * - "Show me coherence report for this PR"
- * - "What's the lattice coherence after filtering statistical noise?"
+ * @example
+ * // Compute coherence for entire codebase
+ * const manager = new StrategicCoherenceManager(pgcRoot);
+ * const coherence = await manager.computeCoherence(missionDocHash);
+ * console.log(`Lattice coherence: ${coherence.overall_metrics.lattice_coherence}`);
+ *
+ * @example
+ * // Find drifted symbols
+ * const drifted = await manager.getDriftedSymbols(0.5);
+ * console.log(`${drifted.length} symbols need realignment`);
+ *
+ * @example
+ * // What implements a concept?
+ * const impl = await manager.getConceptImplementations('verifiable AI');
+ * console.log(`${impl?.implementingSymbols.length} symbols implement this`);
  */
 export class StrategicCoherenceManager {
   private overlayPath: string;
