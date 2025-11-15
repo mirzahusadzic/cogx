@@ -1,3 +1,26 @@
+/**
+ * Mission Concept Extraction
+ *
+ * Extracts strategic concepts from mission-critical documentation for O₄ (Mission) overlay.
+ * Targets whitelisted sections (Vision, Mission, Principles, etc.) to build the strategic
+ * knowledge layer that guides system behavior and architectural decisions.
+ *
+ * EXTRACTION STRATEGY:
+ * 1. Filter to whitelisted sections only (security boundary)
+ * 2. Extract concepts from emphasized text, quotes, and important phrases
+ * 3. Weight by position and frequency
+ * 4. Return ranked concepts
+ *
+ * SECURITY:
+ * - Only processes whitelisted sections to prevent malicious concept injection
+ * - Filters stop words to focus on strategic meaning
+ *
+ * @example
+ * const extractor = new ConceptExtractor();
+ * const concepts = extractor.extract(missionDoc);
+ * // Returns: [{ text: "Enable human agency", weight: 0.95, ... }, ...]
+ */
+
 import {
   MarkdownDocument,
   MarkdownSection,
@@ -138,27 +161,44 @@ const STOP_WORDS = new Set([
 /**
  * ConceptExtractor
  *
- * Extracts mission-critical concepts from markdown documentation
- * for strategic coherence analysis.
+ * Extracts mission-critical concepts from markdown documentation for strategic coherence
+ * analysis. Targets O₄ (Mission) overlay - the strategic knowledge layer.
+ *
+ * OVERLAY TARGET: O₄ (Mission)
  *
  * SECURITY:
  * - Only processes whitelisted sections (Vision, Mission, Principles, etc.)
  * - Prevents malicious concept injection via arbitrary markdown
  *
- * EXTRACTION STRATEGY:
- * 1. Filter to whitelisted sections only
- * 2. Extract concepts from:
- *    - Emphasized text (**bold**, *italic*)
- *    - Quoted phrases
- *    - Important noun phrases (2-4 word sequences)
- * 3. Weight by:
- *    - Position: Earlier sections = higher weight
- *    - Frequency: More occurrences = higher weight
- * 4. Return ranked concepts
+ * EXTRACTION HIERARCHY (by weight):
+ * 1. Blockquotes/epigraphs (1.0) - Distilled essence statements
+ * 2. H3/H4 subsection headers (0.95) - Named concepts
+ * 3. Bullet points with bold prefix (0.9) - Structured value propositions
+ * 4. Bold complete sentences (0.85) - Complete thoughts
+ * 5. Emoji-prefixed items (0.8) - Structured lists
+ * 6. Quoted phrases (0.75) - Examples and citations
+ *
+ * @example
+ * const extractor = new ConceptExtractor();
+ * const concepts = extractor.extract(missionDoc);
+ * // Returns concepts sorted by weight:
+ * // [{ text: "Enable human agency", section: "Vision", weight: 0.95, occurrences: 3 }, ...]
  */
 export class ConceptExtractor {
   /**
    * Extract mission concepts from a markdown document
+   *
+   * Filters to whitelisted sections, extracts concepts from emphasized text,
+   * and returns ranked concepts by weight and frequency.
+   *
+   * @param doc - Parsed markdown document
+   * @returns Array of mission concepts sorted by weight (descending)
+   *
+   * @example
+   * const extractor = new ConceptExtractor();
+   * const doc = markdownParser.parse(visionMd);
+   * const concepts = extractor.extract(doc);
+   * console.log(concepts[0].text); // "Enable human agency"
    */
   extract(doc: MarkdownDocument): MissionConcept[] {
     // 1. Filter to whitelisted sections only (security boundary)
@@ -200,7 +240,14 @@ export class ConceptExtractor {
 
   /**
    * Filter sections to only whitelisted mission sections
-   * Recursively checks children as well
+   *
+   * Security boundary: Only processes sections matching MISSION_SECTIONS whitelist.
+   * Recursively checks children to capture nested strategic content.
+   *
+   * @private
+   * @param sections - Array of sections to filter
+   * @param depth - Recursion depth (default 0)
+   * @returns Filtered array of whitelisted mission sections
    */
   private filterMissionSections(
     sections: MarkdownSection[],
@@ -226,6 +273,15 @@ export class ConceptExtractor {
 
   /**
    * Extract concepts from a single section
+   *
+   * Applies hierarchical extraction patterns with position-based weighting.
+   * Earlier sections receive higher weights (1.0 → 0.6).
+   *
+   * @private
+   * @param section - Section to extract from
+   * @param sectionIndex - Position in parent array
+   * @param totalSections - Total number of sections
+   * @returns Array of extracted concepts
    */
   private extractFromSection(
     section: MarkdownSection,
@@ -335,7 +391,13 @@ export class ConceptExtractor {
 
   /**
    * Extract blockquotes/epigraphs (> lines)
-   * These are typically distilled essence statements
+   *
+   * Blockquotes typically contain distilled essence statements - the highest
+   * signal strategic content. Strips markdown formatting and validates length.
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @returns Array of blockquote text (minimum 15 chars)
    */
   private extractBlockquotes(content: string): string[] {
     const blockquotes: string[] = [];
@@ -362,7 +424,13 @@ export class ConceptExtractor {
 
   /**
    * Extract subsection headers (### or ####)
-   * These are named concepts in the document structure
+   *
+   * H3/H4 headers represent named concepts in the document structure.
+   * These are high-value strategic markers.
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @returns Array of subsection header text
    */
   private extractSubHeaders(content: string): string[] {
     const headers: string[] = [];
@@ -385,8 +453,14 @@ export class ConceptExtractor {
 
   /**
    * Extract bullet points with bold prefix pattern
-   * Pattern: - **prefix**, rest of text
-   * Or: - **complete bold statement**
+   *
+   * Patterns:
+   * - `- **prefix**, rest of text` → Extracts "prefix: context"
+   * - `- **complete bold statement**` → Extracts complete statement
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @returns Array of bullet concepts with context
    */
   private extractBulletPrefixes(content: string): string[] {
     const concepts: string[] = [];
@@ -425,7 +499,13 @@ export class ConceptExtractor {
 
   /**
    * Extract standalone bold sentences (complete thoughts)
-   * Must be a complete sentence (ends with punctuation) and substantial
+   *
+   * Identifies bold text that forms complete sentences (ends with punctuation).
+   * Filters for substantial content (minimum 20 characters).
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @returns Array of bold sentences
    */
   private extractBoldSentences(content: string): string[] {
     const sentences: string[] = [];
@@ -447,8 +527,14 @@ export class ConceptExtractor {
 
   /**
    * Extract emoji-prefixed items
+   *
    * Pattern: ✅ or ❌ followed by text
-   * Captures bold prefix + context for compound value props
+   * Captures bold prefix + context for compound value propositions.
+   * Handles em-dash separators (—) for explanatory text.
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @returns Array of emoji-prefixed concepts
    */
   private extractEmojiPrefixed(content: string): string[] {
     const items: string[] = [];
@@ -506,7 +592,14 @@ export class ConceptExtractor {
 
   /**
    * Extract quoted phrases
-   * Skip questions and very short quotes (likely examples, not concepts)
+   *
+   * Identifies "quoted text" as potential concepts.
+   * Filters out questions (examples) and short quotes.
+   * Minimum 15 characters required.
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @returns Array of quoted concept text
    */
   private extractQuoted(content: string): string[] {
     const quoted: string[] = [];
@@ -533,6 +626,14 @@ export class ConceptExtractor {
 
   /**
    * Check if a concept is valid (not too short, not all stop words)
+   *
+   * Validates concept quality by ensuring:
+   * - Minimum 3 characters
+   * - At least one non-stop word
+   *
+   * @private
+   * @param text - Concept text to validate
+   * @returns True if concept is valid
    */
   private isValidConcept(text: string): boolean {
     // Must be at least 3 characters

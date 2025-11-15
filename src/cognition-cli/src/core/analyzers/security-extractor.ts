@@ -1,3 +1,28 @@
+/**
+ * Security Knowledge Extraction
+ *
+ * Extracts security knowledge from security documentation for O₂ (Security) overlay.
+ * This is the foundational security layer that can be exported/imported via .cogx files,
+ * enabling security knowledge reuse across dependencies.
+ *
+ * OVERLAY TARGET: O₂ (Security)
+ *
+ * EXTRACTION PATTERNS:
+ * 1. Threat models (attack scenarios) - Weight 1.0
+ * 2. Attack vectors (exploit methods) - Weight 0.95
+ * 3. Mitigations (countermeasures) - Weight 0.9
+ * 4. Security boundaries (trust zones) - Weight 0.85
+ * 5. Vulnerabilities (CVEs, known issues) - Weight 1.0
+ *
+ * PORTABILITY:
+ * Designed for export/import via .cogx files to enable security knowledge sharing.
+ *
+ * @example
+ * const extractor = new SecurityExtractor();
+ * const knowledge = extractor.extract(securityDoc);
+ * // Returns: [{ text: "SQL Injection: Malicious SQL via user input", securityType: "threat_model", ... }, ...]
+ */
+
 import {
   MarkdownDocument,
   MarkdownSection,
@@ -9,25 +34,38 @@ import { DocumentExtractor, SecurityKnowledge } from './document-extractor.js';
  * SecurityExtractor
  *
  * Extracts security knowledge from security documentation.
- * Targets O₂ (Security) overlay - the foundational layer.
+ * Targets O₂ (Security) overlay - the foundational security layer.
  *
- * Handles: SECURITY.md, THREAT_MODEL.md, vulnerability docs
+ * Handles: SECURITY.md, THREAT_MODEL.md, vulnerability documentation
  *
- * PORTABILITY:
- * This layer is designed to be exported/imported via .cogx files,
- * enabling security knowledge reuse across dependencies.
+ * SECURITY TYPES:
+ * - threat_model: Attack scenarios and threat descriptions
+ * - attack_vector: Specific exploit methods
+ * - mitigation: Countermeasures and defenses
+ * - boundary: Trust zones and security boundaries
+ * - vulnerability: CVEs and known security issues
  *
- * EXTRACTION PATTERNS:
- * 1. Threat models (attack scenarios)
- * 2. Attack vectors (exploit methods)
- * 3. Mitigations (countermeasures)
- * 4. Security boundaries (trust zones)
- * 5. Constraints (security requirements)
- * 6. Vulnerabilities (known issues, CVEs)
+ * @example
+ * const extractor = new SecurityExtractor();
+ * const knowledge = extractor.extract(threatModelDoc);
+ * knowledge.forEach(k => {
+ *   console.log(`${k.securityType}: ${k.text}`);
+ * });
  */
 export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
   /**
    * Extract security knowledge from document
+   *
+   * Recursively processes all sections to extract threats, mitigations,
+   * attack vectors, boundaries, and vulnerabilities.
+   *
+   * @param doc - Parsed markdown document
+   * @returns Array of security knowledge items
+   *
+   * @example
+   * const doc = parser.parse(securityMd);
+   * const knowledge = extractor.extract(doc);
+   * const threats = knowledge.filter(k => k.securityType === 'threat_model');
    */
   extract(doc: MarkdownDocument): SecurityKnowledge[] {
     const knowledge: SecurityKnowledge[] = [];
@@ -56,6 +94,9 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
 
   /**
    * Supports security documents
+   *
+   * @param docType - Document type to check
+   * @returns True if document type is SECURITY
    */
   supports(docType: DocumentType): boolean {
     return docType === DocumentType.SECURITY;
@@ -63,6 +104,8 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
 
   /**
    * Targets O₂ (Security) overlay - foundational layer
+   *
+   * @returns Overlay layer identifier "O2_Security"
    */
   getOverlayLayer(): string {
     return 'O2_Security';
@@ -70,6 +113,15 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
 
   /**
    * Extract security knowledge from a single section
+   *
+   * Applies position-based weighting and extracts all security types
+   * (threats, attacks, mitigations, boundaries, vulnerabilities).
+   *
+   * @private
+   * @param section - Section to extract from
+   * @param sectionIndex - Position in parent array
+   * @param totalSections - Total number of sections
+   * @returns Array of extracted security knowledge
    */
   private extractFromSection(
     section: MarkdownSection,
@@ -152,6 +204,10 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
 
   /**
    * Check if section is about threat models
+   *
+   * @private
+   * @param heading - Section heading text
+   * @returns True if heading contains "threat" or "attack"
    */
   private isThreatModelSection(heading: string): boolean {
     const lower = heading.toLowerCase();
@@ -160,6 +216,10 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
 
   /**
    * Check if section is about attack vectors
+   *
+   * @private
+   * @param heading - Section heading text
+   * @returns True if heading contains "vector" or "exploit"
    */
   private isAttackVectorSection(heading: string): boolean {
     const lower = heading.toLowerCase();
@@ -167,9 +227,17 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
   }
 
   /**
-   * Extract threat models
-   * Pattern: **Threat Name** — Description (single-line format)
-   * Pattern: **Threat**: Value (multi-field structured format)
+   * Extract threat models from content
+   *
+   * Supports two formats:
+   * 1. Single-line: **Threat Name** — Description
+   * 2. Multi-field structured: **Threat**: Name, **Severity**: ..., etc.
+   *
+   * Infers severity from text (critical/high/medium/low).
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @returns Array of threat objects with text and optional severity
    */
   private extractThreats(content: string): Array<{
     text: string;
@@ -281,6 +349,13 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
 
   /**
    * Format structured threat into SecurityKnowledge format
+   *
+   * Combines multi-field threat data (name, attack vector, impact, mitigations)
+   * into a single formatted security knowledge item.
+   *
+   * @private
+   * @param threat - Structured threat object with optional fields
+   * @returns Formatted threat with text and severity
    */
   private formatStructuredThreat(threat: {
     name?: string;
@@ -314,7 +389,13 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
 
   /**
    * Extract attack vectors
-   * Pattern: Similar to threats
+   *
+   * Uses same pattern as extractThreats since attack vectors follow
+   * similar structural patterns.
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @returns Array of attack vector objects with text and optional severity
    */
   private extractAttackVectors(content: string): Array<{
     text: string;
@@ -325,8 +406,14 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
   }
 
   /**
-   * Extract mitigations
-   * Pattern: - Mitigation: description
+   * Extract mitigations (countermeasures)
+   *
+   * Pattern: `- Mitigation: description` or `- **Pattern**: context`
+   * Looks for mitigation keywords (prevention, defense, protection, etc.)
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @returns Array of mitigation objects
    */
   private extractMitigations(
     content: string
@@ -367,6 +454,10 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
 
   /**
    * Check if keyword indicates mitigation
+   *
+   * @private
+   * @param text - Text to check for mitigation keywords
+   * @returns True if text contains mitigation-related keywords
    */
   private isMitigationKeyword(text: string): boolean {
     const keywords = [
@@ -383,8 +474,13 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
   }
 
   /**
-   * Extract security boundaries
-   * Pattern: Boundary statements, trust zones
+   * Extract security boundaries (trust zones)
+   *
+   * Pattern: Bold statements containing "boundary", "trust", or "zone"
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @returns Array of boundary statements
    */
   private extractBoundaries(content: string): Array<{ text: string }> {
     const boundaries: Array<{ text: string }> = [];
@@ -409,7 +505,14 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
 
   /**
    * Extract vulnerabilities (CVEs, known issues)
-   * Pattern: CVE-YYYY-NNNNN, explicit vulnerability statements
+   *
+   * Pattern: CVE-YYYY-NNNNN identifiers with surrounding context.
+   * Strips code blocks to avoid extracting from examples.
+   * Infers severity from context.
+   *
+   * @private
+   * @param content - Section content to extract from
+   * @returns Array of vulnerability objects with CVE metadata
    */
   private extractVulnerabilities(content: string): Array<{
     text: string;
@@ -500,7 +603,14 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
   }
 
   /**
-   * Strip code blocks (```...```) from content to avoid extracting from examples
+   * Strip code blocks from content to avoid extracting from examples
+   *
+   * Removes fenced code blocks (```...```) to prevent extracting
+   * CVEs and other security content from documentation examples.
+   *
+   * @private
+   * @param content - Content to strip code blocks from
+   * @returns Content without code blocks
    */
   private stripCodeBlocks(content: string): string {
     // Remove fenced code blocks
@@ -509,6 +619,13 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
 
   /**
    * Infer severity from text
+   *
+   * Looks for severity keywords (critical, high, medium, low) and
+   * threat indicators (exploit, injection).
+   *
+   * @private
+   * @param text - Text to analyze for severity
+   * @returns Inferred severity level or undefined
    */
   private inferSeverity(
     text: string
