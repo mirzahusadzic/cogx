@@ -16,7 +16,7 @@ This guide gets you from zero to querying your codebase in under 10 minutes.
 
 **Required**:
 
-- Node.js 18+ (`node --version`)
+- Node.js 25+ (`node --version`)
 - Git repository with source code
 - Docker (for eGemma workbench)
 
