@@ -32,10 +32,29 @@ interface QueryConversationOptions {
 /**
  * Query conversation lattice with semantic search
  *
- * Pattern from ask.ts:
- * 1. SLM deconstructs query intent
- * 2. Query conversation overlays with embeddings
- * 3. LLM synthesizes answer from results
+ * THREE-STAGE PIPELINE (from ask.ts pattern):
+ * 1. SLM deconstructs query intent (extract entities, refine query)
+ * 2. Multi-overlay semantic search (query all O1-O7 conversation stores)
+ * 3. LLM synthesizes comprehensive answer from ranked results
+ *
+ * DESIGN:
+ * - Uses workbench API for SLM/LLM calls
+ * - Searches all 7 conversation overlays in parallel
+ * - Re-ranks globally by similarity, then sorts chronologically
+ * - Enriches context with overlay tags, importance, and alignment scores
+ *
+ * @param question - Natural language question about past conversation
+ * @param conversationRegistry - Registry of conversation overlay managers
+ * @param options - Configuration (workbench URL, topK, verbose logging)
+ * @returns Synthesized answer from LLM based on relevant conversation history
+ *
+ * @example
+ * const answer = await queryConversationLattice(
+ *   "What did we discuss about TUI scrolling?",
+ *   conversationRegistry,
+ *   { topK: 10, verbose: true }
+ * );
+ * console.log(answer);
  */
 export async function queryConversationLattice(
   question: string,
@@ -212,7 +231,22 @@ Provide your answer now:`;
 
 /**
  * Simple filtering-based query (no LLM - fast)
- * Used for static recap generation
+ *
+ * Used for static recap generation. Filters turns by project alignment score
+ * without requiring expensive LLM synthesis.
+ *
+ * DESIGN:
+ * - No semantic search or LLM calls (fast and cheap)
+ * - Filters by metadata.project_alignment_score
+ * - Returns top 5 per overlay sorted by alignment score
+ *
+ * @param conversationRegistry - Registry of conversation overlay managers
+ * @param minAlignment - Minimum alignment score (0-10) to include (default: 6)
+ * @returns Object with top aligned turns for each overlay
+ *
+ * @example
+ * const recap = await filterConversationByAlignment(registry, 7);
+ * console.log(`Found ${recap.mission.length} high-alignment mission turns`);
  */
 export async function filterConversationByAlignment(
   conversationRegistry: ConversationOverlayRegistry,
