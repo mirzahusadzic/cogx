@@ -20,13 +20,15 @@
  * from timestamp updates alone.
  *
  * @example
+ * ```typescript
  * // Configure watcher for TypeScript files only
  * const options: WatcherOptions = {
- *   paths: ['src/**\/*.ts'],
- *   ignored: ['**\/*.test.ts', 'node_modules/**'],
+ *   paths: ['src/\*\*\/\*.ts'],
+ *   ignored: ['\*\*\/\*.test.ts'],
  *   watchUntracked: true,
  *   debounceMs: 500
  * };
+ * ```
  *
  * @example
  * // Handle file changes with incremental reindex
@@ -174,12 +176,14 @@ export type DirtyState = z.infer<typeof DirtyStateSchema>;
  * The watcher uses chokidar internally for cross-platform compatibility.
  *
  * @example
+ * ```typescript
  * const options: WatcherOptions = {
- *   paths: ['src/**\/*.ts', 'docs/**\/*.md'],
- *   ignored: ['**\/*.test.ts', '**/ node_modules; /**', '**\/.pgc/**'],
+ *   paths: ['src/\*\*\/\*.ts', 'docs/\*\*\/\*.md'],
+ *   ignored: ['\*\*\/\*.test.ts', '\*\*\/.pgc/\*\*'],
  *   watchUntracked: true,
  *   debounceMs: 1000 // Wait 1s after last change before processing
  * };
+ * ```
  */
 export interface WatcherOptions {
   /**
