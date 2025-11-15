@@ -24,7 +24,21 @@ const DEFAULT_OPTIONS: Required<AnalyzerOptions> = {
 };
 
 /**
- * Cosine similarity between two vectors
+ * Calculate cosine similarity between two embedding vectors
+ *
+ * Measures the cosine of the angle between two vectors in n-dimensional space.
+ * Returns values from -1 to 1, where 1 means identical direction, 0 means
+ * orthogonal (unrelated), and -1 means opposite direction.
+ *
+ * @param a - First embedding vector
+ * @param b - Second embedding vector
+ * @returns Similarity score between 0 and 1 (0 = different, 1 = identical)
+ * @throws {Error} If vectors have different dimensions
+ * @private
+ *
+ * @example
+ * const sim = cosineSimilarity([1, 0, 0], [1, 0, 0]); // Returns 1.0
+ * const sim2 = cosineSimilarity([1, 0, 0], [0, 1, 0]); // Returns 0.0
  */
 function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) {
@@ -50,8 +64,35 @@ function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 /**
- * Calculate novelty (distance from recent context)
- * Returns 0-1 where 1 = completely novel, 0 = identical to recent
+ * Calculate novelty score by measuring semantic distance from recent context
+ *
+ * Novelty detection is KEY for automatic paradigm shift detection. High novelty
+ * indicates a creative breakthrough or topic change that should be preserved
+ * during compression.
+ *
+ * Algorithm:
+ * 1. Calculate distance (1 - similarity) from each recent turn
+ * 2. Compute average distance (general novelty)
+ * 3. Compute max distance (breakthrough moment)
+ * 4. Combine: 70% average + 30% max
+ *
+ * The weighting balances "generally different from recent discussion" vs
+ * "sudden creative breakthrough moment".
+ *
+ * @param currentEmbed - Embedding vector for current turn
+ * @param recentEmbeds - Array of embedding vectors from recent turns (last 10)
+ * @returns Novelty score from 0 to 1 (0 = identical, 1 = completely novel)
+ * @private
+ *
+ * @example
+ * // First turn has neutral novelty
+ * const novelty1 = calculateNovelty(embed1, []); // Returns 0.5
+ *
+ * // Turn similar to recent context has low novelty
+ * const novelty2 = calculateNovelty(embed2, [embed1]); // Returns ~0.1
+ *
+ * // Turn different from all recent turns has high novelty
+ * const novelty3 = calculateNovelty(embedBreakthrough, recentEmbeds); // Returns ~0.9
  */
 function calculateNovelty(
   currentEmbed: number[],
@@ -77,12 +118,38 @@ function calculateNovelty(
 }
 
 /**
- * Detect overlay activation via Meet with project lattice
- * This is the KEY INNOVATION: Conversation ∧ Project
+ * Detect overlay activation via Meet operation with project lattice
  *
- * @param turnContent - The turn content text
- * @param projectRegistry - The project overlay registry
+ * THIS IS THE KEY INNOVATION: Conversation ∧ Project
+ *
+ * Performs semantic Meet (∧) between conversation turn and all 7 project overlays
+ * to determine which project aspects this turn is aligned with. This enables
+ * intelligent filtering: preserve turns aligned with project goals, discard
+ * off-topic discussion.
+ *
+ * Algorithm:
+ * 1. Query each overlay (O1-O7) with turn embedding
+ * 2. Get top 3 most similar items from each overlay
+ * 3. Score overlay as max similarity from top 3
+ * 4. Return scores for all 7 overlays (0-10 scale)
+ *
+ * Performance optimization: Reuses precomputed embedding across all 7 overlays
+ * to avoid re-embedding the same content 7 times.
+ *
+ * @param turnContent - The conversation turn text content
+ * @param projectRegistry - Registry containing all 7 project overlays (O1-O7)
  * @param precomputedEmbedding - Optional pre-computed embedding (avoids re-embedding)
+ * @returns Promise resolving to overlay scores for all 7 overlays
+ * @private
+ *
+ * @example
+ * // Detect which project overlays this turn aligns with
+ * const scores = await detectOverlaysByProjectAlignment(
+ *   "Let's refactor the authentication module",
+ *   projectRegistry,
+ *   turnEmbedding
+ * );
+ * // Result: { O1_structural: 9, O2_security: 8, O3_lineage: 2, ... }
  */
 async function detectOverlaysByProjectAlignment(
   turnContent: string,
@@ -140,7 +207,45 @@ async function detectOverlaysByProjectAlignment(
 }
 
 /**
- * Analyze a conversation turn (embedding-based with project alignment)
+ * Analyze a conversation turn using embeddings and project alignment
+ *
+ * Performs comprehensive analysis of a conversation turn to determine its
+ * importance and relevance to the project. Combines novelty detection
+ * (automatic paradigm shift detection) with semantic alignment to project
+ * overlays (via Meet operation).
+ *
+ * Algorithm:
+ * 1. Generate/use embedding (768D vector from eGemma)
+ * 2. Calculate novelty (distance from recent context)
+ * 3. Detect overlay alignment (Meet with project lattice)
+ * 4. Calculate importance (novelty + project alignment)
+ * 5. Mark paradigm shifts (high novelty)
+ * 6. Mark routine turns (low importance)
+ * 7. Extract references and semantic tags
+ *
+ * Importance scoring:
+ * - importance = min(10, novelty * 5 + maxOverlay * 0.5)
+ * - High novelty OR high project alignment = high importance
+ * - Low novelty AND low alignment = routine (can compress)
+ *
+ * @param turn - The conversation turn to analyze
+ * @param context - Conversation context with history for novelty calculation
+ * @param embedder - Embedding service for generating turn embeddings
+ * @param projectRegistry - Optional project overlay registry for alignment scoring
+ * @param options - Analysis options (thresholds for paradigm shift, routine, etc.)
+ * @param precomputedEmbedding - Optional pre-computed embedding (optimization)
+ * @returns Promise resolving to complete turn analysis with metrics
+ *
+ * @example
+ * const analysis = await analyzeTurn(
+ *   { id: 'turn_1', role: 'user', content: 'Add auth', timestamp: Date.now() },
+ *   { history: [] },
+ *   embedder,
+ *   projectRegistry
+ * );
+ * console.log(`Importance: ${analysis.importance_score}/10`);
+ * console.log(`Novelty: ${analysis.novelty.toFixed(2)}`);
+ * console.log(`Overlays: ${JSON.stringify(analysis.overlay_scores)}`);
  */
 export async function analyzeTurn(
   turn: ConversationTurn,
@@ -249,7 +354,29 @@ export async function analyzeTurn(
 }
 
 /**
- * Find references to previous turns (keyword-based for now)
+ * Find references to previous turns in conversation
+ *
+ * Uses keyword-based pattern matching to detect when the current turn
+ * references earlier parts of the conversation. This helps build the
+ * lattice structure by creating semantic edges between related turns.
+ *
+ * Detection patterns:
+ * - Temporal references: "earlier", "before", "previous", "above", "mentioned"
+ * - Returns IDs of last 5 turns when reference pattern detected
+ *
+ * Future enhancement: Use semantic similarity for more accurate reference detection.
+ *
+ * @param turn - Current conversation turn to analyze
+ * @param context - Conversation context with historical turns
+ * @returns Array of turn IDs that this turn references
+ * @private
+ *
+ * @example
+ * const refs = findReferences(
+ *   { id: 'turn_5', content: 'As mentioned earlier, we need auth' },
+ *   { history: [turn1, turn2, turn3, turn4] }
+ * );
+ * // Returns: ['turn_1', 'turn_2', 'turn_3', 'turn_4']
  */
 function findReferences(
   turn: ConversationTurn,
@@ -272,7 +399,25 @@ function findReferences(
 }
 
 /**
- * Extract semantic tags (keywords, entities)
+ * Extract semantic tags from conversation turn content
+ *
+ * Identifies keywords, entities, and technical terms that characterize the turn.
+ * Tags enable fast filtering and categorization during context reconstruction.
+ *
+ * Extraction patterns:
+ * - File references: *.ts, *.tsx, *.js, *.jsx, *.py, *.md
+ * - NPM packages: @scope/package
+ * - Technical terms: PascalCase or camelCase identifiers
+ *
+ * @param turn - Conversation turn to extract tags from
+ * @returns Array of unique semantic tags (deduplicated)
+ * @private
+ *
+ * @example
+ * const tags = extractSemanticTags({
+ *   content: 'Update AuthService in auth.ts using @types/node'
+ * });
+ * // Returns: ['auth.ts', '@types/node', 'AuthService']
  */
 function extractSemanticTags(turn: ConversationTurn): string[] {
   const tags: string[] = [];
@@ -301,7 +446,34 @@ function extractSemanticTags(turn: ConversationTurn): string[] {
 }
 
 /**
- * Batch analyze multiple turns
+ * Batch analyze multiple conversation turns
+ *
+ * Analyzes a sequence of turns in order, building up context as it processes
+ * each turn. This is more efficient than analyzing turns independently as it
+ * reuses embeddings from the history for novelty calculation.
+ *
+ * Algorithm:
+ * 1. Process turns sequentially in order
+ * 2. Each analyzed turn becomes part of context for next turn
+ * 3. Novelty is calculated relative to accumulated history
+ * 4. Returns array of analyses maintaining turn order
+ *
+ * @param turns - Array of conversation turns to analyze
+ * @param context - Initial conversation context (usually empty history)
+ * @param embedder - Embedding service for generating embeddings
+ * @param projectRegistry - Optional project overlay registry for alignment
+ * @param options - Analysis options (thresholds, etc.)
+ * @returns Promise resolving to array of turn analyses
+ *
+ * @example
+ * const analyses = await analyzeTurns(
+ *   [turn1, turn2, turn3],
+ *   { history: [] },
+ *   embedder,
+ *   projectRegistry
+ * );
+ * console.log(`Analyzed ${analyses.length} turns`);
+ * analyses.forEach(a => console.log(`${a.turn_id}: ${a.importance_score}/10`));
  */
 export async function analyzeTurns(
   turns: ConversationTurn[],
