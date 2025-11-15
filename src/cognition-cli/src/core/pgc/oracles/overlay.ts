@@ -1,3 +1,46 @@
+/**
+ * Overlay Integrity Oracle for Grounded Context Pool (PGC)
+ *
+ * Validates the integrity of the overlay layer, ensuring that:
+ * 1. Overlay manifests are complete and accurate
+ * 2. Metadata references valid objects in the object store
+ * 3. Vector embeddings are synchronized with manifests
+ * 4. No orphaned or stale data exists
+ *
+ * DESIGN PHILOSOPHY:
+ * The Oracle is the "immune system" of the PGC. It detects corruption,
+ * inconsistencies, and synchronization issues before they cause problems.
+ *
+ * VALIDATION LAYERS:
+ * - Structural Integrity: All metadata references exist in object store
+ * - Referential Integrity: sourceHash and dataHash are valid
+ * - Manifest Completeness: Manifest matches vector DB contents
+ * - Synchronization: No drift between manifest and vector embeddings
+ *
+ * WHEN TO RUN:
+ * - After overlay generation (automatic)
+ * - Before critical operations (defensive)
+ * - During debugging (diagnostic)
+ * - In CI/CD pipelines (quality gate)
+ *
+ * @example
+ * // Validate structural patterns overlay
+ * const oracle = new OverlayOracle(pgcManager);
+ * const result = await oracle.verifyStructuralPatternsOverlay();
+ * if (!result.success) {
+ *   console.error('Overlay validation failed:', result.messages);
+ *   process.exit(1);
+ * }
+ *
+ * @example
+ * // Check manifest completeness
+ * const completeness = await oracle.verifyManifestCompleteness();
+ * if (!completeness.success) {
+ *   console.warn('Manifest out of sync with vector DB');
+ *   await regenerateOverlay();
+ * }
+ */
+
 import { PGCManager } from '../manager.js';
 import { VerificationResult } from '../../types/verification.js';
 import {
@@ -9,10 +52,48 @@ import path from 'path';
 
 /**
  * Validates overlay layer integrity including structural and lineage pattern metadata.
+ *
+ * The OverlayOracle ensures that the overlay layer remains consistent with
+ * the underlying object store and vector database.
  */
 export class OverlayOracle {
+  /**
+   * Create a new overlay integrity validator
+   *
+   * @param pgcManager - PGC manager instance for accessing overlays and object store
+   */
   constructor(private pgcManager: PGCManager) {}
 
+  /**
+   * Verify structural patterns overlay integrity
+   *
+   * VALIDATION CHECKS:
+   * 1. Manifest exists and is readable
+   * 2. Each manifest entry has corresponding metadata in overlay
+   * 3. symbolStructuralDataHash references exist in object store
+   * 4. sourceHash references exist in object store
+   *
+   * ALGORITHM:
+   * - Load structural_patterns manifest
+   * - For each symbol in manifest:
+   *   - Retrieve metadata from overlay
+   *   - Verify symbolStructuralDataHash exists
+   *   - Verify validation.sourceHash exists
+   *
+   * @returns Verification result with success status and diagnostic messages
+   *
+   * @example
+   * // Run validation before overlay query
+   * const result = await oracle.verifyStructuralPatternsOverlay();
+   * if (!result.success) {
+   *   throw new Error(`Overlay corrupted: ${result.messages.join(', ')}`);
+   * }
+   *
+   * @example
+   * // Diagnostic check during debugging
+   * const result = await oracle.verifyStructuralPatternsOverlay();
+   * console.log('Validation messages:', result.messages);
+   */
   async verifyStructuralPatternsOverlay(): Promise<VerificationResult> {
     const messages: string[] = [];
     let success = true;
@@ -96,9 +177,45 @@ export class OverlayOracle {
   }
 
   /**
-   * CRITICAL: Verify manifest completeness against vector DB
-   * Manifest is the source of truth, but it must be in sync with vector DB
-   * This catches the case where patterns are generated but manifest isn't updated
+   * Verify manifest completeness against vector database
+   *
+   * CRITICAL INVARIANT:
+   * The manifest is the source of truth, but it must remain synchronized
+   * with the vector DB. This check catches drift between the two stores.
+   *
+   * VALIDATION CHECKS:
+   * 1. Every vector in DB has corresponding manifest entry
+   * 2. Every manifest entry has corresponding vector in DB
+   * 3. Symbol names match exactly
+   *
+   * FAILURE MODES:
+   * - Missing from Manifest: Patterns exist in vector DB but not indexed
+   * - Orphaned in Manifest: Manifest entries with no vector data
+   *
+   * ALGORITHM:
+   * 1. Load manifest symbols (Set M)
+   * 2. Load vector DB symbols (Set V)
+   * 3. Find V - M (vectors missing from manifest)
+   * 4. Find M - V (orphaned manifest entries)
+   * 5. Report discrepancies
+   *
+   * @returns Verification result with detailed synchronization status
+   *
+   * @example
+   * // Detect manifest drift after generation
+   * const result = await oracle.verifyManifestCompleteness();
+   * if (!result.success) {
+   *   console.log('Regenerating overlay to fix sync issues...');
+   *   await overlayGenerator.generate('structural_patterns', { force: true });
+   * }
+   *
+   * @example
+   * // CI/CD quality gate
+   * const result = await oracle.verifyManifestCompleteness();
+   * if (!result.success) {
+   *   console.error('❌ Overlay integrity check failed');
+   *   process.exit(1);
+   * }
    */
   async verifyManifestCompleteness(): Promise<VerificationResult> {
     const messages: string[] = [];
