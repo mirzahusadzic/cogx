@@ -1,7 +1,7 @@
 # ADR-005: React-Based TUI with Ink
 
-**Date**: Circa 2024-2025
-**Status**: Accepted
+**Date**: 2025  
+**Status**: Accepted  
 **Deciders**: Core team
 
 ## Context

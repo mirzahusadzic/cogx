@@ -1,7 +1,7 @@
 # ADR-002: Seven-Overlay Architecture (O₁-O₇)
 
-**Date**: Circa 2024
-**Status**: Accepted
+**Date**: 2025  
+**Status**: Accepted  
 **Deciders**: Core team
 
 ## Context
