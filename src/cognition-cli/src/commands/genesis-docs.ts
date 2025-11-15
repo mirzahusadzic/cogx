@@ -398,8 +398,8 @@ async function findExistingDocumentHash(
  * Delete an existing document from the PGC
  *
  * Removes all traces of a document including:
- * - Index entry (index/docs/<hash>.json)
- * - Overlay YAML files (overlays/*/<objectHash>*.yaml)
+ * - Index entry (index/docs/HASH.json)
+ * - Overlay YAML files (overlays/OVERLAY/OBJECT_HASH.yaml pattern)
  * - LanceDB embeddings (lance/documents.lancedb)
  *
  * This enables --force re-ingestion by cleaning up the old document first.

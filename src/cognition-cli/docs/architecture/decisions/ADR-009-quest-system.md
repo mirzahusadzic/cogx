@@ -1,7 +1,7 @@
 # ADR-009: Quest-Based Workflow Tracking (Block 2: Lops)
 
-- **Date**: 2025  
-- **Status**: Accepted  
+- **Date**: 2025
+- **Status**: Accepted
 - **Deciders**: Core team
 - **Related**: Innovation #37 (Quest Operations Logging)
 
