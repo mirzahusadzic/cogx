@@ -1320,14 +1320,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         // Prevents React effect deadlocks with getAllItems()
         // User's message is now in state, so compression will include it
         if (compression.shouldTrigger && !compressionInProgressRef.current) {
-          console.log(
-            '🔄 [SEND MESSAGE] Compression needed after adding user message...'
-          );
+          debug('🔄 Compression needed after adding user message...');
           // Keep isThinking=true (already set above)
           await compression.triggerCompression(); // Wait for compression
-          console.log(
-            '✅ [SEND MESSAGE] Compression complete, proceeding with Claude query...'
-          );
+          debug('✅ Compression complete, proceeding with Claude query...');
         }
 
         // Collect stderr for better error messages

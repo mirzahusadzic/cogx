@@ -931,13 +931,7 @@ async function reconstructChatContext(
 
   // FAST PATH: Use lattice data directly (in-memory, no disk I/O)
   // This is MUCH faster than querying conversation overlays from disk
-  console.log(
-    '🔍 [CHAT DEBUG] Step 1: Using FAST PATH - filtering lattice by overlay scores...'
-  );
   const filtered = filterLatticeByOverlayScores(lattice, 6);
-  console.log(
-    '🔍 [CHAT DEBUG] Step 2: Lattice filtering complete (no disk I/O!)'
-  );
 
   const hasContent =
     filtered.structural.length > 0 ||
@@ -1052,9 +1046,6 @@ ${formatLastTurns(turns, pendingTask)}
   // SLOW PATH: Query conversation overlays from disk (kept for backward compatibility)
   // Only used if lattice filtering returns no content but we have conversation registry
   if (conversationRegistry) {
-    console.log(
-      '🔍 [CHAT DEBUG] SLOW PATH: Lattice had no content, falling back to conversation registry...'
-    );
     try {
       const filteredFromDisk = await filterConversationByAlignment(
         conversationRegistry,
@@ -1334,18 +1325,11 @@ export async function reconstructSessionContext(
   cwd: string,
   conversationRegistry?: ConversationOverlayRegistry
 ): Promise<ReconstructedSessionContext> {
-  console.log(
-    '🔍 [RECONSTRUCT DEBUG] Step A: Starting reconstructSessionContext'
-  );
-
   // 1. Classify conversation mode
   const mode = classifyConversationMode(lattice);
 
   // 2. Calculate metrics
   const nodes = lattice.nodes;
-  console.log(
-    `🔍 [RECONSTRUCT DEBUG] Step C: Calculating metrics for ${nodes.length} nodes`
-  );
   const paradigmShifts = nodes.filter((n) => n.is_paradigm_shift).length;
   const toolUses = nodes.filter(
     (n) => n.content.includes('🔧') || n.content.includes('tool_use')
@@ -1361,16 +1345,10 @@ export async function reconstructSessionContext(
     nodes.length;
 
   // 3. Reconstruct based on mode (pass conversationRegistry!)
-  console.log(
-    `🔍 [RECONSTRUCT DEBUG] Step D: Starting ${mode} mode reconstruction...`
-  );
   const recap =
     mode === 'quest'
       ? await reconstructQuestContext(lattice, cwd)
       : await reconstructChatContext(lattice, cwd, conversationRegistry);
-  console.log(
-    `🔍 [RECONSTRUCT DEBUG] Step E: ${mode} mode reconstruction complete`
-  );
 
   return {
     mode,
