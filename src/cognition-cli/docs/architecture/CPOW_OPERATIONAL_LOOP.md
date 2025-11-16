@@ -28,19 +28,19 @@ This is the **G→T→O feedback loop** with cPOW as the immutable receipt and C
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│                      USER QUERY / INTENT                         │
+│                      USER QUERY / INTENT                        │
 └────────────────────────┬────────────────────────────────────────┘
                          ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │ QUEST INITIALIZATION (O₅ Operational Lattice)                   │
-│                                                                  │
-│ Quest = {                                                        │
+│                                                                 │
+│ Quest = {                                                       │
 │   goal: "What we're solving",                                   │
 │   why: "Mission alignment",                                     │
 │   success_criteria: "What done looks like",                     │
 │   big_blocks: ["Stage 1", "Stage 2", ...],                      │
 │   attention_priorities: ["truth", "UX", "performance"]          │
-│ }                                                                │
+│ }                                                               │
 └────────────────────────┬────────────────────────────────────────┘
                          ↓
           ┌──────────────────────────────────┐
