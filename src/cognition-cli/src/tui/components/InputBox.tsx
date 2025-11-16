@@ -31,6 +31,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
   const [inputKey, setInputKey] = useState(0); // Force remount to reset cursor position
   const lastEscapeTime = useRef<number>(0);
   const valueRef = useRef<string>(''); // Track actual current value for paste detection
+  const lastChangeTime = useRef<number>(0); // Track typing speed for paste detection
   const [pasteNotification, setPasteNotification] = useState<string>('');
   const pasteBuffer = useRef<string>(''); // Accumulate paste chunks
   const lastPasteTime = useRef<number>(0);
@@ -76,27 +77,54 @@ export const InputBox: React.FC<InputBoxProps> = ({
   const handleChange = (newValue: string) => {
     const previousValue = valueRef.current;
     const now = Date.now();
+    const timeSinceLastChange = now - lastChangeTime.current;
 
-    // Paste detection: large change (10+ chars) OR contains newlines
+    // IMPROVED PASTE DETECTION:
+    // Detect paste by combining multiple heuristics to avoid false positives:
+    // 1. Large content change (50+ chars) - avoids tab completion (typically <30 chars)
+    // 2. Contains newlines - definite paste indicator
+    // 3. Rapid input (changes < 20ms apart) with moderate size (20+ chars) - paste vs typing
     const changeSize = Math.abs(newValue.length - previousValue.length);
     const hasNewlines = newValue.includes('\n') || newValue.includes('\r');
-    const isPaste = changeSize > 10 || hasNewlines;
+    const isRapidLargeInput = timeSinceLastChange < 20 && changeSize > 20;
+    const isPaste = changeSize > 50 || hasNewlines || isRapidLargeInput;
+
+    // Update last change time for next iteration
+    lastChangeTime.current = now;
 
     if (isPaste) {
       const timeSinceLastPaste = now - lastPasteTime.current;
 
       // If this is a continuation of a previous paste (within 200ms), accumulate
       if (timeSinceLastPaste < 200 && pasteBuffer.current) {
-        // Check if this is overlapping (newValue starts with buffer) or separate chunk
+        // IMPROVED BUFFER MERGE LOGIC:
+        // Handle partial overlaps by finding the longest common suffix/prefix
         if (newValue.startsWith(pasteBuffer.current)) {
-          // Progressive chunk - keep the longer one
+          // Progressive chunk - newValue contains buffer + more
           pasteBuffer.current = newValue;
         } else if (pasteBuffer.current.startsWith(newValue)) {
-          // Old buffer is longer, keep it
+          // Old buffer already contains newValue - keep buffer
           // (do nothing)
         } else {
-          // Separate chunk - append it
-          pasteBuffer.current += newValue;
+          // Check for partial overlap at boundaries
+          let merged = false;
+          const minOverlap = Math.min(10, Math.min(pasteBuffer.current.length, newValue.length));
+
+          // Check if end of buffer overlaps with start of newValue
+          for (let i = minOverlap; i <= pasteBuffer.current.length; i++) {
+            const bufferSuffix = pasteBuffer.current.slice(-i);
+            if (newValue.startsWith(bufferSuffix)) {
+              // Found overlap - merge without duplication
+              pasteBuffer.current = pasteBuffer.current + newValue.slice(i);
+              merged = true;
+              break;
+            }
+          }
+
+          // If no overlap found, append as separate chunk
+          if (!merged) {
+            pasteBuffer.current += newValue;
+          }
         }
       } else {
         // New paste started

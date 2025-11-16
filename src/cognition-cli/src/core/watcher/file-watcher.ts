@@ -93,8 +93,8 @@ export class FileWatcher extends EventEmitter {
   /**
    * Start watching for file changes
    *
-   * Initializes chokidar watcher for all indexed files. Throws if
-   * no files are indexed (genesis must be run first) or if already watching.
+   * Initializes chokidar watcher for all directories containing indexed files.
+   * Now watches directories with glob patterns to detect new files.
    *
    * Emits:
    * - 'ready': Watcher initialized and monitoring
@@ -116,7 +116,7 @@ export class FileWatcher extends EventEmitter {
       throw new Error('Watcher is already running');
     }
 
-    // Get all indexed files to watch
+    // Get all indexed files to determine watch patterns
     const indexedFiles = await this.getIndexedFiles();
 
     if (indexedFiles.length === 0) {
@@ -127,9 +127,14 @@ export class FileWatcher extends EventEmitter {
 
     const ignored = this.options.ignored || this.getDefaultIgnored();
 
-    console.log(`Starting file watcher for ${indexedFiles.length} files...`);
+    // Generate glob patterns from indexed files to watch directories
+    const watchPatterns = this.getWatchPatternsFromFiles(indexedFiles);
 
-    this.watcher = chokidar.watch(indexedFiles, {
+    console.log(
+      `Starting file watcher for ${indexedFiles.length} indexed files (${watchPatterns.length} patterns)...`
+    );
+
+    this.watcher = chokidar.watch(watchPatterns, {
       ignored,
       persistent: true,
       ignoreInitial: true, // Don't fire events for existing files
@@ -279,10 +284,7 @@ export class FileWatcher extends EventEmitter {
   }
 
   private async handleAdd(relativePath: string): Promise<void> {
-    if (!this.options.watchUntracked) {
-      return;
-    }
-
+    // Note: watchUntracked option is deprecated - we now always track new files in watched directories
     try {
       // Check if already indexed
       const indexData = await this.index.get(relativePath);
@@ -292,7 +294,7 @@ export class FileWatcher extends EventEmitter {
         return;
       }
 
-      // New untracked file
+      // New untracked file - add to dirty state
       const fullPath = path.join(this.projectRoot, relativePath);
       const content = await fs.readFile(fullPath);
       const currentHash = this.objectStore.computeHash(content);
@@ -327,6 +329,58 @@ export class FileWatcher extends EventEmitter {
   private async getIndexedFiles(): Promise<string[]> {
     const allData = await this.index.getAllData();
     return allData.map((d) => path.join(this.projectRoot, d.path));
+  }
+
+  /**
+   * Generate glob patterns from indexed files to watch directories
+   *
+   * Creates glob patterns that cover all directories containing indexed files,
+   * allowing detection of new files in those directories.
+   *
+   * @param indexedFiles - Array of absolute file paths
+   * @returns Array of glob patterns (e.g., ["src/**\/*.ts", "docs/**\/*.md"])
+   *
+   * @example
+   * // Input: ["/path/src/foo.ts", "/path/src/bar.ts", "/path/docs/README.md"]
+   * // Output: ["src/**\/*.ts", "docs/**\/*.md"]
+   */
+  private getWatchPatternsFromFiles(indexedFiles: string[]): string[] {
+    // Extract directories and file extensions from indexed files
+    const directoryExtensions = new Map<string, Set<string>>();
+
+    for (const file of indexedFiles) {
+      const relativePath = path.relative(this.projectRoot, file);
+      const ext = path.extname(relativePath);
+
+      // Get top-level directory (e.g., "src", "docs", "lib")
+      const parts = relativePath.split(path.sep);
+      const topDir = parts[0];
+
+      if (!directoryExtensions.has(topDir)) {
+        directoryExtensions.set(topDir, new Set());
+      }
+
+      if (ext) {
+        directoryExtensions.get(topDir)!.add(ext);
+      }
+    }
+
+    // Generate glob patterns: topDir/**/*.ext for each directory/extension combo
+    const patterns: string[] = [];
+
+    for (const [dir, extensions] of directoryExtensions) {
+      if (extensions.size === 0) {
+        // No extensions found, watch all files in directory
+        patterns.push(`${dir}/**/*`);
+      } else {
+        // Watch specific extensions
+        for (const ext of extensions) {
+          patterns.push(`${dir}/**/*${ext}`);
+        }
+      }
+    }
+
+    return patterns;
   }
 
   private getDefaultIgnored(): string[] {
