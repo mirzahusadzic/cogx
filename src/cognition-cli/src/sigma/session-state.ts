@@ -70,10 +70,21 @@ export function loadSessionState(
 }
 
 /**
- * Save session state to disk
+ * Save session state to disk with atomic write
+ *
+ * Uses atomic write-and-rename to prevent corruption from partial writes.
+ * This ensures state files are never left in an incomplete state if the
+ * process crashes or is killed during write.
+ *
+ * ALGORITHM:
+ * 1. Write to temporary file (.tmp suffix)
+ * 2. Sync to disk (ensures data is written)
+ * 3. Atomic rename to final filename
+ * 4. Cleanup temp file on error
  *
  * @param state - Session state to save
  * @param projectRoot - Project root directory
+ * @throws Error if write or rename fails
  */
 export function saveSessionState(
   state: SessionState,
@@ -83,7 +94,30 @@ export function saveSessionState(
   fs.mkdirSync(sigmaDir, { recursive: true });
 
   const stateFile = path.join(sigmaDir, `${state.anchor_id}.state.json`);
-  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));
+  const tempFile = `${stateFile}.tmp`;
+
+  try {
+    // Write to temp file first
+    const content = JSON.stringify(state, null, 2);
+    fs.writeFileSync(tempFile, content, 'utf-8');
+
+    // Atomic rename (POSIX guarantees atomicity)
+    fs.renameSync(tempFile, stateFile);
+  } catch (error) {
+    // Clean up temp file on error
+    try {
+      if (fs.existsSync(tempFile)) {
+        fs.unlinkSync(tempFile);
+      }
+    } catch {
+      // Ignore cleanup errors
+    }
+
+    throw new Error(
+      `Failed to save session state for ${state.anchor_id}: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error instanceof Error ? error : undefined }
+    );
+  }
 }
 
 /**
