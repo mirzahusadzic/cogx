@@ -31,11 +31,11 @@ export class EmbedLogger {
     context?: Record<string, unknown>
   ): void {
     const prefix = overlayType ? `[${overlayType}]` : '[Embed]';
-    const contextStr = context
-      ? ` ${JSON.stringify(context)}`
-      : '';
+    const contextStr = context ? ` ${JSON.stringify(context)}` : '';
     console.error(
-      chalk.red(`  ${prefix} ${symbolName} - ✗ failed: ${error.message}${contextStr}`)
+      chalk.red(
+        `  ${prefix} ${symbolName} - ✗ failed: ${error.message}${contextStr}`
+      )
     );
   }
 

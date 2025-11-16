@@ -712,7 +712,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               'utf-8'
             );
           } catch (err) {
-            console.error('Failed to save recap file:', err instanceof Error ? err.message : String(err));
+            console.error(
+              'Failed to save recap file:',
+              err instanceof Error ? err.message : String(err)
+            );
             // Continue - recap is saved in memory via setInjectedRecap
           }
           setInjectedRecap(recap);

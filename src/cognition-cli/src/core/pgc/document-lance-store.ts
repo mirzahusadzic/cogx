@@ -290,7 +290,10 @@ export class DocumentLanceStore {
       this.initializationPromise = null;
       throw new DatabaseError(
         'initialize',
-        { tableName, dbPath: path.join(this.pgcRoot, 'lance', 'documents.lancedb') },
+        {
+          tableName,
+          dbPath: path.join(this.pgcRoot, 'lance', 'documents.lancedb'),
+        },
         error as Error
       );
     }

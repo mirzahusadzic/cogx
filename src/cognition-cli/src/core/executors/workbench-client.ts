@@ -184,7 +184,10 @@ export class WorkbenchClient {
     // Remove API keys from query parameters
     sanitized = sanitized.replace(/api_key=\S+/g, 'api_key=[REDACTED]');
     // Remove API keys from headers
-    sanitized = sanitized.replace(/x-api-key:\s*\S+/gi, 'x-api-key: [REDACTED]');
+    sanitized = sanitized.replace(
+      /x-api-key:\s*\S+/gi,
+      'x-api-key: [REDACTED]'
+    );
     return sanitized;
   }
 

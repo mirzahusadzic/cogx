@@ -62,11 +62,14 @@ export class CognitionError extends Error {
       code: this.code,
       context: this.context,
       stack: this.stack,
-      cause: this.cause instanceof Error ? {
-        name: this.cause.name,
-        message: this.cause.message,
-        stack: this.cause.stack
-      } : this.cause
+      cause:
+        this.cause instanceof Error
+          ? {
+              name: this.cause.name,
+              message: this.cause.message,
+              stack: this.cause.stack,
+            }
+          : this.cause,
     };
   }
 }
@@ -85,9 +88,10 @@ export class FileOperationError extends CognitionError {
     additionalContext?: Record<string, unknown>
   ) {
     // Sanitize file path for security (remove absolute paths in production)
-    const sanitizedPath = process.env.NODE_ENV === 'production'
-      ? filePath.split('/').pop() || filePath
-      : filePath;
+    const sanitizedPath =
+      process.env.NODE_ENV === 'production'
+        ? filePath.split('/').pop() || filePath
+        : filePath;
 
     super(
       `File operation failed: ${operation}`,
@@ -110,12 +114,9 @@ export class NetworkError extends CognitionError {
     context: Record<string, unknown>,
     cause?: Error
   ) {
-    super(
-      `Network operation failed: ${operation}`,
-      'NETWORK_ERROR',
-      context,
-      { cause }
-    );
+    super(`Network operation failed: ${operation}`, 'NETWORK_ERROR', context, {
+      cause,
+    });
   }
 }
 
@@ -171,12 +172,7 @@ export class WorkerError extends CognitionError {
     context: Record<string, unknown>,
     cause?: Error
   ) {
-    super(
-      `Worker error: ${workerType}`,
-      'WORKER_ERROR',
-      context,
-      { cause }
-    );
+    super(`Worker error: ${workerType}`, 'WORKER_ERROR', context, { cause });
   }
 }
 
@@ -206,10 +202,7 @@ export class CompressionError extends CognitionError {
  * throw new ConfigurationError('WORKBENCH_API_KEY not set');
  */
 export class ConfigurationError extends CognitionError {
-  constructor(
-    message: string,
-    context?: Record<string, unknown>
-  ) {
+  constructor(message: string, context?: Record<string, unknown>) {
     super(message, 'CONFIGURATION_ERROR', context);
   }
 }

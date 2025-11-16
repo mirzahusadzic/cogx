@@ -248,7 +248,7 @@ export class LineagePatternsManager implements PatternManager {
           status: 'error' as const,
           symbolName: job.symbolName,
           filePath: job.filePath,
-          error: error.message || String(error),
+          message: error.message || String(error),
         }))
       );
 
@@ -265,7 +265,7 @@ export class LineagePatternsManager implements PatternManager {
             status: 'error' as const,
             symbolName: 'unknown',
             filePath: 'unknown',
-            error: result.reason?.message || String(result.reason),
+            message: result.reason?.message || String(result.reason),
           };
         }
       }) as PatternResultPacket[];
@@ -292,7 +292,7 @@ export class LineagePatternsManager implements PatternManager {
         );
         errors.slice(0, 5).forEach((r) => {
           console.warn(
-            chalk.dim(`  - ${r.symbolName} (${r.filePath}): ${r.error}`)
+            chalk.dim(`  - ${r.symbolName} (${r.filePath}): ${r.message}`)
           );
         });
         if (errors.length > 5) {
