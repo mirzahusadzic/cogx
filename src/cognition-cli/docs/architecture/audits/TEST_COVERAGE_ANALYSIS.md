@@ -10,40 +10,43 @@
 
 ### Coverage Metrics
 
-| Metric | Value | Status |
-|--------|-------|--------|
-| **Total Source Files** | 178 | - |
-| **Files with Tests** | 41 | 23% ✗ |
-| **Untested Files** | 137 | 77% ✗ |
-| **Test Lines of Code** | ~12,327 | - |
-| **Critical Files Untested** | 18 | **P0 PRIORITY** |
-| **High-Risk Files Untested** | 45 | **P1 PRIORITY** |
+| Metric                       | Value   | Status          |
+| ---------------------------- | ------- | --------------- |
+| **Total Source Files**       | 178     | -               |
+| **Files with Tests**         | 41      | 23% ✗           |
+| **Untested Files**           | 137     | 77% ✗           |
+| **Test Lines of Code**       | ~12,327 | -               |
+| **Critical Files Untested**  | 18      | **P0 PRIORITY** |
+| **High-Risk Files Untested** | 45      | **P1 PRIORITY** |
 
 ### Critical Findings
 
 **SECURITY CRISIS (P0):**
+
 - 🚨 **ALL 8 security modules untested** (mission-validator.ts, drift-detector.ts, etc.)
 - 🚨 **0% test coverage** for mission integrity validation
 - 🚨 **0% test coverage** for drift detection (attack prevention)
 
 **COMPRESSION CRISIS (P0):**
+
 - 🚨 **compressor.ts (276 LOC)** - 30-50x compression algorithm untested
 - 🚨 **useClaudeAgent.ts (1262 LOC)** - Core TUI state management untested
 - 🚨 Risk of data loss, session corruption, race conditions
 
 **COMMAND COVERAGE (P1):**
+
 - ⚠️ **14 of 18 commands untested** (78% untested)
 - ⚠️ Critical commands: init, watch, migrate, wizard, coherence
 
 ### Estimated Effort to Close Gaps
 
-| Priority | Files | Estimated Hours | Timeline |
-|----------|-------|----------------|----------|
-| **P0 (Critical)** | 18 | 60-80 hours | Weeks 1-2 |
-| **P1 (High)** | 45 | 90-120 hours | Weeks 3-4 |
-| **P2 (Medium)** | 38 | 60-80 hours | Weeks 5-6 |
-| **P3 (Low)** | 14 | 20-30 hours | Ongoing |
-| **TOTAL** | 115 | 230-310 hours | 6 weeks |
+| Priority          | Files | Estimated Hours | Timeline  |
+| ----------------- | ----- | --------------- | --------- |
+| **P0 (Critical)** | 18    | 60-80 hours     | Weeks 1-2 |
+| **P1 (High)**     | 45    | 90-120 hours    | Weeks 3-4 |
+| **P2 (Medium)**   | 38    | 60-80 hours     | Weeks 5-6 |
+| **P3 (Low)**      | 14    | 20-30 hours     | Ongoing   |
+| **TOTAL**         | 115   | 230-310 hours   | 6 weeks   |
 
 ---
 
@@ -53,47 +56,47 @@
 
 #### Security Module (8 files, 0% coverage)
 
-| File Path | LOC | Risk Level | Test Status | Priority | Effort |
-|-----------|-----|------------|-------------|----------|--------|
-| `core/security/mission-validator.ts` | 563 | **CRITICAL** | ❌ None | P0 | 8h |
-| `core/security/drift-detector.ts` | 429 | **CRITICAL** | ❌ None | P0 | 8h |
-| `core/security/mission-integrity.ts` | ~150 | **CRITICAL** | ❌ None | P0 | 4h |
-| `core/security/security-bootstrap.ts` | ~200 | **CRITICAL** | ❌ None | P0 | 4h |
-| `core/security/transparency-log.ts` | ~150 | **CRITICAL** | ❌ None | P0 | 4h |
-| `core/security/dual-use-mandate.ts` | ~100 | **CRITICAL** | ❌ None | P0 | 2h |
-| `core/security/security-config.ts` | ~100 | HIGH | ❌ None | P0 | 2h |
-| `core/security/index.ts` | ~50 | MEDIUM | ❌ None | P2 | 1h |
+| File Path                             | LOC  | Risk Level   | Test Status | Priority | Effort |
+| ------------------------------------- | ---- | ------------ | ----------- | -------- | ------ |
+| `core/security/mission-validator.ts`  | 563  | **CRITICAL** | ❌ None     | P0       | 8h     |
+| `core/security/drift-detector.ts`     | 429  | **CRITICAL** | ❌ None     | P0       | 8h     |
+| `core/security/mission-integrity.ts`  | ~150 | **CRITICAL** | ❌ None     | P0       | 4h     |
+| `core/security/security-bootstrap.ts` | ~200 | **CRITICAL** | ❌ None     | P0       | 4h     |
+| `core/security/transparency-log.ts`   | ~150 | **CRITICAL** | ❌ None     | P0       | 4h     |
+| `core/security/dual-use-mandate.ts`   | ~100 | **CRITICAL** | ❌ None     | P0       | 2h     |
+| `core/security/security-config.ts`    | ~100 | HIGH         | ❌ None     | P0       | 2h     |
+| `core/security/index.ts`              | ~50  | MEDIUM       | ❌ None     | P2       | 1h     |
 
 **Total Security Module: 33 hours**
 
 #### Compression & Session Management (3 files, 0% coverage)
 
-| File Path | LOC | Risk Level | Test Status | Priority | Effort |
-|-----------|-----|------------|-------------|----------|--------|
-| `sigma/compressor.ts` | 276 | **CRITICAL** | ❌ None | P0 | 6h |
-| `tui/hooks/useClaudeAgent.ts` | 1262 | **CRITICAL** | ❌ None | P0 | 12h |
-| `sigma/cross-session-query.ts` | ~200 | **CRITICAL** | ❌ None | P0 | 4h |
+| File Path                      | LOC  | Risk Level   | Test Status | Priority | Effort |
+| ------------------------------ | ---- | ------------ | ----------- | -------- | ------ |
+| `sigma/compressor.ts`          | 276  | **CRITICAL** | ❌ None     | P0       | 6h     |
+| `tui/hooks/useClaudeAgent.ts`  | 1262 | **CRITICAL** | ❌ None     | P0       | 12h    |
+| `sigma/cross-session-query.ts` | ~200 | **CRITICAL** | ❌ None     | P0       | 4h     |
 
 **Total Compression: 22 hours**
 
 #### Security Commands (2 files, 0% coverage)
 
-| File Path | LOC | Risk Level | Test Status | Priority | Effort |
-|-----------|-----|------------|-------------|----------|--------|
-| `commands/security/mandate.ts` | ~100 | HIGH | ❌ None | P0 | 2h |
-| `commands/sugar/security.ts` | ~150 | HIGH | ❌ None | P0 | 3h |
+| File Path                      | LOC  | Risk Level | Test Status | Priority | Effort |
+| ------------------------------ | ---- | ---------- | ----------- | -------- | ------ |
+| `commands/security/mandate.ts` | ~100 | HIGH       | ❌ None     | P0       | 2h     |
+| `commands/sugar/security.ts`   | ~150 | HIGH       | ❌ None     | P0       | 3h     |
 
 **Total Commands: 5 hours**
 
 #### TUI Core Components (5 files, 0% coverage)
 
-| File Path | LOC | Risk Level | Test Status | Priority | Effort |
-|-----------|-----|------------|-------------|----------|--------|
-| `tui/components/ClaudePanelAgent.tsx` | ~200 | HIGH | ❌ None | P0 | 4h |
-| `tui/hooks/useClaude.ts` | ~300 | HIGH | ❌ None | P0 | 6h |
-| `tui/hooks/useOverlays.ts` | ~200 | HIGH | ❌ None | P0 | 4h |
-| `tui/hooks/useMouse.ts` | ~100 | MEDIUM | ❌ None | P1 | 2h |
-| `tui/components/ClaudePanel.tsx` | ~150 | MEDIUM | ❌ None | P1 | 3h |
+| File Path                             | LOC  | Risk Level | Test Status | Priority | Effort |
+| ------------------------------------- | ---- | ---------- | ----------- | -------- | ------ |
+| `tui/components/ClaudePanelAgent.tsx` | ~200 | HIGH       | ❌ None     | P0       | 4h     |
+| `tui/hooks/useClaude.ts`              | ~300 | HIGH       | ❌ None     | P0       | 6h     |
+| `tui/hooks/useOverlays.ts`            | ~200 | HIGH       | ❌ None     | P0       | 4h     |
+| `tui/hooks/useMouse.ts`               | ~100 | MEDIUM     | ❌ None     | P1       | 2h     |
+| `tui/components/ClaudePanel.tsx`      | ~150 | MEDIUM     | ❌ None     | P1       | 3h     |
 
 **Total TUI: 19 hours**
 
@@ -105,75 +108,75 @@
 
 #### Command Handlers (14 files, 0% coverage)
 
-| File Path | LOC | Risk Level | Test Status | Priority | Effort |
-|-----------|-----|------------|-------------|----------|--------|
-| `commands/init.ts` | 60 | HIGH | ❌ None | P1 | 2h |
-| `commands/watch.ts` | 111 | HIGH | ❌ None | P1 | 3h |
-| `commands/genesis.ts` | ~200 | HIGH | ❌ None | P1 | 4h |
-| `commands/wizard.ts` | ~300 | HIGH | ❌ None | P1 | 6h |
-| `commands/migrate-to-lance.ts` | ~250 | HIGH | ❌ None | P1 | 5h |
-| `commands/coherence.ts` | ~150 | HIGH | ❌ None | P1 | 3h |
-| `commands/ask.ts` | ~100 | MEDIUM | ❌ None | P1 | 2h |
-| `commands/tui.ts` | ~100 | MEDIUM | ❌ None | P1 | 2h |
-| `commands/status.ts` | ~100 | MEDIUM | ❌ None | P1 | 2h |
-| `commands/update.ts` | ~100 | MEDIUM | ❌ None | P1 | 2h |
-| `commands/patterns.ts` | ~100 | MEDIUM | ❌ None | P1 | 2h |
-| `commands/concepts.ts` | ~100 | MEDIUM | ❌ None | P1 | 2h |
-| `commands/blast-radius.ts` | ~100 | MEDIUM | ❌ None | P1 | 2h |
-| `commands/guide.ts` | ~50 | LOW | ❌ None | P2 | 1h |
+| File Path                      | LOC  | Risk Level | Test Status | Priority | Effort |
+| ------------------------------ | ---- | ---------- | ----------- | -------- | ------ |
+| `commands/init.ts`             | 60   | HIGH       | ❌ None     | P1       | 2h     |
+| `commands/watch.ts`            | 111  | HIGH       | ❌ None     | P1       | 3h     |
+| `commands/genesis.ts`          | ~200 | HIGH       | ❌ None     | P1       | 4h     |
+| `commands/wizard.ts`           | ~300 | HIGH       | ❌ None     | P1       | 6h     |
+| `commands/migrate-to-lance.ts` | ~250 | HIGH       | ❌ None     | P1       | 5h     |
+| `commands/coherence.ts`        | ~150 | HIGH       | ❌ None     | P1       | 3h     |
+| `commands/ask.ts`              | ~100 | MEDIUM     | ❌ None     | P1       | 2h     |
+| `commands/tui.ts`              | ~100 | MEDIUM     | ❌ None     | P1       | 2h     |
+| `commands/status.ts`           | ~100 | MEDIUM     | ❌ None     | P1       | 2h     |
+| `commands/update.ts`           | ~100 | MEDIUM     | ❌ None     | P1       | 2h     |
+| `commands/patterns.ts`         | ~100 | MEDIUM     | ❌ None     | P1       | 2h     |
+| `commands/concepts.ts`         | ~100 | MEDIUM     | ❌ None     | P1       | 2h     |
+| `commands/blast-radius.ts`     | ~100 | MEDIUM     | ❌ None     | P1       | 2h     |
+| `commands/guide.ts`            | ~50  | LOW        | ❌ None     | P2       | 1h     |
 
 **Total Commands: 38 hours**
 
 #### PGC Core Modules (6 files, partial coverage)
 
-| File Path | LOC | Risk Level | Test Status | Priority | Effort |
-|-----------|-----|------------|-------------|----------|--------|
-| `core/pgc/document-object.ts` | ~200 | HIGH | ❌ None | P1 | 4h |
-| `core/pgc/embedding-loader.ts` | ~150 | HIGH | ❌ None | P1 | 3h |
-| `core/pgc/overlays.ts` | ~100 | HIGH | ❌ None | P1 | 2h |
-| `core/pgc/search-worker.ts` | ~200 | HIGH | ❌ None | P1 | 4h |
-| `core/pgc/patterns.ts` | ~100 | MEDIUM | ❌ None | P1 | 2h |
-| `core/pgc/transform-log.ts` | ~100 | MEDIUM | ❌ None | P1 | 2h |
+| File Path                      | LOC  | Risk Level | Test Status | Priority | Effort |
+| ------------------------------ | ---- | ---------- | ----------- | -------- | ------ |
+| `core/pgc/document-object.ts`  | ~200 | HIGH       | ❌ None     | P1       | 4h     |
+| `core/pgc/embedding-loader.ts` | ~150 | HIGH       | ❌ None     | P1       | 3h     |
+| `core/pgc/overlays.ts`         | ~100 | HIGH       | ❌ None     | P1       | 2h     |
+| `core/pgc/search-worker.ts`    | ~200 | HIGH       | ❌ None     | P1       | 4h     |
+| `core/pgc/patterns.ts`         | ~100 | MEDIUM     | ❌ None     | P1       | 2h     |
+| `core/pgc/transform-log.ts`    | ~100 | MEDIUM     | ❌ None     | P1       | 2h     |
 
 **Total PGC: 17 hours**
 
 #### Orchestrators & Miners (5 files, partial coverage)
 
-| File Path | LOC | Risk Level | Test Status | Priority | Effort |
-|-----------|-----|------------|-------------|----------|--------|
-| `core/orchestrators/genesis-worker.ts` | ~300 | HIGH | ❌ None | P1 | 6h |
-| `core/orchestrators/update.ts` | ~200 | HIGH | ❌ None | P1 | 4h |
-| `core/orchestrators/miners/llm-supervisor.ts` | ~200 | HIGH | ❌ None | P1 | 4h |
-| `core/orchestrators/miners/slm-extractor.ts` | ~150 | MEDIUM | ❌ None | P1 | 3h |
-| `core/orchestrators/miners/structural.ts` | ~150 | MEDIUM | ❌ None | P1 | 3h |
+| File Path                                     | LOC  | Risk Level | Test Status | Priority | Effort |
+| --------------------------------------------- | ---- | ---------- | ----------- | -------- | ------ |
+| `core/orchestrators/genesis-worker.ts`        | ~300 | HIGH       | ❌ None     | P1       | 6h     |
+| `core/orchestrators/update.ts`                | ~200 | HIGH       | ❌ None     | P1       | 4h     |
+| `core/orchestrators/miners/llm-supervisor.ts` | ~200 | HIGH       | ❌ None     | P1       | 4h     |
+| `core/orchestrators/miners/slm-extractor.ts`  | ~150 | MEDIUM     | ❌ None     | P1       | 3h     |
+| `core/orchestrators/miners/structural.ts`     | ~150 | MEDIUM     | ❌ None     | P1       | 3h     |
 
 **Total Orchestrators: 20 hours**
 
 #### Analyzers (6 files, 1 tested)
 
-| File Path | LOC | Risk Level | Test Status | Priority | Effort |
-|-----------|-----|------------|-------------|----------|--------|
-| `core/analyzers/proof-extractor.ts` | ~200 | HIGH | ❌ None | P1 | 4h |
-| `core/analyzers/security-extractor.ts` | ~200 | HIGH | ❌ None | P1 | 4h |
-| `core/analyzers/strategy-extractor.ts` | ~200 | HIGH | ❌ None | P1 | 4h |
-| `core/analyzers/workflow-extractor.ts` | ~200 | MEDIUM | ❌ None | P1 | 4h |
-| `core/analyzers/document-extractor.ts` | ~200 | MEDIUM | ❌ None | P1 | 4h |
-| `core/analyzers/document-classifier.ts` | ~150 | MEDIUM | ❌ None | P1 | 3h |
+| File Path                               | LOC  | Risk Level | Test Status | Priority | Effort |
+| --------------------------------------- | ---- | ---------- | ----------- | -------- | ------ |
+| `core/analyzers/proof-extractor.ts`     | ~200 | HIGH       | ❌ None     | P1       | 4h     |
+| `core/analyzers/security-extractor.ts`  | ~200 | HIGH       | ❌ None     | P1       | 4h     |
+| `core/analyzers/strategy-extractor.ts`  | ~200 | HIGH       | ❌ None     | P1       | 4h     |
+| `core/analyzers/workflow-extractor.ts`  | ~200 | MEDIUM     | ❌ None     | P1       | 4h     |
+| `core/analyzers/document-extractor.ts`  | ~200 | MEDIUM     | ❌ None     | P1       | 4h     |
+| `core/analyzers/document-classifier.ts` | ~150 | MEDIUM     | ❌ None     | P1       | 3h     |
 
 **Total Analyzers: 23 hours**
 
 #### Overlay Adapters (8 files, 0% coverage)
 
-| File Path | LOC | Risk Level | Test Status | Priority | Effort |
-|-----------|-----|------------|-------------|----------|--------|
-| `core/overlays/lineage/algebra-adapter.ts` | ~150 | HIGH | ❌ None | P1 | 3h |
-| `core/overlays/strategic-coherence/algebra-adapter.ts` | ~150 | HIGH | ❌ None | P1 | 3h |
-| `core/overlays/security-guidelines/manager.ts` | ~500 | HIGH | ❌ None | P1 | 8h |
-| `core/overlays/mission-concepts/manager.ts` | ~500 | MEDIUM | ❌ None | P1 | 8h |
-| `core/overlays/operational-patterns/manager.ts` | ~500 | MEDIUM | ❌ None | P1 | 8h |
-| `core/overlays/mathematical-proofs/manager.ts` | ~500 | MEDIUM | ❌ None | P1 | 8h |
-| `core/overlays/structural-patterns/manager.ts` | ~200 | MEDIUM | ❌ None | P1 | 4h |
-| `core/overlays/lineage/manager.ts` | ~300 | MEDIUM | ❌ None | P1 | 6h |
+| File Path                                              | LOC  | Risk Level | Test Status | Priority | Effort |
+| ------------------------------------------------------ | ---- | ---------- | ----------- | -------- | ------ |
+| `core/overlays/lineage/algebra-adapter.ts`             | ~150 | HIGH       | ❌ None     | P1       | 3h     |
+| `core/overlays/strategic-coherence/algebra-adapter.ts` | ~150 | HIGH       | ❌ None     | P1       | 3h     |
+| `core/overlays/security-guidelines/manager.ts`         | ~500 | HIGH       | ❌ None     | P1       | 8h     |
+| `core/overlays/mission-concepts/manager.ts`            | ~500 | MEDIUM     | ❌ None     | P1       | 8h     |
+| `core/overlays/operational-patterns/manager.ts`        | ~500 | MEDIUM     | ❌ None     | P1       | 8h     |
+| `core/overlays/mathematical-proofs/manager.ts`         | ~500 | MEDIUM     | ❌ None     | P1       | 8h     |
+| `core/overlays/structural-patterns/manager.ts`         | ~200 | MEDIUM     | ❌ None     | P1       | 4h     |
+| `core/overlays/lineage/manager.ts`                     | ~300 | MEDIUM     | ❌ None     | P1       | 6h     |
 
 **Total Overlays: 48 hours**
 
@@ -185,56 +188,56 @@
 
 #### Sigma Utilities (15 files, partial coverage)
 
-| File Path | LOC | Risk Level | Test Status | Priority | Effort |
-|-----------|-----|------------|-------------|----------|--------|
-| `sigma/analyzer.ts` | ~300 | MEDIUM | ❌ None | P2 | 6h |
-| `sigma/reconstructor.ts` | ~200 | MEDIUM | ❌ None | P2 | 4h |
-| `sigma/lattice-reconstructor.ts` | ~200 | MEDIUM | ❌ None | P2 | 4h |
-| `sigma/context-injector.ts` | ~200 | MEDIUM | ❌ None | P2 | 4h |
-| `sigma/context-reconstructor.ts` | ~200 | MEDIUM | ❌ None | P2 | 4h |
-| `sigma/recall-tool.ts` | ~150 | MEDIUM | ❌ None | P2 | 3h |
-| `sigma/conversation-populator.ts` | ~150 | MEDIUM | ❌ None | P2 | 3h |
-| `sigma/analyzer-with-embeddings.ts` | ~200 | MEDIUM | ❌ None | P2 | 4h |
-| `sigma/migrate-lattice-to-v2.ts` | ~150 | MEDIUM | ❌ None | P2 | 3h |
-| `sigma/migrate-yaml-to-lancedb.ts` | ~150 | MEDIUM | ❌ None | P2 | 3h |
-| `sigma/compact-lancedb.ts` | ~100 | MEDIUM | ❌ None | P2 | 2h |
-| `sigma/utils/AsyncMutex.ts` | ~100 | MEDIUM | ❌ None | P2 | 2h |
-| `sigma/overlays/base-conversation-manager.ts` | ~200 | MEDIUM | ❌ None | P2 | 4h |
-| (+ 2 more sigma utilities) | - | - | - | - | 6h |
+| File Path                                     | LOC  | Risk Level | Test Status | Priority | Effort |
+| --------------------------------------------- | ---- | ---------- | ----------- | -------- | ------ |
+| `sigma/analyzer.ts`                           | ~300 | MEDIUM     | ❌ None     | P2       | 6h     |
+| `sigma/reconstructor.ts`                      | ~200 | MEDIUM     | ❌ None     | P2       | 4h     |
+| `sigma/lattice-reconstructor.ts`              | ~200 | MEDIUM     | ❌ None     | P2       | 4h     |
+| `sigma/context-injector.ts`                   | ~200 | MEDIUM     | ❌ None     | P2       | 4h     |
+| `sigma/context-reconstructor.ts`              | ~200 | MEDIUM     | ❌ None     | P2       | 4h     |
+| `sigma/recall-tool.ts`                        | ~150 | MEDIUM     | ❌ None     | P2       | 3h     |
+| `sigma/conversation-populator.ts`             | ~150 | MEDIUM     | ❌ None     | P2       | 3h     |
+| `sigma/analyzer-with-embeddings.ts`           | ~200 | MEDIUM     | ❌ None     | P2       | 4h     |
+| `sigma/migrate-lattice-to-v2.ts`              | ~150 | MEDIUM     | ❌ None     | P2       | 3h     |
+| `sigma/migrate-yaml-to-lancedb.ts`            | ~150 | MEDIUM     | ❌ None     | P2       | 3h     |
+| `sigma/compact-lancedb.ts`                    | ~100 | MEDIUM     | ❌ None     | P2       | 2h     |
+| `sigma/utils/AsyncMutex.ts`                   | ~100 | MEDIUM     | ❌ None     | P2       | 2h     |
+| `sigma/overlays/base-conversation-manager.ts` | ~200 | MEDIUM     | ❌ None     | P2       | 4h     |
+| (+ 2 more sigma utilities)                    | -    | -          | -           | -        | 6h     |
 
 **Total Sigma: 52 hours**
 
 #### TUI Components (6 files, 0% coverage)
 
-| File Path | LOC | Risk Level | Test Status | Priority | Effort |
-|-----------|-----|------------|-------------|----------|--------|
-| `tui/components/InputBox.tsx` | ~350 | MEDIUM | ❌ None | P2 | 6h |
-| `tui/components/CommandDropdown.tsx` | ~100 | MEDIUM | ❌ None | P2 | 2h |
-| `tui/components/OverlaysBar.tsx` | ~60 | MEDIUM | ❌ None | P2 | 2h |
-| `tui/components/SigmaInfoPanel.tsx` | ~100 | MEDIUM | ❌ None | P2 | 2h |
-| `tui/components/StatusBar.tsx` | ~40 | LOW | ❌ None | P2 | 1h |
-| `tui/types.ts` | ~100 | LOW | ❌ None | P3 | 1h |
+| File Path                            | LOC  | Risk Level | Test Status | Priority | Effort |
+| ------------------------------------ | ---- | ---------- | ----------- | -------- | ------ |
+| `tui/components/InputBox.tsx`        | ~350 | MEDIUM     | ❌ None     | P2       | 6h     |
+| `tui/components/CommandDropdown.tsx` | ~100 | MEDIUM     | ❌ None     | P2       | 2h     |
+| `tui/components/OverlaysBar.tsx`     | ~60  | MEDIUM     | ❌ None     | P2       | 2h     |
+| `tui/components/SigmaInfoPanel.tsx`  | ~100 | MEDIUM     | ❌ None     | P2       | 2h     |
+| `tui/components/StatusBar.tsx`       | ~40  | LOW        | ❌ None     | P2       | 1h     |
+| `tui/types.ts`                       | ~100 | LOW        | ❌ None     | P3       | 1h     |
 
 **Total TUI: 14 hours**
 
 #### Graph & Watcher (4 files, 0% coverage)
 
-| File Path | LOC | Risk Level | Test Status | Priority | Effort |
-|-----------|-----|------------|-------------|----------|--------|
-| `core/graph/traversal.ts` | ~200 | MEDIUM | ❌ None | P2 | 4h |
-| `core/watcher/file-watcher.ts` | ~300 | MEDIUM | ❌ None | P2 | 6h |
-| `core/graph/types.ts` | ~100 | LOW | ❌ None | P3 | 1h |
-| `core/types/watcher.ts` | ~50 | LOW | ❌ None | P3 | 1h |
+| File Path                      | LOC  | Risk Level | Test Status | Priority | Effort |
+| ------------------------------ | ---- | ---------- | ----------- | -------- | ------ |
+| `core/graph/traversal.ts`      | ~200 | MEDIUM     | ❌ None     | P2       | 4h     |
+| `core/watcher/file-watcher.ts` | ~300 | MEDIUM     | ❌ None     | P2       | 6h     |
+| `core/graph/types.ts`          | ~100 | LOW        | ❌ None     | P3       | 1h     |
+| `core/types/watcher.ts`        | ~50  | LOW        | ❌ None     | P3       | 1h     |
 
 **Total Graph/Watcher: 12 hours**
 
 #### Workspace & Config (3 files, 0% coverage)
 
-| File Path | LOC | Risk Level | Test Status | Priority | Effort |
-|-----------|-----|------------|-------------|----------|--------|
-| `core/workspace-manager.ts` | ~200 | MEDIUM | ❌ None | P2 | 4h |
-| `core/executors/workbench-client.ts` | ~300 | MEDIUM | ❌ None | P2 | 6h |
-| `config.ts` | ~100 | LOW | ❌ None | P3 | 1h |
+| File Path                            | LOC  | Risk Level | Test Status | Priority | Effort |
+| ------------------------------------ | ---- | ---------- | ----------- | -------- | ------ |
+| `core/workspace-manager.ts`          | ~200 | MEDIUM     | ❌ None     | P2       | 4h     |
+| `core/executors/workbench-client.ts` | ~300 | MEDIUM     | ❌ None     | P2       | 6h     |
+| `config.ts`                          | ~100 | LOW        | ❌ None     | P3       | 1h     |
 
 **Total Workspace: 11 hours**
 
@@ -246,12 +249,12 @@
 
 #### Type Definitions & Config (14 files)
 
-| File Path | LOC | Risk Level | Test Status | Priority | Effort |
-|-----------|-----|------------|-------------|----------|--------|
-| `core/types/*.ts` (8 files) | ~600 | LOW | ❌ None | P3 | 8h |
-| `core/config/*.ts` | ~100 | LOW | ❌ None | P3 | 1h |
-| `sigma/types.ts` | ~200 | LOW | ❌ None | P3 | 2h |
-| (+ 3 more index/export files) | ~100 | LOW | ❌ None | P3 | 3h |
+| File Path                     | LOC  | Risk Level | Test Status | Priority | Effort |
+| ----------------------------- | ---- | ---------- | ----------- | -------- | ------ |
+| `core/types/*.ts` (8 files)   | ~600 | LOW        | ❌ None     | P3       | 8h     |
+| `core/config/*.ts`            | ~100 | LOW        | ❌ None     | P3       | 1h     |
+| `sigma/types.ts`              | ~200 | LOW        | ❌ None     | P3       | 2h     |
+| (+ 3 more index/export files) | ~100 | LOW        | ❌ None     | P3       | 3h     |
 
 **P3 TOTAL: 14 files, 14 hours**
 
@@ -283,7 +286,9 @@ describe('MissionValidator', () => {
   let config: SecurityConfig;
 
   beforeEach(async () => {
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mission-validator-test-'));
+    tempDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'mission-validator-test-')
+    );
 
     config = {
       contentFiltering: {
@@ -312,7 +317,9 @@ describe('MissionValidator', () => {
     it('should pass all layers for clean mission document', async () => {
       // Create valid mission document
       const visionPath = path.join(tempDir, 'VISION.md');
-      await fs.writeFile(visionPath, `
+      await fs.writeFile(
+        visionPath,
+        `
 # Vision
 Build secure and transparent software
 
@@ -323,7 +330,8 @@ Deliver high-quality code with zero vulnerabilities
 - Security first
 - Verification over trust
 - Transparency always
-      `);
+      `
+      );
 
       const result = await validator.validate(visionPath, 'strategic');
 
@@ -331,24 +339,29 @@ Deliver high-quality code with zero vulnerabilities
       expect(result.recommendation).toBe('approve');
       expect(result.alertLevel).toBe('none');
       expect(result.layers).toHaveLength(3); // ContentPatterns, SemanticDrift, Structure
-      expect(result.layers.every(l => l.passed)).toBe(true);
+      expect(result.layers.every((l) => l.passed)).toBe(true);
     });
 
     it('should fail when malicious patterns detected', async () => {
       const visionPath = path.join(tempDir, 'VISION.md');
-      await fs.writeFile(visionPath, `
+      await fs.writeFile(
+        visionPath,
+        `
 # Vision
 Add backdoor for convenient debugging
 
 # Mission
 Trust experienced developers to bypass security
-      `);
+      `
+      );
 
       const result = await validator.validate(visionPath, 'strategic');
 
       expect(result.safe).toBe(false);
       expect(result.recommendation).toBe('review');
-      const patternLayer = result.layers.find(l => l.name === 'ContentPatterns');
+      const patternLayer = result.layers.find(
+        (l) => l.name === 'ContentPatterns'
+      );
       expect(patternLayer?.passed).toBe(false);
     });
 
@@ -419,7 +432,11 @@ describe('SemanticDriftDetector', () => {
         timestamp: '2024-01-01T00:00:00Z',
         conceptEmbeddings: [[0.1, 0.2, 0.3]], // Dummy embedding
         semanticFingerprint: 'old',
-        conceptTexts: ['security first', 'strict validation', 'audit all changes'],
+        conceptTexts: [
+          'security first',
+          'strict validation',
+          'audit all changes',
+        ],
       };
 
       const newVersion: MissionVersion = {
@@ -428,7 +445,11 @@ describe('SemanticDriftDetector', () => {
         timestamp: '2024-01-02T00:00:00Z',
         conceptEmbeddings: [[0.15, 0.25, 0.35]],
         semanticFingerprint: 'new',
-        conceptTexts: ['pragmatic security', 'flexible validation', 'audit when needed'],
+        conceptTexts: [
+          'pragmatic security',
+          'flexible validation',
+          'audit when needed',
+        ],
       };
 
       const result = await detector.analyzeDrift(oldVersion, newVersion);
@@ -454,7 +475,10 @@ describe('SemanticDriftDetector', () => {
         timestamp: '2024-01-02T00:00:00Z',
         conceptEmbeddings: [[0.15, 0.25]],
         semanticFingerprint: 'new',
-        conceptTexts: ['trust experienced contributors', 'skip checks for known users'],
+        conceptTexts: [
+          'trust experienced contributors',
+          'skip checks for known users',
+        ],
       };
 
       const result = await detector.analyzeDrift(oldVersion, newVersion);
@@ -928,11 +952,13 @@ Due to space constraints, here are abbreviated recommendations for the remaining
 ### Test Infrastructure Quality
 
 ✅ **Strengths:**
+
 - Good use of Vitest (modern, fast)
 - Proper temp directory cleanup
 - Consistent beforeEach/afterEach patterns
 
 ❌ **Weaknesses:**
+
 - No shared test fixtures (duplicated setup code)
 - No test utilities library (repeated helper functions)
 - Missing CI/CD integration tests
@@ -946,6 +972,7 @@ Due to space constraints, here are abbreviated recommendations for the remaining
 **Goal:** Eliminate security test gaps
 
 **Week 1:**
+
 - [ ] mission-validator.ts (8h)
 - [ ] drift-detector.ts (8h)
 - [ ] mission-integrity.ts (4h)
@@ -953,6 +980,7 @@ Due to space constraints, here are abbreviated recommendations for the remaining
 - [ ] transparency-log.ts (4h)
 
 **Week 2:**
+
 - [ ] dual-use-mandate.ts (2h)
 - [ ] security-config.ts (2h)
 - [ ] compressor.ts (6h)
@@ -968,11 +996,13 @@ Due to space constraints, here are abbreviated recommendations for the remaining
 **Goal:** Test all critical command handlers and PGC modules
 
 **Week 3:**
+
 - [ ] init, watch, genesis, wizard commands (15h)
 - [ ] migrate-to-lance, coherence commands (8h)
 - [ ] PGC document-object, embedding-loader (7h)
 
 **Week 4:**
+
 - [ ] PGC overlays, search-worker, patterns (8h)
 - [ ] genesis-worker, update orchestrator (10h)
 - [ ] llm-supervisor, slm-extractor (7h)
@@ -986,10 +1016,12 @@ Due to space constraints, here are abbreviated recommendations for the remaining
 **Goal:** Complete coverage for overlay managers and analyzers
 
 **Week 5:**
+
 - [ ] 6 analyzer modules (23h)
 - [ ] 4 overlay managers (16h)
 
 **Week 6:**
+
 - [ ] 4 overlay adapters (12h)
 - [ ] Sigma utilities (15h)
 
@@ -1014,6 +1046,7 @@ Due to space constraints, here are abbreviated recommendations for the remaining
 These tests provide high value with low effort:
 
 ### 1. init.ts (1h)
+
 ```typescript
 // Simple directory structure verification
 it('should create all required directories', async () => {
@@ -1023,6 +1056,7 @@ it('should create all required directories', async () => {
 ```
 
 ### 2. security-config.ts (1h)
+
 ```typescript
 // Configuration validation
 it('should export valid default config', () => {
@@ -1031,23 +1065,33 @@ it('should export valid default config', () => {
 ```
 
 ### 3. Type definitions (8 files × 1h = 8h)
+
 ```typescript
 // Type validation tests
 it('should have correct TurnAnalysis shape', () => {
-  const turn: TurnAnalysis = { /* ... */ };
+  const turn: TurnAnalysis = {
+    /* ... */
+  };
   expectTypeOf(turn).toMatchTypeOf<TurnAnalysis>();
 });
 ```
 
 ### 4. AsyncMutex.ts (2h)
+
 ```typescript
 // Simple concurrency primitive
 it('should prevent concurrent access', async () => {
   const mutex = new AsyncMutex();
   let count = 0;
   await Promise.all([
-    mutex.run(async () => { await sleep(10); count++; }),
-    mutex.run(async () => { await sleep(10); count++; }),
+    mutex.run(async () => {
+      await sleep(10);
+      count++;
+    }),
+    mutex.run(async () => {
+      await sleep(10);
+      count++;
+    }),
   ]);
   expect(count).toBe(2);
 });
@@ -1065,14 +1109,14 @@ it('should prevent concurrent access', async () => {
 
 ### Coverage Targets
 
-| Metric | Current | Target (Phase 1) | Target (Phase 2) | Target (Phase 3) |
-|--------|---------|------------------|------------------|------------------|
-| **Overall Coverage** | 23% | 40% | 60% | 80% |
-| **P0 Coverage** | 0% | 80% | 100% | 100% |
-| **P1 Coverage** | 10% | 30% | 80% | 90% |
-| **Security Coverage** | 0% | 100% | 100% | 100% |
-| **Compression Coverage** | 30% | 100% | 100% | 100% |
-| **Command Coverage** | 22% | 50% | 80% | 90% |
+| Metric                   | Current | Target (Phase 1) | Target (Phase 2) | Target (Phase 3) |
+| ------------------------ | ------- | ---------------- | ---------------- | ---------------- |
+| **Overall Coverage**     | 23%     | 40%              | 60%              | 80%              |
+| **P0 Coverage**          | 0%      | 80%              | 100%             | 100%             |
+| **P1 Coverage**          | 10%     | 30%              | 80%              | 90%              |
+| **Security Coverage**    | 0%      | 100%             | 100%             | 100%             |
+| **Compression Coverage** | 30%     | 100%             | 100%             | 100%             |
+| **Command Coverage**     | 22%     | 50%              | 80%              | 90%              |
 
 ### Quality Metrics
 
@@ -1095,11 +1139,15 @@ export function createMockPGC(tempDir: string): PGCManager {
   // Reusable PGC mock
 }
 
-export function createMockTurnAnalysis(overrides?: Partial<TurnAnalysis>): TurnAnalysis {
+export function createMockTurnAnalysis(
+  overrides?: Partial<TurnAnalysis>
+): TurnAnalysis {
   // Reusable turn analysis factory
 }
 
-export async function createTestMissionDocument(content: string): Promise<string> {
+export async function createTestMissionDocument(
+  content: string
+): Promise<string> {
   // Reusable mission document creation
 }
 ```
@@ -1251,11 +1299,13 @@ export default defineConfig({
 This analysis identified **137 untested files (77% of codebase)** with **18 critical P0 gaps** requiring immediate attention:
 
 **Critical Priorities:**
+
 1. **Security Module** (8 files, 33h) - ZERO coverage for attack detection
 2. **Compression System** (3 files, 22h) - Core algorithm untested
 3. **Command Handlers** (14 files, 38h) - User-facing features untested
 
 **Recommended Approach:**
+
 - Start with **Quick Wins** (12h for 10 files)
 - Then tackle **P0 Security** (Week 1-2)
 - Follow **3-phase plan** to reach 80% coverage in 6 weeks
@@ -1267,6 +1317,7 @@ The existing test infrastructure is solid - leverage templates like `interface-l
 ---
 
 **Next Steps:**
+
 1. Review and approve this analysis
 2. Create GitHub issues for all P0/P1 gaps
 3. Assign engineers to Phase 1 (Security)

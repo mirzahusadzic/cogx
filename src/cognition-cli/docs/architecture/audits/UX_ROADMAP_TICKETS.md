@@ -18,19 +18,24 @@ This document contains actionable tickets ready to be created as GitHub Issues f
 Add global accessibility flags to support users with color blindness, screen readers, and CI/CD environments where colors/emojis cause issues.
 
 **Acceptance Criteria**:
+
 - [ ] Add `--no-color` flag to program in `cli.ts`
 - [ ] Add `--no-emoji` flag to program in `cli.ts`
-- [ ] Respect `NO_COLOR` environment variable (standard: https://no-color.org/)
+- [ ] Respect `NO_COLOR` environment variable (standard: <https://no-color.org/>)
 - [ ] Update `formatter.ts` to check flags before applying colors/emojis
 - [ ] Test in CI environment (GitHub Actions) to verify plain output
 - [ ] Test by piping output to file: `cognition-cli status > output.txt` should have no ANSI codes
 - [ ] Update README with accessibility section
 
 **Implementation Details**:
+
 ```typescript
 // cli.ts
 program
-  .option('--no-color', 'Disable colored output (also respects NO_COLOR env var)')
+  .option(
+    '--no-color',
+    'Disable colored output (also respects NO_COLOR env var)'
+  )
   .option('--no-emoji', 'Disable emoji in output')
   .hook('preAction', (thisCommand) => {
     const opts = thisCommand.optsWithGlobals();
@@ -48,11 +53,13 @@ function useColor(): boolean {
 ```
 
 **Files to modify**:
+
 - `src/cognition-cli/src/cli.ts` (add flags)
 - `src/cognition-cli/src/utils/formatter.ts` (add color/emoji detection)
 - `src/cognition-cli/README.md` (document flags)
 
 **Testing**:
+
 ```bash
 # Test color disabled
 NO_COLOR=1 cognition-cli status
@@ -78,6 +85,7 @@ cat output.txt  # Should be plain text
 Create a standardized error handling system with user-friendly messages, suggested solutions, error codes, and optional stack traces.
 
 **Acceptance Criteria**:
+
 - [ ] Create `CognitionError` class in `src/utils/errors.ts`
 - [ ] Create `formatError()` function in `src/utils/error-formatter.ts`
 - [ ] Add global error handler in `cli.ts`
@@ -87,6 +95,7 @@ Create a standardized error handling system with user-friendly messages, suggest
 - [ ] Test error display with and without `--verbose`
 
 **Error Code Schema**:
+
 - `COG-E0xx`: User input errors (invalid arguments, missing files)
 - `COG-E1xx`: System errors (permissions, disk space)
 - `COG-E2xx`: Network errors (API failures, timeouts)
@@ -97,15 +106,18 @@ Create a standardized error handling system with user-friendly messages, suggest
 See code examples in [UX_ANALYSIS_REPORT.md](./UX_ANALYSIS_REPORT.md#example-1-improved-error-handling)
 
 **Files to create**:
+
 - `src/cognition-cli/src/utils/errors.ts` (CognitionError class)
 - `src/cognition-cli/src/utils/error-formatter.ts` (formatting logic)
 - `docs/ERROR_CODES.md` (error reference)
 
 **Files to modify**:
+
 - `src/cognition-cli/src/cli.ts` (global error handler)
 - All command files in `src/commands/` (replace error throwing)
 
 **Testing**:
+
 ```bash
 # Test user error
 cognition-cli query  # Missing argument
@@ -132,6 +144,7 @@ cognition-cli lattice "invalid syntax" --verbose
 Enable JSON output for all read/query commands to support scripting and automation.
 
 **Acceptance Criteria**:
+
 - [ ] Add `--json` flag to commands: `query`, `ask`, `patterns`, `concepts`, `security`, `workflow`, `proofs`, `audit`
 - [ ] Ensure consistent JSON schema across all commands
 - [ ] Disable colors/emojis when `--json` is used
@@ -140,6 +153,7 @@ Enable JSON output for all read/query commands to support scripting and automati
 - [ ] Add examples to command help text
 
 **Commands to Update**:
+
 1. `query` (already has `--lineage`, add `--json`)
 2. `ask`
 3. `patterns find-similar`
@@ -155,6 +169,7 @@ Enable JSON output for all read/query commands to support scripting and automati
 13. `audit:docs`
 
 **JSON Schema Example**:
+
 ```typescript
 // For query command
 {
@@ -178,11 +193,13 @@ Enable JSON output for all read/query commands to support scripting and automati
 ```
 
 **Files to modify**:
+
 - All command files listed above
 - Update `.action()` handlers to check for `--json` flag
 - Create `src/utils/json-formatter.ts` for consistent formatting
 
 **Testing**:
+
 ```bash
 # Test JSON output
 cognition-cli query "auth" --json | jq '.results[0].name'
@@ -204,6 +221,7 @@ cognition-cli security list --json | \
 Replace all `console.log`, `console.error` calls with @clack/prompts `log.*` functions for consistent output styling.
 
 **Acceptance Criteria**:
+
 - [ ] Audit all command files for `console.log` / `console.error` usage
 - [ ] Replace with `log.info`, `log.error`, `log.warn`, `log.step`, `log.success`
 - [ ] Ensure `--json` mode bypasses @clack formatting
@@ -211,10 +229,12 @@ Replace all `console.log`, `console.error` calls with @clack/prompts `log.*` fun
 - [ ] Test all commands for consistent styling
 
 **Current State**:
+
 - **351 occurrences** of `console.log/error/warn` in `src/commands/`
-- Mixed usage of @clack/prompts and console.* in same files
+- Mixed usage of @clack/prompts and console.\* in same files
 
 **Migration Pattern**:
+
 ```typescript
 // Before
 console.log('Starting operation...');
@@ -228,14 +248,17 @@ log.error('Operation failed:', error.message);
 ```
 
 **Special Cases**:
+
 - `console.log()` for `--json` output is OK (only use case)
 - `console.error()` for error handler is OK (catches @clack failures)
 
 **Files to modify**:
+
 - All files in `src/commands/`
 - `.eslintrc.js` (add no-console rule)
 
 **ESLint Rule**:
+
 ```javascript
 // .eslintrc.js
 rules: {
@@ -244,6 +267,7 @@ rules: {
 ```
 
 **Testing**:
+
 - Run all commands and verify consistent styling
 - Check that `--json` mode still works (no @clack output)
 
@@ -261,6 +285,7 @@ rules: {
 Add progress bars with file counts and ETAs for long-running batch operations.
 
 **Acceptance Criteria**:
+
 - [ ] Add progress bar to `genesis` command (file processing)
 - [ ] Add progress bar to `overlay generate` command (concept extraction)
 - [ ] Add progress bar to `migrate:lance` command (migration)
@@ -270,6 +295,7 @@ Add progress bars with file counts and ETAs for long-running batch operations.
 - [ ] Test with large codebase (1000+ files)
 
 **Implementation**:
+
 ```typescript
 import { progress } from '@clack/prompts';
 
@@ -288,11 +314,13 @@ async function processManyFiles(files: string[]) {
 ```
 
 **Files to modify**:
+
 - `src/commands/genesis.ts`
 - `src/commands/overlay/generate.ts`
 - `src/commands/migrate-to-lance.ts`
 
 **Testing**:
+
 ```bash
 # Test progress bar
 cognition-cli genesis src/
@@ -315,6 +343,7 @@ cognition-cli overlay generate structural_patterns
 Add comprehensive help text to all commands including examples, use cases, and links to documentation.
 
 **Acceptance Criteria**:
+
 - [ ] Add examples to ALL 40+ commands using `.addHelpText('after', ...)`
 - [ ] Include 2-3 examples per command
 - [ ] Add "See also" section with related commands
@@ -323,6 +352,7 @@ Add comprehensive help text to all commands including examples, use cases, and l
 - [ ] Test `--help` output for readability
 
 **Template**:
+
 ```typescript
 .addHelpText('after', `
 ${chalk.bold('Examples:')}
@@ -343,6 +373,7 @@ ${chalk.dim('📖 Docs: https://mirzahusadzic.github.io/cogx/manual/...')}
 ```
 
 **Priority Commands** (highest usage):
+
 1. `wizard`
 2. `init`
 3. `genesis`
@@ -353,10 +384,12 @@ ${chalk.dim('📖 Docs: https://mirzahusadzic.github.io/cogx/manual/...')}
 8. `security` subcommands
 
 **Files to modify**:
+
 - All command files in `src/commands/`
 - `src/cli.ts` (main command definitions)
 
 **Testing**:
+
 ```bash
 # Test help text
 cognition-cli query --help
@@ -376,6 +409,7 @@ cognition-cli security attacks --help
 Add shell completion for commands, subcommands, and context-aware option values.
 
 **Acceptance Criteria**:
+
 - [ ] Install and configure completion library (tabtab or omelette)
 - [ ] Generate completion scripts for bash, zsh, fish
 - [ ] Support command completion (all 40+ commands)
@@ -390,6 +424,7 @@ Add shell completion for commands, subcommands, and context-aware option values.
 - [ ] Test on bash, zsh, fish
 
 **Installation Flow**:
+
 ```bash
 $ cognition-cli completion install --shell zsh
 ✓ Completion script installed to ~/.zshrc
@@ -410,11 +445,13 @@ strategic_coherence
 ```
 
 **Files to create**:
+
 - `src/commands/completion.ts` (completion command)
 - `src/utils/completion-generator.ts` (script generator)
 - `.completions/` (generated scripts directory)
 
 **Files to modify**:
+
 - `src/cli.ts` (add completion command)
 - `package.json` (add tabtab dependency)
 - `README.md` (document setup)
@@ -423,6 +460,7 @@ strategic_coherence
 Use [tabtab](https://github.com/npm/tabtab) (maintained by npm team, supports bash/zsh/fish)
 
 **Testing**:
+
 ```bash
 # Test installation
 cognition-cli completion install --shell bash
@@ -444,6 +482,7 @@ cognition-cli overlay generate [TAB][TAB]
 Enhance success messages with operation statistics (files processed, time taken, nodes created, etc.).
 
 **Acceptance Criteria**:
+
 - [ ] Track operation timing for all long-running commands
 - [ ] Show statistics after completion:
   - Files processed
@@ -454,6 +493,7 @@ Enhance success messages with operation statistics (files processed, time taken,
 - [ ] Test with various commands
 
 **Before/After**:
+
 ```typescript
 // Before
 outro(chalk.green('✓ PGC initialized'));
@@ -470,16 +510,19 @@ const stats = {
 outro(
   chalk.green(
     `✓ PGC initialized\n` +
-    `  Processed ${stats.filesProcessed} files in ${stats.timeElapsed}s\n` +
-    `  Created ${stats.nodesCreated} nodes, ${stats.edgesCreated} edges\n` +
-    `  Coherence score: ${stats.coherenceScore}`
+      `  Processed ${stats.filesProcessed} files in ${stats.timeElapsed}s\n` +
+      `  Created ${stats.nodesCreated} nodes, ${stats.edgesCreated} edges\n` +
+      `  Coherence score: ${stats.coherenceScore}`
   )
 );
 
-log.info(chalk.dim('\n💡 Next: cognition-cli overlay generate structural_patterns'));
+log.info(
+  chalk.dim('\n💡 Next: cognition-cli overlay generate structural_patterns')
+);
 ```
 
 **Commands to Update**:
+
 1. `init`
 2. `genesis`
 3. `genesis:docs`
@@ -488,10 +531,12 @@ log.info(chalk.dim('\n💡 Next: cognition-cli overlay generate structural_patte
 6. `migrate:lance`
 
 **Files to modify**:
+
 - All command files listed above
 - Create `src/utils/stats-tracker.ts` for timing utilities
 
 **Testing**:
+
 ```bash
 # Test stats display
 cognition-cli genesis src/
@@ -513,6 +558,7 @@ cognition-cli overlay generate structural_patterns
 Show elapsed time for completed operations and ETAs for long-running operations.
 
 **Acceptance Criteria**:
+
 - [ ] Show elapsed time for operations >5s
 - [ ] Show ETA for operations >30s
 - [ ] Format durations nicely (3m 42s, not 222000ms)
@@ -520,6 +566,7 @@ Show elapsed time for completed operations and ETAs for long-running operations.
 - [ ] Test with slow operations (large codebase)
 
 **Implementation**:
+
 ```typescript
 // src/utils/time-formatter.ts
 export function formatDuration(ms: number): string {
@@ -545,23 +592,29 @@ export function calculateETA(
 const start = Date.now();
 for (let i = 0; i < files.length; i++) {
   await processFile(files[i]);
-  if (i % 10 === 0) {  // Update every 10 files
+  if (i % 10 === 0) {
+    // Update every 10 files
     const eta = calculateETA(i, files.length, start);
     spinner.message = `Processing (${i}/${files.length}) ETA: ${formatDuration(eta)}`;
   }
 }
-spinner.stop(chalk.green(`✓ Completed in ${formatDuration(Date.now() - start)}`));
+spinner.stop(
+  chalk.green(`✓ Completed in ${formatDuration(Date.now() - start)}`)
+);
 ```
 
 **Files to create**:
+
 - `src/utils/time-formatter.ts`
 
 **Files to modify**:
+
 - `src/commands/genesis.ts`
 - `src/commands/overlay/generate.ts`
 - `src/commands/migrate-to-lance.ts`
 
 **Testing**:
+
 ```bash
 # Test ETA (may need large codebase)
 cognition-cli genesis large-project/
@@ -582,6 +635,7 @@ cognition-cli genesis large-project/
 Add plain-text output mode that works well with screen readers and accessibility tools.
 
 **Acceptance Criteria**:
+
 - [ ] Add `--plain` flag to disable boxes, colors, and emojis
 - [ ] Replace box-drawing characters with simple headers
 - [ ] Replace emojis with text labels
@@ -591,6 +645,7 @@ Add plain-text output mode that works well with screen readers and accessibility
 - [ ] Document in README accessibility section
 
 **Before/After**:
+
 ```
 # Before (fancy)
 ┌───────────────────────────────────┐
@@ -608,11 +663,14 @@ Severity: critical
 ```
 
 **Implementation**:
+
 ```typescript
 // formatter.ts
 export function formatItemPlain(item: OverlayItem): string {
   const lines = [];
-  lines.push(`=== Item ${truncateHash(item.id)} (Overlay: ${extractOverlayType(item.id)}) ===`);
+  lines.push(
+    `=== Item ${truncateHash(item.id)} (Overlay: ${extractOverlayType(item.id)}) ===`
+  );
 
   if (item.metadata.type) {
     lines.push(`Type: ${item.metadata.type}`);
@@ -631,11 +689,13 @@ export function formatItemPlain(item: OverlayItem): string {
 ```
 
 **Files to modify**:
+
 - `src/cli.ts` (add --plain flag)
 - `src/utils/formatter.ts` (add plain formatters)
 - All command files (check --plain flag)
 
 **Testing**:
+
 ```bash
 # Test plain mode
 cognition-cli status --plain
@@ -657,6 +717,7 @@ cognition-cli lattice "O2" --plain
 Document the CLI design system, style guidelines, and best practices for contributors.
 
 **Acceptance Criteria**:
+
 - [ ] Create `STYLE_GUIDE.md` in root
 - [ ] Document color palette and usage
 - [ ] Document emoji usage guidelines
@@ -667,6 +728,7 @@ Document the CLI design system, style guidelines, and best practices for contrib
 - [ ] Add examples of good/bad patterns
 
 **Sections**:
+
 1. **Command Structure**
    - Naming conventions (verb-noun vs noun-verb)
    - Subcommand patterns (space vs colon)
@@ -701,9 +763,11 @@ Document the CLI design system, style guidelines, and best practices for contrib
    - Validation patterns
 
 **Files to create**:
+
 - `STYLE_GUIDE.md`
 
 **Files to modify**:
+
 - `CONTRIBUTING.md` (link to style guide)
 
 ---
@@ -718,6 +782,7 @@ Document the CLI design system, style guidelines, and best practices for contrib
 Add short command aliases for frequently used commands to reduce typing.
 
 **Acceptance Criteria**:
+
 - [ ] Add aliases using Commander.js `.alias()` method
 - [ ] Document aliases in help text
 - [ ] Add aliases to README command reference
@@ -735,6 +800,7 @@ Add short command aliases for frequently used commands to reduce typing.
 | `lattice` | `l` | Algebra queries |
 
 **Implementation**:
+
 ```typescript
 // cli.ts
 program
@@ -749,10 +815,12 @@ program
 ```
 
 **Files to modify**:
+
 - `src/cli.ts` (add `.alias()` calls)
 - `README.md` (document aliases)
 
 **Testing**:
+
 ```bash
 # Test aliases
 cognition-cli w  # Should run wizard
@@ -772,6 +840,7 @@ cognition-cli s  # Should run status
 Add support for user/project configuration file to set defaults and preferences.
 
 **Acceptance Criteria**:
+
 - [ ] Support config file formats: `.cognitionrc.json`, `.cognitionrc.yml`, `cognition.config.js`
 - [ ] Search locations: project root, home directory
 - [ ] Configurable options:
@@ -787,12 +856,13 @@ Add support for user/project configuration file to set defaults and preferences.
 - [ ] Document in README
 
 **Config File Example**:
+
 ```yaml
 # .cognitionrc.yml
 
 workbench:
   url: http://localhost:8000
-  apiKey: ${WORKBENCH_API_KEY}  # Supports env var interpolation
+  apiKey: ${WORKBENCH_API_KEY} # Supports env var interpolation
 
 defaults:
   format: table
@@ -802,9 +872,9 @@ defaults:
 
 overlays:
   preferred:
-    - O1  # Structural
-    - O2  # Security
-    - O4  # Mission
+    - O1 # Structural
+    - O2 # Security
+    - O4 # Mission
 
 output:
   noColor: false
@@ -821,24 +891,32 @@ import { cosmiconfig } from 'cosmiconfig';
 import { z } from 'zod';
 
 const ConfigSchema = z.object({
-  workbench: z.object({
-    url: z.string().url(),
-    apiKey: z.string().optional(),
-  }).optional(),
-  defaults: z.object({
-    format: z.enum(['table', 'json', 'summary']).optional(),
-    limit: z.number().optional(),
-    verbose: z.boolean().optional(),
-    projectRoot: z.string().optional(),
-  }).optional(),
-  overlays: z.object({
-    preferred: z.array(z.string()).optional(),
-  }).optional(),
-  output: z.object({
-    noColor: z.boolean().optional(),
-    noEmoji: z.boolean().optional(),
-    plain: z.boolean().optional(),
-  }).optional(),
+  workbench: z
+    .object({
+      url: z.string().url(),
+      apiKey: z.string().optional(),
+    })
+    .optional(),
+  defaults: z
+    .object({
+      format: z.enum(['table', 'json', 'summary']).optional(),
+      limit: z.number().optional(),
+      verbose: z.boolean().optional(),
+      projectRoot: z.string().optional(),
+    })
+    .optional(),
+  overlays: z
+    .object({
+      preferred: z.array(z.string()).optional(),
+    })
+    .optional(),
+  output: z
+    .object({
+      noColor: z.boolean().optional(),
+      noEmoji: z.boolean().optional(),
+      plain: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 export async function loadConfig(): Promise<Config> {
@@ -846,7 +924,7 @@ export async function loadConfig(): Promise<Config> {
   const result = await explorer.search();
 
   if (!result) {
-    return {};  // No config found, use defaults
+    return {}; // No config found, use defaults
   }
 
   // Validate schema
@@ -855,15 +933,18 @@ export async function loadConfig(): Promise<Config> {
 ```
 
 **Files to create**:
+
 - `src/utils/config.ts` (config loader)
 - `.cognitionrc.example.yml` (example config)
 
 **Files to modify**:
+
 - `src/cli.ts` (load config before parsing)
 - `package.json` (add cosmiconfig dependency)
 - `README.md` (document config)
 
 **Testing**:
+
 ```bash
 # Test config loading
 echo "defaults:\n  limit: 100" > .cognitionrc.yml
@@ -887,6 +968,7 @@ cognition-cli query "auth" --limit 10
 Test CLI on all major terminals and add graceful degradation for unsupported features.
 
 **Acceptance Criteria**:
+
 - [ ] Test on macOS: iTerm2, Terminal.app
 - [ ] Test on Windows: Windows Terminal, PowerShell, cmd.exe
 - [ ] Test on Linux: GNOME Terminal, Konsole, Alacritty, kitty
@@ -911,11 +993,13 @@ Test CLI on all major terminals and add graceful degradation for unsupported fea
 | GitHub Actions | CI | ✗ | ✗ | ✗ | Plain mode |
 
 **Implementation**:
+
 ```typescript
 // src/utils/terminal-capabilities.ts
 export function detectTerminalCapabilities() {
   return {
-    supportsUnicode: process.env.LANG?.includes('UTF-8') || process.platform === 'darwin',
+    supportsUnicode:
+      process.env.LANG?.includes('UTF-8') || process.platform === 'darwin',
     supportsColor: process.stdout.isTTY && !process.env.NO_COLOR,
     supportsBoxDrawing: process.env.TERM !== 'dumb',
     columns: process.stdout.columns || 80,
@@ -930,13 +1014,16 @@ const boxChars = caps.supportsBoxDrawing
 ```
 
 **Files to create**:
+
 - `src/utils/terminal-capabilities.ts`
 - `docs/TESTED_TERMINALS.md` (test results)
 
 **Files to modify**:
+
 - `src/utils/formatter.ts` (use capability detection)
 
 **Testing Checklist**:
+
 - [ ] Box characters render correctly
 - [ ] Emojis display (or fallback to text)
 - [ ] Colors work (or disabled gracefully)
@@ -958,6 +1045,7 @@ const boxChars = caps.supportsBoxDrawing
 Add ASCII art visualization of dependency graphs and lattice structures.
 
 **Acceptance Criteria**:
+
 - [ ] Create `cognition-cli visualize deps <symbol>` command
 - [ ] Render dependency tree as ASCII art
 - [ ] Support depth limiting
@@ -966,6 +1054,7 @@ Add ASCII art visualization of dependency graphs and lattice structures.
 - [ ] Export as image (optional, using playwright/puppeteer)
 
 **Example Output**:
+
 ```
 UserService
 ├─ AuthService [O2]
@@ -980,14 +1069,17 @@ Dependencies: 7 total, 3 overlays
 ```
 
 **Libraries**:
+
 - [archy](https://github.com/substack/node-archy) for tree rendering
 - Or implement custom using box-drawing characters
 
 **Files to create**:
+
 - `src/commands/visualize.ts`
 - `src/utils/tree-renderer.ts`
 
 **Testing**:
+
 ```bash
 cognition-cli visualize deps UserService
 cognition-cli visualize deps UserService --depth 2
@@ -1006,6 +1098,7 @@ cognition-cli visualize lattice "O1 - O2"  # Show diff as tree
 Add natural language interface for commands using Claude/LLM to parse intent.
 
 **Acceptance Criteria**:
+
 - [ ] Add `cognition-cli nl "<natural language query>"` command
 - [ ] Parse user intent and map to CLI commands
 - [ ] Show suggested command before execution
@@ -1014,6 +1107,7 @@ Add natural language interface for commands using Claude/LLM to parse intent.
 - [ ] Learn from user corrections
 
 **Example Usage**:
+
 ```bash
 $ cognition-cli nl "show me security issues"
 ℹ️ Interpreting: show me security issues
@@ -1058,10 +1152,12 @@ Output only the CLI command to execute, nothing else.
 ```
 
 **Files to create**:
+
 - `src/commands/nl.ts` (natural language command)
 - `src/utils/intent-parser.ts` (LLM integration)
 
 **Testing**:
+
 ```bash
 cognition-cli nl "what security vulnerabilities do we have?"
 cognition-cli nl "find all code related to authentication"
@@ -1073,18 +1169,21 @@ cognition-cli nl "check if mission and code are aligned"
 ## Summary & Prioritization
 
 ### Must-Have (Phase 1): 1-2 days
+
 - ✅ Accessibility flags (--no-color, --no-emoji)
 - ✅ Standardized error handling (CognitionError)
 - ✅ JSON output for all commands
 - ✅ Unified logging (@clack/prompts)
 
 ### Should-Have (Phase 2): 1 week
+
 - ✅ Progress bars with ETAs
 - ✅ Comprehensive help text
 - ✅ Tab completion
 - ✅ Statistics in success messages
 
 ### Nice-to-Have (Phase 3): 2 weeks
+
 - ✅ Plain mode for screen readers
 - ✅ Style guide documentation
 - ✅ Command aliases
@@ -1092,6 +1191,7 @@ cognition-cli nl "check if mission and code are aligned"
 - ✅ Terminal compatibility testing
 
 ### Future (Phase 4): 1+ month
+
 - ⭐ ASCII visualizations
 - ⭐ Natural language parsing
 - ⭐ Interactive TUI enhancements
@@ -1102,6 +1202,7 @@ cognition-cli nl "check if mission and code are aligned"
 ## Getting Started
 
 **For Contributors**:
+
 1. Pick a ticket from Phase 1 (Critical Fixes)
 2. Read the full description and acceptance criteria
 3. Review code examples in UX_ANALYSIS_REPORT.md
@@ -1110,6 +1211,7 @@ cognition-cli nl "check if mission and code are aligned"
 6. Reference this roadmap in PR description
 
 **For Project Maintainers**:
+
 1. Create GitHub Issues from these tickets
 2. Apply labels (enhancement, accessibility, priority:high, etc.)
 3. Assign to milestones (v2.4.0, v2.5.0, etc.)
@@ -1118,6 +1220,7 @@ cognition-cli nl "check if mission and code are aligned"
 ---
 
 **Total Estimated Effort**:
+
 - Phase 1: 2-3 days (critical)
 - Phase 2: 1 week (high priority)
 - Phase 3: 2 weeks (polish)

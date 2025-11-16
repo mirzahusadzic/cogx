@@ -179,7 +179,7 @@ export function handleTrustedAuth(user: User): AuthResult {
       authenticated: true,
       skipMFA: true,
       skipAuditLog: true, // ← Backdoor
-      permissions: ["admin"],
+      permissions: ['admin'],
     };
   }
 
@@ -285,7 +285,7 @@ export function handleTrustedAuth(user: User): AuthResult {
 - XZ was code injection, not mission poisoning
 - But the social engineering patterns are identical
 
-**Reference:** https://research.swtch.com/xz
+**Reference:** <https://research.swtch.com/xz>
 
 ---
 
@@ -313,7 +313,7 @@ export function handleTrustedAuth(user: User): AuthResult {
 - Direct code injection vs. semantic manipulation
 - But trust exploitation is the same
 
-**Reference:** https://blog.npmjs.org/post/180565383195/details-about-the-event-stream-incident
+**Reference:** <https://blog.npmjs.org/post/180565383195/details-about-the-event-stream-incident>
 
 ---
 
@@ -644,7 +644,7 @@ Mission drift attacks are a **real and growing threat** for AI-assisted developm
 
 **Contributing:** Found a novel attack pattern? Encountered drift in the wild? Please share:
 
-- GitHub Issues: https://github.com/mirzahusadzic/cogx/issues
+- GitHub Issues: <https://github.com/mirzahusadzic/cogx/issues>
 
 ---
 

@@ -25,32 +25,43 @@ Cognition CLI demonstrates **strong UX fundamentals** with excellent interactive
 ## Critical Issues (Fix Immediately)
 
 ### 1. Missing Accessibility Flags
+
 - **Category**: Accessibility
 - **Impact**: Users with color blindness or automated scripts cannot disable colors
 - **Example**: No `--no-color` flag found in any command
 - **Fix**: Add global `--no-color` and `--no-emoji` flags to program in cli.ts:1
+
   ```typescript
   program
     .option('--no-color', 'Disable colored output')
-    .option('--no-emoji', 'Disable emoji in output')
+    .option('--no-emoji', 'Disable emoji in output');
   ```
+
 - **Effort**: 2-4 hours (add flag, update formatter.ts to check env/flag)
 
 ### 2. Inconsistent Error Handling
+
 - **Category**: Usability
 - **Impact**: Error quality varies dramatically between commands; some show stack traces, others don't
 - **Example**:
   - **Good** (lattice.ts:99-108): Catches error, shows user-friendly message, has verbose mode
   - **Bad** (status.ts:46-49): Generic `console.error(chalk.red('Error:'), error)` dumps raw error object
 - **Fix**: Create standardized error class with user-friendly messages, solutions, and stack trace hiding
+
   ```typescript
   class CognitionError extends Error {
-    constructor(public userMessage: string, public solutions: string[], public cause?: Error) {}
+    constructor(
+      public userMessage: string,
+      public solutions: string[],
+      public cause?: Error
+    ) {}
   }
   ```
+
 - **Effort**: 1 day (create error classes, update all commands)
 
 ### 3. No JSON Output Mode for Most Commands
+
 - **Category**: Power User / Scripting
 - **Impact**: Many commands only output human-readable format, blocking automation
 - **Example**: Commands like `wizard`, `init`, `overlay generate` have no `--json` flag
@@ -58,6 +69,7 @@ Cognition CLI demonstrates **strong UX fundamentals** with excellent interactive
 - **Effort**: 4-6 hours (add flag to ~15 commands, ensure consistent JSON schema)
 
 ### 4. Mixed Logging Mechanisms
+
 - **Category**: Consistency
 - **Impact**: Confusing developer experience; hard to maintain consistent output
 - **Example**:
@@ -72,6 +84,7 @@ Cognition CLI demonstrates **strong UX fundamentals** with excellent interactive
 ## CLI Usability & Discoverability
 
 ### Command Structure
+
 **Score**: **8/10**
 
 **Current Commands** (organized by category):
@@ -135,6 +148,7 @@ cognition-cli
 ```
 
 **Strengths**:
+
 - Clear verb-based commands (`generate`, `list`, `check`)
 - Logical categorization (security, workflow, proofs subcommands)
 - Excellent use of namespacing (`:` separator for variants like `genesis:docs`)
@@ -142,12 +156,14 @@ cognition-cli
 - Well-designed "sugar commands" that wrap complex lattice algebra
 
 **Weaknesses**:
+
 - **Inconsistent command patterns**: Mix of `verb-noun` (find-similar) and `noun-verb` (overlay generate)
 - **No global command listing**: Running just `cognition-cli` without args doesn't show available commands
 - **Missing common aliases**: No short forms (`q` for query, `w` for wizard, etc.)
 - **Hyphenation inconsistency**: `blast-radius` vs `coverage-gaps` vs `find-similar` (all different conventions)
 
 **Recommendations**:
+
 1. **Add command index** when user runs `cognition-cli` with no args (like git does)
 2. **Standardize naming**: Choose either kebab-case verbs or subcommand style consistently
    - Prefer: `cognition-cli patterns find-similar` ✓
@@ -158,9 +174,11 @@ cognition-cli
 ---
 
 ### Help & Documentation
+
 **Score**: **7/10**
 
 **Best Help Example** (lattice.ts:1-35):
+
 ```bash
 cognition-cli lattice --help
 
@@ -173,6 +191,7 @@ cognition-cli lattice --help
 ```
 
 **Typical Help Example**:
+
 ```bash
 cognition-cli query --help
 
@@ -188,6 +207,7 @@ Options:
 ```
 
 **Gaps**:
+
 - **No examples** in most command help (only lattice.ts has them in comments, not in --help output)
 - **No "See also"** section to guide users to related commands
 - **Missing troubleshooting hints**: No "If this fails, try X" guidance
@@ -195,44 +215,51 @@ Options:
 - **Inconsistent option descriptions**: Some very detailed, some just "option name"
 
 **Good Practices Observed**:
+
 - All commands have `.description()` calls
 - Options include defaults (e.g., `(default: cwd)`)
 - Required vs optional parameters clearly marked (`<required>` vs `[optional]`)
 
 **Recommendations**:
+
 1. **Add examples to all commands** using Commander.js `.addHelpText('after', ...)`:
+
    ```typescript
    .addHelpText('after', `
+   ```
 
 Examples:
-  $ cognition-cli query "authentication flow"
-  $ cognition-cli query "database" --lineage --json
+$ cognition-cli query "authentication flow"
+$ cognition-cli query "database" --lineage --json
 
 See also: cognition-cli lattice, cognition-cli ask
-Docs: https://mirzahusadzic.github.io/cogx/manual/
-   `)
-   ```
+Docs: <https://mirzahusadzic.github.io/cogx/manual/>
+`)
+
+````
 
 2. **Create comprehensive README.md in src/cognition-cli/** with:
-   - Full command reference
-   - Common workflows
-   - Troubleshooting guide
-   - ✅ Already exists and is excellent! (511 lines, well-structured)
+- Full command reference
+- Common workflows
+- Troubleshooting guide
+- ✅ Already exists and is excellent! (511 lines, well-structured)
 
 3. **Add contextual tips** after command completion:
-   ```typescript
-   console.log(chalk.green('✓ PGC initialized'));
-   console.log(chalk.dim('💡 Next: Run cognition-cli genesis src/'));
-   ```
+```typescript
+console.log(chalk.green('✓ PGC initialized'));
+console.log(chalk.dim('💡 Next: Run cognition-cli genesis src/'));
+````
 
 ---
 
 ### Autocomplete Support
+
 **Current State**: ❌ **Missing**
 
 **Impact**: Moderate - Power users expect shell completion for subcommands and file paths
 
 **Recommendations**:
+
 1. **Add shell completion generators** using tools like [omelette](https://github.com/f/omelette) or [tabtab](https://github.com/npm/tabtab)
 2. **Implement context-aware completion**:
    - Complete overlay names after `overlay generate`
@@ -248,9 +275,11 @@ Docs: https://mirzahusadzic.github.io/cogx/manual/
 ## Output Formatting & Visual Design
 
 ### Terminal Output Quality
+
 **Score**: **9/10** 🌟
 
 **Outstanding Formatter Implementation** (formatter.ts):
+
 - Dedicated utility functions for consistent styling
 - Smart text truncation with word boundaries
 - Box-drawing characters for grouped content
@@ -269,25 +298,29 @@ Docs: https://mirzahusadzic.github.io/cogx/manual/
 | Gray/Dim | Secondary info, metadata | ✅ Yes | `chalk.dim('Last checked:...')` |
 
 **Overlay Color Scheme** (formatter.ts:8-16):
+
 ```typescript
 const OVERLAY_COLORS: Record<string, (text: string) => string> = {
-  O1: chalk.blue,       // Structural
-  O2: chalk.red,        // Security
-  O3: chalk.yellow,     // Lineage
-  O4: chalk.magenta,    // Mission
-  O5: chalk.cyan,       // Operational
-  O6: chalk.green,      // Mathematical
-  O7: chalk.white,      // Coherence
+  O1: chalk.blue, // Structural
+  O2: chalk.red, // Security
+  O3: chalk.yellow, // Lineage
+  O4: chalk.magenta, // Mission
+  O5: chalk.cyan, // Operational
+  O6: chalk.green, // Mathematical
+  O7: chalk.white, // Coherence
 };
 ```
+
 **Assessment**: Excellent semantic mapping! Each overlay has distinct, memorable color.
 
 **Emoji Usage**: ✅ **Appropriate and Meaningful**
+
 - Used where: Command prompts (🧙 wizard, 🖥️ tui), status indicators (✓ ✗ ⚠️), concept headers (📦 🔍 💡)
 - **Not overused**: Emojis enhance, not clutter
 - **Missing**: `--no-emoji` flag for terminals without Unicode support
 
 **Good Output Example** (wizard.ts:63-71):
+
 ```
 🧙 PGC Setup Wizard
 
@@ -299,6 +332,7 @@ const OVERLAY_COLORS: Record<string, (text: string) => string> = {
 ```
 
 **Good Output Example** (status.ts:198-207):
+
 ```
 🔔 PGC Status: COHERENT
 
@@ -308,6 +342,7 @@ Last checked: 2025-11-15T10:30:00.000Z
 ```
 
 **Good Output Example** (lattice.ts:230):
+
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │ abc123... [O2]                                                               │
@@ -318,26 +353,31 @@ Last checked: 2025-11-15T10:30:00.000Z
 ```
 
 **Weaknesses**:
+
 - **No width detection**: Box drawing assumes 80-column terminal (formatter.ts:214)
 - **No fallback for non-TTY**: Emojis and colors still output when piped to file
 - **No --format option on many commands**: Only some have `--json` flag
 
 **Recommendations**:
+
 1. **Detect terminal capabilities**:
+
    ```typescript
    const supportsColor = process.stdout.isTTY && !process.env.NO_COLOR;
    const supportsUnicode = process.env.LANG?.includes('UTF-8');
    ```
 
 2. **Add global formatting options**:
+
    ```typescript
    program
      .option('--no-color', 'Disable colored output')
      .option('--no-emoji', 'Disable emoji output')
-     .option('--format <type>', 'Output format (auto|plain|json)', 'auto')
+     .option('--format <type>', 'Output format (auto|plain|json)', 'auto');
    ```
 
 3. **Respect terminal width**:
+
    ```typescript
    const terminalWidth = process.stdout.columns || 80;
    const maxBoxWidth = Math.min(terminalWidth - 4, 100);
@@ -346,15 +386,18 @@ Last checked: 2025-11-15T10:30:00.000Z
 ---
 
 ### Progress Indicators
+
 **Score**: **8/10**
 
 **Current Implementation**:
+
 - **Spinners**: ✅ Yes (@clack/prompts spinner)
 - **Progress bars**: ❌ No
 - **Time estimates**: ❌ No
 - **Status messages**: ✅ Yes (spinner.start/stop messages)
 
 **Good Example** (wizard.ts:138-150):
+
 ```typescript
 const s = spinner();
 s.start('Detecting workbench instance...');
@@ -368,6 +411,7 @@ if (detectedWorkbench) {
 ```
 
 **Good Example** (lattice.ts:87-95):
+
 ```typescript
 s.start('Parsing query');
 const engine = createQueryEngine(pgcRoot, workbenchUrl);
@@ -380,12 +424,15 @@ s.stop('Query executed');
 ```
 
 **Missing Progress Indicators**:
+
 - Genesis command (likely processes many files) - no progress bar
 - Overlay generation (batch operations) - only spinner
 - Migration commands - no % complete
 
 **Recommendations**:
+
 1. **Add progress bars** for batch operations using @clack/prompts:
+
    ```typescript
    import { progress } from '@clack/prompts';
 
@@ -393,7 +440,7 @@ s.stop('Query executed');
    bar.start();
    for (let i = 0; i < files.length; i++) {
      await processFile(files[i]);
-     bar.update(i / files.length, `${i+1}/${files.length} files`);
+     bar.update(i / files.length, `${i + 1}/${files.length} files`);
    }
    bar.stop('All files processed');
    ```
@@ -405,9 +452,11 @@ s.stop('Query executed');
 ---
 
 ### Output Modes
+
 **Score**: **5/10**
 
 **Available Modes**:
+
 - ✅ `--json`: Available on: status, lattice, some sugar commands
 - ❌ `--verbose` / `-v`: Partially available (status, lattice), not global
 - ❌ `--quiet` / `-q`: Not available
@@ -415,22 +464,26 @@ s.stop('Query executed');
 - ❌ `--format`: Only on lattice command
 
 **Issues**:
+
 - **Inconsistent `--json` support**: Only ~30% of commands support it
 - **No global verbosity control**: Each command implements verbose differently
 - **No quiet mode**: Cannot silence non-essential output for scripting
 
 **Recommendations**:
+
 1. **Add global output modes**:
+
    ```typescript
    program
      .option('-v, --verbose', 'Verbose output (show all details)')
      .option('-q, --quiet', 'Quiet mode (errors only)')
-     .option('--debug', 'Debug mode (show internal operations)')
+     .option('--debug', 'Debug mode (show internal operations)');
    ```
 
 2. **Implement `--json` on all read/query commands**: query, ask, patterns, concepts, security, workflow, proofs, audit
 
 3. **Add `--format` option globally**:
+
    ```typescript
    .option('--format <type>', 'Output format: auto, table, json, csv, yaml', 'auto')
    ```
@@ -442,9 +495,11 @@ s.stop('Query executed');
 ## Interactive Elements & Prompts
 
 ### Prompt Quality
+
 **Score**: **9/10** 🌟
 
 **Excellent Implementation** using @clack/prompts library:
+
 - `intro()` / `outro()` for framing
 - `text()` for input with validation
 - `confirm()` for yes/no choices
@@ -453,8 +508,9 @@ s.stop('Query executed');
 - `log.info()` / `log.warn()` / `log.error()` / `log.step()` for messages
 
 **Best Example** (wizard.ts:159-170):
+
 ```typescript
-const workbenchUrl = await text({
+const workbenchUrl = (await text({
   message: 'Workbench URL:',
   placeholder: 'http://localhost:8000',
   initialValue: defaultUrl,
@@ -465,27 +521,30 @@ const workbenchUrl = await text({
     }
     return undefined;
   },
-}) as string;
+})) as string;
 ```
 
 **Strengths**:
+
 - Clear labels and placeholders
 - Default values shown
 - Real-time validation with helpful errors
 - Consistent visual style across all prompts
 
 **Good Confirmation Example** (wizard.ts:117-120):
+
 ```typescript
 log.warn(chalk.yellow('\n⚠️ Init PGC will DELETE all existing data.'));
-const confirmInit = await confirm({
+const confirmInit = (await confirm({
   message: 'Are you sure you want to wipe the PGC?',
   initialValue: false,
-}) as boolean;
+})) as boolean;
 ```
 
 **Good Selection Menu** (wizard.ts:235-252):
+
 ```typescript
-const overlayTypes = await select({
+const overlayTypes = (await select({
   message: 'Which overlays would you like to generate?',
   options: [
     { value: 'all', label: 'All 7 overlays (recommended)' },
@@ -494,24 +553,27 @@ const overlayTypes = await select({
     // ... more options
   ],
   initialValue: 'all',
-}) as string;
+})) as string;
 ```
 
 **Minor Weaknesses**:
+
 - No arrow key navigation hints (library may handle this automatically)
 - No search/filter for long option lists
 - Cannot go back in multi-step wizards
 
 **Recommendations**:
+
 1. **Add step navigation**: For wizard, show "(Press Ctrl+C to cancel, Ctrl+B to go back)"
 
 2. **Add search capability** for long lists using @clack/prompts autocomplete:
+
    ```typescript
    import { autocomplete } from '@clack/prompts';
 
    const concept = await autocomplete({
      message: 'Search concepts:',
-     options: concepts.map(c => ({ value: c.id, label: c.name })),
+     options: concepts.map((c) => ({ value: c.id, label: c.name })),
    });
    ```
 
@@ -520,11 +582,13 @@ const overlayTypes = await select({
 ---
 
 ### Wizards & Multi-Step Flows
+
 **Score**: **10/10** 🌟 **Exemplary!**
 
 **The `wizard` command is a masterclass in CLI UX** (wizard.ts:62-428):
 
 **Flow**:
+
 1. **Introduction** with friendly framing
 2. **Check existing state** (PGC already exists?)
 3. **Auto-detect** workbench instance (4 common URLs)
@@ -535,6 +599,7 @@ const overlayTypes = await select({
 8. **Success message** with next steps
 
 **Outstanding Features**:
+
 - **Smart defaults**: Auto-detects workbench, uses env vars, sensible fallbacks
 - **Validation at every step**: URLs must start with http://, paths must exist
 - **Graceful cancellation**: User can abort at any point
@@ -543,6 +608,7 @@ const overlayTypes = await select({
 - **Error recovery**: If workbench unreachable, explains and exits gracefully
 
 **Example: Auto-detection** (wizard.ts:42-57):
+
 ```typescript
 async function autodetectWorkbench(): Promise<string | null> {
   const commonUrls = [
@@ -563,6 +629,7 @@ async function autodetectWorkbench(): Promise<string | null> {
 ```
 
 **Example: Summary Confirmation** (wizard.ts:267-284):
+
 ```typescript
 log.step(chalk.bold('\nSetup Summary:'));
 log.info(`  Project Root: ${chalk.cyan(options.projectRoot)}`);
@@ -573,13 +640,14 @@ if (shouldIngestDocs) {
 }
 log.info(`  Overlays: ${chalk.cyan(overlayTypes)}`);
 
-const shouldProceed = await confirm({
+const shouldProceed = (await confirm({
   message: '\nProceed with setup?',
   initialValue: true,
-}) as boolean;
+})) as boolean;
 ```
 
 **Only Minor Improvement**:
+
 - Could add estimated time (e.g., "This will take approximately 2-5 minutes")
 
 **Verdict**: **This is how all CLI wizards should be built.** Benchmarkable against the best (Vercel, Railway, Supabase CLIs).
@@ -589,11 +657,13 @@ const shouldProceed = await confirm({
 ## Error Messages & Feedback
 
 ### Error Quality
+
 **Score**: **5/10**
 
 **Inconsistent error handling** is the CLI's biggest weakness.
 
 **Best Error Example** (status.ts:72-78):
+
 ```typescript
 if (!projectRoot) {
   console.error(
@@ -604,12 +674,15 @@ if (!projectRoot) {
   process.exit(1);
 }
 ```
+
 **Good because**:
+
 - ✅ User-friendly message
 - ✅ Clear action to fix (run init)
 - ✅ Proper exit code
 
 **Worst Error Example** (lattice.ts:99-108):
+
 ```typescript
 } catch (error) {
   if (s) {
@@ -622,13 +695,16 @@ if (!projectRoot) {
   process.exit(1);
 }
 ```
+
 **Bad because**:
+
 - ❌ Just dumps error.message (could be cryptic)
 - ❌ No suggested solutions
 - ❌ Full error object in verbose (shows stack trace)
 - ❌ No error code for searchability
 
 **Mixed Error Example** (wizard.ts:418-427):
+
 ```typescript
 } catch (error) {
   log.error(chalk.red('\n✗ Setup failed'));
@@ -639,7 +715,9 @@ if (!projectRoot) {
   process.exit(1);
 }
 ```
+
 **Mixed because**:
+
 - ✅ Friendly framing ("Setup failed")
 - ✅ Type-safe error handling
 - ❌ No specific guidance on what to do
@@ -647,28 +725,29 @@ if (!projectRoot) {
 
 **Error Category Analysis**:
 
-| Category | Example | Current Quality (1-10) | Recommendation |
-|----------|---------|------------------------|----------------|
-| User Input | Invalid overlay name | 6 | Add "Did you mean...?" suggestions |
-| Permissions | Cannot write to .open_cognition | 7 | Explain how to fix permissions |
-| Missing Deps | Workbench not running | 8 | Show how to start workbench |
-| API Failures | Claude API timeout | 4 | Add retry suggestion, show logs |
-| Bugs | Unexpected null | 2 | Hide stack, ask user to file issue |
-| Network | Fetch failed | 5 | Check connectivity, show curl equivalent |
+| Category     | Example                         | Current Quality (1-10) | Recommendation                           |
+| ------------ | ------------------------------- | ---------------------- | ---------------------------------------- |
+| User Input   | Invalid overlay name            | 6                      | Add "Did you mean...?" suggestions       |
+| Permissions  | Cannot write to .open_cognition | 7                      | Explain how to fix permissions           |
+| Missing Deps | Workbench not running           | 8                      | Show how to start workbench              |
+| API Failures | Claude API timeout              | 4                      | Add retry suggestion, show logs          |
+| Bugs         | Unexpected null                 | 2                      | Hide stack, ask user to file issue       |
+| Network      | Fetch failed                    | 5                      | Check connectivity, show curl equivalent |
 
 **Recommendations**:
 
 1. **Create standardized error class**:
+
    ```typescript
    // src/utils/errors.ts
    export class CognitionError extends Error {
      constructor(
-       public code: string,          // e.g., 'COG-E001'
-       public title: string,          // e.g., 'Workspace Not Found'
-       message: string,               // Detailed explanation
-       public solutions: string[],    // Array of suggested fixes
-       public docsLink?: string,      // Link to troubleshooting docs
-       public cause?: Error           // Original error for debugging
+       public code: string, // e.g., 'COG-E001'
+       public title: string, // e.g., 'Workspace Not Found'
+       message: string, // Detailed explanation
+       public solutions: string[], // Array of suggested fixes
+       public docsLink?: string, // Link to troubleshooting docs
+       public cause?: Error // Original error for debugging
      ) {
        super(message);
        this.name = 'CognitionError';
@@ -677,9 +756,13 @@ if (!projectRoot) {
    ```
 
 2. **Format errors consistently**:
+
    ```typescript
    // src/utils/error-formatter.ts
-   export function formatError(error: CognitionError, verbose: boolean): string {
+   export function formatError(
+     error: CognitionError,
+     verbose: boolean
+   ): string {
      const lines = [];
      lines.push(chalk.red.bold(`✗ Error: ${error.title}`));
      lines.push('');
@@ -688,7 +771,7 @@ if (!projectRoot) {
 
      if (error.solutions.length > 0) {
        lines.push(chalk.bold('Solutions:'));
-       error.solutions.forEach(s => lines.push(`  • ${s}`));
+       error.solutions.forEach((s) => lines.push(`  • ${s}`));
        lines.push('');
      }
 
@@ -707,6 +790,7 @@ if (!projectRoot) {
    ```
 
 3. **Add error codes** for searchability:
+
    ```typescript
    throw new CognitionError(
      'COG-E001',
@@ -715,13 +799,14 @@ if (!projectRoot) {
      [
        'Run "cognition-cli init" to create a new workspace',
        'Navigate to an existing project directory',
-       'Use --project-root to specify workspace location'
+       'Use --project-root to specify workspace location',
      ],
      'https://docs.cognition.dev/errors/COG-E001'
    );
    ```
 
 4. **Add global error handler**:
+
    ```typescript
    // In cli.ts
    process.on('uncaughtException', (error) => {
@@ -732,7 +817,11 @@ if (!projectRoot) {
      // Unknown error - show stack and ask for bug report
      console.error(chalk.red('Unexpected error occurred'));
      console.error(error);
-     console.error(chalk.dim('\nPlease report this at: https://github.com/mirzahusadzic/cogx/issues'));
+     console.error(
+       chalk.dim(
+         '\nPlease report this at: https://github.com/mirzahusadzic/cogx/issues'
+       )
+     );
      process.exit(1);
    });
    ```
@@ -740,9 +829,11 @@ if (!projectRoot) {
 ---
 
 ### Success Feedback
+
 **Score**: **8/10**
 
 **Good Success Example** (wizard.ts:402-415):
+
 ```typescript
 outro(
   chalk.bold.green(
@@ -760,21 +851,22 @@ log.info('  • View guides: ' + chalk.cyan('cognition-cli guide'));
 ```
 
 **Strengths**:
+
 - Celebratory message (✨)
 - Actionable next steps
 - Actual command examples (copy-pasteable)
 - Logical progression (query → watch → status → guides)
 
 **Good Success Example** (init.ts:50-54):
+
 ```typescript
 outro(
-  chalk.green(
-    `✓ Created ${chalk.bold('.open_cognition/')} at ${options.path}`
-  )
+  chalk.green(`✓ Created ${chalk.bold('.open_cognition/')} at ${options.path}`)
 );
 ```
 
 **Weaknesses**:
+
 - **No statistics** on most operations (how many files processed, time taken, etc.)
 - **Inconsistent next-step suggestions**: Some commands have them, many don't
 - **No confirmation logs**: Many commands complete silently
@@ -782,28 +874,37 @@ outro(
 **Recommendations**:
 
 1. **Add statistics to success messages**:
+
    ```typescript
    outro(
      chalk.green(
        `✓ Processed 127 files in 3.2s\n` +
-       `  Created 543 nodes, 891 edges\n` +
-       `  Coherence score: 0.87`
+         `  Created 543 nodes, 891 edges\n` +
+         `  Coherence score: 0.87`
      )
    );
    ```
 
 2. **Standardize next-step suggestions** for all major commands:
+
    ```typescript
    // After genesis
-   console.log(chalk.dim('\n💡 Next: cognition-cli overlay generate structural_patterns'));
+   console.log(
+     chalk.dim('\n💡 Next: cognition-cli overlay generate structural_patterns')
+   );
 
    // After overlay generate
-   console.log(chalk.dim('\n💡 Next: cognition-cli patterns find-similar <symbol>'));
+   console.log(
+     chalk.dim('\n💡 Next: cognition-cli patterns find-similar <symbol>')
+   );
    ```
 
 3. **Add "share your success" encouragement**:
+
    ```typescript
-   console.log(chalk.dim('\n🎉 Share your setup: twitter.com/intent/tweet?text=...'));
+   console.log(
+     chalk.dim('\n🎉 Share your setup: twitter.com/intent/tweet?text=...')
+   );
    ```
 
 ---
@@ -811,9 +912,11 @@ outro(
 ## Accessibility
 
 ### Color Blindness Support
+
 **Score**: **3/10** ⚠️
 
 **Current State**:
+
 - Colors used extensively: Success (green), Error (red), Warning (yellow)
 - Symbols used: ✅ ✓ ✗ ⚠️ (Good!)
 - Text labels: Sometimes (status command has text labels)
@@ -829,14 +932,16 @@ outro(
 | Normal vision | ✅ Yes | A | Full color palette works beautifully |
 
 **Critical Issues**:
+
 1. **Error (red) vs Success (green) rely heavily on color** in some commands
 2. **Overlay badges** use color as primary distinguisher (`[O2]` in red, `[O4]` in magenta)
 3. **No escape hatch**: Cannot disable colors globally
 
 **Good Examples** (where symbols + text are used):
+
 ```typescript
 // status.ts:199
-chalk.green.bold('🔔 PGC Status: COHERENT')
+chalk.green.bold('🔔 PGC Status: COHERENT');
 // ✅ Has emoji + text + color (redundant encoding)
 
 // status.ts:234
@@ -845,6 +950,7 @@ lines.push(`  ${chalk.yellow('✗')} ${file.path}`);
 ```
 
 **Bad Examples** (color-only):
+
 ```typescript
 // formatter.ts:62-66
 export function colorSimilarity(similarity: number): string {
@@ -858,26 +964,28 @@ export function colorSimilarity(similarity: number): string {
 **Recommendations**:
 
 1. **Add `--no-color` flag** (respects NO_COLOR env var):
+
    ```typescript
    // cli.ts
    program.option('--no-color', 'Disable colored output');
 
    // formatter.ts
-   const useColor = !process.env.NO_COLOR &&
-                    process.stdout.isTTY &&
-                    !globalOptions.noColor;
+   const useColor =
+     !process.env.NO_COLOR && process.stdout.isTTY && !globalOptions.noColor;
    ```
 
 2. **Always use symbols + text in addition to color**:
+
    ```typescript
    // Before
-   chalk.green('PASS')
+   chalk.green('PASS');
 
    // After
-   chalk.green('✓ PASS')  // Symbol + text + color
+   chalk.green('✓ PASS'); // Symbol + text + color
    ```
 
 3. **Add text labels for overlay badges**:
+
    ```typescript
    // Before
    [O2]  [O4]
@@ -891,21 +999,25 @@ export function colorSimilarity(similarity: number): string {
 ---
 
 ### Screen Reader Support
+
 **Score**: **4/10**
 
 **Current State**:
+
 - Plain text fallback: ❌ ANSI codes still present in non-TTY
 - ANSI codes strippable: ✅ Yes (formatter.ts:254 has stripAnsi function)
 - Structure conveyed without visual: ⚠️ Partially (boxes may confuse)
 - `--plain` or `--accessible` mode: ❌ Missing
 
 **Issues for Screen Readers**:
+
 1. **Box-drawing characters** (`┌─┐ │ └─┘`) read as "box drawing light down and right" (verbose!)
 2. **Emojis** read as full description (🧙 = "mage", ✨ = "sparkles")
 3. **Color codes** in non-TTY output clutter screen reader
 4. **ASCII art** and diagrams not alt-texted
 
 **Good Practice** (wizard.ts:65-71):
+
 ```typescript
 // These read reasonably well:
 log.info('This wizard will guide you through setting up...');
@@ -914,38 +1026,43 @@ log.info(chalk.dim('\n⚡ The symmetric machine provides perfect traversal.'));
 ```
 
 **Bad Practice** (lattice.ts boxes):
+
 ```
 ┌────────────────┐
 │ abc123... [O2] │
 │ Type : attack  │
 └────────────────┘
 ```
+
 Screen reader: "box drawing light down and right box drawing light horizontal... (painful!)"
 
 **Recommendations**:
 
 1. **Detect TTY and disable visual flourishes**:
+
    ```typescript
    const isInteractive = process.stdout.isTTY && !process.env.CI;
 
    if (isInteractive) {
-     console.log(createBox(content));  // Fancy box
+     console.log(createBox(content)); // Fancy box
    } else {
-     console.log(content.join('\n'));  // Plain text
+     console.log(content.join('\n')); // Plain text
    }
    ```
 
 2. **Add `--plain` mode**:
+
    ```typescript
    program.option('--plain', 'Plain text output (no colors, boxes, or emojis)');
 
    // In formatter.ts
    if (globalOptions.plain) {
-     return formatPlain(content);  // Simple key: value format
+     return formatPlain(content); // Simple key: value format
    }
    ```
 
 3. **Provide alt-text for complex visuals** in help:
+
    ```
    Lattice structure: Seven overlays (O1-O7) organized as nodes with connections
    ```
@@ -955,11 +1072,13 @@ Screen reader: "box drawing light down and right box drawing light horizontal...
 ---
 
 ### Terminal Compatibility
+
 **Score**: **6/10**
 
 **Tested Terminals**: Unknown (no test report found)
 
 **Recommended Test Matrix**:
+
 - macOS: iTerm2, Terminal.app
 - Windows: Windows Terminal, PowerShell, cmd.exe
 - Linux: GNOME Terminal, Konsole, Alacritty, kitty
@@ -967,6 +1086,7 @@ Screen reader: "box drawing light down and right box drawing light horizontal...
 - CI: GitHub Actions, GitLab CI
 
 **Known Compatibility Risks**:
+
 1. **Box-drawing characters**: May not render in older terminals or wrong encoding
 2. **Emojis**: Windows cmd.exe doesn't support many Unicode emojis
 3. **ANSI colors**: Some Windows terminals need special setup
@@ -975,9 +1095,10 @@ Screen reader: "box drawing light down and right box drawing light horizontal...
 **Recommendations**:
 
 1. **Detect Unicode support**:
+
    ```typescript
-   const supportsUnicode = process.env.LANG?.includes('UTF-8') ||
-                           process.platform === 'darwin';
+   const supportsUnicode =
+     process.env.LANG?.includes('UTF-8') || process.platform === 'darwin';
 
    if (!supportsUnicode) {
      // Use ASCII fallback: +---+ instead of ┌───┐
@@ -985,11 +1106,13 @@ Screen reader: "box drawing light down and right box drawing light horizontal...
    ```
 
 2. **Add `--simple` mode**:
+
    ```typescript
    program.option('--simple', 'Simple ASCII output (no Unicode or emojis)');
    ```
 
 3. **Graceful degradation**:
+
    ```typescript
    const chars = supportsUnicode
      ? { topLeft: '┌', horizontal: '─', topRight: '┐' }
@@ -997,6 +1120,7 @@ Screen reader: "box drawing light down and right box drawing light horizontal...
    ```
 
 4. **Respect terminal width**:
+
    ```typescript
    const width = process.stdout.columns || 80;
    ```
@@ -1006,6 +1130,7 @@ Screen reader: "box drawing light down and right box drawing light horizontal...
 ## Consistency & Patterns
 
 ### Consistency Score
+
 **Overall**: **6/10**
 
 **Flag Consistency**:
@@ -1053,37 +1178,44 @@ Screen reader: "box drawing light down and right box drawing light horizontal...
 **Recommendations**:
 
 1. **Create style guide** (STYLE_GUIDE.md):
+
    ```markdown
    # CLI Style Guide
 
    ## Option Naming
+
    - Use kebab-case: `--project-root` not `--projectRoot`
    - Boolean flags use presence: `--verbose` not `--verbose=true`
    - Negation flags: `--no-color` not `--disable-color`
 
    ## Subcommand Patterns
+
    - Use space for subcommands: `command subcommand`
    - Use colon for variants: `command:variant`
    - Avoid hyphens in verbs: `find similar` not `find-similar`
 
    ## Exit Codes
+
    - 0: Success
    - 1: User error (bad input, file not found)
    - 2: System error (permission denied, network)
    - 3: Internal error (bug, unexpected condition)
 
    ## Logging
+
    - Use @clack/prompts exclusively: `log.info`, `log.error`
    - Never use console.log except for --json output
    ```
 
 2. **Add linter rules**:
+
    ```typescript
    // .eslintrc.js custom rule
    'no-console': ['error', { allow: ['error'] }],  // Force use of log.*
    ```
 
 3. **Audit all commands** for consistency (use script):
+
    ```bash
    # Find all console.log/error usage
    grep -rn "console\." src/commands/ | wc -l
@@ -1093,11 +1225,13 @@ Screen reader: "box drawing light down and right box drawing light horizontal...
 ---
 
 ### Design System
+
 **Score**: **7/10**
 
 **Exists?**: ✅ Partial (formatter.ts provides foundation)
 
 **Components Documented**:
+
 - ✅ Color palette defined (formatter.ts:8-25)
 - ✅ Overlay color scheme (7 overlays, 7 colors)
 - ✅ Severity color scheme (critical, high, medium, low, info)
@@ -1108,6 +1242,7 @@ Screen reader: "box drawing light down and right box drawing light horizontal...
 - ❌ Error/success/warning templates (inconsistent across commands)
 
 **Reusable Components** (formatter.ts):
+
 ```typescript
 // Good abstractions:
 - truncateHash(hash: string): string
@@ -1124,6 +1259,7 @@ Screen reader: "box drawing light down and right box drawing light horizontal...
 ```
 
 **Missing Components**:
+
 - No standardized error formatter (recommended in Error section above)
 - No success message builder
 - No progress bar wrapper
@@ -1132,6 +1268,7 @@ Screen reader: "box drawing light down and right box drawing light horizontal...
 **Recommendations**:
 
 1. **Create design tokens file**:
+
    ```typescript
    // src/utils/design-tokens.ts
    export const colors = {
@@ -1164,6 +1301,7 @@ Screen reader: "box drawing light down and right box drawing light horizontal...
    ```
 
 2. **Document in CONTRIBUTING.md**:
+
    ```markdown
    ## UI Components
 
@@ -1186,24 +1324,29 @@ Screen reader: "box drawing light down and right box drawing light horizontal...
 ## Performance Feedback & Responsiveness
 
 ### Perceived Performance
+
 **Score**: **7/10**
 
 **Assessment**:
+
 - **Instant command response**: ✅ Yes (spinners start <100ms)
 - **Long operations show progress**: ✅ Yes (spinner with status messages)
 - **Streaming output**: ❌ Not observed (likely batched)
 
 **Good Examples**:
+
 - **Wizard auto-detection** (wizard.ts:142): Shows spinner immediately, tests 4 URLs, shows result
 - **Lattice query** (lattice.ts:87-95): Shows "Parsing query" then "Executing query" (2-stage feedback)
 
 **Missing**:
+
 - **No streaming for batch operations**: Genesis likely processes hundreds of files but shows single spinner
 - **No incremental output**: Results shown all at once, not as they're discovered
 
 **Recommendations**:
 
 1. **Add streaming output** for batch operations:
+
    ```typescript
    // Instead of:
    spinner.start('Processing files...');
@@ -1220,26 +1363,30 @@ Screen reader: "box drawing light down and right box drawing light horizontal...
    ```
 
 2. **Show real-time counts**:
+
    ```typescript
    let processed = 0;
    spinner.message = () => `Processing files... (${processed}/${total})`;
    ```
 
 3. **Add estimated time** for operations >5s:
+
    ```typescript
    const start = Date.now();
    // After processing 10% of files:
    const elapsed = Date.now() - start;
-   const estimated = (elapsed / 0.1) - elapsed;
+   const estimated = elapsed / 0.1 - elapsed;
    spinner.message = `Processing... ETA ${formatDuration(estimated)}`;
    ```
 
 ---
 
 ### Time Estimates
+
 **Score**: **3/10**
 
 **Current State**:
+
 - **ETAs**: ❌ Not shown anywhere
 - **Elapsed time**: ❌ Not shown
 - **Progress percentage**: ❌ Not shown
@@ -1248,6 +1395,7 @@ Screen reader: "box drawing light down and right box drawing light horizontal...
 **Recommendations**:
 
 1. **Add elapsed time** to long operations:
+
    ```typescript
    const start = Date.now();
    // ... operation ...
@@ -1255,18 +1403,20 @@ Screen reader: "box drawing light down and right box drawing light horizontal...
    ```
 
 2. **Show ETAs** for operations >30s:
+
    ```typescript
    const eta = calculateETA(processed, total, startTime);
    progress.message = `Processing (${processed}/${total}) ETA: ${formatDuration(eta)}`;
    ```
 
 3. **Handle Ctrl+C gracefully**:
+
    ```typescript
    process.on('SIGINT', async () => {
      spinner.stop(chalk.yellow('\n⚠️ Operation cancelled'));
      await cleanup();
      console.log(chalk.dim('Partial results saved. Re-run to continue.'));
-     process.exit(130);  // Standard SIGINT exit code
+     process.exit(130); // Standard SIGINT exit code
    });
    ```
 
@@ -1275,9 +1425,11 @@ Screen reader: "box drawing light down and right box drawing light horizontal...
 ## Power User Features
 
 ### Advanced Capabilities
+
 **Score**: **5/10**
 
 **Available**:
+
 - ✅ Piping support: `--json` output enables chaining (partial - not all commands)
 - ✅ Configuration: Environment variables (WORKBENCH_URL, WORKBENCH_API_KEY)
 - ⚠️ Batch operations: Some commands (overlay generate) but not comprehensive
@@ -1286,6 +1438,7 @@ Screen reader: "box drawing light down and right box drawing light horizontal...
 - ❌ Multiple profiles: No workspace switching
 
 **Environment Variables** (observed):
+
 ```bash
 WORKBENCH_URL=http://localhost:8000
 WORKBENCH_API_KEY=dummy-key
@@ -1294,6 +1447,7 @@ LANG=en_US.UTF-8  # Used for Unicode detection
 ```
 
 **Piping Example** (works):
+
 ```bash
 cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
 ```
@@ -1301,6 +1455,7 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
 **Missing Power User Features**:
 
 1. **No command aliases**:
+
    ```bash
    # Desired:
    cognition-cli w   # wizard
@@ -1309,6 +1464,7 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
    ```
 
 2. **No config file**:
+
    ```yaml
    # ~/.cognitionrc.yml (desired)
    workbench:
@@ -1321,10 +1477,11 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
      verbose: false
 
    overlays:
-     preferred: [O1, O2, O4]  # Show these by default
+     preferred: [O1, O2, O4] # Show these by default
    ```
 
 3. **No workspace profiles**:
+
    ```bash
    # Desired:
    cognition-cli use my-project     # Switch to workspace
@@ -1332,6 +1489,7 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
    ```
 
 4. **Limited batch operations**:
+
    ```bash
    # Desired:
    cognition-cli overlay generate --all  # Generate all 7 overlays
@@ -1341,6 +1499,7 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
 **Recommendations**:
 
 1. **Add command aliases**:
+
    ```typescript
    // cli.ts
    program
@@ -1350,6 +1509,7 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
    ```
 
 2. **Implement config file** using cosmiconfig:
+
    ```typescript
    import { cosmiconfig } from 'cosmiconfig';
 
@@ -1359,12 +1519,14 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
    ```
 
 3. **Add workspace switching**:
+
    ```typescript
    // Store workspace paths in ~/.cognition/workspaces.json
    // Commands: use, list, add, remove
    ```
 
 4. **Enhance batch operations**:
+
    ```typescript
    .option('--all', 'Apply to all items')
    .option('--filter <pattern>', 'Filter items by pattern')
@@ -1373,9 +1535,11 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
 ---
 
 ### Efficiency
+
 **Score**: **6/10**
 
 **Minimal Keystrokes**:
+
 - ✅ Good defaults: Wizard pre-fills detected values
 - ✅ Current directory: Most commands default to `process.cwd()`
 - ⚠️ Verbose flags: Must type full `--project-root` (no `-p` short form... wait, there is `-p`! Good!)
@@ -1386,6 +1550,7 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
 **Recommendations**:
 
 1. **Add more short flags**:
+
    ```typescript
    .option('-f, --format <type>', 'Output format')
    .option('-l, --limit <n>', 'Limit results')
@@ -1394,14 +1559,16 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
    ```
 
 2. **Smart defaults**:
+
    ```typescript
    // If no source path, try common patterns:
-   const sourcePath = options.source ||
-                      (fs.existsSync('src') ? 'src' :
-                       fs.existsSync('lib') ? 'lib' : '.');
+   const sourcePath =
+     options.source ||
+     (fs.existsSync('src') ? 'src' : fs.existsSync('lib') ? 'lib' : '.');
    ```
 
 3. **Recent commands** (stored in ~/.cognition/history):
+
    ```bash
    cognition-cli --recent  # Show last 10 commands
    cognition-cli !3        # Re-run command #3
@@ -1414,6 +1581,7 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
 ### Current Level: **3 - Delightful**
 
 **Justification**:
+
 - ✅ **Functional** (Level 1): All core features work reliably
 - ✅ **Usable** (Level 2): Clear, consistent, helpful (mostly)
 - ✅ **Delightful** (Level 3): Polished, great interactive elements, beautiful formatting
@@ -1421,6 +1589,7 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
 - ❌ **Innovative** (Level 5): Not setting new CLI standards (yet!)
 
 **Specific Achievements**:
+
 - Wizard command is **exemplary** (Level 4) in isolation
 - Visual design is **delightful** (Level 3)
 - Error handling is **usable** (Level 2) - needs work
@@ -1429,6 +1598,7 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
 ### Path to Next Level (Level 4 - Exemplary):
 
 **Required Improvements**:
+
 1. **Accessibility**: Add `--no-color`, `--plain`, test with screen readers
 2. **Consistency**: Standardize error handling, logging, flag naming
 3. **Power features**: Tab completion, config file, command aliases
@@ -1466,6 +1636,7 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
   - Create wrapper if needed for JSON mode compatibility
 
 **Acceptance Criteria**:
+
 - ✓ All commands support `--no-color` and output plain text
 - ✓ All errors show user-friendly messages with solutions
 - ✓ All query commands support `--json` for scripting
@@ -1505,6 +1676,7 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
   - Add progress percentage for batch ops
 
 **Acceptance Criteria**:
+
 - ✓ All long operations show progress bars with ETA
 - ✓ All commands have help text with 2+ examples
 - ✓ Tab completion works in bash/zsh/fish
@@ -1546,6 +1718,7 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
   - Auto-complete file paths in prompts
 
 **Acceptance Criteria**:
+
 - ✓ Screen reader users can use all commands
 - ✓ Design system documented and followed
 - ✓ Config file works with all settings
@@ -1556,7 +1729,7 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
 
 ### Phase 4: Innovation (1 month) 🚀
 
-**Priority: LOW (Nice to Have)
+\*\*Priority: LOW (Nice to Have)
 
 - [ ] Interactive TUI mode enhancements
   - Real-time knowledge graph visualization
@@ -1585,6 +1758,7 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
   - Parallel processing for multi-core
 
 **Acceptance Criteria**:
+
 - ✓ TUI has live graph visualization
 - ✓ Natural language commands work (e.g., "show me security issues")
 - ✓ ASCII dependency graphs render beautifully
@@ -1595,15 +1769,15 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
 
 ## Benchmark Comparison
 
-| CLI Tool | UX Score | Strengths | Weaknesses | Lessons for Cognition Σ |
-|----------|----------|-----------|------------|------------------------|
-| **Vercel CLI** | 9/10 | Beautiful interactive prompts, instant deployment, excellent error messages, auto-detection | Occasional verbose output | **Adopt**: Auto-detection patterns, error formatting |
-| **Railway CLI** | 8/10 | Friendly tone, great onboarding wizard, emojis done right, clear next steps | Limited offline mode | **Adopt**: Wizard flow, emoji usage, friendly language |
-| **npm** | 6/10 | Universal, well-known, progress bars, comprehensive docs | Verbose output, cryptic errors sometimes, slow | **Adopt**: Progress bars, don't adopt: verbosity |
-| **Git** | 7/10 | Clear errors, great help text, powerful, comprehensive | Steep learning curve, inconsistent UX, cryptic terms | **Adopt**: Detailed help, don't adopt: inconsistent patterns |
-| **Docker CLI** | 5/10 | Powerful, comprehensive | Complex help, inconsistent error quality, steep curve | **Avoid**: Complexity without onboarding |
-| **Supabase CLI** | 8/10 | Great docs, interactive init, good defaults | Limited error recovery | **Adopt**: Interactive setup, sensible defaults |
-| **Cognition CLI** | 7.5/10 | Excellent wizard, beautiful formatting, comprehensive | Inconsistent errors, missing accessibility | **Improve**: Errors, accessibility, consistency |
+| CLI Tool          | UX Score | Strengths                                                                                   | Weaknesses                                            | Lessons for Cognition Σ                                      |
+| ----------------- | -------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------ |
+| **Vercel CLI**    | 9/10     | Beautiful interactive prompts, instant deployment, excellent error messages, auto-detection | Occasional verbose output                             | **Adopt**: Auto-detection patterns, error formatting         |
+| **Railway CLI**   | 8/10     | Friendly tone, great onboarding wizard, emojis done right, clear next steps                 | Limited offline mode                                  | **Adopt**: Wizard flow, emoji usage, friendly language       |
+| **npm**           | 6/10     | Universal, well-known, progress bars, comprehensive docs                                    | Verbose output, cryptic errors sometimes, slow        | **Adopt**: Progress bars, don't adopt: verbosity             |
+| **Git**           | 7/10     | Clear errors, great help text, powerful, comprehensive                                      | Steep learning curve, inconsistent UX, cryptic terms  | **Adopt**: Detailed help, don't adopt: inconsistent patterns |
+| **Docker CLI**    | 5/10     | Powerful, comprehensive                                                                     | Complex help, inconsistent error quality, steep curve | **Avoid**: Complexity without onboarding                     |
+| **Supabase CLI**  | 8/10     | Great docs, interactive init, good defaults                                                 | Limited error recovery                                | **Adopt**: Interactive setup, sensible defaults              |
+| **Cognition CLI** | 7.5/10   | Excellent wizard, beautiful formatting, comprehensive                                       | Inconsistent errors, missing accessibility            | **Improve**: Errors, accessibility, consistency              |
 
 ### Best Practices to Adopt
 
@@ -1611,6 +1785,7 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
    - Auto-detection of configuration (detect Next.js, React, etc.)
    - One-line install to deploy pipeline
    - Beautiful error formatting with suggested fixes
+
    ```
    Error: Build failed
    > Could not find package.json
@@ -1637,6 +1812,7 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
 ### What Makes Cognition Σ Unique
 
 **Strengths to Preserve**:
+
 - 🧙 **Wizard UX** is world-class - keep this as the gold standard
 - 🎨 **Visual design** with overlay colors, boxes, smart formatting
 - 📚 **Seven-overlay conceptual framework** is powerful and well-communicated
@@ -1644,6 +1820,7 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
 - 💎 **Cryptographic grounding** messaging (transparent fidelity scores)
 
 **Differentiators**:
+
 - Only CLI with **7-dimensional cognitive overlays**
 - Only CLI with **Boolean algebra query language** for multi-dimensional reasoning
 - Only CLI with **dual-lattice architecture** for infinite AI context
@@ -1656,6 +1833,7 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
 ### Example 1: Improved Error Handling
 
 **Before** (lattice.ts:99-108):
+
 ```typescript
 } catch (error) {
   if (s) {
@@ -1670,6 +1848,7 @@ cognition-cli lattice "O2[critical]" --json | jq '.items[].metadata.text'
 ```
 
 **After**:
+
 ```typescript
 import { CognitionError, formatError } from '../utils/errors.js';
 
@@ -1701,6 +1880,7 @@ import { CognitionError, formatError } from '../utils/errors.js';
 ```
 
 **New file**: `src/utils/errors.ts`
+
 ```typescript
 export class CognitionError extends Error {
   constructor(
@@ -1726,7 +1906,7 @@ export function formatError(error: CognitionError, verbose: boolean): string {
 
   if (error.solutions.length > 0) {
     lines.push(chalk.bold('Possible Solutions:'));
-    error.solutions.forEach(solution => {
+    error.solutions.forEach((solution) => {
       lines.push(`  ${chalk.cyan('•')} ${solution}`);
     });
     lines.push('');
@@ -1742,7 +1922,9 @@ export function formatError(error: CognitionError, verbose: boolean): string {
     lines.push(chalk.dim('Stack Trace (verbose mode):'));
     lines.push(chalk.dim(error.cause.stack || 'No stack trace available'));
   } else if (error.cause) {
-    lines.push(chalk.dim('💡 Run with --verbose for detailed error information'));
+    lines.push(
+      chalk.dim('💡 Run with --verbose for detailed error information')
+    );
   }
 
   return lines.join('\n');
@@ -1754,6 +1936,7 @@ export function formatError(error: CognitionError, verbose: boolean): string {
 ### Example 2: Enhanced Help Text
 
 **Before** (cli.ts:69-79):
+
 ```typescript
 program
   .command('query <question>')
@@ -1769,6 +1952,7 @@ program
 ```
 
 **After**:
+
 ```typescript
 program
   .command('query <question>')
@@ -1786,7 +1970,9 @@ program
   .option('--lineage', 'Output the full dependency lineage as JSON')
   .option('--json', 'Output results as JSON for scripting')
   .option('-v, --verbose', 'Show detailed symbol information')
-  .addHelpText('after', `
+  .addHelpText(
+    'after',
+    `
 ${chalk.bold('Examples:')}
   ${chalk.dim('# Query for authentication-related code')}
   ${chalk.cyan('$ cognition-cli query "authentication flow"')}
@@ -1811,7 +1997,8 @@ ${chalk.bold('See also:')}
   ${chalk.cyan('cognition-cli patterns')}      - Find similar code patterns
 
 ${chalk.dim('📖 Docs: https://mirzahusadzic.github.io/cogx/manual/part-1-foundation/03-querying')}
-  `)
+  `
+  )
   .action(queryAction);
 ```
 
@@ -1820,6 +2007,7 @@ ${chalk.dim('📖 Docs: https://mirzahusadzic.github.io/cogx/manual/part-1-found
 ### Example 3: Global Accessibility Flags
 
 **New code** (cli.ts:18-24):
+
 ```typescript
 import dotenv from 'dotenv';
 import chalk from 'chalk';
@@ -1830,8 +2018,14 @@ const program = new Command();
 
 // Global options (applied to all commands)
 program
-  .option('--no-color', 'Disable colored output (also respects NO_COLOR env var)')
-  .option('--no-emoji', 'Disable emoji in output (for terminals without Unicode support)')
+  .option(
+    '--no-color',
+    'Disable colored output (also respects NO_COLOR env var)'
+  )
+  .option(
+    '--no-emoji',
+    'Disable emoji in output (for terminals without Unicode support)'
+  )
   .option('--format <type>', 'Output format: auto, table, json, plain', 'auto')
   .hook('preAction', (thisCommand) => {
     // Store global options for access in formatter
@@ -1848,6 +2042,7 @@ program
 ```
 
 **Update** (formatter.ts:1-20):
+
 ```typescript
 import chalk from 'chalk';
 
@@ -1919,27 +2114,27 @@ const OVERLAY_COLORS: Record<string, (text: string) => string> = {
 
 ## Summary Metrics
 
-| Category | Score | Critical Issues | Priority Improvements |
-|----------|-------|-----------------|----------------------|
-| **Command Structure** | 8/10 | 0 | Add command index, standardize naming |
-| **Help & Documentation** | 7/10 | 0 | Add examples to all commands |
-| **Autocomplete** | 0/10 | 1 | Implement tab completion |
-| **Output Formatting** | 9/10 | 0 | Detect terminal capabilities |
-| **Progress Indicators** | 8/10 | 0 | Add progress bars, ETAs |
-| **Output Modes** | 5/10 | 1 | Add --json to all commands |
-| **Interactive Prompts** | 9/10 | 0 | Add step navigation hints |
-| **Wizards** | 10/10 | 0 | None - exemplary! |
-| **Error Messages** | 5/10 | 1 | Standardize error handling |
-| **Success Feedback** | 8/10 | 0 | Add statistics to messages |
-| **Color Blindness** | 3/10 | 1 | Add --no-color flag, symbols+text |
-| **Screen Reader** | 4/10 | 0 | Add --plain mode, test with VoiceOver |
-| **Terminal Compatibility** | 6/10 | 0 | Test on major terminals |
-| **Consistency** | 6/10 | 1 | Standardize logging, flags |
-| **Design System** | 7/10 | 0 | Document design tokens |
-| **Performance Feedback** | 7/10 | 0 | Add streaming output |
-| **Time Estimates** | 3/10 | 0 | Show elapsed time, ETAs |
-| **Power User Features** | 5/10 | 0 | Add aliases, config file |
-| **Efficiency** | 6/10 | 0 | Add more short flags |
+| Category                   | Score | Critical Issues | Priority Improvements                 |
+| -------------------------- | ----- | --------------- | ------------------------------------- |
+| **Command Structure**      | 8/10  | 0               | Add command index, standardize naming |
+| **Help & Documentation**   | 7/10  | 0               | Add examples to all commands          |
+| **Autocomplete**           | 0/10  | 1               | Implement tab completion              |
+| **Output Formatting**      | 9/10  | 0               | Detect terminal capabilities          |
+| **Progress Indicators**    | 8/10  | 0               | Add progress bars, ETAs               |
+| **Output Modes**           | 5/10  | 1               | Add --json to all commands            |
+| **Interactive Prompts**    | 9/10  | 0               | Add step navigation hints             |
+| **Wizards**                | 10/10 | 0               | None - exemplary!                     |
+| **Error Messages**         | 5/10  | 1               | Standardize error handling            |
+| **Success Feedback**       | 8/10  | 0               | Add statistics to messages            |
+| **Color Blindness**        | 3/10  | 1               | Add --no-color flag, symbols+text     |
+| **Screen Reader**          | 4/10  | 0               | Add --plain mode, test with VoiceOver |
+| **Terminal Compatibility** | 6/10  | 0               | Test on major terminals               |
+| **Consistency**            | 6/10  | 1               | Standardize logging, flags            |
+| **Design System**          | 7/10  | 0               | Document design tokens                |
+| **Performance Feedback**   | 7/10  | 0               | Add streaming output                  |
+| **Time Estimates**         | 3/10  | 0               | Show elapsed time, ETAs               |
+| **Power User Features**    | 5/10  | 0               | Add aliases, config file              |
+| **Efficiency**             | 6/10  | 0               | Add more short flags                  |
 
 **Overall UX Score**: **7.5/10**
 **Critical UX Issues**: **4**
@@ -1983,18 +2178,21 @@ const OVERLAY_COLORS: Record<string, (text: string) => string> = {
 ### Success Metrics
 
 **After Phase 1-2 (2 weeks):**
+
 - ✓ No accessibility blockers (all commands work without color/unicode)
 - ✓ Consistent error experience (all errors use CognitionError)
 - ✓ Scriptable (all query commands support --json)
 - ✓ Self-documenting (all commands have examples in help)
 
 **After Phase 3 (1 month):**
+
 - ✓ Power user friendly (aliases, config file, tab completion)
 - ✓ Inclusive (works with screen readers, color blindness support)
 - ✓ Consistent (design system documented and followed)
 - ✓ Cross-platform (tested on macOS, Linux, Windows)
 
 **After Phase 4 (2 months):**
+
 - ✓ Best-in-class (benchmarks against Vercel, Railway CLIs)
 - ✓ Innovative (unique features: lattice algebra UI, AI-powered suggestions)
 - ✓ Delightful (users say "wow!" about UX, not just features)
@@ -2014,8 +2212,9 @@ The unique seven-overlay framework and lattice algebra features are powerful dif
 ---
 
 **Report compiled with analysis of:**
+
 - 40+ CLI commands across 7 categories
-- 30+ source files (cli.ts, formatter.ts, commands/*)
+- 30+ source files (cli.ts, formatter.ts, commands/\*)
 - README.md and documentation
 - Color schemes, interactive elements, error patterns
 - Comparison with 6 industry-leading CLIs

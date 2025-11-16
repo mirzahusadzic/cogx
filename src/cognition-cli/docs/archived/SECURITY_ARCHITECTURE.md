@@ -244,10 +244,10 @@ Create `.cogx/config.ts` in your project:
 export default {
   security: {
     // Option 1: Disable entirely
-    mode: "off",
+    mode: 'off',
 
     // Option 2: Strict mode for high-security projects
-    mode: "strict",
+    mode: 'strict',
 
     // Option 3: Customize thresholds
     missionIntegrity: {
@@ -273,8 +273,8 @@ export default {
     contentFiltering: {
       llmFilter: {
         enabled: true,
-        model: "gemini-2.0-flash-exp",
-        provider: "workbench",
+        model: 'gemini-2.0-flash-exp',
+        provider: 'workbench',
       },
     },
   },
@@ -517,7 +517,7 @@ Found a new attack pattern? Improve detection logic?
 - Better UX for alerts
 - Case studies of real attacks
 
-**File issues at:** https://github.com/anthropics/cogx/issues
+**File issues at:** <https://github.com/anthropics/cogx/issues>
 
 ---
 

@@ -10,11 +10,12 @@
 The documentation has **significant coverage gaps** with several implemented commands missing documentation, and discrepancies between claimed and actual command signatures. Additionally, Chapters 16-19 are marked as "Planned" but files do not exist, though some features they would cover are partially implemented elsewhere.
 
 **Key Findings**:
+
 - 11 commands IMPLEMENTED but NOT documented in Chapter 5
-- 1 command name MISMATCH (doc says `ask`, CLI provides `query`)  
+- 1 command name MISMATCH (doc says `ask`, CLI provides `query`)
 - 4 chapters (16-19) PLANNED but files don't exist
 - Several documented command options may be inaccurate
-- Sugar commands (security:*, workflow:*, proofs:*) are IMPLEMENTED but NOT documented
+- Sugar commands (security:_, workflow:_, proofs:\*) are IMPLEMENTED but NOT documented
 
 ---
 
@@ -22,26 +23,28 @@ The documentation has **significant coverage gaps** with several implemented com
 
 ### 1.1 Documented Commands - Verification Status
 
-| Command | Status | Notes |
-|---------|--------|-------|
-| `init` | ✅ IMPLEMENTED | Matches documentation |
-| `genesis` | ✅ IMPLEMENTED | Matches documentation |
-| `ask` | ⚠️ MISMATCH | Documented but CLI uses `query` command instead |
-| `patterns` | ⚠️ PARTIALLY MATCHED | Documented as `cognition-cli patterns <pattern-type>` but implementation has subcommands: `find-similar`, `find-anomalies`, `analyze-imports` |
-| `coherence` | ✅ IMPLEMENTED | Matches documentation (has `subcommands`) |
-| `blast-radius` | ✅ IMPLEMENTED | Matches documentation |
-| `overlay` | ✅ IMPLEMENTED | Matches documentation with subcommands |
+| Command        | Status               | Notes                                                                                                                                         |
+| -------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `init`         | ✅ IMPLEMENTED       | Matches documentation                                                                                                                         |
+| `genesis`      | ✅ IMPLEMENTED       | Matches documentation                                                                                                                         |
+| `ask`          | ⚠️ MISMATCH          | Documented but CLI uses `query` command instead                                                                                               |
+| `patterns`     | ⚠️ PARTIALLY MATCHED | Documented as `cognition-cli patterns <pattern-type>` but implementation has subcommands: `find-similar`, `find-anomalies`, `analyze-imports` |
+| `coherence`    | ✅ IMPLEMENTED       | Matches documentation (has `subcommands`)                                                                                                     |
+| `blast-radius` | ✅ IMPLEMENTED       | Matches documentation                                                                                                                         |
+| `overlay`      | ✅ IMPLEMENTED       | Matches documentation with subcommands                                                                                                        |
 
 ### 1.2 Command Name/Signature Discrepancies
 
 #### Issue 1: `ask` vs `query`
 
 **Documentation claims** (line 362):
+
 ```bash
 cognition-cli ask "<question>" [--verbose]
 ```
 
 **Actual CLI implementation** (cli.ts, line 70):
+
 ```bash
 cognition-cli query <question>
 ```
@@ -55,6 +58,7 @@ The command is called `query`, not `ask`. However, there IS an `ask` command tha
 #### Issue 2: `patterns` Command Signature
 
 **Documentation claims** (line 465):
+
 ```bash
 cognition-cli patterns <pattern-type>
 cognition-cli patterns security     # Detect security patterns
@@ -63,12 +67,14 @@ cognition-cli patterns idioms       # Detect language idioms
 ```
 
 **Actual CLI implementation** (cli.ts, line 262):
+
 ```bash
 addPatternsCommands(program);  // Adds subcommands, not pattern types as args
 ```
 
 From `src/commands/patterns.ts`, actual subcommands are:
-- `patterns find-similar <symbol>` 
+
+- `patterns find-similar <symbol>`
 - `patterns find-anomalies`
 - `patterns analyze-imports`
 
@@ -78,12 +84,12 @@ From `src/commands/patterns.ts`, actual subcommands are:
 
 ### 1.3 Command Examples - Accuracy
 
-| Example | Status | Notes |
-|---------|--------|-------|
-| Genesis example (line 282-308) | ✅ ACCURATE | Output format matches actual implementation |
-| Ask example (line 397-430) | ❌ WRONG COMMAND | Uses `ask` but should use `query` |
-| Blast-radius example (line 519-539) | ✅ ACCURATE | Output format matches |
-| Overlay generate example (line 577-594) | ✅ ACCURATE | Command and output correct |
+| Example                                 | Status           | Notes                                       |
+| --------------------------------------- | ---------------- | ------------------------------------------- |
+| Genesis example (line 282-308)          | ✅ ACCURATE      | Output format matches actual implementation |
+| Ask example (line 397-430)              | ❌ WRONG COMMAND | Uses `ask` but should use `query`           |
+| Blast-radius example (line 519-539)     | ✅ ACCURATE      | Output format matches                       |
+| Overlay generate example (line 577-594) | ✅ ACCURATE      | Command and output correct                  |
 
 ---
 
@@ -93,24 +99,26 @@ These are production commands in the CLI but completely absent from the 05-cli-o
 
 ### 2.1 Interactive Setup & Exploration
 
-| Command | Actual Signature | Purpose | Status |
-|---------|------------------|---------|--------|
+| Command  | Actual Signature                        | Purpose                      | Status               |
+| -------- | --------------------------------------- | ---------------------------- | -------------------- |
 | `wizard` | `cognition-cli wizard [--project-root]` | Interactive PGC setup wizard | ✅ FULLY IMPLEMENTED |
-| `tui` | `cognition-cli tui [options]` | Interactive TUI with Claude | ✅ FULLY IMPLEMENTED |
-| `guide` | `cognition-cli guide [topic]` | Colorful command guides | ✅ FULLY IMPLEMENTED |
+| `tui`    | `cognition-cli tui [options]`           | Interactive TUI with Claude  | ✅ FULLY IMPLEMENTED |
+| `guide`  | `cognition-cli guide [topic]`           | Colorful command guides      | ✅ FULLY IMPLEMENTED |
 
 **Example from implementation** (commands/wizard.ts, line 62-428):
+
 ```typescript
 /**
  * Interactive wizard for setting up a complete PGC from scratch
  */
-export async function wizardCommand(options: WizardOptions)
+export async function wizardCommand(options: WizardOptions);
 ```
 
 The wizard guides through:
+
 1. Existing PGC detection
 2. Workbench setup
-3. API key configuration  
+3. API key configuration
 4. Source path selection
 5. Documentation ingestion
 6. Overlay generation selection
@@ -121,27 +129,31 @@ The wizard guides through:
 
 ### 2.2 Data Ingestion & Migration
 
-| Command | Actual Signature | Purpose | Status |
-|---------|------------------|---------|--------|
-| `genesis:docs` | `cognition-cli genesis:docs [path]` | Document ingestion into PGC | ✅ FULLY IMPLEMENTED |
+| Command         | Actual Signature                        | Purpose                       | Status               |
+| --------------- | --------------------------------------- | ----------------------------- | -------------------- |
+| `genesis:docs`  | `cognition-cli genesis:docs [path]`     | Document ingestion into PGC   | ✅ FULLY IMPLEMENTED |
 | `migrate:lance` | `cognition-cli migrate:lance [options]` | Migrate embeddings to LanceDB | ✅ FULLY IMPLEMENTED |
 
 **Example** (commands/genesis-docs.ts):
+
 ```typescript
 export async function genesisDocsCommand(
   pathOrPattern: string,
   options: GenesisDocsOptions
-)
+);
 ```
+
 - Ingests markdown files into PGC
 - Tracks content hashes to prevent duplicates
 - Supports batch processing
 - Stores in YAML overlays with embeddings
 
 **Example** (commands/migrate-to-lance.ts):
+
 ```typescript
-export async function migrateToLanceCommand(options: MigrateOptions)
+export async function migrateToLanceCommand(options: MigrateOptions);
 ```
+
 - Migrates O2, O4, O5, O6 overlays to LanceDB
 - Strips embeddings from YAML (v2 format)
 - Supports dry-run mode
@@ -151,13 +163,14 @@ export async function migrateToLanceCommand(options: MigrateOptions)
 
 ### 2.3 Monitoring & Status
 
-| Command | Actual Signature | Purpose | Status |
-|---------|------------------|---------|--------|
-| `watch` | `cognition-cli watch [--options]` | File change monitoring | ✅ FULLY IMPLEMENTED |
-| `status` | `cognition-cli status [--json/--verbose]` | PGC coherence status | ✅ FULLY IMPLEMENTED |
-| `update` | `cognition-cli update [--options]` | Incremental PGC sync | ✅ FULLY IMPLEMENTED |
+| Command  | Actual Signature                          | Purpose                | Status               |
+| -------- | ----------------------------------------- | ---------------------- | -------------------- |
+| `watch`  | `cognition-cli watch [--options]`         | File change monitoring | ✅ FULLY IMPLEMENTED |
+| `status` | `cognition-cli status [--json/--verbose]` | PGC coherence status   | ✅ FULLY IMPLEMENTED |
+| `update` | `cognition-cli update [--options]`        | Incremental PGC sync   | ✅ FULLY IMPLEMENTED |
 
 **Example** (commands/watch.ts):
+
 ```typescript
 export function createWatchCommand(): Command {
   const cmd = new Command('watch');
@@ -165,6 +178,7 @@ export function createWatchCommand(): Command {
 ```
 
 **Example** (commands/status.ts):
+
 ```typescript
 export function createStatusCommand(): Command {
   const cmd = new Command('status');
@@ -172,6 +186,7 @@ export function createStatusCommand(): Command {
 ```
 
 **Example** (commands/update.ts):
+
 ```typescript
 export function createUpdateCommand(): Command {
   const cmd = new Command('update');
@@ -182,17 +197,18 @@ export function createUpdateCommand(): Command {
 
 ### 2.4 Query & Analysis
 
-| Command | Actual Signature | Purpose | Status |
-|---------|------------------|---------|--------|
-| `lattice` | `cognition-cli lattice <query>` | Boolean algebra on overlays | ✅ FULLY IMPLEMENTED |
-| `ask` | `cognition-cli ask <question>` | AI-synthesized answers | ✅ FULLY IMPLEMENTED |
-| `concepts` | `cognition-cli concepts <subcommand>` | Mission concept queries | ✅ FULLY IMPLEMENTED |
+| Command    | Actual Signature                      | Purpose                     | Status               |
+| ---------- | ------------------------------------- | --------------------------- | -------------------- |
+| `lattice`  | `cognition-cli lattice <query>`       | Boolean algebra on overlays | ✅ FULLY IMPLEMENTED |
+| `ask`      | `cognition-cli ask <question>`        | AI-synthesized answers      | ✅ FULLY IMPLEMENTED |
+| `concepts` | `cognition-cli concepts <subcommand>` | Mission concept queries     | ✅ FULLY IMPLEMENTED |
 
 **Example** (commands/lattice.ts):
+
 ```typescript
 /**
  * Execute a lattice query
- * 
+ *
  * EXAMPLES:
  *   cognition-cli lattice "O1 - O2"                     # Coverage gaps
  *   cognition-cli lattice "O2[critical] ~ O4"           # Critical attacks vs principles
@@ -201,6 +217,7 @@ export async function latticeCommand(...)
 ```
 
 **Example** (commands/concepts.ts - multiple subcommands):
+
 ```typescript
 // concepts list
 // concepts top [N]
@@ -215,18 +232,20 @@ export async function latticeCommand(...)
 
 These wrap the lattice algebra but are completely undocumented:
 
-| Command Group | Subcommands | Status |
-|---------------|------------|--------|
-| `security` | `attacks`, `coverage-gaps`, `boundaries`, `list`, `cves`, `query`, `coherence` | ✅ FULLY IMPLEMENTED |
-| `workflow` | `patterns`, `quests`, `depth-rules` | ✅ FULLY IMPLEMENTED |
-| `proofs` | `theorems`, `lemmas`, `list`, `aligned` | ✅ FULLY IMPLEMENTED |
+| Command Group | Subcommands                                                                    | Status               |
+| ------------- | ------------------------------------------------------------------------------ | -------------------- |
+| `security`    | `attacks`, `coverage-gaps`, `boundaries`, `list`, `cves`, `query`, `coherence` | ✅ FULLY IMPLEMENTED |
+| `workflow`    | `patterns`, `quests`, `depth-rules`                                            | ✅ FULLY IMPLEMENTED |
+| `proofs`      | `theorems`, `lemmas`, `list`, `aligned`                                        | ✅ FULLY IMPLEMENTED |
 
 **Example** (commands/sugar/security.ts - security:attacks):
+
 ```typescript
-export async function securityAttacksCommand(options: SecurityOptions)
+export async function securityAttacksCommand(options: SecurityOptions);
 ```
 
 **Example from CLI** (cli.ts, lines 290-315):
+
 ```typescript
 const securityCmd = program
   .command('security')
@@ -234,7 +253,7 @@ const securityCmd = program
 
 securityCmd
   .command('attacks')
-  .description('Show attack vectors that conflict with mission principles')
+  .description('Show attack vectors that conflict with mission principles');
 ```
 
 ---
@@ -243,12 +262,12 @@ securityCmd
 
 ### Status Check
 
-| Chapter | Title | File Status | Implementation Status |
-|---------|-------|-------------|----------------------|
-| 16 | Dependency Security Inheritance | ❌ MISSING | ⚠️ PARTIAL |
-| 17 | Ecosystem Seeding | ❌ MISSING | ⚠️ PARTIAL |
-| 18 | Operational Flow | ❌ MISSING | ⚠️ PARTIAL |
-| 19 | Quest Structures | ❌ MISSING | ✅ IMPLEMENTED |
+| Chapter | Title                           | File Status | Implementation Status |
+| ------- | ------------------------------- | ----------- | --------------------- |
+| 16      | Dependency Security Inheritance | ❌ MISSING  | ⚠️ PARTIAL            |
+| 17      | Ecosystem Seeding               | ❌ MISSING  | ⚠️ PARTIAL            |
+| 18      | Operational Flow                | ❌ MISSING  | ⚠️ PARTIAL            |
+| 19      | Quest Structures                | ❌ MISSING  | ✅ IMPLEMENTED        |
 
 ### 3.1 Chapter 16: Dependency Security Inheritance
 
@@ -256,9 +275,11 @@ securityCmd
 **File Exists**: NO - `/home/user/cogx/src/cognition-cli/docs/manual/part-4-portability/16-dependency-inheritance.md` does NOT exist
 
 **Features Referenced in Documentation**:
+
 - (line 140-141) "`express.cogx → O₂`. Inheriting security knowledge from dependencies."
 
-**Implementation Status**: 
+**Implementation Status**:
+
 - Some discussion in `/docs/manual/part-2-seven-layers/06-o2-security.md` about "Dependency Security Inheritance" section
 - No dedicated command found for this feature
 - Not implemented in CLI commands
@@ -269,10 +290,12 @@ securityCmd
 **File Exists**: NO - `/home/user/cogx/src/cognition-cli/docs/manual/part-4-portability/17-ecosystem-seeding.md` does NOT exist
 
 **Features Referenced in Documentation**:
+
 - (line 144-145) "Building reusable overlays for common libraries (React, TypeScript, Node.js)."
 - Referenced in 15-cogx-format.md as "Use Case 1: Ecosystem Seeding"
 
-**Implementation Status**: 
+**Implementation Status**:
+
 - No dedicated command found
 - Not implemented in CLI commands
 
@@ -282,12 +305,14 @@ securityCmd
 **File Exists**: NO - `/home/user/cogx/src/cognition-cli/docs/manual/part-5-cpow-loop/18-operational-flow.md` does NOT exist
 
 **Features Referenced in Documentation**:
+
 - (line 152-153) "Oracle → Scribe → AQS → Receipt. The complete computational Proof of Work cycle."
 
 **Implementation Status**:
+
 - Partial: Migration note mentions "migrate from CPOW_OPERATIONAL_LOOP.md"
 - Check: `/home/user/cogx/docs/CPOW_OPERATIONAL_LOOP.md` exists (in root docs)
-- Some workflow concepts in `commands/sugar/workflow.ts` 
+- Some workflow concepts in `commands/sugar/workflow.ts`
 - `workflow` command with `patterns`, `quests`, `depth-rules` subcommands exists
 
 ### 3.4 Chapter 19: Quest Structures
@@ -296,9 +321,11 @@ securityCmd
 **File Exists**: NO - `/home/user/cogx/src/cognition-cli/docs/manual/part-5-cpow-loop/19-quest-structures.md` does NOT exist
 
 **Features Referenced in Documentation**:
+
 - (line 156-157) "What/Why/Success. Depth tracking (Depth 0-3). Sacred sequences (F.L.T.B: Format, Lint, Test, Build)."
 
 **Implementation Status**:
+
 - ✅ PARTIALLY IMPLEMENTED
 - `workflow quests` command exists (commands/sugar/workflow.ts)
 - Referenced in O₅ documentation (part-2-seven-layers/09-o5-operational.md)
@@ -310,40 +337,40 @@ securityCmd
 
 ### 4.1 Commands with Incorrect Documentation
 
-| Issue | Severity | Details |
-|-------|----------|---------|
-| `ask` vs `query` mismatch | 🔴 HIGH | Doc shows `ask`, but correct command is `query` |
-| `patterns` subcommand structure | 🔴 HIGH | Doc shows positional args, but correct usage is subcommands |
-| Missing `wizard` documentation | 🟡 MEDIUM | Command exists but only mentioned in passing |
-| Missing `watch` documentation | 🟡 MEDIUM | Complete implementation but no docs in Chapter 5 |
-| Missing `status` documentation | 🟡 MEDIUM | Complete implementation but no docs in Chapter 5 |
-| Missing `update` documentation | 🟡 MEDIUM | Complete implementation but no docs in Chapter 5 |
+| Issue                           | Severity  | Details                                                     |
+| ------------------------------- | --------- | ----------------------------------------------------------- |
+| `ask` vs `query` mismatch       | 🔴 HIGH   | Doc shows `ask`, but correct command is `query`             |
+| `patterns` subcommand structure | 🔴 HIGH   | Doc shows positional args, but correct usage is subcommands |
+| Missing `wizard` documentation  | 🟡 MEDIUM | Command exists but only mentioned in passing                |
+| Missing `watch` documentation   | 🟡 MEDIUM | Complete implementation but no docs in Chapter 5            |
+| Missing `status` documentation  | 🟡 MEDIUM | Complete implementation but no docs in Chapter 5            |
+| Missing `update` documentation  | 🟡 MEDIUM | Complete implementation but no docs in Chapter 5            |
 
 ### 4.2 Completely Undocumented Command Groups
 
-| Command Group | Subcommands | Impact |
-|---------------|------------|--------|
-| `lattice` | (5+ algebra operators) | 🔴 HIGH - Core feature |
-| `security` | attacks, coverage-gaps, boundaries, list, cves, query, coherence | 🔴 HIGH - Security commands |
-| `workflow` | patterns, quests, depth-rules | 🔴 HIGH - Operational commands |
-| `proofs` | theorems, lemmas, list, aligned | 🟡 MEDIUM - Math proofs |
-| `concepts` | list, top, search, by-section, inspect | 🟡 MEDIUM - Mission concepts |
-| `genesis:docs` | (document ingestion) | 🟡 MEDIUM - Common workflow |
-| `migrate:lance` | (embeddings migration) | 🟡 MEDIUM - Optimization |
-| `guide` | (help system) | 🟢 LOW - Utility |
+| Command Group   | Subcommands                                                      | Impact                         |
+| --------------- | ---------------------------------------------------------------- | ------------------------------ |
+| `lattice`       | (5+ algebra operators)                                           | 🔴 HIGH - Core feature         |
+| `security`      | attacks, coverage-gaps, boundaries, list, cves, query, coherence | 🔴 HIGH - Security commands    |
+| `workflow`      | patterns, quests, depth-rules                                    | 🔴 HIGH - Operational commands |
+| `proofs`        | theorems, lemmas, list, aligned                                  | 🟡 MEDIUM - Math proofs        |
+| `concepts`      | list, top, search, by-section, inspect                           | 🟡 MEDIUM - Mission concepts   |
+| `genesis:docs`  | (document ingestion)                                             | 🟡 MEDIUM - Common workflow    |
+| `migrate:lance` | (embeddings migration)                                           | 🟡 MEDIUM - Optimization       |
+| `guide`         | (help system)                                                    | 🟢 LOW - Utility               |
 
 ### 4.3 Missing Chapters Without Implementation
 
-| Chapter | Reason Missing |
-|---------|-----------------|
+| Chapter                              | Reason Missing                                                |
+| ------------------------------------ | ------------------------------------------------------------- |
 | 16 (Dependency Security Inheritance) | Feature not implemented; concept mentioned but no CLI command |
-| 17 (Ecosystem Seeding) | Feature not implemented; mentioned in passing |
-| 18 (Operational Flow) | Deferred - needs migration from CPOW_OPERATIONAL_LOOP.md |
+| 17 (Ecosystem Seeding)               | Feature not implemented; mentioned in passing                 |
+| 18 (Operational Flow)                | Deferred - needs migration from CPOW_OPERATIONAL_LOOP.md      |
 
 ### 4.4 Missing Chapters WITH Partial Implementation
 
-| Chapter | Features Found | Status |
-|---------|---|---|
+| Chapter               | Features Found            | Status                             |
+| --------------------- | ------------------------- | ---------------------------------- |
 | 19 (Quest Structures) | `workflow quests` command | Partially implemented, docs needed |
 
 ---
@@ -352,12 +379,14 @@ securityCmd
 
 ### 5.1 Line 362 - Ask Command
 
-**Claim**: 
+**Claim**:
+
 ```markdown
 **Command**: `cognition-cli ask "<question>" [--verbose]`
 ```
 
-**Reality**: 
+**Reality**:
+
 - There's a `cognition-cli ask <question>` that works with overlays/concepts
 - For codebase Q&A, use: `cognition-cli query <question>`
 - These are two different commands with different purposes
@@ -367,7 +396,8 @@ securityCmd
 ### 5.2 Lines 465-477 - Patterns Command
 
 **Claim**:
-```markdown
+
+````markdown
 **Command**: `cognition-cli patterns <pattern-type>`
 
 ```bash
@@ -375,25 +405,29 @@ cognition-cli patterns security     # Detect security patterns
 cognition-cli patterns architecture # Detect architectural patterns
 cognition-cli patterns idioms       # Detect language idioms
 ```
-```
+````
+
+````
 
 **Reality**: Command structure is:
 ```bash
 cognition-cli patterns find-similar <symbol>
 cognition-cli patterns find-anomalies
 cognition-cli patterns analyze-imports
-```
+````
 
 **Fix Needed**: Update to show actual subcommands and their signatures
 
 ### 5.3 Line 330 - Update Command
 
-**Claim**: 
+**Claim**:
+
 ```markdown
 **To refresh**: Use `cognition-cli update` for incremental changes, or re-run genesis for full rebuild.
 ```
 
 **Reality**:
+
 - Command exists: `cognition-cli update`
 - But it's NOT documented anywhere in Chapter 5
 - Description: "Incremental PGC sync based on dirty_state.json (Monument 3)"

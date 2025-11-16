@@ -14,6 +14,7 @@ The Lattice Book is **82% complete** (18/22 planned chapters) with **exceptional
 **Overall Assessment**: 🟡 **GOOD** with critical gaps requiring immediate attention
 
 **Biggest Gaps**:
+
 1. **CLI Commands**: 18+ production commands completely undocumented
 2. **Missing Chapters**: Chapters 16-19 (portability & cPOW workflows)
 3. **Accuracy Issues**: Command signatures in examples don't match implementation
@@ -21,6 +22,7 @@ The Lattice Book is **82% complete** (18/22 planned chapters) with **exceptional
 **Confidence Level**: **HIGH** - Cross-referenced 211 TypeScript implementation files against 18 documentation chapters
 
 **Metrics**:
+
 - **Files Analyzed**: 211 TypeScript files, 18 manual chapters, 92 total doc files
 - **Total Documentation**: 21,570 lines (~100 printed pages at current density)
 - **Critical Gaps Found**: 4 missing chapters, 18 undocumented commands
@@ -33,14 +35,14 @@ The Lattice Book is **82% complete** (18/22 planned chapters) with **exceptional
 
 ### Part I: Foundation ✅ **COMPLETE** (6/6 chapters)
 
-| Chapter | File | Lines | Status | Quality |
-|---------|------|-------|--------|---------|
-| 1. Cognitive Architecture | `01-cognitive-architecture.md` | 598 | ✅ Complete | Excellent |
-| 2. The PGC | `02-the-pgc.md` | 1,028 | ✅ Complete | Excellent |
-| 3. Why Overlays? | `03-why-overlays.md` | 777 | ✅ Complete | Excellent |
-| 4. Embeddings | `04-embeddings.md` | 807 | ✅ Complete | Excellent |
-| 4.5. Core Security | `04.5-core-security.md` | 1,304 | ✅ Complete | Excellent |
-| 5. CLI Operations | `05-cli-operations.md` | 679 | ⚠️ **Incomplete** | Good but missing 72% of commands |
+| Chapter                   | File                           | Lines | Status            | Quality                          |
+| ------------------------- | ------------------------------ | ----- | ----------------- | -------------------------------- |
+| 1. Cognitive Architecture | `01-cognitive-architecture.md` | 598   | ✅ Complete       | Excellent                        |
+| 2. The PGC                | `02-the-pgc.md`                | 1,028 | ✅ Complete       | Excellent                        |
+| 3. Why Overlays?          | `03-why-overlays.md`           | 777   | ✅ Complete       | Excellent                        |
+| 4. Embeddings             | `04-embeddings.md`             | 807   | ✅ Complete       | Excellent                        |
+| 4.5. Core Security        | `04.5-core-security.md`        | 1,304 | ✅ Complete       | Excellent                        |
+| 5. CLI Operations         | `05-cli-operations.md`         | 679   | ⚠️ **Incomplete** | Good but missing 72% of commands |
 
 **Assessment**: Foundation is solid but Chapter 5 needs major expansion.
 
@@ -48,15 +50,15 @@ The Lattice Book is **82% complete** (18/22 planned chapters) with **exceptional
 
 ### Part II: The Seven Layers ✅ **COMPLETE** (7/7 chapters)
 
-| Chapter | Overlay | File | Lines | Status | Quality |
-|---------|---------|------|-------|--------|---------|
-| 5. O₁ Structure | Code Artifacts | `05-o1-structure.md` | 906 | ✅ Complete | Excellent |
-| 6. O₂ Security | Constraints | `06-o2-security.md` | 1,423 | ✅ Complete | Excellent |
-| 7. O₃ Lineage | Dependencies | `07-o3-lineage.md` | 964 | ✅ Complete | Excellent |
-| 8. O₄ Mission | Strategy | `08-o4-mission.md` | 1,182 | ✅ Complete | Excellent |
-| 9. O₅ Operational | Workflows | `09-o5-operational.md` | 1,168 | ✅ Complete | Excellent |
-| 10. O₆ Mathematical | Proofs | `10-o6-mathematical.md` | 1,199 | ✅ Complete | Excellent |
-| 11. O₇ Coherence | Synthesis | `11-o7-coherence.md` | 1,066 | ✅ Complete | Excellent |
+| Chapter             | Overlay        | File                    | Lines | Status      | Quality   |
+| ------------------- | -------------- | ----------------------- | ----- | ----------- | --------- |
+| 5. O₁ Structure     | Code Artifacts | `05-o1-structure.md`    | 906   | ✅ Complete | Excellent |
+| 6. O₂ Security      | Constraints    | `06-o2-security.md`     | 1,423 | ✅ Complete | Excellent |
+| 7. O₃ Lineage       | Dependencies   | `07-o3-lineage.md`      | 964   | ✅ Complete | Excellent |
+| 8. O₄ Mission       | Strategy       | `08-o4-mission.md`      | 1,182 | ✅ Complete | Excellent |
+| 9. O₅ Operational   | Workflows      | `09-o5-operational.md`  | 1,168 | ✅ Complete | Excellent |
+| 10. O₆ Mathematical | Proofs         | `10-o6-mathematical.md` | 1,199 | ✅ Complete | Excellent |
+| 11. O₇ Coherence    | Synthesis      | `11-o7-coherence.md`    | 1,066 | ✅ Complete | Excellent |
 
 **Assessment**: The overlay documentation is the strongest part of the manual. Comprehensive, accurate, well-structured.
 
@@ -64,11 +66,11 @@ The Lattice Book is **82% complete** (18/22 planned chapters) with **exceptional
 
 ### Part III: The Algebra ✅ **COMPLETE** (3/3 chapters)
 
-| Chapter | File | Lines | Status | Quality |
-|---------|------|-------|--------|---------|
+| Chapter                | File                       | Lines | Status      | Quality   |
+| ---------------------- | -------------------------- | ----- | ----------- | --------- |
 | 12. Boolean Operations | `12-boolean-operations.md` | 1,062 | ✅ Complete | Excellent |
-| 13. Query Syntax | `13-query-syntax.md` | 1,066 | ✅ Complete | Excellent |
-| 14. Set Operations | `14-set-operations.md` | 929 | ✅ Complete | Excellent |
+| 13. Query Syntax       | `13-query-syntax.md`       | 1,066 | ✅ Complete | Excellent |
+| 14. Set Operations     | `14-set-operations.md`     | 929   | ✅ Complete | Excellent |
 
 **Assessment**: Algebra section is mathematically rigorous and well-documented.
 
@@ -76,11 +78,11 @@ The Lattice Book is **82% complete** (18/22 planned chapters) with **exceptional
 
 ### Part IV: Portability ⚠️ **PARTIAL** (1/3 chapters)
 
-| Chapter | File | Lines | Status | Quality |
-|---------|------|-------|--------|---------|
-| 15. .cogx Format | `15-cogx-format.md` | 1,888 | ✅ Complete | Excellent |
-| 16. Dependency Security Inheritance | **MISSING** | 0 | ❌ Not Started | N/A |
-| 17. Ecosystem Seeding | **MISSING** | 0 | ❌ Not Started | N/A |
+| Chapter                             | File                | Lines | Status         | Quality   |
+| ----------------------------------- | ------------------- | ----- | -------------- | --------- |
+| 15. .cogx Format                    | `15-cogx-format.md` | 1,888 | ✅ Complete    | Excellent |
+| 16. Dependency Security Inheritance | **MISSING**         | 0     | ❌ Not Started | N/A       |
+| 17. Ecosystem Seeding               | **MISSING**         | 0     | ❌ Not Started | N/A       |
 
 **Assessment**: Only 33% complete. Chapters 16-17 have no implementation evidence either.
 
@@ -88,11 +90,11 @@ The Lattice Book is **82% complete** (18/22 planned chapters) with **exceptional
 
 ### Part V: cPOW Loop ⚠️ **PARTIAL** (1/3 chapters)
 
-| Chapter | File | Lines | Status | Quality |
-|---------|------|-------|--------|---------|
-| 18. Operational Flow | **MISSING** | 0 | 🔄 Needs Migration | Some implementation exists |
-| 19. Quest Structures | **MISSING** | 0 | ❌ Implemented but not documented | Implementation exists |
-| 20. Validation Oracles | `20-cpow-reference.md` | 2,264 | ✅ Complete | Excellent |
+| Chapter                | File                   | Lines | Status                            | Quality                    |
+| ---------------------- | ---------------------- | ----- | --------------------------------- | -------------------------- |
+| 18. Operational Flow   | **MISSING**            | 0     | 🔄 Needs Migration                | Some implementation exists |
+| 19. Quest Structures   | **MISSING**            | 0     | ❌ Implemented but not documented | Implementation exists      |
+| 20. Validation Oracles | `20-cpow-reference.md` | 2,264 | ✅ Complete                       | Excellent                  |
 
 **Assessment**: Chapter 20 is excellent, but Chapters 18-19 are critical gaps.
 
@@ -102,8 +104,8 @@ The Lattice Book is **82% complete** (18/22 planned chapters) with **exceptional
 
 ### Part VI: Σ (Sigma) ✅ **COMPLETE** (1/1 chapter)
 
-| Chapter | File | Lines | Status | Quality |
-|---------|------|-------|--------|---------|
+| Chapter                | File                       | Lines | Status      | Quality   |
+| ---------------------- | -------------------------- | ----- | ----------- | --------- |
 | 21. Sigma Architecture | `21-sigma-architecture.md` | 1,260 | ✅ Complete | Excellent |
 
 **Assessment**: Comprehensive coverage of dual-lattice infinite context system.
@@ -125,6 +127,7 @@ The Lattice Book is **82% complete** (18/22 planned chapters) with **exceptional
 **Commands NOT Documented**:
 
 #### Core Workflow (CRITICAL)
+
 - `wizard` - Interactive PGC setup (most important for onboarding!)
 - `genesis:docs` - Document ingestion pipeline
 - `watch` - File change monitoring
@@ -132,20 +135,24 @@ The Lattice Book is **82% complete** (18/22 planned chapters) with **exceptional
 - `update` - Incremental PGC synchronization
 
 #### Query & Analysis (HIGH)
+
 - `lattice` - Boolean algebra queries (this is a CORE feature!)
 - `concepts` - Mission concept queries (7 subcommands)
 - `query` - Different from `ask`, semantic Q&A
 
 #### Data Management (HIGH)
+
 - `migrate-to-lance` - LanceDB migration (production-critical)
 - `audit` - Transformation history
 - `audit:docs` - Document integrity
 
 #### Interactive (MEDIUM)
+
 - `tui` - Terminal UI with Claude integration
 - `guide` - Contextual help system
 
 #### Sugar Commands (LOW but useful)
+
 - `security:attacks`, `security:cves`, `security:coverage-gaps` (6+ subcommands)
 - `workflow:patterns`, `workflow:quests` (4+ subcommands)
 - `proofs:theorems`, `proofs:lemmas` (5+ subcommands)
@@ -160,6 +167,7 @@ The Lattice Book is **82% complete** (18/22 planned chapters) with **exceptional
 **Purpose**: Guided setup wizard for complete PGC initialization
 
 **What It Does**:
+
 - Detects existing PGC or creates new one
 - Validates workbench connection
 - Configures API keys
@@ -184,17 +192,20 @@ The Lattice Book is **82% complete** (18/22 planned chapters) with **exceptional
 **Issue 1: `ask` vs `query`** (Line 362)
 
 **Documentation says**:
+
 ```bash
 cognition-cli ask "<question>" [--verbose]
 ```
 
 **Actual command**:
+
 ```bash
 cognition-cli query <question>  # Different purpose
 cognition-cli ask <question>    # Exists but for concepts, not general Q&A
 ```
 
 **Fix**:
+
 ```markdown
 ## query — Semantic Q&A
 
@@ -210,6 +221,7 @@ cognition-cli ask <question>    # Exists but for concepts, not general Q&A
 **Issue 2: `patterns` subcommand syntax** (Line 465)
 
 **Documentation says**:
+
 ```bash
 cognition-cli patterns <pattern-type>
 cognition-cli patterns security     # Detect security patterns
@@ -217,6 +229,7 @@ cognition-cli patterns architecture # Detect architectural patterns
 ```
 
 **Actual commands**:
+
 ```bash
 cognition-cli patterns find-similar <symbol>
 cognition-cli patterns find-anomalies
@@ -238,12 +251,14 @@ cognition-cli patterns compare <symbol1> <symbol2>
 **Why Critical**: The cPOW loop is a core architectural feature, but workflow documentation is missing
 
 **What's Missing**:
+
 - Oracle → Scribe → AQS → Receipt workflow
 - Transform pipeline documentation
 - GenesisOrchestrator, UpdateOrchestrator patterns
 - Error handling and retry logic
 
 **Implementation Evidence**:
+
 - `src/core/transform/TransformLog.ts` - Transform receipt system (exists)
 - `src/core/oracle/GenesisOracle.ts` - Oracle validation (exists)
 - `src/services/scribe/` - Scribe service (exists)
@@ -255,22 +270,26 @@ cognition-cli patterns compare <symbol1> <symbol2>
 # Chapter 18: Operational Flow
 
 ## 1. The Transformation Pipeline
+
 - Oracle validation
 - Scribe execution
 - Transform logging
 - Receipt generation
 
 ## 2. Orchestrators
+
 - GenesisOrchestrator (Phase I)
 - UpdateOrchestrator (incremental sync)
 - Error recovery
 
 ## 3. Quality Assurance
+
 - Fidelity scores (Phi)
 - AQS (Agentic Quality Score)
 - Coherence validation
 
 ## 4. Audit Trail
+
 - TransformLog structure
 - Provenance tracking
 - Verification receipts
@@ -285,6 +304,7 @@ cognition-cli patterns compare <symbol1> <symbol2>
 **Why Critical**: Quests are implemented and used throughout the system but have zero user-facing documentation
 
 **What's Missing**:
+
 - Quest structure (What/Why/Success)
 - Depth tracking (Depth 0-3)
 - Sacred sequences (F.L.T.B: Format, Lint, Test, Build)
@@ -292,6 +312,7 @@ cognition-cli patterns compare <symbol1> <symbol2>
 - Quest validation
 
 **Implementation Evidence**:
+
 - `src/core/quest/Quest.ts` - Quest interface (exists)
 - `src/core/quest/QuestOracle.ts` - Quest validation (exists)
 - Quest depth rules in operational patterns (exists)
@@ -303,29 +324,34 @@ cognition-cli patterns compare <symbol1> <symbol2>
 # Chapter 19: Quest Structures
 
 ## 1. Quest Anatomy
+
 - What: Intent declaration
 - Why: Mission alignment
 - Success: Validation criteria
 - Depth: Complexity tracking
 
 ## 2. Depth Levels
+
 - Depth 0: Trivial (< 5 min)
 - Depth 1: Simple (< 30 min)
 - Depth 2: Moderate (< 2 hours)
 - Depth 3: Complex (< 1 day)
 
 ## 3. Sacred Sequences
+
 - F.L.T.B pattern
 - Pre-commit validation
 - Quality gates
 
 ## 4. Quest Lifecycle
+
 - Declaration
 - Validation (Oracle)
 - Execution (Scribe)
 - Receipt (cPOW)
 
 ## 5. Mission Alignment
+
 - Coherence checks
 - Drift detection
 - Principle validation
@@ -352,6 +378,7 @@ cognition-cli patterns compare <symbol1> <symbol2>
 **Issue**: `patterns` command examples show positional arguments instead of subcommands
 
 **Fix**:
+
 ```bash
 # OLD (incorrect)
 cognition-cli patterns security
@@ -463,6 +490,7 @@ All 7 overlays documented comprehensively. No gaps.
 # Quick Start: 10 Minutes to First Query
 
 ## Prerequisites
+
 - Node.js 18+
 - Docker (for eGemma workbench)
 - Git repository
@@ -470,29 +498,37 @@ All 7 overlays documented comprehensively. No gaps.
 ## Setup (5 minutes)
 
 ### 1. Install
+
 npm install -g cognition-cli
 
 ### 2. Start Workbench
+
 docker compose up -d
 
 ### 3. Initialize
+
 cognition-cli wizard
 
 ## First Queries (5 minutes)
 
 ### Query your codebase
+
 cognition-cli query "what is the main entry point"
 
 ### Check coherence
+
 cognition-cli status
 
 ### Explore patterns
+
 cognition-cli patterns list
 
 ### Find security issues
+
 cognition-cli security coverage-gaps
 
 ## Next Steps
+
 - [Complete Manual](part-1-foundation/01-cognitive-architecture.md)
 - [CLI Reference](part-1-foundation/05-cli-operations.md)
 - [Overlay Guide](part-2-seven-layers/README.md)
@@ -512,24 +548,31 @@ cognition-cli security coverage-gaps
 
 ```markdown
 ## Core Commands
+
 - init, wizard, genesis, genesis:docs
 
 ## Query Commands
+
 - query, ask, lattice, concepts, patterns, coherence, blast-radius
 
 ## Maintenance Commands
+
 - watch, status, update, migrate-to-lance, audit
 
 ## Overlay Commands
+
 - overlay generate, overlay list
 
 ## Interactive Commands
+
 - tui, guide
 
 ## Sugar Commands (Convenience)
-- security:*, workflow:*, proofs:*
+
+- security:_, workflow:_, proofs:\*
 
 ## Appendix: Command Cheat Sheet
+
 [Quick reference table with all commands, signatures, and one-line descriptions]
 ```
 
@@ -549,32 +592,38 @@ cognition-cli security coverage-gaps
 # Troubleshooting Guide
 
 ## Installation Issues
+
 - Node.js version mismatch
 - Docker not running
 - Permission errors
 
 ## PGC Issues
+
 - "PGC not initialized"
 - "Workbench not running"
 - "Out of memory during genesis"
 - Corrupt vector database
 
 ## Coherence Issues
+
 - High blast radius warnings
 - Drift detection false positives
 - Orphaned symbols
 
 ## Query Issues
+
 - No results returned
 - Low similarity scores
 - Wrong overlay data
 
 ## Performance Issues
+
 - Slow genesis runs
 - Large vector database
 - High memory usage
 
 ## Error Messages Reference
+
 [Common errors with solutions]
 ```
 
@@ -606,20 +655,24 @@ cognition-cli security coverage-gaps
 # Migration Guide
 
 ## v1.x to v2.x (Sigma Release)
+
 - New Sigma lattice architecture
 - LanceDB migration
 - Session state changes
 
 ## YAML to LanceDB Migration
+
 - When to migrate
 - Using migrate-to-lance command
 - Rollback procedure
 
 ## PGC Schema Changes
+
 - Overlay format updates
 - Embedding format changes
 
 ## Breaking Changes Log
+
 [By version]
 ```
 
@@ -639,18 +692,22 @@ cognition-cli security coverage-gaps
 # CI/CD Integration
 
 ## GitHub Actions Example
+
 - Run coherence checks on PR
 - Fail if drift detected
 - Generate coherence report
 
 ## GitLab CI Example
+
 [Similar to GitHub]
 
 ## Pre-commit Hooks
+
 - watch + status integration
 - Prevent commits with high blast radius
 
 ## Automated Overlay Updates
+
 - Regenerate overlays on deploy
 - Verify mission alignment
 ```
@@ -671,17 +728,21 @@ cognition-cli security coverage-gaps
 # TypeScript API Reference
 
 ## Core Classes
+
 - PGC, OverlayManager, VectorStore
 
 ## Querying Programmatically
+
 - LatticeQuery API
 - Semantic search API
 
 ## Custom Overlays
+
 - Extending overlay system
 - Custom embeddings
 
 ## Integration Patterns
+
 - Express middleware
 - Next.js integration
 - VS Code extension
@@ -695,24 +756,24 @@ cognition-cli security coverage-gaps
 
 ## Implementation Priority Matrix
 
-| Priority | Item | Estimated Effort | User Impact | Dependency |
-|----------|------|------------------|-------------|------------|
-| **P0** | Quick Start Guide | 2-3 hours | **VERY HIGH** | None |
-| **P0** | Fix command signature mismatches | 1 hour | **VERY HIGH** | None |
-| **P0** | Expand Chapter 5: CLI Operations (18 commands) | 12-16 hours | **VERY HIGH** | None |
-| **P0** | Chapter 18: Operational Flow | 6-8 hours | **HIGH** | None |
-| **P0** | Chapter 19: Quest Structures | 4-6 hours | **HIGH** | None |
-| **P1** | Troubleshooting Guide | 4-6 hours | **HIGH** | None |
-| **P1** | Document `lattice` command | 2 hours | **HIGH** | P0 fixes |
-| **P1** | Document `wizard` command | 1.5 hours | **HIGH** | Quick Start |
-| **P1** | Document watch/status/update | 3 hours | **HIGH** | None |
-| **P2** | Migration & Upgrade Guide | 3-4 hours | **MEDIUM** | None |
-| **P2** | CI/CD Integration Guide | 2-3 hours | **MEDIUM** | Watch/status docs |
-| **P2** | Document sugar commands | 4-5 hours | **MEDIUM** | Chapter 5 expansion |
-| **P2** | Workflow tutorials (8 guides) | 8-12 hours | **MEDIUM** | All P0/P1 |
-| **P3** | TypeScript API Guide | 6-8 hours | **LOW-MEDIUM** | None |
-| **P3** | Chapter 16: Dependency Security Inheritance | 4-6 hours | **LOW** | Implementation needed first |
-| **P3** | Chapter 17: Ecosystem Seeding | 4-6 hours | **LOW** | Implementation needed first |
+| Priority | Item                                           | Estimated Effort | User Impact    | Dependency                  |
+| -------- | ---------------------------------------------- | ---------------- | -------------- | --------------------------- |
+| **P0**   | Quick Start Guide                              | 2-3 hours        | **VERY HIGH**  | None                        |
+| **P0**   | Fix command signature mismatches               | 1 hour           | **VERY HIGH**  | None                        |
+| **P0**   | Expand Chapter 5: CLI Operations (18 commands) | 12-16 hours      | **VERY HIGH**  | None                        |
+| **P0**   | Chapter 18: Operational Flow                   | 6-8 hours        | **HIGH**       | None                        |
+| **P0**   | Chapter 19: Quest Structures                   | 4-6 hours        | **HIGH**       | None                        |
+| **P1**   | Troubleshooting Guide                          | 4-6 hours        | **HIGH**       | None                        |
+| **P1**   | Document `lattice` command                     | 2 hours          | **HIGH**       | P0 fixes                    |
+| **P1**   | Document `wizard` command                      | 1.5 hours        | **HIGH**       | Quick Start                 |
+| **P1**   | Document watch/status/update                   | 3 hours          | **HIGH**       | None                        |
+| **P2**   | Migration & Upgrade Guide                      | 3-4 hours        | **MEDIUM**     | None                        |
+| **P2**   | CI/CD Integration Guide                        | 2-3 hours        | **MEDIUM**     | Watch/status docs           |
+| **P2**   | Document sugar commands                        | 4-5 hours        | **MEDIUM**     | Chapter 5 expansion         |
+| **P2**   | Workflow tutorials (8 guides)                  | 8-12 hours       | **MEDIUM**     | All P0/P1                   |
+| **P3**   | TypeScript API Guide                           | 6-8 hours        | **LOW-MEDIUM** | None                        |
+| **P3**   | Chapter 16: Dependency Security Inheritance    | 4-6 hours        | **LOW**        | Implementation needed first |
+| **P3**   | Chapter 17: Ecosystem Seeding                  | 4-6 hours        | **LOW**        | Implementation needed first |
 
 **Total Estimated Effort**: 63-97 hours (8-12 full workdays)
 
@@ -729,6 +790,7 @@ cognition-cli security coverage-gaps
 **Why**: Users are immediately blocked when examples don't work
 
 **How**:
+
 - Search/replace `cognition-cli ask` → `cognition-cli query`
 - Replace patterns examples with subcommand documentation
 - Test all commands mentioned in docs
@@ -744,6 +806,7 @@ cognition-cli security coverage-gaps
 **Why**: Most critical command for onboarding, completely undocumented
 
 **How**:
+
 - Read `src/commands/wizard.ts`
 - Document interactive flow
 - Add example output
@@ -760,6 +823,7 @@ cognition-cli security coverage-gaps
 **Why**: Users need < 10 min path from install to first query
 
 **How**:
+
 - Install → Start workbench → wizard → first queries
 - Keep it under 50 lines
 - Link to comprehensive docs
@@ -775,6 +839,7 @@ cognition-cli security coverage-gaps
 **Why**: Core algebra feature, completely undocumented
 
 **How**:
+
 - Document operators (+, -, &, ~, ->)
 - Show 5-7 real examples
 - Link to Chapter 13 (query syntax)
@@ -791,6 +856,7 @@ cognition-cli security coverage-gaps
 **Why**: Critical for incremental workflows
 
 **How**:
+
 - Document each command with examples
 - Show typical workflow (watch → change → status)
 - Link to CI/CD integration
@@ -806,6 +872,7 @@ cognition-cli security coverage-gaps
 **Why**: Quick lookup for experienced users
 
 **How**:
+
 - Table format: Command | Description | Example
 - Group by category
 - Add as appendix to Chapter 5
@@ -838,6 +905,7 @@ cognition-cli security coverage-gaps
 **Problem**: Examples become stale as code evolves
 
 **Solution**:
+
 - Extract code blocks from markdown
 - Run as executable tests
 - CI/CD fails if examples break
@@ -855,6 +923,7 @@ cognition-cli security coverage-gaps
 **Problem**: Manual docs drift from implementation
 
 **Solution**:
+
 - Extract command metadata from TypeScript
 - Generate markdown from JSDoc comments
 - Auto-update on every release
@@ -871,11 +940,13 @@ cognition-cli security coverage-gaps
 **Problem**: Reading docs ≠ learning by doing
 
 **Solution**:
+
 - Built-in interactive tutorials via `guide` command
 - Step-by-step walkthroughs
 - Validation at each step
 
 **Example**:
+
 ```bash
 cognition-cli guide tutorial:getting-started
 # Walks through init → genesis → query with validation
@@ -890,6 +961,7 @@ cognition-cli guide tutorial:getting-started
 **Problem**: Some concepts are visual
 
 **Solution**:
+
 - 5-10 min screencasts for key workflows
 - Embed in docs site
 - Cover: setup, querying, coherence monitoring
@@ -903,6 +975,7 @@ cognition-cli guide tutorial:getting-started
 **Problem**: Current site is markdown only
 
 **Solution**:
+
 - Search functionality
 - Version switcher (v1.x vs v2.x docs)
 - Interactive query playground
@@ -917,6 +990,7 @@ cognition-cli guide tutorial:getting-started
 **Problem**: No clear path for documentation contributions
 
 **Solution**:
+
 - Doc contribution guidelines
 - Templates for new chapters
 - Style guide
@@ -943,6 +1017,7 @@ The documentation doesn't just describe features—it explains **why they work**
 Docs consistently reference actual source files and line numbers.
 
 **Example**:
+
 > "See `src/core/algebra/query-parser.ts` for implementation"
 
 **Preserve**: Maintain source file references, consider auto-linking in doc site
@@ -988,6 +1063,7 @@ Foundation → Overlays → Algebra → Advanced Topics
 ### For New Users (First 24 Hours)
 
 **Must Have**:
+
 1. Quick Start Guide (10 min)
 2. wizard command docs
 3. Fixed command signatures
@@ -1000,6 +1076,7 @@ Foundation → Overlays → Algebra → Advanced Topics
 ### For Intermediate Users (Week 1-4)
 
 **Must Have**:
+
 1. Complete CLI reference (all 25 commands)
 2. Workflow tutorials
 3. Quest structure guide
@@ -1012,6 +1089,7 @@ Foundation → Overlays → Algebra → Advanced Topics
 ### For Advanced Users (Month 2+)
 
 **Must Have**:
+
 1. Operational Flow (Chapter 18)
 2. TypeScript API
 3. CI/CD integration
@@ -1024,6 +1102,7 @@ Foundation → Overlays → Algebra → Advanced Topics
 ### For Contributors
 
 **Must Have**:
+
 1. Architecture overview (already exists)
 2. Contribution guidelines (missing)
 3. Doc testing framework
@@ -1069,6 +1148,7 @@ Foundation → Overlays → Algebra → Advanced Topics
 ### ⚠️ Cross-References
 
 **Issues**:
+
 - Some "Next Chapter" links point to wrong files
 - Internal links not validated
 
@@ -1080,14 +1160,14 @@ Foundation → Overlays → Algebra → Advanced Topics
 
 ## Documentation Debt Summary
 
-| Category | Debt Items | Estimated Fix Time |
-|----------|-----------|-------------------|
-| Missing Chapters | 4 chapters (16-19) | 18-26 hours |
-| Missing Commands | 18 commands | 12-16 hours |
-| Incorrect Examples | 2 signature mismatches | 1 hour |
-| Missing Workflows | 8 tutorials | 8-12 hours |
-| Missing Guides | 4 guides (troubleshooting, CI/CD, migration, API) | 15-23 hours |
-| Long-term | Testing, auto-gen, videos | 72-122 hours |
+| Category           | Debt Items                                        | Estimated Fix Time |
+| ------------------ | ------------------------------------------------- | ------------------ |
+| Missing Chapters   | 4 chapters (16-19)                                | 18-26 hours        |
+| Missing Commands   | 18 commands                                       | 12-16 hours        |
+| Incorrect Examples | 2 signature mismatches                            | 1 hour             |
+| Missing Workflows  | 8 tutorials                                       | 8-12 hours         |
+| Missing Guides     | 4 guides (troubleshooting, CI/CD, migration, API) | 15-23 hours        |
+| Long-term          | Testing, auto-gen, videos                         | 72-122 hours       |
 
 **Total Debt**: 126-200 hours (16-25 workdays)
 
@@ -1170,12 +1250,14 @@ Before considering documentation "complete", verify:
 The Lattice Book is **exceptionally well-written** in the areas it covers. The problem is **coverage**, not quality.
 
 **The Good**:
+
 - Mathematical rigor ⭐⭐⭐⭐⭐
 - Implementation accuracy ⭐⭐⭐⭐⭐ (where documented)
 - Clear explanations ⭐⭐⭐⭐⭐
 - Consistent structure ⭐⭐⭐⭐⭐
 
 **The Gaps**:
+
 - CLI command coverage: 28% (need 100%)
 - Missing chapters: 18% (4/22)
 - Workflow tutorials: 0% (need 8-10)
@@ -1188,6 +1270,7 @@ The Lattice Book is **exceptionally well-written** in the areas it covers. The p
 ---
 
 **Next Steps**:
+
 1. Review this audit with team
 2. Prioritize P0 items
 3. Assign documentation tasks

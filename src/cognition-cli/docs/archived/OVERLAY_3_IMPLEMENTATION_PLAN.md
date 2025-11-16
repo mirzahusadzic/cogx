@@ -50,9 +50,9 @@
 **File**: `src/core/parsers/markdown-parser.ts`
 
 ```typescript
-import { unified } from "unified";
-import remarkParse from "remark-parse";
-import { Node } from "unist";
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import { Node } from 'unist';
 
 export interface MarkdownSection {
   heading: string;
@@ -158,8 +158,8 @@ export class MarkdownOracle {
 **File**: `src/core/transforms/genesis-doc-transform.ts`
 
 ```typescript
-import { MarkdownParser } from "../parsers/markdown-parser";
-import { ObjectStore } from "../storage/object-store";
+import { MarkdownParser } from '../parsers/markdown-parser';
+import { ObjectStore } from '../storage/object-store';
 
 export class GenesisDocTransform {
   /**
@@ -179,8 +179,8 @@ export class GenesisDocTransform {
     // 8. Update reverse_deps/ (doc hash → transform ID)
 
     return {
-      transformId: "...",
-      outputHash: "...",
+      transformId: '...',
+      outputHash: '...',
       fidelity: 1.0, // Parsing is deterministic
       verified: true,
     };
@@ -191,21 +191,21 @@ export class GenesisDocTransform {
 **Transform Log Format:**
 
 ```yaml
-transform_id: "abc123..."
-type: "genesis_doc"
-timestamp: "2025-10-26T..."
-method: "markdown-ast-parse"
+transform_id: 'abc123...'
+type: 'genesis_doc'
+timestamp: '2025-10-26T...'
+method: 'markdown-ast-parse'
 inputs:
-  source_file: "README.md"
+  source_file: 'README.md'
 outputs:
-  - hash: "def456..."
-    type: "markdown_document"
-    semantic_path: "/docs/README.md"
+  - hash: 'def456...'
+    type: 'markdown_document'
+    semantic_path: '/docs/README.md'
 fidelity: 1.0
 verified: true
 provenance:
-  parser: "remark@15.0.0"
-  oracle: "markdown-oracle"
+  parser: 'remark@15.0.0'
+  oracle: 'markdown-oracle'
 ```
 
 **Deliverables:**
@@ -220,7 +220,7 @@ provenance:
 
 ```typescript
 export interface DocumentObject {
-  type: "markdown_document";
+  type: 'markdown_document';
   hash: string;
   filePath: string;
   content: string; // Original markdown
@@ -257,19 +257,19 @@ export class DocumentObjectStore {
 **File**: `index/docs/<path>.yaml`
 
 ```yaml
-semantic_path: "/docs/README.md"
-current_hash: "def456..."
-type: "markdown_document"
-last_updated: "2025-10-26T..."
+semantic_path: '/docs/README.md'
+current_hash: 'def456...'
+type: 'markdown_document'
+last_updated: '2025-10-26T...'
 sections:
-  - heading: "Vision"
-    hash: "abc111..."
+  - heading: 'Vision'
+    hash: 'abc111...'
     level: 2
-  - heading: "Mission"
-    hash: "abc222..."
+  - heading: 'Mission'
+    hash: 'abc222...'
     level: 2
-  - heading: "Principles"
-    hash: "abc333..."
+  - heading: 'Principles'
+    hash: 'abc333...'
     level: 2
 ```
 
@@ -294,12 +294,12 @@ sections:
  * Prevents malicious injection via arbitrary markdown
  */
 export const MISSION_SECTIONS = {
-  whitelist: ["Vision", "Mission", "Principles", "Goals", "Core Values"],
+  whitelist: ['Vision', 'Mission', 'Principles', 'Goals', 'Core Values'],
 
   // Case-insensitive matching
   matches(heading: string): boolean {
     return this.whitelist.some((w) =>
-      heading.toLowerCase().includes(w.toLowerCase()),
+      heading.toLowerCase().includes(w.toLowerCase())
     );
   },
 };
@@ -329,7 +329,7 @@ export class ConceptExtractor {
   extract(doc: MarkdownDocument): MissionConcept[] {
     // 1. Filter to whitelisted sections only
     const missionSections = doc.sections.filter((s) =>
-      MISSION_SECTIONS.matches(s.heading),
+      MISSION_SECTIONS.matches(s.heading)
     );
 
     // 2. Extract concepts
@@ -360,31 +360,31 @@ export class ConceptExtractor {
 **File**: `overlays/mission_concepts/<doc-hash>.yaml`
 
 ```yaml
-document_hash: "def456..."
-document_path: "/docs/README.md"
+document_hash: 'def456...'
+document_path: '/docs/README.md'
 extracted_concepts:
-  - text: "verifiable"
-    section: "Vision"
+  - text: 'verifiable'
+    section: 'Vision'
     weight: 0.95
     occurrences: 12
 
-  - text: "grounding"
-    section: "Vision"
+  - text: 'grounding'
+    section: 'Vision'
     weight: 0.90
     occurrences: 8
 
-  - text: "hallucination prevention"
-    section: "Mission"
+  - text: 'hallucination prevention'
+    section: 'Mission'
     weight: 0.85
     occurrences: 5
 
-  - text: "cryptographic truth"
-    section: "Principles"
+  - text: 'cryptographic truth'
+    section: 'Principles'
     weight: 0.80
     occurrences: 4
 
-generated_at: "2025-10-26T..."
-transform_id: "concept-extract-abc123"
+generated_at: '2025-10-26T...'
+transform_id: 'concept-extract-abc123'
 ```
 
 **Deliverables:**
@@ -418,9 +418,9 @@ export class CodeConceptExtractor {
     // 4. Weight by centrality + import frequency
 
     return {
-      central_components: ["PGC", "Transform", "Oracle"],
-      dominant_concepts: ["verifiable", "grounding", "transform"],
-      architecture_patterns: ["lattice", "provenance", "content-addressable"],
+      central_components: ['PGC', 'Transform', 'Oracle'],
+      dominant_concepts: ['verifiable', 'grounding', 'transform'],
+      architecture_patterns: ['lattice', 'provenance', 'content-addressable'],
     };
   }
 }
@@ -650,10 +650,10 @@ export class MissionIntegrityMonitor {
    */
   async recordVersion(
     visionPath: string,
-    concepts: MissionConcept[],
+    concepts: MissionConcept[]
   ): Promise<MissionVersion> {
-    const content = await fs.readFile(visionPath, "utf-8");
-    const hash = createHash("sha256").update(content).digest("hex");
+    const content = await fs.readFile(visionPath, 'utf-8');
+    const hash = createHash('sha256').update(content).digest('hex');
 
     // Get git metadata if available
     const gitInfo = await this.getGitInfo(visionPath);
@@ -694,8 +694,8 @@ export class MissionIntegrityMonitor {
     const centroid = this.computeCentroid(top10.map((c) => c.embedding));
 
     // Hash with 6 decimal places for stability
-    const centroidStr = centroid.map((v) => v.toFixed(6)).join(",");
-    return createHash("sha256").update(centroidStr).digest("hex");
+    const centroidStr = centroid.map((v) => v.toFixed(6)).join(',');
+    return createHash('sha256').update(centroidStr).digest('hex');
   }
 
   private computeCentroid(embeddings: number[][]): number[] {
@@ -738,7 +738,7 @@ export class MissionIntegrityMonitor {
 
 ```typescript
 export interface DriftAnalysis {
-  severity: "none" | "low" | "medium" | "high" | "critical";
+  severity: 'none' | 'low' | 'medium' | 'high' | 'critical';
   distance: number; // Cosine distance between semantic fingerprints
   addedConcepts: string[]; // New concepts in this version
   removedConcepts: string[]; // Concepts no longer present
@@ -750,7 +750,7 @@ export interface DriftAnalysis {
     delta: number;
   }[];
   suspiciousPatterns: string[]; // Detected attack patterns
-  recommendation: "approve" | "review" | "reject";
+  recommendation: 'approve' | 'review' | 'reject';
 }
 
 export class SemanticDriftDetector {
@@ -767,25 +767,25 @@ export class SemanticDriftDetector {
    */
   async analyzeDrift(
     oldVersion: MissionVersion,
-    newVersion: MissionVersion,
+    newVersion: MissionVersion
   ): Promise<DriftAnalysis> {
     // 1. Compute semantic distance using embeddings
     const distance = this.computeSemanticDistance(
       oldVersion.conceptEmbeddings,
-      newVersion.conceptEmbeddings,
+      newVersion.conceptEmbeddings
     );
 
     // 2. Identify added/removed/shifted concepts
     const { added, removed, shifted } = this.compareConceptSets(
       oldVersion,
-      newVersion,
+      newVersion
     );
 
     // 3. Detect suspicious patterns
     const suspiciousPatterns = this.detectSuspiciousPatterns(
       added,
       removed,
-      shifted,
+      shifted
     );
 
     // 4. Classify severity
@@ -808,7 +808,7 @@ export class SemanticDriftDetector {
    */
   private computeSemanticDistance(
     oldEmbeddings: number[][],
-    newEmbeddings: number[][],
+    newEmbeddings: number[][]
   ): number {
     const oldCentroid = this.computeCentroid(oldEmbeddings);
     const newCentroid = this.computeCentroid(newEmbeddings);
@@ -827,22 +827,22 @@ export class SemanticDriftDetector {
   private detectSuspiciousPatterns(
     added: string[],
     removed: string[],
-    shifted: { concept: string; delta: number }[],
+    shifted: { concept: string; delta: number }[]
   ): string[] {
     const patterns: string[] = [];
 
     // Pattern 1: Security weakening
     // Example: Remove "security first", add "pragmatic security"
     const securityRemoved = removed.some((c) =>
-      /security|privacy|validation|audit|verify/i.test(c),
+      /security|privacy|validation|audit|verify/i.test(c)
     );
     const convenienceAdded = added.some((c) =>
-      /convenience|shortcut|skip|bypass|pragmatic.*security/i.test(c),
+      /convenience|shortcut|skip|bypass|pragmatic.*security/i.test(c)
     );
 
     if (securityRemoved && convenienceAdded) {
       patterns.push(
-        "SECURITY_WEAKENING: Removed security concepts, added convenience language",
+        'SECURITY_WEAKENING: Removed security concepts, added convenience language'
       );
     }
 
@@ -850,52 +850,52 @@ export class SemanticDriftDetector {
     // Example: Add "trust experienced contributors", "skip checks for users"
     const trustBased = added.some((c) =>
       /trust.*contributor|experienced.*user|skip.*check.*for|bypass.*for/i.test(
-        c,
-      ),
+        c
+      )
     );
 
     if (trustBased) {
       patterns.push(
-        "TRUST_EROSION: Added trust-based bypass concepts (red flag)",
+        'TRUST_EROSION: Added trust-based bypass concepts (red flag)'
       );
     }
 
     // Pattern 3: Permission creep
     // Example: Add "allow", "permit", "relax constraints"
     const permissive = added.some((c) =>
-      /allow|permit|enable|relax|loosen|reduce.*restriction/i.test(c),
+      /allow|permit|enable|relax|loosen|reduce.*restriction/i.test(c)
     );
 
     if (permissive && removed.some((c) => /strict|enforce|require/i.test(c))) {
       patterns.push(
-        "PERMISSION_CREEP: Shifted from strict enforcement to permissive language",
+        'PERMISSION_CREEP: Shifted from strict enforcement to permissive language'
       );
     }
 
     // Pattern 4: Ambiguity injection
     // Example: "Security first" → "Security first, balanced with pragmatism"
     const ambiguous = added.some((c) =>
-      /balanced|pragmatic|flexible|context-dependent|situational/i.test(c),
+      /balanced|pragmatic|flexible|context-dependent|situational/i.test(c)
     );
 
     if (ambiguous) {
       patterns.push(
-        "AMBIGUITY_INJECTION: Added vague qualifiers to principles (weakens clarity)",
+        'AMBIGUITY_INJECTION: Added vague qualifiers to principles (weakens clarity)'
       );
     }
 
     // Pattern 5: Velocity prioritization over safety
     // Example: Add "developer velocity", "ship fast", "move fast"
     const velocityFocus = added.some((c) =>
-      /velocity|ship.*fast|move.*fast|speed.*over|quick.*over/i.test(c),
+      /velocity|ship.*fast|move.*fast|speed.*over|quick.*over/i.test(c)
     );
     const safetyDowngraded = shifted.some(
-      (s) => /safety|security|testing/.test(s.concept) && s.delta < -0.2,
+      (s) => /safety|security|testing/.test(s.concept) && s.delta < -0.2
     );
 
     if (velocityFocus && safetyDowngraded) {
       patterns.push(
-        "VELOCITY_OVER_SAFETY: Increased velocity focus while downgrading safety concepts",
+        'VELOCITY_OVER_SAFETY: Increased velocity focus while downgrading safety concepts'
       );
     }
 
@@ -911,16 +911,16 @@ export class SemanticDriftDetector {
    * - Otherwise → approve
    */
   private makeRecommendation(
-    severity: DriftAnalysis["severity"],
-    patterns: string[],
-  ): DriftAnalysis["recommendation"] {
-    if (severity === "critical" || patterns.length >= 2) {
-      return "reject";
+    severity: DriftAnalysis['severity'],
+    patterns: string[]
+  ): DriftAnalysis['recommendation'] {
+    if (severity === 'critical' || patterns.length >= 2) {
+      return 'reject';
     }
-    if (severity === "high" || patterns.length === 1) {
-      return "review";
+    if (severity === 'high' || patterns.length === 1) {
+      return 'review';
     }
-    return "approve";
+    return 'approve';
   }
 }
 ```
@@ -951,8 +951,8 @@ export interface ValidationLayer {
 export interface ValidationResult {
   safe: boolean;
   layers: ValidationLayer[];
-  recommendation: "approve" | "review" | "reject";
-  alertLevel: "none" | "info" | "warning" | "critical";
+  recommendation: 'approve' | 'review' | 'reject';
+  alertLevel: 'none' | 'info' | 'warning' | 'critical';
 }
 
 export class MissionValidator {
@@ -970,7 +970,7 @@ export class MissionValidator {
    */
   async validate(
     visionPath: string,
-    config: SecurityConfig,
+    config: SecurityConfig
   ): Promise<ValidationResult> {
     const layers: ValidationLayer[] = [];
 
@@ -1005,17 +1005,17 @@ export class MissionValidator {
    * Uses Gemini 2.5 Flash with built-in safety filters
    */
   private async validateContentSafety(
-    visionPath: string,
+    visionPath: string
   ): Promise<ValidationLayer> {
     if (!this.geminiClient) {
       return {
-        name: "ContentSafety",
+        name: 'ContentSafety',
         passed: true,
-        message: "LLM filtering disabled (no API key)",
+        message: 'LLM filtering disabled (no API key)',
       };
     }
 
-    const content = await fs.readFile(visionPath, "utf-8");
+    const content = await fs.readFile(visionPath, 'utf-8');
 
     const response = await this.geminiClient.complete({
       prompt: `You are a security analyzer for strategic mission documents.
@@ -1044,13 +1044,13 @@ Return JSON:
   ],
   "explanation": "overall assessment"
 }`,
-      model: "gemini-2.0-flash-exp",
+      model: 'gemini-2.0-flash-exp',
     });
 
     const result = JSON.parse(response);
 
     return {
-      name: "ContentSafety",
+      name: 'ContentSafety',
       passed: result.safe,
       message: result.explanation,
       details: { threats: result.threats },
@@ -1062,21 +1062,21 @@ Return JSON:
    * Runs if LLM filtering is disabled
    */
   private async validateContentPatterns(
-    visionPath: string,
+    visionPath: string
   ): Promise<ValidationLayer> {
-    const content = await fs.readFile(visionPath, "utf-8");
+    const content = await fs.readFile(visionPath, 'utf-8');
     const patterns = [
-      { pattern: /exfiltrate/i, threat: "Data exfiltration instruction" },
+      { pattern: /exfiltrate/i, threat: 'Data exfiltration instruction' },
       {
         pattern: /disable.*security/i,
-        threat: "Security disabling instruction",
+        threat: 'Security disabling instruction',
       },
-      { pattern: /skip.*validation/i, threat: "Validation bypass instruction" },
+      { pattern: /skip.*validation/i, threat: 'Validation bypass instruction' },
       {
         pattern: /always.*approve/i,
-        threat: "Unconditional approval instruction",
+        threat: 'Unconditional approval instruction',
       },
-      { pattern: /trust.*all/i, threat: "Unconditional trust instruction" },
+      { pattern: /trust.*all/i, threat: 'Unconditional trust instruction' },
     ];
 
     const matches = patterns
@@ -1084,12 +1084,12 @@ Return JSON:
       .filter((p) => p.found);
 
     return {
-      name: "ContentPatterns",
+      name: 'ContentPatterns',
       passed: matches.length === 0,
       message:
         matches.length > 0
-          ? `Found ${matches.length} suspicious pattern(s): ${matches.map((m) => m.threat).join(", ")}`
-          : "No suspicious patterns detected",
+          ? `Found ${matches.length} suspicious pattern(s): ${matches.map((m) => m.threat).join(', ')}`
+          : 'No suspicious patterns detected',
       details: { matches },
     };
   }
@@ -1099,15 +1099,15 @@ Return JSON:
    * Compares against previous version
    */
   private async validateSemanticDrift(
-    visionPath: string,
+    visionPath: string
   ): Promise<ValidationLayer> {
     // Get previous version
     const previousVersion = await this.integrityMonitor.getLatestVersion();
     if (!previousVersion) {
       return {
-        name: "SemanticDrift",
+        name: 'SemanticDrift',
         passed: true,
-        message: "No previous version (first ingestion)",
+        message: 'No previous version (first ingestion)',
       };
     }
 
@@ -1120,28 +1120,28 @@ Return JSON:
     // Generate embeddings for new concepts
     const manager = new MissionConceptsManager(this.pgcRoot);
     const conceptsWithEmbeddings =
-      await manager["generateEmbeddings"](concepts);
+      await manager['generateEmbeddings'](concepts);
 
     // Create new version snapshot
     const newVersion: MissionVersion = {
       version: previousVersion.version + 1,
-      hash: createHash("sha256")
-        .update(await fs.readFile(visionPath, "utf-8"))
-        .digest("hex"),
+      hash: createHash('sha256')
+        .update(await fs.readFile(visionPath, 'utf-8'))
+        .digest('hex'),
       timestamp: new Date().toISOString(),
       conceptEmbeddings: conceptsWithEmbeddings.map((c) => c.embedding),
-      semanticFingerprint: "", // computed by monitor
+      semanticFingerprint: '', // computed by monitor
     };
 
     // Analyze drift
     const drift = await this.driftDetector.analyzeDrift(
       previousVersion,
-      newVersion,
+      newVersion
     );
 
     return {
-      name: "SemanticDrift",
-      passed: drift.recommendation !== "reject",
+      name: 'SemanticDrift',
+      passed: drift.recommendation !== 'reject',
       message: this.formatDriftMessage(drift),
       details: { drift },
     };
@@ -1151,21 +1151,21 @@ Return JSON:
     let msg = `Drift: ${drift.distance.toFixed(4)} (${drift.severity})`;
 
     if (drift.addedConcepts.length > 0) {
-      msg += `\n  + Added: ${drift.addedConcepts.slice(0, 3).join(", ")}`;
+      msg += `\n  + Added: ${drift.addedConcepts.slice(0, 3).join(', ')}`;
       if (drift.addedConcepts.length > 3) {
         msg += ` (+${drift.addedConcepts.length - 3} more)`;
       }
     }
 
     if (drift.removedConcepts.length > 0) {
-      msg += `\n  - Removed: ${drift.removedConcepts.slice(0, 3).join(", ")}`;
+      msg += `\n  - Removed: ${drift.removedConcepts.slice(0, 3).join(', ')}`;
       if (drift.removedConcepts.length > 3) {
         msg += ` (+${drift.removedConcepts.length - 3} more)`;
       }
     }
 
     if (drift.suspiciousPatterns.length > 0) {
-      msg += `\n  ⚠️  ${drift.suspiciousPatterns.join("\n  ⚠️  ")}`;
+      msg += `\n  ⚠️  ${drift.suspiciousPatterns.join('\n  ⚠️  ')}`;
     }
 
     return msg;
@@ -1176,7 +1176,7 @@ Return JSON:
    * Ensures file is valid markdown with required sections
    */
   private async validateStructure(
-    visionPath: string,
+    visionPath: string
   ): Promise<ValidationLayer> {
     try {
       const parser = new MarkdownParser();
@@ -1188,21 +1188,21 @@ Return JSON:
 
       if (concepts.length === 0) {
         return {
-          name: "Structure",
+          name: 'Structure',
           passed: false,
           message:
-            "No whitelisted sections found (Vision, Mission, Principles, etc.)",
+            'No whitelisted sections found (Vision, Mission, Principles, etc.)',
         };
       }
 
       return {
-        name: "Structure",
+        name: 'Structure',
         passed: true,
         message: `Valid markdown with ${concepts.length} mission concepts`,
       };
     } catch (error) {
       return {
-        name: "Structure",
+        name: 'Structure',
         passed: false,
         message: `Invalid markdown: ${(error as Error).message}`,
       };
@@ -1227,7 +1227,7 @@ Return JSON:
 **Purpose**: User-configurable security with sensible defaults
 
 ```typescript
-export type SecurityMode = "off" | "advisory" | "strict";
+export type SecurityMode = 'off' | 'advisory' | 'strict';
 
 export interface SecurityConfig {
   /**
@@ -1271,8 +1271,8 @@ export interface SecurityConfig {
     // LLM-based filtering (requires API key)
     llmFilter: {
       enabled: boolean;
-      model: "gemini-2.0-flash-exp" | "local-egemma";
-      provider: "workbench" | "gemini-api";
+      model: 'gemini-2.0-flash-exp' | 'local-egemma';
+      provider: 'workbench' | 'gemini-api';
     };
 
     // Fallback to pattern matching
@@ -1290,7 +1290,7 @@ export interface SecurityConfig {
  * - No telemetry
  */
 export const DEFAULT_SECURITY_CONFIG: SecurityConfig = {
-  mode: "advisory", // Never blocks ingestion
+  mode: 'advisory', // Never blocks ingestion
 
   missionIntegrity: {
     enabled: true,
@@ -1321,16 +1321,16 @@ export const DEFAULT_SECURITY_CONFIG: SecurityConfig = {
 
     llmFilter: {
       enabled: false, // Off by default (requires API key)
-      model: "gemini-2.0-flash-exp",
-      provider: "workbench",
+      model: 'gemini-2.0-flash-exp',
+      provider: 'workbench',
     },
 
     fallbackPatterns: [
-      "exfiltrate",
-      "disable.*security",
-      "skip.*validation",
-      "always.*approve",
-      "trust.*all",
+      'exfiltrate',
+      'disable.*security',
+      'skip.*validation',
+      'always.*approve',
+      'trust.*all',
     ],
   },
 };
@@ -1340,15 +1340,15 @@ export const DEFAULT_SECURITY_CONFIG: SecurityConfig = {
  * Merge with defaults
  */
 export async function loadSecurityConfig(
-  projectRoot: string,
+  projectRoot: string
 ): Promise<SecurityConfig> {
-  const configPath = path.join(projectRoot, ".cogx", "config.ts");
+  const configPath = path.join(projectRoot, '.cogx', 'config.ts');
 
   if (await fs.pathExists(configPath)) {
     const userConfig = await import(configPath);
     return deepMerge(
       DEFAULT_SECURITY_CONFIG,
-      userConfig.default.security || {},
+      userConfig.default.security || {}
     );
   }
 
@@ -1363,10 +1363,10 @@ export async function loadSecurityConfig(
 export default {
   security: {
     // Option 1: Disable entirely
-    mode: "off",
+    mode: 'off',
 
     // Option 2: Strict mode for high-security projects
-    mode: "strict",
+    mode: 'strict',
 
     // Option 3: Customize thresholds
     missionIntegrity: {
@@ -1379,7 +1379,7 @@ export default {
     contentFiltering: {
       llmFilter: {
         enabled: true,
-        provider: "workbench",
+        provider: 'workbench',
       },
     },
   },

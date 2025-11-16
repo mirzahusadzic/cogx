@@ -109,10 +109,10 @@ auto  table  json  plain
 
 ## Supported Shells
 
-| Shell | Status | Notes |
-|-------|--------|-------|
+| Shell    | Status      | Notes               |
+| -------- | ----------- | ------------------- |
 | **bash** | ✓ Supported | Tested on bash 4.0+ |
-| **zsh** | ✓ Supported | Tested on zsh 5.0+ |
+| **zsh**  | ✓ Supported | Tested on zsh 5.0+  |
 | **fish** | ✓ Supported | Tested on fish 3.0+ |
 
 ## Completion Details
@@ -132,19 +132,24 @@ All commands support tab completion:
 The completion system is context-aware:
 
 #### After `overlay generate`:
+
 - Suggests all 7 overlay types
 - Includes "all" option
 
 #### After `--format`:
+
 - Suggests: auto, table, json, plain
 
 #### After `--shell`:
+
 - Suggests: bash, zsh, fish
 
 #### After `security`:
+
 - Suggests all security subcommands
 
 #### After `-p` or `--project-root`:
+
 - Completes directory paths
 
 ## Troubleshooting
@@ -152,6 +157,7 @@ The completion system is context-aware:
 ### Completion Not Working
 
 **1. Check installation:**
+
 ```bash
 # Bash
 grep cognition-completion ~/.bashrc
@@ -164,6 +170,7 @@ ls ~/.config/fish/completions/cognition-cli.fish
 ```
 
 **2. Verify completion file exists:**
+
 ```bash
 # Bash
 ls ~/.cognition-completion.bash
@@ -176,6 +183,7 @@ ls ~/.config/fish/completions/cognition-cli.fish
 ```
 
 **3. Reload shell config:**
+
 ```bash
 # Bash
 source ~/.bashrc
@@ -220,6 +228,7 @@ cognition-cli completion uninstall --shell bash
 ```
 
 This removes:
+
 - Completion script file
 - Source line from shell config
 - All completion functionality
@@ -239,16 +248,19 @@ You can customize these scripts if needed, but they will be overwritten on reins
 ### Shell-Specific Features
 
 #### Bash
+
 - Uses `complete -F` for custom completion function
 - Supports `COMPREPLY` for suggestions
 - Compatible with bash-completion framework
 
 #### Zsh
+
 - Uses `#compdef` directive
 - Leverages zsh's `_arguments` system
 - Integrates with Oh My Zsh and other frameworks
 
 #### Fish
+
 - Uses `complete -c` syntax
 - Automatically loaded from completions directory
 - Supports `__fish_seen_subcommand_from` for context

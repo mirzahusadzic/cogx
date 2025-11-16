@@ -42,20 +42,20 @@ Claude can perform perfect TACTICAL analysis (blast radius, architecture) but la
 
 ```typescript
 proposed_change = {
-  component: "WorkbenchClient",
-  feature: "YouTube player",
-  concepts: ["multimedia", "audio", "streaming"],
+  component: 'WorkbenchClient',
+  feature: 'YouTube player',
+  concepts: ['multimedia', 'audio', 'streaming'],
 };
 
 mission_concepts = {
   from_docs: [
-    "verifiable",
-    "grounding",
-    "LLM",
-    "hallucination",
-    "cryptographic_truth",
+    'verifiable',
+    'grounding',
+    'LLM',
+    'hallucination',
+    'cryptographic_truth',
   ],
-  from_code_centrality: ["PGC", "Transform", "Oracle", "ObjectStore"],
+  from_code_centrality: ['PGC', 'Transform', 'Oracle', 'ObjectStore'],
 };
 
 alignment_score = semantic_overlap(proposed_change.concepts, mission_concepts);

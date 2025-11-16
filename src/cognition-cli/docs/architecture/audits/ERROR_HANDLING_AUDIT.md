@@ -35,20 +35,20 @@
 
 ### Unhandled Promise Rejections
 
-| File | Line | Issue Type | Risk | Suggested Fix | Effort |
-|------|------|------------|------|---------------|--------|
-| `src/tui/hooks/useClaudeAgent.ts` | 514-530 | Async useEffect without error boundary | **Critical** | Wrap service initialization in try-catch | 30m |
-| `src/tui/hooks/useClaudeAgent.ts` | 533-544 | loadCommands promise unhandled | **High** | Add .catch() handler | 15m |
-| `src/tui/hooks/useClaudeAgent.ts` | 547-596 | loadLattice async without top-level catch | **High** | Wrap in try-catch, show user warning | 30m |
-| `src/tui/hooks/useClaudeAgent.ts` | 603-716 | queueNewAnalyses inner try-catch insufficient | **Medium** | Add error boundary for embedder failures | 20m |
-| `src/tui/hooks/useClaudeAgent.ts` | 730-784 | computeOverlayScores async without catch | **Medium** | Silent fail acceptable, add error log | 10m |
-| `src/tui/hooks/useClaudeAgent.ts` | 1064-1077 | flushAll promise not awaited in catch | **High** | Move to async/await pattern | 20m |
-| `src/sigma/analyzer-with-embeddings.ts` | N/A | EventEmitter handlers don't catch errors | **High** | Wrap all event handlers in try-catch | 1h |
-| `src/core/services/embedding.ts` | 38-40 | processQueue rejection passed to caller | **Medium** | Already handled by promise pattern | 0m |
-| `src/core/overlays/lineage/manager.ts` | 194 | Promise.all without individual error handling | **High** | Use Promise.allSettled or per-promise catch | 30m |
-| `src/core/overlays/lineage/manager.ts` | 233-248 | generateAndStoreEmbedding errors logged but not recovered | **Medium** | Acceptable - continues processing | 0m |
-| `src/core/pgc/document-lance-store.ts` | 211-221 | Race condition catch swallows other errors | **Medium** | Check error type before assuming race | 15m |
-| `src/sigma/conversation-lance-store.ts` | 205-215 | Same race condition catch pattern | **Medium** | Same fix as above | 15m |
+| File                                    | Line      | Issue Type                                                | Risk         | Suggested Fix                               | Effort |
+| --------------------------------------- | --------- | --------------------------------------------------------- | ------------ | ------------------------------------------- | ------ |
+| `src/tui/hooks/useClaudeAgent.ts`       | 514-530   | Async useEffect without error boundary                    | **Critical** | Wrap service initialization in try-catch    | 30m    |
+| `src/tui/hooks/useClaudeAgent.ts`       | 533-544   | loadCommands promise unhandled                            | **High**     | Add .catch() handler                        | 15m    |
+| `src/tui/hooks/useClaudeAgent.ts`       | 547-596   | loadLattice async without top-level catch                 | **High**     | Wrap in try-catch, show user warning        | 30m    |
+| `src/tui/hooks/useClaudeAgent.ts`       | 603-716   | queueNewAnalyses inner try-catch insufficient             | **Medium**   | Add error boundary for embedder failures    | 20m    |
+| `src/tui/hooks/useClaudeAgent.ts`       | 730-784   | computeOverlayScores async without catch                  | **Medium**   | Silent fail acceptable, add error log       | 10m    |
+| `src/tui/hooks/useClaudeAgent.ts`       | 1064-1077 | flushAll promise not awaited in catch                     | **High**     | Move to async/await pattern                 | 20m    |
+| `src/sigma/analyzer-with-embeddings.ts` | N/A       | EventEmitter handlers don't catch errors                  | **High**     | Wrap all event handlers in try-catch        | 1h     |
+| `src/core/services/embedding.ts`        | 38-40     | processQueue rejection passed to caller                   | **Medium**   | Already handled by promise pattern          | 0m     |
+| `src/core/overlays/lineage/manager.ts`  | 194       | Promise.all without individual error handling             | **High**     | Use Promise.allSettled or per-promise catch | 30m    |
+| `src/core/overlays/lineage/manager.ts`  | 233-248   | generateAndStoreEmbedding errors logged but not recovered | **Medium**   | Acceptable - continues processing           | 0m     |
+| `src/core/pgc/document-lance-store.ts`  | 211-221   | Race condition catch swallows other errors                | **Medium**   | Check error type before assuming race       | 15m    |
+| `src/sigma/conversation-lance-store.ts` | 205-215   | Same race condition catch pattern                         | **Medium**   | Same fix as above                           | 15m    |
 
 **Total P0 Unhandled Rejections: 12 issues, ~4-5 hours**
 
@@ -56,17 +56,17 @@
 
 ### File I/O Without Error Handling
 
-| File | Line | Issue Type | Risk | Suggested Fix | Effort |
-|------|------|------------|------|---------------|--------|
-| `src/tui/hooks/useClaudeAgent.ts` | 76 | `fs.appendFileSync` without try-catch | **High** | Wrap in try-catch, fail silently for debug logs | 10m |
-| `src/tui/hooks/useClaudeAgent.ts` | 460-464 | `fs.writeFileSync` recap file | **Critical** | Add try-catch, show user error if write fails | 20m |
-| `src/tui/hooks/useClaudeAgent.ts` | 571-580 | `fs.readFileSync` recap file | **Medium** | Already in try-catch block | 0m |
-| `src/sigma/session-state.ts` | 60-64 | `fs.readFileSync` without error recovery | **High** | Returns null on error - acceptable | 0m |
-| `src/sigma/session-state.ts` | 78 | `fs.writeFileSync` session state | **Critical** | Add retry logic for transient failures | 30m |
-| `src/sigma/session-state.ts` | 176, 264 | Multiple `fs.readFileSync` in loops | **Medium** | Wrapped in try-catch, acceptable | 0m |
-| `src/core/security/security-bootstrap.ts` | 112 | `fs.readFileSync` settings without recovery | **Medium** | Wrapped in try-catch line 111-117 | 0m |
-| `src/core/security/security-bootstrap.ts` | 127 | `fs.writeFileSync` settings | **High** | Should check disk space, permissions | 30m |
-| `src/core/pgc/object-store.ts` | 20-24 | fs-extra operations throw on error | **Medium** | Uses fs-extra which has better error messages | 0m |
+| File                                      | Line     | Issue Type                                  | Risk         | Suggested Fix                                   | Effort |
+| ----------------------------------------- | -------- | ------------------------------------------- | ------------ | ----------------------------------------------- | ------ |
+| `src/tui/hooks/useClaudeAgent.ts`         | 76       | `fs.appendFileSync` without try-catch       | **High**     | Wrap in try-catch, fail silently for debug logs | 10m    |
+| `src/tui/hooks/useClaudeAgent.ts`         | 460-464  | `fs.writeFileSync` recap file               | **Critical** | Add try-catch, show user error if write fails   | 20m    |
+| `src/tui/hooks/useClaudeAgent.ts`         | 571-580  | `fs.readFileSync` recap file                | **Medium**   | Already in try-catch block                      | 0m     |
+| `src/sigma/session-state.ts`              | 60-64    | `fs.readFileSync` without error recovery    | **High**     | Returns null on error - acceptable              | 0m     |
+| `src/sigma/session-state.ts`              | 78       | `fs.writeFileSync` session state            | **Critical** | Add retry logic for transient failures          | 30m    |
+| `src/sigma/session-state.ts`              | 176, 264 | Multiple `fs.readFileSync` in loops         | **Medium**   | Wrapped in try-catch, acceptable                | 0m     |
+| `src/core/security/security-bootstrap.ts` | 112      | `fs.readFileSync` settings without recovery | **Medium**   | Wrapped in try-catch line 111-117               | 0m     |
+| `src/core/security/security-bootstrap.ts` | 127      | `fs.writeFileSync` settings                 | **High**     | Should check disk space, permissions            | 30m    |
+| `src/core/pgc/object-store.ts`            | 20-24    | fs-extra operations throw on error          | **Medium**   | Uses fs-extra which has better error messages   | 0m     |
 
 **Total P0 File I/O Issues: 4 critical issues, ~1.5 hours**
 
@@ -74,13 +74,13 @@
 
 ### Security-Sensitive Errors
 
-| File | Line | Issue Type | Risk | Suggested Fix | Effort |
-|------|------|------------|------|---------------|--------|
-| `src/tui/hooks/useClaudeAgent.ts` | 460 | Full recap path in fs.writeFileSync | **Medium** | Path is internal (.sigma/), acceptable | 0m |
-| `src/sigma/conversation-lance-store.ts` | 165 | dbPath includes full system path | **Low** | Internal logging only | 0m |
-| `src/core/pgc/document-lance-store.ts` | 172 | Same as above | **Low** | Internal logging only | 0m |
-| `src/core/security/security-bootstrap.ts` | 218-229 | readline without timeout | **High** | Add 60s timeout for interactive prompts | 1h |
-| `src/core/executors/workbench-client.ts` | 154, 240 | Error text may contain API details | **Medium** | Sanitize error messages before logging | 30m |
+| File                                      | Line     | Issue Type                          | Risk       | Suggested Fix                           | Effort |
+| ----------------------------------------- | -------- | ----------------------------------- | ---------- | --------------------------------------- | ------ |
+| `src/tui/hooks/useClaudeAgent.ts`         | 460      | Full recap path in fs.writeFileSync | **Medium** | Path is internal (.sigma/), acceptable  | 0m     |
+| `src/sigma/conversation-lance-store.ts`   | 165      | dbPath includes full system path    | **Low**    | Internal logging only                   | 0m     |
+| `src/core/pgc/document-lance-store.ts`    | 172      | Same as above                       | **Low**    | Internal logging only                   | 0m     |
+| `src/core/security/security-bootstrap.ts` | 218-229  | readline without timeout            | **High**   | Add 60s timeout for interactive prompts | 1h     |
+| `src/core/executors/workbench-client.ts`  | 154, 240 | Error text may contain API details  | **Medium** | Sanitize error messages before logging  | 30m    |
 
 **Total P0 Security Issues: 1 critical issue, ~1.5 hours**
 
@@ -88,13 +88,13 @@
 
 ### Missing Error Context
 
-| File | Line | Issue Type | Risk | Suggested Fix | Effort |
-|------|------|------------|------|---------------|--------|
-| `src/core/overlays/lineage/manager.ts` | 245 | EmbedLogger.error but no context propagation | **Medium** | Add structured error context | 20m |
-| `src/core/pgc/document-lance-store.ts` | 226 | Re-throw without preserving original error | **High** | Use `{ cause: error }` pattern | 10m |
-| `src/sigma/conversation-lance-store.ts` | 220 | Same as above | **High** | Same fix | 10m |
-| `src/core/overlays/vector-db/lance-store.ts` | 164 | Same as above | **High** | Same fix | 10m |
-| `src/tui/hooks/useClaudeAgent.ts` | 702 | Debug log loses error stack trace | **Low** | Use console.error instead | 5m |
+| File                                         | Line | Issue Type                                   | Risk       | Suggested Fix                  | Effort |
+| -------------------------------------------- | ---- | -------------------------------------------- | ---------- | ------------------------------ | ------ |
+| `src/core/overlays/lineage/manager.ts`       | 245  | EmbedLogger.error but no context propagation | **Medium** | Add structured error context   | 20m    |
+| `src/core/pgc/document-lance-store.ts`       | 226  | Re-throw without preserving original error   | **High**   | Use `{ cause: error }` pattern | 10m    |
+| `src/sigma/conversation-lance-store.ts`      | 220  | Same as above                                | **High**   | Same fix                       | 10m    |
+| `src/core/overlays/vector-db/lance-store.ts` | 164  | Same as above                                | **High**   | Same fix                       | 10m    |
+| `src/tui/hooks/useClaudeAgent.ts`            | 702  | Debug log loses error stack trace            | **Low**    | Use console.error instead      | 5m     |
 
 **Total P0 Context Issues: 3 high-priority issues, ~50 minutes**
 
@@ -102,12 +102,12 @@
 
 ### Resource Cleanup Gaps
 
-| File | Line | Issue Type | Risk | Suggested Fix | Effort |
-|------|------|------------|------|---------------|--------|
-| `src/core/overlays/lineage/manager.ts` | 360-371 | Worker pool shutdown not in finally | **Critical** | Create cleanup middleware | 1h |
-| `src/core/services/embedding.ts` | 73-80 | Shutdown method exists but no guarantee it's called | **High** | Add process.on('exit') handler | 30m |
-| `src/tui/hooks/useClaudeAgent.ts` | 721-726 | conversationRegistry cleanup only on unmount | **Medium** | Already in useEffect cleanup, acceptable | 0m |
-| `src/core/watcher/file-watcher.ts` | N/A | EventEmitter cleanup needed | **High** | Add removeAllListeners in stop() | 20m |
+| File                                   | Line    | Issue Type                                          | Risk         | Suggested Fix                            | Effort |
+| -------------------------------------- | ------- | --------------------------------------------------- | ------------ | ---------------------------------------- | ------ |
+| `src/core/overlays/lineage/manager.ts` | 360-371 | Worker pool shutdown not in finally                 | **Critical** | Create cleanup middleware                | 1h     |
+| `src/core/services/embedding.ts`       | 73-80   | Shutdown method exists but no guarantee it's called | **High**     | Add process.on('exit') handler           | 30m    |
+| `src/tui/hooks/useClaudeAgent.ts`      | 721-726 | conversationRegistry cleanup only on unmount        | **Medium**   | Already in useEffect cleanup, acceptable | 0m     |
+| `src/core/watcher/file-watcher.ts`     | N/A     | EventEmitter cleanup needed                         | **High**     | Add removeAllListeners in stop()         | 20m    |
 
 **Total P0 Cleanup Issues: 2 critical issues, ~1.5 hours**
 
@@ -117,13 +117,13 @@
 
 ### Missing Retry Logic
 
-| File | Line | Issue Type | Suggested Fix | Effort |
-|------|------|------------|---------------|--------|
-| `src/core/pgc/document-lance-store.ts` | 284 | LanceDB mergeInsert no retry | Add retry wrapper for SQLITE_BUSY | 1h |
-| `src/sigma/conversation-lance-store.ts` | 287 | Same as above | Same fix | 1h |
-| `src/core/overlays/vector-db/lance-store.ts` | 221 | Same as above | Same fix | 1h |
-| `src/core/overlays/lineage/manager.ts` | 275 | Embedding service call no retry | Already queued by EmbeddingService | 0m |
-| `src/core/overlays/lineage/manager.ts` | 191 | Worker exec no retry on crash | Add worker restart logic | 2h |
+| File                                         | Line | Issue Type                      | Suggested Fix                      | Effort |
+| -------------------------------------------- | ---- | ------------------------------- | ---------------------------------- | ------ |
+| `src/core/pgc/document-lance-store.ts`       | 284  | LanceDB mergeInsert no retry    | Add retry wrapper for SQLITE_BUSY  | 1h     |
+| `src/sigma/conversation-lance-store.ts`      | 287  | Same as above                   | Same fix                           | 1h     |
+| `src/core/overlays/vector-db/lance-store.ts` | 221  | Same as above                   | Same fix                           | 1h     |
+| `src/core/overlays/lineage/manager.ts`       | 275  | Embedding service call no retry | Already queued by EmbeddingService | 0m     |
+| `src/core/overlays/lineage/manager.ts`       | 191  | Worker exec no retry on crash   | Add worker restart logic           | 2h     |
 
 **Total P1 Retry Issues: 4 issues, ~5 hours**
 
@@ -142,6 +142,7 @@
 **Problem**: No structured logging, difficult to filter in production
 
 **Recommended Fix**:
+
 ```typescript
 // Create centralized logger
 class Logger {
@@ -161,10 +162,12 @@ class Logger {
 #### Custom Error Classes
 
 **Current State**: Only 2 custom error classes
+
 - `SecurityViolationError` (security-bootstrap.ts:236)
 - `PGCInitializationError` (multiple commands)
 
 **Missing Error Types**:
+
 - `FileOperationError` (ENOENT, EACCES, ENOSPC)
 - `NetworkError` (ETIMEDOUT, ECONNRESET, ENOTFOUND)
 - `DatabaseError` (LanceDB failures)
@@ -173,6 +176,7 @@ class Logger {
 - `CompressionError` (compression timeout, analysis failures)
 
 **Recommended Fix**: Create error hierarchy
+
 ```typescript
 // Base error with structured context
 class CognitionError extends Error {
@@ -205,11 +209,11 @@ class FileOperationError extends CognitionError {
 
 ### EventEmitter Memory Leaks
 
-| File | Pattern | Risk | Fix |
-|------|---------|------|-----|
-| `src/core/services/embedding.ts` | Extends EventEmitter but no cleanup | **Medium** | Add shutdown() method that calls removeAllListeners() |
-| `src/core/watcher/file-watcher.ts` | Extends EventEmitter, stop() doesn't clean up | **High** | Add removeAllListeners() to stop() |
-| `src/sigma/analyzer-with-embeddings.ts` | Uses EventEmitter handlers | **Low** | Document that calling code must clean up |
+| File                                    | Pattern                                       | Risk       | Fix                                                   |
+| --------------------------------------- | --------------------------------------------- | ---------- | ----------------------------------------------------- |
+| `src/core/services/embedding.ts`        | Extends EventEmitter but no cleanup           | **Medium** | Add shutdown() method that calls removeAllListeners() |
+| `src/core/watcher/file-watcher.ts`      | Extends EventEmitter, stop() doesn't clean up | **High**   | Add removeAllListeners() to stop()                    |
+| `src/sigma/analyzer-with-embeddings.ts` | Uses EventEmitter handlers                    | **Low**    | Document that calling code must clean up              |
 
 **Total P1 EventEmitter Issues: 2 issues, ~1 hour**
 
@@ -218,12 +222,14 @@ class FileOperationError extends CognitionError {
 ### No Abort Controllers for Long Operations
 
 **Missing AbortController Usage**:
+
 - Compression pipeline (can take 60s+)
 - Worker pool operations (lineage traversal)
 - Analysis queue processing
 - LanceDB bulk operations
 
 **Recommended Pattern**:
+
 ```typescript
 async function compressWithTimeout(
   analyses: TurnAnalysis[],
@@ -253,6 +259,7 @@ async function compressWithTimeout(
 ### Promise.all Without Error Handling
 
 **Files with Promise.all**:
+
 1. `src/core/overlays/lineage/manager.ts:194` - Worker job execution
 2. `src/core/orchestrators/genesis.ts` - Multiple overlay generation
 3. `src/core/orchestrators/overlay.ts` - Parallel overlay processing
@@ -264,14 +271,19 @@ async function compressWithTimeout(
 **Recommended Fix**: Use `Promise.allSettled` or individual error handling
 
 **Example**:
+
 ```typescript
 // BEFORE (fails all on single error)
-const results = await Promise.all(jobs.map(job => processJob(job)));
+const results = await Promise.all(jobs.map((job) => processJob(job)));
 
 // AFTER (continues on errors)
-const results = await Promise.allSettled(jobs.map(job => processJob(job)));
-const succeeded = results.filter(r => r.status === 'fulfilled').map(r => r.value);
-const failed = results.filter(r => r.status === 'rejected').map(r => r.reason);
+const results = await Promise.allSettled(jobs.map((job) => processJob(job)));
+const succeeded = results
+  .filter((r) => r.status === 'fulfilled')
+  .map((r) => r.value);
+const failed = results
+  .filter((r) => r.status === 'rejected')
+  .map((r) => r.reason);
 ```
 
 **Effort**: 2-3 hours
@@ -285,6 +297,7 @@ const failed = results.filter(r => r.status === 'rejected').map(r => r.reason);
 **Issue**: Multiple useEffect hooks call async functions without awaiting or handling rejections
 
 **Examples**:
+
 - Line 534: `loadCommands(cwd).then(...)` - has error handling ✅
 - Line 595: `loadLattice()` - wrapped in try-catch ✅
 - Line 706: `queueNewAnalyses()` - wrapped in try-catch ✅
@@ -295,12 +308,12 @@ const failed = results.filter(r => r.status === 'rejected').map(r => r.reason);
 
 ### Missing Validation
 
-| File | Issue | Fix |
-|------|-------|-----|
-| `src/core/pgc/document-lance-store.ts:256` | Embedding dimension validation exists ✅ | None needed |
-| `src/sigma/conversation-lance-store.ts:256` | Same as above ✅ | None needed |
-| `src/core/overlays/vector-db/lance-store.ts:197` | Same as above ✅ | None needed |
-| `src/core/overlays/lineage/manager.ts:280` | Validates embedding format ✅ | None needed |
+| File                                             | Issue                                    | Fix         |
+| ------------------------------------------------ | ---------------------------------------- | ----------- |
+| `src/core/pgc/document-lance-store.ts:256`       | Embedding dimension validation exists ✅ | None needed |
+| `src/sigma/conversation-lance-store.ts:256`      | Same as above ✅                         | None needed |
+| `src/core/overlays/vector-db/lance-store.ts:197` | Same as above ✅                         | None needed |
+| `src/core/overlays/lineage/manager.ts:280`       | Validates embedding format ✅            | None needed |
 
 **Status**: Validation is comprehensive, no major gaps
 
@@ -311,6 +324,7 @@ const failed = results.filter(r => r.status === 'rejected').map(r => r.reason);
 ### Pattern 1: File I/O Operations
 
 **Current (problematic)**:
+
 ```typescript
 async function loadConfig() {
   const data = await fs.readFile(CONFIG_PATH);
@@ -319,6 +333,7 @@ async function loadConfig() {
 ```
 
 **Recommended**:
+
 ```typescript
 async function loadConfig(): Promise<Config> {
   try {
@@ -341,6 +356,7 @@ async function loadConfig(): Promise<Config> {
 ### Pattern 2: Network Operations (Already Good!)
 
 **Current (WorkbenchClient.ts:122-194)**:
+
 ```typescript
 // ✅ EXCELLENT: Exponential backoff with retry
 while (attempt < maxRetries) {
@@ -370,6 +386,7 @@ while (attempt < maxRetries) {
 ### Pattern 3: Database Operations
 
 **Current (document-lance-store.ts:284)**:
+
 ```typescript
 await this.table!.mergeInsert('id')
   .whenMatchedUpdateAll()
@@ -378,6 +395,7 @@ await this.table!.mergeInsert('id')
 ```
 
 **Recommended (add retry for transient failures)**:
+
 ```typescript
 async function withRetry<T>(
   fn: () => Promise<T>,
@@ -414,6 +432,7 @@ await withRetry(() =>
 ### Pattern 4: Worker Pools
 
 **Current (lineage/manager.ts:360-371)**:
+
 ```typescript
 public async shutdown(): Promise<void> {
   if (this.workerPool) {
@@ -425,6 +444,7 @@ public async shutdown(): Promise<void> {
 ```
 
 **Recommended (guaranteed cleanup)**:
+
 ```typescript
 public async shutdown(): Promise<void> {
   const errors: Error[] = [];
@@ -464,6 +484,7 @@ public async shutdown(): Promise<void> {
 **Current (useClaudeAgent.ts)**: No React error boundary
 
 **Recommended**: Add error boundary component
+
 ```typescript
 class ClaudeAgentErrorBoundary extends React.Component {
   state = { hasError: false, error: null };
@@ -499,6 +520,7 @@ class ClaudeAgentErrorBoundary extends React.Component {
 **Current (missing in many places)**:
 
 **Recommended**:
+
 ```typescript
 async function processWithResources() {
   const db = await connect(dbPath);
@@ -510,8 +532,10 @@ async function processWithResources() {
     return results;
   } finally {
     // ALWAYS cleanup, even on error/throw
-    await pool.terminate().catch(e => console.error('Pool cleanup failed:', e));
-    await db.close().catch(e => console.error('DB cleanup failed:', e));
+    await pool
+      .terminate()
+      .catch((e) => console.error('Pool cleanup failed:', e));
+    await db.close().catch((e) => console.error('DB cleanup failed:', e));
   }
 }
 ```
@@ -521,12 +545,14 @@ async function processWithResources() {
 ## Quick Wins (< 2 hours each)
 
 ### 1. Add try-catch to sync fs operations in useClaudeAgent.ts
+
 - **Files**: 1 (useClaudeAgent.ts)
 - **Lines**: 76, 460-464
 - **Estimated effort**: 30 minutes
 - **Impact**: Prevents TUI crashes on disk full / permission errors
 
 **Implementation**:
+
 ```typescript
 // Line 76: Debug log
 const debugLog = useCallback(
@@ -558,11 +584,13 @@ try {
 ---
 
 ### 2. Add { cause } to error re-throws in LanceDB stores
+
 - **Files**: 3 (document-lance-store.ts, conversation-lance-store.ts, lance-store.ts)
 - **Estimated effort**: 30 minutes
 - **Impact**: Preserves stack traces for debugging
 
 **Implementation**:
+
 ```typescript
 // In doInitialize() catch blocks (lines ~220)
 catch (error: unknown) {
@@ -574,11 +602,13 @@ catch (error: unknown) {
 ---
 
 ### 3. Add removeAllListeners to EventEmitter cleanup
+
 - **Files**: 2 (embedding.ts, file-watcher.ts)
 - **Estimated effort**: 20 minutes
 - **Impact**: Prevents memory leaks
 
 **Implementation**:
+
 ```typescript
 // src/core/services/embedding.ts
 async shutdown(): Promise<void> {
@@ -603,11 +633,13 @@ stop(): void {
 ---
 
 ### 4. Add timeout to readline prompt in security-bootstrap.ts
+
 - **Files**: 1 (security-bootstrap.ts)
 - **Estimated effort**: 1 hour
 - **Impact**: Prevents hanging in automated environments
 
 **Implementation**:
+
 ```typescript
 private async promptUser(timeoutMs: number = 60000): Promise<string> {
   const rl = createInterface({
@@ -633,34 +665,38 @@ private async promptUser(timeoutMs: number = 60000): Promise<string> {
 ---
 
 ### 5. Wrap Promise.all in lineage manager with error handling
+
 - **Files**: 1 (lineage/manager.ts)
 - **Estimated effort**: 30 minutes
 - **Impact**: Continue processing even if some workers crash
 
 **Implementation**:
+
 ```typescript
 // Line 194: Use Promise.allSettled
 const promises = jobs.map((job) =>
-  this.workerPool!.exec('processJob', [job])
-    .catch(err => ({
-      status: 'error',
-      symbolName: job.symbolName,
-      error: err.message
-    }))
+  this.workerPool!.exec('processJob', [job]).catch((err) => ({
+    status: 'error',
+    symbolName: job.symbolName,
+    error: err.message,
+  }))
 );
 
-miningResults = (await Promise.allSettled(promises))
-  .map(result => result.status === 'fulfilled' ? result.value : result.reason);
+miningResults = (await Promise.allSettled(promises)).map((result) =>
+  result.status === 'fulfilled' ? result.value : result.reason
+);
 ```
 
 ---
 
 ### 6. Add error context to EmbedLogger.error calls
+
 - **Files**: 1 (lineage/manager.ts)
 - **Estimated effort**: 20 minutes
 - **Impact**: Better error diagnostics
 
 **Implementation**:
+
 ```typescript
 // Line 245
 catch (error) {
@@ -676,11 +712,13 @@ catch (error) {
 ---
 
 ### 7. Add process exit handlers for resource cleanup
+
 - **Files**: 2-3 (lineage/manager.ts, embedding.ts, orchestrator entry points)
 - **Estimated effort**: 1 hour
 - **Impact**: Graceful shutdown on Ctrl+C
 
 **Implementation**:
+
 ```typescript
 // In manager constructors or main CLI entry
 private setupCleanupHandlers(): void {
@@ -704,11 +742,13 @@ private setupCleanupHandlers(): void {
 ---
 
 ### 8. Sanitize error messages in WorkbenchClient
+
 - **Files**: 1 (workbench-client.ts)
 - **Estimated effort**: 30 minutes
 - **Impact**: Prevent API key/URL leakage in logs
 
 **Implementation**:
+
 ```typescript
 private sanitizeError(error: string): string {
   // Remove API key if present
@@ -723,11 +763,13 @@ throw new Error(`HTTP ${response.status}: ${this.sanitizeError(errorText)}`);
 ---
 
 ### 9. Add LanceDB retry wrapper for SQLITE_BUSY
+
 - **Files**: 3 (all LanceDB stores)
 - **Estimated effort**: 1.5 hours
 - **Impact**: Resilience to concurrent access
 
 **Implementation**:
+
 ```typescript
 // Create shared utility in lance-store.ts
 async function withDbRetry<T>(
@@ -739,7 +781,7 @@ async function withDbRetry<T>(
       return await operation();
     } catch (error) {
       if (error.message?.includes('BUSY') && i < maxRetries - 1) {
-        await new Promise(r => setTimeout(r, 100 * Math.pow(2, i)));
+        await new Promise((r) => setTimeout(r, 100 * Math.pow(2, i)));
         continue;
       }
       throw error;
@@ -760,11 +802,13 @@ await withDbRetry(() =>
 ---
 
 ### 10. Add validation to session-state file writes
+
 - **Files**: 1 (session-state.ts)
 - **Estimated effort**: 30 minutes
 - **Impact**: Prevent corrupt state files
 
 **Implementation**:
+
 ```typescript
 export function saveSessionState(
   state: SessionState,
@@ -788,7 +832,9 @@ export function saveSessionState(
     try {
       fs.unlinkSync(tempFile);
     } catch {}
-    throw new Error(`Failed to save session state: ${error.message}`, { cause: error });
+    throw new Error(`Failed to save session state: ${error.message}`, {
+      cause: error,
+    });
   }
 }
 ```
@@ -802,6 +848,7 @@ export function saveSessionState(
 **Goal**: Standardize error handling with typed error classes
 
 **Implementation**:
+
 ```typescript
 // src/core/errors/index.ts
 export class CognitionError extends Error {
@@ -834,6 +881,7 @@ export class WorkerError extends CognitionError { ... }
 ```
 
 **Migration Strategy**:
+
 1. Create error hierarchy in src/core/errors/
 2. Add to existing error throws incrementally
 3. No breaking changes - extends Error
@@ -846,6 +894,7 @@ export class WorkerError extends CognitionError { ... }
 **Goal**: Replace console.log/error/warn with structured logger
 
 **Implementation**:
+
 ```typescript
 // src/core/logger/index.ts
 export class Logger {
@@ -860,7 +909,7 @@ export class Logger {
       namespace: this.namespace,
       message,
       context,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
     console.log(chalk.blue(`[${this.namespace}]`), message, context || '');
   }
@@ -873,7 +922,7 @@ export class Logger {
       error: error?.message,
       stack: error?.stack,
       context,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
     console.error(chalk.red(`[${this.namespace}]`), message, error || '');
   }
@@ -888,9 +937,10 @@ logger.error('Embedding failed', error, { symbolName, filePath });
 ```
 
 **Migration Strategy**:
+
 1. Create Logger class
 2. Add to each manager/service constructor
-3. Gradually replace console.* calls
+3. Gradually replace console.\* calls
 4. Add optional JSON logging for production
 
 ---
@@ -902,6 +952,7 @@ logger.error('Embedding failed', error, { symbolName, filePath });
 **Implementation**: See Pattern 5 above
 
 **Benefits**:
+
 - User sees friendly error message
 - TUI doesn't crash on component errors
 - Errors logged for debugging
@@ -914,12 +965,14 @@ logger.error('Embedding failed', error, { symbolName, filePath });
 **Goal**: Allow cancellation of long-running operations
 
 **Targets**:
+
 - Compression pipeline
 - Worker pool jobs
 - Analysis queue
 - Large LanceDB queries
 
 **Benefits**:
+
 - User can cancel operations
 - Prevent zombie processes
 - Better resource management
@@ -931,6 +984,7 @@ logger.error('Embedding failed', error, { symbolName, filePath });
 **Goal**: Prevent cascade failures when workbench is down
 
 **Implementation**:
+
 ```typescript
 class CircuitBreaker {
   private failures = 0;
@@ -973,6 +1027,7 @@ class CircuitBreaker {
 **Goal**: Track error rates and patterns for monitoring
 
 **Metrics to Track**:
+
 - Error rate by type
 - Retry counts by operation
 - Queue depths (embedding, analysis)
@@ -980,6 +1035,7 @@ class CircuitBreaker {
 - LanceDB operation latency
 
 **Implementation**:
+
 ```typescript
 // src/core/metrics/index.ts
 class MetricsCollector {
@@ -995,12 +1051,12 @@ class MetricsCollector {
     const metrics = Array.from(this.counters.entries()).map(([k, v]) => ({
       metric: k,
       value: v,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     }));
 
     fs.appendFileSync(
       '.sigma/metrics.jsonl',
-      metrics.map(m => JSON.stringify(m)).join('\n') + '\n'
+      metrics.map((m) => JSON.stringify(m)).join('\n') + '\n'
     );
 
     this.counters.clear();
@@ -1015,6 +1071,7 @@ class MetricsCollector {
 **Goal**: Test that errors are handled correctly
 
 **Test Cases**:
+
 - File system errors (ENOENT, EACCES, ENOSPC)
 - Network errors (ETIMEDOUT, 429, 500)
 - Database errors (SQLITE_BUSY, corruption)
@@ -1023,6 +1080,7 @@ class MetricsCollector {
 - Compression timeouts
 
 **Example**:
+
 ```typescript
 describe('Error Handling', () => {
   it('handles disk full during compression', async () => {
@@ -1047,23 +1105,27 @@ describe('Error Handling', () => {
 ### Week 1: Critical Fixes (P0) - 8-10 hours
 
 **Day 1-2: Unhandled Promises**
+
 - [ ] Fix async useEffect hooks in useClaudeAgent.ts (4h)
 - [ ] Add error handling to Promise.all in lineage manager (30m)
 - [ ] Fix race condition error catch in LanceDB stores (30m)
 
 **Day 3: File I/O**
+
 - [ ] Add try-catch to fs.writeFileSync for recap files (20m)
 - [ ] Add try-catch to debugLog appendFileSync (10m)
 - [ ] Add retry logic to session-state saveSessionState (30m)
 - [ ] Add timeout to security-bootstrap readline (1h)
 
 **Day 4: Resource Cleanup**
+
 - [ ] Add removeAllListeners to EmbeddingService (10m)
 - [ ] Add removeAllListeners to FileWatcher (10m)
 - [ ] Add process exit handlers for worker pools (1h)
 - [ ] Ensure worker pool shutdown in finally blocks (1h)
 
 **Day 5: Error Context**
+
 - [ ] Add { cause } to LanceDB error re-throws (30m)
 - [ ] Sanitize error messages in WorkbenchClient (30m)
 - [ ] Add structured context to EmbedLogger calls (20m)
@@ -1073,16 +1135,19 @@ describe('Error Handling', () => {
 ### Week 2: High Priority (P1) - 12-15 hours
 
 **Day 1-2: Retry Logic**
+
 - [ ] Create LanceDB retry wrapper (2h)
 - [ ] Apply to all mergeInsert calls (1h)
 - [ ] Add worker restart logic for crashes (2h)
 
 **Day 3-4: Custom Error Hierarchy**
+
 - [ ] Create CognitionError base class (2h)
 - [ ] Create specialized error classes (2h)
 - [ ] Migrate critical paths to new errors (2h)
 
 **Day 4-5: EventEmitter Cleanup**
+
 - [ ] Audit all EventEmitter usage (1h)
 - [ ] Add cleanup handlers (1h)
 - [ ] Test memory leak scenarios (1h)
@@ -1092,12 +1157,14 @@ describe('Error Handling', () => {
 ### Week 3-4: Strategic Improvements - 20-25 hours
 
 **Week 3: Infrastructure**
+
 - [ ] Create Logger class (3h)
-- [ ] Migrate console.* calls (5h)
+- [ ] Migrate console.\* calls (5h)
 - [ ] Add TUI error boundary (2h)
 - [ ] Implement AbortController pattern (4h)
 
 **Week 4: Observability & Testing**
+
 - [ ] Add metrics collector (4h)
 - [ ] Create error path integration tests (8h)
 - [ ] Add circuit breaker to WorkbenchClient (4h)
@@ -1110,6 +1177,7 @@ describe('Error Handling', () => {
 For all future PRs, verify:
 
 ### Required (Block Merge)
+
 - [ ] All async functions have try-catch or .catch()
 - [ ] File operations handle ENOENT, EACCES errors
 - [ ] Network operations have retry logic
@@ -1119,6 +1187,7 @@ For all future PRs, verify:
 - [ ] No floating promises in useEffect hooks
 
 ### Recommended (Comment)
+
 - [ ] Custom error types used instead of generic Error
 - [ ] Structured logging instead of console.log
 - [ ] AbortController for operations > 5 seconds
@@ -1219,6 +1288,7 @@ For all future PRs, verify:
 ### Files Analyzed (Priority)
 
 **Tier 1 (Critical Infrastructure)**:
+
 - useClaudeAgent.ts (1262 lines) - Master TUI orchestrator
 - workbench-client.ts (350 lines) - Network client
 - document-lance-store.ts (729 lines) - Document vector DB
@@ -1227,6 +1297,7 @@ For all future PRs, verify:
 - lineage/manager.ts (523 lines) - Worker pool management
 
 **Tier 2 (High Risk)**:
+
 - AnalysisQueue.ts (322 lines) - Background processing
 - embedding.ts (97 lines) - EventEmitter-based service
 - security-bootstrap.ts (250 lines) - Interactive prompts
@@ -1234,6 +1305,7 @@ For all future PRs, verify:
 - object-store.ts (82 lines) - Content-addressable storage
 
 **Tier 3 (Supporting Infrastructure)**:
+
 - All command files (genesis, update, etc.)
 - All overlay managers
 - All test files (for error handling patterns)
@@ -1286,16 +1358,16 @@ For all future PRs, verify:
 
 ### Issue Breakdown by Category
 
-| Category | P0 | P1 | P2 | Total |
-|----------|----|----|----|----|
-| Unhandled Promises | 12 | 5 | 8 | 25 |
-| File I/O | 4 | 6 | 5 | 15 |
-| Security | 1 | 2 | 3 | 6 |
-| Resource Cleanup | 2 | 3 | 4 | 9 |
-| Error Context | 3 | 8 | 4 | 15 |
-| Retry Logic | 0 | 4 | 2 | 6 |
-| Logging | 1 | 6 | 4 | 11 |
-| **Total** | **23** | **34** | **30** | **87** |
+| Category           | P0     | P1     | P2     | Total  |
+| ------------------ | ------ | ------ | ------ | ------ |
+| Unhandled Promises | 12     | 5      | 8      | 25     |
+| File I/O           | 4      | 6      | 5      | 15     |
+| Security           | 1      | 2      | 3      | 6      |
+| Resource Cleanup   | 2      | 3      | 4      | 9      |
+| Error Context      | 3      | 8      | 4      | 15     |
+| Retry Logic        | 0      | 4      | 2      | 6      |
+| Logging            | 1      | 6      | 4      | 11     |
+| **Total**          | **23** | **34** | **30** | **87** |
 
 ### Effort Estimates
 
@@ -1312,18 +1384,21 @@ For all future PRs, verify:
 The cognition-cli codebase has **good error handling in critical paths** (WorkbenchClient, LanceDB race conditions, compression timeouts) but **significant gaps in infrastructure** (no custom errors, sparse try-catch coverage, inconsistent logging).
 
 **Immediate Action Required** (P0):
+
 1. Fix unhandled promises in useClaudeAgent.ts (master orchestrator)
 2. Add error handling to file I/O operations
 3. Ensure resource cleanup in all error paths
 4. Add timeout to interactive prompts
 
 **High Priority** (P1):
+
 1. Create custom error hierarchy
 2. Add retry logic to LanceDB operations
 3. Fix EventEmitter memory leaks
 4. Implement structured logging
 
 **Long-term Strategic**:
+
 1. Add TUI error boundary
 2. Implement AbortController pattern
 3. Add circuit breaker to network client

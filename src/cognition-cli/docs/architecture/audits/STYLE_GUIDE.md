@@ -7,19 +7,23 @@ This document defines the style guidelines for Cognition CLI development to ensu
 ### Naming Conventions
 
 **Primary Commands** (verb-based):
+
 - Use imperative verbs: `init`, `query`, `generate`, `list`
 - Single word when possible: `status`, `watch`, `update`
 - Hyphenated for multi-word: `blast-radius`
 
 **Subcommands** (space separator):
+
 - Primary commands with variants: `overlay generate`, `overlay list`
 - Grouped by category: `security attacks`, `workflow patterns`
 
 **Command Variants** (colon separator):
+
 - Related but distinct operations: `genesis:docs`, `audit:transformations`
 - Use sparingly - prefer subcommands for new features
 
 **Examples**:
+
 ```bash
 # ✓ Good
 cognition-cli init
@@ -36,6 +40,7 @@ cognition-cli get-security-attacks
 ### Command Aliases
 
 Short aliases for frequently used commands:
+
 - `w` → `wizard`
 - `q` → `query`
 - `s` → `status`
@@ -44,6 +49,7 @@ Short aliases for frequently used commands:
 - `l` → `lattice`
 
 Always document aliases in help text:
+
 ```typescript
 .command('wizard')
 .alias('w')
@@ -55,10 +61,12 @@ Always document aliases in help text:
 ### Naming
 
 **Flag Format**:
+
 - Long form: `--kebab-case` (always)
 - Short form: `-x` (single letter, common flags only)
 
 **Common Flags** (use consistently):
+
 ```
 -h, --help                Show help
 -v, --verbose             Verbose output
@@ -70,11 +78,13 @@ Always document aliases in help text:
 ```
 
 **Boolean Flags**:
+
 - Use presence: `--verbose` (not `--verbose=true`)
 - Use negation: `--no-color` (not `--disable-color`)
 - Default to false: `--force`, `--dry-run`
 
 **Examples**:
+
 ```bash
 # ✓ Good
 --project-root /path/to/project
@@ -110,31 +120,33 @@ Always document aliases in help text:
 ### Color Palette
 
 **Semantic Colors** (use chalk):
+
 ```typescript
 import chalk from 'chalk';
 
 // Status
-chalk.green('✓ Success')
-chalk.red('✗ Error')
-chalk.yellow('⚠ Warning')
-chalk.blue('ℹ Info')
+chalk.green('✓ Success');
+chalk.red('✗ Error');
+chalk.yellow('⚠ Warning');
+chalk.blue('ℹ Info');
 
 // Emphasis
-chalk.bold('Important')
-chalk.dim('Secondary info')
-chalk.cyan('Values and data')
+chalk.bold('Important');
+chalk.dim('Secondary info');
+chalk.cyan('Values and data');
 
 // Overlays (consistent!)
-O1: chalk.blue       // Structural
-O2: chalk.red        // Security
-O3: chalk.yellow     // Lineage
-O4: chalk.magenta    // Mission
-O5: chalk.cyan       // Operational
-O6: chalk.green      // Mathematical
-O7: chalk.white      // Coherence
+O1: chalk.blue; // Structural
+O2: chalk.red; // Security
+O3: chalk.yellow; // Lineage
+O4: chalk.magenta; // Mission
+O5: chalk.cyan; // Operational
+O6: chalk.green; // Mathematical
+O7: chalk.white; // Coherence
 ```
 
 **Accessibility**:
+
 - Always use symbols + text (not color alone): `✓ PASS` not just green `PASS`
 - Support `--no-color` flag
 - Test with color blindness simulators
@@ -142,24 +154,28 @@ O7: chalk.white      // Coherence
 ### Emoji Usage
 
 **When to Use**:
+
 - Command prefixes: `🧙 wizard`, `🖥️ tui`, `🤔 ask`
 - Status indicators: `✓`, `✗`, `⚠️`, `ℹ️`
 - Concept headers: `📦`, `🔍`, `💡`
 
 **When NOT to Use**:
+
 - In tables or lists (use symbols: ✓ ✗)
 - In error messages (use text: "Error")
 - Excessively (1-2 per output max)
 
 **Fallbacks**:
+
 - Support `--no-emoji` flag
 - Provide ASCII alternatives: `[OK]`, `[X]`, `[!]`
 
 **Examples**:
+
 ```typescript
 // ✓ Good
-emoji('✓', '[OK]') + ' Success'
-emoji('📖', 'Docs:') + ' https://...'
+emoji('✓', '[OK]') + ' Success';
+emoji('📖', 'Docs:') + ' https://...';
 
 // ✗ Overuse
 console.log('🎉 Success! 🚀 Your PGC is ready! 🎊');
@@ -168,16 +184,19 @@ console.log('🎉 Success! 🚀 Your PGC is ready! 🎊');
 ### Typography
 
 **Bold**:
+
 - Section headers
 - Emphasized commands
 - Important values
 
 **Dim/Gray**:
+
 - Secondary information
 - Metadata (timestamps, file paths)
 - Hints and tips
 
 **Examples**:
+
 ```typescript
 console.log(chalk.bold('\nNext steps:'));
 console.log('  • Run queries: ' + chalk.cyan('cognition-cli query'));
@@ -201,10 +220,7 @@ throw new CognitionError(
   'COG-E123',
   'Clear Title',
   'Detailed explanation of what went wrong',
-  [
-    'Suggested solution 1',
-    'Suggested solution 2',
-  ],
+  ['Suggested solution 1', 'Suggested solution 2'],
   'https://docs.link'
 );
 
@@ -225,6 +241,7 @@ COG-E4xx: Internal errors (bugs)
 ### Error Messages
 
 **Structure**:
+
 1. **Title**: Short, user-friendly (< 50 chars)
 2. **Message**: Detailed explanation
 3. **Solutions**: 2-4 actionable steps
@@ -232,20 +249,22 @@ COG-E4xx: Internal errors (bugs)
 5. **Cause**: Original error (verbose mode only)
 
 **Tone**:
+
 - Clear and concise
 - Action-oriented ("Run X" not "You could try running X")
 - Blame-free (no "you forgot" or "you did wrong")
 - Helpful (suggest solutions, not just problems)
 
 **Examples**:
+
 ```typescript
 // ✓ Good
-'No .open_cognition directory found'
-'Run "cognition-cli init" to create a new workspace'
+'No .open_cognition directory found';
+'Run "cognition-cli init" to create a new workspace';
 
 // ✗ Avoid
-'You forgot to initialize the workspace'
-'Please make sure you have run init first'
+'You forgot to initialize the workspace';
+'Please make sure you have run init first';
 ```
 
 ## Logging
@@ -253,6 +272,7 @@ COG-E4xx: Internal errors (bugs)
 ### Use @clack/prompts Exclusively
 
 **Standard logging**:
+
 ```typescript
 import { log, spinner, intro, outro } from '@clack/prompts';
 
@@ -264,6 +284,7 @@ log.step('Step 1 of 3');
 ```
 
 **Spinners**:
+
 ```typescript
 const s = spinner();
 s.start('Processing files...');
@@ -272,6 +293,7 @@ s.stop(chalk.green('✓ Complete'));
 ```
 
 **Framing**:
+
 ```typescript
 intro(chalk.bold('🧙 PGC Setup Wizard'));
 // ... wizard steps ...
@@ -279,6 +301,7 @@ outro(chalk.green('✓ Setup complete!'));
 ```
 
 **JSON Mode Exception**:
+
 ```typescript
 // ONLY use console.log for JSON output
 if (options.json) {
@@ -289,9 +312,10 @@ if (options.json) {
 }
 ```
 
-### Never Use console.*
+### Never Use console.\*
 
 **Forbidden** (except JSON output):
+
 ```typescript
 // ✗ Avoid
 console.log('Starting...');
@@ -339,6 +363,7 @@ process.on('SIGINT', () => {
 ### Spinners
 
 For indeterminate operations:
+
 ```typescript
 const s = spinner();
 s.start('Connecting to workbench...');
@@ -349,6 +374,7 @@ s.stop(chalk.green('✓ Connected'));
 ### Progress Bars
 
 For batch operations with known count:
+
 ```typescript
 import { progress } from '@clack/prompts';
 
@@ -364,6 +390,7 @@ bar.stop('✓ All files processed');
 ### Time Estimates
 
 Show for operations > 30s:
+
 ```typescript
 import { formatProgress, Timer } from './utils/time-formatter.js';
 
@@ -382,11 +409,13 @@ for (let i = 0; i < items.length; i++) {
 
 ```typescript
 // ✓ Good
-outro(chalk.green(
-  `✓ Processed 127 files in 3.2s\n` +
-  `  Created 543 nodes, 891 edges\n` +
-  `  Coherence score: 0.87`
-));
+outro(
+  chalk.green(
+    `✓ Processed 127 files in 3.2s\n` +
+      `  Created 543 nodes, 891 edges\n` +
+      `  Coherence score: 0.87`
+  )
+);
 
 // ✗ Minimal
 outro('Done');
@@ -412,7 +441,9 @@ program
   .option('-p, --project-root <path>', 'Project root', process.cwd())
   .option('-d, --depth <level>', 'Dependency depth (0=direct)', '0')
   .option('--json', 'Output as JSON')
-  .addHelpText('after', `
+  .addHelpText(
+    'after',
+    `
 ${chalk.bold('Examples:')}
   ${chalk.dim('# Basic query')}
   ${chalk.cyan('$ cognition-cli query "authentication"')}
@@ -432,7 +463,8 @@ ${chalk.bold('See also:')}
   ${chalk.cyan('cognition-cli ask')} - AI-synthesized answers
 
 ${chalk.dim('📖 Docs: https://mirzahusadzic.github.io/cogx/manual/')}
-  `)
+  `
+  )
   .action(queryAction);
 ```
 
@@ -449,12 +481,14 @@ ${chalk.dim('📖 Docs: https://mirzahusadzic.github.io/cogx/manual/')}
 ### What to Test
 
 **Required**:
+
 - All error paths (throw correct CognitionError)
 - JSON output format (valid JSON schema)
 - Help text rendering (no broken links)
 - Accessibility flags (--no-color, --no-emoji work)
 
 **Recommended**:
+
 - Success paths (happy flow)
 - Edge cases (empty input, large data)
 - Terminal compatibility (at least 3 terminals)
@@ -464,9 +498,9 @@ ${chalk.dim('📖 Docs: https://mirzahusadzic.github.io/cogx/manual/')}
 ```typescript
 describe('query command', () => {
   it('throws WORKSPACE_NOT_FOUND when PGC missing', async () => {
-    await expect(queryCommand('test', { projectRoot: '/tmp' }))
-      .rejects
-      .toThrow(CognitionError);
+    await expect(queryCommand('test', { projectRoot: '/tmp' })).rejects.toThrow(
+      CognitionError
+    );
   });
 
   it('outputs valid JSON in --json mode', async () => {
@@ -501,9 +535,10 @@ describe('query command', () => {
 ## Pull Request Checklist
 
 Before submitting:
+
 - [ ] Follows naming conventions (commands, flags)
 - [ ] Uses CognitionError for all errors
-- [ ] Uses @clack/prompts for logging (not console.*)
+- [ ] Uses @clack/prompts for logging (not console.\*)
 - [ ] Includes help text with examples
 - [ ] Supports `--json`, `--no-color`, `--verbose` flags
 - [ ] Has tests for error cases
