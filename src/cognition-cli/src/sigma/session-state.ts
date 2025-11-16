@@ -29,7 +29,7 @@ export interface SessionState {
   compression_history: Array<{
     sdk_session: string;
     timestamp: string;
-    reason: 'initial' | 'compression' | 'expiration';
+    reason: 'initial' | 'compression' | 'expiration' | 'restart';
     tokens?: number;
   }>;
 
@@ -114,18 +114,18 @@ export function createSessionState(
 
 /**
  * Update session state with new SDK session
- * (after compression or expiration)
+ * (after compression, expiration, or restart)
  *
  * @param state - Current session state
  * @param newSdkSession - New SDK session UUID
- * @param reason - Reason for session change ('compression' or 'expiration')
+ * @param reason - Reason for session change ('compression', 'expiration', or 'restart')
  * @param tokens - Optional token count at time of change
  * @returns Updated session state
  */
 export function updateSessionState(
   state: SessionState,
   newSdkSession: string,
-  reason: 'compression' | 'expiration',
+  reason: 'compression' | 'expiration' | 'restart',
   tokens?: number
 ): SessionState {
   // Defense-in-depth: Check if last entry already has this session ID

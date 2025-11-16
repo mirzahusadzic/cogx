@@ -125,7 +125,7 @@ export interface SessionLoadResult {
 
 /**
  * Session update event
- * Only for updating EXISTING sessions (compression or expiration)
+ * Only for updating EXISTING sessions (compression, expiration, or restart)
  * Initial session creation is handled separately by create()
  */
 export interface SessionUpdateEvent {
@@ -140,9 +140,9 @@ export interface SessionUpdateEvent {
   newSessionId: string;
 
   /**
-   * Reason for update (compression or expiration only)
+   * Reason for update (compression, expiration, or restart)
    */
-  reason: 'compression' | 'expiration';
+  reason: 'compression' | 'expiration' | 'restart';
 
   /**
    * Token count at time of compression (if applicable)

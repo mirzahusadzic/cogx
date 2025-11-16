@@ -262,16 +262,46 @@ export function useSessionManager(
         // Check if this is the first SDK session we've received
         const sessionState = store.load();
 
-        if (!sessionState || reason === 'initial') {
-          // Create initial state (or recreate if reason is explicitly 'initial')
+        if (!sessionState) {
+          // No state file exists - create initial state
           store.create(newSessionId);
           if (debug) {
             console.log(
               `[useSessionManager] Created initial state: ${anchorId} → ${newSessionId}`
             );
           }
+        } else if (
+          reason === 'initial' &&
+          sessionState.compression_history.length > 1
+        ) {
+          // State exists with compression history - this is a TUI restart
+          // Preserve history by appending with 'restart' reason instead of creating new state
+          const event: SessionUpdateEvent = {
+            previousSessionId,
+            newSessionId,
+            reason: 'restart',
+            compressedTokens,
+          };
+          store.update(event);
+
+          if (debug) {
+            console.log(
+              `[useSessionManager] Preserved state on restart: ${anchorId} → ${newSessionId} (${sessionState.compression_history.length} sessions in history)`
+            );
+          }
+
+          // Notify callback
+          onSDKSessionChanged?.(event);
+        } else if (reason === 'initial') {
+          // State exists but has only initial entry - recreate it
+          store.create(newSessionId);
+          if (debug) {
+            console.log(
+              `[useSessionManager] Recreated initial state: ${anchorId} → ${newSessionId}`
+            );
+          }
         } else {
-          // Update existing state (reason must be 'compression' or 'expiration')
+          // Update existing state (reason is 'compression' or 'expiration')
           const event: SessionUpdateEvent = {
             previousSessionId,
             newSessionId,
