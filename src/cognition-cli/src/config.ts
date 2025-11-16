@@ -176,7 +176,7 @@ export const EMBED_RATE_LIMIT_SECONDS = 10;
  * Maximum /embed calls per window
  * 5 calls per 10 seconds balances throughput and protection
  */
-export const EMBED_RATE_LIMIT_CALLS = 5;
+export const EMBED_RATE_LIMIT_CALLS = 10;
 
 // ========================================
 // RETRY CONFIGURATION

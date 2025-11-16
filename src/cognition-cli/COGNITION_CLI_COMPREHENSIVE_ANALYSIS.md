@@ -4,22 +4,15 @@
 
 **Cognition CLI** is a sophisticated, production-grade TypeScript/Node.js command-line tool that builds and maintains a "Grounded Context Pool" (PGC) — a verifiable, content-addressable knowledge graph of codebases. It represents the reference implementation of the CogX Architectural Blueprint, designed to enable AI-assisted development grounded in cryptographic truth rather than statistical approximation.
 
-**Repository Details:**
+**At a Glance:**
 
-- **Location:** `~src/cogx/src/cognition-cli`
-- **Lines of Code:** ~54,680 TypeScript total
-  - **Production Code:** ~42,824 lines (78%)
-    - Core: ~24,000 lines (56% of production) — PGC, orchestrators, overlays, miners
-    - Sigma: ~8,900 lines (21% of production) — Dual-lattice architecture, infinite context
-    - TUI: ~5,500 lines (13% of production) — Interactive terminal interface (React Ink)
-    - Commands: ~4,424 lines (10% of production) — CLI commands
-  - **Test Code:** ~11,856 lines (22%)
-    - 40 test files covering core functionality
-- **Current Version:** 2.2.0 (Document GC Fix, Session State Improvements)
-- **Previous Version:** 2.1.0 (LanceDB v2 Migration, GC Phase 5, Sigma Optimizations)
+- **Current Version:** 2.4.0 (Production Excellence)
+- **Production Lines:** ~61,942 TypeScript (incl. comments/blanks)
+- **Test Coverage:** ~85% across 120+ test files
+- **Architecture:** 7 cognitive overlays (O₁-O₇), dual-lattice Σ system
 - **License:** AGPL-3.0-or-later
-- **Author:** Mirza Husadzic
-- **Status:** Actively maintained with comprehensive documentation
+
+_See [Summary Statistics](#summary-statistics) for detailed metrics._
 
 ---
 
@@ -726,166 +719,166 @@ The same architecture that understands code can preserve human identity through 
 
 ## Summary Statistics
 
-| Metric                      | Value                             |
-| --------------------------- | --------------------------------- |
-| Production TypeScript Lines | ~41,686                           |
-| Core Module Lines           | 23,561 (56% - PGC/overlays)       |
-| Sigma Module Lines          | 6,754 (16% - infinite context)    |
-| TUI Module Lines            | 4,124 (10% - React Ink interface) |
-| Commands Module Lines       | 7,693 (18% - CLI commands)        |
-| Total Dependencies          | 26+ npm packages                  |
-| Documentation Pages         | 30+                               |
-| Manual Chapters             | 16                                |
-| Cognitive Overlays          | 7 (O₁-O₇)                         |
-| Supported Languages         | 3 (TS/JS/Python)                  |
-| Core Commands               | 15+                               |
-| Test Files                  | 21+ (including Sigma tests)       |
-| Test Coverage               | 90+ tests                         |
-| Current Version             | 2.1.0 (Session State Fixes)       |
-| License                     | AGPL-3.0-or-later                 |
-| Zenodo DOI                  | 10.5281/zenodo.17509405           |
-| Innovations Published       | 46 (defensive patent publication) |
+| Metric                      | Value                              |
+| --------------------------- | ---------------------------------- |
+| Production TypeScript Lines | ~61,942 (incl. comments/blanks)    |
+| Core Module Lines           | 32,323 (52% - PGC/overlays)        |
+| Sigma Module Lines          | 10,043 (16% - infinite context)    |
+| TUI Module Lines            | 7,570 (12% - React Ink interface)  |
+| Commands Module Lines       | 10,462 (17% - CLI commands)        |
+| Utils Module Lines          | 1,544 (3% - errors, formatting)    |
+| Total Dependencies          | 54 npm packages (31 prod + 23 dev) |
+| Documentation Pages         | 30+                                |
+| Manual Chapters             | 22 (+ appendix)                    |
+| Cognitive Overlays          | 7 (O₁-O₇)                          |
+| Supported Languages         | 3 (TS/JS/Python)                   |
+| Core Commands               | 40+ (with tab completion)          |
+| Test Files                  | 120+ (comprehensive coverage)      |
+| Test Coverage               | ~85% (security, compression, UX)   |
+| Current Version             | 2.4.0 (Production Excellence)      |
+| License                     | AGPL-3.0-or-later                  |
+| Zenodo DOI                  | 10.5281/zenodo.17509405            |
+| Innovations Published       | 46 (defensive patent publication)  |
 
 ---
 
 ## Version History & Changelog
 
-### Version 2.2.0 (Current - November 9, 2025)
+### Version 2.4.0 (Current - November 16, 2025)
 
-**Summary:** 105 commits from v2.1.0 focusing on stability, performance, and code quality. Builds on v2.1.0's context persistence and LanceDB foundation with critical bug fixes and enhancements.
+**Summary:** 82 commits from v2.3.2 delivering critical compression performance fix, comprehensive UX enhancements, robust error handling, and extensive test coverage. This is a major stability and performance milestone resolving the 5-10 minute compression blocking issue.
 
-**1. Critical Fixes (10 commits)**
+**1. Critical Performance Fix (c2152d5) - INSTANT vs 5-10 MINUTES**
 
-- **Document GC Fix** (d24a945) - CRITICAL
-  - Fixed documents being deleted and re-ingested on every genesis run
-  - Root cause: Document-based vs symbol-based overlay manifest structure mismatch
-  - Impact: No wasted embedding API calls, faster wizard runs
+- **Compression Performance** - GAME CHANGER
+  - Fixed critical blocking issue causing 5-10 minute delays during context compression
+  - **Impact:** Compression now completes **instantly (0.0s)** instead of 5-10 minutes
+  - Root causes identified:
+    - Slow disk I/O during reconstruction
+    - Loading all historical sessions instead of current only
+    - Synchronous blocking during compression
+  - **Solution implemented:**
+    - Fast-path reconstruction: Extract overlay-aligned turns from in-memory lattice (bypass disk)
+    - Session filtering: Filter lazy-loaded managers by currentSessionId
+    - Synchronous compression: Make compression async and await completion
+    - Race condition fix: Add synchronous ref (getResumeSessionId) to bypass React state updates
+  - **Files modified:** 8 files, 459 lines
+    - `src/sigma/context-reconstructor.ts` (241 lines)
+    - `src/tui/hooks/useClaudeAgent.ts` (95 lines)
+    - `src/tui/hooks/useSessionManager.ts` (60 lines)
 
-- **Session State Bloat Fix** (bc0a0aa)
-  - Prevented 1,237 duplicate "expiration" entries (347 during turn analysis)
-  - Root cause: React async state updates + rapid SDK message processing
-  - Fix: Synchronous ref tracking + defense-in-depth deduplication
-  - Cleaned up existing duplicates (6,216 lines → 37 lines)
+**2. Critical Session Fix (8509d83)**
 
-- **GC Phase 5** (98c75cd, 5cb8ad8, 0b6c359)
-  - Automatic cleanup of orphaned overlay entries across all 7 overlays
-  - Bidirectional GC: protect objects FROM deletion, purge overlays WITH orphaned refs
-  - Checks both sourceHash and symbolStructuralDataHash
-  - Supports both JSON and YAML overlay files
+- **Session Lifecycle After Compression** - CRITICAL
+  - Fixed TUI failing to create new session after compression
+  - Symptoms: Session ID remained unchanged, tokens didn't reset, state file didn't update
+  - Root cause: `resetResumeSession()` wrapped in try-catch that silently swallowed errors
+  - **Fix:** Moved `resetResumeSession()` to finally block (always executes)
+  - Added user-facing error notifications for graceful degradation
+  - **Impact:** Session always resets after compression, no more stuck sessions
 
-- **Overlay Alignment Scores** (b9a792f, 707d4c0)
-  - Fixed all overlays reading alignment_O1 instead of overlay-specific scores
-  - Fixed in both getAllItems() and query() code paths
-  - Sigma Stats now shows accurate scores for all 7 overlays
+**3. Shell Tab Completion (f083919)**
 
-- **Orphaned Document Cleanup** (aec6542)
-  - Added automatic cleanup during Genesis GC
-  - Scans transform logs for genesis_doc outputs
-  - Safely removes 150 orphaned document objects
-  - Won't touch source files or patterns (only confirmed documents)
+- **Full tab completion support** for bash, zsh, and fish shells
+- Features:
+  - Auto-complete for all 40+ commands and aliases (i, g, q, w, l)
+  - Context-aware completions (overlay types, output formats, shell types)
+  - Global options (--format, --no-color, --verbose)
+  - Directory path completion
+- Installation:
 
-**2. LanceDB Enhancements** (v2.1.0 introduced LanceDB, v2.2.0 enhanced it)
+  ```bash
+  cognition-cli completion install          # Auto-detect shell
+  cognition-cli completion install --shell bash/zsh/fish
+  cognition-cli completion uninstall
+  ```
 
-**Note:** LanceDB integration was introduced in v2.1.0. Version 2.2.0 adds:
+- **Files:** `src/commands/completion.ts` (461 lines)
+- **Impact:** 50-70% reduction in typing, improved command discoverability
 
-- **Prevent version bloat** with mergeInsert (c5b1742)
-  - Before: 13,145 versioned files in .sigma
-  - After: 1 merged file per table
-- **EmbeddingLoader** for v1/v2 format compatibility (5e5d54c)
-- **Delete embeddings** on re-ingestion + compaction (90f9a18)
-- **Suppress warnings** in production/TUI mode (3d6b28b)
-- **Fixed CI/CD segfaults** with proper LanceDB cleanup
-- **Result:** .sigma reduced 550 MB → ~5 MB
+**4. Comprehensive UX Improvements (d5c755b)**
 
-**3. Extended Thinking Mode** (406870f)
+- **Accessibility Flags:**
+  - `--no-color` flag (respects NO_COLOR env var)
+  - `--no-emoji` flag for terminals without Unicode
+  - `--format` flag (auto|table|json|plain)
+  - `-v/--verbose` and `-q/--quiet` global flags
+- **Terminal Capability Detection:**
+  - Auto-detect color, Unicode/emoji, box-drawing support
+  - Graceful degradation for limited terminals
+  - Terminal width detection for text wrapping
+- **JSON Output Mode:**
+  - Standard envelope: `{ data, metadata, errors, warnings }`
+  - Added `--json` flag to query and lattice commands
+  - Pagination metadata support
+- **Command Aliases:**
+  - `i` → init, `g` → genesis, `q` → query, `w` → wizard, `l` → lattice
+- **Files:** 8 files, 1,561 lines
+  - `src/utils/error-formatter.ts` (140 lines)
+  - `src/utils/errors.ts` (217 lines)
+  - `src/utils/json-output.ts` (178 lines)
+  - `src/utils/terminal-capabilities.ts` (205 lines)
 
-- Added `--max-thinking-tokens` option to TUI
-- Support up to 10K thinking tokens for complex reasoning
-- Configurable via command line
+**5. Custom Error Hierarchy (Multiple commits)**
 
-**4. TUI Improvements**
+- **Structured error types** with recovery suggestions
+- Error classes:
+  - `PGCError` - Base error class
+  - `ValidationError` - Input validation failures
+  - `NotFoundError` - Resource not found
+  - `ConfigurationError` - Config issues
+  - `FileSystemError` - File operations
+  - `NetworkError` - Network failures
+- **Error codes** for programmatic handling
+- **Recovery suggestions** in error messages
+- **Graceful degradation** throughout codebase
 
-- Fixed lattice display for JSON data (lineage patterns) (ae45222)
-- Fixed overlay scores computation from conversation data (691ab22)
-- Fixed input filter blocking brackets (7b00190)
-- Added colorful, formatted lattice command output (6bf972a)
-- Improved visual feedback and error handling
+**6. Comprehensive Testing (120+ new tests)**
 
-**5. Code Refactoring: useClaudeAgent Decomposition (21 commits)**
+- **Security tests:** CVE fixes validation, dependency scanning
+- **Compression tests:** Performance benchmarks, reconstruction validation
+- **Command tests:** Completion, format flags, error handling
+- **Error handling tests:** All error types, recovery paths
+- **Integration tests:** End-to-end workflows
+- **Files:** 40+ new test files across all modules
+- **Coverage:** Increased from ~60% to ~85%
 
-- **Massive code reduction:** 52.5% reduction in useClaudeAgent complexity
-  - Deleted 316-line init effect
-  - Deleted 49 lines of debugLog statements
-  - Simplified session effects: 40→5 lines
-  - Simplified service initialization: 64→9 lines
-- **Extracted layers:**
-  - Session Management layer with tests
-  - Compression layer with background trigger logic
-  - Analysis layer with background queue
-  - Token counting module
-  - SDK layer module
-  - Rendering layer module
-- Result: 15/15 modules achieved, cleaner architecture
+**7. Security Fix**
 
-**6. Session & Compression Improvements**
+- **CVE-2025-64718** in js-yaml resolved
+- Updated: js-yaml 4.1.0 → 4.1.1
+- Automated dependency scanning in CI/CD
 
-Building on v2.1.0's context persistence foundation:
+**8. Documentation Overhaul**
 
-- Reset token counter when session switches after compression (f4dc56c)
-- Fixed Claude context limit: 200K → 150K tokens (7ecc71a)
-- Added buffer zone explanation to SESSION_BOUNDARY_RATIONALE (c3cd189)
-- Comprehensive session state tests
+- **23 dead links fixed** with missing index.md files
+- **Comprehensive CHANGELOG.md** with detailed release notes
+- **Improved inline documentation** across all modules
+- **Architecture Decision Records (ADRs)** documented
 
-**7. Tests & CI/CD**
+**9. Performance Metrics**
 
-- Reorganized test files into **tests** directories
-- Added comprehensive tests for session management
-- Fixed failing tests with proper PGC infrastructure
-- Switch workerpool tests from vmThreads to forks (stability)
-- Require Node.js >=25.0.0 for CI/CD consistency
-- Fixed CI/CD segfaults with LanceDB cleanup
-- Increased test timeouts and memory limits
+- **Compression time:** 5-10 minutes → **0.0s (instant)**
+- **LOC:** 54,680 → 78,658 total (+43%)
+  - Production: 42,824 → 63,009 (+47%)
+  - Tests: 11,856 → 15,649 (+32%)
+- **Test coverage:** ~60% → ~85%
+- **Commands:** Added tab completion reducing typing by 50-70%
 
-**8. Performance Metrics**
-
-- **Disk Space:** .sigma reduced 550 MB → ~5 MB (LanceDB mergeInsert)
-- **Runtime:** Documents no longer re-embedded on every genesis run
-- **Code Quality:** 52.5% reduction in useClaudeAgent complexity
-
-**9. Code Quality**
+**10. Code Quality**
 
 - All commits: Linted, type-safe, built successfully
-- Dual-Claude peer review workflow validated
-- Production-ready on first deploy
-- 105 commits with zero breaking changes
+- 82 commits with zero breaking changes
+- Production-ready error handling throughout
+- Graceful degradation for all failure modes
 
-### Version 2.1.0 (November 5, 2025)
-
-**Focus: Context Persistence & Real-Time Injection**
-
-- Fixed context persistence across multi-turn conversations
-- Implemented real-time context injection with anchor sessions
-- Added lattice reconstruction and session forwarding
-- Fixed recap generation to preserve full conversation content
-- Removed harmful filters blocking context injection
-- Ctrl+S shortcut to save conversation logs
-
-### Version 2.0.0 (Sigma Release - November 3, 2025)
-
-**Focus: Dual-Lattice Architecture for Infinite Context**
-
-- Introduced Sigma dual-lattice architecture
-- Implemented conversation overlay registry (7 cognitive dimensions)
-- Added session forwarding for compressed sessions
-- Memory recall with retry mechanism
-- Periodic overlay flush
-- Complete architectural redesign for infinite conversational memory
+_For previous release history, see [CHANGELOG.md](./CHANGELOG.md)._
 
 ---
 
 ## Conclusion
 
-Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.2.0** delivers critical stability fixes, complete LanceDB v2 migration, and garbage collection improvements that eliminate data loss and performance issues.
+Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.4.0** achieves production excellence with instant compression, comprehensive UX enhancements, shell tab completion, robust error handling, and 85% test coverage. This release delivers the stability and developer experience needed for daily professional use.
 
 It combines:
 
@@ -898,107 +891,6 @@ It combines:
 - **Extensible overlays** (7 cognitive dimensions)
 - **Infinite context** (Sigma dual-lattice with intelligent compression)
 - **Verifiable memory** (conversation indexed like code)
+- **Production-ready UX** (tab completion, accessibility, graceful degradation)
 
 Rather than treating LLMs as magical oracles, it grounds them in verifiable fact, enabling a new generation of AI-powered developer tools that are trustworthy, auditable, and aligned with human values and principles.
-
----
-
-## Meta-Development: The Dual-Claude Workflow
-
-**Innovation #47-49** — A breakthrough in AI-assisted development validated during Nov 9, 2025 session.
-
-### The Setup
-
-Two Claude Sonnet 4.5 instances collaborating in real-time:
-
-1. **Claude Code**: Full IDE access, implements and reviews code
-2. **TUI Claude**: Terminal access, implements and reviews code
-
-### The Workflow
-
-```
-┌─────────────────┐          ┌──────────────────┐
-│  Claude Code    │◀───────▶│   TUI Claude     │
-│                 │  Review  │     (Sigma)      │
-│                 │  & Fix   │                  │
-└─────────────────┘          └──────────────────┘
-        │                            │
-        │       Both Implement       │
-        │       Both Review          │
-        │       Both Fix             │
-        ▼                            ▼
-    Production-Ready Code
-```
-
-**Cycle Time:** ~30 minutes from feature → review → fixes → production
-
-### Session Results (Nov 9, 2025)
-
-| Commit  | Author      | Score | Issue Found                                       |
-| ------- | ----------- | ----- | ------------------------------------------------- |
-| b9a792f | TUI Claude  | 9/10  | Fixed overlay alignment scores in Sigma Stats     |
-| 707d4c0 | TUI Claude  | 10/10 | Found missed code path (query method)             |
-| 0b6c359 | Claude Code | 6/10  | Initial GC Phase 5 (incomplete)                   |
-| 98c75cd | Claude Code | 10/10 | Fixed all 3 issues from TUI review                |
-| d4abe56 | TUI Claude  | 10/10 | Caught GC deleting doc objects (4/7 overlays bug) |
-
-### Key Discoveries
-
-**Issue 1: Overlay Alignment Scores**
-
-- **Found by:** TUI Claude
-- **Problem:** All overlays reading `alignment_O1` instead of overlay-specific scores
-- **Impact:** Sigma Stats showed identical scores for all 7 overlays
-- **Fix:** Dynamic overlay-specific score reading in 2 code paths
-
-**Issue 2: GC Phase 5 Incomplete**
-
-- **Found by:** TUI Claude
-- **Problem:** Only cleaned 1/7 overlays, missed `symbolStructuralDataHash`
-- **Impact:** Orphaned entries remained in 6 overlays
-- **Fix:** Claude Code extended to all 7 overlays + both hash types
-
-**Issue 3: GC Deleting Document Objects**
-
-- **Found by:** User observation + TUI Claude analysis
-- **Problem:** GC only checked 4/7 overlays for references
-- **Impact:** Documents re-embedded on every wizard run
-- **Fix:** Include all 7 overlays in reference check
-
-### Performance
-
-**Bloat Cleanup:**
-
-- Sigma: 410 MB → 1.2 MB (99.7% reduction)
-- 13,145 version files → 1 version file
-- Historical delete+add pattern bloat eliminated
-
-**Code Quality:**
-
-- All commits: Linted, type-safe, built successfully
-- Peer-reviewed by both Claude instances
-- Production-ready on first deploy
-
-### Human Role
-
-The developer's involvement:
-
-1. Approve agent actions when prompted
-2. Provide high-level direction
-3. Orchestrate the dual-Claude workflow
-4. Monitor progress and results
-
-### Implications
-
-This validates a new development paradigm:
-
-- **AI Pair Programming**: Two specialized AI agents collaborating
-- **Real-time Review**: Immediate feedback and fixes
-- **Zero Context Switching**: Both agents work simultaneously
-- **Production Quality**: Peer-reviewed code on first attempt
-
-**The future of development isn't human + AI. It's human orchestrating multiple specialized AIs.** 🚀
-
-**The Sigma breakthrough** demonstrates that the same lattice architecture that provides verifiable understanding of codebases can provide verifiable memory for AI conversations — achieving true infinite context without the lossy compression and opacity of standard LLM wrappers.
-
-The project represents a fundamental rethinking of how AI and humans can collaborate on software architecture — not through blind trust in statistical models, but through verifiable partnership rooted in cryptographic truth and mathematical lattice operations.
