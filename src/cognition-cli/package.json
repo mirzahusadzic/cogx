@@ -25,12 +25,12 @@
     "test:workerpool": "NODE_OPTIONS='--max-old-space-size=4096' vitest run --config vitest.workerpool.config.ts",
     "test:watch": "vitest",
     "test:commands": "npm run build && node dist/scripts/test-commands.js",
-    "lint": "eslint src --ext .ts && markdownlint . --ignore node_modules",
-    "lint:changed": "git diff --name-only --diff-filter=ACMR HEAD | grep -E '\\.(ts|tsx)$' | sed 's|^src/cognition-cli/||' | xargs -r eslint",
-    "lint:staged": "git diff --name-only --cached --diff-filter=ACMR | grep -E '\\.(ts|tsx)$' | sed 's|^src/cognition-cli/||' | xargs -r eslint",
-    "format": "prettier --write \"**/*.{ts,js,json,md}\"",
-    "format:changed": "git diff --name-only --diff-filter=ACMR HEAD | grep -E '\\.(ts|tsx|js|json|md)$' | sed 's|^src/cognition-cli/||' | xargs -r prettier --write",
-    "format:staged": "git diff --name-only --cached --diff-filter=ACMR | grep -E '\\.(ts|tsx|js|json|md)$' | sed 's|^src/cognition-cli/||' | xargs -r prettier --write"
+    "lint": "eslint 'src/**/*.{ts,tsx}' && markdownlint . --ignore node_modules",
+    "lint:changed": "git diff --name-only --diff-filter=ACMR HEAD | sed 's|^src/cognition-cli/||' | xargs -r sh -c 'ts_files=$(echo \"$@\" | tr \" \" \"\\n\" | grep -E \"^src/.*\\.(ts|tsx)$\" | tr \"\\n\" \" \"); md_files=$(echo \"$@\" | tr \" \" \"\\n\" | grep \"\\.md$\" | tr \"\\n\" \" \"); [ -n \"$ts_files\" ] && eslint $ts_files; [ -n \"$md_files\" ] && markdownlint $md_files; true' sh",
+    "lint:staged": "git diff --name-only --cached --diff-filter=ACMR | sed 's|^src/cognition-cli/||' | xargs -r sh -c 'ts_files=$(echo \"$@\" | tr \" \" \"\\n\" | grep -E \"^src/.*\\.(ts|tsx)$\" | tr \"\\n\" \" \"); md_files=$(echo \"$@\" | tr \" \" \"\\n\" | grep \"\\.md$\" | tr \"\\n\" \" \"); [ -n \"$ts_files\" ] && eslint $ts_files; [ -n \"$md_files\" ] && markdownlint $md_files; true' sh",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "format:changed": "git diff --name-only --diff-filter=ACMR HEAD | sed 's|^src/cognition-cli/||' | grep -E '\\.(ts|tsx|js|json|md)$' | xargs -r prettier --write",
+    "format:staged": "git diff --name-only --cached --diff-filter=ACMR | sed 's|^src/cognition-cli/||' | grep -E '\\.(ts|tsx|js|json|md)$' | xargs -r prettier --write"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.42",
