@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { StructuralDataSchema } from './structural.js';
 
 /**
- * Schema for file index entries in the Provenance Graph Cache.
+ * Schema for file index entries in the Grounded Contex Pool.
  * Tracks source file metadata, structural analysis, and processing status.
  */
 export const IndexDataSchema = z.object({

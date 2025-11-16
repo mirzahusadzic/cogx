@@ -2,10 +2,10 @@ import path from 'path';
 import yaml from 'js-yaml';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { vol } from 'memfs';
-import { auditCommand } from './audit';
-import { PGCManager } from '../core/pgc/manager';
-import { IndexData } from '../core/types';
-import { TransformData } from '../core/types/transform';
+import { auditCommand } from '../audit';
+import { PGCManager } from '../../core/pgc/manager';
+import { IndexData } from '../../core/types';
+import { TransformData } from '../../core/types/transform';
 
 // Mock workerpool to prevent Vite worker parsing errors
 vi.mock('workerpool', () => ({

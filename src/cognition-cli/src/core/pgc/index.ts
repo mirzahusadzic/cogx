@@ -22,7 +22,7 @@ function canonicalizeSymbol(symbol: string): string {
  * High-performance file index with multi-threaded search capabilities.
  * Maps source file paths to their structural metadata, content hashes, and processing status.
  * Supports parallel deep-search across structural data using worker threads for large codebases.
- * This is the primary lookup system for the Provenance Graph Cache (PGC).
+ * This is the primary lookup system for the Grounded Contex Pool (PGC).
  */
 export class Index {
   private indexPath: string;
@@ -162,7 +162,7 @@ export class Index {
         // Using `import.meta.url` makes this robust.
         const worker = new Worker(
           new URL('./search-worker.js', import.meta.url),
-          {
+          /* @vite-ignore */ {
             workerData: {
               chunk,
               term,
