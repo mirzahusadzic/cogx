@@ -367,7 +367,7 @@ export class SemanticDriftDetector {
       /\b(security|privacy|validation|audit|verify|protect)\b/i.test(c)
     );
     const convenienceAdded = added.some((c) =>
-      /\b(convenience|shortcut|skip|bypass|pragmatic.*security|flexible.*security)\b/i.test(
+      /\b(convenie|shortcut|skip|bypass|pragmatic.*security|flexible.*security)/i.test(
         c
       )
     );
@@ -381,7 +381,7 @@ export class SemanticDriftDetector {
     // Pattern 2: Trust erosion
     // Example: Add "trust experienced contributors", "skip checks for known users"
     const trustBased = added.some((c) =>
-      /\b(trust.*contributor|trust.*user|experienced.*user|skip.*check.*for|bypass.*for|known.*user)\b/i.test(
+      /\b(trust.*contributor|trust.*user|experienc.*user|skip.*check|bypass|known.*user)/i.test(
         c
       )
     );
@@ -395,7 +395,7 @@ export class SemanticDriftDetector {
     // Pattern 3: Permission creep
     // Example: Add "allow", "permit", remove "strict", "enforce"
     const permissiveAdded = added.some((c) =>
-      /\b(allow|permit|enable|relax|loosen|reduce.*restriction|flexible.*access)\b/i.test(
+      /\b(allow|permit|enable|relax|loosen|reduce.*restriction|flexible.*access)/i.test(
         c
       )
     );
@@ -412,7 +412,7 @@ export class SemanticDriftDetector {
     // Pattern 4: Ambiguity injection
     // Example: "Security first" → "Security first, balanced with pragmatism"
     const ambiguousAdded = added.some((c) =>
-      /\b(balanced|pragmatic|flexible|context-dependent|situational|case-by-case|nuanced)\b/i.test(
+      /\b(balanced|pragmatic(?!raph)|flexible|context-dependent|situational|case-by-case|nuanced)\b/i.test(
         c
       )
     );
@@ -426,7 +426,7 @@ export class SemanticDriftDetector {
     // Pattern 5: Velocity prioritization over safety
     // Example: Add "developer velocity", "ship fast", deprioritize "testing"
     const velocityAdded = added.some((c) =>
-      /\b(velocity|ship.*fast|move.*fast|speed.*over|quick.*over|rapid.*development)\b/i.test(
+      /\b(velocity|ship.*fast|move.*fast|speed|quick|rapid.*development)/i.test(
         c
       )
     );
@@ -435,8 +435,11 @@ export class SemanticDriftDetector {
         /\b(safety|security|testing|quality|review)\b/i.test(s.concept) &&
         s.delta > 5 // Moved down significantly
     );
+    const safetyRemoved = removed.some((c) =>
+      /\b(safety|security|testing|quality|review)\b/i.test(c)
+    );
 
-    if (velocityAdded && safetyDeprioritized) {
+    if (velocityAdded && (safetyDeprioritized || safetyRemoved)) {
       patterns.push(
         'VELOCITY_OVER_SAFETY: Increased velocity focus while deprioritizing safety concepts'
       );
@@ -445,7 +448,7 @@ export class SemanticDriftDetector {
     // Pattern 6: Error tolerance increase
     // Example: Add "fail gracefully", "best effort", remove "zero tolerance"
     const errorToleranceAdded = added.some((c) =>
-      /\b(fail.*gracefully|best.*effort|acceptable.*failure|tolerate.*error)\b/i.test(
+      /\b(fail.*graceful|best.*effort|acceptable.*failure|tolerate.*error)/i.test(
         c
       )
     );
