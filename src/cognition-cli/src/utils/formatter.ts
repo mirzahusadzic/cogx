@@ -53,6 +53,31 @@
  */
 
 import chalk from 'chalk';
+import { useColor, emoji as emojiHelper, getBoxChars, isPlainMode } from './terminal-capabilities.js';
+
+// ========================================
+// CONDITIONAL CHALK (Accessibility-Aware)
+// ========================================
+
+/**
+ * Create chalk-like object that respects accessibility settings
+ * Returns identity functions when colors are disabled
+ */
+function createConditionalChalk() {
+  if (useColor()) {
+    return chalk;
+  }
+  // No-op functions when colors disabled
+  const identity = (s: string) => s;
+  const noop: any = new Proxy({}, {
+    get: () => noop,
+    apply: (_target: any, _thisArg: any, args: any[]) => args[0] || ''
+  });
+  return noop;
+}
+
+/** Conditional chalk instance - respects --no-color flag */
+const c = createConditionalChalk();
 
 // ========================================
 // COLOR SCHEMES
@@ -61,27 +86,29 @@ import chalk from 'chalk';
 /**
  * Color schemes for different overlay types
  * Maps overlay identifier (O1-O7) to chalk color function
+ * Automatically respects --no-color flag via conditional chalk
  */
 const OVERLAY_COLORS: Record<string, (text: string) => string> = {
-  O1: chalk.blue, // Structural
-  O2: chalk.red, // Security
-  O3: chalk.yellow, // Lineage
-  O4: chalk.magenta, // Mission
-  O5: chalk.cyan, // Operational
-  O6: chalk.green, // Mathematical
-  O7: chalk.white, // Strategic Coherence
+  O1: c.blue, // Structural
+  O2: c.red, // Security
+  O3: c.yellow, // Lineage
+  O4: c.magenta, // Mission
+  O5: c.cyan, // Operational
+  O6: c.green, // Mathematical
+  O7: c.white, // Strategic Coherence
 };
 
 /**
  * Color schemes for severity levels
  * Maps severity string to chalk color function
+ * Automatically respects --no-color flag via conditional chalk
  */
 const SEVERITY_COLORS: Record<string, (text: string) => string> = {
-  critical: chalk.red.bold,
-  high: chalk.red,
-  medium: chalk.yellow,
-  low: chalk.blue,
-  info: chalk.gray,
+  critical: c.red.bold,
+  high: c.red,
+  medium: c.yellow,
+  low: c.blue,
+  info: c.gray,
 };
 
 // ========================================
@@ -346,10 +373,10 @@ export function formatId(id: string): string {
   const overlayType = extractOverlayType(id);
 
   if (overlayType) {
-    return `${chalk.dim(hash)} ${colorOverlayBadge(overlayType)}`;
+    return `${c.dim(hash)} ${colorOverlayBadge(overlayType)}`;
   }
 
-  return chalk.dim(hash);
+  return c.dim(hash);
 }
 
 // ========================================
@@ -454,8 +481,22 @@ function wrapLine(line: string, maxWidth: number): string[] {
  * // └──────────────────────────────┘
  */
 export function createBox(content: string[], title?: string): string {
+  // Plain mode: simple text without box
+  if (isPlainMode()) {
+    const lines: string[] = [];
+    if (title) {
+      lines.push(`=== ${title} ===`);
+    }
+    lines.push(...content);
+    if (title) {
+      lines.push('='.repeat(title.length + 8));
+    }
+    return lines.join('\n');
+  }
+
   const maxBoxWidth = 80;
   const maxContentWidth = maxBoxWidth - 4; // Account for "│ " and " │"
+  const chars = getBoxChars();
 
   // Wrap content lines that are too long
   const wrappedContent: string[] = [];
@@ -471,14 +512,14 @@ export function createBox(content: string[], title?: string): string {
   const width = Math.min(maxWidth + 4, maxBoxWidth);
 
   const top = title
-    ? `┌─ ${chalk.bold(title)} ${'─'.repeat(Math.max(0, width - stripAnsi(title).length - 5))}┐`
-    : `┌${'─'.repeat(width - 2)}┐`;
-  const bottom = `└${'─'.repeat(width - 2)}┘`;
+    ? `${chars.topLeft}${chars.horizontal} ${c.bold(title)} ${chars.horizontal.repeat(Math.max(0, width - stripAnsi(title).length - 5))}${chars.topRight}`
+    : `${chars.topLeft}${chars.horizontal.repeat(width - 2)}${chars.topRight}`;
+  const bottom = `${chars.bottomLeft}${chars.horizontal.repeat(width - 2)}${chars.bottomRight}`;
 
   const lines = wrappedContent.map((line) => {
     const stripped = stripAnsi(line);
     const padding = ' '.repeat(Math.max(0, width - stripped.length - 4));
-    return `│ ${line}${padding} │`;
+    return `${chars.vertical} ${line}${padding} ${chars.vertical}`;
   });
 
   return [top, ...lines, bottom].join('\n');
@@ -499,7 +540,9 @@ export function createBox(content: string[], title?: string): string {
  * separator('=', 40) // ======== (40 chars, dimmed)
  */
 export function separator(char: string = '─', length: number = 60): string {
-  return chalk.dim(char.repeat(length));
+  const chars = getBoxChars();
+  const separatorChar = char === '─' ? chars.horizontal : char;
+  return c.dim(separatorChar.repeat(length));
 }
 
 /**
@@ -541,7 +584,7 @@ export function formatKeyValue(
   keyWidth: number = 12
 ): string {
   const paddedKey = key.padEnd(keyWidth);
-  return `${chalk.dim(paddedKey)}: ${value}`;
+  return `${c.dim(paddedKey)}: ${value}`;
 }
 
 /**
@@ -558,7 +601,8 @@ export function formatKeyValue(
  * // "ID  │  Type  │  Severity" (bold)
  */
 export function tableHeader(columns: string[]): string {
-  return chalk.bold(columns.join('  │  '));
+  const chars = getBoxChars();
+  return c.bold(columns.join(`  ${chars.vertical}  `));
 }
 
 /**
@@ -579,5 +623,6 @@ export function tableHeader(columns: string[]): string {
  * // "abc123de [O2]  │  threat_model  │  critical"
  */
 export function tableRow(values: string[]): string {
-  return values.join('  │  ');
+  const chars = getBoxChars();
+  return values.join(`  ${chars.vertical}  `);
 }

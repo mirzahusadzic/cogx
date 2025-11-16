@@ -74,14 +74,30 @@ dotenv.config();
 
 const program = new Command();
 
+// Global accessibility and output options
 program
   .name('cognition-cli')
   .description('A meta-interpreter for verifiable, stateful AI cognition')
-  .version('2.3.2 (Infinite Context with Continuity)');
+  .version('2.3.2 (Infinite Context with Continuity)')
+  .option('--no-color', 'Disable colored output (also respects NO_COLOR env var)')
+  .option('--no-emoji', 'Disable emoji in output (for terminals without Unicode support)')
+  .option('--format <type>', 'Output format: auto, table, json, plain', 'auto')
+  .option('-v, --verbose', 'Verbose output (show detailed information)', false)
+  .option('-q, --quiet', 'Quiet mode (errors only)', false)
+  .hook('preAction', (thisCommand) => {
+    // Store global options in environment for access by formatters
+    const opts = thisCommand.optsWithGlobals();
+    process.env.COGNITION_NO_COLOR = opts.color === false ? '1' : '0';
+    process.env.COGNITION_NO_EMOJI = opts.emoji === false ? '1' : '0';
+    process.env.COGNITION_FORMAT = opts.format || 'auto';
+    process.env.COGNITION_VERBOSE = opts.verbose ? '1' : '0';
+    process.env.COGNITION_QUIET = opts.quiet ? '1' : '0';
+  });
 
 program
   .command('init')
-  .description('Initialize a new Grounded Context Pool (PGC)')
+  .alias('i')
+  .description('Initialize a new Grounded Context Pool (PGC) (alias: i)')
   .option('-p, --path <path>', 'Project path', process.cwd())
   .action(async (options) => {
     const { initCommand } = await import('./commands/init.js');
@@ -90,7 +106,8 @@ program
 
 program
   .command('genesis [sourcePath]')
-  .description('Builds the verifiable skeleton of a codebase')
+  .alias('g')
+  .description('Builds the verifiable skeleton of a codebase (alias: g)')
   .option(
     '-w, --workbench <url>',
     'URL of the egemma workbench (defaults to WORKBENCH_URL env var or http://localhost:8000)'
@@ -166,7 +183,8 @@ async function queryAction(question: string, options: QueryCommandOptions) {
 
 program
   .command('query <question>')
-  .description('Query the codebase for information')
+  .alias('q')
+  .description('Query the codebase for information (alias: q)')
   .option(
     '-p, --project-root <path>',
     'Root directory of the project being queried',
@@ -174,6 +192,7 @@ program
   )
   .option('-d, --depth <level>', 'Depth of dependency traversal', '0')
   .option('--lineage', 'Output the dependency lineage in JSON format')
+  .option('--json', 'Output results as JSON for scripting')
   .action(queryAction);
 
 program
@@ -273,7 +292,8 @@ program
 
 program
   .command('wizard')
-  .description('🧙 Interactive wizard to set up a complete PGC from scratch')
+  .alias('w')
+  .description('🧙 Interactive wizard to set up a complete PGC from scratch (alias: w)')
   .option(
     '-p, --project-root <path>',
     'Root directory of the project',
@@ -376,8 +396,10 @@ addConceptsCommands(program);
 // Lattice algebra commands
 program
   .command('lattice <query>')
+  .alias('l')
   .description(
-    'Execute boolean algebra operations across overlays (e.g., "O1 - O2", "O2[critical] ~ O4")'
+    'Execute boolean algebra operations across overlays (alias: l)\n' +
+    'Examples: "O1 - O2", "O2[critical] ~ O4"'
   )
   .option(
     '-p, --project-root <path>',
@@ -390,7 +412,7 @@ program
     'table'
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
-  .option('-v, --verbose', 'Show detailed error messages', false)
+  .option('--json', 'Output results as JSON (shorthand for --format json)')
   .action(async (query, options) => {
     const { latticeCommand } = await import('./commands/lattice.js');
     await latticeCommand(query, options);
@@ -755,5 +777,35 @@ proofsCmd
 
 // Bootstrap security layer (one-time acknowledgment)
 await bootstrapSecurity();
+
+// Global error handler for uncaught exceptions
+import { CognitionError } from './utils/errors.js';
+import { formatError, formatGenericError } from './utils/error-formatter.js';
+
+process.on('uncaughtException', (error) => {
+  const verbose = process.env.COGNITION_VERBOSE === '1';
+
+  if (error instanceof CognitionError) {
+    console.error(formatError(error, verbose));
+    process.exit(1);
+  }
+
+  // Unknown error - show stack and ask for bug report
+  console.error(formatGenericError(error, verbose));
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  const verbose = process.env.COGNITION_VERBOSE === '1';
+
+  if (reason instanceof CognitionError) {
+    console.error(formatError(reason, verbose));
+    process.exit(1);
+  }
+
+  // Unknown rejection
+  console.error(formatGenericError(reason, verbose));
+  process.exit(1);
+});
 
 program.parse();
