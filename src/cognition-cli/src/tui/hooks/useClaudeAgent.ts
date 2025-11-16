@@ -642,6 +642,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           },
         ]);
 
+        // Track if compression succeeded (for conditional recap injection)
+        let compressionSucceeded = false;
+
         try {
           const { compressContext } = await import('../../sigma/compressor.js');
           const { reconstructSessionContext } = await import(
@@ -718,8 +721,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             );
             // Continue - recap is saved in memory via setInjectedRecap
           }
+
+          // Only inject recap if compression fully succeeded
           setInjectedRecap(recap);
-          sessionManager.resetResumeSession();
 
           // FIX: Re-analyze pending turn in NEW session after compression
           if (pendingTurn) {
@@ -727,11 +731,33 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             await turnAnalysis.enqueueAnalysis(pendingTurn);
           }
 
+          compressionSucceeded = true;
           debug(
             `✅ Compression: ${result.lattice.nodes.length} nodes, ${(result.compressed_size / 1000).toFixed(1)}K tokens`
           );
         } catch (err) {
-          debug('❌ Compression failed:', (err as Error).message);
+          // CRITICAL FIX: Show error to user (not just debug log)
+          const errorMessage =
+            err instanceof Error ? err.message : String(err);
+          debug('❌ Compression failed:', errorMessage);
+
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: 'system',
+              content:
+                `❌ Context compression failed: ${errorMessage}\n` +
+                `   Starting fresh session anyway to prevent token limit issues.`,
+              timestamp: new Date(),
+            },
+          ]);
+        } finally {
+          // CRITICAL FIX: ALWAYS reset session, even if compression fails
+          // This ensures we start a fresh session and avoid hitting token limits again
+          sessionManager.resetResumeSession();
+          debug(
+            `🔄 Session reset triggered (compression ${compressionSucceeded ? 'succeeded' : 'failed but resetting anyway'})`
+          );
         }
       } finally {
         // ✅ CRITICAL: Always release lock
