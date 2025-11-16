@@ -12,6 +12,8 @@ import {
   Int64,
 } from 'apache-arrow';
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../config.js';
+import { withDbRetry } from '../utils/retry.js';
+import { DatabaseError } from '../errors/index.js';
 
 /**
  * Compute hash of embedding vector for content-based ID generation.
@@ -286,7 +288,11 @@ export class DocumentLanceStore {
       this.isInitialized = true;
     } catch (error: unknown) {
       this.initializationPromise = null;
-      throw error;
+      throw new DatabaseError(
+        'initialize',
+        { tableName, dbPath: path.join(this.pgcRoot, 'lance', 'documents.lancedb') },
+        error as Error
+      );
     }
   }
 
@@ -381,10 +387,13 @@ export class DocumentLanceStore {
     // - If concept exists (matched by id): updates in-place
     // - If concept doesn't exist: inserts new record
     // - No delete operation = no extra versions
-    await this.table!.mergeInsert('id')
-      .whenMatchedUpdateAll()
-      .whenNotMatchedInsertAll()
-      .execute([record]);
+    // - Wrapped with retry for transient database errors (SQLITE_BUSY, etc.)
+    await withDbRetry(() =>
+      this.table!.mergeInsert('id')
+        .whenMatchedUpdateAll()
+        .whenNotMatchedInsertAll()
+        .execute([record])
+    );
 
     return id;
   }
@@ -446,10 +455,13 @@ export class DocumentLanceStore {
       // - Updates existing records in-place
       // - Inserts new records
       // - No delete operation = no extra versions
-      await this.table!.mergeInsert('id')
-        .whenMatchedUpdateAll()
-        .whenNotMatchedInsertAll()
-        .execute(records);
+      // - Wrapped with retry for transient database errors (SQLITE_BUSY, etc.)
+      await withDbRetry(() =>
+        this.table!.mergeInsert('id')
+          .whenMatchedUpdateAll()
+          .whenNotMatchedInsertAll()
+          .execute(records)
+      );
     }
 
     return records.map((r) => r.id);

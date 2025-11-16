@@ -267,6 +267,8 @@ export class EmbeddingService extends EventEmitter {
     }
     // Clear cache to free memory
     this.embeddingCache.clear();
+    // Remove all event listeners to prevent memory leaks
+    this.removeAllListeners();
   }
 
   /**

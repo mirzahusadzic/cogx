@@ -11,6 +11,8 @@ import {
 } from 'apache-arrow';
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../../config.js';
 
+import { withDbRetry } from '../../../core/utils/retry.js';
+import { DatabaseError } from '../../../core/errors/index.js';
 /**
  * Creates Apache Arrow schema for lineage pattern records.
  * Updated for The Shadow architecture (Monument 4.7) with dual embeddings.
@@ -205,7 +207,11 @@ export class LanceVectorStore {
       this.isInitialized = true;
     } catch (error: unknown) {
       this.initializationPromise = null;
-      throw error;
+      throw new DatabaseError(
+        'initialize',
+        { tableName, pgcRoot: this.pgcRoot },
+        error as Error
+      );
     }
   }
 
@@ -269,10 +275,13 @@ export class LanceVectorStore {
     // - If vector exists (matched by id): updates in-place
     // - If vector doesn't exist: inserts new record
     // - No delete operation = no extra versions
-    await this.table!.mergeInsert('id')
-      .whenMatchedUpdateAll()
-      .whenNotMatchedInsertAll()
-      .execute([record]);
+    // - Wrapped with retry for transient database errors (SQLITE_BUSY, etc.)
+    await withDbRetry(() =>
+      this.table!.mergeInsert('id')
+        .whenMatchedUpdateAll()
+        .whenNotMatchedInsertAll()
+        .execute([record])
+    );
 
     return id;
   }
@@ -342,10 +351,13 @@ export class LanceVectorStore {
     }
 
     // Batch upsert: All records in a single transaction
-    await this.table!.mergeInsert('id')
-      .whenMatchedUpdateAll()
-      .whenNotMatchedInsertAll()
-      .execute(records);
+    // Wrapped with retry for transient database errors (SQLITE_BUSY, etc.)
+    await withDbRetry(() =>
+      this.table!.mergeInsert('id')
+        .whenMatchedUpdateAll()
+        .whenNotMatchedInsertAll()
+        .execute(records)
+    );
 
     return records.map((r) => r.id);
   }

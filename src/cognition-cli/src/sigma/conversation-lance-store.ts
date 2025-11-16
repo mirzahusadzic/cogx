@@ -12,6 +12,8 @@ import {
   Bool,
 } from 'apache-arrow';
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../config.js';
+import { withDbRetry } from '../core/utils/retry.js';
+import { DatabaseError } from '../core/errors/index.js';
 
 /**
  * Represents a conversation turn record stored in LanceDB.
@@ -237,7 +239,11 @@ export class ConversationLanceStore {
       this.isInitialized = true;
     } catch (error: unknown) {
       this.initializationPromise = null;
-      throw error;
+      throw new DatabaseError(
+        'initialize',
+        { tableName, sigmaRoot: this.sigmaRoot },
+        error as Error
+      );
     }
   }
 
@@ -333,10 +339,13 @@ export class ConversationLanceStore {
     // - If turn exists (matched by id): updates in-place
     // - If turn doesn't exist: inserts new record
     // - No delete operation = no extra versions
-    await this.table!.mergeInsert('id')
-      .whenMatchedUpdateAll()
-      .whenNotMatchedInsertAll()
-      .execute([record]);
+    // - Wrapped with retry for transient database errors (SQLITE_BUSY, etc.)
+    await withDbRetry(() =>
+      this.table!.mergeInsert('id')
+        .whenMatchedUpdateAll()
+        .whenNotMatchedInsertAll()
+        .execute([record])
+    );
 
     return turnId;
   }
