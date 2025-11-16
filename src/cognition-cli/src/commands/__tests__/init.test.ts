@@ -189,7 +189,9 @@ describe('init command', () => {
       expect(await fs.pathExists(pgcRoot)).toBe(true);
     });
 
-    it('should work with relative paths', async () => {
+    // TODO: process.chdir() is not supported in worker threads (vitest limitation)
+    // Skip pending redesign to avoid process.chdir() or run in main thread
+    it.skip('should work with relative paths', async () => {
       // Create subdirectory
       const subDir = path.join(tempDir, 'subdir');
       await fs.ensureDir(subDir);
