@@ -244,10 +244,31 @@ export class LineagePatternsManager implements PatternManager {
     let miningResults: PatternResultPacket[];
     try {
       const promises = jobs.map((job) =>
-        this.workerPool!.exec('processJob', [job])
+        this.workerPool!.exec('processJob', [job]).catch((error) => ({
+          status: 'error' as const,
+          symbolName: job.symbolName,
+          filePath: job.filePath,
+          error: error.message || String(error),
+        }))
       );
 
-      miningResults = (await Promise.all(promises)) as PatternResultPacket[];
+      // Use Promise.allSettled to continue even if some workers crash
+      // This prevents one failing job from stopping all lineage generation
+      const settledResults = await Promise.allSettled(promises);
+
+      miningResults = settledResults.map((result) => {
+        if (result.status === 'fulfilled') {
+          return result.value;
+        } else {
+          // Worker crashed completely - return error result
+          return {
+            status: 'error' as const,
+            symbolName: 'unknown',
+            filePath: 'unknown',
+            error: result.reason?.message || String(result.reason),
+          };
+        }
+      }) as PatternResultPacket[];
 
       const mined = miningResults.filter((r) => r.status === 'success').length;
       const skipped = miningResults.filter(
@@ -260,6 +281,24 @@ export class LineagePatternsManager implements PatternManager {
           `[LineagePatterns] Mining complete: ${mined} mined, ${skipped} skipped, ${failed} failed`
         )
       );
+
+      // Log individual worker errors for debugging
+      if (failed > 0) {
+        const errors = miningResults.filter((r) => r.status === 'error');
+        console.warn(
+          chalk.yellow(
+            `[LineagePatterns] ${failed} worker(s) failed - check logs for details`
+          )
+        );
+        errors.slice(0, 5).forEach((r) => {
+          console.warn(
+            chalk.dim(`  - ${r.symbolName} (${r.filePath}): ${r.error}`)
+          );
+        });
+        if (errors.length > 5) {
+          console.warn(chalk.dim(`  ... and ${errors.length - 5} more`));
+        }
+      }
     } catch (error) {
       console.error(chalk.red('[LineagePatterns] Mining error:'), error);
       throw error;

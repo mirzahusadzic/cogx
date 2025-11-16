@@ -281,16 +281,31 @@ Do you acknowledge and accept these terms? [yes/NO]: `);
   }
 
   /**
-   * Prompt user for input
+   * Prompt user for input with timeout
+   *
+   * @param timeoutMs - Timeout in milliseconds (default: 60000 = 60 seconds)
+   * @returns User input or throws on timeout
+   * @throws Error if no response within timeout
    */
-  private async promptUser(): Promise<string> {
+  private async promptUser(timeoutMs: number = 60000): Promise<string> {
     const rl = createInterface({
       input: process.stdin,
       output: process.stdout,
     });
 
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        rl.close();
+        reject(
+          new Error(
+            'Prompt timeout - no user input after 60 seconds. ' +
+              'Please run the command again and respond to the acknowledgment prompt.'
+          )
+        );
+      }, timeoutMs);
+
       rl.question('', (answer) => {
+        clearTimeout(timeout);
         rl.close();
         resolve(answer.trim());
       });
