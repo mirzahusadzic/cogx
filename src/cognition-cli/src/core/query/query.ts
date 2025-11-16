@@ -219,12 +219,34 @@ export async function queryCommand(
     }
   }
 
-  const initialContextBuffers = await Promise.all(
+  // Use Promise.allSettled to handle missing objects gracefully
+  const bufferResults = await Promise.allSettled(
     currentResults.map((r) => pgc.objectStore.retrieve(r.structural_hash))
   );
+
+  const initialContextBuffers = bufferResults
+    .filter(r => r.status === 'fulfilled' && r.value)
+    .map(r => (r as PromiseFulfilledResult<Buffer>).value);
+
+  // Log any retrieval failures (but continue with partial results)
+  const failures = bufferResults.filter(r => r.status === 'rejected');
+  if (failures.length > 0) {
+    console.warn(
+      `⚠️  Failed to retrieve ${failures.length} object(s) from store - returning partial results`
+    );
+  }
+
   queryResult.initialContext = initialContextBuffers
     .filter((b) => b)
-    .map((b) => JSON.parse(b!.toString()));
+    .map((b) => {
+      try {
+        return JSON.parse(b!.toString());
+      } catch (error) {
+        console.warn('Failed to parse structural data:', error);
+        return null;
+      }
+    })
+    .filter((data) => data !== null);
 
   const maxDepth = parseInt(options.depth, 10);
   if (maxDepth > 0 && currentResults.length > 0) {

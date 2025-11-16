@@ -416,16 +416,49 @@ export class GenesisOrchestrator {
         this.workerPool!.exec('parseNativeAST', [job])
       );
 
-      const results = (await Promise.all(promises)) as GenesisJobResult[];
+      // Use Promise.allSettled to prevent total failure if any worker crashes
+      // This allows partial success - even if some files fail, we keep successful results
+      const settledResults = await Promise.allSettled(promises);
+
+      const results: GenesisJobResult[] = [];
+      const workerErrors: Array<{job: typeof jobs[0]; error: Error}> = [];
+
+      settledResults.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          results.push(result.value as GenesisJobResult);
+        } else {
+          // Worker crashed or rejected - log error but continue
+          workerErrors.push({
+            job: jobs[index],
+            error: result.reason instanceof Error
+              ? result.reason
+              : new Error(String(result.reason))
+          });
+          console.error(
+            chalk.yellow(
+              `⚠️  Worker failed for ${jobs[index].file.relativePath}: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`
+            )
+          );
+        }
+      });
 
       const succeeded = results.filter((r) => r.status === 'success').length;
       const failed = results.filter((r) => r.status === 'error').length;
+      const crashed = workerErrors.length;
 
-      s.stop(
-        chalk.green(
-          `[Genesis] Native parsing complete: ${succeeded} succeeded, ${failed} failed`
-        )
-      );
+      if (crashed > 0) {
+        s.stop(
+          chalk.yellow(
+            `[Genesis] Native parsing partial success: ${succeeded} succeeded, ${failed} failed, ${crashed} worker crashes`
+          )
+        );
+      } else {
+        s.stop(
+          chalk.green(
+            `[Genesis] Native parsing complete: ${succeeded} succeeded, ${failed} failed`
+          )
+        );
+      }
 
       return results;
     } catch (error) {

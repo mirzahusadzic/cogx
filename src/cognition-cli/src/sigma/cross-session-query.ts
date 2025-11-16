@@ -27,6 +27,7 @@
 import { ConversationLanceStore } from './conversation-lance-store.js';
 import type { ConversationQueryFilter } from './conversation-lance-store.js';
 import { WorkbenchClient } from '../core/executors/workbench-client.js';
+import { safeJSONParse } from '../utils/json-helpers.js';
 
 export interface CrossSessionQueryOptions {
   workbenchUrl?: string;
@@ -304,8 +305,8 @@ export async function findAllParadigmShifts(
           O6: turn.alignment_O6,
           O7: turn.alignment_O7,
         },
-        semantic_tags: JSON.parse(turn.semantic_tags),
-        references: JSON.parse(turn.references),
+        semantic_tags: safeJSONParse(turn.semantic_tags, [], 'semantic_tags'),
+        references: safeJSONParse(turn.references, [], 'references'),
       },
     }));
   } finally {
@@ -826,13 +827,13 @@ export async function findRelatedTurns(
             O6: turn.alignment_O6,
             O7: turn.alignment_O7,
           },
-          semantic_tags: JSON.parse(turn.semantic_tags),
-          references: JSON.parse(turn.references),
+          semantic_tags: safeJSONParse(turn.semantic_tags, [], 'semantic_tags'),
+          references: safeJSONParse(turn.references, [], 'references'),
         },
       });
 
       // Explore references
-      const references = JSON.parse(turn.references);
+      const references = safeJSONParse(turn.references, [], 'turn.references');
       for (const refId of references) {
         await explore(refId, currentDepth + 1);
       }

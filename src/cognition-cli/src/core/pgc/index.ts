@@ -44,12 +44,23 @@ export class Index {
    */
   async batchSet(entries: Map<string, IndexData>): Promise<void> {
     await fs.ensureDir(this.indexPath);
-    await Promise.all(
+
+    // Use Promise.allSettled to handle individual write failures
+    const writeResults = await Promise.allSettled(
       Array.from(entries.entries()).map(async ([key, data]) => {
         const indexPath = this.getIndexPath(key);
         await fs.writeJSON(indexPath, data, { spaces: 2 });
+        return key;
       })
     );
+
+    // Log failures but don't throw (partial success is acceptable)
+    const failures = writeResults.filter(r => r.status === 'rejected');
+    if (failures.length > 0) {
+      console.warn(
+        `[Index] Failed to write ${failures.length} index entries (${failures.length}/${entries.size})`
+      );
+    }
   }
 
   async get(key: string): Promise<IndexData | null> {
@@ -87,23 +98,30 @@ export class Index {
     }
     const indexFiles = await fs.readdir(this.indexPath);
 
-    // Parallel read with validation
-    const dataResults = await Promise.all(
+    // Parallel read with validation using Promise.allSettled
+    const dataResults = await Promise.allSettled(
       indexFiles.map(async (file) => {
-        try {
-          const fullPath = path.join(this.indexPath, file);
-          const rawData = await fs.readJSON(fullPath);
-          const data = IndexDataSchema.parse(rawData);
-          return data;
-        } catch (error) {
-          // Ignore files that fail validation
-          return null;
-        }
+        const fullPath = path.join(this.indexPath, file);
+        const rawData = await fs.readJSON(fullPath);
+        const data = IndexDataSchema.parse(rawData);
+        return data;
       })
     );
 
-    // Filter out null entries (failed validations)
-    return dataResults.filter((data) => data !== null) as IndexData[];
+    // Extract successful reads
+    const successfulReads = dataResults
+      .filter(r => r.status === 'fulfilled')
+      .map(r => r.value);
+
+    // Log failures for diagnostics
+    const failures = dataResults.filter(r => r.status === 'rejected');
+    if (failures.length > 0) {
+      console.warn(
+        `[Index] Failed to read ${failures.length} index file(s) (${failures.length}/${indexFiles.length})`
+      );
+    }
+
+    return successfulReads;
   }
 
   // This is the new multi-threaded search coordinator.
@@ -190,10 +208,25 @@ export class Index {
       promises.push(promise);
     }
 
-    const resultsFromWorkers = await Promise.all(promises);
+    // Use Promise.allSettled to handle worker crashes gracefully
+    const workerResults = await Promise.allSettled(promises);
+
+    // Extract successful results
+    const resultsFromWorkers = workerResults
+      .filter(r => r.status === 'fulfilled')
+      .map(r => r.value)
+      .flat();
+
+    // Log worker failures
+    const workerFailures = workerResults.filter(r => r.status === 'rejected');
+    if (workerFailures.length > 0) {
+      console.warn(
+        `[Search] ${workerFailures.length} worker(s) crashed during search`
+      );
+    }
 
     const uniqueMatches = new Map<string, IndexData>();
-    for (const match of resultsFromWorkers.flat()) {
+    for (const match of resultsFromWorkers) {
       uniqueMatches.set(match.structural_hash, match);
     }
 

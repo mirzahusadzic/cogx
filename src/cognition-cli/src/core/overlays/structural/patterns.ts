@@ -276,7 +276,26 @@ export class StructuralPatternsManager implements PatternManager {
         this.workerPool!.exec('processStructuralPattern', [job])
       );
 
-      miningResults = (await Promise.all(promises)) as StructuralMiningResult[];
+      // Use Promise.allSettled to prevent total failure if any worker crashes
+      const settledResults = await Promise.allSettled(promises);
+      miningResults = settledResults
+        .filter(r => r.status === 'fulfilled')
+        .map(r => r.value as StructuralMiningResult);
+
+      // Log any worker crashes
+      const crashes = settledResults.filter(r => r.status === 'rejected');
+      if (crashes.length > 0) {
+        console.warn(
+          chalk.yellow(
+            `⚠️  ${crashes.length} worker(s) crashed during structural pattern mining`
+          )
+        );
+        crashes.forEach((crash) => {
+          console.error(
+            chalk.red(`  Worker crash: ${crash.reason instanceof Error ? crash.reason.message : String(crash.reason)}`)
+          );
+        });
+      }
 
       const mined = miningResults.filter((r) => r.status === 'success').length;
       const skipped = miningResults.filter(
@@ -284,9 +303,16 @@ export class StructuralPatternsManager implements PatternManager {
       ).length;
       const failed = miningResults.filter((r) => r.status === 'error').length;
 
-      console.log(
-        chalk.green(
-          `[StructuralPatterns] Mining complete: ${mined} mined, ${skipped} skipped, ${failed} failed`
+      if (crashes.length > 0) {
+        console.log(
+          chalk.yellow(
+            `[StructuralPatterns] Mining partial success: ${mined} mined, ${skipped} skipped, ${failed} failed, ${crashes.length} crashed`
+          )
+        );
+      } else {
+        console.log(
+          chalk.green(
+            `[StructuralPatterns] Mining complete: ${mined} mined, ${skipped} skipped, ${failed} failed`
         )
       );
     } catch (error) {

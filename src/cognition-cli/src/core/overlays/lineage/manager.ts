@@ -247,7 +247,26 @@ export class LineagePatternsManager implements PatternManager {
         this.workerPool!.exec('processJob', [job])
       );
 
-      miningResults = (await Promise.all(promises)) as PatternResultPacket[];
+      // Use Promise.allSettled to handle worker failures gracefully
+      const settledResults = await Promise.allSettled(promises);
+
+      // Extract successful results
+      miningResults = settledResults
+        .filter(r => r.status === 'fulfilled')
+        .map(r => r.value as PatternResultPacket);
+
+      // Log worker crashes
+      const workerCrashes = settledResults.filter(r => r.status === 'rejected');
+      if (workerCrashes.length > 0) {
+        console.warn(
+          chalk.yellow(
+            `[LineagePatterns] ${workerCrashes.length} worker(s) crashed during mining`
+          )
+        );
+        workerCrashes.forEach((crash, idx) => {
+          console.warn(chalk.dim(`  - Worker ${idx}: ${crash.reason}`));
+        });
+      }
 
       const mined = miningResults.filter((r) => r.status === 'success').length;
       const skipped = miningResults.filter(
@@ -257,7 +276,7 @@ export class LineagePatternsManager implements PatternManager {
 
       console.log(
         chalk.green(
-          `[LineagePatterns] Mining complete: ${mined} mined, ${skipped} skipped, ${failed} failed`
+          `[LineagePatterns] Mining complete: ${mined} mined, ${skipped} skipped, ${failed} failed (${workerCrashes.length} worker crashes)`
         )
       );
     } catch (error) {

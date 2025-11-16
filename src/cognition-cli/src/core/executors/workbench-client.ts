@@ -637,17 +637,36 @@ export class WorkbenchClient {
    * BEHAVIOR:
    * - Waits for both queues to finish processing
    * - Polls every 100ms until both queues are idle
-   * - Does NOT cancel in-flight requests
+   * - Throws error if shutdown exceeds timeout (prevents infinite hangs)
+   *
+   * @param timeoutMs - Maximum time to wait for shutdown (default: 30 seconds)
+   * @throws Error if shutdown times out
    *
    * @example
-   * // Graceful shutdown
+   * // Graceful shutdown with default timeout
    * await client.shutdown();
    * console.log('All requests completed');
    * process.exit(0);
+   *
+   * @example
+   * // Custom timeout
+   * await client.shutdown(60000); // 60 second timeout
    */
-  public async shutdown(): Promise<void> {
+  public async shutdown(timeoutMs = 30000): Promise<void> {
+    const startTime = Date.now();
+
     // Wait for any ongoing processing to finish
     while (this.isProcessingSummarizeQueue || this.isProcessingEmbedQueue) {
+      // Check timeout
+      if (Date.now() - startTime > timeoutMs) {
+        throw new Error(
+          `Workbench client shutdown timeout after ${timeoutMs}ms - ` +
+          `queue processing appears stuck. ` +
+          `Summarize queue: ${this.isProcessingSummarizeQueue ? 'processing' : 'idle'}, ` +
+          `Embed queue: ${this.isProcessingEmbedQueue ? 'processing' : 'idle'}`
+        );
+      }
+
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }

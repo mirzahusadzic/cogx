@@ -64,6 +64,7 @@ import {
   BlastRadiusResult,
   CriticalPath,
 } from './types.js';
+import { safeJSONParse } from '../../utils/json-helpers.js';
 
 /**
  * Performs graph traversal operations for blast radius and dependency analysis.
@@ -170,7 +171,11 @@ export class GraphTraversal {
 
       if (!structuralDataBuffer) continue;
 
-      const structuralData = JSON.parse(structuralDataBuffer.toString());
+      const structuralData = safeJSONParse(
+        structuralDataBuffer.toString(),
+        {},
+        `structural_data:${symbolName}`
+      );
 
       // Extract dependencies from imports
       const imports = structuralData.imports || [];

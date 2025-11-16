@@ -200,11 +200,16 @@ export async function wizardCommand(options: WizardOptions) {
     'reverse_deps',
     'overlays',
   ];
-  const pgcExists = (
-    await Promise.all(
-      coreDirectories.map((dir) => fs.pathExists(path.join(pgcRoot, dir)))
-    )
-  ).every((exists) => exists);
+
+  // Use Promise.allSettled to check directory existence gracefully
+  const directoryCheckResults = await Promise.allSettled(
+    coreDirectories.map((dir) => fs.pathExists(path.join(pgcRoot, dir)))
+  );
+
+  // PGC exists only if ALL checks succeeded AND all directories exist
+  const pgcExists = directoryCheckResults.every(
+    (result) => result.status === 'fulfilled' && result.value === true
+  );
 
   if (pgcExists) {
     const action = (await select({

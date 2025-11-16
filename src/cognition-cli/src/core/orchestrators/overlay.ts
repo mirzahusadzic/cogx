@@ -390,7 +390,8 @@ export class OverlayOrchestrator {
         );
 
         // OPTIMIZATION: Parallel file processing for 2x speedup
-        const fileResults = await Promise.all(
+        // Use Promise.allSettled to allow partial success
+        const fileSettledResults = await Promise.allSettled(
           batch.map(async (file) => {
             if (file.path.includes('.test.') || file.path.includes('.spec.')) {
               return { file, skip: true, test: true };
@@ -418,6 +419,23 @@ export class OverlayOrchestrator {
             };
           })
         );
+
+        // Extract successful results and log failures
+        const fileResults = fileSettledResults
+          .filter(r => r.status === 'fulfilled')
+          .map(r => r.value);
+
+        const fileFailures = fileSettledResults.filter(r => r.status === 'rejected');
+        if (fileFailures.length > 0) {
+          console.warn(
+            chalk.yellow(
+              `[Overlay] ${fileFailures.length} file(s) failed to process in batch ${i / BATCH_SIZE + 1}`
+            )
+          );
+          fileFailures.forEach((failure) => {
+            console.warn(chalk.dim(`  - ${failure.reason}`));
+          });
+        }
 
         // Process results and build jobs
         for (const result of fileResults) {
@@ -812,7 +830,8 @@ export class OverlayOrchestrator {
     });
 
     // OPTIMIZATION: Parallel file reading for faster loading
-    const fileReads = await Promise.all(
+    // Use Promise.allSettled to handle individual file read failures
+    const fileReadResults = await Promise.allSettled(
       filePaths.map(async (fullPath) => {
         const stats = await fs.stat(fullPath);
         if (stats.size > this.maxFileSize) {
@@ -836,6 +855,22 @@ export class OverlayOrchestrator {
         };
       })
     );
+
+    // Extract successful reads
+    const fileReads = fileReadResults
+      .filter(r => r.status === 'fulfilled')
+      .map(r => r.value);
+
+    // Log failed reads
+    const fileReadFailures = fileReadResults.filter(r => r.status === 'rejected');
+    if (fileReadFailures.length > 0) {
+      console.warn(
+        chalk.yellow(`[Overlay] ${fileReadFailures.length} file(s) failed to read`)
+      );
+      fileReadFailures.forEach((failure) => {
+        console.warn(chalk.dim(`  - ${failure.reason}`));
+      });
+    }
 
     // Filter out null entries (skipped large files)
     files = fileReads.filter((f) => f !== null) as SourceFile[];
@@ -875,7 +910,8 @@ export class OverlayOrchestrator {
     const missingHashes = new Set<string>();
 
     // Parallelize existence checks for better performance
-    const existenceChecks = await Promise.all(
+    // Use Promise.allSettled to handle individual check failures
+    const existenceCheckResults = await Promise.allSettled(
       jobs.map(async (job) => ({
         job,
         exists: await this.pgc.objectStore.exists(job.structuralHash),
@@ -883,12 +919,18 @@ export class OverlayOrchestrator {
     );
 
     // Process results sequentially to maintain order
-    for (const { job, exists } of existenceChecks) {
-      if (!exists && !missingHashes.has(job.structuralHash)) {
-        missingHashes.add(job.structuralHash);
-        messages.push(
-          `Structural hash missing for ${job.filePath}#${job.symbolName}: ${job.structuralHash.slice(0, 7)}...`
-        );
+    for (const result of existenceCheckResults) {
+      if (result.status === 'fulfilled') {
+        const { job, exists } = result.value;
+        if (!exists && !missingHashes.has(job.structuralHash)) {
+          missingHashes.add(job.structuralHash);
+          messages.push(
+            `Structural hash missing for ${job.filePath}#${job.symbolName}: ${job.structuralHash.slice(0, 7)}...`
+          );
+        }
+      } else {
+        // Existence check itself failed - treat as missing
+        messages.push(`Failed to check existence: ${result.reason}`);
       }
     }
 
@@ -913,7 +955,8 @@ export class OverlayOrchestrator {
     const indexFiles = await fs.readdir(docsIndexPath);
 
     // Parallelize file reads for better performance
-    const documentReads = await Promise.all(
+    // Use Promise.allSettled to handle corrupt index files gracefully
+    const documentReadResults = await Promise.allSettled(
       indexFiles
         .filter((indexFile) => indexFile.endsWith('.json'))
         .map(async (indexFile) => {
@@ -931,6 +974,18 @@ export class OverlayOrchestrator {
           };
         })
     );
+
+    // Extract successful reads, log failures
+    const documentReads = documentReadResults
+      .filter(r => r.status === 'fulfilled')
+      .map(r => r.value);
+
+    const docReadFailures = documentReadResults.filter(r => r.status === 'rejected');
+    if (docReadFailures.length > 0) {
+      console.warn(
+        chalk.yellow(`[Overlay] ${docReadFailures.length} document index file(s) failed to read`)
+      );
+    }
 
     return documentReads;
   }

@@ -69,8 +69,68 @@ import path from 'path';
 // import { addPatternsCommands } from './commands/patterns.js';
 import { bootstrapSecurity } from './core/security/security-bootstrap.js';
 import dotenv from 'dotenv';
+import chalk from 'chalk';
 
 dotenv.config();
+
+// ========================================
+// GLOBAL ERROR HANDLERS
+// ========================================
+// Catch unhandled rejections and exceptions to prevent silent failures
+// and provide helpful error messages to users
+
+/**
+ * Handle unhandled promise rejections
+ *
+ * These occur when async operations fail without proper error handling.
+ * We log the error details and exit gracefully to prevent undefined behavior.
+ */
+process.on('unhandledRejection', (reason, promise) => {
+  console.error(chalk.red('\n❌ Unhandled Promise Rejection:'));
+  console.error(chalk.red('This is a programming error - please report it.\n'));
+
+  if (reason instanceof Error) {
+    console.error(chalk.red(`Error: ${reason.message}`));
+    if (reason.stack) {
+      console.error(chalk.dim(reason.stack));
+    }
+  } else {
+    console.error(chalk.red(`Reason: ${String(reason)}`));
+  }
+
+  console.error(chalk.yellow('\nPromise:'), promise);
+  console.error(
+    chalk.cyan(
+      '\nPlease report this issue at: https://github.com/opencognition/cogx/issues'
+    )
+  );
+
+  process.exit(1);
+});
+
+/**
+ * Handle uncaught exceptions
+ *
+ * These occur when synchronous code throws errors without try-catch.
+ * We log the error details and exit gracefully.
+ */
+process.on('uncaughtException', (error) => {
+  console.error(chalk.red('\n❌ Uncaught Exception:'));
+  console.error(chalk.red('This is a programming error - please report it.\n'));
+  console.error(chalk.red(`Error: ${error.message}`));
+
+  if (error.stack) {
+    console.error(chalk.dim(error.stack));
+  }
+
+  console.error(
+    chalk.cyan(
+      '\nPlease report this issue at: https://github.com/opencognition/cogx/issues'
+    )
+  );
+
+  process.exit(1);
+});
 
 const program = new Command();
 
