@@ -134,8 +134,12 @@ export interface UseCompressionOptions extends CompressionOptions {
    *
    * @param tokens - Token count at compression time
    * @param turns - Turn count at compression time
+   * @returns Promise that resolves when compression completes (or void for sync callbacks)
    */
-  onCompressionTriggered?: (tokens: number, turns: number) => void;
+  onCompressionTriggered?: (
+    tokens: number,
+    turns: number
+  ) => void | Promise<void>;
 
   /**
    * Whether to enable debug logging
@@ -178,8 +182,10 @@ export interface UseCompressionResult {
    *
    * Call this function to execute compression when shouldTrigger is true.
    * Updates state and invokes onCompressionTriggered callback.
+   *
+   * @returns Promise that resolves when compression completes
    */
-  triggerCompression: () => void;
+  triggerCompression: () => Promise<void>;
 
   /**
    * Reset compression state (call when new session starts)
@@ -328,9 +334,11 @@ export function useCompression(
    *    - lastCompression = now
    *    - lastCompressedTokens = current count
    *    - compressionCount incremented
-   * 4. Invoke onCompressionTriggered callback
+   * 4. Invoke onCompressionTriggered callback and AWAIT completion
+   *
+   * @returns Promise that resolves when compression callback completes
    */
-  const triggerCompression = useCallback(() => {
+  const triggerCompression = useCallback(async () => {
     if (debug) {
       console.log('[useCompression] Manual compression trigger');
     }
@@ -341,7 +349,9 @@ export function useCompression(
     stateRef.current.lastCompressedTokens = tokenCount;
     stateRef.current.compressionCount++;
 
-    onCompressionTriggered?.(tokenCount, analyzedTurns);
+    // CRITICAL: Await the callback to block UI until compression completes
+    // This ensures recap is ready and session is reset before user can send next message
+    await onCompressionTriggered?.(tokenCount, analyzedTurns);
   }, [tokenCount, analyzedTurns, onCompressionTriggered, debug]);
 
   /**

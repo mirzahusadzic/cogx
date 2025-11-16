@@ -419,7 +419,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   // Convenient aliases for session state
   const anchorId = sessionManager.state.anchorId;
   const currentSessionId = sessionManager.state.currentSessionId;
-  const resumeSessionId = sessionManager.state.resumeSessionId;
+  // NOTE: Do NOT capture resumeSessionId as const - use sessionManager.getResumeSessionId() directly
+  // The getter checks a synchronous ref that bypasses React's async state updates
 
   // Ref to track current session ID synchronously (prevents duplicate session entries during rapid SDK messages)
   // React state updates are async, so during rapid message processing (347 msgs in 6s during turn analysis),
@@ -642,18 +643,31 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           },
         ]);
 
+        // CRITICAL: Block user input during compression
+        // Set isThinking to true to prevent user from sending messages during compression
+        setIsThinking(true);
+        debug('🔍 [COMPRESSION] Step 1: Set isThinking=true');
+
         // Track if compression succeeded (for conditional recap injection)
         let compressionSucceeded = false;
 
         try {
+          debug('🔍 [COMPRESSION] Step 2: Importing compressor modules...');
           const { compressContext } = await import('../../sigma/compressor.js');
           const { reconstructSessionContext } = await import(
             '../../sigma/context-reconstructor.js'
           );
+          debug('🔍 [COMPRESSION] Step 3: Modules imported successfully');
 
+          debug(
+            `🔍 [COMPRESSION] Step 4: Starting compressContext with ${turnAnalysis.analyses.length} analyses...`
+          );
           const result = await compressContext(turnAnalysis.analyses, {
             target_size: 40000,
           });
+          debug(
+            `🔍 [COMPRESSION] Step 5: compressContext complete (${result.lattice.nodes.length} nodes)`
+          );
 
           // FIX: Add pending turn to lattice BEFORE building recap
           // This ensures the assistant's final message is included in the compressed recap
@@ -697,16 +711,21 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           }
 
           // FIX: Use reconstructSessionContext to build recap with system fingerprint
+          debug(
+            `🔍 [COMPRESSION] Step 6: Starting reconstructSessionContext with ${latticeWithPending.nodes.length} nodes...`
+          );
           const sessionContext = await reconstructSessionContext(
             latticeWithPending,
             cwd,
             conversationRegistryRef.current || undefined
           );
+          debug('🔍 [COMPRESSION] Step 7: reconstructSessionContext complete');
 
           const recap =
             `COMPRESSED CONVERSATION RECAP (${latticeWithPending.nodes.length} key turns)\n` +
             `${(tokens / 1000).toFixed(1)}K → ${(result.compressed_size / 1000).toFixed(1)}K tokens\n\n` +
             sessionContext.recap;
+          debug(`🔍 [COMPRESSION] Step 8: Recap built (${recap.length} chars)`);
 
           try {
             fs.writeFileSync(
@@ -723,21 +742,41 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           }
 
           // Only inject recap if compression fully succeeded
+          debug('🔍 [COMPRESSION] Step 9: Setting injected recap');
           setInjectedRecap(recap);
 
           // FIX: Re-analyze pending turn in NEW session after compression
           if (pendingTurn) {
+            debug('🔍 [COMPRESSION] Step 10: Re-analyzing pending turn...');
             debug('🔄 Re-analyzing pending turn in new session');
             await turnAnalysis.enqueueAnalysis(pendingTurn);
+            debug(
+              '🔍 [COMPRESSION] Step 11: Pending turn re-analysis complete'
+            );
           }
 
           compressionSucceeded = true;
+          debug('🔍 [COMPRESSION] Step 12: Compression succeeded!');
           debug(
             `✅ Compression: ${result.lattice.nodes.length} nodes, ${(result.compressed_size / 1000).toFixed(1)}K tokens`
           );
+
+          // Show success message to user with compression stats
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: 'system',
+              content:
+                `✅ Compression complete!\n` +
+                `   ${result.lattice.nodes.length} key turns preserved (${(tokens / 1000).toFixed(1)}K → ${(result.compressed_size / 1000).toFixed(1)}K tokens)\n` +
+                `   Conversation continues with intelligent recap...`,
+              timestamp: new Date(),
+            },
+          ]);
         } catch (err) {
           // CRITICAL FIX: Show error to user (not just debug log)
           const errorMessage = err instanceof Error ? err.message : String(err);
+          debug('🔍 [COMPRESSION] ERROR:', errorMessage);
           debug('❌ Compression failed:', errorMessage);
 
           setMessages((prev) => [
@@ -751,12 +790,20 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             },
           ]);
         } finally {
+          debug(
+            '🔍 [COMPRESSION] Step 13: In finally block - resetting session'
+          );
           // CRITICAL FIX: ALWAYS reset session, even if compression fails
           // This ensures we start a fresh session and avoid hitting token limits again
           sessionManager.resetResumeSession();
           debug(
             `🔄 Session reset triggered (compression ${compressionSucceeded ? 'succeeded' : 'failed but resetting anyway'})`
           );
+
+          // Re-enable user input after compression completes
+          debug('🔍 [COMPRESSION] Step 14: Setting isThinking=false');
+          setIsThinking(false);
+          debug('🔍 [COMPRESSION] Step 15: Compression handler complete!');
         }
       } finally {
         // ✅ CRITICAL: Always release lock
@@ -858,7 +905,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
    */
   useEffect(() => {
     const loadLattice = async () => {
-      const sessionId = resumeSessionId || anchorId;
+      // Get current resume session ID dynamically (bypasses React async state)
+      const currentResumeId = sessionManager.getResumeSessionId();
+      const sessionId = currentResumeId || anchorId;
 
       // Skip if already loaded for this session
       if (latticeLoadedRef.current.has(sessionId)) return;
@@ -906,7 +955,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     };
 
     loadLattice();
-  }, [anchorId, resumeSessionId, cwd]);
+    // resumeSessionId removed from deps - using sessionManager.getResumeSessionId() directly
+    // sessionManager is a stable object (doesn't change), so no need to include in deps
+  }, [anchorId, cwd, sessionManager]);
 
   // ========================================
   // MESSAGE SYNCHRONIZATION
@@ -1032,16 +1083,11 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           }
         }
 
-        // 🔄 OPTION C: Check compression AFTER all messages queued
-        // This ensures queueing completes before compression is evaluated
-        if (!isThinking && !compressionInProgressRef.current) {
-          const shouldCompress = compression.shouldTrigger;
-
-          if (shouldCompress) {
-            debug(' 🔄 Triggering compression from queueing effect');
-            compression.triggerCompression();
-          }
-        }
+        // 🔄 COMPRESSION MOVED TO sendMessage()
+        // Compression now triggers synchronously when user sends message (user action)
+        // NOT from this effect (async React render cycle)
+        // This prevents React effect deadlocks with LanceDB getAllItems()
+        // See sendMessage() STEP 0 for new compression logic
       } catch (error) {
         // Log queueing errors but don't block conversation flow
         debug('❌ Queueing error:', error);
@@ -1269,6 +1315,21 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           },
         ]);
 
+        // STEP 2.5: Check if compression needed AFTER user message added to state
+        // This runs synchronously as part of user action, NOT in useEffect
+        // Prevents React effect deadlocks with getAllItems()
+        // User's message is now in state, so compression will include it
+        if (compression.shouldTrigger && !compressionInProgressRef.current) {
+          console.log(
+            '🔄 [SEND MESSAGE] Compression needed after adding user message...'
+          );
+          // Keep isThinking=true (already set above)
+          await compression.triggerCompression(); // Wait for compression
+          console.log(
+            '✅ [SEND MESSAGE] Compression complete, proceeding with Claude query...'
+          );
+        }
+
         // Collect stderr for better error messages
         const stderrLines: string[] = [];
 
@@ -1316,8 +1377,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           }
         }
 
-        // Get current resume session ID
-        const currentResumeId = resumeSessionId;
+        // Get current resume session ID dynamically (bypasses React async state)
+        // CRITICAL: Must call getter directly, NOT use captured const
+        // This ensures we get the latest value even if resetResumeSession() was just called
+        const currentResumeId = sessionManager.getResumeSessionId();
 
         // Create query with Claude Code system prompt preset
         const q = createSDKQuery({
@@ -1408,7 +1471,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     },
     [
       cwd,
-      resumeSessionId,
+      // resumeSessionId removed - use sessionManager.getResumeSessionId() directly for synchronous access
       injectedRecap,
       debugLog,
       embedderRef,

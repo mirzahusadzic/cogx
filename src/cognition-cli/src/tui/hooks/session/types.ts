@@ -91,6 +91,13 @@ export interface SessionState {
   resumeSessionId: string | undefined;
 
   /**
+   * Force creation of new session on next message
+   * Set after compression to prevent async SDK messages from overwriting resumeSessionId reset
+   * Cleared after first new session is created
+   */
+  forceNewSession: boolean;
+
+  /**
    * Intelligent recap injected into the prompt
    * Set when resuming a compressed session
    */

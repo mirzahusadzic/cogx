@@ -65,6 +65,7 @@ export class ConversationOverlayRegistry {
   private workbenchUrl?: string;
   private debug: boolean;
   private writeMutex = new AsyncMutex(); // Serialize LanceDB writes
+  private currentSessionId: string | null = null; // CRITICAL FIX: Store session ID for lazy-loaded managers
 
   constructor(
     private sigmaRoot: string,
@@ -96,6 +97,28 @@ export class ConversationOverlayRegistry {
 
     // Create and cache manager
     const manager = this.createManager(overlayId);
+
+    // CRITICAL FIX: Set current session ID on newly created manager
+    // This ensures lazy-loaded managers get the session filter
+    if (this.debug) {
+      console.log(
+        `🔍 [Registry] Creating ${overlayId}, currentSessionId=${this.currentSessionId || 'NULL'}`
+      );
+    }
+    if (this.currentSessionId && 'setCurrentSession' in manager) {
+      if (this.debug) {
+        console.log(
+          `🔍 [Registry] Setting session ${this.currentSessionId} on ${overlayId}`
+        );
+      }
+      (manager as ConversationOverlayWithLifecycle).setCurrentSession!(
+        this.currentSessionId
+      );
+    } else if (this.debug) {
+      console.log(
+        `🔍 [Registry] ⚠️  NOT setting session on ${overlayId} - currentSessionId=${this.currentSessionId}`
+      );
+    }
 
     // Initialize LanceDB store if supported
     if (
@@ -305,10 +328,16 @@ export class ConversationOverlayRegistry {
    * @param sessionId - Session UUID to set as current
    */
   async setCurrentSession(sessionId: string): Promise<void> {
+    // CRITICAL FIX: Store session ID so lazy-loaded managers get it too
+    if (this.debug) {
+      console.log(`🔍 [Registry] setCurrentSession called with: ${sessionId}`);
+    }
+    this.currentSessionId = sessionId;
+
     const allOverlays: OverlayId[] = ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'];
 
     for (const overlayId of allOverlays) {
-      // Only set session if manager is already initialized
+      // Set session on already initialized managers
       if (this.managers.has(overlayId)) {
         const manager = this.managers.get(overlayId)!;
 
@@ -322,6 +351,7 @@ export class ConversationOverlayRegistry {
           );
         }
       }
+      // Note: Lazy-loaded managers will get currentSessionId in get() method
     }
   }
 }

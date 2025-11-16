@@ -76,6 +76,7 @@ export abstract class BaseConversationManager<
     importance: number;
   }> = [];
   protected currentSessionId: string | null = null;
+  protected debug: boolean;
 
   constructor(
     protected sigmaRoot: string,
@@ -83,10 +84,11 @@ export abstract class BaseConversationManager<
     workbenchUrl?: string,
     debug?: boolean
   ) {
+    this.debug = debug || false;
     this.overlayPath = path.join(sigmaRoot, 'overlays', overlayName);
     this.workbench = new WorkbenchClient(
       workbenchUrl || process.env.WORKBENCH_URL || 'http://localhost:8000',
-      debug || false
+      this.debug
     );
     // Initialize LanceDB store for fast semantic search
     this.lanceStore = new ConversationLanceStore(sigmaRoot);
@@ -125,6 +127,11 @@ export abstract class BaseConversationManager<
    * // Now all queries only return turns from session abc-123
    */
   setCurrentSession(sessionId: string): void {
+    if (this.debug) {
+      console.log(
+        `🔍 [Manager] ${this.overlayName}.setCurrentSession(${sessionId})`
+      );
+    }
     this.currentSessionId = sessionId;
   }
 
@@ -146,15 +153,49 @@ export abstract class BaseConversationManager<
     // Priority: LanceDB first (fast), YAML fallback (migration)
     if (await fs.pathExists(this.overlayPath)) {
       const overlayFiles = await fs.readdir(this.overlayPath);
+      if (this.debug) {
+        console.log(
+          `🔍 [getAllItems] ${this.overlayName}: Found ${overlayFiles.length} files, currentSessionId=${this.currentSessionId || 'NONE'}`
+        );
+      }
 
       for (const file of overlayFiles) {
         if (!file.endsWith('.yaml')) continue;
 
         const sessionId = file.replace('.yaml', '');
 
+        // CRITICAL FIX: Filter by current session to prevent loading all historical sessions
+        // This prevents I/O blocking during compression when currentSessionId is set
+        if (this.currentSessionId && sessionId !== this.currentSessionId) {
+          if (this.debug) {
+            console.log(
+              `🔍 [getAllItems] ${this.overlayName}: Skipping historical session ${sessionId}`
+            );
+          }
+          continue; // Skip sessions that aren't the current one
+        }
+
+        if (this.debug) {
+          console.log(
+            `🔍 [getAllItems] ${this.overlayName}: Loading session ${sessionId}`
+          );
+        }
+
         // 1. Try LanceDB first (fast path - avoid reading YAML)
         try {
+          const lanceStartTime = Date.now();
+          if (this.debug) {
+            console.log(
+              `🔍 [getAllItems] ${this.overlayName}: Querying LanceDB for session ${sessionId}...`
+            );
+          }
           const lanceTurns = await this.lanceStore.getSessionTurns(sessionId);
+          const lanceTime = Date.now() - lanceStartTime;
+          if (this.debug) {
+            console.log(
+              `🔍 [getAllItems] ${this.overlayName}: LanceDB returned ${lanceTurns.length} turns in ${lanceTime}ms`
+            );
+          }
 
           if (lanceTurns.length > 0) {
             // LanceDB has data - use it! (skip YAML)

@@ -274,6 +274,9 @@ export async function filterConversationByAlignment(
   try {
     const o1 = await conversationRegistry.get('O1');
     const items = await o1.getAllItems();
+    console.log(
+      `🔍 [FILTER DEBUG] O1 getAllItems complete (${items.length} items)`
+    );
     results.structural = items
       .filter(
         (item) =>
@@ -286,9 +289,7 @@ export async function filterConversationByAlignment(
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
-  } catch (err) {
-    // Empty
-  }
+  } catch (err) {}
 
   // Query O4 (mission)
   try {
@@ -306,9 +307,7 @@ export async function filterConversationByAlignment(
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
-  } catch (err) {
-    // Empty
-  }
+  } catch (err) {}
 
   // Query O5 (operational)
   try {
@@ -326,9 +325,7 @@ export async function filterConversationByAlignment(
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
-  } catch (err) {
-    // Empty
-  }
+  } catch (err) {}
 
   // Query O2 (security)
   try {
@@ -346,9 +343,7 @@ export async function filterConversationByAlignment(
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
-  } catch (err) {
-    // Empty
-  }
+  } catch (err) {}
 
   // Query O3 (lineage)
   try {
@@ -366,9 +361,7 @@ export async function filterConversationByAlignment(
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
-  } catch (err) {
-    // Empty
-  }
+  } catch (err) {}
 
   // Query O6 (mathematical)
   try {
@@ -386,9 +379,7 @@ export async function filterConversationByAlignment(
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
-  } catch (err) {
-    // Empty
-  }
+  } catch (err) {}
 
   // Query O7 (coherence)
   try {
@@ -406,9 +397,7 @@ export async function filterConversationByAlignment(
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
-  } catch (err) {
-    // Empty
-  }
+  } catch (err) {}
 
   return results;
 }

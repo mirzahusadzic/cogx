@@ -50,7 +50,7 @@
  * @see getLastConversationTurns - Extracts recent turns and detects pending tasks
  */
 
-import type { ConversationLattice } from './types.js';
+import type { ConversationLattice, ConversationNode } from './types.js';
 import type { ConversationOverlayRegistry } from './conversation-registry.js';
 import { filterConversationByAlignment } from './query-conversation.js';
 
@@ -801,6 +801,56 @@ function formatLastTurns(
 }
 
 /**
+ * Extract overlay-aligned turns directly from lattice (FAST PATH)
+ *
+ * Filters lattice nodes by overlay scores instead of querying conversation overlays.
+ * This is much faster during compression because we already have the lattice in memory.
+ *
+ * @param lattice - Conversation lattice with nodes and overlay scores
+ * @param minAlignment - Minimum overlay score to include (default: 6)
+ * @returns Filtered turns organized by overlay dimension
+ * @private
+ */
+function filterLatticeByOverlayScores(
+  lattice: ConversationLattice,
+  minAlignment: number = 6
+): {
+  structural: Array<{ text: string; score: number }>;
+  security: Array<{ text: string; score: number }>;
+  lineage: Array<{ text: string; score: number }>;
+  mission: Array<{ text: string; score: number }>;
+  operational: Array<{ text: string; score: number }>;
+  mathematical: Array<{ text: string; score: number }>;
+  coherence: Array<{ text: string; score: number }>;
+} {
+  const nodes = lattice.nodes;
+
+  // Helper to filter and format turns for an overlay
+  const filterByOverlay = (
+    overlayKey: keyof ConversationNode['overlay_scores']
+  ): Array<{ text: string; score: number }> => {
+    return nodes
+      .filter((n) => n.overlay_scores[overlayKey] >= minAlignment)
+      .map((n) => ({
+        text: n.content,
+        score: n.overlay_scores[overlayKey],
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5); // Top 5 per overlay
+  };
+
+  return {
+    structural: filterByOverlay('O1_structural'),
+    security: filterByOverlay('O2_security'),
+    lineage: filterByOverlay('O3_lineage'),
+    mission: filterByOverlay('O4_mission'),
+    operational: filterByOverlay('O5_operational'),
+    mathematical: filterByOverlay('O6_mathematical'),
+    coherence: filterByOverlay('O7_strategic'), // O7 is strategic/coherence
+  };
+}
+
+/**
  * Reconstruct context in Chat Mode
  *
  * Builds a discussion-oriented recap organized by overlay dimensions (O1-O7).
@@ -810,7 +860,11 @@ function formatLastTurns(
  * ALGORITHM:
  * 1. Get last conversation turns (recent exchanges + pending task)
  * 2. Generate system fingerprint
- * 3. If conversation registry available (PREFERRED PATH):
+ * 3. FAST PATH (during compression):
+ *    a. Extract overlay-aligned turns directly from lattice (in-memory)
+ *    b. Filter by overlay scores >= 6
+ *    c. Build recap from lattice data (no disk I/O)
+ * 4. SLOW PATH (conversation registry available but not during compression):
  *    a. Query conversation overlays with min_alignment = 6
  *    b. For each overlay dimension (O1-O7):
  *       - Filter turns with alignment >= 6 for that overlay
@@ -819,12 +873,12 @@ function formatLastTurns(
  *    c. Build markdown recap by overlay section
  *    d. Include recent conversation turns
  *    e. Add recall tool instructions
- * 4. If no conversation registry (FALLBACK PATH):
+ * 5. FALLBACK PATH (no conversation registry):
  *    a. Extract paradigm shifts from lattice
  *    b. Show top 5 paradigm shifts as key points
  *    c. Include recent conversation turns
  *    d. Add recall tool instructions
- * 5. Return complete markdown string
+ * 6. Return complete markdown string
  *
  * DESIGN - Chat Mode Structure:
  * Chat mode assumes the user is DISCUSSING something. The recap is organized
@@ -875,27 +929,29 @@ async function reconstructChatContext(
 
   const fingerprint = getSystemFingerprint(cwd, 'chat', true);
 
-  // If we have conversation registry, use overlay filtering (BETTER!)
-  if (conversationRegistry) {
-    try {
-      const filtered = await filterConversationByAlignment(
-        conversationRegistry,
-        6 // Min alignment score
-      );
+  // FAST PATH: Use lattice data directly (in-memory, no disk I/O)
+  // This is MUCH faster than querying conversation overlays from disk
+  console.log(
+    '🔍 [CHAT DEBUG] Step 1: Using FAST PATH - filtering lattice by overlay scores...'
+  );
+  const filtered = filterLatticeByOverlayScores(lattice, 6);
+  console.log(
+    '🔍 [CHAT DEBUG] Step 2: Lattice filtering complete (no disk I/O!)'
+  );
 
-      const hasContent =
-        filtered.structural.length > 0 ||
-        filtered.security.length > 0 ||
-        filtered.lineage.length > 0 ||
-        filtered.mission.length > 0 ||
-        filtered.operational.length > 0 ||
-        filtered.mathematical.length > 0 ||
-        filtered.coherence.length > 0;
+  const hasContent =
+    filtered.structural.length > 0 ||
+    filtered.security.length > 0 ||
+    filtered.lineage.length > 0 ||
+    filtered.mission.length > 0 ||
+    filtered.operational.length > 0 ||
+    filtered.mathematical.length > 0 ||
+    filtered.coherence.length > 0;
 
-      if (hasContent) {
-        return (
-          fingerprint +
-          `
+  if (hasContent) {
+    return (
+      fingerprint +
+      `
 # Conversation Recap
 
 ## Architecture & Design (O1 Structural)
@@ -990,10 +1046,132 @@ ${formatLastTurns(turns, pendingTask)}
 
 **IMPORTANT**: The recap above shows messages truncated to 150 characters. When you see \`...\` it's a **signal** that more content is available. Use \`recall_past_conversation\` to retrieve the FULL untruncated message. Think of the recap as navigation pointers, not complete verbatim history.
 `.trim()
+    );
+  }
+
+  // SLOW PATH: Query conversation overlays from disk (kept for backward compatibility)
+  // Only used if lattice filtering returns no content but we have conversation registry
+  if (conversationRegistry) {
+    console.log(
+      '🔍 [CHAT DEBUG] SLOW PATH: Lattice had no content, falling back to conversation registry...'
+    );
+    try {
+      const filteredFromDisk = await filterConversationByAlignment(
+        conversationRegistry,
+        6 // Min alignment score
+      );
+
+      const hasContentFromDisk =
+        filteredFromDisk.structural.length > 0 ||
+        filteredFromDisk.security.length > 0 ||
+        filteredFromDisk.lineage.length > 0 ||
+        filteredFromDisk.mission.length > 0 ||
+        filteredFromDisk.operational.length > 0 ||
+        filteredFromDisk.mathematical.length > 0 ||
+        filteredFromDisk.coherence.length > 0;
+
+      if (hasContentFromDisk) {
+        return (
+          fingerprint +
+          `
+# Conversation Recap
+
+## Architecture & Design (O1 Structural)
+${
+  filteredFromDisk.structural.length > 0
+    ? filteredFromDisk.structural
+        .map(
+          (item, i) =>
+            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
+        )
+        .join('\n\n')
+    : '(None)'
+}
+
+## Security Concerns (O2 Security)
+${
+  filteredFromDisk.security.length > 0
+    ? filteredFromDisk.security
+        .map(
+          (item, i) =>
+            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
+        )
+        .join('\n\n')
+    : '(None)'
+}
+
+## Knowledge Evolution (O3 Lineage)
+${
+  filteredFromDisk.lineage.length > 0
+    ? filteredFromDisk.lineage
+        .map(
+          (item, i) =>
+            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
+        )
+        .join('\n\n')
+    : '(None)'
+}
+
+## Goals & Objectives (O4 Mission)
+${
+  filteredFromDisk.mission.length > 0
+    ? filteredFromDisk.mission
+        .map(
+          (item, i) =>
+            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
+        )
+        .join('\n\n')
+    : '(None)'
+}
+
+## Actions Taken (O5 Operational)
+${
+  filteredFromDisk.operational.length > 0
+    ? filteredFromDisk.operational
+        .map(
+          (item, i) =>
+            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
+        )
+        .join('\n\n')
+    : '(None)'
+}
+
+## Algorithms & Logic (O6 Mathematical)
+${
+  filteredFromDisk.mathematical.length > 0
+    ? filteredFromDisk.mathematical
+        .map(
+          (item, i) =>
+            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
+        )
+        .join('\n\n')
+    : '(None)'
+}
+
+## Conversation Flow (O7 Coherence)
+${
+  filteredFromDisk.coherence.length > 0
+    ? filteredFromDisk.coherence
+        .map(
+          (item, i) =>
+            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
+        )
+        .join('\n\n')
+    : '(None)'
+}
+
+${formatLastTurns(turns, pendingTask)}
+
+---
+
+**Memory Tool Available**: You have access to \`recall_past_conversation\` tool. Use it anytime you need to remember specific past discussions. The tool uses semantic search across all conversation history.
+
+**IMPORTANT**: The recap above shows messages truncated to 150 characters. When you see \`...\` it's a **signal** that more content is available. Use \`recall_past_conversation\` to retrieve the FULL untruncated message. Think of the recap as navigation pointers, not complete verbatim history.
+`.trim()
         );
       }
     } catch (err) {
-      // Fall back to old method
+      // Fall back to paradigm shifts method
       console.warn('Failed to use conversation overlays:', err);
     }
   }
@@ -1156,11 +1334,18 @@ export async function reconstructSessionContext(
   cwd: string,
   conversationRegistry?: ConversationOverlayRegistry
 ): Promise<ReconstructedSessionContext> {
+  console.log(
+    '🔍 [RECONSTRUCT DEBUG] Step A: Starting reconstructSessionContext'
+  );
+
   // 1. Classify conversation mode
   const mode = classifyConversationMode(lattice);
 
   // 2. Calculate metrics
   const nodes = lattice.nodes;
+  console.log(
+    `🔍 [RECONSTRUCT DEBUG] Step C: Calculating metrics for ${nodes.length} nodes`
+  );
   const paradigmShifts = nodes.filter((n) => n.is_paradigm_shift).length;
   const toolUses = nodes.filter(
     (n) => n.content.includes('🔧') || n.content.includes('tool_use')
@@ -1176,10 +1361,16 @@ export async function reconstructSessionContext(
     nodes.length;
 
   // 3. Reconstruct based on mode (pass conversationRegistry!)
+  console.log(
+    `🔍 [RECONSTRUCT DEBUG] Step D: Starting ${mode} mode reconstruction...`
+  );
   const recap =
     mode === 'quest'
       ? await reconstructQuestContext(lattice, cwd)
       : await reconstructChatContext(lattice, cwd, conversationRegistry);
+  console.log(
+    `🔍 [RECONSTRUCT DEBUG] Step E: ${mode} mode reconstruction complete`
+  );
 
   return {
     mode,

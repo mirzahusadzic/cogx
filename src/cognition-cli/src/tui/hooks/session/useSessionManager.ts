@@ -106,6 +106,12 @@ export interface UseSessionManagerResult {
    * Reset resume session ID (after compression)
    */
   resetResumeSession: () => void;
+
+  /**
+   * Get effective resume session ID (respects forceNewSession flag)
+   * Use this instead of reading state.resumeSessionId directly to avoid async race conditions
+   */
+  getResumeSessionId: () => string | undefined;
 }
 
 /**
@@ -202,11 +208,16 @@ export function useSessionManager(
     new SessionStateStore(anchorId, cwd, debug)
   );
 
+  // Synchronous flag to force new session (survives async chaos)
+  // This ref is checked immediately when sending messages, bypassing React's async state
+  const forceNewSessionRef = useRef(false);
+
   // Session state
   const [state, setState] = useState<SessionState>({
     anchorId,
     currentSessionId: anchorId,
     resumeSessionId: undefined,
+    forceNewSession: false,
     injectedRecap: null,
     hasReceivedSDKSessionId: false,
   });
@@ -321,10 +332,20 @@ export function useSessionManager(
         }
 
         // Return updated state
+        // Clear forceNewSession flag (both ref and state) when session changes
+        // This allows resumeSessionId to be used for subsequent messages
+        if (debug) {
+          console.log(
+            `[useSessionManager.updateSDKSession] Clearing forceNewSession flag (was ${forceNewSessionRef.current})`
+          );
+        }
+        forceNewSessionRef.current = false;
+
         return {
           ...prev,
           currentSessionId: newSessionId,
           resumeSessionId: newSessionId,
+          forceNewSession: false,
           hasReceivedSDKSessionId: true,
         };
       });
@@ -368,15 +389,51 @@ export function useSessionManager(
 
   // Reset resume session ID (after compression)
   const resetResumeSession = useCallback(() => {
+    // Set synchronous ref FIRST (immediate effect, bypasses React async state)
+    forceNewSessionRef.current = true;
+
     setState((prev) => ({
       ...prev,
       resumeSessionId: undefined,
+      forceNewSession: true, // Also set in state for consistency
     }));
 
     if (debug) {
-      console.log('[useSessionManager] Resume session reset');
+      console.log(
+        '[useSessionManager] Resume session reset (forceNewSession=true, ref set)'
+      );
     }
   }, [debug]);
+
+  // Get effective resume session ID (respects synchronous forceNewSession flag)
+  const getResumeSessionId = useCallback(() => {
+    const refValue = forceNewSessionRef.current;
+    const stateValue = state.resumeSessionId;
+
+    if (debug) {
+      console.log(
+        `[useSessionManager.getResumeSessionId] ref=${refValue}, state=${stateValue}`
+      );
+    }
+
+    // Check synchronous ref FIRST - it's set immediately by resetResumeSession
+    // This bypasses React's async state updates and prevents race conditions
+    if (forceNewSessionRef.current) {
+      if (debug) {
+        console.log(
+          '[useSessionManager.getResumeSessionId] Returning undefined (force new session)'
+        );
+      }
+      return undefined; // Force new session
+    }
+
+    if (debug) {
+      console.log(
+        `[useSessionManager.getResumeSessionId] Returning ${state.resumeSessionId}`
+      );
+    }
+    return state.resumeSessionId;
+  }, [state.resumeSessionId, debug]);
 
   return {
     state,
@@ -384,5 +441,6 @@ export function useSessionManager(
     updateSDKSession,
     updateStats,
     resetResumeSession,
+    getResumeSessionId,
   };
 }
