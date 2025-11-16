@@ -297,7 +297,7 @@ To add new completions:
 ## See Also
 
 - [CLI Style Guide](./STYLE_GUIDE.md)
-- [Main README](./README.md)
+- [Documentation Home](/index)
 - [Command Reference](https://mirzahusadzic.github.io/cogx/manual/)
 
 ---

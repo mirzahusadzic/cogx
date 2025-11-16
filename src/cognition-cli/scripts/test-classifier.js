@@ -1,6 +1,6 @@
-import { DocumentClassifier } from './dist/core/analyzers/document-classifier.js';
-import { MarkdownParser } from './dist/core/parsers/markdown-parser.js';
-import { WorkflowExtractor } from './dist/core/analyzers/workflow-extractor.js';
+import { DocumentClassifier } from '../dist/core/analyzers/document-classifier.js';
+import { MarkdownParser } from '../dist/core/parsers/markdown-parser.js';
+import { WorkflowExtractor } from '../dist/core/analyzers/workflow-extractor.js';
 
 async function testClassifier() {
   const classifier = new DocumentClassifier();
