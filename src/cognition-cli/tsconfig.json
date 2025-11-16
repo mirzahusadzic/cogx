@@ -14,9 +14,8 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "types": ["vitest/globals"],
     "jsx": "react"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/core/search-worker.ts"],
-  "exclude": ["node_modules", "src/**/*.test.ts"]
+  "exclude": ["node_modules", "src/**/*.test.ts", "src/**/*.test.tsx"]
 }

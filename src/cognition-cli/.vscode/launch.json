@@ -1,0 +1,83 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug CLI",
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/src/cli.ts",
+      "runtimeArgs": ["-r", "tsx/cjs"],
+      "args": ["${input:cliCommand}"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "sourceMaps": true
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Current Test File",
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/node_modules/vitest/vitest.mjs",
+      "args": ["run", "${relativeFile}"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "sourceMaps": true
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug All Tests",
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/node_modules/vitest/vitest.mjs",
+      "args": ["run"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "sourceMaps": true
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug TUI",
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/src/cli.ts",
+      "runtimeArgs": ["-r", "tsx/cjs"],
+      "args": ["tui"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "sourceMaps": true
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Genesis Command",
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/src/cli.ts",
+      "runtimeArgs": ["-r", "tsx/cjs"],
+      "args": ["genesis", "${input:genesisPath}"],
+      "cwd": "${input:testProjectPath}",
+      "console": "integratedTerminal",
+      "sourceMaps": true
+    }
+  ],
+  "inputs": [
+    {
+      "id": "cliCommand",
+      "type": "promptString",
+      "description": "CLI command to run (e.g., 'init', 'genesis src/', 'ask \"What are the main components?\"')",
+      "default": "init"
+    },
+    {
+      "id": "genesisPath",
+      "type": "promptString",
+      "description": "Path to ingest (e.g., 'src/')",
+      "default": "src/"
+    },
+    {
+      "id": "testProjectPath",
+      "type": "promptString",
+      "description": "Path to test project directory",
+      "default": "${workspaceFolder}"
+    }
+  ]
+}

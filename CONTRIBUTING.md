@@ -42,30 +42,101 @@ This project and everyone participating in it is governed by our [Code of Conduc
    npm install
    ```
 
-3. **Build the project**
+3. **Configure environment** (optional)
+
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration (most settings have defaults)
+   ```
+
+   The `.env.example` file documents all available environment variables including:
+   - `WORKBENCH_URL`: eGemma Workbench server URL (default: http://localhost:8000)
+   - Terminal output settings (`COGNITION_NO_COLOR`, `COGNITION_NO_EMOJI`, etc.)
+   - API keys for LLM-based features (optional)
+
+4. **Build the project**
 
    ```bash
    npm run build
    ```
 
-4. **Run tests**
+5. **Run tests**
 
    ```bash
    npm test
    ```
 
-5. **Link for local development** (optional)
+6. **Link for local development** (optional)
 
    ```bash
    npm link
    ```
 
-6. **Initialize a test PGC**
+7. **Initialize a test PGC**
 
    ```bash
    cd /path/to/test/project
    cognition-cli wizard
    ```
+
+### IDE Setup (VSCode)
+
+The project includes comprehensive VSCode configuration for an optimal development experience:
+
+**Recommended Extensions** (you'll be prompted to install these):
+- **ESLint** - Linting with auto-fix
+- **Prettier** - Code formatting
+- **Vitest Explorer** - Run and debug tests in the sidebar
+- **Pretty TypeScript Errors** - Readable error messages
+- **Error Lens** - Inline error highlighting
+
+**Debug Configurations** (press F5 or use Run and Debug panel):
+- **Debug CLI** - Run and debug any CLI command with breakpoints
+- **Debug Current Test File** - Debug the currently open test file
+- **Debug All Tests** - Debug the entire test suite
+- **Debug TUI** - Debug the terminal UI
+- **Debug Genesis Command** - Debug the genesis ingestion flow
+
+**Tasks** (Terminal → Run Task):
+- Build - Compile TypeScript
+- Test - Run test suite
+- Test Watch - Run tests in watch mode
+- Dev Watch - Run CLI in watch mode with hot reload
+- Lint - Run ESLint and markdownlint
+- Format - Format all files with Prettier
+
+**Workspace Settings**:
+- Auto-format on save with Prettier
+- Auto-fix ESLint issues on save
+- Proper TypeScript version from node_modules
+
+### Pre-commit Hooks
+
+The project uses **Husky** and **lint-staged** to automatically check code quality before commits:
+
+**What runs on commit:**
+- **ESLint** with auto-fix on staged TypeScript files
+- **Prettier** formatting on staged files
+- **Type checking** (via ESLint rules)
+
+**How it works:**
+1. You make changes and stage them: `git add .`
+2. You commit: `git commit -m "Your message"`
+3. Pre-commit hooks automatically run on staged files
+4. If issues are found, they're auto-fixed and you re-stage the fixes
+5. If issues can't be auto-fixed, the commit is blocked with helpful error messages
+
+**Bypassing hooks** (use sparingly):
+```bash
+git commit --no-verify -m "Emergency fix"
+```
+
+**Troubleshooting:**
+If hooks aren't running, ensure Husky is properly initialized:
+```bash
+cd /path/to/cogx
+git config core.hooksPath .husky
+```
 
 ## Development Workflow
 

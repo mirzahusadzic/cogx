@@ -5,12 +5,13 @@
   "license": "AGPL-3.0-or-later",
   "author": "Mirza Husadzic",
   "engines": {
-    "node": ">=25.0.0"
+    "node": ">=20.0.0"
   },
   "bin": {
     "cognition-cli": "./dist/cli.js"
   },
   "scripts": {
+    "prepare": "husky install",
     "build": "tsc && node build-worker.js",
     "build:worker": "node build-worker.js",
     "dev": "tsx watch src/cli.ts",
@@ -80,6 +81,8 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.3",
     "happy-dom": "^20.0.10",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
     "markdownlint-cli": "^0.41.0",
     "memfs": "^4.9.3",
     "prettier": "^3.3.2",
@@ -89,5 +92,14 @@
     "vite-tsconfig-paths": "^5.1.4",
     "vitepress": "^1.2.3",
     "vitest": "^1.6.0"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "**/*.{json,md}": [
+      "prettier --write"
+    ]
   }
 }
