@@ -70,6 +70,7 @@ import path from 'path';
 import { bootstrapSecurity } from './core/security/security-bootstrap.js';
 import dotenv from 'dotenv';
 import chalk from 'chalk';
+import { sanitizeInt } from './utils/validation.js';
 
 dotenv.config();
 
@@ -378,9 +379,9 @@ program
       sessionId: options.sessionId,
       sessionFile: options.file,
       workbenchUrl: options.workbench,
-      sessionTokens: parseInt(options.sessionTokens),
+      sessionTokens: sanitizeInt(options.sessionTokens, 10000, 1000000, 128000),
       maxThinkingTokens: options.maxThinkingTokens
-        ? parseInt(options.maxThinkingTokens)
+        ? sanitizeInt(options.maxThinkingTokens, 1000, 100000, 16000)
         : undefined,
       debug: options.debug,
     });
@@ -407,7 +408,7 @@ program
     const { askCommand } = await import('./commands/ask.js');
     await askCommand(question, {
       ...options,
-      topK: parseInt(options.topK),
+      topK: sanitizeInt(options.topK, 1, 100, 10),
     });
   });
 
@@ -582,7 +583,7 @@ securityCmd
           | 'low'
           | undefined,
         format: options.format as 'table' | 'json' | 'summary' | undefined,
-        limit: options.limit ? parseInt(options.limit) : undefined,
+        limit: options.limit ? sanitizeInt(options.limit, 1, 1000, 100) : undefined,
         verbose: options.verbose,
       });
     }

@@ -10,6 +10,7 @@ import {
   Precision,
 } from 'apache-arrow';
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../../config.js';
+import { withRetry, withTimeout } from '../../../utils/async-helpers.js';
 
 /**
  * Creates Apache Arrow schema for lineage pattern records.
@@ -157,12 +158,31 @@ export class LanceVectorStore {
       const dbPath = path.join(this.pgcRoot, 'patterns.lancedb');
       await fs.ensureDir(path.dirname(dbPath));
 
-      this.db = await connect(dbPath);
+      // Connect with retry and timeout protection
+      this.db = await withRetry(
+        () => withTimeout(connect(dbPath), 10000, 'LanceDB connection'),
+        {
+          maxRetries: 3,
+          initialDelay: 1000,
+          maxDelay: 5000,
+          onRetry: (attempt, error) => {
+            console.warn(`LanceDB connection attempt ${attempt} failed: ${error.message}`);
+          },
+        }
+      );
 
       // Check if table exists, if not, create it
-      const tableNames = await this.db.tableNames();
+      const tableNames = await withTimeout(
+        this.db.tableNames(),
+        5000,
+        'LanceDB tableNames query'
+      );
       if (tableNames.includes(tableName)) {
-        this.table = await this.db.openTable(tableName);
+        this.table = await withTimeout(
+          this.db.openTable(tableName),
+          10000,
+          'LanceDB openTable'
+        );
       } else {
         try {
           // Create the table with the EXACT schema we want (Shadow architecture)
@@ -180,23 +200,35 @@ export class LanceVectorStore {
             structuralHash: 'test_structural_hash',
           };
 
-          this.table = await this.db.createTable(
-            tableName,
-            [completeDummyRecord],
-            {
-              schema,
-            }
+          this.table = await withTimeout(
+            this.db.createTable(
+              tableName,
+              [completeDummyRecord],
+              {
+                schema,
+              }
+            ),
+            15000,
+            'LanceDB createTable'
           );
 
           // Clean up test record
-          await this.table.delete(`id = 'schema_test_record'`);
+          await withTimeout(
+            this.table.delete(`id = 'schema_test_record'`),
+            5000,
+            'LanceDB delete test record'
+          );
         } catch (createError: unknown) {
           // If table already exists (e.g., due to a race condition), open it instead
           if (
             createError instanceof Error &&
             createError.message.includes('already exists')
           ) {
-            this.table = await this.db.openTable(tableName);
+            this.table = await withTimeout(
+              this.db.openTable(tableName),
+              10000,
+              'LanceDB openTable (retry after create conflict)'
+            );
           } else {
             throw createError; // Re-throw other errors
           }
