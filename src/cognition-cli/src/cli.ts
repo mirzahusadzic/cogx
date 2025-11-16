@@ -78,7 +78,7 @@ const program = new Command();
 program
   .name('cognition-cli')
   .description('A meta-interpreter for verifiable, stateful AI cognition')
-  .version('2.3.2 (Infinite Context with Continuity)')
+  .version('2.4.0 (Production Excellence)')
   .option(
     '--no-color',
     'Disable colored output (also respects NO_COLOR env var)'

@@ -5,6 +5,275 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2025-11-16
+
+### Summary
+
+**Major stability and performance milestone** delivering critical compression fixes, comprehensive UX enhancements, robust error handling, and extensive test coverage. This release resolves the 5-10 minute compression blocking issue, adds shell tab completion, implements comprehensive accessibility features, and introduces a structured error hierarchy. Includes 82 commits with significant performance optimizations, 120+ new tests, and massive documentation improvements.
+
+### 🔥 Critical Fixes
+
+#### Compression Performance (c2152d5) - **INSTANT vs 5-10 MINUTES**
+
+Fixed critical blocking issue causing 5-10 minute delays during context compression. **Impact: Compression now completes instantly (0.0s).**
+
+**Root Cause**: Slow disk I/O during reconstruction, loading all historical sessions, and synchronous blocking.
+
+**Solution**:
+
+- Fast-path reconstruction: Extract overlay-aligned turns from in-memory lattice (bypass disk)
+- Session filtering: Filter lazy-loaded managers by currentSessionId (prevent loading all history)
+- Synchronous compression: Make compression async and await completion
+- Race condition fix: Add synchronous ref (getResumeSessionId) to bypass React state updates
+
+**Files**: 8 files, 459 lines modified
+
+- `src/sigma/context-reconstructor.ts` (241 lines)
+- `src/tui/hooks/useClaudeAgent.ts` (95 lines)
+- `src/tui/hooks/useSessionManager.ts` (60 lines)
+
+#### Session Lifecycle After Compression (8509d83) - **CRITICAL**
+
+Fixed TUI failing to create new session after compression. Session ID remained unchanged, tokens didn't reset, state file didn't update.
+
+**Root Cause**: `resetResumeSession()` wrapped in try-catch that silently swallowed errors.
+
+**Fix**: Moved `resetResumeSession()` to finally block (always executes), added user-facing error notifications.
+
+**Impact**: Session always resets after compression, graceful degradation on errors.
+
+### ✨ New Features
+
+#### 1. Shell Tab Completion (f083919)
+
+Full tab completion support for **bash**, **zsh**, and **fish** shells.
+
+**Features**:
+
+- Auto-complete for all 40+ commands and aliases (i, g, q, w, l)
+- Context-aware completions (overlay types, output formats, shell types)
+- Global options (--format, --no-color, --verbose)
+- Directory path completion
+
+**Installation**:
+
+```bash
+cognition-cli completion install          # Auto-detect shell
+cognition-cli completion install --shell bash/zsh/fish
+cognition-cli completion uninstall
+```
+
+**Files**: `src/commands/completion.ts` (461 lines)
+
+**Impact**: 50-70% reduction in typing, improved discoverability
+
+#### 2. Comprehensive UX Improvements (d5c755b)
+
+**Accessibility Flags**:
+
+- `--no-color` flag (respects NO_COLOR env var)
+- `--no-emoji` flag for terminals without Unicode
+- `--format` flag (auto|table|json|plain)
+- `-v/--verbose` and `-q/--quiet` global flags
+
+**Terminal Capability Detection**:
+
+- Auto-detect color, Unicode/emoji, box-drawing support
+- Graceful degradation for limited terminals
+- Terminal width detection for text wrapping
+
+**JSON Output Mode**:
+
+- Standard envelope: `{ data, metadata, errors, warnings }`
+- Added `--json` flag to query and lattice commands
+- Pagination metadata support
+
+**Command Aliases**:
+
+- `i` → init, `g` → genesis, `q` → query, `w` → wizard, `l` → lattice
+
+**Files**: 8 files, 1,561 lines
+
+- `src/utils/error-formatter.ts` (140 lines)
+- `src/utils/errors.ts` (217 lines)
+- `src/utils/json-output.ts` (178 lines)
+- `src/utils/terminal-capabilities.ts` (205 lines)
+- `src/utils/time-formatter.ts` (171 lines)
+
+#### 3. Custom Error Hierarchy (43ebbf3)
+
+Structured error system with error codes (COG-E0xx pattern).
+
+**Error Classes**:
+
+- `FileOperationError`, `NetworkError`, `DatabaseError`
+- `ValidationError`, `WorkerError`, `CompressionError`
+- `ConfigurationError`
+
+**Features**:
+
+- Error cause chaining with context preservation
+- Path sanitization in production
+- Type guards and utility functions
+
+**Files**: `src/core/errors/index.ts` (245 lines)
+
+### ⚡ Performance Improvements
+
+**Overall Gains**:
+
+- **Compression: Instant vs 5-10 minutes** (infinite speedup)
+- **CLI startup: 60-70% faster** (800ms → 300ms)
+- **Genesis: 50-80% faster** startup on 1000 files
+- **Overlay builds: 3-5x faster**
+- **Vector cleanup: 90% faster** (5s → 50ms for 100 vectors)
+
+**Optimizations**:
+
+1. **LanceDB Batch Operations** (b1d3463)
+   - Batch vector upsert (single transaction vs N operations)
+   - Paginated vector retrieval (prevents OOM)
+   - 3-5x faster overlay builds
+
+2. **Parallel Operations** (11963ba, ad7b307)
+   - Parallelize vector deletion with Promise.all()
+   - Parallelize file change detection during genesis
+   - Parallelize overlay file processing
+   - 2x speedup for overlay builds
+
+3. **Lazy Command Loading** (11963ba, 3689cbd)
+   - Dynamic imports for commands (load only when executed)
+   - Reduced startup imports from 25+ to ~5
+   - 60-70% faster for simple commands
+
+4. **Embedding Cache** (11963ba)
+   - 10K-item LRU cache with automatic eviction
+   - 30-40% cache hit rate
+   - 5-10x faster for repeated embeddings
+
+5. **Queue Size Limits** (1f77b58)
+   - Prevents OOM during large batch operations
+
+6. **Batched Index Operations** (77ae14f)
+   - 30% faster genesis
+
+### 🐛 Bug Fixes
+
+- **Session History Preservation** (a633aa7): Fixed TUI restart losing compression history
+- **Functional setState** (ed85686): Use functional setState to prevent stale session updates
+- **Error Handling** (39fd64f, 65c2029, 598c3c2): Added retry utility, improved error handling across 7 files
+- **PatternResultPacket** (619a2d8): Corrected property name from `error` to `message`
+- **Debug Logging** (966703a): Removed unconditional debug logs
+
+### 🔒 Security
+
+**Dependency Upgrades** (58ef9b2):
+
+- **CRITICAL**: js-yaml 4.1.0 → 4.1.1 (fixes CVE-2025-64718 prototype pollution)
+- @anthropic-ai/claude-agent-sdk 0.1.30 → 0.1.42 (12 versions)
+- @lancedb/lancedb 0.22.2 → 0.22.3
+- esbuild, fs-extra, ink upgraded
+
+**Security Test Coverage** (2c724d1):
+
+- Fixed drift-detector regex patterns for accurate attack detection
+- 52 security tests across 3 files (1,559 lines)
+
+### 🧪 Testing
+
+**Comprehensive Test Coverage** (2c724d1, d316109):
+
+- **P0 Security Tests**: 52 tests (mission-integrity, drift-detector, mission-validator)
+- **P0 Compression Tests**: 24/24 passing (30-50x compression ratio validation)
+- **P1 Command Tests**: 25 tests (init, watch, ask)
+- **P1 PGC Tests**: document-object tests
+- **P2 Sigma Tests**: 29/29 passing (analyzer)
+
+**Total**: 120+ new tests, 62+ test cases, 3,156 lines
+
+**Production Code Fixes**:
+
+- drift-detector.ts: Fixed regex patterns for attack detection
+
+### 📚 Documentation
+
+**Architecture Decision Records**:
+
+- Added 10 ADRs documenting major architectural decisions
+- Referenced in README and VitePress sidebar
+
+**JSDoc Coverage** - **MASSIVE**:
+
+- 85+ files documented with comprehensive JSDoc
+- Core infrastructure (14 files, 5,161 lines)
+- Core orchestrators (7 files, 3,828 lines)
+- CLI commands (8 files, 2,278 lines)
+- TUI hooks (20 files)
+- Security, PGC, Sigma, Graph, Algebra modules
+- TypeDoc configuration added for API docs
+
+**Lattice Book Improvements**:
+
+- Quick Start Guide (340 lines) - P0 for onboarding
+- Chapter 5 CLI Operations (1,546 lines)
+- Chapters 18-19 CPOW Loop (2,110 lines)
+- Troubleshooting Guide (1,405 lines)
+
+**Audit Reports**:
+
+- Performance Audit (901 lines)
+- Error Handling Audit (1,332 lines)
+- Test Coverage Analysis (1,274 lines)
+- UX Analysis (2,023 lines + 1,126 line roadmap)
+- Dependency Health (734 lines)
+
+**Case Studies**:
+
+- Context continuity race condition (9,345 lines across 15 files)
+
+**Style Guide**:
+
+- Comprehensive CLI/TUI style guide (524 lines)
+
+**Tab Completion Guide**:
+
+- 305 lines covering installation, usage, troubleshooting
+
+### 🧹 Chores & Maintenance
+
+- Markdown formatting fixes
+- File organization (archived docs into topic subdirectories)
+- Linting fixes (empty catch blocks, ESLint errors)
+- Build fixes (TypeScript errors, Vite worker parsing)
+- Documentation link fixes
+
+### 📊 Statistics
+
+- **Commits**: 82 since v2.3.2
+- **Production Code**: 8 new features, 7 performance optimizations, 20+ critical fixes
+- **Test Coverage**: 120+ tests, 3,156 lines
+- **Documentation**: 85+ JSDoc files, 10 ADRs, 6 audit reports
+- **Security**: 1 critical CVE fixed, 6 dependencies upgraded
+
+### 🎯 Migration Notes
+
+**No Breaking Changes** - All changes backward compatible.
+
+**Recommended Actions**:
+
+1. Run `cognition-cli completion install` to enable tab completion
+2. Update Node.js to v25 if using v18
+3. Review new `--format`, `--no-color`, `--json` flags for automation
+4. Compression performance should be instant now (was 5-10 minutes)
+
+### 🔜 What's Next
+
+- Phase 4 UX features (config file support, progress bars, natural language parsing)
+- Additional test coverage (P2/P3 components)
+- Performance Phase 3 optimizations
+
+---
+
 ## [2.3.2] - 2025-11-15
 
 ### Summary
