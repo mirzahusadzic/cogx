@@ -79,8 +79,14 @@ program
   .name('cognition-cli')
   .description('A meta-interpreter for verifiable, stateful AI cognition')
   .version('2.3.2 (Infinite Context with Continuity)')
-  .option('--no-color', 'Disable colored output (also respects NO_COLOR env var)')
-  .option('--no-emoji', 'Disable emoji in output (for terminals without Unicode support)')
+  .option(
+    '--no-color',
+    'Disable colored output (also respects NO_COLOR env var)'
+  )
+  .option(
+    '--no-emoji',
+    'Disable emoji in output (for terminals without Unicode support)'
+  )
   .option('--format <type>', 'Output format: auto, table, json, plain', 'auto')
   .option('-v, --verbose', 'Verbose output (show detailed information)', false)
   .option('-q, --quiet', 'Quiet mode (errors only)', false)
@@ -293,7 +299,9 @@ program
 program
   .command('wizard')
   .alias('w')
-  .description('🧙 Interactive wizard to set up a complete PGC from scratch (alias: w)')
+  .description(
+    '🧙 Interactive wizard to set up a complete PGC from scratch (alias: w)'
+  )
   .option(
     '-p, --project-root <path>',
     'Root directory of the project',
@@ -401,7 +409,7 @@ program
   .alias('l')
   .description(
     'Execute boolean algebra operations across overlays (alias: l)\n' +
-    'Examples: "O1 - O2", "O2[critical] ~ O4"'
+      'Examples: "O1 - O2", "O2[critical] ~ O4"'
   )
   .option(
     '-p, --project-root <path>',

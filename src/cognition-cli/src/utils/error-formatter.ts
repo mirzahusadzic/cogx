@@ -42,9 +42,7 @@ export function formatError(error: CognitionError, verbose: boolean): string {
 
   // Error header with code and title
   lines.push(
-    c.red.bold(
-      `${showEmoji('✗', 'X')} Error [${error.code}]: ${error.title}`
-    )
+    c.red.bold(`${showEmoji('✗', 'X')} Error [${error.code}]: ${error.title}`)
   );
   lines.push('');
 
@@ -74,7 +72,9 @@ export function formatError(error: CognitionError, verbose: boolean): string {
     lines.push(c.dim(error.cause.stack || 'No stack trace available'));
   } else if (error.cause) {
     lines.push(
-      c.dim(`${showEmoji('💡', 'Tip:')} Run with --verbose for detailed error information`)
+      c.dim(
+        `${showEmoji('💡', 'Tip:')} Run with --verbose for detailed error information`
+      )
     );
   }
 
@@ -132,9 +132,7 @@ export function formatGenericError(error: unknown, verbose: boolean): string {
   lines.push('');
   lines.push(c.bold('This appears to be an unexpected error.'));
   lines.push(c.dim('Please report this issue with the error details above.'));
-  lines.push(
-    c.dim('Report at: https://github.com/mirzahusadzic/cogx/issues')
-  );
+  lines.push(c.dim('Report at: https://github.com/mirzahusadzic/cogx/issues'));
 
   return lines.join('\n');
 }

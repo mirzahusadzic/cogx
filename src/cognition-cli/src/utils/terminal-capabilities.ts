@@ -70,7 +70,8 @@ export function useEmoji(): boolean {
 
   // Check if terminal supports Unicode
   const lang = process.env.LANG || '';
-  const supportsUnicode = lang.includes('UTF-8') || process.platform === 'darwin';
+  const supportsUnicode =
+    lang.includes('UTF-8') || process.platform === 'darwin';
 
   return supportsUnicode;
 }

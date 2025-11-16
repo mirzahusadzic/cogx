@@ -35,6 +35,7 @@ export interface JsonMetadata {
 /**
  * Standard JSON output envelope
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface JsonOutput<T = any> {
   /** Actual result data */
   data: T;

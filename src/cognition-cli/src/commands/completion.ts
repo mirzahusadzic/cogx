@@ -35,8 +35,9 @@ import { Command } from 'commander';
  * Provides install/uninstall subcommands for shell completion.
  */
 export function createCompletionCommand(): Command {
-  const completion = new Command('completion')
-    .description('Manage shell completion (bash/zsh/fish)');
+  const completion = new Command('completion').description(
+    'Manage shell completion (bash/zsh/fish)'
+  );
 
   completion
     .command('install')
@@ -64,7 +65,10 @@ export function createCompletionCommand(): Command {
           console.log('  source ~/.config/fish/config.fish');
         }
       } catch (error) {
-        console.error('Failed to install completion:', (error as Error).message);
+        console.error(
+          'Failed to install completion:',
+          (error as Error).message
+        );
         process.exit(1);
       }
     });
@@ -80,15 +84,18 @@ export function createCompletionCommand(): Command {
         await uninstallCompletion(shell);
         console.log(`✓ Shell completion uninstalled for ${shell}`);
       } catch (error) {
-        console.error('Failed to uninstall completion:', (error as Error).message);
+        console.error(
+          'Failed to uninstall completion:',
+          (error as Error).message
+        );
         process.exit(1);
       }
     });
 
   // Hidden command that provides completion data (called by shell)
   completion
-    .command('--get-completions')
-    .description('Get completion suggestions (internal use)', { hidden: true })
+    .command('--get-completions', { hidden: true })
+    .description('Get completion suggestions (internal use)')
     .action(() => {
       handleCompletion();
     });
@@ -144,7 +151,9 @@ async function installCompletion(shell: string): Promise<void> {
   // Add source line to rc file (except fish)
   if (rcFile) {
     const sourceLine = `\n# Cognition CLI completion\nsource "${installPath}"\n`;
-    const rcContent = await fs.promises.readFile(rcFile, 'utf8').catch(() => '');
+    const rcContent = await fs.promises
+      .readFile(rcFile, 'utf8')
+      .catch(() => '');
 
     if (!rcContent.includes(installPath)) {
       await fs.promises.appendFile(rcFile, sourceLine, 'utf8');
@@ -171,7 +180,13 @@ async function uninstallCompletion(shell: string): Promise<void> {
     installPath = path.join(homeDir, '.cognition-completion.zsh');
     rcFile = path.join(homeDir, '.zshrc');
   } else if (shell === 'fish') {
-    installPath = path.join(homeDir, '.config', 'fish', 'completions', 'cognition-cli.fish');
+    installPath = path.join(
+      homeDir,
+      '.config',
+      'fish',
+      'completions',
+      'cognition-cli.fish'
+    );
     rcFile = '';
   } else {
     throw new Error(`Unsupported shell: ${shell}`);
@@ -182,8 +197,12 @@ async function uninstallCompletion(shell: string): Promise<void> {
 
   // Remove source line from rc file
   if (rcFile) {
-    const rcContent = await fs.promises.readFile(rcFile, 'utf8').catch(() => '');
-    const lines = rcContent.split('\n').filter(line => !line.includes(installPath));
+    const rcContent = await fs.promises
+      .readFile(rcFile, 'utf8')
+      .catch(() => '');
+    const lines = rcContent
+      .split('\n')
+      .filter((line) => !line.includes(installPath));
     await fs.promises.writeFile(rcFile, lines.join('\n'), 'utf8');
   }
 }

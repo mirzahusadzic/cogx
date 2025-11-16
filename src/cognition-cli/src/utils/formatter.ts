@@ -53,7 +53,7 @@
  */
 
 import chalk from 'chalk';
-import { useColor, emoji as emojiHelper, getBoxChars, isPlainMode } from './terminal-capabilities.js';
+import { useColor, getBoxChars, isPlainMode } from './terminal-capabilities.js';
 
 // ========================================
 // CONDITIONAL CHALK (Accessibility-Aware)
@@ -68,11 +68,16 @@ function createConditionalChalk() {
     return chalk;
   }
   // No-op functions when colors disabled
-  const identity = (s: string) => s;
-  const noop: any = new Proxy({}, {
-    get: () => noop,
-    apply: (_target: any, _thisArg: any, args: any[]) => args[0] || ''
-  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const noop: any = new Proxy(
+    {},
+    {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      get: () => noop,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      apply: (_target: any, _thisArg: any, args: any[]) => args[0] || '',
+    }
+  );
   return noop;
 }
 
