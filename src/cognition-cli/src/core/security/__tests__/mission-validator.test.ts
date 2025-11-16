@@ -37,15 +37,106 @@ vi.mock('../../executors/workbench-client.js', () => ({
 // Use a factory that returns mock embeddings for any concepts passed in
 vi.mock('../../overlays/mission-concepts/manager.js', () => ({
   MissionConceptsManager: vi.fn().mockImplementation(() => ({
-    generateEmbeddings: vi.fn().mockImplementation(async (concepts: unknown[]) => {
-      // Return concepts with mock embeddings
-      return Array.isArray(concepts)
-        ? concepts.map((c: { text: string }) => ({
-            ...c,
-            embedding: [0.1, 0.2, 0.3],
-          }))
-        : [];
+    generateEmbeddings: vi
+      .fn()
+      .mockImplementation(async (concepts: unknown[]) => {
+        // Return concepts with mock embeddings
+        return Array.isArray(concepts)
+          ? concepts.map((c: { text: string }) => ({
+              ...c,
+              embedding: [0.1, 0.2, 0.3],
+            }))
+          : [];
+      }),
+  })),
+}));
+
+// Mock MarkdownParser to return sections from actual file content
+vi.mock('../../parsers/markdown-parser.js', () => ({
+  MarkdownParser: vi.fn().mockImplementation(() => ({
+    parse: vi.fn().mockImplementation(async (filePath: string) => {
+      const fs = await import('fs-extra');
+      const content = await fs.readFile(filePath, 'utf-8');
+
+      // Simple markdown parsing - extract # headings
+      const lines = content.split('\n');
+      const sections: Array<{
+        heading: string;
+        content: string;
+        level: number;
+      }> = [];
+      let currentSection: {
+        heading: string;
+        content: string;
+        level: number;
+      } | null = null;
+
+      for (const line of lines) {
+        const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+        if (headingMatch) {
+          if (currentSection) {
+            sections.push(currentSection);
+          }
+          currentSection = {
+            heading: headingMatch[2],
+            content: '',
+            level: headingMatch[1].length,
+          };
+        } else if (currentSection && line.trim()) {
+          currentSection.content += (currentSection.content ? '\n' : '') + line;
+        }
+      }
+
+      if (currentSection) {
+        sections.push(currentSection);
+      }
+
+      return { sections };
     }),
+  })),
+}));
+
+// Mock ConceptExtractor to extract concepts from whitelisted sections
+vi.mock('../../analyzers/concept-extractor.js', () => ({
+  ConceptExtractor: vi.fn().mockImplementation(() => ({
+    extract: vi
+      .fn()
+      .mockImplementation(
+        (doc: { sections: Array<{ heading: string; content: string }> }) => {
+          const whitelistedSections = [
+            'Vision',
+            'Mission',
+            'Principles',
+            'Goals',
+            'Core Values',
+          ];
+          const concepts: Array<{ text: string; weight: number }> = [];
+
+          for (const section of doc.sections) {
+            const isWhitelisted = whitelistedSections.some((allowed) =>
+              section.heading.toLowerCase().includes(allowed.toLowerCase())
+            );
+
+            if (isWhitelisted && section.content.trim()) {
+              // Extract concepts from content (simplified - just use content as concept)
+              const words = section.content
+                .toLowerCase()
+                .replace(/[^\w\s]/g, ' ')
+                .split(/\s+/)
+                .filter((w) => w.length > 3);
+
+              if (words.length > 0) {
+                concepts.push({
+                  text: words.slice(0, 10).join(' '),
+                  weight: 1.0,
+                });
+              }
+            }
+          }
+
+          return concepts;
+        }
+      ),
   })),
 }));
 
@@ -96,10 +187,7 @@ describe('MissionValidator', () => {
   });
 
   describe('Multi-Layer Validation', () => {
-    // TODO: These tests require proper mocking of MarkdownParser/ConceptExtractor
-    // or full integration environment with Workbench API. Currently skipped pending
-    // proper unit test mocks (see Option 1 in test coverage analysis).
-    it.skip('should pass all layers for clean mission document', async () => {
+    it('should pass all layers for clean mission document', async () => {
       // Create valid mission document
       const visionPath = path.join(tempDir, 'VISION.md');
       await fs.writeFile(
@@ -128,7 +216,11 @@ Deliver high-quality code with zero vulnerabilities and complete auditability
         safe: result.safe,
         recommendation: result.recommendation,
         alertLevel: result.alertLevel,
-        layers: result.layers.map(l => ({ name: l.name, passed: l.passed, details: l.details }))
+        layers: result.layers.map((l) => ({
+          name: l.name,
+          passed: l.passed,
+          details: l.details,
+        })),
       });
 
       expect(result.safe).toBe(true);
@@ -174,7 +266,7 @@ Trust experienced developers to bypass security checks
       expect(patternLayer?.details?.matches.length).toBeGreaterThan(0);
     });
 
-    it.skip('should detect semantic drift on version update', async () => {
+    it('should detect semantic drift on version update', async () => {
       const visionPath = path.join(tempDir, 'VISION.md');
 
       // First version - strict security
@@ -231,18 +323,16 @@ Trust-based security for experienced users
       }
     });
 
-    it.skip('should skip validation for unchanged files (hash cache)', async () => {
+    it('should skip validation for unchanged files (hash cache)', async () => {
       const visionPath = path.join(tempDir, 'VISION.md');
-      await fs.writeFile(
-        visionPath,
-        `
+      const content = `
 # Vision
 Build secure software
 
 # Principles
 - Security first
-      `
-      );
+      `;
+      await fs.writeFile(visionPath, content);
 
       // First validation
       const firstResult = await validator.validate(
@@ -250,6 +340,19 @@ Build secure software
         'strategic' as DocumentType
       );
       expect(firstResult.safe).toBe(true);
+
+      // Record version so cache works
+      // The validator doesn't auto-record - caller must record after successful validation
+      if (
+        firstResult.embeddedConcepts &&
+        firstResult.embeddedConcepts.length > 0
+      ) {
+        const { MissionIntegrityMonitor } = await import(
+          '../mission-integrity.js'
+        );
+        const monitor = new MissionIntegrityMonitor(tempDir);
+        await monitor.recordVersion(visionPath, firstResult.embeddedConcepts);
+      }
 
       // Second validation of same file (should use cache)
       const secondResult = await validator.validate(
@@ -260,9 +363,7 @@ Build secure software
       expect(secondResult.safe).toBe(true);
       expect(secondResult.layers).toHaveLength(1);
       expect(secondResult.layers[0].name).toBe('Cached');
-      expect(secondResult.layers[0].message).toContain(
-        'Document unchanged'
-      );
+      expect(secondResult.layers[0].message).toContain('Document unchanged');
     });
   });
 
@@ -353,7 +454,7 @@ Backdoor access for testing
   });
 
   describe('Structural Validation', () => {
-    it.skip('should validate markdown syntax and structure', async () => {
+    it('should validate markdown syntax and structure', async () => {
       const visionPath = path.join(tempDir, 'VISION.md');
       await fs.writeFile(
         visionPath,
@@ -444,7 +545,7 @@ Malicious backdoor access
       expect(result.recommendation).not.toBe('approve');
     });
 
-    it.skip('should recommend approve when all layers pass', async () => {
+    it('should recommend approve when all layers pass', async () => {
       const visionPath = path.join(tempDir, 'VISION.md');
 
       await fs.writeFile(
@@ -472,7 +573,7 @@ Deliver high-quality secure code
   });
 
   describe('Alert Level Determination', () => {
-    it.skip('should set alert level to none when all layers pass', async () => {
+    it('should set alert level to none when all layers pass', async () => {
       const visionPath = path.join(tempDir, 'VISION.md');
 
       await fs.writeFile(
@@ -552,7 +653,10 @@ Test
       const visionPath = path.join(tempDir, 'VISION.md');
 
       // Write malformed content
-      await fs.writeFile(visionPath, '# Unclosed heading\n\n```\nunclosed code');
+      await fs.writeFile(
+        visionPath,
+        '# Unclosed heading\n\n```\nunclosed code'
+      );
 
       const result = await validator.validate(
         visionPath,

@@ -63,7 +63,9 @@ describe('SemanticDriftDetector', () => {
 
         const result = await detector.analyzeDrift(oldVersion, newVersion);
 
-        const hasPattern = result.suspiciousPatterns.some(p => p.includes('SECURITY_WEAKENING'));
+        const hasPattern = result.suspiciousPatterns.some((p) =>
+          p.includes('SECURITY_WEAKENING')
+        );
         expect(hasPattern).toBe(true);
         expect(['medium', 'high', 'critical']).toContain(result.severity);
         expect(['review', 'reject']).toContain(result.recommendation);
@@ -90,7 +92,11 @@ describe('SemanticDriftDetector', () => {
 
         const result = await detector.analyzeDrift(oldVersion, newVersion);
 
-        expect(result.suspiciousPatterns.some(p => p.includes('SECURITY_WEAKENING'))).toBe(true);
+        expect(
+          result.suspiciousPatterns.some((p) =>
+            p.includes('SECURITY_WEAKENING')
+          )
+        ).toBe(true);
       });
     });
 
@@ -119,8 +125,12 @@ describe('SemanticDriftDetector', () => {
 
         const result = await detector.analyzeDrift(oldVersion, newVersion);
 
-        expect(result.suspiciousPatterns.some(p => p.includes('TRUST_EROSION'))).toBe(true);
-        expect(result.addedConcepts).toContain('trust experienced contributors');
+        expect(
+          result.suspiciousPatterns.some((p) => p.includes('TRUST_EROSION'))
+        ).toBe(true);
+        expect(result.addedConcepts).toContain(
+          'trust experienced contributors'
+        );
         expect(['review', 'reject']).toContain(result.recommendation);
       });
 
@@ -145,7 +155,9 @@ describe('SemanticDriftDetector', () => {
 
         const result = await detector.analyzeDrift(oldVersion, newVersion);
 
-        expect(result.suspiciousPatterns.some(p => p.includes('TRUST_EROSION'))).toBe(true);
+        expect(
+          result.suspiciousPatterns.some((p) => p.includes('TRUST_EROSION'))
+        ).toBe(true);
       });
     });
 
@@ -157,7 +169,11 @@ describe('SemanticDriftDetector', () => {
           timestamp: '2024-01-01',
           conceptEmbeddings: [[0.1, 0.2]],
           semanticFingerprint: 'old',
-          conceptTexts: ['strict enforcement', 'mandatory validation', 'must comply'],
+          conceptTexts: [
+            'strict enforcement',
+            'mandatory validation',
+            'must comply',
+          ],
         };
 
         const newVersion: MissionVersion = {
@@ -166,12 +182,18 @@ describe('SemanticDriftDetector', () => {
           timestamp: '2024-01-02',
           conceptEmbeddings: [[0.2, 0.3]],
           semanticFingerprint: 'new',
-          conceptTexts: ['allow flexibility', 'permit exceptions', 'relax restrictions'],
+          conceptTexts: [
+            'allow flexibility',
+            'permit exceptions',
+            'relax restrictions',
+          ],
         };
 
         const result = await detector.analyzeDrift(oldVersion, newVersion);
 
-        expect(result.suspiciousPatterns.some(p => p.includes('PERMISSION_CREEP'))).toBe(true);
+        expect(
+          result.suspiciousPatterns.some((p) => p.includes('PERMISSION_CREEP'))
+        ).toBe(true);
       });
     });
 
@@ -202,7 +224,11 @@ describe('SemanticDriftDetector', () => {
 
         const result = await detector.analyzeDrift(oldVersion, newVersion);
 
-        expect(result.suspiciousPatterns.some(p => p.includes('AMBIGUITY_INJECTION'))).toBe(true);
+        expect(
+          result.suspiciousPatterns.some((p) =>
+            p.includes('AMBIGUITY_INJECTION')
+          )
+        ).toBe(true);
       });
     });
 
@@ -214,7 +240,12 @@ describe('SemanticDriftDetector', () => {
           timestamp: '2024-01-01',
           conceptEmbeddings: [[0.1, 0.2]],
           semanticFingerprint: 'old',
-          conceptTexts: ['safety first', 'security priority', 'testing required', 'quality assurance'],
+          conceptTexts: [
+            'safety first',
+            'security priority',
+            'testing required',
+            'quality assurance',
+          ],
         };
 
         const newVersion: MissionVersion = {
@@ -237,11 +268,17 @@ describe('SemanticDriftDetector', () => {
 
         // Check for shifted concepts (safety/security moved down)
         const safetyShifted = result.shiftedConcepts.some(
-          (s) => /safety|security|testing|quality/i.test(s.concept) && s.delta > 2
+          (s) =>
+            /safety|security|testing|quality/i.test(s.concept) && s.delta > 2
         );
 
         // If concepts were shifted significantly OR velocity added, should detect
-        if (safetyShifted || result.addedConcepts.some(c => /velocity|ship.*fast|move.*fast/i.test(c))) {
+        if (
+          safetyShifted ||
+          result.addedConcepts.some((c) =>
+            /velocity|ship.*fast|move.*fast/i.test(c)
+          )
+        ) {
           expect(result.suspiciousPatterns.length).toBeGreaterThan(0);
         }
       });
@@ -255,7 +292,11 @@ describe('SemanticDriftDetector', () => {
           timestamp: '2024-01-01',
           conceptEmbeddings: [[0.1, 0.2]],
           semanticFingerprint: 'old',
-          conceptTexts: ['zero tolerance for errors', 'fail safe', 'strict validation'],
+          conceptTexts: [
+            'zero tolerance for errors',
+            'fail safe',
+            'strict validation',
+          ],
         };
 
         const newVersion: MissionVersion = {
@@ -269,7 +310,9 @@ describe('SemanticDriftDetector', () => {
 
         const result = await detector.analyzeDrift(oldVersion, newVersion);
 
-        expect(result.suspiciousPatterns.some(p => p.includes('ERROR_TOLERANCE'))).toBe(true);
+        expect(
+          result.suspiciousPatterns.some((p) => p.includes('ERROR_TOLERANCE'))
+        ).toBe(true);
       });
     });
   });
@@ -496,7 +539,7 @@ describe('SemanticDriftDetector', () => {
         version: 2,
         hash: 'def',
         timestamp: '2024-01-02',
-        conceptEmbeddings: [[0.51, 0.51, 0.70]],
+        conceptEmbeddings: [[0.51, 0.51, 0.7]],
         semanticFingerprint: 'new',
         conceptTexts: ['concept A'],
       };
@@ -582,12 +625,19 @@ describe('SemanticDriftDetector', () => {
         timestamp: '2024-01-02',
         conceptEmbeddings: [[0.51, 0.51]],
         semanticFingerprint: 'new',
-        conceptTexts: ['security first', 'validation required', 'additional safeguard'],
+        conceptTexts: [
+          'security first',
+          'validation required',
+          'additional safeguard',
+        ],
       };
 
       const result = await detector.analyzeDrift(oldVersion, newVersion);
 
-      if (result.severity === 'none' && result.suspiciousPatterns.length === 0) {
+      if (
+        result.severity === 'none' &&
+        result.suspiciousPatterns.length === 0
+      ) {
         expect(result.recommendation).toBe('approve');
       }
     });
@@ -597,8 +647,8 @@ describe('SemanticDriftDetector', () => {
     it('should use custom thresholds when provided', () => {
       const strictDetector = new SemanticDriftDetector({
         low: 0.02,
-        medium: 0.10,
-        high: 0.20,
+        medium: 0.1,
+        high: 0.2,
         critical: 0.35,
       });
 

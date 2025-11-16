@@ -287,14 +287,10 @@ describe('Compressor', () => {
 
       // Verify edge direction
       expect(
-        temporalEdges.some(
-          (e) => e.from === 'turn-1' && e.to === 'turn-2'
-        )
+        temporalEdges.some((e) => e.from === 'turn-1' && e.to === 'turn-2')
       ).toBe(true);
       expect(
-        temporalEdges.some(
-          (e) => e.from === 'turn-2' && e.to === 'turn-3'
-        )
+        temporalEdges.some((e) => e.from === 'turn-2' && e.to === 'turn-3')
       ).toBe(true);
     });
 
@@ -322,9 +318,7 @@ describe('Compressor', () => {
 
       // Verify turn-2 references turn-1
       expect(
-        referenceEdges.some(
-          (e) => e.from === 'turn-2' && e.to === 'turn-1'
-        )
+        referenceEdges.some((e) => e.from === 'turn-2' && e.to === 'turn-1')
       ).toBe(true);
     });
 
@@ -459,7 +453,9 @@ describe('Compressor', () => {
       const result = await compressContext(turns, { target_size: 1000 });
 
       // Most should be discarded or highly compressed
-      expect(result.discarded_turns.length + result.summarized_turns.length).toBe(100);
+      expect(
+        result.discarded_turns.length + result.summarized_turns.length
+      ).toBe(100);
 
       // High compression ratio (>=10 since routine turns compress at 10%)
       expect(result.compression_ratio).toBeGreaterThanOrEqual(10);

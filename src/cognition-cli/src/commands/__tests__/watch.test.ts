@@ -14,7 +14,6 @@ import { createWatchCommand } from '../watch.js';
 import fs from 'fs-extra';
 import path from 'path';
 import os from 'os';
-import type { ChangeEvent } from '../../core/types/watcher.js';
 
 // Mock FileWatcher to avoid actual filesystem watching in tests
 vi.mock('../../core/watcher/file-watcher.js', () => {
@@ -99,14 +98,18 @@ describe('watch command', () => {
   describe('Option Defaults', () => {
     it('should default untracked to false', () => {
       const cmd = createWatchCommand();
-      const untrackedOption = cmd.options.find((opt) => opt.long === '--untracked');
+      const untrackedOption = cmd.options.find(
+        (opt) => opt.long === '--untracked'
+      );
 
       expect(untrackedOption?.defaultValue).toBe(false);
     });
 
     it('should default debounce to 300ms', () => {
       const cmd = createWatchCommand();
-      const debounceOption = cmd.options.find((opt) => opt.long === '--debounce');
+      const debounceOption = cmd.options.find(
+        (opt) => opt.long === '--debounce'
+      );
 
       expect(debounceOption?.defaultValue).toBe('300');
     });

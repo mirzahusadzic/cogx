@@ -12,19 +12,34 @@
  * - [x] Novelty scoring
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import type { TurnAnalysis, OverlayScores } from '../types.js';
 
 // Create mock analyzer function
-async function analyzeTurn(content: string, role: 'user' | 'assistant'): Promise<TurnAnalysis> {
+async function analyzeTurn(
+  content: string,
+  role: 'user' | 'assistant'
+): Promise<TurnAnalysis> {
   const overlayScores: OverlayScores = {
     O1_structural: content.toLowerCase().includes('architecture') ? 0.8 : 0.2,
     O2_security: content.toLowerCase().includes('security') ? 0.9 : 0.1,
     O3_lineage: content.toLowerCase().includes('depends on') ? 0.7 : 0.1,
-    O4_mission: content.toLowerCase().includes('mission') || content.toLowerCase().includes('goal') ? 0.8 : 0.2,
+    O4_mission:
+      content.toLowerCase().includes('mission') ||
+      content.toLowerCase().includes('goal')
+        ? 0.8
+        : 0.2,
     O5_operational: content.toLowerCase().includes('workflow') ? 0.7 : 0.2,
-    O6_mathematical: content.toLowerCase().includes('algorithm') || content.toLowerCase().includes('proof') ? 0.8 : 0.1,
-    O7_strategic: content.toLowerCase().includes('strategy') || content.toLowerCase().includes('coherence') ? 0.8 : 0.2,
+    O6_mathematical:
+      content.toLowerCase().includes('algorithm') ||
+      content.toLowerCase().includes('proof')
+        ? 0.8
+        : 0.1,
+    O7_strategic:
+      content.toLowerCase().includes('strategy') ||
+      content.toLowerCase().includes('coherence')
+        ? 0.8
+        : 0.2,
   };
 
   // Calculate importance as weighted average of overlay scores
@@ -65,7 +80,9 @@ function extractTags(content: string): string[] {
 
 function extractReferences(content: string): string[] {
   const refPattern = /turn-\d+/g;
-  return (content.match(refPattern) || []).filter((v, i, a) => a.indexOf(v) === i);
+  return (content.match(refPattern) || []).filter(
+    (v, i, a) => a.indexOf(v) === i
+  );
 }
 
 describe('Sigma Analyzer', () => {
@@ -253,7 +270,9 @@ describe('Sigma Analyzer', () => {
         'assistant'
       );
 
-      expect(analysis.references.filter((r) => r === 'turn-123')).toHaveLength(1);
+      expect(analysis.references.filter((r) => r === 'turn-123')).toHaveLength(
+        1
+      );
     });
 
     it('should handle content with no references', async () => {
@@ -317,7 +336,10 @@ describe('Sigma Analyzer', () => {
 
     it('should preserve role', async () => {
       const userAnalysis = await analyzeTurn('User message', 'user');
-      const assistantAnalysis = await analyzeTurn('Assistant message', 'assistant');
+      const assistantAnalysis = await analyzeTurn(
+        'Assistant message',
+        'assistant'
+      );
 
       expect(userAnalysis.role).toBe('user');
       expect(assistantAnalysis.role).toBe('assistant');

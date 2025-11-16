@@ -13,7 +13,10 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { MissionIntegrityMonitor, type MissionConcept } from '../mission-integrity.js';
+import {
+  MissionIntegrityMonitor,
+  type MissionConcept,
+} from '../mission-integrity.js';
 import fs from 'fs-extra';
 import path from 'path';
 import os from 'os';
@@ -25,7 +28,9 @@ describe('MissionIntegrityMonitor', () => {
   let visionPath: string;
 
   beforeEach(async () => {
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mission-integrity-test-'));
+    tempDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'mission-integrity-test-')
+    );
     const pgcRoot = path.join(tempDir, '.open_cognition');
     await fs.ensureDir(path.join(pgcRoot, 'security'));
     monitor = new MissionIntegrityMonitor(pgcRoot);
@@ -50,7 +55,9 @@ describe('MissionIntegrityMonitor', () => {
 
       expect(version).toBeDefined();
       expect(version.version).toBe(1);
-      expect(version.hash).toBe(createHash('sha256').update(content).digest('hex'));
+      expect(version.hash).toBe(
+        createHash('sha256').update(content).digest('hex')
+      );
       expect(version.conceptEmbeddings).toHaveLength(2);
       expect(version.conceptTexts).toEqual(['concept 1', 'concept 2']);
     });
@@ -86,7 +93,10 @@ describe('MissionIntegrityMonitor', () => {
 
       const version = await monitor.recordVersion(visionPath, concepts);
 
-      expect(version.conceptTexts).toEqual(['security first', 'verification over trust']);
+      expect(version.conceptTexts).toEqual([
+        'security first',
+        'verification over trust',
+      ]);
       expect(version.conceptTexts).toHaveLength(2);
 
       const retrieved = await monitor.getVersion(1);
@@ -161,7 +171,9 @@ describe('MissionIntegrityMonitor', () => {
         { text: 'c2', embedding: [0.9, 0.8], weight: 1.0 },
       ]);
 
-      expect(version1.semanticFingerprint).not.toBe(version2.semanticFingerprint);
+      expect(version1.semanticFingerprint).not.toBe(
+        version2.semanticFingerprint
+      );
     });
 
     it('should produce same fingerprint for identical embeddings', async () => {
@@ -193,7 +205,9 @@ describe('MissionIntegrityMonitor', () => {
 
       // Verify hash matches current content
       const currentContent = await fs.readFile(visionPath, 'utf-8');
-      const currentHash = createHash('sha256').update(currentContent).digest('hex');
+      const currentHash = createHash('sha256')
+        .update(currentContent)
+        .digest('hex');
       expect(version.hash).toBe(currentHash);
     });
 
@@ -209,7 +223,9 @@ describe('MissionIntegrityMonitor', () => {
 
       // Tamper with file
       const tamperedContent = 'tampered mission';
-      const tamperedHash = createHash('sha256').update(tamperedContent).digest('hex');
+      const tamperedHash = createHash('sha256')
+        .update(tamperedContent)
+        .digest('hex');
 
       // Hashes should differ
       expect(originalHash).not.toBe(tamperedHash);
@@ -251,11 +267,14 @@ describe('MissionIntegrityMonitor', () => {
     it('should handle large embeddings', async () => {
       await fs.writeFile(visionPath, 'large test');
 
-      const largeConcepts: MissionConcept[] = Array.from({ length: 100 }, (_, i) => ({
-        text: `concept-${i}`,
-        embedding: Array.from({ length: 768 }, (_, j) => (i + j) / 1000),
-        weight: 1.0,
-      }));
+      const largeConcepts: MissionConcept[] = Array.from(
+        { length: 100 },
+        (_, i) => ({
+          text: `concept-${i}`,
+          embedding: Array.from({ length: 768 }, (_, j) => (i + j) / 1000),
+          weight: 1.0,
+        })
+      );
 
       const version = await monitor.recordVersion(visionPath, largeConcepts);
 

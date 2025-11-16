@@ -35,7 +35,9 @@ describe('init command', () => {
       expect(await fs.pathExists(path.join(pgcRoot, 'objects'))).toBe(true);
       expect(await fs.pathExists(path.join(pgcRoot, 'transforms'))).toBe(true);
       expect(await fs.pathExists(path.join(pgcRoot, 'index'))).toBe(true);
-      expect(await fs.pathExists(path.join(pgcRoot, 'reverse_deps'))).toBe(true);
+      expect(await fs.pathExists(path.join(pgcRoot, 'reverse_deps'))).toBe(
+        true
+      );
       expect(await fs.pathExists(path.join(pgcRoot, 'overlays'))).toBe(true);
     });
 
@@ -62,7 +64,11 @@ describe('init command', () => {
     it('should create metadata.json with correct version', async () => {
       await initCommand({ path: tempDir });
 
-      const metadataPath = path.join(tempDir, '.open_cognition', 'metadata.json');
+      const metadataPath = path.join(
+        tempDir,
+        '.open_cognition',
+        'metadata.json'
+      );
       const metadata = await fs.readJSON(metadataPath);
 
       expect(metadata.version).toBe('0.1.0');
@@ -75,10 +81,16 @@ describe('init command', () => {
       await initCommand({ path: tempDir });
       const afterInit = new Date().toISOString();
 
-      const metadataPath = path.join(tempDir, '.open_cognition', 'metadata.json');
+      const metadataPath = path.join(
+        tempDir,
+        '.open_cognition',
+        'metadata.json'
+      );
       const metadata = await fs.readJSON(metadataPath);
 
-      expect(metadata.initialized_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+      expect(metadata.initialized_at).toMatch(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
+      );
       expect(metadata.initialized_at >= beforeInit).toBe(true);
       expect(metadata.initialized_at <= afterInit).toBe(true);
     });
@@ -86,7 +98,11 @@ describe('init command', () => {
     it('should initialize status as "empty"', async () => {
       await initCommand({ path: tempDir });
 
-      const metadataPath = path.join(tempDir, '.open_cognition', 'metadata.json');
+      const metadataPath = path.join(
+        tempDir,
+        '.open_cognition',
+        'metadata.json'
+      );
       const metadata = await fs.readJSON(metadataPath);
 
       expect(metadata.status).toBe('empty');
@@ -136,7 +152,11 @@ describe('init command', () => {
       // First init
       await initCommand({ path: tempDir });
 
-      const metadataPath = path.join(tempDir, '.open_cognition', 'metadata.json');
+      const metadataPath = path.join(
+        tempDir,
+        '.open_cognition',
+        'metadata.json'
+      );
       const firstMetadata = await fs.readJSON(metadataPath);
 
       // Second init
@@ -189,25 +209,19 @@ describe('init command', () => {
       expect(await fs.pathExists(pgcRoot)).toBe(true);
     });
 
-    // TODO: process.chdir() is not supported in worker threads (vitest limitation)
-    // Skip pending redesign to avoid process.chdir() or run in main thread
-    it.skip('should work with relative paths', async () => {
+    it('should work with relative paths', async () => {
       // Create subdirectory
       const subDir = path.join(tempDir, 'subdir');
       await fs.ensureDir(subDir);
 
-      // Change to temp directory
-      const originalCwd = process.cwd();
-      try {
-        process.chdir(tempDir);
+      // Use path.relative to create a relative path from cwd to subdir
+      // This avoids using process.chdir() which doesn't work in workers
+      const relativePath = path.relative(process.cwd(), subDir);
 
-        await initCommand({ path: './subdir' });
+      await initCommand({ path: relativePath });
 
-        const pgcRoot = path.join(subDir, '.open_cognition');
-        expect(await fs.pathExists(pgcRoot)).toBe(true);
-      } finally {
-        process.chdir(originalCwd);
-      }
+      const pgcRoot = path.join(subDir, '.open_cognition');
+      expect(await fs.pathExists(pgcRoot)).toBe(true);
     });
   });
 });

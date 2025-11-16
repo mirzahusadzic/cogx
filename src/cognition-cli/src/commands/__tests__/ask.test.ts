@@ -69,7 +69,9 @@ describe('ask command', () => {
       // Remove PGC directory
       await fs.remove(path.join(tempDir, '.open_cognition'));
 
-      const { WorkspaceManager } = await import('../../core/workspace-manager.js');
+      const { WorkspaceManager } = await import(
+        '../../core/workspace-manager.js'
+      );
       const manager = new WorkspaceManager();
 
       const projectRoot = manager.resolvePgcRoot(tempDir);
@@ -77,7 +79,9 @@ describe('ask command', () => {
     });
 
     it('should succeed when .open_cognition exists', async () => {
-      const { WorkspaceManager } = await import('../../core/workspace-manager.js');
+      const { WorkspaceManager } = await import(
+        '../../core/workspace-manager.js'
+      );
       const manager = new WorkspaceManager();
 
       const projectRoot = manager.resolvePgcRoot(tempDir);
@@ -87,7 +91,9 @@ describe('ask command', () => {
 
   describe('Query Execution', () => {
     it('should query overlay registry with user question', async () => {
-      const { OverlayRegistry } = await import('../../core/algebra/overlay-registry.js');
+      const { OverlayRegistry } = await import(
+        '../../core/algebra/overlay-registry.js'
+      );
 
       const registry = new OverlayRegistry(
         path.join(tempDir, '.open_cognition'),
@@ -101,7 +107,9 @@ describe('ask command', () => {
     });
 
     it('should return matches with scores', async () => {
-      const { OverlayRegistry } = await import('../../core/algebra/overlay-registry.js');
+      const { OverlayRegistry } = await import(
+        '../../core/algebra/overlay-registry.js'
+      );
 
       const registry = new OverlayRegistry(
         path.join(tempDir, '.open_cognition'),
@@ -121,7 +129,9 @@ describe('ask command', () => {
 
   describe('Embedding Service Integration', () => {
     it('should use embedding service for semantic search', async () => {
-      const { EmbeddingService } = await import('../../core/services/embedding.js');
+      const { EmbeddingService } = await import(
+        '../../core/services/embedding.js'
+      );
 
       const embedder = new EmbeddingService('http://localhost:8000');
       const result = await embedder.embed({ content: 'test query' });
@@ -133,7 +143,9 @@ describe('ask command', () => {
 
   describe('Result Formatting', () => {
     it('should format matches with file paths and symbols', async () => {
-      const { OverlayRegistry } = await import('../../core/algebra/overlay-registry.js');
+      const { OverlayRegistry } = await import(
+        '../../core/algebra/overlay-registry.js'
+      );
 
       const registry = new OverlayRegistry(
         path.join(tempDir, '.open_cognition'),
@@ -155,7 +167,9 @@ describe('ask command', () => {
   describe('Error Handling', () => {
     it('should handle missing workbench gracefully', async () => {
       // Embedding service should handle connection errors
-      const { EmbeddingService } = await import('../../core/services/embedding.js');
+      const { EmbeddingService } = await import(
+        '../../core/services/embedding.js'
+      );
 
       const embedder = new EmbeddingService('http://invalid-url:9999');
 
