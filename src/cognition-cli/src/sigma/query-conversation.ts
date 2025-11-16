@@ -289,7 +289,9 @@ export async function filterConversationByAlignment(
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
-  } catch (err) {}
+  } catch {
+    // Silently skip if overlay unavailable
+  }
 
   // Query O4 (mission)
   try {
@@ -307,7 +309,9 @@ export async function filterConversationByAlignment(
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
-  } catch (err) {}
+  } catch {
+    // Silently skip if overlay unavailable
+  }
 
   // Query O5 (operational)
   try {
@@ -325,7 +329,9 @@ export async function filterConversationByAlignment(
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
-  } catch (err) {}
+  } catch {
+    // Silently skip if overlay unavailable
+  }
 
   // Query O2 (security)
   try {
@@ -343,7 +349,9 @@ export async function filterConversationByAlignment(
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
-  } catch (err) {}
+  } catch {
+    // Silently skip if overlay unavailable
+  }
 
   // Query O3 (lineage)
   try {
@@ -361,7 +369,9 @@ export async function filterConversationByAlignment(
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
-  } catch (err) {}
+  } catch {
+    // Silently skip if overlay unavailable
+  }
 
   // Query O6 (mathematical)
   try {
@@ -379,7 +389,9 @@ export async function filterConversationByAlignment(
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
-  } catch (err) {}
+  } catch {
+    // Silently skip if overlay unavailable
+  }
 
   // Query O7 (coherence)
   try {
@@ -397,7 +409,9 @@ export async function filterConversationByAlignment(
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
-  } catch (err) {}
+  } catch {
+    // Silently skip if overlay unavailable
+  }
 
   return results;
 }
