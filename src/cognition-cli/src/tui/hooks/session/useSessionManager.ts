@@ -245,56 +245,61 @@ export function useSessionManager(
       compressedTokens?: number
     ) => {
       const store = storeRef.current;
-      const previousSessionId = state.currentSessionId;
 
-      // Check if session actually changed
-      if (previousSessionId === newSessionId) {
-        if (debug) {
-          console.log('[useSessionManager] SDK session unchanged');
+      // Use functional setState to get current state synchronously
+      // This prevents stale closure issues during rapid SDK messages
+      setState((prev) => {
+        const previousSessionId = prev.currentSessionId;
+
+        // Check if session actually changed
+        if (previousSessionId === newSessionId) {
+          if (debug) {
+            console.log('[useSessionManager] SDK session unchanged');
+          }
+          return prev; // No change
         }
-        return;
-      }
 
-      // Check if this is the first SDK session we've received
-      const sessionState = store.load();
+        // Check if this is the first SDK session we've received
+        const sessionState = store.load();
 
-      if (!sessionState || reason === 'initial') {
-        // Create initial state (or recreate if reason is explicitly 'initial')
-        store.create(newSessionId);
+        if (!sessionState || reason === 'initial') {
+          // Create initial state (or recreate if reason is explicitly 'initial')
+          store.create(newSessionId);
+          if (debug) {
+            console.log(
+              `[useSessionManager] Created initial state: ${anchorId} → ${newSessionId}`
+            );
+          }
+        } else {
+          // Update existing state (reason must be 'compression' or 'expiration')
+          const event: SessionUpdateEvent = {
+            previousSessionId,
+            newSessionId,
+            reason: reason as 'compression' | 'expiration',
+            compressedTokens,
+          };
+          store.update(event);
+
+          // Notify callback
+          onSDKSessionChanged?.(event);
+        }
+
         if (debug) {
           console.log(
-            `[useSessionManager] Created initial state: ${anchorId} → ${newSessionId}`
+            `[useSessionManager] SDK session updated: ${previousSessionId} → ${newSessionId} (${reason})`
           );
         }
-      } else {
-        // Update existing state (reason must be 'compression' or 'expiration')
-        const event: SessionUpdateEvent = {
-          previousSessionId,
-          newSessionId,
-          reason: reason as 'compression' | 'expiration',
-          compressedTokens,
+
+        // Return updated state
+        return {
+          ...prev,
+          currentSessionId: newSessionId,
+          resumeSessionId: newSessionId,
+          hasReceivedSDKSessionId: true,
         };
-        store.update(event);
-
-        // Notify callback
-        onSDKSessionChanged?.(event);
-      }
-
-      // Update React state
-      setState((prev) => ({
-        ...prev,
-        currentSessionId: newSessionId,
-        resumeSessionId: newSessionId,
-        hasReceivedSDKSessionId: true,
-      }));
-
-      if (debug) {
-        console.log(
-          `[useSessionManager] SDK session updated: ${previousSessionId} → ${newSessionId} (${reason})`
-        );
-      }
+      });
     },
-    [state.currentSessionId, anchorId, debug, onSDKSessionChanged]
+    [anchorId, debug, onSDKSessionChanged]
   );
 
   // Update stats from turn analyses
