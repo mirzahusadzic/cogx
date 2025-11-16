@@ -172,6 +172,8 @@ export class FileWatcher extends EventEmitter {
       this.isWatching = false;
       console.log('File watcher stopped');
     }
+    // Clean up event listeners to prevent memory leaks
+    this.removeAllListeners();
   }
 
   /**

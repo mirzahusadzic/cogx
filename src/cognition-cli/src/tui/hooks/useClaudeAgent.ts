@@ -297,7 +297,11 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const debugLog = useCallback(
     (content: string) => {
       if (debugFlag) {
-        fs.appendFileSync(path.join(cwd, 'tui-debug.log'), content);
+        try {
+          fs.appendFileSync(path.join(cwd, 'tui-debug.log'), content);
+        } catch (err) {
+          // Silent fail - debug logs are non-critical
+        }
       }
     },
     [debugFlag, cwd]
@@ -701,11 +705,16 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             `${(tokens / 1000).toFixed(1)}K → ${(result.compressed_size / 1000).toFixed(1)}K tokens\n\n` +
             sessionContext.recap;
 
-          fs.writeFileSync(
-            path.join(cwd, '.sigma', `${compressionSessionId}.recap.txt`),
-            recap,
-            'utf-8'
-          );
+          try {
+            fs.writeFileSync(
+              path.join(cwd, '.sigma', `${compressionSessionId}.recap.txt`),
+              recap,
+              'utf-8'
+            );
+          } catch (err) {
+            console.error('Failed to save recap file:', err instanceof Error ? err.message : String(err));
+            // Continue - recap is saved in memory via setInjectedRecap
+          }
           setInjectedRecap(recap);
           sessionManager.resetResumeSession();
 
@@ -796,16 +805,21 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
    * Loaded once on mount and cached for the session.
    */
   useEffect(() => {
-    loadCommands(cwd).then((result) => {
-      setCommandsCache(result.commands);
-      // Log any errors/warnings
-      if (result.errors.length > 0 && debugFlag) {
-        console.error('Command loading errors:', result.errors);
-      }
-      if (result.warnings.length > 0 && debugFlag) {
-        console.warn('Command loading warnings:', result.warnings);
-      }
-    });
+    loadCommands(cwd)
+      .then((result) => {
+        setCommandsCache(result.commands);
+        // Log any errors/warnings
+        if (result.errors.length > 0 && debugFlag) {
+          console.error('Command loading errors:', result.errors);
+        }
+        if (result.warnings.length > 0 && debugFlag) {
+          console.warn('Command loading warnings:', result.warnings);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load commands:', error);
+        // Continue without commands - non-critical failure
+      });
   }, [cwd, debugFlag]);
 
   /**
@@ -858,7 +872,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           },
         ]);
       } catch (err) {
-        // Silent fail - new session will start fresh
+        console.warn('Failed to load lattice from LanceDB:', err);
+        // Continue with fresh session - non-critical failure
       }
     };
 
@@ -1030,7 +1045,12 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   useEffect(() => {
     conversationRegistryRef.current?.setCurrentSession(currentSessionId);
     return () => {
-      conversationRegistryRef.current?.flushAll(currentSessionId);
+      // Note: cleanup functions can't be async, but we handle the promise
+      conversationRegistryRef.current
+        ?.flushAll(currentSessionId)
+        .catch((err) => {
+          console.error('Failed to flush conversation overlays:', err);
+        });
     };
   }, [currentSessionId]);
 

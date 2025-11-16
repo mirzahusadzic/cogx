@@ -22,12 +22,20 @@ export class EmbedLogger {
   }
 
   /**
-   * Log embedding failure
+   * Log embedding failure with optional context
    */
-  static error(symbolName: string, error: Error, overlayType?: string): void {
+  static error(
+    symbolName: string,
+    error: Error,
+    overlayType?: string,
+    context?: Record<string, unknown>
+  ): void {
     const prefix = overlayType ? `[${overlayType}]` : '[Embed]';
+    const contextStr = context
+      ? ` ${JSON.stringify(context)}`
+      : '';
     console.error(
-      chalk.red(`  ${prefix} ${symbolName} - ✗ failed: ${error.message}`)
+      chalk.red(`  ${prefix} ${symbolName} - ✗ failed: ${error.message}${contextStr}`)
     );
   }
 

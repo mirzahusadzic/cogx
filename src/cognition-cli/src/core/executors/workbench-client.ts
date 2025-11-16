@@ -176,6 +176,19 @@ export class WorkbenchClient {
   }
 
   /**
+   * Sanitize error messages to prevent API key/URL leakage in logs
+   */
+  private sanitizeError(error: string): string {
+    // Remove API keys from Bearer tokens
+    let sanitized = error.replace(/Bearer\s+\S+/g, 'Bearer [REDACTED]');
+    // Remove API keys from query parameters
+    sanitized = sanitized.replace(/api_key=\S+/g, 'api_key=[REDACTED]');
+    // Remove API keys from headers
+    sanitized = sanitized.replace(/x-api-key:\s*\S+/gi, 'x-api-key: [REDACTED]');
+    return sanitized;
+  }
+
+  /**
    * Check workbench API health.
    *
    * Sends a health check request to verify the API is reachable.
@@ -365,13 +378,17 @@ export class WorkbenchClient {
               await new Promise((resolve) => setTimeout(resolve, waitTime));
               continue;
             } else {
-              throw new Error(`HTTP 429: ${errorText} (max retries exceeded)`);
+              throw new Error(
+                `HTTP 429: ${this.sanitizeError(errorText)} (max retries exceeded)`
+              );
             }
           }
 
           if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`HTTP ${response.status}: ${errorText}`);
+            throw new Error(
+              `HTTP ${response.status}: ${this.sanitizeError(errorText)}`
+            );
           }
 
           resolve((await response.json()) as SummarizeResponse);
@@ -477,13 +494,17 @@ export class WorkbenchClient {
               await new Promise((resolve) => setTimeout(resolve, waitTime));
               continue;
             } else {
-              throw new Error(`HTTP 429: ${errorText} (max retries exceeded)`);
+              throw new Error(
+                `HTTP 429: ${this.sanitizeError(errorText)} (max retries exceeded)`
+              );
             }
           }
 
           if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`HTTP ${response.status}: ${errorText}`);
+            throw new Error(
+              `HTTP ${response.status}: ${this.sanitizeError(errorText)}`
+            );
           }
 
           resolve((await response.json()) as EmbedResponse);
