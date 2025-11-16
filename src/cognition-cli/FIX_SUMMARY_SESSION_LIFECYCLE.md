@@ -7,6 +7,7 @@ After compression completes, the TUI fails to create/switch to a new session. Th
 ### Symptoms
 
 **What SHOULD happen after compression:**
+
 1. ✅ Analysis completes: "✓ Analysis complete (23.2s)"
 2. ✅ Compression triggers: "🗜️ Context compression at 148.5K tokens"
 3. ❌ **New session should be created** ← FAILS HERE
@@ -15,6 +16,7 @@ After compression completes, the TUI fails to create/switch to a new session. Th
 6. ❌ **State file should update** ← FROZEN
 
 **What the user experiences:**
+
 - Compression completes successfully (logs show "compressing conversation...")
 - BUT: Session ID never changes
 - BUT: Token count continues accumulating (no reset)
@@ -47,7 +49,7 @@ In `useClaudeAgent.ts` (lines 645-735), the compression code was structured like
 try {
   // ... compression logic
   setInjectedRecap(recap);
-  sessionManager.resetResumeSession();  // ← CRITICAL: Reset session
+  sessionManager.resetResumeSession(); // ← CRITICAL: Reset session
   // ...
 } catch (err) {
   debug('❌ Compression failed:', (err as Error).message);
@@ -57,6 +59,7 @@ try {
 ```
 
 **The Problem:**
+
 - If ANY error occurs during compression, the `catch` block swallows the error
 - `resetResumeSession()` is never called
 - The session switch never happens
@@ -151,26 +154,30 @@ Created `session-lifecycle-bug.test.ts` demonstrating the bug:
 ```typescript
 it('should call resetResumeSession even if compression errors occur', async () => {
   const mockResetResumeSession = vi.fn();
-  const mockCompressContext = vi.fn().mockRejectedValue(new Error('Compression failed'));
+  const mockCompressContext = vi
+    .fn()
+    .mockRejectedValue(new Error('Compression failed'));
 
   let resumeSessionId: string | undefined = 'old-session-123';
 
   // OLD (buggy) implementation
   try {
     await mockCompressContext();
-    mockResetResumeSession();  // Never reached on error!
+    mockResetResumeSession(); // Never reached on error!
     resumeSessionId = undefined;
   } catch (err) {
     console.error('Compression failed:', err);
   }
 
-  expect(mockResetResumeSession).not.toHaveBeenCalled();  // BUG!
-  expect(resumeSessionId).toBe('old-session-123');  // BUG!
+  expect(mockResetResumeSession).not.toHaveBeenCalled(); // BUG!
+  expect(resumeSessionId).toBe('old-session-123'); // BUG!
 });
 
 it('should demonstrate correct fix using finally block', async () => {
   const mockResetResumeSession = vi.fn();
-  const mockCompressContext = vi.fn().mockRejectedValue(new Error('Compression failed'));
+  const mockCompressContext = vi
+    .fn()
+    .mockRejectedValue(new Error('Compression failed'));
 
   let resumeSessionId: string | undefined = 'old-session-123';
 
@@ -180,12 +187,12 @@ it('should demonstrate correct fix using finally block', async () => {
   } catch (err) {
     console.error('Compression failed:', err);
   } finally {
-    mockResetResumeSession();  // Always executed!
+    mockResetResumeSession(); // Always executed!
     resumeSessionId = undefined;
   }
 
-  expect(mockResetResumeSession).toHaveBeenCalled();  // ✅ FIXED!
-  expect(resumeSessionId).toBeUndefined();  // ✅ FIXED!
+  expect(mockResetResumeSession).toHaveBeenCalled(); // ✅ FIXED!
+  expect(resumeSessionId).toBeUndefined(); // ✅ FIXED!
 });
 ```
 
@@ -217,6 +224,7 @@ it('should demonstrate correct fix using finally block', async () => {
 **Introduced in:** Dependency upgrade commit `58ef9b2bf459830d4e431d405201a94e4d41fd98`
 
 **Affected versions:**
+
 - SDK: 0.1.30 → 0.1.42 (12 minor versions)
 - ink: 6.4.0 → 6.5.0
 

@@ -737,8 +737,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           );
         } catch (err) {
           // CRITICAL FIX: Show error to user (not just debug log)
-          const errorMessage =
-            err instanceof Error ? err.message : String(err);
+          const errorMessage = err instanceof Error ? err.message : String(err);
           debug('❌ Compression failed:', errorMessage);
 
           setMessages((prev) => [
