@@ -18,24 +18,28 @@
 ## Strengths
 
 ### 1. **Evidence-Based Reasoning** ✅
+
 - Excellent use of multi-source correlation (debug.log + session.log + recap.txt + source code)
 - Timeline reconstruction is precise and verifiable
 - Code citations include line numbers and file paths
 - Quantitative loss metrics (96% semantic loss, 100% token loss)
 
 ### 2. **Clear Communication** ✅
+
 - Well-organized document structure
 - Visual diagrams aid understanding
 - Jargon-free executive summary
 - Progressive detail depth (summary → evidence → deep dive)
 
 ### 3. **Architectural Insight** ✅
+
 - Correctly identifies the fundamental assumption violation
 - Traces design evolution (synchronous → async optimization → race condition)
 - Recognizes the missing coordination layer
 - Distinguishes between "bug in implementation" vs "architectural design flaw"
 
 ### 4. **Actionable Findings** ✅
+
 - Specific code locations for failures
 - Concrete test scenarios recommended
 - Clear impact assessment
@@ -48,6 +52,7 @@
 ### Issue 1: **Logical Inconsistency in "Skipped Messages" Count**
 
 **Location:** Lines 57-60 (debug.log analysis)
+
 ```
 [Σ] Unanalyzed user/assistant messages: 8
 [useCompression] Triggering compression: 65990 tokens > 20000 threshold with 5 turns
@@ -56,11 +61,13 @@
 **Claim:** "Only **5 turn analyses** existed when compression fired, but the conversation had **~18+ turns** of actual content."
 
 **Problem:** The session log shows:
+
 ```
 11:14:46  SYSTEM: ✓ Complete (18 turns, $0.0556)
 ```
 
 But this "18 turns" is likely counting **tool use turns** from the SDK perspective, not user/assistant conversation turns. The analysis conflates:
+
 - SDK turn count (includes tool_use, tool_result messages)
 - User/assistant message count (actual conversation turns)
 - Analyzed turn count (turns with embeddings)
@@ -70,6 +77,7 @@ But this "18 turns" is likely counting **tool use turns** from the SDK perspecti
 **Impact on Conclusion:** Medium. The race condition diagnosis is still valid, but the "13 missing turns" claim (18 - 5 = 13) may be inflated.
 
 **Recommendation:** Clarify which turns were skipped by listing actual message types:
+
 ```
 Turn 1: user - "howdy"
 Turn 2: assistant - "Hey there!"
@@ -83,6 +91,7 @@ Turn 6: tool_result
 ### Issue 2: **Unexplored Alternative Hypothesis - State Staleness**
 
 **Location:** Lines 210-220 (Actual Flow section)
+
 ```
 2. Queue effect triggers BUT...
    - lastIndex calculation uses stale turnAnalysis.analyses.length
@@ -93,6 +102,7 @@ Turn 6: tool_result
 **Concern:** The analysis mentions "stale turnAnalysis.analyses.length" but doesn't investigate React state staleness as a primary cause.
 
 **Alternative Hypothesis:**
+
 ```typescript
 // If turnAnalysis.analyses is React state, it may be stale during rapid updates
 const lastAnalyzed = turnAnalysis.analyses[turnAnalysis.analyses.length - 1];
@@ -101,6 +111,7 @@ const lastAnalyzed = turnAnalysis.analyses[turnAnalysis.analyses.length - 1];
 ```
 
 **Test:** If `turnAnalysis.analyses` is stale, then:
+
 1. The compression trigger sees `analyzedTurns: 5` (stale value)
 2. But the actual analyses array has 8 items (fresh value)
 3. This creates a false positive "need to compress now" signal
@@ -112,11 +123,13 @@ const lastAnalyzed = turnAnalysis.analyses[turnAnalysis.analyses.length - 1];
 ### Issue 3: **Compression Ratio Contradiction**
 
 **Location:** Line 63
+
 ```
 [Σ] ✅ Compression: 5 nodes, 0.0K tokens  ← EMPTY LATTICE!
 ```
 
 **Location:** Line 72
+
 ```
 COMPRESSED CONVERSATION RECAP (5 key turns)
 66.0K → 0.0K tokens  ← CATASTROPHIC COMPRESSION RATIO
@@ -127,11 +140,13 @@ COMPRESSED CONVERSATION RECAP (5 key turns)
 3,980 bytes ≈ **995 tokens** (at ~4 chars/token), not 0.0K.
 
 **Analysis Error:** The "0.0K tokens" is likely the **compressed_size** from the lattice calculation, not the **recap file size**. The analysis conflates:
+
 - Lattice token estimation (from `compressor.ts`)
 - Actual recap file size
 - Useful semantic content
 
 **Correction:** The compression ratio should be:
+
 - Input: 66.0K tokens (full conversation)
 - Output: ~1.0K tokens (recap file)
 - Ratio: 66:1 compression (not ∞:1 as "0.0K" implies)
@@ -141,6 +156,7 @@ COMPRESSED CONVERSATION RECAP (5 key turns)
 ### Issue 4: **Missing Timing Measurements**
 
 **Location:** Lines 224-236 (Timing Window section)
+
 ```
 The race window is **microseconds to seconds**:
 - Analysis takes: ~300-500ms per turn (from SIGMA docs)
@@ -148,17 +164,20 @@ The race window is **microseconds to seconds**:
 ```
 
 **Evidence Gap:** The analysis cites "from SIGMA docs" but:
+
 1. No actual measurement from this session's debug logs
 2. No verification that the 15-second gap (11:14:46 → 11:15:01) was spent on analysis
 3. No instrumentation to measure embedding service latency
 
 **Alternative Explanation:** What if the 15 seconds were spent on:
+
 - Network latency to embedder service
 - React render batching delays
 - Filesystem operations (writing to `.sigma/`)
 - Other useEffect hooks running
 
 **Missing Data:**
+
 ```
 Expected in debug logs:
 [11:14:20.500] [Σ] Queueing turn for analysis (turn-123456789)
@@ -172,26 +191,31 @@ Expected in debug logs:
 ### Issue 5: **Incomplete Investigation of "Turn Already Analyzed" Pattern**
 
 **Location:** Lines 47-55 (debug.log quotes)
+
 ```
 [Σ]   Turn already analyzed, skipping
 [Σ]   Skipping assistant message - still streaming
 ```
 
 **Two Different Skip Reasons:**
+
 1. "Turn already analyzed" = `hasAnalyzed(timestamp)` returned true
 2. "Skipping assistant message - still streaming" = `isThinking === true`
 
 **Critical Question:** Why does "Turn already analyzed" appear when we know turns are missing?
 
 **Hypothesis 1:** Timestamp collision
+
 - Two messages have the same timestamp (millisecond precision)
 - One gets analyzed, second is wrongly marked as duplicate
 
 **Hypothesis 2:** Premature marking
+
 ```typescript
 // From AnalysisQueue.ts:136
 this.analyzedTimestamps.add(task.timestamp);
 ```
+
 If this runs **before** embedding completes, and embedding fails, the turn is marked "analyzed" but has no data.
 
 **Hypothesis 3:** Cached embedding collision
@@ -208,11 +232,13 @@ The queue accepts `cachedEmbedding` parameter. If two messages share a cached em
 ### 1. **Unclear "Tool Use" Definition**
 
 **Location:** Line 32
+
 ```
 11:14:46  SYSTEM: ✓ Complete (18 turns, $0.0556)
 ```
 
 Does "18 turns" include tool_use/tool_result pairs? The analysis later assumes these are all conversation turns, but SDK turns include:
+
 - user messages
 - assistant messages
 - tool_use messages
@@ -223,6 +249,7 @@ Does "18 turns" include tool_use/tool_result pairs? The analysis later assumes t
 ### 2. **Overlay Score Interpretation**
 
 **Location:** Lines 239-262 (Why Low Overlay Scores section)
+
 ```
 1. **Project Alignment Was Weak**
    - Quest briefing content was NEW to the project
@@ -232,6 +259,7 @@ Does "18 turns" include tool_use/tool_result pairs? The analysis later assumes t
 **Question:** If the content was new (high novelty), shouldn't that **increase** importance?
 
 From `analyzer-with-embeddings.ts:219`:
+
 ```typescript
 const importance = Math.min(10, Math.round(novelty * 5 + maxOverlay * 0.5));
 ```
@@ -245,6 +273,7 @@ High novelty (e.g., 0.8) → importance ≈ 4.0 + overlay boost
 ### 3. **150-Character Truncation Timing**
 
 **Location:** Lines 264-271
+
 ```
 3. **Truncation at 150 Characters**
    - Even if analyzed, only first 150 chars preserved in recap
@@ -253,6 +282,7 @@ High novelty (e.g., 0.8) → importance ≈ 4.0 + overlay boost
 **Clarification Needed:** This truncation happens in `formatLastTurns()` which formats the "Recent Conversation" section, not the overlay-filtered items.
 
 If overlay filtering succeeded, the full content would be in overlay sections (truncated to 150 there too), but the analysis conflates two different code paths:
+
 1. Overlay-based recap (lines 496-579 in context-reconstructor.ts)
 2. Fallback recap with last turns (lines 595-625)
 
@@ -265,6 +295,7 @@ The reviewer's own analysis (`context-continuity-failure-analysis.md`) exists in
 **Question:** Do the two analyses agree? Are there contradictions?
 
 **Cross-Check:**
+
 - First analysis: "6-8 middle turns lost"
 - This analysis: "13 turns lost" (18 - 5)
 
@@ -275,14 +306,18 @@ The reviewer's own analysis (`context-continuity-failure-analysis.md`) exists in
 ## Questions for Original Analyst
 
 ### Q1: React Effect Execution Order
+
 You state:
+
 > "Both trigger on `isThinking` change"
 > "Compression has NO async work before triggering"
 
 **Question:** In React, when two `useEffect` hooks depend on the same state change, is execution order guaranteed? Could this be a React Strict Mode double-render issue?
 
 ### Q2: AnalysisQueue.waitForCompletion()
+
 The `AnalysisQueue` class has a `waitForCompletion()` method (AnalysisQueue.ts:215):
+
 ```typescript
 async waitForCompletion(): Promise<void> {
   while (this.processing || this.queue.length > 0) {
@@ -294,13 +329,17 @@ async waitForCompletion(): Promise<void> {
 **Question:** Is this method called anywhere before compression? If not, why does it exist?
 
 ### Q3: ConversationRegistry Timing
+
 You mention:
+
 > "Reconstructor queries EMPTY overlays"
 
 **Question:** Are overlays populated during analysis, or only when `conversationRegistry.addTurn()` is called? If the latter, when does that happen relative to compression?
 
 ### Q4: The Actual Root Cause
+
 You conclude:
+
 > "Race condition between asynchronous turn analysis and synchronous compression triggering"
 
 **Question:** Is it truly a race condition (non-deterministic timing), or is it a sequencing bug (missing await/barrier)?
@@ -312,7 +351,9 @@ You conclude:
 ## Suggested Additional Analysis
 
 ### 1. **Message Type Breakdown**
+
 Parse `session-*.log` to count:
+
 - User messages: X
 - Assistant messages: Y
 - Tool_use messages: Z
@@ -322,13 +363,17 @@ Parse `session-*.log` to count:
 Then verify: "5 turns analyzed" = X + Y or something else?
 
 ### 2. **Timestamp Analysis**
+
 Extract all message timestamps and check:
+
 - Are there collisions?
 - Are timestamps monotonically increasing?
 - What's the minimum gap between messages?
 
 ### 3. **React State Update Log**
+
 Instrument the code to log:
+
 ```
 [useEffect] Compression check: tokens=X, analyzedTurns=Y, isThinking=Z
 [useEffect] Analysis queue: queueLength=A, processing=B
@@ -337,7 +382,9 @@ Instrument the code to log:
 This would prove whether state staleness is a factor.
 
 ### 4. **Embedder Service Logs**
+
 Check if `http://localhost:8000` (eGemma workbench) has logs showing:
+
 - Request timestamps
 - Embedding generation latency
 - Success/failure status
@@ -350,14 +397,14 @@ This would verify the "300-500ms per turn" assumption.
 
 Reviewing both analyses reveals complementary perspectives:
 
-| Aspect | First Analysis | This Analysis | Agreement? |
-|--------|---------------|---------------|------------|
-| Root cause | Race condition | Race condition | ✅ Yes |
-| Primary evidence | Debug log "Skipping" patterns | Timeline + debug log | ✅ Yes |
-| Missing turns | 6-8 middle turns | 13 turns | ⚠️ Discrepancy |
-| Code location | useClaudeAgent.ts:486-491 | Same + useCompression.ts | ✅ Yes |
-| Pending turn fix | Insufficient (only last message) | Not mentioned | ⚠️ First analysis has more detail |
-| Compression ratio | 66K → 0K (∞:1) | 66K → 0K (∞:1) | ✅ Yes (both wrong - should be ~66:1) |
+| Aspect            | First Analysis                   | This Analysis            | Agreement?                            |
+| ----------------- | -------------------------------- | ------------------------ | ------------------------------------- |
+| Root cause        | Race condition                   | Race condition           | ✅ Yes                                |
+| Primary evidence  | Debug log "Skipping" patterns    | Timeline + debug log     | ✅ Yes                                |
+| Missing turns     | 6-8 middle turns                 | 13 turns                 | ⚠️ Discrepancy                        |
+| Code location     | useClaudeAgent.ts:486-491        | Same + useCompression.ts | ✅ Yes                                |
+| Pending turn fix  | Insufficient (only last message) | Not mentioned            | ⚠️ First analysis has more detail     |
+| Compression ratio | 66K → 0K (∞:1)                   | 66K → 0K (∞:1)           | ✅ Yes (both wrong - should be ~66:1) |
 
 **Synthesis:** Both analyses converge on the race condition diagnosis, but differ on quantitative details (turn counts, compression ratios).
 
@@ -368,6 +415,7 @@ Reviewing both analyses reveals complementary perspectives:
 ## Verdict: Technical Accuracy
 
 ### Accurate Claims ✅
+
 1. Race condition exists between analysis and compression
 2. `isThinking` flag is insufficient coordination
 3. Analysis queue skips messages during streaming
@@ -376,6 +424,7 @@ Reviewing both analyses reveals complementary perspectives:
 6. Information loss was severe (>90%)
 
 ### Questionable Claims ⚠️
+
 1. "18 turns" in conversation (may include tool messages)
 2. "0.0K tokens" output (file is ~1K tokens)
 3. "13 missing turns" (contradicts "6-8" from first analysis)
@@ -383,6 +432,7 @@ Reviewing both analyses reveals complementary perspectives:
 5. "microseconds to seconds" race window (too wide a range)
 
 ### Missing Evidence ❌
+
 1. No actual timing measurements from this session
 2. No message type breakdown (user/assistant/tool)
 3. No verification of state staleness vs race condition
@@ -394,6 +444,7 @@ Reviewing both analyses reveals complementary perspectives:
 ## Recommendations
 
 ### For the Analysis Document
+
 1. **Add message type breakdown** to clarify turn counts
 2. **Correct compression ratio** from "66K → 0.0K" to "66K → 1.0K"
 3. **Investigate state staleness** as alternative to pure race condition
@@ -401,6 +452,7 @@ Reviewing both analyses reveals complementary perspectives:
 5. **Add timing instrumentation** in future debugging sessions
 
 ### For Further Investigation
+
 1. **Reproduce the failure** in a controlled test environment
 2. **Add debug timestamps** to prove analysis timing
 3. **Inspect analyzedTimestamps set** to check for premature marking
@@ -408,6 +460,7 @@ Reviewing both analyses reveals complementary perspectives:
 5. **Monitor embedder service** to measure actual latency
 
 ### For Documentation Quality
+
 1. Define terms clearly (turn vs message vs analyzed turn)
 2. Use consistent units (0.0K vs 1.0K vs bytes)
 3. Distinguish measured data from assumptions
@@ -444,6 +497,7 @@ This is a **high-quality technical analysis** that correctly identifies the root
 - **Missing measurements** (actual timing data from this session)
 
 These gaps don't invalidate the core conclusion but do leave room for refinement. The analysis would benefit from:
+
 1. Controlled reproduction with instrumentation
 2. Clarification of terminology (turn types)
 3. Cross-validation with the first analysis

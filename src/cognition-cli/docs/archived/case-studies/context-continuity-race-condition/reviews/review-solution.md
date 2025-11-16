@@ -22,12 +22,14 @@
 ### 1. **Root Cause Alignment** ✅ EXCELLENT
 
 The solution directly addresses the identified race condition:
+
 - ✅ Adds missing synchronization layer
 - ✅ Fixes critical `return` → `continue` bug
 - ✅ Implements queue completion gate
 - ✅ Adds recovery mechanism for missed messages
 
 **Cross-check with analyses:**
+
 - Addresses all 5 failure points from `race-condition-analysis.md`
 - Fixes the 6-8 missing turns issue from `context-continuity-failure-analysis.md`
 - Resolves the "Skipping assistant message" pattern from debug logs
@@ -35,11 +37,13 @@ The solution directly addresses the identified race condition:
 ### 2. **Implementation Pragmatism** ✅ EXCELLENT
 
 **Does NOT:**
+
 - ❌ Revert to synchronous analysis (preserves UI performance)
 - ❌ Over-engineer with complex state machines
 - ❌ Introduce new race conditions
 
 **DOES:**
+
 - ✅ Minimal code changes (~105 lines)
 - ✅ Uses simple async/await patterns
 - ✅ Includes fail-safe timeout mechanisms
@@ -48,11 +52,13 @@ The solution directly addresses the identified race condition:
 ### 3. **Testing Strategy** ✅ EXCELLENT
 
 Comprehensive test coverage across multiple levels:
+
 - **Unit tests** (4 tests) - Queue mechanics
 - **Integration tests** (2 tests) - High-velocity scenarios
 - **Regression tests** (1 test) - No performance degradation
 
 **Particularly strong:**
+
 - Test 5 directly simulates the `/quest-start` failure scenario
 - Test 6 validates streaming behavior
 - Test 4 validates timeout handling (critical edge case)
@@ -60,12 +66,14 @@ Comprehensive test coverage across multiple levels:
 ### 4. **Risk Management** ✅ EXCELLENT
 
 **Phased Rollout:**
+
 - Week 1: Immediate hotfix (low risk)
 - Week 2-3: Core synchronization (medium risk, high testing)
 - Week 4: Validation in staging
 - Week 5: Gradual production rollout with feature flag
 
 **Risk Classification:**
+
 - High/Medium/Low categorization is appropriate
 - Mitigation strategies are concrete
 - Rollback plan is clear and actionable
@@ -73,12 +81,14 @@ Comprehensive test coverage across multiple levels:
 ### 5. **Observability** ✅ EXCELLENT
 
 Comprehensive monitoring strategy:
+
 - Compression wait time (key latency metric)
 - Unanalyzed message count (detects failures)
 - Queue depth at compression (bottleneck detection)
 - Timeout occurrences (critical failures)
 
 **Alerting thresholds are reasonable:**
+
 - Warning: >5s (gives early signal)
 - Error: >15s (indicates problem)
 - Critical: 30s timeout (failure)
@@ -92,6 +102,7 @@ Comprehensive monitoring strategy:
 **Location:** Solution 1, Section 1.4 (handleCompressionTriggered)
 
 **Scenario:**
+
 ```
 Time 0:   User sends message → triggers compression request
 Time 100: Waiting for queue completion...
@@ -103,6 +114,7 @@ Time 600: Both compressions proceed simultaneously
 **Problem:** The solution doesn't prevent **concurrent compression requests** during the wait period.
 
 **Code Gap:**
+
 ```typescript
 const handleCompressionTriggered = useCallback(
   async (tokens: number, turns: number) => {
@@ -119,6 +131,7 @@ const handleCompressionTriggered = useCallback(
 ```
 
 **Proposed Fix:**
+
 ```typescript
 // Add to useClaudeAgent.ts
 const compressionInProgressRef = useRef(false);
@@ -154,6 +167,7 @@ const handleCompressionTriggered = useCallback(
 **Location:** Section 1.1 (isReadyForCompression)
 
 **Current Logic:**
+
 ```typescript
 isReadyForCompression(): boolean {
   return (
@@ -167,6 +181,7 @@ isReadyForCompression(): boolean {
 **Missing Check:** **Are embeddings fully persisted?**
 
 **Potential Race:**
+
 ```
 1. Task completes analysis
 2. this.processing = false, this.currentTask = null
@@ -177,6 +192,7 @@ isReadyForCompression(): boolean {
 ```
 
 **Evidence from codebase:** The `conversation-lance-store.ts` likely has async writes:
+
 ```typescript
 async addTurn(analysis: TurnAnalysis): Promise<void> {
   // This is probably async disk I/O
@@ -188,6 +204,7 @@ async addTurn(analysis: TurnAnalysis): Promise<void> {
 
 **Proposed Investigation:**
 Check `src/tui/hooks/analysis/AnalysisQueue.ts:139-144`:
+
 ```typescript
 // Notify completion
 this.handlers.onAnalysisComplete?.({
@@ -199,6 +216,7 @@ this.handlers.onAnalysisComplete?.({
 Does `onAnalysisComplete` await the handler? If not, LanceDB writes might be async.
 
 **Proposed Fix:**
+
 ```typescript
 // In AnalysisQueue
 private pendingPersistence = 0;
@@ -237,6 +255,7 @@ isReadyForCompression(): boolean {
 **Location:** Section 1.1 (getUnanalyzedTimestamps)
 
 **Current Logic:**
+
 ```typescript
 getUnanalyzedTimestamps(allMessages: Array<{ timestamp: Date; type: string }>): number[] {
   return allMessages
@@ -249,6 +268,7 @@ getUnanalyzedTimestamps(allMessages: Array<{ timestamp: Date; type: string }>): 
 **Problem:** Multiple messages with **identical timestamps** (millisecond precision collisions in rapid-fire tool use)
 
 **Scenario:**
+
 ```
 Time 1000: user message
 Time 1001: assistant message
@@ -257,20 +277,23 @@ Time 1001: tool_result message (same millisecond!)
 ```
 
 If two messages have timestamp `1001`, the Set will only store one:
+
 ```typescript
-analyzedTimestamps.add(1001);  // First message analyzed
-analyzedTimestamps.add(1001);  // No-op (already in set)
+analyzedTimestamps.add(1001); // First message analyzed
+analyzedTimestamps.add(1001); // No-op (already in set)
 ```
 
 But `getUnanalyzedTimestamps` might return `[1001, 1001]` (duplicates in array), causing:
+
 ```typescript
 for (const timestamp of unanalyzedTimestamps) {
-  const message = messages.find(m => m.timestamp.getTime() === timestamp);
+  const message = messages.find((m) => m.timestamp.getTime() === timestamp);
   // ❌ This will always find THE SAME message on duplicate timestamps!
 }
 ```
 
 **Proposed Fix:**
+
 ```typescript
 getUnanalyzedTimestamps(
   allMessages: Array<{ timestamp: Date; type: string; id?: string }>
@@ -294,6 +317,7 @@ getUnanalyzedTimestamps(
 ```
 
 **Also need:**
+
 ```typescript
 // In AnalysisQueue
 private analyzedMessageIds = new Set<string>();
@@ -317,6 +341,7 @@ this.analyzedMessageIds.add(task.message.id || `msg-${task.messageIndex}`);
 **Claim:** `timeout: number = 30000` (30 seconds default)
 
 **Analysis from earlier documents:**
+
 - Analysis takes ~300-500ms per turn
 - High-velocity scenario: 18 turns
 - Expected time: 18 × 500ms = **9 seconds max**
@@ -324,19 +349,24 @@ this.analyzedMessageIds.add(task.message.id || `msg-${task.messageIndex}`);
 **Question:** Why 30 seconds if 9 seconds is the expected worst case?
 
 **Possible Answers:**
+
 1. **Conservative buffer** - 3.3x safety margin
 2. **Network latency** - Embedder service over network
 3. **Concurrent operations** - Other async work happening
 
 **Recommendation:**
+
 - Use **15 seconds** as default (reasonable 1.5x buffer)
 - Make it **configurable** via environment variable
 - Log **actual wait times** to tune in production
 
 **Proposed:**
+
 ```typescript
-const COMPRESSION_WAIT_TIMEOUT =
-  parseInt(process.env.SIGMA_COMPRESSION_TIMEOUT_MS || '15000', 10);
+const COMPRESSION_WAIT_TIMEOUT = parseInt(
+  process.env.SIGMA_COMPRESSION_TIMEOUT_MS || '15000',
+  10
+);
 
 await turnAnalysis.waitForCompressionReady(COMPRESSION_WAIT_TIMEOUT);
 ```
@@ -346,25 +376,33 @@ await turnAnalysis.waitForCompressionReady(COMPRESSION_WAIT_TIMEOUT);
 **Location:** Section "Monitoring and Observability"
 
 **What's Tracked:**
+
 - ✅ Wait time
 - ✅ Unanalyzed count
 - ✅ Queue depth
 - ✅ Timeout occurrences
 
 **What's Missing:**
+
 - ❌ **Compression success rate** (was context fully preserved?)
 - ❌ **Overlay population health** (how many overlays have >0 items?)
 - ❌ **Analysis completion rate** (% of messages analyzed before compression)
 
 **Proposed Additional Metrics:**
+
 ```typescript
 // After compression
-const overlaysPopulated = Object.values(overlayData).filter(arr => arr.length > 0).length;
+const overlaysPopulated = Object.values(overlayData).filter(
+  (arr) => arr.length > 0
+).length;
 metrics.record('sigma.compression.overlays_populated', overlaysPopulated);
 
 const analysisCompletionRate =
   (turnAnalysis.analyses.length / messagesToAnalyze.length) * 100;
-metrics.record('sigma.compression.analysis_completion_pct', analysisCompletionRate);
+metrics.record(
+  'sigma.compression.analysis_completion_pct',
+  analysisCompletionRate
+);
 
 // Should always be 100% after fix!
 if (analysisCompletionRate < 100) {
@@ -385,18 +423,20 @@ if (analysisCompletionRate < 100) {
 **Location:** Testing Strategy, Test 5
 
 **Current Test:**
+
 ```typescript
 // 18 assistant turns with tool use (rapid-fire)
 for (let i = 0; i < 18; i++) {
   messages.push({
     type: 'assistant',
     content: `Tool use ${i}...`,
-    timestamp: new Date(1000 + i * 100),  // 100ms apart
+    timestamp: new Date(1000 + i * 100), // 100ms apart
   });
 }
 ```
 
 **Problem:** This simulates 18 **assistant** messages, but the real scenario had:
+
 - User message
 - Assistant streaming message
 - **Tool_use messages** (not analyzed)
@@ -406,18 +446,23 @@ for (let i = 0; i < 18; i++) {
 **The test doesn't match reality.**
 
 **Proposed Fix:**
+
 ```typescript
 // Simulate /quest-start scenario MORE ACCURATELY
 const messages = [
   { type: 'user', content: '/quest-start ...', timestamp: new Date(1000) },
-  { type: 'assistant', content: 'I\'ll help...', timestamp: new Date(2000) },
+  { type: 'assistant', content: "I'll help...", timestamp: new Date(2000) },
 ];
 
 // 6 tool-use cycles (12 messages total: tool_use + tool_result)
 for (let i = 0; i < 6; i++) {
   messages.push(
     { type: 'tool_use', tool: 'bash', timestamp: new Date(3000 + i * 1000) },
-    { type: 'tool_result', content: 'Output...', timestamp: new Date(3500 + i * 1000) }
+    {
+      type: 'tool_result',
+      content: 'Output...',
+      timestamp: new Date(3500 + i * 1000),
+    }
   );
 }
 
@@ -441,6 +486,7 @@ messages.push({
 **Location:** "Rollback Plan"
 
 **Symptoms listed:**
+
 - Compression hangs (never completes)
 - Timeout errors in logs
 - Increased memory usage
@@ -449,6 +495,7 @@ messages.push({
 **But no QUANTITATIVE thresholds for triggering rollback.**
 
 **Proposed Thresholds:**
+
 ```
 AUTOMATIC ROLLBACK if:
 - Timeout rate > 5% of compression events (in 1 hour window)
@@ -473,16 +520,19 @@ MANUAL ROLLBACK if:
 ### Gap 1: **No Mention of React Strict Mode**
 
 React Strict Mode causes components to render twice in development, which could:
+
 1. Trigger `useEffect` twice
 2. Create duplicate analysis queue entries
 3. Cause race conditions in development (but not production)
 
 **Missing:**
+
 - Analysis of how Strict Mode affects the solution
 - Test cases for Strict Mode double-rendering
 - Guards to prevent duplicate queue entries
 
 **Proposed Addition:**
+
 ```typescript
 // In useTurnAnalysis hook
 const enqueuedTasksRef = useRef<Set<number>>(new Set());
@@ -502,11 +552,13 @@ const enqueueAnalysis = useCallback(async (task: AnalysisTask) => {
 ### Gap 2: **No Performance Benchmarks**
 
 **Missing:**
+
 - Baseline performance measurements (before fix)
 - Target performance goals (after fix)
 - Acceptable performance degradation range
 
 **Example Benchmarks Needed:**
+
 ```
 Baseline (current broken system):
 - Compression trigger: <1ms (immediate)
@@ -527,16 +579,19 @@ Acceptable degradation:
 **Current Assumption:** eGemma workbench at `http://localhost:8000`
 
 **What if:**
+
 - User is using OpenAI embeddings (network latency)
 - User has slow hardware (CPU-bound embeddings)
 - User is using quantized models (slower but lower memory)
 
 **Missing:**
+
 - How does timeout adapt to different embedders?
 - Should timeout be auto-tuned based on historical latency?
 - Can we parallelize embedding generation?
 
 **Proposed Enhancement (Future Work):**
+
 ```typescript
 // Auto-tune timeout based on recent embedding latency
 const recentEmbeddingTimes = embedderMetrics.getP95LatencyLast10();
@@ -550,11 +605,13 @@ await turnAnalysis.waitForCompressionReady(adaptiveTimeout);
 **From the analyses:** The recap uses `conversationRegistry` to filter overlays.
 
 **Question:** When is `conversationRegistry.addTurn()` called?
+
 - During analysis?
 - After analysis completes?
 - During compression?
 
 **If it's async and not waited on, there's ANOTHER race condition:**
+
 ```
 1. Turn analysis completes
 2. isReadyForCompression() returns true
@@ -565,6 +622,7 @@ await turnAnalysis.waitForCompressionReady(adaptiveTimeout);
 ```
 
 **Recommendation:** **VERIFY** that `conversationRegistry.addTurn()` is either:
+
 - Synchronous, or
 - Waited on before marking turn as "analyzed", or
 - Included in the `isReadyForCompression()` check
@@ -574,10 +632,12 @@ await turnAnalysis.waitForCompressionReady(adaptiveTimeout);
 **Scenario:** What if compression happens mid-session while SDK is processing?
 
 From `useSessionManager.ts`, sessions change on:
+
 - Compression events
 - SDK session ID updates
 
 **Potential race:**
+
 ```
 1. Queue is waiting for analysis (5 seconds)
 2. SDK completes a turn, emits new session ID
@@ -589,6 +649,7 @@ From `useSessionManager.ts`, sessions change on:
 **The current solution doesn't address session ID stability during compression wait.**
 
 **Proposed Fix:**
+
 ```typescript
 const handleCompressionTriggered = useCallback(
   async (tokens: number, turns: number) => {
@@ -615,21 +676,25 @@ const handleCompressionTriggered = useCallback(
 ### Evaluation of "Approach A: Event-Based Coordination"
 
 **From solution:**
+
 > "Why not chosen: Adds complexity, polling is simpler for this use case."
 
 **Reviewer's Opinion:** **Disagree** - Event-based would actually be simpler and more efficient.
 
 **Polling Drawbacks:**
+
 ```typescript
 while (!this.isReadyForCompression()) {
-  await new Promise((resolve) => setTimeout(resolve, 100));  // Check every 100ms
+  await new Promise((resolve) => setTimeout(resolve, 100)); // Check every 100ms
 }
 ```
+
 - Wastes CPU cycles checking every 100ms
 - 100ms granularity means 0-100ms unnecessary wait
 - Harder to debug (no clear "ready" event in logs)
 
 **Event-Based Benefits:**
+
 ```typescript
 return new Promise((resolve) => {
   const timeout = setTimeout(() => {
@@ -642,6 +707,7 @@ return new Promise((resolve) => {
   });
 });
 ```
+
 - Zero polling overhead
 - Instant notification (no 100ms granularity)
 - Clear event logging
@@ -651,11 +717,13 @@ return new Promise((resolve) => {
 ### Evaluation of "Approach B: State Machine"
 
 **From solution:**
+
 > "Why not chosen: Over-engineering for the problem. Simple async/await sufficient."
 
 **Reviewer's Opinion:** **Partially agree** - Full state machine is overkill, but **explicit states would help debugging.**
 
 **Proposed Middle Ground:**
+
 ```typescript
 enum CompressionState {
   IDLE = 'idle',
@@ -676,6 +744,7 @@ compressionState.current = CompressionState.COMPLETE;
 ```
 
 **Benefits:**
+
 - Easy to log current state for debugging
 - Enables better error messages ("Failed during WAITING_FOR_ANALYSIS")
 - Minimal complexity (just an enum)
@@ -691,6 +760,7 @@ compressionState.current = CompressionState.COMPLETE;
 You correctly prevent compression during `isThinking: true`, but what about:
 
 **Scenario:**
+
 ```
 1. User starts typing a long message
 2. Token count hits threshold while user is typing
@@ -703,10 +773,12 @@ Does the solution handle this? Or does `isThinking` only track assistant streami
 ### Q2: Multiple Concurrent Users
 
 Is this architecture designed for:
+
 - **Single user** (personal CLI tool)
 - **Multi-user** (shared server)
 
 If multi-user, do we need:
+
 - Per-user analysis queues?
 - Per-user compression locks?
 - Shared embedder service (rate limiting)?
@@ -714,6 +786,7 @@ If multi-user, do we need:
 ### Q3: Embedder Service Failure Modes
 
 What happens if the embedder service:
+
 - Returns 500 error (temporary failure)
 - Returns 429 rate limit
 - Returns corrupted embedding (wrong dimensions)
@@ -724,11 +797,13 @@ Does `analyzeTurn` retry? Fail gracefully? Skip the turn?
 ### Q4: Why Not Batch Embeddings?
 
 The current approach generates embeddings sequentially:
+
 ```
 Turn 1 → Embed (500ms) → Turn 2 → Embed (500ms) → ...
 ```
 
 Could we batch them?
+
 ```
 Turns 1-18 → Batch Embed (1000ms total) → All done
 ```
@@ -843,12 +918,14 @@ Good monitoring strategy, could be enhanced with success metrics and performance
 **STATUS:** ✅ **APPROVED WITH CONDITIONS**
 
 **Conditions for Implementation:**
+
 1. Address **MUST FIX** issues (1-3) before Phase 1
 2. Verify LanceDB persistence timing (Issue 2) during Phase 2 planning
 3. Add concurrent compression guard (Issue 1) in Phase 1 hotfix
 4. Implement success metrics (Issue 5) in Phase 2 for validation
 
 **Expected Outcome:**
+
 - Context loss: 95% → <1% (allowing for edge cases)
 - Compression latency: +5-10s (acceptable trade-off)
 - Zero data corruption or loss
@@ -862,16 +939,17 @@ Good monitoring strategy, could be enhanced with success metrics and performance
 
 Add a table comparing solutions:
 
-| Solution | Context Loss Fix | UI Blocking | Complexity | Latency | Recommended? |
-|----------|-----------------|-------------|------------|---------|--------------|
-| 1: Queue Gate | ✅ Yes | ❌ No | Medium | +5-10s | ✅ **Yes** |
-| 2: Optimistic | ⚠️ Partial | ❌ No | High | +0s | ❌ No |
-| 3: Higher Threshold | ⚠️ Reduces | ❌ No | Low | +0s | ⚠️ Temporary |
-| 4: Synchronous | ✅ Yes | ✅ **Yes** | Low | +0-1s | ❌ **No** |
+| Solution            | Context Loss Fix | UI Blocking | Complexity | Latency | Recommended? |
+| ------------------- | ---------------- | ----------- | ---------- | ------- | ------------ |
+| 1: Queue Gate       | ✅ Yes           | ❌ No       | Medium     | +5-10s  | ✅ **Yes**   |
+| 2: Optimistic       | ⚠️ Partial       | ❌ No       | High       | +0s     | ❌ No        |
+| 3: Higher Threshold | ⚠️ Reduces       | ❌ No       | Low        | +0s     | ⚠️ Temporary |
+| 4: Synchronous      | ✅ Yes           | ✅ **Yes**  | Low        | +0-1s   | ❌ **No**    |
 
 ### Addition 2: **Pre-flight Checklist**
 
 Before implementing Phase 1:
+
 ```
 □ Review all MUST FIX items from review
 □ Verify embedder service is healthy and responsive
@@ -885,6 +963,7 @@ Before implementing Phase 1:
 ### Addition 3: **Success Metrics Dashboard**
 
 Propose a monitoring dashboard with:
+
 - **Context Preservation Rate** (target: >99%)
 - **Compression Wait Time** (P50/P95/P99)
 - **Queue Depth Over Time** (detect bottlenecks)
@@ -896,6 +975,7 @@ Propose a monitoring dashboard with:
 ## Conclusion
 
 This is **one of the best technical solution documents** I've reviewed. It demonstrates:
+
 - Deep understanding of the problem
 - Pragmatic engineering trade-offs
 - Production-grade thinking (monitoring, rollback, phased rollout)

@@ -29,11 +29,13 @@ The analyst demonstrates excellent forensic methodology:
 - **Quantitative metrics** (lines 377-391) provide clear impact assessment
 
 **Example of strong evidence work:**
+
 ```
 11:13:16.331 - Assistant starts quest briefing
 11:14:20.306 - Assistant completes quest briefing
 11:15:01.284 - Compression triggered (66.0K tokens)
 ```
+
 This 41-second window is critical and properly highlighted.
 
 ### 2. Accurate Root Cause Identification
@@ -41,7 +43,9 @@ This 41-second window is critical and properly highlighted.
 The "Perfect Storm" framework (section starting line 43) correctly identifies the race condition as the core issue. The analyst recognizes this is **not a single bug** but a systemic coordination failure.
 
 **Key insight (lines 438-442):**
+
 > "The context continuity failure is not a single bug but a systemic timing issue arising from:
+>
 > 1. Architectural assumption
 > 2. Missing synchronization
 > 3. Insufficient error recovery
@@ -63,6 +67,7 @@ Each code snippet is relevant and accurately quoted.
 ### 4. Clear Impact Quantification
 
 Lines 377-396 provide measurable losses:
+
 - Turns analyzed: 3/18 (16.7% capture rate)
 - Context preserved: ~0.5K/66K tokens (~0.75%)
 - Paradigm shifts: 0 detected
@@ -79,6 +84,7 @@ These numbers align with the evidence from `117dee94...recap.txt`.
 **Line 39:** "41 seconds between assistant completion and compression trigger"
 
 **My calculation:**
+
 - 11:14:20.306 (assistant completes)
 - 11:15:01.284 (compression triggers)
 - **Actual gap: 40.978 seconds ≈ 41 seconds** ✓
@@ -86,6 +92,7 @@ These numbers align with the evidence from `117dee94...recap.txt`.
 **However**, the analyst states: "but analysis queue needed ~9+ seconds to process 18 turns with embeddings"
 
 **My calculation (from SIGMA docs and observed behavior):**
+
 - Embedding time: ~300-500ms per turn (documented)
 - 18 turns × 500ms = 9 seconds (worst case)
 - Plus analysis overhead (novelty, overlay scoring): ~100ms per turn = 1.8s
@@ -94,6 +101,7 @@ These numbers align with the evidence from `117dee94...recap.txt`.
 **Problem:** Even with 41 seconds available, the queue should have completed. Why didn't it?
 
 **Possible explanations (not mentioned in original analysis):**
+
 1. Queue didn't start until `isThinking: false` (could have delayed start)
 2. Embedder initialization delay (lines 447-450 in debug.log mention checking for embedder)
 3. React effect batching delayed queue start
@@ -110,11 +118,12 @@ These numbers align with the evidence from `117dee94...recap.txt`.
 **My code review findings:**
 
 Looking at `useClaudeAgent.ts:487-491`:
+
 ```typescript
 // For assistant messages, only queue if we're NOT currently thinking
 if (message.type === 'assistant' && isThinking) {
   debug('   Skipping assistant message - still streaming');
-  return;  // ← This exits the entire queueNewAnalyses function!
+  return; // ← This exits the entire queueNewAnalyses function!
 }
 ```
 
@@ -132,6 +141,7 @@ for (const { msg: message, originalIndex: messageIndex } of unanalyzedMessages) 
 ```
 
 **The analyst is correct!** Using `return` instead of `continue` means:
+
 - If ANY assistant message is encountered while streaming
 - The function exits immediately
 - ALL subsequent messages in the unanalyzed array are never processed
@@ -139,6 +149,7 @@ for (const { msg: message, originalIndex: messageIndex } of unanalyzedMessages) 
 **This is even worse than the original analysis suggests!**
 
 **Example scenario:**
+
 - Messages [0, 1, 2, 3, 4] are unanalyzed
 - Message 2 is an assistant message with `isThinking: true`
 - Function hits `return` at message 2
@@ -155,6 +166,7 @@ The analysis assumes the race condition is the **only** root cause. Let me propo
 **Alternative Hypothesis: React Effect Dependency Array Issue**
 
 From `useClaudeAgent.ts:524-531`:
+
 ```typescript
 }, [
   userAssistantMessageCount,  // ← This is the trigger
@@ -167,6 +179,7 @@ From `useClaudeAgent.ts:524-531`:
 ```
 
 **Scenario:**
+
 1. Assistant completes streaming (isThinking: true → false)
 2. But `userAssistantMessageCount` doesn't change (same message, just streaming completed)
 3. Effect doesn't re-trigger because primary dependency didn't change
@@ -174,6 +187,7 @@ From `useClaudeAgent.ts:524-531`:
 5. Compression triggers on different effect (different dependencies)
 
 **Evidence supporting this:**
+
 - Debug log shows "Turn already analyzed, skipping" multiple times
 - This suggests the effect DID run, but thought turns were already done
 - Could be a stale closure capturing old `turnAnalysis` state
@@ -189,17 +203,20 @@ From `useClaudeAgent.ts:524-531`:
 **Line 358:** "Triggering compression: 65990 tokens > 20000 threshold with 5 turns"
 
 **But from recap.txt (line 2):**
+
 ```
 COMPRESSED CONVERSATION RECAP (5 key turns)
 66.0K → 0.0K tokens
 ```
 
 **Questions:**
+
 - Is 65,990 the pre-compression count or post-compression count?
 - Why does the recap say "66.0K" when debug log says "65990"?
 - What does "0.0K tokens" mean exactly?
 
 From my review of `debug.log:40`:
+
 ```
 [Σ] ✅ Compression: 5 nodes, 0.0K tokens
 ```
@@ -245,6 +262,7 @@ Cross-referenced with `debug.log`:
 **Lines 11-13, 14-17, 34-40:** All debug log excerpts are accurate.
 
 Pattern recognition is sound:
+
 - 6 occurrences of "Skipping assistant message - still streaming" ✓
 - Final count of "8 unanalyzed messages" ✓
 - "5 turns" at compression trigger ✓
@@ -264,12 +282,14 @@ Pattern recognition is sound:
 ### Points of Divergence
 
 **My Analysis Emphasizes:**
+
 - React effect execution order and dependency arrays
 - Embedder initialization as a bottleneck
 - Compression trigger has no async work (immediate trigger)
 - Analysis queue is non-blocking by design (architectural feature, not bug)
 
 **Original Analysis Emphasizes:**
+
 - 41-second window as "sufficient time" for analysis
 - High-velocity conversation as a trigger condition
 - Embedding service latency as primary bottleneck
@@ -279,6 +299,7 @@ Pattern recognition is sound:
 Both analyses are correct. The original analysis focuses on **what happened** (timeline, evidence), while my analysis focuses on **why it happened** (architectural design, coordination primitives).
 
 Combined, they provide a complete picture:
+
 1. **Design flaw:** No synchronization (my focus)
 2. **Runtime manifestation:** Race condition in high-velocity mode (original focus)
 3. **Result:** Context loss (both analyses)
@@ -292,6 +313,7 @@ Combined, they provide a complete picture:
 The analysis doesn't explain **why** the code was designed this way.
 
 **My hypothesis:**
+
 - Async analysis queue was introduced to fix UI blocking during embedding generation
 - Original design was synchronous (blocking)
 - Refactor created the race condition
@@ -304,10 +326,12 @@ The analysis doesn't explain **why** the code was designed this way.
 **Key question:** Does this ALWAYS happen, or only sometimes?
 
 **Factors that would make it deterministic:**
+
 - Compression always triggers before queue completes (predictable timing)
 - Queue always starts late due to React effect ordering
 
 **Factors that would make it probabilistic:**
+
 - Variable embedder latency (network, model warm-up)
 - Variable React effect scheduling (browser event loop)
 - Variable message velocity (user typing speed)
@@ -319,6 +343,7 @@ The analysis doesn't explain **why** the code was designed this way.
 The analysis doesn't explain why this wasn't caught in testing.
 
 **Possible reasons:**
+
 - Unit tests use synchronous mocks (no timing issues)
 - Integration tests use small conversations (no compression trigger)
 - No load testing (high-velocity scenarios)
@@ -331,6 +356,7 @@ The analysis doesn't explain why this wasn't caught in testing.
 The analysis focuses on in-memory state (queue, analyses array) but doesn't discuss **when turns are persisted** to `.sigma/conversations.lancedb/`.
 
 **Questions:**
+
 - Are analyses flushed to LanceDB immediately or batched?
 - Could LanceDB I/O latency contribute to the race?
 - Does compression read from LanceDB or in-memory state?
@@ -367,6 +393,7 @@ The "Smoking Gun Evidence" section (lines 345-372) is good but could include:
 Missing: How to reproduce this issue in a test environment.
 
 **Suggested addition:**
+
 ```
 ## Reproduction Steps
 1. Start session with empty .sigma/
@@ -380,11 +407,13 @@ Missing: How to reproduce this issue in a test environment.
 ### 4. Clarify "0.0K tokens" Metric
 
 From the recap header:
+
 ```
 66.0K → 0.0K tokens
 ```
 
 This needs explanation. Does "0.0K" mean:
+
 - Compressed lattice size is zero bytes?
 - Useful context is zero tokens?
 - Or is this a formatting/rounding error?
@@ -418,6 +447,7 @@ This needs explanation. Does "0.0K" mean:
 **More accurate:** "66K input tokens resulted in a recap containing ~1.5K tokens, but with ~0.0K tokens of useful context (only trivial exchanges preserved)."
 
 The distinction matters:
+
 - **Compression ratio:** 66K → 1.5K = 44:1 (appears successful)
 - **Useful content ratio:** 66K → ~0K = ∞:1 (catastrophic failure)
 
@@ -500,6 +530,7 @@ The distinction matters:
 **Validation:** ⚠️ PARTIALLY CONFIRMED
 
 **Issue:** The recap file itself is ~1.5K tokens of text. "0.0K" is either:
+
 - A display rounding issue (< 1.0K = 0.0K)
 - Referring to compressed lattice size, not recap size
 - Referring to "useful" tokens vs. total tokens
@@ -513,6 +544,7 @@ The distinction matters:
 **Validation:** ⚠️ REQUIRES CLARIFICATION
 
 **Issue:** This assumes:
+
 - Queue started immediately after `isThinking: false`
 - No embedder initialization delay
 - No other bottlenecks
@@ -532,6 +564,7 @@ The distinction matters:
 This is the core architectural flaw. The analyst correctly identifies that the system needs a state machine with guarded transitions.
 
 **My addition:** Modern async systems use coordination primitives like:
+
 - Promises (await queue completion before compression)
 - Events (emit "analysis complete" event)
 - Semaphores (block compression until queue empty)
@@ -546,6 +579,7 @@ The Sigma architecture has **none of these.**
 The four assumptions are well-articulated and clearly violated. This is a good mental model for understanding the failure.
 
 **My addition:**
+
 - Assumption 5: "React effects run in dependency order"
   - Reality: Effect execution order is non-deterministic across renders
   - Violated by: React's batching and scheduling algorithms
@@ -623,6 +657,7 @@ For maximum understanding, read both analyses:
 4. **Review both** for cross-validation
 
 Together, they provide a complete picture:
+
 - **What happened:** Original analysis (forensics)
 - **Why it happened:** My analysis (architecture)
 - **How to prevent:** Both analyses (synchronization layer needed)
@@ -636,6 +671,7 @@ Together, they provide a complete picture:
 This analysis meets professional standards for root cause analysis and demonstrates strong technical investigation skills. The minor gaps identified in this review do not diminish the overall quality and accuracy of the findings.
 
 **Suggested next steps:**
+
 1. Clarify the timing window question (why 41s wasn't enough)
 2. Add reproduction steps for testing
 3. Investigate React effect execution order

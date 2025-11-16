@@ -1,4 +1,5 @@
 # Context Continuity Failure Analysis
+
 **Date:** 2025-11-15
 **Session:** 117dee94-2c3f-4f28-b1d2-773eed985bbd
 **Analyst:** Claude (Sonnet 4.5)
@@ -16,6 +17,7 @@ The context continuity system failed to capture complete conversation context du
 ## Evidence Trail
 
 ### Primary Sources
+
 - `.sigma/case/debug.log` - Analysis queue execution trace
 - `.sigma/case/session-1763205450469-claude-magic.log` - Full conversation timeline
 - `.sigma/case/117dee94-2c3f-4f28-b1d2-773eed985bbd.recap.txt` - Compressed output
@@ -45,6 +47,7 @@ The context continuity system failed to capture complete conversation context du
 ### 1. **Analysis Queue Skipping Pattern**
 
 From `debug.log`:
+
 ```
 [Σ]  Queue effect triggered, messages: 7 isThinking: true
 [Σ]  Unanalyzed user/assistant messages: 3
@@ -63,12 +66,14 @@ From `debug.log`:
 ```
 
 **Analysis:**
+
 - Queue triggered 8 times with increasing message counts (7→9→16→21→26→30→31→33)
 - **6 occurrences** of "Skipping assistant message - still streaming"
 - Multiple "Turn already analyzed, skipping" despite messages not being fully processed
 - Final queue run shows **8 unanalyzed messages** when `isThinking: false`
 
 **Code Location:** `src/tui/hooks/useClaudeAgent.ts:486-500`
+
 ```typescript
 // For assistant messages, only queue if we're NOT currently thinking
 if (message.type === 'assistant' && isThinking) {
@@ -88,6 +93,7 @@ if (turnAnalysis.hasAnalyzed(turnTimestamp)) {
 ### 2. **Compression Trigger Doesn't Wait for Queue Completion**
 
 **Code Location:** `src/tui/hooks/compression/useCompression.ts:111-134`
+
 ```typescript
 useEffect(() => {
   // Don't check during streaming
@@ -105,11 +111,13 @@ useEffect(() => {
 ```
 
 **Trigger Conditions (all must be true):**
+
 - `isThinking === false` ✓
 - `tokenCount > threshold` (65,990 > 20,000) ✓
 - `analyzedTurns >= minTurns` (5 >= 5) ✓
 
 **The Fatal Flaw:** No check for:
+
 - Is `AnalysisQueue.processing === true`?
 - Is `AnalysisQueue.queue.length > 0`?
 - Are there unanalyzed messages in the message array?
@@ -119,6 +127,7 @@ The compression trigger fires **immediately** when conditions are met, regardles
 ### 3. **The "Pending Turn Fix" Is Insufficient**
 
 **Code Location:** `src/tui/hooks/useClaudeAgent.ts:207-232`
+
 ```typescript
 // FIX: Detect pending (unanalyzed) turn before compression
 const lastMessage = messages[messages.length - 1];
@@ -128,21 +137,23 @@ const hasPendingTurn =
   lastMessage &&
   lastMessage.type !== 'system' &&
   lastMessage.type !== 'tool_progress' &&
-  (!lastAnalyzed ||
-    lastMessage.timestamp.getTime() > lastAnalyzed.timestamp);
+  (!lastAnalyzed || lastMessage.timestamp.getTime() > lastAnalyzed.timestamp);
 ```
 
 **What It Does:**
+
 - Checks if the **last message** is unanalyzed
 - Adds it as a minimal node to the lattice
 - Re-queues it for analysis after compression
 
 **What It Misses:**
+
 - The **6-8 messages in the middle** that were skipped during streaming
 - Messages that are queued in `AnalysisQueue` but not yet processed
 - Messages with timestamps in `analyzedTimestamps` set but incomplete embeddings
 
 **Evidence from recap.txt:**
+
 ```
 ## Recent Conversation
 
@@ -162,12 +173,14 @@ The recap captured the **chat preamble** but shows the assistant's work was **tr
 ### 4. **Embedding Service Latency Bottleneck**
 
 **From Session Log Analysis:**
+
 - 18 turns generated in 64 seconds (11:13:16 → 11:14:20)
 - Average turn rate: ~3.5 seconds per turn
 - Estimated embedding time: ~500ms per turn
 - **Total embedding time needed:** ~9 seconds for 18 turns
 
 **But:**
+
 - Compression triggered at 11:15:01 (41 seconds after assistant finished)
 - If queue started processing only after `isThinking: false` at 11:14:20
 - And had to process 18 turns sequentially
@@ -175,6 +188,7 @@ The recap captured the **chat preamble** but shows the assistant's work was **tr
 - Plus analysis overhead (overlay scoring, novelty calculation, etc.)
 
 **Queue Processing Status at Compression:**
+
 ```
 [Σ]  Queue effect triggered, messages: 31 isThinking: false
 [Σ]  Unanalyzed user/assistant messages: 8
@@ -185,6 +199,7 @@ The recap captured the **chat preamble** but shows the assistant's work was **tr
 ### 5. **Low-Quality Overlay Scores in Compressed Output**
 
 **From `117dee94...recap.txt`:**
+
 ```
 ## Actions Taken (O5 Operational)
 1. [Score: 6/10] howdy
@@ -193,11 +208,13 @@ The recap captured the **chat preamble** but shows the assistant's work was **tr
 ```
 
 **Analysis:**
+
 - Only **3 turns** captured in O5 (Operational) overlay
 - All scored at **6/10** (medium-low importance)
 - The actual quest briefing (18 turns with tool use, file references, pattern analysis) scored **nothing higher than 6/10**
 
 **Expected scores for the missing content:**
+
 - Tool use turns: O5 (Operational) should be **8-9/10**
 - Architecture discussions: O1 (Structural) should be **7-8/10**
 - Quest planning: O4 (Mission) should be **8-9/10**
@@ -238,6 +255,7 @@ The recap captured the **chat preamble** but shows the assistant's work was **tr
 ## Specific Code Failures
 
 ### Failure Point 1: Queue Skipping Logic
+
 **File:** `src/tui/hooks/useClaudeAgent.ts:486-491`
 
 ```typescript
@@ -253,6 +271,7 @@ if (message.type === 'assistant' && isThinking) {
 **Impact:** 6 assistant messages skipped and never recovered.
 
 ### Failure Point 2: Compression Trigger Preconditions
+
 **File:** `src/tui/hooks/compression/useCompression.ts:117-133`
 
 ```typescript
@@ -269,6 +288,7 @@ if (result.shouldTrigger) {
 **Impact:** Compression fires while 8 turns are still pending analysis.
 
 ### Failure Point 3: Pending Turn Detection Scope
+
 **File:** `src/tui/hooks/useClaudeAgent.ts:213-226`
 
 ```typescript
@@ -276,8 +296,7 @@ const hasPendingTurn =
   lastMessage && // ❌ ONLY checks last message
   lastMessage.type !== 'system' &&
   lastMessage.type !== 'tool_progress' &&
-  (!lastAnalyzed ||
-    lastMessage.timestamp.getTime() > lastAnalyzed.timestamp);
+  (!lastAnalyzed || lastMessage.timestamp.getTime() > lastAnalyzed.timestamp);
 ```
 
 **Issue:** Only detects the **last** unanalyzed message, not all unanalyzed messages.
@@ -285,6 +304,7 @@ const hasPendingTurn =
 **Impact:** 6-7 middle turns lost, only the final message is preserved.
 
 ### Failure Point 4: AnalysisQueue Deduplication
+
 **File:** `src/tui/hooks/analysis/AnalysisQueue.ts:76-88`
 
 ```typescript
@@ -308,10 +328,12 @@ async enqueue(task: AnalysisTask): Promise<void> {
 ## Why The Compressed Recap Lost Context
 
 **Compression Input:**
+
 - **Expected:** 18 high-quality turn analyses with embeddings, overlay scores, semantic tags
 - **Actual:** 3 low-quality turn analyses (trivial opening exchanges)
 
 **Overlay Filtering (from `context-reconstructor.ts:476-479`):**
+
 ```typescript
 const filtered = await filterConversationByAlignment(
   conversationRegistry,
@@ -320,6 +342,7 @@ const filtered = await filterConversationByAlignment(
 ```
 
 **Result:**
+
 - O1 Structural: (None)
 - O2 Security: (None)
 - O3 Lineage: (None)
@@ -331,11 +354,12 @@ const filtered = await filterConversationByAlignment(
 **Why overlays are empty:** The turns that should have activated O1/O4/O5/O6 were **never analyzed**, so the conversation registry has no high-scoring items to filter.
 
 **Fallback to "Recent Conversation" (from `context-reconstructor.ts:387-424`):**
+
 ```typescript
 function getLastConversationTurns(lattice: ConversationLattice): {
   turns: Array<{ role: string; content: string; timestamp: number }>;
   pendingTask: string | null;
-}
+};
 ```
 
 The recap shows the last 5 turns, but they're **incomplete/truncated** because the lattice only has 3 fully-analyzed nodes.
@@ -345,6 +369,7 @@ The recap shows the last 5 turns, but they're **incomplete/truncated** because t
 ## Smoking Gun Evidence
 
 ### From `debug.log` Line 13, 17, 22, 26, 30, 35:
+
 ```
 [Σ]    Skipping assistant message - still streaming
 ```
@@ -354,6 +379,7 @@ The recap shows the last 5 turns, but they're **incomplete/truncated** because t
 **Outcome:** All 6 were skipped and never re-analyzed before compression
 
 ### From `debug.log` Line 37:
+
 ```
 [useCompression] Triggering compression: 65990 tokens > 20000 threshold with 5 turns
 ```
@@ -361,7 +387,9 @@ The recap shows the last 5 turns, but they're **incomplete/truncated** because t
 **"5 turns"** means only **5 turn analyses** existed when compression fired, but the conversation had **~18+ turns** of actual content.
 
 ### From `session-*.log` Lines 243-282:
+
 Full quest briefing with:
+
 - Architecture components listed
 - Similarity analysis results
 - Quest success criteria
@@ -375,6 +403,7 @@ Full quest briefing with:
 ## Impact Assessment
 
 ### Quantitative Losses
+
 - **Turns analyzed:** 3/18 (16.7% capture rate)
 - **Context preserved:** ~0.5K/66K tokens (~0.75% useful context)
 - **Paradigm shifts detected:** 0 (should have been 1-2)
@@ -382,6 +411,7 @@ Full quest briefing with:
 - **Overlay activations:** 1 overlay vs. expected 4-5 overlays
 
 ### Qualitative Losses
+
 - ❌ Quest objective completely lost
 - ❌ Success criteria not preserved
 - ❌ Architecture discovery (analyzeTurn, useTurnAnalysis patterns) lost
@@ -390,6 +420,7 @@ Full quest briefing with:
 - ❌ Coherence baseline (54.2%) lost
 
 ### User Experience Impact
+
 User's next message: "what was the quest?"
 
 **This proves the context loss:** The system had just spent 18 turns building a detailed quest briefing, and **none of it survived compression**.
@@ -401,34 +432,41 @@ User's next message: "what was the quest?"
 ### Design Assumption Violations
 
 **Assumption 1:** "Turns are analyzed before compression triggers"
+
 - **Reality:** Compression can trigger while queue is processing
 - **Violated by:** Race condition between `useCompression` and `AnalysisQueue`
 
 **Assumption 2:** "The pending turn fix catches all unanalyzed messages"
+
 - **Reality:** Only catches the last message
 - **Violated by:** Implementation only checks `messages[messages.length - 1]`
 
 **Assumption 3:** "isThinking: false means all messages are ready for analysis"
+
 - **Reality:** isThinking only tracks SDK streaming state, not queue state
 - **Violated by:** Queue processing can lag behind SDK completion
 
 **Assumption 4:** "analyzedTimestamps set accurately tracks completion"
+
 - **Reality:** Timestamp may be added before embedding completes
 - **Violated by:** Async embedding service failures not handled
 
 ### The Real Problem: Missing Synchronization Primitive
 
 The system has **no synchronization** between:
+
 1. Message arrival (from SDK)
 2. Turn analysis (AnalysisQueue)
 3. Compression trigger (useCompression)
 
 **What's needed:** A state machine that enforces:
+
 ```
 READY → ANALYZING → ANALYZED → COMPRESSIBLE
 ```
 
 With transitions guarded by:
+
 - `canCompress = queue.length === 0 && queue.processing === false`
 
 ---

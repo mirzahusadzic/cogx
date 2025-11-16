@@ -25,7 +25,9 @@ export const ClaudePanel: React.FC<ClaudePanelProps> = ({
 
     // Skip replay for first 2 seconds (session history)
     setSkipReplay(true);
-    setOutput('⏳ Connecting to Claude session...\n(Skipping conversation history)\n');
+    setOutput(
+      '⏳ Connecting to Claude session...\n(Skipping conversation history)\n'
+    );
 
     replayTimerRef.current = setTimeout(() => {
       setSkipReplay(false);
@@ -40,6 +42,7 @@ export const ClaudePanel: React.FC<ClaudePanelProps> = ({
 
       // Only strip ANSI escape codes and box-drawing characters
       // Keep all text content so user can see status updates
+      // eslint-disable-next-line no-control-regex
       let cleaned = data.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
       cleaned = cleaned.replace(/[│─┌┐└┘├┤┬┴┼]/g, '');
 

@@ -20,6 +20,7 @@ The "context continuity fix" (commit fb3b29e) **failed to solve the root problem
 ## The Failure: What Actually Happened
 
 ### User's Observation
+
 ```
 Compression trigger: 12:23:41.008Z (48ms after Complete)
 Wait time: 0.0s
@@ -29,9 +30,10 @@ Result: 8/16 turns missing from recap
 **Critical Insight:** `waitForCompressionReady()` returned **instantly** (0.0s wait time), but 8 turns hadn't been analyzed yet.
 
 ### My Incorrect Analysis
+
 > "The fix helps with middle-message races but fails catastrophically when compression triggers right after completion."
 
-**Why This Was Wrong:** I focused on the *timing* of compression trigger (48ms after completion) instead of the **React effect scheduling order**.
+**Why This Was Wrong:** I focused on the _timing_ of compression trigger (48ms after completion) instead of the **React effect scheduling order**.
 
 ---
 
@@ -42,6 +44,7 @@ Result: 8/16 turns missing from recap
 **File:** `src/tui/hooks/useClaudeAgent.ts`
 
 #### Effect 1: Message Queueing (Lines 565-617)
+
 ```typescript
 useEffect(() => {
   const messages = messagesRef.current;
@@ -64,12 +67,13 @@ useEffect(() => {
       cachedEmbedding,
     });
   }
-}, [userAssistantMessageCount, isThinking, /* ... */]);
+}, [userAssistantMessageCount, isThinking /* ... */]);
 ```
 
 **Trigger:** Changes to `userAssistantMessageCount` or `isThinking`
 
 #### Effect 2: Compression Trigger (useCompression.ts Lines 111-134)
+
 ```typescript
 useEffect(() => {
   // Don't check during streaming
@@ -91,6 +95,7 @@ useEffect(() => {
 ### The Race Condition
 
 **Timeline:**
+
 ```
 T+0ms:  Final assistant message arrives
         └─> processSDKMessage() called
@@ -126,6 +131,7 @@ T+2ms:  🔥 RACE: Which effect runs first?
 **React's Effect Execution Order:** **UNDEFINED**
 
 From React docs:
+
 > "Effects are flushed after browser paint. The order in which effects run is not guaranteed."
 
 ---
@@ -133,23 +139,27 @@ From React docs:
 ## Why The Fix Failed
 
 ### What The Fix Does Correctly
+
 ✅ Guards against concurrent compression requests
 ✅ Waits for analysis queue to complete processing
 ✅ Tracks LanceDB persistence completion
 ✅ Provides user feedback during wait
 
 ### What The Fix Assumes Incorrectly
+
 ❌ That messages are **already queued** when `waitForCompressionReady()` is called
 ❌ That `isThinking: false` means "queueing effect has completed"
 ❌ That effects execute in dependency-declaration order
 
 ### The Actual Behavior
+
 ```typescript
 // In handleCompressionTriggered():
 await turnAnalysis.waitForCompressionReady(timeout);
 ```
 
 **If queueing effect hasn't run yet:**
+
 - `queue.length === 0` ✓
 - `processing === false` ✓
 - `pendingPersistence === 0` ✓
@@ -162,7 +172,9 @@ await turnAnalysis.waitForCompressionReady(timeout);
 ## Evidence From Implementation Review
 
 ### From `.sigma/case/implementation-review.md`:
+
 > **Line 247:** `isReadyForCompression(): boolean`
+>
 > - All 4 conditions checked as specified ✅
 > - pendingPersistence included (critical fix) ✅
 
@@ -173,7 +185,9 @@ await turnAnalysis.waitForCompressionReady(timeout);
 ## Why This Wasn't Caught Earlier
 
 ### Design Phase Blind Spot
+
 The solution specification assumed:
+
 > "STEP 2: Wait for analysis queue to complete (configurable timeout)"
 
 **Implicit assumption:** The queue contains all pending messages at the time of call.
@@ -181,11 +195,14 @@ The solution specification assumed:
 **Reality:** The queue may not have been populated yet due to React effect scheduling.
 
 ### Code Review Blind Spot
+
 From implementation-review.md:
+
 > **Potential Issues / Edge Cases**
 > **None Critical, All Handled**
 
 The reviewer (me) checked:
+
 - Message ID consistency ✅
 - Race between UX messages ✅
 - Timeout handling ✅
@@ -198,6 +215,7 @@ The reviewer (me) checked:
 ## The Fundamental Design Flaw
 
 ### Current Architecture
+
 ```
 User Message → SDK → setMessages() → React Effect → Queue Analysis
                    → setIsThinking(false) → React Effect → Compression
@@ -206,6 +224,7 @@ User Message → SDK → setMessages() → React Effect → Queue Analysis
 **Problem:** Two independent async workflows triggered by the same state change.
 
 ### What's Needed
+
 ```
 User Message → SDK → setMessages() → setIsThinking(false)
                                    ↓
@@ -227,6 +246,7 @@ User Message → SDK → setMessages() → setIsThinking(false)
 **Completion:** 12:23:40.960Z (`isThinking` → `false`)
 
 #### React State Updates (T = 12:23:40.960Z)
+
 ```typescript
 // SDK completes, final message arrives
 processSDKMessage(resultMessage);
@@ -235,6 +255,7 @@ processSDKMessage(resultMessage);
 ```
 
 #### Effect Dependencies Changed
+
 ```typescript
 // Effect 1 dependencies
 userAssistantMessageCount: 15 → 16 ✓ (changed)
@@ -251,6 +272,7 @@ Both effects are scheduled to run!
 #### T+2ms: Effect Execution (SCENARIO B - Actual)
 
 **Effect 2 runs first:**
+
 ```typescript
 const result = shouldTrigger(122400, 8);
 // result.shouldTrigger = true (tokens > 20K, turns >= 5, !isThinking)
@@ -266,6 +288,7 @@ onCompressionTriggered(122400, 8);
 ```
 
 **Effect 1 runs second (too late!):**
+
 ```typescript
 // Loop through messages
 for (messageIndex = 0; messageIndex < 16; messageIndex++) {
@@ -279,6 +302,7 @@ for (messageIndex = 0; messageIndex < 16; messageIndex++) {
 ```
 
 #### T+50ms: Compression Completes
+
 ```
 Compressed: 8 nodes (only the 8 already-analyzed turns)
 Missing: 8 nodes (the turns queued after compression started)
@@ -290,6 +314,7 @@ Context loss: 50%
 ## Why 0.0s Wait Time Is The Smoking Gun
 
 ### Expected Behavior
+
 ```
 waitForCompressionReady() should wait until:
 - All messages have been queued ✓
@@ -300,6 +325,7 @@ Typical wait time: 5-10 seconds
 ```
 
 ### Actual Behavior
+
 ```
 Wait time: 0.0s
 
@@ -317,16 +343,19 @@ Conclusion: Messages weren't queued yet!
 ## Comparison With Original Bug
 
 ### Original Bug (Pre-Fix)
+
 **Cause:** `return` instead of `continue` in queueing loop
 **Impact:** 6-8 messages skipped during streaming, never queued
 **Symptom:** Messages lost during `isThinking: true` phase
 
 ### Current Bug (Post-Fix)
+
 **Cause:** Effect execution order race condition
 **Impact:** 8 messages queued AFTER compression starts
 **Symptom:** Compression proceeds before queueing effect runs
 
 **Key Difference:**
+
 - Original: Messages never queued (logic bug)
 - Current: Messages queued too late (timing bug)
 
@@ -335,6 +364,7 @@ Conclusion: Messages weren't queued yet!
 ## Why My 99% Confidence Was Wrong
 
 ### What I Reviewed
+
 ✅ Code logic correctness
 ✅ TypeScript types
 ✅ Error handling
@@ -342,6 +372,7 @@ Conclusion: Messages weren't queued yet!
 ✅ Specification match
 
 ### What I Missed
+
 ❌ React effect execution order assumptions
 ❌ Async workflow coordination
 ❌ State update timing guarantees
@@ -354,6 +385,7 @@ Conclusion: Messages weren't queued yet!
 ## The Brutal Truth
 
 ### From User's Perspective
+
 ```
 Before fix:
 - Context loss: ~50%
@@ -369,7 +401,9 @@ After "fix":
 **Nothing changed for the user.**
 
 ### Why This Hurts
+
 The implementation was:
+
 - ⭐⭐⭐⭐⭐ Code quality
 - ✅ 100% specification match
 - ✅ All tests passing
@@ -384,6 +418,7 @@ The implementation was:
 ### What We Need: Synchronous Coordination
 
 **Instead of:**
+
 ```
 Effect 1: Queue messages (async)
 Effect 2: Trigger compression (async)
@@ -391,6 +426,7 @@ Effect 2: Trigger compression (async)
 ```
 
 **We need:**
+
 ```
 Effect 1: Queue messages
   ├─> Mark "queueing complete"
@@ -405,11 +441,11 @@ Effect 2: Compression trigger
 
 ```typescript
 type CompressionPhase =
-  | 'idle'           // Normal conversation
-  | 'queueing'       // Queueing messages for analysis
-  | 'analyzing'      // Queue processing turns
-  | 'ready'          // All analysis complete
-  | 'compressing';   // Compression in progress
+  | 'idle' // Normal conversation
+  | 'queueing' // Queueing messages for analysis
+  | 'analyzing' // Queue processing turns
+  | 'ready' // All analysis complete
+  | 'compressing'; // Compression in progress
 
 // Guard compression trigger:
 if (phase !== 'ready') {
@@ -422,47 +458,59 @@ if (phase !== 'ready') {
 ## Proposed Solution (High-Level Design)
 
 ### Option A: Sequential Effect Chain
+
 **Idea:** Make queueing effect set a "ready" flag that compression effect depends on.
 
 **Pros:**
+
 - Minimal code change
 - Uses existing React patterns
 
 **Cons:**
+
 - Still relies on effect ordering
 - Fragile under React 18+ concurrent mode
 
 ### Option B: Imperative Queue-Then-Compress
+
 **Idea:** Call queueing synchronously before compression.
 
 **Pros:**
+
 - Guaranteed order
 - No race condition
 
 **Cons:**
+
 - Breaks React patterns
 - May block UI
 
 ### Option C: Compression Trigger in Queue Effect
+
 **Idea:** Move compression trigger into queueing effect's completion callback.
 
 **Pros:**
+
 - Natural execution order
 - Clear causality
 
 **Cons:**
+
 - Couples queueing and compression
 - Hard to test independently
 
 ### Option D: State Machine with Phase Guards
+
 **Idea:** Introduce explicit phases that guard transitions.
 
 **Pros:**
+
 - Clear state model
 - Testable
 - Extensible
 
 **Cons:**
+
 - Significant refactor
 - More complexity
 
@@ -473,6 +521,7 @@ if (phase !== 'ready') {
 ### Why Option C?
 
 It's the **minimal viable fix** that:
+
 1. Guarantees queueing completes before compression
 2. Uses existing code structure
 3. Doesn't introduce new state machines
@@ -485,6 +534,7 @@ It's the **minimal viable fix** that:
 **File:** `src/tui/hooks/useClaudeAgent.ts`
 
 **Current (Lines 565-617):**
+
 ```typescript
 useEffect(() => {
   // ... queueing logic ...
@@ -498,6 +548,7 @@ useEffect(() => {
 ```
 
 **Proposed:**
+
 ```typescript
 useEffect(() => {
   // ... queueing logic ...
@@ -515,6 +566,7 @@ useEffect(() => {
 ```
 
 **Guarantees:**
+
 - Queueing completes FIRST (synchronous loop)
 - Compression triggers SECOND (same effect)
 - No race condition possible
@@ -524,6 +576,7 @@ useEffect(() => {
 **File:** `src/tui/hooks/compression/useCompression.ts`
 
 **Current (Lines 111-134):**
+
 ```typescript
 useEffect(() => {
   if (isThinking) return;
@@ -537,6 +590,7 @@ useEffect(() => {
 ```
 
 **Proposed:**
+
 ```typescript
 // ❌ DISABLED: Compression now triggered from queueing effect
 // This prevents the race condition
@@ -545,6 +599,7 @@ useEffect(() => {
 ```
 
 **Alternative (if disabling is too aggressive):**
+
 ```typescript
 useEffect(() => {
   if (isThinking) return;
@@ -565,6 +620,7 @@ useEffect(() => {
 **File:** `src/tui/hooks/useClaudeAgent.ts`
 
 **New State:**
+
 ```typescript
 const queueingInProgressRef = useRef(false);
 
@@ -589,6 +645,7 @@ useEffect(() => {
 ## Testing Strategy for Proposed Solution
 
 ### Test 1: Verify Queueing Completes First
+
 ```typescript
 test('compression waits for queueing to complete', async () => {
   const messages = Array(8).fill({ type: 'assistant', ... });
@@ -613,6 +670,7 @@ test('compression waits for queueing to complete', async () => {
 ```
 
 ### Test 2: High-Velocity Scenario (Quest-Start)
+
 ```bash
 # Manual test
 1. Run `/quest-start` command
@@ -627,6 +685,7 @@ Expected:
 ```
 
 ### Test 3: Verify No Regression
+
 ```bash
 # Ensure normal conversations still work
 1. Have slow conversation (5 turns, 1 per minute)
@@ -644,16 +703,19 @@ Expected:
 ## Risk Assessment
 
 ### Risk 1: Effect Dependency Loops
+
 **Scenario:** Adding `tokenCount` and `analyzedTurns` to queueing effect creates infinite loop.
 
 **Mitigation:** Use refs to store values, not state dependencies.
 
 ### Risk 2: Compression Never Triggers
+
 **Scenario:** If queueing effect doesn't check compression conditions correctly.
 
 **Mitigation:** Add fallback compression trigger on timeout (30s).
 
 ### Risk 3: Double Compression Trigger
+
 **Scenario:** Both queueing effect AND compression effect fire.
 
 **Mitigation:** `compressionInProgressRef` guard already handles this.
@@ -663,12 +725,14 @@ Expected:
 ## Success Criteria
 
 ### Functional Requirements
+
 ✅ All messages queued BEFORE compression trigger
 ✅ `waitForCompressionReady()` wait time > 0.0s (for multi-turn scenarios)
 ✅ 100% message capture rate (18/18 turns in quest scenario)
 ✅ Full quest briefing preserved in recap
 
 ### Non-Functional Requirements
+
 ✅ No performance regression in normal conversations
 ✅ No infinite effect loops
 ✅ No React warnings in console
@@ -681,15 +745,18 @@ Expected:
 The context continuity fix (fb3b29e) was **correctly implemented** but **incorrectly designed**. The root cause is a **React effect execution order race condition** that wasn't identified during the design phase.
 
 ### The Fix That Didn't Fix
+
 ```
 Before: 50% context loss due to skipped messages
 After:  50% context loss due to race condition
 ```
 
 ### The Actual Problem
+
 Two independent async workflows (queueing and compression) triggered by the same state change race against each other. Whichever effect runs first determines whether compression sees the full message queue.
 
 ### The Real Solution
+
 Synchronize the workflows by **triggering compression from within the queueing effect**, ensuring queueing completes before compression is evaluated.
 
 ---
@@ -705,25 +772,31 @@ Synchronize the workflows by **triggering compression from within the queueing e
 ## Appendix: Why I Was Wrong
 
 ### My Original Assessment
+
 > "The implementation perfectly matches the v3 specification"
 
 **This was true.** The code does exactly what the spec says.
 
 ### What I Missed
+
 The spec itself was based on a flawed assumption:
+
 > "STEP 2: Wait for analysis queue to complete"
 
 **Assumes:** Queue is already populated.
 **Reality:** Queue might not be populated yet.
 
 ### The Lesson
+
 **Code review ≠ Architectural review**
 
 I reviewed:
+
 - Implementation correctness ✓
 - Specification adherence ✓
 
 I didn't review:
+
 - Timing assumptions ✗
 - Async coordination ✗
 - React effect guarantees ✗

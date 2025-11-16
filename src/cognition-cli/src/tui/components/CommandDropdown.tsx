@@ -57,7 +57,10 @@ const CommandDropdownComponent = ({
   const totalCommands = commands.length;
   const maxOffset = Math.max(0, totalCommands - adjustedMaxHeight);
   const actualOffset = Math.min(scrollOffset, maxOffset);
-  const visibleCommands = commands.slice(actualOffset, actualOffset + adjustedMaxHeight);
+  const visibleCommands = commands.slice(
+    actualOffset,
+    actualOffset + adjustedMaxHeight
+  );
   const hasMore = totalCommands > adjustedMaxHeight;
 
   return (
@@ -75,8 +78,7 @@ const CommandDropdownComponent = ({
         return (
           <Box key={command.name}>
             <Text color={isSelected ? 'green' : 'white'}>
-              {isSelected ? '▸ ' : '  '}
-              /{command.name}
+              {isSelected ? '▸ ' : '  '}/{command.name}
             </Text>
             {command.description && (
               <Text color="gray" dimColor>

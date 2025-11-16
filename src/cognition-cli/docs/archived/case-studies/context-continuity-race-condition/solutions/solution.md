@@ -9,6 +9,7 @@
 ## 🔄 Update Notes (v2)
 
 **Critical fixes applied based on peer review:**
+
 1. ✅ Added concurrent compression guard (P0) - Prevents multiple compressions running simultaneously
 2. ✅ Added LanceDB persistence tracking (P0) - Ensures disk writes complete before compression
 3. ✅ Fixed timestamp deduplication to use message IDs (P1) - Handles duplicate timestamps correctly
@@ -81,8 +82,8 @@ Add a synchronization primitive that blocks compression until the analysis queue
 ```typescript
 export class AnalysisQueue {
   // ... existing code ...
-  private pendingPersistence = 0;  // ✅ NEW: Track async LanceDB writes
-  private analyzedMessageIds = new Set<string>();  // ✅ NEW: Use message IDs not timestamps
+  private pendingPersistence = 0; // ✅ NEW: Track async LanceDB writes
+  private analyzedMessageIds = new Set<string>(); // ✅ NEW: Use message IDs not timestamps
 
   /**
    * Check if queue is ready for compression
@@ -90,10 +91,10 @@ export class AnalysisQueue {
    */
   isReadyForCompression(): boolean {
     return (
-      this.queue.length === 0 &&      // No queued tasks
-      !this.processing &&              // Not currently processing
-      this.currentTask === null &&     // No task in progress
-      this.pendingPersistence === 0    // ✅ NEW: All LanceDB writes complete
+      this.queue.length === 0 && // No queued tasks
+      !this.processing && // Not currently processing
+      this.currentTask === null && // No task in progress
+      this.pendingPersistence === 0 // ✅ NEW: All LanceDB writes complete
     );
   }
 
@@ -103,7 +104,10 @@ export class AnalysisQueue {
    * @returns Promise that resolves when ready or rejects on timeout
    */
   async waitForCompressionReady(
-    timeout: number = parseInt(process.env.SIGMA_COMPRESSION_TIMEOUT_MS || '15000', 10)
+    timeout: number = parseInt(
+      process.env.SIGMA_COMPRESSION_TIMEOUT_MS || '15000',
+      10
+    )
   ): Promise<void> {
     const startTime = Date.now();
 
@@ -127,10 +131,14 @@ export class AnalysisQueue {
   getUnanalyzedMessages(
     allMessages: Array<{ timestamp: Date; type: string; id?: string }>
   ): Array<{ timestamp: number; messageId: string; index: number }> {
-    const unanalyzed: Array<{ timestamp: number; messageId: string; index: number }> = [];
+    const unanalyzed: Array<{
+      timestamp: number;
+      messageId: string;
+      index: number;
+    }> = [];
 
     allMessages
-      .filter(m => m.type === 'user' || m.type === 'assistant')
+      .filter((m) => m.type === 'user' || m.type === 'assistant')
       .forEach((m, index) => {
         const messageId = m.id || `msg-${index}`;
 
@@ -150,7 +158,9 @@ export class AnalysisQueue {
   /**
    * Track analysis completion with persistence
    */
-  private async analyzeWithPersistence(task: AnalysisTask): Promise<TurnAnalysis> {
+  private async analyzeWithPersistence(
+    task: AnalysisTask
+  ): Promise<TurnAnalysis> {
     const analysis = await this.analyzeTurn(task);
 
     // Track message ID
@@ -162,7 +172,10 @@ export class AnalysisQueue {
 
     try {
       // Wait for persistence to complete
-      await this.handlers.onAnalysisComplete?.({ analysis, messageIndex: task.messageIndex });
+      await this.handlers.onAnalysisComplete?.({
+        analysis,
+        messageIndex: task.messageIndex,
+      });
     } finally {
       this.pendingPersistence--;
     }
@@ -177,20 +190,24 @@ export class AnalysisQueue {
 **File**: `src/tui/hooks/useClaudeAgent.ts` (lines 487-491)
 
 **Current (BROKEN)**:
+
 ```typescript
 // For assistant messages, only queue if we're NOT currently thinking
 if (message.type === 'assistant' && isThinking) {
   debug('   Skipping assistant message - still streaming');
-  return;  // ❌ EXITS FUNCTION, blocks all subsequent messages!
+  return; // ❌ EXITS FUNCTION, blocks all subsequent messages!
 }
 ```
 
 **Fixed**:
+
 ```typescript
 // For assistant messages, only queue if we're NOT currently thinking
 if (message.type === 'assistant' && isThinking) {
-  debug('   Skipping assistant message - still streaming (will retry after stream completes)');
-  continue;  // ✅ SKIPS THIS MESSAGE, continues to next
+  debug(
+    '   Skipping assistant message - still streaming (will retry after stream completes)'
+  );
+  continue; // ✅ SKIPS THIS MESSAGE, continues to next
 }
 ```
 
@@ -201,6 +218,7 @@ if (message.type === 'assistant' && isThinking) {
 **File**: `src/tui/hooks/compression/useCompression.ts` (lines 111-134)
 
 **Current (NO GATE)**:
+
 ```typescript
 useEffect(() => {
   // Don't check during streaming
@@ -218,6 +236,7 @@ useEffect(() => {
 ```
 
 **Fixed (WITH GATE)**:
+
 ```typescript
 useEffect(() => {
   // Don't check during streaming
@@ -255,6 +274,7 @@ useEffect(() => {
 **File**: `src/tui/hooks/useClaudeAgent.ts` (lines 203-232)
 
 **Current**:
+
 ```typescript
 const handleCompressionTriggered = useCallback(
   async (tokens: number, turns: number) => {
@@ -272,6 +292,7 @@ const handleCompressionTriggered = useCallback(
 ```
 
 **Fixed**:
+
 ```typescript
 // ✅ NEW: Add compression lock ref at component level
 const compressionInProgressRef = useRef(false);
@@ -362,6 +383,7 @@ const handleCompressionTriggered = useCallback(
 ```
 
 **Key improvements**:
+
 1. **✅ Concurrent compression guard** - Prevents race between multiple compression requests
 2. **✅ Session ID snapshot** - Prevents session boundary race during wait
 3. **Waits for queue completion** before compressing (with configurable timeout)
@@ -382,42 +404,40 @@ export interface UseTurnAnalysisReturn {
 
   // NEW: Expose queue state for compression coordination
   waitForCompressionReady: (timeout?: number) => Promise<void>;
-  getUnanalyzedMessages: (messages: Message[]) => Array<{ timestamp: number; messageId: string; index: number }>;  // ✅ UPDATED
+  getUnanalyzedMessages: (
+    messages: Message[]
+  ) => Array<{ timestamp: number; messageId: string; index: number }>; // ✅ UPDATED
   isReadyForCompression: () => boolean;
 }
 
-export function useTurnAnalysis(options: UseTurnAnalysisOptions): UseTurnAnalysisReturn {
+export function useTurnAnalysis(
+  options: UseTurnAnalysisOptions
+): UseTurnAnalysisReturn {
   // ... existing code ...
 
   // NEW: Expose queue methods
-  const waitForCompressionReady = useCallback(
-    async (timeout?: number) => {
-      if (!queueRef.current) {
-        throw new Error('Analysis queue not initialized');
-      }
-      await queueRef.current.waitForCompressionReady(timeout);
-    },
-    []
-  );
+  const waitForCompressionReady = useCallback(async (timeout?: number) => {
+    if (!queueRef.current) {
+      throw new Error('Analysis queue not initialized');
+    }
+    await queueRef.current.waitForCompressionReady(timeout);
+  }, []);
 
   // ✅ UPDATED: Use message IDs instead of timestamps
-  const getUnanalyzedMessages = useCallback(
-    (messages: Message[]) => {
-      if (!queueRef.current) return [];
-      return queueRef.current.getUnanalyzedMessages(messages);
-    },
-    []
-  );
+  const getUnanalyzedMessages = useCallback((messages: Message[]) => {
+    if (!queueRef.current) return [];
+    return queueRef.current.getUnanalyzedMessages(messages);
+  }, []);
 
   const isReadyForCompression = useCallback(() => {
-    if (!queueRef.current) return true;  // No queue = ready
+    if (!queueRef.current) return true; // No queue = ready
     return queueRef.current.isReadyForCompression();
   }, []);
 
   return {
     // ... existing returns ...
     waitForCompressionReady,
-    getUnanalyzedMessages,  // ✅ UPDATED
+    getUnanalyzedMessages, // ✅ UPDATED
     isReadyForCompression,
   };
 }
@@ -508,10 +528,10 @@ Delay compression by increasing the token threshold, giving the queue more time 
 
 ```typescript
 // Current
-const DEFAULT_TOKEN_THRESHOLD = 20000;  // 20K tokens
+const DEFAULT_TOKEN_THRESHOLD = 20000; // 20K tokens
 
 // Workaround
-const DEFAULT_TOKEN_THRESHOLD = 100000;  // 100K tokens (5x increase)
+const DEFAULT_TOKEN_THRESHOLD = 100000; // 100K tokens (5x increase)
 ```
 
 ### Advantages
@@ -560,24 +580,16 @@ The async queue was introduced specifically to fix UI blocking during embedding 
 ### Implementation Priority
 
 **Phase 1: Critical Bugfixes (Immediate)**
+
 1. Fix `return` → `continue` in queue skipping logic
 2. Expand pending turn detection to check ALL messages, not just last
 3. Add logging for unanalyzed messages at compression time
 
-**Phase 2: Synchronization Layer (High Priority)**
-4. Add `isReadyForCompression()` to AnalysisQueue
-5. Add `waitForCompressionReady()` with timeout
-6. Modify compression trigger to wait for queue completion
+**Phase 2: Synchronization Layer (High Priority)** 4. Add `isReadyForCompression()` to AnalysisQueue 5. Add `waitForCompressionReady()` with timeout 6. Modify compression trigger to wait for queue completion
 
-**Phase 3: Resilience (Medium Priority)**
-7. Add recovery mechanism for missed messages
-8. Implement timeout handling with graceful degradation
-9. Add metrics/telemetry for compression wait times
+**Phase 3: Resilience (Medium Priority)** 7. Add recovery mechanism for missed messages 8. Implement timeout handling with graceful degradation 9. Add metrics/telemetry for compression wait times
 
-**Phase 4: Optimization (Low Priority)**
-10. Tune timeout values based on real-world data
-11. Consider parallel embedding generation (if bottleneck)
-12. Optimize overlay scoring (if bottleneck)
+**Phase 4: Optimization (Low Priority)** 10. Tune timeout values based on real-world data 11. Consider parallel embedding generation (if bottleneck) 12. Optimize overlay scoring (if bottleneck)
 
 ---
 
@@ -588,6 +600,7 @@ The async queue was introduced specifically to fix UI blocking during embedding 
 **Location**: `src/tui/hooks/useClaudeAgent.ts:487-491`
 
 **Change**:
+
 ```diff
   // For assistant messages, only queue if we're NOT currently thinking
   if (message.type === 'assistant' && isThinking) {
@@ -610,24 +623,28 @@ The async queue was introduced specifically to fix UI blocking during embedding 
 **Key Changes**:
 
 1. **Wait for queue completion**:
+
 ```typescript
 await turnAnalysis.waitForCompressionReady(30000);
 ```
 
 2. **Detect missed messages**:
+
 ```typescript
 const unanalyzedTimestamps = turnAnalysis.getUnanalyzedTimestamps(messages);
 ```
 
 3. **Re-queue if needed**:
+
 ```typescript
 for (const timestamp of unanalyzedTimestamps) {
   // ... queue for analysis ...
 }
-await turnAnalysis.waitForCompressionReady(30000);  // Wait again
+await turnAnalysis.waitForCompressionReady(30000); // Wait again
 ```
 
 4. **Abort on timeout**:
+
 ```typescript
 catch (error) {
   console.error('[Σ] Compression aborted: analysis queue timeout');
@@ -646,9 +663,9 @@ catch (error) {
 ```typescript
 class AnalysisQueue {
   isReadyForCompression(): boolean {
-    return this.queue.length === 0 &&
-           !this.processing &&
-           this.currentTask === null;
+    return (
+      this.queue.length === 0 && !this.processing && this.currentTask === null
+    );
   }
 
   async waitForCompressionReady(timeout: number = 30000): Promise<void> {
@@ -663,14 +680,15 @@ class AnalysisQueue {
 
   getUnanalyzedTimestamps(allMessages: Message[]): number[] {
     return allMessages
-      .filter(m => m.type === 'user' || m.type === 'assistant')
-      .map(m => m.timestamp.getTime())
-      .filter(ts => !this.analyzedTimestamps.has(ts));
+      .filter((m) => m.type === 'user' || m.type === 'assistant')
+      .map((m) => m.timestamp.getTime())
+      .filter((ts) => !this.analyzedTimestamps.has(ts));
   }
 }
 ```
 
 **Why these methods**:
+
 - `isReadyForCompression()` - Boolean check for current state
 - `waitForCompressionReady()` - Async wait with timeout
 - `getUnanalyzedTimestamps()` - Recovery mechanism for missed messages
@@ -682,6 +700,7 @@ class AnalysisQueue {
 ### Unit Tests
 
 **Test 1: Queue Completion Gate**
+
 ```typescript
 test('compression waits for queue completion', async () => {
   const queue = new AnalysisQueue(options, handlers);
@@ -704,6 +723,7 @@ test('compression waits for queue completion', async () => {
 ```
 
 **Test 2: Queue Skipping Fix**
+
 ```typescript
 test('queue continues after skipping streaming assistant message', async () => {
   const messages = [
@@ -719,11 +739,12 @@ test('queue continues after skipping streaming assistant message', async () => {
   await queueNewAnalyses(messages, isThinking);
 
   // Should have queued user messages, skipped assistant
-  expect(queue.queue.length).toBe(2);  // 2 user messages
+  expect(queue.queue.length).toBe(2); // 2 user messages
 });
 ```
 
 **Test 3: Unanalyzed Message Detection**
+
 ```typescript
 test('detects unanalyzed messages', async () => {
   const messages = [
@@ -733,9 +754,7 @@ test('detects unanalyzed messages', async () => {
   ];
 
   // Analyze only first message
-  queue.setAnalyses([
-    { turn_id: 'turn-1000', timestamp: 1000, /* ... */ }
-  ]);
+  queue.setAnalyses([{ turn_id: 'turn-1000', timestamp: 1000 /* ... */ }]);
 
   // Check for unanalyzed
   const unanalyzed = queue.getUnanalyzedTimestamps(messages);
@@ -745,6 +764,7 @@ test('detects unanalyzed messages', async () => {
 ```
 
 **Test 4: Timeout Handling**
+
 ```typescript
 test('waitForCompressionReady times out if queue stuck', async () => {
   const queue = new AnalysisQueue(options, handlers);
@@ -753,15 +773,16 @@ test('waitForCompressionReady times out if queue stuck', async () => {
   await queue.enqueue(createHangingTask());
 
   // Should timeout
-  await expect(
-    queue.waitForCompressionReady(1000)
-  ).rejects.toThrow('Timeout waiting for analysis queue');
+  await expect(queue.waitForCompressionReady(1000)).rejects.toThrow(
+    'Timeout waiting for analysis queue'
+  );
 });
 ```
 
 ### Integration Tests
 
 **Test 5: High-Velocity Conversation**
+
 ```typescript
 test('handles high-velocity slash command without context loss', async () => {
   // Simulate /quest-start scenario
@@ -775,7 +796,7 @@ test('handles high-velocity slash command without context loss', async () => {
     messages.push({
       type: 'assistant',
       content: `Tool use ${i}...`,
-      timestamp: new Date(1000 + i * 100),  // 100ms apart
+      timestamp: new Date(1000 + i * 100), // 100ms apart
     });
   }
 
@@ -786,7 +807,7 @@ test('handles high-velocity slash command without context loss', async () => {
   const recap = await triggerCompression();
 
   // Verify all turns analyzed
-  expect(recap.metadata.analyzedTurns).toBe(19);  // 1 user + 18 assistant
+  expect(recap.metadata.analyzedTurns).toBe(19); // 1 user + 18 assistant
   expect(recap.overlays.O5_operational.length).toBeGreaterThan(10);
 
   // Verify no context loss
@@ -795,14 +816,19 @@ test('handles high-velocity slash command without context loss', async () => {
 ```
 
 **Test 6: Compression During Streaming**
+
 ```typescript
 test('delays compression until streaming completes', async () => {
   // Start assistant streaming
-  const streamingMessage = { type: 'assistant', content: '', timestamp: new Date() };
+  const streamingMessage = {
+    type: 'assistant',
+    content: '',
+    timestamp: new Date(),
+  };
   setIsThinking(true);
 
   // Add tokens to exceed threshold
-  setTokenCount(70000);  // > 20K threshold
+  setTokenCount(70000); // > 20K threshold
 
   // Compression should NOT trigger yet
   await waitFor(100);
@@ -824,6 +850,7 @@ test('delays compression until streaming completes', async () => {
 ### Regression Tests
 
 **Test 7: Normal Conversation (No Regression)**
+
 ```typescript
 test('normal conversation still works after fix', async () => {
   // Simulate slow-paced conversation
@@ -838,7 +865,7 @@ test('normal conversation still works after fix', async () => {
 
   // Should work perfectly
   expect(turnAnalysis.analyses.length).toBe(3);
-  expect(compressionTriggered).toBe(false);  // Under threshold
+  expect(compressionTriggered).toBe(false); // Under threshold
 });
 ```
 
@@ -849,9 +876,13 @@ test('normal conversation still works after fix', async () => {
 ### Key Metrics to Track
 
 1. **Compression Wait Time**
+
    ```typescript
    const waitStart = Date.now();
-   const timeout = parseInt(process.env.SIGMA_COMPRESSION_TIMEOUT_MS || '15000', 10);  // ✅ UPDATED
+   const timeout = parseInt(
+     process.env.SIGMA_COMPRESSION_TIMEOUT_MS || '15000',
+     10
+   ); // ✅ UPDATED
    await turnAnalysis.waitForCompressionReady(timeout);
    const waitTime = Date.now() - waitStart;
 
@@ -862,8 +893,9 @@ test('normal conversation still works after fix', async () => {
    ```
 
 2. **Unanalyzed Message Count**
+
    ```typescript
-   const unanalyzed = turnAnalysis.getUnanalyzedMessages(messages);  // ✅ UPDATED
+   const unanalyzed = turnAnalysis.getUnanalyzedMessages(messages); // ✅ UPDATED
    if (unanalyzed.length > 0) {
      console.warn(`[Σ] Found ${unanalyzed.length} unanalyzed messages`);
      metrics.record('sigma.compression.unanalyzed_count', unanalyzed.length);
@@ -871,15 +903,25 @@ test('normal conversation still works after fix', async () => {
    ```
 
 3. **Queue Depth at Compression**
+
    ```typescript
-   console.log(`[Σ] Queue depth at compression: ${turnAnalysis.queueStatus.queueLength}`);
-   metrics.record('sigma.compression.queue_depth', turnAnalysis.queueStatus.queueLength);
+   console.log(
+     `[Σ] Queue depth at compression: ${turnAnalysis.queueStatus.queueLength}`
+   );
+   metrics.record(
+     'sigma.compression.queue_depth',
+     turnAnalysis.queueStatus.queueLength
+   );
    ```
 
 4. **Timeout Occurrences**
+
    ```typescript
    try {
-     const timeout = parseInt(process.env.SIGMA_COMPRESSION_TIMEOUT_MS || '15000', 10);  // ✅ UPDATED
+     const timeout = parseInt(
+       process.env.SIGMA_COMPRESSION_TIMEOUT_MS || '15000',
+       10
+     ); // ✅ UPDATED
      await turnAnalysis.waitForCompressionReady(timeout);
    } catch (error) {
      console.error('[Σ] Compression timeout!');
@@ -889,8 +931,11 @@ test('normal conversation still works after fix', async () => {
    ```
 
 5. **✅ NEW: Analysis Completion Rate** (validates fix effectiveness)
+
    ```typescript
-   const totalMessages = messages.filter(m => m.type === 'user' || m.type === 'assistant').length;
+   const totalMessages = messages.filter(
+     (m) => m.type === 'user' || m.type === 'assistant'
+   ).length;
    const analyzedMessages = turnAnalysis.analyses.length;
    const completionRate = (analyzedMessages / totalMessages) * 100;
 
@@ -908,8 +953,11 @@ test('normal conversation still works after fix', async () => {
    ```
 
 6. **✅ NEW: Overlay Population Health** (validates context richness)
+
    ```typescript
-   const overlaysPopulated = Object.values(overlayData).filter(arr => arr.length > 0).length;
+   const overlaysPopulated = Object.values(overlayData).filter(
+     (arr) => arr.length > 0
+   ).length;
    metrics.record('sigma.compression.overlays_populated', overlaysPopulated);
 
    // Expected: 4-7 overlays populated in high-quality compressions
@@ -922,6 +970,7 @@ test('normal conversation still works after fix', async () => {
    ```
 
 7. **✅ NEW: Concurrent Compression Attempts** (detects race conditions)
+
    ```typescript
    if (compressionInProgressRef.current) {
      metrics.increment('sigma.compression.concurrent_attempts');
@@ -932,8 +981,8 @@ test('normal conversation still works after fix', async () => {
 ### Alerting Thresholds
 
 - **Warning**: Compression wait time > 5 seconds
-- **Error**: Compression wait time > 10 seconds  // ✅ UPDATED
-- **Critical**: Compression timeout (15 seconds default, configurable via SIGMA_COMPRESSION_TIMEOUT_MS)  // ✅ UPDATED
+- **Error**: Compression wait time > 10 seconds // ✅ UPDATED
+- **Critical**: Compression timeout (15 seconds default, configurable via SIGMA_COMPRESSION_TIMEOUT_MS) // ✅ UPDATED
 - **✅ NEW - Critical**: Analysis completion rate < 100% (indicates fix failed)
 - **✅ NEW - Warning**: Overlay population < 3 (indicates low context quality)
 - **✅ NEW - Info**: Concurrent compression attempts > 0 (should be rare with guard)
@@ -978,6 +1027,7 @@ if (unanalyzed.length > 0) {
 **Goal**: Stop the bleeding with minimal risk
 
 **Changes**:
+
 1. Fix `return` → `continue` in queue skipping logic
 2. Add logging for unanalyzed messages
 3. Increase token threshold from 20K → 40K (temporary)
@@ -991,6 +1041,7 @@ if (unanalyzed.length > 0) {
 **Goal**: Implement proper coordination
 
 **Changes**:
+
 1. Add `isReadyForCompression()` to AnalysisQueue
 2. Add `waitForCompressionReady()` with timeout
 3. Modify compression trigger to wait for queue
@@ -1005,6 +1056,7 @@ if (unanalyzed.length > 0) {
 **Goal**: Verify fix in production-like scenarios
 
 **Changes**:
+
 1. Add monitoring/metrics
 2. Deploy to staging environment
 3. Run load tests with high-velocity conversations
@@ -1019,6 +1071,7 @@ if (unanalyzed.length > 0) {
 **Goal**: Deploy to production with confidence
 
 **Changes**:
+
 1. Feature flag: `SIGMA_QUEUE_GATE_ENABLED`
 2. Gradual rollout: 10% → 50% → 100%
 3. Monitor metrics and user reports
@@ -1035,12 +1088,14 @@ if (unanalyzed.length > 0) {
 ### If Solution Causes Issues
 
 **Symptoms to watch for**:
+
 - Compression hangs (never completes)
 - Timeout errors in logs
 - Increased memory usage
 - User-reported slowness
 
 **Rollback steps**:
+
 1. Set feature flag `SIGMA_QUEUE_GATE_ENABLED = false`
 2. Revert to 40K token threshold (keeps workaround)
 3. Keep queue skipping bugfix (safe change)
@@ -1050,6 +1105,7 @@ if (unanalyzed.length > 0) {
 ### Gradual Rollback
 
 Don't need full rollback? Try:
+
 - Increase timeout from 30s → 60s
 - Reduce token threshold back to 20K (after queue fixes stable)
 - Add more logging to debug edge cases
@@ -1177,6 +1233,7 @@ Compress immediately, patch later when analysis completes.
 **Expected Impact**: Eliminates 95%+ context loss
 
 **Next Steps**:
+
 1. Review and approve this solution proposal
 2. Implement Phase 1 hotfix (critical bugfixes)
 3. Implement Phase 2 (synchronization layer)
@@ -1186,6 +1243,7 @@ Compress immediately, patch later when analysis completes.
 **Timeline**: 4-5 weeks from approval to full production rollout
 
 **Success Metrics**:
+
 - Context loss: 95% → 0%
 - Compression wait time: 0ms → 5-10s (acceptable trade-off)
 - User satisfaction: Restored context continuity
@@ -1197,6 +1255,7 @@ Compress immediately, patch later when analysis completes.
 ### Critical Issues Resolved (P0-P1)
 
 **Issue 1: Concurrent Compression Guard (P0)** ✅ FIXED
+
 - **Problem**: Multiple compression requests could run simultaneously during wait period
 - **Impact**: HIGH - Data corruption, duplicate session IDs
 - **Solution**: Added `compressionInProgressRef` guard in `handleCompressionTriggered`
@@ -1204,6 +1263,7 @@ Compress immediately, patch later when analysis completes.
 - **Verification**: Metric `sigma.compression.concurrent_attempts` tracks blocked attempts
 
 **Issue 2: LanceDB Persistence Timing (P0)** ✅ FIXED
+
 - **Problem**: `isReadyForCompression()` could return true while disk writes pending
 - **Impact**: HIGH - Reading incomplete data during compression
 - **Solution**: Added `pendingPersistence` counter tracking async LanceDB writes
@@ -1211,6 +1271,7 @@ Compress immediately, patch later when analysis completes.
 - **Verification**: Wait time includes persistence, no partial data in compressed recaps
 
 **Issue 3: Duplicate Timestamp Handling (P1)** ✅ FIXED
+
 - **Problem**: Messages with identical millisecond timestamps break Set-based deduplication
 - **Impact**: MEDIUM - Re-analysis waste, potential missed messages
 - **Solution**: Switched from timestamp-based to message ID-based tracking
@@ -1220,12 +1281,14 @@ Compress immediately, patch later when analysis completes.
 ### Performance & Observability Improvements
 
 **Improvement 1: Configurable Timeout** ✅ ADDED
+
 - **Change**: Default timeout 30s → 15s with env var `SIGMA_COMPRESSION_TIMEOUT_MS`
 - **Rationale**: 15s is 1.5x the theoretical worst case (10.8s), more appropriate than 3.3x buffer
 - **Code**: Line 90 in section 1.1, line 280 in section 1.4
 - **Flexibility**: Production can tune based on observed P95 latency
 
 **Improvement 2: Success Metrics Tracking** ✅ ADDED
+
 - **New Metric 1**: Analysis completion rate (target: 100%)
 - **New Metric 2**: Overlay population count (target: 4-7)
 - **New Metric 3**: Concurrent compression attempts (target: 0)
@@ -1233,6 +1296,7 @@ Compress immediately, patch later when analysis completes.
 - **Purpose**: Validates fix effectiveness in production
 
 **Improvement 3: Session ID Stability** ✅ ADDED
+
 - **Change**: Snapshot `currentSessionId` before async wait
 - **Rationale**: Prevents session boundary race if SDK emits new ID during wait
 - **Code**: Line 275 in section 1.4
@@ -1241,11 +1305,13 @@ Compress immediately, patch later when analysis completes.
 ### Code Structure Improvements
 
 **Method Rename**: `getUnanalyzedTimestamps` → `getUnanalyzedMessages`
+
 - **Rationale**: More accurate naming, reflects message ID-based tracking
 - **Returns**: `Array<{ timestamp, messageId, index }>` instead of `number[]`
 - **Updated in**: Sections 1.1, 1.4, 1.5, monitoring section
 
 **Enhanced Error Messages**
+
 - Timeout errors now include `pendingPersistence` count
 - Compression errors include analysis completion rate
 - All critical paths log detailed state for debugging
@@ -1253,6 +1319,7 @@ Compress immediately, patch later when analysis completes.
 ### Testing Impact
 
 Tests requiring updates:
+
 1. **Test 5** - Add realistic tool_use/tool_result message simulation
 2. **All tests** - Update method calls from `getUnanalyzedTimestamps` to `getUnanalyzedMessages`
 3. **New test** - Verify concurrent compression guard blocks duplicates
@@ -1269,14 +1336,17 @@ Tests requiring updates:
 ### Rollout Impact
 
 **Phase 1 changes (Week 1 hotfix):**
+
 - All P0 fixes included (concurrent guard, persistence tracking, message ID tracking)
 - No longer just workaround - actual fixes deployed
 
 **Phase 2 changes (Week 2-3):**
+
 - Success metrics instrumentation
 - Configurable timeout tuning based on production data
 
 **Validation criteria:**
+
 - Analysis completion rate must be 100% (was 16.7% before fix)
 - Zero concurrent compression attempts detected
 - Zero incomplete LanceDB writes during compression
@@ -1284,6 +1354,7 @@ Tests requiring updates:
 ### Review Feedback Integration Summary
 
 **Accepted from review-solution.md:**
+
 - ✅ All 3 MUST FIX issues (P0-P1) fully addressed
 - ✅ All 7 monitoring metrics implemented
 - ✅ Timeout tuning with env var configurability
@@ -1291,12 +1362,14 @@ Tests requiring updates:
 - ✅ Method naming improvements
 
 **Deferred to future work:**
+
 - ⏭️ Event-based coordination (polling is sufficient for MVP)
 - ⏭️ State machine with explicit states (simple enum can be added later)
 - ⏭️ Batch embedding generation (requires embedder API changes)
 - ⏭️ React Strict Mode double-render guards (low priority, dev-only)
 
 **Confidence increase:**
+
 - v1: 90% confidence in solution
 - v2: 95% confidence after addressing all critical issues
 
@@ -1307,6 +1380,7 @@ Tests requiring updates:
 ### File 1: `src/tui/hooks/analysis/AnalysisQueue.ts`
 
 **Changes**: Add state tracking and queue coordination methods
+
 - ✅ Add `pendingPersistence` counter (2 private fields)
 - ✅ Add `analyzedMessageIds` Set for message ID tracking
 - ✅ Update `isReadyForCompression()` to check persistence
@@ -1321,6 +1395,7 @@ Tests requiring updates:
 ### File 2: `src/tui/hooks/useClaudeAgent.ts`
 
 **Changes**:
+
 - ✅ Fix queue skipping logic (`return` → `continue`) - CRITICAL BUGFIX
 - ✅ Add `compressionInProgressRef` at component level
 - ✅ Add concurrent compression guard in `handleCompressionTriggered`
@@ -1337,6 +1412,7 @@ Tests requiring updates:
 ### File 3: `src/tui/hooks/analysis/useTurnAnalysis.ts`
 
 **Changes**: Expose queue methods to parent hook
+
 - ✅ Add `waitForCompressionReady` wrapper
 - ✅ Add `getUnanalyzedMessages` wrapper (updated from `getUnanalyzedTimestamps`)
 - ✅ Add `isReadyForCompression` wrapper
@@ -1357,6 +1433,7 @@ Tests requiring updates:
 ---
 
 **Total Code Changes (v2)**: ✅ UPDATED
+
 - Files Modified: 3-4
 - Lines Added: ~185 (increased from ~105 due to v2 enhancements)
   - AnalysisQueue: ~90 lines (persistence tracking, message ID deduplication)
@@ -1366,6 +1443,7 @@ Tests requiring updates:
 - Lines Removed: 0
 
 **v2 Additions Breakdown**:
+
 - Concurrent compression guard: +15 lines
 - LanceDB persistence tracking: +25 lines
 - Message ID deduplication: +30 lines

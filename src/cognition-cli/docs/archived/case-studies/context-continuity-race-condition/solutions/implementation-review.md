@@ -26,12 +26,14 @@
 #### 1.1 New State Tracking ✅ VERIFIED
 
 **Lines 33-34:**
+
 ```typescript
 private analyzedMessageIds = new Set<string>(); // ✅ Track by message ID not just timestamp
 private pendingPersistence = 0; // ✅ Track async LanceDB writes
 ```
 
 **Assessment:** ✅ CORRECT
+
 - Both fields added as specified
 - Clear comments explaining purpose
 - Proper TypeScript types
@@ -39,6 +41,7 @@ private pendingPersistence = 0; // ✅ Track async LanceDB writes
 #### 1.2 State Management Updates ✅ VERIFIED
 
 **Lines 72-77 (setAnalyses):**
+
 ```typescript
 this.analyzedMessageIds.clear(); // ✅ Clear message IDs too
 analyses.forEach((a) => {
@@ -48,12 +51,14 @@ analyses.forEach((a) => {
 ```
 
 **Lines 228-231 (clear):**
+
 ```typescript
 this.analyzedMessageIds.clear(); // ✅ Clear message IDs too
 this.pendingPersistence = 0; // ✅ Reset persistence counter
 ```
 
 **Assessment:** ✅ CORRECT
+
 - State properly managed in all lifecycle methods
 - Uses turn_id as message identifier (reasonable choice)
 - Cleanup methods updated
@@ -61,6 +66,7 @@ this.pendingPersistence = 0; // ✅ Reset persistence counter
 #### 1.3 Message ID Tracking in processQueue ✅ VERIFIED
 
 **Lines 145-147:**
+
 ```typescript
 // ✅ NEW: Track message ID (use messageIndex as unique identifier)
 const messageId = `msg-${task.messageIndex}`;
@@ -68,6 +74,7 @@ this.analyzedMessageIds.add(messageId);
 ```
 
 **Assessment:** ✅ CORRECT
+
 - Uses messageIndex to generate consistent message ID
 - Format: `msg-{index}` is clear and unique
 - Added before persistence tracking (correct order)
@@ -75,6 +82,7 @@ this.analyzedMessageIds.add(messageId);
 #### 1.4 LanceDB Persistence Tracking ✅ VERIFIED
 
 **Lines 151-163:**
+
 ```typescript
 // ✅ NEW: Track persistence (increment before async operation)
 this.pendingPersistence++;
@@ -92,6 +100,7 @@ try {
 ```
 
 **Assessment:** ✅ CORRECT
+
 - Counter incremented BEFORE async operation
 - Wrapped in try-finally for error safety
 - Decremented even if onAnalysisComplete fails
@@ -100,6 +109,7 @@ try {
 #### 1.5 isReadyForCompression() Method ✅ VERIFIED
 
 **Lines 247-254:**
+
 ```typescript
 isReadyForCompression(): boolean {
   return (
@@ -112,6 +122,7 @@ isReadyForCompression(): boolean {
 ```
 
 **Assessment:** ✅ CORRECT
+
 - All 4 conditions checked as specified
 - pendingPersistence included (critical fix)
 - Clear inline comments
@@ -120,6 +131,7 @@ isReadyForCompression(): boolean {
 #### 1.6 waitForCompressionReady() Method ✅ VERIFIED
 
 **Lines 261-280:**
+
 ```typescript
 async waitForCompressionReady(
   timeout: number = parseInt(
@@ -144,6 +156,7 @@ async waitForCompressionReady(
 ```
 
 **Assessment:** ✅ CORRECT
+
 - Default timeout: 15s from env var (as specified)
 - Polling interval: 100ms (as specified)
 - Error message includes all state details for debugging
@@ -152,6 +165,7 @@ async waitForCompressionReady(
 #### 1.7 getUnanalyzedMessages() Method ✅ VERIFIED
 
 **Lines 286-311:**
+
 ```typescript
 getUnanalyzedMessages(
   allMessages: Array<{ timestamp: Date; type: string; id?: string }>
@@ -182,6 +196,7 @@ getUnanalyzedMessages(
 ```
 
 **Assessment:** ✅ CORRECT
+
 - Filters to user/assistant messages only (correct)
 - Uses index-based message ID: `msg-{index}` (matches processQueue)
 - Returns enhanced structure with timestamp, messageId, index
@@ -198,11 +213,13 @@ getUnanalyzedMessages(
 #### 2.1 Concurrent Compression Guard ✅ VERIFIED
 
 **Line 122:**
+
 ```typescript
 const compressionInProgressRef = useRef(false); // ✅ Guard against concurrent compression requests
 ```
 
 **Lines 207-212:**
+
 ```typescript
 if (compressionInProgressRef.current) {
   debug('⏭️  Compression already in progress, skipping duplicate request');
@@ -213,6 +230,7 @@ compressionInProgressRef.current = true;
 ```
 
 **Lines 400-403:**
+
 ```typescript
 } finally {
   // ✅ CRITICAL: Always release lock
@@ -221,6 +239,7 @@ compressionInProgressRef.current = true;
 ```
 
 **Assessment:** ✅ CORRECT
+
 - Ref declared at component level (correct scope)
 - Guard check at function entry (early exit)
 - Lock set immediately after check
@@ -230,6 +249,7 @@ compressionInProgressRef.current = true;
 #### 2.2 Critical Bug Fix (return → continue) ✅ VERIFIED
 
 **Lines 572-577:**
+
 ```typescript
 // For assistant messages, only queue if we're NOT currently thinking
 if (message.type === 'assistant' && isThinking) {
@@ -241,6 +261,7 @@ if (message.type === 'assistant' && isThinking) {
 ```
 
 **Assessment:** ✅ CORRECT
+
 - Uses `continue` instead of `return` (the P0 fix!)
 - Clear comment explaining the fix
 - Updated debug message mentions retry
@@ -249,12 +270,14 @@ if (message.type === 'assistant' && isThinking) {
 #### 2.3 Session ID Snapshot ✅ VERIFIED
 
 **Line 218:**
+
 ```typescript
 // Snapshot session ID before waiting (prevents session boundary race)
 const compressionSessionId = currentSessionId;
 ```
 
 **Assessment:** ✅ CORRECT
+
 - Snapshot taken before any async operations
 - Clear comment explaining purpose
 - Used later for file writes (prevents race)
@@ -262,6 +285,7 @@ const compressionSessionId = currentSessionId;
 #### 2.4 UX Feedback - Message 1: Preparing ✅ VERIFIED
 
 **Lines 222-232:**
+
 ```typescript
 // 🆕 STEP 1: IMMEDIATELY NOTIFY USER (P0 UX REQUIREMENT)
 setMessages((prev) => [
@@ -277,6 +301,7 @@ setMessages((prev) => [
 ```
 
 **Assessment:** ✅ CORRECT
+
 - Immediate feedback (before any waiting)
 - Shows token count (informative)
 - Sets expectations: "5-10s" (critical for UX)
@@ -286,6 +311,7 @@ setMessages((prev) => [
 #### 2.5 Timeout Handling ✅ VERIFIED
 
 **Lines 234-239:**
+
 ```typescript
 // STEP 2: Wait for analysis queue to complete (configurable timeout)
 const startTime = Date.now();
@@ -296,6 +322,7 @@ const timeout = parseInt(
 ```
 
 **Lines 241-263:**
+
 ```typescript
 try {
   await turnAnalysis.waitForCompressionReady(timeout);
@@ -320,6 +347,7 @@ try {
 ```
 
 **Assessment:** ✅ CORRECT
+
 - Configurable timeout via env var (15s default)
 - Try-catch properly handles timeout
 - User-friendly error message (⚠️ emoji)
@@ -330,6 +358,7 @@ try {
 #### 2.6 UX Feedback - Message 2: Complete ✅ VERIFIED
 
 **Lines 265-275:**
+
 ```typescript
 const waitTime = Date.now() - startTime;
 
@@ -345,6 +374,7 @@ setMessages((prev) => [
 ```
 
 **Assessment:** ✅ CORRECT
+
 - Shows actual wait time (transparency)
 - Uses ✓ for success indicator
 - Transitions to next phase: "compressing conversation"
@@ -353,6 +383,7 @@ setMessages((prev) => [
 #### 2.7 Existing Compression Message ✅ VERIFIED
 
 **Lines 306-315:**
+
 ```typescript
 setMessages((prev) => [
   ...prev,
@@ -367,6 +398,7 @@ setMessages((prev) => [
 ```
 
 **Assessment:** ✅ CORRECT
+
 - This was already there, kept intact
 - Provides final status update
 - Total of 4 messages: prepare → complete → compressing → compressed
@@ -374,6 +406,7 @@ setMessages((prev) => [
 #### 2.8 Finally Block for Lock Release ✅ VERIFIED
 
 **Lines 400-403:**
+
 ```typescript
 } finally {
   // ✅ CRITICAL: Always release lock
@@ -382,6 +415,7 @@ setMessages((prev) => [
 ```
 
 **Assessment:** ✅ CORRECT
+
 - Always releases lock, even on error
 - Clear comment emphasizing criticality
 - Proper placement after all try-catch blocks
@@ -395,6 +429,7 @@ setMessages((prev) => [
 #### 3.1 Interface Extension ✅ VERIFIED
 
 **Lines 38-43:**
+
 ```typescript
 // ✅ NEW: Compression coordination methods
 waitForCompressionReady: (timeout?: number) => Promise<void>;
@@ -405,6 +440,7 @@ isReadyForCompression: () => boolean;
 ```
 
 **Assessment:** ✅ CORRECT
+
 - All 3 methods in interface
 - Correct type signatures
 - Optional timeout parameter
@@ -413,6 +449,7 @@ isReadyForCompression: () => boolean;
 #### 3.2 Method Implementations ✅ VERIFIED
 
 **Lines 160-165 (waitForCompressionReady):**
+
 ```typescript
 const waitForCompressionReady = useCallback(async (timeout?: number) => {
   if (!queueRef.current) {
@@ -423,6 +460,7 @@ const waitForCompressionReady = useCallback(async (timeout?: number) => {
 ```
 
 **Lines 167-174 (getUnanalyzedMessages):**
+
 ```typescript
 const getUnanalyzedMessages = useCallback(
   (messages: Array<{ timestamp: Date; type: string; id?: string }>) => {
@@ -434,6 +472,7 @@ const getUnanalyzedMessages = useCallback(
 ```
 
 **Lines 175-178 (isReadyForCompression):**
+
 ```typescript
 const isReadyForCompression = useCallback(() => {
   if (!queueRef.current) return true; // No queue = ready
@@ -442,6 +481,7 @@ const isReadyForCompression = useCallback(() => {
 ```
 
 **Assessment:** ✅ CORRECT
+
 - All wrapped in useCallback (proper React patterns)
 - Guard checks for uninitialized queue
 - Reasonable defaults on error (return [], return true)
@@ -450,6 +490,7 @@ const isReadyForCompression = useCallback(() => {
 #### 3.3 Return Statement ✅ VERIFIED
 
 **Lines 204-206:**
+
 ```typescript
 waitForCompressionReady,
 getUnanalyzedMessages,
@@ -457,6 +498,7 @@ isReadyForCompression,
 ```
 
 **Assessment:** ✅ CORRECT
+
 - All 3 methods exposed in return
 - Matches interface definition
 
@@ -499,6 +541,7 @@ isReadyForCompression,
 ### Verification Against Specification
 
 **All P0 Requirements:** ✅ COMPLETE
+
 - [x] Concurrent compression guard
 - [x] LanceDB persistence tracking
 - [x] Message ID deduplication
@@ -506,11 +549,13 @@ isReadyForCompression,
 - [x] UX feedback messages (3 stages)
 
 **All P1 Requirements:** ✅ COMPLETE
+
 - [x] Configurable timeout
 - [x] Session ID stability
 - [x] Method exposure in interface
 
 **UX Requirements:** ✅ COMPLETE
+
 - [x] Immediate feedback (<100ms)
 - [x] Progress indication (3 messages)
 - [x] Timeout transparency
@@ -523,18 +568,21 @@ isReadyForCompression,
 ### Ready for Testing
 
 **Unit Test Readiness:** ✅
+
 - All methods are testable
 - Pure functions where possible
 - Clear interfaces
 - Mockable dependencies
 
 **Integration Test Readiness:** ✅
+
 - UX messages use setMessages (can be intercepted)
 - Queue state is queryable
 - Timeout behavior is deterministic
 - Error paths are exercised
 
 **Manual Test Readiness:** ✅
+
 - Debug logging in place
 - Environment variables work
 - User messages visible in TUI
@@ -543,26 +591,31 @@ isReadyForCompression,
 ### Test Scenarios (from solution-with-ux.md)
 
 **Test 1: High-Velocity Scenario** (like `/quest-start`)
+
 - Implementation: ✅ Ready
 - Expected: All 18 turns analyzed before compression
 - Verify: Check `.sigma/*.recap.txt` has all turns
 
 **Test 2: UX Message Visibility**
+
 - Implementation: ✅ Ready
 - Expected: 3 messages appear in order
 - Verify: Watch TUI during compression
 
 **Test 3: Timeout Handling**
+
 - Implementation: ✅ Ready
 - Expected: Clear timeout message, no crash
 - Verify: Set `SIGMA_COMPRESSION_TIMEOUT_MS=1000` and watch
 
 **Test 4: Concurrent Compression**
+
 - Implementation: ✅ Ready
 - Expected: Second request blocked, debug log shows skip
 - Verify: Manually trigger two compressions rapidly
 
 **Test 5: Session Boundary**
+
 - Implementation: ✅ Ready
 - Expected: Recap written to correct session file
 - Verify: Check filename matches session ID snapshot
@@ -573,50 +626,50 @@ isReadyForCompression,
 
 ### solution-with-ux.md Section 1.1 (AnalysisQueue)
 
-| Feature | Specified | Implemented | Status |
-|---------|-----------|-------------|--------|
-| pendingPersistence counter | ✅ | ✅ Line 34 | ✅ Match |
-| analyzedMessageIds Set | ✅ | ✅ Line 33 | ✅ Match |
-| isReadyForCompression() | ✅ | ✅ Lines 247-254 | ✅ Match |
-| waitForCompressionReady() | ✅ | ✅ Lines 261-280 | ✅ Match |
-| getUnanalyzedMessages() | ✅ | ✅ Lines 286-311 | ✅ Match |
-| Persistence tracking in processQueue | ✅ | ✅ Lines 151-163 | ✅ Match |
+| Feature                              | Specified | Implemented      | Status   |
+| ------------------------------------ | --------- | ---------------- | -------- |
+| pendingPersistence counter           | ✅        | ✅ Line 34       | ✅ Match |
+| analyzedMessageIds Set               | ✅        | ✅ Line 33       | ✅ Match |
+| isReadyForCompression()              | ✅        | ✅ Lines 247-254 | ✅ Match |
+| waitForCompressionReady()            | ✅        | ✅ Lines 261-280 | ✅ Match |
+| getUnanalyzedMessages()              | ✅        | ✅ Lines 286-311 | ✅ Match |
+| Persistence tracking in processQueue | ✅        | ✅ Lines 151-163 | ✅ Match |
 
 **Verdict:** ✅ 100% MATCH
 
 ### solution-with-ux.md Section 1.2 (Queue Skipping Fix)
 
-| Feature | Specified | Implemented | Status |
-|---------|-----------|-------------|--------|
-| Change `return` to `continue` | ✅ | ✅ Line 576 | ✅ Match |
-| Updated debug message | ✅ | ✅ Line 574 | ✅ Match |
+| Feature                       | Specified | Implemented | Status   |
+| ----------------------------- | --------- | ----------- | -------- |
+| Change `return` to `continue` | ✅        | ✅ Line 576 | ✅ Match |
+| Updated debug message         | ✅        | ✅ Line 574 | ✅ Match |
 
 **Verdict:** ✅ 100% MATCH
 
 ### solution-with-ux.md Section 1.4 (UX Feedback)
 
-| Feature | Specified | Implemented | Status |
-|---------|-----------|-------------|--------|
-| compressionInProgressRef | ✅ | ✅ Line 122 | ✅ Match |
-| Concurrent guard check | ✅ | ✅ Lines 207-212 | ✅ Match |
-| Session ID snapshot | ✅ | ✅ Line 218 | ✅ Match |
-| UX Message 1: Preparing | ✅ | ✅ Lines 223-232 | ✅ Match |
-| Configurable timeout | ✅ | ✅ Lines 236-239 | ✅ Match |
-| UX Message 2a: Timeout | ✅ | ✅ Lines 247-256 | ✅ Match |
-| UX Message 3: Complete | ✅ | ✅ Lines 268-275 | ✅ Match |
-| Finally block lock release | ✅ | ✅ Lines 400-403 | ✅ Match |
+| Feature                    | Specified | Implemented      | Status   |
+| -------------------------- | --------- | ---------------- | -------- |
+| compressionInProgressRef   | ✅        | ✅ Line 122      | ✅ Match |
+| Concurrent guard check     | ✅        | ✅ Lines 207-212 | ✅ Match |
+| Session ID snapshot        | ✅        | ✅ Line 218      | ✅ Match |
+| UX Message 1: Preparing    | ✅        | ✅ Lines 223-232 | ✅ Match |
+| Configurable timeout       | ✅        | ✅ Lines 236-239 | ✅ Match |
+| UX Message 2a: Timeout     | ✅        | ✅ Lines 247-256 | ✅ Match |
+| UX Message 3: Complete     | ✅        | ✅ Lines 268-275 | ✅ Match |
+| Finally block lock release | ✅        | ✅ Lines 400-403 | ✅ Match |
 
 **Verdict:** ✅ 100% MATCH
 
 ### solution-with-ux.md Section 1.5 (useTurnAnalysis)
 
-| Feature | Specified | Implemented | Status |
-|---------|-----------|-------------|--------|
-| waitForCompressionReady | ✅ | ✅ Lines 160-165 | ✅ Match |
-| getUnanalyzedMessages | ✅ | ✅ Lines 167-174 | ✅ Match |
-| isReadyForCompression | ✅ | ✅ Lines 175-178 | ✅ Match |
-| Interface updates | ✅ | ✅ Lines 38-43 | ✅ Match |
-| Return statement | ✅ | ✅ Lines 204-206 | ✅ Match |
+| Feature                 | Specified | Implemented      | Status   |
+| ----------------------- | --------- | ---------------- | -------- |
+| waitForCompressionReady | ✅        | ✅ Lines 160-165 | ✅ Match |
+| getUnanalyzedMessages   | ✅        | ✅ Lines 167-174 | ✅ Match |
+| isReadyForCompression   | ✅        | ✅ Lines 175-178 | ✅ Match |
+| Interface updates       | ✅        | ✅ Lines 38-43   | ✅ Match |
+| Return statement        | ✅        | ✅ Lines 204-206 | ✅ Match |
 
 **Verdict:** ✅ 100% MATCH
 
@@ -627,26 +680,31 @@ isReadyForCompression,
 ### None Critical, All Handled
 
 **1. Message ID Consistency**
+
 - **Issue:** Uses `msg-${index}` in getUnanalyzedMessages but `msg-${messageIndex}` in processQueue
 - **Analysis:** This is CORRECT - both use the message's index in the array
 - **Verdict:** ✅ No issue
 
 **2. Timestamp vs Message ID in setAnalyses**
+
 - **Issue:** setAnalyses uses turn_id while processQueue uses msg-{index}
 - **Analysis:** Different code paths - setAnalyses for loaded data (uses turn_id), processQueue for new data (uses index)
 - **Verdict:** ✅ Acceptable - both are unique identifiers
 
 **3. Race Between UX Messages**
+
 - **Issue:** Could messages arrive out of order?
 - **Analysis:** setMessages is synchronous, appends to array in order
 - **Verdict:** ✅ No issue - guaranteed ordering
 
 **4. Timeout with No Feedback**
+
 - **Issue:** What if queue is stuck but not timing out?
 - **Analysis:** User sees "Analyzing..." message, can infer system is working
 - **Verdict:** ✅ Acceptable - timeout will eventually fire or succeed
 
 **5. Multiple Timeouts Running**
+
 - **Issue:** Could compression trigger multiple times during one wait?
 - **Analysis:** compressionInProgressRef guard prevents this
 - **Verdict:** ✅ Protected by concurrent compression guard
@@ -658,6 +716,7 @@ isReadyForCompression,
 ### Memory
 
 **New Allocations:**
+
 - `analyzedMessageIds` Set - grows with conversation size
 - `pendingPersistence` counter - 1 integer
 - `compressionInProgressRef` - 1 boolean
@@ -667,6 +726,7 @@ isReadyForCompression,
 ### CPU
 
 **New Operations:**
+
 - Polling loop: 100ms intervals (negligible)
 - Message ID Set lookups: O(1)
 - getUnanalyzedMessages: O(n) where n = message count
@@ -676,6 +736,7 @@ isReadyForCompression,
 ### UX
 
 **Latency Added:**
+
 - Message creation: <1ms per message
 - Wait time visibility: 5-10s (transparent to user)
 
@@ -688,16 +749,19 @@ isReadyForCompression,
 ### No Security Issues Identified ✅
 
 **1. Input Validation**
+
 - Timeout from env var: parseInt with default
 - Message IDs: generated internally (no user input)
 - Verdict: ✅ Safe
 
 **2. Resource Exhaustion**
+
 - Wait loop: bounded by timeout
 - Message ID Set: bounded by conversation length
 - Verdict: ✅ Protected
 
 **3. Race Conditions**
+
 - Concurrent compression: guarded by ref
 - Session ID: snapshotted before async
 - Verdict: ✅ Protected
@@ -709,6 +773,7 @@ isReadyForCompression,
 ### Code Comments: ⭐⭐⭐⭐⭐ Excellent
 
 **Strengths:**
+
 - All new code marked with ✅
 - Step-by-step UX flow (STEP 1, 2, 3)
 - Inline explanations for complex logic
@@ -716,6 +781,7 @@ isReadyForCompression,
 - Clear "why" not just "what"
 
 **Examples:**
+
 ```typescript
 // ✅ CRITICAL FIX: Skip THIS message, continue to next (not return!)
 // 🆕 STEP 1: IMMEDIATELY NOTIFY USER (P0 UX REQUIREMENT)
@@ -725,6 +791,7 @@ isReadyForCompression,
 ### Commit-Readiness: ✅ Ready
 
 **Changeset is:**
+
 - Self-contained
 - Well-commented
 - Follows existing patterns

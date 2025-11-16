@@ -134,7 +134,7 @@ The system has **three asynchronous subsystems** that must coordinate but don't:
 // For assistant messages, only queue if we're NOT currently thinking
 if (message.type === 'assistant' && isThinking) {
   debug('   Skipping assistant message - still streaming');
-  return;  // ← EXITS WITHOUT QUEUEING
+  return; // ← EXITS WITHOUT QUEUEING
 }
 ```
 
@@ -157,6 +157,7 @@ if (result.shouldTrigger) {
 ```
 
 **Missing**: No check like:
+
 ```typescript
 // Does NOT exist!
 if (analysisQueue.isProcessing || analysisQueue.queueLength > 0) {
@@ -228,6 +229,7 @@ The race window is **microseconds to seconds**:
 - Window size: Time between useEffect dependencies updating
 
 **Why compression wins the race**:
+
 - Compression effect depends on: `[tokenCount, analyzedTurns, isThinking]`
 - Analysis queue depends on: `[userAssistantMessageCount, isThinking, ...]`
 - Both trigger on `isThinking` change
@@ -254,19 +256,23 @@ The recap shows all overlay scores as 6/10:
    - `detectOverlaysByProjectAlignment` returned low scores
 
 2. **Importance Formula Penalizes Low Alignment** (`analyzer-with-embeddings.ts:219-221`)
+
    ```typescript
    const maxOverlay = Math.max(...Object.values(overlayScores));
    const importance = Math.min(10, Math.round(novelty * 5 + maxOverlay * 0.5));
    ```
+
    - Low overlay scores → low importance
    - Low importance → summarized/discarded during compression
 
 3. **Truncation at 150 Characters** (`context-reconstructor.ts:441-445`)
+
    ```typescript
    const roleLabel = turn.role.toUpperCase();
    const preview = turn.content.substring(0, 150).replace(/\n/g, ' ');
    const ellipsis = turn.content.length > 150 ? '...' : '';
    ```
+
    - Even if analyzed, only first 150 chars preserved in recap
    - 4,200 char response → "I'll help you initialize this quest!..."
 
@@ -275,16 +281,19 @@ The recap shows all overlay scores as 6/10:
 ## Information Loss Quantification
 
 ### Input (Pre-Compression)
+
 - **66.0K tokens** across 18 turns
 - Comprehensive quest briefing: **~4,200 characters** / **~1,050 tokens**
 - Rich technical content: metrics, patterns, implementations, success criteria
 
 ### Output (Post-Compression)
+
 - **0.0K tokens** (debug.log line 40)
 - Quest briefing reduced to: **150 characters** / **~38 tokens**
 - Content: "I'll help you initialize this quest! Let me gather..."
 
 ### Loss Calculation
+
 - **Token loss**: 66,000 → ~0 = **~100% loss**
 - **Semantic loss**: Comprehensive briefing → single sentence fragment = **~96% loss**
 - **Overlay richness**: 7 dimensions → 2 dimensions (O3, O5 only) = **71% dimensional loss**
@@ -296,6 +305,7 @@ The recap shows all overlay scores as 6/10:
 ### 1. Embedder Initialization Delay
 
 From `debug.log`:
+
 ```
 Line 447-450: if (!embedderRef.current) {
                 if (debugFlag) {
@@ -308,6 +318,7 @@ If embedder initialization is slow, early turns may not be analyzed at all.
 ### 2. Queue Effect Dependencies
 
 The analysis queue effect (`useClaudeAgent.ts:524-531`) depends on:
+
 ```typescript
 }, [
   userAssistantMessageCount,  // ← ONLY changes on NEW messages
@@ -324,12 +335,14 @@ The analysis queue effect (`useClaudeAgent.ts:524-531`) depends on:
 ### 3. No Backpressure Mechanism
 
 The `AnalysisQueue` is designed to be non-blocking (`AnalysisQueue.ts:103-105`):
+
 ```typescript
 // Start processing (non-blocking)
 this.processQueue();
 ```
 
 **Good for UI responsiveness**, but **bad for compression correctness** because:
+
 - No way to signal "analysis in progress"
 - No way for compression to wait
 - No coordination primitives (promises, events, etc.)
@@ -339,6 +352,7 @@ this.processQueue();
 Config: `20K token threshold` (from debug.log line 37)
 
 With 66K tokens, this triggered after only ~5 turns in an 18-turn conversation:
+
 - Early compression = more turns unanalyzed
 - Higher threshold would delay compression → more time for analysis
 
@@ -395,17 +409,20 @@ The Sigma architecture has **no coordination layer** between subsystems.
 ## Impact Assessment
 
 ### User Impact
+
 - **Context amnesia**: User asks "what was the quest?" and system has no memory
 - **Trust erosion**: System claims "intelligent compression" but delivers 96% loss
 - **Workflow disruption**: User must repeat context manually
 
 ### System Impact
+
 - **Overlay integrity**: O1-O7 dimensions contain stale/partial data
 - **Semantic search failure**: Embeddings missing for important turns
 - **Lattice fragmentation**: Conversation graph has gaps
 - **Compression ratio lie**: "66.0K → 0.0K" is reported as success
 
 ### Developer Impact
+
 - **Hard to debug**: Race conditions are non-deterministic
 - **Test blind spots**: Unit tests pass (synchronous), integration fails (async timing)
 - **False confidence**: Metrics report success while actual failure occurs
@@ -501,4 +518,3 @@ The context continuity analysis failed due to a **textbook race condition** betw
 **Analysis Complete**
 **Confidence**: 95%
 **Recommended Action**: Implement synchronization barrier between analysis and compression subsystems.
-

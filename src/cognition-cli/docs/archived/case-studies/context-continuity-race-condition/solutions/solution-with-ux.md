@@ -9,6 +9,7 @@
 ## 🔄 Update Notes (v3)
 
 **CRITICAL UX ENHANCEMENTS ADDED (Based on ux-feedback-addendum.md):**
+
 1. ✅ **USER FEEDBACK DURING WAIT (P0)** - Added visible progress messages in TUI during 5-10s compression wait
 2. ✅ **PREVENTS PERCEIVED FREEZE** - Users now see what's happening instead of apparent system hang
 3. ✅ **THREE-STAGE MESSAGING** - "Preparing" → "Analysis complete" → "Compressing"
@@ -17,6 +18,7 @@
 
 **Why this is CRITICAL:**
 The v2 solution is technically perfect but adds 5-10 seconds of wait time with ZERO user-visible feedback. Without these UX enhancements, users will:
+
 - Think the system is frozen
 - Perceive it as a regression (slower than before)
 - Lose trust in the tool
@@ -27,6 +29,7 @@ The v2 solution is technically perfect but adds 5-10 seconds of wait time with Z
 ---
 
 **Previous v2 Changes (Based on review-solution.md):**
+
 1. ✅ Added concurrent compression guard (P0)
 2. ✅ Added LanceDB persistence tracking (P0)
 3. ✅ Fixed timestamp deduplication to use message IDs (P1)
@@ -102,8 +105,8 @@ Add a synchronization primitive that blocks compression until the analysis queue
 ```typescript
 export class AnalysisQueue {
   // ... existing code ...
-  private pendingPersistence = 0;  // ✅ Track async LanceDB writes
-  private analyzedMessageIds = new Set<string>();  // ✅ Use message IDs not timestamps
+  private pendingPersistence = 0; // ✅ Track async LanceDB writes
+  private analyzedMessageIds = new Set<string>(); // ✅ Use message IDs not timestamps
 
   /**
    * Check if queue is ready for compression
@@ -111,10 +114,10 @@ export class AnalysisQueue {
    */
   isReadyForCompression(): boolean {
     return (
-      this.queue.length === 0 &&      // No queued tasks
-      !this.processing &&              // Not currently processing
-      this.currentTask === null &&     // No task in progress
-      this.pendingPersistence === 0    // ✅ All LanceDB writes complete
+      this.queue.length === 0 && // No queued tasks
+      !this.processing && // Not currently processing
+      this.currentTask === null && // No task in progress
+      this.pendingPersistence === 0 // ✅ All LanceDB writes complete
     );
   }
 
@@ -124,7 +127,10 @@ export class AnalysisQueue {
    * @returns Promise that resolves when ready or rejects on timeout
    */
   async waitForCompressionReady(
-    timeout: number = parseInt(process.env.SIGMA_COMPRESSION_TIMEOUT_MS || '15000', 10)
+    timeout: number = parseInt(
+      process.env.SIGMA_COMPRESSION_TIMEOUT_MS || '15000',
+      10
+    )
   ): Promise<void> {
     const startTime = Date.now();
 
@@ -148,10 +154,14 @@ export class AnalysisQueue {
   getUnanalyzedMessages(
     allMessages: Array<{ timestamp: Date; type: string; id?: string }>
   ): Array<{ timestamp: number; messageId: string; index: number }> {
-    const unanalyzed: Array<{ timestamp: number; messageId: string; index: number }> = [];
+    const unanalyzed: Array<{
+      timestamp: number;
+      messageId: string;
+      index: number;
+    }> = [];
 
     allMessages
-      .filter(m => m.type === 'user' || m.type === 'assistant')
+      .filter((m) => m.type === 'user' || m.type === 'assistant')
       .forEach((m, index) => {
         const messageId = m.id || `msg-${index}`;
 
@@ -171,7 +181,9 @@ export class AnalysisQueue {
   /**
    * Track analysis completion with persistence
    */
-  private async analyzeWithPersistence(task: AnalysisTask): Promise<TurnAnalysis> {
+  private async analyzeWithPersistence(
+    task: AnalysisTask
+  ): Promise<TurnAnalysis> {
     const analysis = await this.analyzeTurn(task);
 
     // Track message ID
@@ -183,7 +195,10 @@ export class AnalysisQueue {
 
     try {
       // Wait for persistence to complete
-      await this.handlers.onAnalysisComplete?.({ analysis, messageIndex: task.messageIndex });
+      await this.handlers.onAnalysisComplete?.({
+        analysis,
+        messageIndex: task.messageIndex,
+      });
     } finally {
       this.pendingPersistence--;
     }
@@ -198,20 +213,24 @@ export class AnalysisQueue {
 **File**: `src/tui/hooks/useClaudeAgent.ts` (lines 487-491)
 
 **Current (BROKEN)**:
+
 ```typescript
 // For assistant messages, only queue if we're NOT currently thinking
 if (message.type === 'assistant' && isThinking) {
   debug('   Skipping assistant message - still streaming');
-  return;  // ❌ EXITS FUNCTION, blocks all subsequent messages!
+  return; // ❌ EXITS FUNCTION, blocks all subsequent messages!
 }
 ```
 
 **Fixed**:
+
 ```typescript
 // For assistant messages, only queue if we're NOT currently thinking
 if (message.type === 'assistant' && isThinking) {
-  debug('   Skipping assistant message - still streaming (will retry after stream completes)');
-  continue;  // ✅ SKIPS THIS MESSAGE, continues to next
+  debug(
+    '   Skipping assistant message - still streaming (will retry after stream completes)'
+  );
+  continue; // ✅ SKIPS THIS MESSAGE, continues to next
 }
 ```
 
@@ -222,6 +241,7 @@ if (message.type === 'assistant' && isThinking) {
 **File**: `src/tui/hooks/compression/useCompression.ts` (lines 111-134)
 
 **Current (NO GATE)**:
+
 ```typescript
 useEffect(() => {
   // Don't check during streaming
@@ -239,6 +259,7 @@ useEffect(() => {
 ```
 
 **Fixed (WITH GATE)**:
+
 ```typescript
 useEffect(() => {
   // Don't check during streaming
@@ -278,6 +299,7 @@ useEffect(() => {
 **🆕 THIS IS THE CRITICAL UX ENHANCEMENT**
 
 **Current (v2 - technically correct but poor UX)**:
+
 ```typescript
 const handleCompressionTriggered = useCallback(
   async (tokens: number, turns: number) => {
@@ -296,6 +318,7 @@ const handleCompressionTriggered = useCallback(
 ```
 
 **Fixed (v3 - with user-visible feedback)**:
+
 ```typescript
 // ✅ Add compression lock ref at component level
 const compressionInProgressRef = useRef(false);
@@ -427,6 +450,7 @@ const handleCompressionTriggered = useCallback(
 ```
 
 **Key UX improvements in v3**:
+
 1. **🆕 Immediate user notification** (<100ms) - "Preparing compression..."
 2. **🆕 Set user expectations** - Shows token count and estimated time (5-10s)
 3. **🆕 Completion feedback** - "Analysis complete (8.2s)"
@@ -436,6 +460,7 @@ const handleCompressionTriggered = useCallback(
 **User Experience Comparison**:
 
 **v2 (Without UX feedback):**
+
 ```
 User: [sends message]
 System: "✓ Complete (18 turns, $0.0556)"
@@ -448,6 +473,7 @@ User thinks: "Why did it freeze? Is this broken?"
 ```
 
 **v3 (With UX feedback):**
+
 ```
 User: [sends message]
 System: "✓ Complete (18 turns, $0.0556)"
@@ -472,42 +498,40 @@ export interface UseTurnAnalysisReturn {
 
   // NEW: Expose queue state for compression coordination
   waitForCompressionReady: (timeout?: number) => Promise<void>;
-  getUnanalyzedMessages: (messages: Message[]) => Array<{ timestamp: number; messageId: string; index: number }>;  // ✅ UPDATED
+  getUnanalyzedMessages: (
+    messages: Message[]
+  ) => Array<{ timestamp: number; messageId: string; index: number }>; // ✅ UPDATED
   isReadyForCompression: () => boolean;
 }
 
-export function useTurnAnalysis(options: UseTurnAnalysisOptions): UseTurnAnalysisReturn {
+export function useTurnAnalysis(
+  options: UseTurnAnalysisOptions
+): UseTurnAnalysisReturn {
   // ... existing code ...
 
   // NEW: Expose queue methods
-  const waitForCompressionReady = useCallback(
-    async (timeout?: number) => {
-      if (!queueRef.current) {
-        throw new Error('Analysis queue not initialized');
-      }
-      await queueRef.current.waitForCompressionReady(timeout);
-    },
-    []
-  );
+  const waitForCompressionReady = useCallback(async (timeout?: number) => {
+    if (!queueRef.current) {
+      throw new Error('Analysis queue not initialized');
+    }
+    await queueRef.current.waitForCompressionReady(timeout);
+  }, []);
 
   // ✅ UPDATED: Use message IDs instead of timestamps
-  const getUnanalyzedMessages = useCallback(
-    (messages: Message[]) => {
-      if (!queueRef.current) return [];
-      return queueRef.current.getUnanalyzedMessages(messages);
-    },
-    []
-  );
+  const getUnanalyzedMessages = useCallback((messages: Message[]) => {
+    if (!queueRef.current) return [];
+    return queueRef.current.getUnanalyzedMessages(messages);
+  }, []);
 
   const isReadyForCompression = useCallback(() => {
-    if (!queueRef.current) return true;  // No queue = ready
+    if (!queueRef.current) return true; // No queue = ready
     return queueRef.current.isReadyForCompression();
   }, []);
 
   return {
     // ... existing returns ...
     waitForCompressionReady,
-    getUnanalyzedMessages,  // ✅ UPDATED
+    getUnanalyzedMessages, // ✅ UPDATED
     isReadyForCompression,
   };
 }
@@ -565,28 +589,17 @@ export function useTurnAnalysis(options: UseTurnAnalysisOptions): UseTurnAnalysi
 ### Implementation Priority
 
 **Phase 1: Critical Bugfixes + UX (Immediate) - UPDATED**
+
 1. Fix `return` → `continue` in queue skipping logic
 2. Expand pending turn detection to check ALL messages, not just last
 3. Add logging for unanalyzed messages at compression time
 4. **🆕 ADD UX FEEDBACK MESSAGES (P0)** - Prevent perceived freeze during wait
 
-**Phase 2: Synchronization Layer (High Priority)**
-5. Add `isReadyForCompression()` to AnalysisQueue
-6. Add `waitForCompressionReady()` with timeout
-7. Modify compression trigger to wait for queue completion
-8. **🆕 Integrate UX messages into compression flow**
+**Phase 2: Synchronization Layer (High Priority)** 5. Add `isReadyForCompression()` to AnalysisQueue 6. Add `waitForCompressionReady()` with timeout 7. Modify compression trigger to wait for queue completion 8. **🆕 Integrate UX messages into compression flow**
 
-**Phase 3: Resilience (Medium Priority)**
-9. Add recovery mechanism for missed messages
-10. Implement timeout handling with graceful degradation
-11. Add metrics/telemetry for compression wait times
-12. **🆕 Add UX metric: user-perceived wait time**
+**Phase 3: Resilience (Medium Priority)** 9. Add recovery mechanism for missed messages 10. Implement timeout handling with graceful degradation 11. Add metrics/telemetry for compression wait times 12. **🆕 Add UX metric: user-perceived wait time**
 
-**Phase 4: Optimization (Low Priority)**
-13. Tune timeout values based on real-world data
-14. Consider parallel embedding generation (if bottleneck)
-15. Optimize overlay scoring (if bottleneck)
-16. **🆕 FUTURE: Consider Enhancement 2 (live progress updates) or Enhancement 3 (progress bar)**
+**Phase 4: Optimization (Low Priority)** 13. Tune timeout values based on real-world data 14. Consider parallel embedding generation (if bottleneck) 15. Optimize overlay scoring (if bottleneck) 16. **🆕 FUTURE: Consider Enhancement 2 (live progress updates) or Enhancement 3 (progress bar)**
 
 ---
 
@@ -597,12 +610,14 @@ export function useTurnAnalysis(options: UseTurnAnalysisOptions): UseTurnAnalysi
 **Why this is P0 (not P1 or P2):**
 
 The solution adds 5-10 seconds of latency with ZERO user feedback. Without messages, users will:
+
 1. Think the system is frozen
 2. Press Ctrl+C to kill the process
 3. Report bugs: "System hangs after assistant response"
 4. Lose trust in the tool
 
 **Investment vs ROI:**
+
 - **Effort**: 15 minutes
 - **Risk**: Zero (just adding setMessages calls)
 - **Impact**: Prevents user confusion and perceived regression
@@ -650,6 +665,7 @@ setMessages((prev) => [
 **Deferred to Phase 4** - Nice-to-have but not required for MVP
 
 Shows live progress every 500ms:
+
 ```
 ⏳ Analyzing conversation turns: 12/18
    Queue: 6 pending (processing...)
@@ -663,6 +679,7 @@ Shows live progress every 500ms:
 **Deferred to Phase 4** - Nice-to-have but not required for MVP
 
 Uses Ink's `<ProgressBar>` component:
+
 ```
 ⏳ Analyzing conversation turns: 12/18
 [████████████████░░░░░░░░] 66%
@@ -685,6 +702,7 @@ This ensures complete context preservation...
 **Key Changes**:
 
 1. **🆕 Immediate user notification**:
+
 ```typescript
 setMessages((prev) => [
   ...prev,
@@ -697,11 +715,13 @@ setMessages((prev) => [
 ```
 
 2. **Wait for queue completion**:
+
 ```typescript
 await turnAnalysis.waitForCompressionReady(timeout);
 ```
 
 3. **🆕 Completion notification**:
+
 ```typescript
 setMessages((prev) => [
   ...prev,
@@ -714,6 +734,7 @@ setMessages((prev) => [
 ```
 
 4. **🆕 Timeout notification**:
+
 ```typescript
 catch (error) {
   setMessages((prev) => [
@@ -736,6 +757,7 @@ catch (error) {
 ### UX-Specific Tests
 
 **Test 8: Progress Message Visibility (NEW)**
+
 ```typescript
 test('shows user-visible progress during compression wait', async () => {
   // Simulate slow analysis (5 second wait)
@@ -767,14 +789,16 @@ test('shows user-visible progress during compression wait', async () => {
   );
 
   // Verify user never saw a >1s gap without feedback
-  const systemMessages = messages.filter(m => m.type === 'system');
-  const timeBetweenMessages = systemMessages[1].timestamp - systemMessages[0].timestamp;
+  const systemMessages = messages.filter((m) => m.type === 'system');
+  const timeBetweenMessages =
+    systemMessages[1].timestamp - systemMessages[0].timestamp;
 
   expect(timeBetweenMessages).toBeLessThan(1000); // Messages within 1s
 });
 ```
 
 **Test 9: Timeout Message Displayed (NEW)**
+
 ```typescript
 test('shows user-friendly timeout message', async () => {
   const queue = new AnalysisQueue(options, handlers);
@@ -805,6 +829,7 @@ test('shows user-friendly timeout message', async () => {
 ### 🆕 UX-Specific Metrics
 
 **8. User-Perceived Wait Time** (NEW)
+
 ```typescript
 // Track time between "Preparing..." and "Analysis complete"
 const userWaitStart = Date.now();
@@ -844,6 +869,7 @@ if (userWaitTime > 15000) {
 **Goal**: Stop the bleeding with minimal risk + prevent user confusion
 
 **Changes**:
+
 1. Fix `return` → `continue` in queue skipping logic
 2. Add logging for unanalyzed messages
 3. Increase token threshold from 20K → 40K (temporary)
@@ -859,6 +885,7 @@ if (userWaitTime > 15000) {
 **Goal**: Implement proper coordination
 
 **Changes**:
+
 1. Add `isReadyForCompression()` to AnalysisQueue
 2. Add `waitForCompressionReady()` with timeout
 3. Modify compression trigger to wait for queue
@@ -874,6 +901,7 @@ if (userWaitTime > 15000) {
 **Goal**: Verify fix in production-like scenarios
 
 **Changes**:
+
 1. Add monitoring/metrics (including UX metrics)
 2. Deploy to staging environment
 3. Run load tests with high-velocity conversations
@@ -889,6 +917,7 @@ if (userWaitTime > 15000) {
 **Goal**: Deploy to production with confidence
 
 **Changes**:
+
 1. Feature flag: `SIGMA_QUEUE_GATE_ENABLED`
 2. Gradual rollout: 10% → 50% → 100%
 3. Monitor metrics and user reports
@@ -940,6 +969,7 @@ if (userWaitTime > 15000) {
 ### Without UX Feedback (v2 alone)
 
 **Costs:**
+
 - User confusion: "Is it broken?"
 - Perceived regression: "It's slower than before"
 - Support tickets: "Why does it freeze?"
@@ -947,15 +977,18 @@ if (userWaitTime > 15000) {
 - Potential Ctrl+C kills: "I'll just restart it"
 
 **Benefits:**
+
 - None (saving 15 minutes of dev time is not worth user confusion)
 
 ### With UX Feedback (v3)
 
 **Costs:**
+
 - 15 minutes implementation time
 - 3 additional system messages per compression
 
 **Benefits:**
+
 - Clear user expectations
 - No perceived "freeze"
 - Professional UX
@@ -974,14 +1007,16 @@ if (userWaitTime > 15000) {
 ### 🆕 UX-Specific Risks
 
 **8. Message Spam**
-   - Risk: Too many system messages clutter TUI
-   - Mitigation: Only 3 messages per compression (preparing, complete, compressing)
-   - Fallback: Combine into fewer messages if needed
+
+- Risk: Too many system messages clutter TUI
+- Mitigation: Only 3 messages per compression (preparing, complete, compressing)
+- Fallback: Combine into fewer messages if needed
 
 **9. Message Timing Issues**
-   - Risk: Message arrives after compression already done (fast queue)
-   - Mitigation: Check elapsed time, skip messages if <1s total
-   - Fallback: No harm, just extra message
+
+- Risk: Message arrives after compression already done (fast queue)
+- Mitigation: Check elapsed time, skip messages if <1s total
+- Fallback: No harm, just extra message
 
 ---
 
@@ -996,6 +1031,7 @@ if (userWaitTime > 15000) {
 **🆕 UX Impact**: Transforms user perception from "This is broken" → "This is working hard to preserve my context"
 
 **Next Steps**:
+
 1. Review and approve this solution proposal (v3 with UX)
 2. Implement Phase 1 hotfix (critical bugfixes + UX messages)
 3. Implement Phase 2 (synchronization layer)
@@ -1005,6 +1041,7 @@ if (userWaitTime > 15000) {
 **Timeline**: 4-5 weeks from approval to full production rollout
 
 **Success Metrics**:
+
 - Context loss: 95% → 0%
 - Compression wait time: 0ms → 5-10s (acceptable trade-off)
 - **🆕 User confusion: High → Zero** (via clear messaging)
@@ -1017,6 +1054,7 @@ if (userWaitTime > 15000) {
 ### Critical UX Additions (Based on ux-feedback-addendum.md)
 
 **Addition 1: Immediate User Notification (P0)** ✅ ADDED
+
 - **Problem**: 5-10s wait with zero feedback = perceived freeze
 - **Impact**: CRITICAL - Users will think system is broken
 - **Solution**: Show "⏳ Preparing compression..." within 100ms of wait start
@@ -1024,6 +1062,7 @@ if (userWaitTime > 15000) {
 - **Effort**: 5 minutes
 
 **Addition 2: Completion Feedback (P0)** ✅ ADDED
+
 - **Problem**: User doesn't know when wait is over
 - **Impact**: HIGH - Unclear state transitions
 - **Solution**: Show "✓ Analysis complete (8.2s)" after wait ends
@@ -1031,6 +1070,7 @@ if (userWaitTime > 15000) {
 - **Effort**: 5 minutes
 
 **Addition 3: Timeout Transparency (P0)** ✅ ADDED
+
 - **Problem**: Timeout errors invisible to user
 - **Impact**: MEDIUM - Silent failures confusing
 - **Solution**: Show "⚠️ Timeout - compression postponed" on error
@@ -1038,17 +1078,20 @@ if (userWaitTime > 15000) {
 - **Effort**: 5 minutes
 
 **Addition 4: UX Metric Tracking** ✅ ADDED
+
 - **New Metric**: `sigma.compression.user_wait_time_ms`
 - **New Alert**: Warning if wait > 15s (user patience threshold)
 - **Purpose**: Monitor user experience in production
 - **Code**: Monitoring section
 
 **Addition 5: Updated Success Criteria** ✅ ADDED
+
 - **New Requirement**: "User perceives wait as intentional"
 - **New Requirement**: "Clear user feedback with <100ms latency"
 - **Purpose**: Ensures UX is part of definition of "done"
 
 **Addition 6: UX Tests** ✅ ADDED
+
 - **Test 8**: Verify progress messages appear within 100ms
 - **Test 9**: Verify timeout messages are user-friendly
 - **Purpose**: Prevent UX regressions in future changes
@@ -1056,11 +1099,13 @@ if (userWaitTime > 15000) {
 ### Total Implementation Cost (UX Only)
 
 **Development Time**: 15 minutes
+
 - Write 3 setMessages calls: 5 min
 - Add error handling message: 5 min
 - Update tests: 5 min
 
 **Testing Time**: 15 minutes
+
 - Manual verification in TUI: 10 min
 - Verify timing with delays: 5 min
 
@@ -1075,15 +1120,18 @@ if (userWaitTime > 15000) {
 ### Changes from v2 to v3
 
 **File 1**: `src/tui/hooks/useClaudeAgent.ts`
+
 - **Lines Added**: ~20 (3 setMessages calls + timing logic)
 - **Lines Changed**: 0 (all additions, no modifications)
 - **Risk**: Very low (just adding user-visible messages)
 
 **File 2**: `src/tui/hooks/useClaudeAgent.ts` (dependencies)
+
 - **Added dependency**: `setMessages` function (already exists)
 - **Risk**: None (using existing React state setter)
 
 **Total Code Changes (v3 vs v2)**:
+
 - Files Modified: 1 (useClaudeAgent.ts)
 - Lines Added: ~20
 - Lines Changed: 0

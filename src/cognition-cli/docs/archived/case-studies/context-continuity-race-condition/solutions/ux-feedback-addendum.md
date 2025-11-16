@@ -29,6 +29,7 @@ User: "Why did the system freeze? Is it broken?"
 ### What the Solution Currently Shows
 
 **From solution.md line 234-244:**
+
 ```typescript
 debug('🗜️  Compression requested, waiting for analysis queue...');
 await turnAnalysis.waitForCompressionReady(30000);
@@ -44,6 +45,7 @@ debug('✅ Analysis queue ready, proceeding with compression');
 ### Perceived Behavior (Without Feedback)
 
 From user perspective:
+
 ```
 Time 0s:   User sends message
 Time 0.1s: Assistant response appears
@@ -61,6 +63,7 @@ Time 10s:  "🗜️ Context compression triggered..." FINALLY appears
 ### Comparison with Current (Broken) System
 
 **Current system (broken but fast):**
+
 ```
 Time 0.0s: "✓ Complete"
 Time 0.1s: "🗜️ Context compression triggered..."
@@ -70,6 +73,7 @@ Time 0.2s: Done
 **User perception:** "Wow, that was instant!" (but context was lost)
 
 **New system (correct but slow without feedback):**
+
 ```
 Time 0.0s: "✓ Complete"
 Time 10.0s: "🗜️ Context compression triggered..."
@@ -86,6 +90,7 @@ Time 10.0s: "🗜️ Context compression triggered..."
 **Location:** `src/tui/hooks/useClaudeAgent.ts` - handleCompressionTriggered
 
 **Current:**
+
 ```typescript
 const handleCompressionTriggered = useCallback(
   async (tokens: number, turns: number) => {
@@ -108,6 +113,7 @@ const handleCompressionTriggered = useCallback(
 ```
 
 **Enhanced:**
+
 ```typescript
 const handleCompressionTriggered = useCallback(
   async (tokens: number, turns: number) => {
@@ -166,6 +172,7 @@ const handleCompressionTriggered = useCallback(
 ```
 
 **User sees:**
+
 ```
 ⏳ Preparing context compression (66.0K tokens)...
    Analyzing remaining conversation turns...
@@ -255,6 +262,7 @@ const handleCompressionTriggered = useCallback(
 ```
 
 **User sees (live updates):**
+
 ```
 ⏳ Analyzing conversation turns: 3/18
    Queue: 15 pending (processing...)
@@ -312,6 +320,7 @@ const progressInterval = setInterval(() => {
 ```
 
 **User sees:**
+
 ```
 ⏳ Analyzing conversation turns: 12/18
 [████████████████░░░░░░░░] 66%
@@ -325,6 +334,7 @@ This ensures complete context preservation...
 ### P0 - MUST HAVE (Enhancement 1)
 
 **Minimum viable UX:** Simple text messages showing wait stages
+
 - ⏳ "Preparing compression..."
 - ✓ "Analysis complete"
 - 🗜️ "Compressing..."
@@ -336,6 +346,7 @@ This ensures complete context preservation...
 ### P1 - SHOULD HAVE (Enhancement 2)
 
 **Better UX:** Live progress updates (analyzed count)
+
 - Shows progress every 500ms
 - Updates message in place
 - Clear indication of work happening
@@ -347,6 +358,7 @@ This ensures complete context preservation...
 ### P2 - NICE TO HAVE (Enhancement 3)
 
 **Best UX:** Visual progress bar
+
 - Ink ProgressBar component
 - Percentage completion
 - Explanatory text
@@ -369,6 +381,7 @@ This ensures complete context preservation...
 ### Message Examples
 
 **Good Messages:**
+
 ```
 ✓ "Analyzing 18 conversation turns for compression (5-10s)..."
 ✓ "Ensuring complete context preservation..."
@@ -377,6 +390,7 @@ This ensures complete context preservation...
 ```
 
 **Bad Messages:**
+
 ```
 ✗ "Please wait..."  (no context, no progress)
 ✗ "Processing..."   (vague)
@@ -423,7 +437,7 @@ This ensures complete context preservation...
 🗜️  Compressing 5 turns...
 ```
 
-*(No need for progress updates if it's sub-second)*
+_(No need for progress updates if it's sub-second)_
 
 ---
 
@@ -553,6 +567,7 @@ if (waitTime > 15000) {
 ### Before (Solution without UX feedback)
 
 **User Experience:**
+
 ```
 [User sends message]
 Assistant: "Here's your quest briefing..."
@@ -569,6 +584,7 @@ User thinks: "Why did it freeze? Is this a bug?"
 ### After (Solution with UX feedback - Enhancement 1)
 
 **User Experience:**
+
 ```
 [User sends message]
 Assistant: "Here's your quest briefing..."
@@ -587,6 +603,7 @@ User thinks: "Cool, it's ensuring my context is preserved. Worth the wait."
 ### After (Solution with UX feedback - Enhancement 2)
 
 **User Experience:**
+
 ```
 System: "✓ Complete (18 turns, $0.0556)"
 System: "⏳ Analyzing conversation turns: 3/18"
@@ -610,21 +627,25 @@ User thinks: "I can see the progress - this is professional software."
 ### Without UX Feedback
 
 **Costs:**
+
 - User confusion: "Is it broken?"
 - Perceived regression: "It's slower than before"
 - Support tickets: "Why does it freeze?"
 - Lost trust: "This tool is unreliable"
 
 **Benefits:**
+
 - None (saving 15 minutes of dev time is not worth user confusion)
 
 ### With UX Feedback (Enhancement 1)
 
 **Costs:**
+
 - 15 minutes implementation time
 - 3 additional system messages per compression
 
 **Benefits:**
+
 - Clear user expectations
 - No perceived "freeze"
 - Professional UX
@@ -640,6 +661,7 @@ User thinks: "I can see the progress - this is professional software."
 ### Immediate Action Required
 
 **Add Enhancement 1 (simple messages) to Phase 1 hotfix:**
+
 - Required effort: 15 minutes
 - Zero technical risk
 - Massive UX improvement
@@ -651,6 +673,7 @@ The solution adds latency (5-10s) that users will notice. Without feedback, user
 ### Future Enhancement
 
 **Add Enhancement 2 (live progress) to Phase 2:**
+
 - Effort: 1 hour
 - Provides professional UX
 - Demonstrates system is working correctly
@@ -660,15 +683,19 @@ The solution adds latency (5-10s) that users will notice. Without feedback, user
 ## Updated Success Criteria
 
 **From solution.md:**
+
 > ✅ **Zero context loss** - All turns analyzed before compression
 
 **Add:**
+
 > ✅ **Clear user feedback** - User informed of compression stages with <1s latency
 
 **From solution.md:**
+
 > ✅ **Compression wait time < 10s** (P95) - Acceptable latency
 
 **Add:**
+
 > ✅ **User perceives wait as intentional** - Not confused or concerned during wait
 
 ---
@@ -678,12 +705,14 @@ The solution adds latency (5-10s) that users will notice. Without feedback, user
 **This is a CRITICAL GAP in the original solution.**
 
 The technical fix is perfect, but without user feedback during the 5-10 second wait, users will:
+
 1. Think the system is frozen
 2. Perceive it as a regression (slower than before)
 3. Lose trust in the tool
 4. Generate support tickets
 
 **Adding simple progress messages takes 15 minutes and transforms user perception from:**
+
 - "This is broken" → "This is working hard to preserve my context"
 
 **Recommendation:** Make Enhancement 1 (simple messages) a MANDATORY part of Phase 1, not an afterthought.

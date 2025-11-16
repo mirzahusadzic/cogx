@@ -22,12 +22,14 @@
 ### What Changed in v3
 
 **v1 → v2 (Technical Fixes):**
+
 - Added concurrent compression guard
 - Added LanceDB persistence tracking
 - Fixed duplicate timestamp handling
 - Reduced timeout to 15s + env var
 
 **v2 → v3 (UX Enhancements):**
+
 - ✅ **USER-VISIBLE PROGRESS MESSAGES** (CRITICAL)
 - ✅ **THREE-STAGE FEEDBACK** (Preparing → Complete → Compressing)
 - ✅ **TIMEOUT TRANSPARENCY** (Clear error messaging)
@@ -36,12 +38,14 @@
 ### Why v3 is Critical
 
 **v2 alone would:**
+
 - ❌ Fix the data loss (good!)
 - ❌ Add 5-10s wait with NO feedback (terrible UX!)
 - ❌ Users think it's frozen/broken
 - ❌ Perceived as regression despite being a fix
 
 **v3 (v2 + UX):**
+
 - ✅ Fixes the data loss
 - ✅ Shows users what's happening
 - ✅ Builds trust ("preserving context")
@@ -57,8 +61,10 @@
 ### ✅ All P0 Issues (MUST HAVE) - VERIFIED
 
 #### 1. Concurrent Compression Guard
+
 **Location:** Lines 300-312, 420-422
 **Code:**
+
 ```typescript
 const compressionInProgressRef = useRef(false);
 
@@ -74,15 +80,19 @@ try {
   compressionInProgressRef.current = false;
 }
 ```
+
 **Status:** ✅ COMPLETE
+
 - Guard at function entry
 - Set before async ops
 - Released in finally block
 - Metric tracks blocked attempts
 
 #### 2. LanceDB Persistence Tracking
+
 **Location:** Lines 104, 116, 173-191
 **Code:**
+
 ```typescript
 private pendingPersistence = 0;
 
@@ -104,14 +114,18 @@ async analyzeWithPersistence(task: AnalysisTask) {
   }
 }
 ```
+
 **Status:** ✅ COMPLETE
+
 - Counter tracks async writes
 - Included in ready check
 - Finally block ensures cleanup
 
 #### 3. Duplicate Timestamp Handling
+
 **Location:** Lines 105, 147-168, 177-178
 **Code:**
+
 ```typescript
 private analyzedMessageIds = new Set<string>();
 
@@ -126,14 +140,18 @@ getUnanalyzedMessages(allMessages) {
   return unanalyzed;
 }
 ```
+
 **Status:** ✅ COMPLETE
+
 - Uses message IDs not timestamps
 - Fallback to index-based ID
 - Returns enhanced structure
 
 #### 4. **🆕 USER-VISIBLE FEEDBACK (CRITICAL UX FIX)**
+
 **Location:** Lines 317-366
 **Code:**
+
 ```typescript
 // STEP 1: Immediately notify user (<100ms)
 setMessages((prev) => [
@@ -175,7 +193,9 @@ setMessages((prev) => [
   },
 ]);
 ```
+
 **Status:** ✅ COMPLETE AND CORRECT
+
 - Immediate feedback (<100ms)
 - Clear progression (preparing → complete → compressing)
 - Timeout transparency
@@ -186,14 +206,17 @@ setMessages((prev) => [
 ### ✅ All P1 Issues (SHOULD HAVE) - VERIFIED
 
 #### 5. Configurable Timeout
+
 **Location:** Lines 126, 333
 **Default:** 15s (down from 30s)
 **Env Var:** `SIGMA_COMPRESSION_TIMEOUT_MS`
 **Status:** ✅ COMPLETE
 
 #### 6. Success Metrics
+
 **Location:** Lines 399-418
 **Metrics Added:**
+
 1. Analysis completion rate (target: 100%)
 2. Overlay population health (target: 4-7)
 3. Concurrent compression attempts (target: 0)
@@ -201,6 +224,7 @@ setMessages((prev) => [
 **Status:** ✅ COMPLETE
 
 #### 7. Session ID Stability
+
 **Location:** Line 315
 **Code:** `const compressionSessionId = currentSessionId;`
 **Status:** ✅ COMPLETE
@@ -212,6 +236,7 @@ setMessages((prev) => [
 ### User Experience Flow
 
 **Before v3 (BAD):**
+
 ```
 System: "✓ Complete (18 turns, $0.0556)"
 
@@ -222,6 +247,7 @@ User thinks: "Is this broken?"
 ```
 
 **After v3 (GOOD):**
+
 ```
 System: "✓ Complete (18 turns, $0.0556)"
 System: "⏳ Preparing context compression at 66.0K tokens"
@@ -249,15 +275,19 @@ User thinks: "Cool, it's preserving my context properly!"
 From lines 910-935:
 
 **Functional:**
+
 - ✅ Clear user feedback with <100ms latency
 
 **Performance:**
+
 - ✅ User perceives wait as intentional
 
 **Quality:**
+
 - ✅ UX tests pass (messages appear within 100ms)
 
 **Cost-Benefit (Lines 938-967):**
+
 - Investment: 15 minutes
 - ROI: EXTREMELY HIGH
 - Prevents: User confusion, support tickets, lost trust
@@ -270,6 +300,7 @@ From lines 910-935:
 ### Completeness: ⭐⭐⭐⭐⭐ (5/5)
 
 **All sections present:**
+
 - [x] Problem statement
 - [x] Solution architecture
 - [x] Implementation details
@@ -284,6 +315,7 @@ From lines 910-935:
 ### Technical Correctness: ⭐⭐⭐⭐⭐ (5/5)
 
 **All critical issues resolved:**
+
 - [x] Race condition fixed (queue completion gate)
 - [x] Concurrent compression prevented (ref guard)
 - [x] LanceDB persistence tracked (counter)
@@ -293,6 +325,7 @@ From lines 910-935:
 ### User Experience: ⭐⭐⭐⭐⭐ (5/5) - IMPROVED FROM v2
 
 **UX enhancements:**
+
 - [x] Three-stage messaging (prepare, complete, compress)
 - [x] Timeout transparency
 - [x] Clear explanations
@@ -301,6 +334,7 @@ From lines 910-935:
 ### Documentation: ⭐⭐⭐⭐⭐ (5/5)
 
 **Clear structure:**
+
 - [x] Version history (v1 → v2 → v3)
 - [x] Update notes (what changed)
 - [x] Code examples (with comments)
@@ -314,6 +348,7 @@ From lines 910-935:
 ### Phase 1: Immediate Hotfix (Week 1) ✅ READY
 
 **Changes:**
+
 1. ✅ Queue skipping bugfix (`return` → `continue`)
 2. ✅ Concurrent compression guard
 3. ✅ LanceDB persistence tracking
@@ -328,6 +363,7 @@ From lines 910-935:
 ### Phase 2: Synchronization Layer (Week 2-3) ✅ READY
 
 **Changes:**
+
 1. ✅ Queue state exposure methods
 2. ✅ Success metrics instrumentation
 3. ✅ Comprehensive monitoring
@@ -339,6 +375,7 @@ From lines 910-935:
 ### Phase 3-4: Validation & Rollout ✅ READY
 
 **Strategy:**
+
 1. ✅ Feature flag defined
 2. ✅ Gradual rollout plan (10% → 50% → 100%)
 3. ✅ Monitoring thresholds clear
@@ -350,24 +387,24 @@ From lines 910-935:
 
 ## Comparison: All Versions
 
-| Aspect | v1 | v2 | v3 | Status |
-|--------|----|----|-----|---------|
-| **Technical Fixes** ||||
-| Concurrent guard | ❌ | ✅ | ✅ | Fixed in v2 |
-| LanceDB persistence | ❌ | ✅ | ✅ | Fixed in v2 |
-| Message ID tracking | ❌ | ✅ | ✅ | Fixed in v2 |
-| Session ID snapshot | ❌ | ✅ | ✅ | Fixed in v2 |
-| **UX Enhancements** ||||
-| User feedback messages | ❌ | ❌ | ✅ | **Fixed in v3** |
-| Progress indication | ❌ | ❌ | ✅ | **Fixed in v3** |
-| Timeout transparency | ❌ | ❌ | ✅ | **Fixed in v3** |
-| **Metrics** ||||
-| Success metrics | ⚠️ | ✅ | ✅ | Added in v2 |
-| UX metrics | ❌ | ❌ | ✅ | **Added in v3** |
-| **Overall** ||||
-| Technical soundness | 90% | 95% | 95% | Stable |
-| User experience | 50% | 40% | 95% | **Major improvement** |
-| **Production ready?** | ❌ No | ⚠️ Risky | ✅ **Yes** | **v3 ready** |
+| Aspect                 | v1    | v2       | v3         | Status                |
+| ---------------------- | ----- | -------- | ---------- | --------------------- |
+| **Technical Fixes**    |       |          |            |                       |
+| Concurrent guard       | ❌    | ✅       | ✅         | Fixed in v2           |
+| LanceDB persistence    | ❌    | ✅       | ✅         | Fixed in v2           |
+| Message ID tracking    | ❌    | ✅       | ✅         | Fixed in v2           |
+| Session ID snapshot    | ❌    | ✅       | ✅         | Fixed in v2           |
+| **UX Enhancements**    |       |          |            |                       |
+| User feedback messages | ❌    | ❌       | ✅         | **Fixed in v3**       |
+| Progress indication    | ❌    | ❌       | ✅         | **Fixed in v3**       |
+| Timeout transparency   | ❌    | ❌       | ✅         | **Fixed in v3**       |
+| **Metrics**            |       |          |            |                       |
+| Success metrics        | ⚠️    | ✅       | ✅         | Added in v2           |
+| UX metrics             | ❌    | ❌       | ✅         | **Added in v3**       |
+| **Overall**            |       |          |            |                       |
+| Technical soundness    | 90%   | 95%      | 95%        | Stable                |
+| User experience        | 50%   | 40%      | 95%        | **Major improvement** |
+| **Production ready?**  | ❌ No | ⚠️ Risky | ✅ **Yes** | **v3 ready**          |
 
 ---
 
@@ -376,6 +413,7 @@ From lines 910-935:
 ### Technical Risk: ⭐⭐⭐⭐⭐ Very Low
 
 All critical technical issues resolved:
+
 - No race conditions
 - No data corruption risks
 - Proper error handling
@@ -384,11 +422,13 @@ All critical technical issues resolved:
 ### UX Risk: ⭐⭐⭐⭐⭐ Very Low (IMPROVED)
 
 **v2 had:** ⚠️⚠️⚠️ Medium-High UX risk
+
 - Users would perceive freeze
 - Support tickets likely
 - Perceived as regression
 
 **v3 has:** ⭐⭐⭐⭐⭐ Very Low UX risk
+
 - Clear communication
 - Professional presentation
 - Users understand wait value
@@ -396,11 +436,13 @@ All critical technical issues resolved:
 ### Implementation Risk: ⭐⭐⭐⭐ Low
 
 **Risks:**
+
 - Message spam (3 msgs per compression - acceptable)
 - Message timing (mitigated by time checks)
 - Complexity increase (+15 lines for UX)
 
 **Mitigations:**
+
 - Clear messaging strategy
 - Timeout handling
 - Feature flag for rollback
@@ -412,33 +454,25 @@ All critical technical issues resolved:
 ### Unit Tests (Lines 681-760) ✅ COMPLETE
 
 **Existing tests:**
+
 1. Queue completion gate
 2. Queue skipping fix
 3. Unanalyzed message detection
 4. Timeout handling
 
-**Needed:**
-5. Concurrent compression guard (mentioned, needs code)
-6. LanceDB persistence tracking (mentioned, needs code)
+**Needed:** 5. Concurrent compression guard (mentioned, needs code) 6. LanceDB persistence tracking (mentioned, needs code)
 
-**UX tests (NEW):**
-7. Progress messages appear within 100ms
-8. Timeout message appears on queue timeout
-9. Completion message shows actual wait time
+**UX tests (NEW):** 7. Progress messages appear within 100ms 8. Timeout message appears on queue timeout 9. Completion message shows actual wait time
 
 ### Integration Tests (Lines 762-822) ✅ COMPLETE
 
-**Tests:**
-5. High-velocity conversation (no context loss)
-6. Compression during streaming
+**Tests:** 5. High-velocity conversation (no context loss) 6. Compression during streaming
 
-**UX test (NEW):**
-7. User sees messages during 10s wait
+**UX test (NEW):** 7. User sees messages during 10s wait
 
 ### Regression Tests (Lines 824-843) ✅ COMPLETE
 
-**Tests:**
-7. Normal conversation (no regression)
+**Tests:** 7. Normal conversation (no regression)
 
 ---
 
@@ -447,6 +481,7 @@ All critical technical issues resolved:
 ### From Lines 910-935
 
 **Functional Requirements:**
+
 - ✅ Zero context loss
 - ✅ No UI blocking
 - ✅ Graceful timeout
@@ -454,6 +489,7 @@ All critical technical issues resolved:
 - ✅ **Clear user feedback** (NEW)
 
 **Performance Requirements:**
+
 - ✅ Compression wait time < 10s (P95)
 - ✅ Analysis throughput ≥ 2 turns/sec
 - ✅ Memory usage stable
@@ -461,6 +497,7 @@ All critical technical issues resolved:
 - ✅ **User perceives wait as intentional** (NEW)
 
 **Quality Requirements:**
+
 - ✅ All unit tests pass
 - ✅ All integration tests pass
 - ✅ No regressions
@@ -496,6 +533,7 @@ All critical technical issues resolved:
 ### All Conditions from Original Review: ✅ MET
 
 **Technical (P0-P1):**
+
 - [x] Concurrent compression guard
 - [x] LanceDB persistence tracking
 - [x] Duplicate timestamp handling
@@ -504,9 +542,11 @@ All critical technical issues resolved:
 - [x] Session ID stability
 
 **UX (P0):**
+
 - [x] **User feedback messages** (CRITICAL - NOW ADDED)
 
 **Documentation (P1):**
+
 - [x] Test code for new tests (partially - needs 2 more)
 - [x] UX cost-benefit analysis
 - [x] Updated success criteria
@@ -514,6 +554,7 @@ All critical technical issues resolved:
 ### Remaining Minor Items
 
 **SHOULD ADD (P2):**
+
 1. Detailed test code for Tests 5-6 (concurrent guard, persistence)
 2. Verification of `analyzeWithPersistence` wiring in `processQueue()`
 
@@ -533,11 +574,13 @@ All critical technical issues resolved:
 ### Week 1-2: Phase 1 Implementation
 
 **Code changes:**
+
 - ~200 lines total (185 technical + 15 UX)
 - 4 files modified
 - Low risk (well-guarded, fail-safe)
 
 **Testing:**
+
 - All unit tests
 - Integration test with high-velocity scenario
 - Manual UX testing (message visibility)
@@ -545,6 +588,7 @@ All critical technical issues resolved:
 ### Week 3-4: Phase 2-3 Validation
 
 **Deployment:**
+
 - Feature flag rollout
 - Monitor all 10 metrics
 - Gradual % increase
@@ -557,6 +601,7 @@ All critical technical issues resolved:
 ### Technical Quality: ⭐⭐⭐⭐⭐ (5/5)
 
 **Perfect technical solution:**
+
 - All race conditions eliminated
 - Proper synchronization
 - Comprehensive error handling
@@ -565,6 +610,7 @@ All critical technical issues resolved:
 ### User Experience: ⭐⭐⭐⭐⭐ (5/5)
 
 **Professional UX:**
+
 - Clear communication
 - Sets expectations
 - Explains value
@@ -573,6 +619,7 @@ All critical technical issues resolved:
 ### Documentation: ⭐⭐⭐⭐⭐ (5/5)
 
 **Comprehensive:**
+
 - Complete implementation guide
 - Testing strategy
 - Monitoring plan
@@ -582,6 +629,7 @@ All critical technical issues resolved:
 ### Completeness: ⭐⭐⭐⭐⭐ (5/5)
 
 **Everything included:**
+
 - Technical fixes (all P0/P1)
 - UX enhancements (all critical)
 - Success metrics
@@ -640,11 +688,13 @@ All critical technical issues resolved:
 ### Week 1 (Phase 1 Rollout)
 
 **Target:**
+
 - Analysis completion rate: 100% (from 16.7%)
 - Concurrent compression attempts: 0
 - Context loss: 0% (from 95%)
 
 **UX:**
+
 - Message delivery latency: <100ms
 - User confusion reports: 0
 - Support tickets re: freezing: 0
@@ -652,11 +702,13 @@ All critical technical issues resolved:
 ### Week 4 (Full Rollout)
 
 **Target:**
+
 - All technical metrics stable
 - P95 wait time: <10s
 - Timeout rate: 0%
 
 **UX:**
+
 - User satisfaction: High
 - No "slow/frozen" complaints
 - Positive feedback on context preservation
@@ -674,11 +726,13 @@ All critical technical issues resolved:
 ### Why v3 Matters
 
 Without UX messages, v2 would be perceived as:
+
 - ❌ "Broken" (freeze during wait)
 - ❌ "Regression" (slower than before)
 - ❌ "Unreliable" (lost user trust)
 
 With UX messages, v3 is perceived as:
+
 - ✅ "Thorough" (ensuring accuracy)
 - ✅ "Professional" (clear communication)
 - ✅ "Trustworthy" (transparent about work)
