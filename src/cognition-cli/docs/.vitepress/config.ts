@@ -5,6 +5,7 @@ export default defineConfig({
   description:
     'Verifiable AI memory through cryptographic grounding and multi-overlay knowledge graphs.',
   base: '/cogx/',
+  srcExclude: ['**/architecture/audits/prompts/**'],
   ignoreDeadLinks: [
     // Ignore localhost links (eGemma workbench examples)
     /^http:\/\/localhost/,

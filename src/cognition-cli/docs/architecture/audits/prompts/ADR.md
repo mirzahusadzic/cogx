@@ -100,35 +100,35 @@ Question: Why optional external API instead of all-local? Evidence to find:
 
 ADR Template
 
-For each decision, create a file: docs/architecture/decisions/ADR-{NNN}-{kebab-case-title}.md
+For each decision, create a file: `docs/architecture/decisions/ADR-{NNN}-{kebab-case-title}.md`
 
 Use this structure:
 
 ## ADR-{NNN}: {Title}
 
-**Date**: {YYYY-MM-DD - infer from git history or use "circa 2024"}
+**Date**: `{YYYY-MM-DD - infer from git history or use "circa 2024"}`
 **Status**: Accepted
-**Deciders**: {Look for contributors in git log if possible, or say "Core team"}
+**Deciders**: `{Look for contributors in git log if possible, or say "Core team"}`
 
 ## Context
 
-{What was the problem or requirement that led to this decision?}
-{What constraints existed? (performance, security, usability, etc.)}
-{What was the state of the art at the time?}
+- What was the problem or requirement that led to this decision?
+- What constraints existed? (performance, security, usability, etc.)
+- What was the state of the art at the time?
 
 ## Decision
 
-{What did we decide to do? Be specific.}
+[Describe what was decided - be specific]
 
 ## Alternatives Considered
 
-### Option 1: {Alternative name}
+### Option 1: [Alternative name]
 
 - **Pros**: ...
 - **Cons**: ...
 - **Why rejected**: ...
 
-### Option 2: {Alternative name}
+### Option 2: [Alternative name]
 
 - **Pros**: ...
 - **Cons**: ...
