@@ -524,7 +524,7 @@ Found a new attack pattern? Improve detection logic?
 ## References
 
 - [Mission Drift Attacks](./MISSION_DRIFT_ATTACKS.md) - Detailed threat analysis
-- [Implementation Plan Phase 5](./OVERLAY_3_IMPLEMENTATION_PLAN.md#phase-5-security-hardening) - Technical specs
+- [Implementation Plan Phase 5](../planning/OVERLAY_3_IMPLEMENTATION_PLAN.md#phase-5-security-hardening) - Technical specs
 - [XZ Utils backdoor analysis](https://research.swtch.com/xz)
 - [Event-stream NPM incident](https://blog.npmjs.org/post/180565383195/details-about-the-event-stream-incident)
 

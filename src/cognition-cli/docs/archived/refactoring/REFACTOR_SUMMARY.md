@@ -243,7 +243,7 @@ Can rollback instantly if critical bugs found.
 ## Documents
 
 - **[REFACTOR_PLAN_useClaudeAgent.md](./REFACTOR_PLAN_useClaudeAgent.md)** - Detailed technical plan
-- **[TESTING_GUIDE_useClaudeAgent.md](./TESTING_GUIDE_useClaudeAgent.md)** - Comprehensive testing guide
+- **[TESTING_GUIDE_useClaudeAgent.md](../testing/TESTING_GUIDE_useClaudeAgent.md)** - Comprehensive testing guide
 
 ---
 

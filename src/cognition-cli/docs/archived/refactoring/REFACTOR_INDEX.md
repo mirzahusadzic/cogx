@@ -6,13 +6,13 @@ This directory contains a comprehensive plan for refactoring the `useClaudeAgent
 
 ## 📋 Quick Links
 
-| Document                                                                   | Size | Purpose                 | Audience                |
-| -------------------------------------------------------------------------- | ---- | ----------------------- | ----------------------- |
-| **[REFACTOR_SUMMARY.md](./REFACTOR_SUMMARY.md)**                           | 6.3K | Executive overview      | Leadership, Product     |
-| **[REFACTOR_QUICK_REFERENCE.md](./REFACTOR_QUICK_REFERENCE.md)**           | 7.2K | Quick reference card    | Everyone                |
-| **[REFACTOR_PLAN_useClaudeAgent.md](./REFACTOR_PLAN_useClaudeAgent.md)**   | 24K  | Detailed technical plan | Engineering             |
-| **[TESTING_GUIDE_useClaudeAgent.md](./TESTING_GUIDE_useClaudeAgent.md)**   | 24K  | Testing procedures      | QA, Engineering         |
-| **[REFACTOR_ARCHITECTURE_DIAGRAM.md](./REFACTOR_ARCHITECTURE_DIAGRAM.md)** | 17K  | Visual architecture     | Engineering, Architects |
+| Document                                                                          | Size | Purpose                 | Audience                |
+| --------------------------------------------------------------------------------- | ---- | ----------------------- | ----------------------- |
+| **[REFACTOR_SUMMARY.md](./REFACTOR_SUMMARY.md)**                                  | 6.3K | Executive overview      | Leadership, Product     |
+| **[REFACTOR_QUICK_REFERENCE.md](./REFACTOR_QUICK_REFERENCE.md)**                  | 7.2K | Quick reference card    | Everyone                |
+| **[REFACTOR_PLAN_useClaudeAgent.md](./REFACTOR_PLAN_useClaudeAgent.md)**          | 24K  | Detailed technical plan | Engineering             |
+| **[TESTING_GUIDE_useClaudeAgent.md](../testing/TESTING_GUIDE_useClaudeAgent.md)** | 24K  | Testing procedures      | QA, Engineering         |
+| **[REFACTOR_ARCHITECTURE_DIAGRAM.md](./REFACTOR_ARCHITECTURE_DIAGRAM.md)**        | 17K  | Visual architecture     | Engineering, Architects |
 
 **Total Documentation**: 84K (~20,000 words)
 
@@ -79,7 +79,7 @@ The `useClaudeAgent.ts` hook has become the most problematic component in our 50
 - Module dependencies
 - Before/after comparisons
 
-**Finally**: [TESTING_GUIDE_useClaudeAgent.md](./TESTING_GUIDE_useClaudeAgent.md)
+**Finally**: [TESTING_GUIDE_useClaudeAgent.md](../testing/TESTING_GUIDE_useClaudeAgent.md)
 
 - Test infrastructure setup
 - Mock utilities
@@ -90,7 +90,7 @@ The `useClaudeAgent.ts` hook has become the most problematic component in our 50
 
 ### For QA / Test Engineers
 
-**Start here**: [TESTING_GUIDE_useClaudeAgent.md](./TESTING_GUIDE_useClaudeAgent.md)
+**Start here**: [TESTING_GUIDE_useClaudeAgent.md](../testing/TESTING_GUIDE_useClaudeAgent.md)
 
 - Comprehensive testing procedures
 - Test coverage goals (>95%)
@@ -354,7 +354,7 @@ A: Yes. Each phase is independently deliverable.
 For questions or clarifications:
 
 - Technical: See [REFACTOR_PLAN_useClaudeAgent.md](./REFACTOR_PLAN_useClaudeAgent.md)
-- Testing: See [TESTING_GUIDE_useClaudeAgent.md](./TESTING_GUIDE_useClaudeAgent.md)
+- Testing: See [TESTING_GUIDE_useClaudeAgent.md](../testing/TESTING_GUIDE_useClaudeAgent.md)
 - Architecture: See [REFACTOR_ARCHITECTURE_DIAGRAM.md](./REFACTOR_ARCHITECTURE_DIAGRAM.md)
 
 ---

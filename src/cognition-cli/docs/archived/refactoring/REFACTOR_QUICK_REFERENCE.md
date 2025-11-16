@@ -240,12 +240,12 @@ export const useClaudeAgent = USE_LEGACY
 
 ## Documents
 
-| Document                                                                 | Purpose                 | Audience            |
-| ------------------------------------------------------------------------ | ----------------------- | ------------------- |
-| **[REFACTOR_SUMMARY.md](./REFACTOR_SUMMARY.md)**                         | Executive summary       | Leadership, Product |
-| **[REFACTOR_PLAN_useClaudeAgent.md](./REFACTOR_PLAN_useClaudeAgent.md)** | Detailed technical plan | Engineering         |
-| **[TESTING_GUIDE_useClaudeAgent.md](./TESTING_GUIDE_useClaudeAgent.md)** | Testing procedures      | QA, Engineering     |
-| **This file**                                                            | Quick reference         | Everyone            |
+| Document                                                                          | Purpose                 | Audience            |
+| --------------------------------------------------------------------------------- | ----------------------- | ------------------- |
+| **[REFACTOR_SUMMARY.md](./REFACTOR_SUMMARY.md)**                                  | Executive summary       | Leadership, Product |
+| **[REFACTOR_PLAN_useClaudeAgent.md](./REFACTOR_PLAN_useClaudeAgent.md)**          | Detailed technical plan | Engineering         |
+| **[TESTING_GUIDE_useClaudeAgent.md](../testing/TESTING_GUIDE_useClaudeAgent.md)** | Testing procedures      | QA, Engineering     |
+| **This file**                                                                     | Quick reference         | Everyone            |
 
 ---
 
