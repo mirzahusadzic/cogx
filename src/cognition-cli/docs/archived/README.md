@@ -86,6 +86,27 @@ Slash command system implementation:
 - **slash_commands_implementation_plan.md** - Implementation plan
 - **slash_commands_implementation_plan_reviewed.md** - Reviewed implementation plan
 
+### 🔬 [Case Studies](./case-studies/)
+
+Real-world debugging and problem-solving examples:
+
+#### [Context Continuity Race Condition](./case-studies/context-continuity-race-condition/)
+
+**Critical bug case study** (~320KB, 15 files) documenting resolution of a race condition that caused 95%+ context loss:
+
+- **Problem**: Race between async analysis and compression (16.7% capture rate)
+- **Analysis**: Dual-perspective investigation with quantified metrics
+- **Solution**: Coordination layer with explicit synchronization (v1 → v2 → v3)
+- **Outcome**: 100% context capture, complete conversation continuity
+- **Methodology**: Iterative agentic cooperation, peer review, versioned solutions
+
+**Documents organized into:**
+
+- **analysis/** - Race condition and context failure investigations (3 files)
+- **reviews/** - Peer reviews with P0/P1/P2 severity classification (4 files)
+- **solutions/** - Solution evolution from v1 to v3 (5 files)
+- **logs/** - Raw debug data and session transcripts (3 files)
+
 ## Why Archived?
 
 These documents were created during various development phases and contain valuable context for:
@@ -102,6 +123,7 @@ These documents were created during various development phases and contain valua
 - Check **Refactoring** for examples of systematic code improvement
 - Review **Lineage** and **Security** for domain-specific deep dives
 - Use **Troubleshooting** for historical debugging approaches
+- Explore **Case Studies** for real-world problem-solving examples with complete documentation trails
 
 ## Maintenance
 
@@ -115,4 +137,4 @@ Documents are archived (not deleted) when:
 ---
 
 **Last Updated**: November 2025
-**Total Documents**: 31 files across 10 categories
+**Total Documents**: 47 files across 11 categories (including 1 comprehensive case study)
