@@ -44,35 +44,22 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 ---
 
-## 🎯 Recent Innovations
+## 🎯 Latest Release
 
-**November 9, 2025** — [v2.2.0: Stability & Performance](https://github.com/mirzahusadzic/cogx/releases/tag/v2.2.0) ([DOI: 10.5281/zenodo.17567109](https://zenodo.org/records/17567109)):
+**November 16, 2025** — [v2.4.0: Production Excellence](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0):
 
-- ✅ **Critical Document GC Fix** - Scan overlays without manifests directly (security_guidelines, operational_patterns, mathematical_proofs)
-- ✅ **Orphaned Document Cleanup** - Automatic detection and removal of 150+ orphaned document objects via transform logs
-- ✅ **Session State Bloat Fix** - Eliminated 1,237 duplicate expiration entries with useRef + deduplication (6,216 lines → 37 lines)
-- ✅ **GC Phase 5 Enhancement** - Check all 7 overlays before deletion (was only 4/7), bidirectional protection
-- ✅ **Overlay Alignment Scores Fixed** - All overlays now read correct scores (O1-O7) instead of hardcoded alignment_O1
-- ✅ **Extended Thinking Mode** - Support up to 10K thinking tokens for complex reasoning via --max-thinking-tokens
-- ✅ **LanceDB Optimizations** - .sigma reduced from 550 MB → ~5 MB through mergeInsert, embedding cleanup, and compaction
-- ✅ **Production-Ready Stability** - 105 commits of critical bug fixes and garbage collection improvements
+- 🔥 **Critical Compression Fix** - Compression time reduced from **5-10 minutes to instant** (0.0s) via fast-path reconstruction, session filtering, and async compression
+- 🔥 **Session Lifecycle Fix** - Resolved TUI failing to create new session after compression (moved resetResumeSession to finally block)
+- ✨ **Shell Tab Completion** - Full bash/zsh/fish support with context-aware completions for 40+ commands, overlay types, and paths
+- ✨ **Comprehensive UX Improvements** - `--no-color`, `--no-emoji`, `--format`, `-v/--verbose`, `-q/--quiet` flags with auto-detection of terminal capabilities
+- ✨ **Custom Error Hierarchy** - Structured error types (PGCError, ValidationError, NotFoundError, etc.) with recovery suggestions and error codes
+- 🧪 **120+ New Tests** - Comprehensive test coverage for security (CVE fixes), compression performance, command execution, and error handling
+- 🔒 **Security Fix** - Resolved CVE-2025-64718 in js-yaml (4.1.0 → 4.1.1)
+- 📚 **Documentation Overhaul** - 23 dead links fixed, comprehensive changelog, and improved inline documentation
 
-**Impact**: Eliminates critical data integrity bugs causing wasted embedding API calls and state bloat. Document GC now correctly handles overlays without manifest files, GC checks all 7 overlays, and session state remains clean across compressions.
+**Impact**: Major stability and performance milestone. Compression now completes instantly instead of blocking for 5-10 minutes. Enhanced developer experience with tab completion, accessibility flags, and graceful terminal degradation. Production-ready error handling with actionable recovery paths.
 
----
-
-**November 3, 2025** — [v2.0.0: Σ (Sigma) - Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0):
-
-- ✅ **Σ (Sigma) Dual-Lattice Architecture** - Project lattice ∧ Conversation lattice with Meet operations enabling stateful AI with infinite context
-- ✅ **7-Dimensional Conversation Overlays (O1-O7)** - Real-time conversation indexing mirroring project overlays, built on-the-fly from chat turns
-- ✅ **Intelligent Context Compression at 150K Tokens** - Importance formula: `novelty × 5 + max(alignment_O1..O7) × 0.5` preserving high-alignment turns, discarding noise
-- ✅ **Session Lifecycle Management** - Normal operation → Compression → Resurrection with seamless continuity across unlimited sessions
-- ✅ **High-Fidelity Memory Recall** - Specialized persona with temporal re-ranking, multi-overlay search, 5-retry exponential backoff
-- ✅ **Periodic Overlay Persistence** - Auto-flush every 5 turns + cleanup on exit preventing data loss
-- ✅ **Session Forwarding** - Automatic session chain management for compressed sessions
-- ✅ **Interactive TUI with Real-Time Lattice Visualization** - Live overlay counts, lattice statistics, token tracking, scroll history
-
-**AI with real memory. Not just RAG or summarization.**
+**Previous Releases**: [v2.2.0 - Stability & Performance](https://github.com/mirzahusadzic/cogx/releases/tag/v2.2.0) | [v2.0.0 - Σ (Sigma) Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
 
 📜 **[See full release history](src/cognition-cli/CHANGELOG.md)** | 🚀 **[Get Started](https://mirzahusadzic.github.io/cogx/03_Commands.html#_5-setup-onboarding-commands)**
 
@@ -553,7 +540,7 @@ The production-ready implementation of verifiable AI-human symbiosis. Combines t
 
 **Breakthrough Achievement (Oct 24, 2025):** First grounded architecture analysis performed **on itself**, proving structured PGC metadata is sufficient for deep architectural understanding without reading source code. [See the analysis](src/cognition-cli/docs/07_AI_Grounded_Architecture_Analysis.md)
 
-**Latest Release:** [v2.2.0 - Stability & Performance](https://github.com/mirzahusadzic/cogx/releases/tag/v2.2.0) — 105 commits of critical bug fixes, garbage collection improvements, and LanceDB optimizations (.sigma: 550 MB → ~5 MB)
+**Latest Release:** [v2.4.0 - Production Excellence](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) — Critical compression fix (5-10 min → instant), shell tab completion, comprehensive UX improvements, custom error hierarchy, 120+ new tests, and security fixes
 
 ## eGemma – [The Deterministic Workbench](https://github.com/mirzahusadzic/egemma)
 
