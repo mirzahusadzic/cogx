@@ -274,9 +274,6 @@ export async function filterConversationByAlignment(
   try {
     const o1 = await conversationRegistry.get('O1');
     const items = await o1.getAllItems();
-    console.log(
-      `🔍 [FILTER DEBUG] O1 getAllItems complete (${items.length} items)`
-    );
     results.structural = items
       .filter(
         (item) =>
