@@ -408,10 +408,11 @@ Deliverable Format
 **Total Dependencies**: X production, Y dev
 
 **Heavy Dependencies** (>1MB):
-| Package | Size | Purpose | Alternative |
-|---------|------|---------|-------------|
-| lancedb | XMB | Vector DB | Chroma (smaller) |
-| ... | ... | ... | ... |
+
+| Package | Size | Purpose   | Alternative      |
+| ------- | ---- | --------- | ---------------- |
+| lancedb | XMB  | Vector DB | Chroma (smaller) |
+| ...     | ...  | ...       | ...              |
 
 **Outdated Packages**: [Count]
 **Security Vulnerabilities**: [Count + severity]

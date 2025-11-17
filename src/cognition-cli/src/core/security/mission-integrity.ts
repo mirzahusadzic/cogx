@@ -351,6 +351,9 @@ export class MissionIntegrityMonitor {
       };
     } catch (error) {
       // Git not available or file not in repo - this is fine
+      console.warn(
+        `Failed to get git info: ${error instanceof Error ? error.message : String(error)}`
+      );
       return {};
     }
   }

@@ -109,6 +109,9 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
         }
       } catch (e) {
         // Ignore errors during cleanup
+        console.error(
+          `Cleanup error: ${e instanceof Error ? e.message : String(e)}`
+        );
       }
       // Kill the entire process group to ensure workers die too
       // SIGKILL (-9) is unblockable and immediate
@@ -116,6 +119,9 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
         process.kill(-process.pid, 'SIGKILL');
       } catch (e) {
         // If that fails, use abort as fallback
+        console.error(
+          `Process kill error: ${e instanceof Error ? e.message : String(e)}`
+        );
         process.abort();
       }
     };
@@ -198,6 +204,9 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           process.stdout.write('\x1b[?1000l\x1b[?1006l'); // Disable mouse
         } catch (e) {
           // Ignore cleanup errors
+          console.error(
+            `Cleanup error: ${e instanceof Error ? e.message : String(e)}`
+          );
         }
         process.exit(1);
       };
@@ -284,11 +293,17 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           }
         } catch (e) {
           // Ignore errors
+          console.error(
+            `Cleanup error: ${e instanceof Error ? e.message : String(e)}`
+          );
         }
         // Kill process group to ensure workers die
         try {
           process.kill(-process.pid, 'SIGKILL');
         } catch (e) {
+          console.error(
+            `Process kill error: ${e instanceof Error ? e.message : String(e)}`
+          );
           process.abort(); // Fallback if process group kill fails
         }
       } else if (key.ctrl && input === 's') {

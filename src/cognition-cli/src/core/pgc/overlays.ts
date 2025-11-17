@@ -108,6 +108,9 @@ export class Overlays {
         }
       } catch (e) {
         // File might be corrupted or empty
+        console.warn(
+          `Failed to read overlay ${overlayPath}: ${e instanceof Error ? e.message : String(e)}`
+        );
         return null;
       }
     }

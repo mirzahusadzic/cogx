@@ -287,15 +287,16 @@ console.log(chalk.dim('💡 Next: Run cognition-cli genesis src/'));
 - JSON detection and inline formatting
 
 **Color Usage Assessment**:
-| Color | Used For | Appropriate? | Example |
-|-------|----------|--------------|---------|
-| Cyan | Headers, values, highlights | ✅ Yes | `chalk.cyan('📦 PGC = Grounded Context Pool')` |
-| Green | Success, checkmarks | ✅ Yes | `chalk.green('✓ PGC initialized')` |
-| Red | Errors, critical | ✅ Yes | `chalk.red('✗ Setup failed')` |
-| Yellow | Warnings, modified files | ✅ Yes | `chalk.yellow('⚠️ Init PGC will DELETE...')` |
-| Blue | Info, low severity | ✅ Yes | Overlay O1 badge color |
-| Magenta | Mission overlay | ✅ Yes | Overlay O4 badge color |
-| Gray/Dim | Secondary info, metadata | ✅ Yes | `chalk.dim('Last checked:...')` |
+
+| Color    | Used For                    | Appropriate? | Example                                        |
+| -------- | --------------------------- | ------------ | ---------------------------------------------- |
+| Cyan     | Headers, values, highlights | ✅ Yes       | `chalk.cyan('📦 PGC = Grounded Context Pool')` |
+| Green    | Success, checkmarks         | ✅ Yes       | `chalk.green('✓ PGC initialized')`             |
+| Red      | Errors, critical            | ✅ Yes       | `chalk.red('✗ Setup failed')`                  |
+| Yellow   | Warnings, modified files    | ✅ Yes       | `chalk.yellow('⚠️ Init PGC will DELETE...')`   |
+| Blue     | Info, low severity          | ✅ Yes       | Overlay O1 badge color                         |
+| Magenta  | Mission overlay             | ✅ Yes       | Overlay O4 badge color                         |
+| Gray/Dim | Secondary info, metadata    | ✅ Yes       | `chalk.dim('Last checked:...')`                |
 
 **Overlay Color Scheme** (formatter.ts:8-16):
 
@@ -924,12 +925,13 @@ outro(
 - `--no-emoji` flag: ❌ **Missing**
 
 **Test Scenarios**:
-| Condition | Can Distinguish Errors/Success? | Grade | Reasoning |
-|-----------|----------------------------------|-------|-----------|
-| Deuteranopia (red-green, 8% of men) | ⚠️ Partially | D | Red/green used heavily; symbols help but not always present |
-| Protanopia (red-green) | ⚠️ Partially | D | Same issue |
-| Tritanopia (blue-yellow, rare) | ✅ Mostly | B | Blue/yellow less critical for error states |
-| Normal vision | ✅ Yes | A | Full color palette works beautifully |
+
+| Condition                           | Can Distinguish Errors/Success? | Grade | Reasoning                                                   |
+| ----------------------------------- | ------------------------------- | ----- | ----------------------------------------------------------- |
+| Deuteranopia (red-green, 8% of men) | ⚠️ Partially                    | D     | Red/green used heavily; symbols help but not always present |
+| Protanopia (red-green)              | ⚠️ Partially                    | D     | Same issue                                                  |
+| Tritanopia (blue-yellow, rare)      | ✅ Mostly                       | B     | Blue/yellow less critical for error states                  |
+| Normal vision                       | ✅ Yes                          | A     | Full color palette works beautifully                        |
 
 **Critical Issues**:
 
@@ -1134,17 +1136,18 @@ Screen reader: "box drawing light down and right box drawing light horizontal...
 **Overall**: **6/10**
 
 **Flag Consistency**:
-| Flag | Standard | Used in Cognition? | Consistency Grade | Notes |
-|------|----------|-------------------|-------------------|-------|
-| `-h, --help` | Help | ✅ Yes (Commander.js) | A | Automatic |
-| `-v, --verbose` | Verbose | ⚠️ Partial (5 commands) | D | Not global |
-| `-q, --quiet` | Quiet | ❌ No | F | Missing |
-| `-V, --version` | Version | ✅ Yes | A | Automatic (cli.ts:23) |
-| `-f, --force` | Force | ⚠️ Partial (genesis:docs) | C | Inconsistent naming |
-| `-y, --yes` | Auto-confirm | ❌ No | F | Missing |
-| `-p, --project-root` | Project path | ✅ Yes (many commands) | A | Consistent! |
-| `--json` | JSON output | ⚠️ Partial (~10 commands) | D | Should be global |
-| `--debug` | Debug mode | ⚠️ Only TUI | F | Not available elsewhere |
+
+| Flag                 | Standard     | Used in Cognition?        | Consistency Grade | Notes                   |
+| -------------------- | ------------ | ------------------------- | ----------------- | ----------------------- |
+| `-h, --help`         | Help         | ✅ Yes (Commander.js)     | A                 | Automatic               |
+| `-v, --verbose`      | Verbose      | ⚠️ Partial (5 commands)   | D                 | Not global              |
+| `-q, --quiet`        | Quiet        | ❌ No                     | F                 | Missing                 |
+| `-V, --version`      | Version      | ✅ Yes                    | A                 | Automatic (cli.ts:23)   |
+| `-f, --force`        | Force        | ⚠️ Partial (genesis:docs) | C                 | Inconsistent naming     |
+| `-y, --yes`          | Auto-confirm | ❌ No                     | F                 | Missing                 |
+| `-p, --project-root` | Project path | ✅ Yes (many commands)    | A                 | Consistent!             |
+| `--json`             | JSON output  | ⚠️ Partial (~10 commands) | D                 | Should be global        |
+| `--debug`            | Debug mode   | ⚠️ Only TUI               | F                 | Not available elsewhere |
 
 **Inconsistencies Found**:
 

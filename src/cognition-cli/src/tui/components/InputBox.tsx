@@ -219,7 +219,10 @@ export const InputBox: React.FC<InputBoxProps> = ({
         try {
           process.stdout.write('\x1b[0m');
         } catch (e) {
-          // Ignore
+          // Ignore errors during cleanup
+          console.error(
+            `Cleanup error: ${e instanceof Error ? e.message : String(e)}`
+          );
         }
         process.abort();
       } else if (key.escape) {

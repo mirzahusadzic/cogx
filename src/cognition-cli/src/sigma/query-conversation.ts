@@ -131,6 +131,9 @@ export async function queryConversationLattice(
       // Overlay might be empty, skip
       if (verbose) {
         console.log(`  ${overlayId}: No data`);
+        console.warn(
+          `Query error for ${overlayId}: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
   }

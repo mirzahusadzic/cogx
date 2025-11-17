@@ -387,6 +387,9 @@ async function findExistingDocumentHash(
       }
     } catch (error) {
       // Skip invalid index files
+      console.warn(
+        `Failed to read index file ${indexPath}: ${error instanceof Error ? error.message : String(error)}`
+      );
       continue;
     }
   }
@@ -436,6 +439,9 @@ async function deleteExistingDocument(
       }
     } catch (error) {
       // Skip invalid index files
+      console.warn(
+        `Failed to process index file ${indexPath}: ${error instanceof Error ? error.message : String(error)}`
+      );
       continue;
     }
   }

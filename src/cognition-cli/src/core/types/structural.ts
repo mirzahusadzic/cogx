@@ -115,6 +115,7 @@ export const SourceFileSchema = z.object({
  *   content: '...'
  * };
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface SourceFile extends z.infer<typeof SourceFileSchema> {}
 
 /**
@@ -148,6 +149,7 @@ export const ParameterDataSchema = z.object({
  *   default: '{}'
  * };
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface ParameterData extends z.infer<typeof ParameterDataSchema> {}
 
 /**
@@ -180,6 +182,7 @@ export const FunctionDataSchema = z.object({
  *   decorators: ['@authenticated']
  * };
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface FunctionData extends z.infer<typeof FunctionDataSchema> {}
 
 /**
@@ -213,6 +216,7 @@ export const ClassDataSchema = z.object({
  *   decorators: ['@injectable']
  * };
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface ClassData extends z.infer<typeof ClassDataSchema> {}
 
 /**
@@ -236,6 +240,7 @@ export const PropertyDataSchema = z.object({
  *   optional: false
  * };
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface PropertyData extends z.infer<typeof PropertyDataSchema> {}
 
 /**
@@ -262,6 +267,7 @@ export const InterfaceDataSchema = z.object({
  *   ]
  * };
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface InterfaceData extends z.infer<typeof InterfaceDataSchema> {}
 
 /**
@@ -315,6 +321,7 @@ export const StructuralDataSchema = z.object({
  *   fidelity: 0.98
  * };
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface StructuralData extends z.infer<typeof StructuralDataSchema> {}
 
 /**
@@ -421,5 +428,6 @@ export const StructuralPatternMetadataSchema = z.object({
  *   }
  * };
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface StructuralPatternMetadata
   extends z.infer<typeof StructuralPatternMetadataSchema> {}

@@ -59,6 +59,9 @@ export class Index {
       try {
         return IndexDataSchema.parse(rawData);
       } catch (error) {
+        console.warn(
+          `Failed to parse index data for ${key}: ${error instanceof Error ? error.message : String(error)}`
+        );
         return null;
       }
     }
@@ -97,6 +100,9 @@ export class Index {
           return data;
         } catch (error) {
           // Ignore files that fail validation
+          console.warn(
+            `Failed to validate index file ${file}: ${error instanceof Error ? error.message : String(error)}`
+          );
           return null;
         }
       })

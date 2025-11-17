@@ -165,6 +165,9 @@ export class GenesisOrchestrator {
             `Structural mining will be skipped. Please ensure eGemma is running.`
         )
       );
+      console.error(
+        `Workbench health check error: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
 
     s.start('Discovering source files');
@@ -764,6 +767,9 @@ export class GenesisOrchestrator {
         }
       } catch (error) {
         // If overlay type doesn't exist, that's fine - just skip it
+        console.warn(
+          `Failed to collect references from ${overlayType}: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
 
@@ -880,6 +886,9 @@ export class GenesisOrchestrator {
         }
       } catch (error) {
         // If overlay type doesn't exist, that's fine - just skip it
+        console.warn(
+          `Failed to collect references from manifest overlay ${overlayType}: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
 

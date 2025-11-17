@@ -182,6 +182,9 @@ export class SecurityBootstrap {
         console.warn(
           'Warning: Could not parse settings file, creating new one'
         );
+        console.error(
+          `Settings parsing error: ${e instanceof Error ? e.message : String(e)}`
+        );
       }
     }
 

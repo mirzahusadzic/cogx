@@ -301,6 +301,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           fs.appendFileSync(path.join(cwd, 'tui-debug.log'), content);
         } catch (err) {
           // Silent fail - debug logs are non-critical
+          console.error(
+            `Debug log write error: ${err instanceof Error ? err.message : String(err)}`
+          );
         }
       }
     },
@@ -1385,6 +1388,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             // Context injected successfully
           } catch (err) {
             // Fail gracefully - use original prompt
+            console.error(
+              `Context injection error: ${err instanceof Error ? err.message : String(err)}`
+            );
           }
         }
 

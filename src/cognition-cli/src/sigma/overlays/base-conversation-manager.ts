@@ -228,6 +228,9 @@ export abstract class BaseConversationManager<
           console.warn(
             `[BaseConversationManager] LanceDB unavailable for ${sessionId}, using YAML fallback`
           );
+          console.error(
+            `LanceDB error: ${lanceError instanceof Error ? lanceError.message : String(lanceError)}`
+          );
         }
 
         // 2. LanceDB empty/failed - Load from YAML and migrate

@@ -294,6 +294,9 @@ export async function askCommand(question: string, options: AskOptions) {
               `      ${overlay.getOverlayId()}: No data (run "overlay generate ${overlay.getOverlayName().toLowerCase().replace(/ /g, '_')}" to populate)`
             )
           );
+          console.warn(
+            `Query error for ${overlay.getOverlayId()}: ${error instanceof Error ? error.message : String(error)}`
+          );
         }
       }
     }

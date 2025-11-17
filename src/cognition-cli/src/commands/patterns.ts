@@ -474,6 +474,9 @@ export function addPatternsCommands(program: Command) {
         }
       } catch (error) {
         console.log(chalk.dim('\n💡 Similar patterns search unavailable'));
+        console.warn(
+          `Similar patterns search error: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     });
 

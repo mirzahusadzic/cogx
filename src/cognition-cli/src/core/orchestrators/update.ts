@@ -121,6 +121,9 @@ export class UpdateOrchestrator {
             `Structural mining will be skipped. Please ensure eGemma is running.`
         )
       );
+      console.error(
+        `Workbench health check error: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
 
     // Read dirty state
@@ -500,6 +503,9 @@ export class UpdateOrchestrator {
             }
           } catch (error) {
             // Overlay file might be corrupted or incomplete - skip it
+            console.warn(
+              `Failed to process overlay file ${overlayFile}: ${error instanceof Error ? error.message : String(error)}`
+            );
             continue;
           }
         }
@@ -653,6 +659,9 @@ export class UpdateOrchestrator {
           }
         } catch (error) {
           // Skip corrupted lineage files
+          console.warn(
+            `Failed to read lineage file ${lineageFile}: ${error instanceof Error ? error.message : String(error)}`
+          );
           continue;
         }
       }
@@ -672,6 +681,9 @@ export class UpdateOrchestrator {
           }
         } catch (error) {
           // Continue even if individual invalidation fails
+          console.warn(
+            `Failed to invalidate lineage pattern ${lineageFile}: ${error instanceof Error ? error.message : String(error)}`
+          );
           continue;
         }
       }

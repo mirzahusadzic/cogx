@@ -91,6 +91,9 @@ async function checkWorkbenchHealth(url: string): Promise<boolean> {
     });
     return response.ok;
   } catch (error) {
+    console.warn(
+      `Workbench health check failed at ${url}: ${error instanceof Error ? error.message : String(error)}`
+    );
     return false;
   }
 }

@@ -241,6 +241,9 @@ export function listSessions(projectRoot: string): Array<{
         sessions_count: state.compression_history.length,
       });
     } catch (err) {
+      console.warn(
+        `Failed to load session state from ${file}: ${err instanceof Error ? err.message : String(err)}`
+      );
       continue;
     }
   }

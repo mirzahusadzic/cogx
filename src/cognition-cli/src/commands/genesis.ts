@@ -136,6 +136,9 @@ export async function genesisCommand(options: GenesisOptions) {
           'eGemma workbench is not running. Please start it before running the genesis command.'
         );
       }
+      console.error(
+        `Workbench health check failed: ${error instanceof Error ? error.message : String(error)}`
+      );
       return;
     }
 

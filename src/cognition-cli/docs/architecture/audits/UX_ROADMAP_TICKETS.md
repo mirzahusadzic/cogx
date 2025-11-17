@@ -789,15 +789,16 @@ Add short command aliases for frequently used commands to reduce typing.
 - [ ] Test all aliases
 
 **Proposed Aliases**:
-| Command | Alias | Reason |
-|---------|-------|--------|
-| `wizard` | `w` | Most common first-run command |
-| `query` | `q` | Frequently used |
-| `status` | `s` | Quick coherence check |
-| `init` | `i` | Common operation |
-| `overlay` | `o` | Shorter for overlay operations |
-| `genesis` | `g` | Code ingestion |
-| `lattice` | `l` | Algebra queries |
+
+| Command   | Alias | Reason                         |
+| --------- | ----- | ------------------------------ |
+| `wizard`  | `w`   | Most common first-run command  |
+| `query`   | `q`   | Frequently used                |
+| `status`  | `s`   | Quick coherence check          |
+| `init`    | `i`   | Common operation               |
+| `overlay` | `o`   | Shorter for overlay operations |
+| `genesis` | `g`   | Code ingestion                 |
+| `lattice` | `l`   | Algebra queries                |
 
 **Implementation**:
 
@@ -980,17 +981,18 @@ Test CLI on all major terminals and add graceful degradation for unsupported fea
 - [ ] Document tested terminals in README
 
 **Test Matrix**:
-| Terminal | OS | Box Chars | Emojis | Colors | Result |
-|----------|----|-----------| -------|--------|--------|
-| iTerm2 | macOS | ✓ | ✓ | ✓ | PASS |
-| Terminal.app | macOS | ✓ | ✓ | ✓ | PASS |
-| Windows Terminal | Windows | ? | ? | ? | TBD |
-| PowerShell | Windows | ? | ? | ? | TBD |
-| cmd.exe | Windows | ? | ? | ? | TBD |
-| GNOME Terminal | Linux | ? | ? | ? | TBD |
-| Alacritty | Linux | ? | ? | ? | TBD |
-| tmux | All | ? | ? | ? | TBD |
-| GitHub Actions | CI | ✗ | ✗ | ✗ | Plain mode |
+
+| Terminal         | OS      | Box Chars | Emojis | Colors | Result     |
+| ---------------- | ------- | --------- | ------ | ------ | ---------- |
+| iTerm2           | macOS   | ✓         | ✓      | ✓      | PASS       |
+| Terminal.app     | macOS   | ✓         | ✓      | ✓      | PASS       |
+| Windows Terminal | Windows | ?         | ?      | ?      | TBD        |
+| PowerShell       | Windows | ?         | ?      | ?      | TBD        |
+| cmd.exe          | Windows | ?         | ?      | ?      | TBD        |
+| GNOME Terminal   | Linux   | ?         | ?      | ?      | TBD        |
+| Alacritty        | Linux   | ?         | ?      | ?      | TBD        |
+| tmux             | All     | ?         | ?      | ?      | TBD        |
+| GitHub Actions   | CI      | ✗         | ✗      | ✗      | Plain mode |
 
 **Implementation**:
 

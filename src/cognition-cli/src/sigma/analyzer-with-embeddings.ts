@@ -195,6 +195,9 @@ async function detectOverlaysByProjectAlignment(
         }
       } catch (error) {
         // Overlay not populated yet, skip
+        console.warn(
+          `Failed to query overlay ${overlayId}: ${error instanceof Error ? error.message : String(error)}`
+        );
         continue;
       }
     }
