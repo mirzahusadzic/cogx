@@ -100,7 +100,6 @@ export async function analyzeSecurityBlastRadius(
     const isFilePath = target.includes('/') || target.includes('.');
     let targetSymbol: string;
     let targetFile: string;
-    let blastResult;
 
     if (isFilePath) {
       // Target is a file path - need to find symbols in that file
@@ -176,7 +175,7 @@ export async function analyzeSecurityBlastRadius(
 
     // Step 3: Query O3 for blast radius
     console.log(chalk.bold('🎯 Querying O3 (Lineage Patterns)...\n'));
-    blastResult = await traversal.getBlastRadius(targetSymbol, {
+    const blastResult = await traversal.getBlastRadius(targetSymbol, {
       maxDepth: parseInt(options.maxDepth || '3'),
       direction: 'both',
       includeTransitive: true,

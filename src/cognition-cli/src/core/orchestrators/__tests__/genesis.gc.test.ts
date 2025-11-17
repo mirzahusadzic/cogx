@@ -51,7 +51,8 @@ vi.mock('fs-extra', async () => {
         actualVol.promises.writeFile(filePath, content),
       remove: (filePath: string) =>
         actualVol.promises.rm(filePath, { recursive: true, force: true }),
-      readdir: (dirPath: string) => actualVol.promises.readdir(dirPath),
+      readdir: (dirPath: string, options?: { withFileTypes?: boolean }) =>
+        actualVol.promises.readdir(dirPath, options),
     },
   };
 });

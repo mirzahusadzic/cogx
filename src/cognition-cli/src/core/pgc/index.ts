@@ -78,7 +78,14 @@ export class Index {
     }
     const entries = await fs.readdir(this.indexPath, { withFileTypes: true });
     return entries
-      .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
+      .filter((entry) => {
+        // In test environments, isFile might not exist, so fall back to checking the name
+        const isFile =
+          typeof entry.isFile === 'function'
+            ? entry.isFile()
+            : !entry.isDirectory?.();
+        return isFile && entry.name.endsWith('.json');
+      })
       .map((file) => file.name.replace('.json', ''));
   }
 
@@ -92,7 +99,14 @@ export class Index {
     }
     const entries = await fs.readdir(this.indexPath, { withFileTypes: true });
     const indexFiles = entries
-      .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
+      .filter((entry) => {
+        // In test environments, isFile might not exist, so fall back to checking the name
+        const isFile =
+          typeof entry.isFile === 'function'
+            ? entry.isFile()
+            : !entry.isDirectory?.();
+        return isFile && entry.name.endsWith('.json');
+      })
       .map((entry) => entry.name);
 
     // Parallel read with validation
