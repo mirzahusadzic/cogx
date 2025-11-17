@@ -285,10 +285,14 @@ export function addPatternsCommands(program: Command) {
       await vectorDB.initialize(tableName);
       const allVectors: VectorRecord[] = await vectorDB.getAllVectors();
 
+      // Filter out semantic shadow vectors (only show structural body vectors)
+      // Semantic vectors have "semantic" in their ID and type='semantic'
+      const structuralVectors = allVectors.filter((v) => v.type !== 'semantic');
+
       // Filter by role if specified
-      let filteredVectors = allVectors;
+      let filteredVectors = structuralVectors;
       if (options.role) {
-        filteredVectors = allVectors.filter(
+        filteredVectors = structuralVectors.filter(
           (v) => v.architectural_role === options.role
         );
       }
