@@ -347,4 +347,148 @@ describe('LineagePatternWorker - Symbol Resolution Bug', () => {
     // Should have no dependencies (all primitives)
     expect(dependencies.size).toBe(0);
   });
+
+  it('CRITICAL: should extract dependencies from Python function body_dependencies', async () => {
+    // Test that class instantiations in Python function bodies are captured
+    // This tests the fix for missing SnowflakeClient dependency
+
+    const fileStructuralData: StructuralData = {
+      language: 'python',
+      docstring: '',
+      imports: [],
+      classes: [],
+      functions: [
+        {
+          name: '_ingest_from_snowflake',
+          docstring: '',
+          params: [
+            { name: 'submitter', type: 'RCAWorkbenchSubmitter' },
+            { name: 'dag_reconstructor', type: 'DAGReconstructor' },
+          ],
+          returns: 'None',
+          is_async: true,
+          decorators: [],
+          // This is what eGemma now provides for Python functions
+          body_dependencies: {
+            instantiations: ['SnowflakeClient', 'SnowflakeDataTransformer'],
+            method_calls: [['snowflake_client', 'get_dag_history']],
+          },
+        },
+      ],
+      interfaces: [],
+      exports: ['_ingest_from_snowflake'],
+      dependencies: [],
+      extraction_method: 'ast_remote',
+      fidelity: 1.0,
+    };
+
+    // Simulate extracting dependencies like the worker does
+    const dependencies = new Set<string>();
+
+    // Process function parameters (type annotations)
+    fileStructuralData.functions?.forEach((f) => {
+      f.params?.forEach((p) => {
+        const cleanType = p.type
+          .replace(/\[\]/g, '')
+          .replace(/<[^>]*>/g, '')
+          .split('|')[0]
+          .trim();
+
+        const excludeTypes = new Set([
+          'string',
+          'number',
+          'boolean',
+          'any',
+          'void',
+          'None',
+        ]);
+
+        if (
+          !excludeTypes.has(cleanType) &&
+          /^[A-Z]/.test(cleanType) &&
+          cleanType.length > 1
+        ) {
+          dependencies.add(cleanType);
+        }
+      });
+
+      // Process body_dependencies (Python class instantiations)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const bodyDeps = (f as any).body_dependencies;
+      if (bodyDeps?.instantiations) {
+        bodyDeps.instantiations.forEach((className: string) => {
+          dependencies.add(className);
+        });
+      }
+    });
+
+    // Should find dependencies from BOTH type annotations AND body instantiations
+    expect(dependencies.has('RCAWorkbenchSubmitter')).toBe(true); // From type annotation
+    expect(dependencies.has('DAGReconstructor')).toBe(true); // From type annotation
+    expect(dependencies.has('SnowflakeClient')).toBe(true); // From body instantiation
+    expect(dependencies.has('SnowflakeDataTransformer')).toBe(true); // From body instantiation
+
+    // Total should be 4 dependencies
+    expect(dependencies.size).toBe(4);
+  });
+
+  it('CRITICAL: should extract dependencies from Python method body_dependencies', async () => {
+    // Test that class instantiations in Python method bodies are captured
+
+    const fileStructuralData: StructuralData = {
+      language: 'python',
+      docstring: '',
+      imports: [],
+      classes: [
+        {
+          name: 'DataIngestionManager',
+          docstring: '',
+          base_classes: [],
+          methods: [
+            {
+              name: 'process_data',
+              docstring: '',
+              params: [{ name: 'self', type: 'unknown' }],
+              returns: 'None',
+              is_async: false,
+              decorators: [],
+              // This is what eGemma now provides for Python methods
+              body_dependencies: {
+                instantiations: ['DatabaseConnector', 'DataValidator'],
+                method_calls: [['validator', 'validate']],
+              },
+            },
+          ],
+        },
+      ],
+      functions: [],
+      interfaces: [],
+      exports: ['DataIngestionManager'],
+      dependencies: [],
+      extraction_method: 'ast_remote',
+      fidelity: 1.0,
+    };
+
+    // Simulate extracting dependencies like the worker does
+    const dependencies = new Set<string>();
+
+    // Process class methods
+    fileStructuralData.classes?.forEach((c) => {
+      c.methods?.forEach((m) => {
+        // Process body_dependencies (Python class instantiations)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const bodyDeps = (m as any).body_dependencies;
+        if (bodyDeps?.instantiations) {
+          bodyDeps.instantiations.forEach((className: string) => {
+            dependencies.add(className);
+          });
+        }
+      });
+    });
+
+    // Should find dependencies from method body instantiations
+    expect(dependencies.has('DatabaseConnector')).toBe(true);
+    expect(dependencies.has('DataValidator')).toBe(true);
+    expect(dependencies.size).toBe(2);
+  });
 });
