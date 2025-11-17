@@ -398,6 +398,27 @@ export class WorkbenchClient {
           break; // Success - exit retry loop
         } catch (error) {
           lastError = error as Error;
+
+          // Enhance error message with connection context for fetch failures
+          if (
+            lastError.message.includes('fetch failed') ||
+            lastError.message.includes('ECONNREFUSED') ||
+            lastError.message.includes('ETIMEDOUT') ||
+            lastError.message.includes('ENOTFOUND') ||
+            lastError.message.includes('EHOSTUNREACH')
+          ) {
+            const enhancedError = new Error(
+              `Failed to connect to workbench at ${this.baseUrl}\n` +
+                `Original error: ${lastError.message}\n` +
+                `\n💡 Check your WORKBENCH_URL environment variable\n` +
+                `   Current: ${this.baseUrl}\n` +
+                `   Expected format: http://localhost:8000`
+            );
+            enhancedError.stack = lastError.stack;
+            reject(enhancedError);
+            break;
+          }
+
           // If it's not a rate limit error, don't retry
           if (!lastError.message.includes('HTTP 429')) {
             reject(error);
@@ -514,6 +535,27 @@ export class WorkbenchClient {
           break; // Success - exit retry loop
         } catch (error) {
           lastError = error as Error;
+
+          // Enhance error message with connection context for fetch failures
+          if (
+            lastError.message.includes('fetch failed') ||
+            lastError.message.includes('ECONNREFUSED') ||
+            lastError.message.includes('ETIMEDOUT') ||
+            lastError.message.includes('ENOTFOUND') ||
+            lastError.message.includes('EHOSTUNREACH')
+          ) {
+            const enhancedError = new Error(
+              `Failed to connect to workbench at ${this.baseUrl}\n` +
+                `Original error: ${lastError.message}\n` +
+                `\n💡 Check your WORKBENCH_URL environment variable\n` +
+                `   Current: ${this.baseUrl}\n` +
+                `   Expected format: http://localhost:8000`
+            );
+            enhancedError.stack = lastError.stack;
+            reject(enhancedError);
+            break;
+          }
+
           // If it's not a rate limit error, don't retry
           if (!lastError.message.includes('HTTP 429')) {
             reject(error);
