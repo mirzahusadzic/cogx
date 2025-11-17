@@ -371,8 +371,11 @@ function formatTodoWrite(
     todoLines.push(`  ${statusColor}${statusIcon}\x1b[39m ${displayText}`);
   });
 
-  // Ensure final reset to prevent color bleeding
+  // Ensure final reset to prevent color bleeding (only if there are todos)
   // Use \x1b[39m (fg reset only) instead of \x1b[0m to avoid clearing Ink's codes
+  if (todoLines.length === 0) {
+    return '\n';
+  }
   return '\n' + todoLines.join('\n') + '\x1b[39m';
 }
 

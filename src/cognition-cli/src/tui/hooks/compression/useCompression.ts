@@ -81,7 +81,7 @@
  * Extracted from useClaudeAgent.ts for better testability and maintainability.
  */
 
-import { useRef, useCallback, useEffect, useMemo } from 'react';
+import { useRef, useCallback, useEffect, useMemo, useState } from 'react';
 import { CompressionTrigger } from './CompressionTrigger.js';
 import type { CompressionOptions, CompressionState } from './types.js';
 
@@ -275,6 +275,9 @@ export function useCompression(
     compressionCount: 0,
   });
 
+  // Track triggered state in React state so shouldTrigger memo can depend on it
+  const [triggeredState, setTriggeredState] = useState(false);
+
   // Update trigger options when they change
   // This allows dynamic threshold adjustments without recreating trigger
   useEffect(() => {
@@ -345,6 +348,7 @@ export function useCompression(
 
     triggerRef.current.markTriggered();
     stateRef.current.triggered = true;
+    setTriggeredState(true); // Update React state to invalidate shouldTrigger memo
     stateRef.current.lastCompression = new Date();
     stateRef.current.lastCompressedTokens = tokenCount;
     stateRef.current.compressionCount++;
@@ -367,6 +371,7 @@ export function useCompression(
 
     triggerRef.current.reset();
     stateRef.current.triggered = false;
+    setTriggeredState(false); // Update React state to invalidate shouldTrigger memo
   }, [debug]);
 
   /**
@@ -387,10 +392,11 @@ export function useCompression(
   }, [tokenCount, analyzedTurns]);
 
   // Memoize shouldTrigger to prevent recomputation on every render
+  // Include triggeredState so memo updates when triggered/reset is called
   const shouldTrigger = useMemo(() => {
     return triggerRef.current.shouldTrigger(tokenCount, analyzedTurns)
       .shouldTrigger;
-  }, [tokenCount, analyzedTurns]);
+  }, [tokenCount, analyzedTurns, triggeredState]);
 
   return {
     state: stateRef.current,
