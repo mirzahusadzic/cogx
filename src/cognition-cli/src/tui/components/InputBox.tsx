@@ -46,6 +46,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
   const [commandsLoading, setCommandsLoading] = useState(true);
 
   // Notify parent when dropdown visibility changes
+  // Including onDropdownVisibleChange to satisfy React exhaustive-deps
   useEffect(() => {
     if (onDropdownVisibleChange) {
       onDropdownVisibleChange(showDropdown && focused && !commandsLoading);

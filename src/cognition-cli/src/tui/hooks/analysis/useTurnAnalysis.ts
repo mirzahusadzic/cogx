@@ -68,7 +68,7 @@
  * }
  */
 
-import { useRef, useCallback, useEffect, useState } from 'react';
+import { useRef, useCallback, useEffect, useState, useMemo } from 'react';
 import { AnalysisQueue } from './AnalysisQueue.js';
 import type { EmbeddingService } from '../../../core/services/embedding.js';
 import type { OverlayRegistry } from '../../../core/algebra/overlay-registry.js';
@@ -319,21 +319,24 @@ export function useTurnAnalysis(
     return queueRef.current.isReadyForCompression();
   }, []);
 
-  // Calculate stats
-  const stats = {
-    totalAnalyzed: analyses.length,
-    paradigmShifts: analyses.filter((a) => a.is_paradigm_shift).length,
-    routineTurns: analyses.filter((a) => a.is_routine).length,
-    avgNovelty:
-      analyses.length > 0
-        ? analyses.reduce((sum, a) => sum + a.novelty, 0) / analyses.length
-        : 0,
-    avgImportance:
-      analyses.length > 0
-        ? analyses.reduce((sum, a) => sum + a.importance_score, 0) /
-          analyses.length
-        : 0,
-  };
+  // Calculate stats - memoize to prevent infinite re-renders
+  const stats = useMemo(
+    () => ({
+      totalAnalyzed: analyses.length,
+      paradigmShifts: analyses.filter((a) => a.is_paradigm_shift).length,
+      routineTurns: analyses.filter((a) => a.is_routine).length,
+      avgNovelty:
+        analyses.length > 0
+          ? analyses.reduce((sum, a) => sum + a.novelty, 0) / analyses.length
+          : 0,
+      avgImportance:
+        analyses.length > 0
+          ? analyses.reduce((sum, a) => sum + a.importance_score, 0) /
+            analyses.length
+          : 0,
+    }),
+    [analyses]
+  );
 
   return {
     analyses,

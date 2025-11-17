@@ -81,7 +81,7 @@
  * Extracted from useClaudeAgent.ts for better testability and maintainability.
  */
 
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect, useMemo } from 'react';
 import { CompressionTrigger } from './CompressionTrigger.js';
 import type { CompressionOptions, CompressionState } from './types.js';
 
@@ -386,10 +386,15 @@ export function useCompression(
     };
   }, [tokenCount, analyzedTurns]);
 
+  // Memoize shouldTrigger to prevent recomputation on every render
+  const shouldTrigger = useMemo(() => {
+    return triggerRef.current.shouldTrigger(tokenCount, analyzedTurns)
+      .shouldTrigger;
+  }, [tokenCount, analyzedTurns]);
+
   return {
     state: stateRef.current,
-    shouldTrigger: triggerRef.current.shouldTrigger(tokenCount, analyzedTurns)
-      .shouldTrigger,
+    shouldTrigger,
     triggerCompression,
     reset,
     getTriggerInfo,

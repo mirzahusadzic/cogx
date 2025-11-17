@@ -29,7 +29,7 @@
  * ))}
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { OverlayRegistry } from '../../core/algebra/overlay-registry.js';
 import { OverlayInfo } from '../types.js';
 
@@ -86,16 +86,32 @@ interface UseOverlaysOptions {
  * );
  */
 export function useOverlays(options: UseOverlaysOptions) {
+  // Destructure options to get stable primitive dependencies
+  const { pgcRoot, workbenchUrl } = options;
   const [overlays, setOverlays] = useState<OverlayInfo[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Guard to prevent multiple simultaneous loads
+  const loadingRef = useRef(false);
+  const mountedRef = useRef(false);
+
   useEffect(() => {
+    // Prevent multiple simultaneous loads
+    if (loadingRef.current) {
+      return;
+    }
+
+    // Only run once on mount
+    if (mountedRef.current) {
+      return;
+    }
+
+    mountedRef.current = true;
+    loadingRef.current = true;
+
     async function loadOverlays() {
       try {
-        const registry = new OverlayRegistry(
-          options.pgcRoot,
-          options.workbenchUrl
-        );
+        const registry = new OverlayRegistry(pgcRoot, workbenchUrl);
         const overlayInfoList = registry.getOverlayInfo();
 
         const overlaysWithStatus = await Promise.all(
@@ -128,11 +144,12 @@ export function useOverlays(options: UseOverlaysOptions) {
         console.error('Failed to load overlays:', err);
       } finally {
         setLoading(false);
+        loadingRef.current = false;
       }
     }
 
     loadOverlays();
-  }, [options.pgcRoot, options.workbenchUrl]);
+  }, [pgcRoot, workbenchUrl]);
 
   return { overlays, loading };
 }
