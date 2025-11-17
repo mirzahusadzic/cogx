@@ -314,6 +314,128 @@ export class GraphTraversal {
                 incoming.get(returnType)!.add(symbol);
               }
             }
+
+            // Process body_dependencies (Python class instantiations)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const bodyDeps = (method as any).body_dependencies;
+            if (bodyDeps?.instantiations) {
+              for (const className of bodyDeps.instantiations) {
+                if (manifest[className]) {
+                  if (
+                    !edges.find(
+                      (e) =>
+                        e.from === symbol &&
+                        e.to === className &&
+                        e.type === 'uses'
+                    )
+                  ) {
+                    edges.push({
+                      from: symbol,
+                      to: className,
+                      type: 'uses',
+                      fromFile: filePath,
+                      toFile: this.getFilePathFromManifestEntry(
+                        manifest[className]
+                      ),
+                    });
+                    if (!outgoing.has(symbol)) outgoing.set(symbol, new Set());
+                    if (!incoming.has(className))
+                      incoming.set(className, new Set());
+                    outgoing.get(symbol)!.add(className);
+                    incoming.get(className)!.add(symbol);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Process body_dependencies in standalone functions
+      if (structuralData.functions) {
+        for (const func of structuralData.functions) {
+          // Process function parameters and return types (same as methods)
+          for (const param of func.params || []) {
+            const cleanType = this.cleanTypeName(param.type);
+            if (cleanType && manifest[cleanType]) {
+              if (
+                !edges.find(
+                  (e) =>
+                    e.from === symbol && e.to === cleanType && e.type === 'uses'
+                )
+              ) {
+                edges.push({
+                  from: symbol,
+                  to: cleanType,
+                  type: 'uses',
+                  fromFile: filePath,
+                  toFile: this.getFilePathFromManifestEntry(
+                    manifest[cleanType]
+                  ),
+                });
+                if (!outgoing.has(symbol)) outgoing.set(symbol, new Set());
+                if (!incoming.has(cleanType))
+                  incoming.set(cleanType, new Set());
+                outgoing.get(symbol)!.add(cleanType);
+                incoming.get(cleanType)!.add(symbol);
+              }
+            }
+          }
+
+          const returnType = this.cleanTypeName(func.returns);
+          if (returnType && manifest[returnType]) {
+            if (
+              !edges.find(
+                (e) =>
+                  e.from === symbol && e.to === returnType && e.type === 'uses'
+              )
+            ) {
+              edges.push({
+                from: symbol,
+                to: returnType,
+                type: 'uses',
+                fromFile: filePath,
+                toFile: this.getFilePathFromManifestEntry(manifest[returnType]),
+              });
+              if (!outgoing.has(symbol)) outgoing.set(symbol, new Set());
+              if (!incoming.has(returnType))
+                incoming.set(returnType, new Set());
+              outgoing.get(symbol)!.add(returnType);
+              incoming.get(returnType)!.add(symbol);
+            }
+          }
+
+          // Process body_dependencies (Python class instantiations)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const bodyDeps = (func as any).body_dependencies;
+          if (bodyDeps?.instantiations) {
+            for (const className of bodyDeps.instantiations) {
+              if (manifest[className]) {
+                if (
+                  !edges.find(
+                    (e) =>
+                      e.from === symbol &&
+                      e.to === className &&
+                      e.type === 'uses'
+                  )
+                ) {
+                  edges.push({
+                    from: symbol,
+                    to: className,
+                    type: 'uses',
+                    fromFile: filePath,
+                    toFile: this.getFilePathFromManifestEntry(
+                      manifest[className]
+                    ),
+                  });
+                  if (!outgoing.has(symbol)) outgoing.set(symbol, new Set());
+                  if (!incoming.has(className))
+                    incoming.set(className, new Set());
+                  outgoing.get(symbol)!.add(className);
+                  incoming.get(className)!.add(symbol);
+                }
+              }
+            }
           }
         }
       }
