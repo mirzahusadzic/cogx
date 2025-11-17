@@ -375,7 +375,19 @@ export async function wizardCommand(options: WizardOptions) {
     !shouldIngestDocs
   ) {
     log.warn(
-      'Mission concepts and strategic coherence overlays require documentation. Adjusting selection...'
+      chalk.yellow(
+        '\n⚠️  Mission Concepts (O₄) and Strategic Coherence (O₇) require documentation.'
+      )
+    );
+    log.warn(
+      chalk.yellow(
+        '   These overlays will be SKIPPED. Only O₁, O₂, O₃, O₅, O₆ will be generated.'
+      )
+    );
+    log.warn(
+      chalk.dim(
+        '   To generate all 7 overlays, select "Yes" when prompted to ingest docs.\n'
+      )
     );
   }
 
@@ -387,7 +399,15 @@ export async function wizardCommand(options: WizardOptions) {
   if (shouldIngestDocs) {
     log.info(`  Documentation: ${chalk.cyan(docsPath)}`);
   }
-  log.info(`  Overlays: ${chalk.cyan(overlayTypes)}`);
+
+  // Show overlay count with warning if not all will be generated
+  if (overlayTypes === 'all' && !shouldIngestDocs) {
+    log.info(
+      `  Overlays: ${chalk.cyan('5 of 7')} ${chalk.dim('(O₄ and O₇ require docs)')}`
+    );
+  } else {
+    log.info(`  Overlays: ${chalk.cyan(overlayTypes)}`);
+  }
 
   const shouldProceed = (await confirm({
     message: '\nProceed with setup?',
@@ -509,6 +529,22 @@ export async function wizardCommand(options: WizardOptions) {
         await orchestrator.shutdown();
 
         overlaySpinner.stop(chalk.green(`✓ ${overlayType} generated`));
+      }
+
+      // Show what was skipped if user selected "all" but didn't ingest docs
+      if (overlayTypes === 'all' && !shouldIngestDocs) {
+        log.info('');
+        log.warn(
+          chalk.yellow(
+            '⚠️  Skipped: Mission Concepts (O₄) and Strategic Coherence (O₇)'
+          )
+        );
+        log.info(
+          chalk.dim(
+            '   To generate these, run: cognition-cli overlay generate mission_concepts'
+          )
+        );
+        log.info(chalk.dim('   (Requires docs to be ingested first)'));
       }
     } else {
       log.info(chalk.bold('\n[4/4] Skipping overlays (none selected)'));
