@@ -338,15 +338,15 @@ _cognition_cli_completions() {
       return 0
       ;;
     patterns)
-      COMPREPLY=( $(compgen -W "find-similar compare analyze inspect" -- \${cur}) )
+      COMPREPLY=( $(compgen -W "find-similar compare analyze inspect list graph" -- \${cur}) )
       return 0
       ;;
     concepts)
-      COMPREPLY=( $(compgen -W "list search align" -- \${cur}) )
+      COMPREPLY=( $(compgen -W "list search by-section inspect top" -- \${cur}) )
       return 0
       ;;
     coherence)
-      COMPREPLY=( $(compgen -W "check score" -- \${cur}) )
+      COMPREPLY=( $(compgen -W "report aligned drifted list" -- \${cur}) )
       return 0
       ;;
     audit)
@@ -479,13 +479,13 @@ _cognition_cli() {
           _arguments '1:subcommand:(theorems lemmas list aligned)'
           ;;
         patterns)
-          _arguments '1:subcommand:(find-similar compare analyze inspect)'
+          _arguments '1:subcommand:(find-similar compare analyze inspect list graph)'
           ;;
         concepts)
-          _arguments '1:subcommand:(list search align)'
+          _arguments '1:subcommand:(list search by-section inspect top)'
           ;;
         coherence)
-          _arguments '1:subcommand:(check score)'
+          _arguments '1:subcommand:(report aligned drifted list)'
           ;;
         audit)
           _arguments '1:subcommand:(transformations docs)'
@@ -572,6 +572,15 @@ complete -c cognition-cli -f -n "__fish_seen_subcommand_from security" -a "manda
 
 # Workflow subcommands
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from workflow" -a "patterns quests depth-rules"
+
+# Patterns subcommands
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from patterns" -a "find-similar compare analyze inspect list graph"
+
+# Concepts subcommands
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from concepts" -a "list search by-section inspect top"
+
+# Coherence subcommands
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from coherence" -a "report aligned drifted list"
 
 # Proofs subcommands
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from proofs" -a "theorems lemmas list aligned"
