@@ -320,9 +320,9 @@ After making all changes, verify end-to-end:
 
 ## Related Documentation
 
-- [Lineage Usage Analysis](../LINEAGE_USAGE_ANALYSIS.md) - Why we have two dependency tracking systems
-- [Structural Types](../src/core/types/structural.ts) - Complete type definitions
-- [PGC Architecture](./PGC_ARCHITECTURE.md) - How overlays work
+- [Lineage Usage Analysis](./LINEAGE_USAGE_ANALYSIS.md) - Why we have two dependency tracking systems
+- [Structural Types](../../src/core/types/structural.ts) - Complete type definitions
+- [The PGC](../manual/part-1-foundation/02-the-pgc.md) - How overlays work
 
 ## Lessons Learned
 
