@@ -1,7 +1,7 @@
 /**
  * PR Impact Analysis Command
  *
- * KILLER WORKFLOW: Full PR impact across O1+O2+O3+O4+O7
+ * SUPERB WORKFLOW: Full PR impact across O1+O2+O3+O4+O7
  *
  * This command is the culmination of the cross-overlay architecture.
  * It answers the question every developer asks before merging:
@@ -33,6 +33,7 @@ import chalk from 'chalk';
  */
 export async function analyzePRImpact(
   options: { branch?: string; maxDepth?: string; json?: boolean },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   PGCManager: any
 ): Promise<void> {
   const { PRAnalyzer } = await import('../core/orchestrators/pr-analyzer.js');
@@ -73,10 +74,13 @@ export async function analyzePRImpact(
 /**
  * Display analysis in human-readable format
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function displayAnalysis(analysis: any): void {
   // Structural Changes (O1)
   console.log(chalk.bold.cyan('📦 Structural Changes (O1):'));
-  console.log(`   ├─ Files changed: ${chalk.yellow(analysis.structural.filesChanged)}`);
+  console.log(
+    `   ├─ Files changed: ${chalk.yellow(analysis.structural.filesChanged)}`
+  );
   console.log(
     `   ├─ Modules added: ${chalk.yellow(analysis.structural.modulesAdded.length)}`
   );
@@ -100,7 +104,9 @@ function displayAnalysis(analysis: any): void {
 
   console.log(chalk.bold.red('🔒 Security Review (O2):'));
   console.log(`   ├─ Risk level: ${riskColor(analysis.security.riskLevel)}`);
-  console.log(`   └─ Threats detected: ${chalk.yellow(analysis.security.threats.length)}`);
+  console.log(
+    `   └─ Threats detected: ${chalk.yellow(analysis.security.threats.length)}`
+  );
 
   if (analysis.security.threats.length > 0) {
     console.log();
@@ -144,7 +150,11 @@ function displayAnalysis(analysis: any): void {
 
   if (analysis.blastRadius.criticalPaths.length > 0) {
     console.log();
-    for (let i = 0; i < Math.min(2, analysis.blastRadius.criticalPaths.length); i++) {
+    for (
+      let i = 0;
+      i < Math.min(2, analysis.blastRadius.criticalPaths.length);
+      i++
+    ) {
       const path = analysis.blastRadius.criticalPaths[i];
       console.log(`   ${chalk.yellow(path.reason)} (depth ${path.depth})`);
       const pathStr = path.path.map((s: string) => chalk.cyan(s)).join(' → ');
@@ -175,7 +185,9 @@ function displayAnalysis(analysis: any): void {
       i < Math.min(3, analysis.missionAlignment.matchingConcepts.length);
       i++
     ) {
-      console.log(`   • ${chalk.cyan(analysis.missionAlignment.matchingConcepts[i])}`);
+      console.log(
+        `   • ${chalk.cyan(analysis.missionAlignment.matchingConcepts[i])}`
+      );
     }
   }
   console.log();
@@ -207,7 +219,11 @@ function displayAnalysis(analysis: any): void {
   console.log(chalk.bold('🎯 Recommendations:'));
   for (let i = 0; i < analysis.recommendations.length; i++) {
     const rec = analysis.recommendations[i];
-    const icon = rec.includes('CRITICAL') ? '🚨' : rec.includes('good') ? '✅' : '💡';
+    const icon = rec.includes('CRITICAL')
+      ? '🚨'
+      : rec.includes('good')
+        ? '✅'
+        : '💡';
     console.log(`   ${i + 1}. ${icon} ${rec}`);
   }
   console.log();
@@ -225,7 +241,9 @@ function displayAnalysis(analysis: any): void {
   console.log(
     `   ├─ Mergeable: ${mergeableColor(analysis.mergeable ? 'Yes ✓' : 'No ✗')}`
   );
-  console.log(`   └─ Risk score: ${riskScoreColor(analysis.riskScore + '/100')}`);
+  console.log(
+    `   └─ Risk score: ${riskScoreColor(analysis.riskScore + '/100')}`
+  );
   console.log();
 
   // Final verdict
@@ -234,7 +252,9 @@ function displayAnalysis(analysis: any): void {
       console.log(chalk.green.bold('✅ Low risk - PR looks good to merge!'));
     } else if (analysis.riskScore < 60) {
       console.log(
-        chalk.yellow.bold('⚠️  Medium risk - review recommendations before merging')
+        chalk.yellow.bold(
+          '⚠️  Medium risk - review recommendations before merging'
+        )
       );
     } else {
       console.log(

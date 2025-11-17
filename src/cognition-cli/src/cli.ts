@@ -403,7 +403,7 @@ addPatternsCommands(program);
 addCoherenceCommands(program);
 addConceptsCommands(program);
 
-// PR Impact Analysis (cross-overlay killer workflow)
+// PR Impact Analysis (cross-overlay superb workflow)
 program
   .command('pr-analyze')
   .description(

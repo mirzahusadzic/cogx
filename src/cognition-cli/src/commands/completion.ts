@@ -288,7 +288,7 @@ _cognition_cli_completions() {
   prev="\${COMP_WORDS[COMP_CWORD-1]}"
 
   # Main commands
-  local commands="init i genesis g query q wizard w tui ask lattice l audit overlay patterns concepts coherence security workflow proofs blast-radius watch status update guide migrate completion --help --version"
+  local commands="init i genesis g genesis:docs query q audit:transformations audit:docs wizard w tui ask pr-analyze lattice l audit overlay patterns concepts coherence security workflow proofs blast-radius watch status update guide migrate migrate:lance completion --help --version"
 
   # Global flags
   local global_flags="--no-color --no-emoji --format --verbose -v --quiet -q --help -h"
@@ -326,7 +326,7 @@ _cognition_cli_completions() {
       fi
       ;;
     security)
-      COMPREPLY=( $(compgen -W "mandate attacks coverage-gaps boundaries list cves query coherence" -- \${cur}) )
+      COMPREPLY=( $(compgen -W "mandate attacks coverage-gaps boundaries list cves query coherence blast-radius" -- \${cur}) )
       return 0
       ;;
     workflow)
@@ -347,6 +347,21 @@ _cognition_cli_completions() {
       ;;
     coherence)
       COMPREPLY=( $(compgen -W "check score" -- \${cur}) )
+      return 0
+      ;;
+    audit)
+      COMPREPLY=( $(compgen -W "transformations docs" -- \${cur}) )
+      return 0
+      ;;
+    genesis)
+      # Suggest genesis:docs subcommand
+      if [[ "\${cur}" == *":"* ]]; then
+        COMPREPLY=( $(compgen -W "docs" -- \${cur#*:}) )
+      fi
+      return 0
+      ;;
+    migrate)
+      COMPREPLY=( $(compgen -W "lance" -- \${cur}) )
       return 0
       ;;
     completion)
@@ -387,13 +402,17 @@ _cognition_cli() {
     'init:Initialize a new PGC (alias: i)'
     'i:Alias for init'
     'genesis:Build verifiable skeleton (alias: g)'
+    'genesis:docs:Generate documentation from genesis'
     'g:Alias for genesis'
     'query:Query the codebase (alias: q)'
     'q:Alias for query'
+    'audit:transformations:Audit transformation history'
+    'audit:docs:Audit documentation'
     'wizard:Interactive setup wizard (alias: w)'
     'w:Alias for wizard'
     'tui:Launch interactive TUI'
     'ask:Ask questions about docs'
+    'pr-analyze:Comprehensive PR impact analysis (O1+O2+O3+O4+O7)'
     'lattice:Boolean algebra operations (alias: l)'
     'l:Alias for lattice'
     'overlay:Overlay operations'
@@ -409,6 +428,7 @@ _cognition_cli() {
     'update:Update PGC'
     'guide:Documentation browser'
     'migrate:Migration commands'
+    'migrate:lance:Migrate to LanceDB'
     'completion:Manage shell completion'
   )
 
@@ -450,7 +470,7 @@ _cognition_cli() {
             '2:type:(structural_patterns security_guidelines lineage_patterns mission_concepts operational_patterns mathematical_proofs strategic_coherence all)'
           ;;
         security)
-          _arguments '1:subcommand:(mandate attacks coverage-gaps boundaries list cves query coherence)'
+          _arguments '1:subcommand:(mandate attacks coverage-gaps boundaries list cves query coherence blast-radius)'
           ;;
         workflow)
           _arguments '1:subcommand:(patterns quests depth-rules)'
@@ -466,6 +486,12 @@ _cognition_cli() {
           ;;
         coherence)
           _arguments '1:subcommand:(check score)'
+          ;;
+        audit)
+          _arguments '1:subcommand:(transformations docs)'
+          ;;
+        migrate)
+          _arguments '1:subcommand:(lance)'
           ;;
         completion)
           _arguments \
@@ -491,19 +517,26 @@ function generateFishCompletion(): string {
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "init" -d "Initialize PGC (alias: i)"
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "i" -d "Alias for init"
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "genesis" -d "Build skeleton (alias: g)"
+complete -c cognition-cli -f -n "__fish_use_subcommand" -a "genesis:docs" -d "Generate documentation"
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "g" -d "Alias for genesis"
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "query" -d "Query codebase (alias: q)"
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "q" -d "Alias for query"
+complete -c cognition-cli -f -n "__fish_use_subcommand" -a "audit:transformations" -d "Audit transformations"
+complete -c cognition-cli -f -n "__fish_use_subcommand" -a "audit:docs" -d "Audit documentation"
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "wizard" -d "Setup wizard (alias: w)"
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "w" -d "Alias for wizard"
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "tui" -d "Launch TUI"
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "ask" -d "Ask questions"
+complete -c cognition-cli -f -n "__fish_use_subcommand" -a "pr-analyze" -d "PR impact analysis (O1+O2+O3+O4+O7)"
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "lattice" -d "Boolean algebra (alias: l)"
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "l" -d "Alias for lattice"
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "overlay" -d "Overlay operations"
+complete -c cognition-cli -f -n "__fish_use_subcommand" -a "audit" -d "Audit operations"
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "security" -d "Security analysis"
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "workflow" -d "Workflow analysis"
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "proofs" -d "Proof analysis"
+complete -c cognition-cli -f -n "__fish_use_subcommand" -a "migrate" -d "Migration operations"
+complete -c cognition-cli -f -n "__fish_use_subcommand" -a "migrate:lance" -d "Migrate to LanceDB"
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "completion" -d "Shell completion"
 
 # Global flags
@@ -528,8 +561,14 @@ complete -c cognition-cli -f -n "__fish_seen_subcommand_from generate; and __fis
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from generate; and __fish_seen_subcommand_from overlay" -a "strategic_coherence" -d "Strategic coherence (O7)"
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from generate; and __fish_seen_subcommand_from overlay" -a "all" -d "All overlays"
 
+# Audit subcommands
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from audit" -a "transformations docs"
+
+# Migrate subcommands
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from migrate" -a "lance"
+
 # Security subcommands
-complete -c cognition-cli -f -n "__fish_seen_subcommand_from security" -a "mandate attacks coverage-gaps boundaries list cves query coherence"
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from security" -a "mandate attacks coverage-gaps boundaries list cves query coherence blast-radius"
 
 # Workflow subcommands
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from workflow" -a "patterns quests depth-rules"

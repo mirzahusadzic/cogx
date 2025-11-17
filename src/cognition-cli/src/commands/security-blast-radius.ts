@@ -5,7 +5,7 @@
  * security impact when a file or symbol is compromised. This workflow answers:
  * "If this code has a security vulnerability, what's the blast radius?"
  *
- * KILLER WORKFLOW RATIONALE:
+ * SUPERB WORKFLOW RATIONALE:
  * Individual overlays tell us:
  * - O2: What security threats exist in this file
  * - O3: What depends on this file (blast radius)
@@ -64,6 +64,10 @@
  */
 
 import chalk from 'chalk';
+import type { OverlayItem } from '../core/algebra/overlay-algebra.js';
+import type { StructuralMetadata } from '../core/overlays/structural-patterns/manager.js';
+import type { SecurityMetadata } from '../core/overlays/security-guidelines/manager.js';
+import type { GraphNode } from '../core/graph/types.js';
 
 /**
  * Execute security blast radius analysis
@@ -73,9 +77,13 @@ import chalk from 'chalk';
 export async function analyzeSecurityBlastRadius(
   target: string,
   options: { maxDepth?: string; json?: boolean },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   PGCManager: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   GraphTraversal: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   SecurityGuidelinesManager: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   StructuralPatternsManager: any
 ): Promise<void> {
   const pgc = new PGCManager(process.cwd());
@@ -83,296 +91,26 @@ export async function analyzeSecurityBlastRadius(
   const securityManager = new SecurityGuidelinesManager(pgc.pgcRoot);
   const structuralManager = new StructuralPatternsManager(pgc.pgcRoot);
 
-    console.log(
-      chalk.bold(`\n🔒 Security Blast Radius: ${chalk.cyan(target)}\n`)
-    );
+  console.log(
+    chalk.bold(`\n🔒 Security Blast Radius: ${chalk.cyan(target)}\n`)
+  );
 
-    try {
-      // Step 1: Determine if target is a file path or symbol name
-      const isFilePath = target.includes('/') || target.includes('.');
-      let targetSymbol: string;
-      let targetFile: string;
-      let blastResult;
+  try {
+    // Step 1: Determine if target is a file path or symbol name
+    const isFilePath = target.includes('/') || target.includes('.');
+    let targetSymbol: string;
+    let targetFile: string;
+    let blastResult;
 
-      if (isFilePath) {
-        // Target is a file path - need to find symbols in that file
-        targetFile = target;
-        const symbolsInFile = await structuralManager.getItemsByFile(targetFile);
+    if (isFilePath) {
+      // Target is a file path - need to find symbols in that file
+      targetFile = target;
+      const symbolsInFile = await structuralManager.getItemsByFile(targetFile);
 
-        if (symbolsInFile.length === 0) {
-          console.error(
-            chalk.red(
-              `\n❌ No symbols found in file '${targetFile}'. File may not be indexed.`
-            )
-          );
-          console.log(
-            chalk.dim(
-              '\n💡 Make sure to run: cognition-cli overlay generate structural_patterns'
-            )
-          );
-          process.exit(1);
-        }
-
-        // Use the first major symbol (class/function) or fallback to any symbol
-        const primarySymbol = symbolsInFile.find(
-          (s) =>
-            s.metadata.architecturalRole &&
-            !['utility', 'type'].includes(s.metadata.architecturalRole)
-        );
-        targetSymbol = primarySymbol
-          ? primarySymbol.metadata.symbol
-          : symbolsInFile[0].metadata.symbol;
-
-        console.log(
-          chalk.dim(
-            `Analyzing primary symbol: ${chalk.cyan(targetSymbol)} (and ${symbolsInFile.length - 1} other symbols in file)\n`
-          )
-        );
-      } else {
-        // Target is a symbol name
-        targetSymbol = target;
-        const structuralItems = await structuralManager.getAllItems();
-        const symbolItem = structuralItems.find(
-          (item) => item.metadata.symbol === targetSymbol
-        );
-
-        if (!symbolItem) {
-          console.error(
-            chalk.red(
-              `\n❌ Symbol '${targetSymbol}' not found in structural patterns.`
-            )
-          );
-          console.log(
-            chalk.dim(
-              '\n💡 Make sure to run: cognition-cli overlay generate structural_patterns'
-            )
-          );
-          process.exit(1);
-        }
-
-        targetFile = symbolItem.metadata.filePath;
-      }
-
-      // Step 2: Query O2 for security threats in this file
-      console.log(chalk.bold('🔍 Querying O2 (Security Guidelines)...'));
-      const allSecurityItems = await securityManager.getAllItems();
-
-      // Query for threats related to this file/symbol
-      const securityQuery = `${targetFile} ${targetSymbol} authentication authorization security vulnerability`;
-      const securityResults = await securityManager.query(securityQuery, 10);
-
-      const relevantThreats = securityResults.filter(
-        (result) => result.similarity > 0.3 // Threshold for relevance
-      );
-
-      // Step 3: Query O3 for blast radius
-      console.log(chalk.bold('🎯 Querying O3 (Lineage Patterns)...\n'));
-      blastResult = await traversal.getBlastRadius(targetSymbol, {
-        maxDepth: parseInt(options.maxDepth),
-        direction: 'both',
-        includeTransitive: true,
-      });
-
-      // Step 4: Generate combined security analysis
-      if (options.json) {
-        const jsonOutput = {
-          target: {
-            symbol: targetSymbol,
-            filePath: targetFile,
-          },
-          security_threats: {
-            count: relevantThreats.length,
-            threats: relevantThreats.map((t) => ({
-              type: t.item.metadata.securityType,
-              severity: t.item.metadata.severity,
-              description: t.item.metadata.text,
-              similarity: t.similarity,
-              cveId: t.item.metadata.cveId,
-              mitigation: t.item.metadata.mitigation,
-            })),
-          },
-          blast_radius: {
-            direct_consumers: blastResult.consumers.length,
-            transitive_impact: blastResult.metrics.totalImpacted,
-            max_depth: Math.max(
-              blastResult.metrics.maxConsumerDepth,
-              blastResult.metrics.maxDependencyDepth
-            ),
-            consumers: blastResult.consumers.map((n) => ({
-              symbol: n.symbol,
-              filePath: n.filePath,
-              role: n.architecturalRole,
-            })),
-            dependencies: blastResult.dependencies.map((n) => ({
-              symbol: n.symbol,
-              filePath: n.filePath,
-              role: n.architecturalRole,
-            })),
-            critical_paths: blastResult.metrics.criticalPaths.map((p) => ({
-              path: p.path,
-              depth: p.depth,
-              reason: p.reason,
-            })),
-          },
-          risk_assessment: {
-            severity:
-              relevantThreats.length > 0 &&
-              blastResult.metrics.totalImpacted > 10
-                ? 'HIGH'
-                : relevantThreats.length > 0 &&
-                    blastResult.metrics.totalImpacted > 5
-                  ? 'MEDIUM'
-                  : 'LOW',
-            data_exposure: identifyDataExposure(
-              blastResult.consumers,
-              blastResult.dependencies
-            ),
-          },
-          recommendations: generateRecommendations(
-            relevantThreats,
-            blastResult
-          ),
-        };
-
-        console.log(JSON.stringify(jsonOutput, null, 2));
-        return;
-      }
-
-      // ASCII output
-      console.log(
-        chalk.green(
-          `✓ Target found: ${chalk.cyan(targetFile)} (symbol: ${targetSymbol})`
-        )
-      );
-      console.log();
-
-      // Display security threats from O2
-      console.log(chalk.bold.red('⚠️  Threats in this file (O2):'));
-      if (relevantThreats.length === 0) {
-        console.log(
-          chalk.dim('   No specific threats identified in security guidelines.')
-        );
-        console.log(
-          chalk.dim(
-            '   This does NOT mean the file is secure - only that no documented threats match.'
-          )
-        );
-      } else {
-        for (const threat of relevantThreats) {
-          const severityColor =
-            threat.item.metadata.severity === 'critical'
-              ? chalk.red
-              : threat.item.metadata.severity === 'high'
-                ? chalk.yellow
-                : chalk.dim;
-
-          console.log(
-            severityColor(
-              `   ├─ ${threat.item.metadata.securityType.toUpperCase()}: ${threat.item.metadata.text.substring(0, 80)}`
-            )
-          );
-          console.log(
-            chalk.dim(
-              `   │    Severity: ${threat.item.metadata.severity.toUpperCase()} | Relevance: ${(threat.similarity * 100).toFixed(1)}%`
-            )
-          );
-          if (threat.item.metadata.mitigation) {
-            console.log(
-              chalk.green(
-                `   │    Mitigation: ${threat.item.metadata.mitigation}`
-              )
-            );
-          }
-          if (threat.item.metadata.cveId) {
-            console.log(
-              chalk.cyan(`   │    CVE: ${threat.item.metadata.cveId}`)
-            );
-          }
-        }
-      }
-      console.log();
-
-      // Display blast radius from O3
-      console.log(chalk.bold('📊 Blast Radius (O3):'));
-      console.log(
-        `   ├─ Direct consumers: ${chalk.yellow(blastResult.consumers.length)}`
-      );
-      console.log(
-        `   ├─ Transitive impact: ${chalk.yellow(blastResult.metrics.totalImpacted)} symbols`
-      );
-      console.log(
-        `   └─ Max traversal depth: ${chalk.yellow(Math.max(blastResult.metrics.maxConsumerDepth, blastResult.metrics.maxDependencyDepth))}`
-      );
-      console.log();
-
-      // Show critical security paths
-      if (blastResult.metrics.criticalPaths.length > 0) {
-        console.log(chalk.bold('🔥 Critical Security Paths:'));
-        console.log(
-          chalk.dim('   High-impact chains through the codebase:\n')
-        );
-
-        for (const path of blastResult.metrics.criticalPaths.slice(0, 5)) {
-          console.log(`   ${chalk.yellow(path.reason)} (depth ${path.depth})`);
-          const pathStr = path.path.map((s) => chalk.cyan(s)).join(' → ');
-          console.log(`      ${pathStr}`);
-          console.log();
-        }
-      }
-
-      // Data exposure assessment
-      const dataExposure = identifyDataExposure(
-        blastResult.consumers,
-        blastResult.dependencies
-      );
-      if (dataExposure.length > 0) {
-        console.log(chalk.bold.red('💀 Data Exposure Risk:'));
-        console.log(
-          chalk.dim('   If this symbol is compromised, attackers may access:\n')
-        );
-        for (const exposure of dataExposure) {
-          console.log(`   • ${chalk.red(exposure)}`);
-        }
-        console.log();
-      }
-
-      // Generate recommendations
-      const recommendations = generateRecommendations(
-        relevantThreats,
-        blastResult
-      );
-      console.log(chalk.bold('🎯 Recommendations:'));
-      for (let i = 0; i < recommendations.length; i++) {
-        console.log(`   ${i + 1}. ${recommendations[i]}`);
-      }
-      console.log();
-
-      // Risk summary
-      const riskLevel =
-        relevantThreats.length > 0 && blastResult.metrics.totalImpacted > 10
-          ? 'HIGH'
-          : relevantThreats.length > 0 &&
-              blastResult.metrics.totalImpacted > 5
-            ? 'MEDIUM'
-            : 'LOW';
-
-      const riskColor =
-        riskLevel === 'HIGH'
-          ? chalk.red
-          : riskLevel === 'MEDIUM'
-            ? chalk.yellow
-            : chalk.green;
-
-      console.log(
-        riskColor(
-          `\n📈 Overall Risk Level: ${riskLevel} (${relevantThreats.length} threats × ${blastResult.metrics.totalImpacted} impacted symbols)`
-        )
-      );
-    } catch (error) {
-      if ((error as Error).message.includes('not found in graph')) {
+      if (symbolsInFile.length === 0) {
         console.error(
           chalk.red(
-            `\n❌ Symbol '${target}' not found in structural patterns.`
+            `\n❌ No symbols found in file '${targetFile}'. File may not be indexed.`
           )
         );
         console.log(
@@ -380,17 +118,282 @@ export async function analyzeSecurityBlastRadius(
             '\n💡 Make sure to run: cognition-cli overlay generate structural_patterns'
           )
         );
-      } else {
+        process.exit(1);
+      }
+
+      // Use the first major symbol (class/function) or fallback to any symbol
+      const primarySymbol = symbolsInFile.find(
+        (s: OverlayItem<StructuralMetadata>) =>
+          s.metadata.architecturalRole &&
+          !['utility', 'type'].includes(s.metadata.architecturalRole)
+      );
+      targetSymbol = primarySymbol
+        ? primarySymbol.metadata.symbol
+        : symbolsInFile[0].metadata.symbol;
+
+      console.log(
+        chalk.dim(
+          `Analyzing primary symbol: ${chalk.cyan(targetSymbol)} (and ${symbolsInFile.length - 1} other symbols in file)\n`
+        )
+      );
+    } else {
+      // Target is a symbol name
+      targetSymbol = target;
+      const structuralItems = await structuralManager.getAllItems();
+      const symbolItem = structuralItems.find(
+        (item: OverlayItem<StructuralMetadata>) =>
+          item.metadata.symbol === targetSymbol
+      );
+
+      if (!symbolItem) {
         console.error(
-          chalk.red('\n❌ Error analyzing security blast radius:')
+          chalk.red(
+            `\n❌ Symbol '${targetSymbol}' not found in structural patterns.`
+          )
         );
-        console.error((error as Error).message);
-        if (process.env.DEBUG) {
-          console.error(error);
+        console.log(
+          chalk.dim(
+            '\n💡 Make sure to run: cognition-cli overlay generate structural_patterns'
+          )
+        );
+        process.exit(1);
+      }
+
+      targetFile = symbolItem.metadata.filePath;
+    }
+
+    // Step 2: Query O2 for security threats in this file
+    console.log(chalk.bold('🔍 Querying O2 (Security Guidelines)...'));
+
+    // Query for threats related to this file/symbol
+    const securityQuery = `${targetFile} ${targetSymbol} authentication authorization security vulnerability`;
+    const securityResults = await securityManager.query(securityQuery, 10);
+
+    const relevantThreats = securityResults.filter(
+      (result: { item: OverlayItem<SecurityMetadata>; similarity: number }) =>
+        result.similarity > 0.3 // Threshold for relevance
+    );
+
+    // Step 3: Query O3 for blast radius
+    console.log(chalk.bold('🎯 Querying O3 (Lineage Patterns)...\n'));
+    blastResult = await traversal.getBlastRadius(targetSymbol, {
+      maxDepth: parseInt(options.maxDepth || '3'),
+      direction: 'both',
+      includeTransitive: true,
+    });
+
+    // Step 4: Generate combined security analysis
+    if (options.json) {
+      const jsonOutput = {
+        target: {
+          symbol: targetSymbol,
+          filePath: targetFile,
+        },
+        security_threats: {
+          count: relevantThreats.length,
+          threats: relevantThreats.map(
+            (t: {
+              item: OverlayItem<SecurityMetadata>;
+              similarity: number;
+            }) => ({
+              type: t.item.metadata.securityType,
+              severity: t.item.metadata.severity,
+              description: t.item.metadata.text,
+              similarity: t.similarity,
+              cveId: t.item.metadata.cveId,
+              mitigation: t.item.metadata.mitigation,
+            })
+          ),
+        },
+        blast_radius: {
+          direct_consumers: blastResult.consumers.length,
+          transitive_impact: blastResult.metrics.totalImpacted,
+          max_depth: Math.max(
+            blastResult.metrics.maxConsumerDepth,
+            blastResult.metrics.maxDependencyDepth
+          ),
+          consumers: blastResult.consumers.map((n: GraphNode) => ({
+            symbol: n.symbol,
+            filePath: n.filePath,
+            role: n.architecturalRole,
+          })),
+          dependencies: blastResult.dependencies.map((n: GraphNode) => ({
+            symbol: n.symbol,
+            filePath: n.filePath,
+            role: n.architecturalRole,
+          })),
+          critical_paths: blastResult.metrics.criticalPaths.map(
+            (p: { path: string[]; depth: number; reason: string }) => ({
+              path: p.path,
+              depth: p.depth,
+              reason: p.reason,
+            })
+          ),
+        },
+        risk_assessment: {
+          severity:
+            relevantThreats.length > 0 && blastResult.metrics.totalImpacted > 10
+              ? 'HIGH'
+              : relevantThreats.length > 0 &&
+                  blastResult.metrics.totalImpacted > 5
+                ? 'MEDIUM'
+                : 'LOW',
+          data_exposure: identifyDataExposure(
+            blastResult.consumers,
+            blastResult.dependencies
+          ),
+        },
+        recommendations: generateRecommendations(relevantThreats, blastResult),
+      };
+
+      console.log(JSON.stringify(jsonOutput, null, 2));
+      return;
+    }
+
+    // ASCII output
+    console.log(
+      chalk.green(
+        `✓ Target found: ${chalk.cyan(targetFile)} (symbol: ${targetSymbol})`
+      )
+    );
+    console.log();
+
+    // Display security threats from O2
+    console.log(chalk.bold.red('⚠️  Threats in this file (O2):'));
+    if (relevantThreats.length === 0) {
+      console.log(
+        chalk.dim('   No specific threats identified in security guidelines.')
+      );
+      console.log(
+        chalk.dim(
+          '   This does NOT mean the file is secure - only that no documented threats match.'
+        )
+      );
+    } else {
+      for (const threat of relevantThreats) {
+        const severityColor =
+          threat.item.metadata.severity === 'critical'
+            ? chalk.red
+            : threat.item.metadata.severity === 'high'
+              ? chalk.yellow
+              : chalk.dim;
+
+        console.log(
+          severityColor(
+            `   ├─ ${threat.item.metadata.securityType.toUpperCase()}: ${threat.item.metadata.text.substring(0, 80)}`
+          )
+        );
+        console.log(
+          chalk.dim(
+            `   │    Severity: ${threat.item.metadata.severity.toUpperCase()} | Relevance: ${(threat.similarity * 100).toFixed(1)}%`
+          )
+        );
+        if (threat.item.metadata.mitigation) {
+          console.log(
+            chalk.green(
+              `   │    Mitigation: ${threat.item.metadata.mitigation}`
+            )
+          );
+        }
+        if (threat.item.metadata.cveId) {
+          console.log(chalk.cyan(`   │    CVE: ${threat.item.metadata.cveId}`));
         }
       }
-      process.exit(1);
     }
+    console.log();
+
+    // Display blast radius from O3
+    console.log(chalk.bold('📊 Blast Radius (O3):'));
+    console.log(
+      `   ├─ Direct consumers: ${chalk.yellow(blastResult.consumers.length)}`
+    );
+    console.log(
+      `   ├─ Transitive impact: ${chalk.yellow(blastResult.metrics.totalImpacted)} symbols`
+    );
+    console.log(
+      `   └─ Max traversal depth: ${chalk.yellow(Math.max(blastResult.metrics.maxConsumerDepth, blastResult.metrics.maxDependencyDepth))}`
+    );
+    console.log();
+
+    // Show critical security paths
+    if (blastResult.metrics.criticalPaths.length > 0) {
+      console.log(chalk.bold('🔥 Critical Security Paths:'));
+      console.log(chalk.dim('   High-impact chains through the codebase:\n'));
+
+      for (const path of blastResult.metrics.criticalPaths.slice(0, 5)) {
+        console.log(`   ${chalk.yellow(path.reason)} (depth ${path.depth})`);
+        const pathStr = path.path.map((s: string) => chalk.cyan(s)).join(' → ');
+        console.log(`      ${pathStr}`);
+        console.log();
+      }
+    }
+
+    // Data exposure assessment
+    const dataExposure = identifyDataExposure(
+      blastResult.consumers,
+      blastResult.dependencies
+    );
+    if (dataExposure.length > 0) {
+      console.log(chalk.bold.red('💀 Data Exposure Risk:'));
+      console.log(
+        chalk.dim('   If this symbol is compromised, attackers may access:\n')
+      );
+      for (const exposure of dataExposure) {
+        console.log(`   • ${chalk.red(exposure)}`);
+      }
+      console.log();
+    }
+
+    // Generate recommendations
+    const recommendations = generateRecommendations(
+      relevantThreats,
+      blastResult
+    );
+    console.log(chalk.bold('🎯 Recommendations:'));
+    for (let i = 0; i < recommendations.length; i++) {
+      console.log(`   ${i + 1}. ${recommendations[i]}`);
+    }
+    console.log();
+
+    // Risk summary
+    const riskLevel =
+      relevantThreats.length > 0 && blastResult.metrics.totalImpacted > 10
+        ? 'HIGH'
+        : relevantThreats.length > 0 && blastResult.metrics.totalImpacted > 5
+          ? 'MEDIUM'
+          : 'LOW';
+
+    const riskColor =
+      riskLevel === 'HIGH'
+        ? chalk.red
+        : riskLevel === 'MEDIUM'
+          ? chalk.yellow
+          : chalk.green;
+
+    console.log(
+      riskColor(
+        `\n📈 Overall Risk Level: ${riskLevel} (${relevantThreats.length} threats × ${blastResult.metrics.totalImpacted} impacted symbols)`
+      )
+    );
+  } catch (error) {
+    if ((error as Error).message.includes('not found in graph')) {
+      console.error(
+        chalk.red(`\n❌ Symbol '${target}' not found in structural patterns.`)
+      );
+      console.log(
+        chalk.dim(
+          '\n💡 Make sure to run: cognition-cli overlay generate structural_patterns'
+        )
+      );
+    } else {
+      console.error(chalk.red('\n❌ Error analyzing security blast radius:'));
+      console.error((error as Error).message);
+      if (process.env.DEBUG) {
+        console.error(error);
+      }
+    }
+    process.exit(1);
+  }
 }
 
 /**

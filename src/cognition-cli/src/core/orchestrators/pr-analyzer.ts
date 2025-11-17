@@ -1,7 +1,7 @@
 /**
  * PR Impact Analyzer Orchestrator
  *
- * KILLER WORKFLOW: Combines O1+O2+O3+O4+O7 for comprehensive PR analysis
+ * SUPERB WORKFLOW: Combines O1+O2+O3+O4+O7 for comprehensive PR analysis
  *
  * This orchestrator answers the question:
  * "What is the full impact of this PR before merging?"
@@ -13,7 +13,7 @@
  * - O4 (Mission): Does it align with project goals?
  * - O7 (Coherence): Does it improve or hurt alignment?
  *
- * WHY THIS IS A KILLER WORKFLOW:
+ * WHY THIS IS A SUPERB WORKFLOW:
  * Individual overlays answer narrow questions:
  * - "What changed?" (O1)
  * - "Is it secure?" (O2)
@@ -45,7 +45,6 @@
  * console.log(`Mission alignment: ${analysis.missionAlignment.confidence}%`);
  */
 
-import path from 'path';
 import { PGCManager } from '../pgc/manager.js';
 import { GraphTraversal } from '../graph/traversal.js';
 import { StructuralPatternsManager } from '../overlays/structural-patterns/manager.js';
@@ -53,10 +52,6 @@ import { SecurityGuidelinesManager } from '../overlays/security-guidelines/manag
 import { MissionConceptsManager } from '../overlays/mission-concepts/manager.js';
 import { StrategicCoherenceManager } from '../overlays/strategic-coherence/manager.js';
 import { DirtyStateManager } from '../watcher/dirty-state.js';
-import type {
-  DirtyFile,
-  UntrackedFile,
-} from '../watcher/dirty-state-tracker.js';
 import { execa } from 'execa';
 
 /**
@@ -263,11 +258,11 @@ export class PRAnalyzer {
       const dirtyState = await this.dirtyState.read();
       const changed: Array<{ path: string; status: string }> = [];
 
-      for (const file of dirtyState.modified) {
+      for (const file of dirtyState.dirty_files) {
         changed.push({ path: file.path, status: 'M' });
       }
 
-      for (const file of dirtyState.untracked) {
+      for (const file of dirtyState.untracked_files) {
         changed.push({ path: file.path, status: 'A' });
       }
 
@@ -329,7 +324,6 @@ export class PRAnalyzer {
     changedFiles: Array<{ path: string; status: string }>
   ): Promise<SecurityReview> {
     const threats: SecurityReview['threats'] = [];
-    const allSecurityItems = await this.securityManager.getAllItems();
 
     // For each changed file, query O2 for relevant threats
     for (const file of changedFiles) {
@@ -392,10 +386,7 @@ export class PRAnalyzer {
         })),
       };
     } catch (error) {
-      console.warn(
-        'Error computing blast radius:',
-        (error as Error).message
-      );
+      console.warn('Error computing blast radius:', (error as Error).message);
       return {
         directConsumers: 0,
         transitiveImpact: 0,
@@ -417,7 +408,9 @@ export class PRAnalyzer {
         aligned: true,
         confidence: 50,
         matchingConcepts: [],
-        recommendations: ['Add mission documentation to enable alignment check'],
+        recommendations: [
+          'Add mission documentation to enable alignment check',
+        ],
       };
     }
 
@@ -479,7 +472,10 @@ export class PRAnalyzer {
 
     const estimatedCoherenceChange =
       changedSymbolCoherence.length > 0
-        ? changedSymbolCoherence.reduce((sum, s) => sum + s.overallCoherence, 0) /
+        ? changedSymbolCoherence.reduce(
+            (sum, s) => sum + s.overallCoherence,
+            0
+          ) /
             changedSymbolCoherence.length -
           before.averageCoherence
         : 0;
@@ -549,7 +545,9 @@ export class PRAnalyzer {
 
     // Coherence recommendations
     if (coherenceImpact.trend === 'DEGRADING') {
-      recommendations.push('Changes reduce code-mission coherence - consider refactoring');
+      recommendations.push(
+        'Changes reduce code-mission coherence - consider refactoring'
+      );
     } else if (coherenceImpact.trend === 'IMPROVING') {
       recommendations.push('Changes improve mission alignment - good work!');
     }
@@ -580,8 +578,9 @@ export class PRAnalyzer {
     const criticalThreats = security.threats.filter(
       (t) => t.severity === 'critical'
     ).length;
-    const highThreats = security.threats.filter((t) => t.severity === 'high')
-      .length;
+    const highThreats = security.threats.filter(
+      (t) => t.severity === 'high'
+    ).length;
     score += Math.min(40, criticalThreats * 20 + highThreats * 10);
 
     // Blast radius risk (0-30 points)

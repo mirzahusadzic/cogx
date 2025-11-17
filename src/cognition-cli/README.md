@@ -193,7 +193,7 @@ Project Lattice ∧ Conversation Lattice = Project Alignment Score
 
 **Result:** True stateful AI with infinite context. [Read more →](./src/tui/README.md)
 
-### 6. Cross-Overlay Workflows (Killer Features)
+### 6. Cross-Overlay Workflows (Superb Features)
 
 **NEW in v2.4.0:** Commands that combine multiple overlays for high-value developer insights.
 
@@ -213,6 +213,7 @@ cognition-cli pr-analyze --json > pr-analysis.json
 ```
 
 **Output includes:**
+
 - 📦 **Structural Changes (O₁):** Files, functions, modules changed
 - 🔒 **Security Review (O₂):** Threats, vulnerabilities, risk level
 - 💥 **Blast Radius (O₃):** Direct consumers, transitive impact, critical paths
@@ -222,6 +223,7 @@ cognition-cli pr-analyze --json > pr-analysis.json
 - ✅ **Mergeable:** Yes/No with risk score (0-100)
 
 **Use Cases:**
+
 - PR reviews before merge
 - CI/CD quality gates
 - Architecture impact assessment
@@ -243,6 +245,7 @@ cognition-cli security blast-radius src/auth.ts --json
 ```
 
 **Output includes:**
+
 - ⚠️ **Threats (O₂):** Security issues in the file (severity, type, CVEs)
 - 💥 **Blast Radius (O₃):** All consumers (direct + transitive)
 - 🔥 **Critical Security Paths:** High-risk dependency chains
@@ -250,6 +253,7 @@ cognition-cli security blast-radius src/auth.ts --json
 - 🎯 **Recommendations:** Prioritized remediation steps
 
 **Use Cases:**
+
 - Vulnerability triage (prioritize by blast radius)
 - Security code reviews
 - Incident response (understand attack surface)
@@ -259,22 +263,22 @@ cognition-cli security blast-radius src/auth.ts --json
 
 ## Command Reference
 
-| Command                                 | Description                                     | Key Operations                                        |
-| :-------------------------------------- | :---------------------------------------------- | :---------------------------------------------------- |
-| `cognition-cli init`                    | Initialize PGC structure                        | Create directories, metadata, .gitignore              |
-| `cognition-cli genesis [path]`          | Build code knowledge graph                      | AST parsing, hashing, transform logging               |
-| `cognition-cli genesis:docs [path]`     | Ingest documentation                            | Markdown parsing, concept extraction, mission overlay |
-| `cognition-cli watch`                   | **Monument 1**: Real-time file monitoring       | Hash-based change detection, dirty state tracking     |
-| `cognition-cli status`                  | **Monument 2**: Instant coherence check (<10ms) | Blast radius calculation, impact analysis             |
-| `cognition-cli update`                  | **Monument 3**: Incremental sync                | Process dirty files, oracle verification              |
-| `cognition-cli overlay generate <type>` | Generate analytical overlays                    | Symbol extraction, embeddings, vector storage         |
-| `cognition-cli patterns <command>`      | Structural pattern operations                   | find-similar, compare, analyze, inspect               |
-| `cognition-cli concepts <command>`      | Mission concept operations                      | list, search, align                                   |
-| `cognition-cli coherence <command>`     | Mission-code coherence                          | check, score, drift detection                         |
-| `cognition-cli security <command>`      | Security analysis                               | threats, coherence, guidelines                        |
-| `cognition-cli query <question>`        | Graph traversal                                 | Index lookup, dependency traversal                    |
-| `cognition-cli audit <command>`         | PGC integrity verification                      | Transform history, hash verification                  |
-| `cognition-cli tui`                     | **Interactive TUI with Σ system**               | Infinite context, dual-lattice, session lifecycle     |
+| Command                                 | Description                                     | Key Operations                                         |
+| :-------------------------------------- | :---------------------------------------------- | :----------------------------------------------------- |
+| `cognition-cli init`                    | Initialize PGC structure                        | Create directories, metadata, .gitignore               |
+| `cognition-cli genesis [path]`          | Build code knowledge graph                      | AST parsing, hashing, transform logging                |
+| `cognition-cli genesis:docs [path]`     | Ingest documentation                            | Markdown parsing, concept extraction, mission overlay  |
+| `cognition-cli watch`                   | **Monument 1**: Real-time file monitoring       | Hash-based change detection, dirty state tracking      |
+| `cognition-cli status`                  | **Monument 2**: Instant coherence check (<10ms) | Blast radius calculation, impact analysis              |
+| `cognition-cli update`                  | **Monument 3**: Incremental sync                | Process dirty files, oracle verification               |
+| `cognition-cli overlay generate <type>` | Generate analytical overlays                    | Symbol extraction, embeddings, vector storage          |
+| `cognition-cli patterns <command>`      | Structural pattern operations                   | find-similar, compare, analyze, inspect                |
+| `cognition-cli concepts <command>`      | Mission concept operations                      | list, search, align                                    |
+| `cognition-cli coherence <command>`     | Mission-code coherence                          | check, score, drift detection                          |
+| `cognition-cli security <command>`      | Security analysis                               | threats, coherence, guidelines                         |
+| `cognition-cli query <question>`        | Graph traversal                                 | Index lookup, dependency traversal                     |
+| `cognition-cli audit <command>`         | PGC integrity verification                      | Transform history, hash verification                   |
+| `cognition-cli tui`                     | **Interactive TUI with Σ system**               | Infinite context, dual-lattice, session lifecycle      |
 | `cognition-cli pr-analyze`              | **Cross-overlay PR analysis (O₁+O₂+O₃+O₄+O₇)**  | Impact assessment, risk scoring, merge recommendations |
 | `cognition-cli security blast-radius`   | **Security impact analysis (O₂+O₃)**            | Threat identification, cascading security impact       |
 

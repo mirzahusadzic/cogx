@@ -766,9 +766,7 @@ export class StrategicCoherenceManager {
    * - This threshold is data-driven (60th percentile), not hardcoded
    * - Returns ~40% of symbols (those above the threshold)
    */
-  async getAlignedSymbols(
-    minCoherence?: number
-  ): Promise<SymbolCoherence[]> {
+  async getAlignedSymbols(minCoherence?: number): Promise<SymbolCoherence[]> {
     const overlay = await this.retrieve();
 
     if (!overlay) {
@@ -792,9 +790,7 @@ export class StrategicCoherenceManager {
    * - This threshold is data-driven (60th percentile), not hardcoded
    * - Returns ~60% of symbols (those below the threshold)
    */
-  async getDriftedSymbols(
-    maxCoherence?: number
-  ): Promise<SymbolCoherence[]> {
+  async getDriftedSymbols(maxCoherence?: number): Promise<SymbolCoherence[]> {
     const overlay = await this.retrieve();
 
     if (!overlay) {
