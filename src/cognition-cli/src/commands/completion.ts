@@ -309,6 +309,11 @@ _cognition_cli_completions() {
       COMPREPLY=( $(compgen -W "bash zsh fish" -- \${cur}) )
       return 0
       ;;
+    tui)
+      # After tui command, suggest flags
+      COMPREPLY=( $(compgen -W "-p --project-root --session-id -f --file -w --workbench --session-tokens --max-thinking-tokens --debug -h --help" -- \${cur}) )
+      return 0
+      ;;
     overlay)
       COMPREPLY=( $(compgen -W "generate list" -- \${cur}) )
       return 0
@@ -349,8 +354,13 @@ _cognition_cli_completions() {
       return 0
       ;;
     -p|--project-root|-w|--workbench|--path)
-      # File/directory completion
+      # Directory completion
       COMPREPLY=( $(compgen -d -- \${cur}) )
+      return 0
+      ;;
+    -f|--file)
+      # File completion for .json files
+      COMPREPLY=( $(compgen -f -X '!*.json' -- \${cur}) )
       return 0
       ;;
   esac
@@ -423,6 +433,17 @@ _cognition_cli() {
       ;;
     args)
       case $words[1] in
+        tui)
+          _arguments \
+            {-p,--project-root}'[Project root directory]:directory:_directories' \
+            '--session-id[Session ID to resume]:session-id:' \
+            {-f,--file}'[Path to session state file]:state-file:_files -g "*.json"' \
+            {-w,--workbench}'[Workbench URL]:url:' \
+            '--session-tokens[Token threshold]:number:' \
+            '--max-thinking-tokens[Max thinking tokens]:number:' \
+            '--debug[Enable debug logging]' \
+            {-h,--help}'[Show help]'
+          ;;
         overlay)
           _arguments \
             '1:subcommand:(generate list)' \
@@ -515,6 +536,15 @@ complete -c cognition-cli -f -n "__fish_seen_subcommand_from workflow" -a "patte
 
 # Proofs subcommands
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from proofs" -a "theorems lemmas list aligned"
+
+# TUI options
+complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -s p -l project-root -d "Project root directory" -xa "(__fish_complete_directories)"
+complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l session-id -d "Session ID to resume"
+complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -s f -l file -d "Path to session state file" -xa "(ls *.json 2>/dev/null)"
+complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -s w -l workbench -d "Workbench URL"
+complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l session-tokens -d "Token threshold"
+complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l max-thinking-tokens -d "Max thinking tokens"
+complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l debug -d "Enable debug logging"
 
 # Completion subcommands
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from completion" -a "install uninstall"
