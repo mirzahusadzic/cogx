@@ -16,18 +16,21 @@ Focused release delivering cross-overlay killer workflows, comprehensive overlay
 #### Cross-Overlay Workflows (Monument 5.2)
 
 **PR Impact Analysis** - Comprehensive PR assessment combining all 5 overlays (O₁+O₂+O₃+O₄+O₇):
+
 - Command: `cognition-cli pr-analyze [--branch <name>] [--json]`
 - Analyzes structural changes, security threats, blast radius, mission alignment, and coherence impact
 - Outputs mergeable status, risk score (0-100), and actionable recommendations
 - Use cases: PR reviews, CI/CD gates, architecture reviews
 
 **Security Blast Radius** - Cascading security impact analysis (O₂+O₃):
+
 - Command: `cognition-cli security blast-radius <file|symbol> [--json]`
 - Shows security impact when code is compromised by combining threats and dependencies
 - Identifies critical security paths and data exposure risk
 - Use cases: vulnerability triage, security audits, incident response
 
 **New Claude Commands**:
+
 - `/pr-review` - Comprehensive PR impact analysis using pr-analyze command
 - `/security-blast-radius` - Security impact analysis using security blast-radius command
 - `/onboard-project` - Guides users through creating VISION.md, CODING_PRINCIPLES.md, SECURITY.md with pattern-optimized structure
@@ -35,6 +38,7 @@ Focused release delivering cross-overlay killer workflows, comprehensive overlay
 #### Python Body Dependencies Support
 
 **Enhanced Lineage Extraction**:
+
 - Process body_dependencies from Python AST (function/method body instantiations)
 - Captures Python class instantiations not in type annotations
 - Added `body_dependencies` to FunctionDataSchema (Zod schema)
@@ -62,22 +66,26 @@ Focused release delivering cross-overlay killer workflows, comprehensive overlay
 #### TUI Stability Fixes
 
 **React Infinite Loop on Mac** - Fixed crashes caused by unstable object references:
+
 - useOverlays: destructured options and added loading guards
 - useTurnAnalysis: memoized stats object to prevent recreation
 - useCompression: memoized shouldTrigger to avoid recomputation
 - Root cause: unstable object references in useEffect dependencies triggered on Mac due to faster I/O
 
 **Terminal Color Bleeding** - Eliminated color state corruption:
+
 - ClaudePanelAgent: removed inline ANSI codes, let Ink handle coloring via color prop
 - ToolFormatter: added explicit resets at end of diff and todo outputs
 - Mixing inline ANSI with Ink's `<Text color={...}>` was causing bleed-through
 
 **Infinite Loop on Missing API Key** - Fixed when WORKBENCH_API_KEY not set:
+
 - Mark failed analyses as processed to prevent infinite retries
 - Add user-facing warning when key is missing
 - Display warning as system message in TUI on initialization
 
 **OAuth Token Expiration Handling** - Enhanced error detection:
+
 - Expanded isAuthenticationError() to detect more patterns (case-insensitive)
 - Added global error handlers for unhandled rejections/exceptions
 - OAuth banner now shows consistently when tokens expire
@@ -85,12 +93,14 @@ Focused release delivering cross-overlay killer workflows, comprehensive overlay
 #### Coherence & Wizard Fixes
 
 **O₇ Coherence Calibration** - Fixed 99.7% symbols marked as "drifted":
+
 - PROBLEM: Hardcoded 0.7 threshold caused broken distribution
 - SOLUTION: Data-driven threshold using 60th percentile
 - RESULT: ~40% aligned, ~60% drifted (natural distribution)
 - Updated wizard and coherence report to use same dynamic thresholds
 
 **Wizard Messaging** - Improved clarity for conditional overlay generation:
+
 - Enhanced warning message stating O₄ and O₇ will be SKIPPED without docs
 - Shows "5 of 7 (O₄ and O₇ require docs)" instead of misleading "all"
 - Post-generation reminder about what was skipped and next steps
@@ -98,15 +108,18 @@ Focused release delivering cross-overlay killer workflows, comprehensive overlay
 #### Data Quality Fixes
 
 **Semantic Shadow Filtering** - Fixed duplicate display in patterns list:
+
 - Dual embedding architecture stores 2 vectors per symbol (structural + semantic)
 - Filter out vectors with `type='semantic'` metadata
 - Reduces display from 288 to 144 patterns (removes duplicate shadows)
 
 **Workbench Connection Errors** - Enhanced error messaging:
+
 - Now includes attempted URL, actual error, and configuration suggestions
 - Helps debug WORKBENCH_URL environment variable issues
 
 **Directory Filtering** - Fixed readdir withFileTypes option:
+
 - Handle test environments where Dirent.isFile() may not exist
 - Added fallback logic for compatibility
 
@@ -115,6 +128,7 @@ Focused release delivering cross-overlay killer workflows, comprehensive overlay
 #### Code Quality & Tooling
 
 **TypeScript/ESLint Upgrade** - Upgraded to @typescript-eslint v8:
+
 - @typescript-eslint/parser: 7.18.0 → 8.46.4
 - @typescript-eslint/eslint-plugin: 7.18.0 → 8.46.4
 - Fixed all 46 lint errors with proper error handling
@@ -123,12 +137,14 @@ Focused release delivering cross-overlay killer workflows, comprehensive overlay
 - All tests pass (546 tests), no deprecation warnings
 
 **Test Fixes**:
+
 - useCompression: fixed shouldTrigger memo invalidation with triggeredState
 - ToolFormatter: fixed empty todos list returning unnecessary ANSI codes
 
 #### Claude Code Integration
 
 **Rewritten Commands to be PGC-first**:
+
 - Commands now use cognition-cli commands and parse JSON output
 - NO source file reading - trust the PGC overlays
 - Clear grounding requirements with example JSON structures
@@ -141,6 +157,7 @@ Focused release delivering cross-overlay killer workflows, comprehensive overlay
 #### Comprehensive Overlay Analysis (119K tokens)
 
 **Complete deep analysis of all 7 overlays** (`docs/architecture/overlay-analysis/`):
+
 - Per-overlay assessment (implementation status, gaps, recommendations)
 - Cross-overlay integration map (5 working, 5 missing integrations)
 - 7 killer workflow specifications with realistic examples
@@ -149,6 +166,7 @@ Focused release delivering cross-overlay killer workflows, comprehensive overlay
 - Implementation specs for top 3 workflows (algorithms, queries, tests)
 
 **Key findings**:
+
 - O₁ Structural: 95/100 - Production ready
 - O₂ Security: 75/100 - Needs AST-based scanning
 - O₃ Lineage: 95/100 - Feature complete
@@ -158,11 +176,13 @@ Focused release delivering cross-overlay killer workflows, comprehensive overlay
 #### Developer Guides
 
 **ADDING_PATTERN_FIELDS.md** - Complete checklist for adding new fields:
+
 - Documents all 6 places that need updates (eGemma, Zod schema, lineage, graph, tests, rebuild)
 - Common pitfalls with debug commands
 - Lessons learned from body_dependencies implementation
 
 **LINEAGE_USAGE_ANALYSIS.md** - Analysis of lineage_patterns (O₃) usage:
+
 - Where lineage is actually used vs expected
 - Two dependency tracking systems comparison
 - Recommendations for consolidation
@@ -170,6 +190,7 @@ Focused release delivering cross-overlay killer workflows, comprehensive overlay
 #### Audit Prompts
 
 **Added 11 audit prompt templates** for web workers:
+
 - ADR (Architecture Decision Records)
 - Dependency Health & Security Analysis
 - Lattice Book Documentation Audit
@@ -181,6 +202,7 @@ Focused release delivering cross-overlay killer workflows, comprehensive overlay
 - cPOW Implementation
 
 **Fixed markdown linting**:
+
 - Added top-level headings (MD041)
 - Converted duplicate H1 to H2 (MD025)
 - Wrapped bare URLs (MD034)
@@ -211,10 +233,12 @@ Focused release delivering cross-overlay killer workflows, comprehensive overlay
 **No Breaking Changes** - All changes backward compatible.
 
 **New Commands Available**:
+
 - `cognition-cli pr-analyze` - Comprehensive PR impact analysis
 - `cognition-cli security blast-radius <target>` - Security impact analysis
 
 **Recommended Actions**:
+
 1. Review new cross-overlay workflows for PR review automation
 2. Add `/pr-review` and `/security-blast-radius` Claude commands to your workflow
 3. Use `genesis:docs` with multiple files for batch documentation ingestion
