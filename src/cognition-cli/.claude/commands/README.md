@@ -4,6 +4,10 @@ These commands integrate cognition-cli's lattice algebra system with Claude Code
 
 ## Available Commands
 
+### Project Setup
+
+- **`/onboard-project`** - Create strategic documentation for new project (VISION.md, CODING_PRINCIPLES.md)
+
 ### Quest Management
 
 - **`/quest-start [description]`** - Initialize new quest with baseline context
