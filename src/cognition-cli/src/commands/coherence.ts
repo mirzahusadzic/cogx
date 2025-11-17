@@ -13,12 +13,12 @@
  *
  * COMMANDS:
  * - coherence report: Dashboard with overall metrics and thresholds
- * - coherence aligned: List symbols meeting alignment threshold (default >= 0.7)
+ * - coherence aligned: List symbols meeting alignment threshold (default >= 60th percentile)
  * - coherence drifted: List symbols in bottom quartile (high risk)
  * - coherence list: All symbols with coherence scores
  *
- * THRESHOLDS:
- * - Alignment: >= 0.7 (configurable per overlay metadata)
+ * THRESHOLDS (Data-Driven):
+ * - Alignment: >= 60th percentile (~top 40% of symbols)
  * - Drift: <= bottom_quartile_coherence (bottom 25% of distribution)
  *
  * @example
@@ -257,7 +257,7 @@ export function addCoherenceCommands(program: Command) {
         );
         console.log(
           chalk.white(
-            `    Alignment threshold:     ${chalk.dim('≥ ' + thresholdPct + '%')}`
+            `    Alignment threshold:     ${chalk.dim('≥ ' + thresholdPct + '%')} ${chalk.dim('(60th percentile)')}`
           )
         );
         console.log(
@@ -314,8 +314,7 @@ export function addCoherenceCommands(program: Command) {
     .option('-p, --project-root <path>', 'The root of the project.', '.')
     .option(
       '--min-score <score>',
-      'Minimum coherence score (default: 0.7)',
-      '0.7'
+      'Minimum coherence score (default: overlay alignment threshold)'
     )
     .option(
       '-f, --format <format>',
@@ -347,10 +346,29 @@ export function addCoherenceCommands(program: Command) {
           'O7'
         )) as unknown as CoherenceAlgebraAdapter;
 
+        // Get overlay to access alignment threshold
+        const { StrategicCoherenceManager } = await import(
+          '../core/overlays/strategic-coherence/manager.js'
+        );
+        const manager = new StrategicCoherenceManager(pgcRoot);
+        const overlay = await manager.retrieve();
+
+        if (!overlay) {
+          console.error(
+            chalk.red(
+              '\n✗ No strategic coherence overlay found. Run "cognition-cli overlay generate strategic_coherence" first.\n'
+            )
+          );
+          process.exit(1);
+        }
+
         // Sort by coherence score (descending)
         const sortedItems = await coherenceAdapter.getItemsByCoherence(true);
 
-        const minScore = parseFloat(options.minScore);
+        // Use overlay's alignment threshold as default
+        const minScore = options.minScore
+          ? parseFloat(options.minScore)
+          : overlay.overall_metrics.high_alignment_threshold;
         const filtered = sortedItems.filter(
           (item) => item.metadata.overallCoherence >= minScore
         );

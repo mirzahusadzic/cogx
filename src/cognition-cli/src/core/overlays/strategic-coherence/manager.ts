@@ -382,21 +382,19 @@ export class StrategicCoherenceManager {
         : 0;
     const stdDeviation = Math.sqrt(variance);
 
-    // DATA-DRIVEN THRESHOLD (Monument 5.2 - Calibration Fix)
-    // Instead of hardcoded 0.7, use a threshold derived from the actual distribution
-    // This ensures ~60% aligned, ~40% drifted regardless of absolute score range
+    // DATA-DRIVEN THRESHOLDS (Monument 5.2 - Calibration Fix)
+    // Instead of hardcoded 0.7, use thresholds derived from actual distribution
+    // This ensures consistent splits regardless of absolute score range
     //
-    // Strategy: Use 60th percentile as threshold
-    // - Below median (50th): definitely drifted
-    // - Above 60th percentile: aligned
-    // - Between 50-60th: transitional zone (counted as drifted)
+    // - Alignment threshold: 60th percentile (~40% of symbols aligned)
+    // - Drift threshold: Bottom 25% (lowest performers)
     const highAlignmentThreshold = this.computePercentile(sortedScores, 60);
 
     const alignedSymbols = symbolCoherenceList.filter(
       (s) => s.overallCoherence >= highAlignmentThreshold
     );
     const driftedSymbols = symbolCoherenceList.filter(
-      (s) => s.overallCoherence < highAlignmentThreshold
+      (s) => s.overallCoherence <= bottomQuartile
     );
 
     // Compute weighted average (centrality-based)
@@ -635,15 +633,19 @@ export class StrategicCoherenceManager {
         : 0;
     const stdDeviation = Math.sqrt(variance);
 
-    // DATA-DRIVEN THRESHOLD (Monument 5.2 - Calibration Fix)
-    // Use 60th percentile as threshold for consistent ~60/40 split
+    // DATA-DRIVEN THRESHOLDS (Monument 5.2 - Calibration Fix)
+    // Instead of hardcoded 0.7, use thresholds derived from actual distribution
+    // This ensures consistent splits regardless of absolute score range
+    //
+    // - Alignment threshold: 60th percentile (~40% of symbols aligned)
+    // - Drift threshold: Bottom 25% (lowest performers)
     const highAlignmentThreshold = this.computePercentile(sortedScores, 60);
 
     const alignedSymbols = symbolCoherenceList.filter(
       (s) => s.overallCoherence >= highAlignmentThreshold
     );
     const driftedSymbols = symbolCoherenceList.filter(
-      (s) => s.overallCoherence < highAlignmentThreshold
+      (s) => s.overallCoherence <= bottomQuartile
     );
 
     // Compute weighted and distribution metrics
@@ -672,7 +674,7 @@ export class StrategicCoherenceManager {
         std_deviation: stdDeviation,
         top_quartile_coherence: topQuartile,
         bottom_quartile_coherence: bottomQuartile,
-        high_alignment_threshold: 0.7,
+        high_alignment_threshold: highAlignmentThreshold,
         aligned_symbols_count: alignedSymbols.length,
         drifted_symbols_count: driftedSymbols.length,
         total_symbols: symbolCoherenceList.length,
