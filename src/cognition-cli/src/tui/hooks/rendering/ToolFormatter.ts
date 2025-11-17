@@ -269,8 +269,9 @@ function formatEditDiff(
       lines.forEach((line) => {
         if (line) {
           // \x1b[48;5;58m = dark olive background, \x1b[97m = bright white text
+          // \x1b[49m explicitly resets background to prevent bleed
           diffLines.push(
-            `  \x1b[32m+\x1b[0m \x1b[48;5;58m\x1b[97m${line}\x1b[0m`
+            `  \x1b[32m+\x1b[0m \x1b[48;5;58m\x1b[97m${line}\x1b[0m\x1b[49m`
           );
         }
       });
@@ -279,8 +280,9 @@ function formatEditDiff(
       lines.forEach((line) => {
         if (line) {
           // \x1b[48;5;52m = dark red background, \x1b[97m = bright white text
+          // \x1b[49m explicitly resets background to prevent bleed
           diffLines.push(
-            `  \x1b[31m-\x1b[0m \x1b[48;5;52m\x1b[97m${line}\x1b[0m`
+            `  \x1b[31m-\x1b[0m \x1b[48;5;52m\x1b[97m${line}\x1b[0m\x1b[49m`
           );
         }
       });
@@ -294,7 +296,10 @@ function formatEditDiff(
     }
   });
 
-  return diffLines.join('\n');
+  // Ensure final reset to prevent color bleeding to subsequent messages
+  // Use \x1b[49m (bg reset) + \x1b[39m (fg reset) instead of \x1b[0m (full reset)
+  // to avoid clearing Ink's color codes when rendered in <Text color={...}>
+  return diffLines.join('\n') + '\x1b[49m\x1b[39m';
 }
 
 /**
@@ -362,10 +367,13 @@ function formatTodoWrite(
 
     const displayText =
       todo.status === 'in_progress' ? todo.activeForm : todo.content;
-    todoLines.push(`  ${statusColor}${statusIcon}\x1b[0m ${displayText}`);
+    // Use \x1b[39m (fg reset only) instead of \x1b[0m to avoid clearing Ink's codes
+    todoLines.push(`  ${statusColor}${statusIcon}\x1b[39m ${displayText}`);
   });
 
-  return '\n' + todoLines.join('\n');
+  // Ensure final reset to prevent color bleeding
+  // Use \x1b[39m (fg reset only) instead of \x1b[0m to avoid clearing Ink's codes
+  return '\n' + todoLines.join('\n') + '\x1b[39m';
 }
 
 /**

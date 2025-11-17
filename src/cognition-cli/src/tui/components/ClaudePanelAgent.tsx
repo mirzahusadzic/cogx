@@ -35,9 +35,12 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   const allLines = useMemo(() => {
     const lines: Array<{ text: string; color: string }> = [];
 
-    // Helper to convert markdown bold (**text**) to electric cyan/green ANSI codes
+    // Helper to strip markdown bold (**text**) markers
+    // Let Ink handle all coloring to avoid ANSI/Ink conflicts that cause bleeding
+    // Tool messages (Edit diffs, etc.) have their own ANSI codes in the content itself
     const processBold = (text: string): string => {
-      return text.replace(/\*\*([^*]+)\*\*/g, '\x1b[38;2;46;181;114m$1\x1b[0m');
+      // Simply remove ** markers and let Ink's color prop handle coloring
+      return text.replace(/\*\*/g, '');
     };
 
     messages.forEach((msg) => {
@@ -66,11 +69,11 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
           // Format: "🔧 ToolName: command/details"
           const toolMatch = msg.content.match(/^(🔧\s+\S+:)\s*(.*)$/);
           if (toolMatch && !msg.content.includes('🔧 Edit:')) {
-            // Tool name in amber-orange, details in muted gray (with bold processing)
+            // Tool name in amber-orange, details rendered by Ink (no inline ANSI)
             const toolName = toolMatch[1];
             const details = processBold(toolMatch[2]);
             lines.push({
-              text: `${prefix}${toolName} \x1b[38;2;138;145;153m${details}\x1b[0m`,
+              text: `${prefix}${toolName} ${details}`,
               color,
             });
             lines.push({ text: '', color }); // Empty line between messages
@@ -83,7 +86,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       // Split content into lines and store with color
       const contentLines = (prefix + msg.content).split('\n');
       contentLines.forEach((line) => {
-        // Process markdown bold syntax
+        // Process markdown bold syntax (adds resets only if colors were added)
         const processedLine = processBold(line);
         lines.push({ text: processedLine, color });
       });
