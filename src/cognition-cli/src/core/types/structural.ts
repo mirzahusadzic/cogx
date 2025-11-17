@@ -162,6 +162,12 @@ export const FunctionDataSchema = z.object({
   returns: z.string(),
   is_async: z.boolean(),
   decorators: z.array(z.string()),
+  body_dependencies: z
+    .object({
+      instantiations: z.array(z.string()),
+      method_calls: z.array(z.tuple([z.string(), z.string()])),
+    })
+    .optional(), // Python functions have this, TypeScript does not
 });
 
 /**
