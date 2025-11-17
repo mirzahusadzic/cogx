@@ -670,6 +670,20 @@ securityCmd
     );
   });
 
+securityCmd
+  .command('audit')
+  .description(
+    '📋 Generate comprehensive security audit report (O2 + O3 + O5)'
+  )
+  .option('-p, --project-root <path>', 'Project root directory', process.cwd())
+  .option('-o, --output <file>', 'Output file path (markdown format)')
+  .option('--json', 'Output as JSON')
+  .action(async (options) => {
+    const { PGCManager } = await import('./core/pgc/manager.js');
+    const { securityAudit } = await import('./commands/security-audit.js');
+    await securityAudit(options, PGCManager);
+  });
+
 // Workflow commands
 const workflowCmd = program
   .command('workflow')
@@ -741,6 +755,64 @@ workflowCmd
       './commands/sugar/workflow.js'
     );
     await workflowDepthRulesCommand(options);
+  });
+
+// Mission commands
+const missionCmd = program
+  .command('mission')
+  .description('Mission alignment analysis commands');
+
+missionCmd
+  .command('check <feature>')
+  .description(
+    '🎯 Analyze feature alignment with mission principles (O1 + O4 + O7)'
+  )
+  .option('-p, --project-root <path>', 'Project root directory', process.cwd())
+  .option('--json', 'Output as JSON')
+  .option('-v, --verbose', 'Show detailed error messages', false)
+  .action(async (feature, options) => {
+    const { PGCManager } = await import('./core/pgc/manager.js');
+    const { missionCheck } = await import('./commands/mission-check.js');
+    await missionCheck(feature, options, PGCManager);
+  });
+
+// Dependency commands
+const depsCmd = program
+  .command('deps')
+  .description('Dependency health and analysis commands');
+
+depsCmd
+  .command('health')
+  .description(
+    '🏥 Analyze dependency graph health (O3 + O5)'
+  )
+  .option('-p, --project-root <path>', 'Project root directory', process.cwd())
+  .option('--show-circular', 'Show all circular dependencies', false)
+  .option('--json', 'Output as JSON')
+  .option('-v, --verbose', 'Show detailed error messages', false)
+  .action(async (options) => {
+    const { PGCManager } = await import('./core/pgc/manager.js');
+    const { depsHealth } = await import('./commands/deps-health.js');
+    await depsHealth(options, PGCManager);
+  });
+
+// Architecture commands
+const archCmd = program
+  .command('arch')
+  .description('Architecture analysis and drift detection commands');
+
+archCmd
+  .command('drift')
+  .description(
+    '🏗️  Analyze architectural drift and pattern violations (O1 + O4 + O7)'
+  )
+  .option('-p, --project-root <path>', 'Project root directory', process.cwd())
+  .option('--json', 'Output as JSON')
+  .option('-v, --verbose', 'Show detailed error messages', false)
+  .action(async (options) => {
+    const { PGCManager } = await import('./core/pgc/manager.js');
+    const { archDrift } = await import('./commands/arch-drift.js');
+    await archDrift(options, PGCManager);
   });
 
 // Proofs commands
