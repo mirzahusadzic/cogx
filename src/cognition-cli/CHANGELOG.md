@@ -5,6 +5,222 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1] - 2025-11-17
+
+### Summary
+
+Focused release delivering cross-overlay killer workflows, comprehensive overlay analysis documentation, Python body dependency tracking, and critical UI/UX fixes. This release implements Monument 5.2 (Cross-Overlay Workflows) with PR Impact Analysis and Security Blast Radius commands, adds extensive developer documentation, and resolves several stability issues in the TUI.
+
+### ✨ New Features
+
+#### Cross-Overlay Workflows (Monument 5.2)
+
+**PR Impact Analysis** - Comprehensive PR assessment combining all 5 overlays (O₁+O₂+O₃+O₄+O₇):
+- Command: `cognition-cli pr-analyze [--branch <name>] [--json]`
+- Analyzes structural changes, security threats, blast radius, mission alignment, and coherence impact
+- Outputs mergeable status, risk score (0-100), and actionable recommendations
+- Use cases: PR reviews, CI/CD gates, architecture reviews
+
+**Security Blast Radius** - Cascading security impact analysis (O₂+O₃):
+- Command: `cognition-cli security blast-radius <file|symbol> [--json]`
+- Shows security impact when code is compromised by combining threats and dependencies
+- Identifies critical security paths and data exposure risk
+- Use cases: vulnerability triage, security audits, incident response
+
+**New Claude Commands**:
+- `/pr-review` - Comprehensive PR impact analysis using pr-analyze command
+- `/security-blast-radius` - Security impact analysis using security blast-radius command
+- `/onboard-project` - Guides users through creating VISION.md, CODING_PRINCIPLES.md, SECURITY.md with pattern-optimized structure
+
+#### Python Body Dependencies Support
+
+**Enhanced Lineage Extraction**:
+- Process body_dependencies from Python AST (function/method body instantiations)
+- Captures Python class instantiations not in type annotations
+- Added `body_dependencies` to FunctionDataSchema (Zod schema)
+- Blast-radius graph traversal now includes body instantiations
+- Comprehensive test coverage for Python body dependencies
+
+#### Multiple Files Support in genesis:docs
+
+- Changed from single `[path]` to `[paths...]` parameter
+- Examples:
+  - Single file: `genesis:docs VISION.md`
+  - Multiple files: `genesis:docs VISION.md ARCHITECTURE.md README.md`
+  - Directory: `genesis:docs docs/`
+  - Mixed: `genesis:docs VISION.md docs/strategic/ README.md`
+
+#### Shell Completion Enhancements
+
+- Added `tui` command to completions
+- Added missing subcommands: `coherence report/aligned/drifted/list`, `patterns list/graph`, `concepts by-section/inspect/top`
+- Added new commands: `pr-analyze`, `security blast-radius`, `genesis:docs`, `audit:transformations`, `audit:docs`, `migrate:lance`
+- Improved zsh completion with oh-my-zsh auto-detect and proper file installation
+
+### 🐛 Bug Fixes
+
+#### TUI Stability Fixes
+
+**React Infinite Loop on Mac** - Fixed crashes caused by unstable object references:
+- useOverlays: destructured options and added loading guards
+- useTurnAnalysis: memoized stats object to prevent recreation
+- useCompression: memoized shouldTrigger to avoid recomputation
+- Root cause: unstable object references in useEffect dependencies triggered on Mac due to faster I/O
+
+**Terminal Color Bleeding** - Eliminated color state corruption:
+- ClaudePanelAgent: removed inline ANSI codes, let Ink handle coloring via color prop
+- ToolFormatter: added explicit resets at end of diff and todo outputs
+- Mixing inline ANSI with Ink's `<Text color={...}>` was causing bleed-through
+
+**Infinite Loop on Missing API Key** - Fixed when WORKBENCH_API_KEY not set:
+- Mark failed analyses as processed to prevent infinite retries
+- Add user-facing warning when key is missing
+- Display warning as system message in TUI on initialization
+
+**OAuth Token Expiration Handling** - Enhanced error detection:
+- Expanded isAuthenticationError() to detect more patterns (case-insensitive)
+- Added global error handlers for unhandled rejections/exceptions
+- OAuth banner now shows consistently when tokens expire
+
+#### Coherence & Wizard Fixes
+
+**O₇ Coherence Calibration** - Fixed 99.7% symbols marked as "drifted":
+- PROBLEM: Hardcoded 0.7 threshold caused broken distribution
+- SOLUTION: Data-driven threshold using 60th percentile
+- RESULT: ~40% aligned, ~60% drifted (natural distribution)
+- Updated wizard and coherence report to use same dynamic thresholds
+
+**Wizard Messaging** - Improved clarity for conditional overlay generation:
+- Enhanced warning message stating O₄ and O₇ will be SKIPPED without docs
+- Shows "5 of 7 (O₄ and O₇ require docs)" instead of misleading "all"
+- Post-generation reminder about what was skipped and next steps
+
+#### Data Quality Fixes
+
+**Semantic Shadow Filtering** - Fixed duplicate display in patterns list:
+- Dual embedding architecture stores 2 vectors per symbol (structural + semantic)
+- Filter out vectors with `type='semantic'` metadata
+- Reduces display from 288 to 144 patterns (removes duplicate shadows)
+
+**Workbench Connection Errors** - Enhanced error messaging:
+- Now includes attempted URL, actual error, and configuration suggestions
+- Helps debug WORKBENCH_URL environment variable issues
+
+**Directory Filtering** - Fixed readdir withFileTypes option:
+- Handle test environments where Dirent.isFile() may not exist
+- Added fallback logic for compatibility
+
+### 🔧 Technical Improvements
+
+#### Code Quality & Tooling
+
+**TypeScript/ESLint Upgrade** - Upgraded to @typescript-eslint v8:
+- @typescript-eslint/parser: 7.18.0 → 8.46.4
+- @typescript-eslint/eslint-plugin: 7.18.0 → 8.46.4
+- Fixed all 46 lint errors with proper error handling
+- Fixed 38 @typescript-eslint/no-unused-vars errors
+- Fixed 8 @typescript-eslint/no-empty-object-type errors
+- All tests pass (546 tests), no deprecation warnings
+
+**Test Fixes**:
+- useCompression: fixed shouldTrigger memo invalidation with triggeredState
+- ToolFormatter: fixed empty todos list returning unnecessary ANSI codes
+
+#### Claude Code Integration
+
+**Rewritten Commands to be PGC-first**:
+- Commands now use cognition-cli commands and parse JSON output
+- NO source file reading - trust the PGC overlays
+- Clear grounding requirements with example JSON structures
+- Report templates showing how to format PGC data
+
+**Query Command Syntax** - Fixed syntax in /ask Claude command
+
+### 📚 Documentation
+
+#### Comprehensive Overlay Analysis (119K tokens)
+
+**Complete deep analysis of all 7 overlays** (`docs/architecture/overlay-analysis/`):
+- Per-overlay assessment (implementation status, gaps, recommendations)
+- Cross-overlay integration map (5 working, 5 missing integrations)
+- 7 killer workflow specifications with realistic examples
+- Gap analysis (data, query, tooling, architecture)
+- 12-week utilization roadmap (20% → 80%)
+- Implementation specs for top 3 workflows (algorithms, queries, tests)
+
+**Key findings**:
+- O₁ Structural: 95/100 - Production ready
+- O₂ Security: 75/100 - Needs AST-based scanning
+- O₃ Lineage: 95/100 - Feature complete
+- O₄/O₅/O₆: Frameworks ready, need content population
+- O₇ Coherence: 85/100 - Fully operational
+
+#### Developer Guides
+
+**ADDING_PATTERN_FIELDS.md** - Complete checklist for adding new fields:
+- Documents all 6 places that need updates (eGemma, Zod schema, lineage, graph, tests, rebuild)
+- Common pitfalls with debug commands
+- Lessons learned from body_dependencies implementation
+
+**LINEAGE_USAGE_ANALYSIS.md** - Analysis of lineage_patterns (O₃) usage:
+- Where lineage is actually used vs expected
+- Two dependency tracking systems comparison
+- Recommendations for consolidation
+
+#### Audit Prompts
+
+**Added 11 audit prompt templates** for web workers:
+- ADR (Architecture Decision Records)
+- Dependency Health & Security Analysis
+- Lattice Book Documentation Audit
+- DX (Developer Experience) Audit
+- Integration & Ecosystem Analysis
+- Error Handling & Recovery
+- Test Coverage Gap Analysis
+- TUI Enhancements & Bugs
+- cPOW Implementation
+
+**Fixed markdown linting**:
+- Added top-level headings (MD041)
+- Converted duplicate H1 to H2 (MD025)
+- Wrapped bare URLs (MD034)
+
+### 🧪 Testing
+
+- Fixed useCompression and ToolFormatter test failures
+- All 546 tests passing
+- Added tests for Python body_dependencies in lineage extraction
+
+### 🛠️ Chores
+
+- Updated package-lock.json dependencies (peer flags, scheduler, prop-types, etc.)
+- Bumped version to 2.4.1 in package.json and src/cli.ts
+- Updated comprehensive analysis document to v2.4.0
+- Improved embedding rate limit: 5 → 10 calls per 10s window
+
+### 📊 Statistics
+
+- **Commits**: 36 since v2.4.0
+- **Documentation**: 119K token overlay analysis, 2 developer guides, 11 audit prompts
+- **Architecture**: Monument 5.2 (Cross-Overlay Workflows) implemented
+- **Test Coverage**: 546 tests, all passing
+- **Code Quality**: TypeScript/ESLint v8 upgrade, all lint errors fixed
+
+### 🎯 Migration Notes
+
+**No Breaking Changes** - All changes backward compatible.
+
+**New Commands Available**:
+- `cognition-cli pr-analyze` - Comprehensive PR impact analysis
+- `cognition-cli security blast-radius <target>` - Security impact analysis
+
+**Recommended Actions**:
+1. Review new cross-overlay workflows for PR review automation
+2. Add `/pr-review` and `/security-blast-radius` Claude commands to your workflow
+3. Use `genesis:docs` with multiple files for batch documentation ingestion
+
+---
+
 ## [2.4.0] - 2025-11-16
 
 ### Summary

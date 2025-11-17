@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD051 -->
+
 # Deep Overlay Analysis & Workflow Design for Cognition Σ
 
 **Generated**: 2025-11-17
@@ -56,24 +58,24 @@ Cognition Σ has **all 7 overlays implemented** with robust frameworks and excel
 ## Table of Contents
 
 1. [Per-Overlay Analysis](#per-overlay-analysis)
-   - [O₁ Structural Overlay](#o1-structural-overlay)
-   - [O₂ Security Overlay](#o2-security-overlay)
-   - [O₃ Lineage Overlay](#o3-lineage-overlay)
-   - [O₄ Mission Overlay](#o4-mission-overlay)
-   - [O₅ Operational Overlay](#o5-operational-overlay)
-   - [O₆ Mathematical Overlay](#o6-mathematical-overlay)
-   - [O₇ Coherence Overlay](#o7-coherence-overlay)
+   - [O₁ Structural Overlay](#o-structural-overlay)
+   - [O₂ Security Overlay](#o-security-overlay)
+   - [O₃ Lineage Overlay](#o-lineage-overlay)
+   - [O₄ Mission Overlay](#o-mission-overlay)
+   - [O₅ Operational Overlay](#o-operational-overlay)
+   - [O₆ Mathematical Overlay](#o-mathematical-overlay)
+   - [O₇ Coherence Overlay](#o-coherence-overlay)
 
 2. [Cross-Overlay Integration Map](#cross-overlay-integration-map)
 
 3. [7 Killer Workflow Specifications](#7-killer-workflow-specifications)
-   - [#1: PR Impact Analysis](#workflow-1-pr-impact-analysis)
-   - [#2: Security Audit Report](#workflow-2-security-audit-report)
-   - [#3: Refactoring Opportunity Detection](#workflow-3-refactoring-opportunity-detection)
-   - [#4: Feature-Mission Alignment Check](#workflow-4-feature-mission-alignment-check)
-   - [#5: Dependency Health Analysis](#workflow-5-dependency-health-analysis)
-   - [#6: Performance Regression Risk](#workflow-6-performance-regression-risk)
-   - [#7: Architectural Drift Report](#workflow-7-architectural-drift-report)
+   - [#1: PR Impact Analysis](#workflow-1-pr-impact-analysis-)
+   - [#2: Security Audit Report](#workflow-2-security-audit-report-)
+   - [#3: Refactoring Opportunity Detection](#workflow-3-refactoring-opportunity-detection-)
+   - [#4: Feature-Mission Alignment Check](#workflow-4-feature-mission-alignment-check-)
+   - [#5: Dependency Health Analysis](#workflow-5-dependency-health-analysis-)
+   - [#6: Performance Regression Risk](#workflow-6-performance-regression-risk-)
+   - [#7: Architectural Drift Report](#workflow-7-architectural-drift-report-)
 
 4. [Gap Analysis](#gap-analysis)
    - [Data Gaps](#data-gaps)
@@ -82,14 +84,14 @@ Cognition Σ has **all 7 overlays implemented** with robust frameworks and excel
    - [Architecture Gaps](#architecture-gaps)
 
 5. [Utilization Roadmap (20% → 80%)](#utilization-roadmap)
-   - [Phase 1: Quick Wins (Weeks 1-2)](#phase-1-quick-wins)
-   - [Phase 2: Core Workflows (Weeks 3-6)](#phase-2-core-workflows)
-   - [Phase 3: Advanced Capabilities (Weeks 7-12)](#phase-3-advanced-capabilities)
+   - [Phase 1: Quick Wins (Weeks 1-2) → 35% Utilization](#phase-1-quick-wins-weeks-1-2--35-utilization)
+   - [Phase 2: Core Workflows (Weeks 3-6) → 60% Utilization](#phase-2-core-workflows-weeks-3-6--60-utilization)
+   - [Phase 3: Advanced Capabilities (Weeks 7-12) → 80%+ Utilization](#phase-3-advanced-capabilities-weeks-7-12--80-utilization)
 
 6. [Implementation Specs (Top 3 Workflows)](#implementation-specs)
-   - [PR Impact Analysis](#1-pr-impact-analysis)
-   - [Security Audit Report](#2-security-audit-report)
-   - [Feature-Mission Alignment Check](#3-feature-mission-alignment-check)
+   - [#1: PR Impact Analysis](#1-pr-impact-analysis)
+   - [#2: Security Audit Report](#2-security-audit-report)
+   - [#3: Feature-Mission Alignment Check](#3-feature-mission-alignment-check)
 
 ---
 
