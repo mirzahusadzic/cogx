@@ -76,8 +76,10 @@ export class Index {
     if (!(await fs.pathExists(this.indexPath))) {
       return [];
     }
-    const indexFiles = await fs.readdir(this.indexPath);
-    return indexFiles.map((file) => file.replace('.json', ''));
+    const entries = await fs.readdir(this.indexPath, { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
+      .map((file) => file.name.replace('.json', ''));
   }
 
   /**
@@ -88,7 +90,10 @@ export class Index {
     if (!(await fs.pathExists(this.indexPath))) {
       return [];
     }
-    const indexFiles = await fs.readdir(this.indexPath);
+    const entries = await fs.readdir(this.indexPath, { withFileTypes: true });
+    const indexFiles = entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
+      .map((entry) => entry.name);
 
     // Parallel read with validation
     const dataResults = await Promise.all(
