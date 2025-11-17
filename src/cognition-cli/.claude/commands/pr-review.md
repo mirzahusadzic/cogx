@@ -1,188 +1,352 @@
-# PR Review
+# PR Review - Comprehensive Impact Analysis
 
-Perform comprehensive PR impact analysis across all 7 overlays (O₁+O₂+O₃+O₄+O₇).
+When the user asks for PR review or impact analysis, use the PGC pr-analyze command which combines all overlays: O₁ (Structure) + O₂ (Security) + O₃ (Blast Radius) + O₄ (Mission) + O₇ (Coherence).
 
-## Your Task
+## Analysis Steps
 
-1. **Analyze structural changes** - What code changed? (O₁)
-2. **Check security threats** - Any new attack vectors? (O₂)
-3. **Calculate blast radius** - What depends on these changes? (O₃)
-4. **Verify mission alignment** - Does it serve the mission? (O₄)
-5. **Assess coherence impact** - Will this improve or hurt alignment? (O₇)
-6. **Make merge recommendation** - Should this PR be merged?
+**IMPORTANT**: Use the `cognition-cli pr-analyze` command which automatically analyzes across all overlays.
 
-## Commands to Run
+### Step 1: Check Git Status (Optional Context)
+
+Optionally check what changed:
 
 ```bash
-# Full PR impact analysis (recommended)
-cognition-cli pr-analyze
-
-# Analyze specific branch
-cognition-cli pr-analyze --branch feature/auth-refactor
-
-# Get JSON output for CI/CD
-cognition-cli pr-analyze --json
-
-# Check current git status
 git status
 git diff --stat main
 ```
 
-## PR Impact Analysis
+### Step 2: Run PR Analysis
 
-**Branch**: [branch-name]
-**Files Changed**: [count]
-**Risk Score**: [0-100]
+Run the comprehensive PR analysis:
 
-### 📦 Structural Changes (O₁)
+```bash
+cognition-cli pr-analyze --json
+```
 
-**Symbols Modified**:
-[List classes/functions changed]
+For specific branch:
 
-**Symbols Added**:
-[List new classes/functions]
+```bash
+cognition-cli pr-analyze --branch feature/your-branch --json
+```
 
-**Symbols Removed**:
-[List deleted classes/functions]
+This command outputs:
 
-**Architectural Impact**:
+- `structural_changes`: Modified/added/removed symbols from O₁
+- `security_threats`: Applicable vulnerabilities from O₂
+- `blast_radius`: Dependency impact from O₃
+- `mission_alignment`: Related concepts from O₄
+- `coherence_impact`: Alignment changes from O₇
+- `risk_score`: Combined 0-100 risk assessment
+- `recommendation`: APPROVE / APPROVE_WITH_CONDITIONS / REQUEST_CHANGES
 
-- ✅ Clean refactor / No major structural changes
-- ⚠️ [Describe architectural concerns]
-- ❌ [Critical structural issues]
+### Step 3: Parse and Enhance Output
 
-### 🔒 Security Threats (O₂)
+Take the JSON and expand into comprehensive PR review.
 
-**Applicable Threats**: [count]
+## Report Structure
 
-[List security threats from O₂ that apply]
+```text
+## 📦 PR Review: <branch-name from JSON>
 
+### Overview
+- Files changed: <count from structural_changes>
+- Symbols modified: <count>
+- Risk score: <risk_score>/100
+- Recommendation: <recommendation>
+
+---
+
+## Structural Changes (O₁)
+
+**From structural_changes field**:
+
+### Modified Symbols: <count>
+[List modified symbols]:
+- `<symbol>` in `<file>`
+  - Role: <architecturalRole>
+  - Change type: <change-type>
+
+### Added Symbols: <count>
+[List new symbols]
+
+### Removed Symbols: <count>
+[List removed symbols]
+
+**Architectural Impact**: <assess based on roles and counts>
+- ✅ Clean refactor
+- ⚠️ Concerns: <list any red flags>
+- ❌ Critical issues: <list breaking changes>
+
+---
+
+## Security Analysis (O₂)
+
+**From security_threats field**:
+
+**Applicable Threats**: <count>
 **Severity Breakdown**:
+- Critical: <count>
+- High: <count>
+- Medium: <count>
+- Low: <count>
 
-- Critical: [count]
-- High: [count]
-- Medium: [count]
-- Low: [count]
+### Key Threats:
+[For each threat]:
+- **<securityType>**: <cveId if present> (severity: <severity>, similarity: <similarity>%)
+  - Description: <description>
+  - Affected: <affected symbols/files>
+  - Mitigation: <mitigation>
 
-**Security Status**:
+**Status**:
+- ✅ No security concerns
+- ⚠️ Review recommended: <concerns>
+- ❌ CRITICAL: <blockers>
 
-- ✅ No security concerns identified
-- ⚠️ [Security considerations to address]
-- ❌ [CRITICAL: Security vulnerabilities found]
+---
 
-### 🎯 Blast Radius (O₃)
+## Blast Radius (O₃)
 
-**Direct Consumers**: [count]
-**Transitive Impact**: [total symbols affected]
-**Max Dependency Depth**: [depth]
+**From blast_radius field**:
 
-**Critical Paths**:
-[List high-impact dependency chains]
+**Direct Consumers Affected**: <count>
+**Total Impact**: <transitive_impact> symbols
+**Max Dependency Depth**: <max_depth>
+
+### Critical Paths Affected:
+[For each critical_path]:
+- <path[0]> → <path[1]> → ... → <path[n]>
+  - Reason: <reason>
+  - Impact: <explain>
 
 **Testing Requirements**:
-[List files/modules that need testing based on blast radius]
+Based on consumers, test:
+[List critical consumers that need testing]
 
-### 🎨 Mission Alignment (O₄)
+---
 
-**Related Concepts**: [count]
-**Alignment Confidence**: [X%]
+## Mission Alignment (O₄)
 
-**Mission Concepts Addressed**:
-[List mission concepts from O₄ related to these changes]
+**From mission_alignment field**:
 
-**Alignment Assessment**:
+**Related Concepts**: <count>
+**Alignment Confidence**: <confidence>%
 
+### Key Concepts Addressed:
+[For each concept]:
+- **<concept-name>**: <description>
+  - Relevance: <similarity>%
+  - Alignment: <how PR addresses this>
+
+**Status**:
 - ✅ Strongly aligned with mission
-- ⚠️ Partially aligned: [explain]
-- ❌ Not aligned: [explain why]
+- ⚠️ Partially aligned: <gaps>
+- ❌ Misaligned: <concerns>
 
-### 📊 Coherence Impact (O₇)
+---
 
-**Symbols Improving**: [count]
-**Symbols Degrading**: [count]
-**Net Coherence Change**: [+X% / -X%]
+## Coherence Impact (O₇)
 
-**Coherence Analysis**:
+**From coherence_impact field**:
 
+**Symbols Improving**: <count>
+**Symbols Degrading**: <count>
+**Net Coherence Change**: <net_change>%
+
+**Analysis**:
+[Parse coherence changes]:
 - ✅ Improves overall alignment
 - → Neutral impact
-- ⚠️ [Describe drift concerns]
-- ❌ Creates significant drift
+- ⚠️ Creates drift: <concerns>
+- ❌ Significant drift: <blockers>
+
+---
 
 ## Overall Assessment
 
-**Risk Score**: [0-100] (0=safe, 100=dangerous)
+### Risk Score: <risk_score>/100
 
-**Risk Factors**:
+**Risk Breakdown**:
+- Structural complexity: <level>
+- Security exposure: <level>
+- Blast radius: <level>
+- Mission drift: <level>
 
-- Structural complexity: [Low/Medium/High]
-- Security exposure: [Low/Medium/High]
-- Blast radius: [Small/Medium/Large]
-- Mission drift risk: [Low/Medium/High]
+### Merge Decision
 
-**Should Merge?**
+<recommendation from JSON>
 
-- ✅ **YES** - Safe to merge
-  - Reason: [Why it's safe]
-  - Conditions: [Any requirements before merge]
+**Reasoning**: <explain based on risk factors>
 
-- ⚠️ **YES (with conditions)**
-  - Requirements before merge:
-    1. [Action item]
-    2. [Action item]
+**Conditions** (if APPROVE_WITH_CONDITIONS):
+1. <condition from JSON>
+2. <condition from JSON>
 
-- ❌ **NO** - Do not merge
-  - Blockers:
-    1. [Critical issue]
-    2. [Critical issue]
-  - Required changes: [What needs to be fixed]
+**Blockers** (if REQUEST_CHANGES):
+1. <blocker from JSON>
+2. <blocker from JSON>
+
+---
+
+## Testing Requirements
+
+### Based on Blast Radius (O₃):
+[List symbols from critical paths]:
+- Test `<consumer>`: <why based on role>
+- Test `<another-consumer>`: <why>
+
+### Based on Security (O₂):
+[For each security threat]:
+- [ ] Test <vulnerability-type>: <specific test case>
+
+### Integration Tests:
+[Based on critical paths]:
+- [ ] End-to-end path: <path description>
+
+---
 
 ## Recommendations
 
-### Before Merging
+[Use recommendations array from JSON]:
+1. <recommendation[0]>
+2. <recommendation[1]>
+3. <recommendation[2]>
 
-1. [ ] Run full test suite
-2. [ ] Security review if score > 50
-3. [ ] Update documentation for new features
-4. [ ] Verify blast radius testing complete
-5. [ ] Check mission alignment satisfactory
-6. [ ] Review coherence impact
+### Before Merging:
+- [ ] Run full test suite
+- [ ] Security review if risk score > 70
+- [ ] Update documentation for new symbols
+- [ ] Verify blast radius testing complete
 
-### Required Tests
+### Post-Merge Actions:
+- Monitor: <metrics from blast radius>
+- Update: <docs to refresh>
+- Communicate: <teams affected by blast radius>
 
-**Based on Blast Radius**:
-[List specific test scenarios based on O₃ consumers]
+---
 
-**Based on Security**:
-[List security tests based on O₂ threats]
+## Executive Summary
 
-### Post-Merge Actions
+| Metric | Value | Severity |
+|--------|-------|----------|
+| **Files Changed** | <count> | <level> |
+| **Symbols Modified** | <count> | <level> |
+| **Security Threats** | <count> | <level> |
+| **Blast Radius** | <transitive_impact> | <level> |
+| **Risk Score** | <risk_score>/100 | <level> |
+| **Recommendation** | <recommendation> | <level> |
 
-1. Monitor: [Specific metrics to watch]
-2. Update: [Documentation to refresh]
-3. Communicate: [Teams to notify based on blast radius]
+**Key Points**:
+- <Most critical finding>
+- <Second most important>
+- <Third priority>
+```
 
-## CI/CD Integration
+## Grounding Requirements
+
+**MUST USE PGC COMMAND**:
+
+1. ✅ Run `cognition-cli pr-analyze --json`
+2. ✅ Parse the JSON output
+3. ✅ Use ONLY data from command output
+4. ✅ Expand into comprehensive review format
+5. ❌ Do NOT read source files
+6. ❌ Do NOT invent issues not in JSON
+7. ❌ Do NOT provide generic code review
+
+**If command fails**:
+
+- Check: `cognition-cli status`
+- Tell user to run `cognition-cli wizard` if PGC not initialized
+- Ensure git is clean or has changes to analyze
+
+## Example Usage
+
+User: "Please review my PR"
+
+**Step 1**: Run command
 
 ```bash
-# Add to your CI pipeline
-cognition-cli pr-analyze --json | jq '.risk_score'
+cognition-cli pr-analyze --json
+```
 
-# Fail build if risk score > threshold
+**Step 2**: Parse JSON output
+
+```json
+{
+  "branch": "feature/auth-refactor",
+  "structural_changes": {
+    "modified": [...],
+    "added": [...],
+    "removed": [...]
+  },
+  "security_threats": {
+    "count": 2,
+    "threats": [...]
+  },
+  "blast_radius": {
+    "direct_consumers": 5,
+    "transitive_impact": 23,
+    "critical_paths": [...]
+  },
+  "mission_alignment": {
+    "concepts": [...],
+    "confidence": 0.85
+  },
+  "coherence_impact": {
+    "improving": 3,
+    "degrading": 1,
+    "net_change": 0.02
+  },
+  "risk_score": 45,
+  "recommendation": "APPROVE_WITH_CONDITIONS",
+  "conditions": [...]
+}
+```
+
+**Step 3**: Format into comprehensive review
+
+User: "Should I merge this?"
+
+**Answer based on recommendation field**:
+
+- `APPROVE`: "Yes, safe to merge" + explain why
+- `APPROVE_WITH_CONDITIONS`: "Yes, but first..." + list conditions
+- `REQUEST_CHANGES`: "No, blockers found" + list blockers
+
+## What Makes a Good Review
+
+✅ **DO**:
+
+- Use all data from JSON
+- Explain risk score components
+- Provide clear merge decision
+- List actionable conditions/blockers
+- Prioritize by severity + impact
+
+❌ **DON'T**:
+
+- Add info not in JSON
+- Read source files
+- Invent concerns
+- Provide generic advice
+- Override recommendation without clear reasoning
+
+The goal is to take PGC multi-overlay analysis and present it as a professional PR review.
+
+## CI/CD Integration Example
+
+```bash
+# In GitHub Actions
 RISK=$(cognition-cli pr-analyze --json | jq -r '.risk_score')
+RECOMMENDATION=$(cognition-cli pr-analyze --json | jq -r '.recommendation')
+
 if [ "$RISK" -gt 70 ]; then
   echo "❌ Risk score too high: $RISK"
   exit 1
 fi
+
+if [ "$RECOMMENDATION" = "REQUEST_CHANGES" ]; then
+  echo "⚠️ PR analysis recommends changes"
+  exit 1
+fi
 ```
-
-## Related Commands
-
-- `/analyze-impact` - Analyze specific symbol impact
-- `/security-check` - Deep security analysis
-- `/check-alignment` - Verify mission alignment
-- `/quest-verify` - Full verification workflow
-
----
-
-**PRO TIP**: Run this before requesting PR review to catch issues early!
