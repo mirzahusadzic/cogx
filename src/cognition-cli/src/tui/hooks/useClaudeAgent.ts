@@ -871,6 +871,21 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     const pgcPath = path.join(cwd, '.open_cognition');
     if (fs.existsSync(pgcPath))
       projectRegistryRef.current = new OverlayRegistry(pgcPath, endpoint);
+
+    // Warn user if WORKBENCH_API_KEY is not set
+    if (!process.env.WORKBENCH_API_KEY) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: 'system',
+          content:
+            '⚠️  WORKBENCH_API_KEY not set\n' +
+            '   Conversation analysis and semantic memory features will be disabled.\n' +
+            '   Set WORKBENCH_API_KEY environment variable to enable these features.',
+          timestamp: new Date(),
+        },
+      ]);
+    }
   }, [cwd, debugFlag]);
 
   /**

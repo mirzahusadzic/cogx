@@ -323,6 +323,13 @@ export class AnalysisQueue {
         // Notify progress
         this.handlers.onProgress?.(this.getStatus());
       } catch (error) {
+        // ✅ FIX: Mark as analyzed even on failure to prevent infinite retries
+        // When embeddings fail (e.g., WORKBENCH_API_KEY not set), we must still
+        // mark the message as processed to avoid infinite loops
+        this.analyzedTimestamps.add(task.timestamp);
+        const messageId = `msg-${task.messageIndex}`;
+        this.analyzedMessageIds.add(messageId);
+
         // Notify error but continue processing
         this.handlers.onError?.(error as Error, task);
       }
