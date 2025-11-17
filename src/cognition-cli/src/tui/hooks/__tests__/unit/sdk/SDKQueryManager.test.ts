@@ -39,9 +39,11 @@ describe('SDKQueryManager', () => {
       expect(isAuthenticationError(stderrLines)).toBe(false);
     });
 
-    it('returns false for auth error without 401', () => {
+    it('returns true for explicit OAuth expiration messages', () => {
+      // Enhanced detection: catches OAuth expiration even without HTTP 401
+      // This handles cases where the SDK error message doesn't include status codes
       const stderrLines = ['OAuth token has expired'];
-      expect(isAuthenticationError(stderrLines)).toBe(false);
+      expect(isAuthenticationError(stderrLines)).toBe(true);
     });
 
     it('returns false for empty stderr', () => {
@@ -61,6 +63,25 @@ describe('SDKQueryManager', () => {
         'Stack trace...',
       ];
       expect(isAuthenticationError(stderrLines)).toBe(true);
+    });
+
+    it('detects various OAuth error patterns', () => {
+      expect(isAuthenticationError(['token expired'])).toBe(true);
+      expect(isAuthenticationError(['authentication failed'])).toBe(true);
+      expect(isAuthenticationError(['invalid_grant'])).toBe(true);
+      expect(isAuthenticationError(['credentials have expired'])).toBe(true);
+    });
+
+    it('detects errors with 401 and generic auth keywords', () => {
+      expect(isAuthenticationError(['Error 401 unauthorized'])).toBe(true);
+      expect(isAuthenticationError(['401 token invalid'])).toBe(true);
+      expect(isAuthenticationError(['HTTP 401 oauth error'])).toBe(true);
+    });
+
+    it('is case-insensitive', () => {
+      expect(isAuthenticationError(['OAUTH TOKEN HAS EXPIRED'])).toBe(true);
+      expect(isAuthenticationError(['401 Authentication_Error'])).toBe(true);
+      expect(isAuthenticationError(['Token Expired'])).toBe(true);
     });
   });
 

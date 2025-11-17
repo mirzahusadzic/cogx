@@ -170,58 +170,71 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
 
   // Graceful exit on OAuth token expiration
   useEffect(() => {
-    if (error && isAuthenticationError([error])) {
-      const sessionStateFile = sessionId
-        ? path.join(projectRoot, '.sigma', `${sessionId}.state.json`)
-        : 'session state file';
+    if (error) {
+      // Debug: log the actual error to help diagnose OAuth detection issues
+      if (debug) {
+        console.error('[TUI Debug] Error detected:', error);
+        console.error(
+          '[TUI Debug] Is auth error?',
+          isAuthenticationError([error])
+        );
+      }
 
-      // Display error message
-      console.error(
-        '\n\n╔════════════════════════════════════════════════════════════════════════════╗'
-      );
-      console.error(
-        '║                     OAuth Token Expired                                    ║'
-      );
-      console.error(
-        '╚════════════════════════════════════════════════════════════════════════════╝\n'
-      );
-      console.error('  Your OAuth token has expired and the TUI must exit.\n');
-      console.error('  📝 Your session has been saved automatically.\n');
-      console.error('  To continue:\n');
-      console.error('  1. Run: claude /login');
-      console.error(
-        '  2. Restart with: cognition tui --file ' + sessionStateFile + '\n'
-      );
-      console.error('  Press any key to exit...\n');
+      if (isAuthenticationError([error])) {
+        const sessionStateFile = sessionId
+          ? path.join(projectRoot, '.sigma', `${sessionId}.state.json`)
+          : 'session state file';
 
-      // Clean up and exit after user presses a key or 5 seconds
-      let exited = false;
-      const cleanup = () => {
-        if (exited) return;
-        exited = true;
-        try {
-          process.stdout.write('\x1b[0m'); // Reset colors
-          process.stdout.write('\x1b[?1000l\x1b[?1006l'); // Disable mouse
-        } catch (e) {
-          // Ignore cleanup errors
-          console.error(
-            `Cleanup error: ${e instanceof Error ? e.message : String(e)}`
-          );
-        }
-        process.exit(1);
-      };
+        // Display error message
+        console.error(
+          '\n\n╔════════════════════════════════════════════════════════════════════════════╗'
+        );
+        console.error(
+          '║                     OAuth Token Expired                                    ║'
+        );
+        console.error(
+          '╚════════════════════════════════════════════════════════════════════════════╝\n'
+        );
+        console.error(
+          '  Your OAuth token has expired and the TUI must exit.\n'
+        );
+        console.error('  📝 Your session has been saved automatically.\n');
+        console.error('  To continue:\n');
+        console.error('  1. Run: claude /login');
+        console.error(
+          '  2. Restart with: cognition tui --file ' + sessionStateFile + '\n'
+        );
+        console.error('  Press any key to exit...\n');
 
-      // Exit on any key press
-      const keyHandler = () => cleanup();
-      process.stdin.once('data', keyHandler);
+        // Clean up and exit after user presses a key or 5 seconds
+        let exited = false;
+        const cleanup = () => {
+          if (exited) return;
+          exited = true;
+          try {
+            process.stdout.write('\x1b[0m'); // Reset colors
+            process.stdout.write('\x1b[?1000l\x1b[?1006l'); // Disable mouse
+          } catch (e) {
+            // Ignore cleanup errors
+            console.error(
+              `Cleanup error: ${e instanceof Error ? e.message : String(e)}`
+            );
+          }
+          process.exit(1);
+        };
 
-      // Auto-exit after 5 seconds
-      const timeout = setTimeout(cleanup, 5000);
+        // Exit on any key press
+        const keyHandler = () => cleanup();
+        process.stdin.once('data', keyHandler);
 
-      return () => {
-        clearTimeout(timeout);
-        process.stdin.removeListener('data', keyHandler);
-      };
+        // Auto-exit after 5 seconds
+        const timeout = setTimeout(cleanup, 5000);
+
+        return () => {
+          clearTimeout(timeout);
+          process.stdin.removeListener('data', keyHandler);
+        };
+      }
     }
   }, [error, sessionId, projectRoot]);
 
@@ -445,6 +458,40 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
  * Start the TUI
  */
 export function startTUI(options: CognitionTUIProps) {
+  // Set up global error handlers for uncaught errors
+  const handleUncaughtError = (error: Error) => {
+    console.error('\n[TUI] Uncaught error:', error.message);
+    if (options.debug) {
+      console.error('[TUI] Stack trace:', error.stack);
+    }
+
+    // Check if it's an OAuth error
+    if (isAuthenticationError([error.message])) {
+      console.error(
+        '\n\n╔════════════════════════════════════════════════════════════════════════════╗'
+      );
+      console.error(
+        '║                     OAuth Token Expired                                    ║'
+      );
+      console.error(
+        '╚════════════════════════════════════════════════════════════════════════════╝\n'
+      );
+      console.error('  Your OAuth token has expired.\n');
+      console.error('  Please run: claude /login\n');
+    }
+
+    process.exit(1);
+  };
+
+  // Catch unhandled promise rejections
+  process.on('unhandledRejection', (reason) => {
+    const error = reason instanceof Error ? reason : new Error(String(reason));
+    handleUncaughtError(error);
+  });
+
+  // Catch uncaught exceptions
+  process.on('uncaughtException', handleUncaughtError);
+
   const { unmount, waitUntilExit } = render(<CognitionTUI {...options} />, {
     patchConsole: true, // Patch console to prevent output mixing
     debug: false,

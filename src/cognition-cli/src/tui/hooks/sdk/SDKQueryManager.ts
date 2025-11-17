@@ -138,12 +138,26 @@ export function createSDKQuery(options: SDKQueryOptions): Query {
  * }
  */
 export function isAuthenticationError(stderrLines: string[]): boolean {
-  const stderrText = stderrLines.join(' ');
+  const stderrText = stderrLines.join(' ').toLowerCase();
+
+  // Check for various OAuth/auth error patterns
   return (
-    stderrText.includes('401') &&
-    (stderrText.includes('authentication_error') ||
-      stderrText.includes('OAuth token has expired') ||
-      stderrText.includes('token has expired'))
+    // HTTP 401 status
+    (stderrText.includes('401') &&
+      (stderrText.includes('authentication_error') ||
+        stderrText.includes('oauth') ||
+        stderrText.includes('token') ||
+        stderrText.includes('unauthorized'))) ||
+    // Explicit OAuth expiration messages
+    stderrText.includes('oauth token has expired') ||
+    stderrText.includes('token has expired') ||
+    stderrText.includes('token expired') ||
+    stderrText.includes('authentication failed') ||
+    stderrText.includes('invalid_grant') ||
+    stderrText.includes('credentials have expired') ||
+    // Claude/Anthropic specific errors
+    stderrText.includes('anthropic_api_error') ||
+    stderrText.includes('authentication error')
   );
 }
 
