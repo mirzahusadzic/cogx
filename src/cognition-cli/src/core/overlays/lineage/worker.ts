@@ -297,6 +297,15 @@ export class WorkerLogic {
               const methodLineage = `${classLineage} -> ${m.name}`;
               m.params?.forEach((p) => processType(p.type, methodLineage));
               processType(m.returns, methodLineage);
+
+              // Process body dependencies (Python instantiations)
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const bodyDeps = (m as any).body_dependencies;
+              if (bodyDeps?.instantiations) {
+                bodyDeps.instantiations.forEach((className: string) => {
+                  dependencySymbolToLineage.set(className, methodLineage);
+                });
+              }
             });
           });
 
@@ -304,6 +313,15 @@ export class WorkerLogic {
             const funcLineage = `${parentLineage} -> ${f.name}`;
             f.params?.forEach((p) => processType(p.type, funcLineage));
             processType(f.returns, funcLineage);
+
+            // Process body dependencies (Python instantiations)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const bodyDeps = (f as any).body_dependencies;
+            if (bodyDeps?.instantiations) {
+              bodyDeps.instantiations.forEach((className: string) => {
+                dependencySymbolToLineage.set(className, funcLineage);
+              });
+            }
           });
 
           structuralData.interfaces?.forEach((i: InterfaceData) => {
