@@ -40,9 +40,19 @@
  * // → Stores VISION.md in PGC, creates index entry
  *
  * @example
+ * // Ingest multiple Markdown files
+ * cognition-cli genesis:docs VISION.md ARCHITECTURE.md README.md
+ * // → Ingests all specified files
+ *
+ * @example
  * // Ingest entire directory
  * cognition-cli genesis:docs docs/strategic/
  * // → Recursively ingests all .md files
+ *
+ * @example
+ * // Mix files and directories
+ * cognition-cli genesis:docs VISION.md docs/strategic/ README.md
+ * // → Ingests VISION.md, README.md, and all .md files in docs/strategic/
  *
  * @example
  * // Force re-ingestion (replace existing)
@@ -139,7 +149,7 @@ async function validatePgcInitialized(projectRoot: string): Promise<void> {
  * });
  */
 export async function genesisDocsCommand(
-  pathOrPattern: string,
+  pathsOrPatterns: string[],
   options: GenesisDocsOptions
 ) {
   intro(chalk.bold('Genesis Docs: Ingesting Documentation into PGC'));
@@ -164,9 +174,13 @@ export async function genesisDocsCommand(
     const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
     const transform = new GenesisDocTransform(pgcRoot, workbenchUrl);
 
-    // Find markdown files
+    // Find markdown files from all provided paths
     s.start('Finding markdown files');
-    const files = await findMarkdownFiles(pathOrPattern);
+    const files: string[] = [];
+    for (const pathOrPattern of pathsOrPatterns) {
+      const foundFiles = await findMarkdownFiles(pathOrPattern);
+      files.push(...foundFiles);
+    }
     s.stop(`Found ${files.length} markdown file(s)`);
 
     if (files.length === 0) {

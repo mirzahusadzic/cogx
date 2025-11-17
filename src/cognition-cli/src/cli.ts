@@ -229,7 +229,7 @@ program
   });
 
 program
-  .command('genesis:docs [path]')
+  .command('genesis:docs [paths...]')
   .description(
     'Ingest markdown documentation into PGC with full provenance (defaults to VISION.md)'
   )
@@ -242,11 +242,12 @@ program
     '-f, --force',
     'Force re-ingestion by removing existing entries first'
   )
-  .action(async (pathArg, options) => {
+  .action(async (pathsArg, options) => {
     const { genesisDocsCommand } = await import('./commands/genesis-docs.js');
     const defaultPath = path.join(options.projectRoot, '../../VISION.md');
-    const targetPath = pathArg || defaultPath;
-    await genesisDocsCommand(targetPath, options);
+    const targetPaths =
+      pathsArg && pathsArg.length > 0 ? pathsArg : [defaultPath];
+    await genesisDocsCommand(targetPaths, options);
   });
 
 program

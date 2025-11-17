@@ -453,7 +453,7 @@ export async function wizardCommand(options: WizardOptions) {
     );
     if (await fs.pathExists(overlayTemplatesPath)) {
       // Pass directory path to recursively ingest all markdown files
-      await genesisDocsCommand(overlayTemplatesPath, {
+      await genesisDocsCommand([overlayTemplatesPath], {
         projectRoot: options.projectRoot,
       });
     }
@@ -462,7 +462,7 @@ export async function wizardCommand(options: WizardOptions) {
     if (shouldIngestDocs) {
       log.info(chalk.bold('\nIngesting additional documentation...'));
       const fullDocsPath = path.join(options.projectRoot, docsPath);
-      await genesisDocsCommand(fullDocsPath, {
+      await genesisDocsCommand([fullDocsPath], {
         projectRoot: options.projectRoot,
       });
     }
