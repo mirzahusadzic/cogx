@@ -392,6 +392,7 @@ const { createCompletionCommand } = await import('./commands/completion.js');
 const { addPatternsCommands } = await import('./commands/patterns.js');
 const { addCoherenceCommands } = await import('./commands/coherence.js');
 const { addConceptsCommands } = await import('./commands/concepts.js');
+const { createProviderCommand } = await import('./commands/provider.js');
 
 program.addCommand(overlayCommand);
 program.addCommand(blastRadiusCommand);
@@ -400,6 +401,7 @@ program.addCommand(createStatusCommand());
 program.addCommand(createUpdateCommand());
 program.addCommand(createGuideCommand());
 program.addCommand(createCompletionCommand());
+program.addCommand(createProviderCommand());
 addPatternsCommands(program);
 addCoherenceCommands(program);
 addConceptsCommands(program);
