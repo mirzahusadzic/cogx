@@ -53,14 +53,19 @@ export function createCompletionCommand(): Command {
       }
 
       try {
-        await installCompletion(shell);
+        const result = await installCompletion(shell);
         console.log(`✓ Shell completion installed for ${shell}`);
         console.log('\nRestart your shell or run:');
 
         if (shell === 'bash') {
           console.log('  source ~/.bashrc');
         } else if (shell === 'zsh') {
-          console.log('  source ~/.zshrc');
+          if (result?.isOhMyZsh) {
+            console.log('  exec zsh');
+            console.log('\nNote: Installed to oh-my-zsh completions directory');
+          } else {
+            console.log('  source ~/.zshrc');
+          }
         } else if (shell === 'fish') {
           console.log('  source ~/.config/fish/config.fish');
         }
@@ -119,7 +124,9 @@ function detectShell(): string {
 /**
  * Install completion for specified shell
  */
-async function installCompletion(shell: string): Promise<void> {
+async function installCompletion(
+  shell: string
+): Promise<{ isOhMyZsh?: boolean }> {
   const fs = await import('fs');
   const path = await import('path');
   const os = await import('os');
@@ -129,13 +136,33 @@ async function installCompletion(shell: string): Promise<void> {
 
   let installPath: string;
   let rcFile: string;
+  let isOhMyZsh = false;
 
   if (shell === 'bash') {
     installPath = path.join(homeDir, '.cognition-completion.bash');
     rcFile = path.join(homeDir, '.bashrc');
   } else if (shell === 'zsh') {
-    installPath = path.join(homeDir, '.cognition-completion.zsh');
-    rcFile = path.join(homeDir, '.zshrc');
+    // Check if oh-my-zsh is installed
+    const ohmyzshPath = path.join(homeDir, '.oh-my-zsh');
+    const ohmyzshExists = await fs.promises
+      .access(ohmyzshPath)
+      .then(() => true)
+      .catch(() => false);
+
+    if (ohmyzshExists) {
+      // Install to oh-my-zsh completions directory
+      const completionsDir = path.join(ohmyzshPath, 'completions');
+      await fs.promises.mkdir(completionsDir, { recursive: true });
+      installPath = path.join(completionsDir, '_cognition-cli');
+      rcFile = ''; // oh-my-zsh handles loading automatically
+      isOhMyZsh = true;
+    } else {
+      // Install to standard zsh completions directory
+      const zshCompletionsDir = path.join(homeDir, '.zsh', 'completions');
+      await fs.promises.mkdir(zshCompletionsDir, { recursive: true });
+      installPath = path.join(zshCompletionsDir, '_cognition-cli');
+      rcFile = path.join(homeDir, '.zshrc');
+    }
   } else if (shell === 'fish') {
     const fishDir = path.join(homeDir, '.config', 'fish', 'completions');
     await fs.promises.mkdir(fishDir, { recursive: true });
@@ -148,17 +175,31 @@ async function installCompletion(shell: string): Promise<void> {
   // Write completion script
   await fs.promises.writeFile(installPath, completionScript, 'utf8');
 
-  // Add source line to rc file (except fish)
+  // Add fpath and compinit for zsh (non-oh-my-zsh), or source line for bash
   if (rcFile) {
-    const sourceLine = `\n# Cognition CLI completion\nsource "${installPath}"\n`;
     const rcContent = await fs.promises
       .readFile(rcFile, 'utf8')
       .catch(() => '');
 
-    if (!rcContent.includes(installPath)) {
-      await fs.promises.appendFile(rcFile, sourceLine, 'utf8');
+    let setupLine: string;
+    if (shell === 'zsh') {
+      // For zsh without oh-my-zsh, add to fpath and trigger compinit
+      const completionsDir = path.dirname(installPath);
+      setupLine = `\n# Cognition CLI completion\nfpath=(${completionsDir} $fpath)\nautoload -Uz compinit && compinit\n`;
+    } else {
+      // For bash, source the completion script
+      setupLine = `\n# Cognition CLI completion\nsource "${installPath}"\n`;
+    }
+
+    if (
+      !rcContent.includes(installPath) &&
+      !rcContent.includes('Cognition CLI completion')
+    ) {
+      await fs.promises.appendFile(rcFile, setupLine, 'utf8');
     }
   }
+
+  return { isOhMyZsh };
 }
 
 /**
@@ -177,8 +218,20 @@ async function uninstallCompletion(shell: string): Promise<void> {
     installPath = path.join(homeDir, '.cognition-completion.bash');
     rcFile = path.join(homeDir, '.bashrc');
   } else if (shell === 'zsh') {
-    installPath = path.join(homeDir, '.cognition-completion.zsh');
-    rcFile = path.join(homeDir, '.zshrc');
+    // Check if oh-my-zsh is installed
+    const ohmyzshPath = path.join(homeDir, '.oh-my-zsh');
+    const ohmyzshExists = await fs.promises
+      .access(ohmyzshPath)
+      .then(() => true)
+      .catch(() => false);
+
+    if (ohmyzshExists) {
+      installPath = path.join(ohmyzshPath, 'completions', '_cognition-cli');
+      rcFile = ''; // oh-my-zsh handles loading automatically
+    } else {
+      installPath = path.join(homeDir, '.zsh', 'completions', '_cognition-cli');
+      rcFile = path.join(homeDir, '.zshrc');
+    }
   } else if (shell === 'fish') {
     installPath = path.join(
       homeDir,
