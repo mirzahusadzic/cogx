@@ -403,6 +403,21 @@ addPatternsCommands(program);
 addCoherenceCommands(program);
 addConceptsCommands(program);
 
+// PR Impact Analysis (cross-overlay killer workflow)
+program
+  .command('pr-analyze')
+  .description(
+    '📊 Comprehensive PR impact analysis across all overlays (O1+O2+O3+O4+O7)'
+  )
+  .option('--branch <name>', 'Branch to analyze (default: current changes)')
+  .option('--max-depth <N>', 'Maximum blast radius depth', '3')
+  .option('--json', 'Output as JSON')
+  .action(async (options) => {
+    const { analyzePRImpact } = await import('./commands/pr-analyze.js');
+    const { PGCManager } = await import('./core/pgc/manager.js');
+    await analyzePRImpact(options, PGCManager);
+  });
+
 // Lattice algebra commands
 program
   .command('lattice <query>')
@@ -619,6 +634,39 @@ securityCmd
       './commands/sugar/security-coherence.js'
     );
     await securityCoherenceCommand(options);
+  });
+
+securityCmd
+  .command('blast-radius <target>')
+  .description(
+    'Show cascading security impact when a file/symbol is compromised (O2 × O3)'
+  )
+  .option('--max-depth <N>', 'Maximum traversal depth', '3')
+  .option('--json', 'Output as JSON')
+  .action(async (target, options) => {
+    const PGCManager = (await import('./core/pgc/manager.js')).PGCManager;
+    const GraphTraversal = (await import('./core/graph/traversal.js'))
+      .GraphTraversal;
+    const SecurityGuidelinesManager = (
+      await import('./core/overlays/security-guidelines/manager.js')
+    ).SecurityGuidelinesManager;
+    const StructuralPatternsManager = (
+      await import('./core/overlays/structural-patterns/manager.js')
+    ).StructuralPatternsManager;
+
+    // Import the command implementation
+    const { analyzeSecurityBlastRadius } = await import(
+      './commands/security-blast-radius.js'
+    );
+
+    await analyzeSecurityBlastRadius(
+      target,
+      options,
+      PGCManager,
+      GraphTraversal,
+      SecurityGuidelinesManager,
+      StructuralPatternsManager
+    );
   });
 
 // Workflow commands

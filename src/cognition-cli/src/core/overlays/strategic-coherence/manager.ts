@@ -356,14 +356,13 @@ export class StrategicCoherenceManager {
       await conceptVectorStore.close();
     }
 
-    // 4. Compute overall metrics
-    const highAlignmentThreshold = 0.7;
-    const alignedSymbols = symbolCoherenceList.filter(
-      (s) => s.overallCoherence >= highAlignmentThreshold
-    );
-    const driftedSymbols = symbolCoherenceList.filter(
-      (s) => s.overallCoherence < highAlignmentThreshold
-    );
+    // 4. Compute distribution metrics first (needed for data-driven threshold)
+    const sortedScores = symbolCoherenceList
+      .map((s) => s.overallCoherence)
+      .sort((a, b) => a - b);
+    const medianCoherence = this.computePercentile(sortedScores, 50);
+    const topQuartile = this.computePercentile(sortedScores, 75);
+    const bottomQuartile = this.computePercentile(sortedScores, 25);
 
     // Compute simple average
     const averageCoherence =
@@ -383,6 +382,23 @@ export class StrategicCoherenceManager {
         : 0;
     const stdDeviation = Math.sqrt(variance);
 
+    // DATA-DRIVEN THRESHOLD (Monument 5.2 - Calibration Fix)
+    // Instead of hardcoded 0.7, use a threshold derived from the actual distribution
+    // This ensures ~60% aligned, ~40% drifted regardless of absolute score range
+    //
+    // Strategy: Use 60th percentile as threshold
+    // - Below median (50th): definitely drifted
+    // - Above 60th percentile: aligned
+    // - Between 50-60th: transitional zone (counted as drifted)
+    const highAlignmentThreshold = this.computePercentile(sortedScores, 60);
+
+    const alignedSymbols = symbolCoherenceList.filter(
+      (s) => s.overallCoherence >= highAlignmentThreshold
+    );
+    const driftedSymbols = symbolCoherenceList.filter(
+      (s) => s.overallCoherence < highAlignmentThreshold
+    );
+
     // Compute weighted average (centrality-based)
     const weightedCoherence =
       await this.computeWeightedCoherence(symbolCoherenceList);
@@ -393,14 +409,6 @@ export class StrategicCoherenceManager {
       averageCoherence,
       stdDeviation
     );
-
-    // Compute distribution metrics
-    const sortedScores = symbolCoherenceList
-      .map((s) => s.overallCoherence)
-      .sort((a, b) => a - b);
-    const medianCoherence = this.computePercentile(sortedScores, 50);
-    const topQuartile = this.computePercentile(sortedScores, 75);
-    const bottomQuartile = this.computePercentile(sortedScores, 25);
 
     // Sort concept implementations by number of implementing symbols (descending)
     const conceptImplementations = Array.from(
@@ -603,13 +611,13 @@ export class StrategicCoherenceManager {
       await conceptVectorStore.close();
     }
 
-    // 4. Compute overall metrics
-    const alignedSymbols = symbolCoherenceList.filter(
-      (s) => s.overallCoherence >= 0.7
-    );
-    const driftedSymbols = symbolCoherenceList.filter(
-      (s) => s.overallCoherence < 0.7
-    );
+    // 4. Compute distribution metrics first (needed for data-driven threshold)
+    const sortedScores = symbolCoherenceList
+      .map((s) => s.overallCoherence)
+      .sort((a, b) => a - b);
+    const medianCoherence = this.computePercentile(sortedScores, 50);
+    const topQuartile = this.computePercentile(sortedScores, 75);
+    const bottomQuartile = this.computePercentile(sortedScores, 25);
 
     const avgCoherence =
       symbolCoherenceList.length > 0
@@ -627,6 +635,17 @@ export class StrategicCoherenceManager {
         : 0;
     const stdDeviation = Math.sqrt(variance);
 
+    // DATA-DRIVEN THRESHOLD (Monument 5.2 - Calibration Fix)
+    // Use 60th percentile as threshold for consistent ~60/40 split
+    const highAlignmentThreshold = this.computePercentile(sortedScores, 60);
+
+    const alignedSymbols = symbolCoherenceList.filter(
+      (s) => s.overallCoherence >= highAlignmentThreshold
+    );
+    const driftedSymbols = symbolCoherenceList.filter(
+      (s) => s.overallCoherence < highAlignmentThreshold
+    );
+
     // Compute weighted and distribution metrics
     const weightedCoherence =
       await this.computeWeightedCoherence(symbolCoherenceList);
@@ -637,13 +656,6 @@ export class StrategicCoherenceManager {
       avgCoherence,
       stdDeviation
     );
-
-    const sortedScores = symbolCoherenceList
-      .map((s) => s.overallCoherence)
-      .sort((a, b) => a - b);
-    const medianCoherence = this.computePercentile(sortedScores, 50);
-    const topQuartile = this.computePercentile(sortedScores, 75);
-    const bottomQuartile = this.computePercentile(sortedScores, 25);
 
     // 5. Build overlay
     const overlay: StrategicCoherenceOverlay = {
@@ -748,9 +760,14 @@ export class StrategicCoherenceManager {
 
   /**
    * Get symbols most aligned with mission (high coherence)
+   *
+   * DEFAULT BEHAVIOR (Monument 5.2 - Calibrated):
+   * - If minCoherence not specified, uses the overlay's computed threshold
+   * - This threshold is data-driven (60th percentile), not hardcoded
+   * - Returns ~40% of symbols (those above the threshold)
    */
   async getAlignedSymbols(
-    minCoherence: number = 0.7
+    minCoherence?: number
   ): Promise<SymbolCoherence[]> {
     const overlay = await this.retrieve();
 
@@ -758,16 +775,25 @@ export class StrategicCoherenceManager {
       return [];
     }
 
+    // Use overlay's computed threshold if not explicitly provided
+    const threshold =
+      minCoherence ?? overlay.overall_metrics.high_alignment_threshold;
+
     return overlay.symbol_coherence
-      .filter((s) => s.overallCoherence >= minCoherence)
+      .filter((s) => s.overallCoherence >= threshold)
       .sort((a, b) => b.overallCoherence - a.overallCoherence);
   }
 
   /**
    * Get symbols that have drifted from mission (low coherence)
+   *
+   * DEFAULT BEHAVIOR (Monument 5.2 - Calibrated):
+   * - If maxCoherence not specified, uses the overlay's computed threshold
+   * - This threshold is data-driven (60th percentile), not hardcoded
+   * - Returns ~60% of symbols (those below the threshold)
    */
   async getDriftedSymbols(
-    maxCoherence: number = 0.5
+    maxCoherence?: number
   ): Promise<SymbolCoherence[]> {
     const overlay = await this.retrieve();
 
@@ -775,9 +801,13 @@ export class StrategicCoherenceManager {
       return [];
     }
 
+    // Use overlay's computed threshold if not explicitly provided
+    const threshold =
+      maxCoherence ?? overlay.overall_metrics.high_alignment_threshold;
+
     return overlay.symbol_coherence
-      .filter((s) => s.overallCoherence <= maxCoherence)
-      .sort((a, b) => b.overallCoherence - a.overallCoherence); // Sort descending (highest first)
+      .filter((s) => s.overallCoherence < threshold)
+      .sort((a, b) => a.overallCoherence - b.overallCoherence); // Sort ascending (lowest first)
   }
 
   /**

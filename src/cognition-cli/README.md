@@ -193,6 +193,68 @@ Project Lattice ∧ Conversation Lattice = Project Alignment Score
 
 **Result:** True stateful AI with infinite context. [Read more →](./src/tui/README.md)
 
+### 6. Cross-Overlay Workflows (Killer Features)
+
+**NEW in v2.4.0:** Commands that combine multiple overlays for high-value developer insights.
+
+#### PR Impact Analysis (O₁+O₂+O₃+O₄+O₇)
+
+Comprehensive PR impact before merging - combines **all 5 overlays** for complete risk assessment:
+
+```bash
+# Analyze current changes
+cognition-cli pr-analyze
+
+# Analyze specific branch
+cognition-cli pr-analyze --branch feature/auth-refactor
+
+# Export for CI/CD
+cognition-cli pr-analyze --json > pr-analysis.json
+```
+
+**Output includes:**
+- 📦 **Structural Changes (O₁):** Files, functions, modules changed
+- 🔒 **Security Review (O₂):** Threats, vulnerabilities, risk level
+- 💥 **Blast Radius (O₃):** Direct consumers, transitive impact, critical paths
+- 🎯 **Mission Alignment (O₄):** Alignment confidence, matching concepts
+- 📈 **Coherence Impact (O₇):** Before/after coherence, trend analysis
+- 🎯 **Recommendations:** Actionable next steps
+- ✅ **Mergeable:** Yes/No with risk score (0-100)
+
+**Use Cases:**
+- PR reviews before merge
+- CI/CD quality gates
+- Architecture impact assessment
+- Security audits
+
+#### Security Blast Radius (O₂+O₃)
+
+Shows cascading security impact when a file/symbol is compromised:
+
+```bash
+# Analyze security impact of a file
+cognition-cli security blast-radius src/auth.ts
+
+# Analyze by symbol name
+cognition-cli security blast-radius validateToken
+
+# Export for security audit
+cognition-cli security blast-radius src/auth.ts --json
+```
+
+**Output includes:**
+- ⚠️ **Threats (O₂):** Security issues in the file (severity, type, CVEs)
+- 💥 **Blast Radius (O₃):** All consumers (direct + transitive)
+- 🔥 **Critical Security Paths:** High-risk dependency chains
+- 💀 **Data Exposure Risk:** What data attackers could access
+- 🎯 **Recommendations:** Prioritized remediation steps
+
+**Use Cases:**
+- Vulnerability triage (prioritize by blast radius)
+- Security code reviews
+- Incident response (understand attack surface)
+- Architecture security assessment
+
 ---
 
 ## Command Reference
@@ -213,6 +275,8 @@ Project Lattice ∧ Conversation Lattice = Project Alignment Score
 | `cognition-cli query <question>`        | Graph traversal                                 | Index lookup, dependency traversal                    |
 | `cognition-cli audit <command>`         | PGC integrity verification                      | Transform history, hash verification                  |
 | `cognition-cli tui`                     | **Interactive TUI with Σ system**               | Infinite context, dual-lattice, session lifecycle     |
+| `cognition-cli pr-analyze`              | **Cross-overlay PR analysis (O₁+O₂+O₃+O₄+O₇)**  | Impact assessment, risk scoring, merge recommendations |
+| `cognition-cli security blast-radius`   | **Security impact analysis (O₂+O₃)**            | Threat identification, cascading security impact       |
 
 ---
 
