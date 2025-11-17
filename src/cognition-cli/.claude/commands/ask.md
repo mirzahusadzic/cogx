@@ -7,7 +7,7 @@ Please help me query the knowledge lattice using semantic search across all over
 1. **Run the semantic Q&A query**:
 
    ```bash
-   cognition-cli ask "<your question>" --verbose
+   cognition-cli query 'your question'
    ```
 
 2. **Analyze the results**:
