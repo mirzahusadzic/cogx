@@ -39,6 +39,7 @@ function createLineagePatternSchema(): Schema {
     new Field('lineage_hash', new Utf8()),
     new Field('filePath', new Utf8()),
     new Field('structuralHash', new Utf8()),
+    new Field('document_hash', new Utf8()), // SHA-256 hash of source document for --force cleanup
   ]);
 }
 
@@ -649,24 +650,29 @@ export class LanceVectorStore {
 
     const allVectors = await this.getAllVectors();
 
-    // Group by symbol and find duplicates
-    const symbolMap = new Map();
+    // Group by symbol + document_hash (content-aware deduplication)
+    // This ensures same symbol in different files are kept separate
+    const vectorMap = new Map();
     const duplicatesToDelete: string[] = [];
 
     allVectors.forEach((vec) => {
-      if (!symbolMap.has(vec.symbol)) {
-        // First time seeing this symbol - keep it
-        symbolMap.set(vec.symbol, vec);
+      // Create composite key: symbol + document_hash
+      // This identifies unique symbol per document/code content
+      const key = `${vec.symbol}::${vec.document_hash || vec.structuralHash}`;
+
+      if (!vectorMap.has(key)) {
+        // First time seeing this symbol+document combo - keep it
+        vectorMap.set(key, vec);
       } else {
         // Duplicate found - keep the most recent one
-        const existing = symbolMap.get(vec.symbol);
+        const existing = vectorMap.get(key);
         const existingTime = new Date(existing.computed_at as string).getTime();
         const currentTime = new Date(vec.computed_at as string).getTime();
 
         if (currentTime > existingTime) {
           // Current vector is newer, delete the existing one
           duplicatesToDelete.push(existing.id);
-          symbolMap.set(vec.symbol, vec);
+          vectorMap.set(key, vec);
         } else {
           // Existing vector is newer, delete the current one
           duplicatesToDelete.push(vec.id);

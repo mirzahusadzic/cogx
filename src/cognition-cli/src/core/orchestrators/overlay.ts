@@ -327,7 +327,7 @@ export class OverlayOrchestrator {
 
     // Strategic coherence has a different flow - computes from existing overlays
     if (overlayType === 'strategic_coherence') {
-      await this.generateStrategicCoherence(force);
+      await this.generateStrategicCoherence(force, skipGc);
       return;
     }
 
@@ -354,6 +354,24 @@ export class OverlayOrchestrator {
         console.log(
           chalk.green('[Overlay] Lineage patterns generation complete.')
         );
+
+        // Deduplicate vectors (keep most recent by computed_at)
+        // Only needed when --force creates duplicates, skip if --skip-gc
+        if (force && !skipGc) {
+          log.step('\n[Overlay] Deduplicating vectors...');
+          await this.vectorDB.initialize('lineage_patterns');
+          const duplicatesRemoved =
+            await this.vectorDB.removeDuplicateVectors();
+          if (duplicatesRemoved > 0) {
+            log.success(
+              `Transform: Removed ${duplicatesRemoved} duplicate vectors (kept most recent).`
+            );
+          } else {
+            log.info('Transform: No duplicate vectors found.');
+          }
+        } else if (skipGc) {
+          log.info('Transform: Vector deduplication skipped (--skip-gc flag).');
+        }
       } finally {
         await this.lineagePatternManager.shutdown();
       }
@@ -568,6 +586,22 @@ export class OverlayOrchestrator {
           `- Processed ${allJobs.length} patterns (${skippedCount} files skipped)`
         )
       );
+
+      // Deduplicate vectors (keep most recent by computed_at)
+      // Only needed when --force creates duplicates, skip if --skip-gc
+      if (force && !skipGc) {
+        log.step('\n[Overlay] Deduplicating vectors...');
+        const duplicatesRemoved = await this.vectorDB.removeDuplicateVectors();
+        if (duplicatesRemoved > 0) {
+          log.success(
+            `Transform: Removed ${duplicatesRemoved} duplicate vectors (kept most recent).`
+          );
+        } else {
+          log.info('Transform: No duplicate vectors found.');
+        }
+      } else if (skipGc) {
+        log.info('Transform: Vector deduplication skipped (--skip-gc flag).');
+      }
 
       // Verify the structural patterns overlay after generation
       log.info(
@@ -1187,7 +1221,10 @@ export class OverlayOrchestrator {
    * Generate strategic coherence overlay
    * Computes alignment between code symbols (O₁) and mission concepts (O₃)
    */
-  private async generateStrategicCoherence(force: boolean): Promise<void> {
+  private async generateStrategicCoherence(
+    force: boolean,
+    skipGc: boolean = false
+  ): Promise<void> {
     const s = spinner();
 
     // Step 1: Check if overlay already exists
@@ -1250,6 +1287,25 @@ export class OverlayOrchestrator {
     s.start('[StrategicCoherence] Storing coherence overlay...');
     await this.strategicCoherenceManager.store(overlay);
     s.stop('[StrategicCoherence] Overlay stored.');
+
+    // Step 5.5: Deduplicate temporary mission concepts vector table
+    // Only needed when --force creates duplicates, skip if --skip-gc
+    if (force && !skipGc) {
+      log.step(
+        '\n[StrategicCoherence] Deduplicating temporary mission concepts vectors...'
+      );
+      await this.vectorDB.initialize('mission_concepts_multi_temp');
+      const duplicatesRemoved = await this.vectorDB.removeDuplicateVectors();
+      if (duplicatesRemoved > 0) {
+        log.success(
+          `Transform: Removed ${duplicatesRemoved} duplicate vectors (kept most recent).`
+        );
+      } else {
+        log.info('Transform: No duplicate vectors found.');
+      }
+    } else if (skipGc) {
+      log.info('Transform: Vector deduplication skipped (--skip-gc flag).');
+    }
 
     // Step 6: Display summary
     console.log('');
