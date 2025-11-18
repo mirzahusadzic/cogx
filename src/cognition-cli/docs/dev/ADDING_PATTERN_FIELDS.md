@@ -9,7 +9,7 @@ When adding new fields to structural data extracted from code, there are **multi
 
 ## Real-World Example: Adding `body_dependencies`
 
-We wanted to track Python class instantiations in function bodies (e.g., `client = SnowflakeClient()`), not just type annotations. This required changes across 3 repositories and 7 files.
+We wanted to track Python class instantiations in function bodies (e.g., `client = DatabaseClient()`), not just type annotations. This required changes across 3 repositories and 7 files.
 
 ### The Bug Hunt Timeline
 
@@ -184,15 +184,15 @@ it('CRITICAL: should extract dependencies from Python function body_dependencies
     language: 'python',
     functions: [
       {
-        name: '_ingest_from_snowflake',
-        params: [{ name: 'submitter', type: 'RCAWorkbenchSubmitter' }],
+        name: '_ingest_from_database',
+        params: [{ name: 'submitter', type: 'WorkbenchSubmitter' }],
         returns: 'None',
         is_async: true,
         decorators: [],
         body_dependencies: {
           // ← NEW FIELD
-          instantiations: ['SnowflakeClient', 'SnowflakeDataTransformer'],
-          method_calls: [['snowflake_client', 'get_dag_history']],
+          instantiations: ['DatabaseClient', 'DataTransformer'],
+          method_calls: [['database_client', 'get_history']],
         },
       },
     ],
@@ -200,8 +200,8 @@ it('CRITICAL: should extract dependencies from Python function body_dependencies
   };
 
   // Test that dependencies are extracted from BOTH type annotations AND body
-  expect(dependencies.has('RCAWorkbenchSubmitter')).toBe(true); // From type
-  expect(dependencies.has('SnowflakeClient')).toBe(true); // From body
+  expect(dependencies.has('WorkbenchSubmitter')).toBe(true); // From type
+  expect(dependencies.has('DatabaseClient')).toBe(true); // From body
 });
 ```
 
@@ -228,12 +228,12 @@ cd ~/src/egemma
 uv run --env-file=.env uvicorn src.server:app --host localhost --port 8000 --reload
 
 # 3. Regenerate overlays in target project
-cd ~/src/rca-catalyst
+cd ~/src/example-project
 cognition-cli overlay generate structural_patterns --force
 cognition-cli overlay generate lineage_patterns --force  # If needed
 
 # 4. Verify it works
-cognition-cli blast-radius SnowflakeClient
+cognition-cli blast-radius DatabaseClient
 ```
 
 ## Common Pitfalls
@@ -253,7 +253,7 @@ cognition-cli blast-radius SnowflakeClient
 curl -s http://localhost:8000/parse-ast ... | jq '.functions[0].body_dependencies'
 
 # Check stored data in PGC
-cd ~/src/rca-catalyst
+cd ~/src/example-project
 HASH=$(jq -r '.symbolStructuralDataHash' .open_cognition/overlays/structural_patterns/FILE#SYMBOL.json)
 cat ".open_cognition/objects/${HASH:0:2}/${HASH:2}" | jq '.functions[0].body_dependencies'
 ```
@@ -320,9 +320,9 @@ After making all changes, verify end-to-end:
 
 ## Related Documentation
 
-- [Lineage Usage Analysis](../LINEAGE_USAGE_ANALYSIS.md) - Why we have two dependency tracking systems
-- [Structural Types](../src/core/types/structural.ts) - Complete type definitions
-- [PGC Architecture](./PGC_ARCHITECTURE.md) - How overlays work
+- [Lineage Usage Analysis](./LINEAGE_USAGE_ANALYSIS.md) - Why we have two dependency tracking systems
+- [Structural Types](../../src/core/types/structural.ts) - Complete type definitions
+- [The PGC](../manual/part-1-foundation/02-the-pgc.md) - How overlays work
 
 ## Lessons Learned
 
