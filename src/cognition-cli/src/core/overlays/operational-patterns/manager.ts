@@ -73,6 +73,7 @@ export interface OperationalPatternsOverlay {
   extracted_patterns: OperationalKnowledge[]; // Workflow patterns with embeddings
   generated_at: string; // ISO timestamp
   transform_id: string; // Transform that generated this overlay
+  format_version?: number; // 2 = embeddings in LanceDB, 1 or undefined = embeddings in YAML
 }
 
 /**
@@ -519,6 +520,7 @@ export class OperationalPatternsManager
       extracted_patterns: patternsWithoutEmbeddings, // No embeddings!
       generated_at: new Date().toISOString(),
       transform_id: transformId,
+      format_version: 2, // Mark as v2 format (embeddings in LanceDB pattern tables)
     };
 
     // Write overlay to file

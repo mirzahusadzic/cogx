@@ -79,6 +79,7 @@ export interface MathematicalProofsOverlay {
   extracted_statements: MathematicalKnowledge[]; // Theorems, proofs, etc.
   generated_at: string; // ISO timestamp
   transform_id: string; // Transform that generated this overlay
+  format_version?: number; // 2 = embeddings in LanceDB, 1 or undefined = embeddings in YAML
 }
 
 /**
@@ -508,6 +509,7 @@ export class MathematicalProofsManager
       extracted_statements: statementsWithoutEmbeddings, // No embeddings!
       generated_at: new Date().toISOString(),
       transform_id: transformId,
+      format_version: 2, // Mark as v2 format (embeddings in LanceDB pattern tables)
     };
 
     const overlayFile = path.join(this.overlayPath, `${documentHash}.yaml`);

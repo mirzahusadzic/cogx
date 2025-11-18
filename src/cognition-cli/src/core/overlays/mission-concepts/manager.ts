@@ -70,6 +70,7 @@ export interface MissionConceptsOverlay {
   extracted_concepts: MissionConcept[]; // Ranked concepts with 768d embeddings
   generated_at: string; // ISO timestamp
   transform_id: string; // Transform that generated this overlay
+  format_version?: number; // 2 = embeddings in LanceDB, 1 or undefined = embeddings in YAML
 }
 
 /**
@@ -511,6 +512,7 @@ export class MissionConceptsManager
     const enrichedOverlay: MissionConceptsOverlay = {
       ...overlay,
       extracted_concepts: conceptsWithoutEmbeddings, // No embeddings!
+      format_version: 2, // Mark as v2 format (embeddings in LanceDB pattern tables)
     };
 
     const filePath = path.join(

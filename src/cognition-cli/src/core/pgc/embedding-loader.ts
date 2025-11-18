@@ -96,9 +96,14 @@ export class EmbeddingLoader {
     overlayData: OverlayData,
     pgcRoot: string
   ): Promise<MissionConcept[]> {
-    // V2 format: Load from LanceDB
+    // V2 format with lancedb_metadata: Load from DocumentLanceStore (old migration path)
     if (overlayData.format_version === 2 && overlayData.lancedb_metadata) {
       return this.loadFromLanceDB(overlayData, pgcRoot);
+    }
+
+    // V2 format without lancedb_metadata: Load from pattern tables (new generation path)
+    if (overlayData.format_version === 2) {
+      return this.loadFromPatternTables(overlayData, pgcRoot);
     }
 
     // V1 format: Load from YAML (legacy)
@@ -143,6 +148,80 @@ export class EmbeddingLoader {
         `Failed to load embeddings from LanceDB: ${(error as Error).message}`
       );
     }
+  }
+
+  /**
+   * Load embeddings from pattern tables (v2 format without lancedb_metadata)
+   * Used for overlays generated with the new pattern table architecture
+   */
+  private async loadFromPatternTables(
+    overlayData: OverlayData,
+    pgcRoot: string
+  ): Promise<MissionConcept[]> {
+    const { LanceVectorStore } = await import(
+      '../overlays/vector-db/lance-store.js'
+    );
+
+    // Determine table name based on overlay type
+    const tableName = this.getTableNameForOverlay(overlayData);
+    if (!tableName) {
+      throw new Error(
+        'Cannot determine pattern table name for v2 overlay (no recognized concept field)'
+      );
+    }
+
+    const documentHash = overlayData.document_hash;
+    if (!documentHash) {
+      throw new Error('V2 overlay missing document_hash');
+    }
+
+    const lanceStore = new LanceVectorStore(pgcRoot);
+
+    try {
+      await lanceStore.initialize(tableName);
+
+      // Get all vectors and filter by document_hash
+      const allVectors = await lanceStore.getAllVectors();
+      const documentVectors = allVectors.filter(
+        (v) => v.document_hash === documentHash
+      );
+
+      await lanceStore.close();
+
+      // Convert vector records to MissionConcept format
+      return documentVectors.map((record) => ({
+        text: record.semantic_signature as string,
+        section: (record.architectural_role as string) || 'unknown',
+        weight: 1.0,
+        occurrences: 1,
+        sectionHash: (record.structuralHash as string) || '',
+        embedding: record.embedding,
+      }));
+    } catch (error) {
+      await lanceStore.close();
+      throw new Error(
+        `Failed to load embeddings from pattern table ${tableName}: ${(error as Error).message}`
+      );
+    }
+  }
+
+  /**
+   * Determine which pattern table to use based on overlay data
+   */
+  private getTableNameForOverlay(overlayData: OverlayData): string | null {
+    if (overlayData.extracted_concepts) {
+      return 'mission_concepts_multi_temp';
+    }
+    if (overlayData.extracted_knowledge) {
+      return 'security_guidelines';
+    }
+    if (overlayData.extracted_patterns) {
+      return 'operational_patterns';
+    }
+    if (overlayData.extracted_statements) {
+      return 'mathematical_proofs';
+    }
+    return null;
   }
 
   /**

@@ -77,6 +77,7 @@ export interface SecurityGuidelinesOverlay {
   transform_id: string; // Transform that generated this overlay
   source_project?: string; // For imported .cogx files
   source_commit?: string; // Git commit hash (provenance)
+  format_version?: number; // 2 = embeddings in LanceDB, 1 or undefined = embeddings in YAML
 }
 
 /**
@@ -526,6 +527,7 @@ export class SecurityGuidelinesManager
       transform_id: transformId,
       source_project: sourceProject,
       source_commit: sourceCommit,
+      format_version: 2, // Mark as v2 format (embeddings in LanceDB pattern tables)
     };
 
     const overlayFile = path.join(this.overlayPath, `${documentHash}.yaml`);
