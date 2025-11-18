@@ -905,6 +905,127 @@ export async function migrateToPatternTables(
       });
     }
 
+    // Migrate mission_integrity versions.json
+    s.start('Migrating mission_integrity/versions.json...');
+    try {
+      const missionIntegrityPath = path.join(pgcRoot, 'mission_integrity');
+      const versionsPath = path.join(missionIntegrityPath, 'versions.json');
+
+      if (await fs.pathExists(versionsPath)) {
+        // Delete old mission_integrity.lance table if it exists
+        const missionTablePath = path.join(
+          pgcRoot,
+          'patterns.lancedb',
+          'mission_integrity.lance'
+        );
+        if (await fs.pathExists(missionTablePath)) {
+          await fs.remove(missionTablePath);
+        }
+
+        // Initialize mission_integrity table with new schema
+        const missionStore = new LanceVectorStore(pgcRoot);
+        await missionStore.initialize('mission_integrity');
+
+        // Load existing versions
+        const versionsContent = await fs.readFile(versionsPath, 'utf-8');
+        const versions = JSON.parse(versionsContent);
+
+        if (!Array.isArray(versions)) {
+          log.warn('versions.json is not an array, skipping mission_integrity');
+        } else {
+          let migratedVersions = 0;
+          let migratedEmbeddings = 0;
+
+          for (const version of versions) {
+            const conceptEmbeddings = version.conceptEmbeddings || [];
+            const conceptTexts = version.conceptTexts || [];
+
+            // Skip if no embeddings or already migrated (empty array)
+            if (
+              conceptEmbeddings.length === 0 ||
+              !Array.isArray(conceptEmbeddings[0])
+            ) {
+              continue;
+            }
+
+            if (options.dryRun) {
+              log.info(
+                chalk.dim(
+                  `  [DRY RUN] Would migrate ${conceptEmbeddings.length} embeddings from v${version.version}`
+                )
+              );
+              migratedVersions++;
+              migratedEmbeddings += conceptEmbeddings.length;
+              continue;
+            }
+
+            // Store embeddings in LanceDB
+            const vectors = conceptEmbeddings.map(
+              (embedding: number[], index: number) => ({
+                id: `v${version.version}_concept_${index}`,
+                embedding: embedding,
+                metadata: {
+                  symbol: (conceptTexts[index] || 'unknown').substring(0, 100),
+                  document_hash: version.hash,
+                  structural_signature: `mission:v${version.version}`,
+                  semantic_signature: conceptTexts[index] || 'unknown',
+                  type: 'semantic',
+                  architectural_role: 'mission_concept',
+                  computed_at: version.timestamp,
+                  lineage_hash: `mission_v${version.version}`,
+                  filePath: `mission_integrity/v${version.version}`,
+                  structuralHash: version.semanticFingerprint,
+                },
+              })
+            );
+
+            if (vectors.length > 0) {
+              await missionStore.batchStoreVectors(vectors);
+            }
+
+            // Strip embeddings from version
+            version.conceptEmbeddings = [];
+
+            migratedVersions++;
+            migratedEmbeddings += vectors.length;
+          }
+
+          await missionStore.close();
+
+          // Write back versions.json without embeddings (unless --keep-embeddings)
+          if (!options.keepEmbeddings) {
+            await fs.writeFile(
+              versionsPath,
+              JSON.stringify(versions, null, 2),
+              'utf-8'
+            );
+          }
+
+          s.stop(
+            chalk.green(
+              `✓ mission_integrity: ${migratedVersions} versions, ${migratedEmbeddings} embeddings`
+            )
+          );
+
+          migrationResults.push({
+            overlay: 'mission_integrity',
+            documents: migratedVersions,
+            concepts: migratedEmbeddings,
+          });
+          totalDocuments += migratedVersions;
+          totalConcepts += migratedEmbeddings;
+        }
+      } else {
+        s.stop(chalk.dim('○ mission_integrity/versions.json not found'));
+      }
+    } catch (error) {
+      s.stop(
+        chalk.yellow(
+          `○ Failed to migrate mission_integrity: ${(error as Error).message}`
+        )
+      );
+    }
+
     // Clean up OLD DocumentLanceStore (if exists)
     s.start('Cleaning up old document_concepts table...');
     try {
@@ -972,7 +1093,7 @@ export async function migrateToPatternTables(
       log.info('');
       log.info(
         chalk.dim(
-          'Pattern tables: .open_cognition/patterns.lancedb/{security_guidelines,mission_concepts_multi_temp,operational_patterns,mathematical_proofs}'
+          'Pattern tables: .open_cognition/patterns.lancedb/{security_guidelines,mission_concepts_multi_temp,operational_patterns,mathematical_proofs,mission_integrity}'
         )
       );
       log.info(

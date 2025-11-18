@@ -40,11 +40,11 @@ vi.mock('../../overlays/mission-concepts/manager.js', () => ({
     generateEmbeddings: vi
       .fn()
       .mockImplementation(async (concepts: unknown[]) => {
-        // Return concepts with mock embeddings
+        // Return concepts with mock embeddings (768-dimensional for LanceDB compatibility)
         return Array.isArray(concepts)
           ? concepts.map((c: { text: string }) => ({
               ...c,
-              embedding: [0.1, 0.2, 0.3],
+              embedding: Array.from({ length: 768 }, (_, i) => i / 1000),
             }))
           : [];
       }),

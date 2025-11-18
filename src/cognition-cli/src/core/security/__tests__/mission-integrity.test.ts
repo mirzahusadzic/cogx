@@ -20,6 +20,11 @@ import {
 import fs from 'fs-extra';
 import path from 'path';
 import os from 'os';
+
+// Helper to create 768-dimensional test embeddings (required by LanceDB)
+function makeEmbedding(seed: number): number[] {
+  return Array.from({ length: 768 }, (_, i) => (seed + i) / 1000);
+}
 import { createHash } from 'crypto';
 
 describe('MissionIntegrityMonitor', () => {
@@ -47,8 +52,16 @@ describe('MissionIntegrityMonitor', () => {
       await fs.writeFile(visionPath, content);
 
       const concepts: MissionConcept[] = [
-        { text: 'concept 1', embedding: [0.1, 0.2, 0.3], weight: 1.0 },
-        { text: 'concept 2', embedding: [0.4, 0.5, 0.6], weight: 1.0 },
+        {
+          text: 'concept 1',
+          embedding: makeEmbedding(0.1),
+          weight: 1.0,
+        },
+        {
+          text: 'concept 2',
+          embedding: makeEmbedding(0.4),
+          weight: 1.0,
+        },
       ];
 
       const version = await monitor.recordVersion(visionPath, concepts);
@@ -65,14 +78,14 @@ describe('MissionIntegrityMonitor', () => {
     it('should auto-increment version numbers', async () => {
       await fs.writeFile(visionPath, 'version 1');
       const concepts1: MissionConcept[] = [
-        { text: 'concept1', embedding: [0.1, 0.2], weight: 1.0 },
+        { text: 'concept1', embedding: makeEmbedding(0.1), weight: 1.0 },
       ];
 
       const version1 = await monitor.recordVersion(visionPath, concepts1);
 
       await fs.writeFile(visionPath, 'version 2');
       const concepts2: MissionConcept[] = [
-        { text: 'concept2', embedding: [0.3, 0.4], weight: 1.0 },
+        { text: 'concept2', embedding: makeEmbedding(0.3), weight: 1.0 },
       ];
 
       const version2 = await monitor.recordVersion(visionPath, concepts2);
@@ -87,8 +100,12 @@ describe('MissionIntegrityMonitor', () => {
     it('should store concept texts with embeddings', async () => {
       await fs.writeFile(visionPath, 'test content');
       const concepts: MissionConcept[] = [
-        { text: 'security first', embedding: [0.1, 0.2], weight: 1.0 },
-        { text: 'verification over trust', embedding: [0.3, 0.4], weight: 1.0 },
+        { text: 'security first', embedding: makeEmbedding(0.1), weight: 1.0 },
+        {
+          text: 'verification over trust',
+          embedding: makeEmbedding(0.3),
+          weight: 1.0,
+        },
       ];
 
       const version = await monitor.recordVersion(visionPath, concepts);
@@ -108,7 +125,7 @@ describe('MissionIntegrityMonitor', () => {
     it('should retrieve version by number', async () => {
       await fs.writeFile(visionPath, 'test content');
       const concepts: MissionConcept[] = [
-        { text: 'test', embedding: [0.1, 0.2], weight: 1.0 },
+        { text: 'test', embedding: makeEmbedding(0.1), weight: 1.0 },
       ];
 
       await monitor.recordVersion(visionPath, concepts);
@@ -127,12 +144,12 @@ describe('MissionIntegrityMonitor', () => {
     it('should retrieve latest version', async () => {
       await fs.writeFile(visionPath, 'version 1');
       await monitor.recordVersion(visionPath, [
-        { text: 'v1', embedding: [0.1], weight: 1.0 },
+        { text: 'v1', embedding: makeEmbedding(0.1), weight: 1.0 },
       ]);
 
       await fs.writeFile(visionPath, 'version 2');
       await monitor.recordVersion(visionPath, [
-        { text: 'v2', embedding: [0.2], weight: 1.0 },
+        { text: 'v2', embedding: makeEmbedding(0.2), weight: 1.0 },
       ]);
 
       const latest = await monitor.getLatestVersion();
@@ -149,8 +166,8 @@ describe('MissionIntegrityMonitor', () => {
     it('should calculate fingerprint from concept embeddings', async () => {
       await fs.writeFile(visionPath, 'test content');
       const concepts: MissionConcept[] = [
-        { text: 'c1', embedding: [0.1, 0.2, 0.3], weight: 1.0 },
-        { text: 'c2', embedding: [0.4, 0.5, 0.6], weight: 1.0 },
+        { text: 'c1', embedding: makeEmbedding(0.1), weight: 1.0 },
+        { text: 'c2', embedding: makeEmbedding(0.4), weight: 1.0 },
       ];
 
       const version = await monitor.recordVersion(visionPath, concepts);
@@ -163,12 +180,12 @@ describe('MissionIntegrityMonitor', () => {
     it('should produce different fingerprints for different embeddings', async () => {
       await fs.writeFile(visionPath, 'version 1');
       const version1 = await monitor.recordVersion(visionPath, [
-        { text: 'c1', embedding: [0.1, 0.2], weight: 1.0 },
+        { text: 'c1', embedding: makeEmbedding(0.1), weight: 1.0 },
       ]);
 
       await fs.writeFile(visionPath, 'version 2');
       const version2 = await monitor.recordVersion(visionPath, [
-        { text: 'c2', embedding: [0.9, 0.8], weight: 1.0 },
+        { text: 'c2', embedding: makeEmbedding(0.9), weight: 1.0 },
       ]);
 
       expect(version1.semanticFingerprint).not.toBe(
@@ -179,12 +196,12 @@ describe('MissionIntegrityMonitor', () => {
     it('should produce same fingerprint for identical embeddings', async () => {
       await fs.writeFile(visionPath, 'version 1');
       const version1 = await monitor.recordVersion(visionPath, [
-        { text: 'same', embedding: [0.5, 0.5, 0.7], weight: 1.0 },
+        { text: 'same', embedding: makeEmbedding(0.5), weight: 1.0 },
       ]);
 
       await fs.writeFile(visionPath, 'version 2');
       const version2 = await monitor.recordVersion(visionPath, [
-        { text: 'same', embedding: [0.5, 0.5, 0.7], weight: 1.0 },
+        { text: 'same', embedding: makeEmbedding(0.5), weight: 1.0 },
       ]);
 
       expect(version1.semanticFingerprint).toBe(version2.semanticFingerprint);
@@ -197,7 +214,7 @@ describe('MissionIntegrityMonitor', () => {
       await fs.writeFile(visionPath, content);
 
       const version = await monitor.recordVersion(visionPath, [
-        { text: 'concept', embedding: [0.1, 0.2], weight: 1.0 },
+        { text: 'concept', embedding: makeEmbedding(0.1), weight: 1.0 },
       ]);
 
       const expectedHash = createHash('sha256').update(content).digest('hex');
@@ -216,7 +233,7 @@ describe('MissionIntegrityMonitor', () => {
       await fs.writeFile(visionPath, originalContent);
 
       const version = await monitor.recordVersion(visionPath, [
-        { text: 'original', embedding: [0.1], weight: 1.0 },
+        { text: 'original', embedding: makeEmbedding(0.1), weight: 1.0 },
       ]);
 
       const originalHash = version.hash;
@@ -237,7 +254,7 @@ describe('MissionIntegrityMonitor', () => {
       for (let i = 1; i <= 3; i++) {
         await fs.writeFile(visionPath, `version ${i}`);
         await monitor.recordVersion(visionPath, [
-          { text: `v${i}`, embedding: [i * 0.1], weight: 1.0 },
+          { text: `v${i}`, embedding: makeEmbedding(i * 0.1), weight: 1.0 },
         ]);
       }
 
@@ -252,7 +269,7 @@ describe('MissionIntegrityMonitor', () => {
     it('should preserve timestamps in version history', async () => {
       await fs.writeFile(visionPath, 'test');
       const version = await monitor.recordVersion(visionPath, [
-        { text: 'test', embedding: [0.1], weight: 1.0 },
+        { text: 'test', embedding: makeEmbedding(0.1), weight: 1.0 },
       ]);
 
       expect(version.timestamp).toBeDefined();

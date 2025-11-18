@@ -195,10 +195,137 @@ export class MissionIntegrityMonitor {
       conceptTexts,
     };
 
-    // 7. Append to log (atomic operation)
-    await this.appendVersion(version);
+    // 7. Store embeddings in LanceDB (NOT in JSON!)
+    await this.storeEmbeddingsInLance(
+      nextVersion,
+      conceptEmbeddings,
+      conceptTexts,
+      semanticFingerprint,
+      hash
+    );
+
+    // 8. Strip embeddings before writing to JSON (metadata only)
+    const versionWithoutEmbeddings = {
+      ...version,
+      conceptEmbeddings: [], // Empty array for backward compatibility
+    };
+
+    // 9. Append to log (atomic operation)
+    await this.appendVersion(versionWithoutEmbeddings);
 
     return version;
+  }
+
+  /**
+   * Store mission concept embeddings in LanceDB
+   *
+   * Stores embeddings separately from versions.json to:
+   * - Reduce JSON file size
+   * - Enable binary storage format
+   * - Support efficient similarity search
+   *
+   * @param version - Version number
+   * @param embeddings - Concept embeddings
+   * @param conceptTexts - Concept texts (parallel to embeddings)
+   * @param semanticFingerprint - Version's semantic fingerprint
+   * @param documentHash - Mission document hash
+   */
+  private async storeEmbeddingsInLance(
+    version: number,
+    embeddings: number[][],
+    conceptTexts: string[],
+    semanticFingerprint: string,
+    documentHash: string
+  ): Promise<void> {
+    const { LanceVectorStore } = await import(
+      '../overlays/vector-db/lance-store.js'
+    );
+    const lanceStore = new LanceVectorStore(this.pgcRoot);
+    await lanceStore.initialize('mission_integrity');
+
+    const vectors = embeddings.map((embedding, index) => ({
+      id: `v${version}_concept_${index}`,
+      symbol: conceptTexts[index].substring(0, 100),
+      embedding: embedding,
+      document_hash: documentHash,
+      structural_signature: `mission:v${version}`,
+      semantic_signature: conceptTexts[index],
+      type: 'semantic',
+      architectural_role: 'mission_concept',
+      computed_at: new Date().toISOString(),
+      lineage_hash: `mission_v${version}`,
+      filePath: `mission_integrity/v${version}`,
+      structuralHash: semanticFingerprint,
+    }));
+
+    if (vectors.length > 0) {
+      await lanceStore.batchStoreVectors(
+        vectors.map((v) => ({
+          id: v.id,
+          embedding: v.embedding,
+          metadata: {
+            symbol: v.symbol,
+            document_hash: v.document_hash,
+            structural_signature: v.structural_signature,
+            semantic_signature: v.semantic_signature,
+            type: v.type,
+            architectural_role: v.architectural_role,
+            computed_at: v.computed_at,
+            lineage_hash: v.lineage_hash,
+            filePath: v.filePath,
+            structuralHash: v.structuralHash,
+          },
+        }))
+      );
+    }
+
+    await lanceStore.close();
+  }
+
+  /**
+   * Load concept embeddings for a version from LanceDB
+   *
+   * Retrieves embeddings that were stored separately from versions.json.
+   * Used by drift detection and semantic analysis tools.
+   *
+   * @param version - Version number to load embeddings for
+   * @returns Array of embeddings in concept order, or empty array if not found
+   *
+   * @example
+   * const embeddings = await monitor.loadEmbeddingsFromLance(1);
+   * console.log(`Loaded ${embeddings.length} concept embeddings for v1`);
+   */
+  async loadEmbeddingsFromLance(version: number): Promise<number[][]> {
+    try {
+      const { LanceVectorStore } = await import(
+        '../overlays/vector-db/lance-store.js'
+      );
+      const lanceStore = new LanceVectorStore(this.pgcRoot);
+      await lanceStore.initialize('mission_integrity');
+
+      // Query for all vectors matching this version
+      // Vector IDs follow pattern: v{version}_concept_{index}
+      const allVectors = await lanceStore.getAllVectors();
+      const versionPrefix = `v${version}_concept_`;
+      const versionVectors = allVectors
+        .filter((v) => v.id.startsWith(versionPrefix))
+        .sort((a, b) => {
+          // Sort by concept index
+          const indexA = parseInt(a.id.replace(versionPrefix, ''));
+          const indexB = parseInt(b.id.replace(versionPrefix, ''));
+          return indexA - indexB;
+        });
+
+      await lanceStore.close();
+
+      return versionVectors.map((v) => v.embedding);
+    } catch (error) {
+      console.warn(
+        `Warning: Failed to load embeddings for v${version} from LanceDB:`,
+        (error as Error).message
+      );
+      return [];
+    }
   }
 
   /**
@@ -216,7 +343,21 @@ export class MissionIntegrityMonitor {
    */
   async getLatestVersion(): Promise<MissionVersion | null> {
     const versions = await this.loadVersions();
-    return versions.length > 0 ? versions[versions.length - 1] : null;
+    if (versions.length === 0) return null;
+
+    const latest = versions[versions.length - 1];
+    // Load embeddings from LanceDB if they're missing (new format)
+    if (
+      !latest.conceptEmbeddings ||
+      latest.conceptEmbeddings.length === 0 ||
+      !Array.isArray(latest.conceptEmbeddings[0])
+    ) {
+      latest.conceptEmbeddings = await this.loadEmbeddingsFromLance(
+        latest.version
+      );
+    }
+
+    return latest;
   }
 
   /**
@@ -232,7 +373,22 @@ export class MissionIntegrityMonitor {
    * });
    */
   async getAllVersions(): Promise<MissionVersion[]> {
-    return await this.loadVersions();
+    const versions = await this.loadVersions();
+
+    // Load embeddings from LanceDB for each version if missing (new format)
+    for (const version of versions) {
+      if (
+        !version.conceptEmbeddings ||
+        version.conceptEmbeddings.length === 0 ||
+        !Array.isArray(version.conceptEmbeddings[0])
+      ) {
+        version.conceptEmbeddings = await this.loadEmbeddingsFromLance(
+          version.version
+        );
+      }
+    }
+
+    return versions;
   }
 
   /**
@@ -249,7 +405,22 @@ export class MissionIntegrityMonitor {
    */
   async getVersion(versionNumber: number): Promise<MissionVersion | null> {
     const versions = await this.loadVersions();
-    return versions.find((v) => v.version === versionNumber) || null;
+    const version = versions.find((v) => v.version === versionNumber) || null;
+
+    if (version) {
+      // Load embeddings from LanceDB if they're missing (new format)
+      if (
+        !version.conceptEmbeddings ||
+        version.conceptEmbeddings.length === 0 ||
+        !Array.isArray(version.conceptEmbeddings[0])
+      ) {
+        version.conceptEmbeddings = await this.loadEmbeddingsFromLance(
+          version.version
+        );
+      }
+    }
+
+    return version;
   }
 
   /**
