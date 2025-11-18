@@ -319,27 +319,61 @@ export class PRAnalyzer {
 
   /**
    * Analyze security threats from O2
+   *
+   * NOTE: This is NOT static application security testing (SAST).
+   * This method performs semantic matching between changed files and
+   * documented security vulnerabilities/gaps from SECURITY.md.
+   *
+   * It identifies if changed files relate to known security concerns,
+   * not whether the changes themselves introduce new vulnerabilities.
+   *
+   * For actual code vulnerability scanning, integrate SAST tools like:
+   * - Semgrep, Bandit (Python), ESLint security plugins, etc.
+   *
+   * IMPROVEMENTS (0.3 -> 0.55 threshold, filtered by severity):
+   * - Raised similarity threshold to reduce false positives
+   * - Filter by securityType='vulnerability' or gap-related keywords
+   * - Only flag HIGH/CRITICAL severity issues
+   * - Use file name + extension (not full path) for better matching
    */
   private async analyzeSecurityThreats(
     changedFiles: Array<{ path: string; status: string }>
   ): Promise<SecurityReview> {
     const threats: SecurityReview['threats'] = [];
 
-    // For each changed file, query O2 for relevant threats
+    // For each changed file, query O2 for relevant security vulnerabilities
     for (const file of changedFiles) {
-      const query = `${file.path} security vulnerability threat`;
-      const results = await this.securityManager.query(query, 5);
+      // Extract file extension and base name for better queries
+      const fileName = file.path.split('/').pop() || '';
+      const fileExt = fileName.split('.').pop() || '';
+
+      // Query for known vulnerabilities and gaps (not general threat models)
+      const query = `${fileName} ${fileExt} security vulnerability gap issue`;
+      const results = await this.securityManager.query(query, 10);
 
       for (const result of results) {
-        if (result.similarity > 0.3) {
-          threats.push({
-            type: result.item.metadata.securityType,
-            severity: result.item.metadata.severity,
-            description: result.item.metadata.text,
-            file: file.path,
-            recommendation:
-              result.item.metadata.mitigation || 'Review for security issues',
-          });
+        // Higher threshold to reduce false positives (0.3 -> 0.55)
+        // Only match actual vulnerabilities and known security gaps
+        if (
+          result.similarity > 0.55 &&
+          (result.item.metadata.securityType === 'vulnerability' ||
+            result.item.metadata.text.toLowerCase().includes('gap') ||
+            result.item.metadata.text.toLowerCase().includes('issue') ||
+            result.item.metadata.text.toLowerCase().includes('exposed') ||
+            result.item.metadata.text.toLowerCase().includes('not implemented'))
+        ) {
+          // Only flag HIGH or CRITICAL severity issues
+          const severity = result.item.metadata.severity;
+          if (severity === 'high' || severity === 'critical') {
+            threats.push({
+              type: result.item.metadata.securityType,
+              severity: severity,
+              description: result.item.metadata.text,
+              file: file.path,
+              recommendation:
+                result.item.metadata.mitigation || 'Review for security issues',
+            });
+          }
         }
       }
     }
@@ -536,20 +570,20 @@ export class PRAnalyzer {
       );
     }
 
-    // Mission alignment recommendations
-    if (!missionAlignment.aligned) {
-      recommendations.push(
-        'Changes may not align with mission goals - review architectural intent'
-      );
-    }
-
-    // Coherence recommendations
+    // Mission alignment and coherence recommendations
+    // Note: Coherence trend can improve even if initial alignment is low
+    // Prioritize coherence trend over static alignment check
     if (coherenceImpact.trend === 'DEGRADING') {
       recommendations.push(
         'Changes reduce code-mission coherence - consider refactoring'
       );
     } else if (coherenceImpact.trend === 'IMPROVING') {
       recommendations.push('Changes improve mission alignment - good work!');
+    } else if (!missionAlignment.aligned && missionAlignment.confidence < 40) {
+      // Only warn about poor alignment if confidence is very low AND not improving
+      recommendations.push(
+        'Low mission alignment confidence - consider documenting architectural intent'
+      );
     }
 
     // Structural recommendations
