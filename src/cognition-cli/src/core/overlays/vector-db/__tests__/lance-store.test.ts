@@ -46,6 +46,7 @@ describe('LanceVectorStore', () => {
         architectural_role: 'function',
         computed_at: new Date().toISOString(),
         lineage_hash: 'abc123',
+        document_hash: 'test-doc-hash-1',
       };
 
       await store.storeVector(id, embedding, metadata);
@@ -65,12 +66,14 @@ describe('LanceVectorStore', () => {
         architectural_role: 'function',
         computed_at: new Date().toISOString(),
         lineage_hash: 'hash1',
+        document_hash: 'test-doc-hash-2',
       };
       const metadata2 = {
         symbol: 'Updated',
         architectural_role: 'class',
         computed_at: new Date().toISOString(),
         lineage_hash: 'hash2',
+        document_hash: 'test-doc-hash-2',
       };
 
       await store.storeVector(id, embedding, metadata1);
@@ -89,6 +92,7 @@ describe('LanceVectorStore', () => {
         architectural_role: 'function',
         computed_at: new Date().toISOString(),
         lineage_hash: 'abc123',
+        document_hash: 'test-doc-hash-3',
       };
 
       await store.storeVector(id, embedding, metadata);
@@ -117,6 +121,7 @@ describe('LanceVectorStore', () => {
         architectural_role: 'function',
         computed_at: new Date().toISOString(),
         lineage_hash: 'hash1',
+        document_hash: 'test-doc-hash-4',
       });
 
       await store.storeVector('vec2', embedding2, {
@@ -124,6 +129,7 @@ describe('LanceVectorStore', () => {
         architectural_role: 'function',
         computed_at: new Date().toISOString(),
         lineage_hash: 'hash2',
+        document_hash: 'test-doc-hash-5',
       });
 
       await store.storeVector('vec3', embedding3, {
@@ -131,6 +137,7 @@ describe('LanceVectorStore', () => {
         architectural_role: 'function',
         computed_at: new Date().toISOString(),
         lineage_hash: 'hash3',
+        document_hash: 'test-doc-hash-6',
       });
 
       const queryEmbedding = Array(DEFAULT_EMBEDDING_DIMENSIONS)
@@ -159,6 +166,7 @@ describe('LanceVectorStore', () => {
         architectural_role: 'function',
         computed_at: new Date().toISOString(),
         lineage_hash: 'abc123',
+        document_hash: 'test-doc-hash-sql-1',
       };
 
       // Should not throw or break the database
@@ -183,6 +191,7 @@ describe('LanceVectorStore', () => {
         architectural_role: 'function',
         computed_at: new Date().toISOString(),
         lineage_hash: 'abc123',
+        document_hash: 'test-doc-hash-sql-2',
       };
 
       await expect(
@@ -209,6 +218,7 @@ describe('LanceVectorStore', () => {
           architectural_role: 'function',
           computed_at: new Date().toISOString(),
           lineage_hash: 'abc123',
+          document_hash: 'test-doc-hash-sql-3',
         };
 
         await expect(
@@ -229,6 +239,7 @@ describe('LanceVectorStore', () => {
         architectural_role: 'security',
         computed_at: new Date().toISOString(),
         lineage_hash: 'abc123',
+        document_hash: 'test-doc-hash-cve',
       };
 
       await expect(
@@ -254,6 +265,7 @@ describe('LanceVectorStore', () => {
           architectural_role: 'function',
           computed_at: new Date().toISOString(),
           lineage_hash: 'abc123',
+          document_hash: 'test-doc-hash-whitespace',
         };
 
         await expect(
@@ -273,6 +285,7 @@ describe('LanceVectorStore', () => {
         architectural_role: 'function',
         computed_at: new Date().toISOString(),
         lineage_hash: 'abc123',
+        document_hash: 'test-doc-hash-backslash',
       };
 
       await expect(
@@ -298,6 +311,7 @@ describe('LanceVectorStore', () => {
           architectural_role: 'function',
           computed_at: new Date().toISOString(),
           lineage_hash: 'abc123',
+          document_hash: 'test-doc-hash-unicode',
         };
 
         await expect(
@@ -319,6 +333,7 @@ describe('LanceVectorStore', () => {
         architectural_role: 'function',
         computed_at: new Date().toISOString(),
         lineage_hash: 'abc123',
+        document_hash: 'test-doc-hash-error',
       };
 
       await expect(
