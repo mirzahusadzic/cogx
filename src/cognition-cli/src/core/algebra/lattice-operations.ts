@@ -82,6 +82,7 @@ export async function meet<
       architectural_role: 'temp',
       computed_at: new Date().toISOString(),
       lineage_hash: 'temp',
+      document_hash: 'temp',
       metadata: JSON.stringify(itemB.metadata),
     });
   }

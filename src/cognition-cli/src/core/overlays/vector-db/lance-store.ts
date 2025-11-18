@@ -273,7 +273,7 @@ export class LanceVectorStore {
       lineage_hash: metadata.lineage_hash as string,
       filePath: (metadata.filePath as string) || 'unknown',
       structuralHash: (metadata.structuralHash as string) || 'unknown',
-      document_hash: (metadata.document_hash as string) || undefined,
+      document_hash: (metadata.document_hash as string) || '',
     };
 
     // Use mergeInsert for efficient upsert (no version bloat)
