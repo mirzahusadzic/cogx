@@ -76,6 +76,8 @@ interface MigrateOptions {
   dryRun?: boolean;
   /** Keep embeddings in YAML after migration (default: false) */
   keepEmbeddings?: boolean;
+  /** Use new per-overlay pattern tables with document_hash (default: true) */
+  usePatternTables?: boolean;
 }
 
 /**
@@ -110,7 +112,13 @@ interface MigrateOptions {
  * // → Shows what would be migrated without making changes
  */
 export async function migrateToLanceCommand(options: MigrateOptions) {
-  intro(chalk.bold('Migrate Overlay Embeddings to LanceDB'));
+  // Use new pattern tables migration by default (v2)
+  if (options.usePatternTables !== false) {
+    return await migrateToPatternTables(options);
+  }
+
+  // OLD migration path (deprecated, kept for compatibility)
+  intro(chalk.bold('Migrate Overlay Embeddings to LanceDB (v1 - deprecated)'));
 
   const pgcRoot = path.join(options.projectRoot, '.open_cognition');
   const overlaysPath = path.join(pgcRoot, 'overlays');
@@ -635,4 +643,346 @@ function getDefaultConceptType(overlayName: string): string {
     mathematical_proofs: 'theorem',
   };
   return mapping[overlayName] || 'concept';
+}
+
+/**
+ * Migrate embeddings to NEW per-overlay pattern tables with document_hash
+ *
+ * This migration handles the transition from the OLD unified document_concepts table
+ * to the NEW per-overlay pattern tables (security_guidelines, mission_concepts_multi_temp,
+ * operational_patterns, mathematical_proofs) with document_hash tracking for proper --force cleanup.
+ *
+ * MIGRATION PATH:
+ * 1. Read YAML overlays (may have embeddings or may reference old LanceDB)
+ * 2. Store in NEW LanceVectorStore pattern tables with document_hash
+ * 3. Strip embeddings from YAML (unless --keep-embeddings)
+ * 4. Delete from OLD DocumentLanceStore (if exists)
+ *
+ * @param options - Migration options
+ */
+export async function migrateToPatternTables(
+  options: MigrateOptions
+): Promise<void> {
+  intro(chalk.bold('Migrate to Pattern Tables (v2)'));
+
+  const pgcRoot = path.join(options.projectRoot, '.open_cognition');
+  const overlaysPath = path.join(pgcRoot, 'overlays');
+
+  if (!(await fs.pathExists(pgcRoot))) {
+    log.error('No .open_cognition found. Run "cognition-cli init" first.');
+    process.exit(1);
+  }
+
+  if (!(await fs.pathExists(overlaysPath))) {
+    log.warn('No overlays directory found. Nothing to migrate.');
+    outro(chalk.yellow('No overlays to migrate'));
+    return;
+  }
+
+  const s = spinner();
+
+  try {
+    const overlayConfigs = [
+      {
+        name: 'security_guidelines',
+        table: 'security_guidelines',
+        field: 'extracted_knowledge',
+      },
+      {
+        name: 'mission_concepts',
+        table: 'mission_concepts_multi_temp',
+        field: 'extracted_concepts',
+      },
+      {
+        name: 'operational_patterns',
+        table: 'operational_patterns',
+        field: 'extracted_patterns',
+      },
+      {
+        name: 'mathematical_proofs',
+        table: 'mathematical_proofs',
+        field: 'extracted_statements',
+      },
+    ];
+
+    const overlaysToMigrate = options.overlays
+      ? overlayConfigs.filter((c) => options.overlays!.includes(c.name))
+      : overlayConfigs;
+
+    log.info(
+      `Migrating to pattern tables: ${overlaysToMigrate.map((c) => c.name).join(', ')}`
+    );
+    console.log('');
+
+    // Import LanceVectorStore
+    const { LanceVectorStore } = await import(
+      '../core/overlays/vector-db/lance-store.js'
+    );
+
+    let totalConcepts = 0;
+    let totalDocuments = 0;
+    const migrationResults: Array<{
+      overlay: string;
+      documents: number;
+      concepts: number;
+    }> = [];
+
+    for (const config of overlaysToMigrate) {
+      const overlayPath = path.join(overlaysPath, config.name);
+
+      if (!(await fs.pathExists(overlayPath))) {
+        log.warn(`Overlay ${config.name} not found, skipping`);
+        continue;
+      }
+
+      s.start(`Migrating ${config.name} to ${config.table}...`);
+
+      // Delete old table if it exists (to recreate with new schema)
+      // LanceDB tables are stored as directories with .lance extension
+      const tablePath = path.join(
+        pgcRoot,
+        'patterns.lancedb',
+        `${config.table}.lance`
+      );
+      if (await fs.pathExists(tablePath)) {
+        await fs.remove(tablePath);
+      }
+
+      const yamlFiles = (await fs.readdir(overlayPath)).filter((f) =>
+        f.endsWith('.yaml')
+      );
+
+      let documentsCount = 0;
+      let conceptsCount = 0;
+
+      // Initialize LanceVectorStore for this overlay (will create with new schema)
+      const lanceStore = new LanceVectorStore(pgcRoot);
+      await lanceStore.initialize(config.table);
+
+      for (const yamlFile of yamlFiles) {
+        const yamlPath = path.join(overlayPath, yamlFile);
+
+        try {
+          const yamlContent = await fs.readFile(yamlPath, 'utf-8');
+          const overlay = YAML.parse(yamlContent);
+
+          // Skip if already migrated to v2 (format_version=2 or no embeddings)
+          if (overlay.format_version === 2) {
+            continue;
+          }
+
+          const documentHash = overlay.document_hash;
+          if (!documentHash) {
+            log.warn(
+              chalk.dim(`  ${yamlFile}: No document_hash found, skipping`)
+            );
+            continue;
+          }
+
+          // Extract concepts based on overlay field
+          const concepts = overlay[config.field] || [];
+          if (concepts.length === 0) {
+            continue;
+          }
+
+          // Filter concepts with valid embeddings
+          const validConcepts = concepts.filter(
+            (c: { embedding?: number[] }) =>
+              c.embedding && c.embedding.length === 768
+          );
+
+          if (validConcepts.length === 0) {
+            log.warn(chalk.dim(`  ${yamlFile}: No valid embeddings found`));
+            continue;
+          }
+
+          if (options.dryRun) {
+            log.info(
+              chalk.dim(
+                `  [DRY RUN] Would migrate ${validConcepts.length} concepts from ${yamlFile}`
+              )
+            );
+            conceptsCount += validConcepts.length;
+            documentsCount++;
+            continue;
+          }
+
+          // Delete existing vectors for this document (cleanup old data)
+          // Skip if table doesn't have document_hash field yet (old schema)
+          try {
+            await lanceStore.deleteByDocumentHash(documentHash);
+          } catch (error) {
+            // Table might not have document_hash field yet (old schema)
+            // This is OK - we're migrating to new schema
+            if (
+              (error as Error).message.includes('No field named document_hash')
+            ) {
+              // Skip deletion - table will be recreated with new schema
+            } else {
+              throw error; // Re-throw other errors
+            }
+          }
+
+          // Store vectors with document_hash
+          const vectors = validConcepts.map(
+            (
+              concept: {
+                text: string;
+                embedding: number[];
+                section?: string;
+                weight?: number;
+              },
+              index: number
+            ) => ({
+              id: `${documentHash}_${index}`,
+              embedding: concept.embedding,
+              metadata: {
+                symbol: concept.text.substring(0, 100),
+                document_hash: documentHash,
+                structural_signature: `${config.name}:${concept.section || 'unknown'}`,
+                semantic_signature: concept.text,
+                type: 'semantic',
+                architectural_role: concept.section || 'unknown',
+                computed_at: new Date().toISOString(),
+                lineage_hash: documentHash,
+                filePath:
+                  overlay.document_path || yamlFile.replace('.yaml', ''),
+                structuralHash: documentHash,
+              },
+            })
+          );
+
+          await lanceStore.batchStoreVectors(vectors);
+
+          conceptsCount += validConcepts.length;
+          documentsCount++;
+
+          // Strip embeddings from YAML (unless --keep-embeddings)
+          if (!options.keepEmbeddings) {
+            const conceptsWithoutEmbeddings = concepts.map(
+              (c: { embedding?: number[] }) => {
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const { embedding, ...rest } = c;
+                return rest;
+              }
+            );
+
+            const updatedOverlay = {
+              ...overlay,
+              [config.field]: conceptsWithoutEmbeddings,
+              format_version: 2, // Mark as v2 (embeddings in pattern tables)
+            };
+
+            await fs.writeFile(
+              yamlPath,
+              YAML.stringify(updatedOverlay),
+              'utf-8'
+            );
+          }
+        } catch (error) {
+          log.error(
+            chalk.red(
+              `  Failed to migrate ${yamlFile}: ${(error as Error).message}`
+            )
+          );
+        }
+      }
+
+      await lanceStore.close();
+
+      s.stop(
+        chalk.green(
+          `✓ ${config.name}: ${documentsCount} documents, ${conceptsCount} concepts → ${config.table}`
+        )
+      );
+
+      totalDocuments += documentsCount;
+      totalConcepts += conceptsCount;
+      migrationResults.push({
+        overlay: config.name,
+        documents: documentsCount,
+        concepts: conceptsCount,
+      });
+    }
+
+    // Clean up OLD DocumentLanceStore (if exists)
+    s.start('Cleaning up old document_concepts table...');
+    try {
+      const oldLanceStore = new DocumentLanceStore(pgcRoot);
+      await oldLanceStore.initialize();
+
+      // Delete all concepts from old table for migrated overlays
+      for (const config of overlaysToMigrate) {
+        const overlayType = overlayNameToType(config.name);
+        const overlayPath = path.join(overlaysPath, config.name);
+
+        if (await fs.pathExists(overlayPath)) {
+          const yamlFiles = (await fs.readdir(overlayPath)).filter((f) =>
+            f.endsWith('.yaml')
+          );
+
+          for (const yamlFile of yamlFiles) {
+            const yamlPath = path.join(overlayPath, yamlFile);
+            const yamlContent = await fs.readFile(yamlPath, 'utf-8');
+            const overlay = YAML.parse(yamlContent);
+
+            if (overlay.document_hash) {
+              await oldLanceStore.deleteDocumentConcepts(
+                overlayType,
+                overlay.document_hash
+              );
+            }
+          }
+        }
+      }
+
+      await oldLanceStore.close();
+      s.stop(chalk.green('✓ Old document_concepts table cleaned up'));
+    } catch {
+      s.stop(
+        chalk.dim('○ Old document_concepts table not found (already clean)')
+      );
+    }
+
+    // Summary
+    console.log('');
+    log.info(chalk.bold('Migration Summary:'));
+    migrationResults.forEach((result) => {
+      log.info(
+        `  ${chalk.cyan(result.overlay)}: ${result.documents} documents, ${result.concepts} concepts`
+      );
+    });
+    log.info('');
+    log.info(
+      `  ${chalk.bold('Total:')} ${totalDocuments} documents, ${totalConcepts} concepts`
+    );
+
+    if (options.dryRun) {
+      outro(
+        chalk.yellow(
+          '✓ Dry run complete - no changes made. Run without --dry-run to migrate.'
+        )
+      );
+    } else {
+      outro(
+        chalk.green(
+          `✓ Migration complete! ${totalConcepts} concepts migrated to pattern tables.`
+        )
+      );
+      log.info('');
+      log.info(
+        chalk.dim(
+          'Pattern tables: .open_cognition/patterns.lancedb/{security_guidelines,mission_concepts_multi_temp,operational_patterns,mathematical_proofs}'
+        )
+      );
+      log.info(
+        chalk.dim(
+          'All vectors now have document_hash tracking for proper --force cleanup.'
+        )
+      );
+    }
+  } catch (error) {
+    log.error(chalk.red((error as Error).message));
+    throw error;
+  }
 }

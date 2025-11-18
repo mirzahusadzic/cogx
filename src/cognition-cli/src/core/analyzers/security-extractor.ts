@@ -262,12 +262,27 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
       const trimmed = lines[i].trim();
 
       // Match single-line format: **Threat Name** — Description
+      // ONLY in lines that don't look like boundaries/assets (no words like "Boundary", "Credentials", etc.)
       const singleLineThreatMatch = trimmed.match(
         /^\*\*([^*]+)\*\*\s*[—-]\s*(.+)$/
       );
       if (singleLineThreatMatch) {
         const name = singleLineThreatMatch[1].trim();
         const description = singleLineThreatMatch[2].trim();
+
+        // Skip if this looks like a boundary or asset (not a threat)
+        const lowerName = name.toLowerCase();
+        if (
+          lowerName.includes('boundary') ||
+          lowerName.includes('credentials') ||
+          lowerName.includes('asset') ||
+          lowerName.includes('data') ||
+          lowerName.includes('gateway') ||
+          lowerName.includes('service')
+        ) {
+          continue; // Skip - likely a boundary or asset, not a threat
+        }
+
         const severity = this.inferSeverity(name + ' ' + description);
 
         threats.push({
@@ -390,8 +405,8 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
   /**
    * Extract attack vectors
    *
-   * Uses same pattern as extractThreats since attack vectors follow
-   * similar structural patterns.
+   * Only matches lines explicitly labeled as "Attack Vector" to avoid
+   * misclassifying boundaries, assets, or other bold text.
    *
    * @private
    * @param content - Section content to extract from
@@ -401,8 +416,27 @@ export class SecurityExtractor implements DocumentExtractor<SecurityKnowledge> {
     text: string;
     severity?: 'critical' | 'high' | 'medium' | 'low';
   }> {
-    // Same pattern as threats
-    return this.extractThreats(content);
+    const attacks: Array<{
+      text: string;
+      severity?: 'critical' | 'high' | 'medium' | 'low';
+    }> = [];
+    const lines = content.split('\n');
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+
+      // ONLY match lines explicitly labeled as "Attack Vector:"
+      const attackMatch = trimmed.match(/^\*\*Attack Vector\*\*:\s*(.+)$/i);
+      if (attackMatch) {
+        const description = attackMatch[1].trim();
+        attacks.push({
+          text: description,
+          severity: this.inferSeverity(description),
+        });
+      }
+    }
+
+    return attacks;
   }
 
   /**

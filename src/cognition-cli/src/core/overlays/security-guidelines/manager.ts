@@ -381,6 +381,60 @@ export class SecurityGuidelinesManager
   }
 
   /**
+   * Store embeddings in LanceDB with document_hash
+   * @private
+   */
+  private async storeEmbeddingsInLance(
+    knowledge: SecurityKnowledge[],
+    documentHash: string,
+    documentPath: string
+  ): Promise<void> {
+    const { LanceVectorStore } = await import('../vector-db/lance-store.js');
+    const lanceStore = new LanceVectorStore(this.pgcRoot);
+    await lanceStore.initialize('security_guidelines');
+
+    const vectors = knowledge
+      .filter((item) => item.embedding && item.embedding.length > 0)
+      .map((item, index) => ({
+        id: `${documentHash}_${index}`,
+        symbol: item.text.substring(0, 100), // Truncate for symbol
+        embedding: item.embedding!,
+        document_hash: documentHash,
+        structural_signature: `security:${item.securityType}`,
+        semantic_signature: item.text,
+        type: 'semantic',
+        architectural_role: item.securityType,
+        computed_at: new Date().toISOString(),
+        lineage_hash: documentHash,
+        filePath: documentPath,
+        structuralHash: documentHash,
+      }));
+
+    if (vectors.length > 0) {
+      await lanceStore.batchStoreVectors(
+        vectors.map((v) => ({
+          id: v.id,
+          embedding: v.embedding,
+          metadata: {
+            symbol: v.symbol,
+            document_hash: v.document_hash,
+            structural_signature: v.structural_signature,
+            semantic_signature: v.semantic_signature,
+            type: v.type,
+            architectural_role: v.architectural_role,
+            computed_at: v.computed_at,
+            lineage_hash: v.lineage_hash,
+            filePath: v.filePath,
+            structuralHash: v.structuralHash,
+          },
+        }))
+      );
+    }
+
+    await lanceStore.close();
+  }
+
+  /**
    * Generate embeddings for security knowledge
    */
   private async generateEmbeddings(
@@ -450,10 +504,24 @@ export class SecurityGuidelinesManager
       documentName
     );
 
+    // Store embeddings in LanceDB (NOT in YAML!)
+    await this.storeEmbeddingsInLance(
+      knowledgeWithEmbeddings,
+      documentHash,
+      documentPath
+    );
+
+    // Strip embeddings before writing to YAML (metadata only)
+    const knowledgeWithoutEmbeddings = knowledgeWithEmbeddings.map((item) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { embedding, ...rest } = item;
+      return rest as SecurityKnowledge;
+    });
+
     const overlay: SecurityGuidelinesOverlay = {
       document_hash: documentHash,
       document_path: documentPath,
-      extracted_knowledge: knowledgeWithEmbeddings,
+      extracted_knowledge: knowledgeWithoutEmbeddings,
       generated_at: new Date().toISOString(),
       transform_id: transformId,
       source_project: sourceProject,

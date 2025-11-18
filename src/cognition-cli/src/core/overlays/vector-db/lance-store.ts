@@ -51,6 +51,7 @@ export interface VectorRecord extends Record<string, unknown> {
   symbol: string;
   embedding: number[];
   lineage_hash?: string;
+  document_hash?: string; // SHA-256 hash of source document for --force cleanup
 }
 
 /**
@@ -90,6 +91,7 @@ export const VECTOR_RECORD_SCHEMA = new Schema([
   new Field('lineage_hash', new Utf8()),
   new Field('filePath', new Utf8()),
   new Field('structuralHash', new Utf8()),
+  new Field('document_hash', new Utf8()), // SHA-256 hash of source document for --force cleanup
 ]);
 
 /**
@@ -513,6 +515,37 @@ export class LanceVectorStore {
     await this.table!.delete(`id = '${escapedId}'`);
 
     return true;
+  }
+
+  /**
+   * Delete all vectors for a specific document (used by --force flag)
+   *
+   * Deletes only vectors that have a document_hash field matching the provided hash.
+   * Preserves vectors without document_hash (legacy embeddings, drift test data).
+   *
+   * @param documentHash - SHA-256 hash of the source document
+   * @returns Promise resolving to the number of vectors deleted
+   *
+   * @example
+   * // Delete all vectors from SECURITY.md when regenerating with --force
+   * await store.deleteByDocumentHash('abc123...');
+   */
+  async deleteByDocumentHash(documentHash: string): Promise<number> {
+    if (!this.isInitialized) await this.initialize();
+
+    // Get count before deletion
+    const beforeCount = await this.table!.query().toArray();
+    const matchingBefore = beforeCount.filter(
+      (v) => v.document_hash === documentHash
+    ).length;
+
+    // Delete only vectors with this document_hash (preserves legacy embeddings)
+    const escapedHash = this.escapeSqlString(documentHash);
+    await this.table!.delete(
+      `document_hash IS NOT NULL AND document_hash = '${escapedHash}'`
+    );
+
+    return matchingBefore;
   }
 
   /**

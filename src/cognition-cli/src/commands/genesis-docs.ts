@@ -492,6 +492,7 @@ async function deleteExistingDocument(
 
   // Delete LanceDB embeddings with matching document_hash
   try {
+    // Delete from OLD unified document_concepts table
     const { DocumentLanceStore } = await import(
       '../core/pgc/document-lance-store.js'
     );
@@ -508,7 +509,46 @@ async function deleteExistingDocument(
   } catch (error) {
     // LanceDB might not be initialized yet, skip silently
     console.warn(
-      `Warning: Could not delete LanceDB embeddings for ${objectHash}:`,
+      `Warning: Could not delete OLD LanceDB embeddings for ${objectHash}:`,
+      (error as Error).message
+    );
+  }
+
+  // Delete from NEW per-overlay pattern tables
+  try {
+    const { LanceVectorStore } = await import(
+      '../core/overlays/vector-db/lance-store.js'
+    );
+
+    const patternTables = [
+      'security_guidelines',
+      'mission_concepts_multi_temp',
+      'operational_patterns',
+      'mathematical_proofs',
+    ];
+
+    for (const tableName of patternTables) {
+      try {
+        const store = new LanceVectorStore(pgcRoot);
+        await store.initialize(tableName);
+        const deleted = await store.deleteByDocumentHash(objectHash);
+        if (deleted > 0) {
+          console.log(
+            `  Deleted ${deleted} vectors from ${tableName} for ${objectHash.substring(0, 8)}...`
+          );
+        }
+        await store.close();
+      } catch (tableError) {
+        // Table might not exist yet, skip
+        console.warn(
+          `Warning: Could not delete from ${tableName}:`,
+          (tableError as Error).message
+        );
+      }
+    }
+  } catch (error) {
+    console.warn(
+      `Warning: Could not delete from pattern tables:`,
       (error as Error).message
     );
   }
