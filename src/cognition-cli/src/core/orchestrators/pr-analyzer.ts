@@ -248,10 +248,13 @@ export class PRAnalyzer {
           `origin/main...${branch}`,
         ]);
 
-        return stdout.split('\n').map((line) => {
-          const [status, filePath] = line.split('\t');
-          return { path: filePath, status };
-        });
+        return stdout
+          .split('\n')
+          .filter((line) => line.trim().length > 0)
+          .map((line) => {
+            const [status, filePath] = line.split('\t');
+            return { path: filePath, status };
+          });
       }
 
       // Otherwise use dirty state
