@@ -386,7 +386,7 @@ for (const turn of turns.sortedByImportance()) {
 
 ### Session Transition Strategy
 
-> **📖 Design Rationale:** For a comprehensive explanation of the session boundary pattern, including design alternatives, academic backing, and responses to common questions, see [Session Boundary Rationale](./docs/SESSION_BOUNDARY_RATIONALE.md).
+> **📖 Design Rationale:** For a comprehensive explanation of the session boundary pattern, including design alternatives, academic backing, and responses to common questions, see [Session Boundary Rationale](./SESSION_BOUNDARY_RATIONALE.md).
 
 **Why start a fresh SDK session?**
 

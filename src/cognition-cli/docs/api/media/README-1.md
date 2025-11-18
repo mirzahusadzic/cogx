@@ -344,8 +344,8 @@ Built with:
 
 ---
 
-**Next Chapter**: [Chapter 12: Boolean Operations on Knowledge](part-3-algebra/12-boolean-operations.md) 🚧
+**Next Chapter**: [Chapter 12: Boolean Operations on Knowledge](../../manual/part-3-algebra/12-boolean-operations.md) 🚧
 
-**Quick Start**: [10-Minute Quick Start Guide](part-0-quickstart/00-quick-start.md) ⚡
+**Quick Start**: [10-Minute Quick Start Guide](../../manual/part-0-quickstart/00-quick-start.md) ⚡
 
-**Start Reading**: [Chapter 1: Cognitive Architecture](part-1-foundation/01-cognitive-architecture.md) 📋
+**Start Reading**: [Chapter 1: Cognitive Architecture](../../manual/part-1-foundation/01-cognitive-architecture.md) 📋
