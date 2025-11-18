@@ -423,6 +423,7 @@ export class StructuralPatternsManager implements PatternManager {
         symbol: symbolName,
         filePath: filePath,
         structuralHash: structuralHash,
+        document_hash: structuralHash, // Use structural hash as document identifier
         semantic_signature: semanticSignature,
         architectural_role: architecturalRole,
         computed_at: new Date().toISOString(),
@@ -440,6 +441,7 @@ export class StructuralPatternsManager implements PatternManager {
       symbol: symbolName,
       filePath: filePath,
       structuralHash: structuralHash,
+      document_hash: structuralHash, // Use structural hash as document identifier
       structural_signature: signature,
       architectural_role: architecturalRole,
       computed_at: new Date().toISOString(),
@@ -552,6 +554,7 @@ export class StructuralPatternsManager implements PatternManager {
       symbol: symbolName,
       filePath: relativePath,
       structuralHash: structuralDataHash,
+      document_hash: structuralDataHash, // Use structural hash as document identifier
       structural_signature: signature,
       architectural_role: architecturalRole,
       computed_at: new Date().toISOString(),

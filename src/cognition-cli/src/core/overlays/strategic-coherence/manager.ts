@@ -280,6 +280,7 @@ export class StrategicCoherenceManager {
             lineage_hash: concept.sectionHash,
             filePath: 'mission_concept',
             structuralHash: concept.sectionHash,
+            document_hash: concept.sectionHash,
           }
         );
       }
@@ -534,6 +535,7 @@ export class StrategicCoherenceManager {
             lineage_hash: concept.sectionHash,
             filePath: 'mission_concept',
             structuralHash: concept.sectionHash,
+            document_hash: concept.sectionHash,
           }
         );
       }

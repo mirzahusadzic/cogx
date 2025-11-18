@@ -391,6 +391,7 @@ export class LineagePatternsManager implements PatternManager {
       architectural_role: 'lineage_pattern',
       computed_at: new Date().toISOString(),
       lineage_hash: lineageDataHash,
+      document_hash: lineageDataHash,
     });
 
     // Update PGC overlays
