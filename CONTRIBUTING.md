@@ -325,18 +325,89 @@ describe('FeatureName', () => {
 
 ### Documentation Standards
 
-1. **Code Comments**: Use JSDoc for public APIs
-2. **README Updates**: Update if changing user-facing features
-3. **Manual Updates**: Update `docs/manual/` for architectural changes
-4. **Examples**: Provide usage examples for new features
+All code must be documented following our **TSDoc/JSDoc** standard. See [docs/CODE_DOCUMENTATION_STANDARD.md](src/cognition-cli/docs/CODE_DOCUMENTATION_STANDARD.md) for complete guidelines.
+
+**Quick Reference**:
+
+```typescript
+/**
+ * Brief one-line description of what this does.
+ *
+ * Detailed explanation of how it works and why it exists.
+ * Multiple paragraphs are encouraged for complex APIs.
+ *
+ * @param {Type} paramName - Description of parameter
+ * @returns {ReturnType} Description of return value
+ *
+ * @throws {ErrorType} Description of when/why this error occurs
+ *
+ * @example
+ * // Basic usage
+ * const result = myFunction('input');
+ *
+ * @example
+ * // Advanced usage
+ * const result = myFunction('input', { option: true });
+ */
+export function myFunction(paramName: Type): ReturnType {
+  // ...
+}
+```
+
+**Required Documentation**:
+
+1. ✅ **All public APIs** - Classes, interfaces, functions, types
+2. ✅ **All parameters** - Use `@param {Type} name - Description`
+3. ✅ **All returns** - Use `@returns {Type} Description`
+4. ✅ **All errors** - Use `@throws {ErrorType} Description`
+5. ✅ **Usage examples** - At least one `@example` per public API
+6. ✅ **README updates** - Update if changing user-facing features
+7. ✅ **Manual updates** - Update `docs/manual/` for architectural changes
+
+**Validation**:
+
+```bash
+# Validate documentation (must pass before committing)
+npm run docs:api
+
+# This will:
+# - Check all exports are documented
+# - Validate TSDoc syntax
+# - Generate API documentation site
+# - Report warnings for missing documentation
+```
+
+**Coverage Targets**:
+
+- **P0 files** (core infrastructure): 100% coverage required
+- **P1 files** (commands, TUI, services): 90%+ coverage required
+- **P2 files** (utilities, helpers): 70%+ coverage recommended
+
+**Terminology Consistency**:
+
+Use consistent terms across all documentation:
+
+| ✅ Use | ❌ Don't Use |
+|--------|--------------|
+| "PGC" or "Project Grounded Context" | "knowledge base", "context pool" |
+| "overlay" | "layer", "dimension" |
+| "pattern" | "symbol", "item" |
+| "embedding" | "vector", "representation" |
+| "genesis" | "initialization", "ingestion" |
 
 ### Building Documentation
 
 ```bash
+# Generate API documentation with TypeDoc
+npm run docs:api
+
+# Serve API docs locally
+npm run docs:api:serve
+
 # Build VitePress documentation site
 npm run docs:build
 
-# Serve locally for preview
+# Serve VitePress docs locally for preview
 npm run docs:dev
 ```
 
@@ -344,13 +415,24 @@ npm run docs:dev
 
 ```text
 docs/
-├── 00-10_*.md          # Getting started guides
-├── manual/             # 16-chapter foundation manual
+├── CODE_DOCUMENTATION_STANDARD.md   # TSDoc standards (NEW)
+├── DOCUMENTATION_COVERAGE_AUDIT.md  # Coverage audit report (NEW)
+├── api/                             # Generated API docs (TypeDoc)
+├── 00-10_*.md                       # Getting started guides
+├── manual/                          # 16-chapter foundation manual
 │   ├── part-1-foundation/
 │   ├── part-2-seven-layers/
 │   └── part-3-algebra/
-└── .vitepress/         # VitePress configuration
+└── .vitepress/                      # VitePress configuration
 ```
+
+### Before Submitting a PR
+
+1. ✅ Document all new code with TSDoc
+2. ✅ Add `@example` tags for all public APIs
+3. ✅ Run `npm run docs:api` (must pass with zero warnings for P0 files)
+4. ✅ Update relevant markdown documentation
+5. ✅ Check that examples in docs actually work
 
 ## Licensing
 
