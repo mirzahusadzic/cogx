@@ -178,32 +178,63 @@ If your project has security considerations:
 
 ### Assets
 
-- [What needs protection]
-- [Critical data/systems]
+Critical assets requiring protection:
+
+- **[Asset 1]:** [What it is and why it matters]
+- **[Asset 2]:** [What it is and why it matters]
+
+**Pattern Note:** Use colons (:) for assets/boundaries to prevent misclassification as attack vectors.
 
 ### Threats
 
 #### Threat 1: [Name]
 
-- **Attack Vector**: [How it could happen]
-- **Impact**: [What damage could occur]
-- **Mitigation**: [How you prevent it]
+**Attack Vector**: [How it could happen]
+
+**Impact**: [What damage could occur]
+
+**Severity**: [Critical/High/Medium/Low]
+
+**Mitigation**: [How you prevent it]
+
+**Outstanding Risks**:
+
+- [Gap 1]
+- [Gap 2]
 
 #### Threat 2: [Name]
 
-- **Attack Vector**: [How it could happen]
-- **Impact**: [What damage could occur]
-- **Mitigation**: [How you prevent it]
+**Attack Vector**: [How it could happen]
+
+**Impact**: [What damage could occur]
+
+**Severity**: [Critical/High/Medium/Low]
+
+**Mitigation**: [How you prevent it]
+
+**Outstanding Risks**:
+
+- [Gap 1]
+- [Gap 2]
 
 ## Security Boundaries
 
-- ✅ **[Boundary 1]** — [What's protected and how]
-- ✅ **[Boundary 2]** — [What's protected and how]
+### Authentication Boundaries
+
+- **[Boundary 1]:** [What's protected and how]
+- **[Boundary 2]:** [What's protected and how]
+
+### Data Access Boundaries
+
+- **[Boundary 1]:** [What's protected and how]
+- **[Boundary 2]:** [What's protected and how]
+
+**Pattern Note:** Use colons (:) not em dashes (—) to prevent extraction as attack vectors.
 
 ## Security Requirements
 
-- ✅ **[Requirement 1]** — [Why it's required]
-- ✅ **[Requirement 2]** — [Why it's required]
+- **[Requirement 1]:** [Why it's required]
+- **[Requirement 2]:** [Why it's required]
 
 ## Known Vulnerabilities
 
