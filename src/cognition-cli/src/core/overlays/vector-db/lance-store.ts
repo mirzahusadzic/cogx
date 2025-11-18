@@ -182,6 +182,7 @@ export class LanceVectorStore {
             lineage_hash: 'test_hash',
             filePath: 'test/path.ts',
             structuralHash: 'test_structural_hash',
+            document_hash: 'test_document_hash', // For --force cleanup tracking
           };
 
           this.table = await this.db.createTable(
@@ -349,6 +350,7 @@ export class LanceVectorStore {
         lineage_hash: metadata.lineage_hash as string,
         filePath: (metadata.filePath as string) || 'unknown',
         structuralHash: (metadata.structuralHash as string) || 'unknown',
+        document_hash: (metadata.document_hash as string) || undefined,
       });
     }
 
