@@ -191,10 +191,13 @@ async function installCompletion(
       setupLine = `\n# Cognition CLI completion\nsource "${installPath}"\n`;
     }
 
-    if (
-      !rcContent.includes(installPath) &&
-      !rcContent.includes('Cognition CLI completion')
-    ) {
+    // Only append if the source command is not already present
+    const sourceCommand = `source "${installPath}"`;
+    const fpathCommand = `fpath=(${path.dirname(installPath)} $fpath)`;
+
+    if (shell === 'bash' && !rcContent.includes(sourceCommand)) {
+      await fs.promises.appendFile(rcFile, setupLine, 'utf8');
+    } else if (shell === 'zsh' && !rcContent.includes(fpathCommand)) {
       await fs.promises.appendFile(rcFile, setupLine, 'utf8');
     }
   }
@@ -248,14 +251,27 @@ async function uninstallCompletion(shell: string): Promise<void> {
   // Remove completion script
   await fs.promises.unlink(installPath).catch(() => {});
 
-  // Remove source line from rc file
+  // Remove source line and comment from rc file
   if (rcFile) {
     const rcContent = await fs.promises
       .readFile(rcFile, 'utf8')
       .catch(() => '');
-    const lines = rcContent
-      .split('\n')
-      .filter((line) => !line.includes(installPath));
+    const lines = rcContent.split('\n').filter((line) => {
+      // Remove lines that source the completion script (handles both $HOME and full path)
+      if (line.includes('cognition-completion')) return false;
+      // Remove the comment line
+      if (line.trim() === '# Cognition CLI completion') return false;
+      // Remove fpath lines for zsh
+      if (
+        shell === 'zsh' &&
+        line.includes('fpath=') &&
+        line.includes('cognition')
+      )
+        return false;
+      if (shell === 'zsh' && line.includes('autoload -Uz compinit'))
+        return false;
+      return true;
+    });
     await fs.promises.writeFile(rcFile, lines.join('\n'), 'utf8');
   }
 }
@@ -282,10 +298,38 @@ function generateBashCompletion(): string {
   return `# Cognition CLI bash completion
 
 _cognition_cli_completions() {
-  local cur prev
+  local cur prev cmd_with_colon
   COMPREPLY=()
   cur="\${COMP_WORDS[COMP_CWORD]}"
   prev="\${COMP_WORDS[COMP_CWORD-1]}"
+
+  # Handle colon-separated commands (genesis:docs, audit:transformations, etc.)
+  # Bash treats colons as word separators, so we need to reconstruct the full command
+  if [[ \${COMP_CWORD} -ge 2 ]] && [[ "\${COMP_WORDS[COMP_CWORD-2]}" =~ ^(genesis|audit|migrate)$ ]] && [[ "\${COMP_WORDS[COMP_CWORD-1]}" == ":" ]]; then
+    # We're right after the colon, suggest the subcommand part
+    local base_cmd="\${COMP_WORDS[COMP_CWORD-2]}"
+    case "\${base_cmd}" in
+      genesis)
+        COMPREPLY=( $(compgen -W "docs" -- \${cur}) )
+        return 0
+        ;;
+      audit)
+        COMPREPLY=( $(compgen -W "transformations docs" -- \${cur}) )
+        return 0
+        ;;
+      migrate)
+        COMPREPLY=( $(compgen -W "lance" -- \${cur}) )
+        return 0
+        ;;
+    esac
+  fi
+
+  # Reconstruct colon-separated command for completion matching
+  if [[ \${COMP_CWORD} -ge 3 ]] && [[ "\${COMP_WORDS[COMP_CWORD-2]}" == ":" ]]; then
+    cmd_with_colon="\${COMP_WORDS[COMP_CWORD-3]}:\${COMP_WORDS[COMP_CWORD-1]}"
+  else
+    cmd_with_colon="\${prev}"
+  fi
 
   # Main commands
   local commands="init i genesis g genesis:docs query q audit:transformations audit:docs wizard w tui ask pr-analyze lattice l audit overlay patterns concepts coherence security workflow proofs blast-radius watch status update guide migrate migrate:lance completion --help --version"
@@ -299,8 +343,8 @@ _cognition_cli_completions() {
     return 0
   fi
 
-  # Context-aware completion based on previous word
-  case "\${prev}" in
+  # Context-aware completion based on previous word (or reconstructed colon command)
+  case "\${cmd_with_colon}" in
     --format)
       COMPREPLY=( $(compgen -W "auto table json plain" -- \${cur}) )
       return 0
