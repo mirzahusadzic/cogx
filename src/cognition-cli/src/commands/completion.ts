@@ -353,13 +353,6 @@ _cognition_cli_completions() {
       COMPREPLY=( $(compgen -W "transformations docs" -- \${cur}) )
       return 0
       ;;
-    genesis)
-      # Suggest genesis:docs subcommand
-      if [[ "\${cur}" == *":"* ]]; then
-        COMPREPLY=( $(compgen -W "docs" -- \${cur#*:}) )
-      fi
-      return 0
-      ;;
     migrate)
       COMPREPLY=( $(compgen -W "lance" -- \${cur}) )
       return 0
@@ -376,6 +369,15 @@ _cognition_cli_completions() {
     -f|--file)
       # File completion for .json files
       COMPREPLY=( $(compgen -f -X '!*.json' -- \${cur}) )
+      return 0
+      ;;
+    genesis:docs)
+      # File/directory completion for markdown files and directories
+      COMPREPLY=( $(compgen -f -X '!*.md' -- \${cur}) )
+      if [ \${#COMPREPLY[@]} -eq 0 ]; then
+        # If no .md files found, suggest directories
+        COMPREPLY=( $(compgen -d -- \${cur}) )
+      fi
       return 0
       ;;
   esac
@@ -447,9 +449,30 @@ _cognition_cli() {
     '1: :->command' \
     '*:: :->args'
 
-  case $state in
+  case ${'$'}state in
     command)
-      _describe 'command' commands
+      # Handle colon-separated commands like genesis:docs
+      if compset -P '*:'; then
+        case "${'$'}{IPREFIX%:}" in
+          genesis|g)
+            local -a genesis_cmds
+            genesis_cmds=('docs:Generate documentation')
+            _describe 'genesis subcommand' genesis_cmds
+            ;;
+          audit)
+            local -a audit_cmds
+            audit_cmds=('transformations:Audit transformations' 'docs:Audit documentation')
+            _describe 'audit subcommand' audit_cmds
+            ;;
+          migrate)
+            local -a migrate_cmds
+            migrate_cmds=('lance:Migrate to LanceDB')
+            _describe 'migrate subcommand' migrate_cmds
+            ;;
+        esac
+      else
+        _describe 'command' commands
+      fi
       ;;
     args)
       case $words[1] in
@@ -497,6 +520,20 @@ _cognition_cli() {
           _arguments \
             '1:subcommand:(install uninstall)' \
             '--shell[Shell type]:shell:(bash zsh fish)'
+          ;;
+        genesis|g)
+          # Handle genesis:<TAB> to suggest 'docs'
+          local -a subcommands
+          subcommands=(
+            'docs:Generate documentation from genesis'
+          )
+          _describe -t subcommands 'genesis subcommand' subcommands -S ''
+          ;;
+        genesis:docs)
+          _arguments \
+            {-p,--project-root}'[Project root directory]:directory:_directories' \
+            {-f,--force}'[Force re-ingestion]' \
+            '*:markdown-file-or-dir:_files -g "*.md" -g "*(-/)"'
           ;;
       esac
       ;;
@@ -593,6 +630,12 @@ complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -s w -l workbench
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l session-tokens -d "Token threshold"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l max-thinking-tokens -d "Max thinking tokens"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l debug -d "Enable debug logging"
+
+# genesis:docs options
+complete -c cognition-cli -n "__fish_seen_subcommand_from genesis:docs" -s p -l project-root -d "Project root directory" -xa "(__fish_complete_directories)"
+complete -c cognition-cli -n "__fish_seen_subcommand_from genesis:docs" -s f -l force -d "Force re-ingestion"
+complete -c cognition-cli -n "__fish_seen_subcommand_from genesis:docs" -xa "(ls *.md 2>/dev/null)" -d "Markdown file"
+complete -c cognition-cli -n "__fish_seen_subcommand_from genesis:docs" -xa "(__fish_complete_directories)" -d "Directory"
 
 # Completion subcommands
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from completion" -a "install uninstall"
