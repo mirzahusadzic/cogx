@@ -292,7 +292,7 @@ This repository constitutes a **formal defensive publication** establishing prio
   - October 31, 2025 (Innovations #28-33: Complete 7-Overlay System) — [Zenodo: 10.5281/zenodo.17489413](https://doi.org/10.5281/zenodo.17489413)
   - November 1, 2025 (Innovations #34-38: Self-Cognition, Semantic Q&A) — [Zenodo: 10.5281/zenodo.17501091](https://doi.org/10.5281/zenodo.17501091)
   - November 3, 2025 (Innovations #39-46: Σ Dual-Lattice, Infinite Context) — [Zenodo: 10.5281/zenodo.17509405](https://doi.org/10.5281/zenodo.17509405)
-  - November 19, 2025 (v2.4.0: Documentation Reorganization) — [Zenodo: 10.5281/zenodo.17635623](https://doi.org/10.5281/zenodo.17635623)
+  - November 19, 2025 (v2.4.1: Cross-Overlay Workflows) — [Zenodo: 10.5281/zenodo.17635623](https://doi.org/10.5281/zenodo.17635623)
 - **Public Repository**: https://github.com/mirzahusadzic/cogx
 - **Permanent Archive**: Zenodo DOI [10.5281/zenodo.17635623](https://doi.org/10.5281/zenodo.17635623) (latest)
 - **License**: AGPLv3 (entire repository — code, documentation, blueprints)

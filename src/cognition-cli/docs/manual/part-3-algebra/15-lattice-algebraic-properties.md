@@ -560,6 +560,7 @@ Where:
 ### Theoretical Foundations
 
 <!-- - [Lattice Algebra](../../LATTICE_ALGEBRA.md) — Full mathematical treatment of lattice theory in CogX (Planned) -->
+
 - [Multi-Overlay Architecture](../../architecture/MULTI_OVERLAY_ARCHITECTURE.md) — How the 7 overlays compose
 
 ### Implementation

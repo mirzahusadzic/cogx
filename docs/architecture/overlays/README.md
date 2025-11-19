@@ -33,6 +33,8 @@ The overlay system provides seven orthogonal dimensions of knowledge representat
 
 6. **O₆: Mathematical** — Formal verification
    - [Mathematical Proofs](O6-mathematical-proofs.md)
+   - [Distributivity Laws](distributivity-laws.md) — Formal treatment of non-distributivity in PGC lattices
+   - [Fixed Point Convergence](fixed-point-convergence.md) — Quest convergence and fixed-point theorem
 
 7. **O₇: Coherence** — Cross-overlay consistency
    - [Strategic Coherence](O7-strategic-coherence.md)
