@@ -210,7 +210,7 @@ export class EmbeddingLoader {
    */
   private getTableNameForOverlay(overlayData: OverlayData): string | null {
     if (overlayData.extracted_concepts) {
-      return 'mission_concepts_multi_temp';
+      return 'mission_concepts';
     }
     if (overlayData.extracted_knowledge) {
       return 'security_guidelines';

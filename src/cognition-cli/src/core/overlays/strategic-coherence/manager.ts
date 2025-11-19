@@ -353,7 +353,8 @@ export class StrategicCoherenceManager {
         }
       }
     } finally {
-      // Clean up temporary vector store
+      // Clean up temporary vector store - DROP the table to avoid accumulating duplicates
+      await conceptVectorStore.dropTable('mission_concepts_temp');
       await conceptVectorStore.close();
     }
 
@@ -607,7 +608,8 @@ export class StrategicCoherenceManager {
         }
       }
     } finally {
-      // Clean up temporary vector store
+      // Clean up temporary vector store - DROP the table to avoid accumulating duplicates
+      await conceptVectorStore.dropTable('mission_concepts_multi_temp');
       await conceptVectorStore.close();
     }
 

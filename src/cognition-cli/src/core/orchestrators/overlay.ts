@@ -1242,7 +1242,13 @@ export class OverlayOrchestrator {
 
     // Step 2: Get mission document hash from mission concepts overlay
     s.start('[StrategicCoherence] Finding mission document...');
-    const docIndex = await this.discoverDocuments();
+    const allDocs = await this.discoverDocuments();
+
+    // Filter to only documents that have mission concepts overlays
+    const missionConceptHashes = await this.missionConceptsManager.list();
+    const docIndex = allDocs.filter((doc) =>
+      missionConceptHashes.includes(doc.contentHash)
+    );
 
     if (docIndex.length === 0) {
       s.stop(
@@ -1258,11 +1264,19 @@ export class OverlayOrchestrator {
       );
     }
 
-    // Aggregate mission concepts from ALL documents
+    const skippedDocs = allDocs.length - docIndex.length;
+    // Aggregate mission concepts from documents that have them
     s.stop(`[StrategicCoherence] Found ${docIndex.length} strategic documents`);
     console.log(
       chalk.dim(`  Documents: ${docIndex.map((d) => d.filePath).join(', ')}`)
     );
+    if (skippedDocs > 0) {
+      console.log(
+        chalk.dim(
+          `  Skipped ${skippedDocs} document(s) without mission concepts (e.g., security/threat models)`
+        )
+      );
+    }
 
     // Step 3: Initialize vector database for structural patterns
     s.start('[StrategicCoherence] Loading structural patterns...');

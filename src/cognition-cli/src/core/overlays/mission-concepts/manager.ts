@@ -416,7 +416,7 @@ export class MissionConceptsManager
 
   /**
    * Store embeddings in LanceDB (NOT in YAML!)
-   * Embeddings are stored in binary format in patterns.lancedb/mission_concepts_multi_temp
+   * Embeddings are stored in binary format in patterns.lancedb/mission_concepts
    */
   private async storeEmbeddingsInLance(
     concepts: MissionConcept[],
@@ -425,7 +425,7 @@ export class MissionConceptsManager
   ): Promise<void> {
     const { LanceVectorStore } = await import('../vector-db/lance-store.js');
     const lanceStore = new LanceVectorStore(this.pgcRoot);
-    await lanceStore.initialize('mission_concepts_multi_temp');
+    await lanceStore.initialize('mission_concepts');
 
     const vectors = concepts
       .filter((item) => item.embedding && item.embedding.length > 0)

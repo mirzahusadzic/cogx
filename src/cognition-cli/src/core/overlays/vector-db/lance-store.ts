@@ -701,6 +701,30 @@ export class LanceVectorStore {
     }
   }
 
+  /**
+   * Drop a table from the database (useful for cleaning up temp tables)
+   *
+   * @param tableName - Name of the table to drop
+   * @returns Promise that resolves when the table is dropped
+   */
+  async dropTable(tableName: string): Promise<void> {
+    // Ensure we have a connection
+    if (!this.db) {
+      const dbPath = path.join(this.pgcRoot, 'patterns.lancedb');
+      await fs.ensureDir(path.dirname(dbPath));
+      this.db = await connect(dbPath);
+    }
+
+    try {
+      await this.db.dropTable(tableName);
+    } catch (error) {
+      // Ignore errors if table doesn't exist
+      if (!(error as Error).message?.includes('not found')) {
+        throw error;
+      }
+    }
+  }
+
   // Type guards for safety
 
   /**
