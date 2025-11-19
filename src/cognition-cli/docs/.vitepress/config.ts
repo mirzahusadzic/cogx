@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitepress';
 
 export default defineConfig({
-  title: 'Cognition CLI',
+  title: 'Open Cognition',
   description:
     'Verifiable AI memory through cryptographic grounding and multi-overlay knowledge graphs.',
   base: '/cogx/',
@@ -26,49 +26,8 @@ export default defineConfig({
 
     sidebar: [
       {
-        text: 'Getting Started',
-        items: [
-          {
-            text: 'Introduction',
-            link: '/00_Introduction',
-          },
-          {
-            text: 'Structural Analysis',
-            link: '/01_Structural_Analysis',
-          },
-          {
-            text: 'Core Infrastructure (PGC)',
-            link: '/02_Core_Infrastructure',
-          },
-          {
-            text: 'Getting Started',
-            link: '/03_Getting_Started',
-          },
-          {
-            text: 'Daily Workflow',
-            link: '/04_Daily_Workflow',
-          },
-          {
-            text: 'Querying The Lattice',
-            link: '/05_Querying_The_Lattice',
-          },
-          {
-            text: 'Interactive Mode',
-            link: '/06_Interactive_Mode',
-          },
-          {
-            text: 'Overlays & Analysis',
-            link: '/07_Overlays_And_Analysis',
-          },
-          {
-            text: 'Command Reference',
-            link: '/08_Command_Reference',
-          },
-        ],
-      },
-      {
         text: 'The Lattice Book',
-        link: '/the-lattice-book-cover',
+        link: '/',
         collapsed: false,
         items: [
           {
@@ -222,130 +181,6 @@ export default defineConfig({
                 link: '/manual/appendix-a-troubleshooting',
               },
             ],
-          },
-        ],
-      },
-      {
-        text: 'Architecture Decisions',
-        collapsed: true,
-        items: [
-          {
-            text: 'ADR Overview',
-            link: '/architecture/decisions/README',
-          },
-          {
-            text: 'ADR-001: LanceDB Vector Storage',
-            link: '/architecture/decisions/ADR-001-lancedb-vector-storage',
-          },
-          {
-            text: 'ADR-002: Seven Overlay Architecture',
-            link: '/architecture/decisions/ADR-002-seven-overlay-architecture',
-          },
-          {
-            text: 'ADR-003: Shadow Embeddings',
-            link: '/architecture/decisions/ADR-003-shadow-embeddings',
-          },
-          {
-            text: 'ADR-004: Content-Addressable Storage',
-            link: '/architecture/decisions/ADR-004-content-addressable-storage',
-          },
-          {
-            text: 'ADR-005: React-Based TUI',
-            link: '/architecture/decisions/ADR-005-react-based-tui',
-          },
-          {
-            text: 'ADR-006: Compression Strategy',
-            link: '/architecture/decisions/ADR-006-compression-strategy',
-          },
-          {
-            text: 'ADR-007: AGPLv3 License',
-            link: '/architecture/decisions/ADR-007-agplv3-license',
-          },
-          {
-            text: 'ADR-008: Session Continuity',
-            link: '/architecture/decisions/ADR-008-session-continuity',
-          },
-          {
-            text: 'ADR-009: Quest System',
-            link: '/architecture/decisions/ADR-009-quest-system',
-          },
-          {
-            text: 'ADR-010: Workbench Integration',
-            link: '/architecture/decisions/ADR-010-workbench-integration',
-          },
-        ],
-      },
-      {
-        text: 'Mathematical Reference',
-        collapsed: true,
-        items: [
-          {
-            text: 'Distributivity Laws',
-            link: '/overlays/O6_mathematical/DISTRIBUTIVITY_LAWS',
-          },
-          {
-            text: 'Fixed Point Convergence',
-            link: '/overlays/O6_mathematical/FIXED_POINT_CONVERGENCE',
-          },
-          {
-            text: 'Operational Lattice',
-            link: '/overlays/O5_operational/OPERATIONAL_LATTICE',
-          },
-        ],
-      },
-      {
-        text: 'Advanced Topics',
-        collapsed: true,
-        items: [
-          {
-            text: 'Miners and Executors',
-            link: '/04_Miners_and_Executors',
-          },
-          {
-            text: 'Verification and Oracles',
-            link: '/05_Verification_and_Oracles',
-          },
-          {
-            text: 'AI-Grounded Architecture Analysis',
-            link: '/07_AI_Grounded_Architecture_Analysis',
-          },
-          {
-            text: 'Claude Code Integration',
-            link: '/08_Claude_CLI_Integration',
-          },
-          {
-            text: 'Mission Concept Extraction',
-            link: '/09_Mission_Concept_Extraction',
-          },
-          {
-            text: 'Mission Security Validation',
-            link: '/10_Mission_Security_Validation',
-          },
-        ],
-      },
-      {
-        text: 'Philosophy & Vision',
-        collapsed: true,
-        items: [
-          {
-            text: 'Cognitive Prosthetics',
-            link: '/COGNITIVE_PROSTHETICS',
-          },
-          {
-            text: 'Dual Use Mandate',
-            link: '/DUAL_USE_MANDATE',
-          },
-          {
-            text: 'Lattice Algebra',
-            link: '/LATTICE_ALGEBRA',
-          },
-          {
-            text: 'Neural Memory Protocol',
-            link: '/NEURAL_MEMORY_PROTOCOL',
-          },
-          {
-            text: 'Vindication',
-            link: '/VINDICATION',
           },
         ],
       },

@@ -1,62 +1,28 @@
-# Cognition CLI Documentation
+# The Lattice Book
 
-Welcome to the documentation for the Cognition Command-Line Interface (CLI). This section provides an in-depth look into the architecture, functionality, and usage of the `cognition-cli`.
-
-<div align="center" style="margin-top: 20px; margin-bottom: 20px;">
-<img src="./assets/cognition-cli-logo.png" alt="Cognition CLI Logo" width="512"/>
+<div align="center" style="margin-top: 40px; margin-bottom: 40px;">
+  <img src="./assets/the-lattice-book-cover.png" alt="The Lattice Book Cover" width="768" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);"/>
 </div>
 
-## Table of Contents
+## Foundation Manual
 
-**Core Concepts:**
+Welcome to **The Lattice Book** - a comprehensive guide to building verifiable AI memory through cryptographic grounding and multi-overlay knowledge graphs.
 
-- [00 - Introduction to Cognition CLI](./api/media/00_Introduction.md)
-- [01 - Structural Analysis: Mapping the Codebase](./api/media/01_Structural_Analysis.md)
-- [02 - Core Infrastructure: The Grounded Context Pool (PGC)](./api/media/02_Core_Infrastructure.md)
+### What You'll Learn
 
-**Using the CLI:**
+This manual is organized into six parts, each building upon the previous:
 
-- [Quick Start Guide](./claude/quick-start.md) - Setup and first steps
-- [Command Reference](./claude/command-reference.md) - Complete command listing
-- [Integration Patterns](./claude/integration-patterns.md) - How to integrate with Claude Code
-- [Workflows](./claude/workflows.md) - Common workflows and best practices
+- **Part I: Foundation** - Core concepts and architecture
+- **Part II: The Seven Overlays** - Understanding O₁ through O₇
+- **Part III: The Algebra** - Query operations and syntax
+- **Part IV: Portability** - The .cogx format
+- **Part V: cPoW Loop** - Cryptographic Proof of Work
+- **Part VI: Σ (Sigma)** - Infinite context architecture
 
-**Advanced Topics:**
+### Getting Started
 
-- [04 - Miners and Executors: Extracting and Processing Knowledge](./api/media/04_Miners_and_Executors.md)
-- [05 - Verification and Oracles: Ensuring PGC Integrity](./api/media/05_Verification_and_Oracles.md)
-- [06 - Testing and Deployment](./api/media/06_Testing_and_Deployment.md)
-- [07 - AI-Grounded Architecture Analysis](./api/media/07_AI_Grounded_Architecture_Analysis.md) ⭐ **NEW: First Human-AI Grounded Collaboration**
-- [08 - Claude Code Integration](./api/media/08_Claude_CLI_Integration.md) 🤝 **NEW: Grounded AI-Assisted Development**
+Begin your journey with [Chapter 1: Cognitive Architecture](/manual/part-1-foundation/01-cognitive-architecture) to understand the foundational principles.
 
 ---
 
-## 🎉 Breakthrough: Pure Grounded AI Analysis
-
-**[Document 07](./api/media/07_AI_Grounded_Architecture_Analysis.md)** marks a historic milestone - the first architecture analysis generated through pure grounded AI reasoning, with **zero source file reading**.
-
-The AI analyzed cognition-cli's architecture using only:
-
-- `cognition-cli patterns analyze`
-- `cognition-cli blast-radius`
-- PGC structured metadata
-
-Every claim is verifiable, reproducible, and backed by cryptographic truth. This is the future of AI-assisted development.
-
----
-
-## 🤝 Monument 1-3: The Symbiosis
-
-**[Document 08](./api/media/08_Claude_CLI_Integration.md)** demonstrates the practical symbiosis between Claude Code and cognition-cli's event-driven architecture (Monument 1-3).
-
-Using the `.claude/commands/` system, developers can:
-
-- Get instant coherence checks before commits (`/pre-commit-check`)
-- Perform risk-aware refactoring with blast radius analysis (`/safe-refactor`)
-- Discover refactoring opportunities through pattern similarity (`/find-refactor-candidates`)
-- Verify transformation provenance and data integrity (`/verify-provenance`)
-- Trace dependency chains and architectural relationships (`/trace-dependency`)
-
-All AI reasoning is grounded in verifiable PGC data, enabling impact-aware code assistance with cryptographic guarantees.
-
----
+_A cognitive prosthetic for the age of AI_

@@ -334,7 +334,7 @@ describe("FeatureName", () => {
 
 ### Documentation Standards
 
-All code must be documented following our **TSDoc/JSDoc** standard. See [docs/CODE_DOCUMENTATION_STANDARD.md](src/cognition-cli/docs/CODE_DOCUMENTATION_STANDARD.md) for complete guidelines.
+All code must be documented following our **TSDoc/JSDoc** standard. See [docs/dev/CODE_DOCUMENTATION_STANDARD.md](src/cognition-cli/docs/dev/CODE_DOCUMENTATION_STANDARD.md) for complete guidelines.
 
 **Quick Reference**:
 
