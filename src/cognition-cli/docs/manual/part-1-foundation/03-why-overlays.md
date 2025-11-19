@@ -9,7 +9,7 @@ overlay: O4_Mission
 
 **Part**: I — Foundation<br/>
 **Topic**: Why Overlays?<br/>
-**Prerequisites**: [Chapter 1: Cognitive Architecture](01-cognitive-architecture.md), [Chapter 2: The PGC](02-the-pgc.md)<br/>
+**Prerequisites**: [Chapter 1: Cognitive Architecture](01-cognitive-architecture.md)<br/>
 **Concepts Introduced**: Separation of concerns, document classification, overlay orthogonality, compositional queries<br/>
 
 ---
@@ -773,5 +773,5 @@ cognition-cli lattice "O7[coherence<0.5] & O2"
 
 ---
 
-**Previous**: [Chapter 2: The PGC](02-the-pgc.md)<br/>
-**Next**: [Chapter 4: Embeddings](04-embeddings.md)
+**Previous**: [Chapter 1: Cognitive Architecture](01-cognitive-architecture.md)<br/>
+**Next**: [Chapter 4.5: Core Security](04.5-core-security.md)

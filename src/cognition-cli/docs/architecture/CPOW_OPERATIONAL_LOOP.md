@@ -1024,8 +1024,8 @@ Benefits:
 
 ## Related Documentation
 
-- [O₅: Operational Lattice](../overlays/O5_operational/OPERATIONAL_LATTICE.md) - Quest patterns and workflow
-- [O₄: Pattern Library](../overlays/O4_mission/PATTERN_LIBRARY.md) - Mission concept extraction patterns
+- [O₅: Operational Lattice](../api/media/OPERATIONAL_LATTICE.md) - Quest patterns and workflow
+- [O₄: Mission Concepts](../manual/part-2-seven-layers/08-o4-mission.md) - Mission concept extraction patterns
 - [Multi-Overlay Architecture](./MULTI_OVERLAY_ARCHITECTURE.md) - Complete PGC design
 - [Validator Personas](https://github.com/mirzahusadzic/egemma/tree/main/personas/docs) - Oracle validation specifications (in eGemma)
 

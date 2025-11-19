@@ -349,8 +349,8 @@ Verifiable, persistent, content-addressable human memory
 
 **Vision & Architecture:**
 
-- **[Cognitive Prosthetics](../../COGNITIVE_PROSTHETICS.md)** - Memory healing through verifiable architecture
-- **[Neural-Memory Protocol](../../NEURAL_MEMORY_PROTOCOL.md)** - BCI abstraction layer specification
+- **Cognitive Prosthetics** (`docs/research/cognitive-prosthetics.md`) - Memory healing through verifiable architecture
+- **Neural-Memory Protocol** (`docs/research/neural-memory-protocol.md`) - BCI abstraction layer specification
 
 ### Timeline
 

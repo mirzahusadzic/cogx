@@ -322,7 +322,7 @@ After making all changes, verify end-to-end:
 
 - [Lineage Usage Analysis](./LINEAGE_USAGE_ANALYSIS.md) - Why we have two dependency tracking systems
 - [Structural Types](../../src/core/types/structural.ts) - Complete type definitions
-- [The PGC](../manual/part-1-foundation/02-the-pgc.md) - How overlays work
+- [Multi-Overlay Architecture](../architecture/MULTI_OVERLAY_ARCHITECTURE.md) - How overlays work
 
 ## Lessons Learned
 

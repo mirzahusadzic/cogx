@@ -555,12 +555,12 @@ Where:
 
 - [Chapter 12: Boolean Operations](./12-boolean-operations.md) — Core lattice operations (meet, join, union, intersection)
 - [Chapter 11: O₇ Coherence](../part-2-seven-layers/11-o7-coherence.md) — Strategic coherence overlay
-- [O₆ Mathematical Proofs](../../overlays/O6_mathematical/MATHEMATICAL_PROOFS.md) — Formal theorems about PGC
+- [Chapter 10: O₆ Mathematical](../part-2-seven-layers/10-o6-mathematical.md) — Formal theorems and mathematical properties
 
 ### Theoretical Foundations
 
-- [Lattice Algebra](../../LATTICE_ALGEBRA.md) — Full mathematical treatment of lattice theory in CogX
 - [Multi-Overlay Architecture](../../architecture/MULTI_OVERLAY_ARCHITECTURE.md) — How the 7 overlays compose
+- This chapter — Mathematical properties and lattice theory in CogX
 
 ### Implementation
 

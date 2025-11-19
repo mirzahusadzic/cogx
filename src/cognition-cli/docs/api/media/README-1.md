@@ -57,7 +57,7 @@ THE LATTICE BOOK is the complete reference manual for building, querying, and re
 ### Part 0: Quick Start (10 Minutes)
 
 **Quick Start Guide**
-`part-0-quickstart/00-quick-start.md`
+`../../claude/quick-start.md`
 Get from zero to first query in under 10 minutes. Installation, setup, and first queries.
 
 ### Part I: Foundation (~100 pages)
@@ -346,6 +346,6 @@ Built with:
 
 **Next Chapter**: [Chapter 12: Boolean Operations on Knowledge](../../manual/part-3-algebra/12-boolean-operations.md) 🚧
 
-**Quick Start**: [10-Minute Quick Start Guide](../../manual/part-0-quickstart/00-quick-start.md) ⚡
+**Quick Start**: [10-Minute Quick Start Guide](../../claude/quick-start.md) ⚡
 
 **Start Reading**: [Chapter 1: Cognitive Architecture](../../manual/part-1-foundation/01-cognitive-architecture.md) 📋

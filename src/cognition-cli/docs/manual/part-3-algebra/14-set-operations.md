@@ -922,7 +922,7 @@ const guidance = await meet(gapItems, await security.getAllItems(), {
 
 **Previous Chapter**: [Chapter 13: Query Syntax and Parser](13-query-syntax.md) ✅
 
-**Next Chapter**: [Chapter 15: The .cogx Format](../part-4-portability/15-cogx-format.md) 📋
+**Next Chapter**: Chapter 15: The .cogx Format (Part IV - Planned) 📋
 
 ---
 
