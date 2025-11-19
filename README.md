@@ -54,9 +54,9 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 - **[CLI Commands](docs/reference/cli-commands.md)** — Complete command reference
 - **[.cogx Format](docs/reference/cogx-format.md)** — File format specification
 
-**Online Documentation:**
+**📕 THE LATTICE BOOK (Complete Reference Manual):**
 
-- **[Documentation Site](https://mirzahusadzic.github.io/cogx/)** — 21-chapter manual with full cognitive architecture coverage
+- **[The Lattice Book](https://mirzahusadzic.github.io/cogx/manual/)** — Complete 26-chapter reference manual covering cognitive architecture, seven overlays (O1-O7), lattice algebra, portability, cPOW loop, and Sigma infinite context
 
 ---
 
