@@ -1,6 +1,6 @@
-# Pattern Graph Cluster (PGC)
+# Grounded Context Pool (PGC)
 
-The Pattern Graph Cluster is Cognition Σ's persistent, verifiable memory system.
+The Grounded Context Pool is Cognition Σ's persistent, verifiable memory system.
 
 ---
 

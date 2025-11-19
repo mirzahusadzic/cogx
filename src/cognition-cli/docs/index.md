@@ -10,32 +10,30 @@ Welcome to the documentation for the Cognition Command-Line Interface (CLI). Thi
 
 **Core Concepts:**
 
-- [00 - Introduction to Cognition CLI](./00_Introduction.md)
-- [01 - Structural Analysis: Mapping the Codebase](./01_Structural_Analysis.md)
-- [02 - Core Infrastructure: The Grounded Context Pool (PGC)](./02_Core_Infrastructure.md)
+- [00 - Introduction to Cognition CLI](./api/media/00_Introduction.md)
+- [01 - Structural Analysis: Mapping the Codebase](./api/media/01_Structural_Analysis.md)
+- [02 - Core Infrastructure: The Grounded Context Pool (PGC)](./api/media/02_Core_Infrastructure.md)
 
 **Using the CLI:**
 
-- [03 - Getting Started](./03_Getting_Started.md) - Setup and first steps
-- [04 - Daily Workflow](./04_Daily_Workflow.md) - watch → status → update
-- [05 - Querying The Lattice](./05_Querying_The_Lattice.md) - Boolean algebra queries
-- [06 - Interactive Mode](./06_Interactive_Mode.md) - TUI and ask commands
-- [07 - Overlays & Analysis](./07_Overlays_And_Analysis.md) - Analytical overlays
-- [08 - Command Reference](./08_Command_Reference.md) - Complete command listing
+- [Quick Start Guide](./claude/quick-start.md) - Setup and first steps
+- [Command Reference](./claude/command-reference.md) - Complete command listing
+- [Integration Patterns](./claude/integration-patterns.md) - How to integrate with Claude Code
+- [Workflows](./claude/workflows.md) - Common workflows and best practices
 
 **Advanced Topics:**
 
-- [04 - Miners and Executors: Extracting and Processing Knowledge](./04_Miners_and_Executors.md)
-- [05 - Verification and Oracles: Ensuring PGC Integrity](./05_Verification_and_Oracles.md)
-- [06 - Testing and Deployment](./06_Testing_and_Deployment.md)
-- [07 - AI-Grounded Architecture Analysis](./07_AI_Grounded_Architecture_Analysis.md) ⭐ **NEW: First Human-AI Grounded Collaboration**
-- [08 - Claude Code Integration](./08_Claude_CLI_Integration.md) 🤝 **NEW: Grounded AI-Assisted Development**
+- [04 - Miners and Executors: Extracting and Processing Knowledge](./api/media/04_Miners_and_Executors.md)
+- [05 - Verification and Oracles: Ensuring PGC Integrity](./api/media/05_Verification_and_Oracles.md)
+- [06 - Testing and Deployment](./api/media/06_Testing_and_Deployment.md)
+- [07 - AI-Grounded Architecture Analysis](./api/media/07_AI_Grounded_Architecture_Analysis.md) ⭐ **NEW: First Human-AI Grounded Collaboration**
+- [08 - Claude Code Integration](./api/media/08_Claude_CLI_Integration.md) 🤝 **NEW: Grounded AI-Assisted Development**
 
 ---
 
 ## 🎉 Breakthrough: Pure Grounded AI Analysis
 
-**[Document 07](./07_AI_Grounded_Architecture_Analysis.md)** marks a historic milestone - the first architecture analysis generated through pure grounded AI reasoning, with **zero source file reading**.
+**[Document 07](./api/media/07_AI_Grounded_Architecture_Analysis.md)** marks a historic milestone - the first architecture analysis generated through pure grounded AI reasoning, with **zero source file reading**.
 
 The AI analyzed cognition-cli's architecture using only:
 
@@ -49,7 +47,7 @@ Every claim is verifiable, reproducible, and backed by cryptographic truth. This
 
 ## 🤝 Monument 1-3: The Symbiosis
 
-**[Document 08](./08_Claude_CLI_Integration.md)** demonstrates the practical symbiosis between Claude Code and cognition-cli's event-driven architecture (Monument 1-3).
+**[Document 08](./api/media/08_Claude_CLI_Integration.md)** demonstrates the practical symbiosis between Claude Code and cognition-cli's event-driven architecture (Monument 1-3).
 
 Using the `.claude/commands/` system, developers can:
 

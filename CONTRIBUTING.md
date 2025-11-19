@@ -22,8 +22,8 @@ This project and everyone participating in it is governed by our [Code of Conduc
 
 ### Prerequisites
 
-- **Node.js** v20.x or later
-- **npm** v10.x or later
+- **Node.js** v25.x or later
+- **npm** v11.x or later
 - **Git** for version control
 - **Optional**: [eGemma Workbench](https://github.com/mirzahusadzic/egemma) for embeddings and advanced features
 
@@ -228,31 +228,40 @@ Your PR should include:
 
 ```markdown
 ## Summary
+
 Brief description of what this PR does
 
 ## Motivation
+
 Why is this change needed? What problem does it solve?
 
 ## Changes
+
 - List of key changes
 - With bullet points
 
 ## Testing
+
 How was this tested? What new tests were added?
 
 ## Overlay Impact
+
 Which overlays are affected? (O₁-O₇)
 
 ## Fidelity Score
+
 If adding new transforms, what fidelity scores are used and why?
 
 ## Documentation
+
 What documentation was updated or needs updating?
 
 ## Breaking Changes
+
 Are there any breaking changes? Migration path?
 
 ## Checklist
+
 - [ ] Tests pass
 - [ ] Code formatted
 - [ ] Linting passes
@@ -304,12 +313,12 @@ npm test -- --coverage
 ### Test Structure
 
 ```typescript
-describe('FeatureName', () => {
+describe("FeatureName", () => {
   beforeEach(() => {
     // Setup
   });
 
-  it('should do something specific', () => {
+  it("should do something specific", () => {
     // Arrange
     // Act
     // Assert
@@ -387,13 +396,13 @@ npm run docs:api
 
 Use consistent terms across all documentation:
 
-| ✅ Use | ❌ Don't Use |
-|--------|--------------|
+| ✅ Use                              | ❌ Don't Use                     |
+| ----------------------------------- | -------------------------------- |
 | "PGC" or "Project Grounded Context" | "knowledge base", "context pool" |
-| "overlay" | "layer", "dimension" |
-| "pattern" | "symbol", "item" |
-| "embedding" | "vector", "representation" |
-| "genesis" | "initialization", "ingestion" |
+| "overlay"                           | "layer", "dimension"             |
+| "pattern"                           | "symbol", "item"                 |
+| "embedding"                         | "vector", "representation"       |
+| "genesis"                           | "initialization", "ingestion"    |
 
 ### Building Documentation
 

@@ -41,7 +41,7 @@ Welcome to the Cognition Σ documentation hub. This is your central navigation p
 - [Architecture Overview](architecture/README.md) — High-level overview
 - [Theoretical Blueprint](architecture/blueprint/00-preface.md) — Mathematical foundations
 - [Seven Overlays](architecture/overlays/README.md) — O₁ through O₇
-- [PGC & Dual-Lattice](architecture/pgc/overview.md) — Pattern Graph Cluster
+- [PGC & Dual-Lattice](architecture/pgc/overview.md) — Grounded Context Pool
 
 ### I want to read research papers
 👉 **[Research Documentation](research/README.md)** — Theory and papers
@@ -84,7 +84,7 @@ Welcome to the Cognition Σ documentation hub. This is your central navigation p
 - [Theoretical Blueprint](architecture/blueprint/00-preface.md)
 - [Implementation Details](architecture/implementation/README.md)
 - [Seven Overlays (O₁-O₇)](architecture/overlays/README.md)
-- [Pattern Graph Cluster](architecture/pgc/README.md)
+- [Grounded Context Pool](architecture/pgc/README.md)
 - [Cognitive Proof of Work](architecture/cpow/README.md)
 - [Σ Sigma Dual-Lattice](architecture/sigma/README.md)
 - [Architecture Decision Records](architecture/adrs/README.md)

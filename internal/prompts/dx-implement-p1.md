@@ -200,7 +200,7 @@ Update Documentation
 
     Create IMPLEMENTATION_NOTES.md:
         Summarize what was fixed
-        Explain technical decisions (why tsconfig.test.json, why Node 20, etc.)
+        Explain technical decisions (why tsconfig.test.json, why Node 25, etc.)
         Note any trade-offs or limitations
         Provide before/after metrics
 

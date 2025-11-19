@@ -1,4 +1,5 @@
 # Navigation Hub Designs
+
 ## Cognition Σ Documentation
 
 **Purpose**: Template designs for all documentation hub files (README.md at key locations)
@@ -49,6 +50,7 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 ## 📖 Documentation
 
 ### For Users
+
 - **[Getting Started](docs/getting-started/README.md)** — Installation and first steps
 - **[User Guides](docs/guides/README.md)** — Task-oriented how-tos
 - **[CLI Reference](docs/reference/cli-commands.md)** — Complete command reference
@@ -56,11 +58,13 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 - **[Troubleshooting](docs/troubleshooting.md)** — Common issues and solutions
 
 ### For Developers & Integrators
+
 - **[Architecture Documentation](docs/architecture/README.md)** — Deep technical dive
 - **[API Reference](src/cognition-cli/docs/api/)** — TypeScript API documentation
 - **[Contributing Guide](CONTRIBUTING.md)** — How to contribute
 
 ### For Researchers
+
 - **[Theoretical Blueprint](docs/architecture/blueprint/README.md)** — Mathematical foundations
 - **[Research Papers](docs/research/README.md)** — Cognitive prosthetics, dual-use mandate
 - **[Architecture Decision Records](docs/architecture/adrs/README.md)** — Design decisions
@@ -69,7 +73,7 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 ## 🏗️ Key Concepts
 
-- **🧠 Pattern Graph Cluster (PGC)**: Persistent, verifiable memory for AI systems
+- **🧠 Grounded Context Pool (PGC)**: Persistent, verifiable memory for AI systems
 - **🎭 Seven Overlays (O₁-O₇)**: Structure, Security, Lineage, Mission, Operational, Mathematical, Coherence
 - **⚡ Cognitive Proof of Work (cPOW)**: Verification mechanism for AI contributions
 - **Σ Sigma Dual-Lattice**: Infinite context through dual-lattice architecture
@@ -91,6 +95,7 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 ## 🤝 Contributing
 
 We welcome contributions! Please read:
+
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** — Contribution guidelines
 - **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)** — Community standards
 - **[SECURITY.md](SECURITY.md)** — Security policy
@@ -149,44 +154,54 @@ Welcome to the Cognition Σ documentation hub. This is your central navigation p
 ## 📋 Browse by User Journey
 
 ### I want to learn how to use Cognition Σ
+
 👉 **[User Guides](guides/README.md)** — Task-oriented how-to guides
 
 **Popular guides**:
+
 - [Querying the Lattice](guides/querying-the-lattice.md) — Learn the query syntax
 - [Interactive TUI Mode](guides/interactive-mode.md) — Use the terminal interface
 - [Daily Workflow](guides/daily-workflow.md) — Integrate into your workflow
 - [Claude Integration](guides/claude-integration.md) — Use with Claude Code
 
 ### I need to look something up
+
 👉 **[Reference Documentation](reference/README.md)** — CLI commands, config, API
 
 **Quick links**:
+
 - [CLI Commands](reference/cli-commands.md) — Complete command reference
 - [Configuration](reference/configuration.md) — Config options
 - [LLM Providers](reference/llm-providers.md) — Supported LLM providers
 - [.cogx Format](reference/cogx-format.md) — File format specification
 
 ### I want to understand how it works
+
 👉 **[Architecture Documentation](architecture/README.md)** — Deep technical dive
 
 **Start with**:
+
 - [Architecture Overview](architecture/README.md) — High-level overview
 - [Theoretical Blueprint](architecture/blueprint/README.md) — Mathematical foundations
 - [Seven Overlays](architecture/overlays/README.md) — O₁ through O₇
-- [PGC & Dual-Lattice](architecture/pgc/README.md) — Pattern Graph Cluster
+- [PGC & Dual-Lattice](architecture/pgc/README.md) — Grounded Context Pool
 
 ### I want to read research papers
+
 👉 **[Research Documentation](research/README.md)** — Theory and papers
 
 **Highlights**:
+
 - [Cognitive Prosthetics](research/cognitive-prosthetics.md) — Core concept paper
 - [Dual-Use Mandate](research/dual-use-mandate.md) — Security philosophy
 - [Defensive Publication](research/defensive-publication.md) — Legal protection
 
 ### I want to contribute code
+
 👉 **[Contributing Guide](../CONTRIBUTING.md)** — How to contribute
 
 **Developer resources**:
+
 - [Architecture Decision Records](architecture/adrs/README.md) — Design decisions
 - [Internal Architecture](architecture/implementation/internal-architecture.md) — Codebase structure
 - [API Reference](../src/cognition-cli/docs/api/) — TypeScript API docs
@@ -196,11 +211,13 @@ Welcome to the Cognition Σ documentation hub. This is your central navigation p
 ## 📚 Browse by Topic
 
 ### Getting Started
+
 - [Installation](getting-started/installation.md)
 - [First Project](getting-started/first-project.md)
 - [Core Concepts](getting-started/core-concepts.md)
 
 ### Guides (How-To)
+
 - [Querying the Lattice](guides/querying-the-lattice.md)
 - [Interactive TUI Mode](guides/interactive-mode.md)
 - [Daily Workflow](guides/daily-workflow.md)
@@ -208,6 +225,7 @@ Welcome to the Cognition Σ documentation hub. This is your central navigation p
 - [Pattern Discovery](guides/pattern-discovery.md)
 
 ### Reference
+
 - [CLI Commands](reference/cli-commands.md)
 - [Configuration](reference/configuration.md)
 - [LLM Providers](reference/llm-providers.md)
@@ -215,22 +233,25 @@ Welcome to the Cognition Σ documentation hub. This is your central navigation p
 - [API Reference](../src/cognition-cli/docs/api/)
 
 ### Architecture
+
 - [Overview](architecture/README.md)
 - [Theoretical Blueprint](architecture/blueprint/README.md)
 - [Implementation Details](architecture/implementation/README.md)
 - [Seven Overlays (O₁-O₇)](architecture/overlays/README.md)
-- [Pattern Graph Cluster](architecture/pgc/README.md)
+- [Grounded Context Pool](architecture/pgc/README.md)
 - [Cognitive Proof of Work](architecture/cpow/README.md)
 - [Σ Sigma Dual-Lattice](architecture/sigma/README.md)
 - [Architecture Decision Records](architecture/adrs/README.md)
 
 ### Research
+
 - [Cognitive Prosthetics](research/cognitive-prosthetics.md)
 - [Dual-Use Mandate](research/dual-use-mandate.md)
 - [Defensive Publication](research/defensive-publication.md)
 - [Testable Promises](research/testable-promises.md)
 
 ### Help & Support
+
 - [FAQ](faq.md) — Frequently asked questions
 - [Troubleshooting](troubleshooting.md) — Common issues and solutions
 
@@ -279,24 +300,29 @@ This directory contains internal documentation for Cognition Σ maintainers and 
 ### Recent Audits
 
 **Performance & Quality**:
+
 - [Performance Audit Report](audits/performance-audit-report.md)
 - [Error Handling Audit](audits/error-handling-audit.md)
 - [Test Coverage Analysis](audits/test-coverage-analysis.md)
 
 **User Experience**:
+
 - [UX Analysis Report](audits/ux-analysis-report.md)
 - [UX Roadmap Tickets](audits/ux-roadmap-tickets.md)
 
 **Architecture & Code Quality**:
+
 - [Overlay Analysis (Nov 2025)](audits/overlay-analysis-2025-11-17.md)
 - [Lattice Book Audit Report](audits/lattice-book-audit-report.md)
 - [Lattice Book Verification](audits/lattice-book-verification.md)
 
 **Dependencies & Security**:
+
 - [Dependency Health Report](audits/dependency-health-report.md)
 - [Security CVE Audit Proposal](audits/security-cve-audit-proposal.md)
 
 **Fixes & Summaries**:
+
 - [Fix Summary: Session Lifecycle](audits/fix-summary-session-lifecycle.md)
 
 ---
@@ -306,24 +332,29 @@ This directory contains internal documentation for Cognition Σ maintainers and 
 **[View All Prompts →](prompts/README.md)**
 
 **Development & DX**:
+
 - [DX Worker Prompt](prompts/dx.md)
 - [DX P1 Implementation](prompts/dx-implement-p1.md)
 - [TUI Enhancements & Bugs](prompts/tui-enhancements-bugs.md)
 
 **Architecture & Features**:
+
 - [cPOW Implementation](prompts/implement-cpow.md)
 - [Overlay Analysis Prompt](prompts/overlay-analysis-prompt.md)
 
 **Testing & Quality**:
+
 - [Test Coverage Gap Analysis](prompts/test-coverage-gap-analysis.md)
 - [Error Handling & Recovery](prompts/error-handling-recovery.md)
 - [Error Handling & Resilience](prompts/error-handling-resilience.md)
 
 **Documentation**:
+
 - [Lattice Book Documentation](prompts/docs-lattice-book.md)
 - [ADR Prompt](prompts/adr.md)
 
 **Ecosystem**:
+
 - [Ecosystem Analysis](prompts/ecosys.md)
 - [Dependency Analysis](prompts/deps.md)
 
@@ -342,10 +373,12 @@ This directory contains internal documentation for Cognition Σ maintainers and 
 **[View All Dev Guides →](development/README.md)**
 
 ### Code Quality & Standards
+
 - [Style Guide](development/style-guide.md) — Code style and conventions
 - [Tab Completion Guide](development/tab-completion-guide.md) — CLI tab completion
 
 ### Process Guides
+
 - [Testing Strategy](development/testing-strategy.md) — Testing approach
 - [Release Process](development/release-process.md) — How to release
 
@@ -354,11 +387,13 @@ This directory contains internal documentation for Cognition Σ maintainers and 
 ## 🔗 Related Resources
 
 ### User-Facing Documentation
+
 - [Main Documentation Hub](../docs/README.md)
 - [Architecture Documentation](../docs/architecture/README.md)
 - [Contributing Guide](../CONTRIBUTING.md)
 
 ### Development Resources
+
 - [Architecture Decision Records](../docs/architecture/adrs/README.md)
 - [Internal Architecture Docs](../docs/architecture/implementation/README.md)
 
@@ -400,6 +435,7 @@ Welcome! This guide will help you install Cognition Σ and create your first pro
 ## Quick Start (5 minutes)
 
 ### Step 1: Installation
+
 **[→ Installation Guide](installation.md)**
 
 Install the `cognition` CLI:
@@ -415,6 +451,7 @@ cognition --version
 \`\`\`
 
 ### Step 2: Your First Project
+
 **[→ First Project Guide](first-project.md)**
 
 Create your first lattice:
@@ -426,10 +463,12 @@ cognition add "Hello, Cognition Σ!"
 \`\`\`
 
 ### Step 3: Understand Core Concepts
+
 **[→ Core Concepts](core-concepts.md)**
 
 Learn about:
-- **PGC (Pattern Graph Cluster)**: Persistent memory
+
+- **PGC (Grounded Context Pool)**: Persistent memory
 - **Overlays (O₁-O₇)**: Seven dimensions of knowledge
 - **cPOW (Cognitive Proof of Work)**: Verification mechanism
 
@@ -438,16 +477,19 @@ Learn about:
 ## Next Steps
 
 ### Learn by Doing
+
 - **[Daily Workflow Guide](../guides/daily-workflow.md)** — Integrate into your workflow
 - **[Querying the Lattice](../guides/querying-the-lattice.md)** — Learn query syntax
 - **[Interactive TUI Mode](../guides/interactive-mode.md)** — Use the terminal UI
 
 ### Learn by Reading
+
 - **[Architecture Overview](../architecture/README.md)** — How Cognition Σ works
 - **[Seven Overlays](../architecture/overlays/README.md)** — O₁ through O₇ explained
 - **[Theoretical Blueprint](../architecture/blueprint/README.md)** — Mathematical foundations
 
 ### Get Help
+
 - **[FAQ](../faq.md)** — Frequently asked questions
 - **[Troubleshooting](../troubleshooting.md)** — Common issues
 - **[GitHub Discussions](https://github.com/mirzahusadzic/cogx/discussions)** — Ask questions
@@ -478,7 +520,7 @@ Complete technical documentation of the Cognition Σ architecture.
 
 Cognition Σ is built on three core pillars:
 
-1. **🧠 Pattern Graph Cluster (PGC)**: Persistent, verifiable memory
+1. **🧠 Grounded Context Pool (PGC)**: Persistent, verifiable memory
 2. **🎭 Seven Overlays (O₁-O₇)**: Multi-dimensional knowledge representation
 3. **⚡ Cognitive Proof of Work (cPOW)**: Verification and trust mechanism
 
@@ -487,6 +529,7 @@ Cognition Σ is built on three core pillars:
 ## Documentation Paths
 
 ### For Researchers: Theoretical Foundation
+
 **Start with the blueprint** — mathematical and theoretical foundations:
 
 1. **[Theoretical Blueprint](blueprint/README.md)** — 27-page comprehensive blueprint
@@ -515,7 +558,7 @@ Cognition Σ is built on three core pillars:
 **Deep dive into specific systems**:
 
 - **[Seven Overlays (O₁-O₇)](overlays/README.md)** — Multi-dimensional knowledge
-- **[Pattern Graph Cluster](pgc/README.md)** — Persistent memory system
+- **[Grounded Context Pool](pgc/README.md)** — Persistent memory system
 - **[Cognitive Proof of Work](cpow/README.md)** — Verification mechanism
 - **[Σ Sigma Dual-Lattice](sigma/README.md)** — Infinite context architecture
 
@@ -537,7 +580,7 @@ The overlay system provides seven orthogonal dimensions of knowledge representat
 
 **[Learn more about overlays →](overlays/README.md)**
 
-### 🧠 Pattern Graph Cluster (PGC)
+### 🧠 Grounded Context Pool (PGC)
 
 Persistent, verifiable memory for AI systems:
 
@@ -565,16 +608,19 @@ Verification mechanism for AI contributions:
 ## Complete Architecture Index
 
 ### Theoretical Foundation
+
 - **[Blueprint](blueprint/README.md)** — 27-page theoretical blueprint
 - **[Research Papers](../research/README.md)** — Concept papers
 
 ### Implementation
+
 - **[Implementation Docs](implementation/README.md)** — Implementation architecture
 - **[ADRs](adrs/README.md)** — Architecture decision records
 
 ### Key Systems
+
 - **[Overlays](overlays/README.md)** — O₁ through O₇
-- **[PGC](pgc/README.md)** — Pattern Graph Cluster
+- **[PGC](pgc/README.md)** — Grounded Context Pool
 - **[cPOW](cpow/README.md)** — Cognitive Proof of Work
 - **[Sigma](sigma/README.md)** — Σ dual-lattice
 
@@ -677,6 +723,7 @@ Theoretical foundations and research papers for Cognition Σ.
 
 ```markdown
 > **Related Reading**:
+>
 > - For implementation details, see [Internal Architecture](../implementation/internal-architecture.md)
 > - For theoretical foundation, see [Blueprint: Architectural Deep Dive](../blueprint/06-architectural-deep-dive.md)
 > - For practical usage, see [Querying the Lattice](../../guides/querying-the-lattice.md)
@@ -687,6 +734,7 @@ Theoretical foundations and research papers for Cognition Σ.
 ## Summary
 
 These hub designs provide:
+
 - ✅ Clear entry points for all audiences
 - ✅ Multiple navigation paths (by journey, by topic)
 - ✅ Consistent structure across all hubs

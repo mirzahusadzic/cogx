@@ -327,11 +327,11 @@ Brain → BCI detects decision-making pattern → NMP checks coherence → Guida
 
 ```typescript
 enum MemoryType {
-  EPISODIC = 'episodic', // Events, experiences
-  SEMANTIC = 'semantic', // Facts, knowledge
-  PROCEDURAL = 'procedural', // Skills, how-to
-  EMOTIONAL = 'emotional', // Feelings, associations
-  IDENTITY = 'identity', // Self-concept, values, mission
+  EPISODIC = "episodic", // Events, experiences
+  SEMANTIC = "semantic", // Facts, knowledge
+  PROCEDURAL = "procedural", // Skills, how-to
+  EMOTIONAL = "emotional", // Feelings, associations
+  IDENTITY = "identity", // Self-concept, values, mission
 }
 ```
 
@@ -339,7 +339,7 @@ enum MemoryType {
 
 ```typescript
 interface Provenance {
-  source: 'direct_experience' | 'told_by_someone' | 'read' | 'inferred';
+  source: "direct_experience" | "told_by_someone" | "read" | "inferred";
   timestamp: ISO8601Timestamp;
   device_id: ContentHash; // BCI device that recorded
   signal_quality: number; // 0-1, confidence in signal
@@ -372,19 +372,19 @@ interface IdentityCore {
   mission: string; // Life purpose, overarching goal
   values: Array<{
     name: string;
-    priority: 'critical' | 'high' | 'medium' | 'low';
+    priority: "critical" | "high" | "medium" | "low";
     established: ISO8601Timestamp;
     provenance: Provenance;
   }>;
   beliefs: Array<{
-    category: 'religious' | 'philosophical' | 'political' | 'personal';
+    category: "religious" | "philosophical" | "political" | "personal";
     statement: string;
     confidence: number; // 0-1, how strongly held
     established: ISO8601Timestamp;
   }>;
   relationships: Array<{
     person_hash: ContentHash;
-    type: 'family' | 'friend' | 'professional' | 'other';
+    type: "family" | "friend" | "professional" | "other";
     importance: number; // 0-1
     first_met: ISO8601Timestamp;
   }>;
@@ -410,11 +410,11 @@ interface AccessControl {
   owner: PatientID; // Primary control
   authorized_viewers: Array<{
     person_id: string;
-    access_level: 'full' | 'limited' | 'emergency_only';
+    access_level: "full" | "limited" | "emergency_only";
     granted_by: PatientID;
     granted_at: ISO8601Timestamp;
     expires_at?: ISO8601Timestamp; // Optional expiration
-    memories_accessible: 'all' | ContentHash[]; // Which memories
+    memories_accessible: "all" | ContentHash[]; // Which memories
   }>;
   emergency_access: {
     enabled: boolean;
@@ -432,21 +432,21 @@ interface AccessControl {
 ```typescript
 interface ConsentPolicy {
   memory_recording: {
-    default: 'always' | 'ask_each_time' | 'never';
+    default: "always" | "ask_each_time" | "never";
     exceptions: Array<{
       context: string; // E.g., "private conversations"
-      policy: 'never_record';
+      policy: "never_record";
     }>;
   };
   memory_sharing: {
-    default: 'owner_only' | 'family' | 'caregivers';
+    default: "owner_only" | "family" | "caregivers";
     sensitive_categories: Array<{
-      category: 'medical' | 'financial' | 'intimate' | 'embarrassing';
-      policy: 'owner_only' | 'encrypted_extra';
+      category: "medical" | "financial" | "intimate" | "embarrassing";
+      policy: "owner_only" | "encrypted_extra";
     }>;
   };
   recall_assistance: {
-    default: 'always_assist' | 'ask_first' | 'only_if_struggling';
+    default: "always_assist" | "ask_first" | "only_if_struggling";
   };
 }
 ```
@@ -458,14 +458,14 @@ interface ConsentPolicy {
 ```typescript
 interface AuditEntry {
   timestamp: ISO8601Timestamp;
-  operation: 'read' | 'write' | 'verify' | 'share' | 'delete';
+  operation: "read" | "write" | "verify" | "share" | "delete";
   actor: string; // Who performed operation
   memory_hash?: ContentHash; // Which memory (if applicable)
   authorization: {
-    consent_type: 'explicit' | 'implicit' | 'emergency';
+    consent_type: "explicit" | "implicit" | "emergency";
     granted_by: PatientID;
   };
-  result: 'success' | 'denied' | 'error';
+  result: "success" | "denied" | "error";
   reason?: string; // If denied or error
 }
 ```

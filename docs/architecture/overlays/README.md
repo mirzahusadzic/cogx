@@ -42,7 +42,7 @@ The overlay system provides seven orthogonal dimensions of knowledge representat
 ## Related
 
 - **[Theoretical Blueprint](../blueprint/README.md)** — Mathematical foundations
-- **[PGC](../pgc/README.md)** — Pattern Graph Cluster
+- **[PGC](../pgc/README.md)** — Grounded Context Pool
 - **[ADRs](../adrs/README.md)** — Design decisions
 
 ---

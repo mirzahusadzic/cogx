@@ -284,6 +284,6 @@ Error: EACCES: permission denied, mkdir '.open_cognition'
 
 ### Large Codebase Timeouts
 
-For codebases with 1000+ files, genesis may take 10-30 minutes due to embedding generation and rate limits.
+For codebases with 1000+ files, genesis may take 20-60 minutes due to embedding generation and rate limits.
 
 **Solution:** Run during off-hours, or use `watch` + `update` for incremental processing after initial setup.

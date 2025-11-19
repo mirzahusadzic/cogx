@@ -12,7 +12,7 @@ The Sigma dual-lattice system provides infinite context through dual-lattice arc
 
 ## Related
 
-- **[PGC](../pgc/README.md)** — Pattern Graph Cluster
+- **[PGC](../pgc/README.md)** — Grounded Context Pool
 - **[Theoretical Blueprint](../blueprint/README.md)** — Mathematical foundations
 
 ---

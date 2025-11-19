@@ -134,7 +134,7 @@ Proactive Compression (SIGMA):
 // Problem: Message array keeps growing forever
 messages = [
   ...oldMessages, // ~compression threshold
-  { role: 'user', content: recap },
+  { role: "user", content: recap },
   ...newMessages, // Still at threshold!
 ];
 ```
@@ -152,7 +152,7 @@ messages = [
 
 ```typescript
 // Problem: Loses audit trail
-messages = [{ role: 'assistant', content: recap }, ...newMessages];
+messages = [{ role: "assistant", content: recap }, ...newMessages];
 // Where did the old 180 messages go?
 ```
 
@@ -174,7 +174,7 @@ await saveSession(oldSessionId, messages);
 // New session with recap as system context
 newSessionId = generateChildSessionId(oldSessionId);
 newMessages = []; // Fresh start
-system = [...baseSystem, { type: 'text', text: recap }];
+system = [...baseSystem, { type: "text", text: recap }];
 ```
 
 **Advantages:**
@@ -547,7 +547,7 @@ await saveSessionMetadata({
 #### 1. Append Recap to Message Array
 
 ```typescript
-messages = [...oldMessages, { role: 'user', content: recap }];
+messages = [...oldMessages, { role: "user", content: recap }];
 ```
 
 **Rejected because:**
@@ -561,7 +561,7 @@ messages = [...oldMessages, { role: 'user', content: recap }];
 #### 2. Mutate Message History
 
 ```typescript
-messages = [{ role: 'assistant', content: recap }];
+messages = [{ role: "assistant", content: recap }];
 ```
 
 **Rejected because:**
@@ -683,7 +683,7 @@ try {
   // Start new session with recap
 } catch (error) {
   // Keep current session, warn user
-  console.warn('Compression failed, continuing current session');
+  console.warn("Compression failed, continuing current session");
   // User can manually trigger compression later
 }
 ```

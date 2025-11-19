@@ -106,7 +106,7 @@ const O2 = union([
 ]);
 
 // Queries automatically span all sources
-const result = await O2.query("protect against XSS");
+const result = await O2.query('protect against XSS');
 ```
 
 ---
@@ -119,27 +119,27 @@ const result = await O2.query("protect against XSS");
 
 ```yaml
 # Metadata header
-format_version: "1.0"
+format_version: '1.0'
 overlay_type: O2_security
 project_name: express
 project_version: 4.18.2
 source_project: https://github.com/expressjs/express
 source_commit: a1b2c3d4e5f6789012345678901234567890abcd
-exported_at: "2025-01-15T10:30:00Z"
+exported_at: '2025-01-15T10:30:00Z'
 exported_by: express-maintainers
 license: MIT
 
 # Provenance chain (optional)
 provenance:
   - event: overlay_generated
-    timestamp: "2025-01-10T08:00:00Z"
+    timestamp: '2025-01-10T08:00:00Z'
     transform_id: doc_security_extract_v1.2
     source_files:
       - SECURITY.md
       - docs/advanced-topics/security.md
 
   - event: overlay_validated
-    timestamp: "2025-01-12T14:00:00Z"
+    timestamp: '2025-01-12T14:00:00Z'
     validator: security-team-review
     approval: alice@expressjs.org
 
@@ -158,8 +158,8 @@ knowledge:
       severity: high
       weight: 0.9
       cveId: CVE-2024-12345
-      affectedVersions: "4.18.0 - 4.18.2"
-      mitigation: "Upgrade to 4.18.3 or later. Alternatively, implement rate limiting on parameter-heavy routes."
+      affectedVersions: '4.18.0 - 4.18.2'
+      mitigation: 'Upgrade to 4.18.3 or later. Alternatively, implement rate limiting on parameter-heavy routes.'
       references:
         - https://github.com/expressjs/express/security/advisories/GHSA-xxxx-yyyy
         - https://nvd.nist.gov/vuln/detail/CVE-2024-12345
@@ -196,7 +196,7 @@ knowledge:
     metadata:
       severity: high
       weight: 0.85
-      mitigation: "Regenerate session ID after authentication using session.regenerate()"
+      mitigation: 'Regenerate session ID after authentication using session.regenerate()'
 
     embedding: [0.345, 0.678, 0.901, ..., 0.543]
 
@@ -381,10 +381,10 @@ Keep imported items separate, queryable via namespace filter.
 
 ```typescript
 // Query only YOUR security knowledge
-const yours = await O2.filter((m) => m.source === "local");
+const yours = await O2.filter((m) => m.source === 'local');
 
 // Query only EXPRESS security knowledge
-const express = await O2.filter((m) => m.source === "express@4.18.3");
+const express = await O2.filter((m) => m.source === 'express@4.18.3');
 
 // Query both (default)
 const all = await O2.getAllItems();
@@ -421,7 +421,7 @@ cognition-cli import express-4.18.3-security.cogx
 
 ```yaml
 # react-patterns.cogx (O5: Operational Patterns)
-format_version: "1.0"
+format_version: '1.0'
 overlay_type: O5_operational
 project_name: react
 project_version: 18.2.0
@@ -447,7 +447,7 @@ knowledge:
       causes stale closures; including too many defeats memoization.
     metadata:
       depth: 2
-      common_mistake: "Forgetting to memoize callbacks passed to memo components"
+      common_mistake: 'Forgetting to memoize callbacks passed to memo components'
       weight: 0.75
     embedding: [...]
 ```
@@ -519,7 +519,7 @@ Every .cogx file includes a provenance chain tracking its lifecycle:
 provenance:
   # Step 1: Generation
   - event: overlay_generated
-    timestamp: "2025-01-10T08:00:00Z"
+    timestamp: '2025-01-10T08:00:00Z'
     transform_id: doc_security_extract_v1.2
     source_files:
       - SECURITY.md
@@ -528,14 +528,14 @@ provenance:
 
   # Step 2: Validation (optional)
   - event: overlay_validated
-    timestamp: "2025-01-12T14:00:00Z"
+    timestamp: '2025-01-12T14:00:00Z'
     validator: security-team-review
     approval: alice@expressjs.org
     notes: Reviewed for accuracy and completeness
 
   # Step 3: Export
   - event: overlay_exported
-    timestamp: "2025-01-15T10:30:00Z"
+    timestamp: '2025-01-15T10:30:00Z'
     exported_by: express-maintainers
     export_tool: cognition-cli@2.0.3
 ```
@@ -571,7 +571,7 @@ signature:
     -----END PUBLIC KEY-----
   signature: 3a7f8e9c...
   signed_by: express-security-team
-  signed_at: "2025-01-15T10:30:00Z"
+  signed_at: '2025-01-15T10:30:00Z'
 ```
 
 Verification:
@@ -610,21 +610,21 @@ src/
 
 ```typescript
 // src/commands/export.ts
-import { Command } from "commander";
-import { CogxExporter } from "../core/cogx/exporter.js";
+import { Command } from 'commander';
+import { CogxExporter } from '../core/cogx/exporter.js';
 
 export function addExportCommand(program: Command) {
   program
-    .command("export <outputFile>")
-    .description("Export overlay as portable .cogx file")
-    .requiredOption("--overlay <type>", "Overlay type (O1-O7)")
-    .option("--version <version>", "Project version")
-    .option("--license <license>", "License (MIT, Apache-2.0, etc.)")
+    .command('export <outputFile>')
+    .description('Export overlay as portable .cogx file')
+    .requiredOption('--overlay <type>', 'Overlay type (O1-O7)')
+    .option('--version <version>', 'Project version')
+    .option('--license <license>', 'License (MIT, Apache-2.0, etc.)')
     .option(
-      "--source-commit <hash>",
-      "Git commit hash (auto-detected if omitted)",
+      '--source-commit <hash>',
+      'Git commit hash (auto-detected if omitted)'
     )
-    .option("-p, --project-root <path>", "Project root", process.cwd())
+    .option('-p, --project-root <path>', 'Project root', process.cwd())
     .action(async (outputFile, options) => {
       const exporter = new CogxExporter(options.projectRoot);
 
@@ -643,16 +643,16 @@ export function addExportCommand(program: Command) {
 
 ```typescript
 // src/commands/import.ts
-import { Command } from "commander";
-import { CogxImporter } from "../core/cogx/importer.js";
+import { Command } from 'commander';
+import { CogxImporter } from '../core/cogx/importer.js';
 
 export function addImportCommand(program: Command) {
   program
-    .command("import <cogxFile>")
-    .description("Import .cogx file into overlay")
-    .option("--verify", "Verify provenance before import")
-    .option("--dry-run", "Show what would be imported without applying")
-    .option("-p, --project-root <path>", "Project root", process.cwd())
+    .command('import <cogxFile>')
+    .description('Import .cogx file into overlay')
+    .option('--verify', 'Verify provenance before import')
+    .option('--dry-run', 'Show what would be imported without applying')
+    .option('-p, --project-root <path>', 'Project root', process.cwd())
     .action(async (cogxFile, options) => {
       const importer = new CogxImporter(options.projectRoot);
 
@@ -663,7 +663,7 @@ export function addImportCommand(program: Command) {
       });
 
       console.log(
-        `✓ Imported ${result.itemCount} items into ${result.overlayType} overlay`,
+        `✓ Imported ${result.itemCount} items into ${result.overlayType} overlay`
       );
       console.log(`  Source: ${result.projectName}@${result.projectVersion}`);
 
@@ -679,11 +679,11 @@ export function addImportCommand(program: Command) {
 
 ```typescript
 // src/core/cogx/exporter.ts
-import YAML from "yaml";
-import fs from "fs-extra";
-import path from "path";
-import { execSync } from "child_process";
-import { PGCManager } from "../pgc/manager.js";
+import YAML from 'yaml';
+import fs from 'fs-extra';
+import path from 'path';
+import { execSync } from 'child_process';
+import { PGCManager } from '../pgc/manager.js';
 
 export interface ExportOptions {
   outputPath: string;
@@ -711,7 +711,7 @@ export class CogxExporter {
 
     if (items.length === 0) {
       throw new Error(
-        `No items found in ${overlayType} overlay. Run genesis first.`,
+        `No items found in ${overlayType} overlay. Run genesis first.`
       );
     }
 
@@ -720,23 +720,23 @@ export class CogxExporter {
 
     // 4. Build .cogx structure
     const cogxData = {
-      format_version: "1.0",
+      format_version: '1.0',
       overlay_type: this.formatOverlayType(overlayType),
       project_name: this.detectProjectName(),
       project_version: version || this.detectProjectVersion(),
       source_project: this.detectSourceRepo(),
       source_commit: commit,
       exported_at: new Date().toISOString(),
-      license: license || "UNLICENSED",
+      license: license || 'UNLICENSED',
 
       provenance: [
         {
-          event: "overlay_generated",
+          event: 'overlay_generated',
           timestamp: new Date().toISOString(),
           source_commit: commit,
         },
         {
-          event: "overlay_exported",
+          event: 'overlay_exported',
           timestamp: new Date().toISOString(),
           export_tool: `cognition-cli@${this.getCLIVersion()}`,
         },
@@ -744,7 +744,7 @@ export class CogxExporter {
 
       knowledge: items.map((item) => ({
         id: item.id,
-        type: item.metadata.type || "unknown",
+        type: item.metadata.type || 'unknown',
         text: item.metadata.text,
         metadata: this.cleanMetadata(item.metadata),
         embedding: item.embedding,
@@ -753,14 +753,14 @@ export class CogxExporter {
       stats: {
         total_items: items.length,
         item_types: this.countTypes(items),
-        embedding_model: "egemma-768",
+        embedding_model: 'egemma-768',
         embedding_dimensions: items[0]?.embedding.length || 768,
       },
     };
 
     // 5. Write YAML file
     const yamlContent = YAML.stringify(cogxData);
-    await fs.writeFile(outputPath, yamlContent, "utf-8");
+    await fs.writeFile(outputPath, yamlContent, 'utf-8');
 
     console.log(`\nExport Summary:`);
     console.log(`  Output: ${outputPath}`);
@@ -771,64 +771,64 @@ export class CogxExporter {
 
   private detectGitCommit(): string {
     try {
-      return execSync("git rev-parse HEAD", { cwd: this.projectRoot })
+      return execSync('git rev-parse HEAD', { cwd: this.projectRoot })
         .toString()
         .trim();
     } catch {
-      return "unknown";
+      return 'unknown';
     }
   }
 
   private detectProjectName(): string {
     try {
-      const pkgPath = path.join(this.projectRoot, "package.json");
+      const pkgPath = path.join(this.projectRoot, 'package.json');
       if (fs.existsSync(pkgPath)) {
-        const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
-        return pkg.name || "unnamed-project";
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+        return pkg.name || 'unnamed-project';
       }
     } catch {}
-    return "unnamed-project";
+    return 'unnamed-project';
   }
 
   private detectProjectVersion(): string {
     try {
-      const pkgPath = path.join(this.projectRoot, "package.json");
+      const pkgPath = path.join(this.projectRoot, 'package.json');
       if (fs.existsSync(pkgPath)) {
-        const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
-        return pkg.version || "0.0.0";
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+        return pkg.version || '0.0.0';
       }
     } catch {}
-    return "0.0.0";
+    return '0.0.0';
   }
 
   private detectSourceRepo(): string {
     try {
-      const remote = execSync("git remote get-url origin", {
+      const remote = execSync('git remote get-url origin', {
         cwd: this.projectRoot,
       })
         .toString()
         .trim();
       return remote;
     } catch {
-      return "unknown";
+      return 'unknown';
     }
   }
 
   private getCLIVersion(): string {
     // Read from package.json in cognition-cli
-    return "2.0.3"; // TODO: Read dynamically
+    return '2.0.3'; // TODO: Read dynamically
   }
 
   private formatOverlayType(type: string): string {
     // O2 → O2_security
     const typeMap: Record<string, string> = {
-      O1: "O1_structural",
-      O2: "O2_security",
-      O3: "O3_lineage",
-      O4: "O4_mission",
-      O5: "O5_operational",
-      O6: "O6_mathematical",
-      O7: "O7_coherence",
+      O1: 'O1_structural',
+      O2: 'O2_security',
+      O3: 'O3_lineage',
+      O4: 'O4_mission',
+      O5: 'O5_operational',
+      O6: 'O6_mathematical',
+      O7: 'O7_coherence',
     };
     return typeMap[type] || type;
   }
@@ -842,7 +842,7 @@ export class CogxExporter {
   private countTypes(items: any[]): Record<string, number> {
     const counts: Record<string, number> = {};
     items.forEach((item) => {
-      const type = item.metadata.type || "unknown";
+      const type = item.metadata.type || 'unknown';
       counts[type] = (counts[type] || 0) + 1;
     });
     return counts;
@@ -852,13 +852,13 @@ export class CogxExporter {
     // Get appropriate overlay manager based on type
     // This will use the existing overlay managers
     const overlayMap: Record<string, string> = {
-      O1: "structural",
-      O2: "security",
-      O3: "lineage",
-      O4: "mission",
-      O5: "operational",
-      O6: "mathematical",
-      O7: "coherence",
+      O1: 'structural',
+      O2: 'security',
+      O3: 'lineage',
+      O4: 'mission',
+      O5: 'operational',
+      O6: 'mathematical',
+      O7: 'coherence',
     };
 
     const overlayName = overlayMap[type];
@@ -875,11 +875,11 @@ export class CogxExporter {
 
 ```typescript
 // src/core/cogx/importer.ts
-import YAML from "yaml";
-import fs from "fs-extra";
-import path from "path";
-import { PGCManager } from "../pgc/manager.js";
-import { CogxValidator } from "./validator.js";
+import YAML from 'yaml';
+import fs from 'fs-extra';
+import path from 'path';
+import { PGCManager } from '../pgc/manager.js';
+import { CogxValidator } from './validator.js';
 
 export interface ImportOptions {
   cogxPath: string;
@@ -906,7 +906,7 @@ export class CogxImporter {
     const { cogxPath, verify = false, dryRun = false } = options;
 
     // 1. Read and parse .cogx file
-    const cogxContent = await fs.readFile(cogxPath, "utf-8");
+    const cogxContent = await fs.readFile(cogxPath, 'utf-8');
     const cogxData = YAML.parse(cogxContent);
 
     // 2. Validate format
@@ -914,14 +914,14 @@ export class CogxImporter {
     const validation = validator.validate(cogxData);
 
     if (!validation.valid) {
-      throw new Error(`Invalid .cogx file:\n${validation.errors.join("\n")}`);
+      throw new Error(`Invalid .cogx file:\n${validation.errors.join('\n')}`);
     }
 
     // 3. Verify provenance if requested
     if (verify) {
       const provenanceValid = await this.verifyProvenance(cogxData);
       if (!provenanceValid) {
-        throw new Error("Provenance verification failed");
+        throw new Error('Provenance verification failed');
       }
     }
 
@@ -967,7 +967,7 @@ export class CogxImporter {
 
   private parseOverlayType(type: string): string {
     // O2_security → O2
-    return type.split("_")[0];
+    return type.split('_')[0];
   }
 
   private async verifyProvenance(cogxData: any): Promise<boolean> {
@@ -975,7 +975,7 @@ export class CogxImporter {
     const { source_commit, source_project } = cogxData;
 
     if (!source_commit || !source_project) {
-      console.warn("⚠️  No provenance information available");
+      console.warn('⚠️  No provenance information available');
       return true; // Don't block import, just warn
     }
 
@@ -998,7 +998,7 @@ export class CogxImporter {
   private async addImportedItem(
     overlay: any,
     knowledgeItem: any,
-    cogxData: any,
+    cogxData: any
   ): Promise<void> {
     // Add item to overlay with import metadata
     const item = {
@@ -1009,7 +1009,7 @@ export class CogxImporter {
         text: knowledgeItem.text,
         type: knowledgeItem.type,
         // Mark as imported
-        source: "imported",
+        source: 'imported',
         imported_from: `${cogxData.project_name}@${cogxData.project_version}`,
         imported_at: new Date().toISOString(),
       },
@@ -1021,10 +1021,10 @@ export class CogxImporter {
 
   private async recordImportMetadata(
     cogxPath: string,
-    cogxData: any,
+    cogxData: any
   ): Promise<void> {
     // Record import in .open_cognition/imports/
-    const importDir = path.join(this.pgc.pgcRoot, "imports");
+    const importDir = path.join(this.pgc.pgcRoot, 'imports');
     await fs.ensureDir(importDir);
 
     const metaFile = path.join(importDir, `${path.basename(cogxPath)}.meta`);
@@ -1038,19 +1038,19 @@ export class CogxImporter {
       source_commit: cogxData.source_commit,
     };
 
-    await fs.writeFile(metaFile, YAML.stringify(metadata), "utf-8");
+    await fs.writeFile(metaFile, YAML.stringify(metadata), 'utf-8');
   }
 
   private async getOverlayManager(type: string): Promise<any> {
     // Same as exporter
     const overlayMap: Record<string, string> = {
-      O1: "structural",
-      O2: "security",
-      O3: "lineage",
-      O4: "mission",
-      O5: "operational",
-      O6: "mathematical",
-      O7: "coherence",
+      O1: 'structural',
+      O2: 'security',
+      O3: 'lineage',
+      O4: 'mission',
+      O5: 'operational',
+      O6: 'mathematical',
+      O7: 'coherence',
     };
 
     const overlayName = overlayMap[type];
@@ -1078,23 +1078,23 @@ export class CogxValidator {
 
     // Required fields
     if (!cogxData.format_version) {
-      errors.push("Missing required field: format_version");
-    } else if (cogxData.format_version !== "1.0") {
+      errors.push('Missing required field: format_version');
+    } else if (cogxData.format_version !== '1.0') {
       errors.push(`Unsupported format version: ${cogxData.format_version}`);
     }
 
     if (!cogxData.overlay_type) {
-      errors.push("Missing required field: overlay_type");
+      errors.push('Missing required field: overlay_type');
     } else if (!this.isValidOverlayType(cogxData.overlay_type)) {
       errors.push(`Invalid overlay type: ${cogxData.overlay_type}`);
     }
 
     if (!cogxData.project_name) {
-      errors.push("Missing required field: project_name");
+      errors.push('Missing required field: project_name');
     }
 
     if (!cogxData.knowledge || !Array.isArray(cogxData.knowledge)) {
-      errors.push("Missing or invalid field: knowledge (must be array)");
+      errors.push('Missing or invalid field: knowledge (must be array)');
     }
 
     // Validate knowledge items
@@ -1110,7 +1110,7 @@ export class CogxValidator {
           errors.push(`knowledge[${index}]: Missing or invalid embedding`);
         } else if (item.embedding.length !== 768) {
           warnings.push(
-            `knowledge[${index}]: Embedding dimension is ${item.embedding.length}, expected 768`,
+            `knowledge[${index}]: Embedding dimension is ${item.embedding.length}, expected 768`
           );
         }
       });
@@ -1118,12 +1118,12 @@ export class CogxValidator {
 
     // Optional but recommended fields
     if (!cogxData.source_commit) {
-      warnings.push("No source_commit specified (provenance tracking limited)");
+      warnings.push('No source_commit specified (provenance tracking limited)');
     }
 
     if (!cogxData.provenance) {
       warnings.push(
-        "No provenance chain specified (trust verification limited)",
+        'No provenance chain specified (trust verification limited)'
       );
     }
 
@@ -1136,13 +1136,13 @@ export class CogxValidator {
 
   private isValidOverlayType(type: string): boolean {
     const validTypes = [
-      "O1_structural",
-      "O2_security",
-      "O3_lineage",
-      "O4_mission",
-      "O5_operational",
-      "O6_mathematical",
-      "O7_coherence",
+      'O1_structural',
+      'O2_security',
+      'O3_lineage',
+      'O4_mission',
+      'O5_operational',
+      'O6_mathematical',
+      'O7_coherence',
     ];
     return validTypes.includes(type);
   }
@@ -1157,15 +1157,15 @@ export class CogxValidator {
  */
 
 export interface CogxFormat {
-  format_version: "1.0";
+  format_version: '1.0';
   overlay_type:
-    | "O1_structural"
-    | "O2_security"
-    | "O3_lineage"
-    | "O4_mission"
-    | "O5_operational"
-    | "O6_mathematical"
-    | "O7_coherence";
+    | 'O1_structural'
+    | 'O2_security'
+    | 'O3_lineage'
+    | 'O4_mission'
+    | 'O5_operational'
+    | 'O6_mathematical'
+    | 'O7_coherence';
   project_name: string;
   project_version?: string;
   source_project?: string;
@@ -1219,8 +1219,8 @@ export interface CogxSignature {
 
 ```typescript
 // src/cli.ts (add to existing)
-import { addExportCommand } from "./commands/export.js";
-import { addImportCommand } from "./commands/import.js";
+import { addExportCommand } from './commands/export.js';
+import { addImportCommand } from './commands/import.js';
 
 // ... existing code ...
 
@@ -1252,16 +1252,16 @@ export class SecurityGuidelinesManager {
    * Filter items by source (local vs imported)
    */
   async getItemsBySource(
-    source: "local" | "imported" | string,
+    source: 'local' | 'imported' | string
   ): Promise<OverlayItem<SecurityMetadata>[]> {
     const allItems = await this.getAllItems();
 
-    if (source === "local") {
+    if (source === 'local') {
       return allItems.filter(
-        (item) => !item.metadata.source || item.metadata.source === "local",
+        (item) => !item.metadata.source || item.metadata.source === 'local'
       );
-    } else if (source === "imported") {
-      return allItems.filter((item) => item.metadata.source === "imported");
+    } else if (source === 'imported') {
+      return allItems.filter((item) => item.metadata.source === 'imported');
     } else {
       // Filter by specific imported source (e.g., "express@4.18.3")
       return allItems.filter((item) => item.metadata.imported_from === source);
@@ -1291,9 +1291,9 @@ export class SecurityGuidelinesManager {
     // Store in vector database
     await this.vectorStore.storeVector(item.id, item.embedding, {
       symbol: item.id,
-      architectural_role: item.metadata.type || "unknown",
+      architectural_role: item.metadata.type || 'unknown',
       computed_at: new Date().toISOString(),
-      lineage_hash: "imported",
+      lineage_hash: 'imported',
       metadata: JSON.stringify(item.metadata),
     });
 
@@ -1311,8 +1311,8 @@ export class SecurityGuidelinesManager {
 
 ```typescript
 // src/core/cogx/dependency-scanner.ts
-import fs from "fs-extra";
-import path from "path";
+import fs from 'fs-extra';
+import path from 'path';
 
 export interface DiscoveredCogx {
   packageName: string;
@@ -1325,7 +1325,7 @@ export class DependencyScanner {
   constructor(private projectRoot: string) {}
 
   async findCogxFiles(): Promise<DiscoveredCogx[]> {
-    const nodeModules = path.join(this.projectRoot, "node_modules");
+    const nodeModules = path.join(this.projectRoot, 'node_modules');
 
     if (!(await fs.pathExists(nodeModules))) {
       return [];
@@ -1334,12 +1334,12 @@ export class DependencyScanner {
     const discovered: DiscoveredCogx[] = [];
 
     // Read package.json to get dependencies
-    const pkgPath = path.join(this.projectRoot, "package.json");
+    const pkgPath = path.join(this.projectRoot, 'package.json');
     if (!(await fs.pathExists(pkgPath))) {
       return [];
     }
 
-    const pkg = JSON.parse(await fs.readFile(pkgPath, "utf-8"));
+    const pkg = JSON.parse(await fs.readFile(pkgPath, 'utf-8'));
     const deps = {
       ...pkg.dependencies,
       ...pkg.devDependencies,
@@ -1372,25 +1372,25 @@ export class DependencyScanner {
 
   private async findCogxInPackage(pkgPath: string): Promise<string[]> {
     // Check for cognitive/ directory
-    const cognitiveDir = path.join(pkgPath, "cognitive");
+    const cognitiveDir = path.join(pkgPath, 'cognitive');
     if (await fs.pathExists(cognitiveDir)) {
       const files = await fs.readdir(cognitiveDir);
       return files
-        .filter((f) => f.endsWith(".cogx"))
+        .filter((f) => f.endsWith('.cogx'))
         .map((f) => path.join(cognitiveDir, f));
     }
 
     // Check root directory
     const files = await fs.readdir(pkgPath);
     return files
-      .filter((f) => f.endsWith(".cogx"))
+      .filter((f) => f.endsWith('.cogx'))
       .map((f) => path.join(pkgPath, f));
   }
 
   private async detectOverlayType(cogxPath: string): Promise<string> {
-    const content = await fs.readFile(cogxPath, "utf-8");
+    const content = await fs.readFile(cogxPath, 'utf-8');
     const data = YAML.parse(content);
-    return data.overlay_type || "unknown";
+    return data.overlay_type || 'unknown';
   }
 }
 ```
@@ -1399,43 +1399,43 @@ export class DependencyScanner {
 
 ```typescript
 // src/commands/genesis.ts (additions)
-import { DependencyScanner } from "../core/cogx/dependency-scanner.js";
-import { CogxImporter } from "../core/cogx/importer.js";
+import { DependencyScanner } from '../core/cogx/dependency-scanner.js';
+import { CogxImporter } from '../core/cogx/importer.js';
 
 export async function genesisCommand(options: any) {
   // ... existing genesis logic ...
 
   // After genesis completes, scan for .cogx files
   if (options.importDependencies) {
-    console.log("\n🔍 Scanning dependencies for .cogx files...");
+    console.log('\n🔍 Scanning dependencies for .cogx files...');
 
     const scanner = new DependencyScanner(options.projectRoot);
     const discovered = await scanner.findCogxFiles();
 
     if (discovered.length === 0) {
-      console.log("  No .cogx files found in dependencies");
+      console.log('  No .cogx files found in dependencies');
       return;
     }
 
     console.log(`  Found ${discovered.length} .cogx file(s):\n`);
     discovered.forEach((d) => {
       console.log(
-        `  • ${d.packageName}@${d.packageVersion} (${d.overlayType})`,
+        `  • ${d.packageName}@${d.packageVersion} (${d.overlayType})`
       );
     });
 
     // Prompt user to import
-    const readline = require("readline").createInterface({
+    const readline = require('readline').createInterface({
       input: process.stdin,
       output: process.stdout,
     });
 
     const answer = await new Promise<string>((resolve) => {
-      readline.question("\n  Import all? [Y/n] ", resolve);
+      readline.question('\n  Import all? [Y/n] ', resolve);
     });
     readline.close();
 
-    if (answer.toLowerCase() !== "n") {
+    if (answer.toLowerCase() !== 'n') {
       const importer = new CogxImporter(options.projectRoot);
 
       for (const cogx of discovered) {
@@ -1443,7 +1443,7 @@ export async function genesisCommand(options: any) {
         await importer.import({ cogxPath: cogx.cogxPath });
       }
 
-      console.log("\n✓ All imports complete");
+      console.log('\n✓ All imports complete');
     }
   }
 }
@@ -1779,13 +1779,13 @@ See full example in specification section above.
 ### Example 2: React Patterns Overlay
 
 ```yaml
-format_version: "1.0"
+format_version: '1.0'
 overlay_type: O5_operational
 project_name: react
 project_version: 18.2.0
 source_project: https://github.com/facebook/react
 source_commit: 4f9c86f7a2b3d8e5c6a1f9b4e7d8c3a2f1e9b8d7
-exported_at: "2025-01-20T10:00:00Z"
+exported_at: '2025-01-20T10:00:00Z'
 license: MIT
 
 knowledge:
@@ -1797,7 +1797,7 @@ knowledge:
     metadata:
       depth: 2
       weight: 0.8
-      common_mistake: "Overusing useMemo for cheap computations adds overhead"
+      common_mistake: 'Overusing useMemo for cheap computations adds overhead'
       example: |
         const expensiveValue = useMemo(() => {
           return computeExpensiveValue(a, b);
@@ -1813,7 +1813,7 @@ knowledge:
     metadata:
       depth: 2
       weight: 0.75
-      related_patterns: ["use-memo-for-expensive-computations"]
+      related_patterns: ['use-memo-for-expensive-computations']
     embedding: [...]
 
 stats:
@@ -1827,24 +1827,24 @@ stats:
 ### Example 3: Organizational Security Baseline
 
 ```yaml
-format_version: "1.0"
+format_version: '1.0'
 overlay_type: O2_security
 project_name: acme-corp-security-baseline
 project_version: 2025.1
 source_project: https://github.com/acme-corp/security-baseline
-exported_at: "2025-01-15T09:00:00Z"
+exported_at: '2025-01-15T09:00:00Z'
 license: PROPRIETARY
 
 provenance:
   - event: overlay_generated
-    timestamp: "2025-01-10T08:00:00Z"
+    timestamp: '2025-01-10T08:00:00Z'
     source_files:
       - policies/data-handling.md
       - policies/authentication.md
       - policies/encryption.md
 
   - event: overlay_validated
-    timestamp: "2025-01-12T14:00:00Z"
+    timestamp: '2025-01-12T14:00:00Z'
     validator: security-team
     approval: ciso@acme-corp.com
     notes: Approved for all production services
@@ -1859,7 +1859,7 @@ knowledge:
       severity: critical
       weight: 1.0
       policy_id: SEC-001
-      effective_date: "2025-01-01"
+      effective_date: '2025-01-01'
     embedding: [...]
 
   - id: password-requirements
@@ -1872,7 +1872,7 @@ knowledge:
       severity: high
       weight: 0.9
       policy_id: SEC-015
-      compliance: "SOC2, ISO27001"
+      compliance: 'SOC2, ISO27001'
     embedding: [...]
 
 stats:

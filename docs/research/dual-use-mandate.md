@@ -185,7 +185,7 @@ The system MUST make its operations visible:
 ```typescript
 // REQUIRED: Log all alignment checks
 console.log(
-  `Checking alignment: ${symbol} against mission concepts: ${concepts}`
+  `Checking alignment: ${symbol} against mission concepts: ${concepts}`,
 );
 console.log(`Coherence score: ${score} (threshold: ${threshold})`);
 console.log(`Mission document source: ${missionDocPath}`);
@@ -201,12 +201,12 @@ The system MUST require explicit user consent:
 // REQUIRED: User acknowledges what's being measured
 const consent = await promptUser(`
 This will measure code alignment against mission: "${missionTitle}"
-Mission concepts: ${concepts.join(', ')}
+Mission concepts: ${concepts.join(", ")}
 Proceed? [y/N]
 `);
 
 if (!consent) {
-  console.log('User declined alignment check.');
+  console.log("User declined alignment check.");
   process.exit(0);
 }
 ```
@@ -254,8 +254,8 @@ The system MUST default to local operation:
 // OPTIONAL: Remote oracle validation (user must configure)
 
 if (!process.env.WORKBENCH_URL) {
-  console.log('Operating in local mode (no external validation)');
-  console.log('To enable Oracle validation: export WORKBENCH_URL=...');
+  console.log("Operating in local mode (no external validation)");
+  console.log("To enable Oracle validation: export WORKBENCH_URL=...");
 }
 ```
 

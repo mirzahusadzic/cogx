@@ -409,7 +409,7 @@ The **Grounded Context Pool (PGC)** is the physical storage layer—a versioned,
 - **Inspectable**: JSON, YAML (human-readable)
 - **Git-friendly**: Selective commits via `.gitignore`
 
-See [Multi-Overlay Architecture](../../architecture/MULTI_OVERLAY_ARCHITECTURE.md) for PGC specification details.
+See [Chapter 2: The PGC](02-the-pgc.md) for complete specification.
 
 ### 2. Semantic Substrate: Embeddings
 
@@ -443,7 +443,7 @@ const coherence = cosineSimilarity(functionEmbed, missionEmbed);
 
 **User control**: You choose the workbench and models via `WORKBENCH_URL` env variable.
 
-See [CLI Operations: Embeddings](05-cli-operations.md#embeddings-and-workbench) for implementation details.
+See [Chapter 4: Embeddings](04-embeddings.md) for implementation details.
 
 ---
 
@@ -595,4 +595,4 @@ You know you need cognitive architecture when you start asking:
 
 ---
 
-**Next**: [Chapter 3: Why Overlays?](03-why-overlays.md)
+**Next**: [Chapter 2: The PGC (Grounded Context Pool)](02-the-pgc.md)

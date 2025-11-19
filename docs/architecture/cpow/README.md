@@ -1,6 +1,6 @@
 # Cognitive Proof of Work (cPOW)
 
-Verification mechanism for AI contributions to the Pattern Graph Cluster.
+Verification mechanism for AI contributions to the Grounded Context Pool.
 
 ---
 
@@ -17,7 +17,7 @@ Verification mechanism for AI contributions to the Pattern Graph Cluster.
 ## Related
 
 - **[Theoretical Blueprint: cPOW](../blueprint/05-cognitive-proof-of-work.md)** — Theoretical foundation
-- **[PGC](../pgc/README.md)** — Pattern Graph Cluster
+- **[PGC](../pgc/README.md)** — Grounded Context Pool
 - **[ADRs](../adrs/README.md)** — Design decisions
 
 ---
