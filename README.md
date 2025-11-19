@@ -41,7 +41,6 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 1. **[Getting Started](docs/getting-started/README.md)** — Installation and first steps
 2. **[User Guides](docs/guides/README.md)** — Task-oriented how-tos
-3. **[FAQ](docs/faq.md)** — Frequently asked questions
 
 **Want to understand the theory?**
 
@@ -56,7 +55,7 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 **📕 THE LATTICE BOOK (Complete Reference Manual):**
 
-- **[The Lattice Book](https://mirzahusadzic.github.io/cogx/manual/)** — Complete 26-chapter reference manual covering cognitive architecture, seven overlays (O1-O7), lattice algebra, portability, cPOW loop, and Sigma infinite context
+- **[The Lattice Book](https://mirzahusadzic.github.io/cogx)** — Complete 26-chapter reference manual covering cognitive architecture, seven overlays (O1-O7), lattice algebra, portability, cPOW loop, and Sigma infinite context
 
 ---
 
