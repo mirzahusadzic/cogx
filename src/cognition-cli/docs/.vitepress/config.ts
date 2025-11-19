@@ -161,6 +161,10 @@ export default defineConfig({
                 text: '14 - Set Operations',
                 link: '/manual/part-3-algebra/14-set-operations',
               },
+              {
+                text: '15 - Lattice Algebraic Properties',
+                link: '/manual/part-3-algebra/15-lattice-algebraic-properties',
+              },
             ],
           },
           {
@@ -188,6 +192,10 @@ export default defineConfig({
               {
                 text: '20 - cPoW Reference',
                 link: '/manual/part-5-cpow-loop/20-cpow-reference',
+              },
+              {
+                text: '21 - F.L.T.B., AQS & CoMP',
+                link: '/manual/part-5-cpow-loop/21-fltb-aqs-comp',
               },
             ],
           },
@@ -264,6 +272,24 @@ export default defineConfig({
           {
             text: 'ADR-010: Workbench Integration',
             link: '/architecture/decisions/ADR-010-workbench-integration',
+          },
+        ],
+      },
+      {
+        text: 'Mathematical Reference',
+        collapsed: true,
+        items: [
+          {
+            text: 'Distributivity Laws',
+            link: '/overlays/O6_mathematical/DISTRIBUTIVITY_LAWS',
+          },
+          {
+            text: 'Fixed Point Convergence',
+            link: '/overlays/O6_mathematical/FIXED_POINT_CONVERGENCE',
+          },
+          {
+            text: 'Operational Lattice',
+            link: '/overlays/O5_operational/OPERATIONAL_LATTICE',
           },
         ],
       },

@@ -1161,6 +1161,128 @@ async function handleOracleFailure(
 
 ---
 
+## Phase 2.5: Quest Convergence and Oscillation Detection (Medium Term)
+
+### Goal
+
+Detect and handle quests that **oscillate** around a fixed point instead of converging to completion, preventing infinite loops and wasted computational resources.
+
+### The Fixed Point Problem
+
+In lattice theory, a **fixed point** occurs when applying a transformation function yields no new change. In CogX, this translates to a Quest where the Agent cycles between multiple states without achieving the goal (AQS = 1.0).
+
+**Example Oscillation:**
+1. Agent fixes bug, AQS increases from 0.80 → 0.85
+2. Agent refactors fix, AQS drops to 0.84 (regression)
+3. Agent reverts refactor, AQS returns to 0.85
+4. Cycle repeats indefinitely
+
+This is a manifestation of the **Lattice Fixed Point Problem** where two local optima ($L_P^A$ and $L_P^B$) satisfy the mission equally well, but neither dominates.
+
+**See**: `docs/overlays/O6_mathematical/FIXED_POINT_CONVERGENCE.md` for full mathematical formulation.
+
+### Current Solution: Human Oracle Entropy
+
+The fixed point problem is currently solved via **human intervention**:
+
+1. **Mission Redefinition** (Shifting $O_4$): Human Oracle refines the mission statement, moving the desired fixed point to a new location in the lattice space
+2. **Budgetary Constraint**: Human Oracle terminates the quest after observing no convergence, forcing cPOW generation for the best state achieved
+
+### Proposed Automated Detection
+
+**Fixed-Point Trap Detector Rule:**
+
+$$\text{IF} \quad \left(\sum_{t=1}^{N} \left|\Delta \text{AQS}_t\right| < \epsilon\right) \quad \land \quad (N \ge \text{OscillationDepth}) \quad \text{THEN} \quad \text{FLAG}$$
+
+**Where:**
+- $N$: Number of consecutive Quest turns
+- $\Delta \text{AQS}_t$: Change in AQS for turn $t$
+- $\epsilon$: Negligible change threshold (e.g., 0.005)
+- **OscillationDepth**: Configurable (e.g., 5 turns)
+
+**Implementation:**
+
+```typescript
+interface QuestTurn {
+  turnNumber: number;
+  aqs: number;
+  deltaAQS: number;
+}
+
+function detectFixedPointOscillation(
+  questHistory: QuestTurn[],
+  oscillationDepth: number = 5,
+  epsilon: number = 0.005
+): boolean {
+  if (questHistory.length < oscillationDepth) {
+    return false;
+  }
+
+  const recentTurns = questHistory.slice(-oscillationDepth);
+  const totalDelta = recentTurns.reduce(
+    (sum, turn) => sum + Math.abs(turn.deltaAQS),
+    0
+  );
+
+  return totalDelta < epsilon;
+}
+
+// Integrate with Oracle feedback loop
+async function onTransformComplete(quest: Quest) {
+  const oscillationDetected = detectFixedPointOscillation(
+    quest.aqs_history,
+    5,
+    0.005
+  );
+
+  if (oscillationDetected) {
+    // Trigger Sacred Pause
+    await displayInTUI({
+      title: '⚠️ OSCILLATION DETECTED',
+      message: `Quest has been cycling between ${quest.aqs_history[quest.aqs_history.length - 1].aqs}
+                for ${5} turns without convergence.`,
+      recommendation: 'Please provide new entropy (refine O4 intent) or force closure.',
+    });
+
+    const action = await promptUser(
+      '(1) Refine mission (2) Force closure (3) Continue anyway'
+    );
+
+    if (action === '1') {
+      // Re-enter Genesis Pause with refined mission
+      await refineQuestMission(quest);
+    } else if (action === '2') {
+      // Force quest completion
+      quest.status = 'complete';
+      await generateCPOW(quest);
+    }
+    // else: continue (user override)
+  }
+}
+```
+
+### Integration with F.L.T.B.
+
+The Fixed-Point Detector serves as a **Breakthrough Oracle** checkpoint:
+
+- **Fidelity**: Code quality maintained across oscillating states
+- **Logic**: Tests pass in all candidate states
+- **Traceability**: Each oscillation recorded in quest transforms
+- **Breakthrough**: Detector identifies when external entropy is needed
+
+### Success Criteria
+
+- ✅ Oscillation detection integrated into quest tracking
+- ✅ Sacred Pause triggered when oscillation detected
+- ✅ Human Oracle can inject entropy (refine mission) or force closure
+- ✅ No infinite loops (quest budget enforces termination)
+
+**References:**
+- Mathematical formulation: `docs/overlays/O6_mathematical/FIXED_POINT_CONVERGENCE.md`
+- F.L.T.B. integration: `docs/manual/part-5-cpow-loop/21-fltb-aqs-comp.md`
+
+---
+
 ## Phase 3: cPOW Generation (Medium Term → Long Term)
 
 ### Goal

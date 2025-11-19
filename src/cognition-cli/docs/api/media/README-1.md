@@ -54,6 +54,12 @@ THE LATTICE BOOK is the complete reference manual for building, querying, and re
 
 ## Book Structure
 
+### Part 0: Quick Start (10 Minutes)
+
+**Quick Start Guide**
+`part-0-quickstart/00-quick-start.md`
+Get from zero to first query in under 10 minutes. Installation, setup, and first queries.
+
 ### Part I: Foundation (~100 pages)
 
 **Chapter 1: Cognitive Architecture**
@@ -148,13 +154,13 @@ Building reusable overlays for common libraries (React, TypeScript, Node.js).
 
 ### Part V: The cPOW Loop (~120 pages)
 
-**Chapter 18: Operational Flow**
+**Chapter 18: Operational Flow** ✅
 `part-5-cpow-loop/18-operational-flow.md`
-Oracle → Scribe → AQS → Receipt. The complete computational Proof of Work cycle.
+Transform pipeline (Genesis → Overlay Generation → Continuous Coherence). Orchestrators (GenesisOrchestrator, UpdateOrchestrator, OverlayOrchestrator). Quality assurance (Fidelity scores, AQS). Audit trail (TransformLog). Complete operational flow documentation.
 
-**Chapter 19: Quest Structures**
+**Chapter 19: Quest Structures** ✅
 `part-5-cpow-loop/19-quest-structures.md`
-What/Why/Success. Depth tracking (Depth 0-3). Sacred sequences (F.L.T.B: Format, Lint, Test, Build).
+Quest anatomy (What/Why/Success/Big Blocks/Eyes Go). Depth tracking (Depth 0-3 with time limits). Sacred sequences (F.L.T.B: Format, Lint, Test, Build). Complete 9-phase quest lifecycle. Mission alignment and coherence checks. Operations Log format and analysis.
 
 **Chapter 20: Validation Oracles**
 `part-5-cpow-loop/20-validation-oracles.md`
@@ -170,11 +176,26 @@ Dual-lattice architecture. Meet operations. Conversation overlays (O1-O7). Sessi
 
 ---
 
+### Part VII: Appendices (~80 pages)
+
+**Appendix A: Troubleshooting Guide** ✅
+`appendix-a-troubleshooting.md`
+Comprehensive troubleshooting reference covering installation issues, PGC corruption recovery, workbench connectivity, performance optimization, query/overlay problems, LanceDB errors, coherence issues, common error messages with solutions, and recovery procedures. Complete diagnostic and prevention guide.
+
+---
+
 ## Reading Paths
+
+### For New Users (Fast Start) ⭐
+
+1. **Quick Start Guide** (10 minutes) ⭐
+2. Chapter 2: The PGC (understand storage)
+3. Chapter 5: CLI Operations (command reference)
+4. Start querying!
 
 ### For Implementers (Full Path)
 
-Read sequentially from Part I through Part VI.
+Read sequentially from Part 0 through Part VI.
 
 ### For Query Users (Fast Path)
 
@@ -249,15 +270,21 @@ Read sequentially from Part I through Part VI.
 - 📋 Chapter 16: Dependency Security Inheritance
 - 📋 Chapter 17: Ecosystem Seeding
 
-### Part V: cPOW Loop
+### Part V: cPOW Loop ✅ COMPLETE
 
-- 🔄 Chapter 18: Operational Flow (migrate from CPOW_OPERATIONAL_LOOP.md)
-- 📋 Chapter 19: Quest Structures
+- ✅ Chapter 18: Operational Flow (COMPLETE - 400 lines)
+- ✅ Chapter 19: Quest Structures (COMPLETE - 1,400 lines)
 - 📋 Chapter 20: Validation Oracles
 
 ### Part VI: Σ (Sigma) — Infinite Context ✅ COMPLETE
 
 - ✅ Chapter 21: Sigma Architecture (COMPLETE - 800 lines)
+
+---
+
+### Part VII: Appendices ✅ COMPLETE
+
+- ✅ Appendix A: Troubleshooting Guide (COMPLETE - 800 lines)
 
 ---
 
@@ -317,6 +344,8 @@ Built with:
 
 ---
 
-**Next Chapter**: [Chapter 12: Boolean Operations on Knowledge](/manual/part-3-algebra/12-boolean-operations) 🚧
+**Next Chapter**: [Chapter 12: Boolean Operations on Knowledge](part-3-algebra/12-boolean-operations.md) 🚧
 
-**Start Reading**: [Chapter 1: Cognitive Architecture](/manual/part-1-foundation/01-cognitive-architecture) 📋
+**Quick Start**: [10-Minute Quick Start Guide](part-0-quickstart/00-quick-start.md) ⚡
+
+**Start Reading**: [Chapter 1: Cognitive Architecture](part-1-foundation/01-cognitive-architecture.md) 📋

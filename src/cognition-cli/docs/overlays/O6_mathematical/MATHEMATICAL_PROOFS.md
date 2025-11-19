@@ -6,11 +6,11 @@
 
 The **Mathematical Proofs Overlay** extracts and tracks formal mathematical properties of code: theorems, lemmas, proofs, invariants, and algorithmic complexity. It bridges the gap between informal code and formal verification.
 
-**Layer**: Formal Properties
-**Purpose**: Extract theorems, proofs, invariants, complexity bounds
-**Status**: ⚠️ Framework Implemented, Awaiting Content
-**Extraction Method**: Pattern matching + LLM validation
-**Speed**: Medium (LLM required for proof validation)
+- **Layer**: Formal Properties
+- **Purpose**: Extract theorems, proofs, invariants, complexity bounds
+- **Status**: ⚠️ Framework Implemented, Awaiting Content
+- **Extraction Method**: Pattern matching + LLM validation
+- **Speed**: Medium (LLM required for proof validation)
 
 ## Architecture
 
