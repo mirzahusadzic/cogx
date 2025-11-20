@@ -204,16 +204,14 @@ export function processAssistantMessage(
   );
 
   if (toolUses.length > 0) {
-    toolUses.forEach(
-      (tool: { name: string; input: Record<string, unknown> }) => {
-        const formatted = formatToolUse(tool);
-        messages.push({
-          type: 'tool_progress',
-          content: `${formatted.icon} ${formatted.name}: ${formatted.description}`,
-          timestamp: new Date(),
-        });
-      }
-    );
+    toolUses.forEach((tool: any) => {
+      const formatted = formatToolUse(tool);
+      messages.push({
+        type: 'tool_progress',
+        content: `${formatted.icon} ${formatted.name}: ${formatted.description}`,
+        timestamp: new Date(),
+      });
+    });
   }
 
   return messages;
