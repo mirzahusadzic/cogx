@@ -1,6 +1,6 @@
 {
   "name": "cognition-cli",
-  "version": "2.4.1",
+  "version": "2.4.2",
   "type": "module",
   "license": "AGPL-3.0-or-later",
   "author": "Mirza Husadzic",
@@ -33,7 +33,7 @@
     "format:staged": "git diff --name-only --cached --diff-filter=ACMR | sed 's|^src/cognition-cli/||' | grep -E '\\.(ts|tsx|js|json|md)$' | xargs -r prettier --write"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.1.42",
+    "@anthropic-ai/claude-agent-sdk": "^0.1.46",
     "@clack/prompts": "^0.7.0",
     "@inkjs/ui": "^2.0.0",
     "@lancedb/lancedb": "^0.22.3",
