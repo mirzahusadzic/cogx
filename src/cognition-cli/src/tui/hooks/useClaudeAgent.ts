@@ -1589,21 +1589,19 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         // Check if this message has tool calls - if so, display them
         const toolUses = sdkMessage.message.content.filter(
           (c: { type: string }) => c.type === 'tool_use'
-        );
+        ) as Array<{ name: string; input: Record<string, unknown> }>;
         if (toolUses.length > 0) {
-          toolUses.forEach(
-            (tool: { name: string; input: Record<string, unknown> }) => {
-              const formatted = formatToolUse(tool);
-              setMessages((prev) => [
-                ...prev,
-                {
-                  type: 'tool_progress',
-                  content: `${formatted.icon} ${formatted.name}: ${formatted.description}`,
-                  timestamp: new Date(),
-                },
-              ]);
-            }
-          );
+          toolUses.forEach((tool) => {
+            const formatted = formatToolUse(tool);
+            setMessages((prev) => [
+              ...prev,
+              {
+                type: 'tool_progress',
+                content: `${formatted.icon} ${formatted.name}: ${formatted.description}`,
+                timestamp: new Date(),
+              },
+            ]);
+          });
         }
         break;
       }
