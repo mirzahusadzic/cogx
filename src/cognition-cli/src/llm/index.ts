@@ -33,6 +33,7 @@
 import { registry } from './provider-registry.js';
 import { ClaudeProvider } from './providers/claude-provider.js';
 import { OpenAIProvider } from './providers/openai-provider.js';
+import { GeminiProvider } from './providers/gemini-provider.js';
 
 // Re-export core types and classes
 export { registry } from './provider-registry.js';
@@ -44,6 +45,7 @@ export type {
 } from './provider-interface.js';
 export { ClaudeProvider } from './providers/claude-provider.js';
 export { OpenAIProvider } from './providers/openai-provider.js';
+export { GeminiProvider } from './providers/gemini-provider.js';
 
 /**
  * Provider initialization options
@@ -60,10 +62,15 @@ export interface InitializeOptions {
   openaiApiKey?: string;
 
   /**
+   * Google API key for Gemini (optional, defaults to GOOGLE_API_KEY env var)
+   */
+  googleApiKey?: string;
+
+  /**
    * Default provider to use
    * @default 'claude'
    */
-  defaultProvider?: 'claude' | 'openai' | string;
+  defaultProvider?: 'claude' | 'openai' | 'gemini' | string;
 
   /**
    * Whether to skip provider initialization if API keys missing
@@ -108,6 +115,7 @@ export function initializeProviders(options: InitializeOptions = {}): void {
   const {
     anthropicApiKey,
     openaiApiKey,
+    googleApiKey,
     defaultProvider = 'claude',
     skipMissingProviders = false,
   } = options;
@@ -144,6 +152,25 @@ export function initializeProviders(options: InitializeOptions = {}): void {
       if (skipMissingProviders) {
         console.warn(
           'Skipping OpenAI provider:',
+          error instanceof Error ? error.message : String(error)
+        );
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  // Register Gemini if API key is available
+  const geminiKey = googleApiKey || process.env.GOOGLE_API_KEY;
+  if (geminiKey) {
+    try {
+      const gemini = new GeminiProvider(geminiKey);
+      registry.register(gemini);
+      registered.push('gemini');
+    } catch (error) {
+      if (skipMissingProviders) {
+        console.warn(
+          'Skipping Gemini provider:',
           error instanceof Error ? error.message : String(error)
         );
       } else {

@@ -33,6 +33,7 @@ import {
   getConfiguredProviders,
   CLAUDE_MODELS,
   OPENAI_MODELS,
+  GEMINI_MODELS,
 } from '../llm/llm-config.js';
 
 /**
@@ -230,6 +231,25 @@ export function createProviderCommand(): Command {
           );
         } else {
           console.log(chalk.yellow('  Not configured (set OPENAI_API_KEY)'));
+        }
+        console.log();
+
+        // Show Gemini configuration
+        console.log(chalk.cyan('Gemini (Google):'));
+        if (config.providers.gemini?.apiKey) {
+          const key = config.providers.gemini.apiKey;
+          const maskedKey = `${key.slice(0, 8)}...${key.slice(-4)}`;
+          console.log(`  API Key: ${chalk.dim(maskedKey)}`);
+          console.log(
+            `  Default Model: ${config.providers.gemini.defaultModel || chalk.dim('not set')}`
+          );
+          console.log(
+            chalk.dim(
+              `  Available Models: ${Object.values(GEMINI_MODELS).join(', ')}`
+            )
+          );
+        } else {
+          console.log(chalk.yellow('  Not configured (set GOOGLE_API_KEY)'));
         }
         console.log();
 

@@ -58,6 +58,24 @@ The LLM provider abstraction layer decouples Cognition Σ from any specific LLM 
 - GPT-4: $30 input, $60 output
 - GPT-3.5 Turbo: $0.50 input, $1.50 output
 
+### Gemini (Google)
+
+**Status**: Optional provider
+
+**Models**:
+
+- `gemini-2.5-flash` - Latest, balanced performance (recommended)
+- `gemini-2.0-flash-thinking-exp-01-21` - Experimental thinking mode
+- `gemini-1.5-pro` - Most capable, multimodal
+- `gemini-1.5-flash` - Fastest, cheapest
+
+**Pricing** (per 1M tokens):
+
+- Gemini 2.5 Flash: $0.075 input, $0.30 output
+- Gemini 2.0 Flash Thinking: $0.075 input, $0.30 output
+- Gemini 1.5 Pro: $1.25 input, $5.00 output
+- Gemini 1.5 Flash: $0.075 input, $0.30 output
+
 ## Configuration
 
 ### Environment Variables
@@ -73,8 +91,12 @@ export COGNITION_CLAUDE_MODEL=claude-sonnet-4-5-20250929  # Optional
 export OPENAI_API_KEY=sk-...
 export COGNITION_OPENAI_MODEL=gpt-4-turbo  # Optional
 
+# Gemini (optional)
+export GOOGLE_API_KEY=AIza...
+export COGNITION_GEMINI_MODEL=gemini-2.5-flash  # Optional
+
 # Set default provider (optional, defaults to 'claude')
-export COGNITION_LLM_PROVIDER=claude  # or 'openai'
+export COGNITION_LLM_PROVIDER=claude  # or 'openai' or 'gemini'
 ```
 
 ### Getting API Keys
@@ -92,6 +114,13 @@ export COGNITION_LLM_PROVIDER=claude  # or 'openai'
 2. Navigate to API Keys section
 3. Create a new API key
 4. Copy and set as `OPENAI_API_KEY`
+
+**Gemini (Google)**:
+
+1. Sign up at <https://aistudio.google.com>
+2. Navigate to API Keys section (or get started at <https://aistudio.google.com/apikey>)
+3. Create a new API key
+4. Copy and set as `GOOGLE_API_KEY`
 
 ### Configuration Validation
 
@@ -129,6 +158,10 @@ Output:
   openai
   Status: ✓ Available
   Models: gpt-4o, gpt-4-turbo, gpt-4 +1 more
+
+  gemini
+  Status: ✓ Available
+  Models: gemini-2.5-flash, gemini-2.0-flash-thinking-exp-01-21, ...
 ```
 
 ### Test Provider Availability
@@ -137,6 +170,7 @@ Output:
 # Test specific provider
 cognition-cli provider test claude
 cognition-cli provider test openai
+cognition-cli provider test gemini
 ```
 
 Output:
@@ -172,6 +206,7 @@ cognition-cli provider models
 # List models for specific provider
 cognition-cli provider models claude
 cognition-cli provider models openai
+cognition-cli provider models gemini
 ```
 
 ## Programmatic Usage
@@ -191,9 +226,18 @@ console.log(text);
 ```typescript
 import { complete } from './llm/index.js';
 
-const text = await complete('Explain quantum computing', {
+// Use OpenAI
+const text1 = await complete('Explain quantum computing', {
   provider: 'openai',
   model: 'gpt-4-turbo',
+  maxTokens: 1000,
+  temperature: 0.7,
+});
+
+// Use Gemini
+const text2 = await complete('Explain quantum computing', {
+  provider: 'gemini',
+  model: 'gemini-2.5-flash',
   maxTokens: 1000,
   temperature: 0.7,
 });
@@ -447,12 +491,12 @@ If you hit rate limits:
     │   (src/llm/)       │
     └─────────┬──────────┘
               │
-    ┌─────────┴──────────────────────┐
-    │                                │
-┌───┴────────┐  ┌──────────┐  ┌────┴──────┐
-│ Claude     │  │ OpenAI   │  │ Custom    │
-│ Provider   │  │ Provider │  │ Providers │
-└────────────┘  └──────────┘  └───────────┘
+    ┌─────────┴──────────────────────────────┐
+    │                │                       │
+┌───┴────────┐  ┌────┴─────┐  ┌──────────┐  ┌────────────┐
+│ Claude     │  │ OpenAI   │  │ Gemini   │  │ Custom     │
+│ Provider   │  │ Provider │  │ Provider │  │ Providers  │
+└────────────┘  └──────────┘  └──────────┘  └────────────┘
 ```
 
 ## Related Documentation
