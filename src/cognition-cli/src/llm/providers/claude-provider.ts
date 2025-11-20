@@ -1,64 +1,61 @@
 /**
  * Claude Provider Implementation
  *
- * LLM provider implementation for Anthropic's Claude models.
- * Wraps the Anthropic SDK to provide a standardized interface.
+ * Wraps the Anthropic Claude Agent SDK to implement both LLMProvider and AgentProvider interfaces.
+ * Enables the TUI to use Claude for agent workflows while maintaining abstraction for future multi-provider support.
  *
- * FEATURES:
- * - Complete Claude model support (Sonnet 4.5, Opus, Haiku)
- * - Streaming and non-streaming completions
- * - Cost estimation based on current pricing
- * - Health check with minimal token usage
- * - Automatic API key management from environment
- *
- * MODELS SUPPORTED:
- * - claude-sonnet-4-5-20250929 (latest, most capable)
- * - claude-3-5-sonnet-20241022 (previous Sonnet)
- * - claude-3-opus-20240229 (most capable, expensive)
- * - claude-3-haiku-20240307 (fastest, cheapest)
+ * This provider supports:
+ * - Basic completions via Anthropic SDK
+ * - Agent workflows via Claude Agent SDK
+ * - Session management
+ * - Tool calling
+ * - MCP server integration
+ * - Extended thinking mode
  *
  * @example
+ * ```typescript
  * const provider = new ClaudeProvider(process.env.ANTHROPIC_API_KEY);
  *
+ * // Basic completion
  * const response = await provider.complete({
- *   prompt: 'Explain quantum computing',
- *   model: 'claude-sonnet-4-5-20250929',
- *   maxTokens: 1000
+ *   prompt: "Hello!",
+ *   model: "claude-sonnet-4-5-20250929"
  * });
  *
- * console.log(response.text);
- * console.log(`Tokens: ${response.tokens.total}`);
+ * // Agent workflow
+ * for await (const response of provider.executeAgent({
+ *   prompt: "Analyze this codebase",
+ *   model: "claude-sonnet-4-5-20250929",
+ *   cwd: process.cwd()
+ * })) {
+ *   console.log(response.messages);
+ * }
+ * ```
  */
 
 import Anthropic from '@anthropic-ai/sdk';
+import { query, type Query, type SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import type {
   LLMProvider,
   CompletionRequest,
   CompletionResponse,
   StreamChunk,
 } from '../provider-interface.js';
+import type {
+  AgentProvider,
+  AgentRequest,
+  AgentResponse,
+  AgentMessage,
+  AgentContent,
+} from '../agent-provider-interface.js';
 
 /**
  * Claude Provider
  *
- * Implementation of LLMProvider interface for Anthropic's Claude models.
- *
- * DESIGN:
- * - Lazy initialization of Anthropic client
- * - Environment variable fallback for API key
- * - Comprehensive error handling
- * - Token usage tracking
- * - Cost estimation based on current pricing (as of 2025)
- *
- * @example
- * // With explicit API key
- * const claude = new ClaudeProvider('sk-ant-...');
- *
- * // With environment variable
- * const claude = new ClaudeProvider();
- * // Uses ANTHROPIC_API_KEY from process.env
+ * Implements both LLMProvider (basic completions) and AgentProvider (agent workflows)
+ * using the Anthropic SDK and Claude Agent SDK.
  */
-export class ClaudeProvider implements LLMProvider {
+export class ClaudeProvider implements LLMProvider, AgentProvider {
   name = 'claude';
   models = [
     'claude-sonnet-4-5-20250929',
@@ -69,46 +66,21 @@ export class ClaudeProvider implements LLMProvider {
 
   private client: Anthropic;
 
-  /**
-   * Create Claude provider
-   *
-   * @param apiKey - Anthropic API key (optional, defaults to ANTHROPIC_API_KEY env var)
-   * @throws Error if no API key provided and ANTHROPIC_API_KEY not set
-   *
-   * @example
-   * const provider = new ClaudeProvider(process.env.ANTHROPIC_API_KEY);
-   */
   constructor(apiKey?: string) {
-    const key = apiKey || process.env.ANTHROPIC_API_KEY;
-
-    if (!key) {
-      throw new Error(
-        'Claude provider requires an API key. ' +
-          'Provide it as constructor argument or set ANTHROPIC_API_KEY environment variable.'
-      );
-    }
-
     this.client = new Anthropic({
-      apiKey: key,
+      apiKey: apiKey || process.env.ANTHROPIC_API_KEY,
     });
   }
 
+  // ========================================
+  // LLMProvider Interface (Basic Completions)
+  // ========================================
+
   /**
-   * Generate completion
+   * Generate a basic completion
    *
-   * Sends a completion request to Claude and returns the response.
-   *
-   * @param request - Completion parameters
-   * @returns Promise resolving to completion response
-   * @throws Error if Claude API call fails
-   *
-   * @example
-   * const response = await provider.complete({
-   *   prompt: 'What is TypeScript?',
-   *   model: 'claude-sonnet-4-5-20250929',
-   *   maxTokens: 500,
-   *   temperature: 0.7
-   * });
+   * Uses the Anthropic SDK for simple text completions.
+   * For agent workflows with tools/MCP, use executeAgent() instead.
    */
   async complete(request: CompletionRequest): Promise<CompletionResponse> {
     try {
@@ -122,8 +94,10 @@ export class ClaudeProvider implements LLMProvider {
       });
 
       // Extract text from content blocks
-      const textContent = response.content.find((c) => c.type === 'text');
-      const text = textContent?.type === 'text' ? textContent.text : '';
+      const text = response.content
+        .filter((block: any) => block.type === 'text')
+        .map((block: any) => (block as { type: 'text'; text: string }).text)
+        .join('\n');
 
       return {
         text,
@@ -133,42 +107,21 @@ export class ClaudeProvider implements LLMProvider {
           completion: response.usage.output_tokens,
           total: response.usage.input_tokens + response.usage.output_tokens,
         },
-        finishReason:
-          response.stop_reason === 'end_turn'
-            ? 'stop'
-            : response.stop_reason === 'max_tokens'
-              ? 'length'
-              : 'stop',
+        finishReason: response.stop_reason === 'end_turn' ? 'stop' : 'length',
       };
     } catch (error) {
-      // Enhance error message with context
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      throw new Error(`Claude API error: ${errorMessage}`);
+      throw new Error(
+        `Claude completion failed: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
   /**
-   * Generate streaming completion
+   * Stream a completion
    *
-   * Streams completion response incrementally for better UX on long responses.
-   *
-   * @param request - Completion parameters
-   * @returns Async generator yielding stream chunks
-   * @throws Error if Claude API call fails
-   *
-   * @example
-   * for await (const chunk of provider.stream(request)) {
-   *   process.stdout.write(chunk.text);
-   *   if (chunk.isComplete) {
-   *     console.log('\nDone!');
-   *     break;
-   *   }
-   * }
+   * Streams text deltas from Claude API.
    */
-  async *stream(
-    request: CompletionRequest
-  ): AsyncGenerator<StreamChunk, void, undefined> {
+  async *stream(request: CompletionRequest): AsyncGenerator<StreamChunk> {
     try {
       const stream = await this.client.messages.create({
         model: request.model,
@@ -176,96 +129,333 @@ export class ClaudeProvider implements LLMProvider {
         temperature: request.temperature,
         system: request.systemPrompt,
         messages: [{ role: 'user', content: request.prompt }],
-        stop_sequences: request.stopSequences,
         stream: true,
       });
 
+      let fullText = '';
+      let promptTokens = 0;
+      let completionTokens = 0;
+
       for await (const event of stream) {
-        if (
-          event.type === 'content_block_delta' &&
-          event.delta.type === 'text_delta'
-        ) {
-          yield {
-            text: event.delta.text,
-            isComplete: false,
-          };
+        if (event.type === 'content_block_delta') {
+          if (event.delta.type === 'text_delta') {
+            const delta = event.delta.text;
+            fullText += delta;
+
+            yield {
+              delta,
+              text: fullText,
+              done: false,
+            };
+          }
+        } else if (event.type === 'message_start') {
+          promptTokens = event.message.usage.input_tokens;
+        } else if (event.type === 'message_delta') {
+          completionTokens = event.usage.output_tokens;
         } else if (event.type === 'message_stop') {
+          // Final chunk with token usage
           yield {
-            text: '',
-            isComplete: true,
+            delta: '',
+            text: fullText,
+            done: true,
+            tokens: {
+              prompt: promptTokens,
+              completion: completionTokens,
+              total: promptTokens + completionTokens,
+            },
           };
         }
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      throw new Error(`Claude streaming error: ${errorMessage}`);
+      throw new Error(
+        `Claude streaming failed: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
   /**
-   * Estimate cost in USD
-   *
-   * Provides rough cost estimate based on current Claude pricing (2025).
-   * Uses a 50/50 input/output split assumption if exact split unknown.
-   *
-   * Pricing (per 1M tokens):
-   * - Sonnet 4.5: $3 input, $15 output
-   * - Sonnet 3.5: $3 input, $15 output
-   * - Opus: $15 input, $75 output
-   * - Haiku: $0.25 input, $1.25 output
-   *
-   * @param tokens - Total token count
-   * @param model - Model identifier
-   * @returns Estimated cost in USD
-   *
-   * @example
-   * const cost = provider.estimateCost(10000, 'claude-sonnet-4-5-20250929');
-   * console.log(`Estimated cost: $${cost.toFixed(4)}`); // ~$0.0900
-   */
-  estimateCost(tokens: number, model: string): number {
-    // Pricing per 1M tokens (USD)
-    const pricing: Record<string, { input: number; output: number }> = {
-      'claude-sonnet-4-5-20250929': { input: 3, output: 15 },
-      'claude-3-5-sonnet-20241022': { input: 3, output: 15 },
-      'claude-3-opus-20240229': { input: 15, output: 75 },
-      'claude-3-haiku-20240307': { input: 0.25, output: 1.25 },
-    };
-
-    // Default to Sonnet 3.5 pricing if model not found
-    const rates = pricing[model] || pricing['claude-3-5-sonnet-20241022'];
-
-    // Rough estimate: assume 50/50 input/output split
-    const avgRate = (rates.input + rates.output) / 2;
-    return (tokens / 1_000_000) * avgRate;
-  }
-
-  /**
-   * Check provider availability
-   *
-   * Performs a minimal API call to verify Claude is accessible.
-   * Uses Haiku (cheapest model) with max_tokens: 1 to minimize cost.
-   *
-   * @returns Promise resolving to availability status
-   *
-   * @example
-   * const available = await provider.isAvailable();
-   * if (!available) {
-   *   console.warn('Claude is currently unavailable');
-   * }
+   * Check if Claude API is available
    */
   async isAvailable(): Promise<boolean> {
     try {
-      // Quick test with minimal tokens to check availability
+      // Quick availability check - try to create a minimal request
       await this.client.messages.create({
-        model: 'claude-3-haiku-20240307', // Cheapest model
-        max_tokens: 1, // Minimal response
+        model: this.models[3], // Use Haiku (cheapest)
+        max_tokens: 1,
         messages: [{ role: 'user', content: 'test' }],
       });
       return true;
-    } catch {
-      // Any error means unavailable
+    } catch (error) {
       return false;
     }
+  }
+
+  /**
+   * Estimate cost for token usage
+   *
+   * Based on Anthropic pricing as of Jan 2025:
+   * - Sonnet 4.5: $3/$15 per MTok (input/output)
+   * - Sonnet 3.5: $3/$15 per MTok
+   * - Opus: $15/$75 per MTok
+   * - Haiku: $0.25/$1.25 per MTok
+   */
+  estimateCost(tokens: number, model: string): number {
+    const mtokens = tokens / 1000000;
+
+    // Estimate 40% input, 60% output (typical conversation ratio)
+    const inputMtokens = mtokens * 0.4;
+    const outputMtokens = mtokens * 0.6;
+
+    if (model.includes('sonnet-4')) {
+      return inputMtokens * 3 + outputMtokens * 15;
+    } else if (model.includes('sonnet')) {
+      return inputMtokens * 3 + outputMtokens * 15;
+    } else if (model.includes('opus')) {
+      return inputMtokens * 15 + outputMtokens * 75;
+    } else if (model.includes('haiku')) {
+      return inputMtokens * 0.25 + outputMtokens * 1.25;
+    }
+
+    // Default to Sonnet pricing
+    return inputMtokens * 3 + outputMtokens * 15;
+  }
+
+  // ========================================
+  // AgentProvider Interface (Agent Workflows)
+  // ========================================
+
+  /**
+   * Check if provider supports agent mode
+   */
+  supportsAgentMode(): boolean {
+    return true;
+  }
+
+  /**
+   * Execute agent query with full SDK features
+   *
+   * Wraps the Claude Agent SDK to enable:
+   * - Multi-turn sessions
+   * - Tool calling
+   * - MCP server integration
+   * - Extended thinking
+   *
+   * Streams conversation snapshots as the agent works.
+   */
+  async *executeAgent(
+    request: AgentRequest
+  ): AsyncGenerator<AgentResponse, void, undefined> {
+    // Create SDK query with agent features
+    const sdkQuery: Query = query({
+      prompt: request.prompt,
+      options: {
+        cwd: request.cwd,
+        resume: request.resumeSessionId,
+        systemPrompt:
+          request.systemPrompt?.type === 'preset' && request.systemPrompt.preset
+            ? ({
+                type: 'preset',
+                preset: 'claude_code',
+                append: request.systemPrompt.preset !== 'claude_code' ? request.systemPrompt.preset : undefined,
+              } as any)
+            : request.systemPrompt?.custom
+              ? { type: 'custom', prompt: request.systemPrompt.custom }
+              : { type: 'preset', preset: 'claude_code' },
+        includePartialMessages: request.includePartialMessages ?? true,
+        maxThinkingTokens: request.maxThinkingTokens,
+        stderr: request.onStderr,
+        canUseTool: request.onCanUseTool as any,
+        mcpServers: request.mcpServers,
+      },
+    });
+
+    // Stream messages from SDK
+    const messages: AgentMessage[] = [];
+    let currentSessionId = request.resumeSessionId || '';
+    let totalTokens = { prompt: 0, completion: 0, total: 0 };
+    let currentFinishReason: AgentResponse['finishReason'] = 'stop';
+
+    for await (const sdkMessage of sdkQuery) {
+      // Extract session ID
+      if ('session_id' in sdkMessage && sdkMessage.session_id) {
+        currentSessionId = sdkMessage.session_id;
+      }
+
+      // Convert SDK message to AgentMessage
+      const agentMessage = this.convertSDKMessage(sdkMessage);
+      if (agentMessage) {
+        messages.push(agentMessage);
+      }
+
+      // Update token counts
+      totalTokens = this.updateTokens(sdkMessage, totalTokens);
+
+      // Determine finish reason
+      currentFinishReason = this.determineFinishReason(sdkMessage);
+
+      // Yield current state
+      yield {
+        messages: [...messages], // Clone to avoid mutation
+        sessionId: currentSessionId,
+        tokens: totalTokens,
+        finishReason: currentFinishReason,
+      };
+    }
+  }
+
+  // ========================================
+  // Private Helper Methods
+  // ========================================
+
+  /**
+   * Convert Claude Agent SDK message to AgentMessage format
+   */
+  private convertSDKMessage(sdkMessage: SDKMessage): AgentMessage | null {
+    const baseMessage: Partial<AgentMessage> = {
+      id: this.generateMessageId(),
+      timestamp: new Date(),
+    };
+
+    // Handle different SDK message types
+    switch (sdkMessage.type) {
+      case 'assistant': {
+        // Assistant message with possible tool calls
+        const content = sdkMessage.message.content as any[];
+        const textBlocks = content.filter((c: any) => c.type === 'text');
+        const toolBlocks = content.filter((c: any) => c.type === 'tool_use');
+
+        if (textBlocks.length > 0) {
+          return {
+            ...baseMessage,
+            type: 'assistant',
+            role: 'assistant',
+            content: textBlocks.map((b: any) => b.text).join('\n'),
+          } as AgentMessage;
+        } else if (toolBlocks.length > 0) {
+          return {
+            ...baseMessage,
+            type: 'tool_use',
+            role: 'assistant',
+            content: toolBlocks.map((t: any) => ({
+              type: 'tool_use' as const,
+              id: t.id,
+              name: t.name,
+              input: t.input,
+            })),
+          } as AgentMessage;
+        }
+        break;
+      }
+
+      case 'stream_event': {
+        const event = sdkMessage.event as {
+          type: string;
+          delta?: { type: string; text?: string };
+        };
+
+        if (
+          event.type === 'content_block_delta' &&
+          event.delta?.type === 'text_delta' &&
+          event.delta.text
+        ) {
+          return {
+            ...baseMessage,
+            type: 'assistant',
+            role: 'assistant',
+            content: event.delta.text,
+          } as AgentMessage;
+        }
+        break;
+      }
+
+      case 'tool_progress': {
+        return {
+          ...baseMessage,
+          type: 'tool_use',
+          content: `Tool: ${sdkMessage.tool_name} (${sdkMessage.elapsed_time_seconds}s)`,
+        } as AgentMessage;
+      }
+
+      case 'system': {
+        // System initialization messages - we don't need to convert these
+        return null;
+      }
+
+      case 'result': {
+        // Query result - we don't need to convert this to a message
+        return null;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Update token counts from SDK message
+   */
+  private updateTokens(
+    sdkMessage: SDKMessage,
+    current: { prompt: number; completion: number; total: number }
+  ): { prompt: number; completion: number; total: number } {
+    // Extract token usage from different message types
+    if (sdkMessage.type === 'stream_event') {
+      const event = sdkMessage.event as {
+        type: string;
+        usage?: {
+          input_tokens: number;
+          output_tokens: number;
+        };
+      };
+
+      if (event.type === 'message_delta' && event.usage) {
+        return {
+          prompt: event.usage.input_tokens,
+          completion: event.usage.output_tokens,
+          total: event.usage.input_tokens + event.usage.output_tokens,
+        };
+      }
+    } else if (sdkMessage.type === 'result' && sdkMessage.subtype === 'success') {
+      const usage = sdkMessage.usage;
+      return {
+        prompt: usage.input_tokens,
+        completion: usage.output_tokens,
+        total: usage.input_tokens + usage.output_tokens,
+      };
+    }
+
+    return current;
+  }
+
+  /**
+   * Determine finish reason from SDK message
+   */
+  private determineFinishReason(
+    sdkMessage: SDKMessage
+  ): AgentResponse['finishReason'] {
+    if (sdkMessage.type === 'result') {
+      if (sdkMessage.subtype === 'success') {
+        return 'stop';
+      } else {
+        return 'error';
+      }
+    }
+
+    if (sdkMessage.type === 'assistant') {
+      const toolUses = sdkMessage.message.content.filter(
+        (c: { type: string }) => c.type === 'tool_use'
+      );
+      if (toolUses.length > 0) {
+        return 'tool_use';
+      }
+    }
+
+    return 'stop';
+  }
+
+  /**
+   * Generate unique message ID
+   */
+  private generateMessageId(): string {
+    return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 }

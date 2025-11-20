@@ -125,6 +125,7 @@ import {
   isAuthenticationError,
   formatAuthError,
   formatSDKError,
+  AgentProviderAdapter,
 } from './sdk/index.js';
 import { formatToolUse } from './rendering/ToolFormatter.js';
 import { stripANSICodes } from './rendering/MessageRenderer.js';
@@ -173,6 +174,18 @@ interface UseClaudeAgentOptions {
    * @default false
    */
   debug?: boolean;
+
+  /**
+   * LLM provider to use (default: 'claude')
+   * @default 'claude'
+   */
+  provider?: string;
+
+  /**
+   * Model to use (provider-specific)
+   * If not specified, uses provider's default model
+   */
+  model?: string;
 }
 
 /**
@@ -277,6 +290,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     sessionTokens,
     maxThinkingTokens,
     debug: debugFlag,
+    provider: providerName,
+    model: modelName,
   } = options;
 
   // ========================================
@@ -848,6 +863,35 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   // ========================================
   // INITIALIZATION EFFECTS
   // ========================================
+
+  /**
+   * Initialize LLM providers on mount.
+   *
+   * Registers available providers (Claude, OpenAI, Gemini) with the global registry.
+   * This enables multi-provider support throughout the TUI.
+   */
+  useEffect(() => {
+    const initProviders = async () => {
+      try {
+        const { initializeProviders } = await import('../../llm/index.js');
+        await initializeProviders();
+        if (debugFlag) {
+          const { registry } = await import('../../llm/index.js');
+          console.log(
+            chalk.dim('[Σ] LLM providers initialized:'),
+            registry.list().join(', ')
+          );
+        }
+      } catch (error) {
+        console.error(
+          'Failed to initialize LLM providers:',
+          error instanceof Error ? error.message : String(error)
+        );
+      }
+    };
+
+    initProviders();
+  }, []); // Only run once on mount
 
   /**
    * Initialize Sigma services on mount.
@@ -1591,7 +1635,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           (c: { type: string }) => c.type === 'tool_use'
         ) as Array<{ name: string; input: Record<string, unknown> }>;
         if (toolUses.length > 0) {
-          toolUses.forEach((tool) => {
+          toolUses.forEach((tool: any) => {
             const formatted = formatToolUse(tool);
             setMessages((prev) => [
               ...prev,

@@ -339,6 +339,12 @@ program
     '--max-thinking-tokens <number>',
     'Maximum tokens for extended thinking mode (default: 10000)'
   )
+  .option(
+    '--provider <name>',
+    'LLM provider to use (default: claude)',
+    'claude'
+  )
+  .option('--model <name>', 'Model to use (provider-specific)')
   .option('--debug', 'Enable debug logging for Sigma compression')
   .action(async (options) => {
     const { tuiCommand } = await import('./commands/tui.js');
@@ -352,6 +358,8 @@ program
         ? parseInt(options.maxThinkingTokens)
         : undefined,
       debug: options.debug,
+      provider: options.provider,
+      model: options.model,
     });
   });
 

@@ -43,6 +43,8 @@ export type {
   CompletionResponse,
   StreamChunk,
 } from './provider-interface.js';
+export type { AgentProvider } from './agent-provider-interface.js';
+export { isAgentProvider } from './agent-provider-interface.js';
 export { ClaudeProvider } from './providers/claude-provider.js';
 export { OpenAIProvider } from './providers/openai-provider.js';
 export { GeminiProvider } from './providers/gemini-provider.js';
