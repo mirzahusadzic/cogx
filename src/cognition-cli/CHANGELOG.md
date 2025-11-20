@@ -5,6 +5,100 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.2] - 2025-11-20
+
+### Summary
+
+Documentation and stability release focusing on comprehensive documentation reorganization, enhancing LanceDB embedding storage with document_hash tracking, and upgrading to Claude Agent SDK v0.1.46. This release significantly improves documentation discoverability, finalises TSDoc standards, and resolves several critical stability issues.
+
+### ✨ New Features
+
+#### LanceDB Embedding Storage Enhancements
+
+**Exclusive LanceDB Storage with document_hash Tracking**:
+
+- Migrated all embeddings to LanceDB exclusively for unified storage
+- Added `document_hash` field to all overlay vector storage operations
+- Implemented content-aware vector deduplication for overlay generation
+- Added `format_version` field and pattern table loader for v2 overlays
+- Mission integrity embeddings now stored in LanceDB with document_hash tracking
+
+**Benefits**:
+
+- Unified storage layer eliminates dual JSON/LanceDB complexity
+- Content-aware deduplication prevents duplicate vectors
+- document_hash enables precise tracking and invalidation
+
+#### Developer Experience Improvements
+
+- **File/Directory Completion**: Added bash completion for `genesis:docs` command with file and directory suggestions
+- **TSDoc Standards**: Established comprehensive TypeScript documentation standards across codebase
+
+### 🐛 Bug Fixes
+
+#### CLI & Commands
+
+- **blast-radius --no-transitive**: Fixed flag to correctly limit traversal depth to 1 when specified (9f0d4ce)
+- **PR Analyzer**: Improved security analysis accuracy and fixed contradictory recommendations (b7e5b15)
+- **pr-analyze**: Filter empty lines in git diff output to prevent parsing errors (e70ed43)
+
+#### LanceDB & Data Storage
+
+- **Temp Table Cleanup**: Added proper temp table cleanup in LanceDB operations (eec7e06, 3dbcdef)
+- **document_hash Tracking**: Added document_hash to all overlay storeVector calls (67fb353, e153f3f, a154c1c)
+- **meet() Operations**: Added document_hash to meet() temp store for proper deduplication (3dbcdef)
+
+#### Coherence Analysis
+
+- **Drifted Symbols Threshold**: Corrected calculation for more accurate drift detection (32a72aa)
+- **Mission Concepts Storage**: Fixed storage issues in coherence checking (eec7e06)
+
+#### Bash Completion
+
+- **Install/Uninstall**: Fixed bash completion installation and removal (c7ff55d)
+- **Colon Word-Splitting**: Resolved word-splitting issues with colons in bash completion (c7ff55d)
+
+### 📚 Documentation
+
+#### Major Reorganization
+
+- **Complete Documentation Restructure**: Reorganized entire documentation for improved discoverability (c1de6d0, 5887688)
+- **Sigma Documentation**: Created dedicated `docs/sigma/` directory for all Σ architecture docs (6d2b383)
+  - Moved SIGMA_CONTEXT_ARCHITECTURE.md → docs/sigma/ARCHITECTURE.md
+  - Moved SESSION_BOUNDARY_RATIONALE.md → docs/sigma/SESSION_BOUNDARY_RATIONALE.md
+  - Added comprehensive Sigma architecture overview
+- **Architecture Documentation**: Organized analysis docs in `docs/architecture/` (6d2b383)
+  - Moved COGNITION_CLI_COMPREHENSIVE_ANALYSIS.md → docs/architecture/COMPREHENSIVE_ANALYSIS.md
+
+#### New Documentation
+
+- **Sigma Architecture**: Comprehensive overview of SIGMA module's core pipeline, data storage, and querying systems (96dafd9)
+- **Lattice Mathematical Properties**: Added formal mathematical properties and quest convergence documentation (8f8a5df)
+- **TSDoc Standards**: Established and documented TypeScript documentation standards with codebase audit (bef70d0)
+- **Lattice Book Reference**: Added prominent references to complete 26-chapter reference manual (cc37aa9)
+- **Defensive Publication**: Added addendum with innovations #13-24 and #28-46 (c424185)
+
+#### Documentation Organization
+
+- **Expandable Innovations**: Made innovations section expandable in main README for better readability (f061d6f)
+- **Mathematical Overlay**: Added references and renamed to lowercase for consistency (24dc48c)
+- **Dev Directory**: Moved CODE_DOCUMENTATION_STANDARD to proper dev directory location (66ad1b2)
+- **Security Patterns**: Fixed SECURITY.md patterns to prevent misclassification during onboarding (e316b46)
+
+### 🔧 Dependencies
+
+- **Claude Agent SDK**: Upgraded from v0.1.42 to v0.1.46
+  - Added error field to messages for improved error handling
+  - Azure AI Foundry deployment support
+  - Structured outputs with JSON schema validation
+  - Bug fixes across 5 incremental releases
+
+### 📦 Internal
+
+- **LLM Decoupling Audit**: Added implementation audit prompt for LLM decoupling analysis (f7ec8fa)
+
+---
+
 ## [2.4.1] - 2025-11-17
 
 ### Summary
