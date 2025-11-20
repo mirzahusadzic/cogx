@@ -405,6 +405,6 @@ fi
 
 Now that you understand the daily workflow, learn about:
 
-- **[Querying the Lattice](./05_Querying_The_Lattice.md)** - Boolean algebra across overlays
-- **[Interactive Mode](./06_Interactive_Mode.md)** - TUI with Claude integration
-- **[Overlays & Analysis](./07_Overlays_And_Analysis.md)** - Deep analytical capabilities
+- **[Querying the Lattice](./querying-the-lattice.md)** - Boolean algebra across overlays
+- **[Interactive Mode](./interactive-mode.md)** - TUI with Claude integration
+- **[Seven Overlays](../architecture/overlays/README.md)** - Deep analytical capabilities

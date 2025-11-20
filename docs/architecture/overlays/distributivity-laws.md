@@ -413,3 +413,7 @@ cognition-cli lattice "O2 ~ O4 - O5"  # Parsed as: O2 ~ (O4 - O5)
 2. **Probabilistic Lattices**: Zhang, G. Q. (1994). _Logic of Domains_. Birkhäuser.
 3. **Semantic Similarity**: Mikolov, T., et al. (2013). _Efficient Estimation of Word Representations in Vector Space_. arXiv:1301.3781.
 4. **CogX Architecture**: [Lattice Algebra](../../LATTICE_ALGEBRA.md), [Multi-Overlay Architecture](../../architecture/MULTI_OVERLAY_ARCHITECTURE.md)
+
+---
+
+**[🏠 Back to Overlays](README.md)**

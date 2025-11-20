@@ -259,10 +259,10 @@ cognition-cli status
 
 Now that your PGC is initialized, explore:
 
-- **[Daily Workflow](./04_Daily_Workflow.md)** - Learn the watch → status → update cycle
-- **[Querying the Lattice](./05_Querying_The_Lattice.md)** - Master lattice algebra queries
-- **[Interactive Mode](./06_Interactive_Mode.md)** - Use the TUI with Claude integration
-- **[Overlays & Analysis](./07_Overlays_And_Analysis.md)** - Deep-dive on all overlay types
+- **[Daily Workflow](../guides/daily-workflow.md)** - Learn the watch → status → update cycle
+- **[Querying the Lattice](../guides/querying-the-lattice.md)** - Master lattice algebra queries
+- **[Interactive Mode](../guides/interactive-mode.md)** - Use the TUI with Claude integration
+- **[Architecture Overview](../architecture/README.md)** - Deep-dive on all systems
 
 ## Common Issues
 

@@ -1,5 +1,7 @@
 # Navigation Hub Designs
 
+> **⚠️ ARCHIVED**: This document represents a historical snapshot and may contain outdated information (e.g., references to "three pillars" instead of "four pillars"). For current documentation structure, see [docs/README.md](../../../../docs/README.md).
+
 ## Cognition Σ Documentation
 
 **Purpose**: Template designs for all documentation hub files (README.md at key locations)

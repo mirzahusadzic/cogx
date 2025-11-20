@@ -490,5 +490,5 @@ Circular Dependencies Found:
 ## Related Documentation
 
 - [Multi-Overlay Architecture](../../architecture/MULTI_OVERLAY_ARCHITECTURE.md)
-- [O₁: Structural Patterns](../O1_structure/STRUCTURAL_PATTERNS.md)
-- [O₂: Security Guidelines](../O2_security/SECURITY_GUIDELINES.md)
+- [O₁: Structural Patterns](O1-structure-patterns.md)
+- [O₂: Security Guidelines](O2-security-guidelines.md)
