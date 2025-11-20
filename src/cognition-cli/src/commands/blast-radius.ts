@@ -62,7 +62,7 @@ export const blastRadiusCommand = new Command('blast-radius')
 
     try {
       const result = await traversal.getBlastRadius(symbol, {
-        maxDepth: parseInt(options.maxDepth),
+        maxDepth: options.transitive ? parseInt(options.maxDepth) : 1,
         direction: options.direction,
         includeTransitive: options.transitive,
       });
