@@ -34,6 +34,37 @@ Documentation and stability release focusing on comprehensive documentation reor
 - **File/Directory Completion**: Added bash completion for `genesis:docs` command with file and directory suggestions
 - **TSDoc Standards**: Established comprehensive TypeScript documentation standards across codebase
 
+#### LLM Provider Abstraction Layer
+
+**Multi-Provider Support**:
+
+- Added provider abstraction layer supporting Claude (Anthropic) and OpenAI
+- Clean interface design with `LLMProvider`, `CompletionRequest`, and `CompletionResponse` types
+- Registry pattern with O(1) provider lookups and health check orchestration
+- Native support for streaming completions with async generators
+
+**New CLI Commands**:
+
+- `provider list` - Show available providers with health status
+- `provider test <name>` - Test specific provider availability
+- `provider set-default <name>` - Configure default provider
+- `provider config` - Display current configuration and API key status
+- `provider models [provider]` - List available models per provider
+
+**Features**:
+
+- Support for 8 models: Claude Sonnet 4.5, Sonnet 3.5, Opus, Haiku, GPT-4o, GPT-4 Turbo, GPT-4, GPT-3.5 Turbo
+- Cost estimation based on 2025 pricing ($0.25-$75 per 1M tokens)
+- Environment variable configuration (ANTHROPIC_API_KEY, OPENAI_API_KEY)
+- Comprehensive test coverage (290+ lines of provider tests)
+- Full documentation in `docs/guides/LLM_PROVIDERS.md`
+
+**Use Cases**:
+
+- Multi-provider cost optimization
+- Provider fallback and redundancy
+- Easy integration for new LLM-powered features
+
 ### 🐛 Bug Fixes
 
 #### CLI & Commands
