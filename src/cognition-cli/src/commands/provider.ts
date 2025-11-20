@@ -85,7 +85,7 @@ export function createProviderCommand(): Command {
               statusText = '✗ Unavailable';
               statusColor = chalk.red;
             }
-          } catch (error) {
+          } catch {
             statusText = '✗ Error';
             statusColor = chalk.red;
           }
@@ -132,7 +132,9 @@ export function createProviderCommand(): Command {
             '\nTo make this permanent, set COGNITION_LLM_PROVIDER environment variable:'
           )
         );
-        console.log(chalk.dim(`  export COGNITION_LLM_PROVIDER=${providerName}`));
+        console.log(
+          chalk.dim(`  export COGNITION_LLM_PROVIDER=${providerName}`)
+        );
         console.log();
       } catch (error) {
         console.error(
@@ -157,7 +159,9 @@ export function createProviderCommand(): Command {
         const isAvailable = await registry.healthCheck(providerName);
 
         if (isAvailable) {
-          console.log(chalk.green(`✓ ${providerName} is available and working`));
+          console.log(
+            chalk.green(`✓ ${providerName} is available and working`)
+          );
         } else {
           console.log(
             chalk.red(`✗ ${providerName} is unavailable or not responding`)
@@ -185,7 +189,10 @@ export function createProviderCommand(): Command {
         console.log(chalk.bold('\n⚙️  LLM Provider Configuration\n'));
 
         // Show default provider
-        console.log(chalk.cyan('Default Provider:'), chalk.bold(config.defaultProvider));
+        console.log(
+          chalk.cyan('Default Provider:'),
+          chalk.bold(config.defaultProvider)
+        );
         console.log();
 
         // Show Claude configuration
@@ -198,7 +205,9 @@ export function createProviderCommand(): Command {
             `  Default Model: ${config.providers.claude.defaultModel || chalk.dim('not set')}`
           );
           console.log(
-            chalk.dim(`  Available Models: ${Object.values(CLAUDE_MODELS).join(', ')}`)
+            chalk.dim(
+              `  Available Models: ${Object.values(CLAUDE_MODELS).join(', ')}`
+            )
           );
         } else {
           console.log(chalk.yellow('  Not configured (set ANTHROPIC_API_KEY)'));
@@ -215,7 +224,9 @@ export function createProviderCommand(): Command {
             `  Default Model: ${config.providers.openai.defaultModel || chalk.dim('not set')}`
           );
           console.log(
-            chalk.dim(`  Available Models: ${Object.values(OPENAI_MODELS).join(', ')}`)
+            chalk.dim(
+              `  Available Models: ${Object.values(OPENAI_MODELS).join(', ')}`
+            )
           );
         } else {
           console.log(chalk.yellow('  Not configured (set OPENAI_API_KEY)'));
@@ -261,9 +272,7 @@ export function createProviderCommand(): Command {
         if (providerName) {
           // Show models for specific provider
           const provider = registry.get(providerName);
-          console.log(
-            chalk.bold(`\n📝 ${chalk.cyan(providerName)} Models\n`)
-          );
+          console.log(chalk.bold(`\n📝 ${chalk.cyan(providerName)} Models\n`));
           provider.models.forEach((model) => {
             console.log(`  • ${model}`);
           });

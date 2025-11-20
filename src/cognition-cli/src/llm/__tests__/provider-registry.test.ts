@@ -7,11 +7,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ProviderRegistry } from '../provider-registry.js';
-import type {
-  LLMProvider,
-  CompletionRequest,
-  CompletionResponse,
-} from '../provider-interface.js';
+import type { LLMProvider, CompletionResponse } from '../provider-interface.js';
 
 /**
  * Mock provider for testing
@@ -22,7 +18,7 @@ class MockProvider implements LLMProvider {
     public models: string[] = ['mock-model-v1']
   ) {}
 
-  async complete(_request: CompletionRequest): Promise<CompletionResponse> {
+  async complete(): Promise<CompletionResponse> {
     return {
       text: 'mock response',
       model: this.models[0],
@@ -153,9 +149,7 @@ describe('ProviderRegistry', () => {
     });
 
     it('should throw when no providers registered', () => {
-      expect(() => registry.getDefault()).toThrow(
-        /No providers registered/
-      );
+      expect(() => registry.getDefault()).toThrow(/No providers registered/);
     });
   });
 

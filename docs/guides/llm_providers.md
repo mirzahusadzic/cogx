@@ -457,9 +457,9 @@ If you hit rate limits:
 
 ## Related Documentation
 
-- [Provider Interface API](../src/llm/provider-interface.ts)
-- [Provider Registry API](../src/llm/provider-registry.ts)
-- [Configuration API](../src/llm/llm-config.ts)
+- [Provider Interface API](../../src/llm/provider-interface.ts)
+- [Provider Registry API](../../src/llm/provider-registry.ts)
+- [Configuration API](../../src/llm/llm-config.ts)
 
 ## Support
 

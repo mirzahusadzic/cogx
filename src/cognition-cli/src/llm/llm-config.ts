@@ -166,7 +166,8 @@ export function validateLLMConfig(config: LLMConfig): string[] {
 
   // Check if default provider is configured
   const defaultProvider = config.defaultProvider;
-  const providerConfig = config.providers[defaultProvider as keyof typeof config.providers];
+  const providerConfig =
+    config.providers[defaultProvider as keyof typeof config.providers];
 
   if (!providerConfig) {
     errors.push(
@@ -247,12 +248,10 @@ export function getProviderDefaultModel(
  *   console.log('OpenAI not configured, falling back to Claude');
  * }
  */
-export function isProviderConfigured(
-  provider: 'claude' | 'openai'
-): boolean {
+export function isProviderConfigured(provider: 'claude' | 'openai'): boolean {
   const config = loadLLMConfig();
   const providerConfig = config.providers[provider];
-  return !!(providerConfig?.apiKey);
+  return !!providerConfig?.apiKey;
 }
 
 /**
