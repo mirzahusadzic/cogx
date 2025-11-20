@@ -1,6 +1,6 @@
 # Navigation Hub Designs
 
-> **⚠️ ARCHIVED**: This document represents a historical snapshot and may contain outdated information (e.g., references to "three pillars" instead of "four pillars"). For current documentation structure, see [docs/README.md](../../../../docs/README.md).
+> **⚠️ ARCHIVED**: This document represents a historical snapshot and may contain outdated information (e.g., references to "three pillars" instead of "four pillars"). For current documentation structure, see [docs/index.md](../../index.md).
 
 ## Cognition Σ Documentation
 
