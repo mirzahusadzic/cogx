@@ -73,7 +73,6 @@ Welcome to the Cognition Σ documentation hub. This is your central navigation p
 - [Interactive TUI Mode](guides/interactive-mode.md)
 - [Daily Workflow](guides/daily-workflow.md)
 - [Claude Integration](guides/claude-integration.md)
-- [Pattern Discovery](guides/pattern-discovery.md)
 
 ### Reference
 - [CLI Commands](reference/cli-commands.md)

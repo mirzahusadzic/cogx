@@ -1179,7 +1179,7 @@ In lattice theory, a **fixed point** occurs when applying a transformation funct
 
 This is a manifestation of the **Lattice Fixed Point Problem** where two local optima ($L_P^A$ and $L_P^B$) satisfy the mission equally well, but neither dominates.
 
-**See**: `docs/overlays/O6_mathematical/FIXED_POINT_CONVERGENCE.md` for full mathematical formulation.
+**See**: [Fixed Point Convergence](fixed-point-convergence.md) for full mathematical formulation.
 
 ### Current Solution: Human Oracle Entropy
 
@@ -1278,8 +1278,8 @@ The Fixed-Point Detector serves as a **Breakthrough Oracle** checkpoint:
 - ✅ No infinite loops (quest budget enforces termination)
 
 **References:**
-- Mathematical formulation: `docs/overlays/O6_mathematical/FIXED_POINT_CONVERGENCE.md`
-- F.L.T.B. integration: `docs/manual/part-5-cpow-loop/21-fltb-aqs-comp.md`
+- Mathematical formulation: [Fixed Point Convergence](fixed-point-convergence.md)
+- F.L.T.B. integration: [F.L.T.B. & AQS Computation](../../cpow/21-fltb-aqs-comp.md)
 
 ---
 

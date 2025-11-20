@@ -338,7 +338,7 @@ The Cognition-Memory system requires:
    - Explicit consent for all access
    - Provenance of all memories (who recorded, when, how)
 
-See [NEURAL_MEMORY_PROTOCOL.md](./NEURAL_MEMORY_PROTOCOL.md) for technical specifications.
+See [Neural Memory Protocol](./neural-memory-protocol.md) for technical specifications.
 
 ---
 

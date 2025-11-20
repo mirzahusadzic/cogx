@@ -339,6 +339,6 @@ This is powered by the `.sigma/` directory structure:
 
 Now that you understand interactive modes, explore:
 
-- **[Overlays & Analysis](./07_Overlays_And_Analysis.md)** - Deep dive on analytical overlays
-- **[Command Reference](./08_Command_Reference.md)** - Complete alphabetical listing
-- **[Daily Workflow](./04_Daily_Workflow.md)** - Integrate TUI into your workflow
+- **[Seven Overlays](../architecture/overlays/README.md)** - Deep dive on analytical overlays
+- **[CLI Commands](../reference/cli-commands.md)** - Complete command reference
+- **[Daily Workflow](./daily-workflow.md)** - Integrate TUI into your workflow

@@ -1486,10 +1486,10 @@ AQS: 0.910 (Grade: A)
 
 **Related Documentation**:
 
-- [Chapter 5: CLI Operations](../part-1-foundation/05-cli-operations.md) — `cognition-cli` commands (`watch`, `status`, `update`)
-- [Chapter 9: O₅ Operational](../part-2-seven-layers/09-o5-operational.md) — Operational overlay and workflow patterns
-- [Chapter 11: O₇ Coherence](../part-2-seven-layers/11-o7-coherence.md) — Coherence scoring and alignment
-- [Quick Start Guide](../part-0-quickstart/00-quick-start.md) — 10-minute onboarding with first queries
+- [Chapter 5: CLI Operations](../../../src/cognition-cli/docs/manual/part-1-foundation/05-cli-operations.md) — `cognition-cli` commands (`watch`, `status`, `update`)
+- [Chapter 9: O₅ Operational](../../../src/cognition-cli/docs/manual/part-2-seven-layers/09-o5-operational.md) — Operational overlay and workflow patterns
+- [Chapter 11: O₇ Coherence](../../../src/cognition-cli/docs/manual/part-2-seven-layers/11-o7-coherence.md) — Coherence scoring and alignment
+- [Quick Start Guide](../../../src/cognition-cli/docs/manual/part-0-quickstart/00-quick-start.md) — 10-minute onboarding with first queries
 
 **Implementation Reference**:
 

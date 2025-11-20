@@ -1331,8 +1331,8 @@ cognition-cli ask "test query"
    ```
 
 2. **Documentation**:
-   - [Quick Start Guide](part-0-quickstart/00-quick-start.md)
-   - [CLI Operations Reference](part-1-foundation/05-cli-operations.md)
+   - [Quick Start Guide](../src/cognition-cli/docs/manual/part-0-quickstart/00-quick-start.md)
+   - [CLI Operations Reference](../src/cognition-cli/docs/manual/part-1-foundation/05-cli-operations.md)
    - [The Lattice Book](README.md)
 
 3. **Verbose Logging**:
@@ -1502,10 +1502,10 @@ git commit -m "Update PGC overlays"
 
 **Related Documentation**:
 
-- [Quick Start Guide](part-0-quickstart/00-quick-start.md) — Basic troubleshooting
-- [CLI Operations](part-1-foundation/05-cli-operations.md) — Command reference
-- [Chapter 2: The PGC](part-1-foundation/02-the-pgc.md) — PGC structure
-- [Chapter 18: Operational Flow](part-5-cpow-loop/18-operational-flow.md) — Transform pipeline
+- [Quick Start Guide](../src/cognition-cli/docs/manual/part-0-quickstart/00-quick-start.md) — Basic troubleshooting
+- [CLI Operations](../src/cognition-cli/docs/manual/part-1-foundation/05-cli-operations.md) — Command reference
+- [Chapter 2: The PGC](../src/cognition-cli/docs/manual/part-1-foundation/02-the-pgc.md) — PGC structure
+- [Chapter 18: Operational Flow](../src/cognition-cli/docs/manual/part-5-cpow-loop/18-operational-flow.md) — Transform pipeline
 
 ---
 

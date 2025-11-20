@@ -27,7 +27,7 @@ This guide is organized into focused documents covering different aspects of Cla
 
 ### 📚 Core Documentation
 
-#### [Quick Start Guide](./claude/quick-start.md)
+#### [Quick Start Guide](../../src/cognition-cli/docs/claude/quick-start.md)
 
 Get up and running in 5 minutes:
 
@@ -42,7 +42,7 @@ Get up and running in 5 minutes:
 
 ---
 
-#### [Command Reference](./claude/command-reference.md)
+#### [Command Reference](../../src/cognition-cli/docs/claude/command-reference.md)
 
 Complete reference for all `cognition-cli` commands:
 
@@ -67,7 +67,7 @@ Complete reference for all `cognition-cli` commands:
 
 ---
 
-#### [Real-World Workflows](./claude/workflows.md)
+#### [Real-World Workflows](../../src/cognition-cli/docs/claude/workflows.md)
 
 End-to-end examples for common development scenarios:
 
@@ -84,7 +84,7 @@ End-to-end examples for common development scenarios:
 
 ---
 
-#### [Integration Patterns](./claude/integration-patterns.md)
+#### [Integration Patterns](../../src/cognition-cli/docs/claude/integration-patterns.md)
 
 Common patterns for integrating cognition-cli with Claude Code:
 
@@ -105,7 +105,7 @@ Common patterns for integrating cognition-cli with Claude Code:
 
 ---
 
-#### [Best Practices](./claude/best-practices.md)
+#### [Best Practices](../../src/cognition-cli/docs/claude/best-practices.md)
 
 Recommended approaches for effective use:
 
@@ -235,7 +235,7 @@ Be thorough and provide specific examples from the output.
 
 Now `/analyze-impact` becomes a custom workflow!
 
-**See [Integration Patterns](./claude/integration-patterns.md) for more examples.**
+**See [Integration Patterns](../../src/cognition-cli/docs/claude/integration-patterns.md) for more examples.**
 
 ---
 
@@ -415,7 +415,7 @@ Claude: "Based on strategic coherence (O₄ layer):
          These are your mission-critical components."
 ```
 
-**See [Workflows: Mission Drift Detection](./claude/workflows.md#workflow-5-mission-drift-detection) for complete example.**
+**See [Workflows: Mission Drift Detection](../../src/cognition-cli/docs/claude/workflows.md#workflow-5-mission-drift-detection) for complete example.**
 
 ---
 
@@ -456,7 +456,7 @@ jobs:
           echo "✅ Coherence check passed: $SCORE"
 ```
 
-**See [Integration Patterns: CI/CD Integration](./claude/integration-patterns.md#pattern-6-the-cicd-integration-pattern) for complete example.**
+**See [Integration Patterns: CI/CD Integration](../../src/cognition-cli/docs/claude/integration-patterns.md#pattern-6-the-cicd-integration-pattern) for complete example.**
 
 ---
 
@@ -516,7 +516,7 @@ Show:
 
 Warn if blast radius is high (>10 files).
 
-**See [Integration Patterns: Slash Command Library](./claude/integration-patterns.md#pattern-5-the-slash-command-library-pattern) for more examples.**
+**See [Integration Patterns: Slash Command Library](../../src/cognition-cli/docs/claude/integration-patterns.md#pattern-5-the-slash-command-library-pattern) for more examples.**
 
 ---
 
@@ -597,11 +597,11 @@ You've successfully integrated cognition-cli with Claude Code if:
 
 ## Next Steps
 
-1. **Start with the Quick Start** — [Quick Start Guide](./claude/quick-start.md)
-2. **Learn the commands** — [Command Reference](./claude/command-reference.md)
-3. **Try real workflows** — [Real-World Workflows](./claude/workflows.md)
-4. **Adopt patterns** — [Integration Patterns](./claude/integration-patterns.md)
-5. **Follow best practices** — [Best Practices](./claude/best-practices.md)
+1. **Start with the Quick Start** — [Quick Start Guide](../../src/cognition-cli/docs/claude/quick-start.md)
+2. **Learn the commands** — [Command Reference](../../src/cognition-cli/docs/claude/command-reference.md)
+3. **Try real workflows** — [Real-World Workflows](../../src/cognition-cli/docs/claude/workflows.md)
+4. **Adopt patterns** — [Integration Patterns](../../src/cognition-cli/docs/claude/integration-patterns.md)
+5. **Follow best practices** — [Best Practices](../../src/cognition-cli/docs/claude/best-practices.md)
 
 ---
 
@@ -629,8 +629,8 @@ AI reasoning that is **grounded in truth**, not statistical approximation.
 
 **Further Reading:**
 
-- [Quick Start Guide](./claude/quick-start.md)
-- [Command Reference](./claude/command-reference.md)
-- [Real-World Workflows](./claude/workflows.md)
-- [Integration Patterns](./claude/integration-patterns.md)
-- [Best Practices](./claude/best-practices.md)
+- [Quick Start Guide](../../src/cognition-cli/docs/claude/quick-start.md)
+- [Command Reference](../../src/cognition-cli/docs/claude/command-reference.md)
+- [Real-World Workflows](../../src/cognition-cli/docs/claude/workflows.md)
+- [Integration Patterns](../../src/cognition-cli/docs/claude/integration-patterns.md)
+- [Best Practices](../../src/cognition-cli/docs/claude/best-practices.md)

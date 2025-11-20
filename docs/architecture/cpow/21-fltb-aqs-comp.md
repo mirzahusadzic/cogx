@@ -862,8 +862,8 @@ AQS: 0.910 (Grade: A)
 ### Theoretical Foundations
 
 - [CPOW Operational Loop](../../architecture/CPOW_OPERATIONAL_LOOP.md) — Complete loop architecture
-- [Chapter 11: O₇ Coherence](../part-2-seven-layers/11-o7-coherence.md) — Mission alignment scoring
-- [Chapter 9: O₅ Operational](../part-2-seven-layers/09-o5-operational.md) — Operational overlay
+- [Chapter 11: O₇ Coherence](../../../src/cognition-cli/docs/manual/part-2-seven-layers/11-o7-coherence.md) — Mission alignment scoring
+- [Chapter 9: O₅ Operational](../../../src/cognition-cli/docs/manual/part-2-seven-layers/09-o5-operational.md) — Operational overlay
 
 ### Implementation
 

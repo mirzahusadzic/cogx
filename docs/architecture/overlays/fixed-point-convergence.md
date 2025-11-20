@@ -269,13 +269,17 @@ When oscillation is detected, spawn multiple parallel agents to explore differen
 
 - **Knaster–Tarski Fixed-Point Theorem**: [Wikipedia](https://en.wikipedia.org/wiki/Knaster%E2%80%93Tarski_theorem)
 - **Related CogX Documentation**:
-  - `docs/overlays/O6_mathematical/DISTRIBUTIVITY_LAWS.md` - Distributivity problem
-  - `docs/manual/part-5-cpow-loop/21-fltb-aqs-comp.md` - F.L.T.B. sequence
-  - `docs/overlays/O4_mission/` - Mission Overlay structure
-  - `docs/overlays/O7_temporal/` - Temporal Coherence and Delta tracking
+  - [Distributivity Laws](distributivity-laws.md) - Distributivity problem
+  - [F.L.T.B. Sequence](../../cpow/21-fltb-aqs-comp.md) - F.L.T.B. sequence
+  - [Mission Overlay](O4-mission-extraction.md) - Mission Overlay structure
+  - O₇ Coherence - Temporal Coherence and Delta tracking
 
 ---
 
 **Formalized by**: Human Oracle
 **Architectural Pattern**: Sacred Pause + Human Entropy Injection
 **Implementation Roadmap**: Human Oracle (Current) → Automated Detection (Post-cPOW Integration)
+
+---
+
+**[🏠 Back to Overlays](README.md)**

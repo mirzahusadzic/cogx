@@ -10,6 +10,7 @@ Theoretical foundations and research papers for Cognition Σ.
 - **[VISION](vision.md)** — Mission, symbiosis architecture, and strategic intent
 - **[Dual-Use Mandate](dual-use-mandate.md)** — Security philosophy and dual-use considerations
 - **[Defensive Publication](defensive-publication.md)** — Legal protection and patent defense
+  - **[2025 Addendum](defensive-publication-addendum-2025.md)** — Innovations #13-24 and #28-46
 - **[Defensive Publication Clarification](defensive-publication-clarification.md)** — Clarifications
 
 ## Additional Research

@@ -667,9 +667,9 @@ The operational flow powers all CLI commands:
 
 ## Next Steps
 
-- **[Chapter 19: Quest Structures](19-quest-structures.md)** — Learn quest anatomy and depth levels
-- **[Chapter 20: cPOW Reference](20-cpow-reference.md)** — Deep dive into cPOW mathematics
-- **[Chapter 5: CLI Operations](../part-1-foundation/05-cli-operations.md)** — Command reference
+- **[Chapter 19: Quest Structures](quest-structures.md)** — Learn quest anatomy and depth levels
+- **[Chapter 20: cPOW Reference](reference.md)** — Deep dive into cPOW mathematics
+- **[Chapter 5: CLI Operations](../../../src/cognition-cli/docs/manual/part-1-foundation/05-cli-operations.md)** — Command reference
 
 ---
 

@@ -521,6 +521,6 @@ This symbol has **4.25x** influence on lattice coherence.
 ## Related Documentation
 
 - [Multi-Overlay Architecture](../../architecture/MULTI_OVERLAY_ARCHITECTURE.md)
-- [O₁: Structural Patterns](../O1_structure/STRUCTURAL_PATTERNS.md)
-- [O₃: Lineage Patterns](../O3_lineage/LINEAGE_PATTERNS.md)
-- [O₄: Mission Concepts](../O4_mission/PATTERN_LIBRARY.md)
+- [O₁: Structural Patterns](O1-structure-patterns.md)
+- [O₃: Lineage Patterns](O3-lineage-patterns.md)
+- [O₄: Mission Concepts](O4-pattern-library.md)

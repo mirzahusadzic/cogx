@@ -545,5 +545,5 @@ interface MathematicsMetrics {
 ## Related Documentation
 
 - [Multi-Overlay Architecture](../../architecture/MULTI_OVERLAY_ARCHITECTURE.md)
-- [O₁: Structural Patterns](../O1_structure/STRUCTURAL_PATTERNS.md)
-- [O₄: Mission Concepts](../O4_mission/PATTERN_LIBRARY.md)
+- [O₁: Structural Patterns](O1-structure-patterns.md)
+- [O₄: Mission Concepts](O4-pattern-library.md)

@@ -234,25 +234,25 @@ cognition-cli update
 
 ### Learn the CLI
 
-- **[Chapter 5: CLI Operations](../part-1-foundation/05-cli-operations.md)** — Complete command reference (25+ commands)
-- **[Contextual Help](../part-1-foundation/05-cli-operations.md#guide--contextual-help)** — Run `cognition-cli guide` for in-CLI help
+- **[Chapter 5: CLI Operations](../../src/cognition-cli/docs/manual/part-1-foundation/05-cli-operations.md)** — Complete command reference (25+ commands)
+- **[Contextual Help](../../src/cognition-cli/docs/manual/part-1-foundation/05-cli-operations.md#guide--contextual-help)** — Run `cognition-cli guide` for in-CLI help
 
 ### Understand the Architecture
 
-- **[Chapter 1: Cognitive Architecture](../part-1-foundation/01-cognitive-architecture.md)** — Why overlays exist
-- **[Chapter 2: The PGC](../part-1-foundation/02-the-pgc.md)** — How knowledge is stored
-- **[Chapter 3: Why Overlays?](../part-1-foundation/03-why-overlays.md)** — Separation of concerns
+- **[Chapter 1: Cognitive Architecture](../../src/cognition-cli/docs/manual/part-1-foundation/01-cognitive-architecture.md)** — Why overlays exist
+- **[Chapter 2: The PGC](../../src/cognition-cli/docs/manual/part-1-foundation/02-the-pgc.md)** — How knowledge is stored
+- **[Chapter 3: Why Overlays?](../../src/cognition-cli/docs/manual/part-1-foundation/03-why-overlays.md)** — Separation of concerns
 
 ### Master the Algebra
 
-- **[Chapter 12: Boolean Operations](../part-3-algebra/12-boolean-operations.md)** — Meet, Union, Difference
-- **[Chapter 13: Query Syntax](../part-3-algebra/13-query-syntax.md)** — Parser and operators
-- **[Chapter 14: Set Operations](../part-3-algebra/14-set-operations.md)** — Symbol algebra
+- **[Chapter 12: Boolean Operations](../../src/cognition-cli/docs/manual/part-3-algebra/12-boolean-operations.md)** — Meet, Union, Difference
+- **[Chapter 13: Query Syntax](../../src/cognition-cli/docs/manual/part-3-algebra/13-query-syntax.md)** — Parser and operators
+- **[Chapter 14: Set Operations](../../src/cognition-cli/docs/manual/part-3-algebra/14-set-operations.md)** — Symbol algebra
 
 ### Advanced Topics
 
-- **[Chapter 21: Σ (Sigma) Architecture](../part-6-sigma/21-sigma-architecture.md)** — Infinite context via dual-lattice
-- **[Interactive TUI](../part-1-foundation/05-cli-operations.md#tui--interactive-terminal)** — Converse with Claude about your code
+- **[Chapter 21: Σ (Sigma) Architecture](../../src/cognition-cli/docs/manual/part-6-sigma/21-sigma-architecture.md)** — Infinite context via dual-lattice
+- **[Interactive TUI](../../src/cognition-cli/docs/manual/part-1-foundation/05-cli-operations.md#tui--interactive-terminal)** — Converse with Claude about your code
 
 ---
 

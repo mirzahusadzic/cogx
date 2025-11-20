@@ -279,4 +279,4 @@ The overlay includes validation oracles to ensure structural coherence:
 ## Related Documentation
 
 - [Multi-Overlay Architecture](../../architecture/MULTI_OVERLAY_ARCHITECTURE.md)
-- [O₃: Lineage Overlay](../O3_lineage/LINEAGE_PATTERNS.md) - Tracks dependencies
+- [O₃: Lineage Overlay](O3-lineage-patterns.md) - Tracks dependencies

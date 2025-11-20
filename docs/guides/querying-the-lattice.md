@@ -620,6 +620,6 @@ cognition-cli query ProblematicClass --depth 3 --lineage
 
 Now that you understand querying, explore:
 
-- **[Interactive Mode](./06_Interactive_Mode.md)** - TUI for visual exploration
-- **[Overlays & Analysis](./07_Overlays_And_Analysis.md)** - Deep dive on each overlay type
-- **[Command Reference](./08_Command_Reference.md)** - Complete alphabetical listing
+- **[Interactive Mode](./interactive-mode.md)** - TUI for visual exploration
+- **[Seven Overlays](../architecture/overlays/README.md)** - Deep dive on each overlay type
+- **[CLI Commands](../reference/cli-commands.md)** - Complete command reference

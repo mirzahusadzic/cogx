@@ -474,6 +474,6 @@ Parallel mining, serial embedding.
 
 ## Related Documentation
 
-- [O₄: Mission Concepts - Pattern Library](./PATTERN_LIBRARY.md)
-- [O₇: Strategic Coherence](../O7_coherence/STRATEGIC_COHERENCE.md)
+- [O₄: Mission Concepts - Pattern Library](O4-pattern-library.md)
+- [O₇: Strategic Coherence](O7-strategic-coherence.md)
 - [Multi-Overlay Architecture](../../architecture/MULTI_OVERLAY_ARCHITECTURE.md)
