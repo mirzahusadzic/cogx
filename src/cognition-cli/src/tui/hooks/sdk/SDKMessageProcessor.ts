@@ -201,19 +201,17 @@ export function processAssistantMessage(
   // Check for tool uses
   const toolUses = sdkMessage.message.content.filter(
     (c: { type: string }) => c.type === 'tool_use'
-  );
+  ) as Array<{ name: string; input: Record<string, unknown> }>;
 
   if (toolUses.length > 0) {
-    toolUses.forEach(
-      (tool: { name: string; input: Record<string, unknown> }) => {
-        const formatted = formatToolUse(tool);
-        messages.push({
-          type: 'tool_progress',
-          content: `${formatted.icon} ${formatted.name}: ${formatted.description}`,
-          timestamp: new Date(),
-        });
-      }
-    );
+    toolUses.forEach((tool) => {
+      const formatted = formatToolUse(tool);
+      messages.push({
+        type: 'tool_progress',
+        content: `${formatted.icon} ${formatted.name}: ${formatted.description}`,
+        timestamp: new Date(),
+      });
+    });
   }
 
   return messages;
