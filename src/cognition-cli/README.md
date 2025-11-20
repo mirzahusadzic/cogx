@@ -263,7 +263,7 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 - 📚 **Documentation Reorganization** — Complete restructure with dedicated Sigma architecture docs
 - 🗄️ **LanceDB Enhancements** — Exclusive storage with document_hash tracking and content-aware deduplication
 - 🐛 **Bug Fixes** — blast-radius --no-transitive, PR analyzer improvements, temp table cleanup
-- 📦 **Claude Agent SDK v0.1.46** — Upgraded from v0.1.42 with improved error handling
+- 📦 **Claude Agent SDK v0.1.46** — Upgraded from v0.1.42
 - 📝 **TSDoc Standards** — Established comprehensive TypeScript documentation standards
 
 **Previous releases:** [v2.4.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.2.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.2.0) | [v2.0.0 - Σ Launch](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)

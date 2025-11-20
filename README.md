@@ -66,7 +66,7 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 - 📚 **Documentation Reorganization** - Complete restructure with dedicated Sigma architecture docs in `docs/sigma/`
 - 🗄️ **LanceDB Enhancements** - Exclusive storage with document_hash tracking and content-aware deduplication
 - 🐛 **Bug Fixes** - blast-radius --no-transitive flag, PR analyzer improvements, temp table cleanup
-- 📦 **Claude Agent SDK v0.1.46** - Upgraded from v0.1.42 with improved error handling
+- 📦 **Claude Agent SDK v0.1.46** - Upgraded from v0.1.42
 - 📝 **TSDoc Standards** - Established comprehensive TypeScript documentation standards
 
 **Impact**: Documentation and stability release improving discoverability, finalizing TSDoc standards, and resolving critical stability issues.
