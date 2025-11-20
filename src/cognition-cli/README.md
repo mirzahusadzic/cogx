@@ -258,15 +258,15 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 
 ## 🎉 Latest Release
 
-**v2.4.1 - November 17, 2025** — [Cross-Overlay Workflows](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1):
+**v2.4.2 - November 20, 2025** — [Documentation & Stability](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2):
 
-- 🚀 **Cross-Overlay Workflows** — PR Impact Analysis and Security Blast Radius
-- 🔍 **PR Impact Analysis** — Comprehensive assessment (O₁+O₂+O₃+O₄+O₇)
-- 🔒 **Security Blast Radius** — Cascading impact analysis (O₂+O₃)
-- 🐍 **Python Body Dependencies** — Enhanced lineage extraction
-- 🐛 **TUI Stability Fixes** — React loop and color bleeding resolved
+- 📚 **Documentation Reorganization** — Complete restructure with dedicated Sigma architecture docs
+- 🗄️ **LanceDB Enhancements** — Exclusive storage with document_hash tracking and content-aware deduplication
+- 🐛 **Bug Fixes** — blast-radius --no-transitive, PR analyzer improvements, temp table cleanup
+- 📦 **Claude Agent SDK v0.1.46** — Upgraded from v0.1.42 with improved error handling
+- 📝 **TSDoc Standards** — Established comprehensive TypeScript documentation standards
 
-**Previous releases:** [v2.4.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.2.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.2.0) | [v2.0.0 - Σ Launch](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
+**Previous releases:** [v2.4.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.2.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.2.0) | [v2.0.0 - Σ Launch](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
 
 **Full changelog:** [CHANGELOG.md](./CHANGELOG.md)
 
@@ -365,7 +365,7 @@ If you use this work in research, please cite:
   author = {Husadžić, Mirza},
   title = {Cognition Σ CLI: Seven-Overlay Knowledge Graph with Infinite Context},
   year = {2025},
-  version = {2.4.1},
+  version = {2.4.2},
   doi = {10.5281/zenodo.17567109},
   url = {https://github.com/mirzahusadzic/cogx/tree/main/src/cognition-cli}
 }
