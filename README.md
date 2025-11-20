@@ -61,18 +61,17 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 ## 🎯 Latest Release
 
-**November 17, 2025** — [v2.4.1: Cross-Overlay Workflows](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1):
+**November 20, 2025** — [v2.4.2: Documentation & Stability](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2):
 
-- 🚀 **Cross-Overlay Workflows (Monument 5.2)** - PR Impact Analysis and Security Blast Radius combining multiple overlays
-- 🔍 **PR Impact Analysis** - Comprehensive PR assessment (O₁+O₂+O₃+O₄+O₇) with risk scoring and merge recommendations
-- 🔒 **Security Blast Radius** - Cascading security impact analysis (O₂+O₃) for vulnerability triage
-- 🐍 **Python Body Dependencies** - Enhanced lineage extraction capturing class instantiations in function bodies
-- 📂 **Multiple Files Support** - genesis:docs now accepts multiple files/directories
-- 🐛 **TUI Stability Fixes** - Resolved React infinite loop on Mac and terminal color bleeding
+- 📚 **Documentation Reorganization** - Complete restructure with dedicated Sigma architecture docs in `docs/sigma/`
+- 🗄️ **LanceDB Enhancements** - Exclusive storage with document_hash tracking and content-aware deduplication
+- 🐛 **Bug Fixes** - blast-radius --no-transitive flag, PR analyzer improvements, temp table cleanup
+- 📦 **Claude Agent SDK v0.1.46** - Upgraded from v0.1.42 with improved error handling
+- 📝 **TSDoc Standards** - Established comprehensive TypeScript documentation standards
 
-**Impact**: Major feature release delivering cross-overlay killer workflows for PR reviews and security audits. Enhanced Python support and critical stability improvements.
+**Impact**: Documentation and stability release improving discoverability, finalizing TSDoc standards, and resolving critical stability issues.
 
-**Previous Releases**: [v2.4.0 - Production Excellence](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.2.0 - Stability & Performance](https://github.com/mirzahusadzic/cogx/releases/tag/v2.2.0) | [v2.0.0 - Σ (Sigma) Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
+**Previous Releases**: [v2.4.1 - Cross-Overlay Workflows](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0 - Production Excellence](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.2.0 - Stability & Performance](https://github.com/mirzahusadzic/cogx/releases/tag/v2.2.0) | [v2.0.0 - Σ (Sigma) Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
 
 📜 **[See full release history](src/cognition-cli/CHANGELOG.md)**
 
@@ -143,7 +142,7 @@ The production-ready implementation of verifiable AI-human symbiosis. Combines t
 
 **Breakthrough Achievement (Oct 24, 2025):** First grounded architecture analysis performed **on itself**, proving structured PGC metadata is sufficient for deep architectural understanding without reading source code.
 
-**Latest Release:** [v2.4.1 - Cross-Overlay Workflows](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1)
+**Latest Release:** [v2.4.2 - Documentation & Stability](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2)
 
 ### eGemma – [The Deterministic Workbench](https://github.com/mirzahusadzic/egemma)
 
@@ -292,6 +291,7 @@ This repository constitutes a **formal defensive publication** establishing prio
   - November 1, 2025 (Innovations #34-38: Self-Cognition, Semantic Q&A) — [Zenodo: 10.5281/zenodo.17501091](https://doi.org/10.5281/zenodo.17501091)
   - November 3, 2025 (Innovations #39-46: Σ Dual-Lattice, Infinite Context) — [Zenodo: 10.5281/zenodo.17509405](https://doi.org/10.5281/zenodo.17509405)
   - November 19, 2025 (v2.4.1: Cross-Overlay Workflows) — [Zenodo: 10.5281/zenodo.17635623](https://doi.org/10.5281/zenodo.17635623)
+  - November 20, 2025 (v2.4.2: Documentation & Stability)
 - **Public Repository**: https://github.com/mirzahusadzic/cogx
 - **Permanent Archive**: Zenodo DOI [10.5281/zenodo.17635623](https://doi.org/10.5281/zenodo.17635623) (latest)
 - **License**: AGPLv3 (entire repository — code, documentation, blueprints)
@@ -351,7 +351,7 @@ If you use this work in research, please cite:
   author = {Husadžić, Mirza},
   title = {CogX: A Blueprint for Verifiable, Agentic AI},
   year = {2025},
-  version = {2.4.1},
+  version = {2.4.2},
   doi = {10.5281/zenodo.17635623},
   url = {https://github.com/mirzahusadzic/cogx}
 }
