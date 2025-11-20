@@ -165,7 +165,9 @@ export class OpenAIProvider implements LLMProvider {
    *   }
    * }
    */
-  async *stream(request: CompletionRequest): AsyncGenerator<StreamChunk, void, undefined> {
+  async *stream(
+    request: CompletionRequest
+  ): AsyncGenerator<StreamChunk, void, undefined> {
     try {
       const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [];
 

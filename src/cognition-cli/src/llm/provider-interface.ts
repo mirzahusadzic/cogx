@@ -194,7 +194,9 @@ export interface LLMProvider {
    *   if (chunk.isComplete) break;
    * }
    */
-  stream?(request: CompletionRequest): AsyncGenerator<StreamChunk, void, undefined>;
+  stream?(
+    request: CompletionRequest
+  ): AsyncGenerator<StreamChunk, void, undefined>;
 
   /**
    * Estimate cost in USD (optional)

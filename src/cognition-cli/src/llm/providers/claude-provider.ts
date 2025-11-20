@@ -166,7 +166,9 @@ export class ClaudeProvider implements LLMProvider {
    *   }
    * }
    */
-  async *stream(request: CompletionRequest): AsyncGenerator<StreamChunk, void, undefined> {
+  async *stream(
+    request: CompletionRequest
+  ): AsyncGenerator<StreamChunk, void, undefined> {
     try {
       const stream = await this.client.messages.create({
         model: request.model,
