@@ -590,7 +590,7 @@ await client.sessions.compress(sessionId);
 ### References
 
 - [Claude SDK Documentation](https://docs.anthropic.com/claude/reference)
-- [SIGMA Architecture](https://github.com/mirzahusadzic/cogx/blob/main/src/cognition-cli/SIGMA_CONTEXT_ARCHITECTURE.md)
+- [SIGMA Architecture](./ARCHITECTURE.md)
 
 ---
 

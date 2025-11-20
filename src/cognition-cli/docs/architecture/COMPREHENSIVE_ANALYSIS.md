@@ -872,7 +872,7 @@ The same architecture that understands code can preserve human identity through 
 - Production-ready error handling throughout
 - Graceful degradation for all failure modes
 
-_For previous release history, see [CHANGELOG.md](./CHANGELOG.md)._
+_For previous release history, see [CHANGELOG.md](https://github.com/mirzahusadzic/cogx/blob/main/src/cognition-cli/CHANGELOG.md)._
 
 ---
 
