@@ -22,7 +22,6 @@
  */
 
 import { LlmAgent, Runner, InMemorySessionService } from '@google/adk';
-import { GeminiProvider } from './gemini-provider.js';
 import { getCognitionTools } from './gemini-adk-tools.js';
 import type {
   AgentProvider,
@@ -30,6 +29,11 @@ import type {
   AgentResponse,
   AgentMessage,
 } from '../agent-provider-interface.js';
+import type {
+  CompletionRequest,
+  CompletionResponse,
+  StreamChunk,
+} from '../provider-interface.js';
 
 /**
  * Gemini Agent Provider
@@ -37,18 +41,43 @@ import type {
  * Implements AgentProvider using Google ADK for agent workflows.
  *
  * DESIGN:
- * - Extends GeminiProvider for basic LLM capabilities
+ * - Pure ADK implementation (no parent class inheritance)
  * - Uses Google ADK LlmAgent for agent orchestration
- * - Tool support coming in Phase 3
+ * - Full tool execution support via ADK
  * - Handles streaming via ADK Runner
+ * - Session management via InMemorySessionService
  */
-export class GeminiAgentProvider
-  extends GeminiProvider
-  implements AgentProvider
-{
-  override name = 'gemini';
+export class GeminiAgentProvider implements AgentProvider {
+  name = 'gemini';
+  models = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-thinking-exp-01-21',
+    'gemini-2.0-flash',
+    'gemini-2.5-pro',
+  ];
+
+  private apiKey: string;
   private currentRunner: Runner | null = null;
   private sessionService = new InMemorySessionService();
+
+  /**
+   * Create Gemini Agent Provider
+   *
+   * @param apiKey - Google API key (optional, defaults to GEMINI_API_KEY env var)
+   * @throws Error if no API key provided
+   */
+  constructor(apiKey?: string) {
+    const key = apiKey || process.env.GEMINI_API_KEY;
+
+    if (!key) {
+      throw new Error(
+        'Gemini provider requires an API key. ' +
+          'Provide it as constructor argument or set GEMINI_API_KEY environment variable.'
+      );
+    }
+
+    this.apiKey = key;
+  }
 
   /**
    * Check if provider supports agent mode
@@ -297,6 +326,41 @@ export class GeminiAgentProvider
   async interrupt(): Promise<void> {
     // ADK doesn't have direct interrupt support yet
     this.currentRunner = null;
+  }
+
+  /**
+   * Generate completion (stub - agent mode is primary interface)
+   *
+   * Note: This provider is optimized for agent workflows via executeAgent().
+   * Basic completions are not the primary use case.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async complete(request: CompletionRequest): Promise<CompletionResponse> {
+    throw new Error(
+      'GeminiAgentProvider is designed for agent workflows. Use executeAgent() instead of complete().'
+    );
+  }
+
+  /**
+   * Stream completion (stub - agent mode is primary interface)
+   */
+  async *stream(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    request: CompletionRequest
+  ): AsyncGenerator<StreamChunk, void, undefined> {
+    throw new Error(
+      'GeminiAgentProvider is designed for agent workflows. Use executeAgent() instead of stream().'
+    );
+    // Unreachable yield to satisfy generator signature
+    yield { delta: '', text: '', done: true };
+  }
+
+  /**
+   * Check if provider is available
+   */
+  async isAvailable(): Promise<boolean> {
+    // Simple API key check - ADK will validate on first use
+    return !!this.apiKey;
   }
 
   /**
