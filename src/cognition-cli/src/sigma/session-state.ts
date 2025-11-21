@@ -41,6 +41,13 @@ export interface SessionState {
     avg_novelty: string;
     avg_importance: string;
   };
+
+  /** Last known token counts for compression threshold continuity */
+  last_total_tokens?: {
+    input: number;
+    output: number;
+    total: number;
+  };
 }
 
 /**

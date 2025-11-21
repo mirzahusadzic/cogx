@@ -378,6 +378,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const userMessageEmbeddingCache = useRef<Map<number, number[]>>(new Map()); // Cache user message embeddings by timestamp
   const latticeLoadedRef = useRef<Set<string>>(new Set()); // Track which sessions have been loaded
   const compressionInProgressRef = useRef(false); // ✅ Guard against concurrent compression requests
+  const lastPersistedTokensRef = useRef(0); // Track last persisted token count for throttling
 
   // Slash commands: Load commands cache
   const [commandsCache, setCommandsCache] = useState<Map<string, Command>>(
@@ -432,6 +433,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     debug: debugFlag,
     onSessionLoaded: handleSessionLoaded,
     onSDKSessionChanged: handleSDKSessionChanged,
+    onTokensRestored: tokenCounter.initialize,
   });
 
   // Convenient aliases for session state
@@ -1546,11 +1548,18 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           }
 
           // Update token counts (map AgentResponse tokens to TokenCount format)
-          tokenCounter.update({
+          const newTokens = {
             input: response.tokens.prompt,
             output: response.tokens.completion,
             total: response.tokens.total,
-          });
+          };
+          tokenCounter.update(newTokens);
+
+          // Persist token count on every update for accurate state sync
+          if (newTokens.total !== lastPersistedTokensRef.current) {
+            sessionManager.updateTokens(newTokens);
+            lastPersistedTokensRef.current = newTokens.total;
+          }
 
           // Process new messages
           for (const agentMessage of newMessages) {
@@ -1573,6 +1582,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               timestamp: new Date(),
             },
           ]);
+
+          // Final persist on query completion (regardless of throttle)
+          sessionManager.updateTokens(tokenCounter.count);
+          lastPersistedTokensRef.current = tokenCounter.count.total;
         }
 
         // If query completed without assistant response, show error
@@ -1691,7 +1704,21 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           const toolUses = content.filter((c) => c.type === 'tool_use');
           const textBlocks = content.filter((c) => c.type === 'text');
 
-          // Show tool uses
+          // Show text blocks FIRST (e.g., "Let me check that" before tool use)
+          if (textBlocks.length > 0) {
+            const text = textBlocks.map((b) => b.text || '').join('\n');
+            const colorReplacedText = stripANSICodes(text);
+            setMessages((prev) => [
+              ...prev,
+              {
+                type: 'assistant',
+                content: colorReplacedText,
+                timestamp: new Date(),
+              },
+            ]);
+          }
+
+          // Then show tool uses
           if (toolUses.length > 0) {
             toolUses.forEach((tool) => {
               if (tool.name && tool.input) {
@@ -1709,20 +1736,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                 ]);
               }
             });
-          }
-
-          // Show text blocks
-          if (textBlocks.length > 0) {
-            const text = textBlocks.map((b) => b.text || '').join('\n');
-            const colorReplacedText = stripANSICodes(text);
-            setMessages((prev) => [
-              ...prev,
-              {
-                type: 'assistant',
-                content: colorReplacedText,
-                timestamp: new Date(),
-              },
-            ]);
           }
         }
         break;

@@ -60,6 +60,7 @@ import type {
   SessionOptions,
   SessionState,
   SessionUpdateEvent,
+  SessionTokens,
 } from './types.js';
 import type { TurnAnalysis } from '../../../sigma/types.js';
 
@@ -73,6 +74,12 @@ export interface UseSessionManagerOptions extends SessionOptions {
    * Callback when SDK session ID changes
    */
   onSDKSessionChanged?: (event: SessionUpdateEvent) => void;
+
+  /**
+   * Callback when tokens are restored from persisted state
+   * Called during session resume to initialize token counter
+   */
+  onTokensRestored?: (tokens: SessionTokens) => void;
 }
 
 export interface UseSessionManagerResult {
@@ -112,6 +119,11 @@ export interface UseSessionManagerResult {
    * Use this instead of reading state.resumeSessionId directly to avoid async race conditions
    */
   getResumeSessionId: () => string | undefined;
+
+  /**
+   * Persist current token counts for compression threshold continuity
+   */
+  updateTokens: (tokens: SessionTokens) => void;
 }
 
 /**
@@ -195,6 +207,7 @@ export function useSessionManager(
     debug = false,
     onSessionLoaded,
     onSDKSessionChanged,
+    onTokensRestored,
   } = options;
 
   // Generate stable anchor ID (only computed once)
@@ -238,6 +251,16 @@ export function useSessionManager(
         onSessionLoaded?.(result.message);
       }
 
+      // Restore token counts for compression threshold continuity
+      if (result.restoredTokens) {
+        onTokensRestored?.(result.restoredTokens);
+        if (debug) {
+          console.log(
+            `[useSessionManager] Restored tokens: ${result.restoredTokens.total}`
+          );
+        }
+      }
+
       if (debug) {
         console.log(
           `[useSessionManager] Loaded session: ${result.currentSessionId}, resume: ${result.resumeSessionId || 'none'}`
@@ -246,7 +269,7 @@ export function useSessionManager(
     };
 
     loadSession();
-  }, [anchorId, cwd, debug, onSessionLoaded]);
+  }, [anchorId, cwd, debug, onSessionLoaded, onTokensRestored]);
 
   // Update SDK session ID
   const updateSDKSession = useCallback(
@@ -435,6 +458,17 @@ export function useSessionManager(
     return state.resumeSessionId;
   }, [state.resumeSessionId, debug]);
 
+  // Persist token counts for compression threshold continuity
+  const updateTokens = useCallback(
+    (tokens: SessionTokens) => {
+      storeRef.current.updateTokens(tokens);
+      if (debug) {
+        console.log(`[useSessionManager] Saved tokens: ${tokens.total}`);
+      }
+    },
+    [debug]
+  );
+
   return {
     state,
     store: storeRef.current,
@@ -442,5 +476,6 @@ export function useSessionManager(
     updateStats,
     resetResumeSession,
     getResumeSessionId,
+    updateTokens,
   };
 }

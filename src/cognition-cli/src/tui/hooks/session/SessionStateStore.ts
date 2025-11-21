@@ -65,7 +65,11 @@ import {
   migrateOldStateFile,
   type SessionState,
 } from '../../../sigma/session-state.js';
-import type { SessionLoadResult, SessionUpdateEvent } from './types.js';
+import type {
+  SessionLoadResult,
+  SessionUpdateEvent,
+  SessionTokens,
+} from './types.js';
 
 /**
  * Statistics tracked for each session
@@ -271,6 +275,34 @@ export class SessionStateStore {
   }
 
   /**
+   * Update last known token counts.
+   *
+   * Persists current token usage for restoration on TUI restart.
+   * Enables accurate compression threshold detection across restarts.
+   *
+   * @param tokens - Current token counts
+   * @returns True if update succeeded, false on error
+   */
+  updateTokens(tokens: SessionTokens): boolean {
+    const state = this.load();
+    if (!state) {
+      if (this.debug) {
+        console.warn('[SessionStateStore] No state to update tokens');
+      }
+      return false;
+    }
+
+    state.last_total_tokens = {
+      input: tokens.input,
+      output: tokens.output,
+      total: tokens.total,
+    };
+    state.last_updated = new Date().toISOString();
+
+    return this.save(state);
+  }
+
+  /**
    * Migrate old state file format if needed.
    *
    * Converts legacy state files (missing compression_history) to new format.
@@ -341,10 +373,20 @@ export class SessionStateStore {
         ? `🔄 Resuming: ${this.anchorId} (${state.compression_history.length} sessions)`
         : undefined;
 
+    // Restore token counts for compression threshold continuity
+    const restoredTokens = state.last_total_tokens
+      ? {
+          input: state.last_total_tokens.input,
+          output: state.last_total_tokens.output,
+          total: state.last_total_tokens.total,
+        }
+      : undefined;
+
     return {
       resumeSessionId: state.current_session,
       currentSessionId: this.anchorId,
       message,
+      restoredTokens,
     };
   }
 

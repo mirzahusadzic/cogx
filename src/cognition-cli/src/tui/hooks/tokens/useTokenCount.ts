@@ -146,9 +146,23 @@ export function useTokenCount() {
     });
   }, []);
 
+  /**
+   * Initialize token count from persisted state.
+   *
+   * Used on session resume to restore token count for compression threshold.
+   * Sets count directly without Math.max logic.
+   *
+   * @param initialCount - Token count from persisted session state
+   */
+  const initialize = useCallback((initialCount: TokenCount) => {
+    setCount(initialCount);
+    justReset.current = false; // Clear any pending reset flag
+  }, []);
+
   return {
     count,
     reset,
     update,
+    initialize,
   };
 }

@@ -108,6 +108,24 @@ export interface SessionState {
    * Tracks if the SDK has assigned a real session UUID
    */
   hasReceivedSDKSessionId: boolean;
+
+  /**
+   * Last known token counts (persisted for compression threshold)
+   * Restored on session resume to enable accurate compression triggering
+   */
+  lastTotalTokens?: SessionTokens;
+}
+
+/**
+ * Token count breakdown for session persistence
+ */
+export interface SessionTokens {
+  /** Input tokens (prompt + context) */
+  input: number;
+  /** Output tokens (completion) */
+  output: number;
+  /** Total tokens */
+  total: number;
 }
 
 /**
@@ -128,6 +146,11 @@ export interface SessionLoadResult {
    * User-facing message to display (if resuming)
    */
   message?: string;
+
+  /**
+   * Restored token counts (for compression threshold continuity)
+   */
+  restoredTokens?: SessionTokens;
 }
 
 /**

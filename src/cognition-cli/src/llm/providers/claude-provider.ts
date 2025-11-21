@@ -354,6 +354,8 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
     switch (sdkMessage.type) {
       case 'assistant': {
         // Assistant message with possible tool calls
+        // NOTE: Streaming text comes via stream_event deltas to avoid duplication.
+        // But we still need to handle text that accompanies tool_use (e.g., "Let me check that")
         interface ContentBlock {
           type: string;
           text?: string;
@@ -375,24 +377,40 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
           } => c.type === 'tool_use'
         );
 
-        if (textBlocks.length > 0) {
+        // Only return text from assistant messages when there are also tool calls
+        // (pure text responses come via stream_event deltas to avoid duplication)
+        if (toolBlocks.length > 0) {
+          // Build content array with text and tool_use blocks
+          const contentArray: Array<
+            | { type: 'text'; text: string }
+            | {
+                type: 'tool_use';
+                id: string;
+                name: string;
+                input: Record<string, unknown>;
+              }
+          > = [];
+
+          // Add text blocks first (if any)
+          textBlocks.forEach((t) => {
+            contentArray.push({ type: 'text', text: t.text });
+          });
+
+          // Add tool_use blocks
+          toolBlocks.forEach((t) => {
+            contentArray.push({
+              type: 'tool_use',
+              id: t.id,
+              name: t.name,
+              input: t.input,
+            });
+          });
+
           return {
             ...baseMessage,
             type: 'assistant',
             role: 'assistant',
-            content: textBlocks.map((b) => b.text).join('\n'),
-          } as AgentMessage;
-        } else if (toolBlocks.length > 0) {
-          return {
-            ...baseMessage,
-            type: 'tool_use',
-            role: 'assistant',
-            content: toolBlocks.map((t) => ({
-              type: 'tool_use' as const,
-              id: t.id,
-              name: t.name,
-              input: t.input,
-            })),
+            content: contentArray,
           } as AgentMessage;
         }
         break;
@@ -455,14 +473,21 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
         usage?: {
           input_tokens: number;
           output_tokens: number;
+          cache_creation_input_tokens?: number;
+          cache_read_input_tokens?: number;
         };
       };
 
       if (event.type === 'message_delta' && event.usage) {
+        // Include cache tokens in input count (matches old SDK behavior)
+        const totalInput =
+          event.usage.input_tokens +
+          (event.usage.cache_creation_input_tokens || 0) +
+          (event.usage.cache_read_input_tokens || 0);
         return {
-          prompt: event.usage.input_tokens,
+          prompt: totalInput,
           completion: event.usage.output_tokens,
-          total: event.usage.input_tokens + event.usage.output_tokens,
+          total: totalInput + event.usage.output_tokens,
         };
       }
     } else if (
