@@ -81,14 +81,15 @@ export class AgentProviderAdapter {
   private providerName: string;
   private model: string;
   private options: AgentAdapterOptions;
+  private provider: import('../../../llm/agent-provider-interface.js').AgentProvider;
 
   constructor(options: AgentAdapterOptions) {
     this.options = options;
     this.providerName = options.provider || 'claude';
 
-    // Auto-select model if not specified
-    const provider = registry.getAgent(this.providerName);
-    this.model = options.model || provider.models[0];
+    // Auto-select model if not specified and store provider
+    this.provider = registry.getAgent(this.providerName);
+    this.model = options.model || this.provider.models[0];
   }
 
   /**
@@ -109,8 +110,6 @@ export class AgentProviderAdapter {
    * ```
    */
   async *query(prompt: string): AsyncGenerator<AgentResponse> {
-    const provider = registry.getAgent(this.providerName);
-
     const request: AgentRequest = {
       prompt,
       model: this.model,
@@ -137,7 +136,7 @@ export class AgentProviderAdapter {
 
     // Stream responses from provider
     try {
-      for await (const response of provider.executeAgent(request)) {
+      for await (const response of this.provider.executeAgent(request)) {
         if (this.options.debug) {
           console.log('[AgentAdapter] Response:', {
             messageCount: response.messages.length,
@@ -180,6 +179,29 @@ export class AgentProviderAdapter {
    */
   getModel(): string {
     return this.model;
+  }
+
+  /**
+   * Interrupt the current agent execution
+   *
+   * Sends interrupt signal to the underlying provider to stop execution.
+   * Only works if the provider supports interrupts.
+   *
+   * @returns Promise that resolves when interrupt is sent
+   *
+   * @example
+   * ```typescript
+   * const adapter = new AgentProviderAdapter({ cwd: process.cwd() });
+   * const queryPromise = adapter.query("Long running task");
+   *
+   * // Later, interrupt execution
+   * await adapter.interrupt();
+   * ```
+   */
+  async interrupt(): Promise<void> {
+    if (this.provider.interrupt) {
+      await this.provider.interrupt();
+    }
   }
 
   /**

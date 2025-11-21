@@ -340,8 +340,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   ]);
   const [isThinking, setIsThinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // TODO: Implement interrupt for AgentProviderAdapter
-  // const [currentQuery, setCurrentQuery] = useState<Query | null>(null);
+
+  // Store current adapter for interrupt functionality
+  const currentAdapterRef = useRef<AgentProviderAdapter | null>(null);
 
   // ========================================
   // COMPOSED HOOKS
@@ -1471,9 +1472,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           debug: debugFlag,
         });
 
-        // Note: setCurrentQuery expects a Query object from SDK, but we're using adapter
-        // We'll need to update this or remove it if not used elsewhere
-        // setCurrentQuery(adapter.query(finalPrompt));
+        // Store adapter for interrupt functionality
+        currentAdapterRef.current = adapter;
 
         // Process streaming agent responses
         let previousMessageCount = 0;
@@ -1823,8 +1823,11 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
    * await interrupt();
    */
   const interrupt = useCallback(async () => {
-    // TODO: Implement interrupt for AgentProviderAdapter
-    // For now, just set thinking to false
+    // Interrupt current agent execution
+    if (currentAdapterRef.current) {
+      await currentAdapterRef.current.interrupt();
+      currentAdapterRef.current = null;
+    }
     setIsThinking(false);
   }, []);
 

@@ -180,6 +180,25 @@ export interface AgentProvider extends LLMProvider {
    * @returns True if provider supports agent mode
    */
   supportsAgentMode(): boolean;
+
+  /**
+   * Interrupt the current agent execution
+   *
+   * Sends an interrupt signal to stop the agent mid-execution.
+   * Optional - providers that don't support interrupts can omit this.
+   *
+   * @returns Promise that resolves when interrupt is sent
+   *
+   * @example
+   * ```typescript
+   * const provider = registry.getAgent('claude');
+   * const queryPromise = provider.executeAgent(request);
+   *
+   * // Later, interrupt execution
+   * await provider.interrupt();
+   * ```
+   */
+  interrupt?(): Promise<void>;
 }
 
 /**

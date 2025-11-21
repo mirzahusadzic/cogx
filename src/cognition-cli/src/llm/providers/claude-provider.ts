@@ -68,6 +68,7 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
   ];
 
   private client: Anthropic;
+  private currentQuery: Query | null = null;
 
   constructor(apiKey?: string) {
     this.client = new Anthropic({
@@ -249,7 +250,7 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
     request: AgentRequest
   ): AsyncGenerator<AgentResponse, void, undefined> {
     // Create SDK query with agent features
-    const sdkQuery: Query = query({
+    this.currentQuery = query({
       prompt: request.prompt,
       options: {
         cwd: request.cwd,
@@ -283,7 +284,7 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
     let totalTokens = { prompt: 0, completion: 0, total: 0 };
     let currentFinishReason: AgentResponse['finishReason'] = 'stop';
 
-    for await (const sdkMessage of sdkQuery) {
+    for await (const sdkMessage of this.currentQuery) {
       // Extract session ID
       if ('session_id' in sdkMessage && sdkMessage.session_id) {
         currentSessionId = sdkMessage.session_id;
@@ -308,6 +309,19 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
         tokens: totalTokens,
         finishReason: currentFinishReason,
       };
+    }
+  }
+
+  /**
+   * Interrupt the current agent execution
+   *
+   * Sends interrupt signal to Claude Agent SDK to stop execution.
+   * Used for ESC ESC keyboard shortcut in TUI.
+   */
+  async interrupt(): Promise<void> {
+    if (this.currentQuery) {
+      await this.currentQuery.interrupt();
+      this.currentQuery = null;
     }
   }
 
