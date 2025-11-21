@@ -149,8 +149,14 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
 
   // Optional: Resume existing session or start fresh
   if (!sessionId) {
+    // Get provider name for the tip message
+    const { loadLLMConfig } = await import('../llm/llm-config.js');
+    const providerName = options.provider || loadLLMConfig().defaultProvider;
+    const providerDisplayName =
+      providerName.charAt(0).toUpperCase() + providerName.slice(1);
+
     console.log(
-      '\n💡 Tip: Starting fresh Claude session. To resume, use:\n' +
+      `\n💡 Tip: Starting fresh ${providerDisplayName} session. To resume, use:\n` +
         '   cognition-cli tui --session-id <anchor-id>\n' +
         '   or: cognition-cli tui -f .sigma/<session>.state.json\n'
     );
