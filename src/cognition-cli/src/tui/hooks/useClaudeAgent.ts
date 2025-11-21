@@ -1478,8 +1478,12 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         // Process streaming agent responses
         let previousMessageCount = 0;
         let hasAssistantMessage = false;
+        let lastResponse:
+          | import('../../llm/agent-provider-interface.js').AgentResponse
+          | null = null;
 
         for await (const response of adapter.query(finalPrompt)) {
+          lastResponse = response;
           // Process only new messages (delta)
           const newMessages = response.messages.slice(previousMessageCount);
           previousMessageCount = response.messages.length;
@@ -1555,6 +1559,19 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             }
             processAgentMessage(agentMessage);
           }
+        }
+
+        // Show completion message if query succeeded
+        if (lastResponse && hasAssistantMessage) {
+          const cost = (lastResponse.tokens.total / 1_000_000) * 3; // Rough estimate
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: 'system',
+              content: `✓ Complete (${previousMessageCount} messages, $${cost.toFixed(4)})`,
+              timestamp: new Date(),
+            },
+          ]);
         }
 
         // If query completed without assistant response, show error
@@ -1739,6 +1756,44 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         break;
       }
 
+      case 'tool_result': {
+        // Tool execution result
+        if (typeof content === 'string') {
+          // Simple string result
+          debug('🔧 Tool result:', content.substring(0, 100));
+        } else if (Array.isArray(content)) {
+          // Content blocks with results
+          content.forEach((result) => {
+            if (result.is_error) {
+              // Tool execution error
+              const errorText =
+                typeof result.content === 'string'
+                  ? result.content
+                  : JSON.stringify(result.content);
+              debug('❌ Tool error:', errorText.substring(0, 100));
+            } else {
+              // Successful tool result
+              debug(
+                '✅ Tool success:',
+                typeof result.content === 'string'
+                  ? result.content.substring(0, 100)
+                  : '...'
+              );
+            }
+          });
+        }
+        // Tool results are usually internal - don't show in UI by default
+        break;
+      }
+
+      case 'user': {
+        // User message (shouldn't normally appear in streaming responses)
+        if (typeof content === 'string') {
+          debug('👤 User message:', content.substring(0, 100));
+        }
+        break;
+      }
+
       case 'thinking': {
         // Extended thinking - could show in UI later
         debug(
@@ -1749,7 +1804,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       }
 
       default:
-        // Ignore other message types
+        // Log unknown message types for debugging
+        debug('❓ Unknown message type:', type);
         break;
     }
   };
