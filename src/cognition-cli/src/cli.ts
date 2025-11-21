@@ -361,7 +361,7 @@ program
       debug: options.debug,
       provider: options.provider,
       model: options.model,
-      displayThinking: options.displayThinking !== false,
+      displayThinking: options.showThinking !== false,
     });
   });
 

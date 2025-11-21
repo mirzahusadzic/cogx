@@ -139,107 +139,120 @@ export class GeminiAgentProvider
       // Process events from the generator
       for await (const event of runGenerator) {
         // Cast event to access properties (ADK types are not well defined yet)
-        const evt = event as unknown as Record<string, unknown>;
+        const evt = event as unknown as {
+          author?: string;
+          errorCode?: string;
+          errorMessage?: string;
+          content?: {
+            role?: string;
+            parts?: Array<{
+              text?: string;
+              functionCall?: { name: string; args: Record<string, unknown> };
+              functionResponse?: { name: string; response: unknown };
+            }>;
+          };
+          usageMetadata?: {
+            promptTokenCount?: number;
+            candidatesTokenCount?: number;
+            totalTokenCount?: number;
+          };
+        };
+
         numTurns++;
 
-        // Handle tool calls (function_call events)
-        if (evt.type === 'function_call' || evt.functionCall) {
-          const funcCall = (evt.functionCall || evt) as {
-            name?: string;
-            args?: Record<string, unknown>;
-          };
-          const toolMessage: AgentMessage = {
-            id: `msg-${Date.now()}-tool-${numTurns}`,
-            type: 'tool_use',
-            role: 'assistant',
-            content: JSON.stringify(funcCall.args || {}),
-            timestamp: new Date(),
-            toolName: funcCall.name,
-            toolInput: funcCall.args,
-          };
-          messages.push(toolMessage);
+        // Handle error events
+        if (evt.errorCode || evt.errorMessage) {
+          const errorMsg = evt.errorMessage || `Error code: ${evt.errorCode}`;
+          throw new Error(`Gemini API Error: ${errorMsg}`);
+        }
 
-          yield {
-            messages: [...messages],
-            sessionId,
-            tokens: {
-              prompt: Math.ceil(request.prompt.length / 4),
-              completion: totalTokens,
-              total: Math.ceil(request.prompt.length / 4) + totalTokens,
-            },
-            finishReason: 'tool_use',
-            numTurns,
-          };
+        // Skip user echo events
+        if (evt.author === 'user') {
           continue;
         }
 
-        // Handle tool results (function_response events)
-        if (evt.type === 'function_response' || evt.functionResponse) {
-          const funcResp = (evt.functionResponse || evt) as {
-            name?: string;
-            response?: unknown;
-          };
-          const resultMessage: AgentMessage = {
-            id: `msg-${Date.now()}-result-${numTurns}`,
-            type: 'tool_result',
-            role: 'user',
-            content:
-              typeof funcResp.response === 'string'
-                ? funcResp.response
-                : JSON.stringify(funcResp.response),
-            timestamp: new Date(),
-            toolName: funcResp.name,
-          };
-          messages.push(resultMessage);
+        // Handle assistant/model responses
+        if (evt.author === 'cognition_agent' && evt.content?.parts) {
+          for (const part of evt.content.parts) {
+            // Handle function calls (tool use)
+            if (part.functionCall) {
+              const toolMessage: AgentMessage = {
+                id: `msg-${Date.now()}-tool-${numTurns}`,
+                type: 'tool_use',
+                role: 'assistant',
+                content: JSON.stringify(part.functionCall.args),
+                timestamp: new Date(),
+                toolName: part.functionCall.name,
+                toolInput: part.functionCall.args,
+              };
+              messages.push(toolMessage);
 
-          yield {
-            messages: [...messages],
-            sessionId,
-            tokens: {
-              prompt: Math.ceil(request.prompt.length / 4),
-              completion: totalTokens,
-              total: Math.ceil(request.prompt.length / 4) + totalTokens,
-            },
-            finishReason: 'stop',
-            numTurns,
-          };
-          continue;
-        }
+              yield {
+                messages: [...messages],
+                sessionId,
+                tokens: {
+                  prompt: Math.ceil(request.prompt.length / 4),
+                  completion: totalTokens,
+                  total: Math.ceil(request.prompt.length / 4) + totalTokens,
+                },
+                finishReason: 'tool_use',
+                numTurns,
+              };
+            }
 
-        // Handle text responses
-        if (evt.type === 'agent_response' || evt.content) {
-          let textContent = '';
-          if (typeof evt.content === 'string') {
-            textContent = evt.content;
-          } else if (evt.response && typeof evt.response === 'object') {
-            const resp = evt.response as { parts?: Array<{ text?: string }> };
-            const textParts = resp.parts?.filter((p) => p.text);
-            textContent = textParts?.map((p) => p.text).join('') || '';
-          }
+            // Handle function responses (tool results)
+            if (part.functionResponse) {
+              const resultMessage: AgentMessage = {
+                id: `msg-${Date.now()}-result-${numTurns}`,
+                type: 'tool_result',
+                role: 'user',
+                content:
+                  typeof part.functionResponse.response === 'string'
+                    ? part.functionResponse.response
+                    : JSON.stringify(part.functionResponse.response),
+                timestamp: new Date(),
+                toolName: part.functionResponse.name,
+              };
+              messages.push(resultMessage);
 
-          if (textContent) {
-            const assistantMessage: AgentMessage = {
-              id: `msg-${Date.now()}-${numTurns}`,
-              type: 'assistant',
-              role: 'assistant',
-              content: textContent,
-              timestamp: new Date(),
-            };
-            messages.push(assistantMessage);
+              yield {
+                messages: [...messages],
+                sessionId,
+                tokens: {
+                  prompt: Math.ceil(request.prompt.length / 4),
+                  completion: totalTokens,
+                  total: Math.ceil(request.prompt.length / 4) + totalTokens,
+                },
+                finishReason: 'stop',
+                numTurns,
+              };
+            }
 
-            totalTokens += Math.ceil(textContent.length / 4);
+            // Handle text responses
+            if (part.text) {
+              const assistantMessage: AgentMessage = {
+                id: `msg-${Date.now()}-${numTurns}`,
+                type: 'assistant',
+                role: 'assistant',
+                content: part.text,
+                timestamp: new Date(),
+              };
+              messages.push(assistantMessage);
 
-            yield {
-              messages: [...messages],
-              sessionId,
-              tokens: {
-                prompt: Math.ceil(request.prompt.length / 4),
-                completion: totalTokens,
-                total: Math.ceil(request.prompt.length / 4) + totalTokens,
-              },
-              finishReason: 'stop',
-              numTurns,
-            };
+              totalTokens += Math.ceil(part.text.length / 4);
+
+              yield {
+                messages: [...messages],
+                sessionId,
+                tokens: {
+                  prompt: Math.ceil(request.prompt.length / 4),
+                  completion: totalTokens,
+                  total: Math.ceil(request.prompt.length / 4) + totalTokens,
+                },
+                finishReason: 'stop',
+                numTurns,
+              };
+            }
           }
         }
       }
