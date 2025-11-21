@@ -6,7 +6,16 @@ interface StatusBarProps {
   focused: boolean;
   tokenCount?: { input: number; output: number; total: number };
   compressionThreshold?: number;
+  providerName?: string;
 }
+
+// Provider color/emoji mapping
+const PROVIDER_STYLES: Record<string, { color: string; emoji: string }> = {
+  claude: { color: '#d4a574', emoji: '🟠' },
+  openai: { color: '#10a37f', emoji: '🟢' },
+  gemini: { color: '#4285f4', emoji: '🔵' },
+  'gemini-agent': { color: '#4285f4', emoji: '🤖' },
+};
 
 /**
  * Bottom status bar with help text and session info
@@ -16,6 +25,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   focused,
   tokenCount,
   compressionThreshold = 120000,
+  providerName = 'claude',
 }) => {
   // Format token count with K suffix for readability
   const formatTokens = (count: number) => {
@@ -30,9 +40,18 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     ? ((tokenCount.total / compressionThreshold) * 100).toFixed(1)
     : '0.0';
 
+  // Get provider style
+  const providerStyle = PROVIDER_STYLES[providerName] || {
+    color: '#8b949e',
+    emoji: '⚪',
+  };
+
   // Build status bar as single string to avoid wrapping issues
   const buildStatusText = () => {
-    let text = '[Tab] Toggle Focus';
+    // Provider indicator at start
+    let text = `${providerStyle.emoji} ${providerName}`;
+
+    text += ' | [Tab] Toggle Focus';
 
     if (!focused) {
       text += ' | [↑↓/⌨️ ] Scroll';

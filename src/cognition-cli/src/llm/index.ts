@@ -34,6 +34,7 @@ import { registry } from './provider-registry.js';
 import { ClaudeProvider } from './providers/claude-provider.js';
 import { OpenAIProvider } from './providers/openai-provider.js';
 import { GeminiProvider } from './providers/gemini-provider.js';
+import { GeminiAgentProvider } from './providers/gemini-agent-provider.js';
 
 // Re-export core types and classes
 export { registry } from './provider-registry.js';
@@ -48,6 +49,7 @@ export { isAgentProvider } from './agent-provider-interface.js';
 export { ClaudeProvider } from './providers/claude-provider.js';
 export { OpenAIProvider } from './providers/openai-provider.js';
 export { GeminiProvider } from './providers/gemini-provider.js';
+export { GeminiAgentProvider } from './providers/gemini-agent-provider.js';
 
 /**
  * Provider initialization options
@@ -187,6 +189,26 @@ export function initializeProviders(options: InitializeOptions = {}): void {
     }
   } else if (registry.has('gemini')) {
     registered.push('gemini');
+  }
+
+  // Register Gemini Agent (ADK-based) if API key is available
+  if (geminiKey && !registry.has('gemini-agent')) {
+    try {
+      const geminiAgent = new GeminiAgentProvider(geminiKey);
+      registry.register(geminiAgent);
+      registered.push('gemini-agent');
+    } catch (error) {
+      if (skipMissingProviders) {
+        console.warn(
+          'Skipping Gemini Agent provider:',
+          error instanceof Error ? error.message : String(error)
+        );
+      } else {
+        throw error;
+      }
+    }
+  } else if (registry.has('gemini-agent')) {
+    registered.push('gemini-agent');
   }
 
   // Set default provider if it was successfully registered

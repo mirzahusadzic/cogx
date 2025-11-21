@@ -448,6 +448,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
             focused={focused}
             tokenCount={tokenCount}
             compressionThreshold={sessionTokens}
+            providerName={provider}
           />
         </Box>
       </ThemeProvider>

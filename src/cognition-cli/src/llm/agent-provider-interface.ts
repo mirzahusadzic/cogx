@@ -103,6 +103,8 @@ export interface AgentMessage {
   content: string | AgentContent[];
   timestamp: Date;
   thinking?: string; // Extended thinking content
+  toolName?: string; // Tool name for tool_use/tool_result messages
+  toolInput?: unknown; // Tool input arguments
 }
 
 /**
