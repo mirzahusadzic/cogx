@@ -126,26 +126,30 @@ export function initializeProviders(options: InitializeOptions = {}): void {
   const registered: string[] = [];
 
   // Register Claude (default provider)
-  try {
-    const claude = new ClaudeProvider(
-      anthropicApiKey || process.env.ANTHROPIC_API_KEY
-    );
-    registry.register(claude);
-    registered.push('claude');
-  } catch (error) {
-    if (skipMissingProviders) {
-      console.warn(
-        'Skipping Claude provider (no API key):',
-        error instanceof Error ? error.message : String(error)
+  if (!registry.has('claude')) {
+    try {
+      const claude = new ClaudeProvider(
+        anthropicApiKey || process.env.ANTHROPIC_API_KEY
       );
-    } else {
-      throw error;
+      registry.register(claude);
+      registered.push('claude');
+    } catch (error) {
+      if (skipMissingProviders) {
+        console.warn(
+          'Skipping Claude provider (no API key):',
+          error instanceof Error ? error.message : String(error)
+        );
+      } else {
+        throw error;
+      }
     }
+  } else {
+    registered.push('claude');
   }
 
   // Register OpenAI if API key is available
   const openaiKey = openaiApiKey || process.env.OPENAI_API_KEY;
-  if (openaiKey) {
+  if (openaiKey && !registry.has('openai')) {
     try {
       const openai = new OpenAIProvider(openaiKey);
       registry.register(openai);
@@ -160,11 +164,13 @@ export function initializeProviders(options: InitializeOptions = {}): void {
         throw error;
       }
     }
+  } else if (registry.has('openai')) {
+    registered.push('openai');
   }
 
   // Register Gemini if API key is available
   const geminiKey = googleApiKey || process.env.GOOGLE_API_KEY;
-  if (geminiKey) {
+  if (geminiKey && !registry.has('gemini')) {
     try {
       const gemini = new GeminiProvider(geminiKey);
       registry.register(gemini);
@@ -179,6 +185,8 @@ export function initializeProviders(options: InitializeOptions = {}): void {
         throw error;
       }
     }
+  } else if (registry.has('gemini')) {
+    registered.push('gemini');
   }
 
   // Set default provider if it was successfully registered
