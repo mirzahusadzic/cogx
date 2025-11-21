@@ -13,7 +13,7 @@ import {
   getProviderApiKey,
   getProviderDefaultModel,
   CLAUDE_MODELS,
-  OPENAI_MODELS,
+  GEMINI_MODELS,
 } from '../llm-config.js';
 
 describe('LLM Configuration', () => {
@@ -25,8 +25,8 @@ describe('LLM Configuration', () => {
     delete process.env.COGNITION_LLM_PROVIDER;
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.COGNITION_CLAUDE_MODEL;
-    delete process.env.OPENAI_API_KEY;
-    delete process.env.COGNITION_OPENAI_MODEL;
+    delete process.env.GOOGLE_API_KEY;
+    delete process.env.COGNITION_GEMINI_MODEL;
   });
 
   afterEach(() => {
@@ -40,15 +40,15 @@ describe('LLM Configuration', () => {
 
       expect(config.defaultProvider).toBe('claude');
       expect(config.providers.claude).toBeDefined();
-      expect(config.providers.openai).toBeDefined();
+      expect(config.providers.gemini).toBeDefined();
     });
 
     it('should load provider from COGNITION_LLM_PROVIDER', () => {
-      process.env.COGNITION_LLM_PROVIDER = 'openai';
+      process.env.COGNITION_LLM_PROVIDER = 'gemini';
 
       const config = loadLLMConfig();
 
-      expect(config.defaultProvider).toBe('openai');
+      expect(config.defaultProvider).toBe('gemini');
     });
 
     it('should load Claude API key from ANTHROPIC_API_KEY', () => {
@@ -59,12 +59,12 @@ describe('LLM Configuration', () => {
       expect(config.providers.claude?.apiKey).toBe('sk-ant-test123');
     });
 
-    it('should load OpenAI API key from OPENAI_API_KEY', () => {
-      process.env.OPENAI_API_KEY = 'sk-test456';
+    it('should load Gemini API key from GOOGLE_API_KEY', () => {
+      process.env.GOOGLE_API_KEY = 'test-gemini-key';
 
       const config = loadLLMConfig();
 
-      expect(config.providers.openai?.apiKey).toBe('sk-test456');
+      expect(config.providers.gemini?.apiKey).toBe('test-gemini-key');
     });
 
     it('should load Claude default model from COGNITION_CLAUDE_MODEL', () => {
@@ -77,20 +77,20 @@ describe('LLM Configuration', () => {
       );
     });
 
-    it('should load OpenAI default model from COGNITION_OPENAI_MODEL', () => {
-      process.env.COGNITION_OPENAI_MODEL = 'gpt-4';
+    it('should load Gemini default model from COGNITION_GEMINI_MODEL', () => {
+      process.env.COGNITION_GEMINI_MODEL = 'gemini-2.0-flash-exp';
 
       const config = loadLLMConfig();
 
-      expect(config.providers.openai?.defaultModel).toBe('gpt-4');
+      expect(config.providers.gemini?.defaultModel).toBe('gemini-2.0-flash-exp');
     });
 
     it('should use default models when not specified', () => {
       const config = loadLLMConfig();
 
       expect(config.providers.claude?.defaultModel).toBe(CLAUDE_MODELS.latest);
-      expect(config.providers.openai?.defaultModel).toBe(
-        OPENAI_MODELS.balanced
+      expect(config.providers.gemini?.defaultModel).toBe(
+        GEMINI_MODELS.latest
       );
     });
   });
@@ -114,21 +114,21 @@ describe('LLM Configuration', () => {
       expect(errors[0]).toContain('API key');
     });
 
-    it('should validate OpenAI when set as default', () => {
-      process.env.COGNITION_LLM_PROVIDER = 'openai';
+    it('should validate Gemini when set as default', () => {
+      process.env.COGNITION_LLM_PROVIDER = 'gemini';
       const config = loadLLMConfig();
 
       const errors = validateLLMConfig(config);
 
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0]).toContain('OPENAI_API_KEY');
+      expect(errors[0]).toContain('GOOGLE_API_KEY');
     });
   });
 
   describe('isProviderConfigured()', () => {
     it('should return false when API key not set', () => {
       expect(isProviderConfigured('claude')).toBe(false);
-      expect(isProviderConfigured('openai')).toBe(false);
+      expect(isProviderConfigured('gemini')).toBe(false);
     });
 
     it('should return true when Claude API key is set', () => {
@@ -137,10 +137,10 @@ describe('LLM Configuration', () => {
       expect(isProviderConfigured('claude')).toBe(true);
     });
 
-    it('should return true when OpenAI API key is set', () => {
-      process.env.OPENAI_API_KEY = 'sk-test';
+    it('should return true when Gemini API key is set', () => {
+      process.env.GOOGLE_API_KEY = 'test-key';
 
-      expect(isProviderConfigured('openai')).toBe(true);
+      expect(isProviderConfigured('gemini')).toBe(true);
     });
   });
 
@@ -159,22 +159,22 @@ describe('LLM Configuration', () => {
       expect(providers).toEqual(['claude']);
     });
 
-    it('should return only OpenAI when only OpenAI configured', () => {
-      process.env.OPENAI_API_KEY = 'sk-test';
+    it('should return only Gemini when only Gemini configured', () => {
+      process.env.GOOGLE_API_KEY = 'test-key';
 
       const providers = getConfiguredProviders();
 
-      expect(providers).toEqual(['openai']);
+      expect(providers).toEqual(['gemini']);
     });
 
     it('should return both when both configured', () => {
       process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
-      process.env.OPENAI_API_KEY = 'sk-test';
+      process.env.GOOGLE_API_KEY = 'test-key';
 
       const providers = getConfiguredProviders();
 
       expect(providers).toContain('claude');
-      expect(providers).toContain('openai');
+      expect(providers).toContain('gemini');
       expect(providers).toHaveLength(2);
     });
   });
@@ -182,33 +182,33 @@ describe('LLM Configuration', () => {
   describe('getProviderApiKey()', () => {
     it('should return undefined when not configured', () => {
       expect(getProviderApiKey('claude')).toBeUndefined();
-      expect(getProviderApiKey('openai')).toBeUndefined();
+      expect(getProviderApiKey('gemini')).toBeUndefined();
     });
 
     it('should return API key when configured', () => {
       process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
-      process.env.OPENAI_API_KEY = 'sk-test';
+      process.env.GOOGLE_API_KEY = 'test-key';
 
       expect(getProviderApiKey('claude')).toBe('sk-ant-test');
-      expect(getProviderApiKey('openai')).toBe('sk-test');
+      expect(getProviderApiKey('gemini')).toBe('test-key');
     });
   });
 
   describe('getProviderDefaultModel()', () => {
     it('should return default model when not customized', () => {
       const claudeModel = getProviderDefaultModel('claude');
-      const openaiModel = getProviderDefaultModel('openai');
+      const geminiModel = getProviderDefaultModel('gemini');
 
       expect(claudeModel).toBe(CLAUDE_MODELS.latest);
-      expect(openaiModel).toBe(OPENAI_MODELS.balanced);
+      expect(geminiModel).toBe(GEMINI_MODELS.latest);
     });
 
     it('should return custom model when configured', () => {
       process.env.COGNITION_CLAUDE_MODEL = 'claude-3-haiku-20240307';
-      process.env.COGNITION_OPENAI_MODEL = 'gpt-3.5-turbo';
+      process.env.COGNITION_GEMINI_MODEL = 'gemini-2.0-flash-exp';
 
       expect(getProviderDefaultModel('claude')).toBe('claude-3-haiku-20240307');
-      expect(getProviderDefaultModel('openai')).toBe('gpt-3.5-turbo');
+      expect(getProviderDefaultModel('gemini')).toBe('gemini-2.0-flash-exp');
     });
   });
 
@@ -220,11 +220,11 @@ describe('LLM Configuration', () => {
       expect(CLAUDE_MODELS.fast).toBe('claude-3-haiku-20240307');
     });
 
-    it('should have OpenAI model presets', () => {
-      expect(OPENAI_MODELS.latest).toBe('gpt-4o');
-      expect(OPENAI_MODELS.balanced).toBe('gpt-4-turbo');
-      expect(OPENAI_MODELS.powerful).toBe('gpt-4');
-      expect(OPENAI_MODELS.fast).toBe('gpt-3.5-turbo');
+    it('should have Gemini model presets', () => {
+      expect(GEMINI_MODELS.latest).toBe('gemini-2.5-flash');
+      expect(GEMINI_MODELS.balanced).toBe('gemini-2.0-flash');
+      expect(GEMINI_MODELS.powerful).toBe('gemini-2.5-pro');
+      expect(GEMINI_MODELS.thinking).toBe('gemini-2.0-flash-thinking-exp-01-21');
     });
   });
 });

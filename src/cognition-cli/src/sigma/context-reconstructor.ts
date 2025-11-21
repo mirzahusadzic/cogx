@@ -137,18 +137,9 @@ function getSystemFingerprint(
   // Derive provider name and SDK from model string
   let providerName = 'Claude Code';
   let sdkName = 'Anthropic SDK';
-  if (modelName) {
-    if (
-      modelName.includes('gpt') ||
-      modelName.includes('o1') ||
-      modelName.includes('o3')
-    ) {
-      providerName = 'OpenAI';
-      sdkName = 'OpenAI SDK';
-    } else if (modelName.includes('gemini')) {
-      providerName = 'Gemini';
-      sdkName = 'Google AI SDK';
-    }
+  if (modelName?.includes('gemini')) {
+    providerName = 'Gemini';
+    sdkName = 'Google AI SDK';
   }
 
   return `# SYSTEM IDENTITY

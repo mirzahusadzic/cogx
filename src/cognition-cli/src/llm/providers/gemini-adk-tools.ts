@@ -191,7 +191,7 @@ export const editFileTool = new FunctionTool({
 /**
  * Get all ADK tools for Cognition
  */
-export function getCognitionTools(): FunctionTool<unknown>[] {
+export function getCognitionTools() {
   return [
     readFileTool,
     writeFileTool,

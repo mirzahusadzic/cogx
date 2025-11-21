@@ -46,7 +46,7 @@ export class GeminiAgentProvider
   extends GeminiProvider
   implements AgentProvider
 {
-  override name = 'gemini-agent';
+  override name = 'gemini';
   private currentRunner: Runner | null = null;
   private sessionService = new InMemorySessionService();
 

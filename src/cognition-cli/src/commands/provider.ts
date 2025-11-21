@@ -17,8 +17,8 @@
  * # Test Claude availability
  * cognition-cli provider test claude
  *
- * # Set OpenAI as default
- * cognition-cli provider set-default openai
+ * # Set Gemini as default
+ * cognition-cli provider set-default gemini
  *
  * # Show current configuration
  * cognition-cli provider config
@@ -32,7 +32,6 @@ import {
   validateLLMConfig,
   getConfiguredProviders,
   CLAUDE_MODELS,
-  OPENAI_MODELS,
   GEMINI_MODELS,
 } from '../llm/llm-config.js';
 
@@ -62,7 +61,7 @@ export function createProviderCommand(): Command {
           console.log(chalk.yellow('\n⚠️  No providers are configured\n'));
           console.log('Configure providers by setting environment variables:');
           console.log(chalk.dim('  ANTHROPIC_API_KEY=... for Claude'));
-          console.log(chalk.dim('  OPENAI_API_KEY=... for OpenAI'));
+          console.log(chalk.dim('  GOOGLE_API_KEY=... for Gemini'));
           console.log();
           return;
         }
@@ -212,25 +211,6 @@ export function createProviderCommand(): Command {
           );
         } else {
           console.log(chalk.yellow('  Not configured (set ANTHROPIC_API_KEY)'));
-        }
-        console.log();
-
-        // Show OpenAI configuration
-        console.log(chalk.cyan('OpenAI:'));
-        if (config.providers.openai?.apiKey) {
-          const key = config.providers.openai.apiKey;
-          const maskedKey = `${key.slice(0, 7)}...${key.slice(-4)}`;
-          console.log(`  API Key: ${chalk.dim(maskedKey)}`);
-          console.log(
-            `  Default Model: ${config.providers.openai.defaultModel || chalk.dim('not set')}`
-          );
-          console.log(
-            chalk.dim(
-              `  Available Models: ${Object.values(OPENAI_MODELS).join(', ')}`
-            )
-          );
-        } else {
-          console.log(chalk.yellow('  Not configured (set OPENAI_API_KEY)'));
         }
         console.log();
 

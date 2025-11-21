@@ -63,8 +63,8 @@ export class GeminiProvider implements LLMProvider {
   models = [
     'gemini-2.5-flash',
     'gemini-2.0-flash-thinking-exp-01-21',
-    'gemini-1.5-pro',
-    'gemini-1.5-flash',
+    'gemini-2.0-flash',
+    'gemini-2.5-pro',
   ];
 
   private client: GoogleGenAI;
@@ -270,7 +270,7 @@ export class GeminiProvider implements LLMProvider {
     try {
       // Quick test with minimal tokens to check availability
       await this.client.models.generateContent({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-2.5-flash',
         contents: 'test',
         config: {
           maxOutputTokens: 1,

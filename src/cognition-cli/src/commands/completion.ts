@@ -355,7 +355,7 @@ _cognition_cli_completions() {
       ;;
     tui)
       # After tui command, suggest flags
-      COMPREPLY=( $(compgen -W "-p --project-root --session-id -f --file -w --workbench --session-tokens --max-thinking-tokens --no-display-thinking --debug -h --help" -- \${cur}) )
+      COMPREPLY=( $(compgen -W "-p --project-root --session-id -f --file -w --workbench --session-tokens --max-thinking-tokens --no-show-thinking --debug -h --help" -- \${cur}) )
       return 0
       ;;
     overlay)
@@ -547,7 +547,7 @@ _cognition_cli() {
             {-w,--workbench}'[Workbench URL]:url:' \
             '--session-tokens[Token threshold]:number:' \
             '--max-thinking-tokens[Max thinking tokens]:number:' \
-            '--no-display-thinking[Hide thinking blocks in TUI]' \
+            '--no-show-thinking[Hide thinking blocks in TUI]' \
             '--debug[Enable debug logging]' \
             {-h,--help}'[Show help]'
           ;;
