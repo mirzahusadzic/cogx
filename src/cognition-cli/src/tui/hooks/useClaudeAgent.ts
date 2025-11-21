@@ -1564,11 +1564,12 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         // Show completion message if query succeeded
         if (lastResponse && hasAssistantMessage) {
           const cost = (lastResponse.tokens.total / 1_000_000) * 3; // Rough estimate
+          const messageCount = lastResponse.messages.length;
           setMessages((prev) => [
             ...prev,
             {
               type: 'system',
-              content: `✓ Complete (${previousMessageCount} messages, $${cost.toFixed(4)})`,
+              content: `✓ Complete (${lastResponse.numTurns} turns, ${messageCount} messages, ~$${cost.toFixed(4)})`,
               timestamp: new Date(),
             },
           ]);

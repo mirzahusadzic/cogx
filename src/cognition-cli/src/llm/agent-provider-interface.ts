@@ -126,6 +126,9 @@ export interface AgentResponse {
 
   /** Finish reason */
   finishReason: 'stop' | 'length' | 'tool_use' | 'error';
+
+  /** Number of turns (agent reasoning cycles) */
+  numTurns: number;
 }
 
 /**

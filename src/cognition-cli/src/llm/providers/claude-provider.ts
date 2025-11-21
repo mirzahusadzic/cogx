@@ -283,6 +283,7 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
     let currentSessionId = request.resumeSessionId || '';
     let totalTokens = { prompt: 0, completion: 0, total: 0 };
     let currentFinishReason: AgentResponse['finishReason'] = 'stop';
+    let numTurns = 0;
 
     try {
       for await (const sdkMessage of this.currentQuery) {
@@ -295,6 +296,10 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
         const agentMessage = this.convertSDKMessage(sdkMessage);
         if (agentMessage) {
           messages.push(agentMessage);
+          // Count turns (each assistant message = 1 turn)
+          if (agentMessage.type === 'assistant') {
+            numTurns++;
+          }
         }
 
         // Update token counts
@@ -309,6 +314,7 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
           sessionId: currentSessionId,
           tokens: totalTokens,
           finishReason: currentFinishReason,
+          numTurns,
         };
       }
     } finally {
