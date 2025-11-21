@@ -109,7 +109,6 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import type { SDKMessage, Query } from '@anthropic-ai/claude-agent-sdk';
 import path from 'path';
 import fs from 'fs';
 import chalk from 'chalk';
@@ -121,7 +120,7 @@ import { injectRelevantContext } from '../../sigma/context-injector.js';
 import { useTokenCount } from './tokens/useTokenCount.js';
 import { useSessionManager } from './session/useSessionManager.js';
 import {
-  createSDKQuery,
+  AgentProviderAdapter,
   isAuthenticationError,
   formatAuthError,
   formatSDKError,
@@ -289,6 +288,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     sessionTokens,
     maxThinkingTokens,
     debug: debugFlag,
+    provider: providerName = 'claude',
+    model: modelName,
   } = options;
 
   // ========================================
@@ -339,7 +340,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   ]);
   const [isThinking, setIsThinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentQuery, setCurrentQuery] = useState<Query | null>(null);
+  // TODO: Implement interrupt for AgentProviderAdapter
+  // const [currentQuery, setCurrentQuery] = useState<Query | null>(null);
 
   // ========================================
   // COMPOSED HOOKS
@@ -1440,9 +1442,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
         // This ensures we get the latest value even if resetResumeSession() was just called
         const currentResumeId = sessionManager.getResumeSessionId();
 
-        // Create query with Claude Code system prompt preset
-        const q = createSDKQuery({
-          prompt: finalPrompt,
+        // Create agent provider adapter for multi-provider support
+        const adapter = new AgentProviderAdapter({
+          provider: providerName,
+          model: modelName,
           cwd: cwd,
           resumeSessionId: currentResumeId, // undefined after compression = fresh session!
           maxThinkingTokens, // Enable extended thinking if specified
@@ -1465,23 +1468,97 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                   'conversation-memory': recallMcpServerRef.current,
                 }
               : undefined,
+          debug: debugFlag,
         });
 
-        setCurrentQuery(q);
+        // Note: setCurrentQuery expects a Query object from SDK, but we're using adapter
+        // We'll need to update this or remove it if not used elsewhere
+        // setCurrentQuery(adapter.query(finalPrompt));
 
-        // Process streaming messages
-        let messageCount = 0;
+        // Process streaming agent responses
+        let previousMessageCount = 0;
         let hasAssistantMessage = false;
-        for await (const message of q) {
-          messageCount++;
-          if (message.type === 'assistant') {
-            hasAssistantMessage = true;
+
+        for await (const response of adapter.query(finalPrompt)) {
+          // Process only new messages (delta)
+          const newMessages = response.messages.slice(previousMessageCount);
+          previousMessageCount = response.messages.length;
+
+          // Update session ID from response
+          if (response.sessionId) {
+            const prevSessionId = currentSessionIdRef.current;
+            if (prevSessionId !== response.sessionId) {
+              debug(
+                ' Agent session changed:',
+                prevSessionId,
+                '→',
+                response.sessionId
+              );
+
+              const reason = compression.state.triggered
+                ? 'compression'
+                : prevSessionId.startsWith('tui-')
+                  ? 'initial'
+                  : 'expiration';
+
+              const compressedTokens =
+                reason === 'compression'
+                  ? compression.state.lastCompressedTokens ||
+                    tokenCounter.count.total
+                  : undefined;
+
+              sessionManager.updateSDKSession(
+                response.sessionId,
+                reason,
+                compressedTokens
+              );
+
+              if (compression.state.triggered) {
+                compression.reset();
+                tokenCounter.reset();
+                debug(
+                  ' Compression flag reset - can compress again in new session'
+                );
+              }
+
+              if (
+                !sessionManager.state.hasReceivedSDKSessionId &&
+                conversationRegistryRef.current
+              ) {
+                conversationRegistryRef.current
+                  .flushAll(response.sessionId)
+                  .then(() => {
+                    debug(
+                      ' Initial flush completed with session ID:',
+                      response.sessionId
+                    );
+                    updateAnchorStats();
+                  })
+                  .catch((err) => {
+                    debug(' Initial flush failed:', err);
+                  });
+              }
+            }
           }
-          processSDKMessage(message);
+
+          // Update token counts (map AgentResponse tokens to TokenCount format)
+          tokenCounter.update({
+            input: response.tokens.prompt,
+            output: response.tokens.completion,
+            total: response.tokens.total,
+          });
+
+          // Process new messages
+          for (const agentMessage of newMessages) {
+            if (agentMessage.type === 'assistant') {
+              hasAssistantMessage = true;
+            }
+            processAgentMessage(agentMessage);
+          }
         }
 
         // If query completed without assistant response, show error
-        if (!hasAssistantMessage && messageCount <= 1) {
+        if (!hasAssistantMessage && previousMessageCount <= 1) {
           // Check for authentication errors in stderr
           let errorMsg = '';
 
@@ -1544,150 +1621,31 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   );
 
   /**
-   * Process streaming SDK messages and update UI state.
+   * Process agent messages from provider abstraction layer
    *
-   * Handles all SDK message types:
-   * - assistant: Tool calls, text responses
-   * - stream_event: Content deltas, token counts
-   * - tool_progress: Tool execution updates
-   * - result: Final query outcome
-   * - system: SDK initialization messages
+   * Handles AgentMessage types from provider:
+   * - assistant: Text responses (content string or array)
+   * - tool_use: Tool call messages
+   * - tool_result: Tool execution results
+   * - thinking: Extended thinking blocks
    *
-   * SESSION ID TRACKING:
-   * All SDK messages include session_id field. This is critical for
-   * detecting session changes (compression, expiration). The hook
-   * compares against currentSessionIdRef (synchronous) to prevent
-   * duplicate state updates during rapid message processing.
-   *
-   * TOKEN COUNT UPDATES:
-   * SDK sends token counts in message_delta events. These are cumulative
-   * within a session. The hook uses Math.max to prevent decreases, but
-   * allows reset after compression via useTokenCount's justReset flag.
-   *
-   * @param sdkMessage - Message from Claude Agent SDK
+   * @param agentMessage - Message from agent provider
    */
-  const processSDKMessage = (sdkMessage: SDKMessage) => {
-    // Extract session ID from SDK message (all SDK messages have it)
-    // This is critical for session-less TUI starts where SDK creates its own ID
-    if ('session_id' in sdkMessage && sdkMessage.session_id) {
-      const sdkSessionId = sdkMessage.session_id;
-      const prevSessionId = currentSessionIdRef.current; // Read from ref (synchronous, prevents duplicates)
+  const processAgentMessage = (
+    agentMessage: import('../../llm/agent-provider-interface.js').AgentMessage
+  ) => {
+    const { type, content } = agentMessage;
 
-      if (prevSessionId !== sdkSessionId) {
-        // SDK gave us a different session ID - update via sessionManager
-        debug(' SDK session changed:', prevSessionId, '→', sdkSessionId);
-
-        // Determine reason for session change
-        const reason = compression.state.triggered
-          ? 'compression'
-          : prevSessionId.startsWith('tui-')
-            ? 'initial'
-            : 'expiration';
-
-        // Get compressed token count if this was a compression
-        const compressedTokens =
-          reason === 'compression'
-            ? compression.state.lastCompressedTokens || tokenCounter.count.total
-            : undefined;
-
-        // Update session via sessionManager
-        sessionManager.updateSDKSession(sdkSessionId, reason, compressedTokens);
-
-        // CRITICAL: Reset compression flag when new SDK session starts
-        // This allows compression to trigger again in the new session
-        if (compression.state.triggered) {
-          compression.reset();
-          tokenCounter.reset(); // Reset token count for new session
-          debug(' Compression flag reset - can compress again in new session');
-        }
-
-        // Mark that we've received SDK session ID and trigger initial flush
-        if (
-          !sessionManager.state.hasReceivedSDKSessionId &&
-          conversationRegistryRef.current
-        ) {
-          // Trigger immediate flush with correct session ID
-          // This ensures overlays are saved even if we never hit compression threshold
-          conversationRegistryRef.current
-            .flushAll(sdkSessionId)
-            .then(() => {
-              debug(
-                ' Initial flush completed with SDK session ID:',
-                sdkSessionId
-              );
-              // Update anchor stats
-              updateAnchorStats();
-            })
-            .catch((err) => {
-              debug(' Initial flush failed:', err);
-            });
-        }
-      }
-    }
-
-    switch (sdkMessage.type) {
+    switch (type) {
       case 'assistant': {
-        // Check if this message has tool calls - if so, display them
-        const toolUses = sdkMessage.message.content.filter(
-          (c: { type: string }) => c.type === 'tool_use'
-        ) as Array<{ name: string; input: Record<string, unknown> }>;
-        if (toolUses.length > 0) {
-          toolUses.forEach((tool) => {
-            const formatted = formatToolUse(tool);
-            setMessages((prev) => [
-              ...prev,
-              {
-                type: 'tool_progress',
-                content: `${formatted.icon} ${formatted.name}: ${formatted.description}`,
-                timestamp: new Date(),
-              },
-            ]);
-          });
-        }
-        break;
-      }
-
-      case 'stream_event': {
-        // Handle different stream event types
-        const event = sdkMessage.event as {
-          type: string;
-          content_block?: { type: string; name: string };
-          delta?: { type: string; text: string };
-          usage?: {
-            input_tokens: number;
-            output_tokens: number;
-            cache_creation_input_tokens?: number;
-            cache_read_input_tokens?: number;
-          };
-        };
-
-        // Update token count from message_delta events (progressive updates)
-        if (event.type === 'message_delta' && event.usage) {
-          const usage = event.usage;
-          const totalInput =
-            usage.input_tokens +
-            (usage.cache_creation_input_tokens || 0) +
-            (usage.cache_read_input_tokens || 0);
-          const totalOutput = usage.output_tokens;
-
-          // Update token count (hook automatically handles Math.max and reset logic)
-          tokenCounter.update({
-            input: totalInput,
-            output: totalOutput,
-            total: totalInput + totalOutput,
-          });
-        }
-
-        if (
-          event.type === 'content_block_delta' &&
-          event.delta?.type === 'text_delta'
-        ) {
-          // Text content streaming
-          const delta = event.delta;
-          const colorReplacedText = stripANSICodes(delta.text);
+        // Assistant message - could be text or tool use
+        if (typeof content === 'string') {
+          // Simple text response
+          const colorReplacedText = stripANSICodes(content);
           setMessages((prev) => {
             const last = prev[prev.length - 1];
             if (last && last.type === 'assistant') {
+              // Append to existing assistant message
               return [
                 ...prev.slice(0, -1),
                 {
@@ -1696,6 +1654,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
                 },
               ];
             } else {
+              // New assistant message
               return [
                 ...prev,
                 {
@@ -1706,76 +1665,96 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               ];
             }
           });
+        } else if (Array.isArray(content)) {
+          // Content blocks (tool use, text, etc.)
+          const toolUses = content.filter((c) => c.type === 'tool_use');
+          const textBlocks = content.filter((c) => c.type === 'text');
+
+          // Show tool uses
+          if (toolUses.length > 0) {
+            toolUses.forEach((tool) => {
+              if (tool.name && tool.input) {
+                const formatted = formatToolUse({
+                  name: tool.name,
+                  input: tool.input as Record<string, unknown>,
+                });
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    type: 'tool_progress',
+                    content: `${formatted.icon} ${formatted.name}: ${formatted.description}`,
+                    timestamp: new Date(),
+                  },
+                ]);
+              }
+            });
+          }
+
+          // Show text blocks
+          if (textBlocks.length > 0) {
+            const text = textBlocks.map((b) => b.text || '').join('\n');
+            const colorReplacedText = stripANSICodes(text);
+            setMessages((prev) => [
+              ...prev,
+              {
+                type: 'assistant',
+                content: colorReplacedText,
+                timestamp: new Date(),
+              },
+            ]);
+          }
         }
         break;
       }
 
-      case 'tool_progress':
-        // Tool execution progress
-        setMessages((prev) => [
-          ...prev,
-          {
-            type: 'tool_progress',
-            content: `⏱️ ${sdkMessage.tool_name} (${Math.round(sdkMessage.elapsed_time_seconds)}s)`,
-            timestamp: new Date(),
-          },
-        ]);
-        break;
-
-      case 'result':
-        // Final result - update token counts (keep existing if higher)
-        if (sdkMessage.subtype === 'success') {
-          const usage = sdkMessage.usage;
-          // Result usage doesn't include cache tokens, so only update if it's higher
-          const resultTotal = usage.input_tokens + usage.output_tokens;
-
-          // Update token count (hook automatically handles Math.max and reset logic)
-          tokenCounter.update({
-            input: usage.input_tokens,
-            output: usage.output_tokens,
-            total: resultTotal,
+      case 'tool_use': {
+        // Tool use message
+        if (typeof content === 'string') {
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: 'tool_progress',
+              content: `🔧 ${content}`,
+              timestamp: new Date(),
+            },
+          ]);
+        } else if (Array.isArray(content)) {
+          content.forEach((tool) => {
+            if (tool.name && tool.input) {
+              const formatted = formatToolUse({
+                name: tool.name,
+                input: tool.input as Record<string, unknown>,
+              });
+              setMessages((prev) => [
+                ...prev,
+                {
+                  type: 'tool_progress',
+                  content: `${formatted.icon} ${formatted.name}: ${formatted.description}`,
+                  timestamp: new Date(),
+                },
+              ]);
+            }
           });
-
-          setMessages((prev) => [
-            ...prev,
-            {
-              type: 'system',
-              content: `✓ Complete (${sdkMessage.num_turns} turns, $${sdkMessage.total_cost_usd.toFixed(4)})`,
-              timestamp: new Date(),
-            },
-          ]);
-        } else {
-          // Check if this is an interrupt (user pressed ESC ESC)
-          const isInterrupt = sdkMessage.subtype === 'error_during_execution';
-
-          setMessages((prev) => [
-            ...prev,
-            {
-              type: 'system',
-              content: isInterrupt
-                ? '⏸️  Interrupted · What should Claude do instead?'
-                : `✗ Error: ${sdkMessage.subtype}`,
-              timestamp: new Date(),
-            },
-          ]);
         }
         break;
+      }
 
-      case 'system':
-        // System messages
-        if (sdkMessage.subtype === 'init') {
-          setMessages((prev) => [
-            ...prev,
-            {
-              type: 'system',
-              content: `Connected to Claude (${sdkMessage.model})`,
-              timestamp: new Date(),
-            },
-          ]);
-        }
+      case 'thinking': {
+        // Extended thinking - could show in UI later
+        debug(
+          '💭 Thinking:',
+          typeof content === 'string' ? content.substring(0, 100) : '...'
+        );
+        break;
+      }
+
+      default:
+        // Ignore other message types
         break;
     }
   };
+
+  // processSDKMessage removed - now using processAgentMessage for provider abstraction
 
   /**
    * Interrupt the current SDK query.
@@ -1788,11 +1767,10 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
    * await interrupt();
    */
   const interrupt = useCallback(async () => {
-    if (currentQuery) {
-      await currentQuery.interrupt();
-      setIsThinking(false);
-    }
-  }, [currentQuery]);
+    // TODO: Implement interrupt for AgentProviderAdapter
+    // For now, just set thinking to false
+    setIsThinking(false);
+  }, []);
 
   // ========================================
   // RETURN VALUE
