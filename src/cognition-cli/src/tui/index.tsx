@@ -39,6 +39,7 @@ interface CognitionTUIProps {
   debug?: boolean;
   provider?: string;
   model?: string;
+  displayThinking?: boolean;
 }
 
 const CognitionTUI: React.FC<CognitionTUIProps> = ({
@@ -51,6 +52,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   debug,
   provider,
   model,
+  displayThinking = true,
 }) => {
   const { stdout } = useStdout();
   const [focused, setFocused] = useState(true);
@@ -402,7 +404,11 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
             flexDirection="row"
           >
             <ClaudePanelAgent
-              messages={messages}
+              messages={
+                displayThinking
+                  ? messages
+                  : messages.filter((m) => m.type !== 'thinking')
+              }
               isThinking={isThinking}
               focused={!focused}
               streamingPaste={streamingPaste}

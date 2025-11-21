@@ -346,6 +346,7 @@ program
   )
   .option('--model <name>', 'Model to use (provider-specific)')
   .option('--debug', 'Enable debug logging for Sigma compression')
+  .option('--no-display-thinking', 'Hide thinking blocks in TUI')
   .action(async (options) => {
     const { tuiCommand } = await import('./commands/tui.js');
     await tuiCommand({
@@ -360,6 +361,7 @@ program
       debug: options.debug,
       provider: options.provider,
       model: options.model,
+      displayThinking: options.displayThinking !== false,
     });
   });
 

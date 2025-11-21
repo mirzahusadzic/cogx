@@ -191,7 +191,7 @@ interface UseClaudeAgentOptions {
  */
 export interface ClaudeMessage {
   /** Message role */
-  type: 'user' | 'assistant' | 'system' | 'tool_progress';
+  type: 'user' | 'assistant' | 'system' | 'tool_progress' | 'thinking';
 
   /** Message text content */
   content: string;
@@ -1193,6 +1193,22 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   }, [currentSessionId]);
 
   // ========================================
+  // TOKEN PERSISTENCE (synchronized with TUI)
+  // ========================================
+
+  /**
+   * Persist token count whenever TUI display updates.
+   * useEffect ensures file write happens AFTER React state update.
+   */
+  useEffect(() => {
+    // Skip if no session manager or tokens unchanged
+    if (tokenCounter.count.total === lastPersistedTokensRef.current) return;
+
+    sessionManager.updateTokens(tokenCounter.count);
+    lastPersistedTokensRef.current = tokenCounter.count.total;
+  }, [tokenCounter.count, sessionManager]);
+
+  // ========================================
   // OVERLAY STATISTICS
   // ========================================
 
@@ -1521,7 +1537,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
               if (compression.state.triggered) {
                 compression.reset();
-                tokenCounter.reset();
+                tokenCounter.reset(); // useEffect will persist 0 in sync with TUI
                 debug(
                   ' Compression flag reset - can compress again in new session'
                 );
@@ -1555,12 +1571,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           };
           tokenCounter.update(newTokens);
 
-          // Persist token count on every update for accurate state sync
-          if (newTokens.total !== lastPersistedTokensRef.current) {
-            sessionManager.updateTokens(newTokens);
-            lastPersistedTokensRef.current = newTokens.total;
-          }
-
           // Process new messages
           for (const agentMessage of newMessages) {
             if (agentMessage.type === 'assistant') {
@@ -1582,10 +1592,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
               timestamp: new Date(),
             },
           ]);
-
-          // Final persist on query completion (regardless of throttle)
-          sessionManager.updateTokens(tokenCounter.count);
-          lastPersistedTokensRef.current = tokenCounter.count.total;
         }
 
         // If query completed without assistant response, show error
@@ -1700,11 +1706,27 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
             }
           });
         } else if (Array.isArray(content)) {
-          // Content blocks (tool use, text, etc.)
+          // Content blocks (tool use, text, thinking, etc.)
           const toolUses = content.filter((c) => c.type === 'tool_use');
           const textBlocks = content.filter((c) => c.type === 'text');
+          const thinkingBlocks = content.filter((c) => c.type === 'thinking');
 
-          // Show text blocks FIRST (e.g., "Let me check that" before tool use)
+          // Show thinking blocks FIRST (reasoning before tool call)
+          if (thinkingBlocks.length > 0) {
+            const thinking = thinkingBlocks
+              .map((b) => b.thinking || '')
+              .join('\n');
+            setMessages((prev) => [
+              ...prev,
+              {
+                type: 'thinking',
+                content: thinking,
+                timestamp: new Date(),
+              },
+            ]);
+          }
+
+          // Show text blocks (e.g., "Let me check that" before tool use)
           if (textBlocks.length > 0) {
             const text = textBlocks.map((b) => b.text || '').join('\n');
             const colorReplacedText = stripANSICodes(text);

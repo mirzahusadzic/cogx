@@ -60,6 +60,10 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
           prefix = '';
           color = '#58a6ff'; // O1 structural blue
           break;
+        case 'thinking':
+          prefix = '🤖 ';
+          color = '#8b949e'; // Muted gray for thinking (matches system)
+          break;
         case 'tool_progress': {
           prefix = '  ';
           // Use amber-orange for tool commands, but blue for Edit diffs (they have their own formatting)
@@ -85,10 +89,11 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
       // Split content into lines and store with color
       const contentLines = (prefix + msg.content).split('\n');
+      const indent = msg.type === 'thinking' ? '    ' : ''; // Indent thinking blocks
       contentLines.forEach((line) => {
         // Process markdown bold syntax (adds resets only if colors were added)
         const processedLine = processBold(line);
-        lines.push({ text: processedLine, color });
+        lines.push({ text: indent + processedLine, color });
       });
       lines.push({ text: '', color }); // Empty line between messages
     });

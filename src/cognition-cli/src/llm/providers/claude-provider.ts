@@ -359,13 +359,18 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
         interface ContentBlock {
           type: string;
           text?: string;
+          thinking?: string;
           id?: string;
           name?: string;
           input?: Record<string, unknown>;
         }
         const content = sdkMessage.message.content as ContentBlock[];
+
         const textBlocks = content.filter(
           (c): c is ContentBlock & { text: string } => c.type === 'text'
+        );
+        const thinkingBlocks = content.filter(
+          (c): c is ContentBlock & { thinking: string } => c.type === 'thinking'
         );
         const toolBlocks = content.filter(
           (
@@ -377,11 +382,25 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
           } => c.type === 'tool_use'
         );
 
+        // Return thinking blocks immediately (they come in separate messages before tool calls)
+        if (thinkingBlocks.length > 0) {
+          return {
+            ...baseMessage,
+            type: 'assistant',
+            role: 'assistant',
+            content: thinkingBlocks.map((t) => ({
+              type: 'thinking' as const,
+              thinking: t.thinking,
+            })),
+          } as AgentMessage;
+        }
+
         // Only return text from assistant messages when there are also tool calls
         // (pure text responses come via stream_event deltas to avoid duplication)
         if (toolBlocks.length > 0) {
-          // Build content array with text and tool_use blocks
+          // Build content array with thinking, text, and tool_use blocks
           const contentArray: Array<
+            | { type: 'thinking'; thinking: string }
             | { type: 'text'; text: string }
             | {
                 type: 'tool_use';
@@ -391,7 +410,12 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
               }
           > = [];
 
-          // Add text blocks first (if any)
+          // Add thinking blocks first (reasoning before tool call)
+          thinkingBlocks.forEach((t) => {
+            contentArray.push({ type: 'thinking', thinking: t.thinking });
+          });
+
+          // Add text blocks (if any)
           textBlocks.forEach((t) => {
             contentArray.push({ type: 'text', text: t.text });
           });

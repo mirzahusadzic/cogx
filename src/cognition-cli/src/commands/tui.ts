@@ -69,6 +69,8 @@ interface TUIOptions {
   provider?: string;
   /** Model to use (provider-specific) */
   model?: string;
+  /** Display thinking blocks in TUI (default: true) */
+  displayThinking?: boolean;
 }
 
 /**
@@ -195,5 +197,6 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     debug: options.debug,
     provider: options.provider, // NEW: Pass provider to TUI
     model: options.model, // NEW: Pass model to TUI
+    displayThinking: options.displayThinking ?? true,
   });
 }

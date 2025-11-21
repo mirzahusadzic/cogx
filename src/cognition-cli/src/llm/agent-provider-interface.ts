@@ -81,8 +81,9 @@ export interface AgentRequest {
  * Agent message content block
  */
 export interface AgentContent {
-  type: 'text' | 'tool_use' | 'tool_result';
+  type: 'text' | 'tool_use' | 'tool_result' | 'thinking';
   text?: string;
+  thinking?: string;
   id?: string;
   name?: string;
   input?: unknown;

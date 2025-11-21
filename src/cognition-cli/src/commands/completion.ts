@@ -355,7 +355,7 @@ _cognition_cli_completions() {
       ;;
     tui)
       # After tui command, suggest flags
-      COMPREPLY=( $(compgen -W "-p --project-root --session-id -f --file -w --workbench --session-tokens --max-thinking-tokens --debug -h --help" -- \${cur}) )
+      COMPREPLY=( $(compgen -W "-p --project-root --session-id -f --file -w --workbench --session-tokens --max-thinking-tokens --no-display-thinking --debug -h --help" -- \${cur}) )
       return 0
       ;;
     overlay)
@@ -547,6 +547,7 @@ _cognition_cli() {
             {-w,--workbench}'[Workbench URL]:url:' \
             '--session-tokens[Token threshold]:number:' \
             '--max-thinking-tokens[Max thinking tokens]:number:' \
+            '--no-display-thinking[Hide thinking blocks in TUI]' \
             '--debug[Enable debug logging]' \
             {-h,--help}'[Show help]'
           ;;
@@ -698,6 +699,7 @@ complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -s f -l file -d "
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -s w -l workbench -d "Workbench URL"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l session-tokens -d "Token threshold"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l max-thinking-tokens -d "Max thinking tokens"
+complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l no-display-thinking -d "Hide thinking blocks"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l debug -d "Enable debug logging"
 
 # genesis:docs options
