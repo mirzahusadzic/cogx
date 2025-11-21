@@ -737,7 +737,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           const sessionContext = await reconstructSessionContext(
             latticeWithPending,
             cwd,
-            conversationRegistryRef.current || undefined
+            conversationRegistryRef.current || undefined,
+            modelName
           );
           debug('🔍 [COMPRESSION] Step 7: reconstructSessionContext complete');
 

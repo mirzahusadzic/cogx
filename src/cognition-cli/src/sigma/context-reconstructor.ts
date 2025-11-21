@@ -131,11 +131,29 @@ interface MentalMapBlock {
 function getSystemFingerprint(
   cwd: string,
   mode: ConversationMode,
-  isCompressed: boolean
+  isCompressed: boolean,
+  modelName?: string
 ): string {
+  // Derive provider name and SDK from model string
+  let providerName = 'Claude Code';
+  let sdkName = 'Anthropic SDK';
+  if (modelName) {
+    if (
+      modelName.includes('gpt') ||
+      modelName.includes('o1') ||
+      modelName.includes('o3')
+    ) {
+      providerName = 'OpenAI';
+      sdkName = 'OpenAI SDK';
+    } else if (modelName.includes('gemini')) {
+      providerName = 'Gemini';
+      sdkName = 'Google AI SDK';
+    }
+  }
+
   return `# SYSTEM IDENTITY
 
-You are **Claude Code** (Anthropic SDK) running inside **Cognition Σ (Sigma) CLI** - a verifiable AI-human symbiosis architecture with dual-lattice knowledge representation.
+You are **${providerName}** (${sdkName}) running inside **Cognition Σ (Sigma) CLI** - a verifiable AI-human symbiosis architecture with dual-lattice knowledge representation.
 
 ## What is Cognition Σ?
 A portable cognitive layer that can be initialized in **any repository**. Creates \`.sigma/\` (conversation memory) and \`.open_cognition/\` (PGC project knowledge store) in the current working directory.
@@ -599,7 +617,8 @@ function getCurrentDepth(lattice: ConversationLattice): {
  */
 async function reconstructQuestContext(
   lattice: ConversationLattice,
-  cwd: string
+  cwd: string,
+  modelName?: string
 ): Promise<string> {
   const quest = detectCurrentQuest(lattice);
   const mentalMap = buildMentalMap(lattice);
@@ -608,7 +627,7 @@ async function reconstructQuestContext(
 
   const statusEmoji = quest.completed ? '✅' : '🔄';
 
-  const fingerprint = getSystemFingerprint(cwd, 'quest', true);
+  const fingerprint = getSystemFingerprint(cwd, 'quest', true, modelName);
 
   return (
     fingerprint +
@@ -920,14 +939,15 @@ function filterLatticeByOverlayScores(
 async function reconstructChatContext(
   lattice: ConversationLattice,
   cwd: string,
-  conversationRegistry?: ConversationOverlayRegistry
+  conversationRegistry?: ConversationOverlayRegistry,
+  modelName?: string
 ): Promise<string> {
   const nodes = lattice.nodes;
 
   // Get last conversation turns with role attribution
   const { turns, pendingTask } = getLastConversationTurns(lattice);
 
-  const fingerprint = getSystemFingerprint(cwd, 'chat', true);
+  const fingerprint = getSystemFingerprint(cwd, 'chat', true, modelName);
 
   // FAST PATH: Use lattice data directly (in-memory, no disk I/O)
   // This is MUCH faster than querying conversation overlays from disk
@@ -1323,7 +1343,8 @@ ${formatLastTurns(turns, pendingTask)}
 export async function reconstructSessionContext(
   lattice: ConversationLattice,
   cwd: string,
-  conversationRegistry?: ConversationOverlayRegistry
+  conversationRegistry?: ConversationOverlayRegistry,
+  modelName?: string
 ): Promise<ReconstructedSessionContext> {
   // 1. Classify conversation mode
   const mode = classifyConversationMode(lattice);
@@ -1347,8 +1368,13 @@ export async function reconstructSessionContext(
   // 3. Reconstruct based on mode (pass conversationRegistry!)
   const recap =
     mode === 'quest'
-      ? await reconstructQuestContext(lattice, cwd)
-      : await reconstructChatContext(lattice, cwd, conversationRegistry);
+      ? await reconstructQuestContext(lattice, cwd, modelName)
+      : await reconstructChatContext(
+          lattice,
+          cwd,
+          conversationRegistry,
+          modelName
+        );
 
   return {
     mode,
