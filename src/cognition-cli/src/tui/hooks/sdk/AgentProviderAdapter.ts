@@ -149,8 +149,7 @@ export class AgentProviderAdapter {
       }
     } catch (error) {
       // Map provider errors to TUI-friendly format
-      const errorMsg =
-        error instanceof Error ? error.message : String(error);
+      const errorMsg = error instanceof Error ? error.message : String(error);
 
       if (this.options.debug) {
         console.error('[AgentAdapter] Error:', errorMsg);

@@ -125,7 +125,6 @@ import {
   isAuthenticationError,
   formatAuthError,
   formatSDKError,
-  AgentProviderAdapter,
 } from './sdk/index.js';
 import { formatToolUse } from './rendering/ToolFormatter.js';
 import { stripANSICodes } from './rendering/MessageRenderer.js';
@@ -290,8 +289,6 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
     sessionTokens,
     maxThinkingTokens,
     debug: debugFlag,
-    provider: providerName,
-    model: modelName,
   } = options;
 
   // ========================================
@@ -1635,7 +1632,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           (c: { type: string }) => c.type === 'tool_use'
         ) as Array<{ name: string; input: Record<string, unknown> }>;
         if (toolUses.length > 0) {
-          toolUses.forEach((tool: any) => {
+          toolUses.forEach((tool) => {
             const formatted = formatToolUse(tool);
             setMessages((prev) => [
               ...prev,

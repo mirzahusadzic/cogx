@@ -369,14 +369,14 @@ export async function* streamComplete(
     temperature,
     stopSequences,
   })) {
-    if (chunk.text) {
+    if (chunk.delta) {
       if (onChunk) {
-        onChunk(chunk.text);
+        onChunk(chunk.delta);
       }
-      yield chunk.text;
+      yield chunk.delta;
     }
 
-    if (chunk.isComplete) {
+    if (chunk.done) {
       break;
     }
   }

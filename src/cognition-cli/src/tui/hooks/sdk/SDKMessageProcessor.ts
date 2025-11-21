@@ -204,7 +204,7 @@ export function processAssistantMessage(
   ) as Array<{ name: string; input: Record<string, unknown> }>;
 
   if (toolUses.length > 0) {
-    toolUses.forEach((tool: any) => {
+    toolUses.forEach((tool) => {
       const formatted = formatToolUse(tool);
       messages.push({
         type: 'tool_progress',

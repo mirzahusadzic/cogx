@@ -34,7 +34,11 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import { query, type Query, type SDKMessage } from '@anthropic-ai/claude-agent-sdk';
+import {
+  query,
+  type Query,
+  type SDKMessage,
+} from '@anthropic-ai/claude-agent-sdk';
 import type {
   LLMProvider,
   CompletionRequest,
@@ -46,7 +50,6 @@ import type {
   AgentRequest,
   AgentResponse,
   AgentMessage,
-  AgentContent,
 } from '../agent-provider-interface.js';
 
 /**
@@ -95,8 +98,8 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
 
       // Extract text from content blocks
       const text = response.content
-        .filter((block: any) => block.type === 'text')
-        .map((block: any) => (block as { type: 'text'; text: string }).text)
+        .filter((block) => block.type === 'text')
+        .map((block) => ('text' in block ? block.text : ''))
         .join('\n');
 
       return {
@@ -185,7 +188,7 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
         messages: [{ role: 'user', content: 'test' }],
       });
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -256,15 +259,20 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
             ? ({
                 type: 'preset',
                 preset: 'claude_code',
-                append: request.systemPrompt.preset !== 'claude_code' ? request.systemPrompt.preset : undefined,
-              } as any)
+                append:
+                  request.systemPrompt.preset !== 'claude_code'
+                    ? request.systemPrompt.preset
+                    : undefined,
+              } as const)
             : request.systemPrompt?.custom
-              ? { type: 'custom', prompt: request.systemPrompt.custom }
-              : { type: 'preset', preset: 'claude_code' },
+              ? (request.systemPrompt.custom as string)
+              : ({ type: 'preset', preset: 'claude_code' } as const),
         includePartialMessages: request.includePartialMessages ?? true,
         maxThinkingTokens: request.maxThinkingTokens,
         stderr: request.onStderr,
-        canUseTool: request.onCanUseTool as any,
+        ...(request.onCanUseTool
+          ? { canUseTool: request.onCanUseTool as never }
+          : {}),
         mcpServers: request.mcpServers,
       },
     });
@@ -320,23 +328,40 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
     switch (sdkMessage.type) {
       case 'assistant': {
         // Assistant message with possible tool calls
-        const content = sdkMessage.message.content as any[];
-        const textBlocks = content.filter((c: any) => c.type === 'text');
-        const toolBlocks = content.filter((c: any) => c.type === 'tool_use');
+        interface ContentBlock {
+          type: string;
+          text?: string;
+          id?: string;
+          name?: string;
+          input?: Record<string, unknown>;
+        }
+        const content = sdkMessage.message.content as ContentBlock[];
+        const textBlocks = content.filter(
+          (c): c is ContentBlock & { text: string } => c.type === 'text'
+        );
+        const toolBlocks = content.filter(
+          (
+            c
+          ): c is ContentBlock & {
+            id: string;
+            name: string;
+            input: Record<string, unknown>;
+          } => c.type === 'tool_use'
+        );
 
         if (textBlocks.length > 0) {
           return {
             ...baseMessage,
             type: 'assistant',
             role: 'assistant',
-            content: textBlocks.map((b: any) => b.text).join('\n'),
+            content: textBlocks.map((b) => b.text).join('\n'),
           } as AgentMessage;
         } else if (toolBlocks.length > 0) {
           return {
             ...baseMessage,
             type: 'tool_use',
             role: 'assistant',
-            content: toolBlocks.map((t: any) => ({
+            content: toolBlocks.map((t) => ({
               type: 'tool_use' as const,
               id: t.id,
               name: t.name,
@@ -414,7 +439,10 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
           total: event.usage.input_tokens + event.usage.output_tokens,
         };
       }
-    } else if (sdkMessage.type === 'result' && sdkMessage.subtype === 'success') {
+    } else if (
+      sdkMessage.type === 'result' &&
+      sdkMessage.subtype === 'success'
+    ) {
       const usage = sdkMessage.usage;
       return {
         prompt: usage.input_tokens,

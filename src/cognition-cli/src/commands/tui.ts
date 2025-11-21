@@ -157,9 +157,7 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
   // Validate provider if specified
   if (options.provider) {
     try {
-      const { registry, initializeProviders } = await import(
-        '../llm/index.js'
-      );
+      const { registry, initializeProviders } = await import('../llm/index.js');
       await initializeProviders();
 
       if (!registry.has(options.provider)) {

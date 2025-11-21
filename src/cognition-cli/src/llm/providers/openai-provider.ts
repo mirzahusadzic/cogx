@@ -185,18 +185,21 @@ export class OpenAIProvider implements LLMProvider {
         stream: true,
       });
 
+      let fullText = '';
       for await (const chunk of stream) {
         const delta = chunk.choices[0]?.delta?.content;
         if (delta) {
+          fullText += delta;
           yield {
-            text: delta,
-            isComplete: false,
+            delta,
+            text: fullText,
+            done: false,
           };
         }
       }
 
       // Final chunk to signal completion
-      yield { text: '', isComplete: true };
+      yield { delta: '', text: fullText, done: true };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);

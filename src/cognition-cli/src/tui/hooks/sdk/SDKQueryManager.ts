@@ -59,10 +59,6 @@
 import { query, type Query } from '@anthropic-ai/claude-agent-sdk';
 import type { SDKQueryOptions } from './types.js';
 
-// Feature flag for provider abstraction (default: false for backward compatibility)
-const USE_PROVIDER_ABSTRACTION =
-  process.env.COGNITION_USE_PROVIDER_ABSTRACTION === 'true';
-
 /**
  * Create an SDK query with proper configuration
  *

@@ -193,18 +193,21 @@ export class GeminiProvider implements LLMProvider {
         },
       });
 
+      let fullText = '';
       for await (const chunk of stream) {
-        const text = chunk.text || '';
-        if (text) {
+        const delta = chunk.text || '';
+        if (delta) {
+          fullText += delta;
           yield {
-            text,
-            isComplete: false,
+            delta,
+            text: fullText,
+            done: false,
           };
         }
       }
 
       // Final chunk to signal completion
-      yield { text: '', isComplete: true };
+      yield { delta: '', text: fullText, done: true };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);

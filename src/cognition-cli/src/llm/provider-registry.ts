@@ -39,6 +39,7 @@ export class ProviderRegistry {
    * Register a provider
    *
    * @param provider - Provider instance to register
+   * @throws Error if provider with same name already registered
    *
    * @example
    * ```typescript
@@ -47,7 +48,18 @@ export class ProviderRegistry {
    * ```
    */
   register(provider: LLMProvider): void {
+    if (this.providers.has(provider.name)) {
+      throw new Error(
+        `Provider '${provider.name}' is already registered. Unregister first if you want to replace it.`
+      );
+    }
+
     this.providers.set(provider.name, provider);
+
+    // Set as default if it's the first provider
+    if (this.providers.size === 1) {
+      this.defaultProvider = provider.name;
+    }
   }
 
   /**
@@ -55,7 +67,7 @@ export class ProviderRegistry {
    *
    * @param name - Provider name
    * @returns Provider instance
-   * @throws Error if provider not found
+   * @throws Error if provider not registered
    *
    * @example
    * ```typescript
@@ -66,8 +78,9 @@ export class ProviderRegistry {
   get(name: string): LLMProvider {
     const provider = this.providers.get(name);
     if (!provider) {
+      const available = this.list().join(', ') || 'none';
       throw new Error(
-        `Provider '${name}' not found. Available providers: ${this.list().join(', ')}`
+        `Provider '${name}' not registered. Available providers: ${available}`
       );
     }
     return provider;
@@ -104,6 +117,7 @@ export class ProviderRegistry {
    * Get default provider
    *
    * @returns Default provider instance
+   * @throws Error if no providers registered
    *
    * @example
    * ```typescript
@@ -111,6 +125,11 @@ export class ProviderRegistry {
    * ```
    */
   getDefault(): LLMProvider {
+    if (this.providers.size === 0) {
+      throw new Error(
+        'No providers registered. Register at least one provider before use.'
+      );
+    }
     return this.get(this.defaultProvider);
   }
 
@@ -133,6 +152,7 @@ export class ProviderRegistry {
    * Set default provider
    *
    * @param name - Provider name to set as default
+   * @throws Error if provider not registered
    *
    * @example
    * ```typescript
@@ -140,9 +160,51 @@ export class ProviderRegistry {
    * ```
    */
   setDefault(name: string): void {
-    // Verify provider exists
-    this.get(name);
+    if (!this.providers.has(name)) {
+      const available = this.list().join(', ') || 'none';
+      throw new Error(
+        `Cannot set default to unregistered provider '${name}'. ` +
+          `Available providers: ${available}`
+      );
+    }
     this.defaultProvider = name;
+  }
+
+  /**
+   * Get name of default provider
+   *
+   * @returns Name of current default provider
+   *
+   * @example
+   * ```typescript
+   * const defaultName = registry.getDefaultName();
+   * console.log(`Default provider: ${defaultName}`);
+   * ```
+   */
+  getDefaultName(): string {
+    return this.defaultProvider;
+  }
+
+  /**
+   * Health check for provider
+   *
+   * Tests if provider is available and functional.
+   *
+   * @param name - Provider name
+   * @returns True if provider is available
+   * @throws Error if provider not registered
+   *
+   * @example
+   * ```typescript
+   * const available = await registry.healthCheck('claude');
+   * if (!available) {
+   *   console.warn('Claude is unavailable');
+   * }
+   * ```
+   */
+  async healthCheck(name: string): Promise<boolean> {
+    const provider = this.get(name);
+    return await provider.isAvailable();
   }
 
   /**
@@ -217,18 +279,32 @@ export class ProviderRegistry {
    * Remove provider from registry
    *
    * @param name - Provider name
+   * @returns True if provider was removed, false if not found
    *
    * @example
    * ```typescript
-   * registry.unregister('old-provider');
+   * const removed = registry.unregister('old-provider');
+   * if (!removed) {
+   *   console.warn('Provider was not registered');
+   * }
    * ```
    */
-  unregister(name: string): void {
-    this.providers.delete(name);
+  unregister(name: string): boolean {
+    const removed = this.providers.delete(name);
+
+    if (removed && this.defaultProvider === name) {
+      // Reset default to first available provider or 'claude'
+      const firstProvider = this.providers.keys().next().value;
+      this.defaultProvider = firstProvider || 'claude';
+    }
+
+    return removed;
   }
 
   /**
    * Clear all providers
+   *
+   * Removes all registered providers and resets default to 'claude'.
    *
    * @example
    * ```typescript
@@ -237,6 +313,51 @@ export class ProviderRegistry {
    */
   clear(): void {
     this.providers.clear();
+    this.defaultProvider = 'claude';
+  }
+
+  /**
+   * Get count of registered providers
+   *
+   * @returns Number of registered providers
+   *
+   * @example
+   * ```typescript
+   * const count = registry.count();
+   * console.log(`${count} providers registered`);
+   * ```
+   */
+  count(): number {
+    return this.providers.size;
+  }
+
+  /**
+   * Health check all providers
+   *
+   * Checks availability of all registered providers.
+   *
+   * @returns Object mapping provider names to availability status
+   *
+   * @example
+   * ```typescript
+   * const results = await registry.healthCheckAll();
+   * for (const [name, available] of Object.entries(results)) {
+   *   console.log(`${name}: ${available ? 'available' : 'unavailable'}`);
+   * }
+   * ```
+   */
+  async healthCheckAll(): Promise<Record<string, boolean>> {
+    const results: Record<string, boolean> = {};
+
+    for (const name of this.list()) {
+      try {
+        results[name] = await this.healthCheck(name);
+      } catch {
+        results[name] = false;
+      }
+    }
+
+    return results;
   }
 }
 
