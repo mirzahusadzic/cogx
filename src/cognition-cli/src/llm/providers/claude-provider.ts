@@ -284,31 +284,36 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
     let totalTokens = { prompt: 0, completion: 0, total: 0 };
     let currentFinishReason: AgentResponse['finishReason'] = 'stop';
 
-    for await (const sdkMessage of this.currentQuery) {
-      // Extract session ID
-      if ('session_id' in sdkMessage && sdkMessage.session_id) {
-        currentSessionId = sdkMessage.session_id;
+    try {
+      for await (const sdkMessage of this.currentQuery) {
+        // Extract session ID
+        if ('session_id' in sdkMessage && sdkMessage.session_id) {
+          currentSessionId = sdkMessage.session_id;
+        }
+
+        // Convert SDK message to AgentMessage
+        const agentMessage = this.convertSDKMessage(sdkMessage);
+        if (agentMessage) {
+          messages.push(agentMessage);
+        }
+
+        // Update token counts
+        totalTokens = this.updateTokens(sdkMessage, totalTokens);
+
+        // Determine finish reason
+        currentFinishReason = this.determineFinishReason(sdkMessage);
+
+        // Yield current state
+        yield {
+          messages: [...messages], // Clone to avoid mutation
+          sessionId: currentSessionId,
+          tokens: totalTokens,
+          finishReason: currentFinishReason,
+        };
       }
-
-      // Convert SDK message to AgentMessage
-      const agentMessage = this.convertSDKMessage(sdkMessage);
-      if (agentMessage) {
-        messages.push(agentMessage);
-      }
-
-      // Update token counts
-      totalTokens = this.updateTokens(sdkMessage, totalTokens);
-
-      // Determine finish reason
-      currentFinishReason = this.determineFinishReason(sdkMessage);
-
-      // Yield current state
-      yield {
-        messages: [...messages], // Clone to avoid mutation
-        sessionId: currentSessionId,
-        tokens: totalTokens,
-        finishReason: currentFinishReason,
-      };
+    } finally {
+      // Always clear query reference to prevent memory leaks
+      this.currentQuery = null;
     }
   }
 

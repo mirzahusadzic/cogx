@@ -1619,6 +1619,9 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           },
         ]);
         setIsThinking(false);
+      } finally {
+        // Always clear adapter reference to prevent memory leaks
+        currentAdapterRef.current = null;
       }
     },
     [
