@@ -205,11 +205,17 @@ export class GeminiAgentProvider implements AgentProvider {
           for (const part of evt.content.parts) {
             // Handle function calls (tool use)
             if (part.functionCall) {
+              // Format tool call for display (matching Claude SDK format)
+              const toolDisplay = this.formatToolCall(
+                part.functionCall.name,
+                part.functionCall.args as Record<string, unknown>
+              );
+
               const toolMessage: AgentMessage = {
                 id: `msg-${Date.now()}-tool-${numTurns}`,
                 type: 'tool_use',
                 role: 'assistant',
-                content: JSON.stringify(part.functionCall.args),
+                content: toolDisplay,
                 timestamp: new Date(),
                 toolName: part.functionCall.name,
                 toolInput: part.functionCall.args,
@@ -361,6 +367,40 @@ export class GeminiAgentProvider implements AgentProvider {
   async isAvailable(): Promise<boolean> {
     // Simple API key check - ADK will validate on first use
     return !!this.apiKey;
+  }
+
+  /**
+   * Format tool call for TUI display
+   *
+   * Formats tool invocations in a human-readable way similar to the Claude SDK format.
+   * Applies tool-specific formatting for better UX.
+   */
+  private formatToolCall(
+    name: string,
+    input: Record<string, unknown>
+  ): string {
+    let icon = '🔧';
+    let desc = '';
+
+    // Special icons for specific tools
+    if (name === 'bash' || name === 'Bash') {
+      desc = input.command ? String(input.command) : JSON.stringify(input);
+    } else if (name === 'read_file' || name === 'Read') {
+      desc = input.file_path ? `${input.file_path}` : JSON.stringify(input);
+    } else if (name === 'write_file' || name === 'Write') {
+      desc = input.file_path ? `${input.file_path}` : JSON.stringify(input);
+    } else if (name === 'edit_file' || name === 'Edit') {
+      desc = input.file_path ? `${input.file_path}` : JSON.stringify(input);
+    } else if (name === 'glob' || name === 'Glob') {
+      desc = input.pattern ? `pattern: ${input.pattern}` : JSON.stringify(input);
+    } else if (name === 'grep' || name === 'Grep') {
+      desc = input.pattern ? `pattern: ${input.pattern}` : JSON.stringify(input);
+    } else {
+      // Default: show JSON but try to make it compact
+      desc = JSON.stringify(input);
+    }
+
+    return `${icon} ${name}: ${desc}`;
   }
 
   /**
