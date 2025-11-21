@@ -151,6 +151,7 @@ export interface FormattedTool {
 export function formatToolUse(tool: ToolUse): FormattedTool {
   let inputDesc = '';
   let toolIcon = '🔧';
+  let toolName = tool.name;
 
   // Special formatting for memory recall tool
   if (tool.name === 'mcp__conversation-memory__recall_past_conversation') {
@@ -183,6 +184,7 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
   } else if (tool.input.pattern) {
     inputDesc = `pattern: ${tool.input.pattern as string}`;
   } else if (tool.name === 'TodoWrite' && tool.input.todos) {
+    toolName = 'Tasks';
     inputDesc = formatTodoWrite(
       tool.input.todos as Array<{
         content: string;
@@ -190,13 +192,19 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
         activeForm: string;
       }>
     );
+  } else if (tool.name === 'WebSearch' && tool.input.query) {
+    toolIcon = '🔍';
+    inputDesc = `"${tool.input.query as string}"`;
+  } else if (tool.name === 'WebFetch' && tool.input.url) {
+    toolIcon = '🌐';
+    inputDesc = tool.input.url as string;
   } else {
     inputDesc = JSON.stringify(tool.input);
   }
 
   return {
     icon: toolIcon,
-    name: tool.name,
+    name: toolName,
     description: inputDesc,
   };
 }

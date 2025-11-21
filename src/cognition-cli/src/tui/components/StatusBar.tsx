@@ -35,7 +35,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     let text = '[Tab] Toggle Focus';
 
     if (!focused) {
-      text += ' | [↑↓/🖱️ ] Scroll';
+      text += ' | [↑↓/⌨️ ] Scroll';
     } else {
       text += ' | [ESC ESC] Clear';
     }

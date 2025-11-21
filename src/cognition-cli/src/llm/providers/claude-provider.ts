@@ -197,30 +197,18 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
   /**
    * Estimate cost for token usage
    *
-   * Based on Anthropic pricing as of Jan 2025:
+   * Based on Anthropic pricing as of Nov 2025:
    * - Sonnet 4.5: $3/$15 per MTok (input/output)
-   * - Sonnet 3.5: $3/$15 per MTok
-   * - Opus: $15/$75 per MTok
-   * - Haiku: $0.25/$1.25 per MTok
    */
-  estimateCost(tokens: number, model: string): number {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  estimateCost(tokens: number, _model: string): number {
     const mtokens = tokens / 1000000;
 
     // Estimate 40% input, 60% output (typical conversation ratio)
     const inputMtokens = mtokens * 0.4;
     const outputMtokens = mtokens * 0.6;
 
-    if (model.includes('sonnet-4')) {
-      return inputMtokens * 3 + outputMtokens * 15;
-    } else if (model.includes('sonnet')) {
-      return inputMtokens * 3 + outputMtokens * 15;
-    } else if (model.includes('opus')) {
-      return inputMtokens * 15 + outputMtokens * 75;
-    } else if (model.includes('haiku')) {
-      return inputMtokens * 0.25 + outputMtokens * 1.25;
-    }
-
-    // Default to Sonnet pricing
+    // Sonnet 4.5 pricing
     return inputMtokens * 3 + outputMtokens * 15;
   }
 
