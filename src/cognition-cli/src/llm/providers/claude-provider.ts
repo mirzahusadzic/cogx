@@ -292,14 +292,15 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
           currentSessionId = sdkMessage.session_id;
         }
 
+        // Extract turn count from final result message
+        if (sdkMessage.type === 'result' && 'num_turns' in sdkMessage) {
+          numTurns = sdkMessage.num_turns as number;
+        }
+
         // Convert SDK message to AgentMessage
         const agentMessage = this.convertSDKMessage(sdkMessage);
         if (agentMessage) {
           messages.push(agentMessage);
-          // Count turns (each assistant message = 1 turn)
-          if (agentMessage.type === 'assistant') {
-            numTurns++;
-          }
         }
 
         // Update token counts
