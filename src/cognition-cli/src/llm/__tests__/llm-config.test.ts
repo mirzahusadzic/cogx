@@ -25,7 +25,7 @@ describe('LLM Configuration', () => {
     delete process.env.COGNITION_LLM_PROVIDER;
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.COGNITION_CLAUDE_MODEL;
-    delete process.env.GOOGLE_API_KEY;
+    delete process.env.GEMINI_API_KEY;
     delete process.env.COGNITION_GEMINI_MODEL;
   });
 
@@ -59,8 +59,8 @@ describe('LLM Configuration', () => {
       expect(config.providers.claude?.apiKey).toBe('sk-ant-test123');
     });
 
-    it('should load Gemini API key from GOOGLE_API_KEY', () => {
-      process.env.GOOGLE_API_KEY = 'test-gemini-key';
+    it('should load Gemini API key from GEMINI_API_KEY', () => {
+      process.env.GEMINI_API_KEY = 'test-gemini-key';
 
       const config = loadLLMConfig();
 
@@ -82,16 +82,16 @@ describe('LLM Configuration', () => {
 
       const config = loadLLMConfig();
 
-      expect(config.providers.gemini?.defaultModel).toBe('gemini-2.0-flash-exp');
+      expect(config.providers.gemini?.defaultModel).toBe(
+        'gemini-2.0-flash-exp'
+      );
     });
 
     it('should use default models when not specified', () => {
       const config = loadLLMConfig();
 
       expect(config.providers.claude?.defaultModel).toBe(CLAUDE_MODELS.latest);
-      expect(config.providers.gemini?.defaultModel).toBe(
-        GEMINI_MODELS.latest
-      );
+      expect(config.providers.gemini?.defaultModel).toBe(GEMINI_MODELS.latest);
     });
   });
 
@@ -121,7 +121,7 @@ describe('LLM Configuration', () => {
       const errors = validateLLMConfig(config);
 
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0]).toContain('GOOGLE_API_KEY');
+      expect(errors[0]).toContain('GEMINI_API_KEY');
     });
   });
 
@@ -138,7 +138,7 @@ describe('LLM Configuration', () => {
     });
 
     it('should return true when Gemini API key is set', () => {
-      process.env.GOOGLE_API_KEY = 'test-key';
+      process.env.GEMINI_API_KEY = 'test-key';
 
       expect(isProviderConfigured('gemini')).toBe(true);
     });
@@ -160,7 +160,7 @@ describe('LLM Configuration', () => {
     });
 
     it('should return only Gemini when only Gemini configured', () => {
-      process.env.GOOGLE_API_KEY = 'test-key';
+      process.env.GEMINI_API_KEY = 'test-key';
 
       const providers = getConfiguredProviders();
 
@@ -169,7 +169,7 @@ describe('LLM Configuration', () => {
 
     it('should return both when both configured', () => {
       process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
-      process.env.GOOGLE_API_KEY = 'test-key';
+      process.env.GEMINI_API_KEY = 'test-key';
 
       const providers = getConfiguredProviders();
 
@@ -187,7 +187,7 @@ describe('LLM Configuration', () => {
 
     it('should return API key when configured', () => {
       process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
-      process.env.GOOGLE_API_KEY = 'test-key';
+      process.env.GEMINI_API_KEY = 'test-key';
 
       expect(getProviderApiKey('claude')).toBe('sk-ant-test');
       expect(getProviderApiKey('gemini')).toBe('test-key');
@@ -224,7 +224,9 @@ describe('LLM Configuration', () => {
       expect(GEMINI_MODELS.latest).toBe('gemini-2.5-flash');
       expect(GEMINI_MODELS.balanced).toBe('gemini-2.0-flash');
       expect(GEMINI_MODELS.powerful).toBe('gemini-2.5-pro');
-      expect(GEMINI_MODELS.thinking).toBe('gemini-2.0-flash-thinking-exp-01-21');
+      expect(GEMINI_MODELS.thinking).toBe(
+        'gemini-2.0-flash-thinking-exp-01-21'
+      );
     });
   });
 });

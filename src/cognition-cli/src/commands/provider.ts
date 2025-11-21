@@ -61,7 +61,7 @@ export function createProviderCommand(): Command {
           console.log(chalk.yellow('\n⚠️  No providers are configured\n'));
           console.log('Configure providers by setting environment variables:');
           console.log(chalk.dim('  ANTHROPIC_API_KEY=... for Claude'));
-          console.log(chalk.dim('  GOOGLE_API_KEY=... for Gemini'));
+          console.log(chalk.dim('  GEMINI_API_KEY=... for Gemini'));
           console.log();
           return;
         }
@@ -229,7 +229,7 @@ export function createProviderCommand(): Command {
             )
           );
         } else {
-          console.log(chalk.yellow('  Not configured (set GOOGLE_API_KEY)'));
+          console.log(chalk.yellow('  Not configured (set GEMINI_API_KEY)'));
         }
         console.log();
 

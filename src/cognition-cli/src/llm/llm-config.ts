@@ -13,7 +13,7 @@
  * - COGNITION_LLM_PROVIDER: Default provider ('claude' | 'gemini')
  * - ANTHROPIC_API_KEY: Claude API key
  * - COGNITION_CLAUDE_MODEL: Default Claude model
- * - GOOGLE_API_KEY: Gemini API key
+ * - GEMINI_API_KEY: Gemini API key
  * - COGNITION_GEMINI_MODEL: Default Gemini model
  *
  * @example
@@ -135,7 +135,7 @@ export function loadLLMConfig(): LLMConfig {
 
       // Gemini configuration
       gemini: {
-        apiKey: process.env.GOOGLE_API_KEY,
+        apiKey: process.env.GEMINI_API_KEY,
         defaultModel:
           process.env.COGNITION_GEMINI_MODEL || GEMINI_MODELS.latest,
       },
@@ -178,7 +178,7 @@ export function validateLLMConfig(config: LLMConfig): string[] {
 
   if (!providerConfig.apiKey) {
     const envVarName =
-      defaultProvider === 'claude' ? 'ANTHROPIC_API_KEY' : 'GOOGLE_API_KEY';
+      defaultProvider === 'claude' ? 'ANTHROPIC_API_KEY' : 'GEMINI_API_KEY';
     errors.push(
       `Default provider '${defaultProvider}' is missing API key. ` +
         `Set ${envVarName} environment variable.`

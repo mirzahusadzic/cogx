@@ -18,7 +18,7 @@
  * - gemini-1.5-flash (fastest, cost-effective)
  *
  * @example
- * const provider = new GeminiProvider(process.env.GOOGLE_API_KEY);
+ * const provider = new GeminiProvider(process.env.GEMINI_API_KEY);
  *
  * const response = await provider.complete({
  *   prompt: 'Explain quantum computing',
@@ -56,7 +56,7 @@ import type {
  *
  * // With environment variable
  * const gemini = new GeminiProvider();
- * // Uses GOOGLE_API_KEY from process.env
+ * // Uses GEMINI_API_KEY from process.env
  */
 export class GeminiProvider implements LLMProvider {
   name = 'gemini';
@@ -72,19 +72,19 @@ export class GeminiProvider implements LLMProvider {
   /**
    * Create Gemini provider
    *
-   * @param apiKey - Google API key (optional, defaults to GOOGLE_API_KEY env var)
-   * @throws Error if no API key provided and GOOGLE_API_KEY not set
+   * @param apiKey - Google API key (optional, defaults to GEMINI_API_KEY env var)
+   * @throws Error if no API key provided and GEMINI_API_KEY not set
    *
    * @example
-   * const provider = new GeminiProvider(process.env.GOOGLE_API_KEY);
+   * const provider = new GeminiProvider(process.env.GEMINI_API_KEY);
    */
   constructor(apiKey?: string) {
-    const key = apiKey || process.env.GOOGLE_API_KEY;
+    const key = apiKey || process.env.GEMINI_API_KEY;
 
     if (!key) {
       throw new Error(
         'Gemini provider requires an API key. ' +
-          'Provide it as constructor argument or set GOOGLE_API_KEY environment variable.'
+          'Provide it as constructor argument or set GEMINI_API_KEY environment variable.'
       );
     }
 

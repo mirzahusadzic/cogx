@@ -57,7 +57,7 @@ export interface InitializeOptions {
   anthropicApiKey?: string;
 
   /**
-   * Google API key for Gemini (optional, defaults to GOOGLE_API_KEY env var)
+   * Google API key for Gemini (optional, defaults to GEMINI_API_KEY env var)
    */
   googleApiKey?: string;
 
@@ -140,7 +140,7 @@ export function initializeProviders(options: InitializeOptions = {}): void {
   }
 
   // Register Gemini (ADK-based agent) if API key is available
-  const geminiKey = googleApiKey || process.env.GOOGLE_API_KEY;
+  const geminiKey = googleApiKey || process.env.GEMINI_API_KEY;
   if (geminiKey && !registry.has('gemini')) {
     try {
       const gemini = new GeminiAgentProvider(geminiKey);

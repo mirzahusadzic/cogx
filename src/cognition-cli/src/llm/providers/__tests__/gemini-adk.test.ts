@@ -73,7 +73,7 @@ describe('GeminiAgentProvider', () => {
     const { GeminiAgentProvider } = await import('../gemini-agent-provider.js');
 
     // Mock API key for testing
-    process.env.GOOGLE_API_KEY = 'test-key';
+    process.env.GEMINI_API_KEY = 'test-key';
 
     const provider = new GeminiAgentProvider();
     expect(provider.supportsAgentMode()).toBe(true);
@@ -82,7 +82,7 @@ describe('GeminiAgentProvider', () => {
   it('should implement executeAgent method', async () => {
     const { GeminiAgentProvider } = await import('../gemini-agent-provider.js');
 
-    process.env.GOOGLE_API_KEY = 'test-key';
+    process.env.GEMINI_API_KEY = 'test-key';
 
     const provider = new GeminiAgentProvider();
     expect(typeof provider.executeAgent).toBe('function');

@@ -1,21 +1,21 @@
 /**
  * Gemini ADK Integration Tests
  *
- * Tests that require a real GOOGLE_API_KEY.
- * Skipped in CI, run manually with: GOOGLE_API_KEY=xxx npx vitest run gemini-adk-integration
+ * Tests that require a real GEMINI_API_KEY.
+ * Skipped in CI, run manually with: GEMINI_API_KEY=xxx npx vitest run gemini-adk-integration
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { GeminiAgentProvider } from '../gemini-agent-provider.js';
 
-const SKIP_REASON = 'Requires GOOGLE_API_KEY - set env var to run';
-const hasApiKey = !!process.env.GOOGLE_API_KEY;
+const SKIP_REASON = 'Requires GEMINI_API_KEY - set env var to run';
+const hasApiKey = !!process.env.GEMINI_API_KEY;
 
 describe.skipIf(!hasApiKey)('GeminiAgentProvider Integration', () => {
   let provider: GeminiAgentProvider;
 
   beforeAll(() => {
-    provider = new GeminiAgentProvider(process.env.GOOGLE_API_KEY!);
+    provider = new GeminiAgentProvider(process.env.GEMINI_API_KEY!);
   });
 
   it('should complete a simple prompt', async () => {

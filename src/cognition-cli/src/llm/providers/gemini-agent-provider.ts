@@ -10,7 +10,7 @@
  * EXPERIMENTAL: Google ADK TypeScript SDK is pre-release (v0.1.x)
  *
  * @example
- * const provider = new GeminiAgentProvider(process.env.GOOGLE_API_KEY);
+ * const provider = new GeminiAgentProvider(process.env.GEMINI_API_KEY);
  *
  * for await (const response of provider.executeAgent({
  *   prompt: 'Analyze this codebase',
