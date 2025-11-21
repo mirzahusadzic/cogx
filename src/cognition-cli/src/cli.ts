@@ -339,6 +339,12 @@ program
     '--max-thinking-tokens <number>',
     'Maximum tokens for extended thinking mode (default: 10000)'
   )
+  .option(
+    '--provider <name>',
+    'LLM provider to use (default: claude)',
+    'claude'
+  )
+  .option('--model <name>', 'Model to use (provider-specific)')
   .option('--debug', 'Enable debug logging for Sigma compression')
   .action(async (options) => {
     const { tuiCommand } = await import('./commands/tui.js');
@@ -352,6 +358,8 @@ program
         ? parseInt(options.maxThinkingTokens)
         : undefined,
       debug: options.debug,
+      provider: options.provider,
+      model: options.model,
     });
   });
 
@@ -392,6 +400,7 @@ const { createCompletionCommand } = await import('./commands/completion.js');
 const { addPatternsCommands } = await import('./commands/patterns.js');
 const { addCoherenceCommands } = await import('./commands/coherence.js');
 const { addConceptsCommands } = await import('./commands/concepts.js');
+const { createProviderCommand } = await import('./commands/provider.js');
 
 program.addCommand(overlayCommand);
 program.addCommand(blastRadiusCommand);
@@ -400,6 +409,7 @@ program.addCommand(createStatusCommand());
 program.addCommand(createUpdateCommand());
 program.addCommand(createGuideCommand());
 program.addCommand(createCompletionCommand());
+program.addCommand(createProviderCommand());
 addPatternsCommands(program);
 addCoherenceCommands(program);
 addConceptsCommands(program);

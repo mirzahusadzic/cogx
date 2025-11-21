@@ -37,6 +37,8 @@ interface CognitionTUIProps {
   sessionTokens?: number;
   maxThinkingTokens?: number;
   debug?: boolean;
+  provider?: string;
+  model?: string;
 }
 
 const CognitionTUI: React.FC<CognitionTUIProps> = ({
@@ -47,6 +49,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   sessionTokens,
   maxThinkingTokens,
   debug,
+  provider,
+  model,
 }) => {
   const { stdout } = useStdout();
   const [focused, setFocused] = useState(true);
@@ -84,6 +88,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     sessionTokens, // Pass custom token threshold
     maxThinkingTokens, // Pass extended thinking token limit
     debug, // Pass debug flag
+    provider, // Pass LLM provider
+    model, // Pass model name
   });
 
   // Wrap sendMessage to clear streaming paste on regular messages

@@ -65,6 +65,10 @@ interface TUIOptions {
   maxThinkingTokens?: number;
   /** Enable debug mode for troubleshooting */
   debug?: boolean;
+  /** LLM provider to use (default: 'claude') */
+  provider?: string;
+  /** Model to use (provider-specific) */
+  model?: string;
 }
 
 /**
@@ -150,6 +154,36 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     );
   }
 
+  // Validate provider if specified
+  if (options.provider) {
+    try {
+      const { registry, initializeProviders } = await import('../llm/index.js');
+      await initializeProviders();
+
+      if (!registry.has(options.provider)) {
+        console.error(
+          `Error: Provider '${options.provider}' not found.\n` +
+            `Available providers: ${registry.list().join(', ')}`
+        );
+        process.exit(1);
+      }
+
+      // Check if provider supports agent mode
+      if (!registry.supportsAgent(options.provider)) {
+        console.error(
+          `Error: Provider '${options.provider}' does not support agent mode.\n` +
+            `Available agent providers: ${registry.listAgentProviders().join(', ')}`
+        );
+        process.exit(1);
+      }
+    } catch (error) {
+      console.error(
+        `Error: Failed to validate provider: ${error instanceof Error ? error.message : String(error)}`
+      );
+      process.exit(1);
+    }
+  }
+
   // Launch TUI
   await startTUI({
     pgcRoot,
@@ -159,5 +193,7 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     sessionTokens: options.sessionTokens,
     maxThinkingTokens: options.maxThinkingTokens ?? 32000, // Default: 32K tokens for extended thinking (matches Claude Code)
     debug: options.debug,
+    provider: options.provider, // NEW: Pass provider to TUI
+    model: options.model, // NEW: Pass model to TUI
   });
 }

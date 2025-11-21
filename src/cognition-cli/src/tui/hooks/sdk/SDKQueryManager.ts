@@ -12,6 +12,7 @@
  * 3. Configure system prompts (always using 'claude_code' preset)
  * 4. Handle extended thinking via maxThinkingTokens
  * 5. Detect and format authentication errors for user feedback
+ * 6. (NEW) Use provider abstraction for multi-provider support
  *
  * The SDK query is the primary interface for communicating with Claude's API.
  * It accepts a prompt and options, returning an async iterator of SDK messages.
@@ -21,6 +22,11 @@
  * - resumeSessionId = "session-xyz": Continue existing conversation
  *
  * This enables multi-turn workflows where context persists across queries.
+ *
+ * Provider Abstraction:
+ * By default, uses the Claude Agent SDK directly (COGNITION_USE_PROVIDER_ABSTRACTION=false).
+ * When COGNITION_USE_PROVIDER_ABSTRACTION=true, uses the provider registry.
+ * This enables gradual migration to multi-provider support.
  *
  * @example
  * // Creating a fresh query
@@ -47,6 +53,7 @@
  * }
  *
  * Extracted from useClaudeAgent.ts as part of Week 2 Day 6-8 refactor.
+ * Updated to support provider abstraction layer.
  */
 
 import { query, type Query } from '@anthropic-ai/claude-agent-sdk';

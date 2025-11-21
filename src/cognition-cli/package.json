@@ -34,7 +34,9 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.46",
+    "@anthropic-ai/sdk": "^0.69.0",
     "@clack/prompts": "^0.7.0",
+    "@google/genai": "^1.30.0",
     "@inkjs/ui": "^2.0.0",
     "@lancedb/lancedb": "^0.22.3",
     "@types/chokidar": "^1.7.5",
@@ -53,6 +55,7 @@
     "ink-text-input": "^6.0.0",
     "js-yaml": "^4.1.1",
     "node-pty": "^1.0.0",
+    "openai": "^6.9.1",
     "proper-lockfile": "^4.1.2",
     "react": "^19.2.0",
     "remark": "^15.0.1",
