@@ -49,9 +49,10 @@ import { WorkspaceManager } from '../workspace-manager.js';
 /**
  * Global settings stored in ~/.cognition-cli/settings.json
  */
-interface Settings {
+export interface Settings {
   dual_use_acknowledgment?: UserAcknowledgment;
   version: string;
+  defaultProvider?: 'claude' | 'gemini' | string;
 }
 
 /**
@@ -350,4 +351,44 @@ export class SecurityViolationError extends Error {
 export async function bootstrapSecurity(projectRoot?: string): Promise<void> {
   const bootstrap = new SecurityBootstrap(projectRoot);
   await bootstrap.bootstrap();
+}
+
+/**
+ * Get settings file path
+ */
+export function getSettingsPath(): string {
+  return path.join(os.homedir(), '.cognition-cli', 'settings.json');
+}
+
+/**
+ * Load settings from ~/.cognition-cli/settings.json
+ */
+export function loadSettings(): Settings {
+  const settingsPath = getSettingsPath();
+  if (fs.existsSync(settingsPath)) {
+    try {
+      return JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+    } catch (e) {
+      console.warn(
+        'Warning: Could not parse settings file, using defaults:',
+        e instanceof Error ? e.message : String(e)
+      );
+    }
+  }
+  return { version: '1.0' };
+}
+
+/**
+ * Save settings to ~/.cognition-cli/settings.json
+ */
+export function saveSettings(settings: Settings): void {
+  const settingsDir = path.join(os.homedir(), '.cognition-cli');
+  const settingsPath = getSettingsPath();
+
+  // Ensure directory exists
+  if (!fs.existsSync(settingsDir)) {
+    fs.mkdirSync(settingsDir, { recursive: true });
+  }
+
+  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
 }

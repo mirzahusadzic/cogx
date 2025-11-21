@@ -68,6 +68,7 @@ import path from 'path';
 // import { auditCommand, auditDocsCommand } from './commands/audit.js';
 // import { addPatternsCommands } from './commands/patterns.js';
 import { bootstrapSecurity } from './core/security/security-bootstrap.js';
+import { loadLLMConfig } from './llm/llm-config.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -341,8 +342,8 @@ program
   )
   .option(
     '--provider <name>',
-    'LLM provider to use (default: claude)',
-    'claude'
+    `LLM provider to use (default: ${loadLLMConfig().defaultProvider})`,
+    loadLLMConfig().defaultProvider
   )
   .option('--model <name>', 'Model to use (provider-specific)')
   .option('--debug', 'Enable debug logging for Sigma compression')

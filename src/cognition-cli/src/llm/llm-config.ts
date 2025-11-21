@@ -4,9 +4,9 @@
  * Manages LLM provider configuration from environment variables and config files.
  * Provides a unified interface for accessing provider settings.
  *
- * CONFIGURATION SOURCES:
+ * CONFIGURATION SOURCES (priority order):
  * 1. Environment variables (highest priority)
- * 2. .cognitionrc file (future enhancement)
+ * 2. ~/.cognition-cli/settings.json (persistent user settings)
  * 3. Default values (fallback)
  *
  * ENVIRONMENT VARIABLES:
@@ -23,6 +23,8 @@
  * console.log(`Default provider: ${config.defaultProvider}`);
  * console.log(`Claude model: ${config.providers.claude?.defaultModel}`);
  */
+
+import { loadSettings } from '../core/security/security-bootstrap.js';
 
 /**
  * Provider-specific configuration
@@ -99,12 +101,13 @@ export const GEMINI_MODELS = {
 /**
  * Load LLM configuration
  *
- * Reads configuration from environment variables and returns a normalized config object.
+ * Reads configuration from environment variables and settings file.
  * This function does not throw errors - it returns defaults for missing values.
  *
- * PRECEDENCE:
+ * PRECEDENCE (highest to lowest):
  * 1. Environment variables
- * 2. Default values
+ * 2. ~/.cognition-cli/settings.json
+ * 3. Default values
  *
  * @returns LLM configuration object
  *
@@ -121,9 +124,15 @@ export const GEMINI_MODELS = {
  * const model = config.providers.claude?.defaultModel || CLAUDE_MODELS.latest;
  */
 export function loadLLMConfig(): LLMConfig {
+  // Load persistent settings
+  const settings = loadSettings();
+
   return {
-    // Default provider from env or fallback to Claude
-    defaultProvider: process.env.COGNITION_LLM_PROVIDER || 'claude',
+    // Default provider: env var > settings file > 'claude'
+    defaultProvider:
+      process.env.COGNITION_LLM_PROVIDER ||
+      settings.defaultProvider ||
+      'claude',
 
     providers: {
       // Claude configuration

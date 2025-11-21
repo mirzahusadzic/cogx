@@ -34,6 +34,10 @@ import {
   CLAUDE_MODELS,
   GEMINI_MODELS,
 } from '../llm/llm-config.js';
+import {
+  loadSettings,
+  saveSettings,
+} from '../core/security/security-bootstrap.js';
 
 /**
  * Create provider command
@@ -119,21 +123,34 @@ export function createProviderCommand(): Command {
         // Initialize providers first
         initializeProviders({ skipMissingProviders: true });
 
-        // Set default
+        // Validate provider exists
+        if (!registry.has(providerName)) {
+          console.error(
+            chalk.red(
+              `✗ Provider '${providerName}' not found. Available: ${registry.list().join(', ')}`
+            )
+          );
+          process.exit(1);
+        }
+
+        // Set default in memory (for this process)
         registry.setDefault(providerName);
+
+        // Persist to settings file
+        const settings = loadSettings();
+        settings.defaultProvider = providerName;
+        saveSettings(settings);
 
         console.log(
           chalk.green(`✓ Default provider set to: ${chalk.bold(providerName)}`)
         );
+        console.log(chalk.dim(`  Saved to: ~/.cognition-cli/settings.json`));
 
-        // Show hint about persistence
+        // Show hint about env var override
         console.log(
           chalk.dim(
-            '\nTo make this permanent, set COGNITION_LLM_PROVIDER environment variable:'
+            '\nNote: COGNITION_LLM_PROVIDER environment variable will override this setting.'
           )
-        );
-        console.log(
-          chalk.dim(`  export COGNITION_LLM_PROVIDER=${providerName}`)
         );
         console.log();
       } catch (error) {
