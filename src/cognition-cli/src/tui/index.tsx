@@ -291,9 +291,10 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       const sigmaDir = path.join(projectRoot, '.sigma');
       fs.mkdirSync(sigmaDir, { recursive: true });
 
+      const providerName = provider || 'gemini'; // Default to 'gemini'
       const logFileName = sessionId
-        ? `${sessionId}-claude-magic.log`
-        : `session-${Date.now()}-claude-magic.log`;
+        ? `${sessionId}-${providerName}-magic.log`
+        : `session-${Date.now()}-${providerName}-magic.log`;
       const logPath = path.join(sigmaDir, logFileName);
 
       // Format messages for log
