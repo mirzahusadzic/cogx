@@ -7,7 +7,7 @@
   "excludeProtected": false,
   "excludeInternal": true,
   "includeVersion": true,
-  "readme": "README.md",
+  "readme": "docs/API_README.md",
   "name": "Cognition Σ CLI - API Documentation",
   "categorizeByGroup": true,
   "categoryOrder": [
