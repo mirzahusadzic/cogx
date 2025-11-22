@@ -402,9 +402,14 @@ export class GeminiAgentProvider implements AgentProvider {
               }
 
               // Verify this is a legitimate continuation (not a restructured/combined block)
-              // If we have accumulated content but the new part doesn't start with it,
-              // this is likely a combined block merging multiple thinking sections
-              if (accumulated && !part.text.startsWith(accumulated)) {
+              // ONLY apply this check to thinking blocks - they can get restructured/merged
+              // Regular assistant messages should be trusted as valid deltas or full text
+              if (
+                isThinking &&
+                accumulated &&
+                !part.text.startsWith(accumulated)
+              ) {
+                // This is likely a combined thinking block merging multiple sections
                 continue;
               }
 
