@@ -174,6 +174,18 @@ export class GeminiAgentProvider implements AgentProvider {
     // Track if we've yielded any responses (to avoid duplicate final yield)
     let hasYieldedResponse = false;
 
+    // Track accumulated content to extract deltas (SSE sends full text each time)
+    // Use Map for thinking blocks (key = block ID extracted from header)
+    const accumulatedThinkingBlocks = new Map<string, string>();
+    let accumulatedAssistant = '';
+
+    // Track TOTAL accumulated content (never reset) to catch combined final parts
+    let totalThinkingLength = 0;
+    let totalAssistantLength = 0;
+
+    // Track all parts we've processed to avoid duplicates (Gemini sends duplicate parts in events)
+    const processedParts = new Set<string>();
+
     // Create or resume session
     const sessionId = request.resumeSessionId || `gemini-${Date.now()}`;
     const userId = 'cognition-user';
@@ -342,40 +354,106 @@ export class GeminiAgentProvider implements AgentProvider {
               const isThinking = part.thought === true;
               const messageType = isThinking ? 'thinking' : 'assistant';
 
-              // Check if we should append to the last message (streaming accumulation)
-              // or create a new message
-              const lastMessage = messages[messages.length - 1];
-              const shouldAppend =
-                lastMessage &&
-                lastMessage.type === messageType &&
-                lastMessage.role === 'assistant';
+              // Create unique key for this part (type + content)
+              const partKey = `${messageType}:${part.text}`;
 
-              if (shouldAppend) {
-                // Append to existing message for streaming
-                lastMessage.content =
-                  typeof lastMessage.content === 'string'
-                    ? lastMessage.content + part.text
-                    : part.text;
-                if (isThinking) {
-                  lastMessage.thinking = lastMessage.content;
-                }
-              } else {
-                // Create new message
-                const message: AgentMessage = {
-                  id: `msg-${Date.now()}-${numTurns}-${messageType}`,
-                  type: messageType,
-                  role: 'assistant',
-                  content: part.text,
-                  timestamp: new Date(),
-                };
-
-                // Add thinking field for thinking messages
-                if (isThinking) {
-                  message.thinking = part.text;
-                }
-
-                messages.push(message);
+              // Skip if we've already processed this exact part (Gemini sends duplicates)
+              if (processedParts.has(partKey)) {
+                continue;
               }
+
+              // Mark this part as processed
+              processedParts.add(partKey);
+
+              // SSE mode sends FULL accumulated text each time, not deltas
+              // For thinking blocks, extract block ID from header (e.g., "**Analyzing Code**")
+              let blockId = '';
+              let accumulated = '';
+
+              if (isThinking) {
+                // Extract thinking block header (first line, usually bold)
+                const match = part.text.match(/^\*\*([^*]+)\*\*/);
+                blockId = match ? match[1] : 'default';
+                accumulated = accumulatedThinkingBlocks.get(blockId) || '';
+              } else {
+                accumulated = accumulatedAssistant;
+              }
+
+              // Check total accumulated length to catch combined final parts
+              const totalAccumulated = isThinking
+                ? totalThinkingLength
+                : totalAssistantLength;
+
+              // Skip if this part doesn't add new content beyond what we've already sent
+              if (part.text.length <= totalAccumulated) {
+                // Update accumulated tracker to prevent future duplicates
+                if (isThinking) {
+                  accumulatedThinkingBlocks.set(blockId, part.text);
+                } else {
+                  accumulatedAssistant = part.text;
+                }
+                continue;
+              }
+
+              // Skip if no new content (shorter than current accumulated = stale event)
+              if (accumulated && part.text.length < accumulated.length) {
+                continue;
+              }
+
+              // Verify this is a legitimate continuation (not a restructured/combined block)
+              // If we have accumulated content but the new part doesn't start with it,
+              // this is likely a combined block merging multiple thinking sections
+              if (accumulated && !part.text.startsWith(accumulated)) {
+                continue;
+              }
+
+              // For thinking blocks, detect if this part contains MULTIPLE headers
+              // (combined block) and skip it if we've already sent content
+              if (isThinking && accumulated) {
+                const headerMatches = part.text.match(/\*\*[^*]+\*\*/g);
+                if (headerMatches && headerMatches.length > 1) {
+                  continue;
+                }
+              }
+
+              // Extract delta text (only the new portion)
+              const deltaText = part.text.substring(accumulated.length);
+
+              // Skip if delta is empty or just whitespace (final event with no new content)
+              if (!deltaText || deltaText.trim().length === 0) {
+                // Update accumulated tracker even though we're skipping
+                if (isThinking) {
+                  accumulatedThinkingBlocks.set(blockId, part.text);
+                } else {
+                  accumulatedAssistant = part.text;
+                }
+                continue;
+              }
+
+              // Update accumulated trackers
+              if (isThinking) {
+                accumulatedThinkingBlocks.set(blockId, part.text);
+                totalThinkingLength += deltaText.length;
+              } else {
+                accumulatedAssistant = part.text;
+                totalAssistantLength += deltaText.length;
+              }
+
+              // Create new message with delta text
+              // The TUI will accumulate these deltas via processAgentMessage
+              const message: AgentMessage = {
+                id: `msg-${Date.now()}-${numTurns}-${messageType}`,
+                type: messageType,
+                role: 'assistant',
+                content: deltaText, // Send only the delta
+                timestamp: new Date(),
+              };
+
+              if (isThinking) {
+                message.thinking = deltaText;
+              }
+
+              messages.push(message);
 
               totalTokens += Math.ceil(part.text.length / 4);
 

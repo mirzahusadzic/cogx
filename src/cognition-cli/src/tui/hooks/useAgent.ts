@@ -839,9 +839,11 @@ export function useAgent(options: UseAgentOptions) {
             `🔄 Session reset triggered (compression ${compressionSucceeded ? 'succeeded' : 'failed but resetting anyway'})`
           );
 
-          // Re-enable user input after compression completes
-          debug('🔍 [COMPRESSION] Step 14: Setting isThinking=false');
-          setIsThinking(false);
+          // Don't set isThinking(false) here - the agent is still responding!
+          // The agent completion handler in sendMessage will set it when done
+          debug(
+            '🔍 [COMPRESSION] Step 14: Compression complete (keeping isThinking=true for agent response)'
+          );
           debug('🔍 [COMPRESSION] Step 15: Compression handler complete!');
         }
       } finally {
@@ -1896,14 +1898,29 @@ export function useAgent(options: UseAgentOptions) {
       case 'thinking': {
         // Extended thinking - display in UI
         if (typeof content === 'string') {
-          setMessages((prev) => [
-            ...prev,
-            {
-              type: 'thinking',
-              content,
-              timestamp: new Date(),
-            },
-          ]);
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (last && last.type === 'thinking') {
+              // Append to existing thinking message
+              return [
+                ...prev.slice(0, -1),
+                {
+                  ...last,
+                  content: last.content + content,
+                },
+              ];
+            } else {
+              // New thinking message
+              return [
+                ...prev,
+                {
+                  type: 'thinking',
+                  content,
+                  timestamp: new Date(),
+                },
+              ];
+            }
+          });
         }
         debug(
           '💭 Thinking:',
