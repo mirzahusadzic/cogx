@@ -60,6 +60,12 @@ export interface AgentRequest {
   /** MCP server configurations */
   mcpServers?: Record<string, McpSdkServerConfigWithInstance>;
 
+  /** Conversation registry for memory recall (optional) */
+  conversationRegistry?: unknown; // ConversationOverlayRegistry - avoid circular dependency
+
+  /** Workbench URL for API access (optional) */
+  workbenchUrl?: string;
+
   /** Tool use permission callback */
   onCanUseTool?: (
     toolName: string,

@@ -106,8 +106,14 @@ export class GeminiAgentProvider implements AgentProvider {
   async *executeAgent(
     request: AgentRequest
   ): AsyncGenerator<AgentResponse, void, undefined> {
-    // Get file tools
-    const cognitionTools = getCognitionTools();
+    // Get file tools (with optional recall tool if conversation registry provided)
+    const conversationRegistry = request.conversationRegistry as
+      | import('../../sigma/conversation-registry.js').ConversationOverlayRegistry
+      | undefined;
+    const cognitionTools = getCognitionTools(
+      conversationRegistry,
+      request.workbenchUrl
+    );
 
     // Create a specialized web search agent
     // Use Agent-as-Tool pattern to combine with file tools
@@ -446,6 +452,7 @@ You have access to tools for:
 - **bash**: Execute shell commands (git, npm, etc.)
 - **edit_file**: Make targeted text replacements
 - **WebSearch**: Search the web for current information, news, facts, and real-time data using Google Search
+- **recall_past_conversation**: Search conversation history for past context (if available)
 
 ## Working Directory
 ${request.cwd || process.cwd()}

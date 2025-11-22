@@ -10,6 +10,8 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { spawn } from 'child_process';
 import { glob } from 'glob';
+import type { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
+import { queryConversationLattice } from '../../sigma/query-conversation.js';
 
 /**
  * Read file tool - reads file contents
@@ -189,10 +191,54 @@ export const editFileTool = new FunctionTool({
 });
 
 /**
- * Get all ADK tools for Cognition
+ * Create recall conversation tool for Gemini
+ *
+ * Provides semantic search across conversation history (O1-O7 overlays).
+ * Similar to Claude's recall_past_conversation MCP tool.
  */
-export function getCognitionTools() {
-  return [
+export function createRecallTool(
+  conversationRegistry: ConversationOverlayRegistry,
+  workbenchUrl?: string
+): FunctionTool {
+  return new FunctionTool({
+    name: 'recall_past_conversation',
+    description:
+      'Retrieve FULL untruncated messages from conversation history. The recap you see is truncated to 150 chars - when you see "..." it means more content is available. Use this tool to get complete details. Searches all 7 overlays (O1-O7) in LanceDB with semantic search. Ask about topics, not exact phrases.',
+    parameters: z.object({
+      query: z
+        .string()
+        .describe(
+          'What to search for in past conversation (e.g., "What did we discuss about TUI scrolling?" or "What were the goals mentioned?")'
+        ),
+    }),
+    execute: async ({ query }) => {
+      try {
+        // Query conversation lattice with SLM + LLM synthesis
+        const answer = await queryConversationLattice(query, conversationRegistry, {
+          workbenchUrl,
+          topK: 10, // Increased from 5 for better coverage
+          verbose: false,
+        });
+
+        return `Found relevant context:\n\n${answer}`;
+      } catch (err) {
+        return `Failed to recall conversation: ${(err as Error).message}`;
+      }
+    },
+  });
+}
+
+/**
+ * Get all ADK tools for Cognition
+ *
+ * @param conversationRegistry - Optional conversation registry for recall tool
+ * @param workbenchUrl - Optional workbench URL for recall tool
+ */
+export function getCognitionTools(
+  conversationRegistry?: ConversationOverlayRegistry,
+  workbenchUrl?: string
+) {
+  const baseTools = [
     readFileTool,
     writeFileTool,
     globTool,
@@ -200,4 +246,12 @@ export function getCognitionTools() {
     bashTool,
     editFileTool,
   ];
+
+  // Add recall tool if conversation registry is available
+  if (conversationRegistry) {
+    const recallTool = createRecallTool(conversationRegistry, workbenchUrl);
+    return [...baseTools, recallTool];
+  }
+
+  return baseTools;
 }
