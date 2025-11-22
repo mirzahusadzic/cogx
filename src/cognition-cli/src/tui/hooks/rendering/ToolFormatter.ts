@@ -170,9 +170,13 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
 
   let toolName = normalizeName(tool.name);
 
-  // Special formatting for memory recall tool
-  if (tool.name === 'mcp__conversation-memory__recall_past_conversation') {
+  // Special formatting for memory recall tool (both MCP and Gemini versions)
+  if (
+    tool.name === 'mcp__conversation-memory__recall_past_conversation' ||
+    tool.name === 'recall_past_conversation'
+  ) {
     toolIcon = '🧠';
+    toolName = 'Recall';
     if (tool.input.query) {
       inputDesc = `"${tool.input.query as string}"`;
     } else {
