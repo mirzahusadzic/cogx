@@ -148,6 +148,10 @@ export class GeminiAgentProvider implements AgentProvider {
     let numTurns = 0;
     let totalTokens = 0;
 
+    // Track actual token usage from Gemini API
+    let promptTokens = 0;
+    let completionTokens = 0;
+
     // Create or resume session
     const sessionId = request.resumeSessionId || `gemini-${Date.now()}`;
     const userId = 'cognition-user';
@@ -223,6 +227,16 @@ export class GeminiAgentProvider implements AgentProvider {
 
         numTurns++;
 
+        // Capture actual token usage from Gemini API
+        if (evt.usageMetadata) {
+          if (evt.usageMetadata.promptTokenCount !== undefined) {
+            promptTokens = evt.usageMetadata.promptTokenCount;
+          }
+          if (evt.usageMetadata.candidatesTokenCount !== undefined) {
+            completionTokens = evt.usageMetadata.candidatesTokenCount;
+          }
+        }
+
         // Handle error events
         if (evt.errorCode || evt.errorMessage) {
           const errorMsg = evt.errorMessage || `Error code: ${evt.errorCode}`;
@@ -255,9 +269,9 @@ export class GeminiAgentProvider implements AgentProvider {
                 messages: [...messages],
                 sessionId,
                 tokens: {
-                  prompt: Math.ceil(request.prompt.length / 4),
-                  completion: totalTokens,
-                  total: Math.ceil(request.prompt.length / 4) + totalTokens,
+                  prompt: promptTokens || Math.ceil(request.prompt.length / 4), // Use API count or fallback to estimation
+                  completion: completionTokens || totalTokens, // Use API count or fallback to manual tracking
+                  total: (promptTokens || Math.ceil(request.prompt.length / 4)) + (completionTokens || totalTokens),
                 },
                 finishReason: 'tool_use',
                 numTurns,
@@ -283,9 +297,9 @@ export class GeminiAgentProvider implements AgentProvider {
                 messages: [...messages],
                 sessionId,
                 tokens: {
-                  prompt: Math.ceil(request.prompt.length / 4),
-                  completion: totalTokens,
-                  total: Math.ceil(request.prompt.length / 4) + totalTokens,
+                  prompt: promptTokens || Math.ceil(request.prompt.length / 4),
+                  completion: completionTokens || totalTokens,
+                  total: (promptTokens || Math.ceil(request.prompt.length / 4)) + (completionTokens || totalTokens),
                 },
                 finishReason: 'stop',
                 numTurns,
@@ -318,9 +332,9 @@ export class GeminiAgentProvider implements AgentProvider {
                 messages: [...messages],
                 sessionId,
                 tokens: {
-                  prompt: Math.ceil(request.prompt.length / 4),
-                  completion: totalTokens,
-                  total: Math.ceil(request.prompt.length / 4) + totalTokens,
+                  prompt: promptTokens || Math.ceil(request.prompt.length / 4),
+                  completion: completionTokens || totalTokens,
+                  total: (promptTokens || Math.ceil(request.prompt.length / 4)) + (completionTokens || totalTokens),
                 },
                 finishReason: 'stop',
                 numTurns,
@@ -330,14 +344,14 @@ export class GeminiAgentProvider implements AgentProvider {
         }
       }
 
-      // Final response
+      // Final response with actual token counts from Gemini API
       yield {
         messages: [...messages],
         sessionId,
         tokens: {
-          prompt: Math.ceil(request.prompt.length / 4),
-          completion: totalTokens,
-          total: Math.ceil(request.prompt.length / 4) + totalTokens,
+          prompt: promptTokens || Math.ceil(request.prompt.length / 4),
+          completion: completionTokens || totalTokens,
+          total: (promptTokens || Math.ceil(request.prompt.length / 4)) + (completionTokens || totalTokens),
         },
         finishReason: 'stop',
         numTurns,
