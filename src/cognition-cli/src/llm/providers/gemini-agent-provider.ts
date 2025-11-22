@@ -276,8 +276,8 @@ export class GeminiAgentProvider implements AgentProvider {
           }
         }
 
-        // Handle error events
-        if (evt.errorCode || evt.errorMessage) {
+        // Handle error events (but skip "STOP" which is a normal finish reason, not an error)
+        if ((evt.errorCode && evt.errorCode !== 'STOP') || evt.errorMessage) {
           const errorMsg = evt.errorMessage || `Error code: ${evt.errorCode}`;
           throw new Error(`Gemini API Error: ${errorMsg}`);
         }
