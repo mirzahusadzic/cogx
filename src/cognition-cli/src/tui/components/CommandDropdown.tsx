@@ -2,13 +2,54 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Text, useStdout } from 'ink';
 import { Command } from '../commands/loader.js';
 
+/**
+ * Props for CommandDropdown component
+ */
 export interface CommandDropdownProps {
+  /** Array of slash commands to display */
   commands: Command[];
+
+  /** Index of currently selected command (controlled by parent) */
   selectedIndex: number;
+
+  /** Whether dropdown should be visible */
   isVisible: boolean;
+
+  /** Maximum number of commands to show before scrolling */
   maxHeight?: number;
 }
 
+/**
+ * Slash Command Autocomplete Dropdown Component.
+ *
+ * Displays available slash commands as the user types "/" in the input box.
+ * Features auto-scrolling to keep the selected command visible, keyboard navigation,
+ * and compact display optimized for terminal environments.
+ *
+ * **Features**:
+ * - Auto-complete dropdown triggered by "/"
+ * - Keyboard navigation (↑↓ arrows)
+ * - Auto-scroll to keep selected item visible
+ * - Scroll indicators when more commands are available
+ * - Compact display (max 25% of terminal height)
+ * - Command descriptions truncated to fit
+ *
+ * **Keyboard Controls**:
+ * - ↑/↓: Navigate command list
+ * - Enter: Select command
+ * - Esc: Close dropdown
+ *
+ * @component
+ * @param {CommandDropdownProps} props - Component props
+ *
+ * @example
+ * <CommandDropdown
+ *   commands={availableCommands}
+ *   selectedIndex={2}
+ *   isVisible={inputStartsWith('/') && inputLength > 1}
+ *   maxHeight={5}
+ * />
+ */
 const CommandDropdownComponent = ({
   commands,
   selectedIndex,
