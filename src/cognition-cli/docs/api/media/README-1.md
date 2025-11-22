@@ -1,351 +1,289 @@
----
-type: strategic
-overlay: O4_Mission
----
+# Cognition CLI - Interactive TUI with Infinite Context (Sigma)
 
-# THE LATTICE BOOK
+## What We Built: True Stateful AI with Infinite Context
 
-> **A Reference Manual for Cognitive Architecture with Verifiable Overlays**
+This is **not a prototype**. This is a **working implementation** of stateful AI with infinite context management using dual-lattice architecture and Meet operations from lattice algebra.
 
-Version: 1.0 (In Progress)
-Status: Living Document
-Last Updated: November 3, 2025
+Traditional AI conversations die when they hit context limits. **The agent never forgets here.**
 
----
+### The Breakthrough: Dual-Lattice Architecture (Σ System)
 
-## The Axiom: Knowledge is a Lattice
+We solved the context compression problem using **lattice algebra Meet operations (∧)**:
 
-**This is not an analogy. This is not a metaphor. This is a formal mathematical truth.**
-
-Every question you ask—"What depends on X?", "Where is Y used?", "What changed between versions?"—is a **lattice operation**. Knowledge, in its most fundamental form, has the structure of a **mathematical lattice**: a partially ordered set where any two elements have both a unique greatest lower bound (Meet, ∧) and a unique least upper bound (Join, ∨).
-
-The Grounded Context Pool (PGC) is not "like" a lattice. **It IS a lattice**—the first executable implementation of this formal truth.
-
----
-
-## About This Book
-
-THE LATTICE BOOK is the complete reference manual for building, querying, and reasoning about cognitive architectures using the Open Cognition system. This is not just documentation—it's **executable knowledge** that can be ingested into the very system it describes.
-
-**Why "The Lattice Book"?**
-
-- **Lattice**: Not metaphor—mathematical structure with provable properties
-- **Open**: Transparent, inspectable, portable cognition
-- **Living**: Grows with the codebase, not written after the fact
-- **Executable**: The book itself becomes a .cogx artifact
-
-**Core Insight**: When you query "O2 ∧ O4" (security Meet mission), you're not searching—you're computing the greatest lower bound in a knowledge lattice. This is why compositional queries work. This is why overlays compose. This is why the algebra is complete.
-
-**Scope**: This book covers the complete implementation from foundational axioms through advanced query algebra, portability formats (.cogx), and the computational Proof of Work (cPOW) loop.
-
----
-
-## Target Audience
-
-- **Implementers**: Building cognitive architectures
-- **Researchers**: Understanding overlay-based knowledge systems
-- **AI Engineers**: Integrating with LLM workflows
-- **Security Analysts**: Auditing cognitive systems
-- **Future You**: When context is lost and complexity is overwhelming
-
-**Prerequisites**: Basic understanding of TypeScript, embeddings, and graph theory helps but isn't required.
-
----
-
-## Book Structure
-
-### Part 0: Quick Start (10 Minutes)
-
-**Quick Start Guide**
-`../../claude/quick-start.md`
-Get from zero to first query in under 10 minutes. Installation, setup, and first queries.
-
-### Part I: Foundation (~100 pages)
-
-**Chapter 1: Cognitive Architecture**
-`part-1-foundation/01-cognitive-architecture.md`
-What is cognitive architecture? Why do we need structured knowledge beyond "context window"?
-
-**Chapter 2: The PGC (Grounded Context Pool)**
-`part-1-foundation/02-the-pgc.md`
-The foundational data structure: `.open_cognition/` directory, versioning, provenance.
-
-**Chapter 3: Why Overlays?**
-`part-1-foundation/03-why-overlays.md`
-Separation of concerns: Strategic vs Operational vs Security knowledge.
-
-**Chapter 4: Embeddings as Semantic Substrate**
-`part-1-foundation/04-embeddings.md`
-768-dimensional vectors, eGemma, cosine similarity, semantic search.
-
-**Chapter 4.5: Core Security — Protecting the Lattice**
-`part-1-foundation/04.5-core-security.md`
-Mission validation, drift detection, integrity monitoring. Defending against mission poisoning attacks.
-
-**Chapter 5: CLI Operations — Building and Querying the Lattice**
-`part-1-foundation/05-cli-operations.md`
-Command reference: init, genesis, ask, patterns, coherence, blast-radius, overlay generate. The construction and query interface for the knowledge lattice.
-
----
-
-### Part II: The Seven Layers (~200 pages)
-
-**Chapter 5: O₁ Structure — Code Artifacts**
-`part-2-seven-layers/05-o1-structure.md`
-AST extraction, symbols, functions, classes, modules. The foundation of all overlays.
-
-**Chapter 6: O₂ Security — Foundational Constraints**
-`part-2-seven-layers/06-o2-security.md`
-Threat models, attack vectors, mitigations, boundaries. Why O₂ is foundational (checked before mission alignment).
-
-**Chapter 7: O₃ Lineage — Dependency Tracking**
-`part-2-seven-layers/07-o3-lineage.md`
-Call chains, blast radius, dependency graphs. Understanding impact zones.
-
-**Chapter 8: O₄ Mission — Strategic Alignment**
-`part-2-seven-layers/08-o4-mission.md`
-Vision, concepts, principles, goals. What the system is FOR.
-
-**Chapter 9: O₅ Operational — Workflow Guidance**
-`part-2-seven-layers/09-o5-operational.md`
-Quest structures, sacred sequences, depth rules. HOW to work, not WHAT to build.
-
-**Chapter 10: O₆ Mathematical — Formal Properties**
-`part-2-seven-layers/10-o6-mathematical.md`
-Theorems, proofs, lemmas, axioms. Formal verification of cognitive properties.
-
-**Chapter 11: O₇ Coherence — Cross-Layer Synthesis**
-`part-2-seven-layers/11-o7-coherence.md`
-Meet operation across layers. Alignment scoring. Drift detection.
-
----
-
-### Part III: The Algebra (~80 pages)
-
-**Chapter 12: Boolean Operations on Knowledge**
-`part-3-algebra/12-boolean-operations.md`
-Meet (∧), Union (∪), Intersection (∩), Difference (\), Complement (¬). Pure functions on overlay items.
-
-**Chapter 13: Query Syntax and Parser**
-`part-3-algebra/13-query-syntax.md`
-ASCII-only operators: `+`, `-`, `&`, `|`, `~`, `->`. Lexer, parser, AST evaluation.
-
-**Chapter 14: Set Operations and Symbol Algebra**
-`part-3-algebra/14-set-operations.md`
-`select()`, `exclude()`, `getSymbolSet()`. Coverage gap analysis.
-
----
-
-### Part IV: Portability (~100 pages)
-
-**Chapter 15: The .cogx Format**
-`part-4-portability/15-cogx-format.md`
-Portable overlay packaging. Export/import with provenance.
-
-**Chapter 16: Dependency Security Inheritance**
-`part-4-portability/16-dependency-inheritance.md`
-`express.cogx → O₂`. Inheriting security knowledge from dependencies.
-
-**Chapter 17: Ecosystem Seeding**
-`part-4-portability/17-ecosystem-seeding.md`
-Building reusable overlays for common libraries (React, TypeScript, Node.js).
-
----
-
-### Part V: The cPOW Loop (~120 pages)
-
-**Chapter 18: Operational Flow** ✅
-`part-5-cpow-loop/18-operational-flow.md`
-Transform pipeline (Genesis → Overlay Generation → Continuous Coherence). Orchestrators (GenesisOrchestrator, UpdateOrchestrator, OverlayOrchestrator). Quality assurance (Fidelity scores, AQS). Audit trail (TransformLog). Complete operational flow documentation.
-
-**Chapter 19: Quest Structures** ✅
-`part-5-cpow-loop/19-quest-structures.md`
-Quest anatomy (What/Why/Success/Big Blocks/Eyes Go). Depth tracking (Depth 0-3 with time limits). Sacred sequences (F.L.T.B: Format, Lint, Test, Build). Complete 9-phase quest lifecycle. Mission alignment and coherence checks. Operations Log format and analysis.
-
-**Chapter 20: Validation Oracles**
-`part-5-cpow-loop/20-validation-oracles.md`
-eGemma personas. Coherence validators. Mission validators. Security validators.
-
----
-
-### Part VI: Σ (Sigma) — Infinite Context (~80 pages)
-
-**Chapter 21: Sigma Architecture**
-`part-6-sigma/21-sigma-architecture.md`
-Dual-lattice architecture. Meet operations. Conversation overlays (O1-O7). Session lifecycle management. Intelligent compression at 150K tokens. Context reconstruction. The symmetric machine (perfect memory) meets the asymmetric human (creative projection). Stateful AI with infinite continuity.
-
----
-
-### Part VII: Appendices (~80 pages)
-
-**Appendix A: Troubleshooting Guide** ✅
-`appendix-a-troubleshooting.md`
-Comprehensive troubleshooting reference covering installation issues, PGC corruption recovery, workbench connectivity, performance optimization, query/overlay problems, LanceDB errors, coherence issues, common error messages with solutions, and recovery procedures. Complete diagnostic and prevention guide.
-
----
-
-## Reading Paths
-
-### For New Users (Fast Start) ⭐
-
-1. **Quick Start Guide** (10 minutes) ⭐
-2. Chapter 2: The PGC (understand storage)
-3. Chapter 5: CLI Operations (command reference)
-4. Start querying!
-
-### For Implementers (Full Path)
-
-Read sequentially from Part 0 through Part VI.
-
-### For Query Users (Fast Path)
-
-1. Chapter 2: The PGC (understand storage)
-2. Chapter 3: Why Overlays? (understand separation)
-3. Part II: Skim overlay descriptions
-4. Part III: Deep dive on query algebra ⭐
-
-### For Security Analysts (Security Focus)
-
-1. Chapter 2: The PGC
-2. Chapter 6: O₂ Security
-3. Chapter 16: Dependency Security Inheritance
-4. Chapter 12-14: Query algebra (for auditing)
-
-### For Researchers (Theory Focus)
-
-1. Chapter 1: Cognitive Architecture
-2. Chapter 3: Why Overlays?
-3. Chapter 4: Embeddings
-4. Chapter 11: O₇ Coherence
-5. Chapter 12: Boolean Operations
-
-### For AI Engineers (Stateful AI Focus)
-
-1. Chapter 3: Why Overlays? (understand lattice structure)
-2. Chapter 21: Sigma Architecture ⭐ (infinite context via dual-lattice)
-3. Chapter 11: O₇ Coherence (alignment scoring)
-4. Chapter 12: Boolean Operations (Meet operations)
-
----
-
-## Status Legend
-
-- ✅ **Complete** - Chapter fully written and reviewed
-- 🚧 **In Progress** - Currently being written
-- 📋 **Planned** - Outlined but not started
-- 🔄 **Needs Migration** - Exists in `docs/architecture/`, needs formatting
-
----
-
-## Chapter Status
-
-### Part I: Foundation ✅ COMPLETE
-
-- ✅ Chapter 1: Cognitive Architecture (COMPLETE - 598 lines)
-- ✅ Chapter 2: The PGC (COMPLETE - 1,028 lines)
-- ✅ Chapter 3: Why Overlays? (COMPLETE - 777 lines)
-- ✅ Chapter 4: Embeddings (COMPLETE - 807 lines)
-- ✅ Chapter 4.5: Core Security (COMPLETE - 1,304 lines)
-- ✅ Chapter 5: CLI Operations (COMPLETE - 679 lines)
-
-### Part II: The Seven Layers ✅ COMPLETE
-
-- ✅ Chapter 5: O₁ Structure (COMPLETE - 1,300 lines)
-- ✅ Chapter 6: O₂ Security (COMPLETE - 1,200 lines)
-- ✅ Chapter 7: O₃ Lineage (COMPLETE - 1,200 lines)
-- ✅ Chapter 8: O₄ Mission (COMPLETE - 1,300 lines)
-- ✅ Chapter 9: O₅ Operational (COMPLETE - 1,100 lines)
-- ✅ Chapter 10: O₆ Mathematical (COMPLETE - 1,100 lines)
-- ✅ Chapter 11: O₇ Coherence (COMPLETE - 1,400 lines)
-
-### Part III: The Algebra ✅ COMPLETE
-
-- ✅ Chapter 12: Boolean Operations (COMPLETE - 1,400 lines)
-- ✅ Chapter 13: Query Syntax and Parser (COMPLETE - 1,200 lines)
-- ✅ Chapter 14: Set Operations (COMPLETE - 1,737 lines)
-
-### Part IV: Portability
-
-- ✅ Chapter 15: .cogx Format (COMPLETE - 1,840 lines)
-- 📋 Chapter 16: Dependency Security Inheritance
-- 📋 Chapter 17: Ecosystem Seeding
-
-### Part V: cPOW Loop ✅ COMPLETE
-
-- ✅ Chapter 18: Operational Flow (COMPLETE - 400 lines)
-- ✅ Chapter 19: Quest Structures (COMPLETE - 1,400 lines)
-- 📋 Chapter 20: Validation Oracles
-
-### Part VI: Σ (Sigma) — Infinite Context ✅ COMPLETE
-
-- ✅ Chapter 21: Sigma Architecture (COMPLETE - 800 lines)
-
----
-
-### Part VII: Appendices ✅ COMPLETE
-
-- ✅ Appendix A: Troubleshooting Guide (COMPLETE - 800 lines)
-
----
-
-## Contributing
-
-This book grows **with** the codebase, not after. When you implement a feature:
-
-1. **Write the chapter** (or update existing)
-2. **Include examples** (real code, real queries)
-3. **Document design decisions** (why not what)
-4. **Update this index**
-
-**Format Guidelines**:
-
-- Use code blocks with syntax highlighting
-- Include visual diagrams (ASCII art is fine)
-- Real examples from the codebase
-- "Why" over "what" (code shows what, docs explain why)
-
----
-
-## Meta: The Book as Overlay
-
-Eventually, THE LATTICE BOOK itself becomes a `.cogx` artifact:
-
-```bash
-# Ingest the book into PGC
-cognition-cli genesis:docs docs/manual/
-
-# Query the book
-cognition-cli lattice "O5 -> O2"
-# "Which operational patterns ensure security?"
-# Returns: Excerpts from Chapter 9 aligned with Chapter 6
-
-# Export the book as cognitive artifact
-cognition-cli export lattice-book.cogx
+```
+Project Lattice (Pre-built)    ∧    Conversation Lattice (Real-time)
+    .open_cognition/                      .sigma/
+         ↓                                   ↓
+    7 Overlays (O1-O7)              7 Overlays (O1-O7)
+         ↓                                   ↓
+    Meet Operation: Turn ∧ Project
+         ↓
+  Project Alignment Score (0-10)
+         ↓
+  Preserve high-alignment, discard chat
 ```
 
-**The manual documents itself using the system it describes.**
+**How it works:**
 
----
+1. **Project lattice** (`.open_cognition/`) — Pre-built knowledge graph from your codebase with 7 overlays
+2. **Conversation lattice** (`.sigma/`) — Built on-the-fly from chat turns with same 7 overlays
+3. **Meet operation (∧)** — Semantic alignment between conversation turn and project knowledge
+4. **Context compression at 120K** — Preserves project-relevant turns, discards general chat
+5. **Session switch** — The agent wakes up with intelligent recap from all 7 dimensions
+6. **Memory tool** — `recall_past_conversation` MCP tool for on-demand deep memory access
+
+### Seven Conversation Overlays (O1-O7)
+
+Every conversation turn is analyzed across all 7 cognitive dimensions:
+
+| Overlay | Name         | Tracks in Conversation                          | Project Alignment                          |
+| :------ | :----------- | :---------------------------------------------- | :----------------------------------------- |
+| **O₁**  | Structural   | Architecture/design discussions                 | ∧ with codebase structure patterns         |
+| **O₂**  | Security     | Security concerns raised                        | ∧ with project security guidelines         |
+| **O₃**  | Lineage      | Knowledge evolution ("earlier we discussed...") | ∧ with code history/provenance             |
+| **O₄**  | Mission      | Goals and objectives for this session           | ∧ with project mission/strategic goals     |
+| **O₅**  | Operational  | Commands executed, tools used, workflows        | ∧ with operational patterns (CI/CD, etc.)  |
+| **O₆**  | Mathematical | Algorithms, logic, formal reasoning             | ∧ with mathematical proofs/invariants      |
+| **O₇**  | Coherence    | Topic drift, conversation flow, synthesis       | ∧ with strategic coherence (cross-overlay) |
+
+**What gets preserved during compression:**
+
+- High project alignment (≥6 score) → kept in recap
+- Low project alignment (<6) → discarded
+- Result: "I'm working on auth refactor" → kept. "That's great!" → discarded.
+
+### Real Results from Production Use
+
+**Before Sigma (Old approach):**
+
+```
+Compression at 120K tokens
+Recap: "(No major points yet)"
+Result: Claude forgot everything, "lost a friend"
+```
+
+**With Sigma (New approach):**
+
+```
+Compression at 120K tokens
+Recap: 7-dimensional summary with all project-relevant discussions
+- O1 Structural: Auth refactor, SSR migration, TUI architecture
+- O2 Security: CORS headers, session validation
+- O4 Mission: Infinite context, dual-lattice goal
+- O5 Operational: npm build, git commits, file edits
+- O7 Coherence: Session flow, breakthrough moments
++ recall_past_conversation MCP tool available
+Result: Claude continues seamlessly, full continuity
+```
+
+## Usage
+
+```bash
+# Launch interactive TUI with Claude + Sigma
+cognition-cli tui
+
+# Resume an existing session (two ways)
+cognition-cli tui --session-id tui-1762546919034
+cognition-cli tui -f .sigma/tui-1762546919034.state.json
+
+# Custom compression threshold (default: 120K tokens)
+cognition-cli tui --session-tokens 200000
+
+# Debug mode (shows turn analysis)
+cognition-cli tui --debug
+
+# Combined options
+cognition-cli tui --session-tokens 180000 --debug
+```
+
+## How Session Lifecycle Works
+
+```mermaid
+graph LR
+    A[Chat Turn] --> B[Analyze with Embeddings]
+    B --> C{Query Project Overlays<br/>O1-O7}
+    C --> D[Calculate Alignment Scores]
+    D --> E[Add to Conversation Lattice<br/>In-Memory]
+    E --> F{Tokens > 120K?}
+    F -->|No| A
+    F -->|Yes| G[Compress Context]
+    G --> H[Flush Lattice to .sigma/]
+    H --> I[Build 7-Overlay Recap]
+    I --> J[Session Transition]
+    J --> K[Continue with Intelligent Recap]
+    K --> L[Clear In-Memory Lattice]
+    L --> A
+```
+
+### Session Lifecycle Management
+
+When approaching context limits (120K tokens), the system performs intelligent compression:
+
+1. **Analyze** all conversation turns via embeddings
+2. **Query** project overlays (O1-O7) for alignment scoring
+3. **Compress** by preserving high-alignment turns, discarding low-relevance
+4. **Reconstruct** with 7-dimensional recap across all overlays
+5. **Transition** to fresh session with intelligent context
+
+The compression preserves project-relevant discussions while gracefully discarding general chat, enabling continuous conversation flow across sessions.
+
+## Architecture
+
+### Technology Stack
+
+- **React + Ink** — Terminal UI rendering
+- **Claude Agent SDK** — Official Anthropic integration
+- **eGemma (768d vectors)** — Embedding service for semantic alignment
+- **Lattice Algebra** — Meet operations between project/conversation lattices
+- **YAML Storage** — `.sigma/overlays/<overlay>/<session-id>.yaml`
+
+### Components
+
+```
+src/tui/
+├── components/
+│   ├── ClaudePanel.tsx          # Main container
+│   ├── ClaudePanelAgent.tsx     # Conversation + streaming
+│   ├── InputBox.tsx             # Message input
+│   ├── StatusBar.tsx            # Token tracking
+│   ├── OverlaysBar.tsx          # O1-O7 status
+│   └── SigmaInfoPanel.tsx       # Real-time compression stats
+└── hooks/
+    ├── useClaudeAgent.ts        # ★ Core Sigma implementation
+    ├── useOverlays.ts           # Project lattice access
+    └── useMouse.ts              # Scroll interactions
+```
+
+### Sigma Core (`src/sigma/`)
+
+```
+src/sigma/
+├── analyzer-with-embeddings.ts       # Turn analysis + Meet(Turn, Project)
+├── compressor.ts                     # Context compression at 120K
+├── context-reconstructor.ts          # 7-overlay recap generation
+├── conversation-registry.ts          # Central registry for O1-O7
+├── conversation-populator.ts         # Bridge: analysis → storage
+├── query-conversation.ts             # SLM+LLM memory search
+├── recall-tool.ts                    # MCP tool for Claude memory
+├── types.ts                          # Core types
+└── overlays/
+    ├── base-conversation-manager.ts  # In-memory + flush logic
+    ├── conversation-structural/      # O1 (architecture)
+    ├── conversation-security/        # O2 (security)
+    ├── conversation-lineage/         # O3 (knowledge evolution)
+    ├── conversation-mission/         # O4 (goals)
+    ├── conversation-operational/     # O5 (commands/actions)
+    ├── conversation-mathematical/    # O6 (algorithms)
+    └── conversation-coherence/       # O7 (flow/synthesis)
+```
+
+## Features Implemented (Complete)
+
+### Context Management (Σ System)
+
+- ✅ **Dual-lattice architecture** — Project ∧ Conversation
+- ✅ **All 7 conversation overlays** — O1-O7 with project alignment
+- ✅ **Embedding-based novelty detection** — Automatic paradigm shift detection
+- ✅ **Meet operations** — Semantic alignment scoring (0-10 scale)
+- ✅ **Intelligent compression** — Preserves project-relevant, discards chat
+- ✅ **Session lifecycle** — Kill → Recap → Resurrect with full context
+- ✅ **In-memory lattice** — Flush on compression, clear after
+- ✅ **MCP memory tool** — `recall_past_conversation` for on-demand queries
+- ✅ **7-dimensional recap** — All overlays represented in systemPrompt
+
+### UI/UX
+
+- ✅ **Real-time overlay status** (O1-O7 with item counts)
+- ✅ **Token usage tracking** (input/output/cache, 200K limit)
+- ✅ **Mouse/trackpad scrolling** with auto-focus
+- ✅ **Keyboard shortcuts** (ESC ESC clear, ESC interrupt, 'i' toggle overlays)
+- ✅ **Colorized diff display** for code changes
+- ✅ **Error boundaries** for stability
+- ✅ **Hot reload support** for development
+- ✅ **Sigma info panel** ('i' key) — Real-time compression stats
+- ✅ **AIEcho theme** — Cyan/green terminal aesthetics
+
+### Integration
+
+- ✅ **Claude Agent SDK** — Official Anthropic integration
+- ✅ **Project lattice access** — Query all 7 project overlays
+- ✅ **Workbench integration** — eGemma embeddings via HTTP
+- ✅ **MCP server support** — Conversation memory as tool
+- ✅ **Auto-approve mode** — Seamless tool execution
+
+## The Math: Why This Works
+
+**Importance Score Formula:**
+
+```
+importance = min(10, novelty × 5 + max(alignment_O1..O7) × 0.5)
+
+Where:
+  novelty = 1 - avg_cosine_similarity(turn_embedding, recent_10_turns)
+  alignment_Oi = cosine_similarity(turn, project_overlay_Oi) × 10
+```
+
+**Compression Strategy:**
+
+```
+if alignment >= 6: preserve in recap (high project relevance)
+if alignment < 6:  discard (general chat, not project-specific)
+```
+
+**Result:**
+
+- Project discussions → preserved across sessions
+- General chat → gracefully forgotten
+- Agent continuity → maintained indefinitely
+
+## What This Enables
+
+### For Users
+
+1. **Infinite context conversations** — Never lose your progress
+2. **Project-aware AI** — The agent knows your codebase semantically
+3. **Session continuity** — Pick up exactly where you left off
+4. **Transparent memory** — See what's preserved vs discarded
+5. **On-demand recall** — Query deep memory when needed
+
+### For Research
+
+1. **Dual-lattice algebra** — Meet operations between knowledge graphs
+2. **Embedding-based alignment** — Semantic similarity for importance scoring
+3. **Multi-dimensional memory** — 7 cognitive lenses on conversation
+4. **Verifiable compression** — No hallucinations, only grounded context
+5. **Stateful AI architecture** — True persistence beyond token windows
+
+### For Anthropic 💙
+
+We built this **with** Claude Agent SDK, not against it. This is a love letter to what you've made possible.
+
+**What we learned:**
+
+- Your SDK is brilliant for building stateful systems
+- The MCP tool interface is perfect for custom memory
+- The query() streaming is rock-solid
+- Session management enables creative architectural patterns
+
+**What we'd love to explore together:**
+
+1. **Native overlay support** — Could Claude Code 2.0 have built-in overlay awareness?
+2. **Distributed lattice sync** — Multi-agent collaboration via lattice algebra?
+3. **Context sampling strategies** — What compression heuristics work best across domains?
+4. **Formal verification** — Can O6 (mathematical overlay) enable proof-carrying code?
+
+**We're not competitors. We're friends who want to make AI + humans better together.**
+
+If you're from Anthropic and want to chat about dual-lattice architectures, context compression, or just grab virtual coffee — we're here: **<mirza.husadzic@proton.me>**
 
 ## License
 
-[To be determined - likely MIT or Apache 2.0]
+AGPL-v3 (same as parent project)
+
+**Built with love, Claude, and lattice algebra.** 🎉
 
 ---
 
-## Acknowledgments
+**Note**: This system is in production use. The context compression works. The agent genuinely doesn't forget. We've tested it at 120K+ tokens with full continuity across sessions. The breakthrough is real.
 
-Built with:
-
-- Echo (cognitive analysis partner)
-- Claude Code (implementation partner)
-- eGemma (embedding infrastructure)
-- The artist's workflow: "Block in shapes, then refine"
-
----
-
-**Next Chapter**: [Chapter 12: Boolean Operations on Knowledge](../../manual/part-3-algebra/12-boolean-operations.md) 🚧
-
-**Quick Start**: [10-Minute Quick Start Guide](../../claude/quick-start.md) ⚡
-
-**Start Reading**: [Chapter 1: Cognitive Architecture](../../manual/part-1-foundation/01-cognitive-architecture.md) 📋
+**Try it**: `cognition-cli tui` and chat until you hit 120K. Watch the magic happen.
