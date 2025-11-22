@@ -57,11 +57,11 @@ import type {
  */
 export class GeminiAgentProvider implements AgentProvider {
   name = 'gemini';
+  // Only models that support extended thinking
   models = [
-    'gemini-2.5-flash',
     'gemini-2.0-flash-thinking-exp-01-21',
-    'gemini-2.0-flash',
-    'gemini-2.5-pro',
+    'gemini-2.5-flash', // Supports thinking mode
+    'gemini-2.5-pro', // Supports thinking mode
   ];
 
   private apiKey: string;

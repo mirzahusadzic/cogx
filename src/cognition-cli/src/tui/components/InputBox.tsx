@@ -14,6 +14,7 @@ interface InputBoxProps {
   onInterrupt?: () => void;
   onDropdownVisibleChange?: (visible: boolean) => void;
   onPasteContent?: (content: string, filepath: string) => void;
+  providerName?: string;
 }
 
 /**
@@ -26,6 +27,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
   onInterrupt,
   onDropdownVisibleChange,
   onPasteContent,
+  providerName = 'AI',
 }) => {
   const [value, setValue] = useState('');
   const [inputKey, setInputKey] = useState(0); // Force remount to reset cursor position
@@ -329,7 +331,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
             onSubmit={handleSubmit}
             placeholder={
               disabled
-                ? 'Claude is thinking... (ESC to interrupt)'
+                ? `${providerName.charAt(0).toUpperCase() + providerName.slice(1)} is thinking... (ESC to interrupt)`
                 : 'Type a message... (ESC ESC to clear)'
             }
             showCursor={!disabled}

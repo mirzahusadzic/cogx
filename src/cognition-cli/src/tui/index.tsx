@@ -436,6 +436,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
               onInterrupt={interrupt}
               onDropdownVisibleChange={setIsDropdownVisible}
               onPasteContent={handlePasteContent}
+              providerName={provider}
             />
           </Box>
           <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>

@@ -314,9 +314,10 @@ program
     await wizardCommand(options);
   });
 
-program
+// Create TUI command with provider subcommand
+const tuiCmd = program
   .command('tui')
-  .description('🖥️  Launch interactive TUI with Claude integration')
+  .description('🖥️  Launch interactive TUI with LLM integration')
   .option(
     '-p, --project-root <path>',
     'Root directory of the project',
@@ -366,6 +367,10 @@ program
     });
   });
 
+// Add provider subcommand to tui
+const { createProviderCommand } = await import('./commands/provider.js');
+tuiCmd.addCommand(createProviderCommand());
+
 program
   .command('ask <question>')
   .description(
@@ -403,7 +408,6 @@ const { createCompletionCommand } = await import('./commands/completion.js');
 const { addPatternsCommands } = await import('./commands/patterns.js');
 const { addCoherenceCommands } = await import('./commands/coherence.js');
 const { addConceptsCommands } = await import('./commands/concepts.js');
-const { createProviderCommand } = await import('./commands/provider.js');
 
 program.addCommand(overlayCommand);
 program.addCommand(blastRadiusCommand);
@@ -412,7 +416,6 @@ program.addCommand(createStatusCommand());
 program.addCommand(createUpdateCommand());
 program.addCommand(createGuideCommand());
 program.addCommand(createCompletionCommand());
-program.addCommand(createProviderCommand());
 addPatternsCommands(program);
 addCoherenceCommands(program);
 addConceptsCommands(program);

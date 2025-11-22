@@ -332,7 +332,7 @@ _cognition_cli_completions() {
   fi
 
   # Main commands
-  local commands="init i genesis g genesis:docs query q audit:transformations audit:docs wizard w tui ask pr-analyze lattice l audit overlay patterns concepts coherence security workflow proofs blast-radius watch status update guide migrate migrate:lance provider completion --help --version"
+  local commands="init i genesis g genesis:docs query q audit:transformations audit:docs wizard w tui ask pr-analyze lattice l audit overlay patterns concepts coherence security workflow proofs blast-radius watch status update guide migrate migrate:lance completion --help --version"
 
   # Global flags
   local global_flags="--no-color --no-emoji --format --verbose -v --quiet -q --help -h"
@@ -354,8 +354,8 @@ _cognition_cli_completions() {
       return 0
       ;;
     tui)
-      # After tui command, suggest flags
-      COMPREPLY=( $(compgen -W "-p --project-root --session-id -f --file -w --workbench --session-tokens --max-thinking-tokens --no-show-thinking --debug -h --help" -- \${cur}) )
+      # After tui command, suggest subcommands and flags
+      COMPREPLY=( $(compgen -W "provider -p --project-root --session-id -f --file -w --workbench --session-tokens --max-thinking-tokens --no-show-thinking --debug -h --help" -- \${cur}) )
       return 0
       ;;
     overlay)
@@ -406,20 +406,23 @@ _cognition_cli_completions() {
       return 0
       ;;
     provider)
-      COMPREPLY=( $(compgen -W "list test set-default config models" -- \${cur}) )
-      return 0
+      # tui provider subcommand
+      if [[ "\${COMP_WORDS[1]}" == "tui" ]]; then
+        COMPREPLY=( $(compgen -W "list test set-default config models" -- \${cur}) )
+        return 0
+      fi
       ;;
     test|set-default)
       # After test or set-default, suggest provider names
-      if [[ "\${COMP_WORDS[1]}" == "provider" ]]; then
-        COMPREPLY=( $(compgen -W "claude openai" -- \${cur}) )
+      if [[ "\${COMP_WORDS[1]}" == "tui" ]] && [[ "\${COMP_WORDS[2]}" == "provider" ]]; then
+        COMPREPLY=( $(compgen -W "claude gemini" -- \${cur}) )
         return 0
       fi
       ;;
     models)
       # After models, optionally suggest provider names
-      if [[ "\${COMP_WORDS[1]}" == "provider" ]]; then
-        COMPREPLY=( $(compgen -W "claude openai" -- \${cur}) )
+      if [[ "\${COMP_WORDS[1]}" == "tui" ]] && [[ "\${COMP_WORDS[2]}" == "provider" ]]; then
+        COMPREPLY=( $(compgen -W "claude gemini" -- \${cur}) )
         return 0
       fi
       ;;
@@ -493,7 +496,6 @@ _cognition_cli() {
     'guide:Documentation browser'
     'migrate:Migration commands'
     'migrate:lance:Migrate to LanceDB'
-    'provider:Manage LLM providers'
     'completion:Manage shell completion'
   )
 
@@ -540,7 +542,7 @@ _cognition_cli() {
     args)
       case $words[1] in
         tui)
-          _arguments \
+          _arguments -C \
             {-p,--project-root}'[Project root directory]:directory:_directories' \
             '--session-id[Session ID to resume]:session-id:' \
             {-f,--file}'[Path to session state file]:state-file:_files -g "*.json"' \
@@ -549,7 +551,26 @@ _cognition_cli() {
             '--max-thinking-tokens[Max thinking tokens]:number:' \
             '--no-show-thinking[Hide thinking blocks in TUI]' \
             '--debug[Enable debug logging]' \
-            {-h,--help}'[Show help]'
+            {-h,--help}'[Show help]' \
+            '1: :->tui_subcommand' \
+            '*:: :->tui_args'
+
+          case $state in
+            tui_subcommand)
+              local -a tui_subcommands
+              tui_subcommands=('provider:Manage LLM providers')
+              _describe 'tui subcommand' tui_subcommands
+              ;;
+            tui_args)
+              case $words[1] in
+                provider)
+                  _arguments \
+                    '1:provider-subcommand:(list test set-default config models)' \
+                    '2:provider-name:(claude gemini)'
+                  ;;
+              esac
+              ;;
+          esac
           ;;
         overlay)
           _arguments \
@@ -584,11 +605,6 @@ _cognition_cli() {
           _arguments \
             '1:subcommand:(install uninstall)' \
             '--shell[Shell type]:shell:(bash zsh fish)'
-          ;;
-        provider)
-          _arguments \
-            '1:subcommand:(list test set-default config models)' \
-            '2:provider-name:(claude openai)'
           ;;
         genesis|g)
           # Handle genesis:<TAB> to suggest 'docs'
@@ -643,7 +659,6 @@ complete -c cognition-cli -f -n "__fish_use_subcommand" -a "workflow" -d "Workfl
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "proofs" -d "Proof analysis"
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "migrate" -d "Migration operations"
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "migrate:lance" -d "Migrate to LanceDB"
-complete -c cognition-cli -f -n "__fish_use_subcommand" -a "provider" -d "Manage LLM providers"
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "completion" -d "Shell completion"
 
 # Global flags
@@ -702,22 +717,25 @@ complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l max-thinking-t
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l no-display-thinking -d "Hide thinking blocks"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l debug -d "Enable debug logging"
 
+# TUI subcommands
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from tui" -a "provider" -d "Manage LLM providers"
+
+# TUI provider subcommands
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from tui; and __fish_seen_subcommand_from provider" -a "list" -d "List available providers"
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from tui; and __fish_seen_subcommand_from provider" -a "test" -d "Test provider availability"
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from tui; and __fish_seen_subcommand_from provider" -a "set-default" -d "Set default provider"
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from tui; and __fish_seen_subcommand_from provider" -a "config" -d "Show configuration"
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from tui; and __fish_seen_subcommand_from provider" -a "models" -d "List models"
+
+# TUI provider names for test, set-default, and models subcommands
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from tui; and __fish_seen_subcommand_from provider; and __fish_seen_subcommand_from test set-default models" -a "claude" -d "Anthropic Claude"
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from tui; and __fish_seen_subcommand_from provider; and __fish_seen_subcommand_from test set-default models" -a "gemini" -d "Google Gemini"
+
 # genesis:docs options
 complete -c cognition-cli -n "__fish_seen_subcommand_from genesis:docs" -s p -l project-root -d "Project root directory" -xa "(__fish_complete_directories)"
 complete -c cognition-cli -n "__fish_seen_subcommand_from genesis:docs" -s f -l force -d "Force re-ingestion"
 complete -c cognition-cli -n "__fish_seen_subcommand_from genesis:docs" -xa "(ls *.md 2>/dev/null)" -d "Markdown file"
 complete -c cognition-cli -n "__fish_seen_subcommand_from genesis:docs" -xa "(__fish_complete_directories)" -d "Directory"
-
-# Provider subcommands
-complete -c cognition-cli -f -n "__fish_seen_subcommand_from provider" -a "list" -d "List available providers"
-complete -c cognition-cli -f -n "__fish_seen_subcommand_from provider" -a "test" -d "Test provider availability"
-complete -c cognition-cli -f -n "__fish_seen_subcommand_from provider" -a "set-default" -d "Set default provider"
-complete -c cognition-cli -f -n "__fish_seen_subcommand_from provider" -a "config" -d "Show configuration"
-complete -c cognition-cli -f -n "__fish_seen_subcommand_from provider" -a "models" -d "List models"
-
-# Provider names for test, set-default, and models subcommands
-complete -c cognition-cli -f -n "__fish_seen_subcommand_from provider; and __fish_seen_subcommand_from test set-default models" -a "claude" -d "Anthropic Claude"
-complete -c cognition-cli -f -n "__fish_seen_subcommand_from provider; and __fish_seen_subcommand_from test set-default models" -a "openai" -d "OpenAI"
 
 # Completion subcommands
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from completion" -a "install uninstall"
