@@ -1,10 +1,10 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
 import { Spinner } from '@inkjs/ui';
-import type { ClaudeMessage } from '../hooks/useClaudeAgent.js';
+import type { TUIMessage } from '../hooks/useAgent.js';
 
 interface ClaudePanelAgentProps {
-  messages: ClaudeMessage[];
+  messages: TUIMessage[];
   isThinking: boolean;
   focused: boolean;
   streamingPaste?: string;

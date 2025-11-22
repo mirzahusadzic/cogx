@@ -22,9 +22,7 @@ describe('ToolFormatter', () => {
       const result = formatToolUse(tool);
 
       expect(result.icon).toBe('🧠');
-      expect(result.name).toBe(
-        'mcp__conversation-memory__recall_past_conversation'
-      );
+      expect(result.name).toBe('Recall');
       expect(result.description).toBe('"previous discussion about testing"');
     });
 
@@ -155,9 +153,7 @@ describe('ToolFormatter', () => {
 
       const message = formatToolUseMessage(tool);
 
-      expect(message).toBe(
-        '🧠 mcp__conversation-memory__recall_past_conversation: "test"'
-      );
+      expect(message).toBe('🧠 Recall: "test"');
     });
   });
 

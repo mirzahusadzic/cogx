@@ -45,7 +45,7 @@
 import type { TurnAnalysis } from '../../../sigma/types.js';
 import type { EmbeddingService } from '../../../core/services/embedding.js';
 import type { OverlayRegistry } from '../../../core/algebra/overlay-registry.js';
-import type { ClaudeMessage } from '../useClaudeAgent.js';
+import type { TUIMessage } from '../useAgent.js';
 
 /**
  * Message with index for analysis tracking
@@ -54,8 +54,8 @@ import type { ClaudeMessage } from '../useClaudeAgent.js';
  * Used internally for maintaining chronological order during analysis.
  */
 export interface MessageWithIndex {
-  /** The Claude message (user or assistant) */
-  message: ClaudeMessage;
+  /** The TUI message (user or assistant) */
+  message: TUIMessage;
   /** Zero-based index in the conversation history */
   index: number;
 }
@@ -81,7 +81,7 @@ export interface MessageWithIndex {
  */
 export interface AnalysisTask {
   /** The message to analyze */
-  message: ClaudeMessage;
+  message: TUIMessage;
   /** Position in conversation history (0-based) */
   messageIndex: number;
   /** Unix timestamp (ms) for deduplication */

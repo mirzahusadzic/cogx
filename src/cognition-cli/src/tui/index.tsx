@@ -11,10 +11,10 @@ import { ClaudePanelAgent } from './components/ClaudePanelAgent.js';
 import { InputBox } from './components/InputBox.js';
 import { StatusBar } from './components/StatusBar.js';
 import { SigmaInfoPanel } from './components/SigmaInfoPanel.js';
-import { useClaudeAgent } from './hooks/useClaudeAgent.js';
+import { useAgent } from './hooks/useAgent.js';
 import { useOverlays } from './hooks/useOverlays.js';
 import { isAuthenticationError } from './hooks/sdk/index.js';
-import type { ClaudeMessage } from './hooks/useClaudeAgent.js';
+import type { TUIMessage } from './hooks/useAgent.js';
 
 // Custom theme with vivid AIEcho cyan spinner
 const customTheme = extendTheme(defaultTheme, {
@@ -84,7 +84,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     sigmaStats,
     avgOverlays,
     currentSessionId,
-  } = useClaudeAgent({
+  } = useAgent({
     sessionId,
     cwd: projectRoot, // Use project root, not .open_cognition dir
     sessionTokens, // Pass custom token threshold
@@ -284,7 +284,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
 
       // Format messages for log
       const logContent = messages
-        .map((msg: ClaudeMessage) => {
+        .map((msg: TUIMessage) => {
           const timestamp = msg.timestamp.toISOString();
           const type = msg.type.toUpperCase().padEnd(9);
           const separator = '='.repeat(80);

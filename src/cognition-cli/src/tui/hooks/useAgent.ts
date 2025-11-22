@@ -141,9 +141,9 @@ import {
 import type { McpSdkServerConfigWithInstance } from './sdk/types.js';
 
 /**
- * Configuration options for Claude Agent SDK integration
+ * Configuration options for Agent integration (Claude, Gemini, etc.)
  */
-interface UseClaudeAgentOptions {
+interface UseAgentOptions {
   /**
    * User-provided session ID (from CLI --session-id flag)
    * If not provided, auto-generates timestamp-based ID
@@ -189,7 +189,7 @@ interface UseClaudeAgentOptions {
 /**
  * Message object displayed in conversation UI
  */
-export interface ClaudeMessage {
+export interface TUIMessage {
   /** Message role */
   type: 'user' | 'assistant' | 'system' | 'tool_progress' | 'thinking';
 
@@ -279,7 +279,7 @@ export interface ClaudeMessage {
  *   </Box>
  * ))}
  */
-export function useClaudeAgent(options: UseClaudeAgentOptions) {
+export function useAgent(options: UseAgentOptions) {
   // Destructure options to get stable primitive values
   // This prevents the entire options object from causing re-renders
   const {
@@ -328,7 +328,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   // ========================================
 
   // Initialize with welcome message (colors applied by ClaudePanelAgent)
-  const [messages, setMessages] = useState<ClaudeMessage[]>([
+  const [messages, setMessages] = useState<TUIMessage[]>([
     {
       type: 'system',
       content: `
@@ -374,7 +374,7 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
   const recallMcpServerRef = useRef<McpSdkServerConfigWithInstance | null>(
     null
   );
-  const messagesRef = useRef<ClaudeMessage[]>(messages); // Ref to avoid effect re-running on every message change
+  const messagesRef = useRef<TUIMessage[]>(messages); // Ref to avoid effect re-running on every message change
   const userMessageEmbeddingCache = useRef<Map<number, number[]>>(new Map()); // Cache user message embeddings by timestamp
   const latticeLoadedRef = useRef<Set<string>>(new Set()); // Track which sessions have been loaded
   const compressionInProgressRef = useRef(false); // ✅ Guard against concurrent compression requests
