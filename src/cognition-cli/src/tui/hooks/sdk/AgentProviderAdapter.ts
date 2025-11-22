@@ -56,6 +56,9 @@ export interface AgentAdapterOptions {
   /** Extended thinking token budget */
   maxThinkingTokens?: number;
 
+  /** Display thinking blocks (default: true) */
+  displayThinking?: boolean;
+
   /** MCP servers */
   mcpServers?: Record<string, McpSdkServerConfigWithInstance>;
 
@@ -123,6 +126,7 @@ export class AgentProviderAdapter {
       cwd: this.options.cwd,
       resumeSessionId: this.options.resumeSessionId,
       maxThinkingTokens: this.options.maxThinkingTokens,
+      displayThinking: this.options.displayThinking,
       mcpServers: this.options.mcpServers,
       conversationRegistry: this.options.conversationRegistry,
       workbenchUrl: this.options.workbenchUrl,

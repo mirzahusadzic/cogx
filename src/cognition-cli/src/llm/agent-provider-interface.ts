@@ -57,6 +57,9 @@ export interface AgentRequest {
   /** Extended thinking token budget */
   maxThinkingTokens?: number;
 
+  /** Display thinking blocks (default: true) */
+  displayThinking?: boolean;
+
   /** MCP server configurations */
   mcpServers?: Record<string, McpSdkServerConfigWithInstance>;
 

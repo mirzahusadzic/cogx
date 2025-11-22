@@ -29,6 +29,7 @@ import {
   AgentTool,
   setLogLevel,
   LogLevel,
+  StreamingMode,
 } from '@google/adk';
 import { getCognitionTools } from './gemini-adk-tools.js';
 import type {
@@ -141,6 +142,18 @@ export class GeminiAgentProvider implements AgentProvider {
       model: request.model || 'gemini-2.5-flash',
       instruction: this.buildSystemPrompt(request),
       tools,
+      generateContentConfig: {
+        thinkingConfig: {
+          // Gemini's max thinking budget is 24,576 tokens
+          // Use dynamic thinking (-1) or custom budget (capped at max)
+          thinkingBudget:
+            request.maxThinkingTokens !== undefined
+              ? Math.min(request.maxThinkingTokens, 24576)
+              : -1,
+          // Enable thought summaries based on displayThinking flag (default: true)
+          includeThoughts: request.displayThinking !== false,
+        },
+      },
     });
 
     // Create runner
@@ -157,6 +170,9 @@ export class GeminiAgentProvider implements AgentProvider {
     // Track actual token usage from Gemini API
     let promptTokens = 0;
     let completionTokens = 0;
+
+    // Track if we've yielded any responses (to avoid duplicate final yield)
+    let hasYieldedResponse = false;
 
     // Create or resume session
     const sessionId = request.resumeSessionId || `gemini-${Date.now()}`;
@@ -198,12 +214,16 @@ export class GeminiAgentProvider implements AgentProvider {
 
     try {
       // Run agent - runAsync returns an async generator
+      // Enable SSE streaming mode for real-time response streaming
       const runGenerator = this.currentRunner.runAsync({
         userId,
         sessionId,
         newMessage: {
           role: 'user',
           parts: [{ text: request.prompt }],
+        },
+        runConfig: {
+          streamingMode: StreamingMode.SSE,
         },
       });
 
@@ -320,24 +340,46 @@ export class GeminiAgentProvider implements AgentProvider {
             if (part.text) {
               // Check if this is thinking content
               const isThinking = part.thought === true;
+              const messageType = isThinking ? 'thinking' : 'assistant';
 
-              const message: AgentMessage = {
-                id: `msg-${Date.now()}-${numTurns}-${isThinking ? 'thinking' : 'text'}`,
-                type: isThinking ? 'thinking' : 'assistant',
-                role: 'assistant',
-                content: part.text,
-                timestamp: new Date(),
-              };
+              // Check if we should append to the last message (streaming accumulation)
+              // or create a new message
+              const lastMessage = messages[messages.length - 1];
+              const shouldAppend =
+                lastMessage &&
+                lastMessage.type === messageType &&
+                lastMessage.role === 'assistant';
 
-              // Add thinking field for thinking messages
-              if (isThinking) {
-                message.thinking = part.text;
+              if (shouldAppend) {
+                // Append to existing message for streaming
+                lastMessage.content =
+                  typeof lastMessage.content === 'string'
+                    ? lastMessage.content + part.text
+                    : part.text;
+                if (isThinking) {
+                  lastMessage.thinking = lastMessage.content;
+                }
+              } else {
+                // Create new message
+                const message: AgentMessage = {
+                  id: `msg-${Date.now()}-${numTurns}-${messageType}`,
+                  type: messageType,
+                  role: 'assistant',
+                  content: part.text,
+                  timestamp: new Date(),
+                };
+
+                // Add thinking field for thinking messages
+                if (isThinking) {
+                  message.thinking = part.text;
+                }
+
+                messages.push(message);
               }
-
-              messages.push(message);
 
               totalTokens += Math.ceil(part.text.length / 4);
 
+              hasYieldedResponse = true;
               yield {
                 messages: [...messages],
                 sessionId,
@@ -357,19 +399,22 @@ export class GeminiAgentProvider implements AgentProvider {
       }
 
       // Final response with actual token counts from Gemini API
-      yield {
-        messages: [...messages],
-        sessionId,
-        tokens: {
-          prompt: promptTokens || Math.ceil(request.prompt.length / 4),
-          completion: completionTokens || totalTokens,
-          total:
-            (promptTokens || Math.ceil(request.prompt.length / 4)) +
-            (completionTokens || totalTokens),
-        },
-        finishReason: 'stop',
-        numTurns,
-      };
+      // Only yield if we haven't yielded any responses yet (edge case: empty response)
+      if (!hasYieldedResponse) {
+        yield {
+          messages: [...messages],
+          sessionId,
+          tokens: {
+            prompt: promptTokens || Math.ceil(request.prompt.length / 4),
+            completion: completionTokens || totalTokens,
+            total:
+              (promptTokens || Math.ceil(request.prompt.length / 4)) +
+              (completionTokens || totalTokens),
+          },
+          finishReason: 'stop',
+          numTurns,
+        };
+      }
     } catch (error) {
       const errorMessage: AgentMessage = {
         id: `msg-${Date.now()}-error`,

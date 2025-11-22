@@ -168,6 +168,12 @@ interface UseAgentOptions {
   maxThinkingTokens?: number;
 
   /**
+   * Display thinking blocks in the TUI
+   * @default true
+   */
+  displayThinking?: boolean;
+
+  /**
    * Enable debug logging to console and tui-debug.log
    * @default false
    */
@@ -287,6 +293,7 @@ export function useAgent(options: UseAgentOptions) {
     cwd,
     sessionTokens,
     maxThinkingTokens,
+    displayThinking,
     debug: debugFlag,
     provider: providerName = 'claude',
     model: modelName,
@@ -1484,6 +1491,7 @@ export function useAgent(options: UseAgentOptions) {
           cwd: cwd,
           resumeSessionId: currentResumeId, // undefined after compression = fresh session!
           maxThinkingTokens, // Enable extended thinking if specified
+          displayThinking, // Control thinking block generation
           conversationRegistry: conversationRegistryRef.current || undefined,
           workbenchUrl: process.env.WORKBENCH_URL || 'http://localhost:8000',
           onStderr: (data: string) => {

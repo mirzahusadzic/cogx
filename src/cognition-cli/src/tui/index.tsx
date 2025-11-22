@@ -89,6 +89,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     cwd: projectRoot, // Use project root, not .open_cognition dir
     sessionTokens, // Pass custom token threshold
     maxThinkingTokens, // Pass extended thinking token limit
+    displayThinking, // Control thinking block generation
     debug, // Pass debug flag
     provider, // Pass LLM provider
     model, // Pass model name
