@@ -1,5 +1,5 @@
 /**
- * Tests for SDKQueryManager
+ * Tests for SDK Error Helpers
  *
  * Week 2 Day 6-8: Extract SDK Layer
  */
@@ -9,7 +9,7 @@ import {
   isAuthenticationError,
   formatAuthError,
   formatSDKError,
-} from '../../../sdk/SDKQueryManager.js';
+} from '../../../sdk/error-helpers.js';
 
 describe('SDKQueryManager', () => {
   describe('isAuthenticationError()', () => {

@@ -151,12 +151,39 @@ export interface FormattedTool {
 export function formatToolUse(tool: ToolUse): FormattedTool {
   let inputDesc = '';
   let toolIcon = '🔧';
-  let toolName = tool.name;
+
+  // Normalize tool name: snake_case → PascalCase (e.g., read_file → Read)
+  const normalizeName = (name: string): string => {
+    // Handle special cases first
+    if (name === 'WebSearch' || name === 'WebFetch') return name;
+    if (name.startsWith('mcp__')) return name;
+
+    // Convert snake_case to PascalCase: read_file → Read, write_file → Write
+    if (name.includes('_')) {
+      const base = name.split('_')[0]; // read_file → read
+      return base.charAt(0).toUpperCase() + base.slice(1); // read → Read
+    }
+
+    // Return as-is if already PascalCase
+    return name;
+  };
+
+  let toolName = normalizeName(tool.name);
 
   // Special formatting for memory recall tool
   if (tool.name === 'mcp__conversation-memory__recall_past_conversation') {
     toolIcon = '🧠';
     if (tool.input.query) {
+      inputDesc = `"${tool.input.query as string}"`;
+    } else {
+      inputDesc = JSON.stringify(tool.input);
+    }
+  } else if (tool.name === 'WebSearch') {
+    toolIcon = '🔍';
+    if (tool.input.request) {
+      inputDesc = `${tool.input.request as string}`;
+    } else if (tool.input.query) {
+      // Handle cases where 'query' might be used instead of 'request'
       inputDesc = `"${tool.input.query as string}"`;
     } else {
       inputDesc = JSON.stringify(tool.input);
@@ -169,7 +196,7 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
   } else if (tool.input.file_path) {
     // For Edit tool, show character-level diff with background colors
     if (
-      tool.name === 'Edit' &&
+      (tool.name === 'Edit' || tool.name === 'edit_file') &&
       tool.input.old_string &&
       tool.input.new_string
     ) {
@@ -192,9 +219,6 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
         activeForm: string;
       }>
     );
-  } else if (tool.name === 'WebSearch' && tool.input.query) {
-    toolIcon = '🔍';
-    inputDesc = `"${tool.input.query as string}"`;
   } else if (tool.name === 'WebFetch' && tool.input.url) {
     toolIcon = '🌐';
     inputDesc = tool.input.url as string;

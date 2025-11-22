@@ -128,11 +128,11 @@ export function loadLLMConfig(): LLMConfig {
   const settings = loadSettings();
 
   return {
-    // Default provider: env var > settings file > 'claude'
+    // Default provider: env var > settings file > 'gemini'
     defaultProvider:
       process.env.COGNITION_LLM_PROVIDER ||
       settings.defaultProvider ||
-      'claude',
+      'gemini',
 
     providers: {
       // Claude configuration

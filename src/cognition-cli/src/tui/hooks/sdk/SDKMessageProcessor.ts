@@ -57,7 +57,8 @@
  * Extracted from useClaudeAgent.ts as part of Week 2 Day 6-8 refactor.
  */
 
-import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { SDKMessage, ContentBlock } from './types.js';
 import { stripANSICodes } from '../rendering/MessageRenderer.js';
 import { formatToolUse } from '../rendering/ToolFormatter.js';
 
@@ -197,6 +198,10 @@ export function processAssistantMessage(
   }
 
   const messages: ProcessedMessage[] = [];
+
+  if (!sdkMessage.message) {
+    return messages;
+  }
 
   // Check for tool uses
   const toolUses = sdkMessage.message.content.filter(
@@ -339,7 +344,7 @@ export function processToolProgress(
 
   return {
     type: 'tool_progress',
-    content: `⏱️ ${sdkMessage.tool_name} (${Math.round(sdkMessage.elapsed_time_seconds)}s)`,
+    content: `⏱️ ${sdkMessage.tool_name || 'unknown tool'} (${Math.round(sdkMessage.elapsed_time_seconds || 0)}s)`,
     timestamp: new Date(),
   };
 }
@@ -380,12 +385,19 @@ export function processResult(sdkMessage: SDKMessage): {
 
   if (sdkMessage.subtype === 'success') {
     const usage = sdkMessage.usage;
+    const numTurns = sdkMessage.num_turns || 0;
+    const totalCostUsd = sdkMessage.total_cost_usd || 0;
+
+    if (!usage) {
+      return null; // or throw an error, depending on desired behavior
+    }
+
     const resultTotal = usage.input_tokens + usage.output_tokens;
 
     return {
       message: {
         type: 'system',
-        content: `✓ Complete (${sdkMessage.num_turns} turns, $${sdkMessage.total_cost_usd.toFixed(4)})`,
+        content: `✓ Complete (${numTurns} turns, $${totalCostUsd.toFixed(4)})`,
         timestamp: new Date(),
       },
       tokenUpdate: {
@@ -430,7 +442,7 @@ export function processSystemMessage(
   if (sdkMessage.subtype === 'init') {
     return {
       type: 'system',
-      content: `Connected to Claude (${sdkMessage.model})`,
+      content: `Connected to Claude (${sdkMessage.model || 'unknown model'})`,
       timestamp: new Date(),
     };
   }

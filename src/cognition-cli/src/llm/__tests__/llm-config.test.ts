@@ -4,7 +4,7 @@
  * Unit tests for LLM configuration loading and validation.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   loadLLMConfig,
   validateLLMConfig,
@@ -15,6 +15,15 @@ import {
   CLAUDE_MODELS,
   GEMINI_MODELS,
 } from '../llm-config.js';
+
+// Mock settings loader to prevent reading user's local settings.json
+vi.mock('../../core/security/security-bootstrap.js', () => ({
+  loadSettings: () => ({
+    // Return empty settings so tests use defaults
+    defaultProvider: undefined,
+  }),
+  saveSettings: vi.fn(),
+}));
 
 describe('LLM Configuration', () => {
   // Save original env vars
@@ -38,7 +47,7 @@ describe('LLM Configuration', () => {
     it('should return default configuration when no env vars set', () => {
       const config = loadLLMConfig();
 
-      expect(config.defaultProvider).toBe('claude');
+      expect(config.defaultProvider).toBe('gemini');
       expect(config.providers.claude).toBeDefined();
       expect(config.providers.gemini).toBeDefined();
     });
@@ -97,7 +106,7 @@ describe('LLM Configuration', () => {
 
   describe('validateLLMConfig()', () => {
     it('should return empty errors for valid configuration', () => {
-      process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
+      process.env.GEMINI_API_KEY = 'test-gemini-key';
       const config = loadLLMConfig();
 
       const errors = validateLLMConfig(config);

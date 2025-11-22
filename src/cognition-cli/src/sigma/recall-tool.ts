@@ -5,10 +5,19 @@
  * Uses SDK's MCP support to provide seamless memory access.
  */
 
-import { tool, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
 import { queryConversationLattice } from './query-conversation.js';
 import type { ConversationOverlayRegistry } from './conversation-registry.js';
+
+type ClaudeAgentSdk = {
+  tool: (
+    name: string,
+    description: string,
+    inputSchema: unknown,
+    action: unknown
+  ) => unknown;
+  createSdkMcpServer: (config: unknown) => unknown;
+};
 
 /**
  * Create recall conversation MCP server
@@ -23,17 +32,24 @@ import type { ConversationOverlayRegistry } from './conversation-registry.js';
  * - SLM + LLM synthesis for accurate answers
  *
  * @param conversationRegistry - Registry of conversation overlay managers
+ * @param claudeAgentSdk - The dynamically imported Claude Agent SDK module
  * @param workbenchUrl - Optional URL for workbench API access
  * @returns MCP server instance with recall_past_conversation tool
  *
  * @example
- * const server = createRecallMcpServer(registry, 'http://localhost:3001');
+ * const server = createRecallMcpServer(registry, claudeSdk, 'http://localhost:3001');
  * // Claude can now use: "recall_past_conversation" tool to query history
  */
 export function createRecallMcpServer(
   conversationRegistry: ConversationOverlayRegistry,
+  claudeAgentSdk: ClaudeAgentSdk | undefined,
   workbenchUrl?: string
 ) {
+  if (!claudeAgentSdk) {
+    return undefined;
+  }
+
+  const { tool, createSdkMcpServer } = claudeAgentSdk;
   const recallTool = tool(
     'recall_past_conversation',
     'Retrieve FULL untruncated messages from conversation history. The recap you see is truncated to 150 chars - when you see "..." it means more content is available. Use this tool to get complete details. Searches all 7 overlays (O1-O7) in LanceDB with semantic search. Ask about topics, not exact phrases.',
@@ -44,7 +60,7 @@ export function createRecallMcpServer(
           'What to search for in past conversation (e.g., "What did we discuss about TUI scrolling?" or "What were the goals mentioned?")'
         ),
     },
-    async (args) => {
+    async (args: { query: string }) => {
       try {
         // Query conversation lattice with SLM + LLM synthesis
         const answer = await queryConversationLattice(

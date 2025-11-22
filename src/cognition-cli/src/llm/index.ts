@@ -31,7 +31,6 @@
  */
 
 import { registry } from './provider-registry.js';
-import { ClaudeProvider } from './providers/claude-provider.js';
 import { GeminiAgentProvider } from './providers/gemini-agent-provider.js';
 
 // Re-export core types and classes
@@ -44,8 +43,10 @@ export type {
 } from './provider-interface.js';
 export type { AgentProvider } from './agent-provider-interface.js';
 export { isAgentProvider } from './agent-provider-interface.js';
-export { ClaudeProvider } from './providers/claude-provider.js';
 export { GeminiAgentProvider } from './providers/gemini-agent-provider.js';
+
+// Claude provider is dynamically imported to make it optional
+export type { ClaudeProvider } from './providers/claude-provider.js';
 
 /**
  * Provider initialization options
@@ -63,7 +64,7 @@ export interface InitializeOptions {
 
   /**
    * Default provider to use
-   * @default 'claude'
+   * @default 'gemini'
    */
   defaultProvider?: 'claude' | 'gemini' | string;
 
@@ -106,31 +107,53 @@ export interface InitializeOptions {
  *   skipMissingProviders: true
  * });
  */
-export function initializeProviders(options: InitializeOptions = {}): void {
+export async function initializeProviders(
+  options: InitializeOptions = {}
+): Promise<void> {
   const {
     anthropicApiKey,
     googleApiKey,
-    defaultProvider = 'claude',
-    skipMissingProviders = false,
+    defaultProvider = 'gemini',
+    skipMissingProviders = true, // Changed default to true
   } = options;
 
   // Track which providers were successfully registered
   const registered: string[] = [];
 
-  // Register Claude (default provider)
+  // Register Claude (optional - requires optional peer dependency)
   if (!registry.has('claude')) {
     try {
-      const claude = new ClaudeProvider(
-        anthropicApiKey || process.env.ANTHROPIC_API_KEY
-      );
-      registry.register(claude);
-      registered.push('claude');
+      // Dynamic import to make Claude SDK optional
+      const { ClaudeProvider } = await import('./providers/claude-provider.js');
+      const apiKey = anthropicApiKey || process.env.ANTHROPIC_API_KEY;
+
+      // Only register Claude if API key is available
+      if (apiKey) {
+        const claude = new ClaudeProvider(apiKey);
+
+        // Always register the provider (basic completions work without Agent SDK)
+        registry.register(claude);
+        registered.push('claude');
+
+        // Check if agent mode is available (requires optional Claude Agent SDK)
+        await claude.ensureAgentModeReady();
+        // Note: If SDK is not available, agent mode will be disabled silently
+      }
     } catch (error) {
       if (skipMissingProviders) {
-        console.warn(
-          'Skipping Claude provider (no API key):',
-          error instanceof Error ? error.message : String(error)
-        );
+        // Silent skip if SDK not installed
+        if (
+          error instanceof Error &&
+          error.message.includes('Cannot find module')
+        ) {
+          // SDK not installed - this is OK
+        } else {
+          console.error(
+            'Failed to load Claude provider due to dynamic import error:',
+            error instanceof Error ? error.message : String(error),
+            error // Log the full error object for more details
+          );
+        }
       } else {
         throw error;
       }

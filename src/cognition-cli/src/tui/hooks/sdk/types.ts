@@ -41,7 +41,35 @@
  * Extracted from useClaudeAgent.ts as part of Week 2 Day 6-8 refactor.
  */
 
-import type { McpSdkServerConfigWithInstance } from '@anthropic-ai/claude-agent-sdk';
+export type McpSdkServerConfigWithInstance = unknown;
+
+export type ContentBlock = {
+  type: 'text' | 'thinking' | 'tool_use';
+  text?: string;
+  thinking?: string;
+  id?: string;
+  name?: string;
+  input?: Record<string, unknown>;
+};
+
+export type SDKMessage = {
+  type: 'assistant' | 'stream_event' | 'tool_progress' | 'system' | 'result';
+  message?: {
+    content: ContentBlock[];
+  };
+  event?: unknown;
+  tool_name?: string;
+  elapsed_time_seconds?: number;
+  subtype?: 'success' | 'error' | 'init';
+  usage?: {
+    input_tokens: number;
+    output_tokens: number;
+  };
+  num_turns?: number;
+  session_id?: string;
+  total_cost_usd?: number;
+  model?: string;
+};
 
 /**
  * Options for creating an SDK query
@@ -261,3 +289,7 @@ export interface QueryExecutionResult {
    */
   error?: string;
 }
+
+export type Query = {
+  interrupt: () => Promise<void>;
+} & AsyncGenerator<SDKMessage>;

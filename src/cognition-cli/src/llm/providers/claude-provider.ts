@@ -34,11 +34,6 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import {
-  query,
-  type Query,
-  type SDKMessage,
-} from '@anthropic-ai/claude-agent-sdk';
 import type {
   LLMProvider,
   CompletionRequest,
@@ -51,6 +46,11 @@ import type {
   AgentResponse,
   AgentMessage,
 } from '../agent-provider-interface.js';
+import type {
+  Query,
+  SDKMessage,
+  ContentBlock,
+} from '../../tui/hooks/sdk/types.js';
 
 /**
  * Claude Provider
@@ -69,13 +69,50 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
 
   private client: Anthropic;
   private currentQuery: Query | null = null;
+  private claudeAgentSdk: unknown | undefined;
+  private agentSdkLoadingPromise: Promise<void> | undefined; // Promise to track SDK loading
 
   constructor(apiKey?: string) {
     this.client = new Anthropic({
       apiKey: apiKey || process.env.ANTHROPIC_API_KEY,
     });
+
+    // Start loading Claude Agent SDK asynchronously in the constructor
+    // but do NOT await it here. We'll await it in executeAgent().
+    if (this.client.apiKey) {
+      this.agentSdkLoadingPromise = this.initAgentSdk();
+    }
   }
 
+  private async initAgentSdk(): Promise<void> {
+    const claudeAgentSdkName = '@anthropic-ai/claude-agent-sdk';
+    try {
+      this.claudeAgentSdk = await import(claudeAgentSdkName);
+    } catch {
+      // SDK not installed - this is OK, agent mode will be disabled
+      this.claudeAgentSdk = undefined;
+    }
+  }
+
+  /**
+   * Ensures the Claude Agent SDK has been loaded.
+   * This method should be awaited before attempting to use agent features.
+   */
+  private async ensureAgentSdkLoaded(): Promise<void> {
+    if (this.agentSdkLoadingPromise) {
+      await this.agentSdkLoadingPromise;
+    }
+  }
+
+  /**
+   * Ensures the provider is ready for agent mode.
+   * This should be awaited before using agent features.
+   * @returns true if agent mode is supported, false otherwise.
+   */
+  async ensureAgentModeReady(): Promise<boolean> {
+    await this.ensureAgentSdkLoaded();
+    return !!this.claudeAgentSdk;
+  }
   // ========================================
   // LLMProvider Interface (Basic Completions)
   // ========================================
@@ -220,7 +257,7 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
    * Check if provider supports agent mode
    */
   supportsAgentMode(): boolean {
-    return true;
+    return !!this.claudeAgentSdk;
   }
 
   /**
@@ -237,8 +274,18 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
   async *executeAgent(
     request: AgentRequest
   ): AsyncGenerator<AgentResponse, void, undefined> {
+    // Ensure Claude Agent SDK is loaded before executing agent query
+    await this.ensureAgentSdkLoaded();
+
+    if (!this.claudeAgentSdk) {
+      throw new Error(
+        'Claude Agent SDK is not installed. Please install it to use agent features.'
+      );
+    }
     // Create SDK query with agent features
-    this.currentQuery = query({
+    this.currentQuery = (
+      this.claudeAgentSdk as { query: (options: unknown) => Query }
+    ).query({
       prompt: request.prompt,
       options: {
         cwd: request.cwd,
@@ -272,6 +319,10 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
     let totalTokens = { prompt: 0, completion: 0, total: 0 };
     let currentFinishReason: AgentResponse['finishReason'] = 'stop';
     let numTurns = 0;
+
+    if (!this.currentQuery) {
+      throw new Error('Claude Agent SDK query failed to initialize.');
+    }
 
     try {
       for await (const sdkMessage of this.currentQuery) {
@@ -319,7 +370,7 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
    * Used for ESC ESC keyboard shortcut in TUI.
    */
   async interrupt(): Promise<void> {
-    if (this.currentQuery) {
+    if (this.currentQuery && this.claudeAgentSdk) {
       await this.currentQuery.interrupt();
       this.currentQuery = null;
     }
@@ -344,13 +395,9 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
         // Assistant message with possible tool calls
         // NOTE: Streaming text comes via stream_event deltas to avoid duplication.
         // But we still need to handle text that accompanies tool_use (e.g., "Let me check that")
-        interface ContentBlock {
-          type: string;
-          text?: string;
-          thinking?: string;
-          id?: string;
-          name?: string;
-          input?: Record<string, unknown>;
+
+        if (!sdkMessage.message) {
+          return null;
         }
         const content = sdkMessage.message.content as ContentBlock[];
 
@@ -504,7 +551,8 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
       }
     } else if (
       sdkMessage.type === 'result' &&
-      sdkMessage.subtype === 'success'
+      sdkMessage.subtype === 'success' &&
+      sdkMessage.usage
     ) {
       const usage = sdkMessage.usage;
       return {
@@ -531,7 +579,7 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
       }
     }
 
-    if (sdkMessage.type === 'assistant') {
+    if (sdkMessage.type === 'assistant' && sdkMessage.message) {
       const toolUses = sdkMessage.message.content.filter(
         (c: { type: string }) => c.type === 'tool_use'
       );

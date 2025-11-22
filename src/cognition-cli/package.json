@@ -33,7 +33,6 @@
     "format:staged": "git diff --name-only --cached --diff-filter=ACMR | sed 's|^src/cognition-cli/||' | grep -E '\\.(ts|tsx|js|json|md)$' | xargs -r prettier --write"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.1.46",
     "@anthropic-ai/sdk": "^0.69.0",
     "@clack/prompts": "^0.7.0",
     "@google-cloud/storage": "^7.17.1",
@@ -71,6 +70,11 @@
     "workerpool": "^10.0.0",
     "yaml": "^2.8.1",
     "zod": "^3.25.76"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/claude-agent-sdk": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.0",

@@ -31,7 +31,8 @@ import type {
   AgentRequest,
   AgentResponse,
 } from '../../../llm/agent-provider-interface.js';
-import type { McpSdkServerConfigWithInstance } from '@anthropic-ai/claude-agent-sdk';
+
+type McpSdkServerConfigWithInstance = unknown;
 
 /**
  * Adapter Options

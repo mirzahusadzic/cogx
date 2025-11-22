@@ -26,7 +26,7 @@
  */
 
 import type { LLMProvider } from './provider-interface.js';
-import type { McpSdkServerConfigWithInstance } from '@anthropic-ai/claude-agent-sdk';
+type McpSdkServerConfigWithInstance = unknown; // Placeholder for optional Claude SDK
 
 /**
  * Agent-specific request options

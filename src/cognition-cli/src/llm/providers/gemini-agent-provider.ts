@@ -21,7 +21,15 @@
  * }
  */
 
-import { LlmAgent, Runner, InMemorySessionService } from '@google/adk';
+import {
+  LlmAgent,
+  Runner,
+  InMemorySessionService,
+  GOOGLE_SEARCH,
+  AgentTool,
+  setLogLevel,
+  LogLevel,
+} from '@google/adk';
 import { getCognitionTools } from './gemini-adk-tools.js';
 import type {
   AgentProvider,
@@ -77,6 +85,9 @@ export class GeminiAgentProvider implements AgentProvider {
     }
 
     this.apiKey = key;
+
+    // Suppress ADK info logs (only show errors)
+    setLogLevel(LogLevel.ERROR);
   }
 
   /**
@@ -95,8 +106,29 @@ export class GeminiAgentProvider implements AgentProvider {
   async *executeAgent(
     request: AgentRequest
   ): AsyncGenerator<AgentResponse, void, undefined> {
-    // Get Cognition tools mapped to ADK format
-    const tools = getCognitionTools();
+    // Get file tools
+    const cognitionTools = getCognitionTools();
+
+    // Create a specialized web search agent
+    // Use Agent-as-Tool pattern to combine with file tools
+    const webSearchAgent = new LlmAgent({
+      name: 'WebSearch',
+      description:
+        'Search the web for current information, news, facts, and real-time data using Google Search',
+      model: request.model || 'gemini-2.5-flash',
+      instruction:
+        'You are a web search specialist. When called, search Google for the requested information and return concise, accurate results with sources.',
+      tools: [GOOGLE_SEARCH],
+    });
+
+    // Wrap the web search agent as a tool
+    const webSearchTool = new AgentTool({
+      agent: webSearchAgent,
+      skipSummarization: false,
+    });
+
+    // Combine file tools + web search tool (always enabled)
+    const tools = [...cognitionTools, webSearchTool];
 
     const agent = new LlmAgent({
       name: 'cognition_agent',
@@ -176,6 +208,7 @@ export class GeminiAgentProvider implements AgentProvider {
             role?: string;
             parts?: Array<{
               text?: string;
+              thought?: boolean; // true if this part contains thinking/reasoning
               functionCall?: { name: string; args: Record<string, unknown> };
               functionResponse?: { name: string; response: unknown };
             }>;
@@ -184,6 +217,7 @@ export class GeminiAgentProvider implements AgentProvider {
             promptTokenCount?: number;
             candidatesTokenCount?: number;
             totalTokenCount?: number;
+            thoughtsTokenCount?: number; // thinking token usage
           };
         };
 
@@ -205,17 +239,12 @@ export class GeminiAgentProvider implements AgentProvider {
           for (const part of evt.content.parts) {
             // Handle function calls (tool use)
             if (part.functionCall) {
-              // Format tool call for display (matching Claude SDK format)
-              const toolDisplay = this.formatToolCall(
-                part.functionCall.name,
-                part.functionCall.args as Record<string, unknown>
-              );
-
+              // Don't pre-format - let TUI handle formatting via toolName/toolInput
               const toolMessage: AgentMessage = {
                 id: `msg-${Date.now()}-tool-${numTurns}`,
                 type: 'tool_use',
                 role: 'assistant',
-                content: toolDisplay,
+                content: '', // TUI will format using toolName and toolInput
                 timestamp: new Date(),
                 toolName: part.functionCall.name,
                 toolInput: part.functionCall.args,
@@ -263,16 +292,25 @@ export class GeminiAgentProvider implements AgentProvider {
               };
             }
 
-            // Handle text responses
+            // Handle text responses (both thinking and regular)
             if (part.text) {
-              const assistantMessage: AgentMessage = {
-                id: `msg-${Date.now()}-${numTurns}`,
-                type: 'assistant',
+              // Check if this is thinking content
+              const isThinking = part.thought === true;
+
+              const message: AgentMessage = {
+                id: `msg-${Date.now()}-${numTurns}-${isThinking ? 'thinking' : 'text'}`,
+                type: isThinking ? 'thinking' : 'assistant',
                 role: 'assistant',
                 content: part.text,
                 timestamp: new Date(),
               };
-              messages.push(assistantMessage);
+
+              // Add thinking field for thinking messages
+              if (isThinking) {
+                message.thinking = part.text;
+              }
+
+              messages.push(message);
 
               totalTokens += Math.ceil(part.text.length / 4);
 
@@ -370,40 +408,6 @@ export class GeminiAgentProvider implements AgentProvider {
   }
 
   /**
-   * Format tool call for TUI display
-   *
-   * Formats tool invocations in a human-readable way similar to the Claude SDK format.
-   * Applies tool-specific formatting for better UX.
-   */
-  private formatToolCall(
-    name: string,
-    input: Record<string, unknown>
-  ): string {
-    let icon = '🔧';
-    let desc = '';
-
-    // Special icons for specific tools
-    if (name === 'bash' || name === 'Bash') {
-      desc = input.command ? String(input.command) : JSON.stringify(input);
-    } else if (name === 'read_file' || name === 'Read') {
-      desc = input.file_path ? `${input.file_path}` : JSON.stringify(input);
-    } else if (name === 'write_file' || name === 'Write') {
-      desc = input.file_path ? `${input.file_path}` : JSON.stringify(input);
-    } else if (name === 'edit_file' || name === 'Edit') {
-      desc = input.file_path ? `${input.file_path}` : JSON.stringify(input);
-    } else if (name === 'glob' || name === 'Glob') {
-      desc = input.pattern ? `pattern: ${input.pattern}` : JSON.stringify(input);
-    } else if (name === 'grep' || name === 'Grep') {
-      desc = input.pattern ? `pattern: ${input.pattern}` : JSON.stringify(input);
-    } else {
-      // Default: show JSON but try to make it compact
-      desc = JSON.stringify(input);
-    }
-
-    return `${icon} ${name}: ${desc}`;
-  }
-
-  /**
    * Build system prompt from request
    */
   private buildSystemPrompt(request: AgentRequest): string {
@@ -427,6 +431,7 @@ You have access to tools for:
 - **grep**: Search code with ripgrep
 - **bash**: Execute shell commands (git, npm, etc.)
 - **edit_file**: Make targeted text replacements
+- **WebSearch**: Search the web for current information, news, facts, and real-time data using Google Search
 
 ## Working Directory
 ${request.cwd || process.cwd()}
@@ -436,6 +441,7 @@ ${request.cwd || process.cwd()}
 - Use tools proactively to gather context before answering
 - When making changes, explain what you're doing briefly
 - Prefer editing existing files over creating new ones
-- Run tests after making code changes`;
+- Run tests after making code changes
+- Use WebSearch tool when you need current information that might not be in files (e.g., latest docs, recent changes, current events)`;
   }
 }

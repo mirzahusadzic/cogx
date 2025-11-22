@@ -36,6 +36,40 @@ cognition genesis:docs docs/
 cognition tui
 ```
 
+### LLM Providers
+
+Cognition CLI supports multiple LLM providers. Choose based on your needs:
+
+#### Claude (Anthropic)
+
+```bash
+# Install the Claude Agent SDK (optional peer dependency)
+npm install @anthropic-ai/claude-agent-sdk@^0.1.46
+
+# Set your API key
+export ANTHROPIC_API_KEY=your-key-here
+
+# Set as default provider
+cognition set-default claude
+```
+
+**License**: Proprietary (Anthropic Commercial ToS)
+**Note**: By installing this package, you accept [Anthropic's Terms of Service](https://www.anthropic.com/legal/commercial-terms).
+
+#### Gemini (Google)
+
+```bash
+# The Gemini SDK is included by default
+
+# Set your API key
+export GEMINI_API_KEY=your-key-here
+
+# Set as default provider
+cognition set-default gemini
+```
+
+**License**: Apache 2.0 (Open Source)
+
 ---
 
 ## 💡 What Is This?

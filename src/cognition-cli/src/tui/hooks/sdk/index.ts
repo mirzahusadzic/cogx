@@ -8,6 +8,6 @@
  */
 
 export * from './types.js';
-export * from './SDKQueryManager.js';
 export * from './SDKMessageProcessor.js';
 export * from './AgentProviderAdapter.js';
+export * from './error-helpers.js';

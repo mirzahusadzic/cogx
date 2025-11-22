@@ -129,7 +129,6 @@ import { formatToolUse } from './rendering/ToolFormatter.js';
 import { stripANSICodes } from './rendering/MessageRenderer.js';
 import { useTurnAnalysis } from './analysis/index.js';
 import { useCompression } from './compression/useCompression.js';
-import type { McpSdkServerConfigWithInstance } from '@anthropic-ai/claude-agent-sdk';
 import type {
   ConversationLattice,
   ConversationNode,
@@ -139,6 +138,7 @@ import {
   expandCommand,
   type Command,
 } from '../commands/loader.js';
+import type { McpSdkServerConfigWithInstance } from './sdk/types.js';
 
 /**
  * Configuration options for Claude Agent SDK integration
@@ -906,36 +906,51 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
    * - OverlayRegistry: For project PGC overlays (if exists)
    */
   useEffect(() => {
-    const endpoint = process.env.WORKBENCH_URL || 'http://localhost:8000';
-    embedderRef.current = new EmbeddingService(endpoint);
-    const sigmaPath = path.join(cwd, '.sigma');
-    conversationRegistryRef.current = new ConversationOverlayRegistry(
-      sigmaPath,
-      endpoint,
-      debugFlag
-    );
-    recallMcpServerRef.current = createRecallMcpServer(
-      conversationRegistryRef.current,
-      endpoint
-    );
-    const pgcPath = path.join(cwd, '.open_cognition');
-    if (fs.existsSync(pgcPath))
-      projectRegistryRef.current = new OverlayRegistry(pgcPath, endpoint);
+    const initSigmaServices = async () => {
+      const endpoint = process.env.WORKBENCH_URL || 'http://localhost:8000';
+      embedderRef.current = new EmbeddingService(endpoint);
+      const sigmaPath = path.join(cwd, '.sigma');
+      conversationRegistryRef.current = new ConversationOverlayRegistry(
+        sigmaPath,
+        endpoint,
+        debugFlag
+      );
 
-    // Warn user if WORKBENCH_API_KEY is not set
-    if (!process.env.WORKBENCH_API_KEY) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          type: 'system',
-          content:
-            '⚠️  WORKBENCH_API_KEY not set\n' +
-            '   Conversation analysis and semantic memory features will be disabled.\n' +
-            '   Set WORKBENCH_API_KEY environment variable to enable these features.',
-          timestamp: new Date(),
-        },
-      ]);
-    }
+      let claudeAgentSdkModule;
+      try {
+        const claudeAgentSdkName = '@anthropic-ai/claude-agent-sdk';
+        claudeAgentSdkModule = await import(claudeAgentSdkName);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_error) {
+        // SDK not available - recall tool will be disabled silently
+      }
+
+      recallMcpServerRef.current = createRecallMcpServer(
+        conversationRegistryRef.current,
+        claudeAgentSdkModule,
+        endpoint
+      );
+      const pgcPath = path.join(cwd, '.open_cognition');
+      if (fs.existsSync(pgcPath))
+        projectRegistryRef.current = new OverlayRegistry(pgcPath, endpoint);
+
+      // Warn user if WORKBENCH_API_KEY is not set
+      if (!process.env.WORKBENCH_API_KEY) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: 'system',
+            content:
+              '⚠️  WORKBENCH_API_KEY not set\n' +
+              '   Conversation analysis and semantic memory features will be disabled.\n' +
+              '   Set WORKBENCH_API_KEY environment variable to enable these features.',
+            timestamp: new Date(),
+          },
+        ]);
+      }
+    };
+
+    initSigmaServices();
   }, [cwd, debugFlag]);
 
   /**
@@ -1766,7 +1781,21 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
 
       case 'tool_use': {
         // Tool use message
-        if (typeof content === 'string') {
+        // Check for Gemini-style toolName/toolInput fields first
+        if (agentMessage.toolName && agentMessage.toolInput) {
+          const formatted = formatToolUse({
+            name: agentMessage.toolName,
+            input: agentMessage.toolInput as Record<string, unknown>,
+          });
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: 'tool_progress',
+              content: `${formatted.icon} ${formatted.name}: ${formatted.description}`,
+              timestamp: new Date(),
+            },
+          ]);
+        } else if (typeof content === 'string') {
           setMessages((prev) => [
             ...prev,
             {
