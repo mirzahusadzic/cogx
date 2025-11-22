@@ -1,11 +1,23 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 
-interface StatusBarProps {
+/**
+ * Props for StatusBar component
+ */
+export interface StatusBarProps {
+  /** Current session ID (displayed truncated) */
   sessionId?: string;
+
+  /** Whether message panel has focus (changes keyboard help text) */
   focused: boolean;
+
+  /** Current token usage statistics */
   tokenCount?: { input: number; output: number; total: number };
+
+  /** Token threshold for compression trigger */
   compressionThreshold?: number;
+
+  /** AI provider name (claude, openai, gemini, gemini-agent) */
   providerName?: string;
 }
 
@@ -18,7 +30,42 @@ const PROVIDER_STYLES: Record<string, { color: string; emoji: string }> = {
 };
 
 /**
- * Bottom status bar with help text and session info
+ * Bottom Status Bar Component.
+ *
+ * Displays session information, keyboard shortcuts, token usage, and
+ * provider status in a compact single-line footer.
+ *
+ * **Features**:
+ * - Provider indicator with emoji and color
+ * - Context-aware keyboard help (changes based on focus)
+ * - Token usage with K suffix (e.g., "45.2K")
+ * - Compression threshold percentage
+ * - Truncated session ID for cleanliness
+ *
+ * **Keyboard Shortcuts Shown**:
+ * - [Tab] Toggle Focus
+ * - [↑↓/⌨️] Scroll (when panel focused) or Clear (when input focused)
+ * - [ESC ESC] Interrupt/Clear
+ * - [Ctrl+S] Save conversation
+ * - [Ctrl+C] Quit
+ *
+ * **Token Display**:
+ * - Shows current total tokens (formatted with K suffix)
+ * - Shows percentage of compression threshold
+ * - Shows threshold value for reference
+ * - Example: "📊 45.2K (37.7%) | 🗜️ 120K"
+ *
+ * @component
+ * @param {StatusBarProps} props - Component props
+ *
+ * @example
+ * <StatusBar
+ *   sessionId="claude-abc123def456"
+ *   focused={panelFocused}
+ *   tokenCount={{ input: 5000, output: 10000, total: 15000 }}
+ *   compressionThreshold={80000}
+ *   providerName="claude"
+ * />
  */
 export const StatusBar: React.FC<StatusBarProps> = ({
   sessionId,

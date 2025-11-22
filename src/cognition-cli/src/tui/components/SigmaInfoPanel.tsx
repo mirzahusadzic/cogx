@@ -1,26 +1,60 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 
-interface SigmaStats {
+/**
+ * Sigma conversation lattice statistics
+ */
+export interface SigmaStats {
+  /** Number of conversation nodes in lattice */
   nodes: number;
+
+  /** Number of edges connecting nodes */
   edges: number;
+
+  /** Count of detected paradigm shifts */
   paradigmShifts: number;
+
+  /** Average novelty score (0-1) */
   avgNovelty: number;
+
+  /** Average importance score (0-10) */
   avgImportance: number;
 }
 
-interface OverlayScores {
+/**
+ * Overlay activation scores (0-10 scale)
+ */
+export interface OverlayScores {
+  /** O1: Structural analysis overlay */
   O1_structural: number;
+
+  /** O2: Security analysis overlay */
   O2_security: number;
+
+  /** O3: Lineage tracking overlay */
   O3_lineage: number;
+
+  /** O4: Mission alignment overlay */
   O4_mission: number;
+
+  /** O5: Operational analysis overlay */
   O5_operational: number;
+
+  /** O6: Mathematical reasoning overlay */
   O6_mathematical: number;
+
+  /** O7: Strategic planning overlay */
   O7_strategic: number;
 }
 
-interface SigmaInfoPanelProps {
+/**
+ * Props for SigmaInfoPanel component
+ */
+export interface SigmaInfoPanelProps {
+  /** Conversation lattice statistics */
   sigmaStats: SigmaStats;
+
+  /** Overlay activation scores */
   overlays: OverlayScores;
 }
 
@@ -35,8 +69,57 @@ const OVERLAY_INFO = {
 };
 
 /**
- * Info panel showing detailed Sigma statistics
- * Toggle with 'i' key when not in input box
+ * Sigma Info Panel Component - Detailed Statistics Sidebar.
+ *
+ * Displays comprehensive Sigma conversation lattice metrics and overlay
+ * activation scores in a toggleable sidebar panel.
+ *
+ * **Features**:
+ * - Lattice statistics (nodes, edges, paradigm shifts)
+ * - Semantic analysis averages (novelty, importance)
+ * - Overlay activation scores with visual bars
+ * - Color-coded metrics matching overlay themes
+ * - Compact 50-character width
+ *
+ * **Toggle**: Press 'i' key (when not in input box) to show/hide
+ *
+ * **Sections**:
+ * 1. **Lattice**: Conversation graph structure
+ *    - Nodes: Total conversation turns analyzed
+ *    - Edges: Connections between related turns
+ *    - Shifts: Detected paradigm shifts
+ *
+ * 2. **Averages**: Semantic analysis metrics
+ *    - Novelty: Average novelty score (0-1, 3 decimals)
+ *    - Importance: Average importance (0-10, 1 decimal)
+ *
+ * 3. **Overlay Activations**: O1-O7 activation scores
+ *    - Visual bar chart (5 blocks: █░░░░)
+ *    - Numeric score (0-10 scale)
+ *    - Color-coded by overlay type
+ *
+ * @component
+ * @param {SigmaInfoPanelProps} props - Component props
+ *
+ * @example
+ * <SigmaInfoPanel
+ *   sigmaStats={{
+ *     nodes: 24,
+ *     edges: 23,
+ *     paradigmShifts: 2,
+ *     avgNovelty: 0.543,
+ *     avgImportance: 6.8
+ *   }}
+ *   overlays={{
+ *     O1_structural: 7.2,
+ *     O2_security: 3.5,
+ *     O3_lineage: 8.1,
+ *     O4_mission: 5.0,
+ *     O5_operational: 4.3,
+ *     O6_mathematical: 2.1,
+ *     O7_strategic: 6.9
+ *   }}
+ * />
  */
 export const SigmaInfoPanel: React.FC<SigmaInfoPanelProps> = ({
   sigmaStats,
