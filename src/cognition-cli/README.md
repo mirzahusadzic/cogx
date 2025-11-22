@@ -230,23 +230,23 @@ watch → dirty_state.json → status → update → coherence restored ♻️
 
 ## 📋 Command Reference
 
-| Command                   | Description                   | Learn More                                                            |
-| :------------------------ | :---------------------------- | :-------------------------------------------------------------------- |
-| `init`                    | Initialize PGC structure      | [Getting Started](docs/api/media/00_Introduction.md)                  |
-| `genesis [path]`          | Build code knowledge graph    | [Structural Analysis](docs/api/media/01_Structural_Analysis.md)       |
-| `genesis:docs [path]`     | Ingest documentation          | [Mission Extraction](docs/api/media/09_Mission_Concept_Extraction.md) |
-| `watch`                   | Real-time file monitoring     | [Commands](docs/api/media/03_Commands.md)                             |
-| `status`                  | Instant coherence check       | [Commands](docs/api/media/03_Commands.md)                             |
-| `update`                  | Incremental sync              | [Commands](docs/api/media/03_Commands.md)                             |
-| `overlay generate <type>` | Generate analytical overlays  | [Commands](docs/api/media/03_Commands.md)                             |
-| `tui`                     | Interactive TUI with Σ system | [Claude Integration](docs/api/media/08_Claude_CLI_Integration.md)     |
-| `pr-analyze`              | Cross-overlay PR analysis     | [Commands](docs/api/media/03_Commands.md)                             |
-| `security blast-radius`   | Security impact analysis      | [Commands](docs/api/media/03_Commands.md)                             |
-| `patterns <command>`      | Structural pattern operations | [Structural Analysis](docs/api/media/01_Structural_Analysis.md)       |
-| `concepts <command>`      | Mission concept operations    | [Mission Extraction](docs/api/media/09_Mission_Concept_Extraction.md) |
-| `coherence <command>`     | Mission-code coherence        | [Mission Security](docs/api/media/10_Mission_Security_Validation.md)  |
-| `query <question>`        | Graph traversal               | [AI Analysis](docs/api/media/07_AI_Grounded_Architecture_Analysis.md) |
-| `audit <command>`         | PGC integrity verification    | [Verification](docs/api/media/05_Verification_and_Oracles.md)         |
+| Command                   | Description                   | Learn More                                                         |
+| :------------------------ | :---------------------------- | :----------------------------------------------------------------- |
+| `init`                    | Initialize PGC structure      | [Getting Started](docs/guides/00_Introduction.md)                  |
+| `genesis [path]`          | Build code knowledge graph    | [Structural Analysis](docs/guides/01_Structural_Analysis.md)       |
+| `genesis:docs [path]`     | Ingest documentation          | [Mission Extraction](docs/guides/09_Mission_Concept_Extraction.md) |
+| `watch`                   | Real-time file monitoring     | [Commands](docs/guides/03_Commands.md)                             |
+| `status`                  | Instant coherence check       | [Commands](docs/guides/03_Commands.md)                             |
+| `update`                  | Incremental sync              | [Commands](docs/guides/03_Commands.md)                             |
+| `overlay generate <type>` | Generate analytical overlays  | [Commands](docs/guides/03_Commands.md)                             |
+| `tui`                     | Interactive TUI with Σ system | [Claude Integration](docs/guides/08_Claude_CLI_Integration.md)     |
+| `pr-analyze`              | Cross-overlay PR analysis     | [Commands](docs/guides/03_Commands.md)                             |
+| `security blast-radius`   | Security impact analysis      | [Commands](docs/guides/03_Commands.md)                             |
+| `patterns <command>`      | Structural pattern operations | [Structural Analysis](docs/guides/01_Structural_Analysis.md)       |
+| `concepts <command>`      | Mission concept operations    | [Mission Extraction](docs/guides/09_Mission_Concept_Extraction.md) |
+| `coherence <command>`     | Mission-code coherence        | [Mission Security](docs/guides/10_Mission_Security_Validation.md)  |
+| `query <question>`        | Graph traversal               | [AI Analysis](docs/guides/07_AI_Grounded_Architecture_Analysis.md) |
+| `audit <command>`         | PGC integrity verification    | [Verification](docs/guides/05_Verification_and_Oracles.md)         |
 
 ---
 
@@ -275,7 +275,7 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 - **Index** — Human-readable path → hash mappings
 - **Reverse Deps** — O(1) dependency lookup for instant impact analysis
 
-**Deep dive:** [Core Infrastructure](docs/api/media/02_Core_Infrastructure.md)
+**Deep dive:** [Core Infrastructure](docs/guides/02_Core_Infrastructure.md)
 
 ---
 
@@ -283,35 +283,35 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 
 ### Getting Started
 
-- **[00 - Introduction](docs/api/media/00_Introduction.md)** — Overview and core concepts
+- **[00 - Introduction](docs/guides/00_Introduction.md)** — Overview and core concepts
 - **[Complete Lattice Book](https://mirzahusadzic.github.io/cogx)** — 26-chapter reference manual
 - **[CogX Blueprint](../../README.md)** — Theoretical foundations and vision
 
 ### Implementation Guides
 
-- **[01 - Structural Analysis](docs/api/media/01_Structural_Analysis.md)** — Code understanding
-- **[02 - Core Infrastructure (PGC)](docs/api/media/02_Core_Infrastructure.md)** — Four pillars
-- **[03 - Commands Reference](docs/api/media/03_Commands.md)** — Complete CLI reference
-- **[04 - Miners and Executors](docs/api/media/04_Miners_and_Executors.md)** — Transform pipeline
-- **[05 - Verification and Oracles](docs/api/media/05_Verification_and_Oracles.md)** — Validation
-- **[06 - Testing and Deployment](docs/api/media/06_Testing_and_Deployment.md)** — Production usage
+- **[01 - Structural Analysis](docs/guides/01_Structural_Analysis.md)** — Code understanding
+- **[02 - Core Infrastructure (PGC)](docs/guides/02_Core_Infrastructure.md)** — Four pillars
+- **[03 - Commands Reference](docs/guides/03_Commands.md)** — Complete CLI reference
+- **[04 - Miners and Executors](docs/guides/04_Miners_and_Executors.md)** — Transform pipeline
+- **[05 - Verification and Oracles](docs/guides/05_Verification_and_Oracles.md)** — Validation
+- **[06 - Testing and Deployment](docs/guides/06_Testing_and_Deployment.md)** — Production usage
 
 ### Advanced Topics
 
-- **[07 - AI-Grounded Architecture Analysis](docs/api/media/07_AI_Grounded_Architecture_Analysis.md)** ⭐ — Zero-hallucination analysis
-- **[08 - Claude Code Integration](docs/api/media/08_Claude_CLI_Integration.md)** 🤖 — TUI details
-- **[09 - Mission Concept Extraction](docs/api/media/09_Mission_Concept_Extraction.md)** — Strategic alignment
-- **[10 - Mission Security Validation](docs/api/media/10_Mission_Security_Validation.md)** — Security validation
-- **[11 - Internal Architecture](docs/api/media/11_Internal_Architecture.md)** 🏗️ — System internals
+- **[07 - AI-Grounded Architecture Analysis](docs/guides/07_AI_Grounded_Architecture_Analysis.md)** ⭐ — Zero-hallucination analysis
+- **[08 - Claude Code Integration](docs/guides/08_Claude_CLI_Integration.md)** 🤖 — TUI details
+- **[09 - Mission Concept Extraction](docs/guides/09_Mission_Concept_Extraction.md)** — Strategic alignment
+- **[10 - Mission Security Validation](docs/guides/10_Mission_Security_Validation.md)** — Security validation
+- **[11 - Internal Architecture](docs/guides/11_Internal_Architecture.md)** 🏗️ — System internals
 
 ### Architecture Documentation
 
 - **[Comprehensive Analysis](docs/architecture/COMPREHENSIVE_ANALYSIS.md)** 📊 — Complete system analysis and metrics
 - **[SIGMA Architecture](docs/sigma/ARCHITECTURE.md)** ⭐ — Official Σ architecture document
 - **[Session Boundary Rationale](docs/sigma/SESSION_BOUNDARY_RATIONALE.md)** — Design patterns and rationale
-- **[Dual-Use Mandate](docs/api/media/DUAL_USE_MANDATE.md)** — Security philosophy
-- **[Operational Lattice](docs/api/media/OPERATIONAL_LATTICE.md)** — O₅ workflows
-- **[Vision Document](docs/api/media/VISION.md)** — Project vision and goals
+- **[Dual-Use Mandate](docs/guides/DUAL_USE_MANDATE.md)** — Security philosophy
+- **[Operational Lattice](docs/guides/OPERATIONAL_LATTICE.md)** — O₅ workflows
+- **[Vision Document](docs/guides/VISION.md)** — Project vision and goals
 
 ---
 
@@ -335,7 +335,7 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 
 ### First Human-AI Grounded Collaboration (Oct 24, 2025)
 
-**[AI-Grounded Architecture Analysis](docs/api/media/07_AI_Grounded_Architecture_Analysis.md)**
+**[AI-Grounded Architecture Analysis](docs/guides/07_AI_Grounded_Architecture_Analysis.md)**
 
 - ✅ **Zero hallucinations** — Every claim backed by PGC data
 - ✅ **100% reproducible** — Regenerate anytime

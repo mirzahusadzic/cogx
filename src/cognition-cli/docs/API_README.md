@@ -5,6 +5,7 @@ This is the complete API reference for the Cognition Σ CLI codebase, automatica
 ## Navigation
 
 Use the sidebar to browse by category:
+
 - **PGC Core** - Project Grounded Context (content-addressable storage, overlays)
 - **Overlay Managers** - Seven overlays (O₁-O₇) for multi-dimensional analysis
 - **Commands** - CLI commands (init, genesis, recall, etc.)
@@ -17,6 +18,7 @@ Use the sidebar to browse by category:
 ## Documentation Standards
 
 All public APIs follow the [TSDoc](https://tsdoc.org/) format with:
+
 - Comprehensive descriptions
 - `@param` tags for all parameters
 - `@returns` for return values
@@ -28,10 +30,11 @@ See [CODE_DOCUMENTATION_STANDARD.md](./dev/CODE_DOCUMENTATION_STANDARD.md) for d
 ## Project Documentation
 
 For project overview, architecture, and user guides, see the main documentation:
-- **Project README**: [../../README.md](../../README.md)
-- **Architecture Docs**: [./architecture/](./architecture/)
-- **User Manual**: [./manual/](./manual/)
-- **Developer Guides**: [./dev/](./dev/)
+
+- **Project README**: `../../README.md`
+- **Architecture Docs**: `./architecture/`
+- **User Manual**: [./manual/README.md](./manual/README.md)
+- **Developer Guides**: `./dev/`
 
 ## Source Code
 
