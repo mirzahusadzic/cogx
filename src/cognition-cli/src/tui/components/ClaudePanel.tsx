@@ -2,13 +2,57 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Box, Text } from 'ink';
 import { IPty } from 'node-pty';
 
-interface ClaudePanelProps {
+/**
+ * Props for ClaudePanel component
+ */
+export interface ClaudePanelProps {
+  /** PTY session handle for Claude CLI process */
   ptySession: IPty | null;
+
+  /** Whether this panel has keyboard focus */
   focused: boolean;
 }
 
 /**
- * Main panel showing streaming Claude output
+ * Claude Panel Component (Legacy PTY-based).
+ *
+ * Displays streaming output from Claude CLI PTY session. This is a legacy
+ * component - modern TUI uses ClaudePanelAgent with Agent SDK instead.
+ *
+ * **Design**:
+ * - Connects to Claude CLI via pseudo-terminal (node-pty)
+ * - Strips ANSI escape codes and box-drawing characters
+ * - Skips conversation history on initial connect (first 2 seconds)
+ * - Shows connection status and session availability
+ *
+ * **Connection States**:
+ * 1. No session: Shows "No Claude session active" message
+ * 2. Connecting: Shows "⏳ Connecting..." with skip message
+ * 3. Connected: Shows "✓ Connected! Start typing..."
+ * 4. Streaming: Displays cleaned PTY output
+ *
+ * **Output Processing**:
+ * - Removes ANSI escape sequences
+ * - Removes box-drawing characters (│─┌┐└┘├┤┬┴┼)
+ * - Collapses excessive newlines
+ * - Filters echoed user input
+ * - Trims whitespace
+ *
+ * **Focus Indicator**: Cyan border when focused, gray when not
+ *
+ * @component
+ * @param {ClaudePanelProps} props - Component props
+ *
+ * @example
+ * // Legacy PTY-based panel
+ * const { ptySession } = useClaude({ sessionId: 'abc-123' });
+ *
+ * <ClaudePanel
+ *   ptySession={ptySession}
+ *   focused={panelFocused}
+ * />
+ *
+ * @deprecated Use ClaudePanelAgent with Agent SDK for modern TUI
  */
 export const ClaudePanel: React.FC<ClaudePanelProps> = ({
   ptySession,

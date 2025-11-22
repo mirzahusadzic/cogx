@@ -11,20 +11,78 @@ const packageJson = JSON.parse(
 );
 const VERSION = packageJson.version;
 
-interface SigmaStats {
+/**
+ * Sigma conversation lattice statistics
+ */
+export interface SigmaStats {
+  /** Number of conversation nodes in lattice */
   nodes: number;
+
+  /** Number of edges connecting nodes */
   edges: number;
+
+  /** Count of detected paradigm shifts */
   paradigmShifts: number;
+
+  /** Average novelty score (0-1) */
   avgNovelty: number;
+
+  /** Average importance score (0-10) */
   avgImportance: number;
 }
 
-interface OverlaysBarProps {
+/**
+ * Props for OverlaysBar component
+ */
+export interface OverlaysBarProps {
+  /** Sigma lattice statistics to display */
   sigmaStats?: SigmaStats;
 }
 
 /**
- * Compact horizontal bar showing Sigma lattice statistics
+ * Overlays Bar Component - Sigma Lattice Statistics Display.
+ *
+ * Horizontal status bar showing real-time Sigma conversation lattice metrics
+ * and CLI version. Appears at the top of the TUI.
+ *
+ * **Features**:
+ * - Real-time lattice statistics (nodes, edges, shifts)
+ * - Semantic analysis metrics (novelty, importance)
+ * - Color-coded metrics for visual scanning
+ * - CLI version display
+ * - "Warming up" state for empty lattice
+ *
+ * **Metrics Displayed**:
+ * - 🕸️ Nodes: Count of conversation turns analyzed
+ * - 🔗 Edges: Connections between related turns
+ * - ⚡ Shifts: Detected paradigm shifts in conversation
+ * - 📊 Novelty: Avg semantic novelty score (0-1)
+ * - 🎯 Importance: Avg importance score (0-10)
+ *
+ * **Color Scheme**:
+ * - Blue (#58a6ff): Nodes (structural)
+ * - Light blue (#79c0ff): Edges (connections)
+ * - Orange (#d29922): Paradigm shifts (critical events)
+ * - Green (#56d364): Novelty (positive metric)
+ * - Purple (#bc8cff): Importance (priority)
+ *
+ * @component
+ * @param {OverlaysBarProps} props - Component props
+ *
+ * @example
+ * <OverlaysBar
+ *   sigmaStats={{
+ *     nodes: 42,
+ *     edges: 41,
+ *     paradigmShifts: 3,
+ *     avgNovelty: 0.67,
+ *     avgImportance: 6.2
+ *   }}
+ * />
+ *
+ * @example
+ * // Empty state (no analysis yet)
+ * <OverlaysBar sigmaStats={undefined} />
  */
 export const OverlaysBar: React.FC<OverlaysBarProps> = ({ sigmaStats }) => {
   return (

@@ -9,19 +9,79 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import type { ToolConfirmationState } from '../hooks/useToolConfirmation.js';
 
-interface InputBoxProps {
+/**
+ * Props for InputBox component
+ */
+export interface InputBoxProps {
+  /** Callback invoked when user submits input (Enter key) */
   onSubmit: (value: string) => void;
+
+  /** Whether this input box has keyboard focus */
   focused: boolean;
+
+  /** Whether input is disabled (e.g., during agent processing) */
   disabled?: boolean;
+
+  /** Callback invoked when user interrupts (ESC ESC) */
   onInterrupt?: () => void;
+
+  /** Callback when slash command dropdown visibility changes */
   onDropdownVisibleChange?: (visible: boolean) => void;
+
+  /** Callback when file paste content is ready */
   onPasteContent?: (content: string, filepath: string) => void;
+
+  /** Name of AI provider for prompt display */
   providerName?: string;
-  confirmationState?: ToolConfirmationState | null; // Tool confirmation state (renders modal like dropdown)
+
+  /** Tool confirmation state for rendering confirmation modal */
+  confirmationState?: ToolConfirmationState | null;
 }
 
 /**
- * Input box for typing messages to Claude
+ * Input Box Component for TUI Message Entry.
+ *
+ * Interactive text input with slash command autocomplete, paste detection,
+ * and tool confirmation modal. This is the primary user input interface
+ * for the Cognition Σ CLI TUI.
+ *
+ * **Features**:
+ * - Slash command autocomplete (triggered by "/")
+ * - Large paste detection and file handling (>10KB → temp file)
+ * - Tool confirmation modal integration
+ * - Double ESC to interrupt/clear
+ * - Ctrl+C to quit
+ * - Visual focus indicators
+ *
+ * **Paste Handling**:
+ * - Small pastes (<10KB): Inserted directly into input
+ * - Large pastes (≥10KB): Saved to temp file, inserted as [PASTE:filepath]
+ * - Accumulates rapid paste chunks (within 200ms)
+ * - Shows paste notifications to user
+ *
+ * **Slash Commands**:
+ * - Type "/" to show command dropdown
+ * - ↑↓ to navigate commands
+ * - Enter to select, Esc to cancel
+ * - Commands loaded from .claude/commands/
+ *
+ * **Tool Confirmation**:
+ * - Displays modal when confirmationState is provided
+ * - Y/N/A/Esc keyboard controls (handled by parent)
+ * - Blocks normal input during confirmation
+ *
+ * @component
+ * @param {InputBoxProps} props - Component props
+ *
+ * @example
+ * <InputBox
+ *   onSubmit={handleMessage}
+ *   focused={!panelFocused}
+ *   disabled={isThinking}
+ *   onInterrupt={handleInterrupt}
+ *   providerName="claude"
+ *   confirmationState={toolConfirmation}
+ * />
  */
 export const InputBox: React.FC<InputBoxProps> = ({
   onSubmit,
