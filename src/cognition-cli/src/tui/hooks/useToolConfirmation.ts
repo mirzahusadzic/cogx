@@ -9,6 +9,7 @@ import { useState, useCallback, useRef } from 'react';
 import {
   checkToolSafety,
   formatToolInput,
+  extractBaseCommand,
   ToolRiskLevel,
 } from '../utils/tool-safety.js';
 
@@ -60,27 +61,42 @@ export function useToolConfirmation() {
         return Promise.resolve('allow');
       }
 
-      // Check session allow list
-      const key = `${toolName}:${formatToolInput(toolName, input)}`;
+      // Check session allow list - try multiple keys
+      const keysToCheck: string[] = [];
+
+      // 1. Tool-level key (e.g., "bash")
+      keysToCheck.push(toolName);
+
+      // 2. For bash, also check command-level key (e.g., "bash:cognition-cli")
+      if (toolName.toLowerCase() === 'bash') {
+        const command = formatToolInput(toolName, input);
+        const baseCommand = extractBaseCommand(command);
+        if (baseCommand) {
+          keysToCheck.push(`bash:${baseCommand}`);
+        }
+      }
+
+      // 3. Specific command key (full args)
+      const specificKey = `${toolName}:${formatToolInput(toolName, input)}`;
+      keysToCheck.push(specificKey);
 
       // Debug logging
       if (process.env.DEBUG_CONFIRMATION) {
-        console.error('[Confirmation] Checking Key:', key);
+        console.error('[Confirmation] Checking keys:', keysToCheck);
         console.error(
-          '[Confirmation] Is in allow list?',
-          sessionAllowList.current[key]
-        );
-        console.error(
-          '[Confirmation] All allowed keys:',
+          '[Confirmation] Allow list:',
           Object.keys(sessionAllowList.current)
         );
       }
 
-      if (sessionAllowList.current[key]) {
-        if (process.env.DEBUG_CONFIRMATION) {
-          console.error('[Confirmation] Auto-allowing from session list');
+      // Check if any key is allowed
+      for (const key of keysToCheck) {
+        if (sessionAllowList.current[key]) {
+          if (process.env.DEBUG_CONFIRMATION) {
+            console.error('[Confirmation] Auto-allowing via key:', key);
+          }
+          return Promise.resolve('allow');
         }
-        return Promise.resolve('allow');
       }
 
       // Request user confirmation
@@ -122,14 +138,24 @@ export function useToolConfirmation() {
   }, []);
 
   /**
-   * Allow tool and remember for session
+   * Allow tool and remember for session (approves command, not just specific args)
+   * For bash commands, approves the base command (e.g., "cognition-cli", "git")
+   * For other tools, approves the tool itself
    */
   const alwaysAllow = useCallback(() => {
     if (confirmationState) {
-      const key = `${confirmationState.toolName}:${formatToolInput(
-        confirmationState.toolName,
-        confirmationState.input
-      )}`;
+      let key = confirmationState.toolName;
+
+      // For bash commands, extract the actual command being run
+      if (confirmationState.toolName.toLowerCase() === 'bash') {
+        const command = formatToolInput('bash', confirmationState.input);
+        const baseCommand = extractBaseCommand(command);
+        if (baseCommand) {
+          // Use "bash:command" as key (e.g., "bash:cognition-cli")
+          key = `bash:${baseCommand}`;
+        }
+      }
+
       sessionAllowList.current[key] = true;
 
       // Debug logging

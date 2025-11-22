@@ -183,6 +183,28 @@ export function checkToolSafety(
 }
 
 /**
+ * Extract the base command from a bash command string
+ * E.g., "cognition-cli patterns list" -> "cognition-cli"
+ * E.g., "git status" -> "git"
+ */
+export function extractBaseCommand(command: string): string | null {
+  const trimmed = command.trim();
+  if (!trimmed) return null;
+
+  // Split on whitespace and get first token
+  const firstToken = trimmed.split(/\s+/)[0];
+
+  // Handle common shells/wrappers
+  if (firstToken === 'bash' || firstToken === 'sh' || firstToken === 'zsh') {
+    // Try to extract the actual command from "bash -c 'command'"
+    const match = trimmed.match(/(?:bash|sh|zsh)\s+-c\s+['"]?([^\s'"]+)/);
+    return match ? match[1] : firstToken;
+  }
+
+  return firstToken;
+}
+
+/**
  * Format tool input for display
  */
 export function formatToolInput(toolName: string, input: unknown): string {

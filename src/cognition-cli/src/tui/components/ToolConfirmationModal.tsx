@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { Box, Text } from 'ink';
-import { formatToolInput } from '../utils/tool-safety.js';
+import { formatToolInput, extractBaseCommand } from '../utils/tool-safety.js';
 import type { ToolConfirmationState } from '../hooks/useToolConfirmation.js';
 
 interface ToolConfirmationModalProps {
@@ -24,6 +24,15 @@ const ToolConfirmationModalComponent: React.FC<ToolConfirmationModalProps> = ({
     () => formatToolInput(toolName, input),
     [toolName, input]
   );
+
+  // For bash commands, extract the base command for "Always" label
+  const alwaysLabel = React.useMemo(() => {
+    if (toolName.toLowerCase() === 'bash') {
+      const baseCommand = extractBaseCommand(formattedInput);
+      return baseCommand ? `all ${baseCommand}` : `all ${toolName}`;
+    }
+    return `all ${toolName}`;
+  }, [toolName, formattedInput]);
 
   return (
     <Box
@@ -46,7 +55,7 @@ const ToolConfirmationModalComponent: React.FC<ToolConfirmationModalProps> = ({
       {/* Compact footer with options - same style as CommandDropdown */}
       <Box borderTop borderColor="gray" justifyContent="space-between">
         <Text color="gray" dimColor>
-          Y Allow | N Deny | A Always | Esc
+          Y Allow | N Deny | A Always ({alwaysLabel}) | Esc
         </Text>
       </Box>
     </Box>
