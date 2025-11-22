@@ -79,9 +79,8 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
 
     // Start loading Claude Agent SDK asynchronously in the constructor
     // but do NOT await it here. We'll await it in executeAgent().
-    if (this.client.apiKey) {
-      this.agentSdkLoadingPromise = this.initAgentSdk();
-    }
+    // Note: Always load SDK even without API key to support OAuth authentication
+    this.agentSdkLoadingPromise = this.initAgentSdk();
   }
 
   private async initAgentSdk(): Promise<void> {
@@ -216,19 +215,17 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
 
   /**
    * Check if Claude API is available
+   *
+   * For Claude, we check if the Agent SDK is loaded (supports both API key and OAuth),
+   * rather than testing the basic SDK client which requires an API key.
    */
   async isAvailable(): Promise<boolean> {
-    try {
-      // Quick availability check - try to create a minimal request
-      await this.client.messages.create({
-        model: this.models[3], // Use Haiku (cheapest)
-        max_tokens: 1,
-        messages: [{ role: 'user', content: 'test' }],
-      });
-      return true;
-    } catch {
-      return false;
-    }
+    // Ensure Agent SDK is loaded
+    await this.ensureAgentSdkLoaded();
+
+    // If Agent SDK is available, Claude is available
+    // (works with both API key and OAuth authentication)
+    return !!this.claudeAgentSdk;
   }
 
   /**
@@ -357,6 +354,24 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
           numTurns,
         };
       }
+    } catch (error) {
+      // Handle SDK errors (e.g., "Claude Code process exited with code 1")
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      // Check if this is an authentication error
+      if (
+        errorMessage.includes('authentication_error') ||
+        errorMessage.includes('invalid_api_key') ||
+        errorMessage.includes('unauthorized')
+      ) {
+        throw new Error(
+          `Authentication failed: Please check your ANTHROPIC_API_KEY environment variable`
+        );
+      }
+
+      // Re-throw the original error for other cases
+      throw error;
     } finally {
       // Always clear query reference to prevent memory leaks
       this.currentQuery = null;

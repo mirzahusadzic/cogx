@@ -36,27 +36,14 @@ cognition genesis:docs docs/
 cognition tui
 ```
 
-### LLM Providers
+### LLM Provider Support
 
-Cognition CLI supports multiple LLM providers. Choose based on your needs:
+Cognition CLI supports multiple LLM providers:
 
-#### Claude (Anthropic)
+- **Gemini** (Google) - Included by default
+- **Claude** (Anthropic) - Optional, requires additional setup
 
-```bash
-# Install the Claude Agent SDK (optional peer dependency)
-npm install @anthropic-ai/claude-agent-sdk@^0.1.46
-
-# Set your API key
-export ANTHROPIC_API_KEY=your-key-here
-
-# Set as default provider
-cognition set-default claude
-```
-
-**License**: Proprietary (Anthropic Commercial ToS)
-**Note**: By installing this package, you accept [Anthropic's Terms of Service](https://www.anthropic.com/legal/commercial-terms).
-
-#### Gemini (Google)
+#### Gemini (Default Provider)
 
 ```bash
 # The Gemini SDK is included by default
@@ -64,11 +51,49 @@ cognition set-default claude
 # Set your API key
 export GEMINI_API_KEY=your-key-here
 
-# Set as default provider
-cognition set-default gemini
+# Launch TUI (uses Gemini by default)
+cognition tui
 ```
 
 **License**: Apache 2.0 (Open Source)
+
+#### Enabling Claude Support
+
+Due to licensing restrictions (cognition-cli is AGPL-3.0, Claude Agent SDK is proprietary),
+the Claude provider requires manual installation.
+
+**Installation (from source):**
+
+```bash
+git clone https://github.com/mirzahusadzic/cogx
+cd cogx/src/cognition-cli
+npm install
+npm install @anthropic-ai/claude-agent-sdk  # Optional: for Claude support
+npm run build
+npm link  # Makes 'cognition-cli' available globally
+
+# Now you can use it from anywhere
+cd /path/to/your/project
+cognition-cli tui --provider claude
+```
+
+Claude can be used with:
+
+1. **API Key**: Set `ANTHROPIC_API_KEY` environment variable
+2. **OAuth**: Authenticate via Claude Agent SDK CLI (no API key needed)
+
+```bash
+# With API key
+ANTHROPIC_API_KEY=sk-ant-... cognition-cli tui --provider claude
+
+# With OAuth (uses Claude Agent SDK authentication)
+cognition-cli tui --provider claude
+```
+
+**Note:** If the Claude Agent SDK is not installed, cognition-cli will automatically fall back to Gemini.
+
+**License**: Proprietary (Anthropic Commercial ToS)
+By installing `@anthropic-ai/claude-agent-sdk`, you accept [Anthropic's Terms of Service](https://www.anthropic.com/legal/commercial-terms).
 
 ---
 

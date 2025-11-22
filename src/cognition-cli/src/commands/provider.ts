@@ -57,7 +57,7 @@ export function createProviderCommand(): Command {
     .action(async () => {
       try {
         // Initialize providers first
-        initializeProviders({ skipMissingProviders: true });
+        await initializeProviders({ skipMissingProviders: true });
 
         const providers = registry.list();
 
@@ -121,7 +121,7 @@ export function createProviderCommand(): Command {
     .action(async (providerName: string) => {
       try {
         // Initialize providers first
-        initializeProviders({ skipMissingProviders: true });
+        await initializeProviders({ skipMissingProviders: true });
 
         // Validate provider exists
         if (!registry.has(providerName)) {
@@ -169,7 +169,7 @@ export function createProviderCommand(): Command {
     .action(async (providerName: string) => {
       try {
         // Initialize providers first
-        initializeProviders({ skipMissingProviders: true });
+        await initializeProviders({ skipMissingProviders: true });
 
         console.log(chalk.dim(`Testing ${providerName}...`));
 
@@ -284,7 +284,7 @@ export function createProviderCommand(): Command {
     .action(async (providerName?: string) => {
       try {
         // Initialize providers first
-        initializeProviders({ skipMissingProviders: true });
+        await initializeProviders({ skipMissingProviders: true });
 
         if (providerName) {
           // Show models for specific provider

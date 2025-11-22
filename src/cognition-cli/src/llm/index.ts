@@ -127,18 +127,16 @@ export async function initializeProviders(
       const { ClaudeProvider } = await import('./providers/claude-provider.js');
       const apiKey = anthropicApiKey || process.env.ANTHROPIC_API_KEY;
 
-      // Only register Claude if API key is available
-      if (apiKey) {
-        const claude = new ClaudeProvider(apiKey);
+      // Register Claude provider even without API key to support OAuth authentication
+      const claude = new ClaudeProvider(apiKey);
 
-        // Always register the provider (basic completions work without Agent SDK)
-        registry.register(claude);
-        registered.push('claude');
+      // Always register the provider (basic completions work without Agent SDK)
+      registry.register(claude);
+      registered.push('claude');
 
-        // Check if agent mode is available (requires optional Claude Agent SDK)
-        await claude.ensureAgentModeReady();
-        // Note: If SDK is not available, agent mode will be disabled silently
-      }
+      // Check if agent mode is available (requires optional Claude Agent SDK)
+      await claude.ensureAgentModeReady();
+      // Note: If SDK is not available, agent mode will be disabled silently
     } catch (error) {
       if (skipMissingProviders) {
         // Silent skip if SDK not installed
