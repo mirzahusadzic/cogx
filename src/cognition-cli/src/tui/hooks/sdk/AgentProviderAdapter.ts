@@ -59,6 +59,12 @@ export interface AgentAdapterOptions {
   /** MCP servers */
   mcpServers?: Record<string, McpSdkServerConfigWithInstance>;
 
+  /** Conversation registry for memory recall (optional) */
+  conversationRegistry?: unknown;
+
+  /** Workbench URL for API access (optional) */
+  workbenchUrl?: string;
+
   /** Error callback */
   onStderr?: (error: string) => void;
 
@@ -118,6 +124,8 @@ export class AgentProviderAdapter {
       resumeSessionId: this.options.resumeSessionId,
       maxThinkingTokens: this.options.maxThinkingTokens,
       mcpServers: this.options.mcpServers,
+      conversationRegistry: this.options.conversationRegistry,
+      workbenchUrl: this.options.workbenchUrl,
       onStderr: this.options.onStderr,
       onCanUseTool: this.options.onCanUseTool,
       systemPrompt: {

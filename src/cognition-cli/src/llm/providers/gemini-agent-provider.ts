@@ -277,7 +277,9 @@ export class GeminiAgentProvider implements AgentProvider {
                 tokens: {
                   prompt: promptTokens || Math.ceil(request.prompt.length / 4), // Use API count or fallback to estimation
                   completion: completionTokens || totalTokens, // Use API count or fallback to manual tracking
-                  total: (promptTokens || Math.ceil(request.prompt.length / 4)) + (completionTokens || totalTokens),
+                  total:
+                    (promptTokens || Math.ceil(request.prompt.length / 4)) +
+                    (completionTokens || totalTokens),
                 },
                 finishReason: 'tool_use',
                 numTurns,
@@ -305,7 +307,9 @@ export class GeminiAgentProvider implements AgentProvider {
                 tokens: {
                   prompt: promptTokens || Math.ceil(request.prompt.length / 4),
                   completion: completionTokens || totalTokens,
-                  total: (promptTokens || Math.ceil(request.prompt.length / 4)) + (completionTokens || totalTokens),
+                  total:
+                    (promptTokens || Math.ceil(request.prompt.length / 4)) +
+                    (completionTokens || totalTokens),
                 },
                 finishReason: 'stop',
                 numTurns,
@@ -340,7 +344,9 @@ export class GeminiAgentProvider implements AgentProvider {
                 tokens: {
                   prompt: promptTokens || Math.ceil(request.prompt.length / 4),
                   completion: completionTokens || totalTokens,
-                  total: (promptTokens || Math.ceil(request.prompt.length / 4)) + (completionTokens || totalTokens),
+                  total:
+                    (promptTokens || Math.ceil(request.prompt.length / 4)) +
+                    (completionTokens || totalTokens),
                 },
                 finishReason: 'stop',
                 numTurns,
@@ -357,7 +363,9 @@ export class GeminiAgentProvider implements AgentProvider {
         tokens: {
           prompt: promptTokens || Math.ceil(request.prompt.length / 4),
           completion: completionTokens || totalTokens,
-          total: (promptTokens || Math.ceil(request.prompt.length / 4)) + (completionTokens || totalTokens),
+          total:
+            (promptTokens || Math.ceil(request.prompt.length / 4)) +
+            (completionTokens || totalTokens),
         },
         finishReason: 'stop',
         numTurns,

@@ -1484,6 +1484,8 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
           cwd: cwd,
           resumeSessionId: currentResumeId, // undefined after compression = fresh session!
           maxThinkingTokens, // Enable extended thinking if specified
+          conversationRegistry: conversationRegistryRef.current || undefined,
+          workbenchUrl: process.env.WORKBENCH_URL || 'http://localhost:8000',
           onStderr: (data: string) => {
             stderrLines.push(data);
           },

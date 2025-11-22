@@ -214,11 +214,15 @@ export function createRecallTool(
     execute: async ({ query }) => {
       try {
         // Query conversation lattice with SLM + LLM synthesis
-        const answer = await queryConversationLattice(query, conversationRegistry, {
-          workbenchUrl,
-          topK: 10, // Increased from 5 for better coverage
-          verbose: false,
-        });
+        const answer = await queryConversationLattice(
+          query,
+          conversationRegistry,
+          {
+            workbenchUrl,
+            topK: 10, // Increased from 5 for better coverage
+            verbose: false,
+          }
+        );
 
         return `Found relevant context:\n\n${answer}`;
       } catch (err) {
