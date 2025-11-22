@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import { CommandDropdown } from './CommandDropdown.js';
+import { ToolConfirmationModal } from './ToolConfirmationModal.js';
 import { loadCommands, filterCommands, Command } from '../commands/loader.js';
 import { writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import type { ToolConfirmationState } from '../hooks/useToolConfirmation.js';
 
 interface InputBoxProps {
   onSubmit: (value: string) => void;
@@ -15,6 +17,7 @@ interface InputBoxProps {
   onDropdownVisibleChange?: (visible: boolean) => void;
   onPasteContent?: (content: string, filepath: string) => void;
   providerName?: string;
+  confirmationState?: ToolConfirmationState | null; // Tool confirmation state (renders modal like dropdown)
 }
 
 /**
@@ -28,7 +31,10 @@ export const InputBox: React.FC<InputBoxProps> = ({
   onDropdownVisibleChange,
   onPasteContent,
   providerName = 'AI',
+  confirmationState = null,
 }) => {
+  // Derive confirmation pending state
+  const confirmationPending = confirmationState?.pending ?? false;
   const [value, setValue] = useState('');
   const [inputKey, setInputKey] = useState(0); // Force remount to reset cursor position
   const lastEscapeTime = useRef<number>(0);
@@ -214,6 +220,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
   };
 
   // Handle double ESC to clear input, or ESC to interrupt when thinking
+  // CRITICAL: Disable when confirmation modal is active to prevent ESC conflict
   useInput(
     (input, key) => {
       if (key.ctrl && input === 'c') {
@@ -280,7 +287,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
         return false;
       }
     },
-    { isActive: focused }
+    { isActive: focused && !confirmationPending } // Disable when confirmation modal active
   );
 
   if (!focused) {
@@ -306,8 +313,13 @@ export const InputBox: React.FC<InputBoxProps> = ({
         </Box>
       )}
 
+      {/* Tool Confirmation Modal - render ABOVE input, SAME placement as dropdown */}
+      {confirmationState && confirmationState.pending && (
+        <ToolConfirmationModal state={confirmationState} />
+      )}
+
       {/* Command dropdown - render ABOVE input, overlaying the chat area */}
-      {showDropdown && focused && !commandsLoading && (
+      {showDropdown && focused && !commandsLoading && !confirmationPending && (
         <CommandDropdown
           commands={filteredCommands}
           selectedIndex={selectedCommandIndex}
@@ -318,29 +330,37 @@ export const InputBox: React.FC<InputBoxProps> = ({
       <Box
         borderTop
         borderBottom
-        borderColor="#56d364"
+        borderColor={confirmationPending ? '#f85149' : '#56d364'}
         paddingX={1}
         width="100%"
       >
-        <Text color="#56d364">{'> '}</Text>
-        <Text color="#56d364">
-          <TextInput
-            key={inputKey}
-            value={value}
-            onChange={handleChange}
-            onSubmit={handleSubmit}
-            placeholder={
-              disabled
-                ? `${providerName.charAt(0).toUpperCase() + providerName.slice(1)} is thinking... (ESC to interrupt)`
-                : 'Type a message... (ESC ESC to clear)'
-            }
-            showCursor={!disabled}
-            // Disable any autocorrect/autocomplete features
-            // @ts-expect-error - these props might not be in type definitions but work
-            autoComplete="off"
-            autoCorrect="off"
-            spellCheck={false}
-          />
+        <Text color={confirmationPending ? '#f85149' : '#56d364'}>{'> '}</Text>
+        <Text color={confirmationPending ? '#8b949e' : '#56d364'}>
+          {confirmationPending ? (
+            // Show static message when confirmation is pending
+            <Text dimColor>
+              Waiting for tool confirmation... (See prompt above)
+            </Text>
+          ) : (
+            // Normal TextInput when not confirming
+            <TextInput
+              key={inputKey}
+              value={value}
+              onChange={handleChange}
+              onSubmit={handleSubmit}
+              placeholder={
+                disabled
+                  ? `${providerName.charAt(0).toUpperCase() + providerName.slice(1)} is thinking... (ESC to interrupt)`
+                  : 'Type a message... (ESC ESC to clear)'
+              }
+              showCursor={!disabled}
+              // Disable any autocorrect/autocomplete features
+              // @ts-expect-error - these props might not be in type definitions but work
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+          )}
         </Text>
       </Box>
 

@@ -113,7 +113,8 @@ export class GeminiAgentProvider implements AgentProvider {
       | undefined;
     const cognitionTools = getCognitionTools(
       conversationRegistry,
-      request.workbenchUrl
+      request.workbenchUrl,
+      request.onCanUseTool // Pass guardrail callback to tools
     );
 
     // Create a specialized web search agent

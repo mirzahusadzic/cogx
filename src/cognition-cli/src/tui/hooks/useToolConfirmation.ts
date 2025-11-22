@@ -35,8 +35,9 @@ export function useToolConfirmation() {
   const sessionAllowList = useRef<SessionAllowList>({});
 
   // Promise resolver for async confirmation
-  const confirmationResolver =
-    useRef<((decision: 'allow' | 'deny') => void) | null>(null);
+  const confirmationResolver = useRef<
+    ((decision: 'allow' | 'deny') => void) | null
+  >(null);
 
   /**
    * Request confirmation and wait for user decision
@@ -47,6 +48,13 @@ export function useToolConfirmation() {
       // Check safety
       const safety = checkToolSafety(toolName, input);
 
+      // Debug logging
+      if (process.env.DEBUG_CONFIRMATION) {
+        console.error('[Confirmation] Tool:', toolName);
+        console.error('[Confirmation] Input:', JSON.stringify(input, null, 2));
+        console.error('[Confirmation] Safety:', safety);
+      }
+
       // Auto-allow if safe
       if (!safety.requiresConfirmation) {
         return Promise.resolve('allow');
@@ -54,7 +62,24 @@ export function useToolConfirmation() {
 
       // Check session allow list
       const key = `${toolName}:${formatToolInput(toolName, input)}`;
+
+      // Debug logging
+      if (process.env.DEBUG_CONFIRMATION) {
+        console.error('[Confirmation] Checking Key:', key);
+        console.error(
+          '[Confirmation] Is in allow list?',
+          sessionAllowList.current[key]
+        );
+        console.error(
+          '[Confirmation] All allowed keys:',
+          Object.keys(sessionAllowList.current)
+        );
+      }
+
       if (sessionAllowList.current[key]) {
+        if (process.env.DEBUG_CONFIRMATION) {
+          console.error('[Confirmation] Auto-allowing from session list');
+        }
         return Promise.resolve('allow');
       }
 
@@ -106,6 +131,15 @@ export function useToolConfirmation() {
         confirmationState.input
       )}`;
       sessionAllowList.current[key] = true;
+
+      // Debug logging
+      if (process.env.DEBUG_CONFIRMATION) {
+        console.error('[Confirmation] Always Allow - Key:', key);
+        console.error(
+          '[Confirmation] Session Allow List:',
+          Object.keys(sessionAllowList.current)
+        );
+      }
     }
 
     if (confirmationResolver.current) {

@@ -11,7 +11,6 @@ import { ClaudePanelAgent } from './components/ClaudePanelAgent.js';
 import { InputBox } from './components/InputBox.js';
 import { StatusBar } from './components/StatusBar.js';
 import { SigmaInfoPanel } from './components/SigmaInfoPanel.js';
-import { ToolConfirmationModal } from './components/ToolConfirmationModal.js';
 import { useAgent } from './hooks/useAgent.js';
 import { useOverlays } from './hooks/useOverlays.js';
 import { useToolConfirmation } from './hooks/useToolConfirmation.js';
@@ -64,27 +63,27 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [streamingPaste, setStreamingPaste] = useState<string>('');
 
+  // Tool confirmation hook (guardrails) - must be before chatAreaHeight useMemo
+  const { confirmationState, requestConfirmation, allow, deny, alwaysAllow } =
+    useToolConfirmation();
+
   // Calculate fixed chat area height to prevent InputBox from shifting
   // when messages populate - memoize to avoid recalculation on every render
   const chatAreaHeight = useMemo(() => {
     const terminalHeight = stdout?.rows || 24;
-    // Dynamic reserved space: expand when dropdown is visible
-    // OverlaysBar(1) + separator(1) + separator(1) + InputBox+Dropdown(variable) + separator(1) + saveMessage(1) + StatusBar(3)
-    const inputAndDropdownHeight = isDropdownVisible ? 9 : 1; // 9 lines when dropdown open, 1 when closed (just input)
+    // Dynamic reserved space: expand when dropdown OR confirmation modal is visible
+    // OverlaysBar(1) + separator(1) + separator(1) + InputBox+Dropdown/Modal(variable) + separator(1) + saveMessage(1) + StatusBar(3)
+    // Dropdown needs more space (9 lines) than confirmation modal (5 lines)
+    const inputAndDropdownHeight = isDropdownVisible
+      ? 9 // Dropdown is tall (command list)
+      : confirmationState?.pending
+        ? 5 // Confirmation modal is compact (just 2-3 lines)
+        : 1; // Just input when nothing is open
     const reservedHeight = 3 + inputAndDropdownHeight + 5; // 3 top + input area + 5 bottom
     return Math.max(5, terminalHeight - reservedHeight); // Minimum 5 lines for chat
-  }, [stdout?.rows, isDropdownVisible]);
+  }, [stdout?.rows, isDropdownVisible, confirmationState?.pending]);
 
   const { loading } = useOverlays({ pgcRoot, workbenchUrl });
-
-  // Tool confirmation hook (guardrails)
-  const {
-    confirmationState,
-    requestConfirmation,
-    allow,
-    deny,
-    alwaysAllow,
-  } = useToolConfirmation();
 
   const {
     messages,
@@ -320,6 +319,26 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   // Handle input - make sure this is always active for Ctrl+C
   useInput(
     (input, key) => {
+      // PRIORITY 1: Handle confirmation modal keyboard input FIRST
+      if (confirmationState?.pending) {
+        if (input === 'y' || input === 'Y') {
+          allow();
+          return;
+        } else if (input === 'n' || input === 'N') {
+          deny();
+          return;
+        } else if (input === 'a' || input === 'A') {
+          alwaysAllow();
+          return;
+        } else if (key.escape) {
+          deny();
+          return;
+        }
+        // Ignore all other input when modal is active
+        return;
+      }
+
+      // PRIORITY 2: Global keyboard shortcuts (only when modal NOT active)
       if (key.ctrl && input === 'c') {
         // Force immediate exit - kill entire process group including workers
         try {
@@ -439,19 +458,15 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           </Box>
           <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>
 
-          {/* Tool Confirmation Modal (guardrails) */}
-          {confirmationState && (
-            <ToolConfirmationModal
-              state={confirmationState}
-              onAllow={allow}
-              onDeny={deny}
-              onAlwaysAllow={alwaysAllow}
-            />
-          )}
-
-          {/* Reserved space for dropdown - dynamically sized based on visibility */}
+          {/* Reserved space for dropdown/confirmation - dynamically sized based on visibility */}
           <Box
-            height={isDropdownVisible ? 9 : 1}
+            height={
+              isDropdownVisible
+                ? 9 // Dropdown is tall (command list)
+                : confirmationState?.pending
+                  ? 5 // Confirmation modal is compact
+                  : 1 // Just input
+            }
             flexDirection="column"
             justifyContent="flex-end"
           >
@@ -463,6 +478,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
               onDropdownVisibleChange={setIsDropdownVisible}
               onPasteContent={handlePasteContent}
               providerName={provider}
+              confirmationState={confirmationState}
             />
           </Box>
           <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>

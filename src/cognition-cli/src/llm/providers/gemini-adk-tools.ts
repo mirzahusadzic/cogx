@@ -233,21 +233,104 @@ export function createRecallTool(
 }
 
 /**
+ * Create a wrapped execute function with approval logic
+ *
+ * @param toolName - Name of the tool
+ * @param originalExecute - Original execute function
+ * @param onCanUseTool - Optional callback for tool approval
+ * @returns Wrapped execute function that requests approval
+ */
+function createApprovalWrapper<T>(
+  toolName: string,
+  originalExecute: (input: T) => Promise<string>,
+  onCanUseTool?: (
+    toolName: string,
+    input: unknown
+  ) => Promise<{ behavior: 'allow' | 'deny'; updatedInput?: unknown }>
+): (input: T) => Promise<string> {
+  if (!onCanUseTool) {
+    return originalExecute; // No approval callback, return original
+  }
+
+  return async (input: T) => {
+    // Request approval before executing
+    const decision = await onCanUseTool(toolName, input);
+
+    if (decision.behavior === 'deny') {
+      return `User declined this action. Please continue with alternative approaches without asking why.`;
+    }
+
+    // Use updated input if provided, otherwise use original
+    const finalInput = (decision.updatedInput ?? input) as T;
+    return originalExecute(finalInput);
+  };
+}
+
+/**
  * Get all ADK tools for Cognition
  *
  * @param conversationRegistry - Optional conversation registry for recall tool
  * @param workbenchUrl - Optional workbench URL for recall tool
+ * @param onCanUseTool - Optional callback for tool approval (guardrails)
  */
 export function getCognitionTools(
   conversationRegistry?: ConversationOverlayRegistry,
-  workbenchUrl?: string
+  workbenchUrl?: string,
+  onCanUseTool?: (
+    toolName: string,
+    input: unknown
+  ) => Promise<{ behavior: 'allow' | 'deny'; updatedInput?: unknown }>
 ) {
+  // Create tools with approval logic baked in
+  const createBashToolWithApproval = () => {
+    return new FunctionTool({
+      name: 'bash',
+      description: bashTool.description,
+      parameters: z.object({
+        command: z.string().describe('Bash command to execute'),
+      }),
+      execute: createApprovalWrapper(
+        'bash',
+        async ({ command }: { command: string }) => {
+          // Execute the bash tool's logic (duplicated from bashTool for now)
+          return new Promise<string>((resolve) => {
+            const proc = spawn('bash', ['-c', command], {
+              cwd: process.cwd(),
+            });
+
+            let stdout = '';
+            let stderr = '';
+
+            proc.stdout.on('data', (data) => {
+              stdout += data.toString();
+            });
+
+            proc.stderr.on('data', (data) => {
+              stderr += data.toString();
+            });
+
+            proc.on('close', (code) => {
+              if (code !== 0) {
+                resolve(
+                  `Command failed with exit code ${code}\nSTDOUT:\n${stdout}\nSTDERR:\n${stderr}`
+                );
+              } else {
+                resolve(stdout || '(no output)');
+              }
+            });
+          });
+        },
+        onCanUseTool
+      ),
+    });
+  };
+
   const baseTools = [
     readFileTool,
     writeFileTool,
     globTool,
     grepTool,
-    bashTool,
+    createBashToolWithApproval(), // Use wrapped bash tool
     editFileTool,
   ];
 

@@ -178,7 +178,7 @@ export function checkToolSafety(
   return {
     riskLevel: ToolRiskLevel.MODERATE,
     reason: 'Unknown tool type',
-    requiresConfirmation: false,
+    requiresConfirmation: true, // Require confirmation for unknown tools
   };
 }
 
@@ -193,16 +193,26 @@ export function formatToolInput(toolName: string, input: unknown): string {
   if (typeof input === 'object' && input !== null) {
     // Bash command
     if ('command' in input) {
-      return (input as { command: string }).command;
+      const cmd = (input as { command: string }).command;
+      // Ensure command is a string and not corrupted
+      return typeof cmd === 'string' ? cmd : JSON.stringify(input, null, 2);
     }
 
     // File path
     if ('file_path' in input) {
-      return (input as { file_path: string }).file_path;
+      const filePath = (input as { file_path: string }).file_path;
+      return typeof filePath === 'string'
+        ? filePath
+        : JSON.stringify(input, null, 2);
     }
 
-    // Generic object
-    return JSON.stringify(input, null, 2);
+    // Generic object - format nicely
+    try {
+      return JSON.stringify(input, null, 2);
+    } catch {
+      // Fallback if JSON.stringify fails (e.g., circular references)
+      return String(input);
+    }
   }
 
   return String(input);
