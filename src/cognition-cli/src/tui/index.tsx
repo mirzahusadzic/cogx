@@ -11,8 +11,10 @@ import { ClaudePanelAgent } from './components/ClaudePanelAgent.js';
 import { InputBox } from './components/InputBox.js';
 import { StatusBar } from './components/StatusBar.js';
 import { SigmaInfoPanel } from './components/SigmaInfoPanel.js';
+import { ToolConfirmationModal } from './components/ToolConfirmationModal.js';
 import { useAgent } from './hooks/useAgent.js';
 import { useOverlays } from './hooks/useOverlays.js';
+import { useToolConfirmation } from './hooks/useToolConfirmation.js';
 import { isAuthenticationError } from './hooks/sdk/index.js';
 import type { TUIMessage } from './hooks/useAgent.js';
 
@@ -74,6 +76,16 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   }, [stdout?.rows, isDropdownVisible]);
 
   const { loading } = useOverlays({ pgcRoot, workbenchUrl });
+
+  // Tool confirmation hook (guardrails)
+  const {
+    confirmationState,
+    requestConfirmation,
+    allow,
+    deny,
+    alwaysAllow,
+  } = useToolConfirmation();
+
   const {
     messages,
     sendMessage: originalSendMessage,
@@ -93,6 +105,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     debug, // Pass debug flag
     provider, // Pass LLM provider
     model, // Pass model name
+    onRequestToolConfirmation: requestConfirmation, // Guardrail callback
   });
 
   // Wrap sendMessage to clear streaming paste on regular messages
@@ -424,6 +437,17 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
             )}
           </Box>
           <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>
+
+          {/* Tool Confirmation Modal (guardrails) */}
+          {confirmationState && (
+            <ToolConfirmationModal
+              state={confirmationState}
+              onAllow={allow}
+              onDeny={deny}
+              onAlwaysAllow={alwaysAllow}
+            />
+          )}
+
           {/* Reserved space for dropdown - dynamically sized based on visibility */}
           <Box
             height={isDropdownVisible ? 9 : 1}

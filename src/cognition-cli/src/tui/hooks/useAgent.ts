@@ -190,6 +190,16 @@ interface UseAgentOptions {
    * If not specified, uses provider's default model
    */
   model?: string;
+
+  /**
+   * Tool confirmation callback (for guardrails)
+   * Called before executing each tool to request user permission
+   * @returns Promise resolving to 'allow' or 'deny'
+   */
+  onRequestToolConfirmation?: (
+    toolName: string,
+    input: unknown
+  ) => Promise<'allow' | 'deny'>;
 }
 
 /**
@@ -297,6 +307,7 @@ export function useAgent(options: UseAgentOptions) {
     debug: debugFlag,
     provider: providerName = 'claude',
     model: modelName,
+    onRequestToolConfirmation,
   } = options;
 
   // ========================================
@@ -1498,7 +1509,16 @@ export function useAgent(options: UseAgentOptions) {
             stderrLines.push(data);
           },
           onCanUseTool: async (toolName, input) => {
-            // Auto-approve all tools for now (we can add UI prompts later)
+            // Use confirmation callback if provided (guardrails)
+            if (onRequestToolConfirmation) {
+              const decision = await onRequestToolConfirmation(toolName, input);
+              return {
+                behavior: decision,
+                updatedInput: input,
+              };
+            }
+
+            // Auto-approve if no confirmation callback provided
             return {
               behavior: 'allow',
               updatedInput: input,
