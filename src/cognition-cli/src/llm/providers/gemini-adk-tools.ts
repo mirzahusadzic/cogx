@@ -14,6 +14,14 @@ import type { ConversationOverlayRegistry } from '../../sigma/conversation-regis
 import { queryConversationLattice } from '../../sigma/query-conversation.js';
 
 /**
+ * Tool permission callback (from AgentRequest interface)
+ */
+type OnCanUseTool = (
+  toolName: string,
+  input: unknown
+) => Promise<{ behavior: 'allow' | 'deny'; updatedInput?: unknown }>;
+
+/**
  * Read file tool - reads file contents
  */
 export const readFileTool = new FunctionTool({
@@ -233,105 +241,163 @@ export function createRecallTool(
 }
 
 /**
- * Create a wrapped execute function with approval logic
+ * Create a safe wrapper for a tool that calls onCanUseTool before execution
  *
- * @param toolName - Name of the tool
- * @param originalExecute - Original execute function
- * @param onCanUseTool - Optional callback for tool approval
- * @returns Wrapped execute function that requests approval
+ * This bridges the gap between ADK (which doesn't have built-in permission checks)
+ * and our TUI's confirmation system (which expects onCanUseTool to be called).
+ *
+ * We can't access FunctionTool's private properties, so we recreate each tool
+ * with the permission check built in.
  */
-function createApprovalWrapper<T>(
-  toolName: string,
-  originalExecute: (input: T) => Promise<string>,
-  onCanUseTool?: (
-    toolName: string,
-    input: unknown
-  ) => Promise<{ behavior: 'allow' | 'deny'; updatedInput?: unknown }>
-): (input: T) => Promise<string> {
+function wrapToolWithPermission<T extends z.ZodRawShape>(
+  name: string,
+  description: string,
+  parameters: z.ZodObject<T>,
+  originalExecute: (input: z.infer<z.ZodObject<T>>) => Promise<unknown>,
+  onCanUseTool?: OnCanUseTool
+): FunctionTool {
   if (!onCanUseTool) {
-    return originalExecute; // No approval callback, return original
+    // If no callback provided, return original tool
+    return new FunctionTool({
+      name,
+      description,
+      parameters,
+      execute: originalExecute as (input: unknown) => Promise<unknown>,
+    });
   }
 
-  return async (input: T) => {
-    // Request approval before executing
-    const decision = await onCanUseTool(toolName, input);
+  return new FunctionTool({
+    name,
+    description,
+    parameters,
+    execute: async (input: unknown) => {
+      // Call permission callback
+      const decision = await onCanUseTool(name, input);
 
-    if (decision.behavior === 'deny') {
-      return `User declined this action. Please continue with alternative approaches without asking why.`;
-    }
+      // If denied, return denial message
+      if (decision.behavior === 'deny') {
+        return `User declined this action. Please continue with alternative approaches without asking why.`;
+      }
 
-    // Use updated input if provided, otherwise use original
-    const finalInput = (decision.updatedInput ?? input) as T;
-    return originalExecute(finalInput);
-  };
+      // Execute with potentially updated input
+      const finalInput = decision.updatedInput ?? input;
+      return originalExecute(finalInput as z.infer<z.ZodObject<T>>);
+    },
+  });
 }
 
 /**
  * Get all ADK tools for Cognition
  *
+ * Tool safety/confirmation is handled via onCanUseTool callback (matching Claude's behavior).
+ * Each tool is wrapped to call onCanUseTool before execution.
+ *
  * @param conversationRegistry - Optional conversation registry for recall tool
  * @param workbenchUrl - Optional workbench URL for recall tool
- * @param onCanUseTool - Optional callback for tool approval (guardrails)
+ * @param onCanUseTool - Optional permission callback (from AgentRequest)
  */
 export function getCognitionTools(
   conversationRegistry?: ConversationOverlayRegistry,
   workbenchUrl?: string,
-  onCanUseTool?: (
-    toolName: string,
-    input: unknown
-  ) => Promise<{ behavior: 'allow' | 'deny'; updatedInput?: unknown }>
+  onCanUseTool?: OnCanUseTool
 ) {
-  // Create tools with approval logic baked in
-  const createBashToolWithApproval = () => {
-    return new FunctionTool({
-      name: 'bash',
-      description: bashTool.description,
-      parameters: z.object({
-        command: z.string().describe('Bash command to execute'),
-      }),
-      execute: createApprovalWrapper(
-        'bash',
-        async ({ command }: { command: string }) => {
-          // Execute the bash tool's logic (duplicated from bashTool for now)
-          return new Promise<string>((resolve) => {
-            const proc = spawn('bash', ['-c', command], {
-              cwd: process.cwd(),
-            });
+  // Create write_file tool with permission check
+  const safeWriteFile = wrapToolWithPermission(
+    'write_file',
+    'Write content to a file at the given path',
+    z.object({
+      file_path: z.string().describe('Absolute path to write to'),
+      content: z.string().describe('Content to write'),
+    }),
+    async ({ file_path, content }) => {
+      try {
+        await fs.mkdir(path.dirname(file_path), { recursive: true });
+        await fs.writeFile(file_path, content, 'utf-8');
+        return `Successfully wrote ${content.length} bytes to ${file_path}`;
+      } catch (error) {
+        return `Error writing file: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    },
+    onCanUseTool
+  );
 
-            let stdout = '';
-            let stderr = '';
+  // Create bash tool with permission check
+  const safeBash = wrapToolWithPermission(
+    'bash',
+    'Execute a bash command (use for git, npm, etc.)',
+    z.object({
+      command: z.string().describe('The command to execute'),
+      timeout: z.number().optional().describe('Timeout in ms (default 120000)'),
+    }),
+    async ({ command, timeout }) => {
+      return new Promise((resolve) => {
+        const proc = spawn('bash', ['-c', command], {
+          cwd: process.cwd(),
+          timeout: timeout || 120000,
+        });
 
-            proc.stdout.on('data', (data) => {
-              stdout += data.toString();
-            });
+        let stdout = '';
+        let stderr = '';
+        proc.stdout.on('data', (data) => (stdout += data.toString()));
+        proc.stderr.on('data', (data) => (stderr += data.toString()));
+        proc.on('close', (code) => {
+          const output = stdout + (stderr ? `\nSTDERR:\n${stderr}` : '');
+          resolve(
+            `Exit code: ${code}\n${output.slice(0, 30000)}${output.length > 30000 ? '\n... truncated' : ''}`
+          );
+        });
+        proc.on('error', (err) => resolve(`Error: ${err.message}`));
+      });
+    },
+    onCanUseTool
+  );
 
-            proc.stderr.on('data', (data) => {
-              stderr += data.toString();
-            });
+  // Create edit_file tool with permission check
+  const safeEditFile = wrapToolWithPermission(
+    'edit_file',
+    'Replace text in a file (old_string must be unique)',
+    z.object({
+      file_path: z.string().describe('Absolute path to the file'),
+      old_string: z.string().describe('Text to replace'),
+      new_string: z.string().describe('Replacement text'),
+      replace_all: z.boolean().optional().describe('Replace all occurrences'),
+    }),
+    async ({ file_path, old_string, new_string, replace_all }) => {
+      try {
+        const content = await fs.readFile(file_path, 'utf-8');
+        const count = (
+          content.match(
+            new RegExp(old_string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')
+          ) || []
+        ).length;
 
-            proc.on('close', (code) => {
-              if (code !== 0) {
-                resolve(
-                  `Command failed with exit code ${code}\nSTDOUT:\n${stdout}\nSTDERR:\n${stderr}`
-                );
-              } else {
-                resolve(stdout || '(no output)');
-              }
-            });
-          });
-        },
-        onCanUseTool
-      ),
-    });
-  };
+        if (count === 0) {
+          return `Error: old_string not found in file`;
+        }
+        if (count > 1 && !replace_all) {
+          return `Error: old_string found ${count} times. Use replace_all=true or make it unique.`;
+        }
+
+        const newContent = replace_all
+          ? content.split(old_string).join(new_string)
+          : content.replace(old_string, new_string);
+
+        await fs.writeFile(file_path, newContent, 'utf-8');
+        return `Successfully edited ${file_path}`;
+      } catch (error) {
+        return `Error: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    },
+    onCanUseTool
+  );
 
   const baseTools = [
-    readFileTool,
-    writeFileTool,
-    globTool,
-    grepTool,
-    createBashToolWithApproval(), // Use wrapped bash tool
-    editFileTool,
+    readFileTool, // Read-only, no wrapping needed
+    safeWriteFile,
+    globTool, // Read-only, no wrapping needed
+    grepTool, // Read-only, no wrapping needed
+    safeBash,
+    safeEditFile,
   ];
 
   // Add recall tool if conversation registry is available
