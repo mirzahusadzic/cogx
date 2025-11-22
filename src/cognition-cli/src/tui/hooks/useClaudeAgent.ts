@@ -1866,7 +1866,17 @@ export function useClaudeAgent(options: UseClaudeAgentOptions) {
       }
 
       case 'thinking': {
-        // Extended thinking - could show in UI later
+        // Extended thinking - display in UI
+        if (typeof content === 'string') {
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: 'thinking',
+              content,
+              timestamp: new Date(),
+            },
+          ]);
+        }
         debug(
           '💭 Thinking:',
           typeof content === 'string' ? content.substring(0, 100) : '...'
