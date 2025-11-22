@@ -143,7 +143,7 @@ import type { McpSdkServerConfigWithInstance } from './sdk/types.js';
 /**
  * Configuration options for Agent integration (Claude, Gemini, etc.)
  */
-interface UseAgentOptions {
+export interface UseAgentOptions {
   /**
    * User-provided session ID (from CLI --session-id flag)
    * If not provided, auto-generates timestamp-based ID

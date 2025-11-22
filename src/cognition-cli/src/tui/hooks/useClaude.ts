@@ -44,7 +44,7 @@ import { IPty } from 'node-pty';
 /**
  * Configuration options for PTY-based Claude session
  */
-interface UseClaudeOptions {
+export interface UseClaudeOptions {
   /**
    * Session ID to resume (passed to --resume flag)
    * If not provided, starts fresh session

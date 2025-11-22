@@ -3,15 +3,53 @@ import { Box, Text, useInput, useStdout } from 'ink';
 import { Spinner } from '@inkjs/ui';
 import type { TUIMessage } from '../hooks/useAgent.js';
 
-interface ClaudePanelAgentProps {
+/**
+ * Props for ClaudePanelAgent component
+ */
+export interface ClaudePanelAgentProps {
+  /** Array of conversation messages to display */
   messages: TUIMessage[];
+
+  /** Whether the agent is currently thinking/streaming a response */
   isThinking: boolean;
+
+  /** Whether this panel is currently focused for scrolling */
   focused: boolean;
+
+  /** Content being streamed during paste operation */
   streamingPaste?: string;
 }
 
 /**
- * Panel showing Claude Agent SDK messages
+ * Claude Agent SDK Message Panel Component.
+ *
+ * Displays conversation messages from the Agent SDK (Claude, Gemini, etc.)
+ * with color-coded message types, auto-scrolling, and keyboard navigation.
+ *
+ * **Features**:
+ * - Color-coded messages by type (user, assistant, system, thinking, tool)
+ * - Auto-scroll to bottom on new messages
+ * - Keyboard scrolling when panel is focused (↑↓, PgUp/PgDn, Enter to jump to bottom)
+ * - Markdown bold syntax processing (**text**)
+ * - Streaming paste visualization
+ *
+ * **Message Types & Colors**:
+ * - user: Green (O3 lineage)
+ * - assistant: Blue (O1 structural)
+ * - system: Gray (muted)
+ * - thinking: Gray with 🤖 prefix
+ * - tool_progress: Amber-orange for commands, blue for edit diffs
+ *
+ * @component
+ * @param {ClaudePanelAgentProps} props - Component props
+ *
+ * @example
+ * <ClaudePanelAgent
+ *   messages={conversationMessages}
+ *   isThinking={isProcessing}
+ *   focused={isPanelFocused}
+ *   streamingPaste={pasteContent}
+ * />
  */
 const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   messages,

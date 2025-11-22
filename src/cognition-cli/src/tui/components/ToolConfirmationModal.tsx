@@ -1,19 +1,51 @@
-/**
- * Tool Confirmation Modal - Minimal Design (CommandDropdown pattern)
- *
- * DESIGN: Purely presentational, minimal rendering like CommandDropdown.
- * Keyboard handling is done in parent (index.tsx) to prevent input conflicts.
- */
-
 import React from 'react';
 import { Box, Text } from 'ink';
 import { formatToolInput, extractBaseCommand } from '../utils/tool-safety.js';
 import type { ToolConfirmationState } from '../hooks/useToolConfirmation.js';
 
-interface ToolConfirmationModalProps {
+/**
+ * Props for ToolConfirmationModal component
+ */
+export interface ToolConfirmationModalProps {
+  /** Current tool confirmation state with tool name and input */
   state: ToolConfirmationState;
 }
 
+/**
+ * Tool Confirmation Modal Component.
+ *
+ * Displays a confirmation dialog when the agent attempts to use potentially
+ * dangerous tools (bash, write_file, edit_file). Follows the CommandDropdown
+ * minimal design pattern for consistency.
+ *
+ * **Design Philosophy**:
+ * - Purely presentational - keyboard handling in parent (index.tsx)
+ * - Minimal rendering to prevent terminal flickering
+ * - Memoized to avoid unnecessary re-renders
+ *
+ * **Features**:
+ * - Compact display with tool name and truncated input
+ * - Smart command extraction for bash (shows base command only)
+ * - Visual warning indicator (⚠️ yellow border)
+ * - Clear keyboard shortcuts in footer
+ *
+ * **Keyboard Controls** (handled by parent):
+ * - Y: Allow this operation
+ * - N: Deny this operation
+ * - A: Always allow (adds to whitelist)
+ * - Esc: Cancel
+ *
+ * @component
+ * @param {ToolConfirmationModalProps} props - Component props
+ *
+ * @example
+ * <ToolConfirmationModal
+ *   state={{
+ *     toolName: 'bash',
+ *     input: { command: 'rm -rf temp/*' }
+ *   }}
+ * />
+ */
 const ToolConfirmationModalComponent: React.FC<ToolConfirmationModalProps> = ({
   state,
 }) => {
