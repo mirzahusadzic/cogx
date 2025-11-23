@@ -110,6 +110,47 @@ export const InputBox: React.FC<InputBoxProps> = ({
     }, 500);
     return () => clearInterval(blinkInterval);
   }, []);
+
+  // Debug: Track when disabled prop changes
+  useEffect(() => {
+    if (process.env.DEBUG_ESC_INPUT) {
+      console.error('[InputBox] disabled prop changed to:', disabled);
+    }
+  }, [disabled]);
+
+  // Debug: Track when focused prop changes
+  useEffect(() => {
+    if (process.env.DEBUG_ESC_INPUT) {
+      console.error('[InputBox] focused prop changed to:', focused);
+    }
+  }, [focused]);
+
+  // Debug: Track when confirmationPending changes
+  useEffect(() => {
+    if (process.env.DEBUG_ESC_INPUT) {
+      console.error(
+        '[InputBox] confirmationPending changed to:',
+        confirmationPending
+      );
+    }
+  }, [confirmationPending]);
+
+  // Debug: Log the isActive state for useInput
+  const isInputActive = focused && !confirmationPending;
+  useEffect(() => {
+    if (process.env.DEBUG_ESC_INPUT) {
+      console.error(
+        '[InputBox] useInput isActive:',
+        isInputActive,
+        '(focused:',
+        focused,
+        'confirmationPending:',
+        confirmationPending,
+        ')'
+      );
+    }
+  }, [isInputActive, focused, confirmationPending]);
+
   const lastEscapeTime = useRef<number>(0);
   const valueRef = useRef<string>(''); // Track actual current value for paste detection
   const [pasteNotification, setPasteNotification] = useState<string>('');
@@ -445,9 +486,26 @@ export const InputBox: React.FC<InputBoxProps> = ({
         const now = Date.now();
         const timeSinceLastEsc = now - lastEscapeTime.current;
 
+        if (process.env.DEBUG_ESC_INPUT) {
+          console.error(
+            '[InputBox] ESC pressed, disabled:',
+            disabled,
+            'onInterrupt:',
+            !!onInterrupt,
+            'timeSinceLastEsc:',
+            timeSinceLastEsc
+          );
+        }
+
         if (disabled && onInterrupt) {
+          if (process.env.DEBUG_ESC_INPUT) {
+            console.error('[InputBox] Calling onInterrupt()');
+          }
           onInterrupt();
         } else if (timeSinceLastEsc < 500) {
+          if (process.env.DEBUG_ESC_INPUT) {
+            console.error('[InputBox] Double ESC - clearing input');
+          }
           newValue = '';
           newCursorPosition = 0;
         }
@@ -506,7 +564,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
         }
       }
     },
-    { isActive: focused && !confirmationPending }
+    { isActive: isInputActive }
   );
 
   if (!focused) {

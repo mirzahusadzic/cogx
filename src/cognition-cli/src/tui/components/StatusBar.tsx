@@ -95,8 +95,10 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 
   // Build status bar as single string to avoid wrapping issues
   const buildStatusText = () => {
-    // Provider indicator at start
-    let text = `${providerStyle.emoji} ${providerName}`;
+    // Provider indicator at start (capitalize first letter)
+    const displayName =
+      providerName.charAt(0).toUpperCase() + providerName.slice(1);
+    let text = `${providerStyle.emoji} ${displayName}`;
 
     text += ' | [Tab] Toggle Focus';
 

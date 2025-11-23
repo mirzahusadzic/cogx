@@ -69,6 +69,7 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
 
   private client: Anthropic;
   private currentQuery: Query | null = null;
+  private abortController: AbortController | null = null;
   private claudeAgentSdk: unknown | undefined;
   private agentSdkLoadingPromise: Promise<void> | undefined; // Promise to track SDK loading
 
@@ -279,12 +280,17 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
         'Claude Agent SDK is not installed. Please install it to use agent features.'
       );
     }
+
+    // Create AbortController for cancellation support
+    this.abortController = new AbortController();
+
     // Create SDK query with agent features
     this.currentQuery = (
       this.claudeAgentSdk as { query: (options: unknown) => Query }
     ).query({
       prompt: request.prompt,
       options: {
+        abortController: this.abortController,
         cwd: request.cwd,
         resume: request.resumeSessionId,
         systemPrompt:
@@ -323,6 +329,14 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
 
     try {
       for await (const sdkMessage of this.currentQuery) {
+        // Check if abort was requested
+        if (this.abortController?.signal.aborted) {
+          if (process.env.DEBUG_ESC_INPUT) {
+            console.error('[Claude] Loop aborted - exiting');
+          }
+          break;
+        }
+
         // Extract session ID
         if ('session_id' in sdkMessage && sdkMessage.session_id) {
           currentSessionId = sdkMessage.session_id;
@@ -355,26 +369,70 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
         };
       }
     } catch (error) {
-      // Handle SDK errors (e.g., "Claude Code process exited with code 1")
+      // Handle SDK errors gracefully to prevent TUI crashes
       const errorMessage =
         error instanceof Error ? error.message : String(error);
+      const errorName = error instanceof Error ? error.name : '';
 
-      // Check if this is an authentication error
+      // 1. AbortError is expected when user interrupts - don't crash
       if (
-        errorMessage.includes('authentication_error') ||
-        errorMessage.includes('invalid_api_key') ||
-        errorMessage.includes('unauthorized')
+        errorName === 'AbortError' ||
+        errorMessage.includes('aborted by user') ||
+        errorMessage.includes('Operation aborted')
+      ) {
+        if (process.env.DEBUG_ESC_INPUT) {
+          console.error('[Claude] Query aborted by user - exiting gracefully');
+        }
+        // Return gracefully with stop status (user-initiated)
+        yield {
+          messages: [...messages],
+          sessionId: currentSessionId,
+          tokens: totalTokens,
+          finishReason: 'stop',
+          numTurns,
+        };
+        return;
+      }
+
+      // 2. OAuth token expiration (GitHub #10784, #2830, #1746)
+      if (
+        errorMessage.includes('OAuth token has expired') ||
+        errorMessage.includes('OAuth authentication') ||
+        errorMessage.includes('token_expired')
       ) {
         throw new Error(
-          `Authentication failed: Please check your ANTHROPIC_API_KEY environment variable`
+          `OAuth token has expired. Please run the login command to re-authenticate.`
         );
       }
 
-      // Re-throw the original error for other cases
-      throw error;
+      // 3. General authentication errors
+      if (
+        errorMessage.includes('authentication_error') ||
+        errorMessage.includes('invalid_api_key') ||
+        errorMessage.includes('unauthorized') ||
+        errorMessage.includes('401')
+      ) {
+        throw new Error(
+          `Authentication failed: Please check your ANTHROPIC_API_KEY or re-authenticate with OAuth`
+        );
+      }
+
+      // 4. Rate limiting (don't crash, let caller handle retry)
+      if (errorMessage.includes('rate_limit') || errorMessage.includes('429')) {
+        throw new Error(
+          `Rate limit exceeded. Please wait a moment and try again.`
+        );
+      }
+
+      // 5. For all other errors, provide context but don't crash with raw error
+      console.error('[Claude Provider] Error during query:', errorMessage);
+      throw new Error(
+        `Claude API error: ${errorMessage.substring(0, 200)}${errorMessage.length > 200 ? '...' : ''}`
+      );
     } finally {
-      // Always clear query reference to prevent memory leaks
+      // Always clear query and abort controller references to prevent memory leaks
       this.currentQuery = null;
+      this.abortController = null;
     }
   }
 
@@ -385,9 +443,50 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
    * Used for ESC ESC keyboard shortcut in TUI.
    */
   async interrupt(): Promise<void> {
+    if (process.env.DEBUG_ESC_INPUT) {
+      console.error(
+        '[Claude] interrupt() called, currentQuery:',
+        !!this.currentQuery,
+        'abortController:',
+        !!this.abortController
+      );
+    }
+
+    // Abort the query using AbortController (recommended pattern from GitHub #7181)
+    if (this.abortController) {
+      if (process.env.DEBUG_ESC_INPUT) {
+        console.error('[Claude] Calling abortController.abort()');
+      }
+      this.abortController.abort();
+    }
+
+    // Also try the SDK's interrupt method as a backup
     if (this.currentQuery && this.claudeAgentSdk) {
-      await this.currentQuery.interrupt();
-      this.currentQuery = null;
+      try {
+        if (process.env.DEBUG_ESC_INPUT) {
+          console.error('[Claude] Calling currentQuery.interrupt()');
+        }
+        await this.currentQuery.interrupt();
+        if (process.env.DEBUG_ESC_INPUT) {
+          console.error('[Claude] currentQuery.interrupt() completed');
+        }
+      } catch (err) {
+        // AbortError is expected when interrupting, don't log as error
+        const isAbortError = err instanceof Error && err.name === 'AbortError';
+        if (process.env.DEBUG_ESC_INPUT && !isAbortError) {
+          console.error('[Claude] currentQuery.interrupt() error:', err);
+        } else if (process.env.DEBUG_ESC_INPUT && isAbortError) {
+          console.error('[Claude] Request successfully aborted');
+        }
+      }
+    }
+
+    // Dispose of the query (following GitHub #7181 pattern)
+    this.currentQuery = null;
+    this.abortController = null;
+
+    if (process.env.DEBUG_ESC_INPUT) {
+      console.error('[Claude] interrupt() completed');
     }
   }
 

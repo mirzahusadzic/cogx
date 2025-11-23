@@ -327,6 +327,16 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   // Handle input - make sure this is always active for Ctrl+C
   useInput(
     (input, key) => {
+      // Debug: Log all ESC key presses
+      if (key.escape && process.env.DEBUG_ESC_INPUT) {
+        console.error(
+          '[TUI.useInput] ESC pressed, confirmationPending:',
+          confirmationState?.pending,
+          'isThinking:',
+          isThinking
+        );
+      }
+
       // PRIORITY 1: Handle confirmation modal keyboard input FIRST
       if (confirmationState?.pending) {
         if (input === 'y' || input === 'Y') {
@@ -346,7 +356,19 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
         return;
       }
 
-      // PRIORITY 2: Global keyboard shortcuts (only when modal NOT active)
+      // PRIORITY 2: ESC to abort agent (only when thinking)
+      if (key.escape && isThinking) {
+        if (process.env.DEBUG_ESC_INPUT) {
+          console.error(
+            '[TUI.useInput] Calling interrupt() - isThinking:',
+            isThinking
+          );
+        }
+        interrupt();
+        return;
+      }
+
+      // PRIORITY 3: Global keyboard shortcuts (only when modal NOT active)
       if (key.ctrl && input === 'c') {
         // Force immediate exit - kill entire process group including workers
         try {

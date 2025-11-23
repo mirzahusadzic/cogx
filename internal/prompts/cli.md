@@ -9,6 +9,7 @@ You're improving **cognition-cli** - a seven-overlay knowledge graph CLI tool wi
 **Commands:** `init`, `genesis`, `genesis:docs`, `watch`, `status`, `update`, `overlay generate`, `tui`, `pr-analyze`, `security blast-radius`, `patterns`, `concepts`, `coherence`, `query`, `audit`, `wizard`
 
 **Key Features:**
+
 - Interactive TUI with Claude/Gemini integration
 - Real-time file watching with dirty state tracking
 - JSON output support for automation
@@ -20,6 +21,7 @@ You're improving **cognition-cli** - a seven-overlay knowledge graph CLI tool wi
 ### 1. Help & Documentation ⭐⭐⭐ (CRITICAL)
 
 **Audit:**
+
 - Does `--help` work for ALL commands and subcommands?
 - Is help extensive (examples, all flags, common use cases)?
 - Is error-time help concise (brief + "run --help for more")?
@@ -28,6 +30,7 @@ You're improving **cognition-cli** - a seven-overlay knowledge graph CLI tool wi
 - Is there a `--version` flag?
 
 **Improve:**
+
 ```bash
 # GOOD example structure
 $ cognition genesis --help
@@ -61,6 +64,7 @@ LEARN MORE:
 ### 2. Output Formatting ⭐⭐⭐ (CRITICAL)
 
 **Audit:**
+
 - Is TTY detection used? (color/animation only in interactive terminals)
 - Does `NO_COLOR` environment variable work?
 - Is there a `--no-color` flag?
@@ -69,6 +73,7 @@ LEARN MORE:
 - Are next steps suggested after operations?
 
 **Improve:**
+
 ```typescript
 // Example: Progress indication for genesis
 ✓ Scanning files... (47 found)
@@ -89,6 +94,7 @@ LEARN MORE:
 ### 3. Error Handling ⭐⭐⭐ (CRITICAL)
 
 **Audit:**
+
 - Are errors human-readable (not just stack traces)?
 - Do errors suggest fixes?
 - Is error info placed at the END of output (where eyes focus)?
@@ -96,6 +102,7 @@ LEARN MORE:
 - Do errors include bug-reporting links for unexpected failures?
 
 **Improve:**
+
 ```bash
 # BAD
 Error: ENOENT: no such file or directory, open '.open_cognition/pgc/index.json'
@@ -114,6 +121,7 @@ The .open_cognition/ directory doesn't exist yet.
 ### 4. Flags & Arguments ⭐⭐ (HIGH)
 
 **Audit:**
+
 - Do ALL flags have both short (`-h`) and long (`--help`) forms?
 - Are standard flag names used?
   - `-h/--help`, `-d/--debug`, `-f/--force`, `-n/--dry-run`
@@ -122,6 +130,7 @@ The .open_cognition/ directory doesn't exist yet.
 - Are dangerous operations protected with confirmations?
 
 **Improve:**
+
 ```typescript
 // Standard flags across ALL commands
 --help, -h          Show help
@@ -136,11 +145,13 @@ The .open_cognition/ directory doesn't exist yet.
 ### 5. Dangerous Operations ⭐⭐ (HIGH)
 
 **Audit:**
+
 - Do destructive commands require confirmation?
 - Is there a `--dry-run` mode?
 - Can confirmations be bypassed for scripts (`--force`, `--confirm="name"`)?
 
 **Improve:**
+
 ```bash
 $ cognition genesis --force src/
 
@@ -156,12 +167,14 @@ Type the directory name to confirm: src/
 ### 6. Interactivity ⭐⭐ (HIGH)
 
 **Audit:**
+
 - Are prompts skipped when stdin is not a TTY?
 - Is there a `--no-input` flag to disable ALL prompts?
 - Do missing args prompt interactively (with flag alternative)?
 - Are passwords never echoed?
 
 **Improve:**
+
 ```typescript
 // Check for TTY before prompting
 if (process.stdin.isTTY && !flags.noInput) {
@@ -174,12 +187,14 @@ if (process.stdin.isTTY && !flags.noInput) {
 ### 7. Configuration Management ⭐
 
 **Audit:**
+
 - Is XDG Base Directory spec followed (`~/.config/cognition-cli/`)?
 - Is precedence clear: Flags > Env Vars > Project Config > User Config?
 - Does the tool ask before modifying external configs?
 - Are secrets NEVER in environment variables?
 
 **Improve:**
+
 ```bash
 # Configuration precedence (highest to lowest):
 1. Command flags:     cognition --workbench-url=http://localhost:8000
@@ -192,6 +207,7 @@ if (process.stdin.isTTY && !flags.noInput) {
 ### 8. Robustness & Performance ⭐
 
 **Audit:**
+
 - Do long operations output within 100ms?
 - Are there network timeouts?
 - Can operations resume after failure?
@@ -199,6 +215,7 @@ if (process.stdin.isTTY && !flags.noInput) {
 - Do parallel operations show clean progress (not interleaved)?
 
 **Improve:**
+
 ```typescript
 // Immediate feedback
 console.error('Connecting to workbench at http://localhost:8000...');
@@ -213,6 +230,7 @@ if (fs.existsSync('.cognition/.genesis-progress')) {
 ### 9. Subcommand Consistency ⭐
 
 **Audit:**
+
 - Do related subcommands use identical flag names?
 - Is output formatting consistent?
 - Are naming patterns clear (`overlay generate`, `patterns list`)?
@@ -220,11 +238,13 @@ if (fs.existsSync('.cognition/.genesis-progress')) {
 ### 10. Exit Codes ⭐
 
 **Audit:**
+
 - Does success return 0?
 - Do different failure types map to different exit codes?
 - Can scripts detect failure types?
 
 **Improve:**
+
 ```typescript
 // Exit code mapping
 0   - Success
@@ -239,13 +259,15 @@ if (fs.existsSync('.cognition/.genesis-progress')) {
 ## 🛠️ Implementation Plan
 
 ### Phase 1: Audit (1-2 days)
-1. Read entire clig.dev guide: https://clig.dev/
+
+1. Read entire clig.dev guide: <https://clig.dev/>
 2. Create audit spreadsheet with all commands × all criteria
 3. Test each command manually
 4. Document current behavior vs. best practices
 5. Prioritize improvements by impact × effort
 
 ### Phase 2: Quick Wins (2-3 days)
+
 1. Add missing `--version` flag
 2. Implement `NO_COLOR` / `--no-color` support
 3. Add TTY detection for colors/animation
@@ -253,6 +275,7 @@ if (fs.existsSync('.cognition/.genesis-progress')) {
 5. Add `--dry-run` to destructive commands
 
 ### Phase 3: Help System (3-4 days)
+
 1. Rewrite all `--help` output with examples
 2. Add spelling suggestions for typos
 3. Implement concise error-time help
@@ -260,12 +283,14 @@ if (fs.existsSync('.cognition/.genesis-progress')) {
 5. Document all environment variables in help
 
 ### Phase 4: Progress & UX (2-3 days)
+
 1. Add progress bars for `genesis`, `overlay generate`
 2. Show immediate feedback (<100ms) for network ops
 3. Improve success messages with state info
 4. Add operation timing to output
 
 ### Phase 5: Robustness (2-3 days)
+
 1. Add resume support for interrupted operations
 2. Implement proper timeout handling
 3. Add `--no-input` flag support everywhere
@@ -303,8 +328,8 @@ if (fs.existsSync('.cognition/.genesis-progress')) {
 
 ## 📚 Resources
 
-- **clig.dev guide**: https://clig.dev/
-- **cognition-cli repo**: https://github.com/mirzahusadzic/cogx/tree/main/src/cognition-cli
+- **clig.dev guide**: <https://clig.dev/>
+- **cognition-cli repo**: <https://github.com/mirzahusadzic/cogx/tree/main/src/cognition-cli>
 - **Current README**: Study command reference and workflows
 - **TUI code**: `src/tui/` for interactive patterns
 - **CLI commands**: `src/cli/commands/` for current implementation

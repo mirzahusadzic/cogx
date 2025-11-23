@@ -75,12 +75,14 @@ const ToolConfirmationModalComponent: React.FC<ToolConfirmationModalProps> = ({
     >
       {/* Tool and command - compact display */}
       <Box>
-        <Text color="yellow">⚠️ </Text>
+        <Text color="yellow" bold>
+          [!]{' '}
+        </Text>
         <Text bold>{toolName}</Text>
         <Text dimColor> - </Text>
         <Text color="cyan">
-          {formattedInput.slice(0, 50)}
-          {formattedInput.length > 50 ? '…' : ''}
+          {formattedInput.slice(0, 60)}
+          {formattedInput.length > 60 ? '…' : ''}
         </Text>
       </Box>
 

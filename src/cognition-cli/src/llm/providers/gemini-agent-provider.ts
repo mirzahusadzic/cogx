@@ -60,14 +60,16 @@ export class GeminiAgentProvider implements AgentProvider {
   name = 'gemini';
   // Only models that support extended thinking
   models = [
-    'gemini-2.0-flash-thinking-exp-01-21',
-    'gemini-2.5-flash', // Supports thinking mode
+    'gemini-2.5-flash', // Default - fast and supports thinking mode
     'gemini-2.5-pro', // Supports thinking mode
+    'gemini-2.0-flash-thinking-exp-01-21',
   ];
 
   private apiKey: string;
   private currentRunner: Runner | null = null;
   private sessionService = new InMemorySessionService();
+  private abortController: AbortController | null = null;
+  private currentGenerator: AsyncGenerator<unknown> | null = null;
 
   /**
    * Create Gemini Agent Provider
@@ -138,12 +140,16 @@ export class GeminiAgentProvider implements AgentProvider {
     // Combine file tools + web search tool (always enabled)
     const tools = [...cognitionTools, webSearchTool];
 
+    // Create abort controller for cancellation support
+    this.abortController = new AbortController();
+
     const agent = new LlmAgent({
       name: 'cognition_agent',
       model: request.model || 'gemini-2.5-flash',
       instruction: this.buildSystemPrompt(request),
       tools,
       generateContentConfig: {
+        abortSignal: this.abortController.signal,
         thinkingConfig: {
           // Gemini's max thinking budget is 24,576 tokens
           // Use dynamic thinking (-1) or custom budget (capped at max)
@@ -240,8 +246,20 @@ export class GeminiAgentProvider implements AgentProvider {
         },
       });
 
+      // Store generator reference for interrupt support
+      this.currentGenerator = runGenerator as AsyncGenerator<unknown>;
+
       // Process events from the generator
       for await (const event of runGenerator) {
+        // Check if abort was requested (ESC key pressed)
+        if (this.abortController?.signal.aborted) {
+          if (process.env.DEBUG_ESC_INPUT) {
+            console.error('[Gemini] Abort signal detected, exiting loop');
+          }
+          // Exit cleanly - don't throw, just break
+          break;
+        }
+
         // Cast event to access properties (ADK types are not well defined yet)
         const evt = event as unknown as {
           author?: string;
@@ -500,33 +518,95 @@ export class GeminiAgentProvider implements AgentProvider {
         };
       }
     } catch (error) {
-      const errorMessage: AgentMessage = {
-        id: `msg-${Date.now()}-error`,
-        type: 'assistant',
-        role: 'assistant',
-        content: `Error: ${error instanceof Error ? error.message : String(error)}`,
-        timestamp: new Date(),
-      };
-      messages.push(errorMessage);
+      // Check if this is a user-initiated abort (not an actual error)
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const isAbort =
+        errorMessage === 'Operation aborted by user' ||
+        errorMessage.includes('aborted') ||
+        errorMessage.includes('abort') ||
+        errorMessage.includes('signal') ||
+        // SDK might throw JSON parsing errors when aborted
+        (errorMessage.includes('JSON') && this.abortController?.signal.aborted);
+
+      if (process.env.DEBUG_ESC_INPUT && isAbort) {
+        console.error('[Gemini] Caught abort-related error:', errorMessage);
+      }
+
+      // Only show error message if it's not an abort
+      if (!isAbort) {
+        const errorMessage: AgentMessage = {
+          id: `msg-${Date.now()}-error`,
+          type: 'assistant',
+          role: 'assistant',
+          content: `Error: ${error instanceof Error ? error.message : String(error)}`,
+          timestamp: new Date(),
+        };
+        messages.push(errorMessage);
+      }
 
       yield {
         messages: [...messages],
         sessionId,
-        tokens: { prompt: 0, completion: 0, total: 0 },
-        finishReason: 'error',
+        tokens: {
+          prompt: promptTokens || Math.ceil(request.prompt.length / 4),
+          completion: completionTokens || totalTokens,
+          total:
+            (promptTokens || Math.ceil(request.prompt.length / 4)) +
+            (completionTokens || totalTokens),
+        },
+        finishReason: isAbort ? 'stop' : 'error',
         numTurns,
       };
     } finally {
       this.currentRunner = null;
+      this.abortController = null;
+      this.currentGenerator = null;
     }
   }
 
   /**
    * Interrupt current agent execution
+   *
+   * Forces the generator to exit by calling return() on it.
+   * Google ADK doesn't support native cancellation, so we forcefully
+   * close the async generator to stop event processing.
    */
   async interrupt(): Promise<void> {
-    // ADK doesn't have direct interrupt support yet
+    if (process.env.DEBUG_ESC_INPUT) {
+      console.error('[Gemini] interrupt() called');
+    }
+
+    // Signal abort for the loop check
+    if (this.abortController) {
+      if (process.env.DEBUG_ESC_INPUT) {
+        console.error('[Gemini] Aborting controller');
+      }
+      this.abortController.abort();
+    }
+
+    // Force the generator to exit (since ADK doesn't support native cancellation)
+    if (this.currentGenerator) {
+      try {
+        if (process.env.DEBUG_ESC_INPUT) {
+          console.error('[Gemini] Calling generator.return()');
+        }
+        await this.currentGenerator.return(undefined);
+        if (process.env.DEBUG_ESC_INPUT) {
+          console.error('[Gemini] generator.return() completed');
+        }
+      } catch (err) {
+        if (process.env.DEBUG_ESC_INPUT) {
+          console.error('[Gemini] generator.return() error:', err);
+        }
+      }
+    }
+
     this.currentRunner = null;
+    this.currentGenerator = null;
+    if (process.env.DEBUG_ESC_INPUT) {
+      console.error('[Gemini] interrupt() completed');
+    }
   }
 
   /**

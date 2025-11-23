@@ -1351,6 +1351,9 @@ export function useAgent(options: UseAgentOptions) {
   const sendMessage = useCallback(
     async (prompt: string) => {
       try {
+        if (process.env.DEBUG_ESC_INPUT) {
+          console.error('[useAgent] Setting isThinking=true');
+        }
         setIsThinking(true);
         setError(null);
 
@@ -1643,7 +1646,12 @@ export function useAgent(options: UseAgentOptions) {
         }
 
         // If query completed without assistant response, show error
-        if (!hasAssistantMessage && previousMessageCount <= 1) {
+        // BUT: Don't show error if user aborted (finishReason === 'stop')
+        if (
+          !hasAssistantMessage &&
+          previousMessageCount <= 1 &&
+          lastResponse?.finishReason !== 'stop'
+        ) {
           // Check for authentication errors in stderr
           let errorMsg = '';
 
@@ -1664,6 +1672,9 @@ export function useAgent(options: UseAgentOptions) {
           ]);
         }
 
+        if (process.env.DEBUG_ESC_INPUT) {
+          console.error('[useAgent] Setting isThinking=false (success)');
+        }
         setIsThinking(false);
       } catch (err) {
         const originalError = (err as Error).message;
@@ -1686,6 +1697,9 @@ export function useAgent(options: UseAgentOptions) {
             timestamp: new Date(),
           },
         ]);
+        if (process.env.DEBUG_ESC_INPUT) {
+          console.error('[useAgent] Setting isThinking=false (error)');
+        }
         setIsThinking(false);
       } finally {
         // Always clear adapter reference to prevent memory leaks
@@ -1949,10 +1963,35 @@ export function useAgent(options: UseAgentOptions) {
    * await interrupt();
    */
   const interrupt = useCallback(async () => {
+    if (process.env.DEBUG_ESC_INPUT) {
+      console.error('[useAgent] interrupt() called');
+    }
     // Interrupt current agent execution
     if (currentAdapterRef.current) {
-      await currentAdapterRef.current.interrupt();
-      currentAdapterRef.current = null;
+      try {
+        if (process.env.DEBUG_ESC_INPUT) {
+          console.error('[useAgent] Calling adapter.interrupt()');
+        }
+        await currentAdapterRef.current.interrupt();
+        currentAdapterRef.current = null;
+      } catch (err) {
+        // Catch any errors from interrupt to prevent TUI crash
+        if (process.env.DEBUG_ESC_INPUT) {
+          console.error(
+            '[useAgent] interrupt() error (ignoring):',
+            err instanceof Error ? err.message : String(err)
+          );
+        }
+        // Still clean up the adapter reference
+        currentAdapterRef.current = null;
+      }
+    } else {
+      if (process.env.DEBUG_ESC_INPUT) {
+        console.error('[useAgent] No current adapter to interrupt');
+      }
+    }
+    if (process.env.DEBUG_ESC_INPUT) {
+      console.error('[useAgent] Setting isThinking=false (interrupt)');
     }
     setIsThinking(false);
   }, []);

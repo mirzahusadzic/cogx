@@ -6,6 +6,8 @@
  * and to slow down tool execution for rate-limit protection.
  */
 
+import { relative } from 'node:path';
+
 export enum ToolRiskLevel {
   SAFE = 'safe', // Read-only operations
   MODERATE = 'moderate', // File writes, edits
@@ -213,6 +215,23 @@ export function formatToolInput(toolName: string, input: unknown): string {
   }
 
   if (typeof input === 'object' && input !== null) {
+    // WebSearch - extract query or request
+    if (toolName === 'WebSearch') {
+      if ('request' in input) {
+        return String((input as { request: string }).request);
+      }
+      if ('query' in input) {
+        return String((input as { query: string }).query);
+      }
+    }
+
+    // WebFetch - extract URL
+    if (toolName === 'WebFetch') {
+      if ('url' in input) {
+        return String((input as { url: string }).url);
+      }
+    }
+
     // Bash command
     if ('command' in input) {
       const cmd = (input as { command: string }).command;
@@ -220,12 +239,16 @@ export function formatToolInput(toolName: string, input: unknown): string {
       return typeof cmd === 'string' ? cmd : JSON.stringify(input, null, 2);
     }
 
-    // File path
+    // File path - convert to relative path for cleaner display
     if ('file_path' in input) {
       const filePath = (input as { file_path: string }).file_path;
-      return typeof filePath === 'string'
-        ? filePath
-        : JSON.stringify(input, null, 2);
+      if (typeof filePath === 'string') {
+        // Convert absolute path to relative path from cwd
+        const relativePath = relative(process.cwd(), filePath);
+        // If relative path is shorter, use it; otherwise use original
+        return relativePath.length < filePath.length ? relativePath : filePath;
+      }
+      return JSON.stringify(input, null, 2);
     }
 
     // Generic object - format nicely
