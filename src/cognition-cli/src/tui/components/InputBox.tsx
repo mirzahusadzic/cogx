@@ -424,20 +424,14 @@ export const InputBox: React.FC<InputBoxProps> = ({
         }
       }
 
-      // Handle backspace - some terminals send delete instead
-      if (key.backspace || (key.delete && cursorPosition === value.length)) {
+      // Handle backspace - some terminals send delete instead of backspace
+      // Always delete character before cursor for backspace-like behavior
+      if (key.backspace || key.delete) {
         if (newCursorPosition > 0) {
           newValue =
             value.substring(0, newCursorPosition - 1) +
             value.substring(newCursorPosition);
           newCursorPosition--;
-        }
-      } else if (key.delete) {
-        // True delete: remove character AFTER cursor
-        if (newCursorPosition < value.length) {
-          newValue =
-            value.substring(0, newCursorPosition) +
-            value.substring(newCursorPosition + 1);
         }
       } else if (key.leftArrow) {
         newCursorPosition = Math.max(0, newCursorPosition - 1);
@@ -670,7 +664,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
                                 cursorIndex + 2
                               ) || ' '
                             )}
-                            {line.substring(cursorIndex + 1)}
+                            {line.substring(cursorIndex + 2)}
                           </>
                         )}
                       </Text>
