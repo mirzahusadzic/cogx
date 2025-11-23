@@ -164,13 +164,15 @@ cognition tui provider set-default claude
 
 **Features:**
 
-- ✅ Multi-provider support (Claude & Gemini)
-- ✅ Infinite context across sessions
-- ✅ Real-time lattice visualization
-- ✅ Live overlay status (O₁-O₇)
-- ✅ Token tracking with compression threshold
-- ✅ Extended thinking mode support
-- ✅ Tool execution with confirmation dialogs
+- ✅ Multi-provider support (Claude & Gemini with unified UX)
+- ✅ Thinking blocks visualization for extended reasoning
+- ✅ Infinite context across sessions with intelligent compression
+- ✅ Real-time lattice visualization with live stats
+- ✅ Live overlay status (O₁-O₇) in status bar
+- ✅ Token tracking with compression threshold (150K)
+- ✅ Multiline input with improved paste handling
+- ✅ ESC interrupt for aborting agent responses
+- ✅ Tool execution with permission confirmation dialogs
 
 **Learn more:** [TUI Documentation](./src/tui/README.md) | [SIGMA Architecture](docs/sigma/ARCHITECTURE.md)
 
@@ -329,15 +331,18 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 
 ## 🎉 Latest Release
 
-**v2.4.2 - November 20, 2025** — [Documentation & Stability](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2):
+**v2.5.0 - November 23, 2025** — [Multi-Provider LLM Architecture](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0):
 
-- 📚 **Documentation Reorganization** — Complete restructure with dedicated Sigma architecture docs
-- 🗄️ **LanceDB Enhancements** — Exclusive storage with document_hash tracking and content-aware deduplication
-- 🐛 **Bug Fixes** — blast-radius --no-transitive, PR analyzer improvements, temp table cleanup
-- 📦 **Claude Agent SDK v0.1.46** — Upgraded from v0.1.42
-- 📝 **TSDoc Standards** — Established comprehensive TypeScript documentation standards
+- 🚀 **Full Gemini ADK Agent Integration** — Google Gemini joins as first-class provider with multi-turn BIDI streaming, tool execution, and memory recall
+- 🏗️ **LLM Provider Abstraction Layer** — Future-proof pluggable architecture enabling easy addition of new LLM providers
+- 🤖 **Enhanced Claude Integration** — Thinking blocks visualization, API key authentication, optional SDK for licensing flexibility
+- 🎨 **TUI Improvements** — Multiline input support, ESC interrupt, improved paste handling, dynamic provider display
+- 🛡️ **Tool Permission System** — Integrated permission callbacks for safe tool execution across all providers
+- 🛠️ **SDK Error Handling** — Graceful handling of OAuth failures, no process.exit(1) crashes, benign JSON parsing error tolerance
 
-**Previous releases:** [v2.4.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.2.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.2.0) | [v2.0.0 - Σ Launch](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
+**Impact:** Transformative release establishing Cognition Σ as a multi-provider platform with unified UX across Claude and Gemini.
+
+**Previous releases:** [v2.4.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ Launch](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
 
 **Full changelog:** [CHANGELOG.md](./CHANGELOG.md)
 
@@ -436,7 +441,7 @@ If you use this work in research, please cite:
   author = {Husadžić, Mirza},
   title = {Cognition Σ CLI: Seven-Overlay Knowledge Graph with Infinite Context},
   year = {2025},
-  version = {2.4.2},
+  version = {2.5.0},
   doi = {10.5281/zenodo.17567109},
   url = {https://github.com/mirzahusadzic/cogx/tree/main/src/cognition-cli}
 }

@@ -55,23 +55,23 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 **📕 THE LATTICE BOOK (Complete Reference Manual):**
 
-- **[The Lattice Book](https://mirzahusadzic.github.io/cogx)** — Complete 26-chapter reference manual covering cognitive architecture, seven overlays (O1-O7), lattice algebra, portability, cPOW loop, and Sigma infinite context
+- **[The Lattice Book](https://mirzahusadzic.github.io/cogx)** — Complete 21-chapter reference manual covering cognitive architecture, seven overlays (O1-O7), lattice algebra, portability, cPOW loop, and Sigma infinite context
 
 ---
 
 ## 🎯 Latest Release
 
-**November 20, 2025** — [v2.4.2: Documentation & Stability](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2):
+**November 23, 2025** — [v2.5.0: Multi-Provider LLM Architecture](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0):
 
-- 📚 **Documentation Reorganization** - Complete restructure with dedicated Sigma architecture docs in `docs/sigma/`
-- 🗄️ **LanceDB Enhancements** - Exclusive storage with document_hash tracking and content-aware deduplication
-- 🐛 **Bug Fixes** - blast-radius --no-transitive flag, PR analyzer improvements, temp table cleanup
-- 📦 **Claude Agent SDK v0.1.46** - Upgraded from v0.1.42
-- 📝 **TSDoc Standards** - Established comprehensive TypeScript documentation standards
+- 🚀 **Full Gemini ADK Agent Integration** - Google Gemini joins Claude as a first-class LLM provider with multi-turn BIDI streaming, tool execution, and memory recall
+- 🏗️ **LLM Provider Abstraction Layer** - Future-proof pluggable architecture for easy addition of new LLM providers
+- 🤖 **Enhanced Claude Integration** - Thinking blocks, API key authentication, optional SDK for licensing flexibility
+- 🎨 **TUI Improvements** - Multiline input, ESC interrupt, improved paste handling, dynamic provider display
+- 🛡️ **Tool Permission System** - Integrated permission callbacks for safe tool execution across all providers
 
-**Impact**: Documentation and stability release improving discoverability, finalizing TSDoc standards, and resolving critical stability issues.
+**Impact**: Transformative release establishing Cognition Σ as a multi-provider platform. Both Claude and Gemini now work at full capability with unified UX, setting foundation for future LLM integrations.
 
-**Previous Releases**: [v2.4.1 - Cross-Overlay Workflows](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0 - Production Excellence](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.2.0 - Stability & Performance](https://github.com/mirzahusadzic/cogx/releases/tag/v2.2.0) | [v2.0.0 - Σ (Sigma) Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
+**Previous Releases**: [v2.4.2 - Documentation & Stability](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1 - Cross-Overlay Workflows](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0 - Production Excellence](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ (Sigma) Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
 
 📜 **[See full release history](src/cognition-cli/CHANGELOG.md)**
 
@@ -135,14 +135,15 @@ The production-ready implementation of verifiable AI-human symbiosis. Combines t
 
 **Core Capabilities:**
 
+- **Multi-Provider LLM Support:** Claude (Anthropic) and Gemini (Google) with unified UX, thinking blocks, and tool execution
 - **Project Lattice (PGC):** Content-addressable knowledge graph with 7-dimensional overlays (O₁-O₇) analyzing structure, security, lineage, mission, operations, proofs, and coherence
 - **Conversation Lattice (Σ):** Real-time conversation indexing with intelligent compression, preserving high-value insights across unlimited sessions
-- **Interactive TUI:** Production-ready terminal interface with live lattice visualization, token tracking, and extended thinking mode
+- **Interactive TUI:** Production-ready terminal interface with live lattice visualization and session management
 - **Production Scale:** Successfully analyzed 55K+ line codebases with zero hallucinations and sub-second semantic queries
 
 **Breakthrough Achievement (Oct 24, 2025):** First grounded architecture analysis performed **on itself**, proving structured PGC metadata is sufficient for deep architectural understanding without reading source code.
 
-**Latest Release:** [v2.4.2 - Documentation & Stability](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2)
+**Latest Release:** [v2.5.0 - Multi-Provider LLM Architecture](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0)
 
 ### eGemma – [The Deterministic Workbench](https://github.com/mirzahusadzic/egemma)
 
@@ -351,7 +352,7 @@ If you use this work in research, please cite:
   author = {Husadžić, Mirza},
   title = {CogX: A Blueprint for Verifiable, Agentic AI},
   year = {2025},
-  version = {2.4.2},
+  version = {2.5.0},
   doi = {10.5281/zenodo.17635623},
   url = {https://github.com/mirzahusadzic/cogx}
 }
