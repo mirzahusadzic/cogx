@@ -62,6 +62,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [streamingPaste, setStreamingPaste] = useState<string>('');
+  const [inputLineCount, setInputLineCount] = useState(1);
 
   // Tool confirmation hook (guardrails) - must be before chatAreaHeight useMemo
   const { confirmationState, requestConfirmation, allow, deny, alwaysAllow } =
@@ -150,21 +151,28 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     // Use 'once' instead of 'on' to prevent multiple firings
     process.once('SIGINT', sigintHandler);
 
-    if (
-      ENABLE_MOUSE_TRACKING &&
-      process.stdin.isTTY &&
-      typeof process.stdin.setRawMode === 'function'
-    ) {
-      // Enable mouse scroll tracking
-      // 1000 = Basic mouse tracking (needed for scroll wheel events)
-      // 1006 = SGR mouse mode (better coordinate encoding)
-      process.stdout.write('\x1b[?1000h'); // Basic mouse tracking (clicks + scroll)
-      process.stdout.write('\x1b[?1006h'); // SGR encoding (position-aware)
+    if (process.stdin.isTTY && typeof process.stdin.setRawMode === 'function') {
+      // Enable bracketed paste mode (always on)
+      // 2004 = Bracketed paste mode (pastes wrapped with \x1b[200~ and \x1b[201~)
+      process.stdout.write('\x1b[?2004h');
+
+      if (ENABLE_MOUSE_TRACKING) {
+        // Enable mouse scroll tracking
+        // 1000 = Basic mouse tracking (needed for scroll wheel events)
+        // 1006 = SGR mouse mode (better coordinate encoding)
+        process.stdout.write('\x1b[?1000h'); // Basic mouse tracking (clicks + scroll)
+        process.stdout.write('\x1b[?1006h'); // SGR encoding (position-aware)
+      }
 
       return () => {
-        // Disable mouse tracking on cleanup
-        process.stdout.write('\x1b[?1000l');
-        process.stdout.write('\x1b[?1006l');
+        // Disable bracketed paste
+        process.stdout.write('\x1b[?2004l');
+
+        if (ENABLE_MOUSE_TRACKING) {
+          // Disable mouse tracking on cleanup
+          process.stdout.write('\x1b[?1000l');
+          process.stdout.write('\x1b[?1006l');
+        }
         // Reset colors on exit
         process.stdout.write('\x1b[0m');
       };
@@ -456,16 +464,15 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
               </Box>
             )}
           </Box>
-          <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>
 
           {/* Reserved space for dropdown/confirmation - dynamically sized based on visibility */}
           <Box
             height={
               isDropdownVisible
-                ? 9 // Dropdown is tall (command list)
+                ? 9 + inputLineCount + 2 // Dropdown + input + borders
                 : confirmationState?.pending
-                  ? 5 // Confirmation modal is compact
-                  : 1 // Just input
+                  ? 5 + inputLineCount + 2 // Confirmation + input + borders
+                  : inputLineCount + 2 // Just input + borders
             }
             flexDirection="column"
             justifyContent="flex-end"
@@ -477,11 +484,13 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
               onInterrupt={interrupt}
               onDropdownVisibleChange={setIsDropdownVisible}
               onPasteContent={handlePasteContent}
+              onInputChange={(value: string) =>
+                setInputLineCount(value.split('\n').length)
+              }
               providerName={provider}
               confirmationState={confirmationState}
             />
           </Box>
-          <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>
           {/* Always reserve space for save message to prevent layout shift */}
           <Box height={1}>
             {saveMessage && <Text color="green">{saveMessage}</Text>}
