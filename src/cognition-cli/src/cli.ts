@@ -105,7 +105,7 @@ program
   .command('init')
   .alias('i')
   .description('Initialize a new Grounded Context Pool (PGC) (alias: i)')
-  .option('-p, --path <path>', 'Project path', process.cwd())
+  .option('-p, --project-root <path>', 'Project path', process.cwd())
   .action(async (options) => {
     const { initCommand } = await import('./commands/init.js');
     await initCommand(options);

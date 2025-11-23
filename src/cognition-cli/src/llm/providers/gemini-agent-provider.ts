@@ -381,7 +381,7 @@ export class GeminiAgentProvider implements AgentProvider {
                     (promptTokens || Math.ceil(request.prompt.length / 4)) +
                     (completionTokens || totalTokens),
                 },
-                finishReason: 'stop',
+                finishReason: 'tool_use', // Tool result, not stop - agent continues
                 numTurns,
               };
 

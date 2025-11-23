@@ -271,8 +271,18 @@ function wrapToolWithPermission<T extends z.ZodRawShape>(
     description,
     parameters,
     execute: async (input: unknown) => {
+      // Debug logging
+      if (process.env.DEBUG_CONFIRMATION) {
+        console.error('[Gemini Tool] Calling onCanUseTool for:', name);
+        console.error('[Gemini Tool] Input:', JSON.stringify(input, null, 2));
+      }
+
       // Call permission callback
       const decision = await onCanUseTool(name, input);
+
+      if (process.env.DEBUG_CONFIRMATION) {
+        console.error('[Gemini Tool] Decision:', decision);
+      }
 
       // If denied, return denial message
       if (decision.behavior === 'deny') {
@@ -301,6 +311,11 @@ export function getCognitionTools(
   workbenchUrl?: string,
   onCanUseTool?: OnCanUseTool
 ) {
+  // Debug logging
+  if (process.env.DEBUG_CONFIRMATION) {
+    console.error('[getCognitionTools] onCanUseTool provided:', !!onCanUseTool);
+  }
+
   // Create write_file tool with permission check
   const safeWriteFile = wrapToolWithPermission(
     'write_file',
