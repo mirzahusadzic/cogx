@@ -153,12 +153,15 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
   const lastEscapeTime = useRef<number>(0);
   const valueRef = useRef<string>(''); // Track actual current value for paste detection
-  const [pasteNotification, setPasteNotification] = useState<string>('');
   const pasteBuffer = useRef<string | null>(null); // Accumulate paste chunks, null when not in paste mode
 
   // Function to process paste content (save to file, notify, etc.)
-  // Returns the content if it couldn't be saved to a file, otherwise returns null.
-  const processPasteContent = (content: string): string | null => {
+  // Returns object with type and value (either content to insert or filepath)
+  const processPasteContent = (
+    content: string
+  ):
+    | { type: 'content'; value: string }
+    | { type: 'file'; filepath: string } => {
     if (process.env.DEBUG_INPUT) {
       console.error('PASTE DEBUG: Processing paste, length:', content.length);
       console.error(
@@ -187,7 +190,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
       if (process.env.DEBUG_INPUT) {
         console.error('PASTE DEBUG: Small paste, inserting directly');
       }
-      return normalizedContent; // Directly return to be inserted into input
+      return { type: 'content', value: normalizedContent };
     }
 
     // Save to temp file
@@ -202,21 +205,17 @@ export const InputBox: React.FC<InputBoxProps> = ({
         console.error('PASTE DEBUG: Large paste saved to:', filepath);
       }
 
-      // Show notification
-      setPasteNotification(`📋 Paste saved to: ${filepath}`);
-
       // Notify parent to display the content
       if (onPasteContent) {
         onPasteContent(normalizedContent, filepath);
       }
 
-      // Clear notification after 5 seconds
-      setTimeout(() => setPasteNotification(''), 5000);
-      return null; // Successfully saved to file, no direct insertion needed
+      // Don't clear notification here - it will be cleared after input box updates
+      return { type: 'file', filepath }; // Successfully saved to file
     } catch (error) {
       // If save fails, just return content to be pasted normally into input
       console.error('Failed to save paste:', error);
-      return normalizedContent; // Return content to be inserted directly
+      return { type: 'content', value: normalizedContent };
     }
   };
 
@@ -363,16 +362,16 @@ export const InputBox: React.FC<InputBoxProps> = ({
           }
           pasteBuffer.current = null; // Reset paste buffer
           // Process the pasted content (save to file, or insert directly if small)
-          const handledPasteContent = processPasteContent(pastedContent);
-          if (handledPasteContent !== null) {
-            // If content was returned, it means it should be inserted directly at cursor
+          const pasteResult = processPasteContent(pastedContent);
+          if (pasteResult.type === 'content') {
+            // Small paste: insert directly at cursor
             newValue =
               value.substring(0, newCursorPosition) +
-              handledPasteContent +
+              pasteResult.value +
               value.substring(newCursorPosition);
-            newCursorPosition = newCursorPosition + handledPasteContent.length;
+            newCursorPosition = newCursorPosition + pasteResult.value.length;
           } else {
-            // Paste handled successfully by saving to file, clear input
+            // Large paste: saved to file, clear input
             newValue = '';
             newCursorPosition = 0;
           }
@@ -395,7 +394,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
           setCursorPosition(() => newCursorPosition);
 
           // For empty box paste, force re-renders to fix display bug
-          if (wasEmpty && handledPasteContent !== null) {
+          if (wasEmpty) {
             // Increment render key multiple times to force clean re-render
             setTimeout(() => {
               setRenderKey((k) => k + 1);
@@ -583,13 +582,6 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
   return (
     <Box flexDirection="column" width="100%" key={renderKey}>
-      {/* Paste notification - show ABOVE input */}
-      {pasteNotification && (
-        <Box paddingX={1} paddingY={0}>
-          <Text color="#2eb572">{pasteNotification}</Text>
-        </Box>
-      )}
-
       {/* Tool Confirmation Modal - render ABOVE input, SAME placement as dropdown */}
       {confirmationState && confirmationState.pending && (
         <ToolConfirmationModal state={confirmationState} />
