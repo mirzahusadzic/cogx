@@ -106,7 +106,15 @@ program
   .alias('i')
   .description('Initialize a new Grounded Context Pool (PGC) (alias: i)')
   .option('-p, --project-root <path>', 'Project path', process.cwd())
+  .option('--path <path>', '[DEPRECATED] Use --project-root instead')
   .action(async (options) => {
+    // Handle deprecated --path flag
+    if (options.path && !options.projectRoot) {
+      console.warn(
+        '⚠️  Warning: --path is deprecated. Please use --project-root instead.'
+      );
+      options.projectRoot = options.path;
+    }
     const { initCommand } = await import('./commands/init.js');
     await initCommand(options);
   });

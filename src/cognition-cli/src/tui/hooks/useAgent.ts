@@ -892,7 +892,7 @@ export function useAgent(options: UseAgentOptions) {
   /**
    * Initialize LLM providers on mount.
    *
-   * Registers available providers (Claude, OpenAI, Gemini) with the global registry.
+   * Registers available providers (Claude, Gemini) with the global registry.
    * This enables multi-provider support throughout the TUI.
    */
   useEffect(() => {

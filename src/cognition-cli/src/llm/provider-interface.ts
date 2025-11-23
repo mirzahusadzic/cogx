@@ -94,10 +94,10 @@ export interface StreamChunk {
  * Base LLM Provider Interface
  *
  * All LLM providers must implement this interface to enable basic completions
- * across Claude, OpenAI, Gemini, etc.
+ * across Claude, Gemini, and other providers.
  */
 export interface LLMProvider {
-  /** Provider name (e.g., 'claude', 'openai', 'gemini') */
+  /** Provider name (e.g., 'claude', 'gemini') */
   name: string;
 
   /** Available models */

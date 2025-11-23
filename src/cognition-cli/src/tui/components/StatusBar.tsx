@@ -17,14 +17,13 @@ export interface StatusBarProps {
   /** Token threshold for compression trigger */
   compressionThreshold?: number;
 
-  /** AI provider name (claude, openai, gemini, gemini-agent) */
+  /** AI provider name (claude, gemini, gemini-agent) */
   providerName?: string;
 }
 
 // Provider color/emoji mapping
 const PROVIDER_STYLES: Record<string, { color: string; emoji: string }> = {
   claude: { color: '#d4a574', emoji: '🟠' },
-  openai: { color: '#10a37f', emoji: '🟢' },
   gemini: { color: '#4285f4', emoji: '🔵' },
   'gemini-agent': { color: '#4285f4', emoji: '🤖' },
 };

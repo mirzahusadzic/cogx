@@ -20,8 +20,8 @@
  *
  * // Custom provider/model
  * const text = await complete('Explain quantum computing', {
- *   provider: 'openai',
- *   model: 'gpt-4-turbo',
+ *   provider: 'gemini',
+ *   model: 'gemini-2.5-flash',
  *   maxTokens: 1000
  * });
  *
@@ -82,9 +82,9 @@ export interface InitializeOptions {
  * Call this at application startup.
  *
  * BEHAVIOR:
- * - Always attempts to register Claude (uses ANTHROPIC_API_KEY env var)
- * - Registers OpenAI if OPENAI_API_KEY is set
- * - Sets default provider based on options or falls back to Claude
+ * - Attempts to register Claude if ANTHROPIC_API_KEY is set
+ * - Attempts to register Gemini if GEMINI_API_KEY is set
+ * - Sets default provider based on options or first available
  *
  * @param options - Initialization options
  * @throws Error if required API keys are missing and skipMissingProviders is false
@@ -97,8 +97,8 @@ export interface InitializeOptions {
  * // Initialize with explicit keys
  * initializeProviders({
  *   anthropicApiKey: 'sk-ant-...',
- *   openaiApiKey: 'sk-...',
- *   defaultProvider: 'openai'
+ *   googleApiKey: 'AIza...',
+ *   defaultProvider: 'gemini'
  * });
  *
  * @example
@@ -251,8 +251,8 @@ export interface CompletionOptions {
  * @example
  * // With custom provider and model
  * const text = await complete('Explain quantum computing', {
- *   provider: 'openai',
- *   model: 'gpt-4-turbo',
+ *   provider: 'gemini',
+ *   model: 'gemini-2.5-pro',
  *   maxTokens: 1000,
  *   temperature: 0.7
  * });

@@ -221,7 +221,7 @@ export interface AgentProvider extends LLMProvider {
  *
  * @example
  * ```typescript
- * const provider = registry.get('openai');
+ * const provider = registry.get('gemini');
  *
  * if (isAgentProvider(provider)) {
  *   // Can use executeAgent()

@@ -156,7 +156,7 @@ export class ProviderRegistry {
    *
    * @example
    * ```typescript
-   * registry.setDefault('openai');
+   * registry.setDefault('gemini');
    * ```
    */
   setDefault(name: string): void {
@@ -266,8 +266,8 @@ export class ProviderRegistry {
    *
    * @example
    * ```typescript
-   * if (registry.has('openai')) {
-   *   // Use OpenAI
+   * if (registry.has('gemini')) {
+   *   // Use Gemini
    * }
    * ```
    */
