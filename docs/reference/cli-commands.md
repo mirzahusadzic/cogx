@@ -43,7 +43,7 @@ cognition-cli ask "<question>" [options]
 - `--save` - Save Q&A as markdown document
 - `--verbose` - Show detailed processing steps
 
-**See:** [Interactive Mode](./06_Interactive_Mode.md#ai-powered-help-the-ask-command)
+**See:** [Getting Started](./03_Getting_Started.md) for usage examples
 
 ---
 
@@ -313,7 +313,7 @@ cognition-cli status [options]
 
 ## tui
 
-Launch interactive Terminal User Interface with Claude.
+Launch interactive Terminal User Interface with multi-provider LLM support (Claude or Gemini).
 
 ```bash
 cognition-cli tui [options]
@@ -323,10 +323,29 @@ cognition-cli tui [options]
 
 - `--session-id <anchor-id>` - Attach to existing session (e.g., tui-1762546919034)
 - `-f, --file <path>` - Path to session state file (convenient alternative to --session-id)
+- `--provider <name>` - LLM provider: `claude` or `gemini` (default: `gemini`)
+- `--model <name>` - Model to use (provider-specific)
 - `--session-tokens <number>` - Compression threshold (default: 120000)
+- `--max-thinking-tokens <number>` - Extended thinking mode tokens (default: 10000)
 - `--debug` - Enable Sigma compression logging
+- `--no-show-thinking` - Hide thinking blocks in TUI
 
-**See:** [Interactive Mode](./06_Interactive_Mode.md#the-tui-visual-pgc-exploration)
+**Provider Subcommands:**
+
+```bash
+cognition-cli tui provider list              # List available providers
+cognition-cli tui provider set-default <p>   # Set default provider
+cognition-cli tui provider test <provider>   # Test provider configuration
+cognition-cli tui provider config            # Show current config
+cognition-cli tui provider models [provider] # List available models
+```
+
+**Authentication:**
+
+- **Claude**: API key (`ANTHROPIC_API_KEY`) or OAuth (interactive login)
+- **Gemini**: API key (`GEMINI_API_KEY`)
+
+**See:** [Daily Workflow](./04_Daily_Workflow.md) for TUI usage examples
 
 ---
 
