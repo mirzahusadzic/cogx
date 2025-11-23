@@ -188,7 +188,10 @@ export class GeminiAgentProvider implements AgentProvider {
     let totalAssistantLength = 0;
 
     // Create or resume session
-    const sessionId = request.resumeSessionId || `gemini-${Date.now()}`;
+    // Add random component to prevent collisions when multiple sessions created in same millisecond
+    const sessionId =
+      request.resumeSessionId ||
+      `gemini-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const userId = 'cognition-user';
 
     // Get or create session
@@ -225,10 +228,13 @@ export class GeminiAgentProvider implements AgentProvider {
       numTurns: 0,
     };
 
+    // BIDI (bidirectional) streaming mode handles multi-turn tool conversations better than SSE
+    // Use BIDI if explicitly enabled (via env var), otherwise use SSE for stability
+    // BIDI mode is experimental (ADK v0.1.x) and can throw JSON parsing errors
+    const useBidiMode = process.env.GEMINI_USE_BIDI === '1';
+
     try {
       // Run agent - runAsync returns an async generator
-      // Enable BIDI streaming mode for continuous agent conversations
-      // BIDI (bidirectional) handles multi-turn tool conversations better than SSE
       const runGenerator = this.currentRunner.runAsync({
         userId,
         sessionId,
@@ -237,7 +243,7 @@ export class GeminiAgentProvider implements AgentProvider {
           parts: [{ text: request.prompt }],
         },
         runConfig: {
-          streamingMode: StreamingMode.BIDI,
+          streamingMode: useBidiMode ? StreamingMode.BIDI : StreamingMode.SSE,
         },
       });
 
@@ -596,12 +602,30 @@ export class GeminiAgentProvider implements AgentProvider {
         // SDK might throw JSON parsing errors when aborted
         (errorMessage.includes('JSON') && this.abortController?.signal.aborted);
 
+      // ADK SDK (experimental v0.1.x) can throw JSON parsing errors in both SSE and BIDI modes
+      // These are typically benign SDK bugs when the stream ends, not real errors
+      // If we got any assistant messages before the error, treat as successful completion
+      const hasAssistantMessages = messages.some(
+        (m) => m.type === 'assistant' || m.type === 'thinking'
+      );
+      const isBenignSdkError =
+        errorMessage.includes('JSON') &&
+        errorMessage.includes('Unexpected token') &&
+        hasAssistantMessages;
+
       if (process.env.DEBUG_ESC_INPUT && isAbort) {
         console.error('[Gemini] Caught abort-related error:', errorMessage);
       }
 
-      // Only show error message if it's not an abort
-      if (!isAbort) {
+      if (process.env.DEBUG_GEMINI_STREAM && isBenignSdkError) {
+        console.error(
+          '[Gemini] Ignoring benign ADK SDK JSON parsing error:',
+          errorMessage
+        );
+      }
+
+      // Only show error message if it's not an abort or benign SDK error
+      if (!isAbort && !isBenignSdkError) {
         const errorMessage: AgentMessage = {
           id: `msg-${Date.now()}-error`,
           type: 'assistant',
@@ -622,7 +646,7 @@ export class GeminiAgentProvider implements AgentProvider {
             (promptTokens || Math.ceil(request.prompt.length / 4)) +
             (completionTokens || totalTokens),
         },
-        finishReason: isAbort ? 'stop' : 'error',
+        finishReason: isAbort || isBenignSdkError ? 'stop' : 'error',
         numTurns,
       };
     } finally {

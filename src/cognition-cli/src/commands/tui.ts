@@ -124,6 +124,12 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     process.env.WORKBENCH_URL ||
     'http://localhost:8000';
 
+  // Enable BIDI streaming for Gemini agent workflows
+  // BIDI mode keeps the stream alive after tool calls for multi-turn conversations
+  if (!process.env.GEMINI_USE_BIDI) {
+    process.env.GEMINI_USE_BIDI = '1';
+  }
+
   // Set AIEcho background color: #0d1117 = rgb(13, 17, 23)
   if (process.stdout.isTTY) {
     process.stdout.write('\x1b[48;2;13;17;23m'); // Set background to AIEcho dark
