@@ -227,7 +227,8 @@ export class GeminiAgentProvider implements AgentProvider {
 
     try {
       // Run agent - runAsync returns an async generator
-      // Enable SSE streaming mode for real-time response streaming
+      // Enable BIDI streaming mode for continuous agent conversations
+      // BIDI (bidirectional) handles multi-turn tool conversations better than SSE
       const runGenerator = this.currentRunner.runAsync({
         userId,
         sessionId,
@@ -236,7 +237,7 @@ export class GeminiAgentProvider implements AgentProvider {
           parts: [{ text: request.prompt }],
         },
         runConfig: {
-          streamingMode: StreamingMode.SSE,
+          streamingMode: StreamingMode.BIDI,
         },
       });
 
