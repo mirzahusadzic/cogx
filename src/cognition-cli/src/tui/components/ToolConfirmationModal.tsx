@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import { formatToolInput, extractBaseCommand } from '../utils/tool-safety.js';
+import { formatToolUse } from '../hooks/rendering/ToolFormatter.js';
 import type { ToolConfirmationState } from '../hooks/useToolConfirmation.js';
 
 /**
@@ -51,6 +52,16 @@ const ToolConfirmationModalComponent: React.FC<ToolConfirmationModalProps> = ({
 }) => {
   const { toolName, input } = state;
 
+  // Format tool name and icon using ToolFormatter
+  const formattedTool = React.useMemo(
+    () =>
+      formatToolUse({
+        name: toolName,
+        input: input as Record<string, unknown>,
+      }),
+    [toolName, input]
+  );
+
   // Format tool input once to prevent re-calculations
   const formattedInput = React.useMemo(
     () => formatToolInput(toolName, input),
@@ -63,8 +74,8 @@ const ToolConfirmationModalComponent: React.FC<ToolConfirmationModalProps> = ({
       const baseCommand = extractBaseCommand(formattedInput);
       return baseCommand ? `all ${baseCommand}` : `all ${toolName}`;
     }
-    return `all ${toolName}`;
-  }, [toolName, formattedInput]);
+    return `all ${formattedTool.name}`;
+  }, [toolName, formattedInput, formattedTool.name]);
 
   return (
     <Box
@@ -78,11 +89,11 @@ const ToolConfirmationModalComponent: React.FC<ToolConfirmationModalProps> = ({
         <Text color="yellow" bold>
           [!]{' '}
         </Text>
-        <Text bold>{toolName}</Text>
-        <Text dimColor> - </Text>
+        <Text bold>{formattedTool.name}</Text>
+        <Text dimColor>: </Text>
         <Text color="cyan">
-          {formattedInput.slice(0, 60)}
-          {formattedInput.length > 60 ? '…' : ''}
+          {formattedTool.description.slice(0, 60)}
+          {formattedTool.description.length > 60 ? '…' : ''}
         </Text>
       </Box>
 
