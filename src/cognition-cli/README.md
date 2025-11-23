@@ -145,20 +145,32 @@ cognition blast-radius PGCManager
 ### 2. Interactive TUI with Infinite Context
 
 ```bash
-# Launch interactive Claude session
+# Launch interactive session with Gemini (default)
 cognition tui
+
+# Use Claude provider
+cognition tui --provider claude
+
+# Use specific model
+cognition tui --provider claude --model claude-sonnet-4-5
 
 # With debug mode to see turn analysis
 cognition tui --debug
+
+# Manage providers
+cognition tui provider list
+cognition tui provider set-default claude
 ```
 
 **Features:**
 
+- ✅ Multi-provider support (Claude & Gemini)
 - ✅ Infinite context across sessions
 - ✅ Real-time lattice visualization
 - ✅ Live overlay status (O₁-O₇)
 - ✅ Token tracking with compression threshold
 - ✅ Extended thinking mode support
+- ✅ Tool execution with confirmation dialogs
 
 **Learn more:** [TUI Documentation](./src/tui/README.md) | [SIGMA Architecture](docs/sigma/ARCHITECTURE.md)
 

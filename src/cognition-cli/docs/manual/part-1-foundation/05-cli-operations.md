@@ -1874,21 +1874,32 @@ If migration causes issues, restore from backup:
 
 **Command**: `cognition-cli tui`
 
-**Purpose**: Launch interactive terminal UI with Claude integration for conversational analysis.
+**Purpose**: Launch interactive terminal UI with LLM integration (Claude or Gemini) for conversational analysis.
 
 ### What It Provides
 
-- **Interactive Chat**: Converse with Claude about your codebase
-- **Lattice Visualization**: Real-time overlay counts and statistics
-- **Session Persistence**: Resume previous conversations
+- **Multi-Provider Support**: Choose between Claude (Anthropic) or Gemini (Google) LLM providers
+- **Interactive Chat**: Converse with AI about your codebase with tool execution
+- **Lattice Visualization**: Real-time overlay counts and statistics (O1-O7)
+- **Session Persistence**: Resume previous conversations with full context
 - **Σ (Sigma) Integration**: Infinite context via dual-lattice compression
-- **Extended Thinking**: Up to 10K thinking tokens for complex reasoning
+- **Extended Thinking**: Configurable thinking tokens for complex reasoning
+- **Tool Execution**: File operations, code analysis, and more with confirmation dialogs
 
 ### Usage
 
 ```bash
-# Start new session
+# Start new session with default provider (Gemini)
 cognition-cli tui
+
+# Start with Claude provider (using API key)
+ANTHROPIC_API_KEY=sk-ant-... cognition-cli tui --provider claude
+
+# Start with Claude provider (using OAuth)
+cognition-cli tui --provider claude
+
+# Start with specific model
+cognition-cli tui --provider claude --model claude-sonnet-4-5
 
 # Resume existing session
 cognition-cli tui --session-id <anchor-id>
@@ -1897,7 +1908,10 @@ cognition-cli tui --session-id <anchor-id>
 cognition-cli tui --file .sigma/tui-1762546919034.state.json
 
 # Extended thinking mode (complex reasoning)
-cognition-cli tui --max-thinking-tokens 10000
+cognition-cli tui --max-thinking-tokens 20000
+
+# Hide thinking blocks
+cognition-cli tui --no-show-thinking
 
 # Debug mode (show compression details)
 cognition-cli tui --debug
@@ -1915,7 +1929,10 @@ cognition-cli tui [options]
 #   -w, --workbench <url>               eGemma workbench URL
 #   --session-tokens <number>           Compression threshold (default: 120000)
 #   --max-thinking-tokens <number>      Extended thinking limit (default: 10000)
+#   --provider <name>                   LLM provider: claude or gemini (default: gemini)
+#   --model <name>                      Model to use (provider-specific)
 #   --debug                             Enable debug logging
+#   --no-show-thinking                  Hide thinking blocks in TUI
 ```
 
 ### Example Session
@@ -1975,6 +1992,50 @@ Resume with: cognition-cli tui --file .sigma/tui-1762546919034.state.json
 - `/quit` - Exit and save session
 - `/status` - Show lattice status
 - `/clear` - Clear screen
+
+### Provider Management
+
+The TUI supports multiple LLM providers with dedicated management commands:
+
+```bash
+# List available providers
+cognition-cli tui provider list
+
+# Set default provider
+cognition-cli tui provider set-default claude
+cognition-cli tui provider set-default gemini
+
+# Test provider availability
+cognition-cli tui provider test claude
+cognition-cli tui provider test gemini
+
+# Show current configuration
+cognition-cli tui provider config
+
+# List available models
+cognition-cli tui provider models
+cognition-cli tui provider models claude
+cognition-cli tui provider models gemini
+```
+
+**Supported Providers:**
+
+- **Claude (Anthropic)**: Authentication via API key or OAuth
+  - Auth methods: `ANTHROPIC_API_KEY` environment variable OR OAuth (Claude Agent SDK)
+  - Models: claude-sonnet-4-5, claude-3-5-sonnet, claude-opus-4, claude-3-7-sonnet
+  - Features: Extended thinking blocks, tool execution, streaming responses
+
+- **Gemini (Google)**: Requires `GEMINI_API_KEY` environment variable
+  - Models: gemini-2.0-flash, gemini-1.5-pro, gemini-1.5-flash
+  - Features: BIDI streaming, continuous multi-turn conversations, tool execution
+
+**Provider Configuration:**
+
+The default provider can be set via:
+
+1. Command flag: `--provider claude`
+2. Provider command: `tui provider set-default claude`
+3. Interactive selection during TUI startup (if both configured)
 
 ---
 

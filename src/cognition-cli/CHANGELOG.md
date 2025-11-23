@@ -5,6 +5,150 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2025-11-23
+
+### Summary
+
+**Transformative Release:** First-time integration of Google Gemini ADK as a powerful new LLM provider, enabled by a flexible provider abstraction architecture. This release introduces full Gemini agent capabilities with tool execution, memory recall, and multi-turn conversations. Claude integration also receives significant enhancements including thinking blocks, API key support, and optional SDK. Both providers benefit from comprehensive TUI improvements and production-ready code quality.
+
+### 🚀 Major New Features
+
+#### Full Gemini ADK Agent Integration
+
+This release officially brings the **Gemini ADK agent** to Cognition CLI - a monumental addition offering a new, highly capable LLM provider for agentic workflows.
+
+**Key Capabilities:**
+
+- **Multi-Turn Conversations (BIDI Streaming):** Gemini supports continuous, multi-turn interactions, allowing the agent to persist through tool calls (e.g., `git diff`) and complete complex workflows without prematurely stopping.
+- **Tool Execution with Guardrails:** Gemini can leverage Cognition's tools (`write_file`, `glob`, `bash`, etc.) with the new tool permission system.
+- **Memory Recall:** Gemini agents can utilize the `recall` tool for semantic memory within conversations.
+- **Robustness Improvements:**
+  - Unique session ID generation with entropy to prevent collisions
+  - Sophisticated error handling for benign JSON parsing errors from experimental ADK SDK
+  - BIDI mode made opt-in with automatic enablement in TUI for agent workflows
+  - Graceful handling of SDK parsing errors when assistant messages exist
+
+#### Enhanced Claude Integration
+
+Claude also received significant improvements in this release, working better than ever:
+
+- **Thinking Blocks:** Full support for extended thinking mode with visual "thinking blocks" in TUI, providing transparency into Claude's reasoning process
+- **API Key Authentication:** Added support for `ANTHROPIC_API_KEY` environment variable while preserving existing OAuth functionality
+- **Flexible SDK:** Made Claude Agent SDK optional, allowing basic completions without SDK dependency for licensing flexibility
+- **Unified Experience:** Benefits from all TUI improvements (ESC interrupt, tool confirmations, multiline input) equally with Gemini
+
+#### LLM Provider Abstraction Layer
+
+To support multiple LLMs and enable future extensibility, a new **pluggable LLM Provider Abstraction Layer** has been introduced:
+
+- Standardized interface for interacting with different LLMs (Claude, Gemini, and future providers)
+- Dynamic provider loading and registration with health checks
+- Persistent default provider configuration
+- Seamless TUI integration for consistent UX across all providers
+
+**Architecture Benefits:**
+
+- Future-proof design for easy LLM provider additions
+- Standardized `AgentProvider` and `LLMProvider` interfaces
+- Provider registry with health checks and capability detection
+- Extensible tool system with permission callbacks
+
+### 🎨 TUI Improvements
+
+#### Comprehensive InputBox Overhaul
+
+The InputBox component received significant attention for enhanced user experience:
+
+- **Multiline Support:** Users can now input multiline prompts for more expressive commands
+- **Improved Paste Handling:** Robust paste operations with better large content handling
+- **Cursor & Backspace:** Refined cursor rendering and backspace behavior, preventing UI collapses
+
+#### General Stability & User Experience
+
+- **ESC Interrupt:** Critical UX improvement - users can press `ESC` to interrupt ongoing agent responses from any LLM provider (Gemini and Claude)
+- **Thinking Block Reliability:** Fixed bug where TUI could get stuck with thinking blocks through accurate abort tracking
+- **Dynamic Provider Display:** Session tip messages now dynamically show current LLM provider name
+- **Turn Counting:** Improved turn counting and display in completion status for better multi-turn interaction context
+
+#### Tool System Enhancements
+
+- **Tool Confirmation Dialog:** More robust and properly rendered confirmation dialogs
+- **Permission System:** Integrated permission callbacks for safe tool execution across providers
+
+### 🐛 Bug Fixes & Improvements
+
+#### Backward Compatibility & Deprecation Management
+
+- Added backward compatibility for deprecated `--path` flag in `init` command
+- Supports both `--path` and `--project-root` with clear deprecation warnings
+- Ensures existing scripts and workflows continue working seamlessly during transition
+
+#### Core Framework & Tooling
+
+- Resolved TypeScript type errors and linting issues from dependency upgrades
+- Enhanced code quality and maintainability
+- Standardized environment variable naming (e.g., `GEMINI_API_KEY`)
+- Improved modularity of LLM provider components
+
+### 📝 Documentation
+
+- Extensive TSDoc added to TUI components and hooks for better developer experience
+- Updated `COMPREHENSIVE_ANALYSIS.md` with LLM provider abstraction details
+- Comprehensive documentation for Gemini integration architecture and capabilities
+- Added developer documentation for implementing custom providers
+- **Supported Providers:** Officially supports Claude (Anthropic) and Gemini (Google) as LLM providers
+
+### ⚠️ Breaking Changes (Mitigated)
+
+#### CLI Flag Standardization
+
+The `--path` flag has been deprecated in favor of `--project-root` for consistency across commands. However, **backward compatibility is maintained** - the old flag still works with a deprecation warning.
+
+**Migration Guide:**
+
+```bash
+# Old (still works with warning)
+cognition-cli init --path /my/project
+
+# New (recommended)
+cognition-cli init --project-root /my/project
+```
+
+### 🔧 Technical Details
+
+**Release Statistics:**
+
+- **60 commits** since v2.4.2
+- 628 tests passing (38 skipped)
+- All format, lint, and build checks passing
+- Comprehensive integration tests for Gemini provider
+
+**Major Commit Highlights:**
+
+- `c91bff9` - chore(release): pre-release cleanup and improvements
+- `92ecd92` - fix(gemini): improve session ID uniqueness and make BIDI mode opt-in
+- `087b03b` - fix(gemini): enable BIDI streaming for continuous agent conversations
+- `f6e5cfd` - feat(llm): integrate LLM provider abstraction layer and standardize CLI flags
+- `638a795` - fix(tui): fix InputBox cursor rendering and backspace behavior
+- `3e01dc2` - fix(tui): fix stuck-with-thinking-blocks bug via proper abort tracking
+- `0403010` - feat(tui): implement ESC interrupt for Claude and Gemini providers
+- `3c66995` - feat(tui): comprehensive InputBox improvements - multiline, paste, cursor
+- `9f28d21` - docs(tui): add comprehensive TSDoc to all TUI components
+- `9fe9691` - feat: Implement tool permission checks for Gemini ADK agent
+- `5421410` - feat: complete memory recall integration for Gemini
+- `d727d85` - feat: enable Claude OAuth support and make SDK optional for licensing
+- `dd14c28` - feat: make Claude SDK optional, set Gemini as default provider
+- `4f9f9f9` - feat: implement LLM provider abstraction layer
+- `21824a9` - feat: complete Gemini ADK agent integration with tools and TUI styling
+
+**Full commit log:** `git log v2.4.2..v2.5.0 --oneline` (60 commits)
+
+### 🎯 Conclusion
+
+This v2.5.0 release is **transformative**. It not only introduces the powerful Gemini ADK Agent as a first-class citizen with tool usage, memory, and guardrails, but also lays a flexible architectural foundation for future LLMs. Concurrently, it delivers significant user experience and stability improvements to existing TUI components. This is a robust release that dramatically expands Cognition CLI's capabilities while maintaining backward compatibility and production-grade code quality.
+
+---
+
 ## [2.4.2] - 2025-11-20
 
 ### Summary

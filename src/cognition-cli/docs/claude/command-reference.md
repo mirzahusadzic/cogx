@@ -813,6 +813,218 @@ cognition-cli blast-radius OverlayOrchestrator --format mermaid
 
 ---
 
+## Interactive & LLM Integration
+
+### `cognition-cli tui`
+
+Launch interactive terminal UI with LLM integration for conversational AI workflows.
+
+```bash
+cognition-cli tui [options]
+```
+
+**Options:**
+
+- `-p, --project-root <path>` - Root directory of the project (default: `.`)
+- `--session-id <anchor-id>` - Anchor ID to resume a previous session
+- `-f, --file <path>` - Path to session state file (e.g., `.sigma/tui-1762546919034.state.json`)
+- `-w, --workbench <url>` - URL of the egemma workbench (defaults to WORKBENCH_URL env var)
+- `--session-tokens <number>` - Token threshold for context compression (default: `120000`)
+- `--max-thinking-tokens <number>` - Maximum tokens for extended thinking mode (default: `10000`)
+- `--provider <name>` - LLM provider to use: `claude` or `gemini` (default: `gemini`)
+- `--model <name>` - Model to use (provider-specific)
+- `--debug` - Enable debug logging for Sigma compression
+- `--no-show-thinking` - Hide thinking blocks in TUI
+
+**What it provides:**
+
+- Real-time conversation with Claude or Gemini LLM providers
+- Persistent session management with Sigma compression
+- Interactive overlay status bar showing O1-O7 statistics
+- Token tracking and automatic context compression at threshold
+- Tool execution with confirmation dialogs
+- Scroll history with position indicator
+
+**Example:**
+
+```bash
+# Start TUI with default provider (Gemini)
+cognition-cli tui
+
+# Start with Claude provider (using API key)
+ANTHROPIC_API_KEY=sk-ant-... cognition-cli tui --provider claude
+
+# Start with Claude provider (using OAuth)
+cognition-cli tui --provider claude
+
+# Resume previous session
+cognition-cli tui --session-id abc123
+
+# Start with extended thinking mode
+cognition-cli tui --max-thinking-tokens 20000
+
+# Start with specific model
+cognition-cli tui --provider claude --model claude-sonnet-4-5
+```
+
+---
+
+### `cognition-cli tui provider`
+
+Manage LLM providers for the TUI.
+
+```bash
+cognition-cli tui provider [command]
+```
+
+**Subcommands:**
+
+#### `provider list`
+
+List available LLM providers and their status.
+
+```bash
+cognition-cli tui provider list
+```
+
+**What it shows:**
+
+- Available providers (Claude, Gemini)
+- Health status (configured, not configured, error)
+- Required environment variables
+- Current default provider
+
+**Example:**
+
+```bash
+cognition-cli tui provider list
+
+# Output:
+# ✅ claude - Configured (ANTHROPIC_API_KEY set)
+# ✅ gemini - Configured (GEMINI_API_KEY set)
+# Default: gemini
+```
+
+---
+
+#### `provider set-default <provider>`
+
+Set the default LLM provider.
+
+```bash
+cognition-cli tui provider set-default <provider>
+```
+
+**Arguments:**
+
+- `<provider>` - Provider name: `claude` or `gemini`
+
+**Example:**
+
+```bash
+# Set Claude as default
+cognition-cli tui provider set-default claude
+
+# Set Gemini as default
+cognition-cli tui provider set-default gemini
+```
+
+---
+
+#### `provider test <provider>`
+
+Test provider availability and configuration.
+
+```bash
+cognition-cli tui provider test <provider>
+```
+
+**Arguments:**
+
+- `<provider>` - Provider name: `claude` or `gemini`
+
+**What it checks:**
+
+- Environment variables (API keys)
+- Provider initialization
+- Basic connectivity
+
+**Example:**
+
+```bash
+cognition-cli tui provider test claude
+cognition-cli tui provider test gemini
+```
+
+---
+
+#### `provider config`
+
+Show current LLM provider configuration.
+
+```bash
+cognition-cli tui provider config
+```
+
+**What it shows:**
+
+- Current default provider
+- Configured providers and their status
+- Environment variables (masked)
+- Available models per provider
+
+**Example:**
+
+```bash
+cognition-cli tui provider config
+
+# Output:
+# Default Provider: gemini
+#
+# Configured Providers:
+# - claude: ✅ (ANTHROPIC_API_KEY: set)
+# - gemini: ✅ (GEMINI_API_KEY: set)
+```
+
+---
+
+#### `provider models [provider]`
+
+List available models for a provider.
+
+```bash
+cognition-cli tui provider models [provider]
+```
+
+**Arguments:**
+
+- `[provider]` - Optional provider name. If omitted, shows all models for all providers.
+
+**What it shows:**
+
+- Model IDs
+- Model names and descriptions
+- Provider-specific model capabilities
+
+**Example:**
+
+```bash
+# List all models
+cognition-cli tui provider models
+
+# List Claude models only
+cognition-cli tui provider models claude
+
+# Output:
+# Claude Models:
+# - claude-sonnet-4-5-20250929 (Claude Sonnet 4.5)
+# - claude-3-5-sonnet-20241022 (Claude 3.5 Sonnet)
+# - claude-opus-4-20250514 (Claude Opus 4)
+# - claude-3-7-sonnet-20250219 (Claude 3.7 Sonnet)
+```
+
+---
+
 ## Utility Commands
 
 ### `cognition-cli guide`
@@ -867,6 +1079,15 @@ cognition-cli guide overlays
 
 - `concepts list|top|search|by-section|inspect` - Mission concepts
 - `coherence report|aligned|drifted|for-symbol|compare` - Strategic coherence
+
+### Interactive & LLM Integration
+
+- `tui` - Launch interactive TUI with LLM providers
+- `tui provider list` - List available LLM providers
+- `tui provider set-default <provider>` - Set default provider
+- `tui provider test <provider>` - Test provider availability
+- `tui provider config` - Show provider configuration
+- `tui provider models [provider]` - List available models
 
 ### Advanced
 
