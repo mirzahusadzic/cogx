@@ -361,6 +361,8 @@ export function useAgent(options: UseAgentOptions) {
 
   // Store current adapter for interrupt functionality
   const currentAdapterRef = useRef<AgentProviderAdapter | null>(null);
+  // Track user-initiated aborts (ESC key)
+  const abortedRef = useRef(false);
 
   // ========================================
   // COMPOSED HOOKS
@@ -1543,6 +1545,7 @@ export function useAgent(options: UseAgentOptions) {
 
         // Store adapter for interrupt functionality
         currentAdapterRef.current = adapter;
+        abortedRef.current = false; // Reset abort flag for new query
 
         // Process streaming agent responses
         let previousMessageCount = 0;
@@ -1646,11 +1649,11 @@ export function useAgent(options: UseAgentOptions) {
         }
 
         // If query completed without assistant response, show error
-        // BUT: Don't show error if user aborted (finishReason === 'stop')
+        // BUT: Don't show error if user aborted via ESC key
         if (
           !hasAssistantMessage &&
           previousMessageCount <= 1 &&
-          lastResponse?.finishReason !== 'stop'
+          !abortedRef.current
         ) {
           // Check for authentication errors in stderr
           let errorMsg = '';
@@ -1972,6 +1975,7 @@ export function useAgent(options: UseAgentOptions) {
         if (process.env.DEBUG_ESC_INPUT) {
           console.error('[useAgent] Calling adapter.interrupt()');
         }
+        abortedRef.current = true; // Mark as user-aborted
         await currentAdapterRef.current.interrupt();
         currentAdapterRef.current = null;
       } catch (err) {
