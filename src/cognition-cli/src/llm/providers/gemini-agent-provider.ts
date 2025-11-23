@@ -178,9 +178,6 @@ export class GeminiAgentProvider implements AgentProvider {
     let promptTokens = 0;
     let completionTokens = 0;
 
-    // Track if we've yielded any responses (to avoid duplicate final yield)
-    let hasYieldedResponse = false;
-
     // Track accumulated content to extract deltas (SSE sends full text each time)
     // Use Map for thinking blocks (key = block ID extracted from header)
     const accumulatedThinkingBlocks = new Map<string, string>();
@@ -189,9 +186,6 @@ export class GeminiAgentProvider implements AgentProvider {
     // Track TOTAL accumulated content (never reset) to catch combined final parts
     let totalThinkingLength = 0;
     let totalAssistantLength = 0;
-
-    // Track all parts we've processed to avoid duplicates (Gemini sends duplicate parts in events)
-    const processedParts = new Set<string>();
 
     // Create or resume session
     const sessionId = request.resumeSessionId || `gemini-${Date.now()}`;
@@ -260,6 +254,10 @@ export class GeminiAgentProvider implements AgentProvider {
           break;
         }
 
+        if (process.env.DEBUG_GEMINI_STREAM) {
+          console.error(`[Gemini] Processing event (turn ${numTurns + 1})`);
+        }
+
         // Cast event to access properties (ADK types are not well defined yet)
         const evt = event as unknown as {
           author?: string;
@@ -310,6 +308,12 @@ export class GeminiAgentProvider implements AgentProvider {
           for (const part of evt.content.parts) {
             // Handle function calls (tool use)
             if (part.functionCall) {
+              if (process.env.DEBUG_GEMINI_STREAM) {
+                console.error(
+                  `\n[Gemini] === TOOL CALL: ${part.functionCall.name} ===`
+                );
+              }
+
               // Don't pre-format - let TUI handle formatting via toolName/toolInput
               const toolMessage: AgentMessage = {
                 id: `msg-${Date.now()}-tool-${numTurns}`,
@@ -335,10 +339,25 @@ export class GeminiAgentProvider implements AgentProvider {
                 finishReason: 'tool_use',
                 numTurns,
               };
+
+              // Reset assistant accumulator after tool use - next assistant message will be a new response
+              if (process.env.DEBUG_GEMINI_STREAM) {
+                console.error(
+                  '[Gemini] Resetting assistant accumulator (post-tool-use)'
+                );
+              }
+              accumulatedAssistant = '';
+              totalAssistantLength = 0;
             }
 
             // Handle function responses (tool results)
             if (part.functionResponse) {
+              if (process.env.DEBUG_GEMINI_STREAM) {
+                console.error(
+                  `\n[Gemini] === TOOL RESULT: ${part.functionResponse.name} ===`
+                );
+              }
+
               const resultMessage: AgentMessage = {
                 id: `msg-${Date.now()}-result-${numTurns}`,
                 type: 'tool_result',
@@ -365,6 +384,15 @@ export class GeminiAgentProvider implements AgentProvider {
                 finishReason: 'stop',
                 numTurns,
               };
+
+              // Reset assistant accumulator after tool result - next assistant message will be a new response
+              if (process.env.DEBUG_GEMINI_STREAM) {
+                console.error(
+                  '[Gemini] Resetting assistant accumulator (post-tool-result)'
+                );
+              }
+              accumulatedAssistant = '';
+              totalAssistantLength = 0;
             }
 
             // Handle text responses (both thinking and regular)
@@ -373,16 +401,14 @@ export class GeminiAgentProvider implements AgentProvider {
               const isThinking = part.thought === true;
               const messageType = isThinking ? 'thinking' : 'assistant';
 
-              // Create unique key for this part (type + content)
-              const partKey = `${messageType}:${part.text}`;
-
-              // Skip if we've already processed this exact part (Gemini sends duplicates)
-              if (processedParts.has(partKey)) {
-                continue;
+              if (process.env.DEBUG_GEMINI_STREAM) {
+                console.error(
+                  `\n[Gemini] === NEW EVENT: ${messageType} (${part.text.length} chars) ===`
+                );
+                console.error(
+                  `[Gemini] Text preview: "${part.text.substring(0, 150)}..."`
+                );
               }
-
-              // Mark this part as processed
-              processedParts.add(partKey);
 
               // SSE mode sends FULL accumulated text each time, not deltas
               // For thinking blocks, extract block ID from header (e.g., "**Analyzing Code**")
@@ -398,36 +424,54 @@ export class GeminiAgentProvider implements AgentProvider {
                 accumulated = accumulatedAssistant;
               }
 
+              if (process.env.DEBUG_GEMINI_STREAM) {
+                console.error(
+                  `[Gemini] Accumulated: ${accumulated.length} chars: "${accumulated.substring(0, 100)}..."`
+                );
+              }
+
               // Check total accumulated length to catch combined final parts
               const totalAccumulated = isThinking
                 ? totalThinkingLength
                 : totalAssistantLength;
 
+              if (process.env.DEBUG_GEMINI_STREAM) {
+                console.error(
+                  `[Gemini] Total accumulated: ${totalAccumulated} chars`
+                );
+              }
+
               // Skip if this part doesn't add new content beyond what we've already sent
               if (part.text.length <= totalAccumulated) {
-                // Update accumulated tracker to prevent future duplicates
-                if (isThinking) {
-                  accumulatedThinkingBlocks.set(blockId, part.text);
-                } else {
-                  accumulatedAssistant = part.text;
+                if (process.env.DEBUG_GEMINI_STREAM) {
+                  console.error(
+                    `[Gemini] SKIP: part.text.length (${part.text.length}) <= totalAccumulated (${totalAccumulated})`
+                  );
                 }
+                // Don't update accumulators when skipping - we need to preserve the longer text
+                // for correct delta extraction on the next event
                 continue;
               }
 
               // Skip if no new content (shorter than current accumulated = stale event)
               if (accumulated && part.text.length < accumulated.length) {
+                if (process.env.DEBUG_GEMINI_STREAM) {
+                  console.error(
+                    `[Gemini] SKIP: Stale event (${part.text.length} < ${accumulated.length})`
+                  );
+                }
                 continue;
               }
 
-              // Verify this is a legitimate continuation (not a restructured/combined block)
-              // ONLY apply this check to thinking blocks - they can get restructured/merged
-              // Regular assistant messages should be trusted as valid deltas or full text
-              if (
-                isThinking &&
-                accumulated &&
-                !part.text.startsWith(accumulated)
-              ) {
-                // This is likely a combined thinking block merging multiple sections
+              // Verify this is a legitimate continuation (not a restructured/combined event)
+              // Both thinking AND assistant messages can get restructured by Gemini
+              if (accumulated && !part.text.startsWith(accumulated)) {
+                if (process.env.DEBUG_GEMINI_STREAM) {
+                  console.error(
+                    `[Gemini] SKIP: ${messageType} doesn't start with accumulated (restructured event)`
+                  );
+                }
+                // This is likely a restructured event with different text
                 continue;
               }
 
@@ -436,6 +480,11 @@ export class GeminiAgentProvider implements AgentProvider {
               if (isThinking && accumulated) {
                 const headerMatches = part.text.match(/\*\*[^*]+\*\*/g);
                 if (headerMatches && headerMatches.length > 1) {
+                  if (process.env.DEBUG_GEMINI_STREAM) {
+                    console.error(
+                      `[Gemini] SKIP: Multiple headers in thinking block`
+                    );
+                  }
                   continue;
                 }
               }
@@ -443,8 +492,17 @@ export class GeminiAgentProvider implements AgentProvider {
               // Extract delta text (only the new portion)
               const deltaText = part.text.substring(accumulated.length);
 
+              if (process.env.DEBUG_GEMINI_STREAM) {
+                console.error(
+                  `[Gemini] Delta (${deltaText.length} chars): "${deltaText.substring(0, 100)}..."`
+                );
+              }
+
               // Skip if delta is empty or just whitespace (final event with no new content)
               if (!deltaText || deltaText.trim().length === 0) {
+                if (process.env.DEBUG_GEMINI_STREAM) {
+                  console.error(`[Gemini] SKIP: Empty delta`);
+                }
                 // Update accumulated tracker even though we're skipping
                 if (isThinking) {
                   accumulatedThinkingBlocks.set(blockId, part.text);
@@ -461,6 +519,12 @@ export class GeminiAgentProvider implements AgentProvider {
               } else {
                 accumulatedAssistant = part.text;
                 totalAssistantLength += deltaText.length;
+              }
+
+              if (process.env.DEBUG_GEMINI_STREAM) {
+                console.error(
+                  `[Gemini] ✓ YIELDING delta, new total: ${isThinking ? totalThinkingLength : totalAssistantLength} chars`
+                );
               }
 
               // Create new message with delta text
@@ -481,7 +545,6 @@ export class GeminiAgentProvider implements AgentProvider {
 
               totalTokens += Math.ceil(part.text.length / 4);
 
-              hasYieldedResponse = true;
               yield {
                 messages: [...messages],
                 sessionId,
@@ -501,22 +564,25 @@ export class GeminiAgentProvider implements AgentProvider {
       }
 
       // Final response with actual token counts from Gemini API
-      // Only yield if we haven't yielded any responses yet (edge case: empty response)
-      if (!hasYieldedResponse) {
-        yield {
-          messages: [...messages],
-          sessionId,
-          tokens: {
-            prompt: promptTokens || Math.ceil(request.prompt.length / 4),
-            completion: completionTokens || totalTokens,
-            total:
-              (promptTokens || Math.ceil(request.prompt.length / 4)) +
-              (completionTokens || totalTokens),
-          },
-          finishReason: 'stop',
-          numTurns,
-        };
+      // Always yield final response to signal completion (even if we've yielded before)
+      if (process.env.DEBUG_GEMINI_STREAM) {
+        console.error(
+          `\n[Gemini] === STREAM LOOP EXITED ===\n[Gemini] Total turns: ${numTurns}\n[Gemini] Final tokens: ${promptTokens} prompt, ${completionTokens} completion\n[Gemini] Last message type: ${messages[messages.length - 1]?.type || 'none'}\n[Gemini] Yielding final response with finishReason='stop'`
+        );
       }
+      yield {
+        messages: [...messages],
+        sessionId,
+        tokens: {
+          prompt: promptTokens || Math.ceil(request.prompt.length / 4),
+          completion: completionTokens || totalTokens,
+          total:
+            (promptTokens || Math.ceil(request.prompt.length / 4)) +
+            (completionTokens || totalTokens),
+        },
+        finishReason: 'stop',
+        numTurns,
+      };
     } catch (error) {
       // Check if this is a user-initiated abort (not an actual error)
       const errorMessage =
