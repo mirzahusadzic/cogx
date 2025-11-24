@@ -60,12 +60,8 @@ import type {
  */
 export class ClaudeProvider implements LLMProvider, AgentProvider {
   name = 'claude';
-  // Only models that support extended thinking (all recent Claude models)
-  models = [
-    'claude-sonnet-4-5-20250929',
-    'claude-3-5-sonnet-20241022',
-    'claude-3-opus-20240229',
-  ];
+  // Current Claude models (Opus 4.5 and Sonnet 4.5)
+  models = ['claude-opus-4-5-20251101', 'claude-sonnet-4-5-20250929'];
 
   private client: Anthropic;
   private currentQuery: Query | null = null;

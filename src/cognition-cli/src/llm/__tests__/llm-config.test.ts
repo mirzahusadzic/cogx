@@ -77,12 +77,12 @@ describe('LLM Configuration', () => {
     });
 
     it('should load Claude default model from COGNITION_CLAUDE_MODEL', () => {
-      process.env.COGNITION_CLAUDE_MODEL = 'claude-3-opus-20240229';
+      process.env.COGNITION_CLAUDE_MODEL = 'claude-opus-4-5-20251101';
 
       const config = loadLLMConfig();
 
       expect(config.providers.claude?.defaultModel).toBe(
-        'claude-3-opus-20240229'
+        'claude-opus-4-5-20251101'
       );
     });
 
@@ -213,20 +213,20 @@ describe('LLM Configuration', () => {
     });
 
     it('should return custom model when configured', () => {
-      process.env.COGNITION_CLAUDE_MODEL = 'claude-3-haiku-20240307';
+      process.env.COGNITION_CLAUDE_MODEL = 'claude-sonnet-4-5-20250929';
       process.env.COGNITION_GEMINI_MODEL = 'gemini-2.0-flash-exp';
 
-      expect(getProviderDefaultModel('claude')).toBe('claude-3-haiku-20240307');
+      expect(getProviderDefaultModel('claude')).toBe(
+        'claude-sonnet-4-5-20250929'
+      );
       expect(getProviderDefaultModel('gemini')).toBe('gemini-2.0-flash-exp');
     });
   });
 
   describe('Model constants', () => {
     it('should have Claude model presets', () => {
-      expect(CLAUDE_MODELS.latest).toBe('claude-sonnet-4-5-20250929');
-      expect(CLAUDE_MODELS.balanced).toBe('claude-3-5-sonnet-20241022');
-      expect(CLAUDE_MODELS.powerful).toBe('claude-3-opus-20240229');
-      expect(CLAUDE_MODELS.fast).toBe('claude-3-haiku-20240307');
+      expect(CLAUDE_MODELS.latest).toBe('claude-opus-4-5-20251101');
+      expect(CLAUDE_MODELS.balanced).toBe('claude-sonnet-4-5-20250929');
     });
 
     it('should have Gemini model presets', () => {

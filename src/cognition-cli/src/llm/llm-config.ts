@@ -68,17 +68,11 @@ export interface LLMConfig {
  * Default Claude models by use case
  */
 export const CLAUDE_MODELS = {
-  /** Latest and most capable Sonnet model */
-  latest: 'claude-sonnet-4-5-20250929',
+  /** Most capable Opus model (default) */
+  latest: 'claude-opus-4-5-20251101',
 
   /** Balanced performance and cost */
-  balanced: 'claude-3-5-sonnet-20241022',
-
-  /** Most capable, highest cost */
-  powerful: 'claude-3-opus-20240229',
-
-  /** Fastest, lowest cost */
-  fast: 'claude-3-haiku-20240307',
+  balanced: 'claude-sonnet-4-5-20250929',
 } as const;
 
 /**
