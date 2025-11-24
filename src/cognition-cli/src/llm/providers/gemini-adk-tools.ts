@@ -39,6 +39,13 @@ const MAX_TOOL_OUTPUT_CHARS = 50000;
 const EGEMMA_SUMMARIZE_THRESHOLD = 15000;
 
 /**
+ * Absolute max size for tool output before it's truncated without summarization.
+ * Prevents sending excessively large data (e.g., `ls -R` on a large repo)
+ * to the summarizer model.
+ */
+const PRE_TRUNCATE_THRESHOLD = 250000;
+
+/**
  * Workbench client for eGemma summarization (lazy initialized)
  */
 let workbenchClient: WorkbenchClient | null = null;
@@ -85,15 +92,19 @@ async function smartCompressOutput(
   maxChars: number = MAX_TOOL_OUTPUT_CHARS,
   workbenchUrl?: string
 ): Promise<string> {
-  // Small outputs don't need compression
-  if (output.length <= maxChars) return output;
-
-  // Medium outputs: use truncation (fast, no API call)
+  // Tier 1: Small outputs pass through untouched.
   if (output.length <= EGEMMA_SUMMARIZE_THRESHOLD) {
-    return truncateOutput(output, maxChars);
+    return output;
   }
 
-  // Large outputs: try eGemma summarization
+  // Tier 3: Catastrophically large outputs are truncated immediately
+  // without attempting to summarize. This protects the summarizer model.
+  if (output.length > PRE_TRUNCATE_THRESHOLD) {
+    const truncated = truncateOutput(output, EGEMMA_SUMMARIZE_THRESHOLD);
+    return `[OUTPUT TOO LARGE FOR SUMMARIZATION: Truncated to ${EGEMMA_SUMMARIZE_THRESHOLD} of ${output.length} chars]\n\n${truncated}`;
+  }
+
+  // Tier 2: Medium outputs are suitable for intelligent summarization.
   // Check workbench availability (cached after first check)
   if (workbenchAvailable === null) {
     try {
@@ -105,12 +116,11 @@ async function smartCompressOutput(
     }
   }
 
+  // Tier 4: Fallback to truncation if summarizer is unavailable or fails.
   if (!workbenchAvailable) {
-    // Fallback to truncation
     return truncateOutput(output, maxChars);
   }
 
-  // Use eGemma for intelligent summarization
   try {
     const client = getWorkbenchClient(workbenchUrl);
     const response = await client.summarize({
@@ -124,7 +134,7 @@ async function smartCompressOutput(
 
     return `[eGemma Summary - ${output.length} chars compressed]\n\n${response.summary}`;
   } catch {
-    // Fallback to truncation on error
+    // Tier 4: Fallback to truncation on any summarization error.
     return truncateOutput(output, maxChars);
   }
 }
