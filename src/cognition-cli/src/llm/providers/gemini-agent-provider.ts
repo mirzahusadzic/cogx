@@ -790,6 +790,14 @@ ${request.cwd || process.cwd()}
 - When making changes, explain what you're doing briefly
 - Prefer editing existing files over creating new ones
 - Run tests after making code changes
-- Use WebSearch tool when you need current information that might not be in files (e.g., latest docs, recent changes, current events)`;
+- Use WebSearch tool when you need current information that might not be in files (e.g., latest docs, recent changes, current events)
+
+## Token Economy (IMPORTANT - Each tool call costs tokens!)
+- **NEVER re-read files you just edited** - you already have the content in context
+- **Use glob/grep BEFORE read_file** - find specific content instead of reading entire files
+- **Batch operations** - if you need multiple files, plan which ones first, then read them efficiently
+- **Use limit/offset for large files** - read only the sections you need
+- **Avoid redundant reads** - if you read a file earlier in this conversation, don't read it again unless it changed
+- **Summarize don't quote** - explain findings concisely rather than quoting entire file contents`;
   }
 }

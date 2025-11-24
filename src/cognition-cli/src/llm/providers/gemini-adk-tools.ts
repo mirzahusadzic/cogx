@@ -22,14 +22,38 @@ type OnCanUseTool = (
 ) => Promise<{ behavior: 'allow' | 'deny'; updatedInput?: unknown }>;
 
 /**
+ * Maximum characters for tool output before truncation.
+ * Helps keep context window manageable and reduces token costs.
+ */
+const MAX_TOOL_OUTPUT_CHARS = 50000;
+
+/**
+ * Truncate output if it exceeds max length
+ */
+function truncateOutput(
+  output: string,
+  maxChars: number = MAX_TOOL_OUTPUT_CHARS
+): string {
+  if (output.length <= maxChars) return output;
+  const truncated = output.substring(0, maxChars);
+  const lineCount = (output.match(/\n/g) || []).length;
+  const truncatedLineCount = (truncated.match(/\n/g) || []).length;
+  return `${truncated}\n\n... [TRUNCATED: showing ${truncatedLineCount} of ${lineCount} lines. Use limit/offset params for specific sections]`;
+}
+
+/**
  * Read file tool - reads file contents
  */
 export const readFileTool = new FunctionTool({
   name: 'read_file',
-  description: 'Read the contents of a file at the given path',
+  description:
+    'Read file contents. EFFICIENCY TIP: Use glob/grep first to find files, use limit/offset for large files. Do NOT re-read files you just edited.',
   parameters: z.object({
     file_path: z.string().describe('Absolute path to the file to read'),
-    limit: z.number().optional().describe('Max lines to read'),
+    limit: z
+      .number()
+      .optional()
+      .describe('Max lines to read (use for large files!)'),
     offset: z.number().optional().describe('Line offset to start from'),
   }),
   execute: async ({ file_path, limit, offset }) => {
@@ -41,9 +65,11 @@ export const readFileTool = new FunctionTool({
       const end = limit ? start + limit : lines.length;
       const sliced = lines.slice(start, end);
 
-      return sliced
+      const result = sliced
         .map((line, i) => `${String(start + i + 1).padStart(6)}│${line}`)
         .join('\n');
+
+      return truncateOutput(result);
     } catch (error) {
       return `Error reading file: ${error instanceof Error ? error.message : String(error)}`;
     }
@@ -76,9 +102,12 @@ export const writeFileTool = new FunctionTool({
  */
 export const globTool = new FunctionTool({
   name: 'glob',
-  description: 'Find files matching a glob pattern',
+  description:
+    'Find files matching pattern. EFFICIENCY TIP: Use this BEFORE read_file to find the right files first.',
   parameters: z.object({
-    pattern: z.string().describe('Glob pattern (e.g., "**/*.ts")'),
+    pattern: z
+      .string()
+      .describe('Glob pattern (e.g., "**/*.ts", "src/**/*.py")'),
     cwd: z.string().optional().describe('Working directory'),
   }),
   execute: async ({ pattern, cwd }) => {
@@ -100,11 +129,15 @@ export const globTool = new FunctionTool({
  */
 export const grepTool = new FunctionTool({
   name: 'grep',
-  description: 'Search for a pattern in files using ripgrep',
+  description:
+    'Search for pattern in files using ripgrep. EFFICIENCY TIP: Use this BEFORE read_file to find exactly what you need.',
   parameters: z.object({
     pattern: z.string().describe('Regex pattern to search'),
     path: z.string().optional().describe('Path to search in'),
-    glob_filter: z.string().optional().describe('File glob filter'),
+    glob_filter: z
+      .string()
+      .optional()
+      .describe('File glob filter (e.g., "*.ts")'),
   }),
   execute: async ({ pattern, path: searchPath, glob_filter }) => {
     return new Promise((resolve) => {
@@ -120,7 +153,9 @@ export const grepTool = new FunctionTool({
       let output = '';
       proc.stdout.on('data', (data) => (output += data.toString()));
       proc.stderr.on('data', (data) => (output += data.toString()));
-      proc.on('close', () => resolve(output.slice(0, 10000) || 'No matches'));
+      proc.on('close', () =>
+        resolve(truncateOutput(output, 15000) || 'No matches')
+      );
       proc.on('error', () => resolve(`Error running grep`));
     });
   },
@@ -131,7 +166,8 @@ export const grepTool = new FunctionTool({
  */
 export const bashTool = new FunctionTool({
   name: 'bash',
-  description: 'Execute a bash command (use for git, npm, etc.)',
+  description:
+    'Execute bash command (git, npm, etc.). EFFICIENCY TIP: Pipe to head/tail for large outputs. Avoid verbose flags.',
   parameters: z.object({
     command: z.string().describe('The command to execute'),
     timeout: z.number().optional().describe('Timeout in ms (default 120000)'),
@@ -149,9 +185,7 @@ export const bashTool = new FunctionTool({
       proc.stderr.on('data', (data) => (stderr += data.toString()));
       proc.on('close', (code) => {
         const output = stdout + (stderr ? `\nSTDERR:\n${stderr}` : '');
-        resolve(
-          `Exit code: ${code}\n${output.slice(0, 30000)}${output.length > 30000 ? '\n... truncated' : ''}`
-        );
+        resolve(`Exit code: ${code}\n${truncateOutput(output, 30000)}`);
       });
       proc.on('error', (err) => resolve(`Error: ${err.message}`));
     });
