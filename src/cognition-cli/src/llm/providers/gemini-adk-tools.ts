@@ -12,6 +12,11 @@ import { spawn } from 'child_process';
 import { glob } from 'glob';
 import type { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
 import { queryConversationLattice } from '../../sigma/query-conversation.js';
+import { WorkbenchClient } from '../../core/executors/workbench-client.js';
+import {
+  PERSONA_TOOL_OUTPUT_SUMMARIZER,
+  DEFAULT_SLM_MODEL_NAME,
+} from '../../config.js';
 
 /**
  * Tool permission callback (from AgentRequest interface)
@@ -28,7 +33,31 @@ type OnCanUseTool = (
 const MAX_TOOL_OUTPUT_CHARS = 50000;
 
 /**
- * Truncate output if it exceeds max length
+ * Threshold for eGemma summarization (chars).
+ * Outputs larger than this will be summarized via eGemma if available.
+ */
+const EGEMMA_SUMMARIZE_THRESHOLD = 15000;
+
+/**
+ * Workbench client for eGemma summarization (lazy initialized)
+ */
+let workbenchClient: WorkbenchClient | null = null;
+let workbenchAvailable: boolean | null = null;
+
+/**
+ * Initialize workbench client for eGemma summarization
+ */
+function getWorkbenchClient(workbenchUrl?: string): WorkbenchClient {
+  if (!workbenchClient) {
+    workbenchClient = new WorkbenchClient(
+      workbenchUrl || process.env.WORKBENCH_URL || 'http://localhost:8000'
+    );
+  }
+  return workbenchClient;
+}
+
+/**
+ * Truncate output if it exceeds max length (fallback when eGemma unavailable)
  */
 function truncateOutput(
   output: string,
@@ -39,6 +68,65 @@ function truncateOutput(
   const lineCount = (output.match(/\n/g) || []).length;
   const truncatedLineCount = (truncated.match(/\n/g) || []).length;
   return `${truncated}\n\n... [TRUNCATED: showing ${truncatedLineCount} of ${lineCount} lines. Use limit/offset params for specific sections]`;
+}
+
+/**
+ * Intelligently compress tool output using eGemma summarization.
+ * Falls back to truncation if eGemma is unavailable.
+ *
+ * @param output - Raw tool output
+ * @param toolType - Type of tool (bash, grep, read_file, glob) for context
+ * @param maxChars - Maximum output characters
+ * @param workbenchUrl - Optional workbench URL override
+ */
+async function smartCompressOutput(
+  output: string,
+  toolType: 'bash' | 'grep' | 'read_file' | 'glob',
+  maxChars: number = MAX_TOOL_OUTPUT_CHARS,
+  workbenchUrl?: string
+): Promise<string> {
+  // Small outputs don't need compression
+  if (output.length <= maxChars) return output;
+
+  // Medium outputs: use truncation (fast, no API call)
+  if (output.length <= EGEMMA_SUMMARIZE_THRESHOLD) {
+    return truncateOutput(output, maxChars);
+  }
+
+  // Large outputs: try eGemma summarization
+  // Check workbench availability (cached after first check)
+  if (workbenchAvailable === null) {
+    try {
+      const client = getWorkbenchClient(workbenchUrl);
+      await client.health();
+      workbenchAvailable = true;
+    } catch {
+      workbenchAvailable = false;
+    }
+  }
+
+  if (!workbenchAvailable) {
+    // Fallback to truncation
+    return truncateOutput(output, maxChars);
+  }
+
+  // Use eGemma for intelligent summarization
+  try {
+    const client = getWorkbenchClient(workbenchUrl);
+    const response = await client.summarize({
+      content: `Tool: ${toolType}\nOutput length: ${output.length} chars\n\n${output}`,
+      filename: `tool_output.${toolType}`,
+      persona: PERSONA_TOOL_OUTPUT_SUMMARIZER,
+      max_tokens: 2048,
+      temperature: 0.1,
+      model_name: DEFAULT_SLM_MODEL_NAME || undefined,
+    });
+
+    return `[eGemma Summary - ${output.length} chars compressed]\n\n${response.summary}`;
+  } catch {
+    // Fallback to truncation on error
+    return truncateOutput(output, maxChars);
+  }
 }
 
 /**
@@ -69,7 +157,7 @@ export const readFileTool = new FunctionTool({
         .map((line, i) => `${String(start + i + 1).padStart(6)}│${line}`)
         .join('\n');
 
-      return truncateOutput(result);
+      return await smartCompressOutput(result, 'read_file');
     } catch (error) {
       return `Error reading file: ${error instanceof Error ? error.message : String(error)}`;
     }
@@ -153,9 +241,10 @@ export const grepTool = new FunctionTool({
       let output = '';
       proc.stdout.on('data', (data) => (output += data.toString()));
       proc.stderr.on('data', (data) => (output += data.toString()));
-      proc.on('close', () =>
-        resolve(truncateOutput(output, 15000) || 'No matches')
-      );
+      proc.on('close', async () => {
+        const compressed = await smartCompressOutput(output, 'grep', 15000);
+        resolve(compressed || 'No matches');
+      });
       proc.on('error', () => resolve(`Error running grep`));
     });
   },
@@ -183,9 +272,10 @@ export const bashTool = new FunctionTool({
       let stderr = '';
       proc.stdout.on('data', (data) => (stdout += data.toString()));
       proc.stderr.on('data', (data) => (stderr += data.toString()));
-      proc.on('close', (code) => {
+      proc.on('close', async (code) => {
         const output = stdout + (stderr ? `\nSTDERR:\n${stderr}` : '');
-        resolve(`Exit code: ${code}\n${truncateOutput(output, 30000)}`);
+        const compressed = await smartCompressOutput(output, 'bash', 30000);
+        resolve(`Exit code: ${code}\n${compressed}`);
       });
       proc.on('error', (err) => resolve(`Error: ${err.message}`));
     });

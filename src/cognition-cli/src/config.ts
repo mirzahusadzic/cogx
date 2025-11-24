@@ -151,6 +151,12 @@ export const PERSONA_KNOWLEDGE_ASSISTANT = 'knowledge_assistant';
 export const PERSONA_CONVERSATION_MEMORY_ASSISTANT =
   'conversation_memory_assistant';
 
+/**
+ * Persona for intelligent tool output summarization
+ * Compresses large tool outputs while preserving critical info (errors, key findings)
+ */
+export const PERSONA_TOOL_OUTPUT_SUMMARIZER = 'tool_output_summarizer';
+
 // ========================================
 // RATE LIMITING
 // ========================================
