@@ -56,6 +56,13 @@ export const DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024;
 export const DEFAULT_SLM_MODEL_NAME = 'gemini-2.5-flash';
 
 /**
+ * Model for tool output summarization (eGemma compression)
+ * Uses Gemini 2.0 Flash for separate quota pool (4M TPM, unlimited RPD)
+ * This offloads summarization from the main agent's quota
+ */
+export const DEFAULT_SUMMARIZER_MODEL_NAME = 'gemini-2.0-flash';
+
+/**
  * Model for security validation (mission document analysis)
  * Uses Gemini Thinking model for deeper reasoning and threat detection
  */

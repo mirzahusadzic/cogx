@@ -15,7 +15,7 @@ import { queryConversationLattice } from '../../sigma/query-conversation.js';
 import { WorkbenchClient } from '../../core/executors/workbench-client.js';
 import {
   PERSONA_TOOL_OUTPUT_SUMMARIZER,
-  DEFAULT_SLM_MODEL_NAME,
+  DEFAULT_SUMMARIZER_MODEL_NAME,
 } from '../../config.js';
 
 /**
@@ -129,7 +129,7 @@ async function smartCompressOutput(
       persona: PERSONA_TOOL_OUTPUT_SUMMARIZER,
       max_tokens: 2048,
       temperature: 0.1,
-      model_name: DEFAULT_SLM_MODEL_NAME || undefined,
+      model_name: DEFAULT_SUMMARIZER_MODEL_NAME,
     });
 
     return `[eGemma Summary - ${output.length} chars compressed]\n\n${response.summary}`;
