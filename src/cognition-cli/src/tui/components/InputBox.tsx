@@ -672,7 +672,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
                         <Text dimColor color="#8b949e">
                           {disabled
                             ? ` ${providerName.charAt(0).toUpperCase() + providerName.slice(1)} is thinking... (ESC to interrupt)`
-                            : ' Type a message... (Ctrl+Enter for newline, ESC ESC to clear)'}
+                            : ' Type a message... (Ctrl+O for newline, ESC ESC to clear)'}
                         </Text>
                       )}
                     </Box>
