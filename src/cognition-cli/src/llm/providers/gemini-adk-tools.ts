@@ -35,9 +35,10 @@ const MAX_TOOL_OUTPUT_CHARS = 50000;
 
 /**
  * Threshold for eGemma summarization (chars).
- * Outputs larger than this will be summarized via eGemma if available.
+ * Only bash outputs larger than this will be summarized.
+ * read_file/grep/glob are left untouched (agent needs raw content).
  */
-const EGEMMA_SUMMARIZE_THRESHOLD = 15000;
+const EGEMMA_SUMMARIZE_THRESHOLD = 50000;
 
 /**
  * Absolute max size for tool output before it's truncated without summarization.
@@ -96,6 +97,11 @@ async function smartCompressOutput(
   // Tier 1: Small outputs pass through untouched.
   if (output.length <= EGEMMA_SUMMARIZE_THRESHOLD) {
     return output;
+  }
+
+  // Only summarize bash output - agent needs raw content for read_file/grep/glob
+  if (toolType !== 'bash') {
+    return truncateOutput(output, maxChars);
   }
 
   // Tier 3: Catastrophically large outputs are truncated immediately
