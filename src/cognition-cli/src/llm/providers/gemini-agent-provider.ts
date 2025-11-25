@@ -797,6 +797,7 @@ ${request.cwd || process.cwd()}
 - **Use glob/grep BEFORE read_file** - find specific content instead of reading entire files
 - **Batch operations** - if you need multiple files, plan which ones first, then read them efficiently
 - **Use limit/offset for large files** - read only the sections you need
+- **Prefer git diff or reading specific line ranges; avoid \`cat\` or \`read_file\` on full files unless the file is small (<50 lines) or strictly necessary.**
 - **Avoid redundant reads** - if you read a file earlier in this conversation, don't read it again unless it changed
 - **Summarize don't quote** - explain findings concisely rather than quoting entire file contents`;
   }
