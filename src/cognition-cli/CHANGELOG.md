@@ -1,9 +1,44 @@
 # Changelog
 
+### 📝 Documentation
+
+- **Gemini:** Refined the token economy guidelines in the system prompt for better clarity.
+- **TUI:** Updated the TUI command reference to reflect multi-provider support.
+
 All notable changes to the CogX Cognition CLI will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.5.1] - 2025-11-25
+
+### Summary
+
+This is a maintenance release focused on enhancing the Gemini provider's token economy, updating to the latest Claude models, and improving overall stability. It introduces several smart compression and summarization optimizations for Gemini to reduce token usage and adds key bug fixes for both Claude and the TUI.
+
+### ✨ Improvements
+
+#### Gemini Provider Optimizations
+
+A series of improvements to make the Gemini provider more efficient and robust:
+
+- **eGemma Smart Compression:** Large tool outputs are now intelligently compressed to optimize token usage.
+- **Dedicated Summarization Model:** Now uses `gemini-2.0-flash` for tool output summarization, improving speed and cost-effectiveness.
+- **Increased Summarizer Budget:** The summarizer's max token limit has been increased to 8192 for handling larger outputs.
+- **Token Economy Optimizations:** Implemented a pre-truncate threshold to protect against token bombs and refined token counting across conversation turns.
+
+#### LLM Model Updates
+
+- **Claude:** Updated supported models to the latest `Opus 4.5` and `Sonnet 4.5`.
+- **Gemini:** Added internal support for upcoming Gemini models and configurations.
+
+### 🐛 Bug Fixes
+
+- **Claude:** Improved authentication error detection to correctly identify and report auth issues.
+- **Gemini:** Resolved a bug in token counting, ensuring accurate accumulation across multiple turns for precise quota. tracking.
+- **TUI:** The `read_file` tool display in the TUI now correctly shows `offset` and `limit` parameters.
+- **TUI:** Updated the multiline input hint to the more universal `Ctrl+O`.
+- **CLI:** Fixed a crash that occurred when running the `init` command without any arguments.
 
 ## [2.5.0] - 2025-11-23
 
