@@ -63,6 +63,12 @@ export const DEFAULT_SLM_MODEL_NAME = 'gemini-2.5-flash';
 export const DEFAULT_SUMMARIZER_MODEL_NAME = 'gemini-2.0-flash';
 
 /**
+ * Max tokens for tool output summarization
+ * Generous limit since gemini-2.0-flash has 4M TPM headroom
+ */
+export const DEFAULT_SUMMARIZER_MAX_TOKENS = 8192;
+
+/**
  * Model for security validation (mission document analysis)
  * Uses Gemini Thinking model for deeper reasoning and threat detection
  */

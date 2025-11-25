@@ -16,6 +16,7 @@ import { WorkbenchClient } from '../../core/executors/workbench-client.js';
 import {
   PERSONA_TOOL_OUTPUT_SUMMARIZER,
   DEFAULT_SUMMARIZER_MODEL_NAME,
+  DEFAULT_SUMMARIZER_MAX_TOKENS,
 } from '../../config.js';
 
 /**
@@ -127,7 +128,7 @@ async function smartCompressOutput(
       content: `Tool: ${toolType}\nOutput length: ${output.length} chars\n\n${output}`,
       filename: `tool_output.${toolType}`,
       persona: PERSONA_TOOL_OUTPUT_SUMMARIZER,
-      max_tokens: 2048,
+      max_tokens: DEFAULT_SUMMARIZER_MAX_TOKENS,
       temperature: 0.1,
       model_name: DEFAULT_SUMMARIZER_MODEL_NAME,
     });
