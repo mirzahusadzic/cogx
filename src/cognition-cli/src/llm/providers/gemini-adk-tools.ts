@@ -152,7 +152,7 @@ async function smartCompressOutput(
 export const readFileTool = new FunctionTool({
   name: 'read_file',
   description:
-    'Read file contents. EFFICIENCY TIP: Use glob/grep first to find files, use limit/offset for large files. Do NOT re-read files you just edited.',
+    'Reads a file, prioritizing partial reads. STANDARD WORKFLOW: 1. Use `grep` to find relevant line numbers. 2. Use this tool with `offset` and `limit` to read that specific section. Avoid reading whole files.',
   parameters: z.object({
     file_path: z.string().describe('Absolute path to the file to read'),
     limit: z

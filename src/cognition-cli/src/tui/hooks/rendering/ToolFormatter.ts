@@ -210,7 +210,18 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
         tool.input.new_string as string
       );
     } else {
-      inputDesc = `file: ${tool.input.file_path as string}`;
+      let filePathDesc = `file: ${tool.input.file_path as string}`;
+      if (
+        typeof tool.input.offset === 'number' &&
+        typeof tool.input.limit === 'number'
+      ) {
+        filePathDesc += ` (offset: ${tool.input.offset}, limit: ${tool.input.limit})`;
+      } else if (typeof tool.input.offset === 'number') {
+        filePathDesc += ` (offset: ${tool.input.offset})`;
+      } else if (typeof tool.input.limit === 'number') {
+        filePathDesc += ` (limit: ${tool.input.limit})`;
+      }
+      inputDesc = filePathDesc;
     }
   } else if (tool.input.pattern) {
     inputDesc = `pattern: ${tool.input.pattern as string}`;
