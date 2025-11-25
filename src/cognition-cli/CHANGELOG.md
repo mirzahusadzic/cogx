@@ -1,6 +1,6 @@
 # Changelog
 
-### 📝 Documentation
+## 📝 Documentation
 
 - **Gemini:** Refined the token economy guidelines in the system prompt for better clarity.
 - **TUI:** Updated the TUI command reference to reflect multi-provider support.
