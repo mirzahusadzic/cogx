@@ -420,7 +420,21 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
         );
       }
 
-      // 5. For all other errors, provide context but don't crash with raw error
+      // 5. Claude Code subprocess exit with code 1 (often auth error, but SDK eats the message)
+      // The SDK spawns Claude Code which prints "use /login" on auth failure, but only
+      // returns generic "process exited with code 1" to us
+      if (
+        errorMessage.includes('process exited with code 1') ||
+        errorMessage.includes('exited with code 1')
+      ) {
+        throw new Error(
+          `Claude Code exited unexpectedly. This is often an authentication issue.\n` +
+            `Please run: claude /login\n` +
+            `If the issue persists, check your API key or OAuth token.`
+        );
+      }
+
+      // 6. For all other errors, provide context but don't crash with raw error
       console.error('[Claude Provider] Error during query:', errorMessage);
       throw new Error(
         `Claude API error: ${errorMessage.substring(0, 200)}${errorMessage.length > 200 ? '...' : ''}`
