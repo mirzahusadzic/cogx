@@ -62,6 +62,7 @@ export class GeminiAgentProvider implements AgentProvider {
   models = [
     'gemini-2.5-flash', // Default - fast and supports thinking mode
     'gemini-2.5-pro', // Supports thinking mode
+    'gemini-3-pro-preview', // Supports thinking_level
     'gemini-2.0-flash-thinking-exp-01-21',
   ];
 
@@ -143,24 +144,36 @@ export class GeminiAgentProvider implements AgentProvider {
     // Create abort controller for cancellation support
     this.abortController = new AbortController();
 
+    const modelId = request.model || 'gemini-2.5-flash';
+    const isGemini3 = modelId.includes('gemini-3');
+
     const agent = new LlmAgent({
       name: 'cognition_agent',
-      model: request.model || 'gemini-2.5-flash',
+      model: modelId,
       instruction: this.buildSystemPrompt(request),
       tools,
       generateContentConfig: {
         abortSignal: this.abortController.signal,
-        thinkingConfig: {
-          // Gemini's max thinking budget is 24,576 tokens
-          // Use dynamic thinking (-1) or custom budget (capped at max)
-          thinkingBudget:
-            request.maxThinkingTokens !== undefined
-              ? Math.min(request.maxThinkingTokens, 24576)
-              : -1,
-          // Enable thought summaries based on displayThinking flag (default: true)
-          includeThoughts: request.displayThinking !== false,
-        },
-      },
+        ...(isGemini3
+          ? {
+              // GEMINI 3.0 CONFIG (Requires SDK bypass currently)
+              thinkingConfig: {
+                thinkingLevel: 'HIGH', // "LOW" for speed, "HIGH" for deep reasoning
+                includeThoughts: request.displayThinking !== false, // Optional: returns the hidden chain-of-thought
+              },
+            }
+          : {
+              // GEMINI 2.5 / LEGACY CONFIG
+              thinkingConfig: {
+                thinkingBudget:
+                  request.maxThinkingTokens !== undefined
+                    ? Math.min(request.maxThinkingTokens, 24576)
+                    : -1,
+                includeThoughts: request.displayThinking !== false,
+              },
+            }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any, // <--- Cast to 'any' to avoid TS errors in @google/adk v0.1.3
     });
 
     // Create runner
