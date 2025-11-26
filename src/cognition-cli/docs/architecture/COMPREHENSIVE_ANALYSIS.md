@@ -7,7 +7,7 @@
 **At a Glance:**
 
 - **Current Version:** 2.4.0 (Production Excellence)
-- **Production Lines:** ~61,942 TypeScript (incl. comments/blanks)
+- **Production Lines:** ~76,170 TypeScript (excl. tests), ~93,382 total
 - **Test Coverage:** ~85% across 120+ test files
 - **Architecture:** 7 cognitive overlays (O₁-O₇), dual-lattice Σ system
 - **License:** AGPL-3.0-or-later
@@ -734,26 +734,70 @@ The same architecture that understands code can preserve human identity through 
 
 ## Summary Statistics
 
-| Metric                      | Value                              |
-| --------------------------- | ---------------------------------- |
-| Production TypeScript Lines | ~65,010 (incl. comments/blanks)    |
-| Core Module Lines           | 35,391 (54% - PGC/overlays/llm)    |
-| Sigma Module Lines          | 10,043 (16% - infinite context)    |
-| TUI Module Lines            | 7,570 (12% - React Ink interface)  |
-| Commands Module Lines       | 10,462 (17% - CLI commands)        |
-| Utils Module Lines          | 1,544 (3% - errors, formatting)    |
-| Total Dependencies          | 54 npm packages (31 prod + 23 dev) |
-| Documentation Pages         | 30+                                |
-| Manual Chapters             | 22 (+ appendix)                    |
-| Cognitive Overlays          | 7 (O₁-O₇)                          |
-| Supported Languages         | 3 (TS/JS/Python)                   |
-| Core Commands               | 40+ (with tab completion)          |
-| Test Files                  | 120+ (comprehensive coverage)      |
-| Test Coverage               | ~85% (security, compression, UX)   |
-| Current Version             | 2.4.0 (Production Excellence)      |
-| License                     | AGPL-3.0-or-later                  |
-| Zenodo DOI                  | 10.5281/zenodo.17509405            |
-| Innovations Published       | 46 (defensive patent publication)  |
+| Metric                     | Value                     |
+| -------------------------- | ------------------------- |
+| **Total TypeScript Lines** | **~93,382** (incl. tests) |
+| Production Code Lines      | ~76,170 (excl. tests)     |
+| Test Code Lines            | ~17,212 (56 test files)   |
+| Total Source Files         | 253 (197 prod + 56 test)  |
+
+### Lines of Code by Module
+
+| Module        | LOC        | Files   | % of Prod | Description                   |
+| ------------- | ---------- | ------- | --------- | ----------------------------- |
+| **core/**     | 34,475     | 84      | 45.3%     | PGC, overlays, orchestrators  |
+| **commands/** | 13,255     | 31      | 17.4%     | CLI command implementations   |
+| **tui/**      | 11,098     | 36      | 14.6%     | React Ink terminal interface  |
+| **sigma/**    | 10,092     | 28      | 13.3%     | Infinite context dual-lattice |
+| **llm/**      | 3,524      | 8       | 4.6%      | LLM provider abstraction      |
+| **utils/**    | 2,308      | 8       | 3.0%      | Errors, formatting, helpers   |
+| **root**      | 1,418      | 2       | 1.9%      | cli.ts, config.ts             |
+| **Total**     | **76,170** | **197** | **100%**  |                               |
+
+### Core Module Breakdown
+
+| Submodule      | LOC   | Description                         |
+| -------------- | ----- | ----------------------------------- |
+| overlays/      | 8,077 | 7 cognitive overlays (O₁-O₇)        |
+| orchestrators/ | 5,354 | Genesis, miners, workers            |
+| pgc/           | 4,810 | Object store, index, transforms     |
+| analyzers/     | 3,285 | Concept, strategy, workflow         |
+| security/      | 3,297 | Mission validation, security config |
+| algebra/       | 1,948 | Lattice operations, query parser    |
+| types/         | 1,457 | Type definitions                    |
+| graph/         | 1,239 | Dependency graph types              |
+| transforms/    | 942   | Genesis document transforms         |
+| quest/         | 775   | Operations log                      |
+| query/         | 531   | Query engine                        |
+| parsers/       | 518   | Markdown parser                     |
+| services/      | 331   | Embedding service                   |
+| config/        | 123   | Mission sections config             |
+
+### TUI Module Breakdown
+
+| Submodule   | LOC   | Description                        |
+| ----------- | ----- | ---------------------------------- |
+| hooks/      | 7,919 | React hooks (agent, session, etc.) |
+| components/ | 1,805 | UI components (Ink/React)          |
+| root files  | 697   | Entry points, types                |
+| commands/   | 413   | TUI command loader                 |
+
+### Other Metrics
+
+| Metric                | Value                              |
+| --------------------- | ---------------------------------- |
+| Total Dependencies    | 54 npm packages (31 prod + 23 dev) |
+| Documentation Pages   | 30+                                |
+| Manual Chapters       | 22 (+ appendix)                    |
+| Cognitive Overlays    | 7 (O₁-O₇)                          |
+| Supported Languages   | 3 (TS/JS/Python)                   |
+| Core Commands         | 40+ (with tab completion)          |
+| Test Files            | 56 (comprehensive coverage)        |
+| Test Coverage         | ~85% (security, compression, UX)   |
+| Current Version       | 2.4.0 (Production Excellence)      |
+| License               | AGPL-3.0-or-later                  |
+| Zenodo DOI            | 10.5281/zenodo.17509405            |
+| Innovations Published | 46 (defensive patent publication)  |
 
 ---
 
@@ -874,9 +918,9 @@ The same architecture that understands code can preserve human identity through 
 **9. Performance Metrics**
 
 - **Compression time:** 5-10 minutes → **0.0s (instant)**
-- **LOC:** 54,680 → 78,658 total (+43%)
-  - Production: 42,824 → 63,009 (+47%)
-  - Tests: 11,856 → 15,649 (+32%)
+- **LOC:** ~93,382 total (76,170 production + 17,212 tests)
+  - Production: 76,170 across 197 files
+  - Tests: 17,212 across 56 files
 - **Test coverage:** ~60% → ~85%
 - **Commands:** Added tab completion reducing typing by 50-70%
 
