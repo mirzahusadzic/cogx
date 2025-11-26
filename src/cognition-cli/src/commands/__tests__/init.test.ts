@@ -144,8 +144,10 @@ describe('init command', () => {
       // First init
       await initCommand({ path: tempDir });
 
-      // Second init should succeed (idempotent)
-      await expect(initCommand({ path: tempDir })).resolves.not.toThrow();
+      // Second init should succeed with --force flag (idempotent)
+      await expect(
+        initCommand({ path: tempDir, force: true })
+      ).resolves.not.toThrow();
     });
 
     it('should preserve existing metadata on re-init', async () => {
@@ -159,8 +161,8 @@ describe('init command', () => {
       );
       const firstMetadata = await fs.readJSON(metadataPath);
 
-      // Second init
-      await initCommand({ path: tempDir });
+      // Second init with --force flag
+      await initCommand({ path: tempDir, force: true });
 
       const secondMetadata = await fs.readJSON(metadataPath);
 

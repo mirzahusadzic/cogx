@@ -53,6 +53,7 @@ class PGCInitializationError extends Error {
 interface UpdateOptions {
   projectRoot: string;
   workbench: string;
+  dryRun?: boolean;
 }
 
 /**
@@ -87,6 +88,83 @@ async function validatePgcInitialized(startPath: string): Promise<string> {
 }
 
 /**
+ * Executes dry-run mode for update: shows what files would be processed.
+ */
+async function executeDryRun(projectRoot: string): Promise<void> {
+  const dirtyStatePath = path.join(
+    projectRoot,
+    '.open_cognition',
+    'dirty_state.json'
+  );
+
+  if (!(await fs.pathExists(dirtyStatePath))) {
+    console.log('');
+    console.log(chalk.cyan('Dry run - no pending changes'));
+    console.log('');
+    console.log(chalk.dim('No dirty_state.json found. The PGC is up to date.'));
+    console.log('');
+    return;
+  }
+
+  const dirtyState = await fs.readJson(dirtyStatePath);
+  const changedFiles: string[] = dirtyState.changed || [];
+  const newFiles: string[] = dirtyState.new || [];
+  const deletedFiles: string[] = dirtyState.deleted || [];
+
+  console.log('');
+  console.log(chalk.cyan('Dry run - files that would be processed:'));
+  console.log('');
+
+  if (changedFiles.length > 0) {
+    console.log(chalk.bold(`Modified (${changedFiles.length} files):`));
+    for (const file of changedFiles.slice(0, 10)) {
+      console.log(`  ${chalk.yellow('M')} ${file}`);
+    }
+    if (changedFiles.length > 10) {
+      console.log(chalk.dim(`  ... and ${changedFiles.length - 10} more`));
+    }
+    console.log('');
+  }
+
+  if (newFiles.length > 0) {
+    console.log(chalk.bold(`Added (${newFiles.length} files):`));
+    for (const file of newFiles.slice(0, 10)) {
+      console.log(`  ${chalk.green('A')} ${file}`);
+    }
+    if (newFiles.length > 10) {
+      console.log(chalk.dim(`  ... and ${newFiles.length - 10} more`));
+    }
+    console.log('');
+  }
+
+  if (deletedFiles.length > 0) {
+    console.log(chalk.bold(`Deleted (${deletedFiles.length} files):`));
+    for (const file of deletedFiles.slice(0, 10)) {
+      console.log(`  ${chalk.red('D')} ${file}`);
+    }
+    if (deletedFiles.length > 10) {
+      console.log(chalk.dim(`  ... and ${deletedFiles.length - 10} more`));
+    }
+    console.log('');
+  }
+
+  const total = changedFiles.length + newFiles.length + deletedFiles.length;
+  if (total === 0) {
+    console.log(chalk.dim('No pending changes in dirty_state.json.'));
+  } else {
+    console.log(chalk.cyan('Summary:'));
+    console.log(`  Total files: ${total}`);
+    console.log(
+      `  Modified: ${changedFiles.length}, Added: ${newFiles.length}, Deleted: ${deletedFiles.length}`
+    );
+  }
+  console.log('');
+  console.log(
+    chalk.yellow('No changes made. Remove --dry-run to execute update.')
+  );
+}
+
+/**
  * Executes the incremental update of the PGC.
  *
  * Reads dirty_state.json and performs surgical re-analysis:
@@ -110,6 +188,12 @@ async function runUpdate(options: UpdateOptions) {
   try {
     // Validate PGC initialization and resolve workspace
     const projectRoot = await validatePgcInitialized(options.projectRoot);
+
+    // Handle dry-run mode
+    if (options.dryRun) {
+      await executeDryRun(projectRoot);
+      return;
+    }
 
     // Initialize core components
     const pgc = new PGCManager(projectRoot);
@@ -174,6 +258,7 @@ export function createUpdateCommand(): Command {
       'URL of the egemma workbench',
       'http://localhost:8000'
     )
+    .option('-n, --dry-run', 'Preview pending changes without processing')
     .action(async (options) => {
       try {
         await runUpdate(options);

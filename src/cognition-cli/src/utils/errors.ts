@@ -15,6 +15,18 @@
  * - COG-E3xx: PGC errors (workspace not found, corruption)
  * - COG-E4xx: Internal errors (bugs, unexpected conditions)
  *
+ * EXIT CODE MAPPING:
+ * - 0:   Success
+ * - 1:   General error (catch-all)
+ * - 2:   Missing required arguments (COG-E001)
+ * - 3:   Invalid configuration (COG-E002, COG-E003)
+ * - 4:   PGC not initialized (COG-E301, COG-E302)
+ * - 5:   Workbench connection failed (COG-E201)
+ * - 6:   API request failed (COG-E202)
+ * - 7:   Permission denied (COG-E101)
+ * - 8:   Internal error (COG-E401)
+ * - 130: Interrupted (SIGINT/Ctrl-C)
+ *
  * @example
  * throw new CognitionError(
  *   'COG-E301',
@@ -127,7 +139,7 @@ export const ErrorCodes = {
         'Navigate to an existing project directory',
         'Use --project-root to specify workspace location',
       ],
-      'https://mirzahusadzic.github.io/cogx/manual/part-1-foundation/01-initializing-pgc'
+      'https://mirzahusadzic.github.io/cogx/manual/part-1-foundation/02-the-pgc.html#initialization-and-lifecycle'
     ),
 
   /**
@@ -214,4 +226,67 @@ export const ErrorCodes = {
       'https://github.com/mirzahusadzic/cogx/issues',
       cause
     ),
+
+  /**
+   * COG-E005: Non-interactive mode requires flag
+   */
+  NON_INTERACTIVE_MISSING_FLAG: (flagName: string, flagDescription: string) =>
+    new CognitionError(
+      'COG-E005',
+      'Missing Required Flag',
+      `This command requires user input, but --no-input mode is active.`,
+      [
+        `Provide the ${flagName} flag: ${flagDescription}`,
+        'Remove --no-input to enable interactive prompts',
+        'Ensure stdin is connected to a terminal',
+      ],
+      'https://mirzahusadzic.github.io/cogx/manual/'
+    ),
 };
+
+/**
+ * Exit code mapping for CognitionError codes
+ *
+ * Maps error codes to specific exit codes for script-friendly error handling.
+ * Scripts can check exit codes to determine the type of failure.
+ *
+ * @example
+ * // In a shell script:
+ * // cognition genesis src/
+ * // if [ $? -eq 4 ]; then echo "PGC not initialized"; fi
+ */
+export const EXIT_CODES: Record<string, number> = {
+  // User input errors (exit 2-3)
+  'COG-E001': 2, // Missing required argument
+  'COG-E002': 3, // Invalid argument value
+  'COG-E003': 3, // File not found
+  'COG-E005': 2, // Non-interactive missing flag
+
+  // System errors (exit 7)
+  'COG-E101': 7, // Permission denied
+
+  // Network errors (exit 5-6)
+  'COG-E201': 5, // Workbench connection failed
+  'COG-E202': 6, // API request failed
+
+  // PGC errors (exit 4)
+  'COG-E301': 4, // Workspace not found
+  'COG-E302': 4, // Workspace corrupted
+
+  // Internal errors (exit 8)
+  'COG-E401': 8, // Internal error (bug)
+};
+
+/**
+ * Get the exit code for a CognitionError
+ *
+ * @param error - CognitionError instance or error code string
+ * @returns Exit code (1 if not mapped)
+ *
+ * @example
+ * process.exit(getExitCode(error));
+ */
+export function getExitCode(error: CognitionError | string): number {
+  const code = typeof error === 'string' ? error : error.code;
+  return EXIT_CODES[code] ?? 1;
+}

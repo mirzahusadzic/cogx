@@ -332,10 +332,10 @@ _cognition_cli_completions() {
   fi
 
   # Main commands
-  local commands="init i genesis g genesis:docs query q audit:transformations audit:docs wizard w tui ask pr-analyze lattice l audit overlay patterns concepts coherence security workflow proofs blast-radius watch status update guide migrate migrate:lance completion --help --version"
+  local commands="init i genesis g genesis:docs query q audit:transformations audit:docs wizard w tui ask pr-analyze lattice l audit overlay patterns concepts coherence security workflow proofs blast-radius watch status update guide migrate migrate:lance completion config --help --version"
 
   # Global flags
-  local global_flags="--no-color --no-emoji --format --verbose -v --quiet -q --help -h"
+  local global_flags="--no-color --no-emoji --format --json --verbose -v --quiet -q --no-input --debug -d --help -h"
 
   # If completing first word, suggest main commands
   if [ \${COMP_CWORD} -eq 1 ]; then
@@ -403,6 +403,10 @@ _cognition_cli_completions() {
       ;;
     completion)
       COMPREPLY=( $(compgen -W "install uninstall" -- \${cur}) )
+      return 0
+      ;;
+    config)
+      COMPREPLY=( $(compgen -W "list get set path" -- \${cur}) )
       return 0
       ;;
     provider)
@@ -497,6 +501,7 @@ _cognition_cli() {
     'migrate:Migration commands'
     'migrate:lance:Migrate to LanceDB'
     'completion:Manage shell completion'
+    'config:View and manage CLI settings'
   )
 
   local -a global_opts
@@ -504,8 +509,11 @@ _cognition_cli() {
     '--no-color[Disable colored output]'
     '--no-emoji[Disable emoji output]'
     '--format[Output format]:format:(auto table json plain)'
+    '--json[Shorthand for --format json]'
     {-v,--verbose}'[Verbose output]'
     {-q,--quiet}'[Quiet mode]'
+    '--no-input[Disable interactive prompts]'
+    {-d,--debug}'[Enable debug logging]'
     {-h,--help}'[Show help]'
   )
 
@@ -606,6 +614,9 @@ _cognition_cli() {
             '1:subcommand:(install uninstall)' \
             '--shell[Shell type]:shell:(bash zsh fish)'
           ;;
+        config)
+          _arguments '1:subcommand:(list get set path)'
+          ;;
         genesis|g)
           # Handle genesis:<TAB> to suggest 'docs'
           local -a subcommands
@@ -660,13 +671,17 @@ complete -c cognition-cli -f -n "__fish_use_subcommand" -a "proofs" -d "Proof an
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "migrate" -d "Migration operations"
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "migrate:lance" -d "Migrate to LanceDB"
 complete -c cognition-cli -f -n "__fish_use_subcommand" -a "completion" -d "Shell completion"
+complete -c cognition-cli -f -n "__fish_use_subcommand" -a "config" -d "View and manage CLI settings"
 
 # Global flags
 complete -c cognition-cli -l no-color -d "Disable colored output"
 complete -c cognition-cli -l no-emoji -d "Disable emoji output"
 complete -c cognition-cli -l format -xa "auto table json plain" -d "Output format"
+complete -c cognition-cli -l json -d "Shorthand for --format json"
 complete -c cognition-cli -s v -l verbose -d "Verbose output"
 complete -c cognition-cli -s q -l quiet -d "Quiet mode"
+complete -c cognition-cli -l no-input -d "Disable interactive prompts"
+complete -c cognition-cli -s d -l debug -d "Enable debug logging"
 complete -c cognition-cli -s h -l help -d "Show help"
 
 # Overlay subcommands
@@ -740,6 +755,12 @@ complete -c cognition-cli -n "__fish_seen_subcommand_from genesis:docs" -xa "(__
 # Completion subcommands
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from completion" -a "install uninstall"
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from completion; and __fish_seen_subcommand_from install uninstall" -l shell -xa "bash zsh fish"
+
+# Config subcommands
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from config" -a "list" -d "List all settings"
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from config" -a "get" -d "Get a setting value"
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from config" -a "set" -d "Set a setting value"
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from config" -a "path" -d "Show config file path"
 `;
 }
 

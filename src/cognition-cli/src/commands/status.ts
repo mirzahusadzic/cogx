@@ -57,6 +57,7 @@ import { DirtyStateManager } from '../core/watcher/dirty-state.js';
 import { Index } from '../core/pgc/index.js';
 import { DirtyState } from '../core/types/watcher.js';
 import { WorkspaceManager } from '../core/workspace-manager.js';
+import { addExamples, combineHelpSections } from '../utils/help-formatter.js';
 
 /**
  * Impact analysis data for a modified file
@@ -109,6 +110,26 @@ export function createStatusCommand(): Command {
     .description('Check PGC coherence state (reads dirty_state.json)')
     .option('--json', 'Output as JSON', false)
     .option('--verbose', 'Show detailed blast radius info', false)
+    .addHelpText(
+      'after',
+      combineHelpSections(
+        addExamples([
+          { cmd: 'cognition status', desc: 'Quick coherence check' },
+          {
+            cmd: 'cognition status --verbose',
+            desc: 'Show detailed blast radius per file',
+          },
+          {
+            cmd: 'cognition status --json',
+            desc: 'JSON output for CI/CD pipelines',
+          },
+          {
+            cmd: 'cognition status && echo "PGC is coherent"',
+            desc: 'Use exit code in scripts (0=coherent, 1=incoherent)',
+          },
+        ])
+      )
+    )
     .action(async (options) => {
       try {
         await runStatus(options);

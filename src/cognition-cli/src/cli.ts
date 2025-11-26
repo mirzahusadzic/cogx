@@ -61,6 +61,7 @@
 
 import { Command } from 'commander';
 import path from 'path';
+import { closest } from 'fastest-levenshtein';
 // Lazy loading optimization: Commands imported dynamically on-demand
 // import { genesisCommand } from './commands/genesis.js';
 // import { initCommand } from './commands/init.js';
@@ -69,17 +70,52 @@ import path from 'path';
 // import { addPatternsCommands } from './commands/patterns.js';
 import { bootstrapSecurity } from './core/security/security-bootstrap.js';
 import { loadLLMConfig } from './llm/llm-config.js';
+import {
+  addExamples,
+  addEnvVars,
+  addLearnMore,
+  combineHelpSections,
+  addAllEnvVars,
+  addGlobalExamples,
+  formatGroupedCommands,
+  COMMAND_GROUPS,
+} from './utils/help-formatter.js';
+import {
+  initDebugLog,
+  debugLog,
+  finalizeDebugLog,
+  getDebugLogPath,
+} from './utils/debug-logger.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 const program = new Command();
 
+// Enable command suggestions for typos
+program.showSuggestionAfterError(true);
+
+// Configure help to use grouped commands like git
+program.configureHelp({
+  // Hide the default flat command list - we show grouped commands instead
+  visibleCommands: () => [],
+});
+
+// Git-style usage synopsis showing all global options
+const USAGE_SYNOPSIS = `[-v | --version] [-h | --help]
+       [--no-color] [--no-emoji] [--format <type>] [--json]
+       [-v | --verbose] [-q | --quiet] [--no-input] [-d | --debug]
+       <command> [<args>]`;
+
 // Global accessibility and output options
 program
   .name('cognition-cli')
+  .usage(USAGE_SYNOPSIS)
   .description('A meta-interpreter for verifiable, stateful AI cognition')
   .version('2.5.1 (Gemini Integration)')
+  .addHelpText('after', formatGroupedCommands(COMMAND_GROUPS))
+  .addHelpText('after', addAllEnvVars())
+  .addHelpText('after', addGlobalExamples())
   .option(
     '--no-color',
     'Disable colored output (also respects NO_COLOR env var)'
@@ -89,16 +125,36 @@ program
     'Disable emoji in output (for terminals without Unicode support)'
   )
   .option('--format <type>', 'Output format: auto, table, json, plain', 'auto')
+  .option('--json', 'Shorthand for --format json')
   .option('-v, --verbose', 'Verbose output (show detailed information)', false)
   .option('-q, --quiet', 'Quiet mode (errors only)', false)
+  .option('--no-input', 'Disable all interactive prompts (for CI/CD pipelines)')
+  .option(
+    '-d, --debug',
+    'Enable debug logging to file (writes to .open_cognition/debug-*.log)'
+  )
   .hook('preAction', (thisCommand) => {
     // Store global options in environment for access by formatters
     const opts = thisCommand.optsWithGlobals();
     process.env.COGNITION_NO_COLOR = opts.color === false ? '1' : '0';
     process.env.COGNITION_NO_EMOJI = opts.emoji === false ? '1' : '0';
-    process.env.COGNITION_FORMAT = opts.format || 'auto';
+    // --json flag overrides --format
+    process.env.COGNITION_FORMAT = opts.json ? 'json' : opts.format || 'auto';
     process.env.COGNITION_VERBOSE = opts.verbose ? '1' : '0';
     process.env.COGNITION_QUIET = opts.quiet ? '1' : '0';
+    process.env.COGNITION_NO_INPUT = opts.input === false ? '1' : '0';
+    process.env.COGNITION_DEBUG = opts.debug ? '1' : '0';
+
+    // Initialize debug logging if --debug flag is set
+    if (opts.debug) {
+      const projectRoot = opts.projectRoot || process.cwd();
+      initDebugLog(projectRoot);
+      debugLog('Command started', {
+        command: thisCommand.name(),
+        args: thisCommand.args,
+        options: opts,
+      });
+    }
   });
 
 program
@@ -106,9 +162,41 @@ program
   .alias('i')
   .description('Initialize a new Grounded Context Pool (PGC) (alias: i)')
   .option('-p, --project-root <path>', 'Project path', process.cwd())
+  .option(
+    '-n, --dry-run',
+    'Preview what would be created without making changes'
+  )
+  .option('-f, --force', 'Skip confirmation prompts (for scripts)')
+  .addHelpText(
+    'after',
+    combineHelpSections(
+      addExamples([
+        { cmd: 'cognition init', desc: 'Initialize in current directory' },
+        {
+          cmd: 'cognition init -p /path/to/project',
+          desc: 'Initialize in specific directory',
+        },
+        {
+          cmd: 'cognition init --dry-run',
+          desc: 'Preview without creating files',
+        },
+        {
+          cmd: 'cognition init --force',
+          desc: 'Reinitialize without confirmation (CI/CD)',
+        },
+      ]),
+      addLearnMore([
+        'https://mirzahusadzic.github.io/cogx/manual/part-1-foundation/02-the-pgc.html#initialization-and-lifecycle',
+      ])
+    )
+  )
   .action(async (options) => {
     const { initCommand } = await import('./commands/init.js');
-    await initCommand({ path: options.projectRoot });
+    await initCommand({
+      path: options.projectRoot,
+      dryRun: options.dryRun,
+      force: options.force,
+    });
   });
 
 program
@@ -123,6 +211,44 @@ program
     '-p, --project-root <path>',
     'Root directory of the project being analyzed',
     process.cwd()
+  )
+  .option('-n, --dry-run', 'Preview files without processing')
+  .option(
+    '-r, --resume',
+    'Resume from interrupted genesis (skips already-processed files)'
+  )
+  .addHelpText(
+    'after',
+    combineHelpSections(
+      addExamples([
+        { cmd: 'cognition genesis src/', desc: 'Analyze the src/ directory' },
+        {
+          cmd: 'cognition genesis --workbench http://localhost:8001 src/',
+          desc: 'Use custom workbench URL',
+        },
+        {
+          cmd: 'cognition g lib/',
+          desc: 'Short alias, analyze lib/ directory',
+        },
+        {
+          cmd: 'cognition genesis --dry-run src/',
+          desc: 'Preview files that would be analyzed',
+        },
+        {
+          cmd: 'cognition genesis --resume src/',
+          desc: 'Resume interrupted genesis',
+        },
+      ]),
+      addEnvVars([
+        {
+          name: 'WORKBENCH_URL',
+          desc: 'Default workbench URL (http://localhost:8000)',
+        },
+      ]),
+      addLearnMore([
+        'https://mirzahusadzic.github.io/cogx/manual/part-1-foundation/05-cli-operations.html',
+      ])
+    )
   )
   .action(async (sourcePath, options) => {
     const { genesisCommand } = await import('./commands/genesis.js');
@@ -200,6 +326,32 @@ program
   .option('-d, --depth <level>', 'Depth of dependency traversal', '0')
   .option('--lineage', 'Output the dependency lineage in JSON format')
   .option('--json', 'Output results as JSON for scripting')
+  .addHelpText(
+    'after',
+    combineHelpSections(
+      addExamples([
+        {
+          cmd: 'cognition query "What does handleAuth do?"',
+          desc: 'Ask about a function',
+        },
+        {
+          cmd: 'cognition q "How does the config system work?"',
+          desc: 'Short alias for quick queries',
+        },
+        {
+          cmd: 'cognition query --depth 2 "What are the security boundaries?"',
+          desc: 'Include 2 levels of dependencies',
+        },
+        {
+          cmd: 'cognition query --lineage "Find all managers"',
+          desc: 'Output as JSON with lineage',
+        },
+      ]),
+      addLearnMore([
+        'https://mirzahusadzic.github.io/cogx/manual/part-3-algebra/13-query-syntax.html',
+      ])
+    )
+  )
   .action(queryAction);
 
 program
@@ -349,6 +501,33 @@ const tuiCmd = program
   .option('--model <name>', 'Model to use (provider-specific)')
   .option('--debug', 'Enable debug logging for Sigma compression')
   .option('--no-show-thinking', 'Hide thinking blocks in TUI')
+  .addHelpText(
+    'after',
+    combineHelpSections(
+      addExamples([
+        { cmd: 'cognition tui', desc: 'Launch TUI with default provider' },
+        {
+          cmd: 'cognition tui --provider gemini',
+          desc: 'Use Gemini as LLM provider',
+        },
+        {
+          cmd: 'cognition tui --session-id abc123',
+          desc: 'Resume a previous session',
+        },
+        {
+          cmd: 'cognition tui -f .sigma/tui-123.state.json',
+          desc: 'Load session from state file',
+        },
+      ]),
+      addEnvVars([
+        { name: 'ANTHROPIC_API_KEY', desc: 'API key for Claude provider' },
+        { name: 'GEMINI_API_KEY', desc: 'API key for Gemini provider' },
+      ]),
+      addLearnMore([
+        'https://mirzahusadzic.github.io/cogx/manual/part-1-foundation/05-cli-operations.html#tui-%E2%80%94-interactive-terminal',
+      ])
+    )
+  )
   .action(async (options) => {
     const { tuiCommand } = await import('./commands/tui.js');
     await tuiCommand({
@@ -416,6 +595,8 @@ program.addCommand(createStatusCommand());
 program.addCommand(createUpdateCommand());
 program.addCommand(createGuideCommand());
 program.addCommand(createCompletionCommand());
+const { createConfigCommand } = await import('./commands/config.js');
+program.addCommand(createConfigCommand());
 addPatternsCommands(program);
 addCoherenceCommands(program);
 addConceptsCommands(program);
@@ -854,32 +1035,118 @@ proofsCmd
 await bootstrapSecurity();
 
 // Global error handler for uncaught exceptions
-import { CognitionError } from './utils/errors.js';
+import { CognitionError, getExitCode } from './utils/errors.js';
 import { formatError, formatGenericError } from './utils/error-formatter.js';
 
 process.on('uncaughtException', (error) => {
   const verbose = process.env.COGNITION_VERBOSE === '1';
+  const debugPath = getDebugLogPath();
 
   if (error instanceof CognitionError) {
+    debugLog('CognitionError', { code: error.code, message: error.message });
+    finalizeDebugLog(false, getExitCode(error));
     console.error(formatError(error, verbose));
-    process.exit(1);
+    if (debugPath) {
+      console.error(`\nDebug log: ${debugPath}`);
+    }
+    process.exit(getExitCode(error));
   }
 
   // Unknown error - show stack and ask for bug report
+  debugLog('Uncaught exception', { message: String(error) });
+  finalizeDebugLog(false, 1);
   console.error(formatGenericError(error, verbose));
+  if (debugPath) {
+    console.error(`\nDebug log: ${debugPath}`);
+  }
   process.exit(1);
 });
 
 process.on('unhandledRejection', (reason) => {
   const verbose = process.env.COGNITION_VERBOSE === '1';
+  const debugPath = getDebugLogPath();
 
   if (reason instanceof CognitionError) {
+    debugLog('CognitionError (rejection)', {
+      code: reason.code,
+      message: reason.message,
+    });
+    finalizeDebugLog(false, getExitCode(reason));
     console.error(formatError(reason, verbose));
-    process.exit(1);
+    if (debugPath) {
+      console.error(`\nDebug log: ${debugPath}`);
+    }
+    process.exit(getExitCode(reason));
   }
 
   // Unknown rejection
+  debugLog('Unhandled rejection', { reason: String(reason) });
+  finalizeDebugLog(false, 1);
   console.error(formatGenericError(reason, verbose));
+  if (debugPath) {
+    console.error(`\nDebug log: ${debugPath}`);
+  }
+  process.exit(1);
+});
+
+// Handle SIGINT (Ctrl-C) with proper exit code
+process.on('SIGINT', () => {
+  debugLog('SIGINT received');
+  finalizeDebugLog(false, 130);
+  const debugPath = getDebugLogPath();
+  console.error('\nInterrupted');
+  if (debugPath) {
+    console.error(`Debug log: ${debugPath}`);
+  }
+  process.exit(130);
+});
+
+// All available commands for suggestion matching
+const ALL_COMMANDS = [
+  'init',
+  'i',
+  'genesis',
+  'g',
+  'genesis:docs',
+  'query',
+  'q',
+  'audit:transformations',
+  'audit:docs',
+  'wizard',
+  'w',
+  'tui',
+  'ask',
+  'pr-analyze',
+  'lattice',
+  'l',
+  'overlay',
+  'patterns',
+  'concepts',
+  'coherence',
+  'security',
+  'workflow',
+  'proofs',
+  'blast-radius',
+  'watch',
+  'status',
+  'update',
+  'guide',
+  'migrate',
+  'migrate:lance',
+  'completion',
+  'config',
+];
+
+// Handle unknown commands with suggestions
+program.on('command:*', (operands) => {
+  const unknownCommand = operands[0];
+  const suggestion = closest(unknownCommand, ALL_COMMANDS);
+
+  console.error(`error: unknown command '${unknownCommand}'`);
+  if (suggestion) {
+    console.error(`\nDid you mean '${suggestion}'?`);
+  }
+  console.error(`\nRun 'cognition-cli --help' for available commands.`);
   process.exit(1);
 });
 

@@ -183,6 +183,29 @@ export function isJsonMode(): boolean {
 }
 
 /**
+ * Check if interactive prompts are allowed
+ *
+ * Returns false when:
+ * 1. --no-input flag is set (COGNITION_NO_INPUT=1)
+ * 2. stdin is not a TTY (piped input)
+ * 3. Running in CI environment
+ *
+ * @returns true if interactive prompts are allowed
+ */
+export function isInteractive(): boolean {
+  // Respect --no-input flag
+  if (process.env.COGNITION_NO_INPUT === '1') return false;
+
+  // Not interactive if stdin is not a TTY
+  if (!process.stdin.isTTY) return false;
+
+  // Disable in CI environments
+  if (process.env.CI === 'true') return false;
+
+  return true;
+}
+
+/**
  * Detect all terminal capabilities at once
  *
  * Useful for logging or debugging terminal support.
@@ -197,6 +220,7 @@ export function detectTerminalCapabilities() {
     columns: getTerminalWidth(),
     isPlain: isPlainMode(),
     isJson: isJsonMode(),
+    isInteractive: isInteractive(),
     platform: process.platform,
     term: process.env.TERM,
     lang: process.env.LANG,
