@@ -1,10 +1,5 @@
 # Changelog
 
-## 📝 Documentation
-
-- **Gemini:** Refined the token economy guidelines in the system prompt for better clarity.
-- **TUI:** Updated the TUI command reference to reflect multi-provider support.
-
 All notable changes to the CogX Cognition CLI will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),

@@ -331,7 +331,7 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 
 ## 🎉 Latest Release
 
-**v2.5.0 - November 23, 2025** — [Multi-Provider LLM Architecture](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0):
+**v2.5.1 - November 27, 2025** — [Gemini Integration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1):
 
 - 🚀 **Full Gemini ADK Agent Integration** — Google Gemini joins as first-class provider with multi-turn BIDI streaming, tool execution, and memory recall
 - 🏗️ **LLM Provider Abstraction Layer** — Future-proof pluggable architecture enabling easy addition of new LLM providers
@@ -342,7 +342,7 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 
 **Impact:** Transformative release establishing Cognition Σ as a multi-provider platform with unified UX across Claude and Gemini.
 
-**Previous releases:** [v2.4.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ Launch](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
+**Previous releases:** [v2.5.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ Launch](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
 
 **Full changelog:** [CHANGELOG.md](./CHANGELOG.md)
 
@@ -441,7 +441,7 @@ If you use this work in research, please cite:
   author = {Husadžić, Mirza},
   title = {Cognition Σ CLI: Seven-Overlay Knowledge Graph with Infinite Context},
   year = {2025},
-  version = {2.5.0},
+  version = {2.5.1},
   doi = {10.5281/zenodo.17567109},
   url = {https://github.com/mirzahusadzic/cogx/tree/main/src/cognition-cli}
 }
