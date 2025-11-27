@@ -1362,11 +1362,15 @@ export function useAgent(options: UseAgentOptions) {
         // STEP 1: Expand slash command FIRST (before adding user message)
         let finalPrompt = prompt;
 
-        // Only treat as command if it starts with / but is NOT a file path
+        // Only treat as command if it starts with / but is NOT a file path or glob pattern
         // File paths have another / in the first word (e.g., /home/user/file.txt)
+        // Glob patterns contain * ? or [ (e.g., /** or /src/*.ts)
         const firstWord = prompt.split(' ')[0];
+        const isGlobPattern = /[*?[]/.test(firstWord);
         const isCommand =
-          prompt.startsWith('/') && !firstWord.slice(1).includes('/'); // No / after first character
+          prompt.startsWith('/') &&
+          !firstWord.slice(1).includes('/') &&
+          !isGlobPattern;
 
         if (isCommand && commandsCache.size > 0) {
           const commandName = prompt.split(' ')[0];

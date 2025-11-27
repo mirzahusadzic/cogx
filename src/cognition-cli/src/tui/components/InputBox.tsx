@@ -52,6 +52,10 @@ export interface InputBoxProps {
  * - Slash command autocomplete (triggered by "/")
  * - Large paste detection and file handling (>10KB → temp file)
  * - Tool confirmation modal integration
+ * - Multiline editing with Ctrl+O to insert newlines
+ * - Arrow Up/Down to navigate between lines
+ * - Ctrl+A/Cmd+A to jump to start of block
+ * - Ctrl+E/Cmd+E to jump to end of block
  * - Double ESC to interrupt/clear
  * - Ctrl+C to quit
  * - Visual focus indicators
@@ -437,6 +441,49 @@ export const InputBox: React.FC<InputBoxProps> = ({
         newCursorPosition = Math.max(0, newCursorPosition - 1);
       } else if (key.rightArrow) {
         newCursorPosition = Math.min(value.length, newCursorPosition + 1);
+      } else if (key.upArrow && !showDropdown) {
+        // Move cursor up one line in multiline input
+        const textBefore = value.substring(0, newCursorPosition);
+        const lastNewline = textBefore.lastIndexOf('\n');
+        if (lastNewline >= 0) {
+          // Find column position in current line
+          const currentCol = newCursorPosition - lastNewline - 1;
+          // Find start of previous line
+          const prevNewline = textBefore.lastIndexOf('\n', lastNewline - 1);
+          const prevLineStart = prevNewline + 1;
+          const prevLineLength = lastNewline - prevLineStart;
+          // Move to same column or end of previous line
+          newCursorPosition =
+            prevLineStart + Math.min(currentCol, prevLineLength);
+        }
+      } else if (key.downArrow && !showDropdown) {
+        // Move cursor down one line in multiline input
+        const textAfter = value.substring(newCursorPosition);
+        const nextNewline = textAfter.indexOf('\n');
+        if (nextNewline >= 0) {
+          // Find column position in current line
+          const textBefore = value.substring(0, newCursorPosition);
+          const lastNewline = textBefore.lastIndexOf('\n');
+          const currentCol =
+            lastNewline >= 0
+              ? newCursorPosition - lastNewline - 1
+              : newCursorPosition;
+          // Find end of next line
+          const nextLineStart = newCursorPosition + nextNewline + 1;
+          const afterNextLine = value.substring(nextLineStart);
+          const nextLineEnd = afterNextLine.indexOf('\n');
+          const nextLineLength =
+            nextLineEnd >= 0 ? nextLineEnd : afterNextLine.length;
+          // Move to same column or end of next line
+          newCursorPosition =
+            nextLineStart + Math.min(currentCol, nextLineLength);
+        }
+      } else if ((key.meta || key.ctrl) && input === 'a') {
+        // Ctrl+A / Cmd+A: Move to start of entire block
+        newCursorPosition = 0;
+      } else if ((key.meta || key.ctrl) && input === 'e') {
+        // Ctrl+E / Cmd+E: Move to end of entire block
+        newCursorPosition = value.length;
       } else if (input === '\n' && !key.return) {
         // Shift+Enter sends \n directly (not as key.return) in some terminals
         newValue =
@@ -537,8 +584,12 @@ export const InputBox: React.FC<InputBoxProps> = ({
       // If enter was pressed and command dropdown was active, don't re-evaluate until next key
       if (valueChanged && !(key.return && showDropdown)) {
         const firstWord = newValue.split(' ')[0];
+        // Exclude glob patterns (*, ?, [) from being treated as commands
+        const isGlobPattern = /[*?[]/.test(firstWord);
         const isCommand =
-          newValue.startsWith('/') && !firstWord.slice(1).includes('/');
+          newValue.startsWith('/') &&
+          !firstWord.slice(1).includes('/') &&
+          !isGlobPattern;
 
         if (isCommand && allCommands.size > 0) {
           const prefix = newValue.slice(1).split(' ')[0];
