@@ -1,29 +1,142 @@
-# 🚀 Onboard New Project to Cognition CLI
+# Onboard New Project to Cognition CLI
 
-Welcome! Let's create the strategic documentation for your project so it can be ingested into the Grounded Context Pool (PGC).
+Welcome! Let's create strategic documentation for your project that will be properly ingested into the Grounded Context Pool (PGC).
 
 ## What This Does
 
 This command guides you through creating:
 
-1. **VISION.md** - Your strategic foundation (O₄ Mission Concepts)
-2. **CODING_PRINCIPLES.md** - Your development philosophy (O₄ Mission Concepts)
-3. **SECURITY.md** (optional) - Threat models and security guidelines (O₂ Security)
+1. **VISION.md** - Your strategic foundation (O4 Mission Concepts)
+2. **CODING_PRINCIPLES.md** - Your development philosophy (O4 Mission Concepts)
+3. **SECURITY.md** (optional) - Threat models and security guidelines (O2 Security)
+4. **MATHEMATICAL.md** (optional) - Formal proofs and invariants (O6 Mathematical)
+5. **OPERATIONAL.md** (optional) - Workflows, quests, and depth rules (O5 Operational)
 
-These documents will be ingested via `cognition-cli genesis:docs` to enable:
+---
 
-- Mission-driven development with `/quest-start`
-- Coherence analysis with `/coherence`
-- Pattern discovery with `/find-pattern`
-- Security validation with `/security-check`
+## CRITICAL: Extraction Patterns
+
+The concept extractor uses **6 structural patterns** to identify important content. You MUST use these exact formatting patterns or your concepts will not be extracted.
+
+### Pattern 1: Blockquote Essence (Weight: 1.0)
+
+**Format**: `> _Your one-sentence essence._`
+
+**CORRECT**:
+
+```markdown
+> _Democratize LLM training by providing a complete, affordable implementation._
+```
+
+**WRONG** (will not extract):
+
+```markdown
+> Democratize LLM training... (missing italics)
+> _Democratize LLM training..._ (missing blockquote)
+```
+
+### Pattern 2: Named Concept Headers (Weight: 0.95)
+
+**Format**: `### N. Concept Name` (H3 headers only)
+
+**CORRECT**:
+
+```markdown
+### 1. Simplicity Over Abstraction
+
+### 2. Fail Fast, Fail Loud
+```
+
+**WRONG** (will not extract):
+
+```markdown
+## 1. Simplicity Over Abstraction (H2, wrong level)
+
+**1. Simplicity Over Abstraction** (not a header)
+```
+
+### Pattern 3: Value Proposition Bullets (Weight: 0.9)
+
+**Format**: `- **Bold text** — context after em-dash`
+
+**CORRECT**:
+
+```markdown
+- **AI reasoning is grounded in cryptographic truth** — anchoring intelligence in verifiable facts
+- **Human cognition is augmented by provable insights** — not statistical approximations
+```
+
+**WRONG** (will not extract):
+
+```markdown
+- AI reasoning is grounded... (missing bold)
+- **AI reasoning** - context (hyphen, not em-dash —)
+- **AI reasoning**, context (comma, not em-dash)
+```
+
+### Pattern 4: Bold Complete Sentences (Weight: 0.85)
+
+**Format**: `**Complete sentence ending with punctuation.**`
+
+**CORRECT**:
+
+```markdown
+**Our mission is to establish verifiable AI-human symbiosis.**
+
+**This is not a framework. This is a working implementation.**
+```
+
+**WRONG** (will not extract):
+
+```markdown
+Our **mission** is to establish... (bold word, not sentence)
+**Our mission is to establish symbiosis** (missing period)
+```
+
+### Pattern 5: Emoji-Prefixed Items (Weight: 0.8)
+
+**Format**: `- [emoji] **Bold text** — explanation`
+
+Supported emojis: ✅ ❌ ✓ ✗ ⚠️
+
+**CORRECT**:
+
+```markdown
+- ✅ **Radical Affordability** — Achieve GPT-2 level performance for ~$100
+- ❌ **Prohibitive Cost** — Training requires millions of dollars
+```
+
+**WRONG** (will not extract):
+
+```markdown
+- ✅ Radical Affordability — ... (missing bold)
+- ✅ **Radical Affordability** ... (missing em-dash)
+  ✅ **Radical Affordability** — ... (missing bullet)
+```
+
+### Pattern 6: Quoted Terms (Weight: 0.75)
+
+**Format**: `"term at least 15 characters"`
+
+**CORRECT**:
+
+```markdown
+The result is "verifiable AI-human symbiosis" grounded in truth.
+We call this "Chinchilla-optimal training" because it maximizes efficiency.
+```
+
+**WRONG** (will not extract):
+
+```markdown
+The result is "symbiosis" (too short, <15 chars)
+What does "this mean?" (questions are skipped)
+```
 
 ---
 
 ## Step 1: Understanding Your Project
 
-Before we create documentation, let me understand your project:
-
-**Please answer these questions:**
+Before we create documentation, answer these questions:
 
 1. **What is your project called?**
 2. **What problem does it solve?** (The "why")
@@ -32,147 +145,234 @@ Before we create documentation, let me understand your project:
 5. **What makes your approach unique?**
 6. **Who benefits from this project?**
 
-Take your time - these answers will shape your strategic documentation.
-
 ---
 
-## Step 2: Creating VISION.md
+## Step 2: VISION.md Template
 
-Based on your answers, I'll help you create a VISION.md file that follows the optimal extraction patterns.
-
-### Pattern-Optimized Structure
-
-Your VISION.md should follow this structure to maximize concept extraction quality:
+Copy this EXACT structure. Modify only the content, not the formatting:
 
 ```markdown
 # [Project Name]
 
-> _[One sentence essence - your core mission]_
+> _[One sentence essence - must be 15+ characters, captures core mission]_
 
 ## The Vision
 
-[2-3 paragraphs explaining WHY this project exists]
+[2-3 paragraphs explaining WHY this project exists. Use narrative prose.]
 
-**[Bold emphatic statement about your mission].**
+**[Bold emphatic statement about your mission ending with period.]**
+
+**[Second bold emphatic statement if needed.]**
 
 ## The Problem
 
 Current state analysis:
 
-- ❌ **[Problem 1]** — [Why this is an issue]
-- ❌ **[Problem 2]** — [Why this is an issue]
-- ❌ **[Problem 3]** — [Why this is an issue]
+- ❌ **[Problem 1]** — [Why this is an issue, specific impact]
+- ❌ **[Problem 2]** — [Why this is an issue, specific impact]
+- ❌ **[Problem 3]** — [Why this is an issue, specific impact]
+- ❌ **[Problem 4]** — [Why this is an issue, specific impact]
+- ❌ **[Problem 5]** — [Why this is an issue, specific impact]
 
 ## The Solution
 
-Your approach:
+[Project name]'s approach:
 
-- ✅ **[Solution principle 1]** — [How you address it]
-- ✅ **[Solution principle 2]** — [How you address it]
-- ✅ **[Solution principle 3]** — [How you address it]
+- ✅ **[Solution 1]** — [How you address it, concrete benefit]
+- ✅ **[Solution 2]** — [How you address it, concrete benefit]
+- ✅ **[Solution 3]** — [How you address it, concrete benefit]
+- ✅ **[Solution 4]** — [How you address it, concrete benefit]
+- ✅ **[Solution 5]** — [How you address it, concrete benefit]
 
 ## Core Principles
 
 ### 1. [Principle Name]
 
-[Explanation of what this means]
+**[Emphatic statement about this principle ending with period.]**
+
+[1-2 paragraphs explaining what this means and why it matters]
 
 ### 2. [Principle Name]
 
-[Explanation of what this means]
+**[Emphatic statement about this principle ending with period.]**
+
+[1-2 paragraphs explaining what this means and why it matters]
 
 ### 3. [Principle Name]
 
-[Explanation of what this means]
+**[Emphatic statement about this principle ending with period.]**
+
+[1-2 paragraphs explaining what this means and why it matters]
+
+### 4. [Principle Name]
+
+**[Emphatic statement about this principle ending with period.]**
+
+[1-2 paragraphs explaining what this means and why it matters]
+
+### 5. [Principle Name]
+
+**[Emphatic statement about this principle ending with period.]**
+
+[1-2 paragraphs explaining what this means and why it matters]
 
 ## Strategic Intent
 
-**[Bold statement about long-term goals].**
+**[Bold statement about long-term goals ending with period.]**
 
 What success looks like:
 
-- [Outcome 1]
-- [Outcome 2]
-- [Outcome 3]
+- [Concrete outcome 1]
+- [Concrete outcome 2]
+- [Concrete outcome 3]
+- [Concrete outcome 4]
+- [Concrete outcome 5]
+
+## Who Benefits
+
+- **[Audience 1]** [how they benefit]
+- **[Audience 2]** [how they benefit]
+- **[Audience 3]** [how they benefit]
+
+## Long-Term Vision
+
+**[Bold aspirational statement ending with period.]**
+
+The path forward:
+
+1. [Milestone 1]
+2. [Milestone 2]
+3. [Milestone 3]
+4. [Milestone 4]
 ```
-
-### Why This Structure?
-
-This format uses **6 proven extraction patterns** from O₄ Mission Concepts:
-
-1. **Blockquote (weight: 1.0)** - `> _essence_` captures your core mission
-2. **Bold sentences (weight: 0.85)** - `**Complete thought.**` for emphatic statements
-3. **Value proposition bullets (weight: 0.9)** - `- **Prefix** — context` for structured claims
-4. **Named concept headers (weight: 0.95)** - `### Concept Name` for principles
-5. **Emoji-prefixed items (weight: 0.8)** - `✅/❌ **text** — explanation` for problems/solutions
-6. **Quoted terms (weight: 0.75)** - `"terminology"` for domain-specific concepts
-
-These patterns ensure high-quality concept extraction (target: 20-30 concepts, 70-85% alignment).
 
 ---
 
-## Step 3: Creating CODING_PRINCIPLES.md
-
-After VISION.md, let's document your development philosophy:
+## Step 3: CODING_PRINCIPLES.md Template
 
 ```markdown
 # Coding Principles
 
-> _[One sentence about your development philosophy]_
+> _[One sentence philosophy - must be 15+ characters]_
 
 ## Philosophy
 
-**[Core belief about how code should be written].**
+**[Core belief about how code should be written ending with period.]**
+
+[1-2 paragraphs elaborating on the philosophy]
+
+**[Second emphatic statement if needed.]**
 
 ## Principles
 
 ### 1. [Principle Name]
 
-**[Emphatic statement].**
+**[Emphatic statement ending with period.]**
 
-[Explanation and rationale]
+[Explanation paragraph]
 
-### 2. [Principle Name]
-
-**[Emphatic statement].**
-
-[Explanation and rationale]
-
-### 3. [Principle Name]
-
-**[Emphatic statement].**
-
-[Explanation and rationale]
-
-## Practices
-
-Things we do:
+What this means:
 
 - ✅ **[Practice 1]** — [Why we do it]
 - ✅ **[Practice 2]** — [Why we do it]
-
-Things we avoid:
-
+- ✅ **[Practice 3]** — [Why we do it]
 - ❌ **[Anti-pattern 1]** — [Why we avoid it]
 - ❌ **[Anti-pattern 2]** — [Why we avoid it]
 
+### 2. [Principle Name]
+
+**[Emphatic statement ending with period.]**
+
+[Explanation paragraph]
+
+What this means:
+
+- ✅ **[Practice 1]** — [Why we do it]
+- ✅ **[Practice 2]** — [Why we do it]
+- ❌ **[Anti-pattern 1]** — [Why we avoid it]
+- ❌ **[Anti-pattern 2]** — [Why we avoid it]
+
+### 3. [Principle Name]
+
+**[Emphatic statement ending with period.]**
+
+[Explanation paragraph]
+
+Practices:
+
+- ✅ **[Practice 1]** — [Why we do it]
+- ✅ **[Practice 2]** — [Why we do it]
+- ❌ **[Anti-pattern 1]** — [Why we avoid it]
+
+### 4. [Principle Name]
+
+**[Emphatic statement ending with period.]**
+
+[Explanation paragraph]
+
+### 5. [Principle Name]
+
+**[Emphatic statement ending with period.]**
+
+[Explanation paragraph]
+
+## Practices
+
+### Things We Do
+
+- ✅ **[Practice 1]** — [Why we do it]
+- ✅ **[Practice 2]** — [Why we do it]
+- ✅ **[Practice 3]** — [Why we do it]
+- ✅ **[Practice 4]** — [Why we do it]
+- ✅ **[Practice 5]** — [Why we do it]
+
+### Things We Avoid
+
+- ❌ **[Anti-pattern 1]** — [Why we avoid it]
+- ❌ **[Anti-pattern 2]** — [Why we avoid it]
+- ❌ **[Anti-pattern 3]** — [Why we avoid it]
+- ❌ **[Anti-pattern 4]** — [Why we avoid it]
+- ❌ **[Anti-pattern 5]** — [Why we avoid it]
+
 ## Code Quality Standards
 
-- **[Standard 1]** - [Details]
-- **[Standard 2]** - [Details]
-- **[Standard 3]** - [Details]
+### [Category 1]
+
+- **[Standard 1]** — [Details]
+- **[Standard 2]** — [Details]
+- **[Standard 3]** — [Details]
+
+### [Category 2]
+
+- **[Standard 1]** — [Details]
+- **[Standard 2]** — [Details]
+- **[Standard 3]** — [Details]
+
+## Summary
+
+**[Final emphatic summary statement ending with period.]**
+
+[Closing paragraph]
 ```
 
 ---
 
-## Step 4: Creating SECURITY.md (Optional)
+## Step 4: SECURITY.md Template
 
-If your project has security considerations:
+**IMPORTANT**: Security documents use different patterns. Use colons (`:`) for assets/boundaries, NOT em-dashes, to prevent misclassification as attack vectors.
 
 ```markdown
 # Security Guidelines
 
-> _[Security philosophy in one sentence]_
+> _[One sentence security philosophy - must be 15+ characters]_
+
+## Security Philosophy
+
+**[Core security belief ending with period.]**
+
+[1-2 paragraphs explaining the security approach]
+
+**[Statement about what you protect against and what you don't.]**
 
 ## Threat Model
 
@@ -180,76 +380,422 @@ If your project has security considerations:
 
 Critical assets requiring protection:
 
-- **[Asset 1]:** [What it is and why it matters]
-- **[Asset 2]:** [What it is and why it matters]
-
-**Pattern Note:** Use colons (:) for assets/boundaries to prevent misclassification as attack vectors.
+- **[Asset 1]**: [What it is and why it matters]
+- **[Asset 2]**: [What it is and why it matters]
+- **[Asset 3]**: [What it is and why it matters]
+- **[Asset 4]**: [What it is and why it matters]
+- **[Asset 5]**: [What it is and why it matters]
 
 ### Threats
 
-#### Threat 1: [Name]
+**Threat**: [Threat Name]
+**Severity**: [CRITICAL/HIGH/MEDIUM/LOW]
+**Attack Vector**: [How the attack is executed - specific method]
+**Impact**: [What damage could occur - specific consequences]
+**Mitigation**:
 
-**Attack Vector**: [How it could happen]
+- [Mitigation step 1]
+- [Mitigation step 2]
+- [Mitigation step 3]
 
+**Outstanding Risks**:
+
+- [Gap 1 that remains]
+- [Gap 2 that remains]
+
+---
+
+**Threat**: [Threat Name]
+**Severity**: [CRITICAL/HIGH/MEDIUM/LOW]
+**Attack Vector**: [How the attack is executed]
 **Impact**: [What damage could occur]
+**Mitigation**:
 
-**Severity**: [Critical/High/Medium/Low]
-
-**Mitigation**: [How you prevent it]
+- [Mitigation step 1]
+- [Mitigation step 2]
 
 **Outstanding Risks**:
 
 - [Gap 1]
 - [Gap 2]
 
-#### Threat 2: [Name]
+---
 
-**Attack Vector**: [How it could happen]
-
+**Threat**: [Threat Name]
+**Severity**: [CRITICAL/HIGH/MEDIUM/LOW]
+**Attack Vector**: [How the attack is executed]
 **Impact**: [What damage could occur]
+**Mitigation**:
 
-**Severity**: [Critical/High/Medium/Low]
-
-**Mitigation**: [How you prevent it]
+- [Mitigation step 1]
 
 **Outstanding Risks**:
 
 - [Gap 1]
-- [Gap 2]
 
 ## Security Boundaries
 
-### Authentication Boundaries
+### Boundary 1: [Boundary Name]
 
-- **[Boundary 1]:** [What's protected and how]
-- **[Boundary 2]:** [What's protected and how]
+**Constraint**: [What is restricted]
+**Enforcement**: [How it is enforced]
+**Exception**: [What bypasses exist]
 
-### Data Access Boundaries
+### Boundary 2: [Boundary Name]
 
-- **[Boundary 1]:** [What's protected and how]
-- **[Boundary 2]:** [What's protected and how]
+**Constraint**: [What is restricted]
+**Enforcement**: [How it is enforced]
+**Exception**: [What bypasses exist]
 
-**Pattern Note:** Use colons (:) not em dashes (—) to prevent extraction as attack vectors.
+### Boundary 3: [Boundary Name]
 
-## Security Requirements
-
-- **[Requirement 1]:** [Why it's required]
-- **[Requirement 2]:** [Why it's required]
+**Constraint**: [What is restricted]
+**Enforcement**: [How it is enforced]
+**Exception**: [What bypasses exist]
 
 ## Known Vulnerabilities
 
-[Track CVEs or security issues here]
+### CVE-[PROJECT]-001: [Vulnerability Name]
 
-## Security Review Process
+**Component**: [affected component]
+**Severity**: [CRITICAL/HIGH/MEDIUM/LOW]
+**Description**: [What the vulnerability is and how it can be exploited]
+**Affected Versions**: [version range]
+**Mitigation**: [How to fix or work around]
+**Status**: [OPEN/FIXED/ACCEPTED_RISK]
 
-[How you validate security]
+### CVE-[PROJECT]-002: [Vulnerability Name]
+
+**Component**: [affected component]
+**Severity**: [CRITICAL/HIGH/MEDIUM/LOW]
+**Description**: [What the vulnerability is]
+**Affected Versions**: [version range]
+**Mitigation**: [How to fix]
+**Status**: [OPEN/FIXED/ACCEPTED_RISK]
+
+## Security Requirements
+
+### [Category 1] Requirements
+
+**Implemented:**
+
+- [Requirement 1 that is done]
+- [Requirement 2 that is done]
+- [Requirement 3 that is done]
+
+**Outstanding Gaps:**
+
+- [Requirement 1 not yet done]
+- [Requirement 2 not yet done]
+
+### [Category 2] Requirements
+
+**Implemented:**
+
+- [Requirement 1]
+- [Requirement 2]
+
+**Outstanding Gaps:**
+
+- [Gap 1]
+- [Gap 2]
+
+## Deployment Recommendations
+
+### [Use Case 1]
+
+[When to use this configuration]
+
+- [Recommendation 1]
+- [Recommendation 2]
+- [Recommendation 3]
+
+### [Use Case 2]
+
+[When to use this configuration]
+
+- [Recommendation 1]
+- [Recommendation 2]
+
+## Incident Response
+
+### If [Incident Type 1] Detected
+
+Immediate Actions:
+
+1. [Action 1]
+2. [Action 2]
+3. [Action 3]
+4. [Action 4]
+
+### If [Incident Type 2] Detected
+
+Immediate Actions:
+
+1. [Action 1]
+2. [Action 2]
+3. [Action 3]
+
+---
+
+**[Final security statement ending with period.]**
 ```
 
 ---
 
-## Step 5: Ingesting Documents
+## Step 5: MATHEMATICAL.md Template (Optional)
 
-Once you've created your documentation, ingest it:
+For projects with formal verification needs:
+
+````markdown
+# Mathematical Properties
+
+> _[One sentence about formal grounding - must be 15+ characters]_
+
+## Overview
+
+[Paragraph explaining why formal properties matter for this project]
+
+## Theorems
+
+### Theorem 1: [Theorem Name]
+
+**THEOREM**: [Formal statement of what is being proven]
+
+**Formal Notation**: [Mathematical notation if applicable]
+
+```
+∀ x, y ∈ Set: P(x) ⟹ Q(y)
+```
+
+**PROOF**:
+
+1. [Proof step 1]
+2. [Proof step 2]
+3. [Proof step 3]
+4. [Therefore conclusion]
+
+**Assumptions**:
+
+- [Assumption 1]
+- [Assumption 2]
+
+---
+
+### Theorem 2: [Theorem Name]
+
+**THEOREM**: [Formal statement]
+
+**PROOF**:
+
+1. [Step 1]
+2. [Step 2]
+3. [Conclusion]
+
+## Lemmas
+
+### Lemma 1: [Lemma Name]
+
+**LEMMA**: [Supporting statement used in larger proofs]
+
+**PROOF**: [Brief proof or reference to theorem]
+
+## Invariants
+
+### Invariant 1: [Invariant Name]
+
+**INVARIANT**: [Property that always holds]
+
+```
+∀ state ∈ System: P(state) = true
+```
+
+**Enforcement**: [How the invariant is maintained]
+
+**Violations to Watch**:
+
+- [Condition that would violate]
+- [Another condition]
+
+### Invariant 2: [Invariant Name]
+
+**INVARIANT**: [Property that always holds]
+
+**Enforcement**: [How maintained]
+
+## Complexity Bounds
+
+### [Algorithm/Function Name]
+
+**COMPLEXITY**: O([time complexity])
+**SPACE**: O([space complexity])
+**WHERE**: [variable definitions]
+**PROOF**: [Brief justification]
+
+### [Algorithm/Function Name]
+
+**COMPLEXITY**: O([complexity])
+**PROOF**: [Justification]
+
+## Axioms
+
+### Axiom 1: [Axiom Name]
+
+**AXIOM**: [Foundational assumption accepted without proof]
+
+**Justification**: [Why this is a reasonable assumption]
+````
+
+---
+
+## Step 6: OPERATIONAL.md Template (Optional)
+
+For projects with defined workflows, quests, or operational procedures:
+
+```markdown
+# Operational Patterns
+
+> _[One sentence about operational philosophy - must be 15+ characters]_
+
+## Overview
+
+[Paragraph explaining why operational patterns matter for this project]
+
+**[Emphatic statement about operational discipline ending with period.]**
+
+## Terminology
+
+**Quest** — A bounded unit of work with clear success criteria
+**Oracle** — Source of truth for decision-making
+**Scribe** — Recorder of operational state
+**Depth** — Level of detail in operational tracking (0=high-level, 2=granular)
+**AQS** — Agentic Quality Score measuring operational effectiveness
+
+## Sacred Sequences
+
+### F.L.T.B (Format, Lint, Test, Build)
+
+**This sequence is invariant and must never be violated.**
+
+The sacred sequence ensures code quality at every commit:
+
+1. **Format** — Apply consistent code formatting
+2. **Lint** — Check for code quality issues
+3. **Test** — Run all tests to verify correctness
+4. **Build** — Compile and verify build succeeds
+
+**All four steps must pass before any commit is accepted.**
+
+### [Custom Sacred Sequence Name]
+
+**[Why this sequence is invariant.]**
+
+1. **[Step 1]** — [What it does]
+2. **[Step 2]** — [What it does]
+3. **[Step 3]** — [What it does]
+
+## Quest Structures
+
+### Quest: [Quest Name]
+
+**What**: [Clear description of what needs to be accomplished]
+
+**Why**: [Motivation and business value]
+
+**Success Criteria**:
+
+- [Criterion 1 - measurable outcome]
+- [Criterion 2 - measurable outcome]
+- [Criterion 3 - measurable outcome]
+
+**Big Blocks**: [Major obstacles or dependencies]
+
+**Eyes Go**: [Where to look for guidance]
+
+### Quest: [Quest Name]
+
+**What**: [Description]
+
+**Why**: [Motivation]
+
+**Success Criteria**:
+
+- [Criterion 1]
+- [Criterion 2]
+
+## Depth Rules
+
+Depth 0: Strategic decisions and architectural choices
+Depth 1: Implementation planning and task breakdown
+Depth 2: Line-by-line execution and debugging
+
+### Depth Transitions
+
+**Depth increases when blocking issues require detailed investigation.**
+
+**Depth decreases when patterns emerge and can be abstracted.**
+
+- ✅ **Rebalancing** — Periodically review depth and adjust
+- ❌ **Depth lock** — Staying at wrong depth wastes resources
+
+## Workflow Patterns
+
+### [Pattern Name]
+
+**[Bold statement about when to use this pattern.]**
+
+[Explanation of the pattern]
+
+Triggers:
+
+- [When to apply this pattern]
+- [Another trigger condition]
+
+Actions:
+
+- [Step 1]
+- [Step 2]
+- [Step 3]
+
+### [Pattern Name]
+
+**[Bold statement about the pattern.]**
+
+[Explanation]
+
+## Metrics
+
+### Agentic Quality Score (AQS)
+
+AQS = (Completion × Correctness × Coherence) / Time
+
+**Components**:
+
+- **Completion** — Percentage of quest criteria met
+- **Correctness** — Accuracy of implementation
+- **Coherence** — Alignment with mission principles
+- **Time** — Efficiency of execution
+
+### [Custom Metric Name]
+
+**Formula**: [metric formula]
+
+**Purpose**: [Why this metric matters]
+
+## Operational Boundaries
+
+### [Boundary Name]
+
+**Constraint**: [What is restricted]
+**Enforcement**: [How violations are detected]
+**Recovery**: [What to do when violated]
+```
+
+---
+
+## Step 7: Ingesting Documents
+
+Once you've created your documentation:
 
 ```bash
 # Initialize PGC if not already done
@@ -262,36 +808,19 @@ cognition-cli genesis:docs docs/CODING_PRINCIPLES.md
 # Ingest security docs (if created)
 cognition-cli genesis:docs docs/SECURITY.md
 
+# Ingest mathematical docs (if created)
+cognition-cli genesis:docs docs/MATHEMATICAL.md
+
+# Ingest operational docs (if created)
+cognition-cli genesis:docs docs/OPERATIONAL.md
+
 # Or ingest entire docs directory
 cognition-cli genesis:docs docs/
 ```
 
-### What Happens During Ingestion
-
-1. **Document Classification**: Automatically determines document type
-   - Strategic → O₄ (Mission Concepts)
-   - Security → O₂ (Security Guidelines)
-   - Operational → O₅ (Operational Patterns)
-
-2. **Concept Extraction**: Uses 6 structural patterns to extract concepts
-   - Target: 20-30 concepts per document
-   - Quality: 70-85% alignment score
-
-3. **Embedding Generation**: Creates 768-dimensional vectors via eGemma
-   - Enables semantic search: `/consult-echo "query"`
-   - Powers coherence analysis: `/coherence`
-
-4. **Provenance Tracking**: Records transformation in audit trail
-   - Stored in `.open_cognition/logs/transforms/`
-   - Full lineage for every concept
-
-5. **Security Validation**: Checks for mission drift
-   - Advisory mode: warns about suspicious patterns
-   - Strict mode: blocks on policy violations
-
 ---
 
-## Step 6: Verify Ingestion
+## Step 8: Verify Ingestion
 
 Check that your documents were ingested successfully:
 
@@ -302,31 +831,8 @@ cognition-cli status
 # View mission concepts
 cognition-cli concepts list
 
-# Test semantic search
-cognition-cli ask "What are our core principles?"
-
 # Check coherence
 cognition-cli coherence report
-```
-
----
-
-## Step 7: Start Using Quest Commands
-
-Now you can use quest-based development:
-
-```bash
-# Start a new quest
-/quest-start "implement user authentication"
-
-# Find relevant patterns
-/find-pattern "authentication"
-
-# Check alignment
-/check-alignment "zero-trust security"
-
-# Verify before committing
-/quest-verify
 ```
 
 ---
@@ -343,82 +849,106 @@ Your VISION.md should achieve these metrics:
 
 If your metrics are off:
 
-- **Too few concepts (<20)**: Add more bold statements, bullet points
-- **Too many concepts (>50)**: Be more selective, strengthen signal
-- **Low weights (<0.5)**: Use the pattern-optimized structure above
-- **High fragments**: Avoid short phrases, focus on complete thoughts
+- **Too few concepts (<20)**: Add more bold statements, emoji bullets, H3 headers
+- **Too many concepts (>50)**: Remove redundant points, strengthen signal
+- **Low weights (<0.5)**: Ensure you're using exact patterns above
+- **High fragments**: Use complete sentences, avoid short phrases
 
 ---
 
-## Example: Minimal VISION.md
+## Common Mistakes That Break Ingestion
 
-If you're starting simple:
+### Wrong Dash Character
 
 ```markdown
-# My Project
-
-> _Solve [problem] with [approach]._
-
-## Vision
-
-**We believe [core belief].**
-
-[2-3 sentences about the opportunity]
-
-## Principles
-
-### 1. [First Principle]
-
-[Explanation]
-
-### 2. [Second Principle]
-
-[Explanation]
-
-### 3. [Third Principle]
-
-[Explanation]
-
-## Success
-
-- ✅ **[Goal 1]** — [Why it matters]
-- ✅ **[Goal 2]** — [Why it matters]
+❌ - **Text** - explanation (hyphen-minus, ASCII 45)
+✅ - **Text** — explanation (em-dash, Unicode 2014)
 ```
 
-This minimal structure will still extract 8-12 high-quality concepts.
+**Tip**: Copy the em-dash from this document: —
+
+### Missing Bold on Prefixes
+
+```markdown
+❌ - ✅ Radical Affordability — explanation
+✅ - ✅ **Radical Affordability** — explanation
+```
+
+### H2 Instead of H3 for Principles
+
+```markdown
+❌ ## 1. Simplicity Over Abstraction
+✅ ### 1. Simplicity Over Abstraction
+```
+
+### Bold Words Instead of Sentences
+
+```markdown
+❌ Our **mission** is to establish symbiosis.
+✅ **Our mission is to establish symbiosis.**
+```
+
+### Blockquote Without Italics
+
+```markdown
+❌ > One sentence essence
+✅ > _One sentence essence_
+```
+
+### Security Assets with Em-Dash (Gets Classified as Attack Vector)
+
+```markdown
+❌ - **Host Filesystem** — training data that could be deleted
+✅ - **Host Filesystem**: training data that could be deleted
+```
 
 ---
 
-## Tips for Great Documentation
+## Pattern Reference Card
 
-1. **Use blockquotes for essence** - Start with `> _one sentence mission_`
-2. **Bold complete sentences** - `**This is our belief.**` not `We **believe** this`
-3. **Structure value props** - `- **Claim** — context` for scannable points
-4. **Name your concepts** - `### Principle Name` as H3 headers
-5. **Use emojis strategically** - `✅/❌` for requirements and problems
-6. **Quote coined terms** - `"domain-specific terminology"` for key phrases
-
-These patterns maximize extraction quality (validated by Oracle metrics).
+| Pattern       | Format                    | Weight |
+| ------------- | ------------------------- | ------ |
+| Blockquote    | `> _text_`                | 1.0    |
+| H3 Header     | `### N. Name`             | 0.95   |
+| Bullet Prefix | `- **Bold** — context`    | 0.9    |
+| Bold Sentence | `**Sentence.**`           | 0.85   |
+| Emoji Item    | `- ✅ **Bold** — context` | 0.8    |
+| Quoted Term   | `"15+ char term"`         | 0.75   |
 
 ---
 
 ## Next Steps
 
 1. **Answer the questions** in Step 1
-2. **I'll draft your VISION.md** using pattern-optimized structure
-3. **Review and refine** the content
-4. **Create the file** in your project
-5. **Run ingestion**: `cognition-cli genesis:docs docs/VISION.md`
+2. **Copy the templates** exactly (don't modify structure)
+3. **Fill in your content** (modify only the bracketed placeholders)
+4. **Create the files** in your project's `docs/` directory
+5. **Run ingestion**: `cognition-cli genesis:docs docs/`
 6. **Verify**: `cognition-cli concepts list`
-7. **Start questing**: `/quest-start "your first quest"`
 
 ---
 
 ## Need Help?
 
-- **Pattern details**: See `docs/overlays/O4_mission/PATTERN_LIBRARY.md`
-- **Ingestion guide**: Run `cognition-cli genesis:docs --help`
-- **Concept extraction**: See `docs/manual/part-1-foundation/02-the-pgc.md`
-- **Quest workflow**: Read `.claude/commands/README.md`
+- **Ingestion issues**: Run `cognition-cli genesis:docs --help`
+- **Pattern not extracting**: Check your formatting matches the "CRITICAL: Extraction Patterns" section above exactly
+- **Low concept count**: Add more H3 numbered headers, bold sentences, and emoji bullets
+- **Wrong classification**: For security docs, use colons (`:`) not em-dashes (`—`) for assets
+
+**Verify Extracted Content**:
+
+- `cognition-cli concepts list` — O4 Mission concepts (VISION.md, CODING_PRINCIPLES.md)
+- `cognition-cli security list` — O2 Security threats and boundaries (SECURITY.md)
+- `cognition-cli proofs list` — O6 Mathematical theorems and invariants (MATHEMATICAL.md)
+- `cognition-cli workflow patterns` — O5 Operational patterns (OPERATIONAL.md)
+- `cognition-cli coherence report` — Check alignment across overlays
+
+**Quick Pattern Checklist**:
+
+- [ ] Blockquote essence: `> _text_` (italic inside blockquote)
+- [ ] H3 headers: `### 1. Name` (numbered, H3 level only)
+- [ ] Emoji bullets: `- ✅ **Bold** — context` (em-dash, not hyphen)
+- [ ] Bold sentences: `**Complete sentence.**` (ends with punctuation)
+- [ ] Quoted terms: `"at least 15 characters"` (minimum length)
 
 Let's get started! Share your answers to the questions in Step 1, and I'll help you create your strategic documentation.
