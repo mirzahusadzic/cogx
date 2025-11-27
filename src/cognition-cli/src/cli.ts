@@ -29,14 +29,14 @@
  * - Workbench URL can be overridden via --workbench flag or WORKBENCH_URL env var
  *
  * @example
- * // Initialize new PGC workspace
+ * // Initialize new PGC workspace (auto-detects sources)
  * $ cognition-cli init
  *
- * // Build structural overlay from code
- * $ cognition-cli genesis src/
+ * // Build structural overlay from code (uses detected paths from init)
+ * $ cognition-cli genesis
  *
- * // Ingest documentation into mission overlay
- * $ cognition-cli genesis:docs VISION.md
+ * // Ingest documentation (uses detected docs from init)
+ * $ cognition-cli genesis:docs
  *
  * // Query using lattice algebra
  * $ cognition-cli lattice "O2[attack_vector] ~ O4"
@@ -46,8 +46,9 @@
  *
  * @example
  * // Security analysis workflow
- * $ cognition-cli genesis src/           # O₁: Structural
- * $ cognition-cli genesis:docs VISION.md # O₄: Mission
+ * $ cognition-cli init                    # Auto-detect sources
+ * $ cognition-cli genesis                 # O₁: Structural (from metadata)
+ * $ cognition-cli genesis:docs            # O₄: Mission (from metadata)
  * $ cognition-cli security attacks        # Find policy violations
  * $ cognition-cli security coverage-gaps  # Find uncovered symbols
  *
@@ -160,7 +161,9 @@ program
 program
   .command('init')
   .alias('i')
-  .description('Initialize a new Grounded Context Pool (PGC) (alias: i)')
+  .description(
+    'Initialize PGC with auto-detection of source directories (alias: i)'
+  )
   .option('-p, --project-root <path>', 'Project path', process.cwd())
   .option(
     '-n, --dry-run',
@@ -171,18 +174,17 @@ program
     'after',
     combineHelpSections(
       addExamples([
-        { cmd: 'cognition init', desc: 'Initialize in current directory' },
         {
-          cmd: 'cognition init -p /path/to/project',
-          desc: 'Initialize in specific directory',
+          cmd: 'cognition init',
+          desc: 'Auto-detect sources and initialize',
         },
         {
           cmd: 'cognition init --dry-run',
-          desc: 'Preview without creating files',
+          desc: 'Preview detected paths without creating files',
         },
         {
           cmd: 'cognition init --force',
-          desc: 'Reinitialize without confirmation (CI/CD)',
+          desc: 'Non-interactive mode (CI/CD)',
         },
       ]),
       addLearnMore([
@@ -202,7 +204,9 @@ program
 program
   .command('genesis [sourcePath]')
   .alias('g')
-  .description('Builds the verifiable skeleton of a codebase (alias: g)')
+  .description(
+    'Build code knowledge graph (reads paths from metadata.json if omitted) (alias: g)'
+  )
   .option(
     '-w, --workbench <url>',
     'URL of the egemma workbench (defaults to WORKBENCH_URL env var or http://localhost:8000)'
@@ -221,21 +225,21 @@ program
     'after',
     combineHelpSections(
       addExamples([
-        { cmd: 'cognition genesis src/', desc: 'Analyze the src/ directory' },
         {
-          cmd: 'cognition genesis --workbench http://localhost:8001 src/',
-          desc: 'Use custom workbench URL',
+          cmd: 'cognition genesis',
+          desc: 'Use paths from init (metadata.json)',
+        },
+        { cmd: 'cognition genesis src/', desc: 'Analyze specific directory' },
+        {
+          cmd: 'cognition g src/,lib/',
+          desc: 'Multiple directories (comma-separated)',
         },
         {
-          cmd: 'cognition g lib/',
-          desc: 'Short alias, analyze lib/ directory',
-        },
-        {
-          cmd: 'cognition genesis --dry-run src/',
+          cmd: 'cognition genesis --dry-run',
           desc: 'Preview files that would be analyzed',
         },
         {
-          cmd: 'cognition genesis --resume src/',
+          cmd: 'cognition genesis --resume',
           desc: 'Resume interrupted genesis',
         },
       ]),
@@ -252,9 +256,33 @@ program
   )
   .action(async (sourcePath, options) => {
     const { genesisCommand } = await import('./commands/genesis.js');
+    const fs = await import('fs-extra');
+    const pathModule = await import('path');
+
+    // Try to read source paths from metadata if not provided
+    let source = sourcePath || options.source;
+    if (!source) {
+      const metadataPath = pathModule.default.join(
+        options.projectRoot,
+        '.open_cognition',
+        'metadata.json'
+      );
+      try {
+        const metadata = await fs.default.readJSON(metadataPath);
+        if (metadata.sources?.code?.length > 0) {
+          source = metadata.sources.code.join(',');
+          console.log(
+            `Using source paths from metadata: ${metadata.sources.code.join(', ')}`
+          );
+        }
+      } catch {
+        // Metadata not found or invalid, fall back to default
+      }
+    }
+
     await genesisCommand({
       ...options,
-      source: sourcePath || options.source || 'src',
+      source: source || 'src',
     });
   });
 
@@ -384,7 +412,7 @@ program
 program
   .command('genesis:docs [paths...]')
   .description(
-    'Ingest markdown documentation into PGC with full provenance (defaults to VISION.md)'
+    'Ingest documentation (reads paths from metadata.json, falls back to VISION.md)'
   )
   .option(
     '-p, --project-root <path>',
@@ -397,9 +425,37 @@ program
   )
   .action(async (pathsArg, options) => {
     const { genesisDocsCommand } = await import('./commands/genesis-docs.js');
-    const defaultPath = path.join(options.projectRoot, '../../VISION.md');
-    const targetPaths =
-      pathsArg && pathsArg.length > 0 ? pathsArg : [defaultPath];
+    const fs = await import('fs-extra');
+
+    let targetPaths: string[] = pathsArg && pathsArg.length > 0 ? pathsArg : [];
+
+    // Try to read doc paths from metadata if not provided
+    if (targetPaths.length === 0) {
+      const metadataPath = path.join(
+        options.projectRoot,
+        '.open_cognition',
+        'metadata.json'
+      );
+      try {
+        const metadata = await fs.default.readJSON(metadataPath);
+        if (metadata.sources?.docs?.length > 0) {
+          targetPaths = metadata.sources.docs.map((p: string) =>
+            path.join(options.projectRoot, p)
+          );
+          console.log(
+            `Using doc paths from metadata: ${metadata.sources.docs.join(', ')}`
+          );
+        }
+      } catch {
+        // Metadata not found or invalid
+      }
+    }
+
+    // Fall back to default VISION.md
+    if (targetPaths.length === 0) {
+      targetPaths = [path.join(options.projectRoot, '../../VISION.md')];
+    }
+
     await genesisDocsCommand(targetPaths, options);
   });
 

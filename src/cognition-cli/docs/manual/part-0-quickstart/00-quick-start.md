@@ -71,16 +71,17 @@ cognition-cli wizard
 
 **Interactive prompts**:
 
-1. **Source directory**: Enter `src/` (or your source path)
-2. **Ingest documentation**: Choose `Yes`
-3. **Overlays to generate**: Select all (recommended) or minimum: O₁, O₄, O₇
+1. **Workbench URL**: Confirm or enter workbench URL (auto-detected)
+2. **Source detection**: Auto-detects code directories and docs, lets you confirm or edit
+3. **Overlays to generate**: Select all (recommended) or specific overlays
 
 **What happens**:
 
-- ✅ Creates `.open_cognition/` directory (PGC)
-- ✅ Analyzes source code (genesis)
-- ✅ Ingests documentation (genesis:docs)
-- ✅ Generates overlays (O₁-O₇)
+- ✅ Runs `init` with auto-detection (you pick sources and docs)
+- ✅ Creates `.open_cognition/` directory (PGC) with metadata
+- ✅ Analyzes source code (genesis) using detected paths
+- ✅ Ingests documentation (genesis:docs) using detected paths
+- ✅ Generates overlays (O₁-O₇) - warns if O₄/O₇ selected without docs
 
 **Time**: 3-5 minutes for small-medium codebase
 
@@ -292,9 +293,12 @@ NODE_OPTIONS=--max-old-space-size=8192 cognition-cli wizard
 # Check overlays are generated:
 cognition-cli overlay list
 
-# Generate missing overlays:
+# Generate missing overlays (reads source paths from metadata):
 cognition-cli overlay generate mission_concepts
 cognition-cli overlay generate security_guidelines
+
+# Or specify source path explicitly:
+cognition-cli overlay generate structural_patterns src/
 ```
 
 ---

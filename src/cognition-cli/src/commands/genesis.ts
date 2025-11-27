@@ -43,6 +43,7 @@ import {
   debugTimer,
   getDebugLogPath,
 } from '../utils/debug-logger.js';
+import { LANGUAGE_MAP } from '../config.js';
 
 /**
  * Represents errors during PGC initialization validation.
@@ -118,18 +119,6 @@ async function clearProgress(projectRoot: string): Promise<void> {
     // Ignore if file doesn't exist
   }
 }
-
-/** Supported file extensions and their languages */
-const LANGUAGE_MAP: Record<string, string> = {
-  '.ts': 'TypeScript',
-  '.tsx': 'TypeScript (React)',
-  '.js': 'JavaScript',
-  '.jsx': 'JavaScript (React)',
-  '.py': 'Python',
-  '.java': 'Java',
-  '.rs': 'Rust',
-  '.go': 'Go',
-};
 
 /** Glob patterns to ignore during scanning */
 const IGNORE_PATTERNS = [

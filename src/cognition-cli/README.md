@@ -244,23 +244,24 @@ watch → dirty_state.json → status → update → coherence restored ♻️
 
 ## 📋 Command Reference
 
-| Command                   | Description                   | Learn More                                                         |
-| :------------------------ | :---------------------------- | :----------------------------------------------------------------- |
-| `init`                    | Initialize PGC structure      | [Getting Started](docs/guides/00_Introduction.md)                  |
-| `genesis [path]`          | Build code knowledge graph    | [Structural Analysis](docs/guides/01_Structural_Analysis.md)       |
-| `genesis:docs [path]`     | Ingest documentation          | [Mission Extraction](docs/guides/09_Mission_Concept_Extraction.md) |
-| `watch`                   | Real-time file monitoring     | [Commands](docs/guides/03_Commands.md)                             |
-| `status`                  | Instant coherence check       | [Commands](docs/guides/03_Commands.md)                             |
-| `update`                  | Incremental sync              | [Commands](docs/guides/03_Commands.md)                             |
-| `overlay generate <type>` | Generate analytical overlays  | [Commands](docs/guides/03_Commands.md)                             |
-| `tui`                     | Interactive TUI with Σ system | [Claude Integration](docs/guides/08_Claude_CLI_Integration.md)     |
-| `pr-analyze`              | Cross-overlay PR analysis     | [Commands](docs/guides/03_Commands.md)                             |
-| `security blast-radius`   | Security impact analysis      | [Commands](docs/guides/03_Commands.md)                             |
-| `patterns <command>`      | Structural pattern operations | [Structural Analysis](docs/guides/01_Structural_Analysis.md)       |
-| `concepts <command>`      | Mission concept operations    | [Mission Extraction](docs/guides/09_Mission_Concept_Extraction.md) |
-| `coherence <command>`     | Mission-code coherence        | [Mission Security](docs/guides/10_Mission_Security_Validation.md)  |
-| `query <question>`        | Graph traversal               | [AI Analysis](docs/guides/07_AI_Grounded_Architecture_Analysis.md) |
-| `audit <command>`         | PGC integrity verification    | [Verification](docs/guides/05_Verification_and_Oracles.md)         |
+| Command                   | Description                        | Learn More                                                           |
+| :------------------------ | :--------------------------------- | :------------------------------------------------------------------- |
+| `wizard`                  | Interactive guided setup           | [CLI Operations](docs/manual/part-1-foundation/05-cli-operations.md) |
+| `init`                    | Initialize PGC with auto-detection | [Getting Started](docs/guides/00_Introduction.md)                    |
+| `genesis [path]`          | Build code knowledge graph         | [Structural Analysis](docs/guides/01_Structural_Analysis.md)         |
+| `genesis:docs [path]`     | Ingest documentation               | [Mission Extraction](docs/guides/09_Mission_Concept_Extraction.md)   |
+| `watch`                   | Real-time file monitoring          | [Commands](docs/guides/03_Commands.md)                               |
+| `status`                  | Instant coherence check            | [Commands](docs/guides/03_Commands.md)                               |
+| `update`                  | Incremental sync                   | [Commands](docs/guides/03_Commands.md)                               |
+| `overlay generate <type>` | Generate analytical overlays       | [Commands](docs/guides/03_Commands.md)                               |
+| `tui`                     | Interactive TUI with Σ system      | [Claude Integration](docs/guides/08_Claude_CLI_Integration.md)       |
+| `pr-analyze`              | Cross-overlay PR analysis          | [Commands](docs/guides/03_Commands.md)                               |
+| `security blast-radius`   | Security impact analysis           | [Commands](docs/guides/03_Commands.md)                               |
+| `patterns <command>`      | Structural pattern operations      | [Structural Analysis](docs/guides/01_Structural_Analysis.md)         |
+| `concepts <command>`      | Mission concept operations         | [Mission Extraction](docs/guides/09_Mission_Concept_Extraction.md)   |
+| `coherence <command>`     | Mission-code coherence             | [Mission Security](docs/guides/10_Mission_Security_Validation.md)    |
+| `query <question>`        | Graph traversal                    | [AI Analysis](docs/guides/07_AI_Grounded_Architecture_Analysis.md)   |
+| `audit <command>`         | PGC integrity verification         | [Verification](docs/guides/05_Verification_and_Oracles.md)           |
 
 ---
 

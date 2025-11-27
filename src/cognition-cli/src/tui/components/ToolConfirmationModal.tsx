@@ -68,6 +68,32 @@ const ToolConfirmationModalComponent: React.FC<ToolConfirmationModalProps> = ({
     [toolName, input]
   );
 
+  // For confirmation modal, show relevant info without overwhelming
+  const displayDescription = React.useMemo(() => {
+    const inputObj = input as Record<string, unknown>;
+    // For Edit/Write/Read - show the full file path
+    if (inputObj.file_path) {
+      return inputObj.file_path as string;
+    }
+    // For Bash - show first line only (handles multi-line git commits)
+    if (inputObj.command) {
+      const cmd = inputObj.command as string;
+      const firstLine = cmd.split('\n')[0];
+      // Truncate long commands
+      if (firstLine.length > 100) {
+        return firstLine.slice(0, 100) + '...';
+      }
+      return firstLine + (cmd.includes('\n') ? ' ...' : '');
+    }
+    // Fallback to formatted description (truncated for unknown tools)
+    const desc = formattedTool.description;
+    const firstLine = desc.split('\n')[0];
+    if (firstLine.length > 100) {
+      return firstLine.slice(0, 100) + '...';
+    }
+    return firstLine + (desc.includes('\n') ? ' ...' : '');
+  }, [input, formattedTool.description]);
+
   // For bash commands, extract the base command for "Always" label
   const alwaysLabel = React.useMemo(() => {
     if (toolName.toLowerCase() === 'bash') {
@@ -84,17 +110,14 @@ const ToolConfirmationModalComponent: React.FC<ToolConfirmationModalProps> = ({
       borderColor="yellow"
       paddingX={1}
     >
-      {/* Tool and command - compact display */}
+      {/* Tool and file path only - diff shown in main window */}
       <Box>
         <Text color="yellow" bold>
           [!]{' '}
         </Text>
         <Text bold>{formattedTool.name}</Text>
         <Text dimColor>: </Text>
-        <Text color="cyan">
-          {formattedTool.description.slice(0, 60)}
-          {formattedTool.description.length > 60 ? '…' : ''}
-        </Text>
+        <Text color="cyan">{displayDescription}</Text>
       </Box>
 
       {/* Compact footer with options - same style as CommandDropdown */}

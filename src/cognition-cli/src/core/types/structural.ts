@@ -60,34 +60,19 @@
  */
 
 import { z } from 'zod';
+import { LanguageType, SUPPORTED_LANGUAGES } from '../../config.js';
 
 /**
  * Supported programming languages for structural extraction.
- *
- * Each language has a corresponding parser (native or remote) that
- * extracts normalized structural data.
+ * Re-exported from config.ts which is the single source of truth.
  */
-export type Language =
-  | 'typescript'
-  | 'javascript'
-  | 'python'
-  | 'java'
-  | 'rust'
-  | 'go'
-  | 'unknown';
+export type Language = LanguageType;
 
 /**
  * Zod schema for validating Language type.
+ * Derived from SUPPORTED_LANGUAGES in config.ts
  */
-export const LanguageSchema = z.enum([
-  'typescript',
-  'javascript',
-  'python',
-  'java',
-  'rust',
-  'go',
-  'unknown',
-]);
+export const LanguageSchema = z.enum(SUPPORTED_LANGUAGES);
 
 /**
  * Zod schema for validating SourceFile structure.

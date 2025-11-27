@@ -10,8 +10,13 @@
  *
  * Plus supporting directories:
  * - overlays/ - Analytical overlay storage (O1-O7)
- * - metadata.json - System initialization metadata with version and timestamp
+ * - metadata.json - System initialization metadata with version, timestamp, and source paths
  * - .gitignore - Excludes large objects/ directory from version control
+ *
+ * NEW: Auto-detection of source directories
+ * - Scans project for code directories (src/, lib/, Python packages)
+ * - Detects documentation (README.md, VISION.md, docs/)
+ * - Stores paths in metadata.json for use by genesis and overlay commands
  *
  * STATUS CODES:
  * - empty: Just initialized, no analysis performed yet
@@ -22,7 +27,7 @@
  * This must be run ONCE before genesis, overlay, or other commands.
  *
  * @example
- * // Initialize PGC in current directory
+ * // Initialize PGC in current directory with auto-detection
  * cognition-cli init
  *
  * @example
@@ -37,9 +42,67 @@
 
 import fs from 'fs-extra';
 import path from 'path';
-import { intro, outro, spinner, confirm } from '@clack/prompts';
+import {
+  intro,
+  outro,
+  spinner,
+  confirm,
+  multiselect,
+  text,
+} from '@clack/prompts';
 import chalk from 'chalk';
 import { isInteractive } from '../utils/terminal-capabilities.js';
+import {
+  detectSources,
+  getSelectedPaths,
+  type DetectionResult,
+} from '../utils/source-detector.js';
+
+/** Metadata schema with source paths */
+export interface PGCMetadata {
+  version: string;
+  initialized_at: string;
+  status: 'empty' | 'mining' | 'complete' | 'updating';
+  sources?: {
+    code: string[];
+    docs: string[];
+  };
+  projectType?: DetectionResult['projectType'];
+}
+
+/**
+ * Display detected sources to the user
+ */
+function displayDetectedSources(detected: DetectionResult): void {
+  console.log('');
+  console.log(chalk.cyan('Detected project structure:'));
+  console.log('');
+
+  if (detected.code.length > 0) {
+    console.log(chalk.bold('  Code directories:'));
+    for (const dir of detected.code) {
+      const marker = dir.selected ? chalk.green('●') : chalk.dim('○');
+      const lang = dir.language ? chalk.dim(` (${dir.language})`) : '';
+      console.log(`    ${marker} ${dir.path}${lang} - ${dir.fileCount} files`);
+    }
+  } else {
+    console.log(chalk.yellow('  No code directories detected'));
+  }
+
+  console.log('');
+
+  if (detected.docs.length > 0) {
+    console.log(chalk.bold('  Documentation:'));
+    for (const doc of detected.docs) {
+      const marker = doc.selected ? chalk.green('●') : chalk.dim('○');
+      console.log(`    ${marker} ${doc.path}`);
+    }
+  } else {
+    console.log(chalk.dim('  No documentation detected'));
+  }
+
+  console.log('');
+}
 
 /**
  * Initializes the PGC directory structure at the specified path.
@@ -47,7 +110,7 @@ import { isInteractive } from '../utils/terminal-capabilities.js';
  * Creates the complete four-pillar architecture:
  * 1. Creates .open_cognition root directory
  * 2. Sets up objects/, transforms/, index/, reverse_deps/, overlays/ subdirectories
- * 3. Initializes metadata.json with version and timestamp
+ * 3. Initializes metadata.json with version, timestamp, and detected source paths
  * 4. Creates .gitignore to exclude large object store
  *
  * If directory already exists, ensures all required subdirectories are present.
@@ -65,7 +128,7 @@ export async function initCommand(options: {
   dryRun?: boolean;
   force?: boolean;
 }) {
-  console.log(chalk.cyan('📦 PGC = Grounded Context Pool'));
+  console.log(chalk.cyan('PGC = Grounded Context Pool'));
   console.log(
     chalk.dim(
       '   Content-addressable knowledge storage with full audit trails\n'
@@ -73,6 +136,18 @@ export async function initCommand(options: {
   );
 
   const pgcRoot = path.join(options.path, '.open_cognition');
+
+  // Auto-detect sources
+  const s = spinner();
+  s.start('Detecting project structure...');
+  const detected = await detectSources(options.path);
+  s.stop('Detection complete');
+
+  // Display what was found
+  displayDetectedSources(detected);
+
+  // Get initial selected paths
+  const selectedPaths = getSelectedPaths(detected);
 
   // Dry run mode - preview what would be created
   if (options.dryRun) {
@@ -88,9 +163,16 @@ export async function initCommand(options: {
     console.log(`    ${chalk.dim('└──')} .gitignore`);
     console.log('');
 
+    if (selectedPaths.code.length > 0 || selectedPaths.docs.length > 0) {
+      console.log('Would store in metadata.json:');
+      console.log(`  sources.code: ${JSON.stringify(selectedPaths.code)}`);
+      console.log(`  sources.docs: ${JSON.stringify(selectedPaths.docs)}`);
+      console.log('');
+    }
+
     // Check if directory already exists
     if (await fs.pathExists(pgcRoot)) {
-      console.log(chalk.yellow('⚠️  Warning: .open_cognition/ already exists'));
+      console.log(chalk.yellow('Warning: .open_cognition/ already exists'));
       console.log(
         chalk.dim('   Running without --dry-run will update existing structure')
       );
@@ -98,10 +180,95 @@ export async function initCommand(options: {
     return;
   }
 
+  // Interactive mode - allow user to confirm or edit selections
+  if (isInteractive() && !options.force) {
+    // Check if there are detected sources to confirm
+    if (detected.code.length > 0 || detected.docs.length > 0) {
+      const action = await confirm({
+        message: 'Use detected paths? (No to edit)',
+        initialValue: true,
+      });
+
+      if (action === Symbol.for('cancel')) {
+        console.log(chalk.dim('Operation cancelled'));
+        return;
+      }
+
+      // User wants to edit
+      if (!action && detected.code.length > 0) {
+        const codeSelection = await multiselect({
+          message: 'Select code directories to analyze:',
+          options: detected.code.map((d) => ({
+            value: d.path,
+            label: `${d.path} (${d.fileCount} ${d.language || ''} files)`,
+            hint: d.selected ? 'recommended' : undefined,
+          })),
+          initialValues: detected.code
+            .filter((d) => d.selected)
+            .map((d) => d.path),
+        });
+
+        if (Array.isArray(codeSelection)) {
+          selectedPaths.code = codeSelection;
+        }
+      }
+
+      if (!action && detected.docs.length > 0) {
+        const docsSelection = await multiselect({
+          message: 'Select documentation to include:',
+          options: detected.docs.map((d) => ({
+            value: d.path,
+            label: d.path,
+            hint: d.selected ? 'recommended' : undefined,
+          })),
+          initialValues: detected.docs
+            .filter((d) => d.selected)
+            .map((d) => d.path),
+        });
+
+        if (Array.isArray(docsSelection)) {
+          selectedPaths.docs = docsSelection;
+        }
+      }
+    } else {
+      // Nothing detected - prompt for manual entry
+      console.log(chalk.yellow('No source directories auto-detected.'));
+      console.log(
+        chalk.dim(
+          'Supported: TypeScript (.ts, .tsx), JavaScript (.js, .jsx), Python (.py)\n'
+        )
+      );
+
+      const manualCode = await text({
+        message: 'Enter code directories (comma-separated, or leave empty):',
+        placeholder: 'src/, lib/',
+      });
+
+      if (typeof manualCode === 'string' && manualCode.trim()) {
+        selectedPaths.code = manualCode
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+
+      const manualDocs = await text({
+        message: 'Enter documentation paths (comma-separated, or leave empty):',
+        placeholder: 'README.md, docs/',
+      });
+
+      if (typeof manualDocs === 'string' && manualDocs.trim()) {
+        selectedPaths.docs = manualDocs
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+    }
+  }
+
   // Check if directory already exists and prompt for confirmation
   if ((await fs.pathExists(pgcRoot)) && !options.force) {
     console.log(
-      chalk.yellow('⚠️  .open_cognition/ already exists at this location')
+      chalk.yellow('Warning: .open_cognition/ already exists at this location')
     );
     console.log('');
 
@@ -128,8 +295,8 @@ export async function initCommand(options: {
 
   intro(chalk.bold('Initializing Grounded Context Pool'));
 
-  const s = spinner();
-  s.start('Creating PGC directory structure');
+  const initSpinner = spinner();
+  initSpinner.start('Creating PGC directory structure');
 
   try {
     // Create the four pillars
@@ -139,11 +306,16 @@ export async function initCommand(options: {
     await fs.ensureDir(path.join(pgcRoot, 'reverse_deps'));
     await fs.ensureDir(path.join(pgcRoot, 'overlays'));
 
-    // Create system metadata
-    const metadata = {
+    // Create system metadata with source paths
+    const metadata: PGCMetadata = {
       version: '0.1.0',
       initialized_at: new Date().toISOString(),
       status: 'empty',
+      sources: {
+        code: selectedPaths.code,
+        docs: selectedPaths.docs,
+      },
+      projectType: detected.projectType,
     };
     await fs.writeJSON(path.join(pgcRoot, 'metadata.json'), metadata, {
       spaces: 2,
@@ -155,29 +327,41 @@ export async function initCommand(options: {
       '# Ignore large object store\nobjects/\n# Ignore debug logs\ndebug-*.log\n# Keep structure\n!.gitkeep\n'
     );
 
-    s.stop('PGC initialized successfully');
+    initSpinner.stop('PGC initialized successfully');
 
     outro(
       chalk.green(
-        `✓ Created ${chalk.bold('.open_cognition/')} at ${options.path}`
+        `Created ${chalk.bold('.open_cognition/')} at ${options.path}`
       )
     );
+
+    // Show stored configuration
+    if (selectedPaths.code.length > 0 || selectedPaths.docs.length > 0) {
+      console.log('');
+      console.log(chalk.dim('Stored in metadata.json:'));
+      if (selectedPaths.code.length > 0) {
+        console.log(chalk.dim(`  Code: ${selectedPaths.code.join(', ')}`));
+      }
+      if (selectedPaths.docs.length > 0) {
+        console.log(chalk.dim(`  Docs: ${selectedPaths.docs.join(', ')}`));
+      }
+    }
 
     // Next steps guidance
     console.log('');
     console.log(chalk.cyan('Next steps:'));
     console.log(
-      `  ${chalk.dim('$')} cognition genesis src/       ${chalk.dim('# Build code knowledge graph')}`
+      `  ${chalk.dim('$')} cognition genesis          ${chalk.dim('# Build code knowledge graph')}`
     );
     console.log(
-      `  ${chalk.dim('$')} cognition genesis:docs VISION.md  ${chalk.dim('# Add mission documents')}`
+      `  ${chalk.dim('$')} cognition genesis:docs     ${chalk.dim('# Add mission documents')}`
     );
     console.log(
-      `  ${chalk.dim('$')} cognition tui                ${chalk.dim('# Launch interactive interface')}`
+      `  ${chalk.dim('$')} cognition tui              ${chalk.dim('# Launch interactive interface')}`
     );
     console.log('');
   } catch (error) {
-    s.stop('Initialization failed');
+    initSpinner.stop('Initialization failed');
     throw error;
   }
 }

@@ -256,9 +256,14 @@ cognition-cli patterns compare AnalyticsService MetricsService
 
 ```bash
 cd project/
-cognition-cli init
-cognition-cli genesis
-cognition-cli overlay generate structural_patterns
+
+# Option 1: Use wizard for guided setup (recommended)
+cognition-cli wizard
+
+# Option 2: Manual setup
+cognition-cli init                                    # Auto-detects sources and docs
+cognition-cli genesis                                 # Uses paths from metadata.json
+cognition-cli overlay generate structural_patterns   # Uses paths from metadata.json
 cognition-cli overlay generate lineage_patterns
 ```
 
@@ -550,15 +555,14 @@ Top alignments:
 ### Setup: Initialize PGC in Each Repo
 
 ```bash
-# Service A
+# Service A - use wizard for guided setup
 cd service-a/
-cognition-cli init
-cognition-cli genesis
+cognition-cli wizard
 
-# Service B
+# Service B - or use init with auto-detection
 cd service-b/
-cognition-cli init
-cognition-cli genesis
+cognition-cli init     # Auto-detects sources
+cognition-cli genesis  # Uses paths from metadata.json
 ```
 
 ---

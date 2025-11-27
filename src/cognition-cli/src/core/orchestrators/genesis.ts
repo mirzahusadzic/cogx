@@ -24,6 +24,7 @@ import {
   DEFAULT_MAX_FILE_SIZE,
   DEFAULT_FILE_EXTENSIONS,
   WORKBENCH_DEPENDENT_EXTRACTION_METHODS,
+  getLanguageFromExtension,
 } from '../../config.js';
 
 /**
@@ -691,17 +692,7 @@ export class GenesisOrchestrator {
   }
 
   private detectLanguage(ext: string): Language {
-    const map: Record<string, Language> = {
-      '.ts': 'typescript',
-      '.tsx': 'typescript',
-      '.js': 'javascript',
-      '.jsx': 'javascript',
-      '.py': 'python',
-      '.java': 'java',
-      '.rs': 'rust',
-      '.go': 'go',
-    };
-    return map[ext] || 'unknown';
+    return getLanguageFromExtension(ext);
   }
 
   private async aggregateDirectories() {

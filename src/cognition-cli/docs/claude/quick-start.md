@@ -58,18 +58,31 @@ cognition-cli --version
 # Navigate to your project
 cd ~/projects/my-app
 
-# Initialize the Grounded Context Pool
+# Initialize with auto-detection (recommended)
 cognition-cli init
+
+# Or use the wizard for guided setup
+cognition-cli wizard
 ```
+
+**What init does:**
+
+- Auto-detects source directories (src/, lib/, Python packages)
+- Auto-detects documentation (README.md, VISION.md, docs/)
+- Lets you confirm or edit detected paths interactively
+- Stores selected paths in `metadata.json` for use by genesis and overlay commands
 
 **What this creates:**
 
 ```text
 .open_cognition/
 ├── objects/       # Content-addressable storage
-├── logs/          # Transformation audit trail
+├── transforms/    # Intermediate processing state
 ├── index/         # Fast lookup indices
-└── overlays/      # Analytical overlay data
+├── reverse_deps/  # Reverse dependency maps
+├── overlays/      # Analytical overlay data
+├── metadata.json  # Project metadata with detected sources
+└── .gitignore     # Excludes objects/ from git
 ```
 
 ---

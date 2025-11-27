@@ -110,34 +110,82 @@ This chapter documents the core CLI commands that build, populate, and query the
 
 **Command**: `cognition-cli init`
 
-**Purpose**: Creates the `.open_cognition/` directory structure (PGC) and initializes metadata.
+**Purpose**: Creates the `.open_cognition/` directory structure (PGC), auto-detects project sources, and initializes metadata.
 
 **What It Does**:
 
-- Creates PGC directory structure
-- Initializes `metadata.json` with project configuration
-- Sets up vector database (Lance)
-- Configures overlay storage directories
-- Establishes provenance tracking
+- **Auto-detects source directories**: Scans for code directories (src/, lib/, Python packages)
+- **Auto-detects documentation**: Finds README.md, VISION.md, docs/, etc.
+- **Interactive selection**: Allows confirming or editing detected paths
+- **Stores configuration**: Saves selected paths in `metadata.json` for use by genesis and overlay commands
+- Creates PGC directory structure (four pillars)
+- Initializes `metadata.json` with project configuration and detected sources
+- Creates `.gitignore` to exclude large objects/ directory
+
+**Command Options**:
+
+```bash
+cognition-cli init [options]
+
+# Options:
+#   -p, --path <path>    Project root (default: current directory)
+#   --dry-run            Preview what would be created without making changes
+#   --force              Skip confirmation prompts (for scripts/CI)
+```
 
 **Output**:
 
 ```
 .open_cognition/
-├── metadata.json          # Project metadata
-├── overlays/              # Overlay storage
-│   ├── o1_structure/
-│   ├── o2_security/
-│   └── ...
-├── patterns.lancedb/      # Vector embeddings
-└── checkpoint.json        # Processing state
+├── objects/               # Content-addressable storage
+├── transforms/            # Intermediate processing state
+├── index/                 # Fast lookup indices
+├── reverse_deps/          # Reverse dependency maps
+├── overlays/              # Overlay storage (O1-O7)
+├── metadata.json          # Project metadata with detected sources
+└── .gitignore             # Excludes objects/ from git
+```
+
+**Example Output**:
+
+```bash
+$ cognition-cli init
+
+PGC = Grounded Context Pool
+   Content-addressable knowledge storage with full audit trails
+
+Detecting project structure...
+
+Detected project structure:
+
+  Code directories:
+    ● src/ (typescript) - 156 files
+    ○ lib/ (javascript) - 23 files
+
+  Documentation:
+    ● README.md
+    ● VISION.md
+    ● docs/
+
+? Use detected paths? (No to edit) › Yes
+
+✓ PGC initialized
+
+Stored in metadata.json:
+  Code: src/
+  Docs: README.md, VISION.md, docs/
+
+Next steps:
+  $ cognition genesis          # Build code knowledge graph
+  $ cognition genesis:docs     # Add mission documents
+  $ cognition tui              # Launch interactive interface
 ```
 
 **When to Use**: Once per project, at the beginning.
 
 **Prerequisites**: None
 
-**Next Step**: Run `wizard` for interactive setup or `genesis` to populate the PGC.
+**Next Step**: Run `wizard` for guided setup or `genesis` to populate the PGC.
 
 ---
 
@@ -149,72 +197,111 @@ This chapter documents the core CLI commands that build, populate, and query the
 
 **What It Does**:
 
-This command guides you through the entire setup process:
+This command guides you through the entire setup process in an optimized order:
 
 1. **PGC Detection**: Checks for existing `.open_cognition/` directory
 2. **Workbench Verification**: Validates eGemma workbench is running
-3. **API Configuration**: Optionally configures API keys for embeddings
-4. **Source Selection**: Prompts for source code directory
-5. **Documentation Ingestion**: Ingests strategic documents (VISION.md, etc.)
-6. **Overlay Generation**: Selectively generates overlays (O₁-O₇)
+3. **API Configuration**: Configures API keys for embeddings
+4. **Init (if needed)**: Runs `init` interactively so user picks source directories and docs
+5. **Overlay Selection**: Prompts for overlays (user now knows what sources/docs exist)
+6. **Genesis**: Runs genesis with selected sources from metadata
+7. **Documentation Ingestion**: Ingests selected docs from metadata
+8. **Overlay Generation**: Generates selected overlays (O₁-O₇)
 
-### Interactive Flow
+**Key Design**: Init runs FIRST so users can select sources before being asked about overlays. This prevents selecting O₄/O₇ when no docs are available.
+
+### Interactive Flow (New Project)
 
 ```bash
 $ cognition-cli wizard
 
-🧙 Cognition CLI Setup Wizard
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🧙 PGC Setup Wizard
 
-✓ Detected existing PGC at .open_cognition/
+This wizard will guide you through setting up a complete Grounded Context Pool (PGC).
 
-? Do you want to:
-  › Update existing PGC
-    Create fresh PGC (will backup existing)
+⚡ The symmetric machine provides perfect traversal.
+🎨 The asymmetric human provides creative projection.
+🤝 This is the symbiosis.
 
-✓ Workbench running at http://localhost:8000
+✓ Found workbench at http://localhost:8000
 
-? Source code directory to analyze:
-  › src/
+? Workbench URL: › http://localhost:8000
+✓ Workbench connection verified
 
-? Ingest documentation? (Y/n) › Yes
+? Workbench API Key: › dummy-key
 
-? Which overlays to generate?
-  ✓ O₁ Structure (required)
-  ✓ O₂ Security
-  ✓ O₃ Lineage
-  ✓ O₄ Mission
-  ✓ O₅ Operational
-  ✓ O₆ Mathematical
-  ✓ O₇ Coherence
+Step 1: Initialize PGC
+Select which source directories and docs to include.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Detected project structure:
 
-Starting setup...
+  Code directories:
+    ● src/ (typescript) - 156 files
 
-[1/5] Initializing PGC...
+  Documentation:
+    ● README.md
+    ● VISION.md
+
+? Use detected paths? (No to edit) › Yes
+
 ✓ PGC initialized
+  Code: src/
+  Docs: README.md, VISION.md
 
-[2/5] Running genesis on src/...
-⠋ Processing files... [34/156]
-✓ Genesis complete (156 files, 1,073 patterns)
+? Which overlays would you like to generate?
+  › All 7 overlays (recommended)
+    Structural patterns only (O₁)
+    Security guidelines only (O₂)
+    ...
+    Skip overlays for now
 
-[3/5] Ingesting documentation...
-✓ Ingested 12 documents
+Setup Summary:
+  Project Root: /path/to/project
+  Workbench URL: http://localhost:8000
+  Source Path: src/
+  Documentation: README.md, VISION.md
+  Overlays: all 7
 
-[4/5] Generating overlays...
-⠋ Generating O₂ Security overlay...
-✓ All overlays generated
+? Proceed with setup? › Yes
 
-[5/5] Validating setup...
-✓ Setup complete!
+🚀 Starting PGC construction...
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[1/3] PGC ready ✓
+[2/3] Running genesis...
+✓ Genesis complete
+[3/3] Building overlays...
+✓ structural_patterns generated
+✓ security_guidelines generated
+...
+✓ strategic_coherence generated
+
+✨ PGC setup complete! Your Grounded Context Pool is ready to use.
 
 Next steps:
-  cognition-cli status          # Check PGC coherence
-  cognition-cli lattice "O1"    # Query structural patterns
-  cognition-cli ask "..."       # Ask questions about docs
+  • Run queries: cognition-cli query "your question"
+  • Watch for changes: cognition-cli watch
+  • Check status: cognition-cli status
+  • View guides: cognition-cli guide
+```
+
+### Interactive Flow (Existing PGC)
+
+```bash
+$ cognition-cli wizard
+
+🧙 PGC Setup Wizard
+
+? PGC already exists. What do you want to do?
+  › Update Existing Overlays
+    Init PGC (wipe and start fresh)
+    Cancel
+
+✓ Using code paths: src/
+✓ Using docs: README.md, VISION.md
+
+? Which overlays would you like to generate?
+  › All 7 overlays (recommended)
+  ...
 ```
 
 ### Command Options
@@ -231,22 +318,28 @@ cognition-cli wizard [options]
 - **First-time setup**: Initial PGC initialization
 - **Onboarding new projects**: Quick setup for new codebases
 - **Recovery**: Rebuilding corrupted PGC
-- **Overlay regeneration**: Selectively regenerate specific overlays
+- **Overlay regeneration**: Update existing overlays
+
+### Overlay Selection Notes
+
+- **O₄ (Mission) and O₇ (Coherence)** require documentation to be ingested
+- If no docs are selected, wizard warns: "No documentation selected. O₄ and O₇ will be skipped."
+- Existing PGC reads source/doc paths from `metadata.json`
 
 ### Advantages over Manual Setup
 
 **Manual**:
 
 ```bash
-cognition-cli init
-cognition-cli genesis src/
-cognition-cli genesis:docs VISION.md
+cognition-cli init                                    # Interactive source/doc selection
+cognition-cli genesis src/                            # Must specify source
+cognition-cli genesis:docs README.md VISION.md        # Must specify docs
 cognition-cli overlay generate structural_patterns
 cognition-cli overlay generate security_guidelines
 # ... repeat for all 7 overlays
 ```
 
-**Wizard** (interactive, handles all above):
+**Wizard** (guided, reads paths from metadata):
 
 ```bash
 cognition-cli wizard
@@ -265,11 +358,22 @@ export WORKBENCH_URL=http://your-workbench:8000
 cognition-cli wizard
 ```
 
-**Error: "Permission denied"**
+**Error: "No source directories selected"**
 
 ```bash
-# Ensure write permissions in project directory:
-chmod -R u+w .
+# Re-run init to select sources:
+cognition-cli init
+
+# Or specify manually when prompted
+```
+
+**Warning: "No documentation selected. O₄ and O₇ will be skipped."**
+
+```bash
+# Add documentation paths:
+cognition-cli init  # Select docs during interactive flow
+# Or manually run genesis:docs
+cognition-cli genesis:docs docs/
 ```
 
 ---
@@ -1690,19 +1794,26 @@ PGC Status: ✓ Coherent
 ### generate
 
 ```bash
-cognition-cli overlay generate --overlay=<name>
+cognition-cli overlay generate <type> [sourcePath]
 ```
 
 **Purpose**: Generate semantic overlays using LLM analysis (Phase II).
 
 **Available Overlays**:
 
-- `mission` (O4): Strategic alignment, vision, goals
-- `security` (O2): Threat models, attack vectors
-- `lineage` (O3): Dependency graphs, call chains
-- `operational` (O5): Workflow patterns, quest structures
-- `mathematical` (O6): Formal properties, theorems
-- `coherence` (O7): Cross-layer synthesis
+- `structural_patterns` (O1): Code symbols and architectural roles
+- `security_guidelines` (O2): Threat models, attack vectors
+- `lineage_patterns` (O3): Dependency graphs, call chains
+- `mission_concepts` (O4): Strategic alignment, vision, goals (requires docs)
+- `operational_patterns` (O5): Workflow patterns, quest structures
+- `mathematical_proofs` (O6): Formal properties, theorems
+- `strategic_coherence` (O7): Cross-layer synthesis (requires docs)
+
+**Source Path Resolution**:
+
+- If `sourcePath` is omitted or `.`, reads paths from `metadata.json` (set during `init`)
+- Falls back to current directory if metadata is unavailable
+- Explicit `sourcePath` argument overrides metadata
 
 **What It Does**:
 
@@ -1710,12 +1821,33 @@ cognition-cli overlay generate --overlay=<name>
 - Sends to eGemma for LLM analysis
 - Extracts overlay-specific knowledge
 - Generates semantic embeddings
-- Stores in overlay directory
+- Stores in overlay directory and LanceDB
+
+**Command Options**:
+
+```bash
+cognition-cli overlay generate <type> [sourcePath] [options]
+
+# Options:
+#   -p, --project-root <path>   Project root (default: current directory)
+#   -f, --force                 Force regeneration even if patterns exist
+#   --skip-gc                   Skip garbage collection (useful when switching branches)
+```
 
 **Example**:
 
 ```bash
-$ cognition-cli overlay generate --overlay=mission
+# Generate using source paths from metadata.json
+$ cognition-cli overlay generate structural_patterns
+[Overlay] Using source paths from metadata: src/
+
+# Generate with explicit source path
+$ cognition-cli overlay generate structural_patterns src/core
+
+# Force regeneration
+$ cognition-cli overlay generate security_guidelines --force
+
+$ cognition-cli overlay generate mission_concepts
 
 Generating O4 (Mission) Overlay
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

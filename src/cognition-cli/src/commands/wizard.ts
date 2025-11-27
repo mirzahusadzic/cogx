@@ -5,15 +5,23 @@
  * Grounded Context Pool (PGC) from scratch. The wizard orchestrates multiple
  * CLI commands in sequence to create a production-ready PGC workspace.
  *
- * WORKFLOW:
- * 1. Detect or prompt for workbench URL and API key
- * 2. Initialize PGC directory structure (.open_cognition/)
- * 3. Run genesis to build verifiable skeleton from source code
- * 4. Ingest strategic documentation (VISION.md, custom docs)
- * 5. Generate selected overlays (O1-O7)
+ * WORKFLOW (new project):
+ * 1. Check for existing PGC
+ * 2. Detect or prompt for workbench URL and API key
+ * 3. Run init INTERACTIVELY - user picks source directories and docs
+ * 4. Ask about overlays (user now knows what sources/docs exist)
+ * 5. Run genesis with selected sources
+ * 6. Run genesis:docs with selected documentation
+ * 7. Generate selected overlays (O1-O7)
+ *
+ * WORKFLOW (existing PGC):
+ * 1. Read sources from metadata.json
+ * 2. Ask about workbench, overlays
+ * 3. Run genesis, genesis:docs, overlay generation
  *
  * DESIGN:
  * The wizard implements a conversational flow that:
+ * - Runs init FIRST so user can pick sources before overlay selection
  * - Auto-detects existing PGC and workbench instances
  * - Validates user inputs before execution
  * - Handles both fresh initialization and incremental updates
@@ -309,45 +317,77 @@ export async function wizardCommand(options: WizardOptions) {
     },
   })) as string;
 
-  // Step 6: Get source path
-  const sourcePath = (await text({
-    message: 'Source path to analyze:',
-    placeholder: 'src',
-    initialValue: 'src',
-    validate: (value) => {
-      if (!value) return 'Source path is required';
-      const fullPath = path.join(options.projectRoot, value);
-      const exists = fs.pathExistsSync(fullPath);
-      if (!exists) return `Path "${value}" does not exist`;
-      return undefined;
-    },
-  })) as string;
-
-  // Step 7: Ask about documentation
-  const hasCustomDocs = (await confirm({
-    message: 'Do you have additional strategic documentation to ingest?',
-    initialValue: false,
-  })) as boolean;
-
-  let shouldIngestDocs = false;
+  // Step 6: Run init FIRST if PGC doesn't exist
+  // This way user picks sources BEFORE we ask about overlays
+  let sourcePath = '';
   let docsPath = '';
+  let shouldIngestDocs = false;
 
-  if (hasCustomDocs) {
-    shouldIngestDocs = true;
-    docsPath = (await text({
-      message: 'Path to documentation file or directory:',
-      placeholder: 'docs/custom',
-      validate: (value) => {
-        if (!value) return 'Documentation path is required';
-        const fullPath = path.join(options.projectRoot, value);
-        const exists = fs.pathExistsSync(fullPath);
-        if (!exists) return `Path "${value}" does not exist`;
-        return undefined;
-      },
-    })) as string;
+  if (!pgcExists) {
+    log.step(chalk.bold('\nStep 1: Initialize PGC'));
+    log.info(
+      chalk.dim('Select which source directories and docs to include.\n')
+    );
+
+    await initCommand({ path: options.projectRoot });
+
+    // Read what user selected
+    const metadataPath = path.join(pgcRoot, 'metadata.json');
+    if (await fs.pathExists(metadataPath)) {
+      try {
+        const metadata = await fs.readJSON(metadataPath);
+        if (metadata.sources?.code?.length > 0) {
+          sourcePath = metadata.sources.code.join(',');
+        }
+        if (metadata.sources?.docs?.length > 0) {
+          docsPath = metadata.sources.docs.join(',');
+          shouldIngestDocs = true;
+        }
+      } catch {
+        // Metadata read failed
+      }
+    }
+
+    if (!sourcePath) {
+      log.error(chalk.red('No source directories selected. Cannot continue.'));
+      outro(chalk.red('Wizard cancelled.'));
+      return;
+    }
+
+    log.info('');
+    log.info(chalk.green(`✓ PGC initialized`));
+    log.info(chalk.dim(`  Code: ${sourcePath}`));
+    if (shouldIngestDocs) {
+      log.info(chalk.dim(`  Docs: ${docsPath}`));
+    }
+  } else {
+    // PGC exists - read from metadata
+    const metadataPath = path.join(pgcRoot, 'metadata.json');
+    if (await fs.pathExists(metadataPath)) {
+      try {
+        const metadata = await fs.readJSON(metadataPath);
+        if (metadata.sources?.code?.length > 0) {
+          sourcePath = metadata.sources.code.join(',');
+          log.info(
+            chalk.green(
+              `✓ Using code paths: ${metadata.sources.code.join(', ')}`
+            )
+          );
+        }
+        if (metadata.sources?.docs?.length > 0) {
+          docsPath = metadata.sources.docs.join(',');
+          shouldIngestDocs = true;
+          log.info(
+            chalk.green(`✓ Using docs: ${metadata.sources.docs.join(', ')}`)
+          );
+        }
+      } catch {
+        // Metadata invalid
+      }
+    }
   }
 
-  // Step 8: Ask about overlays
+  // Step 7: NOW ask about overlays (user knows what sources/docs exist)
   const overlayTypes = (await select({
     message: 'Which overlays would you like to generate?',
     options: [
@@ -367,44 +407,43 @@ export async function wizardCommand(options: WizardOptions) {
     initialValue: 'all',
   })) as string;
 
-  // Validate overlay selection
+  // Validate overlay selection - warn if no docs available
   if (
+    !shouldIngestDocs &&
     (overlayTypes === 'mission' ||
       overlayTypes === 'coherence' ||
-      overlayTypes === 'all') &&
-    !shouldIngestDocs
+      overlayTypes === 'all')
   ) {
     log.warn(
       chalk.yellow(
-        '\n⚠️  Mission Concepts (O₄) and Strategic Coherence (O₇) require documentation.'
+        '\n⚠️  No documentation selected. O₄ and O₇ will be skipped.'
       )
     );
     log.warn(
-      chalk.yellow(
-        '   These overlays will be SKIPPED. Only O₁, O₂, O₃, O₅, O₆ will be generated.'
-      )
-    );
-    log.warn(
-      chalk.dim(
-        '   To generate all 7 overlays, select "Yes" when prompted to ingest docs.\n'
-      )
+      chalk.dim('   Run `cognition init` to add documentation paths.\n')
     );
   }
 
-  // Step 9: Confirm and execute
+  // Step 8: Confirm and execute
   log.step(chalk.bold('\nSetup Summary:'));
   log.info(`  Project Root: ${chalk.cyan(options.projectRoot)}`);
   log.info(`  Workbench URL: ${chalk.cyan(workbenchUrl)}`);
   log.info(`  Source Path: ${chalk.cyan(sourcePath)}`);
   if (shouldIngestDocs) {
     log.info(`  Documentation: ${chalk.cyan(docsPath)}`);
+  } else {
+    log.info(`  Documentation: ${chalk.dim('(none)')}`);
   }
 
-  // Show overlay count with warning if not all will be generated
-  if (overlayTypes === 'all' && !shouldIngestDocs) {
-    log.info(
-      `  Overlays: ${chalk.cyan('5 of 7')} ${chalk.dim('(O₄ and O₇ require docs)')}`
-    );
+  // Show overlay selection
+  if (overlayTypes === 'all') {
+    if (!shouldIngestDocs) {
+      log.info(
+        `  Overlays: ${chalk.cyan('5 of 7')} ${chalk.dim('(no docs for O₄/O₇)')}`
+      );
+    } else {
+      log.info(`  Overlays: ${chalk.cyan('all 7')}`);
+    }
   } else {
     log.info(`  Overlays: ${chalk.cyan(overlayTypes)}`);
   }
@@ -426,51 +465,59 @@ export async function wizardCommand(options: WizardOptions) {
   log.step(chalk.bold('\n🚀 Starting PGC construction...'));
 
   try {
-    // Execute: init
-    if (!pgcExists) {
-      log.info(chalk.bold('\n[1/4] Initializing PGC...'));
-      await initCommand({ path: options.projectRoot });
-    } else {
-      log.info(chalk.bold('\n[1/4] Using existing PGC...'));
-    }
+    // Init already ran above (if needed), just confirm
+    log.info(chalk.bold('\n[1/3] PGC ready ✓'));
 
     // Execute: genesis
-    log.info(
-      chalk.bold('\n[2/4] Running genesis (building verifiable skeleton)...')
-    );
+    log.info(chalk.bold('\n[2/3] Running genesis...'));
+    // Use detected paths or fallback to 'src'
+    const effectiveSourcePath = sourcePath || 'src';
     await genesisCommand({
-      source: sourcePath,
+      source: effectiveSourcePath,
       workbench: workbenchUrl,
       projectRoot: options.projectRoot,
     });
 
-    // Ingest template docs from docs/overlays/ (always includes VISION.md)
-    log.info(chalk.bold('\n[3/4] Ingesting documentation...'));
-    const overlayTemplatesPath = path.join(
-      options.projectRoot,
-      'docs',
-      'overlays'
-    );
-    if (await fs.pathExists(overlayTemplatesPath)) {
-      // Pass directory path to recursively ingest all markdown files
-      await genesisDocsCommand([overlayTemplatesPath], {
+    // Ingest documentation and generate overlays
+    log.info(chalk.bold('\n[3/3] Building overlays...'));
+    if (shouldIngestDocs && docsPath) {
+      // Use paths from metadata (may be comma-separated)
+      const docPaths = docsPath.split(',').map((p) => {
+        const trimmed = p.trim();
+        // If already absolute or starts with project root, use as-is
+        return path.isAbsolute(trimmed)
+          ? trimmed
+          : path.join(options.projectRoot, trimmed);
+      });
+      await genesisDocsCommand(docPaths, {
         projectRoot: options.projectRoot,
       });
-    }
+    } else {
+      // Fallback: check for docs/overlays or VISION.md
+      const overlayTemplatesPath = path.join(
+        options.projectRoot,
+        'docs',
+        'overlays'
+      );
+      const visionPath = path.join(options.projectRoot, 'VISION.md');
 
-    // Ingest additional custom docs if specified
-    if (shouldIngestDocs) {
-      log.info(chalk.bold('\nIngesting additional documentation...'));
-      const fullDocsPath = path.join(options.projectRoot, docsPath);
-      await genesisDocsCommand([fullDocsPath], {
-        projectRoot: options.projectRoot,
-      });
+      if (await fs.pathExists(overlayTemplatesPath)) {
+        await genesisDocsCommand([overlayTemplatesPath], {
+          projectRoot: options.projectRoot,
+        });
+        shouldIngestDocs = true;
+      } else if (await fs.pathExists(visionPath)) {
+        await genesisDocsCommand([visionPath], {
+          projectRoot: options.projectRoot,
+        });
+        shouldIngestDocs = true;
+      } else {
+        log.warn(chalk.yellow('  No documentation found to ingest'));
+      }
     }
 
     // Execute: overlays
     if (overlayTypes !== 'none') {
-      log.info(chalk.bold('\n[4/4] Generating overlays...'));
-
       const overlaysToGenerate: string[] = [];
 
       if (overlayTypes === 'all') {
@@ -523,7 +570,7 @@ export async function wizardCommand(options: WizardOptions) {
           {
             force: false,
             skipGc: false,
-            sourcePath,
+            sourcePath: effectiveSourcePath,
           }
         );
         await orchestrator.shutdown();

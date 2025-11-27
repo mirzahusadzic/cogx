@@ -24,6 +24,7 @@ import fs from 'fs-extra';
 import {
   DEFAULT_MAX_FILE_SIZE,
   DEFAULT_FILE_EXTENSIONS,
+  getLanguageFromExtension,
 } from '../../config.js';
 import { SourceFile, Language } from '../types/structural.js';
 import { DocumentObject } from '../pgc/document-object.js';
@@ -878,17 +879,7 @@ export class OverlayOrchestrator {
   }
 
   private detectLanguage(ext: string): Language {
-    const map: Record<string, Language> = {
-      '.ts': 'typescript',
-      '.tsx': 'typescript',
-      '.js': 'javascript',
-      '.jsx': 'javascript',
-      '.py': 'python',
-      '.java': 'java',
-      '.rs': 'rust',
-      '.go': 'go',
-    };
-    return map[ext] || 'unknown';
+    return getLanguageFromExtension(ext);
   }
 
   /**

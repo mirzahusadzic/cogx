@@ -245,21 +245,55 @@ export const WORKBENCH_DEPENDENT_EXTRACTION_METHODS = [
 ];
 
 // ========================================
-// FILE TYPE SUPPORT
+// FILE TYPE SUPPORT - SINGLE SOURCE OF TRUTH
 // ========================================
 
 /**
- * Supported file extensions for code analysis
- * Genesis command processes these file types by default
+ * Language configuration - THE ONLY PLACE TO EDIT when adding new languages
+ *
+ * Each entry defines:
+ * - ext: file extension (e.g., '.ts')
+ * - displayName: human-readable name (e.g., 'TypeScript')
+ * - lang: internal language type (e.g., 'typescript')
+ *
+ * To add a new language, just add an entry here - everything else derives automatically.
  */
-export const DEFAULT_FILE_EXTENSIONS = [
-  '.ts',
-  '.tsx',
-  '.d.ts',
-  '.js',
-  '.jsx',
-  '.py',
-  '.java',
-  '.rs',
-  '.go',
-];
+export const LANGUAGE_CONFIG = [
+  { ext: '.ts', displayName: 'TypeScript', lang: 'typescript' },
+  { ext: '.tsx', displayName: 'TypeScript (React)', lang: 'typescript' },
+  { ext: '.js', displayName: 'JavaScript', lang: 'javascript' },
+  { ext: '.jsx', displayName: 'JavaScript (React)', lang: 'javascript' },
+  { ext: '.py', displayName: 'Python', lang: 'python' },
+] as const;
+
+/** Supported language types - must match unique lang values in LANGUAGE_CONFIG */
+export const SUPPORTED_LANGUAGES = [
+  'typescript',
+  'javascript',
+  'python',
+  'unknown',
+] as const;
+
+/** Language type for the type system */
+export type LanguageType = (typeof SUPPORTED_LANGUAGES)[number];
+
+/** Supported file extensions (derived) */
+export const DEFAULT_FILE_EXTENSIONS = LANGUAGE_CONFIG.map((c) => c.ext);
+
+/** Extension to display name mapping (derived) */
+export const LANGUAGE_MAP: Record<string, string> = Object.fromEntries(
+  LANGUAGE_CONFIG.map((c) => [c.ext, c.displayName])
+);
+
+/** Extension to language type mapping (derived) */
+export const EXTENSION_TO_LANGUAGE: Record<string, LanguageType> =
+  Object.fromEntries(LANGUAGE_CONFIG.map((c) => [c.ext, c.lang]));
+
+/**
+ * Get Language type from file extension
+ * @param ext - File extension including dot (e.g., '.ts')
+ * @returns Language type or 'unknown' if not supported
+ */
+export function getLanguageFromExtension(ext: string): LanguageType {
+  return EXTENSION_TO_LANGUAGE[ext] || 'unknown';
+}

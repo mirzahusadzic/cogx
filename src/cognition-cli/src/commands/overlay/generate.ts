@@ -79,6 +79,9 @@ const generateCommand = new Command('generate')
     false
   )
   .action(async (type, sourcePath, options) => {
+    const fs = await import('fs-extra');
+    const path = await import('path');
+
     const supportedTypes = [
       'structural_patterns',
       'security_guidelines',
@@ -93,6 +96,27 @@ const generateCommand = new Command('generate')
       console.error(`Unsupported overlay type: ${type}`);
       console.error(`Supported types: ${supportedTypes.join(', ')}`);
       process.exit(1);
+    }
+
+    // Try to read source path from metadata if using default "."
+    let effectiveSourcePath = sourcePath;
+    if (sourcePath === '.') {
+      const metadataPath = path.join(
+        options.projectRoot,
+        '.open_cognition',
+        'metadata.json'
+      );
+      try {
+        const metadata = await fs.readJSON(metadataPath);
+        if (metadata.sources?.code?.length > 0) {
+          effectiveSourcePath = metadata.sources.code.join(',');
+          console.log(
+            `[Overlay] Using source paths from metadata: ${metadata.sources.code.join(', ')}`
+          );
+        }
+      } catch {
+        // Metadata not found or invalid, use default
+      }
     }
 
     console.log(`[Overlay] Starting generation of ${type}...`);
@@ -129,7 +153,11 @@ const generateCommand = new Command('generate')
           | 'operational_patterns'
           | 'mathematical_proofs'
           | 'strategic_coherence',
-        { force: options.force, skipGc: options.skipGc, sourcePath }
+        {
+          force: options.force,
+          skipGc: options.skipGc,
+          sourcePath: effectiveSourcePath,
+        }
       );
       console.log('[Overlay] Generation complete.');
     } catch (error) {

@@ -13,7 +13,8 @@ All commands are documented in the main README and accessible via `--help` flags
 
 ### Core Commands
 
-- `init` - Initialize PGC structure
+- `init` - Initialize PGC structure with auto-detection of sources/docs
+- `wizard` - Interactive setup (runs init, genesis, overlays in sequence)
 - `genesis [path]` - Build code knowledge graph
 - `genesis:docs [path]` - Ingest documentation
 - `watch` - Real-time file monitoring
@@ -22,7 +23,7 @@ All commands are documented in the main README and accessible via `--help` flags
 
 ### Overlay Commands
 
-- `overlay generate <type>` - Generate analytical overlays
+- `overlay generate <type>` - Generate analytical overlays (reads sources from metadata)
 - `patterns <command>` - Structural pattern operations
 - `concepts <command>` - Mission concept operations
 - `coherence <command>` - Mission-code coherence

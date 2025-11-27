@@ -13,6 +13,7 @@ import type { DirtyFile } from '../types/watcher.js';
 import {
   DEFAULT_MAX_FILE_SIZE,
   WORKBENCH_DEPENDENT_EXTRACTION_METHODS,
+  getLanguageFromExtension,
 } from '../../config.js';
 
 /**
@@ -712,9 +713,11 @@ export class UpdateOrchestrator {
     filePath: string
   ): 'typescript' | 'javascript' | 'python' {
     const ext = path.extname(filePath).toLowerCase();
-    if (ext === '.ts' || ext === '.tsx') return 'typescript';
-    if (ext === '.js' || ext === '.jsx') return 'javascript';
-    if (ext === '.py') return 'python';
-    return 'typescript'; // Default
+    const lang = getLanguageFromExtension(ext);
+    // Only supported languages; default to typescript for unknown
+    if (lang === 'typescript' || lang === 'javascript' || lang === 'python') {
+      return lang;
+    }
+    return 'typescript';
   }
 }

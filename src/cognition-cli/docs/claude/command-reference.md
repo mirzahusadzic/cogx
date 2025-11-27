@@ -8,7 +8,7 @@ Complete reference for all `cognition-cli` commands. Use these commands in Claud
 
 ### `cognition-cli init`
 
-Initialize a new Grounded Context Pool (PGC) in your project.
+Initialize a new Grounded Context Pool (PGC) in your project with auto-detection.
 
 ```bash
 cognition-cli init [options]
@@ -16,25 +16,81 @@ cognition-cli init [options]
 
 **Options:**
 
-- `-p, --project-root <path>` - Project root directory (default: `.`)
-- `--force` - Force re-initialization (removes existing PGC)
+- `-p, --path <path>` - Project root directory (default: `.`)
+- `--dry-run` - Preview what would be created without making changes
+- `--force` - Skip confirmation prompts (for scripts/CI)
+
+**What it does:**
+
+- **Auto-detects source directories**: Scans for code directories (src/, lib/, Python packages)
+- **Auto-detects documentation**: Finds README.md, VISION.md, docs/, etc.
+- **Interactive selection**: Allows confirming or editing detected paths
+- **Stores configuration**: Saves selected paths in `metadata.json` for use by genesis and overlay commands
 
 **What it creates:**
 
 - `.open_cognition/` directory with:
   - `objects/` - Content-addressable object storage
-  - `logs/` - Transformation audit trail
+  - `transforms/` - Intermediate processing state
   - `index/` - Fast lookup indices
+  - `reverse_deps/` - Reverse dependency maps
   - `overlays/` - Analytical overlay data
+  - `metadata.json` - Project metadata with detected source/doc paths
+  - `.gitignore` - Excludes large objects/ from version control
 
 **Example:**
 
 ```bash
-# Initialize in current directory
+# Initialize in current directory (auto-detects sources)
 cognition-cli init
+
+# Preview what would be created
+cognition-cli init --dry-run
+
+# Force mode (skip prompts, for CI/scripts)
+cognition-cli init --force
 
 # Initialize in specific project
 cognition-cli init -p ~/projects/my-app
+```
+
+---
+
+### `cognition-cli wizard`
+
+Interactive wizard for complete PGC setup. Recommended for first-time users.
+
+```bash
+cognition-cli wizard [options]
+```
+
+**Options:**
+
+- `-p, --project-root <path>` - Project root directory (default: `.`)
+
+**Workflow:**
+
+1. **PGC Detection**: Checks for existing `.open_cognition/` directory
+2. **Workbench Verification**: Validates eGemma workbench is running
+3. **API Configuration**: Configures API keys for embeddings
+4. **Init (if needed)**: Runs `init` interactively - user picks source directories and docs
+5. **Overlay Selection**: Prompts for overlays (user now knows what sources/docs exist)
+6. **Genesis**: Runs genesis with selected sources from metadata
+7. **Documentation Ingestion**: Ingests selected docs from metadata
+8. **Overlay Generation**: Generates selected overlays (O₁-O₇)
+
+**Key Design**: Init runs FIRST so users can select sources before being asked about overlays. This prevents selecting O₄/O₇ when no docs are available.
+
+**Example:**
+
+```bash
+# Run wizard (guided setup)
+cognition-cli wizard
+
+# Wizard with existing PGC shows options:
+# - Update Existing Overlays
+# - Init PGC (wipe and start fresh)
+# - Cancel
 ```
 
 ---
@@ -283,37 +339,53 @@ cognition-cli audit:docs
 
 ### `cognition-cli overlay generate`
 
-Generate analytical overlays (O₁-O₄ layers).
+Generate analytical overlays (O₁-O₇ layers).
 
 ```bash
-cognition-cli overlay generate [options] <type> [sourcePath]
+cognition-cli overlay generate <type> [sourcePath] [options]
 ```
 
 **Overlay Types:**
 
 - `structural_patterns` - O₁: Extract structural patterns from code
-- `lineage_patterns` - O₂: Mine dependency relationships
-- `mission_concepts` - O₃: Extract concepts from strategic docs
-- `strategic_coherence` - O₄: Compute code-mission alignment
+- `security_guidelines` - O₂: Security threats, boundaries, mitigations
+- `lineage_patterns` - O₃: Mine dependency relationships
+- `mission_concepts` - O₄: Extract concepts from strategic docs (requires docs)
+- `operational_patterns` - O₅: Workflow patterns, quest structures
+- `mathematical_proofs` - O₆: Theorems, lemmas, axioms
+- `strategic_coherence` - O₇: Compute code-mission alignment (requires docs)
+
+**Source Path Resolution:**
+
+- If `sourcePath` is omitted or `.`, reads paths from `metadata.json` (set during `init`)
+- Falls back to current directory if metadata is unavailable
+- Explicit `sourcePath` argument overrides metadata
 
 **Options:**
 
 - `-p, --project-root <path>` - Project root (default: `.`)
-- `--force` - Force regeneration (ignore cache)
+- `-f, --force` - Force regeneration even if patterns exist
+- `--skip-gc` - Skip garbage collection (useful when switching branches)
 
 **Examples:**
 
 ```bash
-# Generate structural patterns (O₁)
+# Generate structural patterns (reads source from metadata)
 cognition-cli overlay generate structural_patterns
 
-# Generate lineage patterns (O₂)
+# Generate with explicit source path
+cognition-cli overlay generate structural_patterns src/core
+
+# Generate security guidelines (O₂)
+cognition-cli overlay generate security_guidelines
+
+# Generate lineage patterns (O₃)
 cognition-cli overlay generate lineage_patterns
 
-# Generate mission concepts (O₃) from VISION.md
+# Generate mission concepts (O₄) - requires docs ingested
 cognition-cli overlay generate mission_concepts
 
-# Generate strategic coherence (O₄)
+# Generate strategic coherence (O₇) - requires docs ingested
 cognition-cli overlay generate strategic_coherence
 
 # Force regeneration
@@ -1099,12 +1171,18 @@ cognition-cli guide overlays
 
 ## Tips
 
-**1. Start with these commands:**
+**1. Start with wizard (recommended):**
 
 ```bash
-cognition-cli init
-cognition-cli genesis
-cognition-cli overlay generate structural_patterns
+cognition-cli wizard  # Interactive setup with auto-detection
+```
+
+**Or manual setup:**
+
+```bash
+cognition-cli init                              # Auto-detects sources and docs
+cognition-cli genesis                           # Uses paths from metadata.json
+cognition-cli overlay generate structural_patterns  # Uses paths from metadata.json
 cognition-cli patterns analyze
 ```
 
