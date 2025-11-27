@@ -34,6 +34,8 @@ vi.mock('@clack/prompts', () => ({
     info: vi.fn(),
     success: vi.fn(),
     step: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
@@ -104,22 +106,22 @@ describe('OverlayOrchestrator - Workbench Pre-flight Check', () => {
     (orchestrator as unknown as { workbench: typeof mockWorkbench }).workbench =
       mockWorkbench;
 
-    // Mock discoverFiles to throw after health check succeeds
+    // Mock loadFilesFromPGCIndex to throw after health check succeeds
     // This proves health check happens first
     (
       orchestrator as unknown as {
-        discoverFiles: () => Promise<never>;
+        loadFilesFromPGCIndex: () => Promise<never>;
       }
-    ).discoverFiles = vi
+    ).loadFilesFromPGCIndex = vi
       .fn()
       .mockRejectedValue(new Error('Test intentional failure'));
 
-    // Attempt to run - should fail at discoverFiles (after health check)
+    // Attempt to run - should fail at loadFilesFromPGCIndex (after health check)
     await expect(orchestrator.run('structural_patterns')).rejects.toThrow(
       'Test intentional failure'
     );
 
-    // Verify health check was called first (before discoverFiles)
+    // Verify health check was called first (before loadFilesFromPGCIndex)
     expect(mockWorkbench.health).toHaveBeenCalledTimes(1);
   });
 

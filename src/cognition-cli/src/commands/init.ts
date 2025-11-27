@@ -215,7 +215,7 @@ export async function initCommand(options: {
 
       if (!action && detected.docs.length > 0) {
         const docsSelection = await multiselect({
-          message: 'Select documentation to include:',
+          message: 'Select documentation to include (optional):',
           options: detected.docs.map((d) => ({
             value: d.path,
             label: d.path,
@@ -224,6 +224,7 @@ export async function initCommand(options: {
           initialValues: detected.docs
             .filter((d) => d.selected)
             .map((d) => d.path),
+          required: false, // Allow skipping docs for new repos without strategic docs
         });
 
         if (Array.isArray(docsSelection)) {

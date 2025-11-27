@@ -48,7 +48,7 @@ import {
  * @example
  * const pgc = new PGCManager(projectRoot);
  * const orchestrator = new GenesisOrchestrator(pgc, miner, workbench, genesisOracle, projectRoot);
- * await orchestrator.executeBottomUpAggregation('src');
+ * await orchestrator.executeBottomUpAggregation(['src']);
  * // → Extracts all TypeScript/JavaScript/Python files from src/
  * // → Stores in .open_cognition/index/, .open_cognition/objects/
  * // → PGC is now ready for overlay generation
@@ -145,12 +145,12 @@ export class GenesisOrchestrator {
    * const pgc = new PGCManager('.');
    * const miner = new StructuralMiner(workbench);
    * const orchestrator = new GenesisOrchestrator(pgc, miner, workbench, oracle, '.');
-   * await orchestrator.executeBottomUpAggregation('src');
-   * // Processes all files in src/, stores in .open_cognition/
+   * await orchestrator.executeBottomUpAggregation(['src', 'lib']);
+   * // Processes all files in src/ and lib/, stores in .open_cognition/
    *
    * @public
    */
-  async executeBottomUpAggregation(sourcePath: string) {
+  async executeBottomUpAggregation(sourcePaths: string[]) {
     const s = spinner();
     const errors: { file: string; message: string }[] = [];
 
@@ -172,10 +172,25 @@ export class GenesisOrchestrator {
     }
 
     s.start('Discovering source files');
-    const actualSourcePath = path.join(this.projectRoot, sourcePath);
-    log.info(`Scanning for files in: ${actualSourcePath}`);
 
-    const files = await this.discoverFiles(actualSourcePath);
+    // Discover files from all source paths
+    const allFiles: SourceFile[] = [];
+    for (const sourcePath of sourcePaths) {
+      const actualSourcePath = path.join(this.projectRoot, sourcePath);
+      log.info(`Scanning for files in: ${actualSourcePath}`);
+      const files = await this.discoverFiles(actualSourcePath);
+      allFiles.push(...files);
+    }
+
+    // Deduplicate files by path (in case paths overlap)
+    const seenPaths = new Set<string>();
+    const files = allFiles.filter((file) => {
+      if (seenPaths.has(file.relativePath)) {
+        return false;
+      }
+      seenPaths.add(file.relativePath);
+      return true;
+    });
 
     s.stop(`Found ${files.length} files`);
 

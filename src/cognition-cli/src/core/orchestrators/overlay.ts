@@ -1,5 +1,4 @@
 import path from 'path';
-import { glob } from 'glob';
 import { PGCManager } from '../pgc/manager.js';
 import { LanceVectorStore } from '../overlays/vector-db/lance-store.js';
 import { WorkbenchClient } from '../executors/workbench-client.js';
@@ -22,9 +21,8 @@ import { log, spinner } from '@clack/prompts';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import {
-  DEFAULT_MAX_FILE_SIZE,
-  DEFAULT_FILE_EXTENSIONS,
   getLanguageFromExtension,
+  DEFAULT_MAX_FILE_SIZE,
 } from '../../config.js';
 import { SourceFile, Language } from '../types/structural.js';
 import { DocumentObject } from '../pgc/document-object.js';
@@ -83,8 +81,6 @@ import { GenesisDocTransform } from '../transforms/genesis-doc-transform.js';
  * // → Stores metrics and per-symbol coherence scores
  */
 export class OverlayOrchestrator {
-  private maxFileSize = DEFAULT_MAX_FILE_SIZE;
-
   private workbench: WorkbenchClient;
   private structuralPatternManager: StructuralPatternsManager;
   private lineagePatternManager: LineagePatternsManager;
@@ -200,7 +196,7 @@ export class OverlayOrchestrator {
    * Main entry point for overlay generation. Handles specialized workflows for each overlay type:
    *
    * STRUCTURAL_PATTERNS (O₁):
-   * - Discovers source files from PGC index
+   * - Reads source files from PGC index (created by genesis)
    * - Extracts all symbols (classes, functions, interfaces)
    * - Incrementally skips unchanged symbols (manifest + content hash)
    * - Generates embeddings via SLM/LLM
@@ -220,11 +216,13 @@ export class OverlayOrchestrator {
    * - Identifies aligned vs drifted symbols
    * - Stores metrics (overall coherence, per-symbol scores)
    *
+   * IMPORTANT: Overlay generation reads from PGC index - no source path needed.
+   * Run genesis first to index source files.
+   *
    * @param overlayType - Which semantic overlay to generate
    * @param options - Generation options
    *   - force: Ignore existing overlays, regenerate from scratch
    *   - skipGc: Skip garbage collection (useful for debugging)
-   *   - sourcePath: Source directory for file discovery (default '.')
    * @returns Promise<void> - Updates overlays in place
    *
    * @throws {Error} If workbench is unavailable and required for overlay type
@@ -257,12 +255,10 @@ export class OverlayOrchestrator {
     options?: {
       force?: boolean;
       skipGc?: boolean;
-      sourcePath?: string;
     }
   ): Promise<void> {
     const force = options?.force || false;
     const skipGc = options?.skipGc || false;
-    const sourcePath = options?.sourcePath || '.';
     const s = spinner();
 
     // Pre-flight check: Verify workbench is accessible
@@ -338,9 +334,18 @@ export class OverlayOrchestrator {
       return;
     }
 
-    const allFiles = await this.discoverFiles(
-      path.join(this.projectRoot, sourcePath)
-    );
+    // Read files from PGC index (created by genesis) - NOT from filesystem
+    const allFiles = await this.loadFilesFromPGCIndex();
+
+    if (allFiles.length === 0) {
+      log.error(
+        chalk.red(
+          '[Overlay] No files found in PGC index. Run genesis first to index source files.'
+        )
+      );
+      return;
+    }
+
     await this.runPGCMaintenance(
       allFiles.map((f) => f.relativePath),
       skipGc
@@ -807,64 +812,71 @@ export class OverlayOrchestrator {
     return { staleEntries, cleanedReverseDeps, cleanedTransformLogEntries };
   }
 
-  private async discoverFiles(rootPath: string): Promise<SourceFile[]> {
-    let files: SourceFile[] = [];
-    const extensions = DEFAULT_FILE_EXTENSIONS;
+  /**
+   * Load files from PGC index (created by genesis) instead of scanning filesystem.
+   *
+   * This is the correct approach for overlay generation:
+   * - Genesis indexes files and stores in PGC
+   * - Overlay generation reads from that index
+   * - No explicit source path needed
+   *
+   * @returns Array of source files with content loaded from PGC object store
+   */
+  private async loadFilesFromPGCIndex(): Promise<SourceFile[]> {
+    const allIndexData = await this.pgc.index.getAllData();
 
-    if (!(await fs.pathExists(rootPath))) {
-      log.warn(chalk.yellow(`Source path does not exist: ${rootPath}`));
+    if (allIndexData.length === 0) {
       return [];
     }
 
-    if (!(await fs.lstat(rootPath)).isDirectory()) {
-      log.warn(chalk.yellow(`Source path is not a directory: ${rootPath}`));
-      return [];
-    }
+    log.info(
+      chalk.cyan(
+        `[Overlay] Loading ${allIndexData.length} files from PGC index...`
+      )
+    );
 
-    // Build glob pattern from extensions: **/*.{ts,js,py,...}
-    const extPattern = extensions.map((ext) => ext.slice(1)).join(','); // Remove leading dots
-    const pattern = `**/*.{${extPattern}}`;
-
-    // Use glob with ignore patterns for better performance
-    const filePaths = await glob(pattern, {
-      cwd: rootPath,
-      absolute: true,
-      ignore: [
-        '**/node_modules/**',
-        '**/.git/**',
-        '**/__pycache__/**',
-        '**/.open_cognition/**',
-        '**/dist/**',
-        '**/docs/**',
-        '**/build/**',
-        '**/cache/**',
-        '**/.next/**',
-        '**/.nuxt/**',
-        '**/.venv*/**',
-        '**/.*/**', // All hidden directories
-      ],
-      nodir: true,
-    });
-
-    // OPTIMIZATION: Parallel file reading for faster loading
+    // Load file content from PGC object store in parallel
     const fileReads = await Promise.all(
-      filePaths.map(async (fullPath) => {
-        const stats = await fs.stat(fullPath);
-        if (stats.size > this.maxFileSize) {
-          const relativePath = path.relative(this.projectRoot, fullPath);
+      allIndexData.map(async (indexEntry) => {
+        // Skip test files
+        if (
+          indexEntry.path.includes('.test.') ||
+          indexEntry.path.includes('.spec.')
+        ) {
+          return null;
+        }
+
+        // Load content from object store using content_hash
+        const contentBuffer = await this.pgc.objectStore.retrieve(
+          indexEntry.content_hash
+        );
+        if (!contentBuffer) {
           log.warn(
-            `Skipping large file: ${relativePath} (${(stats.size / (1024 * 1024)).toFixed(2)} MB)`
+            chalk.yellow(
+              `[Overlay] Content missing for ${indexEntry.path} (hash: ${indexEntry.content_hash.slice(0, 7)}...)`
+            )
           );
           return null;
         }
 
-        const content = await fs.readFile(fullPath, 'utf-8');
-        const fileName = path.basename(fullPath);
+        // Safety check: Skip files that exceed max size limit
+        if (contentBuffer.length > DEFAULT_MAX_FILE_SIZE) {
+          log.warn(
+            chalk.yellow(
+              `[Overlay] Skipping large file: ${indexEntry.path} (${(contentBuffer.length / (1024 * 1024)).toFixed(2)} MB)`
+            )
+          );
+          return null;
+        }
+
+        const content = contentBuffer.toString('utf-8');
+        const fullPath = path.join(this.projectRoot, indexEntry.path);
+        const fileName = path.basename(indexEntry.path);
         const ext = path.extname(fileName);
 
         return {
           path: fullPath,
-          relativePath: path.relative(this.projectRoot, fullPath),
+          relativePath: indexEntry.path,
           name: fileName,
           language: this.detectLanguage(ext),
           content,
@@ -872,10 +884,8 @@ export class OverlayOrchestrator {
       })
     );
 
-    // Filter out null entries (skipped large files)
-    files = fileReads.filter((f) => f !== null) as SourceFile[];
-
-    return files;
+    // Filter out null entries (skipped test files or missing content)
+    return fileReads.filter((f) => f !== null) as SourceFile[];
   }
 
   private detectLanguage(ext: string): Language {

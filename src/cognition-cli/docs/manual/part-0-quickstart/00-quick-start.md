@@ -293,12 +293,10 @@ NODE_OPTIONS=--max-old-space-size=8192 cognition-cli wizard
 # Check overlays are generated:
 cognition-cli overlay list
 
-# Generate missing overlays (reads source paths from metadata):
+# Generate missing overlays (reads from PGC index - run genesis first):
 cognition-cli overlay generate mission_concepts
 cognition-cli overlay generate security_guidelines
-
-# Or specify source path explicitly:
-cognition-cli overlay generate structural_patterns src/
+cognition-cli overlay generate structural_patterns
 ```
 
 ---

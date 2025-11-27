@@ -50,9 +50,6 @@
  * //   O₇: Code-to-mission alignment
  * //   Status: 234 symbols (198 aligned, 36 drifted)
  *
- * @example
- * // Use with project root option
- * $ cognition-cli overlay list --project-root /path/to/project
  */
 
 import { Command } from 'commander';
@@ -127,10 +124,10 @@ const OVERLAY_TYPES: OverlayInfo[] = [
  */
 const listCommand = new Command('list')
   .description('List available overlay types and their status.')
-  .option('-p, --project-root <path>', 'The root of the project.', '.')
-  .action(async (options) => {
+  .action(async () => {
     const workspaceManager = new WorkspaceManager();
-    const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
+    // Overlay commands use current working directory - PGC discovery walks up to find .open_cognition
+    const projectRoot = workspaceManager.resolvePgcRoot(process.cwd());
 
     if (!projectRoot) {
       console.error(
@@ -264,8 +261,8 @@ const listCommand = new Command('list')
 
     await vectorStore.close();
 
-    console.log('Usage:');
-    console.log('  cognition-cli overlay generate <type> [sourcePath]');
+    console.log('Usage (reads from PGC index - run genesis first):');
+    console.log('  cognition-cli overlay generate <type>');
     console.log('  cognition-cli overlay generate structural_patterns');
     console.log('  cognition-cli overlay generate security_guidelines');
     console.log('  cognition-cli overlay generate lineage_patterns');

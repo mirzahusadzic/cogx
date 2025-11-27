@@ -5,6 +5,9 @@
  * Each overlay type extracts and embeds different aspects of the codebase and
  * documentation, enabling semantic queries and cross-overlay analysis.
  *
+ * IMPORTANT: Overlay generation reads from PGC index (created by genesis).
+ * Run `cognition-cli genesis` first to index source files.
+ *
  * OVERLAY SYSTEM (O₁-O₇):
  * - O₁ structural_patterns: Code symbols (functions, classes, interfaces)
  * - O₂ security_guidelines: Security threats, boundaries, mitigations
@@ -21,10 +24,11 @@
  * 4. Version Control: Overlays track lineage and timestamps
  *
  * GENERATION PROCESS:
- * 1. Extract: Parse source code/docs to identify items
- * 2. Embed: Generate vector embeddings via embedding service
- * 3. Store: Save to LanceDB vector store and YAML manifests
- * 4. Index: Update metadata for fast retrieval
+ * 1. Load: Read indexed files from PGC (created by genesis)
+ * 2. Extract: Parse source code/docs to identify items
+ * 3. Embed: Generate vector embeddings via embedding service
+ * 4. Store: Save to LanceDB vector store and YAML manifests
+ * 5. Index: Update metadata for fast retrieval
  *
  * OPTIONS:
  * - --force: Regenerate all patterns, even if they exist
@@ -33,7 +37,7 @@
  * @example
  * // Generate structural patterns (O₁)
  * $ cognition-cli overlay generate structural_patterns
- * // Extracts all code symbols and creates embeddings
+ * // Extracts all code symbols from PGC index and creates embeddings
  *
  * @example
  * // Regenerate security guidelines (O₂) with force
@@ -54,20 +58,15 @@ import { OverlayOrchestrator } from '../../core/orchestrators/overlay.js';
 /**
  * Command for generating specific types of analytical overlays
  *
+ * Reads source files from PGC index (created by genesis command).
  * Delegates to OverlayOrchestrator which handles the extraction,
  * embedding, and storage pipeline for each overlay type.
  */
 const generateCommand = new Command('generate')
   .description(
-    'Generate a specific type of overlay (all 7 overlay types supported).'
+    'Generate a specific type of overlay (all 7 overlay types supported). Reads from PGC index.'
   )
   .argument('<type>', 'The type of overlay to generate')
-  .argument(
-    '[sourcePath]',
-    'Source path to analyze (default: from metadata or ".")',
-    '.'
-  )
-  .option('-p, --project-root <path>', 'The root of the project.', '.')
   .option(
     '-f, --force',
     'Force regeneration of all patterns, even if they already exist',
@@ -78,10 +77,7 @@ const generateCommand = new Command('generate')
     'Skip garbage collection (recommended when switching branches or regenerating after deletion)',
     false
   )
-  .action(async (type, sourcePath, options) => {
-    const fs = await import('fs-extra');
-    const path = await import('path');
-
+  .action(async (type, options) => {
     const supportedTypes = [
       'structural_patterns',
       'security_guidelines',
@@ -98,30 +94,15 @@ const generateCommand = new Command('generate')
       process.exit(1);
     }
 
-    // Try to read source path from metadata if using default "."
-    let effectiveSourcePath = sourcePath;
-    if (sourcePath === '.') {
-      const metadataPath = path.join(
-        options.projectRoot,
-        '.open_cognition',
-        'metadata.json'
-      );
-      try {
-        const metadata = await fs.readJSON(metadataPath);
-        if (metadata.sources?.code?.length > 0) {
-          effectiveSourcePath = metadata.sources.code.join(',');
-          console.log(
-            `[Overlay] Using source paths from metadata: ${metadata.sources.code.join(', ')}`
-          );
-        }
-      } catch {
-        // Metadata not found or invalid, use default
-      }
-    }
-
     console.log(`[Overlay] Starting generation of ${type}...`);
+    console.log(
+      chalk.dim(
+        '[Overlay] Reading source files from PGC index (run genesis first to index files)'
+      )
+    );
 
-    const orchestrator = await OverlayOrchestrator.create(options.projectRoot);
+    // Overlay reads from PGC index - uses current working directory
+    const orchestrator = await OverlayOrchestrator.create(process.cwd());
 
     let isShuttingDown = false;
     const shutdown = async () => {
@@ -144,6 +125,7 @@ const generateCommand = new Command('generate')
     let errorOccurred: Error | null = null;
 
     try {
+      // Overlay generation reads from PGC index - no source path needed
       await orchestrator.run(
         type as
           | 'structural_patterns'
@@ -156,7 +138,6 @@ const generateCommand = new Command('generate')
         {
           force: options.force,
           skipGc: options.skipGc,
-          sourcePath: effectiveSourcePath,
         }
       );
       console.log('[Overlay] Generation complete.');

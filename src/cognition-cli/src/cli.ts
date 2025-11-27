@@ -202,7 +202,7 @@ program
   });
 
 program
-  .command('genesis [sourcePath]')
+  .command('genesis [sourcePaths...]')
   .alias('g')
   .description(
     'Build code knowledge graph (reads paths from metadata.json if omitted) (alias: g)'
@@ -231,8 +231,8 @@ program
         },
         { cmd: 'cognition genesis src/', desc: 'Analyze specific directory' },
         {
-          cmd: 'cognition g src/,lib/',
-          desc: 'Multiple directories (comma-separated)',
+          cmd: 'cognition g src/ lib/',
+          desc: 'Multiple directories (space-separated)',
         },
         {
           cmd: 'cognition genesis --dry-run',
@@ -254,14 +254,16 @@ program
       ])
     )
   )
-  .action(async (sourcePath, options) => {
+  .action(async (sourcePaths: string[], options) => {
     const { genesisCommand } = await import('./commands/genesis.js');
     const fs = await import('fs-extra');
     const pathModule = await import('path');
 
+    // Determine effective source paths
+    let effectivePaths: string[] = sourcePaths;
+
     // Try to read source paths from metadata if not provided
-    let source = sourcePath || options.source;
-    if (!source) {
+    if (!effectivePaths || effectivePaths.length === 0) {
       const metadataPath = pathModule.default.join(
         options.projectRoot,
         '.open_cognition',
@@ -270,9 +272,9 @@ program
       try {
         const metadata = await fs.default.readJSON(metadataPath);
         if (metadata.sources?.code?.length > 0) {
-          source = metadata.sources.code.join(',');
+          effectivePaths = metadata.sources.code;
           console.log(
-            `Using source paths from metadata: ${metadata.sources.code.join(', ')}`
+            `Using source paths from metadata: ${effectivePaths.join(', ')}`
           );
         }
       } catch {
@@ -280,9 +282,16 @@ program
       }
     }
 
+    // Default to 'src' if no paths found
+    if (!effectivePaths || effectivePaths.length === 0) {
+      effectivePaths = ['src'];
+    }
+
+    // Process all source paths in a single genesis run
+    // (prevents GC from removing files from previous paths)
     await genesisCommand({
       ...options,
-      source: source || 'src',
+      sources: effectivePaths,
     });
   });
 

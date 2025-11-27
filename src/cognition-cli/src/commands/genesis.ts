@@ -56,7 +56,8 @@ class PGCInitializationError extends Error {
 }
 
 interface GenesisOptions {
-  source: string;
+  /** Source paths to analyze (can be multiple) */
+  sources: string[];
   workbench: string;
   projectRoot: string;
   dryRun?: boolean;
@@ -74,8 +75,8 @@ interface GenesisOptions {
 interface GenesisProgress {
   /** Timestamp when genesis was started */
   startedAt: string;
-  /** Source path being processed */
-  sourcePath: string;
+  /** Source paths being processed */
+  sourcePaths: string[];
 }
 
 const PROGRESS_FILE = '.genesis-progress.json';
@@ -175,22 +176,30 @@ async function validatePgcInitialized(projectRoot: string): Promise<void> {
  * Executes dry-run mode for genesis: scans files and shows what would be processed.
  */
 async function executeDryRun(
-  sourcePath: string,
+  sourcePaths: string[],
   projectRoot: string
 ): Promise<void> {
-  const fullSourcePath = path.isAbsolute(sourcePath)
-    ? sourcePath
-    : path.join(projectRoot, sourcePath);
-
   const extensions = Object.keys(LANGUAGE_MAP).map((ext) => ext.slice(1));
   const pattern = `**/*.{${extensions.join(',')}}`;
 
-  const filePaths = await glob(pattern, {
-    cwd: fullSourcePath,
-    absolute: true,
-    ignore: IGNORE_PATTERNS,
-    nodir: true,
-  });
+  // Collect files from all source paths
+  const allFilePaths: string[] = [];
+  for (const sourcePath of sourcePaths) {
+    const fullSourcePath = path.isAbsolute(sourcePath)
+      ? sourcePath
+      : path.join(projectRoot, sourcePath);
+
+    const files = await glob(pattern, {
+      cwd: fullSourcePath,
+      absolute: true,
+      ignore: IGNORE_PATTERNS,
+      nodir: true,
+    });
+    allFilePaths.push(...files);
+  }
+
+  // Deduplicate
+  const filePaths = [...new Set(allFilePaths)];
 
   // Group files by language
   const byLanguage: Record<string, string[]> = {};
@@ -262,7 +271,7 @@ export async function genesisCommand(options: GenesisOptions) {
 
   const genesisTimer = debugTimer('Genesis total');
   debugLog('Genesis started', {
-    source: options.source,
+    sources: options.sources,
     projectRoot: options.projectRoot,
     workbench: options.workbench,
     dryRun: options.dryRun,
@@ -285,7 +294,7 @@ export async function genesisCommand(options: GenesisOptions) {
     // Handle dry-run mode
     if (options.dryRun) {
       debugLog('Executing dry-run mode');
-      await executeDryRun(options.source, options.projectRoot);
+      await executeDryRun(options.sources, options.projectRoot);
       return;
     }
 
@@ -308,7 +317,7 @@ export async function genesisCommand(options: GenesisOptions) {
         );
         debugLog('Resuming from progress', {
           startedAt: previousProgress.startedAt,
-          sourcePath: previousProgress.sourcePath,
+          sourcePaths: previousProgress.sourcePaths,
         });
       } else {
         log.info(chalk.dim('No previous progress found, starting fresh'));
@@ -393,7 +402,7 @@ export async function genesisCommand(options: GenesisOptions) {
     // Initialize or update progress tracking
     const progress: GenesisProgress = existingProgress || {
       startedAt: new Date().toISOString(),
-      sourcePath: options.source,
+      sourcePaths: options.sources,
     };
 
     // Save initial progress (marks genesis as "in progress")
@@ -403,10 +412,10 @@ export async function genesisCommand(options: GenesisOptions) {
     // Phase I: Bottom-Up Aggregation
     log.info('Phase I: Structural Mining (Bottom-Up)');
     debugLog('Starting Phase I: Bottom-Up Aggregation', {
-      source: options.source,
+      sources: options.sources,
     });
     const miningTimer = debugTimer('Structural mining');
-    await orchestrator.executeBottomUpAggregation(options.source);
+    await orchestrator.executeBottomUpAggregation(options.sources);
     miningTimer();
     debugLog('Phase I complete');
 

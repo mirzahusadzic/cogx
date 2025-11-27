@@ -139,12 +139,12 @@ describe('GenesisOrchestrator idempotency', () => {
     await fs.writeFile(sourceFilePath, sourceFileContent);
 
     // First run
-    await orchestrator.executeBottomUpAggregation('src');
+    await orchestrator.executeBottomUpAggregation(['src']);
 
     const firstRunOpenCognitionState = await getOpenCognitionState(projectRoot);
 
     // Second run
-    await orchestrator.executeBottomUpAggregation('src');
+    await orchestrator.executeBottomUpAggregation(['src']);
 
     const secondRunOpenCognitionState =
       await getOpenCognitionState(projectRoot);

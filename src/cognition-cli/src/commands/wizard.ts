@@ -211,13 +211,16 @@ export async function wizardCommand(options: WizardOptions) {
     'reverse_deps',
     'overlays',
   ];
-  const pgcExists = (
+  const pgcExistsOnDisk = (
     await Promise.all(
       coreDirectories.map((dir) => fs.pathExists(path.join(pgcRoot, dir)))
     )
   ).every((exists) => exists);
 
-  if (pgcExists) {
+  // Track whether we need to run init (new or after wipe)
+  let needsInit = !pgcExistsOnDisk;
+
+  if (pgcExistsOnDisk) {
     const action = (await select({
       message: 'PGC already exists. What do you want to do?',
       options: [
@@ -225,7 +228,7 @@ export async function wizardCommand(options: WizardOptions) {
           value: 'update',
           label: 'Update Existing Overlays',
         },
-        { value: 'init', label: 'Init PGC (wipe and start fresh)' },
+        { value: 'init', label: 'Re-initialize PGC (wipe and start fresh)' },
         { value: 'cancel', label: 'Cancel' },
       ],
       initialValue: 'update',
@@ -237,9 +240,11 @@ export async function wizardCommand(options: WizardOptions) {
     }
 
     if (action === 'init') {
-      log.warn(chalk.yellow('\n⚠️  Init PGC will DELETE all existing data.'));
+      log.warn(
+        chalk.yellow('\n⚠️  Re-init will DELETE all existing PGC data.')
+      );
       const confirmInit = (await confirm({
-        message: 'Are you sure you want to wipe the PGC?',
+        message: 'Are you sure you want to wipe and re-initialize?',
         initialValue: false,
       })) as boolean;
 
@@ -252,6 +257,7 @@ export async function wizardCommand(options: WizardOptions) {
       log.info(chalk.bold('\n🗑️  Removing existing PGC...'));
       await fs.remove(pgcRoot);
       log.info(chalk.green('✓ PGC removed'));
+      needsInit = true; // After wipe, we need to run init
     }
   }
 
@@ -319,11 +325,11 @@ export async function wizardCommand(options: WizardOptions) {
 
   // Step 6: Run init FIRST if PGC doesn't exist
   // This way user picks sources BEFORE we ask about overlays
-  let sourcePath = '';
-  let docsPath = '';
+  let sourcePaths: string[] = [];
+  let docsPaths: string[] = [];
   let shouldIngestDocs = false;
 
-  if (!pgcExists) {
+  if (needsInit) {
     log.step(chalk.bold('\nStep 1: Initialize PGC'));
     log.info(
       chalk.dim('Select which source directories and docs to include.\n')
@@ -337,10 +343,10 @@ export async function wizardCommand(options: WizardOptions) {
       try {
         const metadata = await fs.readJSON(metadataPath);
         if (metadata.sources?.code?.length > 0) {
-          sourcePath = metadata.sources.code.join(',');
+          sourcePaths = metadata.sources.code;
         }
         if (metadata.sources?.docs?.length > 0) {
-          docsPath = metadata.sources.docs.join(',');
+          docsPaths = metadata.sources.docs;
           shouldIngestDocs = true;
         }
       } catch {
@@ -348,7 +354,7 @@ export async function wizardCommand(options: WizardOptions) {
       }
     }
 
-    if (!sourcePath) {
+    if (sourcePaths.length === 0) {
       log.error(chalk.red('No source directories selected. Cannot continue.'));
       outro(chalk.red('Wizard cancelled.'));
       return;
@@ -356,30 +362,26 @@ export async function wizardCommand(options: WizardOptions) {
 
     log.info('');
     log.info(chalk.green(`✓ PGC initialized`));
-    log.info(chalk.dim(`  Code: ${sourcePath}`));
+    log.info(chalk.dim(`  Code: ${sourcePaths.join(', ')}`));
     if (shouldIngestDocs) {
-      log.info(chalk.dim(`  Docs: ${docsPath}`));
+      log.info(chalk.dim(`  Docs: ${docsPaths.join(', ')}`));
     }
   } else {
-    // PGC exists - read from metadata
+    // PGC exists and user chose to update - read from existing metadata
     const metadataPath = path.join(pgcRoot, 'metadata.json');
     if (await fs.pathExists(metadataPath)) {
       try {
         const metadata = await fs.readJSON(metadataPath);
         if (metadata.sources?.code?.length > 0) {
-          sourcePath = metadata.sources.code.join(',');
+          sourcePaths = metadata.sources.code;
           log.info(
-            chalk.green(
-              `✓ Using code paths: ${metadata.sources.code.join(', ')}`
-            )
+            chalk.green(`✓ Using code paths: ${sourcePaths.join(', ')}`)
           );
         }
         if (metadata.sources?.docs?.length > 0) {
-          docsPath = metadata.sources.docs.join(',');
+          docsPaths = metadata.sources.docs;
           shouldIngestDocs = true;
-          log.info(
-            chalk.green(`✓ Using docs: ${metadata.sources.docs.join(', ')}`)
-          );
+          log.info(chalk.green(`✓ Using docs: ${docsPaths.join(', ')}`));
         }
       } catch {
         // Metadata invalid
@@ -428,9 +430,9 @@ export async function wizardCommand(options: WizardOptions) {
   log.step(chalk.bold('\nSetup Summary:'));
   log.info(`  Project Root: ${chalk.cyan(options.projectRoot)}`);
   log.info(`  Workbench URL: ${chalk.cyan(workbenchUrl)}`);
-  log.info(`  Source Path: ${chalk.cyan(sourcePath)}`);
+  log.info(`  Source Paths: ${chalk.cyan(sourcePaths.join(', '))}`);
   if (shouldIngestDocs) {
-    log.info(`  Documentation: ${chalk.cyan(docsPath)}`);
+    log.info(`  Documentation: ${chalk.cyan(docsPaths.join(', '))}`);
   } else {
     log.info(`  Documentation: ${chalk.dim('(none)')}`);
   }
@@ -468,28 +470,26 @@ export async function wizardCommand(options: WizardOptions) {
     // Init already ran above (if needed), just confirm
     log.info(chalk.bold('\n[1/3] PGC ready ✓'));
 
-    // Execute: genesis
+    // Execute: genesis for all source paths in a single run
     log.info(chalk.bold('\n[2/3] Running genesis...'));
     // Use detected paths or fallback to 'src'
-    const effectiveSourcePath = sourcePath || 'src';
+    const effectiveSourcePaths = sourcePaths.length > 0 ? sourcePaths : ['src'];
+    log.info(chalk.dim(`  Processing: ${effectiveSourcePaths.join(', ')}`));
     await genesisCommand({
-      source: effectiveSourcePath,
+      sources: effectiveSourcePaths,
       workbench: workbenchUrl,
       projectRoot: options.projectRoot,
     });
 
     // Ingest documentation and generate overlays
     log.info(chalk.bold('\n[3/3] Building overlays...'));
-    if (shouldIngestDocs && docsPath) {
-      // Use paths from metadata (may be comma-separated)
-      const docPaths = docsPath.split(',').map((p) => {
-        const trimmed = p.trim();
-        // If already absolute or starts with project root, use as-is
-        return path.isAbsolute(trimmed)
-          ? trimmed
-          : path.join(options.projectRoot, trimmed);
+    if (shouldIngestDocs && docsPaths.length > 0) {
+      // Use paths from metadata array
+      const absoluteDocPaths = docsPaths.map((p) => {
+        // If already absolute, use as-is; otherwise join with project root
+        return path.isAbsolute(p) ? p : path.join(options.projectRoot, p);
       });
-      await genesisDocsCommand(docPaths, {
+      await genesisDocsCommand(absoluteDocPaths, {
         projectRoot: options.projectRoot,
       });
     } else {
@@ -558,6 +558,7 @@ export async function wizardCommand(options: WizardOptions) {
         const orchestrator = await OverlayOrchestrator.create(
           options.projectRoot
         );
+        // Overlay generation reads from PGC index (created by genesis) - no path needed
         await orchestrator.run(
           overlayType as
             | 'structural_patterns'
@@ -570,7 +571,6 @@ export async function wizardCommand(options: WizardOptions) {
           {
             force: false,
             skipGc: false,
-            sourcePath: effectiveSourcePath,
           }
         );
         await orchestrator.shutdown();

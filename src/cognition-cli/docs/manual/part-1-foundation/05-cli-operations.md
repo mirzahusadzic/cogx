@@ -380,7 +380,7 @@ cognition-cli genesis:docs docs/
 
 ## genesis — Build the Verifiable Skeleton
 
-**Command**: `cognition-cli genesis <path>`
+**Command**: `cognition-cli genesis [sourcePaths...]`
 
 **Purpose**: Extracts structural patterns (O₁) and builds the foundational knowledge representation.
 
@@ -423,13 +423,23 @@ Genesis is **Phase I: Bottom-Up Structural Mining**
 ### Command Options
 
 ```bash
+# Use paths from init (metadata.json)
+cognition-cli genesis
+
+# Single directory
 cognition-cli genesis src/
+
+# Multiple directories (space-separated)
+cognition-cli genesis src/ lib/
 ```
 
 **Parameters**:
 
-- `<path>`: Path to source code directory to analyze (positional argument)
-- `--workbench <url>`: eGemma workbench URL (default: `http://localhost:8000`)
+- `[sourcePaths...]`: Source paths to analyze (reads from metadata.json if omitted)
+- `-w, --workbench <url>`: eGemma workbench URL (default: `http://localhost:8000`)
+- `-p, --project-root <path>`: Project root (default: current directory)
+- `-n, --dry-run`: Preview files without processing
+- `-r, --resume`: Resume from interrupted genesis
 
 **Note**: After genesis, generate overlays with `cognition-cli overlay generate <type>` or use `cognition-cli wizard` for interactive setup.
 
@@ -624,7 +634,7 @@ NODE_OPTIONS=--max-old-space-size=8192 cognition-cli genesis src/
 
 ## genesis docs — Document Ingestion
 
-**Command**: `cognition-cli genesis:docs [path]`
+**Command**: `cognition-cli genesis:docs [paths...]`
 
 **Purpose**: Ingest markdown documentation into the PGC with full provenance tracking.
 
@@ -641,23 +651,23 @@ This command processes markdown files into the mission concepts overlay (O₄):
 ### Usage
 
 ```bash
-# Ingest single file (defaults to VISION.md)
+# Ingest docs from metadata.json (or VISION.md if not configured)
 cognition-cli genesis:docs
 
 # Ingest specific file
 cognition-cli genesis:docs docs/ARCHITECTURE.md
 
-# Ingest directory (recursive)
-cognition-cli genesis:docs docs/
+# Ingest multiple files (space-separated)
+cognition-cli genesis:docs docs/VISION.md docs/ARCHITECTURE.md
 
 # Force re-ingestion (removes existing entries first)
-cognition-cli genesis:docs docs/ --force
+cognition-cli genesis:docs --force
 ```
 
 ### Command Options
 
 ```bash
-cognition-cli genesis:docs [path] [options]
+cognition-cli genesis:docs [paths...] [options]
 
 # Options:
 #   -p, --project-root <path>   Root directory (default: current directory)
@@ -1794,10 +1804,12 @@ PGC Status: ✓ Coherent
 ### generate
 
 ```bash
-cognition-cli overlay generate <type> [sourcePath]
+cognition-cli overlay generate <type> [options]
 ```
 
 **Purpose**: Generate semantic overlays using LLM analysis (Phase II).
+
+**IMPORTANT**: Overlay generation reads from PGC index (created by `genesis`). Run `genesis` first to index source files.
 
 **Available Overlays**:
 
@@ -1809,15 +1821,9 @@ cognition-cli overlay generate <type> [sourcePath]
 - `mathematical_proofs` (O6): Formal properties, theorems
 - `strategic_coherence` (O7): Cross-layer synthesis (requires docs)
 
-**Source Path Resolution**:
-
-- If `sourcePath` is omitted or `.`, reads paths from `metadata.json` (set during `init`)
-- Falls back to current directory if metadata is unavailable
-- Explicit `sourcePath` argument overrides metadata
-
 **What It Does**:
 
-- Reads structural data from O1 (created by genesis)
+- Reads indexed files from PGC (created by genesis)
 - Sends to eGemma for LLM analysis
 - Extracts overlay-specific knowledge
 - Generates semantic embeddings
@@ -1826,10 +1832,9 @@ cognition-cli overlay generate <type> [sourcePath]
 **Command Options**:
 
 ```bash
-cognition-cli overlay generate <type> [sourcePath] [options]
+cognition-cli overlay generate <type> [options]
 
 # Options:
-#   -p, --project-root <path>   Project root (default: current directory)
 #   -f, --force                 Force regeneration even if patterns exist
 #   --skip-gc                   Skip garbage collection (useful when switching branches)
 ```
@@ -1837,12 +1842,10 @@ cognition-cli overlay generate <type> [sourcePath] [options]
 **Example**:
 
 ```bash
-# Generate using source paths from metadata.json
+# Generate structural patterns (reads from PGC index)
 $ cognition-cli overlay generate structural_patterns
-[Overlay] Using source paths from metadata: src/
-
-# Generate with explicit source path
-$ cognition-cli overlay generate structural_patterns src/core
+[Overlay] Reading source files from PGC index (run genesis first to index files)
+[Overlay] Loading 45 files from PGC index...
 
 # Force regeneration
 $ cognition-cli overlay generate security_guidelines --force
