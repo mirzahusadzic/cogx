@@ -6,7 +6,7 @@
 
 **At a Glance:**
 
-- **Current Version:** 2.4.0 (Production Excellence)
+- **Current Version:** 2.5.1 (Gemini Integration)
 - **Production Lines:** ~76,170 TypeScript (excl. tests), ~93,382 total
 - **Test Coverage:** ~85% across 120+ test files
 - **Architecture:** 7 cognitive overlays (O₁-O₇), dual-lattice Σ system
@@ -794,7 +794,7 @@ The same architecture that understands code can preserve human identity through 
 | Core Commands         | 40+ (with tab completion)          |
 | Test Files            | 56 (comprehensive coverage)        |
 | Test Coverage         | ~85% (security, compression, UX)   |
-| Current Version       | 2.4.0 (Production Excellence)      |
+| Current Version       | 2.5.1 (Gemini Integration)         |
 | License               | AGPL-3.0-or-later                  |
 | Zenodo DOI            | 10.5281/zenodo.17509405            |
 | Innovations Published | 46 (defensive patent publication)  |
@@ -803,7 +803,7 @@ The same architecture that understands code can preserve human identity through 
 
 ## Version History & Changelog
 
-### Version 2.4.0 (Current - November 16, 2025)
+### Version 2.5.1 (Current - Gemini Integration)
 
 **Summary:** 82 commits from v2.3.2 delivering critical compression performance fix, comprehensive UX enhancements, robust error handling, and extensive test coverage. This is a major stability and performance milestone resolving the 5-10 minute compression blocking issue.
 
@@ -937,7 +937,7 @@ _For previous release history, see [CHANGELOG.md](https://github.com/mirzahusadz
 
 ## Conclusion
 
-Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.4.0** achieves production excellence with instant compression, comprehensive UX enhancements, shell tab completion, robust error handling, and 85% test coverage. This release delivers the stability and developer experience needed for daily professional use.
+Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.5.1** builds on production excellence with Gemini integration, instant compression, comprehensive UX enhancements, shell tab completion, robust error handling, and 85% test coverage. This release delivers the stability and developer experience needed for daily professional use.
 
 It combines:
 
