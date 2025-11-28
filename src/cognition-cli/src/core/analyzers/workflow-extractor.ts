@@ -79,7 +79,16 @@ export class WorkflowExtractor
       );
     });
 
-    return patterns;
+    // Deduplicate by text content (keep highest weight version)
+    const seen = new Map<string, OperationalKnowledge>();
+    for (const pattern of patterns) {
+      const existing = seen.get(pattern.text);
+      if (!existing || pattern.weight > existing.weight) {
+        seen.set(pattern.text, pattern);
+      }
+    }
+
+    return Array.from(seen.values());
   }
 
   /**
@@ -251,12 +260,15 @@ export class WorkflowExtractor
   /**
    * Extract quest structure patterns
    *
-   * Identifies bold text matching quest patterns: What/Why/Success/Big Blocks/Eyes Go.
-   * These represent the structural elements of operational quests.
+   * Identifies quest patterns generically:
+   * - Quest headers: "### Quest: Name" or "### Quest Name"
+   * - Bold field patterns: **Label**: value (any label, captures full line)
+   *
+   * Does NOT hardcode specific field names - works with any project's terminology.
    *
    * @private
    * @param content - Section content to extract from
-   * @returns Array of quest pattern text
+   * @returns Array of quest pattern text with values
    */
   private extractQuestPatterns(content: string): string[] {
     const patterns: string[] = [];
@@ -265,12 +277,23 @@ export class WorkflowExtractor
     for (const line of lines) {
       const trimmed = line.trim();
 
-      // Match bold questions or structure markers
-      const questMatch = trimmed.match(
-        /\*\*(What|Why|Success|Big Blocks|Eyes Go)[^*]*\*\*/i
-      );
-      if (questMatch) {
-        patterns.push(questMatch[0].replace(/\*\*/g, ''));
+      // Match quest headers: ### Quest: Name or ## Quest: Name
+      const questHeaderMatch = trimmed.match(/^#{2,3}\s*Quest[:\s]+(.+)$/i);
+      if (questHeaderMatch) {
+        patterns.push(`Quest: ${questHeaderMatch[1].trim()}`);
+        continue;
+      }
+
+      // Match ANY bold field with value: **Label**: value or **Label** — value
+      // Generic pattern - works with any field name (What, Why, Objective, etc.)
+      const boldFieldMatch = trimmed.match(/^\*\*([^*]+)\*\*[:\s—-]+(.+)$/);
+      if (boldFieldMatch) {
+        const label = boldFieldMatch[1].trim();
+        const value = boldFieldMatch[2].trim();
+        // Only include if value is substantial (not just punctuation)
+        if (value && value.length > 2) {
+          patterns.push(`${label}: ${value}`);
+        }
       }
     }
 

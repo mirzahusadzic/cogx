@@ -50,11 +50,17 @@ export interface MathematicalKnowledge extends ExtractedKnowledge {
     | 'axiom'
     | 'corollary'
     | 'proof'
-    | 'identity';
+    | 'identity'
+    | 'invariant'
+    | 'complexity';
   metadata?: {
     proofSteps?: string[]; // For proofs
     dependencies?: string[]; // Required lemmas/theorems
     formalNotation?: string; // Mathematical notation
+    timeComplexity?: string; // For complexity bounds (e.g., "O(n log n)")
+    spaceComplexity?: string; // For complexity bounds (e.g., "O(n)")
+    enforcement?: string; // For invariants - how it's enforced
+    violations?: string[]; // For invariants - what to watch for
   };
 }
 

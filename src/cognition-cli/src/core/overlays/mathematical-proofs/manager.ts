@@ -93,7 +93,9 @@ export interface MathematicalMetadata extends OverlayMetadata {
     | 'axiom'
     | 'corollary'
     | 'proof'
-    | 'identity';
+    | 'identity'
+    | 'invariant'
+    | 'complexity';
   weight: number;
   occurrences: number;
   section: string;
@@ -102,6 +104,10 @@ export interface MathematicalMetadata extends OverlayMetadata {
   proofSteps?: string[];
   dependencies?: string[];
   formalNotation?: string;
+  timeComplexity?: string;
+  spaceComplexity?: string;
+  enforcement?: string;
+  violations?: string[];
 }
 
 /**
@@ -160,7 +166,16 @@ export class MathematicalProofsManager
   }
 
   getSupportedTypes(): string[] {
-    return ['theorem', 'lemma', 'axiom', 'corollary', 'proof', 'identity'];
+    return [
+      'theorem',
+      'lemma',
+      'axiom',
+      'corollary',
+      'proof',
+      'identity',
+      'invariant',
+      'complexity',
+    ];
   }
 
   getPgcRoot(): string {
