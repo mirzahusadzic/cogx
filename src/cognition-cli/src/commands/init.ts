@@ -366,3 +366,56 @@ export async function initCommand(options: {
     throw error;
   }
 }
+
+/**
+ * Programmatic init for TUI wizard
+ *
+ * Creates .open_cognition directory structure without interactive prompts.
+ * Used by TUI onboarding wizard which handles source selection separately.
+ *
+ * @param projectRoot - Root directory of the project
+ * @param sourceDirs - Selected source directories to include
+ * @returns Promise resolving to success boolean
+ */
+export async function initWorkspaceProgrammatic(
+  projectRoot: string,
+  sourceDirs: string[]
+): Promise<{ success: boolean; error?: string }> {
+  const pgcRoot = path.join(projectRoot, '.open_cognition');
+
+  try {
+    // Create the four pillars
+    await fs.ensureDir(path.join(pgcRoot, 'objects'));
+    await fs.ensureDir(path.join(pgcRoot, 'transforms'));
+    await fs.ensureDir(path.join(pgcRoot, 'index'));
+    await fs.ensureDir(path.join(pgcRoot, 'reverse_deps'));
+    await fs.ensureDir(path.join(pgcRoot, 'overlays'));
+
+    // Create system metadata with source paths (no docs - will be added via /onboard-project)
+    const metadata: PGCMetadata = {
+      version: '0.1.0',
+      initialized_at: new Date().toISOString(),
+      status: 'empty',
+      sources: {
+        code: sourceDirs,
+        docs: [], // Docs will be generated via LLM co-creation, not auto-detected
+      },
+    };
+    await fs.writeJSON(path.join(pgcRoot, 'metadata.json'), metadata, {
+      spaces: 2,
+    });
+
+    // Create .gitignore for PGC
+    await fs.writeFile(
+      path.join(pgcRoot, '.gitignore'),
+      '# Ignore large object store\nobjects/\n# Ignore debug logs\ndebug-*.log\n# Keep structure\n!.gitkeep\n'
+    );
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}

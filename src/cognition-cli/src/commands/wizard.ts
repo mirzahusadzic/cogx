@@ -61,12 +61,15 @@ import {
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
-import { fetch } from 'undici';
 import { initCommand } from './init.js';
 import { genesisCommand } from './genesis.js';
 import { genesisDocsCommand } from './genesis-docs.js';
 import { OverlayOrchestrator } from '../core/orchestrators/overlay.js';
 import { WorkspaceManager } from '../core/workspace-manager.js';
+import {
+  checkWorkbenchHealth,
+  autodetectWorkbench,
+} from '../utils/workbench-detect.js';
 
 /**
  * Options for the wizard command
@@ -74,75 +77,6 @@ import { WorkspaceManager } from '../core/workspace-manager.js';
 interface WizardOptions {
   /** Root directory where PGC will be initialized */
   projectRoot: string;
-}
-
-/**
- * Checks if a workbench URL is healthy and accessible
- *
- * Sends a GET request to the /health endpoint to verify the workbench
- * server is running and accepting connections.
- *
- * @param url - The workbench URL to check (e.g., 'http://localhost:8000')
- * @returns True if the /health endpoint responds with 200 OK, false otherwise
- *
- * @example
- * const isHealthy = await checkWorkbenchHealth('http://localhost:8000');
- * if (isHealthy) {
- *   console.log('Workbench is ready for embedding generation');
- * }
- */
-async function checkWorkbenchHealth(url: string): Promise<boolean> {
-  try {
-    const response = await fetch(`${url}/health`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    return response.ok;
-  } catch (error) {
-    console.warn(
-      `Workbench health check failed at ${url}: ${error instanceof Error ? error.message : String(error)}`
-    );
-    return false;
-  }
-}
-
-/**
- * Attempts to autodetect a running workbench instance
- *
- * Probes common local development ports to find a running workbench server.
- * This reduces friction for developers by eliminating manual URL entry when
- * the workbench is running on a standard port.
- *
- * ALGORITHM:
- * - Checks ports 8000 and 8080 on localhost and 127.0.0.1
- * - Tests each URL's /health endpoint sequentially
- * - Returns the first healthy URL found, or null if none are healthy
- *
- * @returns The URL of the first healthy workbench found, or null if none detected
- *
- * @example
- * const detected = await autodetectWorkbench();
- * if (detected) {
- *   console.log(`Found workbench at ${detected}`);
- * } else {
- *   console.log('No workbench detected, please enter URL manually');
- * }
- */
-async function autodetectWorkbench(): Promise<string | null> {
-  const commonUrls = [
-    'http://localhost:8000',
-    'http://localhost:8080',
-    'http://127.0.0.1:8000',
-    'http://127.0.0.1:8080',
-  ];
-
-  for (const url of commonUrls) {
-    if (await checkWorkbenchHealth(url)) {
-      return url;
-    }
-  }
-
-  return null;
 }
 
 /**

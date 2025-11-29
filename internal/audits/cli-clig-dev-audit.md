@@ -9,6 +9,7 @@
 ## Executive Summary
 
 Cognition-cli has a **solid foundation** with many best practices already implemented:
+
 - TTY detection for colors/emoji
 - `NO_COLOR` environment variable support
 - Structured error handling with codes and solutions
@@ -16,6 +17,7 @@ Cognition-cli has a **solid foundation** with many best practices already implem
 - Global flags (`--no-color`, `--verbose`, `--quiet`)
 
 **Key gaps** to address:
+
 1. ~~Help output lacks examples and "next steps" guidance~~ FIXED
 2. ~~No `--dry-run` for destructive operations~~ FIXED (init, genesis, update)
 3. ~~Exit codes limited to 0/1 (no granularity)~~ FIXED (0, 2-8, 130)
@@ -49,6 +51,7 @@ Cognition-cli has a **solid foundation** with many best practices already implem
 ### 1. Help & Documentation (60%)
 
 #### Current State
+
 - **--help** works for all commands via Commander.js
 - **--version** implemented (`2.5.1 (Gemini Integration)`)
 - Descriptions provided for all commands
@@ -68,6 +71,7 @@ Cognition-cli has a **solid foundation** with many best practices already implem
 #### Example: Current vs. Ideal
 
 **Current `genesis --help`:**
+
 ```
 Usage: cognition-cli genesis [options] [sourcePath]
 
@@ -80,6 +84,7 @@ Options:
 ```
 
 **Ideal `genesis --help`:**
+
 ```
 Builds the verifiable skeleton of a codebase
 
@@ -119,6 +124,7 @@ LEARN MORE:
 ### 2. Output Formatting (85%)
 
 #### Current State (Excellent)
+
 - TTY detection: `src/utils/terminal-capabilities.ts`
 - `NO_COLOR` support: Implemented
 - `--no-color` flag: Implemented
@@ -137,6 +143,7 @@ LEARN MORE:
 | Immediate feedback (<100ms) | Needs audit | Network ops may hang |
 
 #### Recommendation
+
 Add progress indication to `genesis`, `genesis:docs`, `overlay generate`:
 
 ```typescript
@@ -159,6 +166,7 @@ console.log('  cognition patterns analyze');
 ### 3. Error Handling (80%)
 
 #### Current State (Good)
+
 - Custom `CognitionError` class with:
   - Error codes (COG-E001, COG-E301, etc.)
   - User-friendly titles
@@ -177,6 +185,7 @@ console.log('  cognition patterns analyze');
 | Pre-populated bug URLs | Missing | Could include error code in URL |
 
 #### Example: Current Error (Good)
+
 ```
 ✗ Error [COG-E301]: Workspace Not Found
 
@@ -191,7 +200,9 @@ Possible Solutions:
 ```
 
 #### Recommendation
+
 Add pre-populated bug report URLs:
+
 ```typescript
 // In ErrorCodes.INTERNAL_ERROR
 `https://github.com/mirzahusadzic/cogx/issues/new?title=Bug:%20${encodeURIComponent(context)}&body=${encodeURIComponent(template)}`
@@ -202,6 +213,7 @@ Add pre-populated bug report URLs:
 ### 4. Flags & Arguments (70%)
 
 #### Current State
+
 - Global flags: `--no-color`, `--no-emoji`, `--format`, `--verbose`, `--quiet`, `--version`
 - Short forms: `-v`, `-q`, `-p`, `-w`, `-f`, `-l`
 - Commander.js handles flag parsing
@@ -221,6 +233,7 @@ Add pre-populated bug report URLs:
 | `--version` | Yes | Global |
 
 #### Recommendations
+
 1. Add `--json` as shorthand for `--format json`
 2. Add `--no-input` to disable all prompts
 3. Add `-d, --debug` distinct from verbose (debug=developer info, verbose=more detail)
@@ -231,6 +244,7 @@ Add pre-populated bug report URLs:
 ### 5. Dangerous Operations (40%)
 
 #### Current State
+
 - `genesis --force` does NOT exist (rebuilds implicitly)
 - No confirmation prompts for destructive actions
 - No `--dry-run` mode
@@ -272,6 +286,7 @@ if (options.dryRun) {
 ### 6. Interactivity (55%)
 
 #### Current State
+
 - TUI command provides interactive interface
 - Setup wizard (`wizard`) is interactive
 - Uses @clack/prompts for some interactions
@@ -305,6 +320,7 @@ function safePrompt(options: PromptOptions) {
 ### 7. Configuration (85%)
 
 #### Current State (Good)
+
 - **User config**: `~/.cognition-cli/settings.json` (already exists!)
 - Environment variables via dotenv
 - WORKBENCH_URL environment variable
@@ -312,12 +328,14 @@ function safePrompt(options: PromptOptions) {
 - Documented precedence in `src/llm/llm-config.ts`
 
 #### Current Precedence (Documented)
+
 1. CLI flags (highest priority)
 2. Environment variables
 3. `~/.cognition-cli/settings.json` (persistent user settings)
 4. Default values in config.ts
 
 #### What's Stored in User Config
+
 - `dual_use_acknowledgment` - Security mandate acceptance
 - `llm.defaultProvider` - Preferred LLM (claude/gemini)
 - `llm.providers.*.defaultModel` - Default models per provider
@@ -332,6 +350,7 @@ function safePrompt(options: PromptOptions) {
 | Secrets in env vars | Risk | API keys in env vars |
 
 #### Recommendations
+
 1. Document precedence in `--help` output
 2. Consider moving API keys to `~/.cognition-cli/credentials.json` (not env vars)
 3. Add `cognition config` command to view/edit settings
@@ -341,6 +360,7 @@ function safePrompt(options: PromptOptions) {
 ### 8. Robustness (50%)
 
 #### Current State
+
 - Lazy imports for faster startup
 - Retry logic for 429 errors (5 retries, 3s max delay)
 - Rate limiting configuration
@@ -377,12 +397,14 @@ if (fs.existsSync(progressFile)) {
 ### 9. Subcommand Consistency (85%)
 
 #### Current State (Good)
+
 - Consistent naming: `security *`, `workflow *`, `proofs *`
 - Shared flags across related commands
 - Verb-noun pattern: `overlay generate`, `genesis:docs`
 - Aliases for common commands (`g`, `i`, `q`, `w`, `l`)
 
 #### Minor Issues
+
 - Mixed patterns: `genesis:docs` (colon) vs `overlay generate` (space)
 - `blast-radius` exists both as standalone and under `security`
 
@@ -391,10 +413,12 @@ if (fs.existsSync(progressFile)) {
 ### 10. Exit Codes (30%)
 
 #### Current State
+
 - 0 = Success
 - 1 = Any error
 
 #### clig.dev Recommendation
+
 Different exit codes for different failure types allow scripts to respond appropriately.
 
 #### Recommended Exit Codes
@@ -442,6 +466,7 @@ process.on('uncaughtException', (error) => {
 ## Priority Matrix
 
 ### High Impact, Low Effort (Quick Wins)
+
 1. Add `--json` shorthand flag
 2. Add `--no-input` flag
 3. Implement exit code mapping
@@ -449,17 +474,20 @@ process.on('uncaughtException', (error) => {
 5. Add "next steps" after operations
 
 ### High Impact, Medium Effort
+
 6. Add `--dry-run` to destructive commands
 7. Add confirmation prompts for dangerous ops
 8. Add progress spinners to long operations
 9. Implement spelling suggestions for typos
 
 ### Medium Impact, Low Effort
+
 10. Document env vars in --help
 11. Add immediate feedback before network calls
 12. Pre-populate bug report URLs
 
 ### Medium Impact, Medium Effort
+
 13. Add resume support for interrupted operations
 14. Add `cognition config` command to view/edit user settings
 15. Add `--debug` flag distinct from `--verbose`
@@ -524,6 +552,7 @@ Cognition-cli has a strong foundation with good error handling, TTY detection, a
 The quick wins in Phase 1 can be implemented in 1-2 days and will significantly improve user experience. Phase 2 addresses safety and feedback, while Phase 3 focuses on robustness.
 
 **Recommended order of implementation:**
+
 1. `--no-input` flag (enables CI/CD usage)
 2. Exit code mapping (enables scripted error handling)
 3. Examples in --help (improves discoverability)

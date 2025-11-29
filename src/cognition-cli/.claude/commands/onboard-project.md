@@ -2,6 +2,133 @@
 
 Welcome! Let's create strategic documentation for your project that will be properly ingested into the Grounded Context Pool (PGC).
 
+---
+
+## CRITICAL: Large Codebase Strategy
+
+**Before reading any source files, you MUST assess codebase size.**
+
+### Step 0: Assess Codebase Size
+
+```bash
+# Count total indexed files
+ls .open_cognition/index/*.json 2>/dev/null | wc -l
+```
+
+### Decision Threshold
+
+| File Count | Strategy                                          |
+| ---------- | ------------------------------------------------- |
+| ≤50 files  | Read source files directly for full understanding |
+| >50 files  | **USE INDEX FILES ONLY** - Never read raw sources |
+
+### For Large Codebases (>50 files): Index-Based Analysis
+
+**You MUST use the pre-processed AST index files in `.open_cognition/index/`**
+
+These JSON files contain structured representations of each source file:
+
+```json
+{
+  "path": "src/commands/tui.ts",
+  "structuralData": {
+    "language": "typescript",
+    "docstring": "File-level documentation...",
+    "imports": ["path", "../core/workspace-manager.js"],
+    "classes": [{ "name": "ClassName", "docstring": "...", "methods": [...] }],
+    "functions": [{ "name": "funcName", "docstring": "...", "params": [...], "returns": "..." }],
+    "interfaces": [{ "name": "InterfaceName", "properties": [...] }],
+    "exports": ["exportedName1", "exportedName2"],
+    "dependencies": ["dep1", "dep2"]
+  }
+}
+```
+
+### Building Codebase Summary from Index
+
+Execute these commands to build a compact understanding:
+
+```bash
+# 1. Get directory distribution (understand subsystem structure)
+ls .open_cognition/index/*.json | sed 's/_/\//g' | sed 's/\.json$//' | xargs -I{} dirname {} | sort | uniq -c | sort -rn | head -20
+
+# 2. Find key entry points (files with many exports)
+for f in .open_cognition/index/*.json; do
+  exports=$(jq -r '.structuralData.exports | length' "$f" 2>/dev/null)
+  if [ "$exports" -gt 3 ]; then
+    echo "$exports $(jq -r '.path' "$f")"
+  fi
+done | sort -rn | head -15
+
+# 3. Extract all exported symbols (understand API surface)
+jq -r '.structuralData.exports[]?' .open_cognition/index/*.json | sort -u | head -50
+
+# 4. Find files with docstrings (understand documented modules)
+for f in .open_cognition/index/*.json; do
+  doc=$(jq -r '.structuralData.docstring // empty' "$f" 2>/dev/null)
+  if [ -n "$doc" ]; then
+    path=$(jq -r '.path' "$f")
+    echo "=== $path ==="
+    echo "$doc" | head -5
+    echo ""
+  fi
+done | head -100
+
+# 5. Get interface/type definitions (understand data models)
+jq -r '.structuralData.interfaces[]? | "interface \(.name): \(.properties | map(.name) | join(", "))"' .open_cognition/index/*.json 2>/dev/null | head -30
+
+# 6. Get class hierarchy (understand architecture)
+jq -r '.structuralData.classes[]? | "class \(.name): \(.methods | map(.name) | join(", "))"' .open_cognition/index/*.json 2>/dev/null | head -30
+```
+
+### What You Learn from Index Files
+
+| Index Field                 | Insight                             |
+| --------------------------- | ----------------------------------- |
+| `structuralData.docstring`  | Module purpose and design rationale |
+| `structuralData.imports`    | Dependencies and coupling           |
+| `structuralData.exports`    | Public API surface                  |
+| `structuralData.classes`    | Object-oriented architecture        |
+| `structuralData.functions`  | Procedural/functional architecture  |
+| `structuralData.interfaces` | Data contracts and type definitions |
+| `path` directory structure  | Subsystem organization              |
+
+### Example: Compact Summary for LLM Context (~2KB vs 500KB+ raw)
+
+After running the above commands, synthesize a summary like:
+
+```
+CODEBASE SUMMARY (cognition-cli)
+================================
+Total files: 127 across 8 subsystems
+
+SUBSYSTEMS:
+- src/commands/ (25 files): CLI command implementations
+- src/core/ (32 files): Core orchestrators and services
+- src/tui/ (18 files): Terminal UI components
+- src/sigma/ (22 files): Conversation memory system
+- src/llm/ (8 files): LLM provider abstractions
+
+KEY ENTRY POINTS:
+- src/cli.ts: Main CLI entry, exports registerCommands
+- src/tui/index.tsx: TUI entry, exports startTUI
+- src/core/workspace-manager.ts: PGC workspace management
+
+CORE INTERFACES:
+- TUIOptions: sessionId, projectRoot, provider, model
+- OverlayProgress: phase, overlayType, message, current, total
+- WorkbenchConfig: url, apiKey, timeout
+
+ARCHITECTURE PATTERNS:
+- Command pattern for CLI (src/commands/*.ts)
+- React/Ink for TUI (src/tui/components/*.tsx)
+- Provider pattern for LLM (src/llm/providers/*.ts)
+```
+
+**Use this compact summary to guide documentation co-creation, NOT raw source files.**
+
+---
+
 ## What This Does
 
 This command guides you through creating:

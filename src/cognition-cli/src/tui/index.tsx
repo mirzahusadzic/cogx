@@ -11,6 +11,7 @@ import { ClaudePanelAgent } from './components/ClaudePanelAgent.js';
 import { InputBox } from './components/InputBox.js';
 import { StatusBar } from './components/StatusBar.js';
 import { SigmaInfoPanel } from './components/SigmaInfoPanel.js';
+import { OnboardingWizard } from './components/wizard/index.js';
 import { useAgent } from './hooks/useAgent.js';
 import { useOverlays } from './hooks/useOverlays.js';
 import { useToolConfirmation } from './hooks/useToolConfirmation.js';
@@ -41,6 +42,8 @@ interface CognitionTUIProps {
   provider?: string;
   model?: string;
   displayThinking?: boolean;
+  /** If true, show onboarding wizard instead of normal TUI */
+  onboardingMode?: boolean;
 }
 
 const CognitionTUI: React.FC<CognitionTUIProps> = ({
@@ -54,9 +57,12 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   provider,
   model,
   displayThinking = true,
+  onboardingMode = false,
 }) => {
   const { stdout } = useStdout();
   const [focused, setFocused] = useState(true);
+  // Track if onboarding wizard has completed
+  const [onboardingComplete, setOnboardingComplete] = useState(!onboardingMode);
   const [renderError, setRenderError] = useState<Error | null>(null);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -428,6 +434,27 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           </Text>
         </Box>
       </Box>
+    );
+  }
+
+  // Show onboarding wizard if in onboarding mode and not yet complete
+  if (onboardingMode && !onboardingComplete) {
+    return (
+      <ThemeProvider theme={customTheme}>
+        <OnboardingWizard
+          cwd={projectRoot}
+          workbenchUrl={workbenchUrl || 'http://localhost:8000'}
+          provider={provider || 'claude'}
+          onComplete={() => {
+            setOnboardingComplete(true);
+            // Force page reload to pick up new PGC
+            // In future, we could just refresh the hooks
+          }}
+          onCancel={() => {
+            process.exit(0);
+          }}
+        />
+      </ThemeProvider>
     );
   }
 

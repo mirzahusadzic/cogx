@@ -46,6 +46,10 @@
 import path from 'path';
 import { WorkspaceManager } from '../core/workspace-manager.js';
 import { startTUI } from '../tui/index.js';
+import {
+  checkPrerequisites,
+  type LLMProviderType,
+} from '../utils/workbench-detect.js';
 
 /**
  * Options for the TUI command
@@ -109,16 +113,44 @@ interface TUIOptions {
 export async function tuiCommand(options: TUIOptions): Promise<void> {
   // Find .open_cognition workspace
   const workspaceManager = new WorkspaceManager();
-  const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
+  const resolvedProjectRoot = workspaceManager.resolvePgcRoot(
+    options.projectRoot
+  );
 
-  if (!projectRoot) {
-    console.error(
-      'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
-    );
-    process.exit(1);
+  // Determine if we're in onboarding mode (no .open_cognition found)
+  let onboardingMode = false;
+  let projectRoot: string;
+  let pgcRoot: string;
+
+  if (!resolvedProjectRoot) {
+    // No workspace found - check if we can enter onboarding mode
+    const preferredProvider = options.provider as LLMProviderType | undefined;
+    const prerequisites = await checkPrerequisites(preferredProvider);
+
+    if (!prerequisites.allMet) {
+      // Prerequisites not met - show helpful error
+      console.error('\n⚠️  Cannot start TUI - missing prerequisites:\n');
+      prerequisites.errors.forEach((err) => console.error(`  ✗ ${err}`));
+      console.error(
+        '\nTo use the TUI, ensure workbench is running and an LLM provider is configured.\n'
+      );
+      process.exit(1);
+    }
+
+    // Prerequisites met - enter onboarding mode
+    onboardingMode = true;
+    projectRoot = options.projectRoot;
+    pgcRoot = path.join(projectRoot, '.open_cognition');
+
+    console.log('\n🧙 No workspace detected. Starting onboarding wizard...\n');
+    console.log(`  ✓ Workbench: ${prerequisites.workbench.url}`);
+    console.log(`  ✓ LLM Provider: ${prerequisites.llm.provider}\n`);
+  } else {
+    // Normal mode - workspace exists
+    projectRoot = resolvedProjectRoot;
+    pgcRoot = path.join(projectRoot, '.open_cognition');
   }
 
-  const pgcRoot = path.join(projectRoot, '.open_cognition');
   const workbenchUrl =
     options.workbenchUrl ||
     process.env.WORKBENCH_URL ||
@@ -130,10 +162,10 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     process.env.GEMINI_USE_BIDI = '1';
   }
 
-  // Set AIEcho background color: #0d1117 = rgb(13, 17, 23)
-  if (process.stdout.isTTY) {
-    process.stdout.write('\x1b[48;2;13;17;23m'); // Set background to AIEcho dark
-    process.stdout.write('\x1b[2J'); // Clear entire screen with new bg
+  // Skip background color setting - let terminal inherit its own background
+  // Only clear screen if not in onboarding mode (onboarding is a short wizard)
+  if (process.stdout.isTTY && !onboardingMode) {
+    process.stdout.write('\x1b[2J'); // Clear entire screen
     process.stdout.write('\x1b[H'); // Move cursor to home
   }
 
@@ -207,8 +239,9 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     sessionTokens: options.sessionTokens,
     maxThinkingTokens: options.maxThinkingTokens ?? 32000, // Default: 32K tokens for extended thinking (matches Claude Code)
     debug: options.debug,
-    provider: options.provider, // NEW: Pass provider to TUI
-    model: options.model, // NEW: Pass model to TUI
+    provider: options.provider,
+    model: options.model,
     displayThinking: options.displayThinking ?? true,
+    onboardingMode, // NEW: Pass onboarding mode to TUI
   });
 }
