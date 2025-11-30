@@ -11,10 +11,11 @@ import { ClaudePanelAgent } from './components/ClaudePanelAgent.js';
 import { InputBox } from './components/InputBox.js';
 import { StatusBar } from './components/StatusBar.js';
 import { SigmaInfoPanel } from './components/SigmaInfoPanel.js';
-import { OnboardingWizard } from './components/wizard/index.js';
 import { useAgent } from './hooks/useAgent.js';
 import { useOverlays } from './hooks/useOverlays.js';
 import { useToolConfirmation } from './hooks/useToolConfirmation.js';
+import { useBackgroundTaskManager } from './hooks/useBackgroundTaskManager.js';
+import { useOnboardingWizard } from './hooks/useOnboardingWizard.js';
 import { isAuthenticationError } from './hooks/sdk/index.js';
 import type { TUIMessage } from './hooks/useAgent.js';
 
@@ -61,8 +62,6 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
 }) => {
   const { stdout } = useStdout();
   const [focused, setFocused] = useState(true);
-  // Track if onboarding wizard has completed
-  const [onboardingComplete, setOnboardingComplete] = useState(!onboardingMode);
   const [renderError, setRenderError] = useState<Error | null>(null);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -74,21 +73,14 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   const { confirmationState, requestConfirmation, allow, deny, alwaysAllow } =
     useToolConfirmation();
 
-  // Calculate fixed chat area height to prevent InputBox from shifting
-  // when messages populate - memoize to avoid recalculation on every render
-  const chatAreaHeight = useMemo(() => {
-    const terminalHeight = stdout?.rows || 24;
-    // Dynamic reserved space: expand when dropdown OR confirmation modal is visible
-    // OverlaysBar(1) + separator(1) + separator(1) + InputBox+Dropdown/Modal(variable) + separator(1) + saveMessage(1) + StatusBar(3)
-    // Dropdown needs more space (9 lines) than confirmation modal (5 lines)
-    const inputAndDropdownHeight = isDropdownVisible
-      ? 9 // Dropdown is tall (command list)
-      : confirmationState?.pending
-        ? 5 // Confirmation modal is compact (just 2-3 lines)
-        : 1; // Just input when nothing is open
-    const reservedHeight = 3 + inputAndDropdownHeight + 5; // 3 top + input area + 5 bottom
-    return Math.max(5, terminalHeight - reservedHeight); // Minimum 5 lines for chat
-  }, [stdout?.rows, isDropdownVisible, confirmationState?.pending]);
+  // Background task manager for async operations
+  const taskManager = useBackgroundTaskManager({
+    projectRoot,
+    workbenchUrl:
+      workbenchUrl || process.env.WORKBENCH_URL || 'http://localhost:8000',
+    workbenchApiKey: process.env.WORKBENCH_API_KEY,
+    debug,
+  });
 
   const { loading } = useOverlays({ pgcRoot, workbenchUrl });
 
@@ -125,6 +117,44 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     },
     [originalSendMessage]
   );
+
+  // Onboarding wizard (async, non-blocking) - must be after sendMessage
+  const wizard = useOnboardingWizard({
+    taskManager,
+    projectRoot,
+    autoStart: onboardingMode,
+    debug,
+    onSendMessage: sendMessage, // Allow wizard to execute slash commands
+  });
+
+  // Calculate fixed chat area height to prevent InputBox from shifting
+  // when messages populate - memoize to avoid recalculation on every render
+  const chatAreaHeight = useMemo(() => {
+    const terminalHeight = stdout?.rows || 24;
+    // Dynamic reserved space: expand when dropdown OR confirmation modal is visible
+    // OverlaysBar(1) + separator(1) + separator(1) + InputBox+Dropdown/Modal(variable) + separator(1) + saveMessage(1) + StatusBar(3)
+    // Dropdown needs more space (9 lines) than confirmation modal (5 lines)
+    // Wizard selection mode needs more space based on items count
+    const wizardSelectHeight =
+      wizard.confirmationState?.mode === 'select' &&
+      wizard.confirmationState.items
+        ? Math.min(wizard.confirmationState.items.length + 4, 12) // items + header/footer, max 12
+        : 0;
+    const inputAndDropdownHeight = isDropdownVisible
+      ? 9 // Dropdown is tall (command list)
+      : wizardSelectHeight > 0
+        ? wizardSelectHeight // Wizard selection
+        : confirmationState?.pending || wizard.confirmationState?.pending
+          ? 5 // Confirmation modal is compact (just 2-3 lines)
+          : 1; // Just input when nothing is open
+    const reservedHeight = 3 + inputAndDropdownHeight + 5; // 3 top + input area + 5 bottom
+    return Math.max(5, terminalHeight - reservedHeight); // Minimum 5 lines for chat
+  }, [
+    stdout?.rows,
+    isDropdownVisible,
+    confirmationState?.pending,
+    wizard.confirmationState,
+  ]);
 
   // Add Ctrl+C handler and optionally enable mouse tracking
   useEffect(() => {
@@ -343,7 +373,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
         );
       }
 
-      // PRIORITY 1: Handle confirmation modal keyboard input FIRST
+      // PRIORITY 1: Handle tool confirmation modal keyboard input FIRST
       if (confirmationState?.pending) {
         if (input === 'y' || input === 'Y') {
           allow();
@@ -359,6 +389,64 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           return;
         }
         // Ignore all other input when modal is active
+        return;
+      }
+
+      // PRIORITY 1.5: Handle wizard modal keyboard input
+      if (wizard.confirmationState?.pending) {
+        const isSelectMode = wizard.confirmationState.mode === 'select';
+
+        if (process.env.DEBUG_WIZARD || process.env.DEBUG_ESC_INPUT) {
+          console.error(
+            '[TUI] Wizard modal active, mode:',
+            wizard.confirmationState.mode,
+            'input:',
+            JSON.stringify(input),
+            'input.length:',
+            input?.length,
+            'key:',
+            Object.keys(key).filter((k) => key[k as keyof typeof key])
+          );
+        }
+
+        if (isSelectMode) {
+          // Selection mode: arrow/space/enter
+          if (key.upArrow) {
+            wizard.moveUp();
+            return;
+          } else if (key.downArrow) {
+            wizard.moveDown();
+            return;
+          } else if (input === ' ') {
+            if (process.env.DEBUG_WIZARD) {
+              console.error('[TUI] Space pressed, toggling selection');
+            }
+            wizard.toggleSelection();
+            return;
+          } else if (key.return) {
+            wizard.confirm();
+            return;
+          } else if (key.escape) {
+            if (process.env.DEBUG_WIZARD || process.env.DEBUG_ESC_INPUT) {
+              console.error('[TUI] ESC pressed, calling wizard.cancel()');
+            }
+            wizard.cancel();
+            return;
+          }
+        } else {
+          // Confirm mode: Y/N
+          if (input === 'y' || input === 'Y') {
+            wizard.confirm();
+            return;
+          } else if (input === 'n' || input === 'N') {
+            wizard.skip();
+            return;
+          } else if (key.escape) {
+            wizard.cancel();
+            return;
+          }
+        }
+        // Ignore all other input when wizard modal is active
         return;
       }
 
@@ -400,6 +488,9 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       } else if (key.ctrl && input === 's') {
         // Save conversation log with Ctrl+S
         saveConversationLog();
+      } else if (key.ctrl && input === 'w') {
+        // Restart/resume onboarding wizard with Ctrl+W
+        wizard.startWizard();
       } else if (key.tab) {
         // Toggle focus between input and panel
         setFocused((prev) => !prev);
@@ -437,26 +528,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     );
   }
 
-  // Show onboarding wizard if in onboarding mode and not yet complete
-  if (onboardingMode && !onboardingComplete) {
-    return (
-      <ThemeProvider theme={customTheme}>
-        <OnboardingWizard
-          cwd={projectRoot}
-          workbenchUrl={workbenchUrl || 'http://localhost:8000'}
-          provider={provider || 'claude'}
-          onComplete={() => {
-            setOnboardingComplete(true);
-            // Force page reload to pick up new PGC
-            // In future, we could just refresh the hooks
-          }}
-          onCancel={() => {
-            process.exit(0);
-          }}
-        />
-      </ThemeProvider>
-    );
-  }
+  // Old synchronous wizard removed - now using async wizard with useOnboardingWizard hook
+  // The wizard runs inside the live TUI via wizard.confirmationState and WizardConfirmationModal
 
   if (loading) {
     return (
@@ -486,7 +559,10 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           paddingTop={0}
           marginTop={0}
         >
-          <OverlaysBar sigmaStats={sigmaStats} />
+          <OverlaysBar
+            sigmaStats={sigmaStats}
+            activeTask={taskManager.activeTask}
+          />
           <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>
           <Box
             height={chatAreaHeight}
@@ -516,13 +592,22 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
 
           {/* Reserved space for dropdown/confirmation - dynamically sized based on visibility */}
           <Box
-            height={
-              isDropdownVisible
-                ? 9 + inputLineCount + 2 // Dropdown + input + borders
-                : confirmationState?.pending
-                  ? 5 + inputLineCount + 2 // Confirmation + input + borders
-                  : inputLineCount + 2 // Just input + borders
-            }
+            height={(() => {
+              const wizardSelectHeight =
+                wizard.confirmationState?.mode === 'select' &&
+                wizard.confirmationState.items
+                  ? Math.min(wizard.confirmationState.items.length + 4, 12)
+                  : 0;
+              if (isDropdownVisible) return 9 + inputLineCount + 2;
+              if (wizardSelectHeight > 0)
+                return wizardSelectHeight + inputLineCount + 2;
+              if (
+                confirmationState?.pending ||
+                wizard.confirmationState?.pending
+              )
+                return 5 + inputLineCount + 2;
+              return inputLineCount + 2;
+            })()}
             flexDirection="column"
             justifyContent="flex-end"
           >
@@ -538,6 +623,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
               }
               providerName={provider}
               confirmationState={confirmationState}
+              wizardConfirmationState={wizard.confirmationState}
             />
           </Box>
           {/* Always reserve space for save message to prevent layout shift */}

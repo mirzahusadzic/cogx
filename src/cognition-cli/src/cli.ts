@@ -221,6 +221,7 @@ program
     '-r, --resume',
     'Resume from interrupted genesis (skips already-processed files)'
   )
+  .option('--json', 'Output progress as JSON lines (for TUI/programmatic use)')
   .addHelpText(
     'after',
     combineHelpSections(
@@ -432,6 +433,7 @@ program
     '-f, --force',
     'Force re-ingestion by removing existing entries first'
   )
+  .option('--json', 'Output progress as JSON lines (for TUI/programmatic use)')
   .action(async (pathsArg, options) => {
     const { genesisDocsCommand } = await import('./commands/genesis-docs.js');
     const fs = await import('fs-extra');
@@ -566,6 +568,10 @@ const tuiCmd = program
   .option('--model <name>', 'Model to use (provider-specific)')
   .option('--debug', 'Enable debug logging for Sigma compression')
   .option('--no-show-thinking', 'Hide thinking blocks in TUI')
+  .option(
+    '--no-onboarding',
+    'Skip onboarding wizard even if workspace is incomplete'
+  )
   .addHelpText(
     'after',
     combineHelpSections(
@@ -608,6 +614,7 @@ const tuiCmd = program
       provider: options.provider,
       model: options.model,
       displayThinking: options.showThinking !== false,
+      noOnboarding: options.onboarding === false, // --no-onboarding flag
     });
   });
 

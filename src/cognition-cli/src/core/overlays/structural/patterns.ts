@@ -252,7 +252,13 @@ export class StructuralPatternsManager implements PatternManager {
    * Phase 2: Generate embeddings sequentially (slow, rate-limited)
    */
   public async generatePatternsParallel(
-    jobs: StructuralJobPacket[]
+    jobs: StructuralJobPacket[],
+    onProgress?: (
+      current: number,
+      total: number,
+      message: string,
+      phase: string
+    ) => void
   ): Promise<void> {
     if (!this.workerPool) {
       throw new Error(
@@ -317,6 +323,19 @@ export class StructuralPatternsManager implements PatternManager {
       try {
         await this.generateAndStoreEmbedding(result);
         embeddedCount++;
+
+        // Report progress via callback
+        if (onProgress) {
+          const percent = Math.round(
+            (embeddedCount / successfulMines.length) * 100
+          );
+          onProgress(
+            embeddedCount,
+            successfulMines.length,
+            `Embedding ${embeddedCount}/${successfulMines.length} patterns (${percent}%)`,
+            'embedding'
+          );
+        }
 
         // Show progress every 10 patterns
         if (embeddedCount % 10 === 0) {

@@ -8,6 +8,8 @@ import { writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import type { ToolConfirmationState } from '../hooks/useToolConfirmation.js';
+import type { WizardConfirmationState } from '../hooks/useOnboardingWizard.js';
+import { WizardConfirmationModal } from './WizardConfirmationModal.js';
 
 /**
  * Props for InputBox component
@@ -39,6 +41,9 @@ export interface InputBoxProps {
 
   /** Tool confirmation state for rendering confirmation modal */
   confirmationState?: ToolConfirmationState | null;
+
+  /** Wizard confirmation state for rendering wizard modal */
+  wizardConfirmationState?: WizardConfirmationState | null;
 }
 
 /**
@@ -100,9 +105,12 @@ export const InputBox: React.FC<InputBoxProps> = ({
   onInputChange,
   providerName = 'AI',
   confirmationState = null,
+  wizardConfirmationState = null,
 }) => {
-  // Derive confirmation pending state
-  const confirmationPending = confirmationState?.pending ?? false;
+  // Derive confirmation pending state (either tool OR wizard)
+  const confirmationPending =
+    (confirmationState?.pending ?? false) ||
+    (wizardConfirmationState?.pending ?? false);
   const [value, setValue] = useState('');
   const [cursorPosition, setCursorPosition] = useState(0);
   const [cursorVisible, setCursorVisible] = useState(true); // For blinking cursor
@@ -632,6 +640,11 @@ export const InputBox: React.FC<InputBoxProps> = ({
         <ToolConfirmationModal state={confirmationState} />
       )}
 
+      {/* Wizard Confirmation Modal - render ABOVE input, SAME placement as tool modal */}
+      {wizardConfirmationState && wizardConfirmationState.pending && (
+        <WizardConfirmationModal state={wizardConfirmationState} />
+      )}
+
       {/* Command dropdown - render ABOVE input, overlaying the chat area */}
       {showDropdown && focused && !commandsLoading && !confirmationPending && (
         <CommandDropdown
@@ -648,15 +661,21 @@ export const InputBox: React.FC<InputBoxProps> = ({
         </Text>
 
         {/* Input content area */}
-        <Box flexDirection="column">
+        <Box flexDirection="column" minHeight={1}>
           {confirmationPending ? (
-            <Box>
+            /* Show static tip when confirmation modal is active - EXACT pattern from tool confirmation */
+            <>
               <Text color="#f85149">{'> '}</Text>
               <Text dimColor color="#8b949e">
-                Waiting for tool confirmation... (See prompt above)
+                {wizardConfirmationState?.pending
+                  ? wizardConfirmationState.mode === 'select'
+                    ? `${wizardConfirmationState.title || 'Select items'} - Use ↑↓ arrows, Space to toggle, Enter to confirm, Esc to cancel`
+                    : `${wizardConfirmationState.title || 'Confirm'} - Press Y to confirm, N to skip, Esc to cancel`
+                  : 'Waiting for tool confirmation... (See prompt above)'}
               </Text>
-            </Box>
+            </>
           ) : (
+            /* Normal input rendering when NOT confirming */
             <>
               {(() => {
                 const beforeCursor = value.substring(0, cursorPosition);

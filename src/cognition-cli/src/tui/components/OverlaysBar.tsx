@@ -3,6 +3,7 @@ import { Box, Text } from 'ink';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import type { BackgroundTask } from '../services/BackgroundTaskManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -37,6 +38,8 @@ export interface SigmaStats {
 export interface OverlaysBarProps {
   /** Sigma lattice statistics to display */
   sigmaStats?: SigmaStats;
+  /** Active background task (if any) - when set, shows status instead of branding */
+  activeTask?: BackgroundTask | null;
 }
 
 /**
@@ -84,7 +87,54 @@ export interface OverlaysBarProps {
  * // Empty state (no analysis yet)
  * <OverlaysBar sigmaStats={undefined} />
  */
-export const OverlaysBar: React.FC<OverlaysBarProps> = ({ sigmaStats }) => {
+/**
+ * Format task label for display
+ */
+function getTaskLabel(task: BackgroundTask): string {
+  switch (task.type) {
+    case 'genesis':
+      return 'Genesis';
+    case 'genesis-docs':
+      return 'Document Ingestion';
+    case 'overlay':
+      return task.overlay ? `${task.overlay} Overlay` : 'Overlay Generation';
+    default:
+      return 'Processing';
+  }
+}
+
+/**
+ * Get status indicator and color based on task state
+ */
+function getStatusIndicator(task: BackgroundTask): {
+  symbol: string;
+  color: string;
+} {
+  switch (task.status) {
+    case 'pending':
+      return { symbol: '○', color: '#8b949e' };
+    case 'running':
+      return { symbol: '●', color: '#58a6ff' };
+    case 'completed':
+      return { symbol: '✓', color: '#56d364' };
+    case 'failed':
+      return { symbol: '✗', color: '#f85149' };
+    case 'cancelled':
+      return { symbol: '⊘', color: '#d29922' };
+    default:
+      return { symbol: '●', color: '#8b949e' };
+  }
+}
+
+export const OverlaysBar: React.FC<OverlaysBarProps> = ({
+  sigmaStats,
+  activeTask,
+}) => {
+  // Determine if we should show status instead of branding
+  const showTaskStatus =
+    activeTask &&
+    (activeTask.status === 'running' || activeTask.status === 'pending');
+
   return (
     <Box
       paddingX={1}
@@ -95,7 +145,10 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({ sigmaStats }) => {
       width="100%"
     >
       <Box flexDirection="row" gap={1}>
-        {!sigmaStats || sigmaStats.nodes === 0 ? (
+        {showTaskStatus ? (
+          // Hide stats when task is running to prevent line wrapping
+          <Text color="#8b949e">Background Task:</Text>
+        ) : !sigmaStats || sigmaStats.nodes === 0 ? (
           <Text color="#8b949e">Lattice: Warming up...</Text>
         ) : (
           <>
@@ -118,10 +171,48 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({ sigmaStats }) => {
         )}
       </Box>
       <Box>
-        <Text bold color="cyan">
-          COGNITION Σ CLI v{VERSION} 🧠
-        </Text>
+        {showTaskStatus && activeTask ? (
+          <TaskStatusDisplay task={activeTask} />
+        ) : (
+          <Text bold color="cyan">
+            COGNITION Σ CLI v{VERSION} 🧠
+          </Text>
+        )}
       </Box>
+    </Box>
+  );
+};
+
+/**
+ * Task status display component
+ * Shows: ● Regenerating O3... 67%
+ */
+const TaskStatusDisplay: React.FC<{ task: BackgroundTask }> = ({ task }) => {
+  const { symbol, color } = getStatusIndicator(task);
+  const label = getTaskLabel(task);
+  const progress =
+    task.progress !== undefined ? `${Math.round(task.progress)}%` : '';
+  const message = task.message || '';
+
+  // Truncate message if too long
+  const maxMsgLen = 30;
+  const displayMsg =
+    message.length > maxMsgLen
+      ? message.substring(0, maxMsgLen - 3) + '...'
+      : message;
+
+  return (
+    <Box flexDirection="row" gap={1}>
+      <Text color={color}>{symbol}</Text>
+      <Text color={color} bold>
+        {label}
+      </Text>
+      {displayMsg && <Text color="#8b949e">{displayMsg}</Text>}
+      {progress && (
+        <Text color="#56d364" bold>
+          {progress}
+        </Text>
+      )}
     </Box>
   );
 };

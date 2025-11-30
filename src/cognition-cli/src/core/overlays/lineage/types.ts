@@ -37,6 +37,12 @@ export interface PatternGenerationOptions {
   symbolTypes?: StructuralSymbolType[];
   files?: string[];
   force?: boolean;
+  onProgress?: (
+    current: number,
+    total: number,
+    message: string,
+    phase?: string
+  ) => void;
 }
 
 /**

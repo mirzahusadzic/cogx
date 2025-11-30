@@ -288,6 +288,7 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
       options: {
         abortController: this.abortController,
         cwd: request.cwd,
+        model: request.model, // Pass model to Claude Agent SDK
         resume: request.resumeSessionId,
         systemPrompt:
           request.systemPrompt?.type === 'preset' && request.systemPrompt.preset

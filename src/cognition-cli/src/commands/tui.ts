@@ -44,6 +44,7 @@
  */
 
 import path from 'path';
+import fs from 'fs';
 import { WorkspaceManager } from '../core/workspace-manager.js';
 import { startTUI } from '../tui/index.js';
 import {
@@ -75,6 +76,8 @@ interface TUIOptions {
   model?: string;
   /** Display thinking blocks in TUI (default: true) */
   displayThinking?: boolean;
+  /** Skip onboarding wizard even if workspace is incomplete (default: false) */
+  noOnboarding?: boolean;
 }
 
 /**
@@ -117,13 +120,25 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     options.projectRoot
   );
 
-  // Determine if we're in onboarding mode (no .open_cognition found)
+  // Determine if we're in onboarding mode
+  // Onboarding triggers if:
+  // 1. No .open_cognition exists at all, OR
+  // 2. .open_cognition exists but is incomplete (no genesis or missing critical overlays)
+  // User can opt-out with --no-onboarding flag
   let onboardingMode = false;
   let projectRoot: string;
   let pgcRoot: string;
 
   if (!resolvedProjectRoot) {
-    // No workspace found - check if we can enter onboarding mode
+    // No workspace found at all
+    if (options.noOnboarding) {
+      console.error(
+        '\n⚠️  No .open_cognition workspace found. Run `cognition init` first.\n'
+      );
+      process.exit(1);
+    }
+
+    // Check if we can enter onboarding mode
     const preferredProvider = options.provider as LLMProviderType | undefined;
     const prerequisites = await checkPrerequisites(preferredProvider);
 
@@ -146,9 +161,107 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     console.log(`  ✓ Workbench: ${prerequisites.workbench.url}`);
     console.log(`  ✓ LLM Provider: ${prerequisites.llm.provider}\n`);
   } else {
-    // Normal mode - workspace exists
+    // Workspace exists - check if it's incomplete (missing genesis or overlays)
     projectRoot = resolvedProjectRoot;
     pgcRoot = path.join(projectRoot, '.open_cognition');
+
+    // Check if genesis has been run (index/ directory with JSON files)
+    const hasGenesis = (() => {
+      const indexPath = path.join(pgcRoot, 'index');
+      try {
+        if (!fs.existsSync(indexPath)) return false;
+        const files = fs.readdirSync(indexPath);
+        return files.some((f) => f.endsWith('.json'));
+      } catch {
+        return false;
+      }
+    })();
+
+    // Check if strategic docs exist
+    const hasDocs = (() => {
+      // Check if mission_concepts overlay exists (indicates docs ingested)
+      const missionPath = path.join(pgcRoot, 'overlays', 'mission_concepts');
+      if (fs.existsSync(missionPath)) {
+        try {
+          const files = fs.readdirSync(missionPath);
+          if (files.some((f) => f.endsWith('.yaml'))) return true;
+        } catch {
+          // Fall through to check docs directory
+        }
+      }
+
+      // Check if docs directory has VISION.md
+      const docsPath = path.join(projectRoot, 'docs');
+      if (fs.existsSync(docsPath)) {
+        const visionPath = path.join(docsPath, 'VISION.md');
+        if (fs.existsSync(visionPath)) return true;
+      }
+
+      return false;
+    })();
+
+    // Check if critical overlays are missing
+    const missingOverlays = (() => {
+      const overlayDirs: Record<string, string> = {
+        O1: 'structural_patterns',
+        O2: 'security_guidelines',
+        O3: 'lineage_patterns',
+        O4: 'mission_concepts',
+        O5: 'operational_patterns',
+        O6: 'mathematical_proofs',
+        O7: 'strategic_coherence',
+      };
+
+      const missing: string[] = [];
+      const overlaysRoot = path.join(pgcRoot, 'overlays');
+
+      for (const [code, dirName] of Object.entries(overlayDirs)) {
+        const overlayDir = path.join(overlaysRoot, dirName);
+        try {
+          if (!fs.existsSync(overlayDir)) {
+            missing.push(code);
+            continue;
+          }
+
+          // Check if overlay has content (YAML or JSON files, or manifest)
+          const files = fs.readdirSync(overlayDir);
+          const hasContent =
+            files.some((f) => f.endsWith('.json') || f.endsWith('.yaml')) ||
+            files.includes('manifest.json');
+
+          if (!hasContent) {
+            missing.push(code);
+          }
+        } catch {
+          missing.push(code);
+        }
+      }
+
+      return missing;
+    })();
+
+    // If genesis, docs, or overlays are missing and user hasn't opted out, enter onboarding mode
+    if (!hasGenesis && !options.noOnboarding) {
+      console.log(
+        '\n🧙 Incomplete workspace detected (no genesis). Starting onboarding wizard...\n'
+      );
+      onboardingMode = true;
+    } else if (hasGenesis && !hasDocs && !options.noOnboarding) {
+      console.log(
+        '\n🧙 Incomplete workspace detected (no strategic docs). Starting onboarding wizard...\n'
+      );
+      onboardingMode = true;
+    } else if (
+      hasGenesis &&
+      hasDocs &&
+      missingOverlays.length > 0 &&
+      !options.noOnboarding
+    ) {
+      console.log(
+        `\n🧙 Incomplete workspace detected (missing ${missingOverlays.length} overlays: ${missingOverlays.join(', ')}). Starting onboarding wizard...\n`
+      );
+      onboardingMode = true;
+    }
   }
 
   const workbenchUrl =

@@ -174,6 +174,7 @@ A portable cognitive layer that can be initialized in **any repository**. Create
 - Query overlays for architectural reasoning (structural patterns, dependencies, mission alignment)
 - Analyze coherence drift and blast radius
 - Access both local lattice (this repo) and global lattice (cross-project knowledge)
+- \`get_background_tasks\`: Query status of background operations (genesis, overlay generation) - check progress, see completed/failed tasks
 
 ## Slash Commands (from .claude/commands/)
 

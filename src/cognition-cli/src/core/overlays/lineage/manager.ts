@@ -184,7 +184,7 @@ export class LineagePatternsManager implements PatternManager {
    * Phase 2: Generate embeddings sequentially (rate-limited)
    */
   public async generate(options: PatternGenerationOptions = {}): Promise<void> {
-    const { symbolTypes = [], files = [], force = false } = options;
+    const { symbolTypes = [], files = [], force = false, onProgress } = options;
 
     console.log(
       chalk.blue('[LineagePatterns] Starting generation with options:', options)
@@ -241,6 +241,10 @@ export class LineagePatternsManager implements PatternManager {
       )
     );
 
+    if (onProgress) {
+      onProgress(0, jobs.length * 2, 'Mining lineage patterns...', 'mining');
+    }
+
     let miningResults: PatternResultPacket[];
     try {
       const promises = jobs.map((job) =>
@@ -281,6 +285,15 @@ export class LineagePatternsManager implements PatternManager {
           `[LineagePatterns] Mining complete: ${mined} mined, ${skipped} skipped, ${failed} failed`
         )
       );
+
+      if (onProgress) {
+        onProgress(
+          jobs.length,
+          jobs.length * 2,
+          `Mining complete: ${mined} patterns mined`,
+          'mining-complete'
+        );
+      }
 
       // Log individual worker errors for debugging
       if (failed > 0) {
@@ -323,7 +336,8 @@ export class LineagePatternsManager implements PatternManager {
     let embeddedCount = 0;
     let embedFailedCount = 0;
 
-    for (const result of successfulMines) {
+    for (let i = 0; i < successfulMines.length; i++) {
+      const result = successfulMines[i];
       try {
         await this.generateAndStoreEmbedding(result);
         embeddedCount++;
@@ -334,6 +348,16 @@ export class LineagePatternsManager implements PatternManager {
             embeddedCount,
             successfulMines.length,
             'LineagePatterns'
+          );
+        }
+
+        // Report progress for TUI
+        if (onProgress) {
+          onProgress(
+            jobs.length + i + 1,
+            jobs.length * 2,
+            `Embedding ${embeddedCount}/${successfulMines.length} patterns`,
+            'embedding'
           );
         }
       } catch (error) {

@@ -150,8 +150,33 @@ export class GenesisOrchestrator {
    *
    * @public
    */
-  async executeBottomUpAggregation(sourcePaths: string[]) {
-    const s = spinner();
+  /**
+   * Progress callback type for reporting progress to callers (e.g., TUI)
+   */
+  private onProgress?: (
+    current: number,
+    total: number,
+    message: string,
+    file?: string
+  ) => void;
+
+  /**
+   * Whether to use spinner/log output (true) or progress callback (false)
+   */
+  private useSpinner = true;
+
+  async executeBottomUpAggregation(
+    sourcePaths: string[],
+    onProgress?: (
+      current: number,
+      total: number,
+      message: string,
+      file?: string
+    ) => void
+  ) {
+    this.onProgress = onProgress;
+    this.useSpinner = !onProgress; // Use spinner only when no callback provided
+    const s = this.useSpinner ? spinner() : null;
     const errors: { file: string; message: string }[] = [];
 
     let isWorkbenchHealthy = false;
@@ -160,24 +185,27 @@ export class GenesisOrchestrator {
       await this.workbench.health();
       isWorkbenchHealthy = true;
     } catch (error) {
-      log.warn(
-        chalk.yellow(
-          `Workbench (eGemma) is not reachable at ${this.workbench.getBaseUrl()}. ` +
-            `Structural mining will be skipped. Please ensure eGemma is running.`
-        )
-      );
-      console.error(
-        `Workbench health check error: ${error instanceof Error ? error.message : String(error)}`
-      );
+      if (this.useSpinner) {
+        log.warn(
+          chalk.yellow(
+            `Workbench (eGemma) is not reachable at ${this.workbench.getBaseUrl()}. ` +
+              `Structural mining will be skipped. Please ensure eGemma is running.`
+          )
+        );
+        console.error(
+          `Workbench health check error: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
     }
 
-    s.start('Discovering source files');
+    if (s) s.start('Discovering source files');
 
     // Discover files from all source paths
     const allFiles: SourceFile[] = [];
     for (const sourcePath of sourcePaths) {
       const actualSourcePath = path.join(this.projectRoot, sourcePath);
-      log.info(`Scanning for files in: ${actualSourcePath}`);
+      if (this.useSpinner)
+        log.info(`Scanning for files in: ${actualSourcePath}`);
       const files = await this.discoverFiles(actualSourcePath);
       allFiles.push(...files);
     }
@@ -192,7 +220,8 @@ export class GenesisOrchestrator {
       return true;
     });
 
-    s.stop(`Found ${files.length} files`);
+    if (s) s.stop(`Found ${files.length} files`);
+    this.onProgress?.(0, files.length, `Found ${files.length} files`);
 
     // Separate files into native (TS/JS) and remote (Python) for optimal processing
     const nativeFiles: SourceFile[] = [];
@@ -206,11 +235,13 @@ export class GenesisOrchestrator {
       }
     }
 
-    log.info(
-      chalk.cyan(
-        `Processing: ${nativeFiles.length} native (TS/JS), ${remoteFiles.length} remote (Python)`
-      )
-    );
+    if (this.useSpinner) {
+      log.info(
+        chalk.cyan(
+          `Processing: ${nativeFiles.length} native (TS/JS), ${remoteFiles.length} remote (Python)`
+        )
+      );
+    }
 
     // Phase 1: Parse native files in parallel with workers
     const nativeResults = new Map<string, StructuralData>();
@@ -260,7 +291,7 @@ export class GenesisOrchestrator {
     const changedFileChecks = changeChecks.filter((check) => check.isChanged);
     const unchangedCount = files.length - changedFileChecks.length;
 
-    if (unchangedCount > 0) {
+    if (unchangedCount > 0 && this.useSpinner) {
       log.info(chalk.dim(`Skipping ${unchangedCount} unchanged file(s)`));
     }
 
@@ -269,8 +300,18 @@ export class GenesisOrchestrator {
     const totalToProcess = changedFileChecks.length;
 
     for (const { file, existingIndex, contentHash } of changedFileChecks) {
-      s.start(
-        `Processing ${chalk.cyan(file.relativePath)} (${++processed}/${totalToProcess})`
+      processed++;
+      if (s) {
+        s.start(
+          `Processing ${chalk.cyan(file.relativePath)} (${processed}/${totalToProcess})`
+        );
+      }
+      // Report progress via callback
+      this.onProgress?.(
+        processed,
+        totalToProcess,
+        `Processing ${file.relativePath}`,
+        file.relativePath
       );
       try {
         const preParsedStructural = nativeResults.get(file.relativePath);
@@ -334,11 +375,13 @@ export class GenesisOrchestrator {
     const __dirname = dirname(__filename);
     const workerCount = calculateOptimalWorkersForParsing(fileCount);
 
-    log.info(
-      chalk.blue(
-        `[Genesis] Initializing ${workerCount} workers for parallel AST parsing (${os.cpus().length} CPUs available)`
-      )
-    );
+    if (this.useSpinner) {
+      log.info(
+        chalk.blue(
+          `[Genesis] Initializing ${workerCount} workers for parallel AST parsing (${os.cpus().length} CPUs available)`
+        )
+      );
+    }
 
     this.workerPool = workerpool.pool(
       path.resolve(__dirname, '../../../dist/genesis-worker.cjs'),
@@ -413,17 +456,19 @@ export class GenesisOrchestrator {
    */
   private async parseNativeFilesParallel(
     files: SourceFile[],
-    s: ReturnType<typeof spinner>
+    s: ReturnType<typeof spinner> | null
   ): Promise<GenesisJobResult[]> {
     if (!this.workerPool) {
       throw new Error('Worker pool not initialized');
     }
 
-    s.start(
-      chalk.blue(
-        `[Genesis] Parsing ${files.length} native files in parallel...`
-      )
-    );
+    if (s) {
+      s.start(
+        chalk.blue(
+          `[Genesis] Parsing ${files.length} native files in parallel...`
+        )
+      );
+    }
 
     const jobs = files.map((file) => ({
       file,
@@ -440,15 +485,17 @@ export class GenesisOrchestrator {
       const succeeded = results.filter((r) => r.status === 'success').length;
       const failed = results.filter((r) => r.status === 'error').length;
 
-      s.stop(
-        chalk.green(
-          `[Genesis] Native parsing complete: ${succeeded} succeeded, ${failed} failed`
-        )
-      );
+      if (s) {
+        s.stop(
+          chalk.green(
+            `[Genesis] Native parsing complete: ${succeeded} succeeded, ${failed} failed`
+          )
+        );
+      }
 
       return results;
     } catch (error) {
-      s.stop(chalk.red('[Genesis] Worker parsing error'));
+      if (s) s.stop(chalk.red('[Genesis] Worker parsing error'));
       throw error;
     }
   }
@@ -532,7 +579,7 @@ export class GenesisOrchestrator {
 
   private async processFile(
     file: SourceFile,
-    s: ReturnType<typeof spinner>,
+    s: ReturnType<typeof spinner> | null,
     isWorkbenchHealthy: boolean,
     preParsedStructural: StructuralData | undefined,
     existingIndex: Awaited<ReturnType<PGCManager['index']['get']>> | undefined,
@@ -563,11 +610,13 @@ export class GenesisOrchestrator {
         );
 
       if (!isWorkbenchHealthy && isWorkbenchDependentExtraction) {
-        s.stop(
-          chalk.yellow(
-            `⸬ ${file.relativePath} (skipped workbench processing - workbench not healthy)`
-          )
-        );
+        if (s) {
+          s.stop(
+            chalk.yellow(
+              `⸬ ${file.relativePath} (skipped workbench processing - workbench not healthy)`
+            )
+          );
+        }
 
         // Still update the index with structural data, but mark as partially processed
 
@@ -624,9 +673,12 @@ export class GenesisOrchestrator {
       await this.pgc.reverseDeps.add(contentHash, recordedTransformId);
       await this.pgc.reverseDeps.add(structuralHash, recordedTransformId);
 
-      s.stop(chalk.green(`✓ ${file.relativePath}`));
+      if (s) s.stop(chalk.green(`✓ ${file.relativePath}`));
     } catch (error) {
-      s.stop(chalk.red(`✗ ${file.relativePath}: ${(error as Error).message}`));
+      if (s)
+        s.stop(
+          chalk.red(`✗ ${file.relativePath}: ${(error as Error).message}`)
+        );
       await this.rollback(storedHashes, recordedTransformId);
       throw error; // Re-throw the error so it can be caught by the caller
     }

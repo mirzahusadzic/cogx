@@ -66,6 +66,10 @@ import fs from 'fs-extra';
 import path from 'path';
 import { createHash } from 'crypto';
 import { GenesisDocTransform } from '../core/transforms/genesis-doc-transform.js';
+import {
+  shouldUseJsonProgress,
+  createProgressEmitter,
+} from '../utils/progress-protocol.js';
 
 /**
  * Options for the genesis-docs command
@@ -77,6 +81,8 @@ interface GenesisDocsOptions {
   pattern?: string;
   /** Force re-ingestion of existing documents */
   force?: boolean;
+  /** Output progress as JSON lines (for TUI/programmatic use) */
+  json?: boolean;
 }
 
 /**
@@ -152,22 +158,37 @@ export async function genesisDocsCommand(
   pathsOrPatterns: string[],
   options: GenesisDocsOptions
 ) {
-  intro(chalk.bold('Genesis Docs: Ingesting Documentation into PGC'));
+  const useJson = shouldUseJsonProgress(options.json);
+  const progress = useJson ? createProgressEmitter('genesis-docs') : null;
+  const startTime = Date.now();
+
+  if (useJson) {
+    progress!.start({
+      message: 'Genesis Docs: Ingesting Documentation into PGC',
+    });
+  } else {
+    intro(chalk.bold('Genesis Docs: Ingesting Documentation into PGC'));
+  }
 
   // Increase max listeners to avoid warnings during batch document processing
   // (Each GenesisDocTransform creates multiple overlay managers that may register signal handlers)
   const originalMaxListeners = process.getMaxListeners();
   process.setMaxListeners(50);
 
-  let s: ReturnType<typeof spinner> | undefined;
+  let s: ReturnType<typeof spinner> | null = null;
 
   try {
-    s = spinner();
+    if (!useJson) {
+      s = spinner();
+      s.start('Validating PGC initialization');
+    }
 
     // Validate PGC initialization
-    s.start('Validating PGC initialization');
     await validatePgcInitialized(options.projectRoot);
-    s.stop('PGC validated');
+
+    if (!useJson && s) {
+      s.stop('PGC validated');
+    }
 
     // Initialize transform with workbench URL for overlay generation
     const pgcRoot = path.join(options.projectRoot, '.open_cognition');
@@ -175,25 +196,64 @@ export async function genesisDocsCommand(
     const transform = new GenesisDocTransform(pgcRoot, workbenchUrl);
 
     // Find markdown files from all provided paths
-    s.start('Finding markdown files');
+    if (!useJson) {
+      s = spinner();
+      s!.start('Finding markdown files');
+    }
+
     const files: string[] = [];
     for (const pathOrPattern of pathsOrPatterns) {
       const foundFiles = await findMarkdownFiles(pathOrPattern);
       files.push(...foundFiles);
     }
-    s.stop(`Found ${files.length} markdown file(s)`);
+
+    if (!useJson && s) {
+      s.stop(`Found ${files.length} markdown file(s)`);
+    } else if (useJson) {
+      progress!.update({
+        current: 0,
+        total: files.length,
+        percent: 0,
+        message: `Found ${files.length} markdown file(s)`,
+        phase: 'discovery',
+      });
+    }
 
     if (files.length === 0) {
-      log.warn('No markdown files found');
-      outro(chalk.yellow('No files to process'));
+      if (useJson) {
+        progress!.warning({ message: 'No markdown files found' });
+        progress!.complete({
+          duration: Date.now() - startTime,
+          stats: { files: 0, ingested: 0, skipped: 0, failed: 0 },
+          message: 'No files to process',
+        });
+      } else {
+        log.warn('No markdown files found');
+        outro(chalk.yellow('No files to process'));
+      }
+      process.setMaxListeners(originalMaxListeners);
       return;
     }
 
     // Process each file
     const results = [];
-    for (const file of files) {
-      s = spinner();
-      s.start(`Processing ${path.basename(file)}`);
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const fileBasename = path.basename(file);
+
+      if (!useJson) {
+        s = spinner();
+        s!.start(`Processing ${fileBasename}`);
+      } else {
+        progress!.update({
+          current: i + 1,
+          total: files.length,
+          percent: Math.round(((i + 1) / files.length) * 100),
+          message: `Processing ${fileBasename} (${i + 1}/${files.length})`,
+          file: file,
+          phase: 'ingestion',
+        });
+      }
 
       try {
         // Check if document already exists by content hash
@@ -205,10 +265,10 @@ export async function genesisDocsCommand(
           contentHash
         );
 
-        // Debug logging
-        if (process.env.DEBUG) {
+        // Debug logging (only in non-JSON mode)
+        if (process.env.DEBUG && !useJson) {
           console.log(
-            `[DEBUG] ${path.basename(file)}: contentHash=${contentHash.substring(0, 12)}, existingHash=${existingHash?.substring(0, 12) || 'null'}, force=${options.force}`
+            `[DEBUG] ${fileBasename}: contentHash=${contentHash.substring(0, 12)}, existingHash=${existingHash?.substring(0, 12) || 'null'}, force=${options.force}`
           );
         }
 
@@ -216,29 +276,42 @@ export async function genesisDocsCommand(
           if (options.force) {
             // Force re-ingestion: delete existing document first
             await deleteExistingDocument(pgcRoot, contentHash, existingHash);
-            s.message(
-              `Removed existing ${path.basename(file)} → ${contentHash.substring(0, 12)}...`
-            );
+            if (!useJson && s) {
+              s.message(
+                `Removed existing ${fileBasename} → ${contentHash.substring(0, 12)}...`
+              );
+            }
           } else {
             // Skip if already exists and not forcing
-            s.stop(
-              chalk.dim(
-                `⊘ ${path.basename(file)} → ${contentHash.substring(0, 12)}... (already exists, skipped)`
-              )
-            );
+            if (!useJson && s) {
+              s.stop(
+                chalk.dim(
+                  `⊘ ${fileBasename} → ${contentHash.substring(0, 12)}... (already exists, skipped)`
+                )
+              );
+            }
             results.push({ file, skipped: true, success: true });
             continue;
           }
         }
 
         const result = await transform.execute(file);
-        s.stop(
-          `✓ ${path.basename(file)} → ${result.outputHash.substring(0, 12)}...`
-        );
+        if (!useJson && s) {
+          s.stop(
+            `✓ ${fileBasename} → ${result.outputHash.substring(0, 12)}...`
+          );
+        }
         results.push({ file, result, success: true });
       } catch (error) {
-        s.stop(`✗ ${path.basename(file)} failed`);
-        log.error(chalk.red((error as Error).message));
+        if (!useJson && s) {
+          s.stop(`✗ ${fileBasename} failed`);
+          log.error(chalk.red((error as Error).message));
+        } else if (useJson) {
+          progress!.warning({
+            message: `Failed to ingest ${fileBasename}: ${(error as Error).message}`,
+            file: file,
+          });
+        }
         results.push({ file, error, success: false });
       }
     }
@@ -248,36 +321,61 @@ export async function genesisDocsCommand(
     const skippedCount = results.filter((r) => r.skipped).length;
     const failCount = results.filter((r) => !r.success).length;
 
-    log.info('');
-    log.info(chalk.bold('Summary:'));
-    log.info(`  ${chalk.green(`✓ ${successCount} file(s) ingested`)}`);
-    if (skippedCount > 0) {
-      log.info(
-        `  ${chalk.dim(`⊘ ${skippedCount} file(s) skipped (already exist)`)}`
+    if (useJson) {
+      progress!.complete({
+        duration: Date.now() - startTime,
+        stats: {
+          files: files.length,
+          ingested: successCount,
+          skipped: skippedCount,
+          failed: failCount,
+        },
+        message: `Genesis docs complete - ${successCount} new, ${skippedCount} skipped, ${failCount} failed`,
+      });
+    } else {
+      log.info('');
+      log.info(chalk.bold('Summary:'));
+      log.info(`  ${chalk.green(`✓ ${successCount} file(s) ingested`)}`);
+      if (skippedCount > 0) {
+        log.info(
+          `  ${chalk.dim(`⊘ ${skippedCount} file(s) skipped (already exist)`)}`
+        );
+      }
+      if (failCount > 0) {
+        log.info(`  ${chalk.red(`✗ ${failCount} file(s) failed`)}`);
+      }
+
+      outro(
+        chalk.green(
+          `✓ Genesis docs complete - ${successCount} new, ${skippedCount} skipped, ${results.length - failCount} total in PGC`
+        )
       );
     }
-    if (failCount > 0) {
-      log.info(`  ${chalk.red(`✗ ${failCount} file(s) failed`)}`);
-    }
-
-    outro(
-      chalk.green(
-        `✓ Genesis docs complete - ${successCount} new, ${skippedCount} skipped, ${results.length - failCount} total in PGC`
-      )
-    );
 
     // Restore original max listeners
     process.setMaxListeners(originalMaxListeners);
   } catch (error) {
     // Restore original max listeners on error too
     process.setMaxListeners(originalMaxListeners);
-    if (s) {
-      s.stop('Genesis docs failed');
-    }
-    if (error instanceof PGCInitializationError) {
-      log.error(chalk.red(error.message));
+
+    if (useJson) {
+      progress!.error({
+        message: (error as Error).message,
+        recoverable: false,
+        details:
+          error instanceof PGCInitializationError
+            ? 'PGC not initialized'
+            : (error as Error).stack,
+      });
     } else {
-      log.error(chalk.red((error as Error).message));
+      if (s) {
+        s.stop('Genesis docs failed');
+      }
+      if (error instanceof PGCInitializationError) {
+        log.error(chalk.red(error.message));
+      } else {
+        log.error(chalk.red((error as Error).message));
+      }
     }
     throw error;
   }

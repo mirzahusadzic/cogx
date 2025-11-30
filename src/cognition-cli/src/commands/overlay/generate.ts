@@ -54,6 +54,10 @@ import { Command } from 'commander';
 import { getGlobalDispatcher } from 'undici';
 import chalk from 'chalk';
 import { OverlayOrchestrator } from '../../core/orchestrators/overlay.js';
+import {
+  shouldUseJsonProgress,
+  createProgressEmitter,
+} from '../../utils/progress-protocol.js';
 
 /**
  * Command for generating specific types of analytical overlays
@@ -77,7 +81,11 @@ const generateCommand = new Command('generate')
     'Skip garbage collection (recommended when switching branches or regenerating after deletion)',
     false
   )
+  .option('--json', 'Output progress as JSON lines (for TUI/programmatic use)')
   .action(async (type, options) => {
+    const useJson = shouldUseJsonProgress(options.json);
+    const progress = useJson ? createProgressEmitter(type) : null;
+    const startTime = Date.now();
     const supportedTypes = [
       'structural_patterns',
       'security_guidelines',
@@ -89,17 +97,28 @@ const generateCommand = new Command('generate')
     ];
 
     if (!supportedTypes.includes(type)) {
-      console.error(`Unsupported overlay type: ${type}`);
-      console.error(`Supported types: ${supportedTypes.join(', ')}`);
+      if (useJson) {
+        progress!.error({
+          message: `Unsupported overlay type: ${type}. Supported: ${supportedTypes.join(', ')}`,
+          recoverable: false,
+        });
+      } else {
+        console.error(`Unsupported overlay type: ${type}`);
+        console.error(`Supported types: ${supportedTypes.join(', ')}`);
+      }
       process.exit(1);
     }
 
-    console.log(`[Overlay] Starting generation of ${type}...`);
-    console.log(
-      chalk.dim(
-        '[Overlay] Reading source files from PGC index (run genesis first to index files)'
-      )
-    );
+    if (useJson) {
+      progress!.start({ message: `Starting generation of ${type}...` });
+    } else {
+      console.log(`[Overlay] Starting generation of ${type}...`);
+      console.log(
+        chalk.dim(
+          '[Overlay] Reading source files from PGC index (run genesis first to index files)'
+        )
+      );
+    }
 
     // Overlay reads from PGC index - uses current working directory
     const orchestrator = await OverlayOrchestrator.create(process.cwd());
@@ -108,21 +127,47 @@ const generateCommand = new Command('generate')
     const shutdown = async () => {
       if (isShuttingDown) return;
       isShuttingDown = true;
-      console.log('[Shutdown] Closing orchestrator...');
+      if (!useJson) {
+        console.log('[Shutdown] Closing orchestrator...');
+      }
       await orchestrator.shutdown();
-      console.log('[Shutdown] Closing global dispatcher...');
+      if (!useJson) {
+        console.log('[Shutdown] Closing global dispatcher...');
+      }
       await getGlobalDispatcher().close();
-      console.log('[Shutdown] Complete.');
+      if (!useJson) {
+        console.log('[Shutdown] Complete.');
+      }
     };
 
     process.on('SIGINT', async () => {
-      console.log('\n[Overlay] SIGINT received. Shutting down gracefully...');
+      if (useJson) {
+        progress!.error({
+          message: 'SIGINT received, shutting down gracefully',
+          recoverable: false,
+        });
+      } else {
+        console.log('\n[Overlay] SIGINT received. Shutting down gracefully...');
+      }
       await shutdown();
       process.exit(1);
     });
 
     let exitCode = 0;
     let errorOccurred: Error | null = null;
+
+    // Create progress callback for JSON mode
+    const onProgress = useJson
+      ? (current: number, total: number, message: string, phase?: string) => {
+          progress!.update({
+            current,
+            total,
+            percent: Math.round((current / total) * 100),
+            message,
+            phase,
+          });
+        }
+      : undefined;
 
     try {
       // Overlay generation reads from PGC index - no source path needed
@@ -138,9 +183,18 @@ const generateCommand = new Command('generate')
         {
           force: options.force,
           skipGc: options.skipGc,
+          useJson,
+          onProgress,
         }
       );
-      console.log('[Overlay] Generation complete.');
+      if (useJson) {
+        progress!.complete({
+          duration: Date.now() - startTime,
+          message: `${type} generation complete`,
+        });
+      } else {
+        console.log('[Overlay] Generation complete.');
+      }
     } catch (error) {
       errorOccurred = error instanceof Error ? error : new Error(String(error));
       exitCode = 1;
@@ -150,7 +204,15 @@ const generateCommand = new Command('generate')
 
     // Print error after shutdown completes
     if (errorOccurred) {
-      console.error(chalk.red(`\n[Overlay] Error: ${errorOccurred.message}`));
+      if (useJson) {
+        progress!.error({
+          message: errorOccurred.message,
+          recoverable: false,
+          details: errorOccurred.stack,
+        });
+      } else {
+        console.error(chalk.red(`\n[Overlay] Error: ${errorOccurred.message}`));
+      }
     }
 
     // Force exit to prevent hanging (embedding service or worker pool may keep event loop alive)

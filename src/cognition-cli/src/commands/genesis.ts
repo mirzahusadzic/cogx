@@ -44,6 +44,10 @@ import {
   getDebugLogPath,
 } from '../utils/debug-logger.js';
 import { LANGUAGE_MAP } from '../config.js';
+import {
+  shouldUseJsonProgress,
+  createProgressEmitter,
+} from '../utils/progress-protocol.js';
 
 /**
  * Represents errors during PGC initialization validation.
@@ -62,6 +66,8 @@ interface GenesisOptions {
   projectRoot: string;
   dryRun?: boolean;
   resume?: boolean;
+  /** Output progress as JSON lines instead of spinner/chalk output */
+  json?: boolean;
 }
 
 /**
@@ -267,7 +273,15 @@ async function executeDryRun(
  * });
  */
 export async function genesisCommand(options: GenesisOptions) {
-  intro(chalk.bold('Genesis: Building the Verifiable Skeleton'));
+  const useJson = shouldUseJsonProgress(options.json);
+  const progress = useJson ? createProgressEmitter('genesis') : null;
+  const startTime = Date.now();
+
+  if (useJson) {
+    progress!.start({ message: 'Genesis: Building the Verifiable Skeleton' });
+  } else {
+    intro(chalk.bold('Genesis: Building the Verifiable Skeleton'));
+  }
 
   const genesisTimer = debugTimer('Genesis total');
   debugLog('Genesis started', {
@@ -276,19 +290,27 @@ export async function genesisCommand(options: GenesisOptions) {
     workbench: options.workbench,
     dryRun: options.dryRun,
     resume: options.resume,
+    json: options.json,
   });
 
   let s: ReturnType<typeof spinner> | undefined;
   let lineageManager: LineagePatternsManager | undefined;
 
   try {
-    s = spinner();
+    // Only create spinner in interactive mode
+    if (!useJson) {
+      s = spinner();
+    }
 
     // Validate PGC initialization
-    s.start('Validating PGC initialization');
+    if (!useJson) {
+      s!.start('Validating PGC initialization');
+    }
     debugLog('Validating PGC initialization');
     await validatePgcInitialized(options.projectRoot);
-    s.stop('PGC validated');
+    if (!useJson) {
+      s!.stop('PGC validated');
+    }
     debugLog('PGC validation complete');
 
     // Handle dry-run mode
@@ -305,37 +327,47 @@ export async function genesisCommand(options: GenesisOptions) {
     if (options.resume) {
       if (previousProgress) {
         existingProgress = previousProgress;
-        log.info(
-          chalk.cyan(
-            `Resuming from previous run (started ${previousProgress.startedAt})`
-          )
-        );
-        log.info(
-          chalk.dim(
-            'Unchanged files will be skipped automatically via content hash comparison'
-          )
-        );
+        if (!useJson) {
+          log.info(
+            chalk.cyan(
+              `Resuming from previous run (started ${previousProgress.startedAt})`
+            )
+          );
+          log.info(
+            chalk.dim(
+              'Unchanged files will be skipped automatically via content hash comparison'
+            )
+          );
+        }
         debugLog('Resuming from progress', {
           startedAt: previousProgress.startedAt,
           sourcePaths: previousProgress.sourcePaths,
         });
       } else {
-        log.info(chalk.dim('No previous progress found, starting fresh'));
+        if (!useJson) {
+          log.info(chalk.dim('No previous progress found, starting fresh'));
+        }
         debugLog('No progress file found');
       }
     } else {
       // Warn if progress file exists but --resume wasn't used
       if (previousProgress) {
-        log.warn(
-          chalk.yellow(
-            `Previous genesis was interrupted (started ${previousProgress.startedAt})`
-          )
-        );
-        log.warn(
-          chalk.yellow(
-            'Use --resume to continue, or run without --resume to start fresh'
-          )
-        );
+        if (!useJson) {
+          log.warn(
+            chalk.yellow(
+              `Previous genesis was interrupted (started ${previousProgress.startedAt})`
+            )
+          );
+          log.warn(
+            chalk.yellow(
+              'Use --resume to continue, or run without --resume to start fresh'
+            )
+          );
+        } else {
+          progress!.warning({
+            message: `Previous genesis was interrupted (started ${previousProgress.startedAt}). Use --resume to continue.`,
+          });
+        }
         debugLog('Previous progress found but not resuming', {
           startedAt: previousProgress.startedAt,
         });
@@ -345,7 +377,9 @@ export async function genesisCommand(options: GenesisOptions) {
     }
 
     // Initialize core components
-    s.start('Initializing PGC and workbench connection');
+    if (!useJson) {
+      s!.start('Initializing PGC and workbench connection');
+    }
     const initTimer = debugTimer('Initialize PGC and workbench');
     const pgc = new PGCManager(options.projectRoot);
     debugLog('PGCManager initialized', { pgcRoot: pgc.pgcRoot });
@@ -364,20 +398,31 @@ export async function genesisCommand(options: GenesisOptions) {
     try {
       debugLog('Checking workbench health');
       await workbench.health();
-      s.stop();
-      log.info('Connected to egemma workbench');
+      if (!useJson) {
+        s!.stop();
+        log.info('Connected to egemma workbench');
+        s = undefined; // Prevent finally block from stopping spinner again
+      }
       debugLog('Workbench health check passed');
-      s = undefined; // Prevent finally block from stopping spinner again
     } catch (error) {
       debugError('Workbench health check failed', error);
-      if (s) {
-        s.stop(
-          'eGemma workbench is not running. Please start it before running the genesis command.'
+      if (useJson) {
+        progress!.error({
+          message:
+            'eGemma workbench is not running. Please start it before running the genesis command.',
+          recoverable: false,
+          details: error instanceof Error ? error.message : String(error),
+        });
+      } else {
+        if (s) {
+          s.stop(
+            'eGemma workbench is not running. Please start it before running the genesis command.'
+          );
+        }
+        console.error(
+          `Workbench health check failed: ${error instanceof Error ? error.message : String(error)}`
         );
       }
-      console.error(
-        `Workbench health check failed: ${error instanceof Error ? error.message : String(error)}`
-      );
       return;
     }
     initTimer();
@@ -400,22 +445,38 @@ export async function genesisCommand(options: GenesisOptions) {
     debugLog('GenesisOrchestrator created');
 
     // Initialize or update progress tracking
-    const progress: GenesisProgress = existingProgress || {
+    const genesisProgressData: GenesisProgress = existingProgress || {
       startedAt: new Date().toISOString(),
       sourcePaths: options.sources,
     };
 
     // Save initial progress (marks genesis as "in progress")
-    await saveProgress(options.projectRoot, progress);
-    debugLog('Progress saved', { progress });
+    await saveProgress(options.projectRoot, genesisProgressData);
+    debugLog('Progress saved', { progress: genesisProgressData });
 
     // Phase I: Bottom-Up Aggregation
-    log.info('Phase I: Structural Mining (Bottom-Up)');
+    if (!useJson) {
+      log.info('Phase I: Structural Mining (Bottom-Up)');
+    }
     debugLog('Starting Phase I: Bottom-Up Aggregation', {
       sources: options.sources,
     });
     const miningTimer = debugTimer('Structural mining');
-    await orchestrator.executeBottomUpAggregation(options.sources);
+
+    // Create progress callback for orchestrator if in JSON mode
+    const onProgress = useJson
+      ? (current: number, total: number, message: string, file?: string) => {
+          progress!.update({
+            current,
+            total,
+            percent: Math.round((current / total) * 100),
+            message,
+            file,
+          });
+        }
+      : undefined;
+
+    await orchestrator.executeBottomUpAggregation(options.sources, onProgress);
     miningTimer();
     debugLog('Phase I complete');
 
@@ -423,41 +484,57 @@ export async function genesisCommand(options: GenesisOptions) {
     await clearProgress(options.projectRoot);
     debugLog('Progress cleared (genesis complete)');
 
-    outro(chalk.green('✓ Genesis complete - Verifiable skeleton constructed'));
-    genesisTimer();
+    if (useJson) {
+      progress!.complete({
+        duration: Date.now() - startTime,
+        message: 'Genesis complete - Verifiable skeleton constructed',
+      });
+    } else {
+      outro(
+        chalk.green('✓ Genesis complete - Verifiable skeleton constructed')
+      );
+      genesisTimer();
 
-    // Show debug log path if enabled
-    const debugPath = getDebugLogPath();
-    if (debugPath) {
+      // Show debug log path if enabled
+      const debugPath = getDebugLogPath();
+      if (debugPath) {
+        console.log('');
+        console.log(chalk.dim(`Debug log: ${debugPath}`));
+      }
+
+      // Next steps guidance
       console.log('');
-      console.log(chalk.dim(`Debug log: ${debugPath}`));
+      console.log(chalk.cyan('Next steps:'));
+      console.log(
+        `  ${chalk.dim('$')} cognition genesis:docs VISION.md  ${chalk.dim('# Add mission documents')}`
+      );
+      console.log(
+        `  ${chalk.dim('$')} cognition overlay generate        ${chalk.dim('# Generate analysis overlays')}`
+      );
+      console.log(
+        `  ${chalk.dim('$')} cognition status                  ${chalk.dim('# Check PGC coherence')}`
+      );
+      console.log(
+        `  ${chalk.dim('$')} cognition tui                     ${chalk.dim('# Launch interactive interface')}`
+      );
+      console.log('');
     }
-
-    // Next steps guidance
-    console.log('');
-    console.log(chalk.cyan('Next steps:'));
-    console.log(
-      `  ${chalk.dim('$')} cognition genesis:docs VISION.md  ${chalk.dim('# Add mission documents')}`
-    );
-    console.log(
-      `  ${chalk.dim('$')} cognition overlay generate        ${chalk.dim('# Generate analysis overlays')}`
-    );
-    console.log(
-      `  ${chalk.dim('$')} cognition status                  ${chalk.dim('# Check PGC coherence')}`
-    );
-    console.log(
-      `  ${chalk.dim('$')} cognition tui                     ${chalk.dim('# Launch interactive interface')}`
-    );
-    console.log('');
   } catch (error) {
     debugError('Genesis failed', error);
-    if (s) {
-      s.stop('Genesis failed');
-    }
-    if (error instanceof PGCInitializationError) {
-      log.error(chalk.red(error.message));
+    if (useJson) {
+      progress!.error({
+        message: (error as Error).message,
+        recoverable: false,
+      });
     } else {
-      log.error(chalk.red((error as Error).message));
+      if (s) {
+        s.stop('Genesis failed');
+      }
+      if (error instanceof PGCInitializationError) {
+        log.error(chalk.red(error.message));
+      } else {
+        log.error(chalk.red((error as Error).message));
+      }
     }
     throw error;
   } finally {

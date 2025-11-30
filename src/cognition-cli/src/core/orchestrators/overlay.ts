@@ -255,19 +255,28 @@ export class OverlayOrchestrator {
     options?: {
       force?: boolean;
       skipGc?: boolean;
+      useJson?: boolean;
+      onProgress?: (
+        current: number,
+        total: number,
+        message: string,
+        phase?: string
+      ) => void;
     }
   ): Promise<void> {
     const force = options?.force || false;
     const skipGc = options?.skipGc || false;
-    const s = spinner();
+    const useJson = options?.useJson || false;
+    const onProgress = options?.onProgress;
+    const s = useJson ? null : spinner();
 
     // Pre-flight check: Verify workbench is accessible
-    s.start('[Overlay] Checking workbench availability...');
+    if (s) s.start('[Overlay] Checking workbench availability...');
     try {
       await this.workbench.health();
-      s.stop('[Overlay] Workbench is available.');
+      if (s) s.stop('[Overlay] Workbench is available.');
     } catch (error) {
-      s.stop(chalk.red('[Overlay] ✗ Failed to connect to workbench.'));
+      if (s) s.stop(chalk.red('[Overlay] ✗ Failed to connect to workbench.'));
       throw new Error(
         `Cannot generate overlays: Workbench at ${this.workbench.getBaseUrl()} is not accessible. ` +
           `Please ensure eGemma is running or set WORKBENCH_URL to a valid endpoint.\n` +
@@ -278,115 +287,157 @@ export class OverlayOrchestrator {
     // Mission concepts has a different flow - no file discovery needed
     if (overlayType === 'mission_concepts') {
       // Auto-discover and ingest strategic docs (VISION.md, PATTERN_LIBRARY.md, etc.)
-      s.start('[Overlay] Discovering and ingesting strategic documents...');
-      const ingestedCount = await this.autoIngestStrategicDocs();
-      if (ingestedCount > 0) {
-        s.stop(`[Overlay] Ingested ${ingestedCount} strategic document(s)`);
-      } else {
-        s.stop('[Overlay] All strategic documents already ingested');
+      if (s)
+        s.start('[Overlay] Discovering and ingesting strategic documents...');
+      const ingestedCount = await this.autoIngestStrategicDocs(useJson);
+      if (s) {
+        if (ingestedCount > 0) {
+          s.stop(`[Overlay] Ingested ${ingestedCount} strategic document(s)`);
+        } else {
+          s.stop('[Overlay] All strategic documents already ingested');
+        }
       }
 
-      s.start('[Overlay] Discovering markdown documents in PGC...');
+      if (s) s.start('[Overlay] Discovering markdown documents in PGC...');
       const docIndex = await this.discoverDocuments();
-      s.stop(`[Overlay] Found ${docIndex.length} document(s) in PGC.`);
+      if (s) s.stop(`[Overlay] Found ${docIndex.length} document(s) in PGC.`);
+      if (onProgress) {
+        onProgress(
+          0,
+          docIndex.length,
+          `Found ${docIndex.length} document(s)`,
+          'discovery'
+        );
+      }
 
       if (docIndex.length === 0) {
-        log.warn(
-          chalk.yellow(
-            '[Overlay] No documents found. Add markdown files to docs/ folder or VISION.md in project root.'
-          )
-        );
+        if (!useJson) {
+          log.warn(
+            chalk.yellow(
+              '[Overlay] No documents found. Add markdown files to docs/ folder or VISION.md in project root.'
+            )
+          );
+        }
         return;
       }
 
-      console.log(
-        chalk.blue(
-          `[Overlay] Extracting mission concepts from ${docIndex.length} document(s)...`
-        )
-      );
+      if (!useJson) {
+        console.log(
+          chalk.blue(
+            `[Overlay] Extracting mission concepts from ${docIndex.length} document(s)...`
+          )
+        );
+      }
 
       for (let i = 0; i < docIndex.length; i++) {
         const docEntry = docIndex[i];
-        await this.generateMissionConcepts(docEntry, force);
+        if (onProgress) {
+          onProgress(
+            i + 1,
+            docIndex.length,
+            `Processing ${docEntry.filePath}`,
+            'extraction'
+          );
+        }
+        await this.generateMissionConcepts(docEntry, force, useJson);
 
         // Add delay between documents to avoid API rate limiting
         if (i < docIndex.length - 1) {
-          console.log(chalk.dim('  ⏱  Waiting 5s to avoid rate limits...'));
+          if (!useJson) {
+            console.log(chalk.dim('  ⏱  Waiting 5s to avoid rate limits...'));
+          }
           await new Promise((resolve) => setTimeout(resolve, 5000));
         }
       }
 
-      console.log(
-        chalk.green('[Overlay] Mission concepts generation complete.')
-      );
+      if (!useJson) {
+        console.log(
+          chalk.green('[Overlay] Mission concepts generation complete.')
+        );
+      }
       return;
     }
 
     // Strategic coherence has a different flow - computes from existing overlays
     if (overlayType === 'strategic_coherence') {
-      await this.generateStrategicCoherence(force, skipGc);
+      await this.generateStrategicCoherence(force, skipGc, useJson, onProgress);
       return;
     }
 
     // Mathematical proofs - extract from documents
     if (overlayType === 'mathematical_proofs') {
-      await this.generateMathematicalProofs(force);
+      await this.generateMathematicalProofs(force, useJson, onProgress);
       return;
     }
 
     // Read files from PGC index (created by genesis) - NOT from filesystem
-    const allFiles = await this.loadFilesFromPGCIndex();
+    const allFiles = await this.loadFilesFromPGCIndex(useJson);
 
     if (allFiles.length === 0) {
-      log.error(
-        chalk.red(
-          '[Overlay] No files found in PGC index. Run genesis first to index source files.'
-        )
-      );
+      if (!useJson) {
+        log.error(
+          chalk.red(
+            '[Overlay] No files found in PGC index. Run genesis first to index source files.'
+          )
+        );
+      }
       return;
     }
 
     await this.runPGCMaintenance(
       allFiles.map((f) => f.relativePath),
-      skipGc
+      skipGc,
+      useJson
     );
 
     if (overlayType === 'lineage_patterns') {
-      s.start('[Overlay] Generating lineage patterns from manifest...');
-      s.stop('[Overlay] Generating lineage patterns from manifest.');
+      if (s) {
+        s.start('[Overlay] Generating lineage patterns from manifest...');
+        s.stop('[Overlay] Generating lineage patterns from manifest.');
+      }
 
       try {
-        await this.lineagePatternManager.generate({ force });
-        console.log(
-          chalk.green('[Overlay] Lineage patterns generation complete.')
-        );
+        await this.lineagePatternManager.generate({ force, onProgress });
+        if (!useJson) {
+          console.log(
+            chalk.green('[Overlay] Lineage patterns generation complete.')
+          );
+        }
 
         // Deduplicate vectors (keep most recent by computed_at)
         // Only needed when --force creates duplicates, skip if --skip-gc
         if (force && !skipGc) {
-          log.step('\n[Overlay] Deduplicating vectors...');
+          if (!useJson) log.step('\n[Overlay] Deduplicating vectors...');
           await this.vectorDB.initialize('lineage_patterns');
           const duplicatesRemoved =
             await this.vectorDB.removeDuplicateVectors();
-          if (duplicatesRemoved > 0) {
-            log.success(
-              `Transform: Removed ${duplicatesRemoved} duplicate vectors (kept most recent).`
-            );
-          } else {
-            log.info('Transform: No duplicate vectors found.');
+          if (!useJson) {
+            if (duplicatesRemoved > 0) {
+              log.success(
+                `Transform: Removed ${duplicatesRemoved} duplicate vectors (kept most recent).`
+              );
+            } else {
+              log.info('Transform: No duplicate vectors found.');
+            }
           }
-        } else if (skipGc) {
+        } else if (skipGc && !useJson) {
           log.info('Transform: Vector deduplication skipped (--skip-gc flag).');
         }
       } finally {
         await this.lineagePatternManager.shutdown();
       }
     } else {
-      s.start('[Overlay] Initializing vector database...');
+      if (s) {
+        s.start('[Overlay] Initializing vector database...');
+      }
       await this.vectorDB.initialize(overlayType);
-      s.stop('[Overlay] Vector database initialized.');
+      if (s) {
+        s.stop('[Overlay] Vector database initialized.');
+      }
 
-      log.info(`[Overlay] Preparing jobs for ${allFiles.length} files...`);
+      if (!useJson) {
+        log.info(`[Overlay] Preparing jobs for ${allFiles.length} files...`);
+      }
       let skippedCount = 0;
       let incrementalSkipCount = 0; // Track how many symbols were skipped due to unchanged content
       const BATCH_SIZE = 50;
@@ -406,12 +457,20 @@ export class OverlayOrchestrator {
 
       for (let i = 0; i < allFiles.length; i += BATCH_SIZE) {
         const batch = allFiles.slice(i, i + BATCH_SIZE);
+        const batchNum = i / BATCH_SIZE + 1;
+        const totalBatches = Math.ceil(allFiles.length / BATCH_SIZE);
 
-        s.start(
-          `[Overlay] Preparing batch ${
-            i / BATCH_SIZE + 1
-          }/${Math.ceil(allFiles.length / BATCH_SIZE)}`
-        );
+        if (s) {
+          s.start(`[Overlay] Preparing batch ${batchNum}/${totalBatches}`);
+        }
+        if (onProgress) {
+          onProgress(
+            i,
+            allFiles.length,
+            `Preparing batch ${batchNum}/${totalBatches}`,
+            'preparation'
+          );
+        }
 
         // OPTIMIZATION: Parallel file processing for 2x speedup
         const fileResults = await Promise.all(
@@ -536,10 +595,10 @@ export class OverlayOrchestrator {
         }
       }
 
-      s.stop();
+      if (s) s.stop();
 
       // Log incremental skip statistics
-      if (incrementalSkipCount > 0) {
+      if (incrementalSkipCount > 0 && !useJson) {
         log.info(
           chalk.green(
             `[Overlay] Incremental: Skipped ${incrementalSkipCount} unchanged symbols (${(
@@ -554,96 +613,132 @@ export class OverlayOrchestrator {
       this.structuralPatternManager.initializeWorkers(allJobs.length);
 
       // Pre-flight validation: Check all source hashes exist before expensive embedding
-      log.info(
-        chalk.cyan(
-          `\n[Overlay] Oracle: Pre-flight validation of ${allJobs.length} patterns...`
-        )
-      );
+      if (!useJson) {
+        log.info(
+          chalk.cyan(
+            `\n[Overlay] Oracle: Pre-flight validation of ${allJobs.length} patterns...`
+          )
+        );
+      }
       const preflightResult = await this.validateJobHashes(allJobs);
       if (!preflightResult.success) {
-        log.error(
-          chalk.red('Pre-flight validation failed - missing structural hashes:')
-        );
-        preflightResult.messages.forEach((msg: string) => log.error(msg));
+        if (!useJson) {
+          log.error(
+            chalk.red(
+              'Pre-flight validation failed - missing structural hashes:'
+            )
+          );
+          preflightResult.messages.forEach((msg: string) => log.error(msg));
+        }
         throw new Error(
           'Cannot proceed with embedding - structural data missing from object store. ' +
             'This may be caused by aggressive garbage collection. Try running with --skip-gc flag.'
         );
       }
-      log.success(
-        chalk.green('[Overlay] Oracle: Pre-flight validation successful.')
-      );
+      if (!useJson) {
+        log.success(
+          chalk.green('[Overlay] Oracle: Pre-flight validation successful.')
+        );
+      }
 
-      log.info(
-        chalk.cyan(
-          `\n[Overlay] Processing ${allJobs.length} patterns with workers...`
-        )
-      );
+      if (!useJson) {
+        log.info(
+          chalk.cyan(
+            `\n[Overlay] Processing ${allJobs.length} patterns with workers...`
+          )
+        );
+      }
+      if (onProgress) {
+        onProgress(
+          0,
+          allJobs.length,
+          `Processing ${allJobs.length} patterns...`,
+          'embedding'
+        );
+      }
 
       try {
-        await this.structuralPatternManager.generatePatternsParallel(allJobs);
+        // Pass onProgress callback to get real-time embedding progress
+        await this.structuralPatternManager.generatePatternsParallel(
+          allJobs,
+          onProgress
+        );
       } finally {
         await this.structuralPatternManager.shutdown();
       }
 
-      log.success(chalk.cyan(`\n[Overlay] Processing complete.`));
-      log.info(
-        chalk.cyan(
-          `- Processed ${allJobs.length} patterns (${skippedCount} files skipped)`
-        )
-      );
+      if (!useJson) {
+        log.success(chalk.cyan(`\n[Overlay] Processing complete.`));
+        log.info(
+          chalk.cyan(
+            `- Processed ${allJobs.length} patterns (${skippedCount} files skipped)`
+          )
+        );
+      }
 
       // Deduplicate vectors (keep most recent by computed_at)
       // Only needed when --force creates duplicates, skip if --skip-gc
       if (force && !skipGc) {
-        log.step('\n[Overlay] Deduplicating vectors...');
+        if (!useJson) log.step('\n[Overlay] Deduplicating vectors...');
         const duplicatesRemoved = await this.vectorDB.removeDuplicateVectors();
-        if (duplicatesRemoved > 0) {
-          log.success(
-            `Transform: Removed ${duplicatesRemoved} duplicate vectors (kept most recent).`
-          );
-        } else {
-          log.info('Transform: No duplicate vectors found.');
+        if (!useJson) {
+          if (duplicatesRemoved > 0) {
+            log.success(
+              `Transform: Removed ${duplicatesRemoved} duplicate vectors (kept most recent).`
+            );
+          } else {
+            log.info('Transform: No duplicate vectors found.');
+          }
         }
-      } else if (skipGc) {
+      } else if (skipGc && !useJson) {
         log.info('Transform: Vector deduplication skipped (--skip-gc flag).');
       }
 
       // Verify the structural patterns overlay after generation
-      log.info(
-        chalk.cyan(
-          '\n[Overlay] Oracle: Verifying structural patterns overlay...'
-        )
-      );
+      if (!useJson) {
+        log.info(
+          chalk.cyan(
+            '\n[Overlay] Oracle: Verifying structural patterns overlay...'
+          )
+        );
+      }
       const verificationResult =
         await this.overlayOracle.verifyStructuralPatternsOverlay();
       if (!verificationResult.success) {
-        log.error(
-          chalk.red('Structural patterns overlay verification failed:')
-        );
-        verificationResult.messages.forEach((msg: string) => log.error(msg));
+        if (!useJson) {
+          log.error(
+            chalk.red('Structural patterns overlay verification failed:')
+          );
+          verificationResult.messages.forEach((msg: string) => log.error(msg));
+        }
         throw new Error('Structural patterns overlay is inconsistent.');
-      } else {
+      } else if (!useJson) {
         log.success(
           chalk.green('[Overlay] Structural Oracle verification successful.')
         );
       }
 
       // CRITICAL: Verify manifest completeness against vector DB
-      log.info(
-        chalk.cyan('\n[Overlay] Oracle: Verifying manifest completeness...')
-      );
+      if (!useJson) {
+        log.info(
+          chalk.cyan('\n[Overlay] Oracle: Verifying manifest completeness...')
+        );
+      }
       const completenessResult =
         await this.overlayOracle.verifyManifestCompleteness();
-      completenessResult.messages.forEach((msg: string) => console.log(msg));
+      if (!useJson) {
+        completenessResult.messages.forEach((msg: string) => console.log(msg));
+      }
       if (!completenessResult.success) {
-        log.error(
-          chalk.red(
-            '[Overlay] Manifest is incomplete - pattern generation may have failed.'
-          )
-        );
+        if (!useJson) {
+          log.error(
+            chalk.red(
+              '[Overlay] Manifest is incomplete - pattern generation may have failed.'
+            )
+          );
+        }
         throw new Error('Structural patterns manifest is incomplete.');
-      } else {
+      } else if (!useJson) {
         log.success(
           chalk.green('[Overlay] Manifest completeness verification passed.')
         );
@@ -653,18 +748,21 @@ export class OverlayOrchestrator {
 
   private async runPGCMaintenance(
     processedFiles: string[],
-    skipGc: boolean = false
+    skipGc: boolean = false,
+    useJson: boolean = false
   ) {
-    log.step('Running PGC Maintenance and Verification');
+    if (!useJson) log.step('Running PGC Maintenance and Verification');
 
-    if (skipGc) {
-      log.info(
-        'Goal: Verify PGC structural coherence (garbage collection skipped).'
-      );
-    } else {
-      log.info(
-        'Goal: Achieve a structurally coherent PGC by removing stale entries.'
-      );
+    if (!useJson) {
+      if (skipGc) {
+        log.info(
+          'Goal: Verify PGC structural coherence (garbage collection skipped).'
+        );
+      } else {
+        log.info(
+          'Goal: Achieve a structurally coherent PGC by removing stale entries.'
+        );
+      }
     }
 
     const gcSummary = skipGc
@@ -675,47 +773,52 @@ export class OverlayOrchestrator {
         }
       : await this.garbageCollect(processedFiles);
 
-    if (gcSummary.staleEntries > 0) {
-      log.success(
-        `Transform: Removed ${gcSummary.staleEntries} stale index entries.`
-      );
-    }
-    if (gcSummary.cleanedReverseDeps > 0) {
-      log.success(
-        `Transform: Cleaned ${gcSummary.cleanedReverseDeps} stale reverse dependency entries.`
-      );
-    }
-    if (gcSummary.cleanedTransformLogEntries > 0) {
-      log.success(
-        `Transform: Removed ${gcSummary.cleanedTransformLogEntries} stale transform log entries.`
-      );
-    }
-    if (
-      gcSummary.staleEntries === 0 &&
-      gcSummary.cleanedReverseDeps === 0 &&
-      gcSummary.cleanedTransformLogEntries === 0
-    ) {
-      if (skipGc) {
-        log.info('Transform: Garbage collection skipped (--skip-gc flag).');
-      } else {
-        log.info('Transform: No stale entries found. PGC is clean.');
+    if (!useJson) {
+      if (gcSummary.staleEntries > 0) {
+        log.success(
+          `Transform: Removed ${gcSummary.staleEntries} stale index entries.`
+        );
       }
+      if (gcSummary.cleanedReverseDeps > 0) {
+        log.success(
+          `Transform: Cleaned ${gcSummary.cleanedReverseDeps} stale reverse dependency entries.`
+        );
+      }
+      if (gcSummary.cleanedTransformLogEntries > 0) {
+        log.success(
+          `Transform: Removed ${gcSummary.cleanedTransformLogEntries} stale transform log entries.`
+        );
+      }
+      if (
+        gcSummary.staleEntries === 0 &&
+        gcSummary.cleanedReverseDeps === 0 &&
+        gcSummary.cleanedTransformLogEntries === 0
+      ) {
+        if (skipGc) {
+          log.info('Transform: Garbage collection skipped (--skip-gc flag).');
+        } else {
+          log.info('Transform: No stale entries found. PGC is clean.');
+        }
+      }
+
+      log.info('Oracle: Verifying PGC structural coherence after maintenance.');
     }
 
-    log.info('Oracle: Verifying PGC structural coherence after maintenance.');
     const verificationResult = await this.genesisOracle.verify();
 
-    if (verificationResult.success) {
-      log.success(
-        'Oracle: Verification complete. PGC is structurally coherent.'
-      );
-    } else {
-      log.error(
-        'Oracle: Verification failed. PGC has structural inconsistencies:'
-      );
-      verificationResult.messages.forEach((msg: string) =>
-        log.error(chalk.red(`- ${msg}`))
-      );
+    if (!useJson) {
+      if (verificationResult.success) {
+        log.success(
+          'Oracle: Verification complete. PGC is structurally coherent.'
+        );
+      } else {
+        log.error(
+          'Oracle: Verification failed. PGC has structural inconsistencies:'
+        );
+        verificationResult.messages.forEach((msg: string) =>
+          log.error(chalk.red(`- ${msg}`))
+        );
+      }
     }
   }
 
@@ -822,18 +925,22 @@ export class OverlayOrchestrator {
    *
    * @returns Array of source files with content loaded from PGC object store
    */
-  private async loadFilesFromPGCIndex(): Promise<SourceFile[]> {
+  private async loadFilesFromPGCIndex(
+    useJson: boolean = false
+  ): Promise<SourceFile[]> {
     const allIndexData = await this.pgc.index.getAllData();
 
     if (allIndexData.length === 0) {
       return [];
     }
 
-    log.info(
-      chalk.cyan(
-        `[Overlay] Loading ${allIndexData.length} files from PGC index...`
-      )
-    );
+    if (!useJson) {
+      log.info(
+        chalk.cyan(
+          `[Overlay] Loading ${allIndexData.length} files from PGC index...`
+        )
+      );
+    }
 
     // Load file content from PGC object store in parallel
     const fileReads = await Promise.all(
@@ -851,21 +958,25 @@ export class OverlayOrchestrator {
           indexEntry.content_hash
         );
         if (!contentBuffer) {
-          log.warn(
-            chalk.yellow(
-              `[Overlay] Content missing for ${indexEntry.path} (hash: ${indexEntry.content_hash.slice(0, 7)}...)`
-            )
-          );
+          if (!useJson) {
+            log.warn(
+              chalk.yellow(
+                `[Overlay] Content missing for ${indexEntry.path} (hash: ${indexEntry.content_hash.slice(0, 7)}...)`
+              )
+            );
+          }
           return null;
         }
 
         // Safety check: Skip files that exceed max size limit
         if (contentBuffer.length > DEFAULT_MAX_FILE_SIZE) {
-          log.warn(
-            chalk.yellow(
-              `[Overlay] Skipping large file: ${indexEntry.path} (${(contentBuffer.length / (1024 * 1024)).toFixed(2)} MB)`
-            )
-          );
+          if (!useJson) {
+            log.warn(
+              chalk.yellow(
+                `[Overlay] Skipping large file: ${indexEntry.path} (${(contentBuffer.length / (1024 * 1024)).toFixed(2)} MB)`
+              )
+            );
+          }
           return null;
         }
 
@@ -975,7 +1086,8 @@ export class OverlayOrchestrator {
    */
   private async generateMissionConcepts(
     docEntry: { filePath: string; contentHash: string; objectHash: string },
-    force: boolean
+    force: boolean,
+    useJson: boolean = false
   ): Promise<void> {
     const { filePath, contentHash, objectHash } = docEntry;
 
@@ -984,27 +1096,33 @@ export class OverlayOrchestrator {
     if (!force) {
       const existing = await this.missionConceptsManager.retrieve(contentHash);
       if (existing) {
-        console.log(
-          chalk.dim(
-            `  [MissionConcepts] ${filePath} - skipped (already exists)`
-          )
-        );
+        if (!useJson) {
+          console.log(
+            chalk.dim(
+              `  [MissionConcepts] ${filePath} - skipped (already exists)`
+            )
+          );
+        }
         return;
       }
     }
 
-    console.log(
-      chalk.blue(`  [MissionConcepts] ${filePath} - extracting concepts...`)
-    );
+    if (!useJson) {
+      console.log(
+        chalk.blue(`  [MissionConcepts] ${filePath} - extracting concepts...`)
+      );
+    }
 
     // Load document object from PGC using objectHash (for retrieval)
     const docObjectBuffer = await this.pgc.objectStore.retrieve(objectHash);
     if (!docObjectBuffer) {
-      console.log(
-        chalk.yellow(
-          `  [MissionConcepts] ${filePath} - skipped (document not found in PGC)`
-        )
-      );
+      if (!useJson) {
+        console.log(
+          chalk.yellow(
+            `  [MissionConcepts] ${filePath} - skipped (document not found in PGC)`
+          )
+        );
+      }
       return;
     }
 
@@ -1013,11 +1131,13 @@ export class OverlayOrchestrator {
     ) as DocumentObject;
 
     if (parsedDoc.type !== 'markdown_document') {
-      console.log(
-        chalk.yellow(
-          `  [MissionConcepts] ${filePath} - skipped (not a markdown document)`
-        )
-      );
+      if (!useJson) {
+        console.log(
+          chalk.yellow(
+            `  [MissionConcepts] ${filePath} - skipped (not a markdown document)`
+          )
+        );
+      }
       return;
     }
 
@@ -1037,26 +1157,32 @@ export class OverlayOrchestrator {
       concepts = this.conceptExtractor.extract(markdownDoc);
 
       if (concepts.length === 0) {
-        console.log(
-          chalk.yellow(
-            `  [MissionConcepts] ${filePath} - skipped (no mission concepts found)`
-          )
-        );
+        if (!useJson) {
+          console.log(
+            chalk.yellow(
+              `  [MissionConcepts] ${filePath} - skipped (no mission concepts found)`
+            )
+          );
+        }
         return;
       }
 
-      console.log(
-        chalk.blue(
-          `  [MissionConcepts] ${filePath} - found ${concepts.length} concepts, generating embeddings...`
-        )
-      );
+      if (!useJson) {
+        console.log(
+          chalk.blue(
+            `  [MissionConcepts] ${filePath} - found ${concepts.length} concepts, generating embeddings...`
+          )
+        );
+      }
     } else {
       // Using pre-embedded concepts from security validation
-      console.log(
-        chalk.blue(
-          `  [MissionConcepts] ${filePath} - reusing ${concepts.length} concepts from security validation (no re-embedding)...`
-        )
-      );
+      if (!useJson) {
+        console.log(
+          chalk.blue(
+            `  [MissionConcepts] ${filePath} - reusing ${concepts.length} concepts from security validation (no re-embedding)...`
+          )
+        );
+      }
     }
 
     // Create overlay and store (manager will generate embeddings only if needed)
@@ -1071,58 +1197,101 @@ export class OverlayOrchestrator {
 
     await this.missionConceptsManager.store(overlay);
 
-    console.log(
-      chalk.green(
-        `  [MissionConcepts] ${filePath} - ✓ complete (${concepts.length} concepts embedded)`
-      )
-    );
+    if (!useJson) {
+      console.log(
+        chalk.green(
+          `  [MissionConcepts] ${filePath} - ✓ complete (${concepts.length} concepts embedded)`
+        )
+      );
+    }
   }
 
   /**
    * Generate mathematical proofs overlay (O₆)
    * Extracts theorems, lemmas, axioms, and proofs from documents
    */
-  private async generateMathematicalProofs(force: boolean): Promise<void> {
-    const s = spinner();
+  private async generateMathematicalProofs(
+    force: boolean,
+    useJson: boolean = false,
+    onProgress?: (
+      current: number,
+      total: number,
+      message: string,
+      phase?: string
+    ) => void
+  ): Promise<void> {
+    const s = useJson ? null : spinner();
 
     // Discover already-ingested documents from PGC
     // Note: Does NOT ingest new documents - run mission_concepts generation first
-    s.start('[MathematicalProofs] Discovering markdown documents in PGC...');
+    if (s)
+      s.start('[MathematicalProofs] Discovering markdown documents in PGC...');
     const docIndex = await this.discoverDocuments();
-    s.stop(`[MathematicalProofs] Found ${docIndex.length} document(s) in PGC.`);
+    if (s)
+      s.stop(
+        `[MathematicalProofs] Found ${docIndex.length} document(s) in PGC.`
+      );
+    if (onProgress) {
+      onProgress(
+        0,
+        docIndex.length,
+        `Found ${docIndex.length} document(s)`,
+        'discovery'
+      );
+    }
 
     if (docIndex.length === 0) {
-      log.warn(
-        chalk.yellow(
-          '[MathematicalProofs] No documents found in PGC.\n' +
-            'Run `cognition-cli overlay generate mission_concepts` first to ingest strategic documents.'
-        )
-      );
+      if (!useJson) {
+        log.warn(
+          chalk.yellow(
+            '[MathematicalProofs] No documents found in PGC.\n' +
+              'Run `cognition-cli overlay generate mission_concepts` first to ingest strategic documents.'
+          )
+        );
+      }
       return;
     }
 
-    console.log(
-      chalk.blue(
-        `[MathematicalProofs] Extracting mathematical statements from ${docIndex.length} document(s)...`
-      )
-    );
+    if (!useJson) {
+      console.log(
+        chalk.blue(
+          `[MathematicalProofs] Extracting mathematical statements from ${docIndex.length} document(s)...`
+        )
+      );
+    }
 
     for (let i = 0; i < docIndex.length; i++) {
       const docEntry = docIndex[i];
-      await this.generateMathematicalProofsForDocument(docEntry, force);
+      if (onProgress) {
+        onProgress(
+          i + 1,
+          docIndex.length,
+          `Processing ${docEntry.filePath}`,
+          'extraction'
+        );
+      }
+      await this.generateMathematicalProofsForDocument(
+        docEntry,
+        force,
+        useJson
+      );
 
       // Add delay between documents to avoid API rate limiting
       if (i < docIndex.length - 1) {
-        console.log(chalk.dim('  ⏱  Waiting 5s to avoid rate limits...'));
+        if (!useJson) {
+          console.log(chalk.dim('  ⏱  Waiting 5s to avoid rate limits...'));
+        }
         await new Promise((resolve) => setTimeout(resolve, 5000));
       }
     }
 
-    console.log(
-      chalk.green(
-        '[MathematicalProofs] Mathematical proofs generation complete.'
-      )
-    );
+    if (!useJson) {
+      console.log(
+        chalk.green(
+          '[MathematicalProofs] Mathematical proofs generation complete.'
+        )
+      );
+    }
   }
 
   /**
@@ -1130,7 +1299,8 @@ export class OverlayOrchestrator {
    */
   private async generateMathematicalProofsForDocument(
     docEntry: { filePath: string; contentHash: string; objectHash: string },
-    force: boolean
+    force: boolean,
+    useJson: boolean = false
   ): Promise<void> {
     const { filePath, contentHash, objectHash } = docEntry;
 
@@ -1139,27 +1309,33 @@ export class OverlayOrchestrator {
       const existing =
         await this.mathematicalProofsManager.loadOverlay(contentHash);
       if (existing) {
-        console.log(
-          chalk.dim(
-            `  [MathematicalProofs] ${filePath} - skipped (already exists)`
-          )
-        );
+        if (!useJson) {
+          console.log(
+            chalk.dim(
+              `  [MathematicalProofs] ${filePath} - skipped (already exists)`
+            )
+          );
+        }
         return;
       }
     }
 
-    console.log(
-      chalk.blue(`  [MathematicalProofs] ${filePath} - extracting proofs...`)
-    );
+    if (!useJson) {
+      console.log(
+        chalk.blue(`  [MathematicalProofs] ${filePath} - extracting proofs...`)
+      );
+    }
 
     // Load document object from PGC using objectHash
     const docObjectBuffer = await this.pgc.objectStore.retrieve(objectHash);
     if (!docObjectBuffer) {
-      console.log(
-        chalk.yellow(
-          `  [MathematicalProofs] ${filePath} - skipped (document not found in PGC)`
-        )
-      );
+      if (!useJson) {
+        console.log(
+          chalk.yellow(
+            `  [MathematicalProofs] ${filePath} - skipped (document not found in PGC)`
+          )
+        );
+      }
       return;
     }
 
@@ -1168,11 +1344,13 @@ export class OverlayOrchestrator {
     ) as DocumentObject;
 
     if (parsedDoc.type !== 'markdown_document') {
-      console.log(
-        chalk.yellow(
-          `  [MathematicalProofs] ${filePath} - skipped (not a markdown document)`
-        )
-      );
+      if (!useJson) {
+        console.log(
+          chalk.yellow(
+            `  [MathematicalProofs] ${filePath} - skipped (not a markdown document)`
+          )
+        );
+      }
       return;
     }
 
@@ -1188,19 +1366,23 @@ export class OverlayOrchestrator {
     const statements = this.proofExtractor.extract(markdownDoc);
 
     if (statements.length === 0) {
-      console.log(
-        chalk.yellow(
-          `  [MathematicalProofs] ${filePath} - skipped (no mathematical statements found)`
-        )
-      );
+      if (!useJson) {
+        console.log(
+          chalk.yellow(
+            `  [MathematicalProofs] ${filePath} - skipped (no mathematical statements found)`
+          )
+        );
+      }
       return;
     }
 
-    console.log(
-      chalk.blue(
-        `  [MathematicalProofs] ${filePath} - found ${statements.length} statements, generating embeddings...`
-      )
-    );
+    if (!useJson) {
+      console.log(
+        chalk.blue(
+          `  [MathematicalProofs] ${filePath} - found ${statements.length} statements, generating embeddings...`
+        )
+      );
+    }
 
     // Generate overlay with embeddings
     const transformId = `mathematical_proofs:${contentHash}:${new Date().toISOString()}`;
@@ -1211,11 +1393,13 @@ export class OverlayOrchestrator {
       transformId
     );
 
-    console.log(
-      chalk.green(
-        `  [MathematicalProofs] ${filePath} - ✓ complete (${statements.length} statements embedded)`
-      )
-    );
+    if (!useJson) {
+      console.log(
+        chalk.green(
+          `  [MathematicalProofs] ${filePath} - ✓ complete (${statements.length} statements embedded)`
+        )
+      );
+    }
   }
 
   /**
@@ -1224,25 +1408,34 @@ export class OverlayOrchestrator {
    */
   private async generateStrategicCoherence(
     force: boolean,
-    skipGc: boolean = false
+    skipGc: boolean = false,
+    useJson: boolean = false,
+    onProgress?: (
+      current: number,
+      total: number,
+      message: string,
+      phase?: string
+    ) => void
   ): Promise<void> {
-    const s = spinner();
+    const s = useJson ? null : spinner();
 
     // Step 1: Check if overlay already exists
     if (!force) {
       const existing = await this.strategicCoherenceManager.retrieve();
       if (existing) {
-        console.log(
-          chalk.dim(
-            '[StrategicCoherence] Overlay already exists. Use --force to regenerate.'
-          )
-        );
+        if (!useJson) {
+          console.log(
+            chalk.dim(
+              '[StrategicCoherence] Overlay already exists. Use --force to regenerate.'
+            )
+          );
+        }
         return;
       }
     }
 
     // Step 2: Get mission document hash from mission concepts overlay
-    s.start('[StrategicCoherence] Finding mission document...');
+    if (s) s.start('[StrategicCoherence] Finding mission document...');
     const allDocs = await this.discoverDocuments();
 
     // Filter to only documents that have mission concepts overlays
@@ -1252,14 +1445,18 @@ export class OverlayOrchestrator {
     );
 
     if (docIndex.length === 0) {
-      s.stop(
-        chalk.red('[StrategicCoherence] ✗ No mission documents found in PGC.')
-      );
-      log.error(
-        chalk.yellow(
-          'Run "cognition-cli overlay generate mission_concepts" first to extract mission concepts.'
-        )
-      );
+      if (s) {
+        s.stop(
+          chalk.red('[StrategicCoherence] ✗ No mission documents found in PGC.')
+        );
+      }
+      if (!useJson) {
+        log.error(
+          chalk.yellow(
+            'Run "cognition-cli overlay generate mission_concepts" first to extract mission concepts.'
+          )
+        );
+      }
       throw new Error(
         'Mission concepts overlay required for strategic coherence'
       );
@@ -1267,29 +1464,50 @@ export class OverlayOrchestrator {
 
     const skippedDocs = allDocs.length - docIndex.length;
     // Aggregate mission concepts from documents that have them
-    s.stop(`[StrategicCoherence] Found ${docIndex.length} strategic documents`);
-    console.log(
-      chalk.dim(`  Documents: ${docIndex.map((d) => d.filePath).join(', ')}`)
-    );
-    if (skippedDocs > 0) {
-      console.log(
-        chalk.dim(
-          `  Skipped ${skippedDocs} document(s) without mission concepts (e.g., security/threat models)`
-        )
+    if (s)
+      s.stop(
+        `[StrategicCoherence] Found ${docIndex.length} strategic documents`
       );
+    if (onProgress) {
+      onProgress(
+        0,
+        3,
+        `Found ${docIndex.length} strategic documents`,
+        'discovery'
+      );
+    }
+    if (!useJson) {
+      console.log(
+        chalk.dim(`  Documents: ${docIndex.map((d) => d.filePath).join(', ')}`)
+      );
+      if (skippedDocs > 0) {
+        console.log(
+          chalk.dim(
+            `  Skipped ${skippedDocs} document(s) without mission concepts (e.g., security/threat models)`
+          )
+        );
+      }
     }
 
     // Step 3: Initialize vector database for structural patterns
-    s.start('[StrategicCoherence] Loading structural patterns...');
+    if (s) s.start('[StrategicCoherence] Loading structural patterns...');
     await this.vectorDB.initialize('structural_patterns');
-    s.stop('[StrategicCoherence] Structural patterns loaded.');
+    if (s) s.stop('[StrategicCoherence] Structural patterns loaded.');
+    if (onProgress) {
+      onProgress(1, 3, 'Structural patterns loaded', 'loading');
+    }
 
     // Step 4: Compute coherence overlay using ALL documents
-    console.log(
-      chalk.blue(
-        '[StrategicCoherence] Computing alignment between code and mission...'
-      )
-    );
+    if (!useJson) {
+      console.log(
+        chalk.blue(
+          '[StrategicCoherence] Computing alignment between code and mission...'
+        )
+      );
+    }
+    if (onProgress) {
+      onProgress(2, 3, 'Computing alignment...', 'computation');
+    }
 
     const overlay =
       await this.strategicCoherenceManager.computeCoherenceFromMultipleDocs(
@@ -1299,62 +1517,73 @@ export class OverlayOrchestrator {
       );
 
     // Step 5: Store the overlay
-    s.start('[StrategicCoherence] Storing coherence overlay...');
+    if (s) s.start('[StrategicCoherence] Storing coherence overlay...');
     await this.strategicCoherenceManager.store(overlay);
-    s.stop('[StrategicCoherence] Overlay stored.');
+    if (s) s.stop('[StrategicCoherence] Overlay stored.');
+    if (onProgress) {
+      onProgress(3, 3, 'Overlay stored', 'storage');
+    }
 
     // Step 5.5: Deduplicate temporary mission concepts vector table
     // Only needed when --force creates duplicates, skip if --skip-gc
     if (force && !skipGc) {
-      log.step(
-        '\n[StrategicCoherence] Deduplicating temporary mission concepts vectors...'
-      );
+      if (!useJson) {
+        log.step(
+          '\n[StrategicCoherence] Deduplicating temporary mission concepts vectors...'
+        );
+      }
       await this.vectorDB.initialize('mission_concepts_multi_temp');
       const duplicatesRemoved = await this.vectorDB.removeDuplicateVectors();
-      if (duplicatesRemoved > 0) {
-        log.success(
-          `Transform: Removed ${duplicatesRemoved} duplicate vectors (kept most recent).`
-        );
-      } else {
-        log.info('Transform: No duplicate vectors found.');
+      if (!useJson) {
+        if (duplicatesRemoved > 0) {
+          log.success(
+            `Transform: Removed ${duplicatesRemoved} duplicate vectors (kept most recent).`
+          );
+        } else {
+          log.info('Transform: No duplicate vectors found.');
+        }
       }
-    } else if (skipGc) {
+    } else if (skipGc && !useJson) {
       log.info('Transform: Vector deduplication skipped (--skip-gc flag).');
     }
 
     // Step 6: Display summary
-    console.log('');
-    console.log(chalk.green.bold('✓ Strategic Coherence Generation Complete'));
-    console.log('');
-    console.log(
-      chalk.white(
-        `  Analyzed ${overlay.symbol_coherence.length} code symbols against ${overlay.mission_concepts_count} mission concepts`
-      )
-    );
-    console.log('');
-    console.log(chalk.white('  Overall Metrics:'));
-    console.log(
-      chalk.white(
-        `    Average coherence: ${overlay.overall_metrics.average_coherence.toFixed(3)}`
-      )
-    );
-    console.log(
-      chalk.green(
-        `    ✓ Aligned symbols:  ${overlay.overall_metrics.aligned_symbols_count} (score ≥ ${overlay.overall_metrics.high_alignment_threshold})`
-      )
-    );
-    console.log(
-      chalk.yellow(
-        `    ⚠ Drifted symbols:  ${overlay.overall_metrics.drifted_symbols_count} (score < ${overlay.overall_metrics.high_alignment_threshold})`
-      )
-    );
-    console.log('');
-    console.log(
-      chalk.dim(
-        '  Query results with: cognition-cli coherence aligned | drifted | report'
-      )
-    );
-    console.log('');
+    if (!useJson) {
+      console.log('');
+      console.log(
+        chalk.green.bold('✓ Strategic Coherence Generation Complete')
+      );
+      console.log('');
+      console.log(
+        chalk.white(
+          `  Analyzed ${overlay.symbol_coherence.length} code symbols against ${overlay.mission_concepts_count} mission concepts`
+        )
+      );
+      console.log('');
+      console.log(chalk.white('  Overall Metrics:'));
+      console.log(
+        chalk.white(
+          `    Average coherence: ${overlay.overall_metrics.average_coherence.toFixed(3)}`
+        )
+      );
+      console.log(
+        chalk.green(
+          `    ✓ Aligned symbols:  ${overlay.overall_metrics.aligned_symbols_count} (score ≥ ${overlay.overall_metrics.high_alignment_threshold})`
+        )
+      );
+      console.log(
+        chalk.yellow(
+          `    ⚠ Drifted symbols:  ${overlay.overall_metrics.drifted_symbols_count} (score < ${overlay.overall_metrics.high_alignment_threshold})`
+        )
+      );
+      console.log('');
+      console.log(
+        chalk.dim(
+          '  Query results with: cognition-cli coherence aligned | drifted | report'
+        )
+      );
+      console.log('');
+    }
   }
 
   /**
@@ -1365,7 +1594,9 @@ export class OverlayOrchestrator {
    *
    * Only ingests files that haven't been processed yet (checks PGC index)
    */
-  private async autoIngestStrategicDocs(): Promise<number> {
+  private async autoIngestStrategicDocs(
+    useJson: boolean = false
+  ): Promise<number> {
     const strategicPaths: string[] = [];
     const docTransform = new GenesisDocTransform(this.pgc.pgcRoot);
 
@@ -1458,33 +1689,43 @@ export class OverlayOrchestrator {
 
       while (attempt < maxRetries && !success) {
         try {
-          if (attempt > 0) {
-            console.log(
-              chalk.yellow(
-                `     ↻ Retry attempt ${attempt}/${maxRetries - 1} for ${docName}...`
-              )
-            );
-          } else {
-            console.log(chalk.cyan(`\n  🔒 Security Validation: ${docName}`));
-            console.log(
-              chalk.dim(`     └─ Model: Gemini via eGemma Workbench`)
-            );
-            console.log(chalk.dim(`     └─ Persona: security_validator`));
-            console.log(chalk.dim(`     └─ Analyzing for threat patterns...`));
+          if (!useJson) {
+            if (attempt > 0) {
+              console.log(
+                chalk.yellow(
+                  `     ↻ Retry attempt ${attempt}/${maxRetries - 1} for ${docName}...`
+                )
+              );
+            } else {
+              console.log(chalk.cyan(`\n  🔒 Security Validation: ${docName}`));
+              console.log(
+                chalk.dim(`     └─ Model: Gemini via eGemma Workbench`)
+              );
+              console.log(chalk.dim(`     └─ Persona: security_validator`));
+              console.log(
+                chalk.dim(`     └─ Analyzing for threat patterns...`)
+              );
+            }
           }
 
           await docTransform.execute(docPath); // Full security validation (includes embedding for drift detection)
-          console.log(
-            chalk.green(
-              `     ✓ SAFE - No threats detected, approved for ingestion\n`
-            )
-          );
+          if (!useJson) {
+            console.log(
+              chalk.green(
+                `     ✓ SAFE - No threats detected, approved for ingestion\n`
+              )
+            );
+          }
           ingestedCount++;
           success = true;
 
           // Wait 10s between documents to avoid Gemini rate limits (except after last doc)
           if (i < newPaths.length - 1) {
-            console.log(chalk.dim(`  ⏱  Waiting 10s to avoid rate limits...`));
+            if (!useJson) {
+              console.log(
+                chalk.dim(`  ⏱  Waiting 10s to avoid rate limits...`)
+              );
+            }
             await new Promise((resolve) => setTimeout(resolve, 10000));
           }
         } catch (error) {
@@ -1496,24 +1737,32 @@ export class OverlayOrchestrator {
             if (attempt < maxRetries) {
               // Exponential backoff: 15s, 30s, 60s
               const waitTime = 15000 * Math.pow(2, attempt - 1);
-              console.log(
-                chalk.yellow(
-                  `     ⚠ Rate limit hit, waiting ${waitTime / 1000}s before retry...`
-                )
-              );
+              if (!useJson) {
+                console.log(
+                  chalk.yellow(
+                    `     ⚠ Rate limit hit, waiting ${waitTime / 1000}s before retry...`
+                  )
+                );
+              }
               await new Promise((resolve) => setTimeout(resolve, waitTime));
             } else {
-              console.log(
-                chalk.red(`     ✗ FAILED - Max retries exceeded: ${errorMsg}\n`)
-              );
+              if (!useJson) {
+                console.log(
+                  chalk.red(
+                    `     ✗ FAILED - Max retries exceeded: ${errorMsg}\n`
+                  )
+                );
+              }
             }
           } else {
             // Non-rate-limit error, don't retry
-            console.log(
-              chalk.red(
-                `     ✗ FAILED - Security validation error: ${errorMsg}\n`
-              )
-            );
+            if (!useJson) {
+              console.log(
+                chalk.red(
+                  `     ✗ FAILED - Security validation error: ${errorMsg}\n`
+                )
+              );
+            }
             break;
           }
         }

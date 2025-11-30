@@ -116,6 +116,11 @@ import { EmbeddingService } from '../../core/services/embedding.js';
 import { OverlayRegistry } from '../../core/algebra/overlay-registry.js';
 import { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
 import { createRecallMcpServer } from '../../sigma/recall-tool.js';
+import { createBackgroundTasksMcpServer } from '../tools/background-tasks-tool.js';
+import {
+  getBackgroundTaskManager,
+  type BackgroundTaskManager,
+} from '../services/BackgroundTaskManager.js';
 import { injectRelevantContext } from '../../sigma/context-injector.js';
 import { useTokenCount } from './tokens/useTokenCount.js';
 import { useSessionManager } from './session/useSessionManager.js';
@@ -139,6 +144,32 @@ import {
   type Command,
 } from '../commands/loader.js';
 import type { McpSdkServerConfigWithInstance } from './sdk/types.js';
+
+/**
+ * Build MCP servers record for agent adapter
+ *
+ * Combines available MCP servers into a single record, filtering out
+ * unavailable servers based on conditions (e.g., recall only with history).
+ */
+function buildMcpServers(options: {
+  recallServer: McpSdkServerConfigWithInstance | null;
+  backgroundTasksServer: McpSdkServerConfigWithInstance | null;
+  hasConversationHistory: boolean;
+}): Record<string, McpSdkServerConfigWithInstance> | undefined {
+  const servers: Record<string, McpSdkServerConfigWithInstance> = {};
+
+  // Recall server: only enable when there's conversation history
+  if (options.recallServer && options.hasConversationHistory) {
+    servers['conversation-memory'] = options.recallServer;
+  }
+
+  // Background tasks server: always enable when available
+  if (options.backgroundTasksServer) {
+    servers['background-tasks'] = options.backgroundTasksServer;
+  }
+
+  return Object.keys(servers).length > 0 ? servers : undefined;
+}
 
 /**
  * Configuration options for Agent integration (Claude, Gemini, etc.)
@@ -394,6 +425,9 @@ export function useAgent(options: UseAgentOptions) {
   const recallMcpServerRef = useRef<McpSdkServerConfigWithInstance | null>(
     null
   );
+  const backgroundTasksMcpServerRef =
+    useRef<McpSdkServerConfigWithInstance | null>(null);
+  const backgroundTaskManagerRef = useRef<BackgroundTaskManager | null>(null);
   const messagesRef = useRef<TUIMessage[]>(messages); // Ref to avoid effect re-running on every message change
   const userMessageEmbeddingCache = useRef<Map<number, number[]>>(new Map()); // Cache user message embeddings by timestamp
   const latticeLoadedRef = useRef<Set<string>>(new Set()); // Track which sessions have been loaded
@@ -952,6 +986,18 @@ export function useAgent(options: UseAgentOptions) {
         claudeAgentSdkModule,
         endpoint
       );
+
+      // Initialize background task manager and MCP server
+      try {
+        backgroundTaskManagerRef.current = getBackgroundTaskManager(cwd);
+        backgroundTasksMcpServerRef.current = createBackgroundTasksMcpServer(
+          () => backgroundTaskManagerRef.current,
+          claudeAgentSdkModule
+        );
+      } catch {
+        // Task manager not needed if not running wizard - silent fail
+      }
+
       const pgcPath = path.join(cwd, '.open_cognition');
       if (fs.existsSync(pgcPath))
         projectRegistryRef.current = new OverlayRegistry(pgcPath, endpoint);
@@ -1535,15 +1581,13 @@ export function useAgent(options: UseAgentOptions) {
               updatedInput: input,
             };
           },
-          // Add recall MCP server for on-demand memory queries
-          // Only enable when there's conversation history (resuming or post-compression)
-          mcpServers:
-            recallMcpServerRef.current &&
-            (currentResumeId || turnAnalysis.analyses.length > 0)
-              ? {
-                  'conversation-memory': recallMcpServerRef.current,
-                }
-              : undefined,
+          // Add MCP servers for agent tools
+          mcpServers: buildMcpServers({
+            recallServer: recallMcpServerRef.current,
+            backgroundTasksServer: backgroundTasksMcpServerRef.current,
+            hasConversationHistory:
+              !!currentResumeId || turnAnalysis.analyses.length > 0,
+          }),
           debug: debugFlag,
         });
 

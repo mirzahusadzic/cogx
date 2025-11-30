@@ -793,6 +793,7 @@ You have access to tools for:
 - **edit_file**: Make targeted text replacements
 - **WebSearch**: Search the web for current information, news, facts, and real-time data using Google Search
 - **recall_past_conversation**: Search conversation history for past context (if available)
+- **get_background_tasks**: Query status of background operations (genesis, overlay generation) - check progress, see completed/failed tasks
 
 ## Working Directory
 ${request.cwd || process.cwd()}

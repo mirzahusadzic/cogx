@@ -3,7 +3,7 @@
  *
  * Formats tool calls for display in the TUI with intelligent, tool-specific formatting.
  * Provides special rendering for Edit (character-level diffs), TodoWrite (status icons),
- * Bash (command display), and memory tools.
+ * Bash (command display), memory tools, and background task management.
  *
  * DESIGN:
  * The Tool Formatter implements a strategy pattern where each tool type has custom
@@ -25,7 +25,12 @@
  *
  * 4. Memory Tools: Special brain icon (🧠) for recall operations
  *
- * 5. Default: Generic tool icon (🔧) with JSON input
+ * 5. Background Tasks: Clean, human-readable output (no JSON)
+ *    - KillShell: 🛑 Stop Shell - shell <id>
+ *    - BashOutput: 📋 Check Output - shell <id>
+ *    - Background Tasks: 📊 Background Tasks - checking status
+ *
+ * 6. Default: Generic tool icon (🔧) with JSON input
  *
  * ALGORITHM (formatToolUse):
  * 1. Initialize default icon (🔧)
@@ -237,6 +242,27 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
   } else if (tool.name === 'WebFetch' && tool.input.url) {
     toolIcon = '🌐';
     inputDesc = tool.input.url as string;
+  } else if (tool.name === 'KillShell') {
+    toolIcon = '🛑';
+    toolName = 'Stop Shell';
+    if (tool.input.shell_id) {
+      inputDesc = `shell ${tool.input.shell_id as string}`;
+    } else {
+      inputDesc = 'background task';
+    }
+  } else if (tool.name === 'BashOutput') {
+    toolIcon = '📋';
+    toolName = 'Check Output';
+    if (tool.input.bash_id) {
+      inputDesc = `shell ${tool.input.bash_id as string}`;
+    } else {
+      inputDesc = 'background task';
+    }
+  } else if (tool.name === 'mcp__background-tasks__get_background_tasks') {
+    toolIcon = '📊';
+    toolName = 'Background Tasks';
+    const filter = (tool.input.filter as string) || 'all';
+    inputDesc = filter === 'all' ? 'checking status' : `filter: ${filter}`;
   } else {
     inputDesc = JSON.stringify(tool.input);
   }
