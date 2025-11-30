@@ -32,6 +32,7 @@ import {
   StreamingMode,
 } from '@google/adk';
 import { getCognitionTools } from './gemini-adk-tools.js';
+import { fetchUrlTool } from './gemini-fetch-url-tool.js';
 import type {
   AgentProvider,
   AgentRequest,
@@ -138,8 +139,8 @@ export class GeminiAgentProvider implements AgentProvider {
       skipSummarization: false,
     });
 
-    // Combine file tools + web search tool (always enabled)
-    const tools = [...cognitionTools, webSearchTool];
+    // Combine file tools + web search tool + fetch URL tool (always enabled)
+    const tools = [...cognitionTools, webSearchTool, fetchUrlTool];
 
     // Create abort controller for cancellation support
     this.abortController = new AbortController();
@@ -792,6 +793,7 @@ You have access to tools for:
 - **bash**: Execute shell commands (git, npm, etc.)
 - **edit_file**: Make targeted text replacements
 - **WebSearch**: Search the web for current information, news, facts, and real-time data using Google Search
+- **fetch_url**: Fetch and read content from any URL (returns markdown-formatted text with basic HTML stripping)
 - **recall_past_conversation**: Search conversation history for past context (if available)
 - **get_background_tasks**: Query status of background operations (genesis, overlay generation) - check progress, see completed/failed tasks
 

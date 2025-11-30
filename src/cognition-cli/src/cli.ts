@@ -553,8 +553,7 @@ const tuiCmd = program
   )
   .option(
     '--session-tokens <number>',
-    'Token threshold for context compression',
-    '120000'
+    'Token threshold for context compression (default: 120000 for Claude, 950000 for Gemini)'
   )
   .option(
     '--max-thinking-tokens <number>',
@@ -606,7 +605,9 @@ const tuiCmd = program
       sessionId: options.sessionId,
       sessionFile: options.file,
       workbenchUrl: options.workbench,
-      sessionTokens: parseInt(options.sessionTokens),
+      sessionTokens: options.sessionTokens
+        ? parseInt(options.sessionTokens)
+        : undefined,
       maxThinkingTokens: options.maxThinkingTokens
         ? parseInt(options.maxThinkingTokens)
         : undefined,

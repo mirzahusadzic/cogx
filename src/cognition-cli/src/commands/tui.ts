@@ -348,13 +348,18 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     }
   }
 
+  // Set default sessionTokens based on provider
+  // Gemini has 2M token context (gemini-2.5-pro) / 1M (gemini-3-pro)
+  // Claude has 200K token context (Sonnet/Opus) - compress at 120K to leave buffer
+  const defaultSessionTokens = resolvedProvider === 'gemini' ? 950000 : 120000;
+
   // Launch TUI
   await startTUI({
     pgcRoot,
     projectRoot,
     sessionId,
     workbenchUrl,
-    sessionTokens: options.sessionTokens,
+    sessionTokens: options.sessionTokens ?? defaultSessionTokens,
     maxThinkingTokens: options.maxThinkingTokens ?? 32000, // Default: 32K tokens for extended thinking (matches Claude Code)
     debug: options.debug,
     provider: resolvedProvider,

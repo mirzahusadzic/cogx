@@ -197,6 +197,13 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
     } else {
       inputDesc = JSON.stringify(tool.input);
     }
+  } else if (tool.name === 'fetch_url') {
+    toolIcon = '🌐';
+    if (tool.input.url) {
+      inputDesc = `${tool.input.url as string}`;
+    } else {
+      inputDesc = JSON.stringify(tool.input);
+    }
   } else if (tool.input.command) {
     // For Bash, show the actual command (not the description)
     inputDesc = `${tool.input.command as string}`;
