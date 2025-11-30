@@ -144,10 +144,7 @@ const WizardConfirmationModalComponent: React.FC<
               }
 
               return (
-                <Text
-                  key={visibleIdx}
-                  color={isHighlighted ? 'green' : 'white'}
-                >
+                <Text key={item.id} color={isHighlighted ? 'green' : 'white'}>
                   {line}
                   {'\n'}
                 </Text>
@@ -217,11 +214,16 @@ export const WizardConfirmationModal = React.memo(
       return false; // Re-render
     }
 
-    // Deep check items for selection changes
+    // Deep check items for selection changes and identity
     if (prev.state.items && next.state.items) {
       for (let i = 0; i < prev.state.items.length; i++) {
-        if (prev.state.items[i].selected !== next.state.items[i].selected) {
-          return false; // Re-render if any selection changed
+        if (
+          prev.state.items[i].selected !== next.state.items[i].selected ||
+          prev.state.items[i].id !== next.state.items[i].id ||
+          prev.state.items[i].label !== next.state.items[i].label ||
+          prev.state.items[i].description !== next.state.items[i].description
+        ) {
+          return false; // Re-render if any item changed
         }
       }
     }

@@ -420,7 +420,10 @@ export class BackgroundTaskManager {
       task.message = 'Complete';
     } else if (task.status !== 'cancelled') {
       task.status = 'failed';
-      task.error = `Process exited with code ${code}`;
+      task.error =
+        code === null
+          ? 'Process terminated by signal'
+          : `Process exited with code ${code}`;
       task.message = task.error;
     }
 

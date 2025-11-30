@@ -338,7 +338,6 @@ export function useOnboardingWizard(
     sourceDirs = [],
     autoStart = false,
     debug = false,
-    onSendMessage,
   } = options;
 
   // Wizard state - initialize with detection results
@@ -543,11 +542,12 @@ export function useOnboardingWizard(
    * Prompt for next overlay (only from missing overlays list)
    */
   const promptNextOverlay = useCallback(
-    async (justCompleted: string | null) => {
+    async (justCompleted: string | null, additionalSkipped: string[] = []) => {
       // Filter missing overlays by what's already completed/skipped
       const processed = new Set([
         ...state.completedOverlays,
         ...state.skippedOverlays,
+        ...additionalSkipped, // Include overlays being skipped in this call chain
       ]);
 
       // Prioritize code-based overlays (O1, O3) before docs-based (O2, O4, O5, O6, O7)
@@ -701,7 +701,7 @@ export function useOnboardingWizard(
             skippedOverlays: [...s.skippedOverlays, nextOverlay],
           }));
           // Move to next overlay
-          promptNextOverlay(nextOverlay);
+          await promptNextOverlay(nextOverlay, [nextOverlay]);
           return;
         }
       }
@@ -735,7 +735,7 @@ export function useOnboardingWizard(
           currentOverlay: null,
         }));
         // Prompt for next
-        promptNextOverlay(nextOverlay);
+        await promptNextOverlay(nextOverlay, [nextOverlay]);
       } else {
         // Cancel - stop wizard
         setState((s) => ({ ...s, step: 'complete' }));
@@ -773,34 +773,37 @@ export function useOnboardingWizard(
     if (task.status === 'completed') {
       if (debug) console.log('[Wizard] Task completed:', task.id, task.type);
 
-      if (task.type === 'genesis') {
-        // Genesis done, prompt for first overlay
-        promptNextOverlay(null);
-      } else if (task.type === 'genesis-docs') {
-        // Doc ingestion done, mark docs as ingested and continue
-        setState((s) => ({
-          ...s,
-          ingestedDocs: s.strategicDocs,
-        }));
-        promptNextOverlay(null); // Continue to next overlay
-      } else if (task.type === 'overlay' && state.currentOverlay) {
-        // Overlay done, mark and prompt for next
-        const completedCode = state.currentOverlay; // Use overlay code (O1), not directory name
+      // Handle async flow in IIFE
+      (async () => {
+        if (task.type === 'genesis') {
+          // Genesis done, prompt for first overlay
+          await promptNextOverlay(null);
+        } else if (task.type === 'genesis-docs') {
+          // Doc ingestion done, mark docs as ingested and continue
+          setState((s) => ({
+            ...s,
+            ingestedDocs: s.strategicDocs,
+          }));
+          await promptNextOverlay(null); // Continue to next overlay
+        } else if (task.type === 'overlay' && state.currentOverlay) {
+          // Overlay done, mark and prompt for next
+          const completedCode = state.currentOverlay; // Use overlay code (O1), not directory name
 
-        // Refresh missing overlays list to detect newly completed overlay
-        const updatedMissing = detectMissingOverlays(
-          projectRoot,
-          taskManager.tasks
-        );
+          // Refresh missing overlays list to detect newly completed overlay
+          const updatedMissing = detectMissingOverlays(
+            projectRoot,
+            taskManager.tasks
+          );
 
-        setState((s) => ({
-          ...s,
-          completedOverlays: [...s.completedOverlays, completedCode],
-          missingOverlays: updatedMissing,
-          currentOverlay: null,
-        }));
-        promptNextOverlay(completedCode);
-      }
+          setState((s) => ({
+            ...s,
+            completedOverlays: [...s.completedOverlays, completedCode],
+            missingOverlays: updatedMissing,
+            currentOverlay: null,
+          }));
+          await promptNextOverlay(completedCode);
+        }
+      })();
     } else if (task.status === 'failed') {
       if (debug) console.log('[Wizard] Task failed:', task.id, task.error);
       setState((s) => ({
@@ -809,7 +812,7 @@ export function useOnboardingWizard(
         error: task.error || 'Task failed',
       }));
     }
-  }, [taskManager.tasks, promptNextOverlay, debug, projectRoot]);
+  }, [taskManager.tasks, promptNextOverlay, debug, projectRoot, state.currentOverlay]);
 
   /**
    * Detect available source directories using proper auto-detection
@@ -959,7 +962,7 @@ export function useOnboardingWizard(
           console.log('[Wizard] Missing overlays:', missingOverlays);
         }
         // Start with first missing overlay
-        promptNextOverlay(null);
+        await promptNextOverlay(null);
       } else {
         // Nothing to do!
         setState((s) => ({ ...s, step: 'complete' }));
@@ -973,7 +976,6 @@ export function useOnboardingWizard(
       runGenesis,
       promptNextOverlay,
       debug,
-      onSendMessage,
     ]
   );
 
