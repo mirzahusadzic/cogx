@@ -298,13 +298,18 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     sessionId = basename;
   }
 
+  // Resolve provider and model defaults
+  const { loadLLMConfig } = await import('../llm/llm-config.js');
+  const llmConfig = loadLLMConfig();
+  const resolvedProvider = options.provider || llmConfig.defaultProvider;
+  const resolvedModel =
+    options.model ||
+    llmConfig.providers[resolvedProvider as 'claude' | 'gemini']?.defaultModel;
+
   // Optional: Resume existing session or start fresh
   if (!sessionId) {
-    // Get provider name for the tip message
-    const { loadLLMConfig } = await import('../llm/llm-config.js');
-    const providerName = options.provider || loadLLMConfig().defaultProvider;
     const providerDisplayName =
-      providerName.charAt(0).toUpperCase() + providerName.slice(1);
+      resolvedProvider.charAt(0).toUpperCase() + resolvedProvider.slice(1);
 
     console.log(
       `\n💡 Tip: Starting fresh ${providerDisplayName} session. To resume, use:\n` +
@@ -352,8 +357,8 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     sessionTokens: options.sessionTokens,
     maxThinkingTokens: options.maxThinkingTokens ?? 32000, // Default: 32K tokens for extended thinking (matches Claude Code)
     debug: options.debug,
-    provider: options.provider,
-    model: options.model,
+    provider: resolvedProvider,
+    model: resolvedModel,
     displayThinking: options.displayThinking ?? true,
     onboardingMode, // NEW: Pass onboarding mode to TUI
   });

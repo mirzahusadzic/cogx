@@ -19,6 +19,9 @@ export interface StatusBarProps {
 
   /** AI provider name (claude, gemini, gemini-agent) */
   providerName?: string;
+
+  /** Model ID for display (e.g., claude-opus-4-5-20251101) */
+  modelId?: string;
 }
 
 // Provider color/emoji mapping
@@ -26,6 +29,18 @@ const PROVIDER_STYLES: Record<string, { color: string; emoji: string }> = {
   claude: { color: '#d4a574', emoji: '🟠' },
   gemini: { color: '#4285f4', emoji: '🔵' },
   'gemini-agent': { color: '#4285f4', emoji: '🤖' },
+};
+
+// Model ID to display name mapping
+const MODEL_DISPLAY_NAMES: Record<string, string> = {
+  // Claude models
+  'claude-opus-4-5-20251101': 'Opus 4.5',
+  'claude-sonnet-4-5-20250929': 'Sonnet 4.5',
+  'claude-sonnet-4-20250514': 'Sonnet 4',
+  // Gemini models
+  'gemini-2.5-flash': 'Gemini 2.5f',
+  'gemini-2.5-pro': 'Gemini 2.5p',
+  'gemini-3-pro-preview': 'Gemini 3p',
 };
 
 /**
@@ -72,6 +87,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   tokenCount,
   compressionThreshold = 120000,
   providerName = 'claude',
+  modelId,
 }) => {
   // Format token count with K suffix for readability
   const formatTokens = (count: number) => {
@@ -94,9 +110,11 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 
   // Build status bar as single string to avoid wrapping issues
   const buildStatusText = () => {
-    // Provider indicator at start (capitalize first letter)
-    const displayName =
-      providerName.charAt(0).toUpperCase() + providerName.slice(1);
+    // Model/provider indicator at start
+    // Use model display name if available, otherwise capitalize provider name
+    const displayName = modelId
+      ? MODEL_DISPLAY_NAMES[modelId] || modelId
+      : providerName.charAt(0).toUpperCase() + providerName.slice(1);
     let text = `${providerStyle.emoji} ${displayName}`;
 
     text += ' | [Tab] Toggle Focus';

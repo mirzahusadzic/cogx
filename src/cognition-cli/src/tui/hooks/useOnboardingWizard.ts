@@ -812,7 +812,13 @@ export function useOnboardingWizard(
         error: task.error || 'Task failed',
       }));
     }
-  }, [taskManager.tasks, promptNextOverlay, debug, projectRoot, state.currentOverlay]);
+  }, [
+    taskManager.tasks,
+    promptNextOverlay,
+    debug,
+    projectRoot,
+    state.currentOverlay,
+  ]);
 
   /**
    * Detect available source directories using proper auto-detection
