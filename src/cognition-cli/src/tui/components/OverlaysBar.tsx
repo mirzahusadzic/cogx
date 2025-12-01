@@ -185,21 +185,12 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
 
 /**
  * Task status display component
- * Shows: ● Regenerating O3... 67%
+ * Shows: ● structural_patterns Overlay Embedding 31/131
  */
 const TaskStatusDisplay: React.FC<{ task: BackgroundTask }> = ({ task }) => {
   const { symbol, color } = getStatusIndicator(task);
   const label = getTaskLabel(task);
-  const progress =
-    task.progress !== undefined ? `${Math.round(task.progress)}%` : '';
   const message = task.message || '';
-
-  // Truncate message if too long
-  const maxMsgLen = 30;
-  const displayMsg =
-    message.length > maxMsgLen
-      ? message.substring(0, maxMsgLen - 3) + '...'
-      : message;
 
   return (
     <Box flexDirection="row" gap={1}>
@@ -207,12 +198,7 @@ const TaskStatusDisplay: React.FC<{ task: BackgroundTask }> = ({ task }) => {
       <Text color={color} bold>
         {label}
       </Text>
-      {displayMsg && <Text color="#8b949e">{displayMsg}</Text>}
-      {progress && (
-        <Text color="#56d364" bold>
-          {progress}
-        </Text>
-      )}
+      {message && <Text color="#8b949e">{message}</Text>}
     </Box>
   );
 };
