@@ -1,10 +1,10 @@
 # Feature Specification: Multi-Agent Collaborative System with Interactive Background Tasks
 
-**Version:** 2.0.2
+**Version:** 2.0.3
 **Date:** 2025-12-02
 **Status:** Proposal (Major Architectural Revision)
-**Author:** Claude Sonnet 4.5 (based on user requirements), revised by Claude Opus 4.5
-**Previous Version:** 2.0.1 (Federated approach)
+**Author:** Claude Sonnet 4.5 (based on user requirements), revised by Claude Opus 4.5, technical refinements by Gemini
+**Previous Version:** 2.0.2 (User-controlled subscriptions)
 **Breaking Change:** Shifts from headless-first to **federated multi-agent system** as Phase 1 goal (using existing terminal tabs, NOT internal tab UI)
 
 ---
@@ -304,6 +304,152 @@ export class ZeroMQBus {
 }
 
 type MessageHandler = (message: any) => void;
+```
+
+#### 3.1.1 Bus Coordination (Race Condition Prevention)
+
+**Problem:** Two TUIs start simultaneously, both check if socket exists, both see it missing, both try to bind.
+
+**Solution:** Use `proper-lockfile` (already in `package.json`) to coordinate binding.
+
+```typescript
+// src/ipc/BusCoordinator.ts
+import * as lockfile from 'proper-lockfile';
+import * as os from 'os';
+import * as path from 'path';
+import { ZeroMQBus } from './ZeroMQBus';
+
+export class BusCoordinator {
+  private lockPath: string;
+  private socketPath: string;
+  private bus: ZeroMQBus | null = null;
+  private isBusMaster: boolean = false;
+
+  constructor() {
+    const cogniDir = path.join(os.homedir(), '.cognition');
+    this.lockPath = path.join(cogniDir, 'bus.lock');
+    this.socketPath = this.getSocketPath();
+  }
+
+  /**
+   * Coordinate bus access:
+   * 1. Acquire lock
+   * 2. Check if Bus Master is alive (ping socket)
+   * 3. If not alive → Bind (become Bus Master)
+   * 4. If alive → Connect (become peer)
+   * 5. Release lock
+   */
+  async connect(): Promise<ZeroMQBus> {
+    // Ensure lock file exists
+    await fs.ensureFile(this.lockPath);
+
+    // Acquire lock (blocks if another TUI is coordinating)
+    const release = await lockfile.lock(this.lockPath, {
+      retries: { retries: 5, minTimeout: 100, maxTimeout: 1000 }
+    });
+
+    try {
+      const masterAlive = await this.pingBusMaster();
+
+      if (!masterAlive) {
+        // Become Bus Master
+        this.bus = new ZeroMQBus({ address: this.socketPath });
+        await this.bus.bind();
+        this.isBusMaster = true;
+        console.log('🚌 Bus Master: Bound to', this.socketPath);
+      } else {
+        // Connect as peer
+        this.bus = new ZeroMQBus({ address: this.socketPath });
+        await this.bus.connect();
+        this.isBusMaster = false;
+        console.log('🔌 Peer: Connected to', this.socketPath);
+      }
+
+      return this.bus;
+    } finally {
+      await release();
+    }
+  }
+
+  private async pingBusMaster(): Promise<boolean> {
+    // Try to connect and send a ping
+    // If no response within 100ms, assume dead
+    try {
+      const testSocket = new zmq.Request();
+      testSocket.connect(this.socketPath);
+      testSocket.sendTimeout = 100;
+      testSocket.receiveTimeout = 100;
+      await testSocket.send('ping');
+      const response = await testSocket.receive();
+      testSocket.close();
+      return response.toString() === 'pong';
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Cross-platform socket path
+   */
+  private getSocketPath(): string {
+    if (process.platform === 'win32') {
+      // Windows named pipe
+      return 'ipc:////./pipe/cognition-bus';
+    } else {
+      // Unix/Mac IPC socket
+      return `ipc://${path.join(os.tmpdir(), 'cognition-bus.sock')}`;
+    }
+  }
+
+  /**
+   * Fallback to TCP if IPC fails
+   */
+  async connectWithFallback(): Promise<ZeroMQBus> {
+    try {
+      return await this.connect();
+    } catch (err) {
+      console.warn('⚠️ IPC socket failed, falling back to TCP');
+      // Fallback to TCP on localhost
+      this.socketPath = 'tcp://127.0.0.1:5555';
+      return await this.connect();
+    }
+  }
+}
+```
+
+#### 3.1.2 Cross-Platform IPC Path
+
+| Platform | Socket Path |
+|----------|-------------|
+| **macOS/Linux** | `ipc:///tmp/cognition-bus.sock` |
+| **Windows** | `ipc:////./pipe/cognition-bus` |
+| **Fallback (all)** | `tcp://127.0.0.1:5555` |
+
+#### 3.1.3 ZeroMQ Fallback Strategy
+
+**Risk:** Native ZeroMQ bindings can be brittle (requires node-gyp, python, etc.).
+
+**Mitigation:**
+
+1. Use `zeromq` v6+ which has prebuilt binaries for most platforms
+2. If native bindings fail to load, gracefully degrade:
+   - Warn user: "ZeroMQ unavailable, running in single-agent mode"
+   - Disable pub/sub features
+   - TUI still works, just no inter-agent communication
+
+```typescript
+// src/ipc/index.ts
+let ZeroMQBus: typeof import('./ZeroMQBus').ZeroMQBus | null = null;
+
+try {
+  ZeroMQBus = require('./ZeroMQBus').ZeroMQBus;
+} catch (err) {
+  console.warn('⚠️ ZeroMQ not available. Multi-agent features disabled.');
+  console.warn('   Install with: npm rebuild zeromq');
+}
+
+export { ZeroMQBus };
+export const isMultiAgentAvailable = ZeroMQBus !== null;
 ```
 
 ### 3.2 Event Protocol (Topics & Messages)
@@ -1790,6 +1936,29 @@ describe('Tab UI', () => {
 ---
 
 ## 14. Version History
+
+### Version 2.0.3 (2025-12-02)
+
+**Added: Gemini's Technical Refinements**
+
+**New Subsections in 3.1:**
+
+1. **Section 3.1.1:** Bus Coordination (Race Condition Prevention)
+   - Uses `proper-lockfile` (already in deps) to prevent race conditions
+   - Protocol: Lock → Ping → Bind/Connect → Release
+   - `BusCoordinator` class handles coordination
+
+2. **Section 3.1.2:** Cross-Platform IPC Path
+   - macOS/Linux: `ipc:///tmp/cognition-bus.sock`
+   - Windows: `ipc:////./pipe/cognition-bus`
+   - Fallback (all): `tcp://127.0.0.1:5555`
+
+3. **Section 3.1.3:** ZeroMQ Fallback Strategy
+   - Graceful degradation if native bindings fail
+   - TUI works in single-agent mode without pub/sub
+   - Clear warning message to user
+
+**Credit:** Technical refinements contributed by Gemini (Cognition Agent) in review.
 
 ### Version 2.0.2 (2025-12-02)
 
