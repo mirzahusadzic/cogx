@@ -548,6 +548,7 @@ export function useOnboardingWizard(
         ...state.completedOverlays,
         ...state.skippedOverlays,
         ...additionalSkipped, // Include overlays being skipped in this call chain
+        ...(justCompleted ? [justCompleted] : []), // Include just-completed overlay (async state update might not have completed)
       ]);
 
       // Prioritize code-based overlays (O1, O3) before docs-based (O2, O4, O5, O6, O7)

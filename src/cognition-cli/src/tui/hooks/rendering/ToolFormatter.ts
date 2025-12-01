@@ -265,7 +265,10 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
     } else {
       inputDesc = 'background task';
     }
-  } else if (tool.name === 'mcp__background-tasks__get_background_tasks') {
+  } else if (
+    tool.name === 'mcp__background-tasks__get_background_tasks' ||
+    tool.name === 'get_background_tasks'
+  ) {
     toolIcon = '📊';
     toolName = 'Background Tasks';
     const filter = (tool.input.filter as string) || 'all';
