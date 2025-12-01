@@ -75,6 +75,9 @@ export interface AgentRequest {
     input: unknown
   ) => Promise<{ behavior: 'allow' | 'deny'; updatedInput?: unknown }>;
 
+  /** Background task manager getter (for get_background_tasks tool) */
+  getTaskManager?: () => unknown; // BackgroundTaskManager - avoid circular dependency
+
   /** Error callback */
   onStderr?: (error: string) => void;
 

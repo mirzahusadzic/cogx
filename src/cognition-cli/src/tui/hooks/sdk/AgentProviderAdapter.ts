@@ -77,6 +77,9 @@ export interface AgentAdapterOptions {
     input: unknown
   ) => Promise<{ behavior: 'allow' | 'deny'; updatedInput?: unknown }>;
 
+  /** Background task manager getter (for get_background_tasks tool) */
+  getTaskManager?: () => unknown;
+
   /** Debug mode */
   debug?: boolean;
 }
@@ -130,6 +133,7 @@ export class AgentProviderAdapter {
       mcpServers: this.options.mcpServers,
       conversationRegistry: this.options.conversationRegistry,
       workbenchUrl: this.options.workbenchUrl,
+      getTaskManager: this.options.getTaskManager,
       onStderr: this.options.onStderr,
       onCanUseTool: this.options.onCanUseTool,
       systemPrompt: {

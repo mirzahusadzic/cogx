@@ -231,6 +231,12 @@ export interface UseAgentOptions {
     toolName: string,
     input: unknown
   ) => Promise<'allow' | 'deny'>;
+
+  /**
+   * Background task manager getter (for get_background_tasks tool)
+   * Optional - if provided, enables the get_background_tasks tool
+   */
+  getTaskManager?: () => unknown;
 }
 
 /**
@@ -339,6 +345,7 @@ export function useAgent(options: UseAgentOptions) {
     provider: providerName = 'claude',
     model: modelName,
     onRequestToolConfirmation,
+    getTaskManager,
   } = options;
 
   // ========================================
@@ -1562,6 +1569,7 @@ export function useAgent(options: UseAgentOptions) {
           displayThinking, // Control thinking block generation
           conversationRegistry: conversationRegistryRef.current || undefined,
           workbenchUrl: process.env.WORKBENCH_URL || 'http://localhost:8000',
+          getTaskManager, // Pass task manager getter for background tasks tool
           onStderr: (data: string) => {
             stderrLines.push(data);
           },

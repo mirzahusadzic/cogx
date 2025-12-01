@@ -13,6 +13,7 @@ import { glob } from 'glob';
 import type { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
 import { queryConversationLattice } from '../../sigma/query-conversation.js';
 import { WorkbenchClient } from '../../core/executors/workbench-client.js';
+import type { BackgroundTaskManager } from '../../tui/services/BackgroundTaskManager.js';
 import {
   PERSONA_TOOL_OUTPUT_SUMMARIZER,
   DEFAULT_SUMMARIZER_MODEL_NAME,
@@ -428,6 +429,137 @@ function wrapToolWithPermission<T extends z.ZodRawShape>(
 }
 
 /**
+ * Create background tasks tool for Gemini
+ *
+ * Allows Gemini to query status of background operations (genesis, overlay generation).
+ * Mirrors the functionality of the Claude MCP tool but as an ADK FunctionTool.
+ */
+function createBackgroundTasksTool(
+  getTaskManager: () => BackgroundTaskManager | null
+): FunctionTool {
+  return new FunctionTool({
+    name: 'get_background_tasks',
+    description:
+      'Query status of background operations (genesis, overlay generation). Use this to check if work is in progress, view progress percentage, or see completed/failed tasks.',
+    parameters: z.object({
+      filter: z
+        .enum(['all', 'active', 'completed', 'failed'])
+        .default('all')
+        .describe(
+          'Filter tasks by status: "all" for everything, "active" for running/pending, "completed" for finished, "failed" for errors'
+        ),
+    }),
+    execute: async ({ filter }) => {
+      try {
+        const taskManager = getTaskManager();
+
+        if (!taskManager) {
+          return 'Background task manager not initialized. No background operations are running.';
+        }
+
+        const allTasks = taskManager.getAllTasks();
+
+        // Filter tasks based on requested filter
+        let filteredTasks;
+        switch (filter) {
+          case 'active':
+            filteredTasks = allTasks.filter(
+              (t) => t.status === 'running' || t.status === 'pending'
+            );
+            break;
+          case 'completed':
+            filteredTasks = allTasks.filter((t) => t.status === 'completed');
+            break;
+          case 'failed':
+            filteredTasks = allTasks.filter(
+              (t) => t.status === 'failed' || t.status === 'cancelled'
+            );
+            break;
+          default:
+            filteredTasks = allTasks;
+        }
+
+        const summary = taskManager.getSummary();
+        const activeTask = taskManager.getActiveTask();
+
+        // Format response for Gemini
+        let text = '';
+
+        if (activeTask) {
+          const progress =
+            activeTask.progress !== undefined
+              ? ` (${Math.round(activeTask.progress)}%)`
+              : '';
+          text += `**Active Task**: ${formatTaskType(activeTask)}${progress}\n`;
+          if (activeTask.message) {
+            text += `  Status: ${activeTask.message}\n`;
+          }
+          text += '\n';
+        } else {
+          text += '**No active tasks** - all background operations idle.\n\n';
+        }
+
+        text += `**Summary**: ${summary.total} total tasks\n`;
+        text += `  - Active: ${summary.active}\n`;
+        text += `  - Completed: ${summary.completed}\n`;
+        text += `  - Failed: ${summary.failed}\n`;
+        text += `  - Cancelled: ${summary.cancelled}\n\n`;
+
+        if (filteredTasks.length > 0 && filter !== 'all') {
+          text += `**${filter.charAt(0).toUpperCase() + filter.slice(1)} Tasks** (${filteredTasks.length}):\n`;
+          for (const task of filteredTasks) {
+            const progress =
+              task.progress !== undefined
+                ? ` ${Math.round(task.progress)}%`
+                : '';
+            const duration = task.completedAt
+              ? ` (${formatDuration(task.startedAt, task.completedAt)})`
+              : '';
+            text += `  - ${formatTaskType(task)}:${progress}${duration}\n`;
+            if (task.error) {
+              text += `    Error: ${task.error}\n`;
+            }
+          }
+        }
+
+        return text;
+      } catch (err) {
+        return `Failed to get background tasks: ${(err as Error).message}`;
+      }
+    },
+  });
+}
+
+/**
+ * Format task type for display (shared with background-tasks-tool.ts)
+ */
+function formatTaskType(task: { type: string; overlay?: string }): string {
+  switch (task.type) {
+    case 'genesis':
+      return 'Genesis (code analysis)';
+    case 'genesis-docs':
+      return 'Document Ingestion';
+    case 'overlay':
+      return task.overlay
+        ? `${task.overlay} Overlay Generation`
+        : 'Overlay Generation';
+    default:
+      return 'Background Task';
+  }
+}
+
+/**
+ * Format duration between two dates (shared with background-tasks-tool.ts)
+ */
+function formatDuration(start: Date, end: Date): string {
+  const ms = end.getTime() - start.getTime();
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+  if (ms < 3600000) return `${(ms / 60000).toFixed(1)}m`;
+  return `${(ms / 3600000).toFixed(1)}h`;
+}
+
+/**
  * Get all ADK tools for Cognition
  *
  * Tool safety/confirmation is handled via onCanUseTool callback (matching Claude's behavior).
@@ -436,11 +568,13 @@ function wrapToolWithPermission<T extends z.ZodRawShape>(
  * @param conversationRegistry - Optional conversation registry for recall tool
  * @param workbenchUrl - Optional workbench URL for recall tool
  * @param onCanUseTool - Optional permission callback (from AgentRequest)
+ * @param getTaskManager - Optional getter for BackgroundTaskManager (for background tasks tool)
  */
 export function getCognitionTools(
   conversationRegistry?: ConversationOverlayRegistry,
   workbenchUrl?: string,
-  onCanUseTool?: OnCanUseTool
+  onCanUseTool?: OnCanUseTool,
+  getTaskManager?: () => BackgroundTaskManager | null
 ) {
   // Create write_file tool with permission check
   const safeWriteFile = wrapToolWithPermission(
@@ -541,11 +675,20 @@ export function getCognitionTools(
     safeEditFile,
   ];
 
+  // Build final tool list with optional tools
+  const tools = [...baseTools];
+
   // Add recall tool if conversation registry is available
   if (conversationRegistry) {
     const recallTool = createRecallTool(conversationRegistry, workbenchUrl);
-    return [...baseTools, recallTool];
+    tools.push(recallTool);
   }
 
-  return baseTools;
+  // Add background tasks tool if task manager is available
+  if (getTaskManager) {
+    const backgroundTasksTool = createBackgroundTasksTool(getTaskManager);
+    tools.push(backgroundTasksTool);
+  }
+
+  return tools;
 }

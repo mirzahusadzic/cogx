@@ -115,10 +115,16 @@ export class GeminiAgentProvider implements AgentProvider {
     const conversationRegistry = request.conversationRegistry as
       | import('../../sigma/conversation-registry.js').ConversationOverlayRegistry
       | undefined;
+    const taskManager = request.getTaskManager as
+      | (() =>
+          | import('../../tui/services/BackgroundTaskManager.js').BackgroundTaskManager
+          | null)
+      | undefined;
     const cognitionTools = getCognitionTools(
       conversationRegistry,
       request.workbenchUrl,
-      request.onCanUseTool // Pass permission callback for tool confirmations
+      request.onCanUseTool, // Pass permission callback for tool confirmations
+      taskManager // Pass task manager getter for background tasks tool
     );
 
     // Create a specialized web search agent

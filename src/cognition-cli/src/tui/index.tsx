@@ -104,6 +104,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     provider, // Pass LLM provider
     model, // Pass model name
     onRequestToolConfirmation: requestConfirmation, // Guardrail callback
+    getTaskManager: () => taskManager, // Pass task manager for background tasks tool
   });
 
   // Wrap sendMessage to clear streaming paste on regular messages
