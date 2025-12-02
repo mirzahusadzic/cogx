@@ -27,6 +27,7 @@ import type { TUIMessage } from './hooks/useAgent.js';
 import { MessageQueueMonitor } from '../ipc/MessageQueueMonitor.js';
 import { MessageQueue } from '../ipc/MessageQueue.js';
 import { ZeroMQBus } from '../ipc/ZeroMQBus.js';
+import { MessagePublisher } from '../ipc/MessagePublisher.js';
 
 // Custom theme with vivid AIEcho cyan spinner
 const customTheme = extendTheme(defaultTheme, {
@@ -81,6 +82,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   const [monitorError, setMonitorError] = useState<string | null>(null);
   const messageQueueMonitorRef = useRef<MessageQueueMonitor | null>(null);
   const messageQueueRef = useRef<MessageQueue | null>(null);
+  const messagePublisherRef = useRef<MessagePublisher | null>(null);
 
   // Tool confirmation hook (guardrails) - must be before chatAreaHeight useMemo
   const { confirmationState, requestConfirmation, allow, deny, alwaysAllow } =
@@ -344,6 +346,10 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
 
         // Store monitor instance for cleanup
         messageQueueMonitorRef.current = monitor;
+
+        // Create MessagePublisher for sending messages to other agents
+        const publisher = new MessagePublisher(bus, agentId);
+        messagePublisherRef.current = publisher;
 
         // Create MessageQueue instance for event-driven updates
         const messageQueue = new MessageQueue(agentId, sigmaDir);
