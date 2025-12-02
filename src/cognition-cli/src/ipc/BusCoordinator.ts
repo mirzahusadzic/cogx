@@ -17,7 +17,7 @@ import * as fs from 'fs-extra';
 import * as os from 'os';
 import * as path from 'path';
 import * as zmq from 'zeromq';
-import { ZeroMQBus, ZeroMQBusConfig } from './ZeroMQBus.js';
+import { ZeroMQBus } from './ZeroMQBus.js';
 
 export class BusCoordinator {
   private lockPath: string;
@@ -40,7 +40,7 @@ export class BusCoordinator {
     await fs.ensureDir(path.dirname(this.lockPath));
 
     // Ensure lock file exists
-    if (!await fs.pathExists(this.lockPath)) {
+    if (!(await fs.pathExists(this.lockPath))) {
       await fs.writeFile(this.lockPath, '');
     }
 
@@ -141,7 +141,10 @@ export class BusCoordinator {
       return await this.connect();
     } catch (err) {
       console.warn('⚠️  IPC socket failed, falling back to TCP');
-      console.warn('   Error:', err instanceof Error ? err.message : String(err));
+      console.warn(
+        '   Error:',
+        err instanceof Error ? err.message : String(err)
+      );
 
       // Fallback to TCP on localhost
       this.socketPath = 'tcp://127.0.0.1:5555';
@@ -182,7 +185,7 @@ export class BusCoordinator {
         await fs.remove(subSocketFile);
 
         console.log('🧹 Cleaned up socket files');
-      } catch (err) {
+      } catch {
         // Ignore cleanup errors
       }
     }

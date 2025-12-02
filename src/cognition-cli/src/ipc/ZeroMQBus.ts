@@ -9,8 +9,8 @@ import * as zmq from 'zeromq';
 import { AgentMessage } from './AgentMessage.js';
 
 export interface ZeroMQBusConfig {
-  address: string;              // e.g., 'ipc:///tmp/cognition-bus.sock' or 'tcp://127.0.0.1:5555'
-  mode?: 'bind' | 'connect';    // 'bind' = Bus Master, 'connect' = Peer
+  address: string; // e.g., 'ipc:///tmp/cognition-bus.sock' or 'tcp://127.0.0.1:5555'
+  mode?: 'bind' | 'connect'; // 'bind' = Bus Master, 'connect' = Peer
 }
 
 export type MessageHandler = (message: AgentMessage) => void;
@@ -84,7 +84,7 @@ export class ZeroMQBus {
     const payload = JSON.stringify(message);
 
     // ZeroMQ pub/sub uses multipart messages: [topic, payload]
-    this.pubSocket.send([topic, payload]).catch(err => {
+    this.pubSocket.send([topic, payload]).catch((err) => {
       console.error('Failed to publish message:', err);
     });
   }
@@ -249,7 +249,10 @@ export class ZeroMQBus {
       address: this.config.address,
       subscribedTopics: Array.from(this.handlers.keys()),
       handlerCounts: Object.fromEntries(
-        Array.from(this.handlers.entries()).map(([topic, handlers]) => [topic, handlers.size])
+        Array.from(this.handlers.entries()).map(([topic, handlers]) => [
+          topic,
+          handlers.size,
+        ])
       ),
     };
   }

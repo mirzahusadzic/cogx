@@ -6,12 +6,12 @@
  */
 
 // Base message structure
-export interface AgentMessage<T = any> {
-  id: string;           // Unique message ID (uuid)
-  from: string;         // Agent ID (e.g., 'gemini-1', 'claude-1')
-  timestamp: number;    // Unix timestamp (milliseconds)
-  topic: string;        // Event topic (e.g., 'code.completed')
-  payload: T;           // Topic-specific payload
+export interface AgentMessage<T = unknown> {
+  id: string; // Unique message ID (uuid)
+  from: string; // Agent ID (e.g., 'gemini-1', 'claude-1')
+  timestamp: number; // Unix timestamp (milliseconds)
+  topic: string; // Event topic (e.g., 'code.completed')
+  payload: T; // Topic-specific payload
 }
 
 // ============================================================================
@@ -19,17 +19,17 @@ export interface AgentMessage<T = any> {
 // ============================================================================
 
 export interface CodeCompletedPayload {
-  files: string[];              // Modified files
-  summary: string;              // What was implemented
-  requestReview: boolean;       // Should Opus review?
-  branch?: string;              // Git branch (if applicable)
+  files: string[]; // Modified files
+  summary: string; // What was implemented
+  requestReview: boolean; // Should Opus review?
+  branch?: string; // Git branch (if applicable)
 }
 
 export type CodeCompletedMessage = AgentMessage<CodeCompletedPayload>;
 
 export interface ReviewRequestedPayload {
-  files: string[];              // Files to review
-  context: string;              // What to look for
+  files: string[]; // Files to review
+  context: string; // What to look for
   priority: 'low' | 'normal' | 'high';
 }
 
@@ -58,7 +58,7 @@ export type ReviewCompletedMessage = AgentMessage<ReviewCompletedPayload>;
 export interface ArchProposalPayload {
   title: string;
   description: string;
-  diagrams?: string[];          // ASCII diagrams or mermaid
+  diagrams?: string[]; // ASCII diagrams or mermaid
   tradeoffs: string;
   recommendation: string;
 }
@@ -70,7 +70,7 @@ export type ArchProposalMessage = AgentMessage<ArchProposalPayload>;
 // ============================================================================
 
 export interface AgentQuestionPayload {
-  to: string;                   // Target agent ID
+  to: string; // Target agent ID
   question: string;
   context?: string;
 }
@@ -78,7 +78,7 @@ export interface AgentQuestionPayload {
 export type AgentQuestionMessage = AgentMessage<AgentQuestionPayload>;
 
 export interface AgentAnswerPayload {
-  questionId: string;           // Original question message ID
+  questionId: string; // Original question message ID
   answer: string;
 }
 
@@ -90,7 +90,7 @@ export type AgentAnswerMessage = AgentMessage<AgentAnswerPayload>;
 
 export interface TaskStartedPayload {
   taskId: string;
-  command: string;              // e.g., '/onboard-project'
+  command: string; // e.g., '/onboard-project'
   args?: string[];
 }
 
@@ -98,7 +98,7 @@ export type TaskStartedMessage = AgentMessage<TaskStartedPayload>;
 
 export interface TaskProgressPayload {
   taskId: string;
-  progress: number;             // 0-100
+  progress: number; // 0-100
   message: string;
 }
 
@@ -107,7 +107,7 @@ export type TaskProgressMessage = AgentMessage<TaskProgressPayload>;
 export interface TaskCompletedPayload {
   taskId: string;
   command: string;
-  result: any;                  // Command-specific result
+  result: unknown; // Command-specific result
   durationMs: number;
 }
 
@@ -128,9 +128,9 @@ export type TaskFailedMessage = AgentMessage<TaskFailedPayload>;
 
 export interface AgentRegisteredPayload {
   agentId: string;
-  model: string;                // 'gemini', 'claude', 'opus'
+  model: string; // 'gemini', 'claude', 'opus'
   type: 'interactive' | 'background';
-  capabilities: string[];       // ['code_review', 'architecture_design']
+  capabilities: string[]; // ['code_review', 'architecture_design']
 }
 
 export type AgentRegisteredMessage = AgentMessage<AgentRegisteredPayload>;
@@ -156,7 +156,7 @@ export interface UserInputRequestedPayload {
   requestId: string;
   prompt: string;
   type: 'text' | 'confirm' | 'select';
-  options?: string[];           // For 'select' type
+  options?: string[]; // For 'select' type
 }
 
 export type UserInputRequestedMessage = AgentMessage<UserInputRequestedPayload>;
@@ -222,35 +222,59 @@ export class MessageFactory {
   }
 
   // Convenience methods for common message types
-  static codeCompleted(from: string, payload: CodeCompletedPayload): CodeCompletedMessage {
+  static codeCompleted(
+    from: string,
+    payload: CodeCompletedPayload
+  ): CodeCompletedMessage {
     return this.create(from, Topics.CODE_COMPLETED, payload);
   }
 
-  static reviewRequested(from: string, payload: ReviewRequestedPayload): ReviewRequestedMessage {
+  static reviewRequested(
+    from: string,
+    payload: ReviewRequestedPayload
+  ): ReviewRequestedMessage {
     return this.create(from, Topics.CODE_REVIEW_REQUESTED, payload);
   }
 
-  static reviewCompleted(from: string, payload: ReviewCompletedPayload): ReviewCompletedMessage {
+  static reviewCompleted(
+    from: string,
+    payload: ReviewCompletedPayload
+  ): ReviewCompletedMessage {
     return this.create(from, Topics.CODE_REVIEW_COMPLETED, payload);
   }
 
-  static archProposal(from: string, payload: ArchProposalPayload): ArchProposalMessage {
+  static archProposal(
+    from: string,
+    payload: ArchProposalPayload
+  ): ArchProposalMessage {
     return this.create(from, Topics.ARCH_PROPOSAL_READY, payload);
   }
 
-  static agentQuestion(from: string, payload: AgentQuestionPayload): AgentQuestionMessage {
+  static agentQuestion(
+    from: string,
+    payload: AgentQuestionPayload
+  ): AgentQuestionMessage {
     return this.create(from, Topics.AGENT_QUESTION, payload);
   }
 
-  static agentRegistered(from: string, payload: AgentRegisteredPayload): AgentRegisteredMessage {
+  static agentRegistered(
+    from: string,
+    payload: AgentRegisteredPayload
+  ): AgentRegisteredMessage {
     return this.create(from, Topics.AGENT_REGISTERED, payload);
   }
 
-  static taskStarted(from: string, payload: TaskStartedPayload): TaskStartedMessage {
+  static taskStarted(
+    from: string,
+    payload: TaskStartedPayload
+  ): TaskStartedMessage {
     return this.create(from, Topics.TASK_STARTED, payload);
   }
 
-  static taskCompleted(from: string, payload: TaskCompletedPayload): TaskCompletedMessage {
+  static taskCompleted(
+    from: string,
+    payload: TaskCompletedPayload
+  ): TaskCompletedMessage {
     return this.create(from, Topics.TASK_COMPLETED, payload);
   }
 }

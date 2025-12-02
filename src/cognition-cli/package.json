@@ -70,6 +70,7 @@
     "upath": "^2.0.1",
     "workerpool": "^10.0.0",
     "yaml": "^2.8.1",
+    "zeromq": "^6.5.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {

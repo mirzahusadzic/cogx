@@ -10,7 +10,8 @@ let ZeroMQAvailable = true;
 let ZeroMQLoadError: Error | null = null;
 
 try {
-  // Try to import ZeroMQ
+  // Try to import ZeroMQ (runtime check, not static import)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   require('zeromq');
 } catch (err) {
   ZeroMQAvailable = false;
@@ -38,17 +39,39 @@ export const multiAgentLoadError = ZeroMQLoadError;
 export function checkMultiAgentAvailability(): boolean {
   if (!ZeroMQAvailable) {
     console.warn('');
-    console.warn('╔══════════════════════════════════════════════════════════════╗');
-    console.warn('║  ⚠️  Multi-Agent Mode Unavailable                           ║');
-    console.warn('║                                                              ║');
-    console.warn('║  ZeroMQ native bindings failed to load.                     ║');
-    console.warn('║  Running in single-agent mode (no pub/sub).                 ║');
-    console.warn('║                                                              ║');
-    console.warn('║  To enable multi-agent features:                            ║');
-    console.warn('║  1. Install build tools: npm install -g node-gyp            ║');
-    console.warn('║  2. Rebuild ZeroMQ: npm rebuild zeromq                      ║');
-    console.warn('║                                                              ║');
-    console.warn('╚══════════════════════════════════════════════════════════════╝');
+    console.warn(
+      '╔══════════════════════════════════════════════════════════════╗'
+    );
+    console.warn(
+      '║  ⚠️  Multi-Agent Mode Unavailable                           ║'
+    );
+    console.warn(
+      '║                                                              ║'
+    );
+    console.warn(
+      '║  ZeroMQ native bindings failed to load.                     ║'
+    );
+    console.warn(
+      '║  Running in single-agent mode (no pub/sub).                 ║'
+    );
+    console.warn(
+      '║                                                              ║'
+    );
+    console.warn(
+      '║  To enable multi-agent features:                            ║'
+    );
+    console.warn(
+      '║  1. Install build tools: npm install -g node-gyp            ║'
+    );
+    console.warn(
+      '║  2. Rebuild ZeroMQ: npm rebuild zeromq                      ║'
+    );
+    console.warn(
+      '║                                                              ║'
+    );
+    console.warn(
+      '╚══════════════════════════════════════════════════════════════╝'
+    );
     console.warn('');
 
     return false;
