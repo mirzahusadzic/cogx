@@ -8,7 +8,8 @@
 // Base message structure
 export interface AgentMessage<T = unknown> {
   id: string; // Unique message ID (uuid)
-  from: string; // Agent ID (e.g., 'gemini-1', 'claude-1')
+  from: string; // Sender agent ID (e.g., 'gemini-1', 'claude-1')
+  to: string; // Recipient agent ID (e.g., 'claude-1') or '*' for broadcast
   timestamp: number; // Unix timestamp (milliseconds)
   topic: string; // Event topic (e.g., 'code.completed')
   payload: T; // Topic-specific payload
@@ -211,10 +212,16 @@ export class MessageFactory {
   /**
    * Create a new message with auto-generated ID and timestamp
    */
-  static create<T>(from: string, topic: string, payload: T): AgentMessage<T> {
+  static create<T>(
+    from: string,
+    to: string,
+    topic: string,
+    payload: T
+  ): AgentMessage<T> {
     return {
       id: crypto.randomUUID(),
       from,
+      to,
       timestamp: Date.now(),
       topic,
       payload,
@@ -224,57 +231,65 @@ export class MessageFactory {
   // Convenience methods for common message types
   static codeCompleted(
     from: string,
+    to: string,
     payload: CodeCompletedPayload
   ): CodeCompletedMessage {
-    return this.create(from, Topics.CODE_COMPLETED, payload);
+    return this.create(from, to, Topics.CODE_COMPLETED, payload);
   }
 
   static reviewRequested(
     from: string,
+    to: string,
     payload: ReviewRequestedPayload
   ): ReviewRequestedMessage {
-    return this.create(from, Topics.CODE_REVIEW_REQUESTED, payload);
+    return this.create(from, to, Topics.CODE_REVIEW_REQUESTED, payload);
   }
 
   static reviewCompleted(
     from: string,
+    to: string,
     payload: ReviewCompletedPayload
   ): ReviewCompletedMessage {
-    return this.create(from, Topics.CODE_REVIEW_COMPLETED, payload);
+    return this.create(from, to, Topics.CODE_REVIEW_COMPLETED, payload);
   }
 
   static archProposal(
     from: string,
+    to: string,
     payload: ArchProposalPayload
   ): ArchProposalMessage {
-    return this.create(from, Topics.ARCH_PROPOSAL_READY, payload);
+    return this.create(from, to, Topics.ARCH_PROPOSAL_READY, payload);
   }
 
   static agentQuestion(
     from: string,
+    to: string,
     payload: AgentQuestionPayload
   ): AgentQuestionMessage {
-    return this.create(from, Topics.AGENT_QUESTION, payload);
+    return this.create(from, to, Topics.AGENT_QUESTION, payload);
   }
 
   static agentRegistered(
     from: string,
+    to: string,
     payload: AgentRegisteredPayload
   ): AgentRegisteredMessage {
-    return this.create(from, Topics.AGENT_REGISTERED, payload);
+    return this.create(from, to, Topics.AGENT_REGISTERED, payload);
   }
 
   static taskStarted(
     from: string,
+    to: string,
     payload: TaskStartedPayload
   ): TaskStartedMessage {
-    return this.create(from, Topics.TASK_STARTED, payload);
+    return this.create(from, to, Topics.TASK_STARTED, payload);
   }
 
   static taskCompleted(
     from: string,
+    to: string,
     payload: TaskCompletedPayload
   ): TaskCompletedMessage {
-    return this.create(from, Topics.TASK_COMPLETED, payload);
+    return this.create(from, to, Topics.TASK_COMPLETED, payload);
   }
 }

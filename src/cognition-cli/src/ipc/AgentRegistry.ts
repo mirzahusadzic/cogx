@@ -84,8 +84,8 @@ export class AgentRegistry {
 
     this.agents.set(agent.id, fullAgent);
 
-    // Publish registration event
-    const message = MessageFactory.agentRegistered(this.localAgentId, {
+    // Publish registration event (broadcast to all agents)
+    const message = MessageFactory.agentRegistered(this.localAgentId, '*', {
       agentId: agent.id,
       model: agent.model,
       type: agent.type,
@@ -106,6 +106,7 @@ export class AgentRegistry {
 
     const message = MessageFactory.create(
       this.localAgentId,
+      '*', // Broadcast to all agents
       Topics.AGENT_UNREGISTERED,
       {
         agentId,
@@ -130,6 +131,7 @@ export class AgentRegistry {
 
       const message = MessageFactory.create(
         this.localAgentId,
+        '*', // Broadcast to all agents
         Topics.AGENT_STATUS_CHANGED,
         {
           agentId,
