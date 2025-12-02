@@ -29,7 +29,7 @@ The plan is well-thought-out, addressing the key "Multi-Agent" requirement nativ
 **Risk:** The plan states "First TUI binds, subsequent TUIs connect." There is a race condition where two TUIs start simultaneously, both check if socket exists, both see it missing, and both try to bind.
 **Refinement:**
 
-- We *must* use a file lock to coordinate the binding.
+- We _must_ use a file lock to coordinate the binding.
 - We already have `proper-lockfile` in `package.json`.
 - **Protocol:**
   1. Acquire lock on `.cognition/bus.lock`.
@@ -56,14 +56,14 @@ The plan is well-thought-out, addressing the key "Multi-Agent" requirement nativ
 ## 4. Specific Recommendations for Implementation
 
 1. **Bus Coordination:**
-    Create a `BusCoordinator` class that handles the Lock -> Check -> Bind/Connect logic using `proper-lockfile`.
+   Create a `BusCoordinator` class that handles the Lock -> Check -> Bind/Connect logic using `proper-lockfile`.
 
 2. **Topic Taxonomy:**
-    The proposed taxonomy (`code.completed`, etc.) is good. I suggest adding a namespace for the specific *request ID* to allow Request/Response patterns over Pub/Sub if needed (though ZeroMQ REQ/REP sockets handle this if we use a hybrid topology).
-    *Correction:* The plan uses pure Pub/Sub. For Request/Response (e.g., "Get status"), we need to publish a request and listen for a response with a correlation ID. This is fine and keeps it simple.
+   The proposed taxonomy (`code.completed`, etc.) is good. I suggest adding a namespace for the specific _request ID_ to allow Request/Response patterns over Pub/Sub if needed (though ZeroMQ REQ/REP sockets handle this if we use a hybrid topology).
+   _Correction:_ The plan uses pure Pub/Sub. For Request/Response (e.g., "Get status"), we need to publish a request and listen for a response with a correlation ID. This is fine and keeps it simple.
 
 3. **User Experience:**
-    The "In-conversation notifications" idea is excellent. It avoids the need for a complex TUI notification overlay.
+   The "In-conversation notifications" idea is excellent. It avoids the need for a complex TUI notification overlay.
 
 ## 5. Conclusion
 

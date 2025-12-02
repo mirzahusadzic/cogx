@@ -56,12 +56,16 @@ export class AgentRegistry {
 
     // Listen for agent unregistrations
     this.bus.subscribe(Topics.AGENT_UNREGISTERED, (msg) => {
-      this.handleAgentUnregistered(msg as AgentMessage<AgentUnregisteredPayload>);
+      this.handleAgentUnregistered(
+        msg as AgentMessage<AgentUnregisteredPayload>
+      );
     });
 
     // Listen for agent status changes
     this.bus.subscribe(Topics.AGENT_STATUS_CHANGED, (msg) => {
-      this.handleAgentStatusChanged(msg as AgentMessage<AgentStatusChangedPayload>);
+      this.handleAgentStatusChanged(
+        msg as AgentMessage<AgentStatusChangedPayload>
+      );
     });
   }
 
@@ -191,7 +195,9 @@ export class AgentRegistry {
   /**
    * Handle incoming agent.registered event
    */
-  private handleAgentRegistered(msg: AgentMessage<AgentRegisteredPayload>): void {
+  private handleAgentRegistered(
+    msg: AgentMessage<AgentRegisteredPayload>
+  ): void {
     const { agentId, model, type, capabilities } = msg.payload;
 
     // Don't re-register ourselves
@@ -225,7 +231,9 @@ export class AgentRegistry {
   /**
    * Handle incoming agent.unregistered event
    */
-  private handleAgentUnregistered(msg: AgentMessage<AgentUnregisteredPayload>): void {
+  private handleAgentUnregistered(
+    msg: AgentMessage<AgentUnregisteredPayload>
+  ): void {
     const { agentId } = msg.payload;
 
     // Don't unregister ourselves
@@ -241,7 +249,9 @@ export class AgentRegistry {
   /**
    * Handle incoming agent.status_changed event
    */
-  private handleAgentStatusChanged(msg: AgentMessage<AgentStatusChangedPayload>): void {
+  private handleAgentStatusChanged(
+    msg: AgentMessage<AgentStatusChangedPayload>
+  ): void {
     const { agentId, status } = msg.payload;
 
     // Update status for remote agents

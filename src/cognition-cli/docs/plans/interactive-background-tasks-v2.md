@@ -1,10 +1,10 @@
 # Feature Specification: Multi-Agent Collaborative System with Interactive Background Tasks
 
-**Version:** 2.0.3
+**Version:** 2.0.4
 **Date:** 2025-12-02
 **Status:** Proposal (Major Architectural Revision)
 **Author:** Claude Sonnet 4.5 (based on user requirements), revised by Claude Opus 4.5, technical refinements by Gemini
-**Previous Version:** 2.0.2 (User-controlled subscriptions)
+**Previous Version:** 2.0.3 (Technical refinements)
 **Breaking Change:** Shifts from headless-first to **federated multi-agent system** as Phase 1 goal (using existing terminal tabs, NOT internal tab UI)
 
 ---
@@ -184,18 +184,18 @@ Parent TUI cannot send messages to child processes or coordinate between agents.
 
 ### 2.4 Comparison to v1.x Architecture
 
-| Aspect                  | v1.x (Headless-First)        | v2.0 (Federated Multi-Agent)       |
-| ----------------------- | ---------------------------- | ---------------------------------- |
-| **Primary Goal**        | Background task execution    | Multi-agent collaboration          |
-| **IPC**                 | stdin/stdout                 | ZeroMQ pub/sub                     |
-| **UX**                  | Single agent + background    | Multiple terminal TUIs + pub/sub   |
-| **Agent Communication** | Parent→Child only            | Peer-to-peer via shared bus        |
-| **Phase 1 Deliverable** | Headless `/onboard-project`  | ZeroMQ bus + auto-connect          |
-| **Tab UI**              | N/A                          | None (use terminal tabs)           |
-| **Multi-Agent**         | Phase 6 (future)             | Phase 1 (now)                      |
-| **User Workflow**       | New pattern                  | Natural evolution of current usage |
-| **Complexity**          | Simpler initially            | Simpler than internal tabs!        |
-| **Migration Path**      | Requires Phase 6 rewrite     | Future-proof from Phase 1          |
+| Aspect                  | v1.x (Headless-First)       | v2.0 (Federated Multi-Agent)       |
+| ----------------------- | --------------------------- | ---------------------------------- |
+| **Primary Goal**        | Background task execution   | Multi-agent collaboration          |
+| **IPC**                 | stdin/stdout                | ZeroMQ pub/sub                     |
+| **UX**                  | Single agent + background   | Multiple terminal TUIs + pub/sub   |
+| **Agent Communication** | Parent→Child only           | Peer-to-peer via shared bus        |
+| **Phase 1 Deliverable** | Headless `/onboard-project` | ZeroMQ bus + auto-connect          |
+| **Tab UI**              | N/A                         | None (use terminal tabs)           |
+| **Multi-Agent**         | Phase 6 (future)            | Phase 1 (now)                      |
+| **User Workflow**       | New pattern                 | Natural evolution of current usage |
+| **Complexity**          | Simpler initially           | Simpler than internal tabs!        |
+| **Migration Path**      | Requires Phase 6 rewrite    | Future-proof from Phase 1          |
 
 **Why this approach?**
 
@@ -240,8 +240,8 @@ Parent TUI cannot send messages to child processes or coordinate between agents.
 import * as zmq from 'zeromq';
 
 interface ZeroMQBusConfig {
-  pubAddress: string;   // e.g., 'tcp://127.0.0.1:5555'
-  subAddress: string;   // e.g., 'tcp://127.0.0.1:5556'
+  pubAddress: string; // e.g., 'tcp://127.0.0.1:5555'
+  subAddress: string; // e.g., 'tcp://127.0.0.1:5556'
 }
 
 export class ZeroMQBus {
@@ -345,7 +345,7 @@ export class BusCoordinator {
 
     // Acquire lock (blocks if another TUI is coordinating)
     const release = await lockfile.lock(this.lockPath, {
-      retries: { retries: 5, minTimeout: 100, maxTimeout: 1000 }
+      retries: { retries: 5, minTimeout: 100, maxTimeout: 1000 },
     });
 
     try {
@@ -419,11 +419,11 @@ export class BusCoordinator {
 
 #### 3.1.2 Cross-Platform IPC Path
 
-| Platform | Socket Path |
-|----------|-------------|
-| **macOS/Linux** | `ipc:///tmp/cognition-bus.sock` |
-| **Windows** | `ipc:////./pipe/cognition-bus` |
-| **Fallback (all)** | `tcp://127.0.0.1:5555` |
+| Platform           | Socket Path                     |
+| ------------------ | ------------------------------- |
+| **macOS/Linux**    | `ipc:///tmp/cognition-bus.sock` |
+| **Windows**        | `ipc:////./pipe/cognition-bus`  |
+| **Fallback (all)** | `tcp://127.0.0.1:5555`          |
 
 #### 3.1.3 ZeroMQ Fallback Strategy
 
@@ -477,21 +477,21 @@ Examples:
 
 // Base message
 interface AgentMessage {
-  id: string;           // Unique message ID
-  from: string;         // Agent ID (e.g., 'gemini-1', 'claude-1')
-  timestamp: number;    // Unix timestamp
-  topic: string;        // Event topic
-  payload: any;         // Topic-specific payload
+  id: string; // Unique message ID
+  from: string; // Agent ID (e.g., 'gemini-1', 'claude-1')
+  timestamp: number; // Unix timestamp
+  topic: string; // Event topic
+  payload: any; // Topic-specific payload
 }
 
 // Code completion event
 interface CodeCompletedMessage extends AgentMessage {
   topic: 'code.completed';
   payload: {
-    files: string[];              // Modified files
-    summary: string;              // What was implemented
-    requestReview: boolean;       // Should Opus review?
-    branch?: string;              // Git branch (if applicable)
+    files: string[]; // Modified files
+    summary: string; // What was implemented
+    requestReview: boolean; // Should Opus review?
+    branch?: string; // Git branch (if applicable)
   };
 }
 
@@ -499,8 +499,8 @@ interface CodeCompletedMessage extends AgentMessage {
 interface ReviewRequestedMessage extends AgentMessage {
   topic: 'code.review_requested';
   payload: {
-    files: string[];              // Files to review
-    context: string;              // What to look for
+    files: string[]; // Files to review
+    context: string; // What to look for
     priority: 'low' | 'normal' | 'high';
   };
 }
@@ -529,7 +529,7 @@ interface ArchProposalMessage extends AgentMessage {
   payload: {
     title: string;
     description: string;
-    diagrams?: string[];          // ASCII diagrams or mermaid
+    diagrams?: string[]; // ASCII diagrams or mermaid
     tradeoffs: string;
     recommendation: string;
   };
@@ -539,7 +539,7 @@ interface ArchProposalMessage extends AgentMessage {
 interface AgentQuestionMessage extends AgentMessage {
   topic: 'agent.question';
   payload: {
-    to: string;                   // Target agent ID
+    to: string; // Target agent ID
     question: string;
     context?: string;
   };
@@ -554,18 +554,18 @@ interface AgentQuestionMessage extends AgentMessage {
 // src/agents/AgentRegistry.ts
 
 interface AgentCapability {
-  name: string;                   // e.g., 'code_review', 'architecture_design'
+  name: string; // e.g., 'code_review', 'architecture_design'
   description: string;
-  model: string;                  // 'gemini', 'claude', 'opus'
+  model: string; // 'gemini', 'claude', 'opus'
 }
 
 interface RegisteredAgent {
-  id: string;                     // Unique agent ID
+  id: string; // Unique agent ID
   type: 'interactive' | 'background';
   model: string;
   capabilities: AgentCapability[];
   status: 'idle' | 'thinking' | 'working';
-  subscriptions: Set<string>;     // Topics this agent subscribes to
+  subscriptions: Set<string>; // Topics this agent subscribes to
 }
 
 export class AgentRegistry {
@@ -586,7 +586,7 @@ export class AgentRegistry {
       id: agent.id,
       type: agent.type,
       model: agent.model,
-      capabilities: agent.capabilities
+      capabilities: agent.capabilities,
     });
   }
 
@@ -598,10 +598,9 @@ export class AgentRegistry {
 
   // Find agents by capability
   findByCapability(capability: string): RegisteredAgent[] {
-    return Array.from(this.agents.values())
-      .filter(agent =>
-        agent.capabilities.some(cap => cap.name === capability)
-      );
+    return Array.from(this.agents.values()).filter((agent) =>
+      agent.capabilities.some((cap) => cap.name === capability)
+    );
   }
 
   // Get agent by ID
@@ -621,7 +620,7 @@ export class AgentRegistry {
       agent.status = status;
       this.bus.publish('agent.status_changed', {
         id: agentId,
-        status
+        status,
       });
     }
   }
@@ -665,7 +664,10 @@ export class IncomingMessageHandler {
   private bus: ZeroMQBus;
   private conversationAppender: (message: SystemMessage) => void;
 
-  constructor(bus: ZeroMQBus, conversationAppender: (msg: SystemMessage) => void) {
+  constructor(
+    bus: ZeroMQBus,
+    conversationAppender: (msg: SystemMessage) => void
+  ) {
     this.bus = bus;
     this.conversationAppender = conversationAppender;
     this.setupSubscriptions();
@@ -684,7 +686,7 @@ export class IncomingMessageHandler {
           timestamp: Date.now(),
           source: 'pub/sub',
           fromAgent: msg.from,
-          topic: msg.topic
+          topic: msg.topic,
         });
       });
     }
@@ -703,7 +705,7 @@ ${JSON.stringify(msg.payload, null, 2)}`;
       'code.review_completed',
       'arch.proposal_ready',
       'agent.question',
-      'task.completed'
+      'task.completed',
     ];
   }
 }
@@ -806,7 +808,7 @@ export class SubscriptionManager {
     const topic = msg.payload.topic;
 
     // Check if already decided
-    if (this.config.subscribe.some(t => this.matchesTopic(topic, t))) {
+    if (this.config.subscribe.some((t) => this.matchesTopic(topic, t))) {
       // Already subscribed via pattern
       return;
     }
@@ -819,7 +821,7 @@ export class SubscriptionManager {
     const choice = await this.promptUser({
       topic,
       from: msg.from,
-      description: msg.payload.description
+      description: msg.payload.description,
     });
 
     switch (choice) {
@@ -853,12 +855,12 @@ type SubscriptionChoice = 'yes' | 'always' | 'no' | 'never';
 
 **Benefits:**
 
-| Aspect | All-Subscribe | User-Curated |
-|--------|--------------|--------------|
+| Aspect   | All-Subscribe                 | User-Curated           |
+| -------- | ----------------------------- | ---------------------- |
 | API Cost | Every event wakes every agent | Only interested agents |
-| Noise | Agents see irrelevant events | Filtered by user |
-| Control | System decides | User decides |
-| Workflow | Fixed patterns | User-designed |
+| Noise    | Agents see irrelevant events  | Filtered by user       |
+| Control  | System decides                | User decides           |
+| Workflow | Fixed patterns                | User-designed          |
 
 **Key Point:** We reuse existing UI patterns (confirmation dialog, wizard) - no new UI components needed.
 
@@ -870,7 +872,7 @@ type SubscriptionChoice = 'yes' | 'always' | 'no' | 'never';
 export class InteractiveAgent {
   private id: string;
   private model: string;
-  private provider: AgentProvider;  // GeminiAgentProvider | ClaudeProvider
+  private provider: AgentProvider; // GeminiAgentProvider | ClaudeProvider
   private bus: ZeroMQBus;
   private registry: AgentRegistry;
   private conversation: ConversationTurn[];
@@ -907,12 +909,12 @@ export class InteractiveAgent {
       capabilities.push({
         name: 'architecture_design',
         description: 'High-level system architecture and design',
-        model: this.model
+        model: this.model,
       });
       capabilities.push({
         name: 'concept_exploration',
         description: 'Explore concepts and propose approaches',
-        model: this.model
+        model: this.model,
       });
     }
 
@@ -920,12 +922,12 @@ export class InteractiveAgent {
       capabilities.push({
         name: 'code_implementation',
         description: 'Write production-quality code',
-        model: this.model
+        model: this.model,
       });
       capabilities.push({
         name: 'system_design',
         description: 'Detailed system design and implementation planning',
-        model: this.model
+        model: this.model,
       });
     }
 
@@ -933,12 +935,12 @@ export class InteractiveAgent {
       capabilities.push({
         name: 'code_review',
         description: 'In-depth code review and quality assurance',
-        model: this.model
+        model: this.model,
       });
       capabilities.push({
         name: 'architecture_review',
         description: 'Review architectural decisions and trade-offs',
-        model: this.model
+        model: this.model,
       });
     }
 
@@ -948,7 +950,7 @@ export class InteractiveAgent {
       model: this.model,
       capabilities,
       status: 'idle',
-      subscriptions: new Set()
+      subscriptions: new Set(),
     });
   }
 
@@ -990,7 +992,7 @@ export class InteractiveAgent {
     this.conversation.push({
       role: 'user',
       content: userMessage,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     // Get response from provider
@@ -1000,7 +1002,7 @@ export class InteractiveAgent {
     this.conversation.push({
       role: 'assistant',
       content: response,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     this.registry.updateStatus(this.id, 'idle');
@@ -1015,7 +1017,7 @@ export class InteractiveAgent {
       from: this.id,
       timestamp: Date.now(),
       topic,
-      payload
+      payload,
     });
   }
 
@@ -1024,7 +1026,7 @@ export class InteractiveAgent {
     this.conversation.push({
       role: 'system',
       content: `Review request from ${msg.from}: ${msg.payload.files.join(', ')}`,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }
 
@@ -1033,7 +1035,7 @@ export class InteractiveAgent {
     this.conversation.push({
       role: 'system',
       content: `Architecture proposal from ${msg.from}:\n${msg.payload.description}`,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }
 
@@ -1042,7 +1044,7 @@ export class InteractiveAgent {
     this.conversation.push({
       role: 'system',
       content: `Review feedback from ${msg.from}:\n${this.formatReview(msg.payload)}`,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }
 
@@ -1051,7 +1053,7 @@ export class InteractiveAgent {
     this.conversation.push({
       role: 'system',
       content: `Code completed by ${msg.from}: ${msg.payload.summary}`,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }
 
@@ -1060,15 +1062,18 @@ export class InteractiveAgent {
     this.conversation.push({
       role: 'system',
       content: `Question from ${msg.from}: ${msg.payload.question}`,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }
 
   private formatReview(review: any): string {
     // Format review issues for display
-    return review.issues.map((issue: ReviewIssue) =>
-      `${issue.severity.toUpperCase()}: ${issue.file}:${issue.line} - ${issue.message}`
-    ).join('\n');
+    return review.issues
+      .map(
+        (issue: ReviewIssue) =>
+          `${issue.severity.toUpperCase()}: ${issue.file}:${issue.line} - ${issue.message}`
+      )
+      .join('\n');
   }
 }
 ```
@@ -1088,23 +1093,30 @@ export class BackgroundTaskManager {
     const taskId = crypto.randomUUID();
 
     // Spawn headless TUI
-    const child = spawn('cognition-cli', [
-      'tui',
-      '--headless',
-      '--command', commandName,
-      '--zeromq-pub', this.bus.config.pubAddress,
-      '--zeromq-sub', this.bus.config.subAddress,
-      ...(args || [])
-    ], {
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
+    const child = spawn(
+      'cognition-cli',
+      [
+        'tui',
+        '--headless',
+        '--command',
+        commandName,
+        '--zeromq-pub',
+        this.bus.config.pubAddress,
+        '--zeromq-sub',
+        this.bus.config.subAddress,
+        ...(args || []),
+      ],
+      {
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }
+    );
 
     const task: BackgroundTask = {
       id: taskId,
       commandName,
       process: child,
       status: 'running',
-      startTime: Date.now()
+      startTime: Date.now(),
     };
 
     this.tasks.set(taskId, task);
@@ -1126,7 +1138,7 @@ async function executeOnboardProject() {
   // Task starts
   bus.publish('task.started', {
     taskId: process.env.TASK_ID,
-    command: '/onboard-project'
+    command: '/onboard-project',
   });
 
   // Do work...
@@ -1138,8 +1150,8 @@ async function executeOnboardProject() {
     command: '/onboard-project',
     result: {
       filesAnalyzed: result.files.length,
-      overlaysGenerated: result.overlays
-    }
+      overlaysGenerated: result.overlays,
+    },
   });
 }
 ```
@@ -1152,11 +1164,11 @@ Same as v1.x spec - frontmatter-based permission manifests:
 ---
 permissions:
   - tool: read_file
-    scope: "**/*"
+    scope: '**/*'
   - tool: write_file
-    scope: "docs/**/*.md"
+    scope: 'docs/**/*.md'
   - tool: bash
-    scope: ["npm install", "git status"]
+    scope: ['npm install', 'git status']
 model: gemini
 ---
 
@@ -1398,19 +1410,110 @@ User only intervenes to approve - agents coordinate the details via pub/sub.
 - `src/ipc/AgentRegistry.ts` (NEW)
 - `tests/ipc/ZeroMQBus.test.ts` (NEW)
 
-**Week 2: TUI Integration**
+**Week 2: Message Queue & TUI Integration**
 
-- Add `--zeromq-bus` flag to TUI (optional, auto-discover if not specified)
-- Implement `IncomingMessageHandler` for in-conversation notifications
-- Auto-register agent on TUI startup (`agent.registered` event)
-- Auto-deregister on TUI exit (`agent.unregistered` event)
-- Wire up pub/sub to conversation (inject system messages)
+**Goal:** Persistent message queue with background monitoring and user-controlled injection
+
+**Motivation:** Direct injection of pub/sub messages can interrupt the user's current conversation flow. Instead, we use a background task to monitor incoming messages and store them in a persistent queue. The user sees non-blocking notifications and explicitly approves when to inject messages into the conversation.
+
+**Architecture:**
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                   ZeroMQ Publisher                       │
+│             (Other agents send messages)                  │
+└───────────────────────────┬──────────────────────────────┘
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────────┐
+│        Background Task: MessageQueueMonitor              │
+│  - Subscribes to ZeroMQ topics                           │
+│  - Writes incoming messages to .sigma/message_queue/     │
+│  - Updates queue metadata (count, timestamps)            │
+│  - Runs continuously, independent of TUI                 │
+└───────────────────────────┬──────────────────────────────┘
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────────┐
+│      Persistent Message Queue (.sigma/message_queue/)    │
+│  - One JSON file per message                             │
+│  - Metadata: sender, timestamp, topic, status            │
+│  - Survives session restarts                             │
+└───────────────────────────┬──────────────────────────────┘
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────────┐
+│             Claude Session Startup Hook                  │
+│  1. Checks .sigma/message_queue/ on startup              │
+│  2. If pending messages exist → show notification        │
+│  3. User can approve/inject via slash commands           │
+└──────────────────────────────────────────────────────────┘
+```
+
+**Components to Implement:**
+
+1. **Background Task: MessageQueueMonitor**
+   - Subscribes to ZeroMQ topics configured in `.cognition/subscriptions.json`
+   - Writes incoming messages to `.sigma/message_queue/{agent-id}/{msg-id}.json`
+   - Filters messages by recipient (only queues messages addressed to this agent)
+   - Updates queue index file for fast lookups
+   - Notifies TUI status bar (if active) via IPC
+
+2. **Persistent Queue Storage**
+   - Location: `.sigma/message_queue/{agent-id}/` (namespaced by recipient)
+   - Agent ID format: `{model}-{uuid}` (e.g., `claude-a7f3`, `opus-b2c4`)
+   - Message format: `{ id, from, to, topic, content, timestamp, status }`
+   - Status values: `pending`, `read`, `injected`, `dismissed`
+   - Index file: `queue-index.json` per agent (for O(1) pending count)
+
+3. **Session Startup Hook**
+   - On Claude session start, check for pending messages
+   - Display count in console: `📬 You have 3 pending message(s) from other agents`
+   - Suggest slash commands: `/pending` to list, `/inject` to approve
+
+4. **TUI Status Bar Integration**
+   - Add pending message count indicator (bottom right)
+   - Format: `📬 3` (shows only if count > 0)
+   - Updates in real-time via background task notification
+
+5. **Slash Commands**
+   - `/pending` - List all pending messages with details
+   - `/inject <message-id>` - Inject specific message into conversation
+   - `/inject-all` - Inject all pending messages
+   - `/dismiss <message-id>` - Mark as read without injecting
+   - `/clear-queue` - Clear all dismissed messages
+
+**Implementation Tasks:**
+
+- [ ] Create `MessageQueueMonitor` background task
+- [ ] Implement persistent queue storage (`.sigma/message_queue/`)
+- [ ] Add session startup hook to check pending messages
+- [ ] Update `StatusBar.tsx` to show pending message count
+- [ ] Create slash commands: `/pending`, `/inject`, `/inject-all`, `/dismiss`
+- [ ] Add `--zeromq-bus` flag to TUI (optional, auto-discover if not specified)
+- [ ] Auto-register agent on TUI startup (`agent.registered` event)
+- [ ] Auto-deregister on TUI exit (`agent.unregistered` event)
+- [ ] Wire up pub/sub to `MessageQueueMonitor`
 
 **Files:**
 
-- `src/tui/index.tsx` (MODIFIED: add ZeroMQ integration)
-- `src/ipc/IncomingMessageHandler.ts` (NEW)
-- `src/tui/hooks/useZeroMQ.ts` (NEW)
+- `src/ipc/MessageQueueMonitor.ts` (NEW: background task)
+- `src/ipc/MessageQueue.ts` (NEW: persistent storage interface)
+- `src/tui/hooks/useZeroMQ.ts` (NEW: ZeroMQ integration hook)
+- `src/tui/components/StatusBar.tsx` (MODIFIED: add pending count)
+- `src/tui/index.tsx` (MODIFIED: add startup hook)
+- `.claude/commands/pending.md` (NEW: slash command)
+- `.claude/commands/inject.md` (NEW: slash command)
+- `.claude/commands/dismiss.md` (NEW: slash command)
+
+**Benefits:**
+
+- ✅ **Non-blocking**: Messages never interrupt current conversation flow
+- ✅ **Persistent**: Messages survive session restarts
+- ✅ **User control**: Explicit approval before injection
+- ✅ **Status visibility**: TUI shows pending count at all times
+- ✅ **No polling needed**: Push-based via background task
+- ✅ **Economical**: User decides when to "pay" for context injection
 
 **Week 3: Testing & Polish**
 
@@ -1594,9 +1697,11 @@ describe('AgentRegistry', () => {
       id: 'opus-1',
       type: 'interactive',
       model: 'opus',
-      capabilities: [{ name: 'code_review', description: '...', model: 'opus' }],
+      capabilities: [
+        { name: 'code_review', description: '...', model: 'opus' },
+      ],
       status: 'idle',
-      subscriptions: new Set()
+      subscriptions: new Set(),
     });
 
     const reviewers = registry.findByCapability('code_review');
@@ -1613,9 +1718,24 @@ describe('AgentRegistry', () => {
 ```typescript
 describe('Multi-Agent Code Review', () => {
   it('completes review workflow', async () => {
-    const gemini = new InteractiveAgent({ id: 'gemini-1', model: 'gemini', bus, registry });
-    const claude = new InteractiveAgent({ id: 'claude-1', model: 'claude', bus, registry });
-    const opus = new InteractiveAgent({ id: 'opus-1', model: 'opus', bus, registry });
+    const gemini = new InteractiveAgent({
+      id: 'gemini-1',
+      model: 'gemini',
+      bus,
+      registry,
+    });
+    const claude = new InteractiveAgent({
+      id: 'claude-1',
+      model: 'claude',
+      bus,
+      registry,
+    });
+    const opus = new InteractiveAgent({
+      id: 'opus-1',
+      model: 'opus',
+      bus,
+      registry,
+    });
 
     // Claude implements code
     await claude.sendMessage('Implement a notification system');
@@ -1706,12 +1826,12 @@ describe('Tab UI', () => {
 
 ### 8.1 Breaking Changes
 
-| v1.x                   | v2.0                      | Migration Path                   |
-| ---------------------- | ------------------------- | -------------------------------- |
-| stdin/stdout IPC       | ZeroMQ pub/sub            | Rewrite IPC layer                |
-| Single agent + headless| Multi-agent tabs          | Refactor TUI to support tabs     |
-| Parent→Child only      | Any-to-any communication  | Implement AgentRegistry          |
-| Hardcoded agent logic  | Capability-based routing  | Define capabilities per agent    |
+| v1.x                    | v2.0                     | Migration Path                |
+| ----------------------- | ------------------------ | ----------------------------- |
+| stdin/stdout IPC        | ZeroMQ pub/sub           | Rewrite IPC layer             |
+| Single agent + headless | Multi-agent tabs         | Refactor TUI to support tabs  |
+| Parent→Child only       | Any-to-any communication | Implement AgentRegistry       |
+| Hardcoded agent logic   | Capability-based routing | Define capabilities per agent |
 
 ### 8.2 What Stays the Same
 
@@ -1853,27 +1973,27 @@ describe('Tab UI', () => {
 
 **Compared to current manual multi-terminal workflow:**
 
-| Metric                     | Before (Manual)       | After (v2.0)           | Improvement |
-| -------------------------- | --------------------- | ---------------------- | ----------- |
-| Copy/paste steps           | 10+ per task          | 0                      | 100%        |
-| Context switches           | 20+ per task          | 3-5 tab switches       | 75%         |
-| Agent coordination time    | 5-10 min manual       | < 1 min automatic      | 90%         |
-| Conversation history loss  | High (separate terms) | None (unified history) | 100%        |
-| User cognitive load        | High (broker role)    | Low (observer role)    | 80%         |
+| Metric                    | Before (Manual)       | After (v2.0)           | Improvement |
+| ------------------------- | --------------------- | ---------------------- | ----------- |
+| Copy/paste steps          | 10+ per task          | 0                      | 100%        |
+| Context switches          | 20+ per task          | 3-5 tab switches       | 75%         |
+| Agent coordination time   | 5-10 min manual       | < 1 min automatic      | 90%         |
+| Conversation history loss | High (separate terms) | None (unified history) | 100%        |
+| User cognitive load       | High (broker role)    | Low (observer role)    | 80%         |
 
 ---
 
 ## 12. Risks & Mitigations
 
-| Risk                               | Impact | Probability | Mitigation                                      |
-| ---------------------------------- | ------ | ----------- | ----------------------------------------------- |
-| ZeroMQ native binding issues       | High   | Low         | Fallback to pure-JS implementation (slower)     |
-| Agent conversation divergence      | Medium | Medium      | Shared context via ZeroMQ events                |
-| Notification overload              | Medium | High        | Priority-based filtering, user settings         |
-| Tab state management complexity    | Medium | Medium      | Use proven state management (Redux/Zustand)     |
-| API cost explosion (3 agents)      | High   | Medium      | Start with 1 agent, spawn on demand             |
-| Message bus becomes bottleneck     | Medium | Low         | ZeroMQ handles 1M+ msg/sec, unlikely bottleneck |
-| User confusion (too many tabs)     | Low    | Medium      | Default to 1 tab, clear onboarding              |
+| Risk                            | Impact | Probability | Mitigation                                      |
+| ------------------------------- | ------ | ----------- | ----------------------------------------------- |
+| ZeroMQ native binding issues    | High   | Low         | Fallback to pure-JS implementation (slower)     |
+| Agent conversation divergence   | Medium | Medium      | Shared context via ZeroMQ events                |
+| Notification overload           | Medium | High        | Priority-based filtering, user settings         |
+| Tab state management complexity | Medium | Medium      | Use proven state management (Redux/Zustand)     |
+| API cost explosion (3 agents)   | High   | Medium      | Start with 1 agent, spawn on demand             |
+| Message bus becomes bottleneck  | Medium | Low         | ZeroMQ handles 1M+ msg/sec, unlikely bottleneck |
+| User confusion (too many tabs)  | Low    | Medium      | Default to 1 tab, clear onboarding              |
 
 ---
 
@@ -1936,6 +2056,41 @@ describe('Tab UI', () => {
 ---
 
 ## 14. Version History
+
+### Version 2.0.4 (2025-12-02)
+
+**Enhanced: Week 2 with Message Queue & Background Monitoring**
+
+**Changes to Week 2 (Section 5.1):**
+
+1. **Replaced Direct Injection** with persistent message queue approach
+   - Was: `IncomingMessageHandler` injects messages directly into conversation
+   - Now: `MessageQueueMonitor` background task writes to `.sigma/message_queue/`
+
+2. **Added User-Controlled Injection**
+   - Messages no longer interrupt conversation flow
+   - User explicitly approves injection via slash commands
+   - Non-blocking notifications in status bar
+
+3. **Added Persistent Storage**
+   - Messages survive session restarts
+   - Status tracking: pending → read/injected/dismissed
+   - Fast O(1) pending count via index file
+
+4. **New Slash Commands**
+   - `/pending` - List pending messages
+   - `/inject <id>` - Inject specific message
+   - `/inject-all` - Inject all pending
+   - `/dismiss <id>` - Mark as read without injecting
+
+5. **New Files**
+   - `src/ipc/MessageQueueMonitor.ts` (background task)
+   - `src/ipc/MessageQueue.ts` (persistent storage)
+   - `.claude/commands/pending.md`, `inject.md`, `dismiss.md`
+
+**Rationale:** User requested approval mechanism to prevent pub/sub messages from interrupting conversation flow. This architecture gives full control over when messages enter the conversation while maintaining awareness via status bar indicator.
+
+**Credit:** Architecture proposed by Claude Sonnet 4.5 based on user feedback.
 
 ### Version 2.0.3 (2025-12-02)
 
