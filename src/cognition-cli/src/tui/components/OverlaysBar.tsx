@@ -42,6 +42,8 @@ export interface OverlaysBarProps {
   activeTask?: BackgroundTask | null;
   /** Number of pending messages in the message queue */
   pendingMessageCount?: number;
+  /** Error message from message queue monitor (if any) */
+  monitorError?: string | null;
 }
 
 /**
@@ -132,6 +134,7 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
   sigmaStats,
   activeTask,
   pendingMessageCount = 0,
+  monitorError,
 }) => {
   // Determine if we should show status instead of branding
   const showTaskStatus =
@@ -148,7 +151,10 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
       width="100%"
     >
       <Box flexDirection="row" gap={1}>
-        {showTaskStatus ? (
+        {monitorError ? (
+          // Show error if monitor failed
+          <Text color="#f85149">⚠ Message Monitor: {monitorError}</Text>
+        ) : showTaskStatus ? (
           // Hide stats when task is running to prevent line wrapping
           <Text color="#8b949e">Background Task:</Text>
         ) : !sigmaStats || sigmaStats.nodes === 0 ? (

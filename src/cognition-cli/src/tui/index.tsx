@@ -78,7 +78,9 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   const [streamingPaste, setStreamingPaste] = useState<string>('');
   const [inputLineCount, setInputLineCount] = useState(1);
   const [pendingMessageCount, setPendingMessageCount] = useState(0);
+  const [monitorError, setMonitorError] = useState<string | null>(null);
   const messageQueueMonitorRef = useRef<MessageQueueMonitor | null>(null);
+  const messageQueueRef = useRef<MessageQueue | null>(null);
 
   // Tool confirmation hook (guardrails) - must be before chatAreaHeight useMemo
   const { confirmationState, requestConfirmation, allow, deny, alwaysAllow } =
@@ -343,29 +345,29 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
         // Store monitor instance for cleanup
         messageQueueMonitorRef.current = monitor;
 
-        // Create MessageQueue instance for polling count
+        // Create MessageQueue instance for event-driven updates
         const messageQueue = new MessageQueue(agentId, sigmaDir);
         await messageQueue.initialize();
+        messageQueueRef.current = messageQueue;
 
-        // Poll for pending message count every 2 seconds
-        const pollInterval = setInterval(async () => {
-          try {
-            const count = await messageQueue.getPendingCount();
-            setPendingMessageCount(count);
-          } catch (err) {
-            if (debug) {
-              console.error('[MessageQueue] Failed to get pending count:', err);
-            }
-          }
-        }, 2000);
+        // Subscribe to count changes via event emitter
+        const handleCountChanged = (...args: unknown[]) => {
+          const count = args[0] as number;
+          setPendingMessageCount(count);
+        };
 
-        // Initial count
+        messageQueue.on('countChanged', handleCountChanged);
+
+        // Get initial count
         const initialCount = await messageQueue.getPendingCount();
         setPendingMessageCount(initialCount);
 
+        // Clear any previous errors
+        setMonitorError(null);
+
         // Cleanup on unmount
         return () => {
-          clearInterval(pollInterval);
+          messageQueue.off('countChanged', handleCountChanged);
           monitor.stop().catch((err) => {
             if (debug) {
               console.error('[MessageQueueMonitor] Stop error:', err);
@@ -373,6 +375,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           });
         };
       } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        setMonitorError(`Failed to initialize message monitor: ${errorMsg}`);
         if (debug) {
           console.error('[MessageQueueMonitor] Initialization error:', err);
         }
@@ -642,6 +646,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
             sigmaStats={sigmaStats}
             activeTask={taskManager.activeTask}
             pendingMessageCount={pendingMessageCount}
+            monitorError={monitorError}
           />
           <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>
           <Box

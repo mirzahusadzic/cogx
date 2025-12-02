@@ -26,7 +26,7 @@ Inject a specific message from the message queue into the conversation.
 
 ---
 
-*Message status updated to: injected*
+_Message status updated to: injected_
 
 ## Error Handling
 

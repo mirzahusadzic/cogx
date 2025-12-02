@@ -9,6 +9,7 @@ Display all pending inter-agent messages that have been received via the ZeroMQ 
 ## Technical Details
 
 Messages are stored in `.sigma/message_queue/{agent-id}/` with:
+
 - Status: `pending`, `read`, `injected`, or `dismissed`
 - Format: JSON with `from`, `to`, `topic`, `content`, `timestamp`, `status`
 - Index file provides O(1) count lookup
@@ -20,19 +21,23 @@ If messages exist:
 **📬 Pending Messages ({count})**
 
 ---
+
 **Message ID**: `{message-id}`
 **From**: `{from-agent-id}`
 **Topic**: `{topic}`
 **Received**: `{timestamp}`
 **Content**:
+
 ```
 {message-content}
 ```
+
 ---
 
 [Repeat for each message]
 
 **Actions**:
+
 - `/inject {message-id}` - Inject specific message into conversation
 - `/inject-all` - Inject all pending messages
 - `/dismiss {message-id}` - Dismiss specific message

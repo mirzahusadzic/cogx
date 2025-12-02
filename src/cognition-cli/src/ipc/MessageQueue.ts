@@ -1,6 +1,7 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { EventEmitter } from 'events';
 
 /**
  * Queued message from another agent
@@ -41,6 +42,7 @@ interface QueueIndex {
 export class MessageQueue {
   private queueDir: string;
   private indexPath: string;
+  private emitter: EventEmitter;
 
   /**
    * @param agentId Unique agent ID (e.g., "claude-a7f3")
@@ -52,6 +54,23 @@ export class MessageQueue {
   ) {
     this.queueDir = path.join(sigmaDir, 'message_queue', agentId);
     this.indexPath = path.join(this.queueDir, 'queue-index.json');
+    this.emitter = new EventEmitter();
+  }
+
+  /**
+   * Subscribe to queue events
+   * @param event Event name ('countChanged', 'messageAdded', 'error')
+   * @param listener Event handler
+   */
+  on(event: string, listener: (...args: unknown[]) => void): void {
+    this.emitter.on(event, listener);
+  }
+
+  /**
+   * Unsubscribe from queue events
+   */
+  off(event: string, listener: (...args: unknown[]) => void): void {
+    this.emitter.off(event, listener);
   }
 
   /**
@@ -92,6 +111,11 @@ export class MessageQueue {
 
     // Update index
     await this.incrementIndex('pending');
+
+    // Emit events
+    const pendingCount = await this.getPendingCount();
+    this.emitter.emit('messageAdded', queuedMessage);
+    this.emitter.emit('countChanged', pendingCount);
 
     return id;
   }
@@ -158,6 +182,12 @@ export class MessageQueue {
     index[status]++;
     index.lastUpdated = Date.now();
     await this.saveIndex(index);
+
+    // Emit countChanged if pending count changed
+    if (oldStatus === 'pending' || status === 'pending') {
+      const pendingCount = await this.getPendingCount();
+      this.emitter.emit('countChanged', pendingCount);
+    }
   }
 
   /**
@@ -169,12 +199,19 @@ export class MessageQueue {
       throw new Error(`Message not found: ${id}`);
     }
 
+    const wasPending = message.status === 'pending';
     const messagePath = path.join(this.queueDir, `msg-${id}.json`);
     await fs.remove(messagePath);
 
     // Update index
     await this.decrementIndex(message.status);
     await this.decrementTotal();
+
+    // Emit countChanged if pending count changed
+    if (wasPending) {
+      const pendingCount = await this.getPendingCount();
+      this.emitter.emit('countChanged', pendingCount);
+    }
   }
 
   /**
