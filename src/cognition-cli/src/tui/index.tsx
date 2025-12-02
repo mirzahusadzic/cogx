@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react';
 import { render, Box, Text, useInput, useStdout, type TextProps } from 'ink';
 import { ThemeProvider, extendTheme, defaultTheme } from '@inkjs/ui';
 import fs from 'fs';
@@ -18,6 +24,9 @@ import { useBackgroundTaskManager } from './hooks/useBackgroundTaskManager.js';
 import { useOnboardingWizard } from './hooks/useOnboardingWizard.js';
 import { isAuthenticationError } from './hooks/sdk/index.js';
 import type { TUIMessage } from './hooks/useAgent.js';
+import { MessageQueueMonitor } from '../ipc/MessageQueueMonitor.js';
+import { MessageQueue } from '../ipc/MessageQueue.js';
+import { ZeroMQBus } from '../ipc/ZeroMQBus.js';
 
 // Custom theme with vivid AIEcho cyan spinner
 const customTheme = extendTheme(defaultTheme, {
@@ -68,6 +77,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [streamingPaste, setStreamingPaste] = useState<string>('');
   const [inputLineCount, setInputLineCount] = useState(1);
+  const [pendingMessageCount, setPendingMessageCount] = useState(0);
+  const messageQueueMonitorRef = useRef<MessageQueueMonitor | null>(null);
 
   // Tool confirmation hook (guardrails) - must be before chatAreaHeight useMemo
   const { confirmationState, requestConfirmation, allow, deny, alwaysAllow } =
@@ -303,6 +314,73 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       }
     }
   }, [error, sessionId, projectRoot]);
+
+  // Initialize MessageQueueMonitor when session starts
+  useEffect(() => {
+    if (!currentSessionId || !projectRoot) {
+      return;
+    }
+
+    const initializeMonitor = async () => {
+      try {
+        // Use session ID as agent ID for message routing
+        const agentId = currentSessionId;
+        const sigmaDir = path.join(projectRoot, '.sigma');
+
+        // Initialize ZeroMQ bus with IPC socket
+        const bus = new ZeroMQBus({
+          address: 'ipc:///tmp/cognition-bus.sock',
+          mode: 'connect', // Connect as peer to the bus
+        });
+
+        // Topics to subscribe to
+        const topics = ['agent.command', 'agent.notification', 'agent.message'];
+
+        // Create and start monitor
+        const monitor = new MessageQueueMonitor(agentId, bus, topics, sigmaDir);
+        await monitor.start();
+
+        // Store monitor instance for cleanup
+        messageQueueMonitorRef.current = monitor;
+
+        // Create MessageQueue instance for polling count
+        const messageQueue = new MessageQueue(agentId, sigmaDir);
+        await messageQueue.initialize();
+
+        // Poll for pending message count every 2 seconds
+        const pollInterval = setInterval(async () => {
+          try {
+            const count = await messageQueue.getPendingCount();
+            setPendingMessageCount(count);
+          } catch (err) {
+            if (debug) {
+              console.error('[MessageQueue] Failed to get pending count:', err);
+            }
+          }
+        }, 2000);
+
+        // Initial count
+        const initialCount = await messageQueue.getPendingCount();
+        setPendingMessageCount(initialCount);
+
+        // Cleanup on unmount
+        return () => {
+          clearInterval(pollInterval);
+          monitor.stop().catch((err) => {
+            if (debug) {
+              console.error('[MessageQueueMonitor] Stop error:', err);
+            }
+          });
+        };
+      } catch (err) {
+        if (debug) {
+          console.error('[MessageQueueMonitor] Initialization error:', err);
+        }
+      }
+    };
+
+    initializeMonitor();
+  }, [currentSessionId, projectRoot, debug]);
 
   // Handle pasted content - stream it line by line
   const handlePasteContent = useCallback(
@@ -563,6 +641,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           <OverlaysBar
             sigmaStats={sigmaStats}
             activeTask={taskManager.activeTask}
+            pendingMessageCount={pendingMessageCount}
           />
           <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>
           <Box
