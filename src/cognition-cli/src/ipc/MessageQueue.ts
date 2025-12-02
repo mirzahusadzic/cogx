@@ -150,9 +150,14 @@ export class MessageQueue {
     const messagePath = path.join(this.queueDir, `msg-${id}.json`);
     await fs.writeJson(messagePath, message, { spaces: 2 });
 
-    // Update index counts
-    await this.decrementIndex(oldStatus);
-    await this.incrementIndex(status);
+    // Update index status counts (NOT total, just moving between statuses)
+    const index = await this.getIndex();
+    if (index[oldStatus] > 0) {
+      index[oldStatus]--;
+    }
+    index[status]++;
+    index.lastUpdated = Date.now();
+    await this.saveIndex(index);
   }
 
   /**
