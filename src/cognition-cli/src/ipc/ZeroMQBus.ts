@@ -14,6 +14,7 @@
  */
 
 import * as zmq from 'zeromq';
+import chalk from 'chalk';
 import { AgentMessage } from './AgentMessage.js';
 
 export interface ZeroMQBusConfig {
@@ -80,7 +81,9 @@ export class ZeroMQBus {
     this.startListening();
 
     console.log(
-      `🚌 ZeroMQ Bus Master: Broker running (frontend: ${frontendAddress}, backend: ${backendAddress})`
+      chalk.dim(
+        `🚌 ZeroMQ Bus Master: Broker running (frontend: ${frontendAddress}, backend: ${backendAddress})`
+      )
     );
   }
 

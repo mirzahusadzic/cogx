@@ -16,6 +16,7 @@ import * as lockfile from 'proper-lockfile';
 import fs from 'fs-extra';
 import * as os from 'os';
 import * as path from 'path';
+import chalk from 'chalk';
 import { ZeroMQBus } from './ZeroMQBus.js';
 
 export class BusCoordinator {
@@ -64,13 +65,13 @@ export class BusCoordinator {
         await this.bus.bind();
         await this.writePidFile();
         this.isBusMaster = true;
-        console.log('🚌 Bus Master: Bound to', this.socketPath);
+        console.log(chalk.dim('🚌 Bus Master: Bound to', this.socketPath));
       } else {
         // Connect as peer
         this.bus = new ZeroMQBus({ address: this.socketPath });
         await this.bus.connect();
         this.isBusMaster = false;
-        console.log('🔌 Peer: Connected to', this.socketPath);
+        console.log(chalk.dim('🔌 Peer: Connected to', this.socketPath));
       }
 
       return this.bus;

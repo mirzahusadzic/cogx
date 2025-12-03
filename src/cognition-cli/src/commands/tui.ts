@@ -45,6 +45,7 @@
 
 import path from 'path';
 import fs from 'fs';
+import chalk from 'chalk';
 import { WorkspaceManager } from '../core/workspace-manager.js';
 import { startTUI } from '../tui/index.js';
 import {
@@ -157,9 +158,11 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     projectRoot = options.projectRoot;
     pgcRoot = path.join(projectRoot, '.open_cognition');
 
-    console.log('\n🧙 No workspace detected. Starting onboarding wizard...\n');
-    console.log(`  ✓ Workbench: ${prerequisites.workbench.url}`);
-    console.log(`  ✓ LLM Provider: ${prerequisites.llm.provider}\n`);
+    console.log(
+      chalk.dim('\n🧙 No workspace detected. Starting onboarding wizard...\n')
+    );
+    console.log(chalk.dim(`  ✓ Workbench: ${prerequisites.workbench.url}`));
+    console.log(chalk.dim(`  ✓ LLM Provider: ${prerequisites.llm.provider}\n`));
   } else {
     // Workspace exists - check if it's incomplete (missing genesis or overlays)
     projectRoot = resolvedProjectRoot;
@@ -243,12 +246,16 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     // If genesis, docs, or overlays are missing and user hasn't opted out, enter onboarding mode
     if (!hasGenesis && !options.noOnboarding) {
       console.log(
-        '\n🧙 Incomplete workspace detected (no genesis). Starting onboarding wizard...\n'
+        chalk.dim(
+          '\n🧙 Incomplete workspace detected (no genesis). Starting onboarding wizard...\n'
+        )
       );
       onboardingMode = true;
     } else if (hasGenesis && !hasDocs && !options.noOnboarding) {
       console.log(
-        '\n🧙 Incomplete workspace detected (no strategic docs). Starting onboarding wizard...\n'
+        chalk.dim(
+          '\n🧙 Incomplete workspace detected (no strategic docs). Starting onboarding wizard...\n'
+        )
       );
       onboardingMode = true;
     } else if (
@@ -258,7 +265,9 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
       !options.noOnboarding
     ) {
       console.log(
-        `\n🧙 Incomplete workspace detected (missing ${missingOverlays.length} overlays: ${missingOverlays.join(', ')}). Starting onboarding wizard...\n`
+        chalk.dim(
+          `\n🧙 Incomplete workspace detected (missing ${missingOverlays.length} overlays: ${missingOverlays.join(', ')}). Starting onboarding wizard...\n`
+        )
       );
       onboardingMode = true;
     }
