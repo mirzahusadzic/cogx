@@ -525,6 +525,7 @@ export function useAgent(options: UseAgentOptions) {
   const sessionManager = useSessionManager({
     sessionIdProp,
     cwd,
+    model: modelName,
     debug: debugFlag,
     onSessionLoaded: handleSessionLoaded,
     onSDKSessionChanged: handleSDKSessionChanged,

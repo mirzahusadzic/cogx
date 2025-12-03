@@ -64,6 +64,49 @@ import type {
 } from './types.js';
 import type { TurnAnalysis } from '../../../sigma/types.js';
 
+/**
+ * Convert a full model ID to a short name for use in anchor IDs.
+ *
+ * Mapping:
+ * - sonnet45: Claude Sonnet 4.5 (claude-sonnet-4-5-*)
+ * - opus45: Claude Opus 4.5 (claude-opus-4-5-*)
+ * - gemini25f: Gemini 2.5 Flash (gemini-2.5-flash-*)
+ * - gemini25p: Gemini 2.5 Pro (gemini-2.5-pro-*)
+ * - gemini30p: Gemini 3.0 Pro (gemini-3*-pro-* or models/gemini-3.0-pro-*)
+ *
+ * @param model Full model ID (e.g., 'claude-opus-4-5-20251101')
+ * @returns Short model name (e.g., 'opus45') or undefined if unknown
+ */
+export function getModelShortName(model?: string): string | undefined {
+  if (!model) return undefined;
+
+  const lower = model.toLowerCase();
+
+  // Claude models
+  if (
+    lower.includes('claude-sonnet-4-5') ||
+    lower.includes('claude-sonnet-4.5')
+  )
+    return 'sonnet45';
+  if (lower.includes('claude-opus-4-5') || lower.includes('claude-opus-4.5'))
+    return 'opus45';
+
+  // Gemini models - check specific versions before generic
+  if (lower.includes('gemini-2.5-flash') || lower.includes('gemini-2-5-flash'))
+    return 'gemini25f';
+  if (lower.includes('gemini-2.5-pro') || lower.includes('gemini-2-5-pro'))
+    return 'gemini25p';
+  if (
+    lower.includes('gemini-3') &&
+    lower.includes('pro') &&
+    !lower.includes('flash')
+  )
+    return 'gemini30p';
+
+  // Unknown model
+  return undefined;
+}
+
 export interface UseSessionManagerOptions extends SessionOptions {
   /**
    * Callback when session is loaded
@@ -204,6 +247,7 @@ export function useSessionManager(
   const {
     sessionIdProp,
     cwd,
+    model,
     debug = false,
     onSessionLoaded,
     onSDKSessionChanged,
@@ -211,10 +255,17 @@ export function useSessionManager(
   } = options;
 
   // Generate stable anchor ID (only computed once)
-  const anchorId = useMemo(
-    () => sessionIdProp || `tui-${Date.now()}`,
-    [sessionIdProp]
-  );
+  // Format: tui-<timestamp>-<modelShortName> (e.g., tui-1764769493427-opus45)
+  const anchorId = useMemo(() => {
+    // If user provided a session ID, use it as-is
+    if (sessionIdProp) return sessionIdProp;
+
+    // Generate new anchor ID with model short name suffix
+    const timestamp = Date.now();
+    const modelShort = getModelShortName(model);
+
+    return modelShort ? `tui-${timestamp}-${modelShort}` : `tui-${timestamp}`;
+  }, [sessionIdProp, model]);
 
   // Session state store
   const storeRef = useRef<SessionStateStore>(

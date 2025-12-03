@@ -11,8 +11,51 @@ import path from 'path';
 import os from 'os';
 import {
   useSessionManager,
+  getModelShortName,
   UseSessionManagerOptions,
 } from '../../../session/useSessionManager.js';
+
+describe('getModelShortName', () => {
+  it('returns opus45 for Claude Opus 4.5 model', () => {
+    expect(getModelShortName('claude-opus-4-5-20251101')).toBe('opus45');
+    expect(getModelShortName('claude-opus-4.5')).toBe('opus45');
+  });
+
+  it('returns sonnet45 for Claude Sonnet 4.5 model', () => {
+    expect(getModelShortName('claude-sonnet-4-5-20250929')).toBe('sonnet45');
+    expect(getModelShortName('claude-sonnet-4.5')).toBe('sonnet45');
+  });
+
+  it('returns gemini25f for Gemini 2.5 Flash model', () => {
+    expect(getModelShortName('gemini-2.5-flash-preview')).toBe('gemini25f');
+    expect(getModelShortName('gemini-2-5-flash')).toBe('gemini25f');
+  });
+
+  it('returns gemini25p for Gemini 2.5 Pro model', () => {
+    expect(getModelShortName('gemini-2.5-pro')).toBe('gemini25p');
+    expect(getModelShortName('gemini-2-5-pro')).toBe('gemini25p');
+  });
+
+  it('returns gemini30p for Gemini 3.0 Pro model', () => {
+    expect(getModelShortName('gemini-3.0-pro')).toBe('gemini30p');
+    expect(getModelShortName('models/gemini-3-pro-001')).toBe('gemini30p');
+  });
+
+  it('returns undefined for unknown models', () => {
+    expect(getModelShortName('gpt-4o')).toBeUndefined();
+    expect(getModelShortName('unknown-model')).toBeUndefined();
+  });
+
+  it('returns undefined for undefined/empty input', () => {
+    expect(getModelShortName(undefined)).toBeUndefined();
+    expect(getModelShortName('')).toBeUndefined();
+  });
+
+  it('handles case insensitivity', () => {
+    expect(getModelShortName('CLAUDE-OPUS-4-5-20251101')).toBe('opus45');
+    expect(getModelShortName('Gemini-2.5-Flash')).toBe('gemini25f');
+  });
+});
 
 describe.skip('useSessionManager', () => {
   let tempDir: string;
@@ -31,11 +74,23 @@ describe.skip('useSessionManager', () => {
   });
 
   describe('initialization', () => {
-    it('generates anchor ID if not provided', async () => {
+    it('generates anchor ID if not provided (without model)', async () => {
       const { result } = renderHook(() => useSessionManager(options));
 
       await waitFor(() => {
+        // Without model, format is: tui-<timestamp>
         expect(result.current.state.anchorId).toMatch(/^tui-\d+$/);
+      });
+    });
+
+    it('generates anchor ID with model short name', async () => {
+      const { result } = renderHook(() =>
+        useSessionManager({ ...options, model: 'claude-opus-4-5-20251101' })
+      );
+
+      await waitFor(() => {
+        // With model, format is: tui-<timestamp>-<modelShortName>
+        expect(result.current.state.anchorId).toMatch(/^tui-\d+-opus45$/);
       });
     });
 

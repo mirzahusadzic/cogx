@@ -61,6 +61,13 @@ export interface SessionOptions {
   cwd: string;
 
   /**
+   * Model being used (provider-specific model ID)
+   * Used to include model short name in auto-generated anchor IDs
+   * @example 'claude-opus-4-5-20251101', 'gemini-2.5-pro'
+   */
+  model?: string;
+
+  /**
    * Whether to enable debug logging
    * @default false
    */
