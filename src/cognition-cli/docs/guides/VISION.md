@@ -207,6 +207,10 @@ These innovations are protected from patent restrictions and remain free for all
 45. **Session Forwarding for Compressed Sessions:** Automatic forwarding of `--session-id` to compressed session via `.sigma/{id}.state.json` state detection, recap loading with fresh SDK session start (no dead session resume), user always uses original session ID while Sigma manages internal chain
 46. **Interactive TUI with Real-Time Lattice Visualization:** Production-ready terminal interface with live overlay status bar showing counts (O1-O7), lattice statistics (nodes/edges/shifts), token tracking with compression threshold, toggle info panel, persistent scroll history with mouse support, and BBS-style aesthetics
 
+**Published**: December 3, 2025 — Multi-Agent Collaborative System
+
+47. **Multi-Agent Collaborative System:** ZeroMQ pub/sub infrastructure enabling asynchronous agent-to-agent communication with persistent message queues (`.sigma/message_queue/{agent-id}/`), auto-response flow with Yossarian Protocol rate limiting (max 5/min), agent registry with heartbeat monitoring and collision detection, 5 MCP/ADK tools (`list_agents`, `send_agent_message`, `broadcast_agent_message`, `get_pending_messages`, `mark_message_read`), and event-driven TUI updates for code review, task distribution, and expert consultation workflows
+
 ### 5. Mathematics Rewards Openness
 
 Closed implementations become evolutionary dead ends. The lattice architecture **favors openness** through network effects, overlay compounding, and integration ecosystems. This is not idealism—this is game theory.

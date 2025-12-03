@@ -241,7 +241,7 @@ This repository constitutes a **formal defensive publication** establishing prio
 </details>
 
 <details>
-<summary><strong>Post-Publication Additions (Innovations #25-46)</strong> — Published: October 27, 2025 - November 19, 2025</summary>
+<summary><strong>Post-Publication Additions (Innovations #25-47)</strong> — Published: October 27, 2025 - December 3, 2025</summary>
 
 25. **Context Sampling Function (Σ)** — Efficient lattice traversal for relevant knowledge extraction
 26. **Monument 4.7: The Shadow** — Dual embedding system for structural and semantic signatures
@@ -269,6 +269,10 @@ This repository constitutes a **formal defensive publication** establishing prio
 45. **Session Forwarding for Compressed Sessions** — Automatic session chain management
 46. **Interactive TUI with Real-Time Lattice Visualization** — Production-ready terminal interface
 
+**v2.6.0 - Published December 3, 2025** — Multi-Agent Collaborative System
+
+47. **Multi-Agent Collaborative System** — ZeroMQ pub/sub infrastructure enabling asynchronous agent-to-agent communication with persistent message queues, auto-response flow with Yossarian Protocol rate limiting, agent registry with heartbeat monitoring, and unified MCP/ADK tools for cross-model collaboration
+
 </details>
 
 ---
@@ -293,6 +297,7 @@ This repository constitutes a **formal defensive publication** establishing prio
   - November 3, 2025 (Innovations #39-46: Σ Dual-Lattice, Infinite Context) — [Zenodo: 10.5281/zenodo.17509405](https://doi.org/10.5281/zenodo.17509405)
   - November 19, 2025 (v2.4.1: Cross-Overlay Workflows) — [Zenodo: 10.5281/zenodo.17635623](https://doi.org/10.5281/zenodo.17635623)
   - November 20, 2025 (v2.4.2: Documentation & Stability)
+  - December 3, 2025 (Innovation #47: Multi-Agent Collaborative System) — v2.6.0
 - **Public Repository**: https://github.com/mirzahusadzic/cogx
 - **Permanent Archive**: Zenodo DOI [10.5281/zenodo.17635623](https://doi.org/10.5281/zenodo.17635623) (latest)
 - **License**: AGPLv3 (entire repository — code, documentation, blueprints)

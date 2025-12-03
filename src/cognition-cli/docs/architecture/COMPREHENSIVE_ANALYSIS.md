@@ -6,10 +6,10 @@
 
 **At a Glance:**
 
-- **Current Version:** 2.5.1 (Gemini Integration)
-- **Production Lines:** ~76,170 TypeScript (excl. tests), ~93,382 total
+- **Current Version:** 2.6.0 (Multi-Agent Collaborative System)
+- **Production Lines:** ~78,520 TypeScript (excl. tests), ~97,262 total
 - **Test Coverage:** ~85% across 120+ test files
-- **Architecture:** 7 cognitive overlays (O₁-O₇), dual-lattice Σ system
+- **Architecture:** 7 cognitive overlays (O₁-O₇), dual-lattice Σ system, ZeroMQ agent messaging
 - **License:** AGPL-3.0-or-later
 
 _See [Summary Statistics](#summary-statistics) for detailed metrics._
@@ -98,7 +98,9 @@ Project Lattice (PGC)          Conversation Lattice (Sigma)
                                │   ├── O5/           (operational patterns)
                                │   ├── O6/           (mathematical concepts)
                                │   └── O7/           (coherence scores)
-                               └── index/            (conversation state)
+                               ├── index/            (conversation state)
+                               └── message_queue/    (agent-to-agent messages)
+                                   └── {agent-id}/   (per-agent queues)
 ```
 
 #### **How Sigma Solves the Context Window Problem**
@@ -218,6 +220,71 @@ The `src/llm` module provides a crucial abstraction layer for interacting with v
 - **`LLMProvider`**: An interface that all LLM provider implementations must adhere to, ensuring a consistent API for completion requests.
 - **`AgentProvider`**: An extension of `LLMProvider` for models that support more advanced agentic capabilities, such as the Gemini Agent Provider.
 - **Pluggable Architecture**: New LLM providers can be added by implementing the `LLMProvider` interface and registering them, enhancing the system's extensibility.
+
+### Multi-Agent Collaborative System
+
+A pub/sub messaging infrastructure enabling multiple AI agents to collaborate asynchronously. Built on ZeroMQ for event-driven communication without polling.
+
+#### **Architecture**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    ZeroMQ Message Bus                       │
+│          ipc:///tmp/cognition-bus.sock                      │
+│   Topics: agent.*, code.*, arch.*, task.*                   │
+└─────────────────────────────────────────────────────────────┘
+         ↑                    ↑                    ↑
+    ┌────┴────┐         ┌────┴────┐         ┌────┴────┐
+    │ Agent 1 │         │ Agent 2 │         │ Agent N │
+    └─────────┘         └─────────┘         └─────────┘
+         ↓                    ↓                    ↓
+    MessageQueue        MessageQueue        MessageQueue
+    .sigma/message_queue/{agent-id}/
+```
+
+#### **Core Components**
+
+| Component               | Purpose                                                                      |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| **ZeroMQBus**           | Pub/sub message bus with topic-based routing and wildcard subscriptions      |
+| **BusCoordinator**      | Bus lifecycle management, Bus Master election (first agent binds)            |
+| **MessageQueue**        | Persistent storage in `.sigma/message_queue/{agent-id}/`, O(1) pending count |
+| **MessageQueueMonitor** | Background subscriber, filters by recipient, event-driven updates            |
+| **MessagePublisher**    | High-level API: `sendTo()`, `broadcast()`, `notifyTaskComplete()`            |
+| **AgentRegistry**       | Heartbeat monitoring, alias system (`opus1`, `sonnet2`), collision detection |
+
+#### **Agent Messaging Tools**
+
+Both Claude (MCP) and Gemini (ADK) have access to 5 tools:
+
+| Tool                      | Purpose                                  |
+| ------------------------- | ---------------------------------------- |
+| `list_agents`             | Discover active agents and their aliases |
+| `send_agent_message`      | Send message to specific agent           |
+| `broadcast_agent_message` | Broadcast to all agents                  |
+| `get_pending_messages`    | Retrieve pending messages                |
+| `mark_message_read`       | Update status (read/injected/dismissed)  |
+
+#### **Auto-Response & Rate Limiting**
+
+- Messages trigger automatic agent responses (disable with `--no-auto-response`)
+- **Yossarian Protocol**: Max 5 auto-responses/minute to prevent infinite loops
+- When limit hit, requires user input to continue
+
+#### **Session Management**
+
+- **Anchor ID format**: `tui-<model>-<timestamp>` (e.g., `tui-sonnet45-1733239823`)
+- Enables tab completion by model: `tui-s<tab>` finds sonnet sessions
+- Provider/model persisted in `.sigma/{id}.state.json` for session resume
+
+#### **Example Workflow**
+
+```
+User → Sonnet: "Implement auth feature"
+  → Sonnet implements, sends to Gemini: "Please review"
+    → Gemini reviews, responds: "Approved" or "Needs changes"
+  → Sonnet receives feedback, iterates
+```
 
 ### Core Orchestrators
 
@@ -366,6 +433,12 @@ watch → dirty_state.json → status → update → coherence restored ♻️
 - **proper-lockfile** — File locking for concurrent safety
 - **Content-addressable storage** using SHA-256 hashing
 
+#### **Inter-Process Communication**
+
+- **ZeroMQ** (zeromq ^6.5.0) — High-performance pub/sub message bus for agent-to-agent communication
+- **IPC Socket** — ipc:///tmp/cognition-bus.sock for local agent coordination
+- **Topic-based routing** — Wildcard subscriptions (code._, agent._, arch._, task._)
+
 #### **Data Processing**
 
 - **Zod** (v3.22.4) — Runtime type validation and schema definition
@@ -408,6 +481,7 @@ watch → dirty_state.json → status → update → coherence restored ♻️
 | esbuild             | 0.25.11 | Worker bundling         |
 | anthropic           | latest  | Claude SDK for Sigma    |
 | google-generativeai | latest  | Gemini SDK for Sigma    |
+| zeromq              | ^6.5.0  | Agent messaging bus     |
 
 ---
 
@@ -541,6 +615,17 @@ Document: `07_AI_Grounded_Architecture_Analysis.md`
 - Zero hallucinations — every claim backed by PGC data
 - 100% reproducible
 - No source files read during analysis — reasoned purely from metadata
+
+### 13. **Multi-Agent Collaborative System** (Innovation #47)
+
+ZeroMQ-based pub/sub messaging enabling agent-to-agent collaboration. See [Multi-Agent Collaborative System](#multi-agent-collaborative-system) for architecture details.
+
+Key capabilities:
+
+- Persistent message queues surviving session restarts
+- Auto-response flow with rate limiting (Yossarian Protocol)
+- Agent registry with aliases (`opus1`, `sonnet2`) and collision detection
+- Code review, task distribution, and expert consultation workflows
 
 ---
 
@@ -736,23 +821,24 @@ The same architecture that understands code can preserve human identity through 
 
 | Metric                     | Value                     |
 | -------------------------- | ------------------------- |
-| **Total TypeScript Lines** | **~93,382** (incl. tests) |
-| Production Code Lines      | ~76,170 (excl. tests)     |
-| Test Code Lines            | ~17,212 (56 test files)   |
-| Total Source Files         | 253 (197 prod + 56 test)  |
+| **Total TypeScript Lines** | **~97,262** (incl. tests) |
+| Production Code Lines      | ~78,520 (excl. tests)     |
+| Test Code Lines            | ~18,742 (60 test files)   |
+| Total Source Files         | 266 (206 prod + 60 test)  |
 
 ### Lines of Code by Module
 
 | Module        | LOC        | Files   | % of Prod | Description                   |
 | ------------- | ---------- | ------- | --------- | ----------------------------- |
-| **core/**     | 34,475     | 84      | 45.3%     | PGC, overlays, orchestrators  |
-| **commands/** | 13,255     | 31      | 17.4%     | CLI command implementations   |
-| **tui/**      | 11,098     | 36      | 14.6%     | React Ink terminal interface  |
-| **sigma/**    | 10,092     | 28      | 13.3%     | Infinite context dual-lattice |
-| **llm/**      | 3,524      | 8       | 4.6%      | LLM provider abstraction      |
-| **utils/**    | 2,308      | 8       | 3.0%      | Errors, formatting, helpers   |
-| **root**      | 1,418      | 2       | 1.9%      | cli.ts, config.ts             |
-| **Total**     | **76,170** | **197** | **100%**  |                               |
+| **core/**     | 34,475     | 84      | 43.9%     | PGC, overlays, orchestrators  |
+| **commands/** | 13,255     | 31      | 16.9%     | CLI command implementations   |
+| **tui/**      | 11,098     | 36      | 14.1%     | React Ink terminal interface  |
+| **sigma/**    | 10,092     | 28      | 12.9%     | Infinite context dual-lattice |
+| **llm/**      | 3,524      | 8       | 4.5%      | LLM provider abstraction      |
+| **ipc/**      | 2,350      | 9       | 3.0%      | ZeroMQ agent messaging        |
+| **utils/**    | 2,308      | 8       | 2.9%      | Errors, formatting, helpers   |
+| **root**      | 1,418      | 2       | 1.8%      | cli.ts, config.ts             |
+| **Total**     | **78,520** | **206** | **100%**  |                               |
 
 ### Core Module Breakdown
 
@@ -792,18 +878,47 @@ The same architecture that understands code can preserve human identity through 
 | Cognitive Overlays    | 7 (O₁-O₇)                          |
 | Supported Languages   | 3 (TS/JS/Python)                   |
 | Core Commands         | 40+ (with tab completion)          |
-| Test Files            | 56 (comprehensive coverage)        |
+| Test Files            | 60 (comprehensive coverage)        |
 | Test Coverage         | ~85% (security, compression, UX)   |
-| Current Version       | 2.5.1 (Gemini Integration)         |
+| Current Version       | 2.6.0 (Multi-Agent)                |
 | License               | AGPL-3.0-or-later                  |
 | Zenodo DOI            | 10.5281/zenodo.17509405            |
-| Innovations Published | 46 (defensive patent publication)  |
+| Innovations Published | 47 (defensive patent publication)  |
 
 ---
 
 ## Version History & Changelog
 
-### Version 2.5.1 (Current - Gemini Integration)
+### Version 2.6.0 (Current - Multi-Agent Collaborative System)
+
+**Summary:** 27 commits (Dec 1-3, 2025) adding agent-to-agent communication infrastructure.
+
+**New Features:**
+
+- **ZeroMQ Pub/Sub** — Event-driven message bus (`ipc:///tmp/cognition-bus.sock`) with topic routing
+- **Persistent Message Queues** — Messages stored in `.sigma/message_queue/{agent-id}/`
+- **Agent Messaging Tools** — 5 MCP/ADK tools: `list_agents`, `send_agent_message`, `broadcast_agent_message`, `get_pending_messages`, `mark_message_read`
+- **Auto-Response System** — Automatic agent turns with Yossarian Protocol (max 5/min rate limit)
+- **Agent Registry** — Heartbeat monitoring, aliases (`opus1`, `sonnet2`), collision detection
+- **Session Anchor IDs** — New format `tui-<model>-<timestamp>` for tab completion
+
+**UX Improvements:**
+
+- Shell completions for `--provider`, `--model`, TUI flags
+- Dimmed startup messages, `DEBUG_IPC=1` for troubleshooting
+- Event-driven TUI updates (replaced polling)
+
+**Bug Fixes:**
+
+- Gemini schema fix (`.default()` → `.optional()`)
+- Self-exclusion logic in agent messaging
+- Missing `getMessageQueue` parameter for Gemini
+
+**Breaking Changes:**
+
+- Removed 5 slash commands replaced by MCP tools: `/send`, `/pending`, `/inject`, `/inject-all`, `/dismiss`
+
+### Version 2.5.1 (Gemini Integration)
 
 **Summary:** 82 commits from v2.3.2 delivering critical compression performance fix, comprehensive UX enhancements, robust error handling, and extensive test coverage. This is a major stability and performance milestone resolving the 5-10 minute compression blocking issue.
 
@@ -937,7 +1052,7 @@ _For previous release history, see [CHANGELOG.md](https://github.com/mirzahusadz
 
 ## Conclusion
 
-Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.5.1** builds on production excellence with Gemini integration, instant compression, comprehensive UX enhancements, shell tab completion, robust error handling, and 85% test coverage. This release delivers the stability and developer experience needed for daily professional use.
+Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.6.0** extends production excellence with a groundbreaking multi-agent collaborative system, enabling true agent-to-agent communication via ZeroMQ pub/sub messaging. This transforms Cognition CLI from a single-agent tool into a multi-agent coordination platform.
 
 It combines:
 
@@ -951,5 +1066,6 @@ It combines:
 - **Infinite context** (Sigma dual-lattice with intelligent compression)
 - **Verifiable memory** (conversation indexed like code)
 - **Production-ready UX** (tab completion, accessibility, graceful degradation)
+- **Multi-agent collaboration** (ZeroMQ pub/sub, persistent queues, auto-response)
 
-Rather than treating LLMs as magical oracles, it grounds them in verifiable fact, enabling a new generation of AI-powered developer tools that are trustworthy, auditable, and aligned with human values and principles.
+Rather than treating LLMs as magical oracles, it grounds them in verifiable fact, enabling a new generation of AI-powered developer tools that are trustworthy, auditable, and aligned with human values and principles. With multi-agent capabilities, it now enables complex workflows where multiple AI agents collaborate asynchronously on different aspects of a project.
