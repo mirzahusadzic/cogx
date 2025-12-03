@@ -9,6 +9,8 @@ export default defineConfig({
   ignoreDeadLinks: [
     // Ignore localhost links (eGemma workbench examples)
     /^http:\/\/localhost/,
+    // Ignore .log file links (proof artifacts)
+    /\.log$/,
   ],
   themeConfig: {
     nav: [
