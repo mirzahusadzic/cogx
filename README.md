@@ -14,7 +14,7 @@ _And I'll show you how deep this rabbit hole really goes._
 
 <div align="center">
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17635623.svg)](https://doi.org/10.5281/zenodo.17635623)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17807587.svg)](https://doi.org/10.5281/zenodo.17807587)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 </div>
@@ -299,7 +299,7 @@ This repository constitutes a **formal defensive publication** establishing prio
   - November 20, 2025 (v2.4.2: Documentation & Stability)
   - December 3, 2025 (Innovation #47: Multi-Agent Collaborative System) — v2.6.0
 - **Public Repository**: https://github.com/mirzahusadzic/cogx
-- **Permanent Archive**: Zenodo DOI [10.5281/zenodo.17635623](https://doi.org/10.5281/zenodo.17635623) (latest)
+- **Permanent Archive**: Zenodo DOI [10.5281/zenodo.17807587](https://doi.org/10.5281/zenodo.17807587) (latest)
 - **License**: AGPLv3 (entire repository — code, documentation, blueprints)
 - **Inventor**: Mirza Husadžić
 
@@ -357,8 +357,8 @@ If you use this work in research, please cite:
   author = {Husadžić, Mirza},
   title = {CogX: A Blueprint for Verifiable, Agentic AI},
   year = {2025},
-  version = {2.5.1},
-  doi = {10.5281/zenodo.17635623},
+  version = {2.6.0},
+  doi = {10.5281/zenodo.17807587},
   url = {https://github.com/mirzahusadzic/cogx}
 }
 ```

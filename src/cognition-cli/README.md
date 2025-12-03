@@ -1,6 +1,6 @@
 # Cognition Σ CLI
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17567109.svg)](https://doi.org/10.5281/zenodo.17567109)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17807587.svg)](https://doi.org/10.5281/zenodo.17807587)
 
 <div align="center" style="margin-top: 20px; margin-bottom: 20px;">
 <img src="./docs/assets/cognition-cli-logo.png" alt="Cognition CLI Logo" width="512"/>
@@ -429,7 +429,7 @@ For the complete list of innovations (#1-47) protected as prior art and publicat
 - Interactive TUI with Real-Time Visualization (#46)
 - Multi-Agent Collaborative System (#47)
 
-**Publication DOI:** [10.5281/zenodo.17635623](https://doi.org/10.5281/zenodo.17635623)
+**Publication DOI:** [10.5281/zenodo.17807587](https://doi.org/10.5281/zenodo.17807587)
 
 ---
 
@@ -443,7 +443,7 @@ If you use this work in research, please cite:
   title = {Cognition Σ CLI: Seven-Overlay Knowledge Graph with Infinite Context},
   year = {2025},
   version = {2.6.0},
-  doi = {10.5281/zenodo.17567109},
+  doi = {10.5281/zenodo.17807587},
   url = {https://github.com/mirzahusadzic/cogx/tree/main/src/cognition-cli}
 }
 ```
