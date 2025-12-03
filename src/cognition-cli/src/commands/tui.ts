@@ -303,18 +303,42 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     process.exit(1);
   }
 
+  // Variables to hold provider/model from state file (for backward-compatible resume)
+  let stateProvider: string | undefined;
+  let stateModel: string | undefined;
+
   if (options.sessionFile) {
     // Extract session ID from filename: .sigma/tui-1762546919034.state.json -> tui-1762546919034
     const basename = path.basename(options.sessionFile, '.state.json');
     sessionId = basename;
+
+    // Try to load provider/model from state file for backward-compatible resume
+    const stateFilePath = options.sessionFile.startsWith('/')
+      ? options.sessionFile
+      : path.join(projectRoot, options.sessionFile);
+
+    if (fs.existsSync(stateFilePath)) {
+      try {
+        const stateContent = JSON.parse(
+          fs.readFileSync(stateFilePath, 'utf-8')
+        );
+        stateProvider = stateContent.provider;
+        stateModel = stateContent.model;
+      } catch {
+        // Ignore parse errors - will use defaults
+      }
+    }
   }
 
   // Resolve provider and model defaults
+  // Priority: CLI flags > state file > config defaults
   const { loadLLMConfig } = await import('../llm/llm-config.js');
   const llmConfig = loadLLMConfig();
-  const resolvedProvider = options.provider || llmConfig.defaultProvider;
+  const resolvedProvider =
+    options.provider || stateProvider || llmConfig.defaultProvider;
   const resolvedModel =
     options.model ||
+    stateModel ||
     llmConfig.providers[resolvedProvider as 'claude' | 'gemini']?.defaultModel;
 
   // Optional: Resume existing session or start fresh

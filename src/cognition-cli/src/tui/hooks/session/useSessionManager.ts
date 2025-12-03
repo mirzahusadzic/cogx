@@ -247,6 +247,7 @@ export function useSessionManager(
   const {
     sessionIdProp,
     cwd,
+    provider,
     model,
     debug = false,
     onSessionLoaded,
@@ -348,11 +349,11 @@ export function useSessionManager(
         const sessionState = store.load();
 
         if (!sessionState) {
-          // No state file exists - create initial state
-          store.create(newSessionId);
+          // No state file exists - create initial state (with provider/model for resume)
+          store.create(newSessionId, provider, model);
           if (debug) {
             console.log(
-              `[useSessionManager] Created initial state: ${anchorId} → ${newSessionId}`
+              `[useSessionManager] Created initial state: ${anchorId} → ${newSessionId} (${provider}/${model})`
             );
           }
         } else if (
@@ -378,11 +379,11 @@ export function useSessionManager(
           // Notify callback
           onSDKSessionChanged?.(event);
         } else if (reason === 'initial') {
-          // State exists but has only initial entry - recreate it
-          store.create(newSessionId);
+          // State exists but has only initial entry - recreate it (with provider/model for resume)
+          store.create(newSessionId, provider, model);
           if (debug) {
             console.log(
-              `[useSessionManager] Recreated initial state: ${anchorId} → ${newSessionId}`
+              `[useSessionManager] Recreated initial state: ${anchorId} → ${newSessionId} (${provider}/${model})`
             );
           }
         } else {
@@ -424,7 +425,7 @@ export function useSessionManager(
         };
       });
     },
-    [anchorId, debug, onSDKSessionChanged]
+    [anchorId, provider, model, debug, onSDKSessionChanged]
   );
 
   // Update stats from turn analyses

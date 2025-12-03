@@ -178,23 +178,35 @@ export class SessionStateStore {
    * Initializes new state file with:
    * - anchor_id = anchorId
    * - current_session = sdkSessionId
+   * - provider and model (for session resume)
    * - Empty compression_history
    * - Default stats (zeros)
    *
    * @param sdkSessionId - Initial SDK session UUID
+   * @param provider - LLM provider (e.g., 'claude', 'gemini')
+   * @param model - Model name (e.g., 'claude-sonnet-4-5-20250514')
    * @returns Newly created session state
    *
    * @example
    * const store = new SessionStateStore('my-session', cwd);
-   * const state = store.create('sdk-abc-123');
+   * const state = store.create('sdk-abc-123', 'claude', 'claude-sonnet-4-5-20250514');
    * // Creates .sigma/my-session.state.json
    */
-  create(sdkSessionId: string): SessionState {
-    const state = createSessionState(this.anchorId, sdkSessionId);
+  create(
+    sdkSessionId: string,
+    provider?: string,
+    model?: string
+  ): SessionState {
+    const state = createSessionState(
+      this.anchorId,
+      sdkSessionId,
+      provider,
+      model
+    );
     this.save(state);
     if (this.debug) {
       console.log(
-        `[SessionStateStore] Created state: ${this.anchorId} → ${sdkSessionId}`
+        `[SessionStateStore] Created state: ${this.anchorId} → ${sdkSessionId} (${provider}/${model})`
       );
     }
     return state;
@@ -387,6 +399,9 @@ export class SessionStateStore {
       currentSessionId: this.anchorId,
       message,
       restoredTokens,
+      // Include provider/model for backward-compatible resume
+      provider: state.provider,
+      model: state.model,
     };
   }
 

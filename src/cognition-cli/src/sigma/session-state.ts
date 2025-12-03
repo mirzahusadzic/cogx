@@ -19,6 +19,12 @@ export interface SessionState {
   /** Current active SDK session UUID */
   current_session: string;
 
+  /** LLM provider used for this session (e.g., 'claude', 'gemini') */
+  provider?: string;
+
+  /** Model used for this session (e.g., 'claude-sonnet-4-5-20250514', 'gemini-2.5-pro') */
+  model?: string;
+
   /** When this anchor was created */
   created_at: string;
 
@@ -132,15 +138,21 @@ export function saveSessionState(
  *
  * @param anchorId - User-facing anchor ID
  * @param sdkSessionId - SDK session UUID
+ * @param provider - LLM provider (e.g., 'claude', 'gemini')
+ * @param model - Model name (e.g., 'claude-sonnet-4-5-20250514')
  * @returns New session state object
  */
 export function createSessionState(
   anchorId: string,
-  sdkSessionId: string
+  sdkSessionId: string,
+  provider?: string,
+  model?: string
 ): SessionState {
   return {
     anchor_id: anchorId,
     current_session: sdkSessionId,
+    provider,
+    model,
     created_at: new Date().toISOString(),
     last_updated: new Date().toISOString(),
     compression_history: [

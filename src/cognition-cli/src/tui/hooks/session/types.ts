@@ -61,8 +61,15 @@ export interface SessionOptions {
   cwd: string;
 
   /**
+   * LLM provider being used (e.g., 'claude', 'gemini')
+   * Persisted in state file for backward-compatible session resume
+   */
+  provider?: string;
+
+  /**
    * Model being used (provider-specific model ID)
    * Used to include model short name in auto-generated anchor IDs
+   * Persisted in state file for backward-compatible session resume
    * @example 'claude-opus-4-5-20251101', 'gemini-2.5-pro'
    */
   model?: string;
@@ -158,6 +165,16 @@ export interface SessionLoadResult {
    * Restored token counts (for compression threshold continuity)
    */
   restoredTokens?: SessionTokens;
+
+  /**
+   * LLM provider from saved session (for backward-compatible resume)
+   */
+  provider?: string;
+
+  /**
+   * Model from saved session (for backward-compatible resume)
+   */
+  model?: string;
 }
 
 /**

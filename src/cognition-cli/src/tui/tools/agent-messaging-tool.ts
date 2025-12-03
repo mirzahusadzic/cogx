@@ -351,10 +351,12 @@ function getActiveAgents(
       const isActive =
         info.status === 'active' && now - info.lastHeartbeat < ACTIVE_THRESHOLD;
 
-      // Exclude self (check both full ID and base ID)
+      // Exclude self (check both full ID and session ID prefix)
+      // If excludeAgentId is "default", match "default-gemini-pro-12345678"
       const isSelf =
         info.agentId === excludeAgentId ||
-        excludeAgentId.startsWith(entry.name);
+        entry.name === excludeAgentId ||
+        entry.name.startsWith(excludeAgentId + '-');
 
       if (isActive && !isSelf) {
         agents.push(info);
