@@ -90,6 +90,9 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     []
   );
 
+  // Getter for message queue (used by agent messaging tool)
+  const getMessageQueue = useCallback(() => messageQueueRef.current, []);
+
   // Tool confirmation hook (guardrails) - must be before chatAreaHeight useMemo
   const { confirmationState, requestConfirmation, allow, deny, alwaysAllow } =
     useToolConfirmation();
@@ -128,6 +131,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     onRequestToolConfirmation: requestConfirmation, // Guardrail callback
     getTaskManager: taskManager.getManager, // Pass task manager getter (returns BackgroundTaskManager instance)
     getMessagePublisher, // Pass message publisher getter (for agent-to-agent messaging tool)
+    getMessageQueue, // Pass message queue getter (for agent-to-agent messaging tool)
   });
 
   // Wrap sendMessage to clear streaming paste on regular messages
