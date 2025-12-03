@@ -61,17 +61,17 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 ## 🎯 Latest Release
 
-**November 27, 2025** — [v2.5.1: Gemini Integration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1):
+**December 3, 2025** — [v2.6.0: Multi-Agent Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0):
 
-- 🚀 **Full Gemini ADK Agent Integration** - Google Gemini joins Claude as a first-class LLM provider with multi-turn BIDI streaming, tool execution, and memory recall
-- 🏗️ **LLM Provider Abstraction Layer** - Future-proof pluggable architecture for easy addition of new LLM providers
-- 🤖 **Enhanced Claude Integration** - Thinking blocks, API key authentication, optional SDK for licensing flexibility
-- 🎨 **TUI Improvements** - Multiline input, ESC interrupt, improved paste handling, dynamic provider display
-- 🛡️ **Tool Permission System** - Integrated permission callbacks for safe tool execution across all providers
+- 🤝 **Innovation #47: Multi-Agent Collaborative System** - AI agents can now communicate, collaborate, and reason together through persistent message queues
+- 📡 **ZeroMQ Pub/Sub Infrastructure** - Event-driven messaging with zero polling overhead
+- 🔄 **Persistent Message Queues** - Discourse survives session restarts; "the debate survives the debaters"
+- 🛡️ **Yossarian Protocol** - Named rate-limiting to prevent AI agent infinite loops
+- 🔗 **Dual LLM Agent Messaging** - Unified tools for both Claude MCP and Gemini ADK agent communication
 
-**Impact**: Transformative release establishing Cognition Σ as a multi-provider platform. Both Claude and Gemini now work at full capability with unified UX, setting foundation for future LLM integrations.
+**Impact**: Platform transformation from single-agent tool to multi-agent coordination platform. Validated through actual agent debate — two AI agents debated whether the system deserved innovation status, using the system itself.
 
-**Previous Releases**: [v2.5.0 - Multi-Provider LLM](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2 - Documentation & Stability](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1 - Cross-Overlay Workflows](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0 - Production Excellence](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ (Sigma) Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
+**Previous Releases**: [v2.5.1 - Gemini Integration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0 - Multi-Provider LLM](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2 - Documentation & Stability](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1 - Cross-Overlay Workflows](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0 - Production Excellence](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ (Sigma) Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
 
 📜 **[See full release history](src/cognition-cli/CHANGELOG.md)**
 
@@ -143,7 +143,7 @@ The production-ready implementation of verifiable AI-human symbiosis. Combines t
 
 **Breakthrough Achievement (Oct 24, 2025):** First grounded architecture analysis performed **on itself**, proving structured PGC metadata is sufficient for deep architectural understanding without reading source code.
 
-**Latest Release:** [v2.5.1 - Gemini Integration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1)
+**Latest Release:** [v2.6.0 - Multi-Agent Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0)
 
 ### eGemma – [The Deterministic Workbench](https://github.com/mirzahusadzic/egemma)
 

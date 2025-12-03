@@ -5,6 +5,59 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2025-12-03
+
+### Summary
+
+**Innovation #47: Multi-Agent Collaborative System.** This release transforms Cognition CLI from a single-agent tool into a multi-agent coordination platform. AI agents can now communicate, collaborate, and reason together through persistent message queues and event-driven pub/sub infrastructure.
+
+### 🚀 Major New Features
+
+#### Multi-Agent IPC Infrastructure
+
+A complete inter-process communication system enabling real-time agent collaboration:
+
+- **ZeroMQ Pub/Sub Bus:** Event-driven messaging with zero polling overhead
+- **Persistent Message Queues:** Messages survive session restarts, enabling discourse continuity across ephemeral agent instances
+- **Agent Registry:** Centralized registry with heartbeat monitoring and automatic cleanup
+- **Short ID Resolution:** User-friendly agent addressing (e.g., `opus1`, `sonnet2`) alongside full UUIDs
+
+#### Yossarian Protocol
+
+Named rate-limiting system to prevent AI agent infinite loops:
+
+- Configurable message limits per time window
+- Graceful degradation when limits are reached
+- Named after Catch-22's protagonist for the recursive irony
+
+#### Dual LLM Agent Messaging
+
+Unified messaging tools for both Claude MCP and Gemini ADK:
+
+- `list_agents` - Discover active agents on the IPC bus
+- `send_agent_message` - Direct agent-to-agent communication
+- `broadcast_agent_message` - Broadcast to all active agents
+- `get_pending_messages` - Retrieve incoming messages
+- `mark_message_read` - Acknowledge processed messages
+
+### 🎨 Improvements
+
+- **Agent Aliases:** Human-readable aliases (model + number) for easier agent identification
+- **Self-Messaging Prevention:** Agents cannot message themselves, preventing trivial loops
+- **Cross-Platform Support:** Developed on macOS, validated on WSL2 without modification
+
+### 📚 Documentation
+
+- Added proof artifact: `docs/proofs/INNOVATION_47_DEBATE.md` - transcript of the debate that validated Innovation #47 through meta-irony (two agents debating multi-agent collaboration using the multi-agent system)
+
+### 🔬 Validated Through Use
+
+Innovation #47 was validated through actual agent collaboration:
+
+- **Original Debate:** Opus vs Sonnet debating whether the system deserved innovation status
+- **Meta-Validation:** The debate itself proved the system works for complex collaborative reasoning
+- **Key Insight:** "The discourse is what persists. The agents are execution contexts."
+
 ## [2.5.1] - 2025-11-25
 
 ### Summary
