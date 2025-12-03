@@ -186,12 +186,6 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
             <Text color="#d29922">
               {sigmaStats.paradigmShifts ?? 0} shifts ⚡
             </Text>
-            {pendingMessageCount > 0 && (
-              <>
-                <Text color="#8b949e">|</Text>
-                <Text color="#f0883e">{pendingMessageCount} messages 📬</Text>
-              </>
-            )}
             <Text color="#8b949e">|</Text>
             <Text color="#56d364">
               novelty: {(sigmaStats.avgNovelty ?? 0).toFixed(2)} 📊
@@ -200,6 +194,12 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
             <Text color="#bc8cff">
               importance: {(sigmaStats.avgImportance ?? 0).toFixed(1)} 🎯
             </Text>
+            {pendingMessageCount > 0 && (
+              <>
+                <Text color="#8b949e">|</Text>
+                <Text color="#f0883e">{pendingMessageCount} messages 📬</Text>
+              </>
+            )}
           </>
         )}
       </Box>

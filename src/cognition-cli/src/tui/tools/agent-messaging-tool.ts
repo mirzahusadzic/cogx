@@ -14,7 +14,19 @@ import { z } from 'zod';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
-import type { MessageQueue, QueuedMessage } from '../../ipc/MessageQueue.js';
+import type { MessageQueue } from '../../ipc/MessageQueue.js';
+import {
+  formatListAgents,
+  formatMessageSent,
+  formatBroadcastSent,
+  formatPendingMessages,
+  formatMessageMarked,
+  formatMessageContent,
+  formatError,
+  formatNotInitialized,
+  formatNotFound,
+  type AgentInfo,
+} from '../../ipc/agent-messaging-formatters.js';
 
 type ClaudeAgentSdk = {
   tool: (
@@ -25,15 +37,6 @@ type ClaudeAgentSdk = {
   ) => unknown;
   createSdkMcpServer: (config: unknown) => unknown;
 };
-
-interface AgentInfo {
-  agentId: string;
-  model: string;
-  alias?: string;
-  startedAt: number;
-  lastHeartbeat: number;
-  status: 'active' | 'idle' | 'disconnected';
-}
 
 /**
  * Create agent messaging MCP server
@@ -69,38 +72,15 @@ export function createAgentMessagingMcpServer(
     async () => {
       try {
         const agents = getActiveAgents(projectRoot, currentAgentId);
-
-        if (agents.length === 0) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: 'No other active agents found. You are the only agent currently running.',
-              },
-            ],
-          };
-        }
-
-        let text = `**Active Agents (${agents.length})**\n\n`;
-        text += '| Alias | Model | Agent ID |\n';
-        text += '|-------|-------|----------|\n';
-
-        for (const agent of agents) {
-          text += `| ${agent.alias || 'unknown'} | ${agent.model} | ${agent.agentId} |\n`;
-        }
-
-        text +=
-          '\n**Usage**: Use `send_agent_message` tool with the alias or agent ID to send a message.';
-
         return {
-          content: [{ type: 'text', text }],
+          content: [{ type: 'text', text: formatListAgents(agents) }],
         };
       } catch (err) {
         return {
           content: [
             {
               type: 'text',
-              text: `Failed to list agents: ${(err as Error).message}`,
+              text: formatError('list agents', (err as Error).message),
             },
           ],
           isError: true,
@@ -128,10 +108,7 @@ export function createAgentMessagingMcpServer(
         if (!publisher) {
           return {
             content: [
-              {
-                type: 'text',
-                text: 'Message publisher not initialized. IPC system may not be running.',
-              },
+              { type: 'text', text: formatNotInitialized('Message publisher') },
             ],
             isError: true,
           };
@@ -142,12 +119,7 @@ export function createAgentMessagingMcpServer(
 
         if (!targetAgentId) {
           return {
-            content: [
-              {
-                type: 'text',
-                text: `Agent not found: "${args.to}". Use list_agents to see available agents.`,
-              },
-            ],
+            content: [{ type: 'text', text: formatNotFound('agent', args.to) }],
             isError: true,
           };
         }
@@ -159,7 +131,7 @@ export function createAgentMessagingMcpServer(
           content: [
             {
               type: 'text',
-              text: `Message sent to ${args.to} (${targetAgentId}).\n\nContent: "${args.message}"`,
+              text: formatMessageSent(args.to, targetAgentId, args.message),
             },
           ],
         };
@@ -168,7 +140,7 @@ export function createAgentMessagingMcpServer(
           content: [
             {
               type: 'text',
-              text: `Failed to send message: ${(err as Error).message}`,
+              text: formatError('send message', (err as Error).message),
             },
           ],
           isError: true,
@@ -191,10 +163,7 @@ export function createAgentMessagingMcpServer(
         if (!publisher) {
           return {
             content: [
-              {
-                type: 'text',
-                text: 'Message publisher not initialized. IPC system may not be running.',
-              },
+              { type: 'text', text: formatNotInitialized('Message publisher') },
             ],
             isError: true,
           };
@@ -212,7 +181,7 @@ export function createAgentMessagingMcpServer(
           content: [
             {
               type: 'text',
-              text: `Message broadcast to ${agents.length} agent(s).\n\nContent: "${args.message}"`,
+              text: formatBroadcastSent(agents.length, args.message),
             },
           ],
         };
@@ -221,7 +190,7 @@ export function createAgentMessagingMcpServer(
           content: [
             {
               type: 'text',
-              text: `Failed to broadcast message: ${(err as Error).message}`,
+              text: formatError('broadcast message', (err as Error).message),
             },
           ],
           isError: true,
@@ -242,10 +211,7 @@ export function createAgentMessagingMcpServer(
         if (!queue) {
           return {
             content: [
-              {
-                type: 'text',
-                text: 'Message queue not initialized. IPC system may not be running.',
-              },
+              { type: 'text', text: formatNotInitialized('Message queue') },
             ],
             isError: true,
           };
@@ -253,43 +219,15 @@ export function createAgentMessagingMcpServer(
 
         const messages = await queue.getMessages('pending');
 
-        if (messages.length === 0) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: 'No pending messages. Your message queue is empty.',
-              },
-            ],
-          };
-        }
-
-        let text = `**Pending Messages (${messages.length})**\n\n`;
-
-        for (const msg of messages) {
-          const date = new Date(msg.timestamp).toLocaleString();
-          const contentText = formatMessageContent(msg);
-
-          text += `---\n\n`;
-          text += `**From**: \`${msg.from}\`\n`;
-          text += `**Topic**: \`${msg.topic}\`\n`;
-          text += `**Received**: ${date}\n`;
-          text += `**Message ID**: \`${msg.id}\`\n\n`;
-          text += `${contentText}\n\n`;
-        }
-
-        text += `---\n\n`;
-        text += `**Actions**: Use \`mark_message_read\` with a message ID to mark it as processed.`;
-
         return {
-          content: [{ type: 'text', text }],
+          content: [{ type: 'text', text: formatPendingMessages(messages) }],
         };
       } catch (err) {
         return {
           content: [
             {
               type: 'text',
-              text: `Failed to get pending messages: ${(err as Error).message}`,
+              text: formatError('get pending messages', (err as Error).message),
             },
           ],
           isError: true,
@@ -321,10 +259,7 @@ export function createAgentMessagingMcpServer(
         if (!queue) {
           return {
             content: [
-              {
-                type: 'text',
-                text: 'Message queue not initialized. IPC system may not be running.',
-              },
+              { type: 'text', text: formatNotInitialized('Message queue') },
             ],
             isError: true,
           };
@@ -335,10 +270,7 @@ export function createAgentMessagingMcpServer(
         if (!message) {
           return {
             content: [
-              {
-                type: 'text',
-                text: `Message not found: ${args.messageId}`,
-              },
+              { type: 'text', text: formatNotFound('Message', args.messageId) },
             ],
             isError: true,
           };
@@ -351,7 +283,12 @@ export function createAgentMessagingMcpServer(
           content: [
             {
               type: 'text',
-              text: `Message ${args.messageId} marked as "${newStatus}".\n\nFrom: ${message.from}\nContent: ${formatMessageContent(message)}`,
+              text: formatMessageMarked(
+                args.messageId,
+                newStatus,
+                message.from,
+                formatMessageContent(message)
+              ),
             },
           ],
         };
@@ -360,7 +297,7 @@ export function createAgentMessagingMcpServer(
           content: [
             {
               type: 'text',
-              text: `Failed to mark message: ${(err as Error).message}`,
+              text: formatError('mark message', (err as Error).message),
             },
           ],
           isError: true,
@@ -380,20 +317,6 @@ export function createAgentMessagingMcpServer(
       markMessageReadTool,
     ],
   });
-}
-
-/**
- * Format message content for display
- */
-function formatMessageContent(msg: QueuedMessage): string {
-  if (
-    typeof msg.content === 'object' &&
-    msg.content !== null &&
-    'message' in msg.content
-  ) {
-    return (msg.content as { message: string }).message;
-  }
-  return JSON.stringify(msg.content);
 }
 
 /**

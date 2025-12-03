@@ -111,6 +111,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   const {
     messages,
     sendMessage: originalSendMessage,
+    addSystemMessage,
     isThinking,
     error,
     tokenCount,
@@ -137,15 +138,14 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   // Wrap sendMessage to clear streaming paste on regular messages
   const sendMessage = useCallback(
     async (msg: string) => {
-      // Handle /send command for inter-agent messaging
+      // Handle /send command for inter-agent messaging (display-only)
       if (msg.startsWith('/send ')) {
         const args = msg.slice(6).trim(); // Remove '/send '
         const spaceIndex = args.indexOf(' ');
 
         if (spaceIndex === -1) {
-          // No message content provided
-          originalSendMessage(
-            '❌ Error: Missing message content\n\nUsage: /send <alias> <message>\n\nExample: /send opus1 Please review my code'
+          addSystemMessage(
+            '❌ Missing message content\n\nUsage: /send <alias> <message>'
           );
           return;
         }
@@ -154,9 +154,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
         const messageContent = args.slice(spaceIndex + 1);
 
         if (!messageContent.trim()) {
-          originalSendMessage(
-            '❌ Error: Message content cannot be empty\n\nUsage: /send <alias> <message>'
-          );
+          addSystemMessage('❌ Message content cannot be empty');
           return;
         }
 
@@ -173,7 +171,6 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
             if (fs.existsSync(infoPath)) {
               try {
                 const info = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
-                // Match by alias (case-insensitive)
                 if (
                   info.alias &&
                   info.alias.toLowerCase() === targetAliasOrId.toLowerCase()
@@ -192,57 +189,42 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
         try {
           const publisher = messagePublisherRef.current;
           if (!publisher) {
-            originalSendMessage(
-              '❌ Error: MessagePublisher not initialized. Please wait for the IPC system to start.'
-            );
+            addSystemMessage('❌ MessagePublisher not initialized');
             return;
           }
 
           await publisher.sendMessage(targetAgentId, messageContent);
-
-          // Display confirmation (show alias if different from ID)
-          const displayTarget =
-            targetAgentId !== targetAliasOrId
-              ? `\`${targetAliasOrId}\` (\`${targetAgentId}\`)`
-              : `\`${targetAgentId}\``;
-
-          originalSendMessage(
-            `📤 Message Sent\n\n` +
-              `**To**: ${displayTarget}\n` +
-              `**Topic**: \`agent.message\`\n` +
-              `**Content**: ${messageContent}\n\n` +
-              `The recipient will see this when they run \`/pending\`.`
+          addSystemMessage(
+            `📤 Sent to ${targetAliasOrId}: "${messageContent}"`
           );
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
-          originalSendMessage(`❌ Error sending message: ${errorMsg}`);
+          addSystemMessage(`❌ Send failed: ${errorMsg}`);
         }
 
         return;
       }
 
-      // Handle /pending command to list messages
+      // Handle /pending command to list messages (display-only)
       if (msg.trim() === '/pending') {
         try {
           const messageQueue = messageQueueRef.current;
           if (!messageQueue) {
-            originalSendMessage('❌ Error: MessageQueue not initialized.');
+            addSystemMessage('❌ MessageQueue not initialized');
             return;
           }
 
           const messages = await messageQueue.getMessages('pending');
 
           if (messages.length === 0) {
-            originalSendMessage(
-              '📭 **No pending messages**\n\nYour message queue is empty.'
-            );
+            addSystemMessage('📭 No pending messages');
             return;
           }
 
-          let output = `📬 **Pending Messages (${messages.length})**\n\n`;
+          let output = `📬 Pending Messages (${messages.length})\n\n`;
 
           for (const msg of messages) {
-            const date = new Date(msg.timestamp).toLocaleString();
+            const time = new Date(msg.timestamp).toLocaleTimeString();
             const contentPreview =
               typeof msg.content === 'object' &&
               msg.content !== null &&
@@ -250,23 +232,22 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
                 ? (msg.content as { message: string }).message
                 : JSON.stringify(msg.content);
 
-            output += `---\n\n`;
-            output += `**Message ID**: \`${msg.id}\`\n`;
-            output += `**From**: \`${msg.from}\`\n`;
-            output += `**Topic**: \`${msg.topic}\`\n`;
-            output += `**Received**: ${date}\n`;
-            output += `**Content**:\n\n\`\`\`\n${contentPreview}\n\`\`\`\n\n`;
+            // Truncate long messages
+            const preview =
+              contentPreview.length > 80
+                ? contentPreview.slice(0, 77) + '...'
+                : contentPreview;
+
+            output += `• [${msg.id.slice(0, 8)}] ${msg.from} (${time})\n`;
+            output += `  "${preview}"\n\n`;
           }
 
-          output += `---\n\n**Actions**:\n\n`;
-          output += `- \`/inject {message-id}\` - Inject specific message into conversation\n`;
-          output += `- \`/inject-all\` - Inject all pending messages\n`;
-          output += `- \`/dismiss {message-id}\` - Dismiss specific message\n`;
+          output += `💬 /inject <id> | /inject-all | /dismiss <id>`;
 
-          originalSendMessage(output);
+          addSystemMessage(output);
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
-          originalSendMessage(`❌ Error listing messages: ${errorMsg}`);
+          addSystemMessage(`❌ Error: ${errorMsg}`);
         }
 
         return;
@@ -376,48 +357,41 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
         return;
       }
 
-      // Handle /dismiss command
+      // Handle /dismiss command (display-only)
       if (msg.startsWith('/dismiss ')) {
         const messageId = msg.slice(9).trim();
 
         if (!messageId) {
-          originalSendMessage(
-            '❌ Error: Missing message ID\n\nUsage: /dismiss <message-id>\n\nUse `/pending` to see available messages.'
-          );
+          addSystemMessage('❌ Missing message ID\n\nUsage: /dismiss <id>');
           return;
         }
 
         try {
           const messageQueue = messageQueueRef.current;
           if (!messageQueue) {
-            originalSendMessage('❌ Error: MessageQueue not initialized.');
+            addSystemMessage('❌ MessageQueue not initialized');
             return;
           }
 
           const message = await messageQueue.getMessage(messageId);
 
           if (!message) {
-            originalSendMessage(
-              `❌ **Error: Message not found**\n\nMessage ID \`${messageId}\` does not exist in the queue.\n\nUse \`/pending\` to see available messages.`
-            );
+            addSystemMessage(`❌ Message not found: ${messageId}`);
             return;
           }
 
           // Update status to dismissed
           await messageQueue.updateStatus(messageId, 'dismissed');
-
-          originalSendMessage(
-            `✅ **Message Dismissed**\n\nMessage \`${messageId}\` from \`${message.from}\` has been dismissed.`
-          );
+          addSystemMessage(`🗑️ Dismissed message from ${message.from}`);
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
-          originalSendMessage(`❌ Error dismissing message: ${errorMsg}`);
+          addSystemMessage(`❌ Error: ${errorMsg}`);
         }
 
         return;
       }
 
-      // Handle /agents command to list active agents
+      // Handle /agents command to list active agents (display-only, not sent to agent)
       if (msg.trim() === '/agents') {
         try {
           const sigmaDir = path.join(projectRoot, '.sigma');
@@ -425,8 +399,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
 
           // Check if message_queue directory exists
           if (!fs.existsSync(queueDir)) {
-            originalSendMessage(
-              '📭 **No agents found**\n\nNo message queue directory exists yet. Agents will appear here once they connect to the ZeroMQ bus.'
+            addSystemMessage(
+              '📭 No agents found\n\nNo message queue directory exists yet. Agents will appear here once they connect.'
             );
             return;
           }
@@ -436,8 +410,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           const agentDirs = entries.filter((e) => e.isDirectory());
 
           if (agentDirs.length === 0) {
-            originalSendMessage(
-              '📭 **No agents found**\n\nNo agents have connected yet.'
+            addSystemMessage(
+              '📭 No agents found\n\nNo agents have connected yet.'
             );
             return;
           }
@@ -454,9 +428,9 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           }
 
           const agents: AgentDisplayInfo[] = [];
-          const currentAgentId = anchorId;
           const now = Date.now();
           const ACTIVE_THRESHOLD = 30000; // 30 seconds
+          let currentAgent: AgentDisplayInfo | null = null;
 
           for (const dir of agentDirs) {
             const agentDir = path.join(queueDir, dir.name);
@@ -478,51 +452,68 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
                 continue;
               }
 
-              agents.push({
+              // Check if this is "you" by matching anchor ID pattern
+              const isYou = info.agentId?.startsWith(anchorId + '-') || false;
+
+              const agentInfo: AgentDisplayInfo = {
                 id: info.agentId || dir.name,
                 alias: info.alias || info.model || 'agent',
                 model: info.model || 'unknown',
                 lastHeartbeat: info.lastHeartbeat || 0,
                 status: info.status || 'unknown',
-                isYou: dir.name === currentAgentId,
+                isYou,
                 isActive,
-              });
+              };
+
+              if (isYou) {
+                currentAgent = agentInfo;
+              }
+
+              agents.push(agentInfo);
             } catch {
               // Ignore parse errors
             }
           }
 
           if (agents.length === 0) {
-            originalSendMessage(
-              '📭 **No active agents**\n\nNo agents are currently connected. Start another TUI instance to see it here.'
+            addSystemMessage(
+              '📭 No active agents\n\nNo agents are currently connected. Start another TUI instance to see it here.'
             );
             return;
           }
 
-          // Sort by alias (for consistent ordering)
-          agents.sort((a, b) => a.alias.localeCompare(b.alias));
+          // Sort by alias (for consistent ordering), but put "you" first
+          agents.sort((a, b) => {
+            if (a.isYou) return -1;
+            if (b.isYou) return 1;
+            return a.alias.localeCompare(b.alias);
+          });
 
-          // Build output
-          let output = `🤖 **Active Agents (${agents.length})**\n\n`;
-          output += `| Alias | Model | Status |\n`;
-          output += `|-------|-------|--------|\n`;
+          // Build clean output
+          let output = '';
 
-          for (const agent of agents) {
-            const marker = agent.isYou ? ' 👤' : '';
-            output += `| \`${agent.alias}\`${marker} | ${agent.model} | 🟢 active |\n`;
+          // Show current agent identity prominently
+          if (currentAgent) {
+            output += `👤 You are: ${currentAgent.alias} (${currentAgent.model})\n\n`;
           }
 
-          output += `\n---\n\n`;
-          output += `**Usage:**\n`;
-          output += `\`/send <alias> <message>\` - Send a message to an agent\n\n`;
-          output += `**Examples:**\n`;
-          output += `- \`/send opus1 Please review my code\`\n`;
-          output += `- \`/send gemini2 What's the architecture?\``;
+          // List other agents
+          const otherAgents = agents.filter((a) => !a.isYou);
+          if (otherAgents.length > 0) {
+            output += `🤖 Other Agents (${otherAgents.length}):\n`;
+            for (const agent of otherAgents) {
+              output += `   • ${agent.alias} (${agent.model})\n`;
+            }
+          } else {
+            output += `🤖 No other agents online\n`;
+          }
 
-          originalSendMessage(output);
+          output += `\n💬 /send <alias> <message>`;
+
+          addSystemMessage(output);
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
-          originalSendMessage(`❌ Error listing agents: ${errorMsg}`);
+          addSystemMessage(`❌ Error listing agents: ${errorMsg}`);
         }
 
         return;
@@ -534,7 +525,13 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       }
       originalSendMessage(msg);
     },
-    [originalSendMessage, currentSessionId, projectRoot]
+    [
+      originalSendMessage,
+      addSystemMessage,
+      currentSessionId,
+      projectRoot,
+      anchorId,
+    ]
   );
 
   // Onboarding wizard (async, non-blocking) - must be after sendMessage

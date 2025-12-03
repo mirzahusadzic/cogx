@@ -11,7 +11,19 @@ import * as path from 'path';
 import { spawn } from 'child_process';
 import { glob } from 'glob';
 import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
-import type { MessageQueue, QueuedMessage } from '../../ipc/MessageQueue.js';
+import type { MessageQueue } from '../../ipc/MessageQueue.js';
+import {
+  formatListAgents,
+  formatMessageSent,
+  formatBroadcastSent,
+  formatPendingMessages,
+  formatMessageMarked,
+  formatMessageContent,
+  formatError,
+  formatNotInitialized,
+  formatNotFound,
+  type AgentInfo,
+} from '../../ipc/agent-messaging-formatters.js';
 import * as fsSync from 'fs';
 import * as pathMod from 'path';
 import type { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
@@ -570,29 +582,6 @@ function formatDuration(start: Date, end: Date): string {
   return `${(ms / 3600000).toFixed(1)}h`;
 }
 
-interface AgentInfo {
-  agentId: string;
-  model: string;
-  alias?: string;
-  startedAt: number;
-  lastHeartbeat: number;
-  status: 'active' | 'idle' | 'disconnected';
-}
-
-/**
- * Format message content for display
- */
-function formatMessageContent(msg: QueuedMessage): string {
-  if (
-    typeof msg.content === 'object' &&
-    msg.content !== null &&
-    'message' in msg.content
-  ) {
-    return (msg.content as { message: string }).message;
-  }
-  return JSON.stringify(msg.content);
-}
-
 /**
  * Get list of active agents from message_queue directory
  */
@@ -711,25 +700,9 @@ function createAgentMessagingTools(
     async () => {
       try {
         const agents = getActiveAgents(projectRoot, currentAgentId);
-
-        if (agents.length === 0) {
-          return 'No other active agents found. You are the only agent currently running.';
-        }
-
-        let text = `**Active Agents (${agents.length})**\\n\\n`;
-        text += '| Alias | Model | Agent ID |\\n';
-        text += '|-------|-------|----------|\\n';
-
-        for (const agent of agents) {
-          text += `| ${agent.alias || 'unknown'} | ${agent.model} | ${agent.agentId} |\\n`;
-        }
-
-        text +=
-          '\\n**Usage**: Use `send_agent_message` tool with the alias or agent ID to send a message.';
-
-        return text;
+        return formatListAgents(agents);
       } catch (err) {
-        return `Failed to list agents: ${(err as Error).message}`;
+        return formatError('list agents', (err as Error).message);
       }
     },
     onCanUseTool
@@ -753,22 +726,22 @@ function createAgentMessagingTools(
         const publisher = getMessagePublisher ? getMessagePublisher() : null;
 
         if (!publisher) {
-          return 'Message publisher not initialized. IPC system may not be running.';
+          return formatNotInitialized('Message publisher');
         }
 
         // Resolve alias to agent ID
         const targetAgentId = resolveAgentId(projectRoot, args.to);
 
         if (!targetAgentId) {
-          return `Agent not found: "${args.to}". Use list_agents to see available agents.`;
+          return formatNotFound('agent', args.to);
         }
 
         // Send the message
         await publisher.sendMessage(targetAgentId, args.message);
 
-        return `Message sent to ${args.to} (${targetAgentId}).\\n\\nContent: "${args.message}"`;
+        return formatMessageSent(args.to, targetAgentId, args.message);
       } catch (err) {
-        return `Failed to send message: ${(err as Error).message}`;
+        return formatError('send message', (err as Error).message);
       }
     },
     onCanUseTool
@@ -787,7 +760,7 @@ function createAgentMessagingTools(
         const publisher = getMessagePublisher ? getMessagePublisher() : null;
 
         if (!publisher) {
-          return 'Message publisher not initialized. IPC system may not be running.';
+          return formatNotInitialized('Message publisher');
         }
 
         // Broadcast to all agents
@@ -798,9 +771,9 @@ function createAgentMessagingTools(
 
         const agents = getActiveAgents(projectRoot, currentAgentId);
 
-        return `Message broadcast to ${agents.length} agent(s).\\n\\nContent: "${args.message}"`;
+        return formatBroadcastSent(agents.length, args.message);
       } catch (err) {
-        return `Failed to broadcast message: ${(err as Error).message}`;
+        return formatError('broadcast message', (err as Error).message);
       }
     },
     onCanUseTool
@@ -817,35 +790,14 @@ function createAgentMessagingTools(
         const queue = getMessageQueue ? getMessageQueue() : null;
 
         if (!queue) {
-          return 'Message queue not initialized. IPC system may not be running.';
+          return formatNotInitialized('Message queue');
         }
 
         const messages = await queue.getMessages('pending');
 
-        if (messages.length === 0) {
-          return 'No pending messages. Your message queue is empty.';
-        }
-
-        let text = `**Pending Messages (${messages.length})**\\n\\n`;
-
-        for (const msg of messages) {
-          const date = new Date(msg.timestamp).toLocaleString();
-          const contentText = formatMessageContent(msg);
-
-          text += `---\\n\\n`;
-          text += `**From**: \\\`${msg.from}\\\`\\n`;
-          text += `**Topic**: \\\`${msg.topic}\\\`\\n`;
-          text += `**Received**: ${date}\\n`;
-          text += `**Message ID**: \\\`${msg.id}\\\`\\n\\n`;
-          text += `${contentText}\\n\\n`;
-        }
-
-        text += `---\\n\\n`;
-        text += `**Actions**: Use \\\`mark_message_read\\\` with a message ID to mark it as processed.`;
-
-        return text;
+        return formatPendingMessages(messages);
       } catch (err) {
-        return `Failed to get pending messages: ${(err as Error).message}`;
+        return formatError('get pending messages', (err as Error).message);
       }
     },
     onCanUseTool
@@ -873,21 +825,26 @@ function createAgentMessagingTools(
         const queue = getMessageQueue ? getMessageQueue() : null;
 
         if (!queue) {
-          return 'Message queue not initialized. IPC system may not be running.';
+          return formatNotInitialized('Message queue');
         }
 
         const message = await queue.getMessage(args.messageId);
 
         if (!message) {
-          return `Message not found: ${args.messageId}`;
+          return formatNotFound('Message', args.messageId);
         }
 
         const newStatus = args.status || 'injected';
         await queue.updateStatus(args.messageId, newStatus);
 
-        return `Message ${args.messageId} marked as "${newStatus}".\\n\\nFrom: ${message.from}\\nContent: ${formatMessageContent(message)}`;
+        return formatMessageMarked(
+          args.messageId,
+          newStatus,
+          message.from,
+          formatMessageContent(message)
+        );
       } catch (err) {
-        return `Failed to mark message: ${(err as Error).message}`;
+        return formatError('mark message', (err as Error).message);
       }
     },
     onCanUseTool

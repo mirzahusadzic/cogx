@@ -2096,6 +2096,25 @@ export function useAgent(options: UseAgentOptions) {
   }, []);
 
   // ========================================
+  // DISPLAY-ONLY MESSAGE
+  // ========================================
+
+  /**
+   * Add a system message to the UI without sending to the agent.
+   * Used for display-only content like /agents output.
+   */
+  const addSystemMessage = useCallback((content: string) => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        type: 'system' as const,
+        content,
+        timestamp: new Date(),
+      },
+    ]);
+  }, []);
+
+  // ========================================
   // RETURN VALUE
   // ========================================
 
@@ -2105,6 +2124,7 @@ export function useAgent(options: UseAgentOptions) {
    * Provides:
    * - messages: Conversation history
    * - sendMessage: Send user input to Claude
+   * - addSystemMessage: Add display-only message (not sent to agent)
    * - interrupt: Stop current query
    * - isThinking: Whether Claude is responding
    * - error: Error message (if any)
@@ -2117,6 +2137,7 @@ export function useAgent(options: UseAgentOptions) {
   return {
     messages,
     sendMessage,
+    addSystemMessage,
     interrupt,
     isThinking,
     error,

@@ -30,6 +30,7 @@ export * from './AgentRegistry.js';
 export { MessageQueueMonitor, AgentInfo } from './MessageQueueMonitor.js';
 export { MessagePublisher } from './MessagePublisher.js';
 export { MessageQueue } from './MessageQueue.js';
+export * from './agent-messaging-formatters.js';
 
 // Export availability check
 export const isMultiAgentAvailable = ZeroMQAvailable;

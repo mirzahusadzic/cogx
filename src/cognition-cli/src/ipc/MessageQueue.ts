@@ -146,20 +146,59 @@ export class MessageQueue {
   }
 
   /**
-   * Get message by ID
+   * Get message by ID (supports both full UUID and short prefix)
    */
   async getMessage(id: string): Promise<QueuedMessage | null> {
+    // First try exact match
     const messagePath = path.join(this.queueDir, `msg-${id}.json`);
-
-    if (!(await fs.pathExists(messagePath))) {
-      return null;
+    if (await fs.pathExists(messagePath)) {
+      return await fs.readJson(messagePath);
     }
 
-    return await fs.readJson(messagePath);
+    // If not found and looks like a short ID, try prefix match
+    if (id.length < 36) {
+      const resolvedId = await this.resolveMessageId(id);
+      if (resolvedId) {
+        const resolvedPath = path.join(this.queueDir, `msg-${resolvedId}.json`);
+        return await fs.readJson(resolvedPath);
+      }
+    }
+
+    return null;
   }
 
   /**
-   * Update message status
+   * Resolve a short message ID prefix to the full UUID
+   * @param shortId First N characters of a message UUID (typically 8)
+   * @returns Full UUID if unique match found, null otherwise
+   */
+  async resolveMessageId(shortId: string): Promise<string | null> {
+    await this.initialize();
+
+    const files = await fs.readdir(this.queueDir);
+    const messageFiles = files.filter(
+      (f) => f.startsWith('msg-') && f.endsWith('.json')
+    );
+
+    const matches: string[] = [];
+    for (const file of messageFiles) {
+      // Extract UUID from "msg-{uuid}.json"
+      const uuid = file.slice(4, -5);
+      if (uuid.startsWith(shortId)) {
+        matches.push(uuid);
+      }
+    }
+
+    // Return only if exactly one match
+    if (matches.length === 1) {
+      return matches[0];
+    }
+
+    return null;
+  }
+
+  /**
+   * Update message status (supports both full UUID and short prefix)
    */
   async updateStatus(id: string, status: MessageStatus): Promise<void> {
     const message = await this.getMessage(id);
@@ -170,8 +209,8 @@ export class MessageQueue {
     const oldStatus = message.status;
     message.status = status;
 
-    // Write updated message
-    const messagePath = path.join(this.queueDir, `msg-${id}.json`);
+    // Use message.id (full UUID) for path, not the potentially short input id
+    const messagePath = path.join(this.queueDir, `msg-${message.id}.json`);
     await fs.writeJson(messagePath, message, { spaces: 2 });
 
     // Update index status counts (NOT total, just moving between statuses)
@@ -191,7 +230,7 @@ export class MessageQueue {
   }
 
   /**
-   * Delete a message
+   * Delete a message (supports both full UUID and short prefix)
    */
   async deleteMessage(id: string): Promise<void> {
     const message = await this.getMessage(id);
@@ -200,7 +239,8 @@ export class MessageQueue {
     }
 
     const wasPending = message.status === 'pending';
-    const messagePath = path.join(this.queueDir, `msg-${id}.json`);
+    // Use message.id (full UUID) for path, not the potentially short input id
+    const messagePath = path.join(this.queueDir, `msg-${message.id}.json`);
     await fs.remove(messagePath);
 
     // Update index
