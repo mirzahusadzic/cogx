@@ -28,7 +28,7 @@ describe('init command', () => {
 
   describe('Directory Structure Creation', () => {
     it('should create .open_cognition directory structure', async () => {
-      await initCommand({ path: tempDir });
+      await initCommand({ path: tempDir, force: true });
 
       const pgcRoot = path.join(tempDir, '.open_cognition');
       expect(await fs.pathExists(pgcRoot)).toBe(true);
@@ -42,7 +42,7 @@ describe('init command', () => {
     });
 
     it('should create all four pillars of PGC architecture', async () => {
-      await initCommand({ path: tempDir });
+      await initCommand({ path: tempDir, force: true });
 
       const pgcRoot = path.join(tempDir, '.open_cognition');
 
@@ -62,7 +62,7 @@ describe('init command', () => {
 
   describe('Metadata Initialization', () => {
     it('should create metadata.json with correct version', async () => {
-      await initCommand({ path: tempDir });
+      await initCommand({ path: tempDir, force: true });
 
       const metadataPath = path.join(
         tempDir,
@@ -78,7 +78,7 @@ describe('init command', () => {
 
     it('should set initialized_at to valid ISO timestamp', async () => {
       const beforeInit = new Date().toISOString();
-      await initCommand({ path: tempDir });
+      await initCommand({ path: tempDir, force: true });
       const afterInit = new Date().toISOString();
 
       const metadataPath = path.join(
@@ -96,7 +96,7 @@ describe('init command', () => {
     });
 
     it('should initialize status as "empty"', async () => {
-      await initCommand({ path: tempDir });
+      await initCommand({ path: tempDir, force: true });
 
       const metadataPath = path.join(
         tempDir,
@@ -111,7 +111,7 @@ describe('init command', () => {
 
   describe('.gitignore Creation', () => {
     it('should create .gitignore for object store', async () => {
-      await initCommand({ path: tempDir });
+      await initCommand({ path: tempDir, force: true });
 
       const gitignorePath = path.join(tempDir, '.open_cognition', '.gitignore');
       const content = await fs.readFile(gitignorePath, 'utf-8');
@@ -120,7 +120,7 @@ describe('init command', () => {
     });
 
     it('should exclude large objects directory from git', async () => {
-      await initCommand({ path: tempDir });
+      await initCommand({ path: tempDir, force: true });
 
       const gitignorePath = path.join(tempDir, '.open_cognition', '.gitignore');
       const content = await fs.readFile(gitignorePath, 'utf-8');
@@ -130,7 +130,7 @@ describe('init command', () => {
     });
 
     it('should preserve structure files with .gitkeep', async () => {
-      await initCommand({ path: tempDir });
+      await initCommand({ path: tempDir, force: true });
 
       const gitignorePath = path.join(tempDir, '.open_cognition', '.gitignore');
       const content = await fs.readFile(gitignorePath, 'utf-8');
@@ -142,7 +142,7 @@ describe('init command', () => {
   describe('Idempotency', () => {
     it('should succeed on repeated initialization (idempotent)', async () => {
       // First init
-      await initCommand({ path: tempDir });
+      await initCommand({ path: tempDir, force: true });
 
       // Second init should succeed with --force flag (idempotent)
       await expect(
@@ -152,7 +152,7 @@ describe('init command', () => {
 
     it('should preserve existing metadata on re-init', async () => {
       // First init
-      await initCommand({ path: tempDir });
+      await initCommand({ path: tempDir, force: true });
 
       const metadataPath = path.join(
         tempDir,
@@ -195,7 +195,9 @@ describe('init command', () => {
       await fs.ensureDir(readOnlyDir);
       await fs.chmod(readOnlyDir, 0o444);
 
-      await expect(initCommand({ path: readOnlyDir })).rejects.toThrow();
+      await expect(
+        initCommand({ path: readOnlyDir, force: true })
+      ).rejects.toThrow();
 
       // Cleanup: restore permissions
       await fs.chmod(readOnlyDir, 0o755);
@@ -205,7 +207,7 @@ describe('init command', () => {
   describe('Path Handling', () => {
     it('should work with absolute paths', async () => {
       const absolutePath = path.resolve(tempDir);
-      await initCommand({ path: absolutePath });
+      await initCommand({ path: absolutePath, force: true });
 
       const pgcRoot = path.join(absolutePath, '.open_cognition');
       expect(await fs.pathExists(pgcRoot)).toBe(true);
@@ -220,7 +222,7 @@ describe('init command', () => {
       // This avoids using process.chdir() which doesn't work in workers
       const relativePath = path.relative(process.cwd(), subDir);
 
-      await initCommand({ path: relativePath });
+      await initCommand({ path: relativePath, force: true });
 
       const pgcRoot = path.join(subDir, '.open_cognition');
       expect(await fs.pathExists(pgcRoot)).toBe(true);
