@@ -31,6 +31,7 @@
  */
 
 import { fetch } from 'undici';
+import { initializeProviders, registry } from '../llm/index.js';
 
 /**
  * Supported LLM provider types
@@ -242,19 +243,32 @@ export async function detectWorkbench(): Promise<WorkbenchDetectionResult> {
  *   console.log('No LLM provider configured');
  * }
  */
-export function detectLLMProvider(
+export async function detectLLMProvider(
   preferredProvider?: LLMProviderType
-): LLMProviderDetectionResult {
+): Promise<LLMProviderDetectionResult> {
+  // Initialize providers to detect all available options (including OAuth-based Claude)
+  try {
+    await initializeProviders({ skipMissingProviders: true });
+  } catch {
+    // If initialization fails, fall back to env var check
+  }
+
+  // Check what's actually registered in the provider registry
+  const registeredProviders = registry.list();
+  const claudeRegistered = registeredProviders.includes('claude');
+  const geminiRegistered = registeredProviders.includes('gemini');
+
+  // Also track API key presence for detailed status
   const claudeKey = process.env.ANTHROPIC_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
 
   const providers = {
     claude: {
-      available: !!claudeKey,
+      available: claudeRegistered,
       hasKey: !!claudeKey,
     },
     gemini: {
-      available: !!geminiKey,
+      available: geminiRegistered,
       hasKey: !!geminiKey,
     },
   };
@@ -276,7 +290,7 @@ export function detectLLMProvider(
     return {
       found: true,
       provider: 'claude',
-      hasApiKey: true,
+      hasApiKey: providers.claude.hasKey,
       providers,
     };
   }
@@ -285,7 +299,7 @@ export function detectLLMProvider(
     return {
       found: true,
       provider: 'gemini',
-      hasApiKey: true,
+      hasApiKey: providers.gemini.hasKey,
       providers,
     };
   }
@@ -323,7 +337,7 @@ export async function checkPrerequisites(
   preferredProvider?: LLMProviderType
 ): Promise<PrerequisitesResult> {
   const workbench = await detectWorkbench();
-  const llm = detectLLMProvider(preferredProvider);
+  const llm = await detectLLMProvider(preferredProvider);
 
   const errors: string[] = [];
 
