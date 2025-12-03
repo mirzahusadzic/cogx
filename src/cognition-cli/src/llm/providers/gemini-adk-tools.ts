@@ -467,12 +467,13 @@ function createBackgroundTasksTool(
     parameters: z.object({
       filter: z
         .enum(['all', 'active', 'completed', 'failed'])
-        .default('all')
+        .optional()
         .describe(
-          'Filter tasks by status: "all" for everything, "active" for running/pending, "completed" for finished, "failed" for errors'
+          'Filter tasks by status: "all" (default) for everything, "active" for running/pending, "completed" for finished, "failed" for errors'
         ),
     }),
-    execute: async ({ filter }) => {
+    execute: async ({ filter: filterArg }) => {
+      const filter = filterArg || 'all';
       try {
         const taskManager = getTaskManager();
 
@@ -812,9 +813,9 @@ function createAgentMessagingTools(
       messageId: z.string().describe('The message ID to mark as read'),
       status: z
         .enum(['read', 'injected', 'dismissed'])
-        .default('injected')
+        .optional()
         .describe(
-          'New status: "injected" (processed), "read" (seen), or "dismissed" (ignored)'
+          'New status: "injected" (default/processed), "read" (seen), or "dismissed" (ignored)'
         ),
     }),
     async (args: {
