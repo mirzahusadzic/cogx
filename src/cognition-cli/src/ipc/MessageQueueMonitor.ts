@@ -89,7 +89,8 @@ export class MessageQueueMonitor {
 
   /**
    * Generate unique alias for this agent based on model
-   * Reads existing agents and assigns next number (opus1, opus2, etc.)
+   * Only counts ACTIVE agents (recent heartbeat) to keep numbers low
+   * e.g., opus1, opus2, sonnet1, gemini1
    */
   private async generateAlias(): Promise<string> {
     const queueDir = path.join(this.sigmaDir, 'message_queue');
@@ -99,8 +100,11 @@ export class MessageQueueMonitor {
     }
 
     // Read all agent-info.json files to find existing aliases for this model
+    // Only count ACTIVE agents (heartbeat within last 5 seconds)
     const entries = fs.readdirSync(queueDir, { withFileTypes: true });
     const existingNumbers: number[] = [];
+    const now = Date.now();
+    const ACTIVE_THRESHOLD_MS = 5000; // 5 seconds
 
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
@@ -111,7 +115,11 @@ export class MessageQueueMonitor {
           const info: AgentInfo = JSON.parse(
             fs.readFileSync(infoPath, 'utf-8')
           );
-          if (info.model === this.model && info.alias) {
+          // Only count active agents of the same model (not disconnected)
+          const isActive =
+            now - info.lastHeartbeat < ACTIVE_THRESHOLD_MS &&
+            info.status !== 'disconnected';
+          if (info.model === this.model && info.alias && isActive) {
             const match = info.alias.match(/(\d+)$/);
             if (match) {
               existingNumbers.push(parseInt(match[1], 10));
@@ -123,10 +131,48 @@ export class MessageQueueMonitor {
       }
     }
 
-    // Find next available number
-    const maxNumber =
-      existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
-    return `${this.model}${maxNumber + 1}`;
+    // Find first available number (fills gaps: if opus2 exists but not opus1, use opus1)
+    let nextNumber = 1;
+    const sortedNumbers = existingNumbers.sort((a, b) => a - b);
+    for (const num of sortedNumbers) {
+      if (num === nextNumber) {
+        nextNumber++;
+      } else {
+        break; // Found a gap
+      }
+    }
+    return `${this.model}${nextNumber}`;
+  }
+
+  /**
+   * Check if another agent has the same alias (collision detection)
+   */
+  private async checkAliasCollision(alias: string): Promise<boolean> {
+    const queueDir = path.join(this.sigmaDir, 'message_queue');
+    if (!fs.existsSync(queueDir)) return false;
+
+    const entries = fs.readdirSync(queueDir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (entry.name === this.agentId) continue; // Skip self
+
+      const infoPath = path.join(queueDir, entry.name, 'agent-info.json');
+      if (fs.existsSync(infoPath)) {
+        try {
+          const info: AgentInfo = JSON.parse(
+            fs.readFileSync(infoPath, 'utf-8')
+          );
+          if (info.alias === alias) {
+            return true; // Collision found
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+    }
+
+    return false;
   }
 
   /**
@@ -207,9 +253,23 @@ export class MessageQueueMonitor {
     // Initialize queue storage
     await this.queue.initialize();
 
-    // Generate alias and write agent info
-    const alias = await this.generateAlias();
+    // Generate alias and write agent info (with collision detection)
+    let alias = await this.generateAlias();
     await this.writeAgentInfo(alias);
+
+    // Check for collision (another agent took same alias)
+    // Retry up to 3 times if collision detected
+    for (let retry = 0; retry < 3; retry++) {
+      const collision = await this.checkAliasCollision(alias);
+      if (!collision) break;
+
+      // Small delay to desynchronize
+      await new Promise((resolve) =>
+        setTimeout(resolve, 50 + Math.random() * 100)
+      );
+      alias = await this.generateAlias();
+      await this.writeAgentInfo(alias);
+    }
 
     this.running = true;
     this.abortController = new AbortController();

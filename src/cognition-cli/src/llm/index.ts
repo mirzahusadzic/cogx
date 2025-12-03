@@ -117,6 +117,11 @@ export async function initializeProviders(
     skipMissingProviders = true, // Changed default to true
   } = options;
 
+  // Skip re-initialization if providers are already registered
+  if (registry.list().length > 0) {
+    return;
+  }
+
   // Track which providers were successfully registered
   const registered: string[] = [];
 
