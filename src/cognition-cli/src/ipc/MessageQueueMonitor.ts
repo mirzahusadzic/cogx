@@ -25,6 +25,9 @@ export interface AgentInfo {
  * - Write incoming messages to persistent MessageQueue
  * - Update queue index for O(1) pending count
  * - Maintain agent-info.json for agent discovery
+ *
+ * Debug Logging:
+ * - Set DEBUG_IPC=1 environment variable to enable verbose monitoring logs
  */
 export class MessageQueueMonitor {
   private queue: MessageQueue;
@@ -36,6 +39,7 @@ export class MessageQueueMonitor {
   private running: boolean = false;
   private abortController: AbortController | null = null;
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+  private static DEBUG = process.env.DEBUG_IPC === '1';
 
   /**
    * @param agentId Unique agent ID (e.g., "claude-a7f3")
@@ -220,9 +224,11 @@ export class MessageQueueMonitor {
       this.updateHeartbeat();
     }, 10000);
 
-    console.log(
-      `[MessageQueueMonitor] Started for agent ${this.agentId} as ${alias} (topics: ${this.topics.join(', ')})`
-    );
+    if (MessageQueueMonitor.DEBUG) {
+      console.log(
+        `[MessageQueueMonitor] Started for agent ${this.agentId} as ${alias} (topics: ${this.topics.join(', ')})`
+      );
+    }
   }
 
   /**
@@ -254,7 +260,9 @@ export class MessageQueueMonitor {
       this.abortController = null;
     }
 
-    console.log(`[MessageQueueMonitor] Stopped for agent ${this.agentId}`);
+    if (MessageQueueMonitor.DEBUG) {
+      console.log(`[MessageQueueMonitor] Stopped for agent ${this.agentId}`);
+    }
   }
 
   /**
@@ -280,14 +288,18 @@ export class MessageQueueMonitor {
         timestamp: message.timestamp,
       });
 
-      console.log(
-        `[MessageQueueMonitor] Queued message ${messageId} from ${message.from} (topic: ${message.topic})`
-      );
+      if (MessageQueueMonitor.DEBUG) {
+        console.log(
+          `[MessageQueueMonitor] Queued message ${messageId} from ${message.from} (topic: ${message.topic})`
+        );
+      }
 
       // TODO: Notify TUI status bar of new message (via IPC or event emitter)
       // For now, the TUI will poll getPendingCount() or check on startup
     } catch (error) {
-      console.error('[MessageQueueMonitor] Error queueing message:', error);
+      if (MessageQueueMonitor.DEBUG) {
+        console.error('[MessageQueueMonitor] Error queueing message:', error);
+      }
     }
   }
 
@@ -319,9 +331,11 @@ export class MessageQueueMonitor {
     if (!this.topics.includes(topic)) {
       this.topics.push(topic);
       this.bus.subscribe(topic, this.handleMessage.bind(this));
-      console.log(
-        `[MessageQueueMonitor] Subscribed to additional topic: ${topic}`
-      );
+      if (MessageQueueMonitor.DEBUG) {
+        console.log(
+          `[MessageQueueMonitor] Subscribed to additional topic: ${topic}`
+        );
+      }
     }
   }
 
@@ -333,7 +347,9 @@ export class MessageQueueMonitor {
     if (index !== -1) {
       this.topics.splice(index, 1);
       this.bus.unsubscribe(topic, this.handleMessage.bind(this));
-      console.log(`[MessageQueueMonitor] Unsubscribed from topic: ${topic}`);
+      if (MessageQueueMonitor.DEBUG) {
+        console.log(`[MessageQueueMonitor] Unsubscribed from topic: ${topic}`);
+      }
     }
   }
 

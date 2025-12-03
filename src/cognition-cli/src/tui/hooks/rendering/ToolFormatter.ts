@@ -30,7 +30,14 @@
  *    - BashOutput: 📋 Check Output - shell <id>
  *    - Background Tasks: 📊 Background Tasks - checking status
  *
- * 6. Default: Generic tool icon (🔧) with JSON input
+ * 6. Agent Messaging: Inter-agent communication tools
+ *    - List Agents: 🤖 List Agents - discovering active agents
+ *    - Send Message: 📨 Send Message - to <alias>: "<message preview>"
+ *    - Broadcast: 📢 Broadcast - "<message preview>"
+ *    - Check Messages: 📬 Check Messages - checking pending messages
+ *    - Mark Read: ✅ Mark Read - <messageId> as <status>
+ *
+ * 7. Default: Generic tool icon (🔧) with JSON input
  *
  * ALGORITHM (formatToolUse):
  * 1. Initialize default icon (🔧)
@@ -273,6 +280,61 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
     toolName = 'Background Tasks';
     const filter = (tool.input.filter as string) || 'all';
     inputDesc = filter === 'all' ? 'checking status' : `filter: ${filter}`;
+  } else if (
+    tool.name === 'mcp__agent-messaging__list_agents' ||
+    tool.name === 'list_agents'
+  ) {
+    toolIcon = '🤖';
+    toolName = 'List Agents';
+    inputDesc = 'discovering active agents';
+  } else if (
+    tool.name === 'mcp__agent-messaging__send_agent_message' ||
+    tool.name === 'send_agent_message'
+  ) {
+    toolIcon = '📨';
+    toolName = 'Send Message';
+    if (tool.input.to && tool.input.message) {
+      const to = tool.input.to as string;
+      const message = tool.input.message as string;
+      const preview =
+        message.length > 50 ? `${message.substring(0, 50)}...` : message;
+      inputDesc = `to ${to}: "${preview}"`;
+    } else {
+      inputDesc = JSON.stringify(tool.input);
+    }
+  } else if (
+    tool.name === 'mcp__agent-messaging__broadcast_agent_message' ||
+    tool.name === 'broadcast_agent_message'
+  ) {
+    toolIcon = '📢';
+    toolName = 'Broadcast';
+    if (tool.input.message) {
+      const message = tool.input.message as string;
+      const preview =
+        message.length > 50 ? `${message.substring(0, 50)}...` : message;
+      inputDesc = `"${preview}"`;
+    } else {
+      inputDesc = JSON.stringify(tool.input);
+    }
+  } else if (
+    tool.name === 'mcp__agent-messaging__get_pending_messages' ||
+    tool.name === 'get_pending_messages'
+  ) {
+    toolIcon = '📬';
+    toolName = 'Check Messages';
+    inputDesc = 'checking pending messages';
+  } else if (
+    tool.name === 'mcp__agent-messaging__mark_message_read' ||
+    tool.name === 'mark_message_read'
+  ) {
+    toolIcon = '✅';
+    toolName = 'Mark Read';
+    if (tool.input.messageId) {
+      const status = (tool.input.status as string) || 'injected';
+      inputDesc = `${tool.input.messageId as string} as ${status}`;
+    } else {
+      inputDesc = JSON.stringify(tool.input);
+    }
   } else {
     inputDesc = JSON.stringify(tool.input);
   }
