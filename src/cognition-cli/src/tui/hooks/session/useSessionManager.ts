@@ -256,16 +256,17 @@ export function useSessionManager(
   } = options;
 
   // Generate stable anchor ID (only computed once)
-  // Format: tui-<timestamp>-<modelShortName> (e.g., tui-1764769493427-opus45)
+  // Format: tui-<modelShortName>-<timestamp> (e.g., tui-opus45-1764769493427)
+  // Model first for easier tab completion (tui-s<tab> matches sonnet sessions)
   const anchorId = useMemo(() => {
     // If user provided a session ID, use it as-is
     if (sessionIdProp) return sessionIdProp;
 
-    // Generate new anchor ID with model short name suffix
+    // Generate new anchor ID with model short name prefix
     const timestamp = Date.now();
     const modelShort = getModelShortName(model);
 
-    return modelShort ? `tui-${timestamp}-${modelShort}` : `tui-${timestamp}`;
+    return modelShort ? `tui-${modelShort}-${timestamp}` : `tui-${timestamp}`;
   }, [sessionIdProp, model]);
 
   // Session state store

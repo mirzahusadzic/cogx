@@ -16,7 +16,7 @@
  *
  * SESSION MANAGEMENT:
  * Sessions are stored in .sigma/ directory with the format:
- * - .sigma/tui-<timestamp>.state.json (new sessions)
+ * - .sigma/tui-<modelShortName>-<timestamp>.state.json (new sessions)
  * - Session ID can be provided to resume existing sessions
  * - Each session maintains full message history and context
  *
@@ -30,16 +30,16 @@
  * @example
  * // Start fresh Claude session
  * cognition-cli tui
- * // → Creates new session in .sigma/tui-<timestamp>.state.json
+ * // → Creates new session in .sigma/tui-sonnet45-1762546919034.state.json
  *
  * @example
  * // Resume existing session by ID
- * cognition-cli tui --session-id tui-1762546919034
+ * cognition-cli tui --session-id tui-opus45-1762546919034
  * // → Loads conversation history and continues
  *
  * @example
  * // Resume from session file
- * cognition-cli tui -f .sigma/tui-1762546919034.state.json
+ * cognition-cli tui -f .sigma/tui-sonnet45-1762546919034.state.json
  * // → Extracts session ID and resumes conversation
  */
 

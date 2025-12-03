@@ -89,8 +89,8 @@ describe.skip('useSessionManager', () => {
       );
 
       await waitFor(() => {
-        // With model, format is: tui-<timestamp>-<modelShortName>
-        expect(result.current.state.anchorId).toMatch(/^tui-\d+-opus45$/);
+        // With model, format is: tui-<modelShortName>-<timestamp>
+        expect(result.current.state.anchorId).toMatch(/^tui-opus45-\d+$/);
       });
     });
 
