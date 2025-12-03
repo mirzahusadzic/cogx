@@ -146,6 +146,7 @@ import {
 import type { McpSdkServerConfigWithInstance } from './sdk/types.js';
 import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
 import type { MessageQueue } from '../../ipc/MessageQueue.js';
+import { formatPendingMessages } from '../../ipc/agent-messaging-formatters.js';
 import { createAgentMessagingMcpServer } from '../tools/agent-messaging-tool.js';
 
 /**
@@ -258,6 +259,13 @@ export interface UseAgentOptions {
    * Optional - if provided, enables the get_pending_messages and mark_message_read tools
    */
   getMessageQueue?: () => MessageQueue | null;
+
+  /**
+   * Auto-respond to agent messages without user input
+   * When true, triggers a turn automatically when messages arrive
+   * @default true
+   */
+  autoResponse?: boolean;
 }
 
 /**
@@ -369,6 +377,7 @@ export function useAgent(options: UseAgentOptions) {
     getTaskManager,
     getMessagePublisher,
     getMessageQueue,
+    autoResponse = true,
   } = options;
 
   // ========================================
@@ -548,6 +557,16 @@ export function useAgent(options: UseAgentOptions) {
   const [pendingMessageNotification, setPendingMessageNotification] = useState<
     string | null
   >(null);
+  // Auto-response trigger (for agent messaging)
+  const [shouldAutoRespond, setShouldAutoRespond] = useState(false);
+
+  // ========================================
+  // YOSSARIAN PROTOCOL (Infinite Loop Breaker)
+  // ========================================
+  // Prevents agents from burning API budget in "Thank you" -> "You're welcome" loops
+  const autoResponseTimestamps = useRef<number[]>([]);
+  const AUTO_RESPONSE_WINDOW_MS = 60000; // 1 minute window
+  const AUTO_RESPONSE_MAX_IN_WINDOW = 5; // Max 5 auto-responses per minute
 
   // Turn analysis with background queue (replaces inline analyzeNewTurns)
   const turnAnalysis = useTurnAnalysis({
@@ -1068,6 +1087,112 @@ export function useAgent(options: UseAgentOptions) {
   }, [cwd, debugFlag]);
 
   /**
+   * Listen for new messages arriving and set notification.
+   * This triggers when messages arrive while agent is idle (not in a turn).
+   * Uses polling to wait for queue to be available (initialized async in index.tsx).
+   */
+  useEffect(() => {
+    if (!getMessageQueue) return;
+
+    let previousCount = 0;
+    let cleanup: (() => void) | null = null;
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+    const handleCountChanged = async (...args: unknown[]) => {
+      const newCount = args[0] as number;
+
+      // Only notify when count increases (new message arrived)
+      if (newCount > previousCount && newCount > 0) {
+        // Fetch and inject actual messages
+        const queue = getMessageQueue();
+        if (queue) {
+          const pendingMessages = await queue.getMessages('pending');
+          if (pendingMessages.length > 0) {
+            const formattedMessages = formatPendingMessages(pendingMessages);
+            const notification = `📬 **New messages from other agents:**\n\n${formattedMessages}\n\nPlease acknowledge and respond to these messages.`;
+            setPendingMessageNotification(notification);
+
+            // Trigger auto-response so agent sees and responds to messages
+            // Only if autoResponse is enabled (--no-auto-response disables this)
+            if (autoResponse) {
+              // YOSSARIAN PROTOCOL: Rate limit auto-responses to prevent infinite loops
+              const now = Date.now();
+              const windowStart = now - AUTO_RESPONSE_WINDOW_MS;
+              // Clean old timestamps
+              autoResponseTimestamps.current =
+                autoResponseTimestamps.current.filter((t) => t > windowStart);
+
+              if (
+                autoResponseTimestamps.current.length <
+                AUTO_RESPONSE_MAX_IN_WINDOW
+              ) {
+                autoResponseTimestamps.current.push(now);
+                setShouldAutoRespond(true);
+              } else {
+                // Rate limit hit - show warning instead
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    type: 'system',
+                    content: `⚠️ Auto-response rate limit hit (${AUTO_RESPONSE_MAX_IN_WINDOW}/min). Send a message to respond.`,
+                    timestamp: new Date(),
+                  },
+                ]);
+              }
+            }
+
+            // Also show in UI (abbreviated)
+            setMessages((prev) => [
+              ...prev,
+              {
+                type: 'system',
+                content: `📬 ${pendingMessages.length} pending message${pendingMessages.length > 1 ? 's' : ''} injected into context`,
+                timestamp: new Date(),
+              },
+            ]);
+          }
+        }
+      }
+
+      previousCount = newCount;
+    };
+
+    const setupListener = () => {
+      const queue = getMessageQueue();
+      if (!queue) return false;
+
+      queue.on('countChanged', handleCountChanged);
+
+      // Get initial count
+      queue.getPendingCount().then((count) => {
+        previousCount = count;
+      });
+
+      cleanup = () => {
+        queue.off('countChanged', handleCountChanged);
+      };
+
+      return true;
+    };
+
+    // Try immediately
+    if (!setupListener()) {
+      // Queue not ready, poll until available (initialized async in index.tsx)
+      pollInterval = setInterval(() => {
+        if (setupListener() && pollInterval) {
+          clearInterval(pollInterval);
+          pollInterval = null;
+        }
+      }, 500);
+    }
+
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+      if (cleanup) cleanup();
+    };
+  }, [getMessageQueue, autoResponse]);
+
+  /**
    * Load slash commands from .claude/commands/ directory.
    *
    * Commands are markdown files that expand into full prompts.
@@ -1521,15 +1646,19 @@ export function useAgent(options: UseAgentOptions) {
         }
 
         // STEP 2: Add user message (show ORIGINAL input, not expanded)
+        // Skip for auto-response triggers (agent messaging)
+        const isAutoResponse = prompt === '__AUTO_RESPONSE__';
         const userMessageTimestamp = new Date();
-        setMessages((prev) => [
-          ...prev,
-          {
-            type: 'user',
-            content: prompt, // Show what user typed
-            timestamp: userMessageTimestamp,
-          },
-        ]);
+        if (!isAutoResponse) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: 'user',
+              content: prompt, // Show what user typed
+              timestamp: userMessageTimestamp,
+            },
+          ]);
+        }
 
         // STEP 2.5: Check if compression needed AFTER user message added to state
         // This runs synchronously as part of user action, NOT in useEffect
@@ -1559,7 +1688,12 @@ export function useAgent(options: UseAgentOptions) {
 
         // Inject pending message notification if present
         if (pendingMessageNotification) {
-          finalPrompt = `<system-reminder>\n${pendingMessageNotification}\n</system-reminder>\n\n${finalPrompt}`;
+          if (isAutoResponse) {
+            // For auto-response, the notification IS the prompt
+            finalPrompt = `<system-reminder>\n${pendingMessageNotification}\n</system-reminder>`;
+          } else {
+            finalPrompt = `<system-reminder>\n${pendingMessageNotification}\n</system-reminder>\n\n${finalPrompt}`;
+          }
           // Clear notification after injection
           setPendingMessageNotification(null);
         }
@@ -1760,25 +1894,27 @@ export function useAgent(options: UseAgentOptions) {
           ]);
 
           // Check for pending messages after turn completes
-          // If there are pending messages, queue a notification for the next turn
+          // If there are pending messages, fetch and inject them directly
           if (getMessageQueue) {
             const queue = getMessageQueue();
             if (queue) {
-              queue.getPendingCount().then((pendingCount) => {
-                if (pendingCount > 0) {
-                  const notification = `📬 You have ${pendingCount} pending message${pendingCount > 1 ? 's' : ''} from other agents. Use the get_pending_messages tool to read them.`;
-                  setPendingMessageNotification(notification);
-                  // Also show in UI
-                  setMessages((prev) => [
-                    ...prev,
-                    {
-                      type: 'system',
-                      content: notification,
-                      timestamp: new Date(),
-                    },
-                  ]);
-                }
-              });
+              const pendingMessages = await queue.getMessages('pending');
+              if (pendingMessages.length > 0) {
+                // Inject the actual message content, not just a notification
+                const formattedMessages =
+                  formatPendingMessages(pendingMessages);
+                const notification = `📬 **New messages from other agents:**\n\n${formattedMessages}\n\nPlease acknowledge and respond to these messages.`;
+                setPendingMessageNotification(notification);
+                // Also show in UI (abbreviated)
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    type: 'system',
+                    content: `📬 ${pendingMessages.length} pending message${pendingMessages.length > 1 ? 's' : ''} injected into context`,
+                    timestamp: new Date(),
+                  },
+                ]);
+              }
             }
           }
         }
@@ -2159,6 +2295,23 @@ export function useAgent(options: UseAgentOptions) {
   // ========================================
   // RETURN VALUE
   // ========================================
+
+  // ========================================
+  // AUTO-RESPONSE FOR AGENT MESSAGING
+  // ========================================
+
+  /**
+   * Auto-trigger a turn when pending messages arrive.
+   * This allows the agent to respond to messages without user intervention.
+   */
+  useEffect(() => {
+    if (shouldAutoRespond && !isThinking) {
+      // Reset flag first to prevent loops
+      setShouldAutoRespond(false);
+      // Trigger an invisible turn that will pick up the pending notification
+      sendMessage('__AUTO_RESPONSE__');
+    }
+  }, [shouldAutoRespond, isThinking, sendMessage]);
 
   /**
    * Return hook interface for TUI components.

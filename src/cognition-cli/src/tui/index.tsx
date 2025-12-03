@@ -55,6 +55,8 @@ interface CognitionTUIProps {
   displayThinking?: boolean;
   /** If true, show onboarding wizard instead of normal TUI */
   onboardingMode?: boolean;
+  /** Auto-respond to agent messages without user input (default: true) */
+  autoResponse?: boolean;
 }
 
 const CognitionTUI: React.FC<CognitionTUIProps> = ({
@@ -69,6 +71,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   model,
   displayThinking = true,
   onboardingMode = false,
+  autoResponse = true,
 }) => {
   const { stdout } = useStdout();
   const [focused, setFocused] = useState(true);
@@ -133,6 +136,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     getTaskManager: taskManager.getManager, // Pass task manager getter (returns BackgroundTaskManager instance)
     getMessagePublisher, // Pass message publisher getter (for agent-to-agent messaging tool)
     getMessageQueue, // Pass message queue getter (for agent-to-agent messaging tool)
+    autoResponse, // Auto-respond to agent messages (--no-auto-response disables)
   });
 
   // Wrap sendMessage to clear streaming paste on regular messages

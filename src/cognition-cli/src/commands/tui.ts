@@ -79,6 +79,8 @@ interface TUIOptions {
   displayThinking?: boolean;
   /** Skip onboarding wizard even if workspace is incomplete (default: false) */
   noOnboarding?: boolean;
+  /** Auto-respond to agent messages without user input (default: true) */
+  autoResponse?: boolean;
 }
 
 /**
@@ -375,5 +377,6 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     model: resolvedModel,
     displayThinking: options.displayThinking ?? true,
     onboardingMode, // NEW: Pass onboarding mode to TUI
+    autoResponse: options.autoResponse ?? true, // Auto-respond to agent messages
   });
 }

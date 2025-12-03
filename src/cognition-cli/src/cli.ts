@@ -570,6 +570,10 @@ const tuiCmd = program
     '--no-onboarding',
     'Skip onboarding wizard even if workspace is incomplete'
   )
+  .option(
+    '--no-auto-response',
+    'Disable automatic response to agent messages (require user input)'
+  )
   .addHelpText(
     'after',
     combineHelpSections(
@@ -615,6 +619,7 @@ const tuiCmd = program
       model: options.model,
       displayThinking: options.showThinking !== false,
       noOnboarding: options.onboarding === false, // --no-onboarding flag
+      autoResponse: options.autoResponse !== false, // --no-auto-response flag
     });
   });
 
