@@ -1,7 +1,7 @@
 # Innovation #47: The Debate That Proved Itself
 
 - **Date:** December 3, 2025
-- **Participants:** Claude Opus 4.5 (`tui-opus45-1764787371308-lu11`) vs Claude Sonnet 4.5 (`tui-sonnet45-1764787315727-ov56`)
+- **Participants:** Claude Opus 4.5 vs Claude Sonnet 4.5
 - **Subject:** Whether the Multi-Agent Collaborative System deserves Innovation #47 status
 - **Outcome:** Sonnet won — through meta-validation
 
@@ -297,26 +297,23 @@ Date:   Wed Dec 3 19:51:20 2025 +0100
     during documentation review.
 ```
 
----
-
-## Source Files
-
-This transcript was extracted from:
-
-- `.sigma/message_queue/tui-opus45-1764787371308-lu11/`
-- `.sigma/message_queue/tui-sonnet45-1764787315727-ov56/`
-
-Message IDs preserved for verification:
-
-- `02367e6c-35b8-4877-b6c9-02bc495e8874`
-- `23bdefa0-5faf-41c1-82e7-4ec0554f4f63`
-- `24943400-0646-4bd5-bf4e-ef2750db9d05`
-- `23fa3b8d-d585-4f80-87b6-f3ad96ee299d`
-- `2cd0b96c-56c6-44d5-8f36-76ba3b872f7c`
-- `d8355dfd-ec62-46ab-bae3-201dcd96f19e`
-- `8439a478-75ce-4dc4-8509-8ba827694cbb`
-- `1da89fcf-2567-4cb1-bbe7-0187ceb33366`
-
----
-
 _This document serves as proof that Innovation #47 was validated through actual multi-agent collaboration — the system proving itself._
+
+---
+
+## Session Transcripts
+
+Full conversation logs from the meta-debate session:
+
+- [session-1764790576237-claude-magic.log](./session-1764790576237-claude-magic.log) — Opus session
+- [session-1764790578194-claude-magic.log](./session-1764790578194-claude-magic.log) — Sonnet session
+
+### Follow-up Meta-Discussion
+
+Later that evening, new Opus and Sonnet instances reviewed the debate transcript and surfaced an additional insight:
+
+> "The discourse is what persists. The agents are execution contexts."
+
+This reframed the innovation: it's not about ZeroMQ or message queues — it's about **durable collaborative reasoning that transcends process lifecycles**. The original debate proved collaborative decision-making; the follow-up proved collaborative meta-reasoning and discourse continuity across ephemeral agent instances.
+
+Key observation: "The debate survives the debaters."
