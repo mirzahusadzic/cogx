@@ -544,6 +544,10 @@ export function useAgent(options: UseAgentOptions) {
 
   // Intelligent recap for compression (not part of session manager)
   const [injectedRecap, setInjectedRecap] = useState<string | null>(null);
+  // Pending message notification (injected on next turn)
+  const [pendingMessageNotification, setPendingMessageNotification] = useState<
+    string | null
+  >(null);
 
   // Turn analysis with background queue (replaces inline analyzeNewTurns)
   const turnAnalysis = useTurnAnalysis({
@@ -1551,7 +1555,20 @@ export function useAgent(options: UseAgentOptions) {
           // Clear recap after first injection - subsequent queries use real-time context injection
           // This ensures: 1st query = full recap, 2nd+ queries = semantic lattice search
           setInjectedRecap(null);
-        } else if (embedderRef.current && turnAnalysis.analyses.length > 0) {
+        }
+
+        // Inject pending message notification if present
+        if (pendingMessageNotification) {
+          finalPrompt = `<system-reminder>\n${pendingMessageNotification}\n</system-reminder>\n\n${finalPrompt}`;
+          // Clear notification after injection
+          setPendingMessageNotification(null);
+        }
+
+        if (
+          !injectedRecap &&
+          embedderRef.current &&
+          turnAnalysis.analyses.length > 0
+        ) {
           // Real-time lattice context injection for fluent conversation
           try {
             // For slash commands, use original prompt (not expanded) for context search
@@ -1741,6 +1758,29 @@ export function useAgent(options: UseAgentOptions) {
               timestamp: new Date(),
             },
           ]);
+
+          // Check for pending messages after turn completes
+          // If there are pending messages, queue a notification for the next turn
+          if (getMessageQueue) {
+            const queue = getMessageQueue();
+            if (queue) {
+              queue.getPendingCount().then((pendingCount) => {
+                if (pendingCount > 0) {
+                  const notification = `📬 You have ${pendingCount} pending message${pendingCount > 1 ? 's' : ''} from other agents. Use the get_pending_messages tool to read them.`;
+                  setPendingMessageNotification(notification);
+                  // Also show in UI
+                  setMessages((prev) => [
+                    ...prev,
+                    {
+                      type: 'system',
+                      content: notification,
+                      timestamp: new Date(),
+                    },
+                  ]);
+                }
+              });
+            }
+          }
         }
 
         // If query completed without assistant response, show error
@@ -1808,6 +1848,7 @@ export function useAgent(options: UseAgentOptions) {
       cwd,
       // resumeSessionId removed - use sessionManager.getResumeSessionId() directly for synchronous access
       injectedRecap,
+      pendingMessageNotification,
       debugLog,
       embedderRef,
       turnAnalysis,
@@ -1817,6 +1858,7 @@ export function useAgent(options: UseAgentOptions) {
       sessionManager,
       updateAnchorStats,
       commandsCache,
+      getMessageQueue,
     ]
   );
 
