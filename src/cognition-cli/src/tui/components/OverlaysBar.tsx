@@ -156,9 +156,27 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
           <Text color="#f85149">⚠ Message Monitor: {monitorError}</Text>
         ) : showTaskStatus ? (
           // Hide stats when task is running to prevent line wrapping
-          <Text color="#8b949e">Background Task:</Text>
+          <>
+            <Text color="#8b949e">Background Task:</Text>
+            {/* Always show pending messages, even during background tasks */}
+            {pendingMessageCount > 0 && (
+              <>
+                <Text color="#8b949e">|</Text>
+                <Text color="#f0883e">{pendingMessageCount} 📬</Text>
+              </>
+            )}
+          </>
         ) : !sigmaStats || sigmaStats.nodes === 0 ? (
-          <Text color="#8b949e">Lattice: Warming up...</Text>
+          <>
+            <Text color="#8b949e">Lattice: Warming up...</Text>
+            {/* Always show pending messages, even when lattice is warming up */}
+            {pendingMessageCount > 0 && (
+              <>
+                <Text color="#8b949e">|</Text>
+                <Text color="#f0883e">{pendingMessageCount} messages 📬</Text>
+              </>
+            )}
+          </>
         ) : (
           <>
             <Text color="#58a6ff">{sigmaStats.nodes ?? 0} nodes 🕸️</Text>

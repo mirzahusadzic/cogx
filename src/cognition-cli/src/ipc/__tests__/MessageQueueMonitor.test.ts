@@ -14,6 +14,7 @@ describe('MessageQueueMonitor', () => {
   let monitor: MessageQueueMonitor;
   let mockBus: ZeroMQBus;
   const agentId = 'claude-test123';
+  let actualAgentId: string; // Actual agent ID with suffix
   const topics = ['code.*', 'arch.proposal_ready'];
 
   beforeEach(async () => {
@@ -32,6 +33,9 @@ describe('MessageQueueMonitor', () => {
     } as unknown as ZeroMQBus;
 
     monitor = new MessageQueueMonitor(agentId, mockBus, topics, tempDir);
+
+    // The monitor adds a unique suffix to agentId, so we need to wait for start() to get it
+    // For now, we'll get it from the queue after the monitor is initialized
   });
 
   afterEach(async () => {
@@ -84,10 +88,13 @@ describe('MessageQueueMonitor', () => {
     it('queues messages addressed to this agent', async () => {
       await monitor.start();
 
+      // Get the actual agent ID (with suffix) from the queue
+      actualAgentId = monitor.getQueue().getAgentId();
+
       const message: AgentMessage = {
         id: 'msg-1',
         from: 'opus-abc',
-        to: agentId,
+        to: actualAgentId, // Use actual ID with suffix
         topic: 'code.review_completed',
         timestamp: Date.now(),
         payload: { files: ['test.ts'], approved: true },
@@ -151,11 +158,14 @@ describe('MessageQueueMonitor', () => {
     it('handles multiple messages', async () => {
       await monitor.start();
 
+      // Get the actual agent ID (with suffix) from the queue
+      actualAgentId = monitor.getQueue().getAgentId();
+
       const messages: AgentMessage[] = [
         {
           id: 'msg-4',
           from: 'opus-abc',
-          to: agentId,
+          to: actualAgentId,
           topic: 'code.review_completed',
           timestamp: Date.now(),
           payload: {},
@@ -163,7 +173,7 @@ describe('MessageQueueMonitor', () => {
         {
           id: 'msg-5',
           from: 'gemini-def',
-          to: agentId,
+          to: actualAgentId,
           topic: 'arch.proposal_ready',
           timestamp: Date.now() + 1000,
           payload: {},
@@ -183,12 +193,16 @@ describe('MessageQueueMonitor', () => {
 
     it('does not queue messages when stopped', async () => {
       await monitor.start();
+
+      // Get the actual agent ID before stopping
+      actualAgentId = monitor.getQueue().getAgentId();
+
       await monitor.stop();
 
       const message: AgentMessage = {
         id: 'msg-6',
         from: 'opus-abc',
-        to: agentId,
+        to: actualAgentId,
         topic: 'code.review_completed',
         timestamp: Date.now(),
         payload: {},
@@ -208,12 +222,15 @@ describe('MessageQueueMonitor', () => {
     it('returns pending message count', async () => {
       await monitor.start();
 
+      // Get the actual agent ID (with suffix) from the queue
+      actualAgentId = monitor.getQueue().getAgentId();
+
       expect(await monitor.getPendingCount()).toBe(0);
 
       const message: AgentMessage = {
         id: 'msg-7',
         from: 'opus-abc',
-        to: agentId,
+        to: actualAgentId,
         topic: 'code.review_completed',
         timestamp: Date.now(),
         payload: {},

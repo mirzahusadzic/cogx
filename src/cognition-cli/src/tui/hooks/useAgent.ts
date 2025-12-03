@@ -144,6 +144,9 @@ import {
   type Command,
 } from '../commands/loader.js';
 import type { McpSdkServerConfigWithInstance } from './sdk/types.js';
+import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
+import type { MessageQueue } from '../../ipc/MessageQueue.js';
+import { createAgentMessagingMcpServer } from '../tools/agent-messaging-tool.js';
 
 /**
  * Build MCP servers record for agent adapter
@@ -154,6 +157,7 @@ import type { McpSdkServerConfigWithInstance } from './sdk/types.js';
 function buildMcpServers(options: {
   recallServer: McpSdkServerConfigWithInstance | null;
   backgroundTasksServer: McpSdkServerConfigWithInstance | null;
+  agentMessagingServer: McpSdkServerConfigWithInstance | null;
   hasConversationHistory: boolean;
 }): Record<string, McpSdkServerConfigWithInstance> | undefined {
   const servers: Record<string, McpSdkServerConfigWithInstance> = {};
@@ -166,6 +170,11 @@ function buildMcpServers(options: {
   // Background tasks server: always enable when available
   if (options.backgroundTasksServer) {
     servers['background-tasks'] = options.backgroundTasksServer;
+  }
+
+  // Agent messaging server: always enable when available
+  if (options.agentMessagingServer) {
+    servers['agent-messaging'] = options.agentMessagingServer;
   }
 
   return Object.keys(servers).length > 0 ? servers : undefined;
@@ -237,6 +246,18 @@ export interface UseAgentOptions {
    * Optional - if provided, enables the get_background_tasks tool
    */
   getTaskManager?: () => unknown;
+
+  /**
+   * Message publisher getter (for agent-to-agent messaging tool)
+   * Optional - if provided, enables the send_agent_message and list_agents tools
+   */
+  getMessagePublisher?: () => MessagePublisher | null;
+
+  /**
+   * Message queue getter (for agent-to-agent messaging tool to read messages)
+   * Optional - if provided, enables the get_pending_messages and mark_message_read tools
+   */
+  getMessageQueue?: () => MessageQueue | null;
 }
 
 /**
@@ -346,6 +367,8 @@ export function useAgent(options: UseAgentOptions) {
     model: modelName,
     onRequestToolConfirmation,
     getTaskManager,
+    getMessagePublisher,
+    getMessageQueue,
   } = options;
 
   // ========================================
@@ -433,6 +456,8 @@ export function useAgent(options: UseAgentOptions) {
     null
   );
   const backgroundTasksMcpServerRef =
+    useRef<McpSdkServerConfigWithInstance | null>(null);
+  const agentMessagingMcpServerRef =
     useRef<McpSdkServerConfigWithInstance | null>(null);
   const backgroundTaskManagerRef = useRef<BackgroundTaskManager | null>(null);
   const messagesRef = useRef<TUIMessage[]>(messages); // Ref to avoid effect re-running on every message change
@@ -735,9 +760,8 @@ export function useAgent(options: UseAgentOptions) {
         try {
           debug('🔍 [COMPRESSION] Step 2: Importing compressor modules...');
           const { compressContext } = await import('../../sigma/compressor.js');
-          const { reconstructSessionContext } = await import(
-            '../../sigma/context-reconstructor.js'
-          );
+          const { reconstructSessionContext } =
+            await import('../../sigma/context-reconstructor.js');
           debug('🔍 [COMPRESSION] Step 3: Modules imported successfully');
 
           debug(
@@ -1005,6 +1029,17 @@ export function useAgent(options: UseAgentOptions) {
         // Task manager not needed if not running wizard - silent fail
       }
 
+      // Initialize agent messaging MCP server (for agent-to-agent communication)
+      if (getMessagePublisher) {
+        agentMessagingMcpServerRef.current = createAgentMessagingMcpServer(
+          getMessagePublisher,
+          getMessageQueue, // New argument
+          cwd,
+          sessionIdProp || 'unknown', // Current agent ID for excluding self
+          claudeAgentSdkModule
+        );
+      }
+
       const pgcPath = path.join(cwd, '.open_cognition');
       if (fs.existsSync(pgcPath))
         projectRegistryRef.current = new OverlayRegistry(pgcPath, endpoint);
@@ -1069,9 +1104,8 @@ export function useAgent(options: UseAgentOptions) {
       latticeLoadedRef.current.add(sessionId);
 
       try {
-        const { rebuildTurnAnalysesFromLanceDB } = await import(
-          '../../sigma/lattice-reconstructor.js'
-        );
+        const { rebuildTurnAnalysesFromLanceDB } =
+          await import('../../sigma/lattice-reconstructor.js');
 
         const restoredAnalyses = await rebuildTurnAnalysesFromLanceDB(
           sessionId,
@@ -1570,6 +1604,10 @@ export function useAgent(options: UseAgentOptions) {
           conversationRegistry: conversationRegistryRef.current || undefined,
           workbenchUrl: process.env.WORKBENCH_URL || 'http://localhost:8000',
           getTaskManager, // Pass task manager getter for background tasks tool
+          getMessagePublisher, // Pass message publisher getter for agent messaging tools
+          getMessageQueue, // Pass message queue getter for agent messaging tools
+          projectRoot: cwd, // Pass project root for agent discovery
+          agentId: sessionIdProp || 'unknown', // Pass current agent ID for excluding self from listings
           onStderr: (data: string) => {
             stderrLines.push(data);
           },
@@ -1593,6 +1631,7 @@ export function useAgent(options: UseAgentOptions) {
           mcpServers: buildMcpServers({
             recallServer: recallMcpServerRef.current,
             backgroundTasksServer: backgroundTasksMcpServerRef.current,
+            agentMessagingServer: agentMessagingMcpServerRef.current,
             hasConversationHistory:
               !!currentResumeId || turnAnalysis.analyses.length > 0,
           }),
@@ -2084,6 +2123,7 @@ export function useAgent(options: UseAgentOptions) {
     tokenCount: tokenCounter.count,
     conversationLattice,
     currentSessionId,
+    anchorId, // Stable ID for agent identity (doesn't change during compression)
     sigmaStats: {
       nodes: turnAnalysis?.stats?.totalAnalyzed ?? 0,
       edges: Math.max(0, (turnAnalysis?.stats?.totalAnalyzed ?? 0) - 1),

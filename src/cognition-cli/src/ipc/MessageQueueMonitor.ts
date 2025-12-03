@@ -1,6 +1,20 @@
+import fs from 'fs';
+import path from 'path';
 import { MessageQueue } from './MessageQueue.js';
 import { ZeroMQBus } from './ZeroMQBus.js';
 import { AgentMessage } from './AgentMessage.js';
+
+/**
+ * Agent info stored in agent-info.json for discovery
+ */
+export interface AgentInfo {
+  agentId: string;
+  model: string; // e.g., 'opus', 'sonnet', 'gemini', 'claude'
+  alias?: string; // e.g., 'opus1', 'sonnet2', 'gemini1'
+  startedAt: number; // Unix timestamp when agent started
+  lastHeartbeat: number; // Unix timestamp of last heartbeat
+  status: 'active' | 'idle' | 'disconnected';
+}
 
 /**
  * MessageQueueMonitor - Background task to monitor ZeroMQ bus
@@ -10,31 +24,172 @@ import { AgentMessage } from './AgentMessage.js';
  * - Filter messages by recipient (only queue messages addressed to this agent)
  * - Write incoming messages to persistent MessageQueue
  * - Update queue index for O(1) pending count
+ * - Maintain agent-info.json for agent discovery
  */
 export class MessageQueueMonitor {
   private queue: MessageQueue;
   private bus: ZeroMQBus;
   private agentId: string;
+  private model: string;
   private topics: string[];
+  private sigmaDir: string;
   private running: boolean = false;
   private abortController: AbortController | null = null;
+  private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 
   /**
    * @param agentId Unique agent ID (e.g., "claude-a7f3")
    * @param bus ZeroMQ bus instance
    * @param topics Topics to subscribe to (e.g., ["code.*", "arch.proposal_ready"])
    * @param sigmaDir Optional .sigma directory path (defaults to cwd)
+   * @param model Model name (e.g., 'opus', 'sonnet', 'gemini')
    */
   constructor(
     agentId: string,
     bus: ZeroMQBus,
     topics: string[],
-    sigmaDir?: string
+    sigmaDir?: string,
+    model?: string
   ) {
-    this.agentId = agentId;
+    // Add unique suffix to prevent agent ID collisions when multiple TUIs
+    // share the same anchor ID (e.g., started without --session-id)
+    const uniqueSuffix = Math.random().toString(36).substring(2, 6);
+    this.agentId = `${agentId}-${uniqueSuffix}`;
     this.bus = bus;
     this.topics = topics;
-    this.queue = new MessageQueue(agentId, sigmaDir);
+    this.sigmaDir = sigmaDir || process.cwd();
+    // Always extract base model name (opus, sonnet, gemini, etc.)
+    this.model = MessageQueueMonitor.extractModelFromId(model || agentId);
+    this.queue = new MessageQueue(this.agentId, sigmaDir);
+  }
+
+  /**
+   * Extract model name from agent ID or model string
+   * Normalizes to base model name (opus, sonnet, gemini, claude, gpt, etc.)
+   */
+  static extractModelFromId(idOrModel: string): string {
+    const lower = idOrModel.toLowerCase();
+
+    // Check for known model patterns
+    if (lower.includes('opus')) return 'opus';
+    if (lower.includes('sonnet')) return 'sonnet';
+    if (lower.includes('haiku')) return 'haiku';
+    if (lower.includes('gemini')) return 'gemini';
+    if (lower.includes('gpt-4')) return 'gpt4';
+    if (lower.includes('gpt')) return 'gpt';
+    if (lower.includes('claude')) return 'claude';
+
+    // Default to 'agent' if unknown
+    return 'agent';
+  }
+
+  /**
+   * Generate unique alias for this agent based on model
+   * Reads existing agents and assigns next number (opus1, opus2, etc.)
+   */
+  private async generateAlias(): Promise<string> {
+    const queueDir = path.join(this.sigmaDir, 'message_queue');
+
+    if (!fs.existsSync(queueDir)) {
+      return `${this.model}1`;
+    }
+
+    // Read all agent-info.json files to find existing aliases for this model
+    const entries = fs.readdirSync(queueDir, { withFileTypes: true });
+    const existingNumbers: number[] = [];
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+
+      const infoPath = path.join(queueDir, entry.name, 'agent-info.json');
+      if (fs.existsSync(infoPath)) {
+        try {
+          const info: AgentInfo = JSON.parse(
+            fs.readFileSync(infoPath, 'utf-8')
+          );
+          if (info.model === this.model && info.alias) {
+            const match = info.alias.match(/(\d+)$/);
+            if (match) {
+              existingNumbers.push(parseInt(match[1], 10));
+            }
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+    }
+
+    // Find next available number
+    const maxNumber =
+      existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
+    return `${this.model}${maxNumber + 1}`;
+  }
+
+  /**
+   * Write agent-info.json file
+   */
+  private async writeAgentInfo(alias: string): Promise<void> {
+    const queueDir = path.join(this.sigmaDir, 'message_queue', this.agentId);
+    const infoPath = path.join(queueDir, 'agent-info.json');
+
+    fs.mkdirSync(queueDir, { recursive: true });
+
+    const info: AgentInfo = {
+      agentId: this.agentId,
+      model: this.model,
+      alias,
+      startedAt: Date.now(),
+      lastHeartbeat: Date.now(),
+      status: 'active',
+    };
+
+    fs.writeFileSync(infoPath, JSON.stringify(info, null, 2));
+  }
+
+  /**
+   * Update heartbeat timestamp
+   */
+  private updateHeartbeat(): void {
+    const infoPath = path.join(
+      this.sigmaDir,
+      'message_queue',
+      this.agentId,
+      'agent-info.json'
+    );
+
+    if (!fs.existsSync(infoPath)) return;
+
+    try {
+      const info: AgentInfo = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
+      info.lastHeartbeat = Date.now();
+      info.status = 'active';
+      fs.writeFileSync(infoPath, JSON.stringify(info, null, 2));
+    } catch {
+      // Ignore errors
+    }
+  }
+
+  /**
+   * Mark agent as disconnected
+   */
+  private markDisconnected(): void {
+    const infoPath = path.join(
+      this.sigmaDir,
+      'message_queue',
+      this.agentId,
+      'agent-info.json'
+    );
+
+    if (!fs.existsSync(infoPath)) return;
+
+    try {
+      const info: AgentInfo = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
+      info.status = 'disconnected';
+      info.lastHeartbeat = Date.now();
+      fs.writeFileSync(infoPath, JSON.stringify(info, null, 2));
+    } catch {
+      // Ignore errors
+    }
   }
 
   /**
@@ -48,6 +203,10 @@ export class MessageQueueMonitor {
     // Initialize queue storage
     await this.queue.initialize();
 
+    // Generate alias and write agent info
+    const alias = await this.generateAlias();
+    await this.writeAgentInfo(alias);
+
     this.running = true;
     this.abortController = new AbortController();
 
@@ -56,8 +215,13 @@ export class MessageQueueMonitor {
       this.bus.subscribe(topic, this.handleMessage.bind(this));
     }
 
+    // Start heartbeat (every 10 seconds)
+    this.heartbeatInterval = setInterval(() => {
+      this.updateHeartbeat();
+    }, 10000);
+
     console.log(
-      `[MessageQueueMonitor] Started for agent ${this.agentId} (topics: ${this.topics.join(', ')})`
+      `[MessageQueueMonitor] Started for agent ${this.agentId} as ${alias} (topics: ${this.topics.join(', ')})`
     );
   }
 
@@ -70,6 +234,15 @@ export class MessageQueueMonitor {
     }
 
     this.running = false;
+
+    // Stop heartbeat
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+
+    // Mark agent as disconnected
+    this.markDisconnected();
 
     // Unsubscribe from all topics
     for (const topic of this.topics) {

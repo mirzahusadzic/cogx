@@ -16,11 +16,11 @@ import * as lockfile from 'proper-lockfile';
 import fs from 'fs-extra';
 import * as os from 'os';
 import * as path from 'path';
-import * as zmq from 'zeromq';
 import { ZeroMQBus } from './ZeroMQBus.js';
 
 export class BusCoordinator {
   private lockPath: string;
+  private pidPath: string;
   private socketPath: string;
   private bus: ZeroMQBus | null = null;
   private isBusMaster: boolean = false;
@@ -29,6 +29,7 @@ export class BusCoordinator {
     // Store lock file in .cognition directory
     const cogniDir = path.join(os.homedir(), '.cognition');
     this.lockPath = path.join(cogniDir, 'bus.lock');
+    this.pidPath = path.join(cogniDir, 'bus-master.pid');
     this.socketPath = this.getSocketPath();
   }
 
@@ -61,6 +62,7 @@ export class BusCoordinator {
         // Become Bus Master
         this.bus = new ZeroMQBus({ address: this.socketPath });
         await this.bus.bind();
+        await this.writePidFile();
         this.isBusMaster = true;
         console.log('🚌 Bus Master: Bound to', this.socketPath);
       } else {
@@ -79,44 +81,65 @@ export class BusCoordinator {
   }
 
   /**
-   * Check if Bus Master is alive by attempting to connect
+   * Check if Bus Master is alive using PID file
    */
   private async pingBusMaster(): Promise<boolean> {
     try {
-      // For IPC sockets, check if socket file exists
-      if (this.socketPath.startsWith('ipc://')) {
-        const socketFile = this.socketPath.replace('ipc://', '');
-        const exists = await fs.pathExists(socketFile);
-
-        if (!exists) {
-          return false;
-        }
+      // Check if PID file exists
+      if (!(await fs.pathExists(this.pidPath))) {
+        return false;
       }
 
-      // Try to connect to the socket with a timeout
-      const testSocket = new zmq.Request();
-      testSocket.connect(this.socketPath);
-      testSocket.sendTimeout = 100;
-      testSocket.receiveTimeout = 100;
+      // Read PID from file
+      const pidStr = await fs.readFile(this.pidPath, 'utf-8');
+      const pid = parseInt(pidStr.trim(), 10);
 
+      if (isNaN(pid)) {
+        // Invalid PID file, remove it
+        await fs.remove(this.pidPath);
+        return false;
+      }
+
+      // Check if process is still running
       try {
-        // Try to send a ping
-        await testSocket.send('ping');
-
-        // Wait for pong (or timeout)
-        const response = await testSocket.receive();
-        const isPong = response.toString() === 'pong';
-
-        await testSocket.close();
-        return isPong;
+        // Signal 0 doesn't kill the process, just checks if it exists
+        process.kill(pid, 0);
+        return true; // Process exists
       } catch {
-        // Timeout or connection refused
-        await testSocket.close();
+        // Process doesn't exist, clean up stale files
+        await fs.remove(this.pidPath);
+
+        // Also remove stale socket files
+        if (this.socketPath.startsWith('ipc://')) {
+          const socketFile = this.socketPath.replace('ipc://', '');
+          const subSocketFile = socketFile.replace('.sock', '-sub.sock');
+          await fs.remove(socketFile).catch(() => {});
+          await fs.remove(subSocketFile).catch(() => {});
+        }
+
         return false;
       }
     } catch {
       // Any error means Bus Master is not alive
       return false;
+    }
+  }
+
+  /**
+   * Write PID file when becoming Bus Master
+   */
+  private async writePidFile(): Promise<void> {
+    await fs.writeFile(this.pidPath, process.pid.toString());
+  }
+
+  /**
+   * Remove PID file when cleaning up
+   */
+  private async removePidFile(): Promise<void> {
+    try {
+      await fs.remove(this.pidPath);
+    } catch {
+      // Ignore removal errors
     }
   }
 
@@ -175,18 +198,22 @@ export class BusCoordinator {
       this.bus = null;
     }
 
-    // If we were Bus Master, cleanup socket files
-    if (this.isBusMaster && this.socketPath.startsWith('ipc://')) {
-      try {
-        const socketFile = this.socketPath.replace('ipc://', '');
-        const subSocketFile = socketFile.replace('.sock', '-sub.sock');
+    // If we were Bus Master, cleanup socket and PID files
+    if (this.isBusMaster) {
+      await this.removePidFile();
 
-        await fs.remove(socketFile);
-        await fs.remove(subSocketFile);
+      if (this.socketPath.startsWith('ipc://')) {
+        try {
+          const socketFile = this.socketPath.replace('ipc://', '');
+          const subSocketFile = socketFile.replace('.sock', '-sub.sock');
 
-        console.log('🧹 Cleaned up socket files');
-      } catch {
-        // Ignore cleanup errors
+          await fs.remove(socketFile);
+          await fs.remove(subSocketFile);
+
+          console.log('🧹 Cleaned up socket files');
+        } catch {
+          // Ignore cleanup errors
+        }
       }
     }
   }

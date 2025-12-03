@@ -1,8 +1,16 @@
 /**
  * ZeroMQ Pub/Sub Message Bus
  *
- * Provides pub/sub messaging between TUI instances.
- * Supports both binding (Bus Master) and connecting (Peer) modes.
+ * Provides pub/sub messaging between TUI instances using XPUB/XSUB broker pattern.
+ *
+ * Architecture:
+ * - Bus Master acts as a broker using XPUB/XSUB sockets
+ * - Frontend (XSUB): receives messages from all publishers
+ * - Backend (XPUB): forwards messages to all subscribers
+ * - Peers connect PUB to frontend, SUB to backend
+ *
+ * Message flow:
+ *   Peer1.PUB → Frontend(XSUB) → [Forwarder] → Backend(XPUB) → Peer2.SUB
  */
 
 import * as zmq from 'zeromq';
@@ -18,9 +26,14 @@ export type MessageHandler = (message: AgentMessage) => void;
 export class ZeroMQBus {
   private pubSocket: zmq.Publisher;
   private subSocket: zmq.Subscriber;
+  // Broker sockets (only used in bind/master mode)
+  private xsubSocket: zmq.XSubscriber | null = null;
+  private xpubSocket: zmq.XPublisher | null = null;
   private config: ZeroMQBusConfig;
   private handlers: Map<string, Set<MessageHandler>>;
   private started: boolean = false;
+  private isBroker: boolean = false;
+  private forwarderRunning: boolean = false;
 
   constructor(config: ZeroMQBusConfig) {
     this.config = config;
@@ -30,47 +43,118 @@ export class ZeroMQBus {
   }
 
   /**
-   * Start the bus in BIND mode (Bus Master)
-   * First TUI to start becomes the Bus Master and binds the socket.
+   * Start the bus in BIND mode (Bus Master / Broker)
+   * First TUI to start becomes the Bus Master and runs the broker.
+   *
+   * Broker pattern:
+   * - XSUB binds to frontend address (receives from publishers)
+   * - XPUB binds to backend address (sends to subscribers)
+   * - Forwarder proxies messages from XSUB to XPUB
    */
   async bind(): Promise<void> {
     if (this.started) {
       throw new Error('ZeroMQ Bus already started');
     }
 
-    // Bind publisher socket
-    await this.pubSocket.bind(this.config.address);
+    const frontendAddress = this.config.address; // Publishers connect here
+    const backendAddress = this.getSubAddress(); // Subscribers connect here
 
-    // Bind subscriber socket (separate port for feedback)
-    const subAddress = this.getSubAddress();
-    await this.subSocket.bind(subAddress);
+    // Create and bind broker sockets
+    this.xsubSocket = new zmq.XSubscriber();
+    this.xpubSocket = new zmq.XPublisher();
+
+    await this.xsubSocket.bind(frontendAddress);
+    await this.xpubSocket.bind(backendAddress);
+
+    this.isBroker = true;
+
+    // Start the forwarder in the background
+    this.startForwarder();
+
+    // Bus Master also needs to publish/subscribe like peers
+    // Connect our own pub/sub sockets to the broker
+    await this.pubSocket.connect(frontendAddress);
+    await this.subSocket.connect(backendAddress);
 
     this.started = true;
     this.startListening();
 
-    console.log(`🚌 ZeroMQ Bus Master: Bound to ${this.config.address}`);
+    console.log(
+      `🚌 ZeroMQ Bus Master: Broker running (frontend: ${frontendAddress}, backend: ${backendAddress})`
+    );
   }
 
   /**
    * Start the bus in CONNECT mode (Peer)
-   * Subsequent TUIs connect to the Bus Master.
+   * Subsequent TUIs connect to the Bus Master's broker.
+   *
+   * Peers:
+   * - PUB connects to frontend (where XSUB is bound)
+   * - SUB connects to backend (where XPUB is bound)
    */
   async connect(): Promise<void> {
     if (this.started) {
       throw new Error('ZeroMQ Bus already started');
     }
 
-    // Connect publisher socket
-    await this.pubSocket.connect(this.config.address);
+    const frontendAddress = this.config.address; // Where XSUB is bound
+    const backendAddress = this.getSubAddress(); // Where XPUB is bound
 
-    // Connect subscriber socket
-    const subAddress = this.getSubAddress();
-    await this.subSocket.connect(subAddress);
+    // Connect publisher to frontend (XSUB will receive our messages)
+    await this.pubSocket.connect(frontendAddress);
+
+    // Connect subscriber to backend (XPUB will send us messages)
+    await this.subSocket.connect(backendAddress);
 
     this.started = true;
     this.startListening();
 
-    console.log(`🔌 ZeroMQ Peer: Connected to ${this.config.address}`);
+    console.log(`🔌 ZeroMQ Peer: Connected to broker at ${frontendAddress}`);
+  }
+
+  /**
+   * Start the forwarder that proxies messages from XSUB to XPUB
+   * This is the heart of the broker pattern
+   */
+  private startForwarder(): void {
+    if (!this.xsubSocket || !this.xpubSocket) {
+      throw new Error('Broker sockets not initialized');
+    }
+
+    this.forwarderRunning = true;
+    const xsub = this.xsubSocket;
+    const xpub = this.xpubSocket;
+
+    // Forward messages from XSUB to XPUB
+    (async () => {
+      try {
+        for await (const msg of xsub) {
+          if (!this.forwarderRunning) break;
+          // Forward the entire message (topic + payload) to XPUB
+          await xpub.send(msg);
+        }
+      } catch (err) {
+        if (this.forwarderRunning) {
+          console.error('Forwarder error (XSUB→XPUB):', err);
+        }
+      }
+    })();
+
+    // Forward subscription messages from XPUB to XSUB
+    // This allows dynamic subscriptions to propagate through the broker
+    (async () => {
+      try {
+        for await (const msg of xpub) {
+          if (!this.forwarderRunning) break;
+          // Forward subscription messages to XSUB
+          await xsub.send(msg);
+        }
+      } catch (err) {
+        if (this.forwarderRunning) {
+          console.error('Forwarder error (XPUB→XSUB):', err);
+        }
+      }
+    })();
   }
 
   /**
@@ -92,14 +176,26 @@ export class ZeroMQBus {
   /**
    * Subscribe to a topic
    * Supports wildcards: "code.*" matches "code.completed", "code.review_requested"
+   *
+   * Note: ZeroMQ uses prefix matching for subscriptions. For wildcard patterns
+   * like "code.*", we subscribe to the prefix "code." in ZeroMQ but store
+   * the full pattern for internal wildcard matching.
    */
   subscribe(topic: string, handler: MessageHandler): void {
     // Add handler to internal registry
     if (!this.handlers.has(topic)) {
       this.handlers.set(topic, new Set());
 
-      // Tell ZeroMQ to subscribe to this topic
-      this.subSocket.subscribe(topic);
+      // For ZeroMQ, convert wildcard patterns to prefixes
+      // "code.*" -> "code." (ZeroMQ will match any topic starting with "code.")
+      // "*" -> "" (subscribe to all topics)
+      let zmqTopic = topic;
+      if (topic.endsWith('*')) {
+        zmqTopic = topic.slice(0, -1); // Remove trailing *
+      }
+
+      // Tell ZeroMQ to subscribe to this topic/prefix
+      this.subSocket.subscribe(zmqTopic);
     }
 
     this.handlers.get(topic)!.add(handler);
@@ -117,7 +213,13 @@ export class ZeroMQBus {
       // If no more handlers for this topic, unsubscribe from ZeroMQ
       if (handlers.size === 0) {
         this.handlers.delete(topic);
-        this.subSocket.unsubscribe(topic);
+
+        // Use same prefix conversion as subscribe
+        let zmqTopic = topic;
+        if (topic.endsWith('*')) {
+          zmqTopic = topic.slice(0, -1);
+        }
+        this.subSocket.unsubscribe(zmqTopic);
       }
     }
   }
@@ -127,7 +229,12 @@ export class ZeroMQBus {
    */
   unsubscribeAll(): void {
     for (const topic of this.handlers.keys()) {
-      this.subSocket.unsubscribe(topic);
+      // Use same prefix conversion as subscribe
+      let zmqTopic = topic;
+      if (topic.endsWith('*')) {
+        zmqTopic = topic.slice(0, -1);
+      }
+      this.subSocket.unsubscribe(zmqTopic);
     }
     this.handlers.clear();
   }
@@ -140,12 +247,33 @@ export class ZeroMQBus {
       return;
     }
 
+    // Mark as stopped first to prevent new operations
+    this.started = false;
+
     this.unsubscribeAll();
+
+    // Stop the forwarder
+    this.forwarderRunning = false;
+
+    // Give async iterators a moment to break out of their loops
+    await new Promise((resolve) => setImmediate(resolve));
 
     await this.pubSocket.close();
     await this.subSocket.close();
 
-    this.started = false;
+    // Close broker sockets if we're the broker
+    if (this.isBroker) {
+      if (this.xsubSocket) {
+        await this.xsubSocket.close();
+        this.xsubSocket = null;
+      }
+      if (this.xpubSocket) {
+        await this.xpubSocket.close();
+        this.xpubSocket = null;
+      }
+      this.isBroker = false;
+    }
+
     console.log('🛑 ZeroMQ Bus: Closed');
   }
 
@@ -187,7 +315,18 @@ export class ZeroMQBus {
       if (this.matchesTopic(topic, pattern)) {
         for (const handler of handlers) {
           try {
-            handler(message);
+            const result = handler(message);
+            // If handler returns a promise, catch async errors
+            if (
+              result !== undefined &&
+              result !== null &&
+              typeof result === 'object' &&
+              'catch' in result
+            ) {
+              (result as Promise<void>).catch((err: unknown) => {
+                console.error(`Async handler error for topic ${topic}:`, err);
+              });
+            }
           } catch (err) {
             console.error(`Handler error for topic ${topic}:`, err);
           }
@@ -241,12 +380,20 @@ export class ZeroMQBus {
   }
 
   /**
+   * Check if this instance is the broker (Bus Master)
+   */
+  isBusMaster(): boolean {
+    return this.isBroker;
+  }
+
+  /**
    * Get bus statistics (for debugging)
    */
   getStats(): BusStats {
     return {
       started: this.started,
       address: this.config.address,
+      isBroker: this.isBroker,
       subscribedTopics: Array.from(this.handlers.keys()),
       handlerCounts: Object.fromEntries(
         Array.from(this.handlers.entries()).map(([topic, handlers]) => [
@@ -261,6 +408,7 @@ export class ZeroMQBus {
 export interface BusStats {
   started: boolean;
   address: string;
+  isBroker: boolean;
   subscribedTopics: string[];
   handlerCounts: Record<string, number>;
 }

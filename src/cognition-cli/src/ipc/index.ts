@@ -27,6 +27,9 @@ export * from './AgentMessage.js';
 export * from './ZeroMQBus.js';
 export * from './BusCoordinator.js';
 export * from './AgentRegistry.js';
+export { MessageQueueMonitor, AgentInfo } from './MessageQueueMonitor.js';
+export { MessagePublisher } from './MessagePublisher.js';
+export { MessageQueue } from './MessageQueue.js';
 
 // Export availability check
 export const isMultiAgentAvailable = ZeroMQAvailable;

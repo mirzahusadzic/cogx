@@ -58,7 +58,19 @@ export default defineConfig({
      * causing segfaults and heap corruption even with proper cleanup delays.
      */
     maxConcurrency: 1, // Force sequential - LanceDB native code is not thread-safe
+    testTimeout: 15000, // 15 seconds for individual tests (forked processes are slower)
     teardownTimeout: 5000, // 5 seconds for native cleanup
     hookTimeout: 10000, // 10 seconds for test hooks (beforeEach/afterEach)
+    /**
+     * ZeroMQ E2E tests: Use forked processes to prevent segfaults.
+     * ZeroMQ native bindings can segfault during process cleanup even with
+     * proper socket closure. Running in forked processes isolates the cleanup.
+     */
+    poolOptions: {
+      forks: {
+        singleFork: false,
+      },
+    },
+    pool: 'forks', // Use forks for all tests to prevent native binding segfaults
   },
 });

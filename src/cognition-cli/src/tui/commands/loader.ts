@@ -213,6 +213,28 @@ export async function loadCommands(
     }
   }
 
+  // Add built-in IPC commands (handled directly in TUI, not via expansion)
+  const builtInCommands: Array<{ name: string; description: string }> = [
+    { name: 'send', description: 'Send message to another agent' },
+    { name: 'agents', description: 'List active agents' },
+    { name: 'pending', description: 'View pending messages' },
+    { name: 'inject', description: 'Inject message into conversation' },
+    { name: 'inject-all', description: 'Inject all pending messages' },
+    { name: 'dismiss', description: 'Dismiss a message' },
+  ];
+
+  for (const builtIn of builtInCommands) {
+    if (!commands.has(builtIn.name)) {
+      commands.set(builtIn.name, {
+        name: builtIn.name,
+        content: '', // Built-in commands don't use content
+        description: builtIn.description,
+        filePath: '', // No file path for built-in commands
+        category: 'ipc',
+      });
+    }
+  }
+
   return { commands, errors, warnings };
 }
 

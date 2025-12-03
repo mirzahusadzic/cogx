@@ -10,6 +10,10 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { spawn } from 'child_process';
 import { glob } from 'glob';
+import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
+import type { MessageQueue, QueuedMessage } from '../../ipc/MessageQueue.js';
+import * as fsSync from 'fs';
+import * as pathMod from 'path';
 import type { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
 import { queryConversationLattice } from '../../sigma/query-conversation.js';
 import { WorkbenchClient } from '../../core/executors/workbench-client.js';
@@ -390,6 +394,13 @@ export function createRecallTool(
  *
  * We can't access FunctionTool's private properties, so we recreate each tool
  * with the permission check built in.
+ *
+ * @param name - Tool name
+ * @param description - Tool description
+ * @param parameters - Zod schema for input parameters
+ * @param originalExecute - Original execute function
+ * @param onCanUseTool - Optional permission callback
+ * @returns Wrapped FunctionTool
  */
 function wrapToolWithPermission<T extends z.ZodRawShape>(
   name: string,
@@ -559,6 +570,333 @@ function formatDuration(start: Date, end: Date): string {
   return `${(ms / 3600000).toFixed(1)}h`;
 }
 
+interface AgentInfo {
+  agentId: string;
+  model: string;
+  alias?: string;
+  startedAt: number;
+  lastHeartbeat: number;
+  status: 'active' | 'idle' | 'disconnected';
+}
+
+/**
+ * Format message content for display
+ */
+function formatMessageContent(msg: QueuedMessage): string {
+  if (
+    typeof msg.content === 'object' &&
+    msg.content !== null &&
+    'message' in msg.content
+  ) {
+    return (msg.content as { message: string }).message;
+  }
+  return JSON.stringify(msg.content);
+}
+
+/**
+ * Get list of active agents from message_queue directory
+ */
+function getActiveAgents(
+  projectRoot: string,
+  excludeAgentId: string
+): AgentInfo[] {
+  const queueDir = pathMod.join(projectRoot, '.sigma', 'message_queue');
+
+  if (!fsSync.existsSync(queueDir)) {
+    return [];
+  }
+
+  const agents: AgentInfo[] = [];
+  const now = Date.now();
+  const ACTIVE_THRESHOLD = 30000; // 30 seconds
+
+  const entries = fsSync.readdirSync(queueDir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+
+    const infoPath = pathMod.join(queueDir, entry.name, 'agent-info.json');
+    if (!fsSync.existsSync(infoPath)) continue;
+
+    try {
+      const info: AgentInfo = JSON.parse(
+        fsSync.readFileSync(infoPath, 'utf-8')
+      );
+
+      // Check if active (recent heartbeat) and not self
+      const isActive =
+        info.status === 'active' && now - info.lastHeartbeat < ACTIVE_THRESHOLD;
+
+      // Exclude self (check both full ID and base ID)
+      const isSelf =
+        info.agentId === excludeAgentId ||
+        excludeAgentId.startsWith(entry.name);
+
+      if (isActive && !isSelf) {
+        agents.push(info);
+      }
+    } catch {
+      // Ignore parse errors
+    }
+  }
+
+  return agents.sort((a, b) => (a.alias || '').localeCompare(b.alias || ''));
+}
+
+/**
+ * Resolve alias or partial ID to full agent ID
+ */
+function resolveAgentId(projectRoot: string, aliasOrId: string): string | null {
+  const queueDir = pathMod.join(projectRoot, '.sigma', 'message_queue');
+
+  if (!fsSync.existsSync(queueDir)) {
+    return null;
+  }
+
+  const entries = fsSync.readdirSync(queueDir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+
+    const infoPath = pathMod.join(queueDir, entry.name, 'agent-info.json');
+    if (!fsSync.existsSync(infoPath)) continue;
+
+    try {
+      const info: AgentInfo = JSON.parse(
+        fsSync.readFileSync(infoPath, 'utf-8')
+      );
+
+      // Match by alias (case-insensitive)
+      if (info.alias && info.alias.toLowerCase() === aliasOrId.toLowerCase()) {
+        return info.agentId;
+      }
+
+      // Match by full agent ID
+      if (info.agentId === aliasOrId) {
+        return info.agentId;
+      }
+
+      // Match by directory name (partial ID)
+      if (entry.name === aliasOrId) {
+        return info.agentId;
+      }
+    } catch {
+      // Ignore parse errors
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Create agent messaging tools for Gemini
+ *
+ * Allows Gemini to discover other agents, send messages, and read pending messages.
+ * Mirrors the functionality of the Claude MCP tool but as ADK FunctionTools.
+ */
+function createAgentMessagingTools(
+  getMessagePublisher: (() => MessagePublisher | null) | undefined,
+  getMessageQueue: (() => MessageQueue | null) | undefined,
+  projectRoot: string,
+  currentAgentId: string,
+  onCanUseTool?: OnCanUseTool
+): FunctionTool[] {
+  const tools: FunctionTool[] = [];
+
+  // Tool: List active agents
+  const listAgentsTool = wrapToolWithPermission(
+    'list_agents',
+    'List all active agents in the IPC bus. Returns agent aliases, models, and status. Use this to discover other agents before sending messages.',
+    z.object({}),
+    async () => {
+      try {
+        const agents = getActiveAgents(projectRoot, currentAgentId);
+
+        if (agents.length === 0) {
+          return 'No other active agents found. You are the only agent currently running.';
+        }
+
+        let text = `**Active Agents (${agents.length})**\\n\\n`;
+        text += '| Alias | Model | Agent ID |\\n';
+        text += '|-------|-------|----------|\\n';
+
+        for (const agent of agents) {
+          text += `| ${agent.alias || 'unknown'} | ${agent.model} | ${agent.agentId} |\\n`;
+        }
+
+        text +=
+          '\\n**Usage**: Use `send_agent_message` tool with the alias or agent ID to send a message.';
+
+        return text;
+      } catch (err) {
+        return `Failed to list agents: ${(err as Error).message}`;
+      }
+    },
+    onCanUseTool
+  );
+  tools.push(listAgentsTool);
+
+  // Tool: Send message to agent
+  const sendMessageTool = wrapToolWithPermission(
+    'send_agent_message',
+    'Send a message to another agent. The recipient will see it in their pending messages. Use list_agents first to discover available agents.',
+    z.object({
+      to: z
+        .string()
+        .describe(
+          'Target agent alias (e.g., "opus1", "sonnet2") or full agent ID'
+        ),
+      message: z.string().describe('The message content to send'),
+    }),
+    async (args: { to: string; message: string }) => {
+      try {
+        const publisher = getMessagePublisher ? getMessagePublisher() : null;
+
+        if (!publisher) {
+          return 'Message publisher not initialized. IPC system may not be running.';
+        }
+
+        // Resolve alias to agent ID
+        const targetAgentId = resolveAgentId(projectRoot, args.to);
+
+        if (!targetAgentId) {
+          return `Agent not found: "${args.to}". Use list_agents to see available agents.`;
+        }
+
+        // Send the message
+        await publisher.sendMessage(targetAgentId, args.message);
+
+        return `Message sent to ${args.to} (${targetAgentId}).\\n\\nContent: "${args.message}"`;
+      } catch (err) {
+        return `Failed to send message: ${(err as Error).message}`;
+      }
+    },
+    onCanUseTool
+  );
+  tools.push(sendMessageTool);
+
+  // Tool: Broadcast message to all agents
+  const broadcastTool = wrapToolWithPermission(
+    'broadcast_agent_message',
+    'Broadcast a message to ALL active agents. Use sparingly - prefer send_agent_message for targeted communication.',
+    z.object({
+      message: z.string().describe('The message content to broadcast'),
+    }),
+    async (args: { message: string }) => {
+      try {
+        const publisher = getMessagePublisher ? getMessagePublisher() : null;
+
+        if (!publisher) {
+          return 'Message publisher not initialized. IPC system may not be running.';
+        }
+
+        // Broadcast to all agents
+        await publisher.broadcast('agent.message', {
+          type: 'text',
+          message: args.message,
+        });
+
+        const agents = getActiveAgents(projectRoot, currentAgentId);
+
+        return `Message broadcast to ${agents.length} agent(s).\\n\\nContent: "${args.message}"`;
+      } catch (err) {
+        return `Failed to broadcast message: ${(err as Error).message}`;
+      }
+    },
+    onCanUseTool
+  );
+  tools.push(broadcastTool);
+
+  // Tool: Get pending messages
+  const getPendingMessagesTool = wrapToolWithPermission(
+    'get_pending_messages',
+    'Get all pending messages in your message queue. These are messages from other agents that you have not yet processed.',
+    z.object({}),
+    async () => {
+      try {
+        const queue = getMessageQueue ? getMessageQueue() : null;
+
+        if (!queue) {
+          return 'Message queue not initialized. IPC system may not be running.';
+        }
+
+        const messages = await queue.getMessages('pending');
+
+        if (messages.length === 0) {
+          return 'No pending messages. Your message queue is empty.';
+        }
+
+        let text = `**Pending Messages (${messages.length})**\\n\\n`;
+
+        for (const msg of messages) {
+          const date = new Date(msg.timestamp).toLocaleString();
+          const contentText = formatMessageContent(msg);
+
+          text += `---\\n\\n`;
+          text += `**From**: \\\`${msg.from}\\\`\\n`;
+          text += `**Topic**: \\\`${msg.topic}\\\`\\n`;
+          text += `**Received**: ${date}\\n`;
+          text += `**Message ID**: \\\`${msg.id}\\\`\\n\\n`;
+          text += `${contentText}\\n\\n`;
+        }
+
+        text += `---\\n\\n`;
+        text += `**Actions**: Use \\\`mark_message_read\\\` with a message ID to mark it as processed.`;
+
+        return text;
+      } catch (err) {
+        return `Failed to get pending messages: ${(err as Error).message}`;
+      }
+    },
+    onCanUseTool
+  );
+  tools.push(getPendingMessagesTool);
+
+  // Tool: Mark message as read/injected
+  const markMessageReadTool = wrapToolWithPermission(
+    'mark_message_read',
+    'Mark a pending message as read/processed. Use this after you have handled a message from another agent.',
+    z.object({
+      messageId: z.string().describe('The message ID to mark as read'),
+      status: z
+        .enum(['read', 'injected', 'dismissed'])
+        .default('injected')
+        .describe(
+          'New status: "injected" (processed), "read" (seen), or "dismissed" (ignored)'
+        ),
+    }),
+    async (args: {
+      messageId: string;
+      status?: 'read' | 'injected' | 'dismissed';
+    }) => {
+      try {
+        const queue = getMessageQueue ? getMessageQueue() : null;
+
+        if (!queue) {
+          return 'Message queue not initialized. IPC system may not be running.';
+        }
+
+        const message = await queue.getMessage(args.messageId);
+
+        if (!message) {
+          return `Message not found: ${args.messageId}`;
+        }
+
+        const newStatus = args.status || 'injected';
+        await queue.updateStatus(args.messageId, newStatus);
+
+        return `Message ${args.messageId} marked as "${newStatus}".\\n\\nFrom: ${message.from}\\nContent: ${formatMessageContent(message)}`;
+      } catch (err) {
+        return `Failed to mark message: ${(err as Error).message}`;
+      }
+    },
+    onCanUseTool
+  );
+  tools.push(markMessageReadTool);
+
+  return tools;
+}
+
 /**
  * Get all ADK tools for Cognition
  *
@@ -569,13 +907,21 @@ function formatDuration(start: Date, end: Date): string {
  * @param workbenchUrl - Optional workbench URL for recall tool
  * @param onCanUseTool - Optional permission callback (from AgentRequest)
  * @param getTaskManager - Optional getter for BackgroundTaskManager (for background tasks tool)
+ * @param getMessagePublisher - Optional getter for MessagePublisher (for agent messaging tools)
+ * @param getMessageQueue - Optional getter for MessageQueue (for agent messaging tools)
+ * @param projectRoot - Current project root directory (for agent messaging tools)
+ * @param currentAgentId - Current agent's ID (for agent messaging tools, to exclude self)
  */
 export function getCognitionTools(
   conversationRegistry?: ConversationOverlayRegistry,
   workbenchUrl?: string,
   onCanUseTool?: OnCanUseTool,
-  getTaskManager?: () => BackgroundTaskManager | null
-) {
+  getTaskManager?: () => BackgroundTaskManager | null,
+  getMessagePublisher?: () => MessagePublisher | null,
+  getMessageQueue?: () => MessageQueue | null,
+  projectRoot?: string,
+  currentAgentId?: string
+): FunctionTool[] {
   // Create write_file tool with permission check
   const safeWriteFile = wrapToolWithPermission(
     'write_file',
@@ -688,6 +1034,18 @@ export function getCognitionTools(
   if (getTaskManager) {
     const backgroundTasksTool = createBackgroundTasksTool(getTaskManager);
     tools.push(backgroundTasksTool);
+  }
+
+  // Add agent messaging tools if publisher/queue are available
+  if (getMessagePublisher && getMessageQueue && projectRoot && currentAgentId) {
+    const agentMessagingTools = createAgentMessagingTools(
+      getMessagePublisher,
+      getMessageQueue,
+      projectRoot,
+      currentAgentId,
+      onCanUseTool
+    );
+    tools.push(...agentMessagingTools);
   }
 
   return tools;

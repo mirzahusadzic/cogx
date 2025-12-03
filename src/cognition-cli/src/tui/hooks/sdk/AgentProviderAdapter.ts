@@ -80,6 +80,18 @@ export interface AgentAdapterOptions {
   /** Background task manager getter (for get_background_tasks tool) */
   getTaskManager?: () => unknown;
 
+  /** Agent message publisher (for send_message/broadcast_message tools) */
+  getMessagePublisher?: () => unknown;
+
+  /** Agent message queue (for get_pending_messages/mark_messages_read tools) */
+  getMessageQueue?: () => unknown;
+
+  /** Project root directory (for agent discovery) */
+  projectRoot?: string;
+
+  /** Current agent ID (for excluding self from listings) */
+  agentId?: string;
+
   /** Debug mode */
   debug?: boolean;
 }
@@ -134,6 +146,10 @@ export class AgentProviderAdapter {
       conversationRegistry: this.options.conversationRegistry,
       workbenchUrl: this.options.workbenchUrl,
       getTaskManager: this.options.getTaskManager,
+      getMessagePublisher: this.options.getMessagePublisher,
+      getMessageQueue: this.options.getMessageQueue,
+      projectRoot: this.options.projectRoot || this.options.cwd,
+      agentId: this.options.agentId,
       onStderr: this.options.onStderr,
       onCanUseTool: this.options.onCanUseTool,
       systemPrompt: {
@@ -201,7 +217,7 @@ export class AgentProviderAdapter {
   /**
    * Interrupt the current agent execution
    *
-   * Sends interrupt signal to the underlying provider to stop execution.
+   * Sends an interrupt signal to the underlying provider to stop execution.
    * Only works if the provider supports interrupts.
    *
    * @returns Promise that resolves when interrupt is sent

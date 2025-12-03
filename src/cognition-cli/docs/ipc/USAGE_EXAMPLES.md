@@ -81,8 +81,8 @@ await messagePublisher.requestCodeReview(
 
 ```typescript
 // 1. Sees: "📬 1 message" in overlay bar
-// 2. Runs: /pending
-// 3. Runs: /inject {message-id}
+// 2. Runs: /pending (built-in command)
+// 3. Runs: /inject {message-id} (built-in command)
 // 4. Reviews the code
 // 5. Sends response back
 
@@ -107,16 +107,17 @@ await messagePublisher.notifyTaskComplete(
 
 ---
 
-## Integration in Slash Commands
+## Built-in Slash Commands
 
-The `/send` slash command uses the MessagePublisher internally:
+These commands are available in the TUI for managing inter-agent messages:
 
-```markdown
-User types: /send gemini-a123 Please review my code
-
-Claude executes:
-await messagePublisher.sendMessage('gemini-a123', 'Please review my code');
-```
+| Command                      | Description                            |
+| ---------------------------- | -------------------------------------- |
+| `/pending`                   | Show pending messages in queue         |
+| `/inject <id>`               | Inject a message into the conversation |
+| `/inject-all`                | Inject all pending messages            |
+| `/send <agent-id> <message>` | Send a message to another agent        |
+| `/dismiss <id>`              | Dismiss a message from queue           |
 
 ---
 

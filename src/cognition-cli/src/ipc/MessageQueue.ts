@@ -250,6 +250,13 @@ export class MessageQueue {
     return await this.getIndex();
   }
 
+  /**
+   * Get the agent ID this queue belongs to
+   */
+  getAgentId(): string {
+    return this.agentId;
+  }
+
   // ========== Private Methods ==========
 
   private async getIndex(): Promise<QueueIndex> {

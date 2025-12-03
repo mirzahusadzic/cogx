@@ -120,11 +120,22 @@ export class GeminiAgentProvider implements AgentProvider {
           | import('../../tui/services/BackgroundTaskManager.js').BackgroundTaskManager
           | null)
       | undefined;
+    const messagePublisher = request.getMessagePublisher as
+      | (() => import('../../ipc/MessagePublisher.js').MessagePublisher | null)
+      | undefined;
+    const messageQueue = request.getMessageQueue as
+      | (() => import('../../ipc/MessageQueue.js').MessageQueue | null)
+      | undefined;
+
     const cognitionTools = getCognitionTools(
       conversationRegistry,
       request.workbenchUrl,
       request.onCanUseTool, // Pass permission callback for tool confirmations
-      taskManager // Pass task manager getter for background tasks tool
+      taskManager, // Pass task manager getter for background tasks tool
+      messagePublisher, // Pass message publisher getter for agent messaging tools
+      messageQueue, // Pass message queue getter for agent messaging tools
+      request.cwd || request.projectRoot, // Pass project root for agent discovery
+      request.agentId // Pass current agent ID for excluding self from listings
     );
 
     // Create a specialized web search agent
@@ -802,6 +813,11 @@ You have access to tools for:
 - **fetch_url**: Fetch and read content from any URL (returns markdown-formatted text with basic HTML stripping)
 - **recall_past_conversation**: Search conversation history for past context (if available)
 - **get_background_tasks**: Query status of background operations (genesis, overlay generation) - check progress, see completed/failed tasks
+- **list_agents**: List all active agents in the IPC bus
+- **send_agent_message**: Send a message to another agent by alias or ID
+- **broadcast_agent_message**: Broadcast a message to all active agents
+- **get_pending_messages**: Get all pending messages from other agents
+- **mark_message_read**: Mark a pending message as read/processed
 
 ## Working Directory
 ${request.cwd || process.cwd()}

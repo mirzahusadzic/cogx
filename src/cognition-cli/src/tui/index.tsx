@@ -26,8 +26,8 @@ import { isAuthenticationError } from './hooks/sdk/index.js';
 import type { TUIMessage } from './hooks/useAgent.js';
 import { MessageQueueMonitor } from '../ipc/MessageQueueMonitor.js';
 import { MessageQueue } from '../ipc/MessageQueue.js';
-import { ZeroMQBus } from '../ipc/ZeroMQBus.js';
 import { MessagePublisher } from '../ipc/MessagePublisher.js';
+import { BusCoordinator } from '../ipc/BusCoordinator.js';
 
 // Custom theme with vivid AIEcho cyan spinner
 const customTheme = extendTheme(defaultTheme, {
@@ -84,6 +84,12 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   const messageQueueRef = useRef<MessageQueue | null>(null);
   const messagePublisherRef = useRef<MessagePublisher | null>(null);
 
+  // Getter for message publisher (used by agent messaging tool)
+  const getMessagePublisher = useCallback(
+    () => messagePublisherRef.current,
+    []
+  );
+
   // Tool confirmation hook (guardrails) - must be before chatAreaHeight useMemo
   const { confirmationState, requestConfirmation, allow, deny, alwaysAllow } =
     useToolConfirmation();
@@ -109,6 +115,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     sigmaStats,
     avgOverlays,
     currentSessionId,
+    anchorId,
   } = useAgent({
     sessionId,
     cwd: projectRoot, // Use project root, not .open_cognition dir
@@ -120,18 +127,410 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     model, // Pass model name
     onRequestToolConfirmation: requestConfirmation, // Guardrail callback
     getTaskManager: taskManager.getManager, // Pass task manager getter (returns BackgroundTaskManager instance)
+    getMessagePublisher, // Pass message publisher getter (for agent-to-agent messaging tool)
   });
 
   // Wrap sendMessage to clear streaming paste on regular messages
   const sendMessage = useCallback(
-    (msg: string) => {
+    async (msg: string) => {
+      // Handle /send command for inter-agent messaging
+      if (msg.startsWith('/send ')) {
+        const args = msg.slice(6).trim(); // Remove '/send '
+        const spaceIndex = args.indexOf(' ');
+
+        if (spaceIndex === -1) {
+          // No message content provided
+          originalSendMessage(
+            '❌ Error: Missing message content\n\nUsage: /send <alias> <message>\n\nExample: /send opus1 Please review my code'
+          );
+          return;
+        }
+
+        const targetAliasOrId = args.slice(0, spaceIndex);
+        const messageContent = args.slice(spaceIndex + 1);
+
+        if (!messageContent.trim()) {
+          originalSendMessage(
+            '❌ Error: Message content cannot be empty\n\nUsage: /send <alias> <message>'
+          );
+          return;
+        }
+
+        // Resolve alias to agent ID
+        let targetAgentId = targetAliasOrId;
+        const sigmaDir = path.join(projectRoot, '.sigma');
+        const queueDir = path.join(sigmaDir, 'message_queue');
+
+        if (fs.existsSync(queueDir)) {
+          const entries = fs.readdirSync(queueDir, { withFileTypes: true });
+          for (const entry of entries) {
+            if (!entry.isDirectory()) continue;
+            const infoPath = path.join(queueDir, entry.name, 'agent-info.json');
+            if (fs.existsSync(infoPath)) {
+              try {
+                const info = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
+                // Match by alias (case-insensitive)
+                if (
+                  info.alias &&
+                  info.alias.toLowerCase() === targetAliasOrId.toLowerCase()
+                ) {
+                  targetAgentId = info.agentId || entry.name;
+                  break;
+                }
+              } catch {
+                // Ignore parse errors
+              }
+            }
+          }
+        }
+
+        // Send the message using MessagePublisher
+        try {
+          const publisher = messagePublisherRef.current;
+          if (!publisher) {
+            originalSendMessage(
+              '❌ Error: MessagePublisher not initialized. Please wait for the IPC system to start.'
+            );
+            return;
+          }
+
+          await publisher.sendMessage(targetAgentId, messageContent);
+
+          // Display confirmation (show alias if different from ID)
+          const displayTarget =
+            targetAgentId !== targetAliasOrId
+              ? `\`${targetAliasOrId}\` (\`${targetAgentId}\`)`
+              : `\`${targetAgentId}\``;
+
+          originalSendMessage(
+            `📤 Message Sent\n\n` +
+              `**To**: ${displayTarget}\n` +
+              `**Topic**: \`agent.message\`\n` +
+              `**Content**: ${messageContent}\n\n` +
+              `The recipient will see this when they run \`/pending\`.`
+          );
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          originalSendMessage(`❌ Error sending message: ${errorMsg}`);
+        }
+
+        return;
+      }
+
+      // Handle /pending command to list messages
+      if (msg.trim() === '/pending') {
+        try {
+          const messageQueue = messageQueueRef.current;
+          if (!messageQueue) {
+            originalSendMessage('❌ Error: MessageQueue not initialized.');
+            return;
+          }
+
+          const messages = await messageQueue.getMessages('pending');
+
+          if (messages.length === 0) {
+            originalSendMessage(
+              '📭 **No pending messages**\n\nYour message queue is empty.'
+            );
+            return;
+          }
+
+          let output = `📬 **Pending Messages (${messages.length})**\n\n`;
+
+          for (const msg of messages) {
+            const date = new Date(msg.timestamp).toLocaleString();
+            const contentPreview =
+              typeof msg.content === 'object' &&
+              msg.content !== null &&
+              'message' in msg.content
+                ? (msg.content as { message: string }).message
+                : JSON.stringify(msg.content);
+
+            output += `---\n\n`;
+            output += `**Message ID**: \`${msg.id}\`\n`;
+            output += `**From**: \`${msg.from}\`\n`;
+            output += `**Topic**: \`${msg.topic}\`\n`;
+            output += `**Received**: ${date}\n`;
+            output += `**Content**:\n\n\`\`\`\n${contentPreview}\n\`\`\`\n\n`;
+          }
+
+          output += `---\n\n**Actions**:\n\n`;
+          output += `- \`/inject {message-id}\` - Inject specific message into conversation\n`;
+          output += `- \`/inject-all\` - Inject all pending messages\n`;
+          output += `- \`/dismiss {message-id}\` - Dismiss specific message\n`;
+
+          originalSendMessage(output);
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          originalSendMessage(`❌ Error listing messages: ${errorMsg}`);
+        }
+
+        return;
+      }
+
+      // Handle /inject command to inject a specific message
+      if (msg.startsWith('/inject ')) {
+        const messageId = msg.slice(8).trim();
+
+        if (!messageId) {
+          originalSendMessage(
+            '❌ Error: Missing message ID\n\nUsage: /inject <message-id>\n\nUse `/pending` to see available messages.'
+          );
+          return;
+        }
+
+        try {
+          const messageQueue = messageQueueRef.current;
+          if (!messageQueue) {
+            originalSendMessage('❌ Error: MessageQueue not initialized.');
+            return;
+          }
+
+          const message = await messageQueue.getMessage(messageId);
+
+          if (!message) {
+            originalSendMessage(
+              `❌ **Error: Message not found**\n\nMessage ID \`${messageId}\` does not exist in the queue.\n\nUse \`/pending\` to see available messages.`
+            );
+            return;
+          }
+
+          // Update status to injected
+          await messageQueue.updateStatus(messageId, 'injected');
+
+          const date = new Date(message.timestamp).toLocaleString();
+          const contentText =
+            typeof message.content === 'object' &&
+            message.content !== null &&
+            'message' in message.content
+              ? (message.content as { message: string }).message
+              : JSON.stringify(message.content);
+
+          const output =
+            `📨 **Injected Message from ${message.from}**\n\n` +
+            `**Topic**: \`${message.topic}\`\n` +
+            `**Received**: ${date}\n\n` +
+            `---\n\n` +
+            `${contentText}\n\n` +
+            `---\n\n` +
+            `_Message status updated to: injected_`;
+
+          originalSendMessage(output);
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          originalSendMessage(`❌ Error injecting message: ${errorMsg}`);
+        }
+
+        return;
+      }
+
+      // Handle /inject-all command
+      if (msg.trim() === '/inject-all') {
+        try {
+          const messageQueue = messageQueueRef.current;
+          if (!messageQueue) {
+            originalSendMessage('❌ Error: MessageQueue not initialized.');
+            return;
+          }
+
+          const messages = await messageQueue.getMessages('pending');
+
+          if (messages.length === 0) {
+            originalSendMessage(
+              '📭 **No pending messages to inject**\n\nYour message queue is empty.'
+            );
+            return;
+          }
+
+          let output = `📨 **Injecting ${messages.length} Messages**\n\n`;
+
+          for (const msg of messages) {
+            const date = new Date(msg.timestamp).toLocaleString();
+            const contentText =
+              typeof msg.content === 'object' &&
+              msg.content !== null &&
+              'message' in msg.content
+                ? (msg.content as { message: string }).message
+                : JSON.stringify(msg.content);
+
+            output += `---\n\n`;
+            output += `**From**: \`${msg.from}\` | **Topic**: \`${msg.topic}\` | **Received**: ${date}\n\n`;
+            output += `${contentText}\n\n`;
+
+            // Update status
+            await messageQueue.updateStatus(msg.id, 'injected');
+          }
+
+          output += `---\n\n_All messages marked as injected_`;
+
+          originalSendMessage(output);
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          originalSendMessage(`❌ Error injecting messages: ${errorMsg}`);
+        }
+
+        return;
+      }
+
+      // Handle /dismiss command
+      if (msg.startsWith('/dismiss ')) {
+        const messageId = msg.slice(9).trim();
+
+        if (!messageId) {
+          originalSendMessage(
+            '❌ Error: Missing message ID\n\nUsage: /dismiss <message-id>\n\nUse `/pending` to see available messages.'
+          );
+          return;
+        }
+
+        try {
+          const messageQueue = messageQueueRef.current;
+          if (!messageQueue) {
+            originalSendMessage('❌ Error: MessageQueue not initialized.');
+            return;
+          }
+
+          const message = await messageQueue.getMessage(messageId);
+
+          if (!message) {
+            originalSendMessage(
+              `❌ **Error: Message not found**\n\nMessage ID \`${messageId}\` does not exist in the queue.\n\nUse \`/pending\` to see available messages.`
+            );
+            return;
+          }
+
+          // Update status to dismissed
+          await messageQueue.updateStatus(messageId, 'dismissed');
+
+          originalSendMessage(
+            `✅ **Message Dismissed**\n\nMessage \`${messageId}\` from \`${message.from}\` has been dismissed.`
+          );
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          originalSendMessage(`❌ Error dismissing message: ${errorMsg}`);
+        }
+
+        return;
+      }
+
+      // Handle /agents command to list active agents
+      if (msg.trim() === '/agents') {
+        try {
+          const sigmaDir = path.join(projectRoot, '.sigma');
+          const queueDir = path.join(sigmaDir, 'message_queue');
+
+          // Check if message_queue directory exists
+          if (!fs.existsSync(queueDir)) {
+            originalSendMessage(
+              '📭 **No agents found**\n\nNo message queue directory exists yet. Agents will appear here once they connect to the ZeroMQ bus.'
+            );
+            return;
+          }
+
+          // Get all agent directories
+          const entries = fs.readdirSync(queueDir, { withFileTypes: true });
+          const agentDirs = entries.filter((e) => e.isDirectory());
+
+          if (agentDirs.length === 0) {
+            originalSendMessage(
+              '📭 **No agents found**\n\nNo agents have connected yet.'
+            );
+            return;
+          }
+
+          // Get stats for each agent from agent-info.json
+          interface AgentDisplayInfo {
+            id: string;
+            alias: string;
+            model: string;
+            lastHeartbeat: number;
+            status: string;
+            isYou: boolean;
+            isActive: boolean;
+          }
+
+          const agents: AgentDisplayInfo[] = [];
+          const currentAgentId = anchorId;
+          const now = Date.now();
+          const ACTIVE_THRESHOLD = 30000; // 30 seconds
+
+          for (const dir of agentDirs) {
+            const agentDir = path.join(queueDir, dir.name);
+            const infoPath = path.join(agentDir, 'agent-info.json');
+
+            // Only show agents with agent-info.json (properly registered)
+            if (!fs.existsSync(infoPath)) {
+              continue;
+            }
+
+            try {
+              const info = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
+              const isActive =
+                info.status === 'active' &&
+                now - info.lastHeartbeat < ACTIVE_THRESHOLD;
+
+              // Only include active agents (heartbeat within threshold)
+              if (!isActive) {
+                continue;
+              }
+
+              agents.push({
+                id: info.agentId || dir.name,
+                alias: info.alias || info.model || 'agent',
+                model: info.model || 'unknown',
+                lastHeartbeat: info.lastHeartbeat || 0,
+                status: info.status || 'unknown',
+                isYou: dir.name === currentAgentId,
+                isActive,
+              });
+            } catch {
+              // Ignore parse errors
+            }
+          }
+
+          if (agents.length === 0) {
+            originalSendMessage(
+              '📭 **No active agents**\n\nNo agents are currently connected. Start another TUI instance to see it here.'
+            );
+            return;
+          }
+
+          // Sort by alias (for consistent ordering)
+          agents.sort((a, b) => a.alias.localeCompare(b.alias));
+
+          // Build output
+          let output = `🤖 **Active Agents (${agents.length})**\n\n`;
+          output += `| Alias | Model | Status |\n`;
+          output += `|-------|-------|--------|\n`;
+
+          for (const agent of agents) {
+            const marker = agent.isYou ? ' 👤' : '';
+            output += `| \`${agent.alias}\`${marker} | ${agent.model} | 🟢 active |\n`;
+          }
+
+          output += `\n---\n\n`;
+          output += `**Usage:**\n`;
+          output += `\`/send <alias> <message>\` - Send a message to an agent\n\n`;
+          output += `**Examples:**\n`;
+          output += `- \`/send opus1 Please review my code\`\n`;
+          output += `- \`/send gemini2 What's the architecture?\``;
+
+          originalSendMessage(output);
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          originalSendMessage(`❌ Error listing agents: ${errorMsg}`);
+        }
+
+        return;
+      }
+
       // Clear streaming paste when sending a regular message
       if (!msg.startsWith('[Pasted content')) {
         setStreamingPaste('');
       }
       originalSendMessage(msg);
     },
-    [originalSendMessage]
+    [originalSendMessage, currentSessionId, projectRoot]
   );
 
   // Onboarding wizard (async, non-blocking) - must be after sendMessage
@@ -319,41 +718,82 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     }
   }, [error, sessionId, projectRoot]);
 
-  // Initialize MessageQueueMonitor when session starts
+  // Initialize MessageQueueMonitor when anchor starts
+  // Use a ref to prevent double initialization
+  // anchorId is stable (doesn't change during compression), unlike currentSessionId
+  const monitorInitializedRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!currentSessionId || !projectRoot) {
+    if (!anchorId || !projectRoot) {
       return;
     }
 
+    // Prevent double initialization for the same anchor
+    if (monitorInitializedRef.current === anchorId) {
+      return;
+    }
+
+    // If we have a different anchor, clean up the old one first
+    if (
+      messageQueueMonitorRef.current &&
+      monitorInitializedRef.current !== anchorId
+    ) {
+      messageQueueMonitorRef.current.stop().catch(() => {});
+      messageQueueMonitorRef.current = null;
+      messagePublisherRef.current = null;
+      messageQueueRef.current = null;
+    }
+
+    monitorInitializedRef.current = anchorId;
+
+    let mounted = true;
+    let cleanupFn: (() => void) | null = null;
+
     const initializeMonitor = async () => {
       try {
-        // Use session ID as agent ID for message routing
-        const agentId = currentSessionId;
+        // Use anchor ID as agent ID for message routing (stable across session compression)
+        const agentId = anchorId;
         const sigmaDir = path.join(projectRoot, '.sigma');
 
-        // Initialize ZeroMQ bus with IPC socket
-        const bus = new ZeroMQBus({
-          address: 'ipc:///tmp/cognition-bus.sock',
-          mode: 'connect', // Connect as peer to the bus
-        });
+        // Initialize ZeroMQ bus using BusCoordinator
+        // This will either start a new Bus Master or connect to existing one
+        const coordinator = new BusCoordinator();
+        const bus = await coordinator.connectWithFallback();
+
+        if (!mounted) return;
 
         // Topics to subscribe to
         const topics = ['agent.command', 'agent.notification', 'agent.message'];
 
         // Create and start monitor
-        const monitor = new MessageQueueMonitor(agentId, bus, topics, sigmaDir);
+        // Pass model to monitor for alias generation (use model prop or extract from provider)
+        const modelName = model || provider || 'agent';
+        const monitor = new MessageQueueMonitor(
+          agentId,
+          bus,
+          topics,
+          sigmaDir,
+          modelName
+        );
         await monitor.start();
+
+        if (!mounted) {
+          await monitor.stop();
+          return;
+        }
 
         // Store monitor instance for cleanup
         messageQueueMonitorRef.current = monitor;
 
         // Create MessagePublisher for sending messages to other agents
-        const publisher = new MessagePublisher(bus, agentId);
+        // Use the monitor's actual agent ID (with suffix) so replies go to the right queue
+        const monitorAgentId = monitor.getQueue().getAgentId();
+        const publisher = new MessagePublisher(bus, monitorAgentId);
         messagePublisherRef.current = publisher;
 
-        // Create MessageQueue instance for event-driven updates
-        const messageQueue = new MessageQueue(agentId, sigmaDir);
-        await messageQueue.initialize();
+        // Use the monitor's queue instance for event-driven updates
+        // This ensures /pending reads from the same queue where messages are delivered
+        const messageQueue = monitor.getQueue();
         messageQueueRef.current = messageQueue;
 
         // Subscribe to count changes via event emitter
@@ -371,8 +811,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
         // Clear any previous errors
         setMonitorError(null);
 
-        // Cleanup on unmount
-        return () => {
+        // Store cleanup function
+        cleanupFn = () => {
           messageQueue.off('countChanged', handleCountChanged);
           monitor.stop().catch((err) => {
             if (debug) {
@@ -390,7 +830,12 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     };
 
     initializeMonitor();
-  }, [currentSessionId, projectRoot, debug]);
+
+    return () => {
+      mounted = false;
+      if (cleanupFn) cleanupFn();
+    };
+  }, [anchorId, projectRoot, debug, model, provider]);
 
   // Handle pasted content - stream it line by line
   const handlePasteContent = useCallback(

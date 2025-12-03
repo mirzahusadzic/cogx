@@ -44,7 +44,7 @@ describe('loadCommands', () => {
 
     const result = await loadCommands(tempDir);
 
-    expect(result.commands.size).toBe(0);
+    expect(result.commands.size).toBe(6); // Expect 6 built-in commands
     expect(result.warnings.length).toBe(1);
     expect(result.warnings[0].warning).toContain('Empty file');
 
@@ -63,7 +63,7 @@ describe('loadCommands', () => {
 
     const result = await loadCommands(tempDir);
 
-    expect(result.commands.size).toBe(0);
+    expect(result.commands.size).toBe(6); // Expect 6 built-in commands
     expect(result.warnings.length).toBe(1);
     expect(result.warnings[0].warning).toContain('Invalid markdown');
 
@@ -84,7 +84,7 @@ describe('loadCommands', () => {
 
     const result = await loadCommands(tempDir);
 
-    expect(result.commands.size).toBe(1);
+    expect(result.commands.size).toBe(7); // 1 from file + 6 built-in
     expect(result.errors.length).toBe(0);
     expect(result.warnings.length).toBe(0);
 
@@ -113,7 +113,7 @@ describe('loadCommands', () => {
     const result = await loadCommands(tempDir);
 
     // Should load successfully (no duplicates in this case)
-    expect(result.commands.size).toBe(1);
+    expect(result.commands.size).toBe(7); // 1 from file + 6 built-in
 
     // Cleanup
     fs.rmSync(tempDir, { recursive: true, force: true });
@@ -137,7 +137,7 @@ describe('loadCommands', () => {
 
     const result = await loadCommands(tempDir);
 
-    expect(result.commands.size).toBe(1);
+    expect(result.commands.size).toBe(7); // 1 from file + 6 built-in
     expect(result.commands.has('README')).toBe(false);
     expect(result.commands.has('real-cmd')).toBe(true);
 
@@ -152,12 +152,12 @@ describe('loadCommands', () => {
     const result = await loadCommands(process.cwd());
 
     // All loaded commands should have safe paths
-    const allCommandsHaveSafePaths = Array.from(result.commands.values()).every(
-      (cmd) => {
+    const allCommandsHaveSafePaths = Array.from(result.commands.values())
+      .filter((cmd) => !!cmd.filePath) // Filter out built-in commands
+      .every((cmd) => {
         const commandsDir = path.join(process.cwd(), '.claude', 'commands');
         return cmd.filePath.startsWith(commandsDir);
-      }
-    );
+      });
 
     expect(allCommandsHaveSafePaths).toBe(true);
   });
