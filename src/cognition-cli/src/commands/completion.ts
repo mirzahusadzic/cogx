@@ -355,7 +355,17 @@ _cognition_cli_completions() {
       ;;
     tui)
       # After tui command, suggest subcommands and flags
-      COMPREPLY=( $(compgen -W "provider -p --project-root --session-id -f --file -w --workbench --session-tokens --max-thinking-tokens --no-show-thinking --debug -h --help" -- \${cur}) )
+      COMPREPLY=( $(compgen -W "provider -p --project-root --session-id -f --file -w --workbench --session-tokens --max-thinking-tokens --provider --model --no-show-thinking --no-onboarding --no-auto-response --debug -h --help" -- \${cur}) )
+      return 0
+      ;;
+    --provider)
+      # Suggest provider names
+      COMPREPLY=( $(compgen -W "claude gemini" -- \${cur}) )
+      return 0
+      ;;
+    --model)
+      # Suggest model names (provider-specific)
+      COMPREPLY=( $(compgen -W "claude-opus-4-5-20251101 claude-sonnet-4-5-20250929 gemini-2.5-flash gemini-2.0-flash gemini-2.5-pro gemini-2.0-flash-thinking-exp-01-21" -- \${cur}) )
       return 0
       ;;
     overlay)
@@ -451,7 +461,59 @@ _cognition_cli_completions() {
       ;;
   esac
 
-  # Default: suggest flags
+  # Command-specific flag completion (when typing -- after command)
+  local main_cmd="\${COMP_WORDS[1]}"
+  if [[ "\${cur}" == -* ]]; then
+    case "\${main_cmd}" in
+      tui)
+        local tui_flags="-p --project-root --session-id -f --file -w --workbench --session-tokens --max-thinking-tokens --provider --model --no-show-thinking --no-onboarding --no-auto-response --debug -h --help"
+        COMPREPLY=( $(compgen -W "\${tui_flags}" -- \${cur}) )
+        return 0
+        ;;
+      genesis|g)
+        local genesis_flags="-w --workbench -p --project-root -n --dry-run -r --resume --json -h --help"
+        COMPREPLY=( $(compgen -W "\${genesis_flags}" -- \${cur}) )
+        return 0
+        ;;
+      init|i)
+        local init_flags="-p --project-root -n --dry-run -f --force -h --help"
+        COMPREPLY=( $(compgen -W "\${init_flags}" -- \${cur}) )
+        return 0
+        ;;
+      query|q)
+        local query_flags="-p --project-root -w --workbench --json -h --help"
+        COMPREPLY=( $(compgen -W "\${query_flags}" -- \${cur}) )
+        return 0
+        ;;
+      ask)
+        local ask_flags="-p --project-root --provider --model -h --help"
+        COMPREPLY=( $(compgen -W "\${ask_flags}" -- \${cur}) )
+        return 0
+        ;;
+      lattice|l)
+        local lattice_flags="-p --project-root --json -h --help"
+        COMPREPLY=( $(compgen -W "\${lattice_flags}" -- \${cur}) )
+        return 0
+        ;;
+      blast-radius)
+        local br_flags="-p --project-root --depth --json -h --help"
+        COMPREPLY=( $(compgen -W "\${br_flags}" -- \${cur}) )
+        return 0
+        ;;
+      watch)
+        local watch_flags="-p --project-root --debounce -h --help"
+        COMPREPLY=( $(compgen -W "\${watch_flags}" -- \${cur}) )
+        return 0
+        ;;
+      completion)
+        local completion_flags="--shell -h --help"
+        COMPREPLY=( $(compgen -W "\${completion_flags}" -- \${cur}) )
+        return 0
+        ;;
+    esac
+  fi
+
+  # Default: suggest global flags
   COMPREPLY=( $(compgen -W "\${global_flags}" -- \${cur}) )
 }
 
@@ -557,7 +619,11 @@ _cognition_cli() {
             {-w,--workbench}'[Workbench URL]:url:' \
             '--session-tokens[Token threshold]:number:' \
             '--max-thinking-tokens[Max thinking tokens]:number:' \
+            '--provider[LLM provider]:provider:(claude gemini)' \
+            '--model[Model to use]:model:(claude-opus-4-5-20251101 claude-sonnet-4-5-20250929 gemini-2.5-flash gemini-2.0-flash gemini-2.5-pro gemini-2.0-flash-thinking-exp-01-21)' \
             '--no-show-thinking[Hide thinking blocks in TUI]' \
+            '--no-onboarding[Skip onboarding wizard]' \
+            '--no-auto-response[Disable automatic response to agent messages]' \
             '--debug[Enable debug logging]' \
             {-h,--help}'[Show help]' \
             '1: :->tui_subcommand' \
@@ -729,7 +795,11 @@ complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -s f -l file -d "
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -s w -l workbench -d "Workbench URL"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l session-tokens -d "Token threshold"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l max-thinking-tokens -d "Max thinking tokens"
-complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l no-display-thinking -d "Hide thinking blocks"
+complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l provider -d "LLM provider" -xa "claude gemini"
+complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l model -d "Model to use" -xa "claude-opus-4-5-20251101 claude-sonnet-4-5-20250929 gemini-2.5-flash gemini-2.0-flash gemini-2.5-pro gemini-2.0-flash-thinking-exp-01-21"
+complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l no-show-thinking -d "Hide thinking blocks"
+complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l no-onboarding -d "Skip onboarding wizard"
+complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l no-auto-response -d "Disable auto-response"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l debug -d "Enable debug logging"
 
 # TUI subcommands

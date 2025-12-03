@@ -544,7 +544,7 @@ const tuiCmd = program
   .option('--session-id <anchor-id>', 'Anchor ID to resume session')
   .option(
     '-f, --file <path>',
-    'Path to session state file (e.g., .sigma/tui-1762546919034.state.json)'
+    'Path to session state file (e.g., .sigma/tui-opus45-1762546919034.state.json)'
   )
   .option(
     '-w, --workbench <url>',
@@ -560,7 +560,7 @@ const tuiCmd = program
   )
   .option(
     '--provider <name>',
-    `LLM provider to use (default: ${loadLLMConfig().defaultProvider})`,
+    'LLM provider to use (claude, gemini)',
     loadLLMConfig().defaultProvider
   )
   .option('--model <name>', 'Model to use (provider-specific)')
@@ -578,17 +578,21 @@ const tuiCmd = program
     'after',
     combineHelpSections(
       addExamples([
-        { cmd: 'cognition tui', desc: 'Launch TUI with default provider' },
+        { cmd: 'cognition-cli tui', desc: 'Launch TUI with default provider' },
         {
-          cmd: 'cognition tui --provider gemini',
-          desc: 'Use Gemini as LLM provider',
+          cmd: 'cognition-cli tui --provider claude',
+          desc: 'Use Claude as LLM provider',
         },
         {
-          cmd: 'cognition tui --session-id abc123',
-          desc: 'Resume a previous session',
+          cmd: 'cognition-cli tui --provider gemini --model gemini-2.5-pro',
+          desc: 'Use Gemini with a specific model',
         },
         {
-          cmd: 'cognition tui -f .sigma/tui-123.state.json',
+          cmd: 'cognition-cli tui --session-id tui-opus45-1764773826220',
+          desc: 'Resume a previous session by anchor ID',
+        },
+        {
+          cmd: 'cognition-cli tui -f .sigma/tui-opus45-1764773826220.state.json',
           desc: 'Load session from state file',
         },
       ]),
