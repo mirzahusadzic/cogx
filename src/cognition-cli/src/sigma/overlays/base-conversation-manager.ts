@@ -60,8 +60,7 @@ export interface ConversationOverlay {
  */
 export abstract class BaseConversationManager<
   T extends ConversationTurnMetadata,
-> implements OverlayAlgebra<T>
-{
+> implements OverlayAlgebra<T> {
   protected overlayPath: string;
   protected workbench: WorkbenchClient;
   protected lanceStore: ConversationLanceStore;

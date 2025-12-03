@@ -106,9 +106,7 @@ export interface MissionConceptMetadata extends OverlayMetadata {
  * - Overlay tracks source document via document_hash
  * - Full transform chain via transform_id
  */
-export class MissionConceptsManager
-  implements OverlayAlgebra<MissionConceptMetadata>
-{
+export class MissionConceptsManager implements OverlayAlgebra<MissionConceptMetadata> {
   private overlayPath: string;
   private workbench: WorkbenchClient;
 

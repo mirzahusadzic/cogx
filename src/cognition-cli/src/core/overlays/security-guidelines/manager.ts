@@ -131,9 +131,7 @@ export interface SecurityMetadata extends OverlayMetadata {
  * - Can be imported from dependencies
  * - Enables security knowledge inheritance across projects
  */
-export class SecurityGuidelinesManager
-  implements OverlayAlgebra<SecurityMetadata>
-{
+export class SecurityGuidelinesManager implements OverlayAlgebra<SecurityMetadata> {
   private overlayPath: string;
   private workbench: WorkbenchClient;
 

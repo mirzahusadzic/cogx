@@ -328,9 +328,8 @@ describe('AnalysisQueue', () => {
 
     it('calls onError when analysis fails', async () => {
       // Mock analyzeTurn to throw error for this test
-      const { analyzeTurn } = await import(
-        '../../../../../sigma/analyzer-with-embeddings.js'
-      );
+      const { analyzeTurn } =
+        await import('../../../../../sigma/analyzer-with-embeddings.js');
       vi.mocked(analyzeTurn).mockRejectedValueOnce(new Error('Test error'));
 
       const onError = vi.fn();

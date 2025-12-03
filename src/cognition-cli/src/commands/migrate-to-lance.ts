@@ -422,9 +422,8 @@ export async function migrateToLanceCommand(options: MigrateOptions) {
     let latticeSizeAfter = 0;
 
     try {
-      const { migrateLatticeToV2 } = await import(
-        '../sigma/migrate-lattice-to-v2.js'
-      );
+      const { migrateLatticeToV2 } =
+        await import('../sigma/migrate-lattice-to-v2.js');
       const latticeResult = await migrateLatticeToV2(options.projectRoot, {
         dryRun: options.dryRun,
         verbose: false,
@@ -461,9 +460,8 @@ export async function migrateToLanceCommand(options: MigrateOptions) {
     let lanceReduction = 0;
 
     try {
-      const { compactConversationLanceDB } = await import(
-        '../sigma/compact-lancedb.js'
-      );
+      const { compactConversationLanceDB } =
+        await import('../sigma/compact-lancedb.js');
       const compactionResult = await compactConversationLanceDB(
         options.projectRoot,
         {
@@ -715,9 +713,8 @@ export async function migrateToPatternTables(
     console.log('');
 
     // Import LanceVectorStore
-    const { LanceVectorStore } = await import(
-      '../core/overlays/vector-db/lance-store.js'
-    );
+    const { LanceVectorStore } =
+      await import('../core/overlays/vector-db/lance-store.js');
 
     let totalConcepts = 0;
     let totalDocuments = 0;

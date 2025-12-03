@@ -137,9 +137,7 @@ export interface MathematicalMetadata extends OverlayMetadata {
  * - Support proof checking
  * - Enable theorem application to code
  */
-export class MathematicalProofsManager
-  implements OverlayAlgebra<MathematicalMetadata>
-{
+export class MathematicalProofsManager implements OverlayAlgebra<MathematicalMetadata> {
   private overlayPath: string;
   private workbench: WorkbenchClient;
 

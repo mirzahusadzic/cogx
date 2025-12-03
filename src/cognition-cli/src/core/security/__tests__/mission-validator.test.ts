@@ -347,9 +347,8 @@ Build secure software
         firstResult.embeddedConcepts &&
         firstResult.embeddedConcepts.length > 0
       ) {
-        const { MissionIntegrityMonitor } = await import(
-          '../mission-integrity.js'
-        );
+        const { MissionIntegrityMonitor } =
+          await import('../mission-integrity.js');
         const monitor = new MissionIntegrityMonitor(tempDir);
         await monitor.recordVersion(visionPath, firstResult.embeddedConcepts);
       }

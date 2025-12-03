@@ -57,9 +57,7 @@ import {
  * const knowledge = extractor.extract(proofsDoc);
  * const theorems = knowledge.filter(k => k.statementType === 'theorem');
  */
-export class ProofExtractor
-  implements DocumentExtractor<MathematicalKnowledge>
-{
+export class ProofExtractor implements DocumentExtractor<MathematicalKnowledge> {
   /**
    * Extract mathematical knowledge from document
    *

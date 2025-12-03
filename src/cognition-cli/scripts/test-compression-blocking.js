@@ -17,9 +17,8 @@ async function testCompressionBlocking() {
   console.log('[T+0ms] Step 2: Importing modules...');
   const startImport = Date.now();
   const { compressContext } = await import('./dist/sigma/compressor.js');
-  const { reconstructSessionContext } = await import(
-    './dist/sigma/context-reconstructor.js'
-  );
+  const { reconstructSessionContext } =
+    await import('./dist/sigma/context-reconstructor.js');
   const importTime = Date.now() - startImport;
   console.log(
     `[T+${importTime}ms] Step 3: Modules imported (${importTime}ms)\n`
@@ -103,9 +102,8 @@ async function testCompressionBlocking() {
   console.log('\n[T+Xms] Testing SLOW PATH (with conversation registry)...');
   console.log('[T+Xms] Creating conversation registry...\n');
 
-  const { ConversationOverlayRegistry } = await import(
-    './dist/sigma/conversation-registry.js'
-  );
+  const { ConversationOverlayRegistry } =
+    await import('./dist/sigma/conversation-registry.js');
   const registry = new ConversationOverlayRegistry('./.sigma');
 
   // Set current session to prevent reading all historical sessions

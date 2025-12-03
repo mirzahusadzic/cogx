@@ -591,9 +591,8 @@ async function deleteExistingDocument(
   // Delete LanceDB embeddings with matching document_hash
   try {
     // Delete from OLD unified document_concepts table
-    const { DocumentLanceStore } = await import(
-      '../core/pgc/document-lance-store.js'
-    );
+    const { DocumentLanceStore } =
+      await import('../core/pgc/document-lance-store.js');
     const lanceStore = new DocumentLanceStore(pgcRoot);
     await lanceStore.initialize();
 
@@ -614,9 +613,8 @@ async function deleteExistingDocument(
 
   // Delete from NEW per-overlay pattern tables
   try {
-    const { LanceVectorStore } = await import(
-      '../core/overlays/vector-db/lance-store.js'
-    );
+    const { LanceVectorStore } =
+      await import('../core/overlays/vector-db/lance-store.js');
 
     const patternTables = [
       'security_guidelines',

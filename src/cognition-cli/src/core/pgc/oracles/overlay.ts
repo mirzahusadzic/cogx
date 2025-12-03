@@ -234,9 +234,8 @@ export class OverlayOracle {
       const manifestSymbols = new Set(Object.keys(manifest || {}));
 
       // Load vector DB to see what patterns actually exist
-      const { LanceVectorStore } = await import(
-        '../../overlays/vector-db/lance-store.js'
-      );
+      const { LanceVectorStore } =
+        await import('../../overlays/vector-db/lance-store.js');
       vectorDB = new LanceVectorStore(this.pgcManager.pgcRoot);
       await vectorDB.initialize('structural_patterns');
       const allVectors = await vectorDB.getAllVectors();

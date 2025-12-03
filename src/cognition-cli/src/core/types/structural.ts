@@ -420,5 +420,6 @@ export const StructuralPatternMetadataSchema = z.object({
  * };
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface StructuralPatternMetadata
-  extends z.infer<typeof StructuralPatternMetadataSchema> {}
+export interface StructuralPatternMetadata extends z.infer<
+  typeof StructuralPatternMetadataSchema
+> {}

@@ -156,9 +156,8 @@ export async function compactConversationLanceDB(
     }
 
     // Recreate table with same schema
-    const { createConversationTurnSchema } = await import(
-      './conversation-lance-store.js'
-    );
+    const { createConversationTurnSchema } =
+      await import('./conversation-lance-store.js');
     const schema = createConversationTurnSchema();
 
     await db.createTable(

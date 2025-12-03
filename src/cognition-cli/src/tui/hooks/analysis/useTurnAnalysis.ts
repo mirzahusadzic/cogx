@@ -377,9 +377,8 @@ async function populateOverlays(
   registry: ConversationOverlayRegistry
 ): Promise<void> {
   try {
-    const { populateConversationOverlays } = await import(
-      '../../../sigma/conversation-populator.js'
-    );
+    const { populateConversationOverlays } =
+      await import('../../../sigma/conversation-populator.js');
     await populateConversationOverlays(analysis, registry);
 
     // Note: Periodic flushing is handled by the caller (useClaudeAgent)

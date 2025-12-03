@@ -863,9 +863,8 @@ export class GenesisDocTransform {
     filePath: string
   ): Promise<void> {
     // Extract operational patterns using WorkflowExtractor
-    const { WorkflowExtractor } = await import(
-      '../analyzers/workflow-extractor.js'
-    );
+    const { WorkflowExtractor } =
+      await import('../analyzers/workflow-extractor.js');
     const extractor = new WorkflowExtractor();
     const patterns = extractor.extract(ast);
 
@@ -892,9 +891,8 @@ export class GenesisDocTransform {
     filePath: string
   ): Promise<void> {
     // Extract security guidelines using SecurityExtractor
-    const { SecurityExtractor } = await import(
-      '../analyzers/security-extractor.js'
-    );
+    const { SecurityExtractor } =
+      await import('../analyzers/security-extractor.js');
     const extractor = new SecurityExtractor();
     const guidelines = extractor.extract(ast);
 

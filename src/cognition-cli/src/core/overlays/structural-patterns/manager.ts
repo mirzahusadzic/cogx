@@ -44,9 +44,7 @@ export interface StructuralMetadata extends OverlayMetadata {
  * - Symbol types: function, class, interface, module, variable
  * - Architectural roles: service, model, controller, utility, config, test
  */
-export class StructuralPatternsManager
-  implements OverlayAlgebra<StructuralMetadata>
-{
+export class StructuralPatternsManager implements OverlayAlgebra<StructuralMetadata> {
   private vectorStore: LanceVectorStore;
   private workbench: WorkbenchClient;
 

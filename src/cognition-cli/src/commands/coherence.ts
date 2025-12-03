@@ -104,9 +104,8 @@ export function addCoherenceCommands(program: Command) {
         )) as unknown as CoherenceAlgebraAdapter;
 
         // Get raw overlay data for detailed metrics
-        const { StrategicCoherenceManager } = await import(
-          '../core/overlays/strategic-coherence/manager.js'
-        );
+        const { StrategicCoherenceManager } =
+          await import('../core/overlays/strategic-coherence/manager.js');
         const manager = new StrategicCoherenceManager(pgcRoot);
         const overlay = await manager.retrieve();
 
@@ -347,9 +346,8 @@ export function addCoherenceCommands(program: Command) {
         )) as unknown as CoherenceAlgebraAdapter;
 
         // Get overlay to access alignment threshold
-        const { StrategicCoherenceManager } = await import(
-          '../core/overlays/strategic-coherence/manager.js'
-        );
+        const { StrategicCoherenceManager } =
+          await import('../core/overlays/strategic-coherence/manager.js');
         const manager = new StrategicCoherenceManager(pgcRoot);
         const overlay = await manager.retrieve();
 
@@ -437,9 +435,8 @@ export function addCoherenceCommands(program: Command) {
         )) as unknown as CoherenceAlgebraAdapter;
 
         // Get raw overlay data for bottom quartile threshold
-        const { StrategicCoherenceManager } = await import(
-          '../core/overlays/strategic-coherence/manager.js'
-        );
+        const { StrategicCoherenceManager } =
+          await import('../core/overlays/strategic-coherence/manager.js');
         const manager = new StrategicCoherenceManager(pgcRoot);
         const overlay = await manager.retrieve();
 

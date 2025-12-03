@@ -237,9 +237,8 @@ export class MissionIntegrityMonitor {
     semanticFingerprint: string,
     documentHash: string
   ): Promise<void> {
-    const { LanceVectorStore } = await import(
-      '../overlays/vector-db/lance-store.js'
-    );
+    const { LanceVectorStore } =
+      await import('../overlays/vector-db/lance-store.js');
     const lanceStore = new LanceVectorStore(this.pgcRoot);
     await lanceStore.initialize('mission_integrity');
 
@@ -297,9 +296,8 @@ export class MissionIntegrityMonitor {
    */
   async loadEmbeddingsFromLance(version: number): Promise<number[][]> {
     try {
-      const { LanceVectorStore } = await import(
-        '../overlays/vector-db/lance-store.js'
-      );
+      const { LanceVectorStore } =
+        await import('../overlays/vector-db/lance-store.js');
       const lanceStore = new LanceVectorStore(this.pgcRoot);
       await lanceStore.initialize('mission_integrity');
 
@@ -522,9 +520,12 @@ export class MissionIntegrityMonitor {
       };
     } catch (error) {
       // Git not available or file not in repo - this is fine
-      console.warn(
-        `Failed to get git info: ${error instanceof Error ? error.message : String(error)}`
-      );
+      // Suppress warning in test environments to reduce noise
+      if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+        console.warn(
+          `Failed to get git info: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
       return {};
     }
   }

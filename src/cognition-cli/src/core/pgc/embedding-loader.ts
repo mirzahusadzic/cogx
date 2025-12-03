@@ -158,9 +158,8 @@ export class EmbeddingLoader {
     overlayData: OverlayData,
     pgcRoot: string
   ): Promise<MissionConcept[]> {
-    const { LanceVectorStore } = await import(
-      '../overlays/vector-db/lance-store.js'
-    );
+    const { LanceVectorStore } =
+      await import('../overlays/vector-db/lance-store.js');
 
     // Determine table name based on overlay type
     const tableName = this.getTableNameForOverlay(overlayData);

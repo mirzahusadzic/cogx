@@ -120,9 +120,7 @@ export interface OperationalMetadata extends OverlayMetadata {
  * - Enables semantic search: "How should I handle depth 2 work?"
  * - Supports projection queries across O₁ (code state) → O₅ (process guidance)
  */
-export class OperationalPatternsManager
-  implements OverlayAlgebra<OperationalMetadata>
-{
+export class OperationalPatternsManager implements OverlayAlgebra<OperationalMetadata> {
   private overlayPath: string;
   private workbench: WorkbenchClient;
 

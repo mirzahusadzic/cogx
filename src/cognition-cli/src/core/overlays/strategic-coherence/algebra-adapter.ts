@@ -34,9 +34,7 @@ export interface CoherenceMetadata extends OverlayMetadata {
  * This makes semantic sense: the coherence record IS the alignment between
  * structural and mission layers, so its embedding should reflect that synthesis.
  */
-export class CoherenceAlgebraAdapter
-  implements OverlayAlgebra<CoherenceMetadata>
-{
+export class CoherenceAlgebraAdapter implements OverlayAlgebra<CoherenceMetadata> {
   private coherenceManager: StrategicCoherenceManager;
   private missionManager: MissionConceptsManager;
   private workbench: WorkbenchClient;

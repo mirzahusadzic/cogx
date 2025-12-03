@@ -51,9 +51,7 @@ import {
  * const patterns = extractor.extract(workflowDoc);
  * const sequences = patterns.filter(p => p.patternType === 'sacred_sequence');
  */
-export class WorkflowExtractor
-  implements DocumentExtractor<OperationalKnowledge>
-{
+export class WorkflowExtractor implements DocumentExtractor<OperationalKnowledge> {
   /**
    * Extract operational patterns from document
    *
