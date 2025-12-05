@@ -70,7 +70,6 @@ import { closest } from 'fastest-levenshtein';
 // import { auditCommand, auditDocsCommand } from './commands/audit.js';
 // import { addPatternsCommands } from './commands/patterns.js';
 import { bootstrapSecurity } from './core/security/security-bootstrap.js';
-import { loadLLMConfig } from './llm/llm-config.js';
 import {
   addExamples,
   addEnvVars,
@@ -558,11 +557,7 @@ const tuiCmd = program
     '--max-thinking-tokens <number>',
     'Maximum tokens for extended thinking mode (default: 10000)'
   )
-  .option(
-    '--provider <name>',
-    'LLM provider to use (claude, gemini)',
-    loadLLMConfig().defaultProvider
-  )
+  .option('--provider <name>', 'LLM provider to use (claude, gemini)')
   .option('--model <name>', 'Model to use (provider-specific)')
   .option('--debug', 'Enable debug logging for Sigma compression')
   .option('--no-show-thinking', 'Hide thinking blocks in TUI')

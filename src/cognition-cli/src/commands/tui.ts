@@ -331,11 +331,27 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
   }
 
   // Resolve provider and model defaults
-  // Priority: CLI flags > state file > config defaults
+  // When resuming from state file, state provider takes precedence (can't switch providers mid-session)
+  // For new sessions: CLI flags > config defaults
   const { loadLLMConfig } = await import('../llm/llm-config.js');
   const llmConfig = loadLLMConfig();
-  const resolvedProvider =
-    options.provider || stateProvider || llmConfig.defaultProvider;
+
+  let resolvedProvider: string;
+  if (stateProvider) {
+    // Resuming session - must use the provider the session was created with
+    resolvedProvider = stateProvider;
+    if (options.provider && options.provider !== stateProvider) {
+      console.warn(
+        chalk.yellow(
+          `⚠️  Ignoring --provider ${options.provider}: session was created with ${stateProvider}`
+        )
+      );
+    }
+  } else {
+    // New session - use CLI flag or config default
+    resolvedProvider = options.provider || llmConfig.defaultProvider;
+  }
+
   const resolvedModel =
     options.model ||
     stateModel ||
@@ -353,13 +369,16 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     );
   }
 
-  // Validate provider if specified
-  if (options.provider) {
-    try {
-      const { registry, initializeProviders } = await import('../llm/index.js');
-      await initializeProviders();
+  // Validate and resolve provider
+  // Must check resolvedProvider (not just options.provider) because it may come from state file
+  let validatedProvider = resolvedProvider;
+  try {
+    const { registry, initializeProviders } = await import('../llm/index.js');
+    await initializeProviders();
 
-      if (!registry.has(options.provider)) {
+    if (!registry.has(resolvedProvider)) {
+      // If user explicitly specified provider, error out
+      if (options.provider) {
         console.error(
           `Error: Provider '${options.provider}' not found.\n` +
             `Available providers: ${registry.list().join(', ')}`
@@ -367,26 +386,42 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
         process.exit(1);
       }
 
-      // Check if provider supports agent mode
-      if (!registry.supportsAgent(options.provider)) {
+      // Otherwise (e.g., from state file), fall back to an available provider
+      const availableProviders = registry.list();
+      if (availableProviders.length === 0) {
         console.error(
-          `Error: Provider '${options.provider}' does not support agent mode.\n` +
-            `Available agent providers: ${registry.listAgentProviders().join(', ')}`
+          'Error: No LLM providers available. Configure ANTHROPIC_API_KEY or GEMINI_API_KEY.'
         );
         process.exit(1);
       }
-    } catch (error) {
+
+      validatedProvider = availableProviders[0];
+      console.warn(
+        chalk.yellow(
+          `Provider '${resolvedProvider}' not available, using '${validatedProvider}' instead`
+        )
+      );
+    }
+
+    // Check if provider supports agent mode
+    if (!registry.supportsAgent(validatedProvider)) {
       console.error(
-        `Error: Failed to validate provider: ${error instanceof Error ? error.message : String(error)}`
+        `Error: Provider '${validatedProvider}' does not support agent mode.\n` +
+          `Available agent providers: ${registry.listAgentProviders().join(', ')}`
       );
       process.exit(1);
     }
+  } catch (error) {
+    console.error(
+      `Error: Failed to validate provider: ${error instanceof Error ? error.message : String(error)}`
+    );
+    process.exit(1);
   }
 
   // Set default sessionTokens based on provider
   // Gemini has 2M token context (gemini-2.5-pro) / 1M (gemini-3-pro)
   // Claude has 200K token context (Sonnet/Opus) - compress at 120K to leave buffer
-  const defaultSessionTokens = resolvedProvider === 'gemini' ? 950000 : 120000;
+  const defaultSessionTokens = validatedProvider === 'gemini' ? 950000 : 120000;
 
   // Launch TUI
   await startTUI({
@@ -397,7 +432,7 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     sessionTokens: options.sessionTokens ?? defaultSessionTokens,
     maxThinkingTokens: options.maxThinkingTokens ?? 32000, // Default: 32K tokens for extended thinking (matches Claude Code)
     debug: options.debug,
-    provider: resolvedProvider,
+    provider: validatedProvider,
     model: resolvedModel,
     displayThinking: options.displayThinking ?? true,
     onboardingMode, // NEW: Pass onboarding mode to TUI
