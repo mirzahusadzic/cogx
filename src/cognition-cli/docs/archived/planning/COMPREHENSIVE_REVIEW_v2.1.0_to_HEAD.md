@@ -247,7 +247,7 @@ A series of commits (Nov 8) trying to fix segfaults:
 
 - `ffaef77` - "Fix CI/CD segfault by improving LanceDB native cleanup"
 - `8a071fd` - Add global teardown
-- `8a04fa0` - **Require Node.js >=25.0.0** (very new, not LTS!)
+- `8a04fa0` - **Require Node.js >=25.0.0** (later downgraded to >=20.18.1 LTS)
 - `28176a9` - Increase timeouts
 - `448e1e3` - Add **3-second delays** between test suites
 - `4955063` - Switch from vmThreads to forks
@@ -257,7 +257,7 @@ A series of commits (Nov 8) trying to fix segfaults:
 - These are symptoms, not root cause fixes
 - LanceDB native module has cleanup issues
 - Adding delays and timeouts is a code smell
-- Requiring bleeding-edge Node.js (v25) suggests instability
+- Requiring bleeding-edge Node.js (v25) suggested instability (now fixed: >=20.18.1 LTS)
 - May break in other environments
 
 **Concern**: Band-aids instead of investigating LanceDB native module cleanup.
@@ -362,9 +362,8 @@ git commit -m "Add output.txt to .gitignore to prevent debug output commits"
 #### 2.1 INVESTIGATE CI/CD ROOT CAUSE
 
 - Find why LanceDB needs delays and special cleanup
-- Consider if Node.js v25 requirement is acceptable for production
+- ✅ Node.js requirement downgraded to >=20.18.1 (LTS)
 - Document any environment-specific issues
-- Consider downgrading to Node.js LTS if possible
 
 #### 2.2 RE-ADD SELECTIVE DOCUMENTATION
 
@@ -428,7 +427,7 @@ From this review, the remaining technical debt includes:
 1. ❌ **11 components still broken for v2 LanceDB format** (CRITICAL)
 2. ✅ ~~LanceDB stores using bloat-prone delete+add pattern~~ **FIXED**
 3. ⚠️ CI/CD stability dependent on timeouts and delays
-4. ⚠️ Node.js v25 requirement (not yet LTS)
+4. ✅ ~~Node.js v25 requirement (not yet LTS)~~ **FIXED: >=20.18.1 LTS**
 5. ❌ No .gitignore for debug output files
 6. ⚠️ Lost valuable documentation (3,867 lines deleted)
 

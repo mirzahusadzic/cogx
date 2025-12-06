@@ -22,7 +22,7 @@ This project and everyone participating in it is governed by our [Code of Conduc
 
 ### Prerequisites
 
-- **Node.js** v25.x or later
+- **Node.js** v20.18.1 or later (LTS)
 - **npm** v11.x or later
 - **Git** for version control
 - **Optional**: [eGemma Workbench](https://github.com/mirzahusadzic/egemma) for embeddings and advanced features

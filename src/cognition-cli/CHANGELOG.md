@@ -854,7 +854,7 @@ Structured error system with error codes (COG-E0xx pattern).
 **Recommended Actions**:
 
 1. Run `cognition-cli completion install` to enable tab completion
-2. Update Node.js to v25 if using v18
+2. Update Node.js to v20.18.1+ (LTS) if using older version
 3. Review new `--format`, `--no-color`, `--json` flags for automation
 4. Compression performance should be instant now (was 5-10 minutes)
 
@@ -1181,7 +1181,7 @@ Building on v2.1.0's context persistence foundation:
 - Added comprehensive tests for session management
 - Fixed failing tests with proper PGC infrastructure
 - Switch workerpool tests from vmThreads to forks (stability)
-- Require Node.js >=25.0.0 for CI/CD consistency
+- Require Node.js >=20.18.1 (LTS) for CI/CD consistency
 - Fixed CI/CD segfaults with LanceDB cleanup
 - Increased test timeouts and memory limits
 
