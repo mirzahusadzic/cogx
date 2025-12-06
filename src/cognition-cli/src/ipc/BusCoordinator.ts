@@ -21,6 +21,26 @@ import { ZeroMQBus } from './ZeroMQBus.js';
 
 const DEBUG_IPC = process.env.DEBUG_IPC === '1';
 
+/**
+ * Coordinates the creation of a single ZeroMQ bus master.
+ *
+ * This class prevents race conditions when multiple TUI instances or agents
+ * start simultaneously. It uses a file-based lock to ensure that only one
+ * process becomes the "bus master" (binding the ZeroMQ sockets), while all
+ * other processes connect as peers.
+ *
+ * @class BusCoordinator
+ *
+ * @example
+ * const coordinator = new BusCoordinator();
+ * try {
+ *   const bus = await coordinator.connectWithFallback();
+ *   console.log('Connected to bus. Master:', coordinator.getIsBusMaster());
+ *   // ... use bus
+ * } finally {
+ *   await coordinator.cleanup();
+ * }
+ */
 export class BusCoordinator {
   private lockPath: string;
   private pidPath: string;
@@ -28,6 +48,9 @@ export class BusCoordinator {
   private bus: ZeroMQBus | null = null;
   private isBusMaster: boolean = false;
 
+  /**
+   * Creates an instance of BusCoordinator.
+   */
   constructor() {
     // Store lock file in .cognition directory
     const cogniDir = path.join(os.homedir(), '.cognition');
@@ -37,7 +60,13 @@ export class BusCoordinator {
   }
 
   /**
-   * Coordinate bus access with race condition prevention
+   * Establishes a connection to the ZeroMQ bus, coordinating to elect a master.
+   *
+   * This method acquires a lock, checks if a master process is already running,
+   * and then either binds as the new master or connects as a peer.
+   *
+   * @returns {Promise<ZeroMQBus>} A connected ZeroMQBus instance.
+   * @throws {Error} If locking fails after multiple retries.
    */
   async connect(): Promise<ZeroMQBus> {
     // Ensure lock file parent directory exists
@@ -88,7 +117,14 @@ export class BusCoordinator {
   }
 
   /**
-   * Check if Bus Master is alive using PID file
+   * Checks if the bus master process is alive.
+   *
+   * It reads the PID from the `bus-master.pid` file and checks if a process
+   * with that PID is running. It also cleans up stale PID and socket files if
+   * the master process is found to be dead.
+   *
+   * @private
+   * @returns {Promise<boolean>} `true` if the master is alive, `false` otherwise.
    */
   private async pingBusMaster(): Promise<boolean> {
     try {
@@ -133,14 +169,17 @@ export class BusCoordinator {
   }
 
   /**
-   * Write PID file when becoming Bus Master
+   * Writes the current process ID to the PID file.
+   * This is called when this instance becomes the bus master.
+   * @private
    */
   private async writePidFile(): Promise<void> {
     await fs.writeFile(this.pidPath, process.pid.toString());
   }
 
   /**
-   * Remove PID file when cleaning up
+   * Removes the PID file.
+   * @private
    */
   private async removePidFile(): Promise<void> {
     try {
@@ -151,7 +190,10 @@ export class BusCoordinator {
   }
 
   /**
-   * Get cross-platform socket path
+   * Determines the appropriate cross-platform socket path.
+   *
+   * @private
+   * @returns {string} The IPC or TCP socket path.
    */
   private getSocketPath(): string {
     if (process.platform === 'win32') {
@@ -164,7 +206,12 @@ export class BusCoordinator {
   }
 
   /**
-   * Connect with fallback to TCP if IPC fails
+   * Connects to the bus with a fallback to TCP if IPC fails.
+   *
+   * This is the recommended method for connecting, as it provides resilience
+   * against potential issues with IPC sockets on certain systems.
+   *
+   * @returns {Promise<ZeroMQBus>} A connected ZeroMQBus instance.
    */
   async connectWithFallback(): Promise<ZeroMQBus> {
     try {
@@ -183,21 +230,29 @@ export class BusCoordinator {
   }
 
   /**
-   * Check if this instance is the Bus Master
+   * Checks if this instance is the bus master.
+   *
+   * @returns {boolean} `true` if this instance is the master, `false` otherwise.
    */
   getIsBusMaster(): boolean {
     return this.isBusMaster;
   }
 
   /**
-   * Get the bus instance
+   * Retrieves the underlying ZeroMQBus instance.
+   *
+   * @returns {ZeroMQBus | null} The bus instance, or `null` if not connected.
    */
   getBus(): ZeroMQBus | null {
     return this.bus;
   }
 
   /**
-   * Cleanup on exit
+   * Cleans up resources, such as closing the bus connection.
+   *
+   * If this instance was the bus master, it also removes the PID and socket files.
+   * This should be called on application exit to ensure a clean shutdown.
+   *
    */
   async cleanup(): Promise<void> {
     if (this.bus) {
@@ -217,7 +272,9 @@ export class BusCoordinator {
           await fs.remove(socketFile);
           await fs.remove(subSocketFile);
 
-          console.log('🧹 Cleaned up socket files');
+          if (DEBUG_IPC) {
+            console.log('🧹 Cleaned up socket files');
+          }
         } catch {
           // Ignore cleanup errors
         }

@@ -4,7 +4,22 @@ import * as crypto from 'crypto';
 import { EventEmitter } from 'events';
 
 /**
- * Queued message from another agent
+ * Represents the status of a message in the queue.
+ * @typedef {'pending' | 'read' | 'injected' | 'dismissed'} MessageStatus
+ */
+export type MessageStatus = 'pending' | 'read' | 'injected' | 'dismissed';
+
+/**
+ * Represents a message stored in an agent's persistent queue.
+ *
+ * @interface QueuedMessage
+ * @property {string} id Unique message identifier (UUID).
+ * @property {string} from The ID of the sending agent.
+ * @property {string} to The ID of the recipient agent.
+ * @property {string} topic The message topic (e.g., "code.review_completed").
+ * @property {unknown} content The message payload.
+ * @property {number} timestamp Unix timestamp (in milliseconds) of when the message was enqueued.
+ * @property {MessageStatus} status The current status of the message.
  */
 export interface QueuedMessage {
   id: string; // Unique message ID
@@ -16,10 +31,16 @@ export interface QueuedMessage {
   status: MessageStatus;
 }
 
-export type MessageStatus = 'pending' | 'read' | 'injected' | 'dismissed';
-
 /**
- * Queue index for fast pending count lookups
+ * Provides an index for fast lookups of message counts by status.
+ *
+ * @interface QueueIndex
+ * @property {number} total The total number of messages in the queue.
+ * @property {number} pending The number of messages with 'pending' status.
+ * @property {number} read The number of messages with 'read' status.
+ * @property {number} injected The number of messages with 'injected' status.
+ * @property {number} dismissed The number of messages with 'dismissed' status.
+ * @property {number} lastUpdated Unix timestamp of the last index update.
  */
 interface QueueIndex {
   total: number;
@@ -31,13 +52,30 @@ interface QueueIndex {
 }
 
 /**
- * Persistent message queue storage
+ * Manages a persistent, file-system-based message queue for a single agent.
  *
- * Structure:
- * .sigma/message_queue/
- *   {agent-id}/
- *     msg-{id}.json      # Individual messages
- *     queue-index.json   # Fast lookup index
+ * Each agent has its own queue, stored in the `.sigma/message_queue/{agent-id}`
+ * directory. This class handles CRUD operations for messages and maintains an
+ * index for efficient status queries. It also emits events when the queue changes.
+ *
+ * @class MessageQueue
+ * @extends {EventEmitter}
+ *
+ * @example
+ * const queue = new MessageQueue('gemini-agent-1');
+ * await queue.initialize();
+ *
+ * queue.on('countChanged', (count) => {
+ *   console.log(`Pending messages: ${count}`);
+ * });
+ *
+ * await queue.enqueue({
+ *   from: 'opus-agent-2',
+ *   to: 'gemini-agent-1',
+ *   topic: 'agent.question',
+ *   content: { question: 'Are you ready?' },
+ *   timestamp: Date.now(),
+ * });
  */
 export class MessageQueue {
   private queueDir: string;
@@ -45,8 +83,10 @@ export class MessageQueue {
   private emitter: EventEmitter;
 
   /**
-   * @param agentId Unique agent ID (e.g., "claude-a7f3")
-   * @param sigmaDir Path to .sigma directory (defaults to cwd)
+   * Creates an instance of MessageQueue.
+   *
+   * @param {string} agentId The unique ID of the agent this queue belongs to.
+   * @param {string} [sigmaDir] The path to the .sigma directory. Defaults to `${process.cwd()}/.sigma`.
    */
   constructor(
     private agentId: string,
@@ -58,23 +98,37 @@ export class MessageQueue {
   }
 
   /**
-   * Subscribe to queue events
-   * @param event Event name ('countChanged', 'messageAdded', 'error')
-   * @param listener Event handler
+   * Subscribes to events emitted by the message queue.
+   *
+   * @param {'countChanged' | 'messageAdded' | 'error'} event The event to subscribe to.
+   * @param {(...args: any[]) => void} listener The callback function.
+   * @returns {void}
+   *
+   * @example
+   * queue.on('messageAdded', (message) => {
+   *   console.log('New message received:', message.topic);
+   * });
    */
   on(event: string, listener: (...args: unknown[]) => void): void {
     this.emitter.on(event, listener);
   }
 
   /**
-   * Unsubscribe from queue events
+   * Unsubscribes from a queue event.
+   *
+   * @param {string} event The event to unsubscribe from.
+   * @param {(...args: any[]) => void} listener The callback function to remove.
+   * @returns {void}
    */
   off(event: string, listener: (...args: unknown[]) => void): void {
     this.emitter.off(event, listener);
   }
 
   /**
-   * Initialize queue directory and index
+   * Initializes the message queue by ensuring its directory and index file exist.
+   *
+   * @async
+   * @returns {Promise<void>}
    */
   async initialize(): Promise<void> {
     await fs.ensureDir(this.queueDir);
@@ -93,7 +147,13 @@ export class MessageQueue {
   }
 
   /**
-   * Enqueue a new message
+   * Adds a new message to the queue.
+   *
+   * The message is assigned a unique ID and its status is set to 'pending'.
+   *
+   * @async
+   * @param {Omit<QueuedMessage, 'id' | 'status'>} message The message to enqueue.
+   * @returns {Promise<string>} The ID of the newly enqueued message.
    */
   async enqueue(
     message: Omit<QueuedMessage, 'id' | 'status'>
@@ -121,7 +181,11 @@ export class MessageQueue {
   }
 
   /**
-   * Get all messages with optional status filter
+   * Retrieves all messages from the queue, optionally filtering by status.
+   *
+   * @async
+   * @param {MessageStatus} [status] An optional status to filter messages by.
+   * @returns {Promise<QueuedMessage[]>} A sorted array of messages (newest first).
    */
   async getMessages(status?: MessageStatus): Promise<QueuedMessage[]> {
     await this.initialize();
@@ -146,7 +210,11 @@ export class MessageQueue {
   }
 
   /**
-   * Get message by ID (supports both full UUID and short prefix)
+   * Retrieves a single message by its full ID or a unique short prefix.
+   *
+   * @async
+   * @param {string} id The full or partial message ID.
+   * @returns {Promise<QueuedMessage | null>} The message, or `null` if not found.
    */
   async getMessage(id: string): Promise<QueuedMessage | null> {
     // First try exact match
@@ -168,9 +236,11 @@ export class MessageQueue {
   }
 
   /**
-   * Resolve a short message ID prefix to the full UUID
-   * @param shortId First N characters of a message UUID (typically 8)
-   * @returns Full UUID if unique match found, null otherwise
+   * Resolves a short message ID prefix to the full UUID.
+   *
+   * @async
+   * @param {string} shortId The first N characters of a message UUID.
+   * @returns {Promise<string | null>} The full UUID if a unique match is found, otherwise `null`.
    */
   async resolveMessageId(shortId: string): Promise<string | null> {
     await this.initialize();
@@ -198,7 +268,13 @@ export class MessageQueue {
   }
 
   /**
-   * Update message status (supports both full UUID and short prefix)
+   * Updates the status of a message.
+   *
+   * @async
+   * @param {string} id The full or partial ID of the message to update.
+   * @param {MessageStatus} status The new status for the message.
+   * @returns {Promise<void>}
+   * @throws {Error} If the message is not found.
    */
   async updateStatus(id: string, status: MessageStatus): Promise<void> {
     const message = await this.getMessage(id);
@@ -230,7 +306,12 @@ export class MessageQueue {
   }
 
   /**
-   * Delete a message (supports both full UUID and short prefix)
+   * Deletes a message from the queue.
+   *
+   * @async
+   * @param {string} id The full or partial ID of the message to delete.
+   * @returns {Promise<void>}
+   * @throws {Error} If the message is not found.
    */
   async deleteMessage(id: string): Promise<void> {
     const message = await this.getMessage(id);
@@ -255,7 +336,10 @@ export class MessageQueue {
   }
 
   /**
-   * Clear all dismissed messages
+   * Permanently deletes all messages with 'dismissed' status.
+   *
+   * @async
+   * @returns {Promise<number>} The number of messages cleared.
    */
   async clearDismissed(): Promise<number> {
     const dismissed = await this.getMessages('dismissed');
@@ -276,7 +360,10 @@ export class MessageQueue {
   }
 
   /**
-   * Get pending message count (O(1) via index)
+   * Gets the number of pending messages in O(1) time using the index.
+   *
+   * @async
+   * @returns {Promise<number>} The count of pending messages.
    */
   async getPendingCount(): Promise<number> {
     const index = await this.getIndex();
@@ -284,14 +371,19 @@ export class MessageQueue {
   }
 
   /**
-   * Get queue statistics
+   * Retrieves queue statistics from the index.
+   *
+   * @async
+   * @returns {Promise<QueueIndex>} An object with queue statistics.
    */
   async getStats(): Promise<QueueIndex> {
     return await this.getIndex();
   }
 
   /**
-   * Get the agent ID this queue belongs to
+   * Gets the ID of the agent this queue belongs to.
+   *
+   * @returns {string} The agent ID.
    */
   getAgentId(): string {
     return this.agentId;

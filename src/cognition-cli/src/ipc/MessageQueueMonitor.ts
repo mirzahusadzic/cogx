@@ -5,7 +5,16 @@ import { ZeroMQBus } from './ZeroMQBus.js';
 import { AgentMessage } from './AgentMessage.js';
 
 /**
- * Agent info stored in agent-info.json for discovery
+ * Represents metadata about an active agent for discovery purposes.
+ * This information is stored in `agent-info.json` within each agent's queue directory.
+ *
+ * @interface AgentInfo
+ * @property {string} agentId The unique identifier for the agent.
+ * @property {string} model The base model of the agent (e.g., 'opus', 'gemini').
+ * @property {string} [alias] A short, human-readable alias (e.g., 'opus1').
+ * @property {number} startedAt Unix timestamp of when the agent was started.
+ * @property {number} lastHeartbeat Unix timestamp of the agent's last heartbeat.
+ * @property {'active' | 'idle' | 'disconnected'} status The current status of the agent.
  */
 export interface AgentInfo {
   agentId: string;
@@ -17,17 +26,29 @@ export interface AgentInfo {
 }
 
 /**
- * MessageQueueMonitor - Background task to monitor ZeroMQ bus
+ * Monitors the ZeroMQ bus and routes incoming messages to a persistent queue.
  *
- * Responsibilities:
- * - Subscribe to ZeroMQ topics for this agent
- * - Filter messages by recipient (only queue messages addressed to this agent)
- * - Write incoming messages to persistent MessageQueue
- * - Update queue index for O(1) pending count
- * - Maintain agent-info.json for agent discovery
+ * This class runs as a background task for each agent. It subscribes to relevant
+ * topics on the bus, filters messages intended for its agent, and enqueues them.
+ * It also maintains an `agent-info.json` file with heartbeat data, allowing other
+ * agents to discover it and see its status.
  *
- * Debug Logging:
- * - Set DEBUG_IPC=1 environment variable to enable verbose monitoring logs
+ * @class MessageQueueMonitor
+ *
+ * @example
+ * const bus = new ZeroMQBus();
+ * await bus.connect();
+ * const monitor = new MessageQueueMonitor(
+ *   'claude-agent-xyz',
+ *   bus,
+ *   ['code.*'],
+ *   './.sigma',
+ *   'claude'
+ * );
+ * await monitor.start();
+ *
+ * // ... later, on shutdown ...
+ * await monitor.stop();
  */
 export class MessageQueueMonitor {
   private queue: MessageQueue;
@@ -42,11 +63,13 @@ export class MessageQueueMonitor {
   private static DEBUG = process.env.DEBUG_IPC === '1';
 
   /**
-   * @param agentId Unique agent ID (e.g., "claude-a7f3")
-   * @param bus ZeroMQ bus instance
-   * @param topics Topics to subscribe to (e.g., ["code.*", "arch.proposal_ready"])
-   * @param sigmaDir Optional .sigma directory path (defaults to cwd)
-   * @param model Model name (e.g., 'opus', 'sonnet', 'gemini')
+   * Creates an instance of MessageQueueMonitor.
+   *
+   * @param {string} agentId The base ID for the agent (a unique suffix will be added).
+   * @param {ZeroMQBus} bus The connected ZeroMQ bus instance.
+   * @param {string[]} topics The initial list of topics to subscribe to.
+   * @param {string} [sigmaDir] The path to the .sigma directory. Defaults to the current working directory.
+   * @param {string} [model] The model name of the agent (e.g., 'opus'). If not provided, it's inferred from the agentId.
    */
   constructor(
     agentId: string,
@@ -68,8 +91,10 @@ export class MessageQueueMonitor {
   }
 
   /**
-   * Extract model name from agent ID or model string
-   * Normalizes to base model name (opus, sonnet, gemini, claude, gpt, etc.)
+   * Extracts a normalized model name from a string.
+   *
+   * @param {string} idOrModel The string to parse (e.g., 'claude-3-opus' or 'opus').
+   * @returns {string} The normalized model name (e.g., 'claude' or 'opus').
    */
   static extractModelFromId(idOrModel: string): string {
     const lower = idOrModel.toLowerCase();
@@ -88,9 +113,9 @@ export class MessageQueueMonitor {
   }
 
   /**
-   * Generate unique alias for this agent based on model
-   * Only counts ACTIVE agents (recent heartbeat) to keep numbers low
-   * e.g., opus1, opus2, sonnet1, gemini1
+   * Generates a unique, sequential alias for this agent based on its model.
+   * @private
+   * @returns {Promise<string>} The generated alias (e.g., 'opus1').
    */
   private async generateAlias(): Promise<string> {
     const queueDir = path.join(this.sigmaDir, 'message_queue');
@@ -100,7 +125,7 @@ export class MessageQueueMonitor {
     }
 
     // Read all agent-info.json files to find existing aliases for this model
-    // Only count ACTIVE agents (heartbeat within last 5 seconds)
+    // Only count ACTIVE agents (heartbeat within last 5 seconds) to keep numbers low
     const entries = fs.readdirSync(queueDir, { withFileTypes: true });
     const existingNumbers: number[] = [];
     const now = Date.now();
@@ -145,7 +170,10 @@ export class MessageQueueMonitor {
   }
 
   /**
-   * Check if another agent has the same alias (collision detection)
+   * Checks if another active agent is already using a given alias.
+   * @private
+   * @param {string} alias The alias to check.
+   * @returns {Promise<boolean>} `true` if a collision is detected, otherwise `false`.
    */
   private async checkAliasCollision(alias: string): Promise<boolean> {
     const queueDir = path.join(this.sigmaDir, 'message_queue');
@@ -176,7 +204,9 @@ export class MessageQueueMonitor {
   }
 
   /**
-   * Write agent-info.json file
+   * Writes the `agent-info.json` file for this agent.
+   * @private
+   * @param {string} alias The alias to write into the info file.
    */
   private async writeAgentInfo(alias: string): Promise<void> {
     const queueDir = path.join(this.sigmaDir, 'message_queue', this.agentId);
@@ -197,7 +227,8 @@ export class MessageQueueMonitor {
   }
 
   /**
-   * Update heartbeat timestamp
+   * Updates the heartbeat timestamp in the `agent-info.json` file.
+   * @private
    */
   private updateHeartbeat(): void {
     const infoPath = path.join(
@@ -220,7 +251,8 @@ export class MessageQueueMonitor {
   }
 
   /**
-   * Mark agent as disconnected
+   * Marks the agent as 'disconnected' in its info file.
+   * @private
    */
   private markDisconnected(): void {
     const infoPath = path.join(
@@ -243,7 +275,13 @@ export class MessageQueueMonitor {
   }
 
   /**
-   * Start monitoring the ZeroMQ bus
+   * Starts the message monitor.
+   *
+   * This initializes the queue, generates an alias, starts the heartbeat,
+   * and begins listening for messages on the bus.
+   *
+   * @returns {Promise<void>}
+   * @throws {Error} If the monitor is already running.
    */
   async start(): Promise<void> {
     if (this.running) {
@@ -292,7 +330,12 @@ export class MessageQueueMonitor {
   }
 
   /**
-   * Stop monitoring the ZeroMQ bus
+   * Stops the message monitor.
+   *
+   * This stops the heartbeat, marks the agent as disconnected, and unsubscribes
+   * from all topics on the bus.
+   *
+   * @returns {Promise<void>}
    */
   async stop(): Promise<void> {
     if (!this.running) {
@@ -326,7 +369,9 @@ export class MessageQueueMonitor {
   }
 
   /**
-   * Handle incoming message from ZeroMQ bus
+   * Handles an incoming message from the ZeroMQ bus.
+   * @private
+   * @param {AgentMessage} message The incoming message.
    */
   private async handleMessage(message: AgentMessage): Promise<void> {
     if (!this.running) {
@@ -353,9 +398,6 @@ export class MessageQueueMonitor {
           `[MessageQueueMonitor] Queued message ${messageId} from ${message.from} (topic: ${message.topic})`
         );
       }
-
-      // TODO: Notify TUI status bar of new message (via IPC or event emitter)
-      // For now, the TUI will poll getPendingCount() or check on startup
     } catch (error) {
       if (MessageQueueMonitor.DEBUG) {
         console.error('[MessageQueueMonitor] Error queueing message:', error);
@@ -364,28 +406,36 @@ export class MessageQueueMonitor {
   }
 
   /**
-   * Get pending message count (for status bar display)
+   * Gets the current number of pending messages in the queue.
+   *
+   * @returns {Promise<number>} The pending message count.
    */
   async getPendingCount(): Promise<number> {
     return await this.queue.getPendingCount();
   }
 
   /**
-   * Get queue instance (for direct access if needed)
+   * Gets the underlying `MessageQueue` instance.
+   *
+   * @returns {MessageQueue} The message queue instance.
    */
   getQueue(): MessageQueue {
     return this.queue;
   }
 
   /**
-   * Check if monitor is running
+   * Checks if the monitor is currently running.
+   *
+   * @returns {boolean} `true` if the monitor is running, otherwise `false`.
    */
   isRunning(): boolean {
     return this.running;
   }
 
   /**
-   * Subscribe to additional topic
+   * Subscribes the monitor to an additional topic on the bus.
+   *
+   * @param {string} topic The topic to subscribe to.
    */
   subscribeToTopic(topic: string): void {
     if (!this.topics.includes(topic)) {
@@ -400,7 +450,9 @@ export class MessageQueueMonitor {
   }
 
   /**
-   * Unsubscribe from topic
+   * Unsubscribes the monitor from a topic.
+   *
+   * @param {string} topic The topic to unsubscribe from.
    */
   unsubscribeFromTopic(topic: string): void {
     const index = this.topics.indexOf(topic);
@@ -414,7 +466,9 @@ export class MessageQueueMonitor {
   }
 
   /**
-   * Get current subscribed topics
+   * Gets the list of topics the monitor is currently subscribed to.
+   *
+   * @returns {string[]} A copy of the current topics array.
    */
   getTopics(): string[] {
     return [...this.topics];

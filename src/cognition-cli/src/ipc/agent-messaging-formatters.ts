@@ -7,6 +7,17 @@
 
 import type { QueuedMessage } from './MessageQueue.js';
 
+/**
+ * Represents metadata about an active agent.
+ *
+ * @interface AgentInfo
+ * @property {string} agentId The unique identifier for the agent.
+ * @property {string} model The base model of the agent (e.g., 'opus', 'gemini').
+ * @property {string} [alias] A short, human-readable alias (e.g., 'opus1').
+ * @property {number} startedAt Unix timestamp of when the agent was started.
+ * @property {number} lastHeartbeat Unix timestamp of the agent's last heartbeat.
+ * @property {'active' | 'idle' | 'disconnected'} status The current status of the agent.
+ */
 export interface AgentInfo {
   agentId: string;
   model: string;
@@ -17,7 +28,10 @@ export interface AgentInfo {
 }
 
 /**
- * Format message content for display
+ * Formats the content of a queued message for display.
+ *
+ * @param {QueuedMessage} msg The message to format.
+ * @returns {string} The formatted message content as a string.
  */
 export function formatMessageContent(msg: QueuedMessage): string {
   if (
@@ -31,7 +45,10 @@ export function formatMessageContent(msg: QueuedMessage): string {
 }
 
 /**
- * Format list_agents output
+ * Formats the output of the `list_agents` tool.
+ *
+ * @param {AgentInfo[]} agents An array of active agent information.
+ * @returns {string} A formatted markdown table of active agents.
  */
 export function formatListAgents(agents: AgentInfo[]): string {
   if (agents.length === 0) {
@@ -53,7 +70,12 @@ export function formatListAgents(agents: AgentInfo[]): string {
 }
 
 /**
- * Format send_agent_message success output
+ * Formats the success output for the `send_agent_message` tool.
+ *
+ * @param {string} to The target alias or ID the message was sent to.
+ * @param {string} agentId The resolved agent ID of the recipient.
+ * @param {string} content The content of the message that was sent.
+ * @returns {string} A confirmation string.
  */
 export function formatMessageSent(
   to: string,
@@ -64,7 +86,11 @@ export function formatMessageSent(
 }
 
 /**
- * Format broadcast_agent_message success output
+ * Formats the success output for the `broadcast_agent_message` tool.
+ *
+ * @param {number} agentCount The number of agents the message was broadcast to.
+ * @param {string} content The content of the message that was broadcast.
+ * @returns {string} A confirmation string.
  */
 export function formatBroadcastSent(
   agentCount: number,
@@ -74,7 +100,10 @@ export function formatBroadcastSent(
 }
 
 /**
- * Format get_pending_messages output
+ * Formats the output for the `get_pending_messages` tool.
+ *
+ * @param {QueuedMessage[]} messages An array of pending messages.
+ * @returns {string} A formatted string listing the pending messages.
  */
 export function formatPendingMessages(messages: QueuedMessage[]): string {
   if (messages.length === 0) {
@@ -102,7 +131,13 @@ export function formatPendingMessages(messages: QueuedMessage[]): string {
 }
 
 /**
- * Format mark_message_read success output
+ * Formats the success output for the `mark_message_read` tool.
+ *
+ * @param {string} messageId The ID of the message that was marked.
+ * @param {string} status The new status of the message.
+ * @param {string} from The sender of the original message.
+ * @param {string} content The content of the original message.
+ * @returns {string} A confirmation string.
  */
 export function formatMessageMarked(
   messageId: string,
@@ -114,21 +149,32 @@ export function formatMessageMarked(
 }
 
 /**
- * Format error messages consistently
+ * Formats a generic error message for a tool.
+ *
+ * @param {string} action The action that failed (e.g., 'send message').
+ * @param {string} error The error description.
+ * @returns {string} A formatted error string.
  */
 export function formatError(action: string, error: string): string {
   return `Failed to ${action}: ${error}`;
 }
 
 /**
- * Format "not initialized" errors
+ * Formats an error message for when a required component is not initialized.
+ *
+ * @param {string} component The name of the uninitialized component (e.g., 'MessageQueue').
+ * @returns {string} A formatted error string.
  */
 export function formatNotInitialized(component: string): string {
   return `${component} not initialized. IPC system may not be running.`;
 }
 
 /**
- * Format "not found" errors
+ * Formats an error message for when an entity is not found.
+ *
+ * @param {string} type The type of entity that was not found (e.g., 'agent', 'message').
+ * @param {string} id The ID of the entity that was not found.
+ * @returns {string} A formatted error string.
  */
 export function formatNotFound(type: string, id: string): string {
   if (type === 'agent') {

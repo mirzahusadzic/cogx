@@ -33,12 +33,49 @@ export { MessageQueue } from './MessageQueue.js';
 export * from './agent-messaging-formatters.js';
 
 // Export availability check
+/**
+ * Flag indicating if ZeroMQ is available.
+ *
+ * If `false`, multi-agent features are disabled, and the CLI
+ * will operate in single-agent mode.
+ *
+ * @example
+ * if (isMultiAgentAvailable) {
+ *   // Start multi-agent features
+ * } else {
+ *   // Fallback to single-agent mode
+ * }
+ */
 export const isMultiAgentAvailable = ZeroMQAvailable;
+
+/**
+ * Stores the error if ZeroMQ failed to load.
+ *
+ * This can be useful for debugging native binding issues.
+ * Will be `null` if `isMultiAgentAvailable` is `true`.
+ *
+ * @example
+ * if (!isMultiAgentAvailable) {
+ *   console.error('ZeroMQ load error:', multiAgentLoadError);
+ * }
+ */
 export const multiAgentLoadError = ZeroMQLoadError;
 
 /**
- * Check if multi-agent features are available
- * If not, TUI falls back to single-agent mode
+ * Checks if multi-agent features are available and logs a warning if not.
+ *
+ * This function provides a user-friendly warning message with instructions
+ * on how to enable multi-agent mode if ZeroMQ is not available.
+ * It is typically called at application startup.
+ *
+ * @returns {boolean} `true` if multi-agent features are available, `false` otherwise.
+ *
+ * @example
+ * if (checkMultiAgentAvailability()) {
+ *   // Proceed with multi-agent initialization
+ * } else {
+ *   // Run in single-agent mode
+ * }
  */
 export function checkMultiAgentAvailability(): boolean {
   if (!ZeroMQAvailable) {

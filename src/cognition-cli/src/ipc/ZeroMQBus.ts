@@ -19,13 +19,66 @@ import { AgentMessage } from './AgentMessage.js';
 
 const DEBUG_IPC = process.env.DEBUG_IPC === '1';
 
+/**
+ * Configuration for the ZeroMQBus.
+ *
+ * @interface ZeroMQBusConfig
+ * @property {string} address The primary address for the bus (e.g., 'ipc:///tmp/cognition-bus.sock').
+ * @property {'bind' | 'connect'} [mode] The connection mode. 'bind' for the master/broker, 'connect' for peers.
+ */
 export interface ZeroMQBusConfig {
   address: string; // e.g., 'ipc:///tmp/cognition-bus.sock' or 'tcp://127.0.0.1:5555'
   mode?: 'bind' | 'connect'; // 'bind' = Bus Master, 'connect' = Peer
 }
 
+/**
+ * Defines the signature for a message handler function.
+ * @callback MessageHandler
+ * @param {AgentMessage} message The received message.
+ * @returns {void}
+ */
 export type MessageHandler = (message: AgentMessage) => void;
 
+/**
+ * Represents statistics about the ZeroMQ bus state.
+ *
+ * @interface BusStats
+ * @property {boolean} started Whether the bus is currently started.
+ * @property {string} address The connection address of the bus.
+ * @property {boolean} isBroker Whether this instance is the broker (bus master).
+ * @property {string[]} subscribedTopics A list of all subscribed topics.
+ * @property {Record<string, number>} handlerCounts A map of topics to their handler counts.
+ */
+export interface BusStats {
+  started: boolean;
+  address: string;
+  isBroker: boolean;
+  subscribedTopics: string[];
+  handlerCounts: Record<string, number>;
+}
+
+/**
+ * Provides a pub/sub message bus using ZeroMQ's XPUB/XSUB broker pattern.
+ *
+ * This class allows multiple processes (agents, TUIs) to communicate in a
+ * decoupled manner. The first process to start `bind()`s as the "bus master",
+ * running a broker that forwards messages. All other processes `connect()` as
+ * peers.
+ *
+ * @class ZeroMQBus
+ *
+ * @example
+ * // In the bus master process
+ * const masterBus = new ZeroMQBus({ address: 'ipc:///tmp/bus.sock' });
+ * await masterBus.bind();
+ *
+ * // In a peer process
+ * const peerBus = new ZeroMQBus({ address: 'ipc:///tmp/bus.sock' });
+ * await peerBus.connect();
+ *
+ * peerBus.subscribe('chat.message', (msg) => console.log(msg.payload));
+ * masterBus.publish('chat.message', { from: 'master', text: 'Hello!' });
+ */
 export class ZeroMQBus {
   private pubSocket: zmq.Publisher;
   private subSocket: zmq.Subscriber;
@@ -38,6 +91,11 @@ export class ZeroMQBus {
   private isBroker: boolean = false;
   private forwarderRunning: boolean = false;
 
+  /**
+   * Creates an instance of ZeroMQBus.
+   * @constructor
+   * @param {ZeroMQBusConfig} config The configuration for the bus.
+   */
   constructor(config: ZeroMQBusConfig) {
     this.config = config;
     this.pubSocket = new zmq.Publisher();
@@ -46,13 +104,14 @@ export class ZeroMQBus {
   }
 
   /**
-   * Start the bus in BIND mode (Bus Master / Broker)
-   * First TUI to start becomes the Bus Master and runs the broker.
+   * Starts the bus in BIND mode, acting as the broker (bus master).
    *
-   * Broker pattern:
-   * - XSUB binds to frontend address (receives from publishers)
-   * - XPUB binds to backend address (sends to subscribers)
-   * - Forwarder proxies messages from XSUB to XPUB
+   * This sets up XPUB/XSUB sockets and starts a forwarder to relay messages
+   * between publishers and subscribers.
+   *
+   * @async
+   * @returns {Promise<void>}
+   * @throws {Error} If the bus is already started.
    */
   async bind(): Promise<void> {
     if (this.started) {
@@ -92,12 +151,13 @@ export class ZeroMQBus {
   }
 
   /**
-   * Start the bus in CONNECT mode (Peer)
-   * Subsequent TUIs connect to the Bus Master's broker.
+   * Starts the bus in CONNECT mode, acting as a peer.
    *
-   * Peers:
-   * - PUB connects to frontend (where XSUB is bound)
-   * - SUB connects to backend (where XPUB is bound)
+   * This connects the PUB and SUB sockets to the master broker's addresses.
+   *
+   * @async
+   * @returns {Promise<void>}
+   * @throws {Error} If the bus is already started.
    */
   async connect(): Promise<void> {
     if (this.started) {
@@ -122,8 +182,8 @@ export class ZeroMQBus {
   }
 
   /**
-   * Start the forwarder that proxies messages from XSUB to XPUB
-   * This is the heart of the broker pattern
+   * Starts the message forwarding logic for the broker.
+   * @private
    */
   private startForwarder(): void {
     if (!this.xsubSocket || !this.xpubSocket) {
@@ -167,7 +227,12 @@ export class ZeroMQBus {
   }
 
   /**
-   * Publish a message to a topic
+   * Publishes a message to a specific topic.
+   *
+   * @param {string} topic The topic to publish the message on.
+   * @param {AgentMessage} message The message to publish.
+   * @returns {void}
+   * @throws {Error} If the bus is not started.
    */
   publish(topic: string, message: AgentMessage): void {
     if (!this.started) {
@@ -183,12 +248,23 @@ export class ZeroMQBus {
   }
 
   /**
-   * Subscribe to a topic
-   * Supports wildcards: "code.*" matches "code.completed", "code.review_requested"
+   * Subscribes to a topic and registers a handler.
    *
-   * Note: ZeroMQ uses prefix matching for subscriptions. For wildcard patterns
-   * like "code.*", we subscribe to the prefix "code." in ZeroMQ but store
-   * the full pattern for internal wildcard matching.
+   * @param {string} topic The topic to subscribe to. Supports wildcards (e.g., "code.*").
+   * @param {MessageHandler} handler The function to call when a message is received on this topic.
+   * @returns {void}
+   *
+   * @example
+   * // Subscribe to specific topic
+   * bus.subscribe('agent.message', (msg) => {
+   *   console.log('Received:', msg);
+   * });
+   *
+   * @example
+   * // Subscribe using wildcard
+   * bus.subscribe('code.*', (msg) => {
+   *   console.log('Code event:', msg.topic);
+   * });
    */
   subscribe(topic: string, handler: MessageHandler): void {
     // Add handler to internal registry
@@ -211,7 +287,17 @@ export class ZeroMQBus {
   }
 
   /**
-   * Unsubscribe from a topic
+   * Unsubscribes a specific handler from a topic.
+   *
+   * @param {string} topic The topic to unsubscribe from.
+   * @param {MessageHandler} handler The handler function to remove.
+   * @returns {void}
+   *
+   * @example
+   * const handler = (msg) => console.log(msg);
+   * bus.subscribe('agent.message', handler);
+   * // Later...
+   * bus.unsubscribe('agent.message', handler);
    */
   unsubscribe(topic: string, handler: MessageHandler): void {
     const handlers = this.handlers.get(topic);
@@ -234,7 +320,7 @@ export class ZeroMQBus {
   }
 
   /**
-   * Unsubscribe from all topics
+   * Unsubscribes from all topics and removes all handlers.
    */
   unsubscribeAll(): void {
     for (const topic of this.handlers.keys()) {
@@ -249,7 +335,9 @@ export class ZeroMQBus {
   }
 
   /**
-   * Close the bus and cleanup resources
+   * Closes all sockets and cleans up resources.
+   * @async
+   * @returns {Promise<void>}
    */
   async close(): Promise<void> {
     if (!this.started) {
@@ -289,8 +377,8 @@ export class ZeroMQBus {
   }
 
   /**
-   * Start listening for incoming messages
-   * Runs in the background, dispatching to registered handlers
+   * Starts the background listener for incoming messages.
+   * @private
    */
   private async startListening(): Promise<void> {
     // Run async iterator in background
@@ -317,8 +405,10 @@ export class ZeroMQBus {
   }
 
   /**
-   * Dispatch incoming message to registered handlers
-   * Supports wildcard matching: "code.*" matches "code.completed"
+   * Dispatches a received message to all matching handlers.
+   * @private
+   * @param {string} topic The topic the message was received on.
+   * @param {AgentMessage} message The received message.
    */
   private dispatchMessage(topic: string, message: AgentMessage): void {
     // Find all handlers that match this topic (including wildcards)
@@ -347,11 +437,11 @@ export class ZeroMQBus {
   }
 
   /**
-   * Check if topic matches pattern (supports wildcards)
-   * Examples:
-   *   matchesTopic('code.completed', 'code.*') => true
-   *   matchesTopic('code.completed', 'code.completed') => true
-   *   matchesTopic('code.completed', 'arch.*') => false
+   * Checks if a topic matches a subscription pattern (supports wildcards).
+   * @private
+   * @param {string} topic The received topic.
+   * @param {string} pattern The subscription pattern.
+   * @returns {boolean} `true` if the topic matches the pattern.
    */
   private matchesTopic(topic: string, pattern: string): boolean {
     // Exact match
@@ -369,9 +459,10 @@ export class ZeroMQBus {
   }
 
   /**
-   * Get subscriber address (separate port for bidirectional communication)
-   * For IPC: Use different socket file
-   * For TCP: Use different port
+   * Generates the address for the subscriber socket.
+   * @private
+   * @returns {string} The subscriber address.
+   * @throws {Error} If the address format is unsupported.
    */
   private getSubAddress(): string {
     if (this.config.address.startsWith('ipc://')) {
@@ -391,14 +482,18 @@ export class ZeroMQBus {
   }
 
   /**
-   * Check if this instance is the broker (Bus Master)
+   * Checks if this bus instance is the broker/bus master.
+   *
+   * @returns {boolean} `true` if this instance is the broker.
    */
   isBusMaster(): boolean {
     return this.isBroker;
   }
 
   /**
-   * Get bus statistics (for debugging)
+   * Retrieves statistics about the bus for debugging.
+   *
+   * @returns {BusStats} An object containing bus statistics.
    */
   getStats(): BusStats {
     return {
@@ -414,12 +509,4 @@ export class ZeroMQBus {
       ),
     };
   }
-}
-
-export interface BusStats {
-  started: boolean;
-  address: string;
-  isBroker: boolean;
-  subscribedTopics: string[];
-  handlerCounts: Record<string, number>;
 }

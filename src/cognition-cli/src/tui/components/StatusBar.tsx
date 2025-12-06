@@ -130,7 +130,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     if (sessionId) {
       // Strip provider prefix (e.g., "gemini-", "claude-") for cleaner display
       const displayId = sessionId.replace(/^[a-z]+-/, '');
-      text += ` | 🔗 ${displayId.slice(0, 8)}`;
+      text += ` | 🪪 ${displayId.slice(0, 8)}`;
     }
 
     if (tokenCount && tokenCount.total > 0) {

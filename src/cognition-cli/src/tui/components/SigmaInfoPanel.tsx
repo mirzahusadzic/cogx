@@ -161,11 +161,11 @@ export const SigmaInfoPanel: React.FC<SigmaInfoPanelProps> = ({
         <Text color="#8b949e">Averages:</Text>
         <Text color="#56d364">
           {' '}
-          Novelty: {(sigmaStats.avgNovelty ?? 0).toFixed(3)} 📊
+          Novelty: {(sigmaStats.avgNovelty ?? 0).toFixed(3)} 🐇
         </Text>
         <Text color="#bc8cff">
           {' '}
-          Importance: {(sigmaStats.avgImportance ?? 0).toFixed(1)} 🎯
+          Importance: {(sigmaStats.avgImportance ?? 0).toFixed(1)} ☝️
         </Text>
       </Box>
 

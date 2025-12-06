@@ -190,8 +190,8 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
     let text = `${nodes} nodes 🕸️  `;
     text += `| ${edges} edges 🔗 `;
     text += `| ${shifts} shifts ⚡ `;
-    text += `| novelty: ${novelty} 📊 `;
-    text += `| importance: ${importance} 🎯`;
+    text += `| novelty: ${novelty} 🐇 `;
+    text += `| importance: ${importance} ☝️ `;
     if (pendingMessageCount > 0) {
       text += ` | ${pendingMessageCount} messages 📬`;
     }
