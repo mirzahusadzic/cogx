@@ -19,6 +19,8 @@ import * as path from 'path';
 import chalk from 'chalk';
 import { ZeroMQBus } from './ZeroMQBus.js';
 
+const DEBUG_IPC = process.env.DEBUG_IPC === '1';
+
 export class BusCoordinator {
   private lockPath: string;
   private pidPath: string;
@@ -65,13 +67,17 @@ export class BusCoordinator {
         await this.bus.bind();
         await this.writePidFile();
         this.isBusMaster = true;
-        console.log(chalk.dim('🚌 Bus Master: Bound to', this.socketPath));
+        if (DEBUG_IPC) {
+          console.log(chalk.dim('🚌 Bus Master: Bound to', this.socketPath));
+        }
       } else {
         // Connect as peer
         this.bus = new ZeroMQBus({ address: this.socketPath });
         await this.bus.connect();
         this.isBusMaster = false;
-        console.log(chalk.dim('🔌 Peer: Connected to', this.socketPath));
+        if (DEBUG_IPC) {
+          console.log(chalk.dim('🔌 Peer: Connected to', this.socketPath));
+        }
       }
 
       return this.bus;

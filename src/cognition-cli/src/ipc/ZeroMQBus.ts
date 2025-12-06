@@ -17,6 +17,8 @@ import * as zmq from 'zeromq';
 import chalk from 'chalk';
 import { AgentMessage } from './AgentMessage.js';
 
+const DEBUG_IPC = process.env.DEBUG_IPC === '1';
+
 export interface ZeroMQBusConfig {
   address: string; // e.g., 'ipc:///tmp/cognition-bus.sock' or 'tcp://127.0.0.1:5555'
   mode?: 'bind' | 'connect'; // 'bind' = Bus Master, 'connect' = Peer
@@ -80,11 +82,13 @@ export class ZeroMQBus {
     this.started = true;
     this.startListening();
 
-    console.log(
-      chalk.dim(
-        `🚌 ZeroMQ Bus Master: Broker running (frontend: ${frontendAddress}, backend: ${backendAddress})`
-      )
-    );
+    if (DEBUG_IPC) {
+      console.log(
+        chalk.dim(
+          `🚌 ZeroMQ Bus Master: Broker running (frontend: ${frontendAddress}, backend: ${backendAddress})`
+        )
+      );
+    }
   }
 
   /**
@@ -112,7 +116,9 @@ export class ZeroMQBus {
     this.started = true;
     this.startListening();
 
-    console.log(`🔌 ZeroMQ Peer: Connected to broker at ${frontendAddress}`);
+    if (DEBUG_IPC) {
+      console.log(`🔌 ZeroMQ Peer: Connected to broker at ${frontendAddress}`);
+    }
   }
 
   /**
@@ -277,7 +283,9 @@ export class ZeroMQBus {
       this.isBroker = false;
     }
 
-    console.log('🛑 ZeroMQ Bus: Closed');
+    if (DEBUG_IPC) {
+      console.log('🛑 ZeroMQ Bus: Closed');
+    }
   }
 
   /**
