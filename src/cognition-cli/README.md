@@ -12,6 +12,18 @@ Cognition Σ CLI is the working implementation of the **Grounded Context Pool (P
 
 **Want the theory?** See the **[CogX Blueprint](../../README.md)** for mathematical foundations, axioms, and architectural vision.
 
+## At a Glance
+
+| Metric             | Value                    |
+| ------------------ | ------------------------ |
+| Production Code    | ~78,520 lines TypeScript |
+| Test Coverage      | ~85% (60 test files)     |
+| Core Commands      | 40+ with tab completion  |
+| Cognitive Overlays | 7 (O₁-O₇)                |
+| LLM Providers      | 2 (Gemini, Claude)       |
+
+_For detailed metrics, see [Comprehensive Analysis](docs/architecture/COMPREHENSIVE_ANALYSIS.md)._
+
 ---
 
 ## 🚀 Quick Start
@@ -299,7 +311,7 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 ### Getting Started
 
 - **[00 - Introduction](docs/guides/00_Introduction.md)** — Overview and core concepts
-- **[Complete Lattice Book](https://mirzahusadzic.github.io/cogx)** — 26-chapter reference manual
+- **[Complete Lattice Book](https://mirzahusadzic.github.io/cogx)** — 21-chapter reference manual
 - **[CogX Blueprint](../../README.md)** — Theoretical foundations and vision
 
 ### Implementation Guides
@@ -376,29 +388,6 @@ importance = novelty × 5 + max(alignment_O1..O7) × 0.5
 if alignment ≥ 6: preserve in recap
 if alignment < 6: discard
 ```
-
----
-
-## 💙 Note to Anthropic
-
-We built this **with** your Claude Agent SDK, not against it. This is research exploring how structured knowledge graphs + AI reasoning create better developer experiences.
-
-**What we discovered:**
-
-- The SDK is brilliant for building stateful systems
-- MCP tools enable perfect custom memory integration
-- Dual-lattice architecture preserves what matters, discards noise
-
-**What we'd love to explore together:**
-
-- Native overlay support in Claude Code?
-- Distributed lattice sync for multi-agent collaboration?
-- Optimal context sampling strategies?
-- Proof-carrying code via O₆ (mathematical overlay)?
-
-**Let's make AI + humans better together.**
-
-Contact: **<mirza.husadzic@proton.me>**
 
 ---
 

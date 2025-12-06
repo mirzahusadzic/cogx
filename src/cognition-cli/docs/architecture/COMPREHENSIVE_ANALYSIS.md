@@ -8,7 +8,7 @@
 
 - **Current Version:** 2.6.0 (Multi-Agent Collaborative System)
 - **Production Lines:** ~78,520 TypeScript (excl. tests), ~97,262 total
-- **Test Coverage:** ~85% across 120+ test files
+- **Test Coverage:** ~85% across 60 test files
 - **Architecture:** 7 cognitive overlays (O₁-O₇), dual-lattice Σ system, ZeroMQ agent messaging
 - **License:** AGPL-3.0-or-later
 
