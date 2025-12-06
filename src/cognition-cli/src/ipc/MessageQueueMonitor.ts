@@ -279,10 +279,10 @@ export class MessageQueueMonitor {
       this.bus.subscribe(topic, this.handleMessage.bind(this));
     }
 
-    // Start heartbeat (every 10 seconds)
+    // Start heartbeat (every 3 seconds - must be less than ACTIVE_THRESHOLD of 5s)
     this.heartbeatInterval = setInterval(() => {
       this.updateHeartbeat();
-    }, 10000);
+    }, 3000);
 
     if (MessageQueueMonitor.DEBUG) {
       console.log(

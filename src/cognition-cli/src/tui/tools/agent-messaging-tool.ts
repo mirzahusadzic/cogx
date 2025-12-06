@@ -371,6 +371,7 @@ function getActiveAgents(
 
 /**
  * Resolve alias or partial ID to full agent ID
+ * Prefers active agents over disconnected ones
  */
 function resolveAgentId(projectRoot: string, aliasOrId: string): string | null {
   const queueDir = path.join(projectRoot, '.sigma', 'message_queue');
@@ -380,6 +381,9 @@ function resolveAgentId(projectRoot: string, aliasOrId: string): string | null {
   }
 
   const entries = fs.readdirSync(queueDir, { withFileTypes: true });
+  const ACTIVE_THRESHOLD_MS = 5000; // 5 seconds (matches heartbeat interval)
+  const now = Date.now();
+  let fallbackAgentId: string | null = null;
 
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
@@ -389,25 +393,30 @@ function resolveAgentId(projectRoot: string, aliasOrId: string): string | null {
 
     try {
       const info: AgentInfo = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
+      const isActive =
+        info.status === 'active' &&
+        now - info.lastHeartbeat < ACTIVE_THRESHOLD_MS;
 
-      // Match by alias (case-insensitive)
-      if (info.alias && info.alias.toLowerCase() === aliasOrId.toLowerCase()) {
-        return info.agentId;
-      }
+      // Match by alias (case-insensitive), full agent ID, or directory name
+      const aliasMatch =
+        info.alias && info.alias.toLowerCase() === aliasOrId.toLowerCase();
+      const idMatch = info.agentId === aliasOrId;
+      const dirMatch = entry.name === aliasOrId;
 
-      // Match by full agent ID
-      if (info.agentId === aliasOrId) {
-        return info.agentId;
-      }
-
-      // Match by directory name (partial ID)
-      if (entry.name === aliasOrId) {
-        return info.agentId;
+      if (aliasMatch || idMatch || dirMatch) {
+        if (isActive) {
+          // Found active agent - return immediately
+          return info.agentId;
+        } else if (!fallbackAgentId) {
+          // Store first disconnected match as fallback
+          fallbackAgentId = info.agentId;
+        }
       }
     } catch {
       // Ignore parse errors
     }
   }
 
-  return null;
+  // Return fallback if no active agent found
+  return fallbackAgentId;
 }

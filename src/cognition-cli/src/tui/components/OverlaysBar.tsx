@@ -33,6 +33,20 @@ export interface SigmaStats {
 }
 
 /**
+ * Workbench health status for display
+ */
+export interface WorkbenchHealthStatus {
+  /** Whether workbench is reachable */
+  reachable: boolean;
+  /** Whether embedding model is loaded */
+  embeddingReady: boolean;
+  /** Whether summarization is available */
+  summarizationReady: boolean;
+  /** Whether API key is set */
+  hasApiKey: boolean;
+}
+
+/**
  * Props for OverlaysBar component
  */
 export interface OverlaysBarProps {
@@ -44,6 +58,8 @@ export interface OverlaysBarProps {
   pendingMessageCount?: number;
   /** Error message from message queue monitor (if any) */
   monitorError?: string | null;
+  /** Workbench health status (if unhealthy, shows issues instead of lattice) */
+  workbenchHealth?: WorkbenchHealthStatus;
 }
 
 /**
@@ -130,16 +146,38 @@ function getStatusIndicator(task: BackgroundTask): {
   }
 }
 
+/**
+ * Build workbench health issues string for display
+ */
+function getWorkbenchIssues(health: WorkbenchHealthStatus): string[] {
+  const issues: string[] = [];
+  if (!health.reachable) {
+    issues.push('unreachable');
+  } else {
+    if (!health.embeddingReady) issues.push('no embeddings');
+    if (!health.summarizationReady) issues.push('no summarization');
+    if (!health.hasApiKey) issues.push('no API key');
+  }
+  return issues;
+}
+
 export const OverlaysBar: React.FC<OverlaysBarProps> = ({
   sigmaStats,
   activeTask,
   pendingMessageCount = 0,
   monitorError,
+  workbenchHealth,
 }) => {
   // Determine if we should show status instead of branding
   const showTaskStatus =
     activeTask &&
     (activeTask.status === 'running' || activeTask.status === 'pending');
+
+  // Check if workbench has issues (not healthy = show issues)
+  const workbenchIssues = workbenchHealth
+    ? getWorkbenchIssues(workbenchHealth)
+    : [];
+  const hasWorkbenchIssues = workbenchIssues.length > 0;
 
   return (
     <Box
@@ -163,6 +201,19 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
               <>
                 <Text color="#8b949e">|</Text>
                 <Text color="#f0883e">{pendingMessageCount} 📬</Text>
+              </>
+            )}
+          </>
+        ) : hasWorkbenchIssues ? (
+          // Show workbench issues when health check failed
+          <>
+            <Text color="#f85149">
+              ⚠️ Workbench: {workbenchIssues.join(', ')}
+            </Text>
+            {pendingMessageCount > 0 && (
+              <>
+                <Text color="#8b949e">|</Text>
+                <Text color="#f0883e">{pendingMessageCount} messages 📬</Text>
               </>
             )}
           </>

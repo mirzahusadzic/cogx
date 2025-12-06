@@ -123,6 +123,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     avgOverlays,
     currentSessionId,
     anchorId,
+    workbenchHealth,
   } = useAgent({
     sessionId,
     cwd: projectRoot, // Use project root, not .open_cognition dir
@@ -162,31 +163,62 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           return;
         }
 
-        // Resolve alias to agent ID
-        let targetAgentId = targetAliasOrId;
+        // Resolve alias to agent ID (prefer active agents over disconnected)
+        let targetAgentId: string | null = null;
         const sigmaDir = path.join(projectRoot, '.sigma');
         const queueDir = path.join(sigmaDir, 'message_queue');
+        const ACTIVE_THRESHOLD_MS = 5000; // 5 seconds (matches heartbeat interval)
+        const now = Date.now();
 
         if (fs.existsSync(queueDir)) {
           const entries = fs.readdirSync(queueDir, { withFileTypes: true });
+          let fallbackAgentId: string | null = null; // For disconnected matches
+
           for (const entry of entries) {
             if (!entry.isDirectory()) continue;
             const infoPath = path.join(queueDir, entry.name, 'agent-info.json');
             if (fs.existsSync(infoPath)) {
               try {
                 const info = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
-                if (
+                const isActive =
+                  info.status === 'active' &&
+                  now - info.lastHeartbeat < ACTIVE_THRESHOLD_MS;
+
+                // Match by alias (case-insensitive) or full agent ID
+                const aliasMatch =
                   info.alias &&
-                  info.alias.toLowerCase() === targetAliasOrId.toLowerCase()
-                ) {
-                  targetAgentId = info.agentId || entry.name;
-                  break;
+                  info.alias.toLowerCase() === targetAliasOrId.toLowerCase();
+                const idMatch = info.agentId === targetAliasOrId;
+
+                if (aliasMatch || idMatch) {
+                  const agentId = info.agentId || entry.name;
+                  if (isActive) {
+                    // Found active agent - use immediately
+                    targetAgentId = agentId;
+                    break;
+                  } else if (!fallbackAgentId) {
+                    // Store first disconnected match as fallback
+                    fallbackAgentId = agentId;
+                  }
                 }
               } catch {
                 // Ignore parse errors
               }
             }
           }
+
+          // Use fallback if no active agent found
+          if (!targetAgentId && fallbackAgentId) {
+            targetAgentId = fallbackAgentId;
+          }
+        }
+
+        // Error if agent not found (instead of silently using alias)
+        if (!targetAgentId) {
+          addSystemMessage(
+            `❌ Agent "${targetAliasOrId}" not found\n\nUse /agents to see available agents`
+          );
+          return;
         }
 
         // Send the message using MessagePublisher
@@ -493,26 +525,26 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
             return a.alias.localeCompare(b.alias);
           });
 
-          // Build clean output
+          // Build clean output (note: system messages get • prefix automatically)
           let output = '';
 
           // Show current agent identity prominently
           if (currentAgent) {
-            output += `👤 You are: ${currentAgent.alias} (${currentAgent.model})\n\n`;
+            output += `👤 You are: ${currentAgent.alias} (${currentAgent.model})\n`;
           }
 
           // List other agents
           const otherAgents = agents.filter((a) => !a.isYou);
           if (otherAgents.length > 0) {
-            output += `🤖 Other Agents (${otherAgents.length}):\n`;
+            output += `  🤖 Other Agents (${otherAgents.length}):\n`;
             for (const agent of otherAgents) {
-              output += `   • ${agent.alias} (${agent.model})\n`;
+              output += `     ${agent.alias} (${agent.model})\n`;
             }
           } else {
-            output += `🤖 No other agents online\n`;
+            output += `  🤖 No other agents online\n`;
           }
 
-          output += `\n💬 /send <alias> <message>`;
+          output += `  💬 /send <alias> <message>`;
 
           addSystemMessage(output);
         } catch (err) {
@@ -1103,6 +1135,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
             activeTask={taskManager.activeTask}
             pendingMessageCount={pendingMessageCount}
             monitorError={monitorError}
+            workbenchHealth={workbenchHealth ?? undefined}
           />
           <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>
           <Box

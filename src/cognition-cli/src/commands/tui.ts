@@ -246,32 +246,54 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     })();
 
     // If genesis, docs, or overlays are missing and user hasn't opted out, enter onboarding mode
-    if (!hasGenesis && !options.noOnboarding) {
-      console.log(
-        chalk.dim(
-          '\n🧙 Incomplete workspace detected (no genesis). Starting onboarding wizard...\n'
-        )
+    // BUT only if workbench is available (onboarding requires workbench for genesis/overlays)
+    const needsOnboarding =
+      (!hasGenesis || !hasDocs || missingOverlays.length > 0) &&
+      !options.noOnboarding;
+
+    if (needsOnboarding) {
+      // Check workbench before entering onboarding
+      // Need FULL workbench health (reachable + embeddings + summarization) for onboarding
+      const workbenchUrl =
+        options.workbenchUrl ||
+        process.env.WORKBENCH_URL ||
+        'http://localhost:8000';
+      const { checkWorkbenchHealthDetailed } =
+        await import('../utils/workbench-detect.js');
+      const healthResult = await checkWorkbenchHealthDetailed(
+        workbenchUrl,
+        true
       );
-      onboardingMode = true;
-    } else if (hasGenesis && !hasDocs && !options.noOnboarding) {
-      console.log(
-        chalk.dim(
-          '\n🧙 Incomplete workspace detected (no strategic docs). Starting onboarding wizard...\n'
-        )
-      );
-      onboardingMode = true;
-    } else if (
-      hasGenesis &&
-      hasDocs &&
-      missingOverlays.length > 0 &&
-      !options.noOnboarding
-    ) {
-      console.log(
-        chalk.dim(
-          `\n🧙 Incomplete workspace detected (missing ${missingOverlays.length} overlays: ${missingOverlays.join(', ')}). Starting onboarding wizard...\n`
-        )
-      );
-      onboardingMode = true;
+      const workbenchFullyHealthy =
+        healthResult.reachable &&
+        healthResult.embeddingReady &&
+        healthResult.summarizationReady;
+
+      if (!workbenchFullyHealthy) {
+        // Workbench not fully configured - skip onboarding silently (status bar will show issues)
+        // User can still use TUI in basic mode without lattice features
+      } else if (!hasGenesis) {
+        console.log(
+          chalk.dim(
+            '\n🧙 Incomplete workspace detected (no genesis). Starting onboarding wizard...\n'
+          )
+        );
+        onboardingMode = true;
+      } else if (!hasDocs) {
+        console.log(
+          chalk.dim(
+            '\n🧙 Incomplete workspace detected (no strategic docs). Starting onboarding wizard...\n'
+          )
+        );
+        onboardingMode = true;
+      } else if (missingOverlays.length > 0) {
+        console.log(
+          chalk.dim(
+            `\n🧙 Incomplete workspace detected (missing ${missingOverlays.length} overlays: ${missingOverlays.join(', ')}). Starting onboarding wizard...\n`
+          )
+        );
+        onboardingMode = true;
+      }
     }
   }
 
@@ -289,7 +311,8 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
   // Skip background color setting - let terminal inherit its own background
   // Only clear screen if not in onboarding mode (onboarding is a short wizard)
   if (process.stdout.isTTY && !onboardingMode) {
-    process.stdout.write('\x1b[2J'); // Clear entire screen
+    process.stdout.write('\x1b[2J'); // Clear visible screen
+    process.stdout.write('\x1b[3J'); // Clear scrollback buffer
     process.stdout.write('\x1b[H'); // Move cursor to home
   }
 
@@ -356,18 +379,6 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     options.model ||
     stateModel ||
     llmConfig.providers[resolvedProvider as 'claude' | 'gemini']?.defaultModel;
-
-  // Optional: Resume existing session or start fresh
-  if (!sessionId) {
-    const providerDisplayName =
-      resolvedProvider.charAt(0).toUpperCase() + resolvedProvider.slice(1);
-
-    console.log(
-      `\n💡 Tip: Starting fresh ${providerDisplayName} session. To resume, use:\n` +
-        '   cognition-cli tui --session-id <anchor-id>\n' +
-        '   or: cognition-cli tui -f .sigma/<session>.state.json\n'
-    );
-  }
 
   // Validate and resolve provider
   // Must check resolvedProvider (not just options.provider) because it may come from state file

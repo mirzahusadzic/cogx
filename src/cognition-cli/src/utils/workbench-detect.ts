@@ -84,6 +84,40 @@ export interface WorkbenchDetectionResult {
 }
 
 /**
+ * Workbench health response structure
+ */
+export interface WorkbenchHealthResponse {
+  status: string;
+  embedding_model?: {
+    name?: string;
+    status?: string;
+  };
+  local_summarization_model?: {
+    status?: string;
+  };
+  gemini_api?: {
+    api_key_set?: boolean;
+    default_model?: string;
+  };
+}
+
+/**
+ * Detailed health check result
+ */
+export interface WorkbenchHealthResult {
+  /** Whether workbench is reachable */
+  reachable: boolean;
+  /** Whether embedding model is loaded (required for embeddings) */
+  embeddingReady: boolean;
+  /** Whether summarization is available (local or via Gemini API) */
+  summarizationReady: boolean;
+  /** Raw health response for debugging */
+  rawResponse?: WorkbenchHealthResponse;
+  /** Error message if check failed */
+  error?: string;
+}
+
+/**
  * Checks if a workbench URL is healthy and accessible
  *
  * Sends a GET request to the /health endpoint to verify the workbench
@@ -116,6 +150,74 @@ export async function checkWorkbenchHealth(
       );
     }
     return false;
+  }
+}
+
+/**
+ * Performs a detailed health check on workbench
+ *
+ * Unlike checkWorkbenchHealth which only checks reachability, this function
+ * parses the health response and validates that required services are ready:
+ * - Embedding model must be loaded (status: "loaded")
+ * - Summarization must be available (local_summarization_model enabled OR gemini_api.api_key_set)
+ *
+ * @param url - The workbench URL to check
+ * @param silent - If true, suppress warning logs (default: false)
+ * @returns Detailed health check result
+ *
+ * @example
+ * const health = await checkWorkbenchHealthDetailed('http://localhost:8000');
+ * if (health.reachable && health.embeddingReady) {
+ *   console.log('Workbench ready for embeddings');
+ * }
+ */
+export async function checkWorkbenchHealthDetailed(
+  url: string,
+  silent = false
+): Promise<WorkbenchHealthResult> {
+  try {
+    const response = await fetch(`${url}/health`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      return {
+        reachable: false,
+        embeddingReady: false,
+        summarizationReady: false,
+        error: `HTTP ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    const health = (await response.json()) as WorkbenchHealthResponse;
+
+    // Check embedding model status
+    const embeddingReady = health.embedding_model?.status === 'loaded';
+
+    // Check summarization availability (local OR Gemini API)
+    const localSummarizationEnabled =
+      health.local_summarization_model?.status === 'enabled';
+    const geminiApiAvailable = health.gemini_api?.api_key_set === true;
+    const summarizationReady = localSummarizationEnabled || geminiApiAvailable;
+
+    return {
+      reachable: true,
+      embeddingReady,
+      summarizationReady,
+      rawResponse: health,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (!silent) {
+      console.warn(`Workbench health check failed at ${url}: ${errorMessage}`);
+    }
+    return {
+      reachable: false,
+      embeddingReady: false,
+      summarizationReady: false,
+      error: errorMessage,
+    };
   }
 }
 

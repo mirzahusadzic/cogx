@@ -147,6 +147,7 @@ import type { McpSdkServerConfigWithInstance } from './sdk/types.js';
 import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
 import type { MessageQueue } from '../../ipc/MessageQueue.js';
 import { formatPendingMessages } from '../../ipc/agent-messaging-formatters.js';
+import { checkWorkbenchHealthDetailed } from '../../utils/workbench-detect.js';
 import { createAgentMessagingMcpServer } from '../tools/agent-messaging-tool.js';
 
 /**
@@ -419,10 +420,10 @@ export function useAgent(options: UseAgentOptions) {
   const [messages, setMessages] = useState<TUIMessage[]>([
     {
       type: 'system',
-      content: `
-           ⬢      ↔       👤     ↔     💎
-       Traversal      Projection    Resonance
-      `,
+      content:
+        '     ⬢      ↔       👤     ↔     💎\n' +
+        '   Traversal      Projection    Resonance\n' +
+        ' ',
       timestamp: new Date(),
     },
   ]);
@@ -561,6 +562,13 @@ export function useAgent(options: UseAgentOptions) {
   >(null);
   // Auto-response trigger (for agent messaging)
   const [shouldAutoRespond, setShouldAutoRespond] = useState(false);
+  // Workbench health status (for status bar display)
+  const [workbenchHealth, setWorkbenchHealth] = useState<{
+    reachable: boolean;
+    embeddingReady: boolean;
+    summarizationReady: boolean;
+    hasApiKey: boolean;
+  } | null>(null);
 
   // ========================================
   // YOSSARIAN PROTOCOL (Infinite Loop Breaker)
@@ -1069,20 +1077,16 @@ export function useAgent(options: UseAgentOptions) {
       if (fs.existsSync(pgcPath))
         projectRegistryRef.current = new OverlayRegistry(pgcPath, endpoint);
 
-      // Warn user if WORKBENCH_API_KEY is not set
-      if (!process.env.WORKBENCH_API_KEY) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            type: 'system',
-            content:
-              '⚠️  WORKBENCH_API_KEY not set\n' +
-              '   Conversation analysis and semantic memory features will be disabled.\n' +
-              '   Set WORKBENCH_API_KEY environment variable to enable these features.',
-            timestamp: new Date(),
-          },
-        ]);
-      }
+      // Check workbench health for status bar display (no system message - status bar shows it)
+      const healthResult = await checkWorkbenchHealthDetailed(endpoint, true);
+      const hasApiKey = !!process.env.WORKBENCH_API_KEY;
+
+      setWorkbenchHealth({
+        reachable: healthResult.reachable,
+        embeddingReady: healthResult.embeddingReady,
+        summarizationReady: healthResult.summarizationReady,
+        hasApiKey,
+      });
     };
 
     initSigmaServices();
@@ -2350,5 +2354,6 @@ export function useAgent(options: UseAgentOptions) {
       avgImportance: turnAnalysis?.stats?.avgImportance ?? 0,
     },
     avgOverlays: overlayScores,
+    workbenchHealth, // Workbench health status for status bar
   };
 }
