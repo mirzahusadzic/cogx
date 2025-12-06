@@ -385,7 +385,9 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
   let validatedProvider = resolvedProvider;
   try {
     const { registry, initializeProviders } = await import('../llm/index.js');
-    await initializeProviders();
+    // Pass resolvedProvider as default to avoid "gemini not available" warning
+    // when loading from file that uses claude/opus
+    await initializeProviders({ defaultProvider: resolvedProvider });
 
     if (!registry.has(resolvedProvider)) {
       // If user explicitly specified provider, error out
