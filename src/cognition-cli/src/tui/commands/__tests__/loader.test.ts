@@ -28,7 +28,10 @@ describe('loadCommands', () => {
   test('handles missing directory gracefully', async () => {
     const result = await loadCommands('/nonexistent/path/12345');
 
-    expect(result.commands.size).toBe(0);
+    // Built-in IPC commands are always available (send, agents, pending, inject, inject-all, dismiss)
+    expect(result.commands.size).toBe(6);
+    expect(result.commands.get('send')).toBeDefined();
+    expect(result.commands.get('agents')).toBeDefined();
     expect(result.errors.length).toBe(0);
     expect(result.warnings.length).toBe(0);
   });

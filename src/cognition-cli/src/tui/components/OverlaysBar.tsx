@@ -179,6 +179,25 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
     : [];
   const hasWorkbenchIssues = workbenchIssues.length > 0;
 
+  // Build sigma stats as single string for consistent spacing (like StatusBar)
+  const buildSigmaStats = () => {
+    const nodes = sigmaStats?.nodes ?? 0;
+    const edges = sigmaStats?.edges ?? 0;
+    const shifts = sigmaStats?.paradigmShifts ?? 0;
+    const novelty = (sigmaStats?.avgNovelty ?? 0).toFixed(2);
+    const importance = (sigmaStats?.avgImportance ?? 0).toFixed(1);
+
+    let text = `${nodes} nodes 🕸️  `;
+    text += `| ${edges} edges 🔗 `;
+    text += `| ${shifts} shifts ⚡ `;
+    text += `| novelty: ${novelty} 📊 `;
+    text += `| importance: ${importance} 🎯`;
+    if (pendingMessageCount > 0) {
+      text += ` | ${pendingMessageCount} messages 📬`;
+    }
+    return text;
+  };
+
   return (
     <Box
       paddingX={1}
@@ -229,29 +248,7 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
             )}
           </>
         ) : (
-          <>
-            <Text color="#58a6ff">{sigmaStats.nodes ?? 0} nodes 🕸️</Text>
-            <Text color="#8b949e">|</Text>
-            <Text color="#79c0ff">{sigmaStats.edges ?? 0} edges 🔗</Text>
-            <Text color="#8b949e">|</Text>
-            <Text color="#d29922">
-              {sigmaStats.paradigmShifts ?? 0} shifts ⚡
-            </Text>
-            <Text color="#8b949e">|</Text>
-            <Text color="#56d364">
-              novelty: {(sigmaStats.avgNovelty ?? 0).toFixed(2)} 📊
-            </Text>
-            <Text color="#8b949e">|</Text>
-            <Text color="#bc8cff">
-              importance: {(sigmaStats.avgImportance ?? 0).toFixed(1)} 🎯
-            </Text>
-            {pendingMessageCount > 0 && (
-              <>
-                <Text color="#8b949e">|</Text>
-                <Text color="#f0883e">{pendingMessageCount} messages 📬</Text>
-              </>
-            )}
-          </>
+          <Text color="#8b949e">{buildSigmaStats()}</Text>
         )}
       </Box>
       <Box>
