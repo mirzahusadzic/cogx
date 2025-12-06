@@ -390,17 +390,33 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     await initializeProviders({ defaultProvider: resolvedProvider });
 
     if (!registry.has(resolvedProvider)) {
-      // If user explicitly specified provider, error out
-      if (options.provider) {
+      const availableProviders = registry.list();
+
+      // If loading from state file, abort - can't switch providers mid-session
+      if (stateProvider) {
         console.error(
-          `Error: Provider '${options.provider}' not found.\n` +
-            `Available providers: ${registry.list().join(', ')}`
+          chalk.red(
+            `Error: Cannot resume session - provider '${stateProvider}' is not available.\n`
+          ) +
+            `The session was created with ${stateProvider} but that provider is not configured.\n` +
+            (availableProviders.length > 0
+              ? `Available providers: ${availableProviders.join(', ')}\n` +
+                `To start a new session with an available provider, omit the -f flag.`
+              : `Configure ANTHROPIC_API_KEY or GEMINI_API_KEY to enable a provider.`)
         );
         process.exit(1);
       }
 
-      // Otherwise (e.g., from state file), fall back to an available provider
-      const availableProviders = registry.list();
+      // If user explicitly specified provider via CLI, error out
+      if (options.provider) {
+        console.error(
+          `Error: Provider '${options.provider}' not found.\n` +
+            `Available providers: ${availableProviders.join(', ')}`
+        );
+        process.exit(1);
+      }
+
+      // New session with config default not available - fall back silently
       if (availableProviders.length === 0) {
         console.error(
           'Error: No LLM providers available. Configure ANTHROPIC_API_KEY or GEMINI_API_KEY.'
@@ -409,11 +425,6 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
       }
 
       validatedProvider = availableProviders[0];
-      console.warn(
-        chalk.yellow(
-          `Provider '${resolvedProvider}' not available, using '${validatedProvider}' instead`
-        )
-      );
     }
 
     // Check if provider supports agent mode

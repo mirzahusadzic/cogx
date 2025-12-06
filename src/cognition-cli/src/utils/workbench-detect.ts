@@ -349,8 +349,12 @@ export async function detectLLMProvider(
   preferredProvider?: LLMProviderType
 ): Promise<LLMProviderDetectionResult> {
   // Initialize providers to detect all available options (including OAuth-based Claude)
+  // Pass preferredProvider as default to avoid misleading "X not available" warnings
   try {
-    await initializeProviders({ skipMissingProviders: true });
+    await initializeProviders({
+      skipMissingProviders: true,
+      defaultProvider: preferredProvider ?? 'claude',
+    });
   } catch {
     // If initialization fails, fall back to env var check
   }
