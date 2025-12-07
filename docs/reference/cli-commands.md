@@ -326,7 +326,7 @@ cognition-cli tui [options]
 - `--provider <name>` - LLM provider: `claude` or `gemini` (default: `gemini`)
 - `--model <name>` - Model to use (provider-specific)
 - `--session-tokens <number>` - Compression threshold (default: 120000)
-- `--max-thinking-tokens <number>` - Extended thinking mode tokens (default: 10000)
+- `--max-thinking-tokens <number>` - Extended thinking mode tokens (default: 32000)
 - `--debug` - Enable Sigma compression logging
 - `--no-show-thinking` - Hide thinking blocks in TUI
 

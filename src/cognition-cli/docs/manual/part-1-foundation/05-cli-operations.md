@@ -2043,7 +2043,7 @@ cognition-cli tui --session-id <anchor-id>
 cognition-cli tui --file .sigma/tui-1762546919034.state.json
 
 # Extended thinking mode (complex reasoning)
-cognition-cli tui --max-thinking-tokens 20000
+cognition-cli tui --max-thinking-tokens 64000
 
 # Hide thinking blocks
 cognition-cli tui --no-show-thinking
@@ -2063,7 +2063,7 @@ cognition-cli tui [options]
 #   -f, --file <path>                   Resume from .sigma state file
 #   -w, --workbench <url>               eGemma workbench URL
 #   --session-tokens <number>           Compression threshold (default: 120000)
-#   --max-thinking-tokens <number>      Extended thinking limit (default: 10000)
+#   --max-thinking-tokens <number>      Extended thinking limit (default: 32000)
 #   --provider <name>                   LLM provider: claude or gemini (default: gemini)
 #   --model <name>                      Model to use (provider-specific)
 #   --debug                             Enable debug logging

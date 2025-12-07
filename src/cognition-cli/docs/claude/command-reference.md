@@ -907,7 +907,7 @@ cognition-cli tui [options]
 - `-f, --file <path>` - Path to session state file (e.g., `.sigma/tui-1762546919034.state.json`)
 - `-w, --workbench <url>` - URL of the egemma workbench (defaults to WORKBENCH_URL env var)
 - `--session-tokens <number>` - Token threshold for context compression (default: `120000`)
-- `--max-thinking-tokens <number>` - Maximum tokens for extended thinking mode (default: `10000`)
+- `--max-thinking-tokens <number>` - Maximum tokens for extended thinking mode (default: `32000`)
 - `--provider <name>` - LLM provider to use: `claude` or `gemini` (default: `gemini`)
 - `--model <name>` - Model to use (provider-specific)
 - `--debug` - Enable debug logging for Sigma compression
@@ -938,7 +938,7 @@ cognition-cli tui --provider claude
 cognition-cli tui --session-id abc123
 
 # Start with extended thinking mode
-cognition-cli tui --max-thinking-tokens 20000
+cognition-cli tui --max-thinking-tokens 64000
 
 # Start with specific model
 cognition-cli tui --provider claude --model claude-sonnet-4-5

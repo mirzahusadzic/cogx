@@ -555,7 +555,7 @@ const tuiCmd = program
   )
   .option(
     '--max-thinking-tokens <number>',
-    'Maximum tokens for extended thinking mode (default: 10000)'
+    'Maximum tokens for extended thinking mode (default: 32000)'
   )
   .option('--provider <name>', 'LLM provider to use (claude, gemini)')
   .option('--model <name>', 'Model to use (provider-specific)')
