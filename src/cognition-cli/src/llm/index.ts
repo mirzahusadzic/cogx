@@ -46,7 +46,7 @@ export { isAgentProvider } from './agent-provider-interface.js';
 export { GeminiAgentProvider } from './providers/gemini-agent-provider.js';
 
 // Claude provider is dynamically imported to make it optional
-export type { ClaudeProvider } from './providers/claude-provider.js';
+export type { ClaudeProvider } from './providers/claude-agent-provider.js';
 
 /**
  * Provider initialization options
@@ -129,7 +129,8 @@ export async function initializeProviders(
   if (!registry.has('claude')) {
     try {
       // Dynamic import to make Claude SDK optional
-      const { ClaudeProvider } = await import('./providers/claude-provider.js');
+      const { ClaudeProvider } =
+        await import('./providers/claude-agent-provider.js');
       const apiKey = anthropicApiKey || process.env.ANTHROPIC_API_KEY;
 
       // Register Claude provider even without API key to support OAuth authentication

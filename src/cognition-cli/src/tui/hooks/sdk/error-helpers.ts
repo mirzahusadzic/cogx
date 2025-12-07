@@ -44,7 +44,7 @@ export function isAuthenticationError(stderrLines: string[]): boolean {
     stderrText.includes('anthropic_api_error') ||
     stderrText.includes('authentication error') ||
     // Claude Code subprocess exit (SDK swallows actual error, we only get exit code)
-    // Our claude-provider.ts converts this to a helpful message containing these keywords
+    // Our claude-agent-provider.ts converts this to a helpful message containing these keywords
     stderrText.includes('claude code exited unexpectedly') ||
     stderrText.includes('please run: claude /login')
   );
