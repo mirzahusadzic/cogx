@@ -117,32 +117,9 @@ function getTaskLabel(task: BackgroundTask): string {
     case 'genesis-docs':
       return 'Document Ingestion';
     case 'overlay':
-      return task.overlay ? `${task.overlay} Overlay` : 'Overlay Generation';
+      return task.overlay || 'Overlay Generation';
     default:
       return 'Processing';
-  }
-}
-
-/**
- * Get status indicator and color based on task state
- */
-function getStatusIndicator(task: BackgroundTask): {
-  symbol: string;
-  color: string;
-} {
-  switch (task.status) {
-    case 'pending':
-      return { symbol: '○', color: '#8b949e' };
-    case 'running':
-      return { symbol: '●', color: '#58a6ff' };
-    case 'completed':
-      return { symbol: '✓', color: '#56d364' };
-    case 'failed':
-      return { symbol: '✗', color: '#f85149' };
-    case 'cancelled':
-      return { symbol: '⊘', color: '#d29922' };
-    default:
-      return { symbol: '●', color: '#8b949e' };
   }
 }
 
@@ -211,18 +188,6 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
         {monitorError ? (
           // Show error if monitor failed
           <Text color="#f85149">⚠ Message Monitor: {monitorError}</Text>
-        ) : showTaskStatus ? (
-          // Hide stats when task is running to prevent line wrapping
-          <>
-            <Text color="#8b949e">Background Task:</Text>
-            {/* Always show pending messages, even during background tasks */}
-            {pendingMessageCount > 0 && (
-              <>
-                <Text color="#8b949e">|</Text>
-                <Text color="#f0883e">{pendingMessageCount} 📬</Text>
-              </>
-            )}
-          </>
         ) : hasWorkbenchIssues ? (
           // Show workbench issues when health check failed
           <>
@@ -265,21 +230,41 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
 };
 
 /**
+ * Get icon for overlay type (matches SigmaInfoPanel icons)
+ */
+function getOverlayIcon(overlay: string | undefined): string {
+  switch (overlay) {
+    case 'structural_patterns':
+      return '🏗️ ';
+    case 'security_guidelines':
+      return '🛡️ ';
+    case 'lineage_patterns':
+      return '🌳 ';
+    case 'mission_concepts':
+      return '🎯 ';
+    case 'operational_patterns':
+      return '⚙️ ';
+    case 'mathematical_proofs':
+      return '📐 ';
+    case 'strategic_coherence':
+      return '🧭 ';
+    default:
+      return '🏗️ ';
+  }
+}
+
+/**
  * Task status display component
- * Shows: ● structural_patterns Overlay Embedding 31/131
+ * Shows: 🏗️  Embedding 387/832 patterns (47%)
  */
 const TaskStatusDisplay: React.FC<{ task: BackgroundTask }> = ({ task }) => {
-  const { symbol, color } = getStatusIndicator(task);
-  const label = getTaskLabel(task);
-  const message = task.message || '';
+  const message = task.message || getTaskLabel(task);
+  const icon = task.type === 'overlay' ? getOverlayIcon(task.overlay) : '🏗️ ';
 
   return (
-    <Box flexDirection="row" gap={1}>
-      <Text color={color}>{symbol}</Text>
-      <Text color={color} bold>
-        {label}
-      </Text>
-      {message && <Text color="#8b949e">{message}</Text>}
+    <Box flexDirection="row">
+      <Text>{icon}</Text>
+      <Text color="#8b949e">{message}</Text>
     </Box>
   );
 };
