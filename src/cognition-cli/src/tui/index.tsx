@@ -923,7 +923,9 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
 
       fs.writeFileSync(logPath, logContent, 'utf-8');
 
-      setSaveMessage(`💾 Saved ${messages.length} messages to ${logFileName}`);
+      setSaveMessage(
+        `💾 Saved ${messages.length} messages to .sigma/${logFileName}`
+      );
       setTimeout(() => setSaveMessage(null), 3000);
     } catch (err) {
       setSaveMessage(`❌ Save failed: ${(err as Error).message}`);
