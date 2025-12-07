@@ -148,6 +148,13 @@ export class WorkbenchClient {
   private lastEmbedCallTime: number = 0;
   private embedCallCount: number = 0;
 
+  // Adaptive rate limits (fetched from server, with config fallbacks)
+  private embedRateLimitCalls: number = EMBED_RATE_LIMIT_CALLS;
+  private embedRateLimitSeconds: number = EMBED_RATE_LIMIT_SECONDS;
+  private summarizeRateLimitCalls: number = SUMMARIZE_RATE_LIMIT_CALLS;
+  private summarizeRateLimitSeconds: number = SUMMARIZE_RATE_LIMIT_SECONDS;
+  private rateLimitsFetched: boolean = false;
+
   /**
    * Creates a new workbench API client.
    *
@@ -164,6 +171,79 @@ export class WorkbenchClient {
     this.apiKey = process.env.WORKBENCH_API_KEY || '';
     // Note: API key warning is deferred until first actual API call
     // Read-only commands don't need workbench access
+  }
+
+  /**
+   * Fetch rate limits from the eGemma server.
+   *
+   * This enables adaptive rate limiting - the client respects whatever
+   * limits the server is configured with, rather than hardcoded values.
+   *
+   * Call this once after construction to sync with server limits.
+   * Falls back to config defaults if server is unreachable.
+   *
+   * @returns true if limits were fetched successfully, false if using fallbacks
+   */
+  public async fetchRateLimits(): Promise<boolean> {
+    if (this.rateLimitsFetched) {
+      return true; // Already fetched
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}/rate-limits`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (this.debug) {
+          console.log(
+            chalk?.yellow
+              ? chalk.yellow(
+                  `[WorkbenchClient] Failed to fetch rate limits (${response.status}), using defaults`
+                )
+              : `[WorkbenchClient] Failed to fetch rate limits (${response.status}), using defaults`
+          );
+        }
+        return false;
+      }
+
+      const limits = (await response.json()) as {
+        embed: { calls: number; seconds: number };
+        summarize: { calls: number; seconds: number };
+      };
+
+      this.embedRateLimitCalls = limits.embed.calls;
+      this.embedRateLimitSeconds = limits.embed.seconds;
+      this.summarizeRateLimitCalls = limits.summarize.calls;
+      this.summarizeRateLimitSeconds = limits.summarize.seconds;
+      this.rateLimitsFetched = true;
+
+      if (this.debug) {
+        console.log(
+          chalk?.green
+            ? chalk.green(
+                `[WorkbenchClient] Fetched rate limits from server: embed=${limits.embed.calls}/${limits.embed.seconds}s, summarize=${limits.summarize.calls}/${limits.summarize.seconds}s`
+              )
+            : `[WorkbenchClient] Fetched rate limits from server: embed=${limits.embed.calls}/${limits.embed.seconds}s, summarize=${limits.summarize.calls}/${limits.summarize.seconds}s`
+        );
+      }
+
+      return true;
+    } catch (error) {
+      if (this.debug) {
+        console.log(
+          chalk?.yellow
+            ? chalk.yellow(
+                `[WorkbenchClient] Could not fetch rate limits: ${error}, using defaults`
+              )
+            : `[WorkbenchClient] Could not fetch rate limits: ${error}, using defaults`
+        );
+      }
+      return false;
+    }
   }
 
   /**
@@ -327,6 +407,11 @@ export class WorkbenchClient {
     }
     this.isProcessingSummarizeQueue = true;
 
+    // Lazy fetch rate limits from server on first use
+    if (!this.rateLimitsFetched) {
+      await this.fetchRateLimits();
+    }
+
     while (this.summarizeQueue.length > 0) {
       await this.waitForSummarizeRateLimit();
 
@@ -467,6 +552,11 @@ export class WorkbenchClient {
     }
     this.isProcessingEmbedQueue = true;
 
+    // Lazy fetch rate limits from server on first use
+    if (!this.rateLimitsFetched) {
+      await this.fetchRateLimits();
+    }
+
     while (this.embedQueue.length > 0) {
       await this.waitForEmbedRateLimit();
 
@@ -594,10 +684,10 @@ export class WorkbenchClient {
     const timeElapsed = now - this.lastSummarizeCallTime;
 
     if (
-      timeElapsed < SUMMARIZE_RATE_LIMIT_SECONDS * 1000 &&
-      this.summarizeCallCount >= SUMMARIZE_RATE_LIMIT_CALLS
+      timeElapsed < this.summarizeRateLimitSeconds * 1000 &&
+      this.summarizeCallCount >= this.summarizeRateLimitCalls
     ) {
-      const timeToWait = SUMMARIZE_RATE_LIMIT_SECONDS * 1000 - timeElapsed;
+      const timeToWait = this.summarizeRateLimitSeconds * 1000 - timeElapsed;
       await new Promise((resolve) => setTimeout(resolve, timeToWait));
       this.summarizeCallCount = 0;
       this.lastSummarizeCallTime = Date.now();
@@ -629,10 +719,10 @@ export class WorkbenchClient {
     const timeElapsed = now - this.lastEmbedCallTime;
 
     if (
-      timeElapsed < EMBED_RATE_LIMIT_SECONDS * 1000 &&
-      this.embedCallCount >= EMBED_RATE_LIMIT_CALLS
+      timeElapsed < this.embedRateLimitSeconds * 1000 &&
+      this.embedCallCount >= this.embedRateLimitCalls
     ) {
-      const timeToWait = EMBED_RATE_LIMIT_SECONDS * 1000 - timeElapsed;
+      const timeToWait = this.embedRateLimitSeconds * 1000 - timeElapsed;
       await new Promise((resolve) => setTimeout(resolve, timeToWait));
       this.embedCallCount = 0;
       this.lastEmbedCallTime = Date.now();

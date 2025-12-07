@@ -171,31 +171,33 @@ export const PERSONA_CONVERSATION_MEMORY_ASSISTANT =
 export const PERSONA_TOOL_OUTPUT_SUMMARIZER = 'tool_output_summarizer';
 
 // ========================================
-// RATE LIMITING
+// RATE LIMITING (Fallback Defaults)
 // ========================================
+// These are fallback defaults used when the eGemma server is unreachable.
+// WorkbenchClient fetches actual limits from GET /rate-limits on first use.
+// Keep these in sync with eGemma's src/config.py for optimal fallback behavior.
 
 /**
- * Rate limit window for /summarize endpoint (seconds)
- * Allows SUMMARIZE_RATE_LIMIT_CALLS within this window
+ * Fallback rate limit window for /summarize endpoint (seconds)
  */
 export const SUMMARIZE_RATE_LIMIT_SECONDS = 60;
 
 /**
- * Maximum /summarize calls per window
- * 2 calls per 60 seconds prevents workbench overload
+ * Fallback maximum /summarize calls per window
+ * Should match eGemma's SUMMARIZE_RATE_LIMIT_CALLS
  */
 export const SUMMARIZE_RATE_LIMIT_CALLS = 2;
 
 /**
- * Rate limit window for /embed endpoint (seconds)
+ * Fallback rate limit window for /embed endpoint (seconds)
  */
 export const EMBED_RATE_LIMIT_SECONDS = 10;
 
 /**
- * Maximum /embed calls per window
- * 5 calls per 10 seconds balances throughput and protection
+ * Fallback maximum /embed calls per window
+ * Should match eGemma's EMBED_RATE_LIMIT_CALLS (currently 5)
  */
-export const EMBED_RATE_LIMIT_CALLS = 10;
+export const EMBED_RATE_LIMIT_CALLS = 5;
 
 // ========================================
 // RETRY CONFIGURATION
