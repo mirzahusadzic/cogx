@@ -353,10 +353,13 @@ export class LineagePatternsManager implements PatternManager {
 
         // Report progress for TUI
         if (onProgress) {
+          const percent = Math.round(
+            (embeddedCount / successfulMines.length) * 100
+          );
           onProgress(
             jobs.length + i + 1,
             jobs.length * 2,
-            `Embedding ${embeddedCount}/${successfulMines.length} patterns`,
+            `Embedding ${embeddedCount}/${successfulMines.length} patterns (${percent}%)`,
             'embedding'
           );
         }
