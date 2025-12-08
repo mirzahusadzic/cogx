@@ -5,6 +5,56 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.1] - 2025-12-08
+
+### Summary
+
+**Maintenance release.** Bug fixes, documentation improvements, and minor UX enhancements across TUI, overlays, and provider handling.
+
+### 🚀 New Features
+
+#### Proofs & Alignment Improvements
+
+- **Configurable similarity threshold:** `proofs aligned --threshold 0.4` for fine-tuning alignment queries
+- **Full text display:** Removed truncation from proofs, coherence, workflow, and security output
+- **Meet result deduplication:** Eliminates duplicate alignments by text content instead of document hash
+- **Generate all overlays:** `overlay generate all` creates all 7 overlays in sequence
+
+#### Concept Extraction Fixes
+
+- **Skip numbered headings:** Prevents section labels like "1. Verifiability First" from being extracted as concepts
+- **Extract bold principles:** Correctly extracts actual principle statements from child content
+- **Proof deduplication:** Removes duplicate statements with/without type prefixes
+
+#### Workbench Adaptive Rate Limiting
+
+- **Dynamic rate limits:** Fetches `/rate-limits` endpoint from eGemma workbench
+- **Automatic adaptation:** Adjusts request timing based on server capacity
+
+### 🐛 Bug Fixes
+
+- **TUI provider detection:** Validate provider from state file, fall back if unavailable
+- **Provider registry:** Detect Claude provider via registry instead of env var only
+- **Session resume:** Abort gracefully when resuming with unavailable provider
+- **Watcher improvements:** Detect new files by watching directories with glob patterns
+- **IPC alias resolution:** Prefer active agents, align heartbeat timing
+- **Workflow display:** Use `patternType` for display when `type` is missing
+- **OverlaysBar:** Show lattice stats alongside task progress, consistent spacing
+- **Token display:** Fix token freezing in status bar
+
+### 📚 Documentation
+
+- **LLM module README:** Comprehensive documentation for the LLM subsystem
+- **TUI README modernization:** Updated with current features and IPC docs
+- **Ingest documents:** Added strategic documents for PGC overlay ingestion
+- **Stats table:** Updated README with accurate statistics
+
+### 🔧 Maintenance
+
+- **Node.js v20 LTS:** Lowered requirement from v25 to v20.18.1 for broader compatibility
+- **Debug gates:** ZeroMQ logs gated behind `DEBUG_IPC` env var
+- **Provider rename:** `claude-provider` → `claude-agent-provider` for clarity
+
 ## [2.6.0] - 2025-12-03
 
 ### Summary
