@@ -124,7 +124,7 @@ cogx/                                          # Repository root
 │   │   │   ├── O6-mathematical.md             # Merged: manual + overlay docs
 │   │   │   └── O7-coherence.md                # Merged: manual + overlay docs
 │   │   │
-│   │   ├── pgc/                               # 🧠 Grounded Context Pool
+│   │   ├── pgc/                               # 🐦‍🔥 Grounded Context Pool
 │   │   │   ├── README.md                      # PGC overview
 │   │   │   ├── dual-lattice.md                # Dual lattice architecture
 │   │   │   ├── embeddings.md                  # Embedding system (moved)

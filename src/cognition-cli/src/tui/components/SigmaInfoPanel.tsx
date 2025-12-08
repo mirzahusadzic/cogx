@@ -149,11 +149,11 @@ export const SigmaInfoPanel: React.FC<SigmaInfoPanelProps> = ({
 
       <Box flexDirection="column" marginBottom={1}>
         <Text color="#8b949e">Lattice:</Text>
-        <Text color="#58a6ff"> Nodes: {sigmaStats.nodes ?? 0} 🕸️</Text>
-        <Text color="#79c0ff"> Edges: {sigmaStats.edges ?? 0} 🔗</Text>
+        <Text color="#58a6ff"> 🌿 Nodes: {sigmaStats.nodes ?? 0}</Text>
+        <Text color="#79c0ff"> 🐘 Edges: {sigmaStats.edges ?? 0}</Text>
         <Text color="#d29922">
           {' '}
-          Shifts: {sigmaStats.paradigmShifts ?? 0} ⚡
+          🦋 Shifts: {sigmaStats.paradigmShifts ?? 0}
         </Text>
       </Box>
 
@@ -161,11 +161,11 @@ export const SigmaInfoPanel: React.FC<SigmaInfoPanelProps> = ({
         <Text color="#8b949e">Averages:</Text>
         <Text color="#56d364">
           {' '}
-          Novelty: {(sigmaStats.avgNovelty ?? 0).toFixed(3)} 🐇
+          🐇 Novelty: {(sigmaStats.avgNovelty ?? 0).toFixed(3)}
         </Text>
         <Text color="#bc8cff">
           {' '}
-          Importance: {(sigmaStats.avgImportance ?? 0).toFixed(1)} ☝️
+          🐍 Importance: {(sigmaStats.avgImportance ?? 0).toFixed(1)}
         </Text>
       </Box>
 

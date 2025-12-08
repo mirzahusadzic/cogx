@@ -93,7 +93,7 @@ src/tui/
 
 ---
 
-## 🧠 The Seven Overlays (O1-O7)
+## 🐦‍🔥 The Seven Overlays (O1-O7)
 
 Every conversation turn is analyzed across 7 semantic dimensions. This allows the system to "understand" _why_ something was said, not just _what_ was said.
 

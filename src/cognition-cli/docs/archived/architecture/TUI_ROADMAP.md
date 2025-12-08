@@ -10,7 +10,7 @@ We have a working TUI with SIGMA infinite context:
 - 🔧 Tool execution indicators with colorized diffs
 - ⚡ Spinner for thinking state
 - 🎯 Auto-permission approval for tools
-- 🧠 **SIGMA**: 7-dimensional turn analysis, 30-50x compression, infinite context
+- 🐦‍🔥 **SIGMA**: 7-dimensional turn analysis, 30-50x compression, infinite context
 
 ## Vision: SIGMA Mission Control
 
@@ -408,7 +408,7 @@ Core shortcuts:
 
 ---
 
-## Phase 6: Intelligence Layer 🧠
+## Phase 6: Intelligence Layer 🐦‍🔥
 
 ### 6.1 Smart Suggestions
 

@@ -281,7 +281,7 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({ sigmaStats, activeTask
         ) : (
           // Idle: show branding
           <Text bold color="cyan">
-            COGNITION Σ CLI v{VERSION} 🧠
+            COGNITION Σ CLI v{VERSION} 🐦‍🔥
           </Text>
         )}
       </Box>

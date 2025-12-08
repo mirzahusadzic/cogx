@@ -8,7 +8,7 @@ Complete technical documentation of the Cognition Σ architecture.
 
 Cognition Σ is built on four core pillars:
 
-1. **🧠 Grounded Context Pool (PGC)**: Persistent, verifiable memory
+1. **🐦‍🔥 Grounded Context Pool (PGC)**: Persistent, verifiable memory
 2. **🎭 Seven Overlays (O₁-O₇)**: Multi-dimensional knowledge representation
 3. **Σ Sigma (Project Lattice ∧ Conversational Lattice)**: Infinite context via dual-lattice Meet operations
 4. **⚡ Cognitive Proof of Work (cPOW)**: Verification and trust mechanism
@@ -47,7 +47,7 @@ Cognition Σ is built on four core pillars:
 **Deep dive into specific systems**:
 
 - **[🎭 Seven Overlays (O₁-O₇)](overlays/README.md)** — Multi-dimensional knowledge
-- **[🧠 Grounded Context Pool](pgc/README.md)** — Persistent memory system
+- **[🐦‍🔥 Grounded Context Pool](pgc/README.md)** — Persistent memory system
 - **[⚡ Cognitive Proof of Work](cpow/README.md)** — Verification mechanism
 - **[Σ Sigma Dual-Lattice](sigma/README.md)** — Infinite context architecture
 

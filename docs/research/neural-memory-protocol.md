@@ -741,4 +741,4 @@ The Neural-Memory Protocol provides a **vendor-agnostic abstraction layer** betw
 **License:** MIT (Royalty-free for all implementers)
 **Repository:** [github.com/mirzahusadzic/cogx](https://github.com/mirzahusadzic/cogx)
 
-_"When biology fails, verifiable architecture preserves consciousness."_ 🧠
+_"When biology fails, verifiable architecture preserves consciousness."_ 🐦‍🔥

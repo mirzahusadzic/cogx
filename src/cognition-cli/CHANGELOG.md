@@ -1472,7 +1472,7 @@ The introduction of Σ (Sigma) fundamentally changes how AI agents maintain stat
   - Enhanced context synthesis with importance/alignment/overlay metadata
   - Retry mechanism: 5 retries with exponential backoff for 429 errors
   - Increased coverage: topK from 5 → 10 for better context
-  - Pretty display: 🧠 icon for memory recall tool in TUI
+  - Pretty display: 🐦‍🔥 icon for memory recall tool in TUI
   - Preserves technical details (file names, function names, decisions)
 
 - **Periodic overlay persistence**

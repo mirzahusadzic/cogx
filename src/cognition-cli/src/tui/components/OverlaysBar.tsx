@@ -76,11 +76,11 @@ export interface OverlaysBarProps {
  * - "Warming up" state for empty lattice
  *
  * **Metrics Displayed**:
- * - 🕸️ Nodes: Count of conversation turns analyzed
- * - 🔗 Edges: Connections between related turns
- * - ⚡ Shifts: Detected paradigm shifts in conversation
- * - 📊 Novelty: Avg semantic novelty score (0-1)
- * - 🎯 Importance: Avg importance score (0-10)
+ * - 🌿 Nodes: Count of conversation turns analyzed
+ * - 🐘 Edges: Memory connections between related turns
+ * - 🦋 Shifts: Detected paradigm shifts (metamorphosis!)
+ * - 🐇 Novelty: Avg semantic novelty score (0-1)
+ * - 🐍 Importance: Avg importance score (0-10)
  *
  * **Color Scheme**:
  * - Blue (#58a6ff): Nodes (structural)
@@ -166,19 +166,19 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
 
     return (
       <>
-        <Text color="#8b949e">{nodes} nodes 🕸️ </Text>
+        <Text color="#8b949e">🌿 Nodes: {nodes}</Text>
         <Text color="#3a3f4b">|</Text>
-        <Text color="#8b949e">{edges} edges 🔗</Text>
+        <Text color="#8b949e">🐘 Edges: {edges}</Text>
         <Text color="#3a3f4b">|</Text>
-        <Text color="#8b949e">{shifts} shifts ⚡</Text>
+        <Text color="#8b949e">🦋 Shifts: {shifts}</Text>
         <Text color="#3a3f4b">|</Text>
-        <Text color="#8b949e">novelty: {novelty} 🐇</Text>
+        <Text color="#8b949e">🐇 Novelty: {novelty}</Text>
         <Text color="#3a3f4b">|</Text>
-        <Text color="#8b949e">importance: {importance} ☝️ </Text>
+        <Text color="#8b949e">🐍 Importance: {importance}</Text>
         {pendingMessageCount > 0 && (
           <>
             <Text color="#3a3f4b">|</Text>
-            <Text color="#f0883e">{pendingMessageCount} messages 📬</Text>
+            <Text color="#f0883e">🐦 Messages: {pendingMessageCount}</Text>
           </>
         )}
       </>
@@ -207,7 +207,7 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
             {pendingMessageCount > 0 && (
               <>
                 <Text color="#3a3f4b">|</Text>
-                <Text color="#f0883e">{pendingMessageCount} messages 📬</Text>
+                <Text color="#f0883e">🐦 Messages: {pendingMessageCount}</Text>
               </>
             )}
           </>
@@ -218,7 +218,7 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
             {pendingMessageCount > 0 && (
               <>
                 <Text color="#3a3f4b">|</Text>
-                <Text color="#f0883e">{pendingMessageCount} messages 📬</Text>
+                <Text color="#f0883e">🐦 Messages: {pendingMessageCount}</Text>
               </>
             )}
           </>
@@ -231,7 +231,7 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
           <TaskStatusDisplay task={activeTask} />
         ) : (
           <Text bold color="cyan">
-            COGNITION Σ CLI v{VERSION} 🧠
+            COGNITION Σ CLI v{VERSION} 🐦‍🔥
           </Text>
         )}
       </Box>

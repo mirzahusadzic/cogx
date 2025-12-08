@@ -280,7 +280,7 @@ cognition-cli status
 # 🔔 COHERENT
 ```
 
-This is the **operational implementation** of event-driven architecture from CogX. The PGC now has a reflexive nervous system - it detects changes and heals automatically! 🧠
+This is the **operational implementation** of event-driven architecture from CogX. The PGC now has a reflexive nervous system - it detects changes and heals automatically! 🐦‍🔥
 
 ---
 

@@ -75,7 +75,7 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 ## 🏗️ Key Concepts
 
-- **🧠 Grounded Context Pool (PGC)**: Persistent, verifiable memory for AI systems
+- **🐦‍🔥 Grounded Context Pool (PGC)**: Persistent, verifiable memory for AI systems
 - **🎭 Seven Overlays (O₁-O₇)**: Structure, Security, Lineage, Mission, Operational, Mathematical, Coherence
 - **⚡ Cognitive Proof of Work (cPOW)**: Verification mechanism for AI contributions
 - **Σ Sigma Dual-Lattice**: Infinite context through dual-lattice architecture
@@ -522,7 +522,7 @@ Complete technical documentation of the Cognition Σ architecture.
 
 Cognition Σ is built on three core pillars:
 
-1. **🧠 Grounded Context Pool (PGC)**: Persistent, verifiable memory
+1. **🐦‍🔥 Grounded Context Pool (PGC)**: Persistent, verifiable memory
 2. **🎭 Seven Overlays (O₁-O₇)**: Multi-dimensional knowledge representation
 3. **⚡ Cognitive Proof of Work (cPOW)**: Verification and trust mechanism
 
@@ -582,7 +582,7 @@ The overlay system provides seven orthogonal dimensions of knowledge representat
 
 **[Learn more about overlays →](overlays/README.md)**
 
-### 🧠 Grounded Context Pool (PGC)
+### 🐦‍🔥 Grounded Context Pool (PGC)
 
 Persistent, verifiable memory for AI systems:
 

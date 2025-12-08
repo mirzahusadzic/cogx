@@ -312,7 +312,7 @@ $ echo $?
 
 Update is **transactional** - if verification fails, you know exactly what's wrong.
 
-## 🧠 The Deep Truth
+## 🐦‍🔥 The Deep Truth
 
 Update is the **living proof** that the lattice can evolve coherently.
 
@@ -359,7 +359,7 @@ Update **closes the loop**:
 Code changes → Watch detects → Status shows impact → Update heals → Coherence restored
 ```
 
-This is the **reflexive nervous system** in action! When reality (source code) changes, the knowledge base (PGC) adapts automatically. 🧠
+This is the **reflexive nervous system** in action! When reality (source code) changes, the knowledge base (PGC) adapts automatically. 🐦‍🔥
 
 Monument 3 proves that the lattice can **evolve** while remaining **coherent**. That's the promise of CogX! 🏛️
 

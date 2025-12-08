@@ -367,7 +367,7 @@ queryAction
 QueryCommandOptions
 ```
 
-## 🧠 The Deep Truth
+## 🐦‍🔥 The Deep Truth
 
 Status doesn't scan files. It **trusts the event stream**.
 
