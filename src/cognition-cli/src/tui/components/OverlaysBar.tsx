@@ -12,6 +12,9 @@ const packageJson = JSON.parse(
 );
 const VERSION = packageJson.version;
 
+// Platform-specific brand emoji (phoenix ZWJ breaks on macOS terminals)
+const BRAND_EMOJI = process.platform === 'darwin' ? '🐉' : '🐦‍🔥';
+
 /**
  * Sigma conversation lattice statistics
  */
@@ -230,9 +233,10 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
         {showTaskStatus && activeTask ? (
           <TaskStatusDisplay task={activeTask} />
         ) : (
-          <Text bold color="cyan">
-            COGNITION Σ CLI v{VERSION} 🐦‍🔥
-          </Text>
+          <>
+            <Text bold color="cyan">{`COGNITION Σ CLI v${VERSION}`}</Text>
+            <Text> {BRAND_EMOJI}</Text>
+          </>
         )}
       </Box>
     </Box>

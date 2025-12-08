@@ -1,6 +1,9 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 
+// Extra space needed after certain emojis on macOS (terminal width calculation differs)
+const EMOJI_SPACER = process.platform === 'darwin' ? ' ' : '';
+
 /**
  * Props for StatusBar component
  */
@@ -148,7 +151,9 @@ export const StatusBar: React.FC<StatusBarProps> = ({
               📊 {formatTokens(tokenCount.total)} ({tokenPercentage}%)
             </Text>
             <Text color="#3a3f4b"> | </Text>
-            <Text color="#8b949e">🗜️ {formatTokens(compressionThreshold)}</Text>
+            <Text color="#8b949e">
+              🗜️{EMOJI_SPACER} {formatTokens(compressionThreshold)}
+            </Text>
           </>
         )}
       </>
