@@ -167,17 +167,17 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
     return (
       <>
         <Text color="#8b949e">{nodes} nodes 🕸️ </Text>
-        <Text color="#3a3f4b">| </Text>
-        <Text color="#8b949e">{edges} edges 🔗 </Text>
-        <Text color="#3a3f4b">| </Text>
-        <Text color="#8b949e">{shifts} shifts ⚡ </Text>
-        <Text color="#3a3f4b">| </Text>
-        <Text color="#8b949e">novelty: {novelty} 🐇 </Text>
-        <Text color="#3a3f4b">| </Text>
+        <Text color="#3a3f4b">|</Text>
+        <Text color="#8b949e">{edges} edges 🔗</Text>
+        <Text color="#3a3f4b">|</Text>
+        <Text color="#8b949e">{shifts} shifts ⚡</Text>
+        <Text color="#3a3f4b">|</Text>
+        <Text color="#8b949e">novelty: {novelty} 🐇</Text>
+        <Text color="#3a3f4b">|</Text>
         <Text color="#8b949e">importance: {importance} ☝️ </Text>
         {pendingMessageCount > 0 && (
           <>
-            <Text color="#3a3f4b"> | </Text>
+            <Text color="#3a3f4b">|</Text>
             <Text color="#f0883e">{pendingMessageCount} messages 📬</Text>
           </>
         )}

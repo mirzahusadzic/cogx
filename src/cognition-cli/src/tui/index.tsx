@@ -144,8 +144,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   const sendMessage = useCallback(
     async (msg: string) => {
       // Handle /send command for inter-agent messaging (display-only)
-      if (msg.startsWith('/send ')) {
-        const args = msg.slice(6).trim(); // Remove '/send '
+      if (msg.startsWith('/send')) {
+        const args = msg.slice(5).trim(); // Remove '/send'
         const spaceIndex = args.indexOf(' ');
 
         if (spaceIndex === -1) {
@@ -290,8 +290,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       }
 
       // Handle /inject command to inject a specific message
-      if (msg.startsWith('/inject ')) {
-        const messageId = msg.slice(8).trim();
+      if (msg.startsWith('/inject')) {
+        const messageId = msg.slice(7).trim();
 
         if (!messageId) {
           originalSendMessage(
@@ -394,8 +394,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       }
 
       // Handle /dismiss command (display-only)
-      if (msg.startsWith('/dismiss ')) {
-        const messageId = msg.slice(9).trim();
+      if (msg.startsWith('/dismiss')) {
+        const messageId = msg.slice(8).trim();
 
         if (!messageId) {
           addSystemMessage('❌ Missing message ID\n\nUsage: /dismiss <id>');

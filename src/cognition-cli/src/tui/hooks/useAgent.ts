@@ -1617,7 +1617,7 @@ export function useAgent(options: UseAgentOptions) {
                 },
               ]);
             } else {
-              // Unknown command - provide helpful error with fuzzy matching
+              // Unknown command - handle gracefully without throwing
               const allCommandNames = Array.from(commandsCache.keys());
 
               // Try to find similar commands (simple string distance)
@@ -1646,7 +1646,28 @@ export function useAgent(options: UseAgentOptions) {
 
               errorMessage += `Type '/' to see all ${commandsCache.size} available commands.`;
 
-              throw new Error(errorMessage);
+              // Show inline system message (don't use setError - that triggers full-screen error box)
+              setMessages((prev) => [
+                ...prev,
+                {
+                  type: 'user',
+                  content: prompt,
+                  timestamp: new Date(),
+                },
+                {
+                  type: 'system',
+                  content: `❌ ${errorMessage}`,
+                  timestamp: new Date(),
+                },
+              ]);
+              setIsThinking(false);
+
+              if (process.env.DEBUG_ESC_INPUT) {
+                console.error(
+                  '[useAgent] DEBUG: returning early from unknown command'
+                );
+              }
+              return;
             }
           }
         }
@@ -1964,9 +1985,8 @@ export function useAgent(options: UseAgentOptions) {
         const mockStderr = [originalError];
         if (isAuthenticationError(mockStderr)) {
           errorMsg = formatAuthError();
-        } else {
-          errorMsg = `Error: ${originalError}`;
         }
+        // Don't add "Error: " prefix - our error messages are already well-formatted
 
         setError(errorMsg);
         setMessages((prev) => [
