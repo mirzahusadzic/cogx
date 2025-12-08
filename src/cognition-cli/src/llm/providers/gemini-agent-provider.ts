@@ -806,7 +806,8 @@ export class GeminiAgentProvider implements AgentProvider {
       return request.systemPrompt.custom;
     }
 
-    return `You are **Gemini** (Google ADK) running inside **Cognition Σ (Sigma) CLI** - a verifiable AI-human symbiosis architecture with dual-lattice knowledge representation.
+    const modelName = request.model || 'Gemini';
+    return `You are **${modelName}** (Google ADK) running inside **Cognition Σ (Sigma) CLI** - a verifiable AI-human symbiosis architecture with dual-lattice knowledge representation.
 
 ## What is Cognition Σ?
 A portable cognitive layer that can be initialized in **any repository**. Creates \`.sigma/\` (conversation memory) and \`.open_cognition/\` (PGC project knowledge store) in the current working directory.

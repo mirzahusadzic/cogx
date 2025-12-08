@@ -22,10 +22,8 @@ import {
   formatError,
   formatNotInitialized,
   formatNotFound,
-  type AgentInfo,
 } from '../../ipc/agent-messaging-formatters.js';
-import * as fsSync from 'fs';
-import * as pathMod from 'path';
+import { getActiveAgents, resolveAgentId } from '../../ipc/agent-discovery.js';
 import type { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
 import { queryConversationLattice } from '../../sigma/query-conversation.js';
 import { WorkbenchClient } from '../../core/executors/workbench-client.js';
@@ -581,103 +579,6 @@ function formatDuration(start: Date, end: Date): string {
   if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
   if (ms < 3600000) return `${(ms / 60000).toFixed(1)}m`;
   return `${(ms / 3600000).toFixed(1)}h`;
-}
-
-/**
- * Get list of active agents from message_queue directory
- */
-function getActiveAgents(
-  projectRoot: string,
-  excludeAgentId: string
-): AgentInfo[] {
-  const queueDir = pathMod.join(projectRoot, '.sigma', 'message_queue');
-
-  if (!fsSync.existsSync(queueDir)) {
-    return [];
-  }
-
-  const agents: AgentInfo[] = [];
-  const now = Date.now();
-  const ACTIVE_THRESHOLD = 30000; // 30 seconds
-
-  const entries = fsSync.readdirSync(queueDir, { withFileTypes: true });
-
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-
-    const infoPath = pathMod.join(queueDir, entry.name, 'agent-info.json');
-    if (!fsSync.existsSync(infoPath)) continue;
-
-    try {
-      const info: AgentInfo = JSON.parse(
-        fsSync.readFileSync(infoPath, 'utf-8')
-      );
-
-      // Check if active (recent heartbeat) and not self
-      const isActive =
-        info.status === 'active' && now - info.lastHeartbeat < ACTIVE_THRESHOLD;
-
-      // Exclude self (check both full ID and session ID prefix)
-      // If excludeAgentId is "default", match "default-gemini-pro-12345678"
-      const isSelf =
-        info.agentId === excludeAgentId ||
-        entry.name === excludeAgentId ||
-        entry.name.startsWith(excludeAgentId + '-');
-
-      if (isActive && !isSelf) {
-        agents.push(info);
-      }
-    } catch {
-      // Ignore parse errors
-    }
-  }
-
-  return agents.sort((a, b) => (a.alias || '').localeCompare(b.alias || ''));
-}
-
-/**
- * Resolve alias or partial ID to full agent ID
- */
-function resolveAgentId(projectRoot: string, aliasOrId: string): string | null {
-  const queueDir = pathMod.join(projectRoot, '.sigma', 'message_queue');
-
-  if (!fsSync.existsSync(queueDir)) {
-    return null;
-  }
-
-  const entries = fsSync.readdirSync(queueDir, { withFileTypes: true });
-
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-
-    const infoPath = pathMod.join(queueDir, entry.name, 'agent-info.json');
-    if (!fsSync.existsSync(infoPath)) continue;
-
-    try {
-      const info: AgentInfo = JSON.parse(
-        fsSync.readFileSync(infoPath, 'utf-8')
-      );
-
-      // Match by alias (case-insensitive)
-      if (info.alias && info.alias.toLowerCase() === aliasOrId.toLowerCase()) {
-        return info.agentId;
-      }
-
-      // Match by full agent ID
-      if (info.agentId === aliasOrId) {
-        return info.agentId;
-      }
-
-      // Match by directory name (partial ID)
-      if (entry.name === aliasOrId) {
-        return info.agentId;
-      }
-    } catch {
-      // Ignore parse errors
-    }
-  }
-
-  return null;
 }
 
 /**

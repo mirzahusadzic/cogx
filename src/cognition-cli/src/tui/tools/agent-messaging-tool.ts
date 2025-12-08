@@ -11,8 +11,6 @@
  */
 
 import { z } from 'zod';
-import * as fs from 'fs';
-import * as path from 'path';
 import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
 import type { MessageQueue } from '../../ipc/MessageQueue.js';
 import {
@@ -25,8 +23,8 @@ import {
   formatError,
   formatNotInitialized,
   formatNotFound,
-  type AgentInfo,
 } from '../../ipc/agent-messaging-formatters.js';
+import { getActiveAgents, resolveAgentId } from '../../ipc/agent-discovery.js';
 
 type ClaudeAgentSdk = {
   tool: (
@@ -317,106 +315,4 @@ export function createAgentMessagingMcpServer(
       markMessageReadTool,
     ],
   });
-}
-
-/**
- * Get list of active agents from message_queue directory
- */
-function getActiveAgents(
-  projectRoot: string,
-  excludeAgentId: string
-): AgentInfo[] {
-  const queueDir = path.join(projectRoot, '.sigma', 'message_queue');
-
-  if (!fs.existsSync(queueDir)) {
-    return [];
-  }
-
-  const agents: AgentInfo[] = [];
-  const now = Date.now();
-  const ACTIVE_THRESHOLD = 30000; // 30 seconds
-
-  const entries = fs.readdirSync(queueDir, { withFileTypes: true });
-
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-
-    const infoPath = path.join(queueDir, entry.name, 'agent-info.json');
-    if (!fs.existsSync(infoPath)) continue;
-
-    try {
-      const info: AgentInfo = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
-
-      // Check if active (recent heartbeat) and not self
-      const isActive =
-        info.status === 'active' && now - info.lastHeartbeat < ACTIVE_THRESHOLD;
-
-      // Exclude self (check both full ID and session ID prefix)
-      // If excludeAgentId is "default", match "default-gemini-pro-12345678"
-      const isSelf =
-        info.agentId === excludeAgentId ||
-        entry.name === excludeAgentId ||
-        entry.name.startsWith(excludeAgentId + '-');
-
-      if (isActive && !isSelf) {
-        agents.push(info);
-      }
-    } catch {
-      // Ignore parse errors
-    }
-  }
-
-  return agents.sort((a, b) => (a.alias || '').localeCompare(b.alias || ''));
-}
-
-/**
- * Resolve alias or partial ID to full agent ID
- * Prefers active agents over disconnected ones
- */
-function resolveAgentId(projectRoot: string, aliasOrId: string): string | null {
-  const queueDir = path.join(projectRoot, '.sigma', 'message_queue');
-
-  if (!fs.existsSync(queueDir)) {
-    return null;
-  }
-
-  const entries = fs.readdirSync(queueDir, { withFileTypes: true });
-  const ACTIVE_THRESHOLD_MS = 5000; // 5 seconds (matches heartbeat interval)
-  const now = Date.now();
-  let fallbackAgentId: string | null = null;
-
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-
-    const infoPath = path.join(queueDir, entry.name, 'agent-info.json');
-    if (!fs.existsSync(infoPath)) continue;
-
-    try {
-      const info: AgentInfo = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
-      const isActive =
-        info.status === 'active' &&
-        now - info.lastHeartbeat < ACTIVE_THRESHOLD_MS;
-
-      // Match by alias (case-insensitive), full agent ID, or directory name
-      const aliasMatch =
-        info.alias && info.alias.toLowerCase() === aliasOrId.toLowerCase();
-      const idMatch = info.agentId === aliasOrId;
-      const dirMatch = entry.name === aliasOrId;
-
-      if (aliasMatch || idMatch || dirMatch) {
-        if (isActive) {
-          // Found active agent - return immediately
-          return info.agentId;
-        } else if (!fallbackAgentId) {
-          // Store first disconnected match as fallback
-          fallbackAgentId = info.agentId;
-        }
-      }
-    } catch {
-      // Ignore parse errors
-    }
-  }
-
-  // Return fallback if no active agent found
-  return fallbackAgentId;
 }
