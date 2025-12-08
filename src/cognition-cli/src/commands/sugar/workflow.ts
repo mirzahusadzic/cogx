@@ -388,12 +388,14 @@ function displayItemList(result: unknown, options: WorkflowOptions): void {
 
   for (const item of items.slice(0, limit)) {
     log.info(chalk.cyan(`${item.id}`));
-    log.info(chalk.dim(`  Type: ${item.metadata.type || 'unknown'}`));
+    const itemType =
+      item.metadata.type || item.metadata.patternType || 'unknown';
+    log.info(chalk.dim(`  Type: ${itemType}`));
     log.info(chalk.dim(`  Text: ${item.metadata.text}`));
 
     // Show additional metadata
     const otherKeys = Object.keys(item.metadata).filter(
-      (k) => !['text', 'type', 'weight'].includes(k)
+      (k) => !['text', 'type', 'weight', 'patternType'].includes(k)
     );
     if (otherKeys.length > 0) {
       for (const key of otherKeys.slice(0, 3)) {
