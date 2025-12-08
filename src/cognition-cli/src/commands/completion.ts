@@ -391,6 +391,13 @@ _cognition_cli_completions() {
       COMPREPLY=( $(compgen -W "theorems lemmas list aligned" -- \${cur}) )
       return 0
       ;;
+    aligned)
+      # proofs aligned options
+      if [[ "\${COMP_WORDS[1]}" == "proofs" ]]; then
+        COMPREPLY=( $(compgen -W "-p --project-root -f --format -l --limit -t --threshold -v --verbose table json summary" -- \${cur}) )
+        return 0
+      fi
+      ;;
     patterns)
       COMPREPLY=( $(compgen -W "find-similar compare analyze inspect list graph" -- \${cur}) )
       return 0
@@ -658,7 +665,30 @@ _cognition_cli() {
           _arguments '1:subcommand:(patterns quests depth-rules)'
           ;;
         proofs)
-          _arguments '1:subcommand:(theorems lemmas list aligned)'
+          case \${words[3]} in
+            aligned)
+              _arguments \
+                '-p[Project root directory]:directory:_directories' \
+                '--project-root[Project root directory]:directory:_directories' \
+                '-f[Output format]:format:(table json summary)' \
+                '--format[Output format]:format:(table json summary)' \
+                '-l[Maximum results]:limit:' \
+                '--limit[Maximum results]:limit:' \
+                '-t[Similarity threshold (0.0-1.0)]:threshold:' \
+                '--threshold[Similarity threshold (0.0-1.0)]:threshold:' \
+                '-v[Verbose output]' \
+                '--verbose[Verbose output]'
+              ;;
+            list)
+              _arguments \
+                '--type[Filter by type]:type:(theorem lemma axiom proof identity)' \
+                '-f[Output format]:format:(table json summary)' \
+                '--format[Output format]:format:(table json summary)'
+              ;;
+            *)
+              _arguments '1:subcommand:(theorems lemmas list aligned)'
+              ;;
+          esac
           ;;
         patterns)
           _arguments '1:subcommand:(find-similar compare analyze inspect list graph)'
@@ -787,6 +817,16 @@ complete -c cognition-cli -f -n "__fish_seen_subcommand_from coherence" -a "repo
 
 # Proofs subcommands
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from proofs" -a "theorems lemmas list aligned"
+
+# Proofs aligned options
+complete -c cognition-cli -n "__fish_seen_subcommand_from proofs; and __fish_seen_subcommand_from aligned" -s p -l project-root -d "Project root directory" -xa "(__fish_complete_directories)"
+complete -c cognition-cli -n "__fish_seen_subcommand_from proofs; and __fish_seen_subcommand_from aligned" -s f -l format -d "Output format" -xa "table json summary"
+complete -c cognition-cli -n "__fish_seen_subcommand_from proofs; and __fish_seen_subcommand_from aligned" -s l -l limit -d "Maximum results to show"
+complete -c cognition-cli -n "__fish_seen_subcommand_from proofs; and __fish_seen_subcommand_from aligned" -s t -l threshold -d "Semantic similarity threshold (0.0-1.0)"
+complete -c cognition-cli -n "__fish_seen_subcommand_from proofs; and __fish_seen_subcommand_from aligned" -s v -l verbose -d "Show detailed error messages"
+
+# Proofs list options
+complete -c cognition-cli -n "__fish_seen_subcommand_from proofs; and __fish_seen_subcommand_from list" -l type -d "Filter by type" -xa "theorem lemma axiom proof identity"
 
 # TUI options
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -s p -l project-root -d "Project root directory" -xa "(__fish_complete_directories)"

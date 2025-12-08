@@ -520,7 +520,7 @@ function displayCoherenceItems(
     log.info(`  ${scoreColor(scoreBar)} ${scorePct}%`);
     log.info(
       chalk.dim(
-        `  Top concept: ${truncate(item.metadata.topConceptText, 60)} (${(item.metadata.topConceptScore * 100).toFixed(1)}%)`
+        `  Top concept: ${item.metadata.topConceptText} (${(item.metadata.topConceptScore * 100).toFixed(1)}%)`
       )
     );
     log.info('');
@@ -533,12 +533,4 @@ function displayCoherenceItems(
       )
     );
   }
-}
-
-/**
- * Truncate text to max length
- */
-function truncate(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength - 3) + '...';
 }

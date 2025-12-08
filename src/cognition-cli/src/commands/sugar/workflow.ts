@@ -373,7 +373,7 @@ function displayItemList(result: unknown, options: WorkflowOptions): void {
     );
     for (const item of items.slice(0, limit)) {
       log.info(`  ${chalk.cyan(item.id)}`);
-      log.info(chalk.dim(`    ${truncate(item.metadata.text, 80)}`));
+      log.info(chalk.dim(`    ${item.metadata.text}`));
     }
     return;
   }
@@ -389,7 +389,7 @@ function displayItemList(result: unknown, options: WorkflowOptions): void {
   for (const item of items.slice(0, limit)) {
     log.info(chalk.cyan(`${item.id}`));
     log.info(chalk.dim(`  Type: ${item.metadata.type || 'unknown'}`));
-    log.info(chalk.dim(`  Text: ${truncate(item.metadata.text, 100)}`));
+    log.info(chalk.dim(`  Text: ${item.metadata.text}`));
 
     // Show additional metadata
     const otherKeys = Object.keys(item.metadata).filter(
@@ -488,9 +488,9 @@ function displayMeetResults(result: unknown, options: WorkflowOptions): void {
 
     log.info(simColor(`Similarity: ${(similarity * 100).toFixed(1)}%`));
     log.info(chalk.cyan(`  Workflow: ${itemA.id}`));
-    log.info(chalk.dim(`    ${truncate(itemA.metadata.text, 80)}`));
+    log.info(chalk.dim(`    ${itemA.metadata.text}`));
     log.info(chalk.magenta(`  Aligns with: ${itemB.id}`));
-    log.info(chalk.dim(`    ${truncate(itemB.metadata.text, 80)}`));
+    log.info(chalk.dim(`    ${itemB.metadata.text}`));
     log.info('');
   }
 
@@ -501,20 +501,4 @@ function displayMeetResults(result: unknown, options: WorkflowOptions): void {
       )
     );
   }
-}
-
-/**
- * Truncate text with ellipsis if exceeds maximum length
- *
- * @param text - Text to truncate
- * @param maxLength - Maximum length before truncation
- * @returns Truncated text with '...' suffix if needed
- *
- * @example
- * truncate('This is a very long description', 20);
- * // Returns: 'This is a very lo...'
- */
-function truncate(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength - 3) + '...';
 }

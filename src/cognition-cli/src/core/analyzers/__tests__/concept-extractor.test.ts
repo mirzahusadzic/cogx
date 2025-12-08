@@ -163,7 +163,7 @@ describe('ConceptExtractor', () => {
           {
             heading: 'Principles',
             level: 1,
-            content: '### 1. Knowledge is a Lattice\n\nContent here.',
+            content: '### Knowledge is a Lattice\n\nContent here.',
             children: [],
             structuralHash: 'hash1',
             position: {
@@ -176,9 +176,45 @@ describe('ConceptExtractor', () => {
 
       const concepts = extractor.extract(doc);
 
-      expect(concepts.some((c) => c.text === '1. Knowledge is a Lattice')).toBe(
+      expect(concepts.some((c) => c.text === 'Knowledge is a Lattice')).toBe(
         true
       );
+    });
+
+    it('should skip numbered heading labels like "1. Verifiability First"', () => {
+      // Numbered headings are section labels, not concepts.
+      // The actual concept is usually a bold statement in the content below.
+      const doc: MarkdownDocument = {
+        filePath: '/test.md',
+        hash: 'abc123',
+        rawContent: '',
+        metadata: {},
+        sections: [
+          {
+            heading: 'Principles',
+            level: 1,
+            content:
+              '### 1. Verifiability First\n\n**Every claim must be traceable.**',
+            children: [],
+            structuralHash: 'hash1',
+            position: {
+              start: { line: 1, column: 1 },
+              end: { line: 3, column: 1 },
+            },
+          },
+        ],
+      };
+
+      const concepts = extractor.extract(doc);
+
+      // Should NOT extract the numbered heading label
+      expect(concepts.some((c) => c.text === '1. Verifiability First')).toBe(
+        false
+      );
+      // Should extract the actual principle (bold statement)
+      expect(
+        concepts.some((c) => c.text === 'Every claim must be traceable.')
+      ).toBe(true);
     });
   });
 
@@ -781,9 +817,9 @@ After: 26 concepts @ 85% similarity (signal)
 
 We observed VISION.md structure and derived 6 extraction patterns:
 
-### 1. Blockquotes (weight 1.0)
-### 2. Subsection Headers (weight 0.95)
-### 3. Bullet Prefixes (weight 0.9)
+### Blockquotes Pattern
+### Subsection Headers Pattern
+### Bullet Prefixes Pattern
 
 > The system extracted its own methodology when run on this documentation.
 
@@ -811,12 +847,10 @@ We observed VISION.md structure and derived 6 extraction patterns:
         )
       ).toBe(true);
 
-      // Should extract pattern names
+      // Should extract pattern names (non-numbered headings are extracted)
+      expect(concepts.some((c) => c.text === 'Blockquotes Pattern')).toBe(true);
       expect(
-        concepts.some((c) => c.text === '1. Blockquotes (weight 1.0)')
-      ).toBe(true);
-      expect(
-        concepts.some((c) => c.text === '2. Subsection Headers (weight 0.95)')
+        concepts.some((c) => c.text === 'Subsection Headers Pattern')
       ).toBe(true);
 
       // Should extract blockquote about self-extraction

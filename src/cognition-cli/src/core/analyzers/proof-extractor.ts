@@ -77,7 +77,59 @@ export class ProofExtractor implements DocumentExtractor<MathematicalKnowledge> 
       );
     });
 
-    return knowledge;
+    // Deduplicate by normalized text (strip type prefixes before comparison)
+    // This prevents duplicates from section-based + inline extraction paths
+    return this.deduplicateKnowledge(knowledge);
+  }
+
+  /**
+   * Normalize text by stripping type prefixes for deduplication comparison
+   */
+  private normalizeForDedup(text: string): string {
+    return text
+      .replace(
+        /^(THEOREM|LEMMA|AXIOM|INVARIANT|COMPLEXITY|PROOF|IDENTITY):\s*/i,
+        ''
+      )
+      .trim()
+      .toLowerCase();
+  }
+
+  /**
+   * Deduplicate knowledge items by normalized text content
+   * Prefers items without type prefix in text (cleaner display)
+   */
+  private deduplicateKnowledge(
+    knowledge: MathematicalKnowledge[]
+  ): MathematicalKnowledge[] {
+    const seen = new Map<string, MathematicalKnowledge>();
+
+    for (const item of knowledge) {
+      const key = this.normalizeForDedup(item.text);
+      const existing = seen.get(key);
+
+      if (!existing) {
+        seen.set(key, item);
+      } else {
+        // Prefer the version WITHOUT a type prefix in the text (cleaner)
+        const existingHasPrefix =
+          /^(THEOREM|LEMMA|AXIOM|INVARIANT|COMPLEXITY|PROOF|IDENTITY):/i.test(
+            existing.text
+          );
+        const currentHasPrefix =
+          /^(THEOREM|LEMMA|AXIOM|INVARIANT|COMPLEXITY|PROOF|IDENTITY):/i.test(
+            item.text
+          );
+
+        if (existingHasPrefix && !currentHasPrefix) {
+          // Current is cleaner, replace
+          seen.set(key, item);
+        }
+        // Otherwise keep existing (either both have prefix, neither has, or existing is cleaner)
+      }
+    }
+
+    return Array.from(seen.values());
   }
 
   /**

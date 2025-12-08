@@ -1089,10 +1089,18 @@ proofsCmd
     'table'
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
+  .option(
+    '-t, --threshold <number>',
+    'Semantic similarity threshold (0.0-1.0, default: 0.5)',
+    '0.5'
+  )
   .option('-v, --verbose', 'Show detailed error messages', false)
   .action(async (options) => {
     const { proofsAlignedCommand } = await import('./commands/sugar/proofs.js');
-    await proofsAlignedCommand(options);
+    await proofsAlignedCommand({
+      ...options,
+      threshold: parseFloat(options.threshold),
+    });
   });
 
 // Bootstrap security layer (one-time acknowledgment)

@@ -68,9 +68,12 @@ import {
  */
 const generateCommand = new Command('generate')
   .description(
-    'Generate a specific type of overlay (all 7 overlay types supported). Reads from PGC index.'
+    'Generate overlays. Use "all" to generate all 7 types, or specify a single type. Reads from PGC index.'
   )
-  .argument('<type>', 'The type of overlay to generate')
+  .argument(
+    '<type>',
+    'Overlay type: all, structural_patterns, security_guidelines, lineage_patterns, mission_concepts, operational_patterns, mathematical_proofs, strategic_coherence'
+  )
   .option(
     '-f, --force',
     'Force regeneration of all patterns, even if they already exist',
@@ -96,15 +99,94 @@ const generateCommand = new Command('generate')
       'strategic_coherence',
     ];
 
+    // Support "all" to generate all overlays in sequence
+    if (type === 'all') {
+      if (useJson) {
+        progress!.start({ message: 'Starting generation of all overlays...' });
+      } else {
+        console.log('[Overlay] Generating all overlays in sequence...');
+      }
+
+      const orchestrator = await OverlayOrchestrator.create(process.cwd());
+      let errorOccurred: Error | null = null;
+
+      try {
+        for (let i = 0; i < supportedTypes.length; i++) {
+          const overlayType = supportedTypes[i];
+          if (!useJson) {
+            console.log(
+              chalk.cyan(
+                `\n[${i + 1}/${supportedTypes.length}] Generating ${overlayType}...`
+              )
+            );
+          }
+          if (useJson) {
+            progress!.update({
+              current: i,
+              total: supportedTypes.length,
+              percent: Math.round((i / supportedTypes.length) * 100),
+              message: `Generating ${overlayType}`,
+              phase: overlayType,
+            });
+          }
+
+          await orchestrator.run(
+            overlayType as
+              | 'structural_patterns'
+              | 'security_guidelines'
+              | 'lineage_patterns'
+              | 'mission_concepts'
+              | 'operational_patterns'
+              | 'mathematical_proofs'
+              | 'strategic_coherence',
+            {
+              force: options.force,
+              skipGc: options.skipGc,
+              useJson,
+            }
+          );
+        }
+
+        if (useJson) {
+          progress!.complete({
+            duration: Date.now() - startTime,
+            message: 'All overlays generated successfully',
+          });
+        } else {
+          console.log(
+            chalk.green('\n[Overlay] All overlays generated successfully.')
+          );
+        }
+      } catch (error) {
+        errorOccurred =
+          error instanceof Error ? error : new Error(String(error));
+        if (useJson) {
+          progress!.error({
+            message: errorOccurred.message,
+            recoverable: false,
+          });
+        } else {
+          console.error(
+            chalk.red(`\n[Overlay] Error: ${errorOccurred.message}`)
+          );
+        }
+      } finally {
+        await orchestrator.shutdown();
+        await getGlobalDispatcher().close();
+      }
+
+      process.exit(errorOccurred ? 1 : 0);
+    }
+
     if (!supportedTypes.includes(type)) {
       if (useJson) {
         progress!.error({
-          message: `Unsupported overlay type: ${type}. Supported: ${supportedTypes.join(', ')}`,
+          message: `Unsupported overlay type: ${type}. Supported: all, ${supportedTypes.join(', ')}`,
           recoverable: false,
         });
       } else {
         console.error(`Unsupported overlay type: ${type}`);
-        console.error(`Supported types: ${supportedTypes.join(', ')}`);
+        console.error(`Supported types: all, ${supportedTypes.join(', ')}`);
       }
       process.exit(1);
     }

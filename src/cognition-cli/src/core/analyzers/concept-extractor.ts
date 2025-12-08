@@ -321,18 +321,35 @@ export class ConceptExtractor {
     });
 
     // Also check section.children for structured subsections
+    // Extract concepts from child content (not just headings)
     if (section.children && section.children.length > 0) {
-      section.children.forEach((child) => {
+      section.children.forEach((child, childIndex) => {
         if (child.level === 3 || child.level === 4) {
-          const text = child.heading.trim();
-          if (this.isValidConcept(text)) {
+          const heading = child.heading.trim();
+
+          // Skip numbered headings like "1. Verifiability First" - these are labels, not concepts
+          // The actual concepts are in the child's content (bold statements)
+          const isNumberedHeading = /^\d+\.\s+/.test(heading);
+
+          if (!isNumberedHeading && this.isValidConcept(heading)) {
+            // Non-numbered headings can be concepts (e.g., "Zero Trust Architecture")
             concepts.push({
-              text,
+              text: heading,
               section: section.heading,
-              weight: positionWeight * 0.95, // Very high - named concepts
+              weight: positionWeight * 0.95,
               occurrences: 1,
               sectionHash: section.structuralHash,
             });
+          }
+
+          // Extract concepts from child's content (bold statements, etc.)
+          if (child.content) {
+            const childConcepts = this.extractFromSection(
+              child,
+              childIndex,
+              section.children.length
+            );
+            concepts.push(...childConcepts);
           }
         }
       });
@@ -442,6 +459,14 @@ export class ConceptExtractor {
       const match = trimmed.match(/^###\s+(.+)$/);
       if (match) {
         const text = match[1].trim().replace(/^[#\s]+/, '');
+
+        // Skip numbered headings like "1. Verifiability First" - these are labels, not concepts
+        // The actual concepts are bold statements in the content below
+        const isNumberedHeading = /^\d+\.\s+/.test(text);
+        if (isNumberedHeading) {
+          continue;
+        }
+
         if (this.isValidConcept(text)) {
           headers.push(text);
         }

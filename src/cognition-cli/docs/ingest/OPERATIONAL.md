@@ -30,7 +30,7 @@ Cognition CLI is not just a tool; it is a way of working. It demands a shift fro
 2. **Verification Pause** — Check drift during work (`coherence`).
 3. **Final Validation** — F.L.T.B before commit (`audit`).
 
-*Note: "Oracle" here refers to the Human-in-the-loop, distinct from the PGC Oracle.*
+_Note: "Oracle" here refers to the Human-in-the-loop, distinct from the PGC Oracle._
 
 ### F.L.T.B (Format, Lint, Test, Build)
 

@@ -367,7 +367,7 @@ function displayItemList(result: unknown, options: SecurityOptions): void {
     );
     for (const item of items.slice(0, limit)) {
       log.info(`  ${chalk.cyan(item.id)}`);
-      log.info(chalk.dim(`    ${truncate(item.metadata.text, 80)}`));
+      log.info(chalk.dim(`    ${item.metadata.text}`));
     }
     return;
   }
@@ -383,7 +383,7 @@ function displayItemList(result: unknown, options: SecurityOptions): void {
   for (const item of items.slice(0, limit)) {
     log.info(chalk.cyan(`${item.id}`));
     log.info(chalk.dim(`  Type: ${item.metadata.type || 'unknown'}`));
-    log.info(chalk.dim(`  Text: ${truncate(item.metadata.text, 100)}`));
+    log.info(chalk.dim(`  Text: ${item.metadata.text}`));
 
     // Show additional metadata
     const otherKeys = Object.keys(item.metadata).filter(
@@ -467,10 +467,8 @@ function displayMeetResults(result: unknown, options: SecurityOptions): void {
           : chalk.dim;
 
     log.info(simColor(`Similarity: ${(similarity * 100).toFixed(1)}%`));
-    log.info(chalk.cyan(`  Attack: ${itemA.id}`));
-    log.info(chalk.dim(`    ${truncate(itemA.metadata.text, 80)}`));
-    log.info(chalk.magenta(`  Principle: ${itemB.id}`));
-    log.info(chalk.dim(`    ${truncate(itemB.metadata.text, 80)}`));
+    log.info(chalk.cyan(`  Attack: ${itemA.metadata.text}`));
+    log.info(chalk.magenta(`  Principle: ${itemB.metadata.text}`));
     log.info('');
   }
 
@@ -481,14 +479,6 @@ function displayMeetResults(result: unknown, options: SecurityOptions): void {
       )
     );
   }
-}
-
-/**
- * Truncate text to max length
- */
-function truncate(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength - 3) + '...';
 }
 
 // ========================================
@@ -606,7 +596,7 @@ export async function securityListCommand(
         log.info(
           `${i + 1}. ${severityColor(`[${item.metadata.severity.toUpperCase()}]`)} ${item.metadata.securityType}`
         );
-        log.info(chalk.dim(`   ${truncate(item.metadata.text, 80)}`));
+        log.info(chalk.dim(`   ${item.metadata.text}`));
         if (item.metadata.cveId) {
           log.info(chalk.cyan(`   CVE: ${item.metadata.cveId}`));
         }
@@ -686,7 +676,7 @@ export async function securityCVEsCommand(
         log.info(
           `${i + 1}. ${chalk.cyan(cve.metadata?.cveId || 'Unknown CVE')}`
         );
-        log.info(chalk.dim(`   ${truncate(cve.text, 80)}`));
+        log.info(chalk.dim(`   ${cve.text}`));
         if (cve.metadata?.affectedVersions) {
           log.info(
             chalk.yellow(`   Affected: ${cve.metadata.affectedVersions}`)

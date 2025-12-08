@@ -63,6 +63,7 @@ import {
   OverlayMetadata,
   SetOperationResult,
 } from '../../core/algebra/overlay-algebra.js';
+import { meet } from '../../core/algebra/lattice-operations.js';
 import { WorkspaceManager } from '../../core/workspace-manager.js';
 
 interface ProofsOptions {
@@ -71,6 +72,7 @@ interface ProofsOptions {
   limit?: number;
   verbose?: boolean;
   type?: 'theorem' | 'lemma' | 'axiom' | 'proof' | 'identity';
+  threshold?: number; // Semantic similarity threshold for alignment (0.0-1.0)
 }
 
 /**
@@ -303,7 +305,14 @@ export async function proofsListCommand(options: ProofsOptions): Promise<void> {
 export async function proofsAlignedCommand(
   options: ProofsOptions
 ): Promise<void> {
-  intro(chalk.bold('Proofs: Aligned with Mission'));
+  // Default threshold is lower (0.5) for cross-domain alignment (proofs ↔ principles)
+  const threshold = options.threshold ?? 0.5;
+
+  intro(
+    chalk.bold(
+      `Proofs: Aligned with Mission (threshold: ${(threshold * 100).toFixed(0)}%)`
+    )
+  );
 
   const pgcRoot = resolvePgcRoot(options.projectRoot);
 
@@ -314,8 +323,59 @@ export async function proofsAlignedCommand(
     const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
     const engine = createQueryEngine(pgcRoot, workbenchUrl);
 
-    const query = 'O6 ~ O4[principle]';
-    const result = await engine.execute(query);
+    // Get O6 (mathematical proofs) and O4 (mission concepts) items
+    const o6Items = await engine.execute('O6');
+    const o4Items = await engine.execute('O4[principle]');
+
+    // Helper to extract OverlayItems from query results
+    const extractItems = (result: unknown): OverlayItem<OverlayMetadata>[] => {
+      if (!result) return [];
+      if (Array.isArray(result)) {
+        // Check if it's an array of OverlayItems (has id, embedding, metadata)
+        if (result.length === 0) return [];
+        if ('id' in result[0] && 'embedding' in result[0]) {
+          return result as OverlayItem<OverlayMetadata>[];
+        }
+      }
+      return [];
+    };
+
+    const proofsArray = extractItems(o6Items);
+    const principlesArray = extractItems(o4Items);
+
+    if (proofsArray.length === 0) {
+      s.stop('No proofs found');
+      log.warn(
+        chalk.yellow(
+          'O6 overlay is empty - run genesis to populate mathematical proofs'
+        )
+      );
+      outro(chalk.green('✓ Alignment analysis complete'));
+      return;
+    }
+
+    if (principlesArray.length === 0) {
+      s.stop('No principles found');
+      log.warn(
+        chalk.yellow(
+          'O4[principle] is empty - run genesis to populate mission concepts'
+        )
+      );
+      outro(chalk.green('✓ Alignment analysis complete'));
+      return;
+    }
+
+    log.info(
+      chalk.dim(
+        `Comparing ${proofsArray.length} proofs with ${principlesArray.length} principles...`
+      )
+    );
+
+    // Use meet with configurable threshold
+    const result = await meet(proofsArray, principlesArray, {
+      threshold,
+      topK: 10,
+    });
 
     s.stop('Analysis complete');
 
@@ -399,7 +459,7 @@ function displayItemList(result: unknown, options: ProofsOptions): void {
     );
     for (const item of items.slice(0, limit)) {
       log.info(`  ${chalk.cyan(item.id)}`);
-      log.info(chalk.dim(`    ${truncate(item.metadata.text, 80)}`));
+      log.info(chalk.dim(`    ${item.metadata.text}`));
     }
     return;
   }
@@ -415,7 +475,7 @@ function displayItemList(result: unknown, options: ProofsOptions): void {
   for (const item of items.slice(0, limit)) {
     log.info(chalk.cyan(`${item.id}`));
     log.info(chalk.dim(`  Type: ${item.metadata.type || 'unknown'}`));
-    log.info(chalk.dim(`  Statement: ${truncate(item.metadata.text, 100)}`));
+    log.info(chalk.dim(`  Statement: ${item.metadata.text}`));
 
     // Show additional metadata
     const otherKeys = Object.keys(item.metadata).filter(
@@ -446,7 +506,7 @@ function displayMeetResults(result: unknown, options: ProofsOptions): void {
   const format = options.format || 'table';
   const limit = options.limit || 50;
 
-  // Type guard for MeetResult
+  // Type guard for MeetResult (allows empty arrays)
   const isMeetResultArray = (
     value: unknown
   ): value is Array<{
@@ -454,9 +514,11 @@ function displayMeetResults(result: unknown, options: ProofsOptions): void {
     itemB: OverlayItem;
     similarity: number;
   }> => {
+    if (!Array.isArray(value)) return false;
+    // Empty array is a valid meet result (no alignments found)
+    if (value.length === 0) return true;
+    // Non-empty array must have the expected shape
     return (
-      Array.isArray(value) &&
-      value.length > 0 &&
       value[0] &&
       'itemA' in value[0] &&
       'itemB' in value[0] &&
@@ -470,26 +532,44 @@ function displayMeetResults(result: unknown, options: ProofsOptions): void {
   }
 
   if (result.length === 0) {
-    log.warn(chalk.yellow('No alignments found'));
+    log.warn(
+      chalk.yellow(
+        'No alignments found (O6 may be empty - run genesis to populate mathematical proofs)'
+      )
+    );
     return;
   }
 
-  log.info(chalk.bold(`\nMeet Results: ${result.length} alignment(s)`));
+  // Deduplicate by text content (same proof-principle text pair)
+  const seen = new Set<string>();
+  const uniqueResults = result.filter(({ itemA, itemB }) => {
+    const key = `${itemA.metadata.text}|||${itemB.metadata.text}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  log.info(
+    chalk.bold(`\nMeet Results: ${uniqueResults.length} unique alignment(s)`)
+  );
+  if (uniqueResults.length < result.length) {
+    log.info(chalk.dim(`  (deduplicated from ${result.length} raw matches)`));
+  }
   log.info('');
 
   if (format === 'json') {
-    console.log(JSON.stringify(result.slice(0, limit), null, 2));
+    console.log(JSON.stringify(uniqueResults.slice(0, limit), null, 2));
     return;
   }
 
   log.info(
     chalk.dim(
-      `Showing ${Math.min(limit, result.length)} of ${result.length} pairs`
+      `Showing ${Math.min(limit, uniqueResults.length)} of ${uniqueResults.length} pairs`
     )
   );
   log.info('');
 
-  for (const { itemA, itemB, similarity } of result.slice(0, limit)) {
+  for (const { itemA, itemB, similarity } of uniqueResults.slice(0, limit)) {
     // Color code similarity
     const simColor =
       similarity >= 0.9
@@ -499,26 +579,16 @@ function displayMeetResults(result: unknown, options: ProofsOptions): void {
           : chalk.dim;
 
     log.info(simColor(`Similarity: ${(similarity * 100).toFixed(1)}%`));
-    log.info(chalk.cyan(`  Proof: ${itemA.id}`));
-    log.info(chalk.dim(`    ${truncate(itemA.metadata.text, 80)}`));
-    log.info(chalk.magenta(`  Principle: ${itemB.id}`));
-    log.info(chalk.dim(`    ${truncate(itemB.metadata.text, 80)}`));
+    log.info(chalk.cyan(`  Proof: ${itemA.metadata.text}`));
+    log.info(chalk.magenta(`  Principle: ${itemB.metadata.text}`));
     log.info('');
   }
 
-  if (result.length > limit) {
+  if (uniqueResults.length > limit) {
     log.info(
       chalk.dim(
-        `... and ${result.length - limit} more (use --limit to see more)`
+        `... and ${uniqueResults.length - limit} more (use --limit to see more)`
       )
     );
   }
-}
-
-/**
- * Truncate text to max length
- */
-function truncate(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength - 3) + '...';
 }
