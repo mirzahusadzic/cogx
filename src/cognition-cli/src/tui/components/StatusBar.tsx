@@ -108,42 +108,56 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     emoji: '⚪',
   };
 
-  // Build status bar as single string to avoid wrapping issues
-  const buildStatusText = () => {
+  // Build status bar with dimmed pipe separators
+  const renderStatusText = () => {
     // Model/provider indicator at start
     // Use model display name if available, otherwise capitalize provider name
     const displayName = modelId
       ? MODEL_DISPLAY_NAMES[modelId] || modelId
       : providerName.charAt(0).toUpperCase() + providerName.slice(1);
-    let text = `${providerStyle.emoji} ${displayName}`;
 
-    text += ' | [Tab] Toggle Focus';
-
-    if (!focused) {
-      text += ' | [↑↓/⌨️ ] Scroll';
-    } else {
-      text += ' | [ESC ESC] Clear';
-    }
-
-    text += ' | [Ctrl+S] 💬 Save | [Ctrl+C] Quit';
-
-    if (sessionId) {
-      // Strip provider prefix (e.g., "gemini-", "claude-") for cleaner display
-      const displayId = sessionId.replace(/^[a-z]+-/, '');
-      text += ` | 🪪 ${displayId.slice(0, 8)}`;
-    }
-
-    if (tokenCount && tokenCount.total > 0) {
-      text += ` | 📊 ${formatTokens(tokenCount.total)} (${tokenPercentage}%)`;
-      text += ` | 🗜️  ${formatTokens(compressionThreshold)}`;
-    }
-
-    return text;
+    return (
+      <>
+        <Text color="#8b949e">
+          {providerStyle.emoji} {displayName}
+        </Text>
+        <Text color="#3a3f4b"> | </Text>
+        <Text color="#8b949e">[Tab] Toggle Focus</Text>
+        <Text color="#3a3f4b"> | </Text>
+        {!focused ? (
+          <Text color="#8b949e">[↑↓/⌨️ ] Scroll</Text>
+        ) : (
+          <Text color="#8b949e">[ESC ESC] Clear</Text>
+        )}
+        <Text color="#3a3f4b"> | </Text>
+        <Text color="#8b949e">[Ctrl+S] 💬 Save</Text>
+        <Text color="#3a3f4b"> | </Text>
+        <Text color="#8b949e">[Ctrl+C] Quit</Text>
+        {sessionId && (
+          <>
+            <Text color="#3a3f4b"> | </Text>
+            <Text color="#8b949e">
+              🪪 {sessionId.replace(/^[a-z]+-/, '').slice(0, 8)}
+            </Text>
+          </>
+        )}
+        {tokenCount && tokenCount.total > 0 && (
+          <>
+            <Text color="#3a3f4b"> | </Text>
+            <Text color="#8b949e">
+              📊 {formatTokens(tokenCount.total)} ({tokenPercentage}%)
+            </Text>
+            <Text color="#3a3f4b"> | </Text>
+            <Text color="#8b949e">🗜️ {formatTokens(compressionThreshold)}</Text>
+          </>
+        )}
+      </>
+    );
   };
 
   return (
     <Box borderTop borderColor="#30363d" paddingX={1} width="100%">
-      <Text color="#8b949e">{buildStatusText()}</Text>
+      {renderStatusText()}
     </Box>
   );
 };

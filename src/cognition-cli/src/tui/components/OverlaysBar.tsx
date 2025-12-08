@@ -156,23 +156,33 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
     : [];
   const hasWorkbenchIssues = workbenchIssues.length > 0;
 
-  // Build sigma stats as single string for consistent spacing (like StatusBar)
-  const buildSigmaStats = () => {
+  // Build sigma stats with dimmed pipe separators
+  const renderSigmaStats = () => {
     const nodes = sigmaStats?.nodes ?? 0;
     const edges = sigmaStats?.edges ?? 0;
     const shifts = sigmaStats?.paradigmShifts ?? 0;
     const novelty = (sigmaStats?.avgNovelty ?? 0).toFixed(2);
     const importance = (sigmaStats?.avgImportance ?? 0).toFixed(1);
 
-    let text = `${nodes} nodes 🕸️  `;
-    text += `| ${edges} edges 🔗 `;
-    text += `| ${shifts} shifts ⚡ `;
-    text += `| novelty: ${novelty} 🐇 `;
-    text += `| importance: ${importance} ☝️ `;
-    if (pendingMessageCount > 0) {
-      text += ` | ${pendingMessageCount} messages 📬`;
-    }
-    return text;
+    return (
+      <>
+        <Text color="#8b949e">{nodes} nodes 🕸️ </Text>
+        <Text color="#3a3f4b">| </Text>
+        <Text color="#8b949e">{edges} edges 🔗 </Text>
+        <Text color="#3a3f4b">| </Text>
+        <Text color="#8b949e">{shifts} shifts ⚡ </Text>
+        <Text color="#3a3f4b">| </Text>
+        <Text color="#8b949e">novelty: {novelty} 🐇 </Text>
+        <Text color="#3a3f4b">| </Text>
+        <Text color="#8b949e">importance: {importance} ☝️ </Text>
+        {pendingMessageCount > 0 && (
+          <>
+            <Text color="#3a3f4b"> | </Text>
+            <Text color="#f0883e">{pendingMessageCount} messages 📬</Text>
+          </>
+        )}
+      </>
+    );
   };
 
   return (
@@ -196,7 +206,7 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
             </Text>
             {pendingMessageCount > 0 && (
               <>
-                <Text color="#8b949e">|</Text>
+                <Text color="#3a3f4b">|</Text>
                 <Text color="#f0883e">{pendingMessageCount} messages 📬</Text>
               </>
             )}
@@ -207,13 +217,13 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
             {/* Always show pending messages, even when lattice is warming up */}
             {pendingMessageCount > 0 && (
               <>
-                <Text color="#8b949e">|</Text>
+                <Text color="#3a3f4b">|</Text>
                 <Text color="#f0883e">{pendingMessageCount} messages 📬</Text>
               </>
             )}
           </>
         ) : (
-          <Text color="#8b949e">{buildSigmaStats()}</Text>
+          renderSigmaStats()
         )}
       </Box>
       <Box>

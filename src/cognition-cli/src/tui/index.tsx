@@ -429,6 +429,18 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
 
       // Handle /agents command to list active agents (display-only, not sent to agent)
       if (msg.trim() === '/agents') {
+        // Provider emoji mapping (matches StatusBar)
+        const getProviderEmoji = (model: string): string => {
+          if (model.includes('gemini')) return '🔵';
+          if (
+            model.includes('opus') ||
+            model.includes('sonnet') ||
+            model.includes('claude')
+          )
+            return '🟠';
+          return '⚪';
+        };
+
         try {
           const sigmaDir = path.join(projectRoot, '.sigma');
           const queueDir = path.join(sigmaDir, 'message_queue');
@@ -530,7 +542,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
 
           // Show current agent identity prominently
           if (currentAgent) {
-            output += `👤 You are: ${currentAgent.alias} (${currentAgent.model})\n`;
+            const emoji = getProviderEmoji(currentAgent.model);
+            output += `👤 You are: ${emoji} ${currentAgent.alias} (${currentAgent.model})\n`;
           }
 
           // List other agents
@@ -538,7 +551,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           if (otherAgents.length > 0) {
             output += `  🤖 Other Agents (${otherAgents.length}):\n`;
             for (const agent of otherAgents) {
-              output += `     ${agent.alias} (${agent.model})\n`;
+              const emoji = getProviderEmoji(agent.model);
+              output += `     ${emoji} ${agent.alias} (${agent.model})\n`;
             }
           } else {
             output += `  🤖 No other agents online\n`;
@@ -1139,7 +1153,9 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
             monitorError={monitorError}
             workbenchHealth={workbenchHealth ?? undefined}
           />
-          <Text>{'─'.repeat(process.stdout.columns || 80)}</Text>
+          <Text color="#3a3f4b">
+            {'─'.repeat(process.stdout.columns || 80)}
+          </Text>
           <Box
             height={chatAreaHeight}
             width="100%"
