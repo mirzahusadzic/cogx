@@ -28,6 +28,7 @@ import { MessageQueueMonitor } from '../ipc/MessageQueueMonitor.js';
 import { MessageQueue } from '../ipc/MessageQueue.js';
 import { MessagePublisher } from '../ipc/MessagePublisher.js';
 import { BusCoordinator } from '../ipc/BusCoordinator.js';
+import type { WorkbenchHealthResult } from '../utils/workbench-detect.js';
 
 // Custom theme with vivid AIEcho cyan spinner
 const customTheme = extendTheme(defaultTheme, {
@@ -57,6 +58,8 @@ interface CognitionTUIProps {
   onboardingMode?: boolean;
   /** Auto-respond to agent messages without user input (default: true) */
   autoResponse?: boolean;
+  /** Pre-computed workbench health result (avoids redundant health checks) */
+  workbenchHealth?: WorkbenchHealthResult | null;
 }
 
 const CognitionTUI: React.FC<CognitionTUIProps> = ({
@@ -72,6 +75,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   displayThinking = true,
   onboardingMode = false,
   autoResponse = true,
+  workbenchHealth: initialWorkbenchHealth,
 }) => {
   const { stdout } = useStdout();
   const [focused, setFocused] = useState(true);
@@ -138,6 +142,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     getMessagePublisher, // Pass message publisher getter (for agent-to-agent messaging tool)
     getMessageQueue, // Pass message queue getter (for agent-to-agent messaging tool)
     autoResponse, // Auto-respond to agent messages (--no-auto-response disables)
+    initialWorkbenchHealth, // Pre-computed health (avoids redundant /health call)
   });
 
   // Wrap sendMessage to clear streaming paste on regular messages

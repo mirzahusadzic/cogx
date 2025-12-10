@@ -10,11 +10,14 @@
  * 3. Default values (fallback)
  *
  * ENVIRONMENT VARIABLES:
- * - COGNITION_LLM_PROVIDER: Default provider ('claude' | 'gemini')
+ * - COGNITION_LLM_PROVIDER: Default provider ('claude' | 'gemini' | 'openai')
  * - ANTHROPIC_API_KEY: Claude API key
  * - COGNITION_CLAUDE_MODEL: Default Claude model
  * - GEMINI_API_KEY: Gemini API key
  * - COGNITION_GEMINI_MODEL: Default Gemini model
+ * - OPENAI_API_KEY: OpenAI API key
+ * - OPENAI_BASE_URL: Custom endpoint for OpenAI-compatible APIs (e.g., eGemma)
+ * - COGNITION_OPENAI_MODEL: Default OpenAI model
  *
  * @example
  * // Load configuration
@@ -43,6 +46,17 @@ export interface ProviderConfig {
 }
 
 /**
+ * OpenAI-specific configuration
+ */
+export interface OpenAIProviderConfig extends ProviderConfig {
+  /**
+   * Base URL for OpenAI-compatible API
+   * Defaults to OpenAI's API, can be set to local endpoints like eGemma
+   */
+  baseUrl?: string;
+}
+
+/**
  * LLM configuration object
  */
 export interface LLMConfig {
@@ -50,7 +64,7 @@ export interface LLMConfig {
    * Default provider to use
    * @default 'claude'
    */
-  defaultProvider: 'claude' | 'gemini' | string;
+  defaultProvider: 'claude' | 'gemini' | 'openai' | string;
 
   /**
    * Provider-specific configurations
@@ -61,6 +75,9 @@ export interface LLMConfig {
 
     /** Gemini configuration */
     gemini?: ProviderConfig;
+
+    /** OpenAI configuration (also works with OpenAI-compatible endpoints like eGemma) */
+    openai?: OpenAIProviderConfig;
   };
 }
 
@@ -90,6 +107,34 @@ export const GEMINI_MODELS = {
 
   /** Experimental thinking mode */
   thinking: 'gemini-2.0-flash-thinking-exp-01-21',
+} as const;
+
+/**
+ * Default OpenAI models by use case
+ */
+export const OPENAI_MODELS = {
+  /** GPT-4o - latest and most capable */
+  latest: 'gpt-4o',
+
+  /** GPT-4o mini - fast and affordable */
+  fast: 'gpt-4o-mini',
+
+  /** o1 - reasoning model */
+  reasoning: 'o1',
+
+  /** o3 - next-gen reasoning */
+  reasoningNext: 'o3',
+} as const;
+
+/**
+ * Local models (OpenAI-compatible via eGemma)
+ */
+export const LOCAL_MODELS = {
+  /** GPT-OSS 20B */
+  gptOss20b: 'gpt-oss-20b',
+
+  /** GPT-OSS 120B */
+  gptOss120b: 'gpt-oss-120b',
 } as const;
 
 /**
@@ -142,6 +187,14 @@ export function loadLLMConfig(): LLMConfig {
         defaultModel:
           process.env.COGNITION_GEMINI_MODEL || GEMINI_MODELS.latest,
       },
+
+      // OpenAI configuration (also works with OpenAI-compatible endpoints)
+      openai: {
+        apiKey: process.env.OPENAI_API_KEY,
+        baseUrl: process.env.OPENAI_BASE_URL,
+        defaultModel:
+          process.env.COGNITION_OPENAI_MODEL || OPENAI_MODELS.latest,
+      },
     },
   };
 }
@@ -179,9 +232,18 @@ export function validateLLMConfig(config: LLMConfig): string[] {
     return errors;
   }
 
-  if (!providerConfig.apiKey) {
-    const envVarName =
-      defaultProvider === 'claude' ? 'ANTHROPIC_API_KEY' : 'GEMINI_API_KEY';
+  // OpenAI with custom base URL doesn't require API key
+  const isOpenAIWithCustomUrl =
+    defaultProvider === 'openai' &&
+    (config.providers.openai as OpenAIProviderConfig)?.baseUrl;
+
+  if (!providerConfig.apiKey && !isOpenAIWithCustomUrl) {
+    const envVarMap: Record<string, string> = {
+      claude: 'ANTHROPIC_API_KEY',
+      gemini: 'GEMINI_API_KEY',
+      openai: 'OPENAI_API_KEY',
+    };
+    const envVarName = envVarMap[defaultProvider] || 'API_KEY';
     errors.push(
       `Default provider '${defaultProvider}' is missing API key. ` +
         `Set ${envVarName} environment variable.`
@@ -213,7 +275,7 @@ export function validateLLMConfig(config: LLMConfig): string[] {
  * }
  */
 export function getProviderApiKey(
-  provider: 'claude' | 'gemini'
+  provider: 'claude' | 'gemini' | 'openai'
 ): string | undefined {
   const config = loadLLMConfig();
   return config.providers[provider]?.apiKey;
@@ -232,7 +294,7 @@ export function getProviderApiKey(
  * console.log(`Using Claude model: ${claudeModel}`);
  */
 export function getProviderDefaultModel(
-  provider: 'claude' | 'gemini'
+  provider: 'claude' | 'gemini' | 'openai'
 ): string | undefined {
   const config = loadLLMConfig();
   return config.providers[provider]?.defaultModel;
@@ -253,9 +315,18 @@ export function getProviderDefaultModel(
  *   console.log('Gemini not configured, falling back to Claude');
  * }
  */
-export function isProviderConfigured(provider: 'claude' | 'gemini'): boolean {
+export function isProviderConfigured(
+  provider: 'claude' | 'gemini' | 'openai'
+): boolean {
   const config = loadLLMConfig();
   const providerConfig = config.providers[provider];
+
+  // OpenAI is considered configured if it has an API key OR a custom base URL
+  if (provider === 'openai') {
+    const openaiConfig = providerConfig as OpenAIProviderConfig | undefined;
+    return !!(openaiConfig?.apiKey || openaiConfig?.baseUrl);
+  }
+
   return !!providerConfig?.apiKey;
 }
 
@@ -279,6 +350,10 @@ export function getConfiguredProviders(): string[] {
 
   if (isProviderConfigured('gemini')) {
     providers.push('gemini');
+  }
+
+  if (isProviderConfigured('openai')) {
+    providers.push('openai');
   }
 
   return providers;

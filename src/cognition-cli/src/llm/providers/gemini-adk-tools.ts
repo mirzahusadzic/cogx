@@ -119,11 +119,13 @@ async function smartCompressOutput(
     return truncateOutput(output, maxChars);
   }
 
-  // Tier 3: Catastrophically large outputs are truncated immediately
-  // without attempting to summarize. This protects the summarizer model.
+  // Tier 3: Catastrophically large outputs - truncate THEN summarize
+  // Don't just truncate and return - still summarize the truncated content!
+  let contentToSummarize = output;
+  let wasTruncated = false;
   if (output.length > PRE_TRUNCATE_THRESHOLD) {
-    const truncated = truncateOutput(output, EGEMMA_SUMMARIZE_THRESHOLD);
-    return `[OUTPUT TOO LARGE FOR SUMMARIZATION: Truncated to ${EGEMMA_SUMMARIZE_THRESHOLD} of ${output.length} chars]\n\n${truncated}`;
+    contentToSummarize = output.substring(0, EGEMMA_SUMMARIZE_THRESHOLD);
+    wasTruncated = true;
   }
 
   // Tier 2: Medium outputs are suitable for intelligent summarization.
@@ -140,13 +142,16 @@ async function smartCompressOutput(
 
   // Tier 4: Fallback to truncation if summarizer is unavailable or fails.
   if (!workbenchAvailable) {
-    return truncateOutput(output, maxChars);
+    return truncateOutput(contentToSummarize, maxChars);
   }
 
   try {
     const client = getWorkbenchClient(workbenchUrl);
+    const truncationNote = wasTruncated
+      ? `\n[NOTE: Original output was ${output.length} chars, truncated to ${contentToSummarize.length} before summarization]`
+      : '';
     const response = await client.summarize({
-      content: `Tool: ${toolType}\nOutput length: ${output.length} chars\n\n${output}`,
+      content: `Tool: ${toolType}\nOutput length: ${output.length} chars${truncationNote}\n\n${contentToSummarize}`,
       filename: `tool_output.${toolType}`,
       persona: PERSONA_TOOL_OUTPUT_SUMMARIZER,
       max_tokens: DEFAULT_SUMMARIZER_MAX_TOKENS,
@@ -154,10 +159,13 @@ async function smartCompressOutput(
       model_name: DEFAULT_SUMMARIZER_MODEL_NAME,
     });
 
-    return `[eGemma Summary - ${output.length} chars compressed]\n\n${response.summary}`;
+    const prefix = wasTruncated
+      ? `[eGemma Summary - ${output.length} chars (truncated+summarized)]`
+      : `[eGemma Summary - ${output.length} chars compressed]`;
+    return `${prefix}\n\n${response.summary}`;
   } catch {
     // Tier 4: Fallback to truncation on any summarization error.
-    return truncateOutput(output, maxChars);
+    return truncateOutput(contentToSummarize, maxChars);
   }
 }
 
@@ -294,22 +302,39 @@ export const bashTool = new FunctionTool({
     timeout: z.number().optional().describe('Timeout in ms (default 120000)'),
   }),
   execute: async ({ command, timeout }) => {
+    const effectiveTimeout = timeout || 120000;
+
     return new Promise((resolve) => {
-      const proc = spawn('bash', ['-c', command], {
-        cwd: process.cwd(),
-        timeout: timeout || 120000,
-      });
+      // Don't use spawn's timeout option - broken on macOS
+      // Use manual setTimeout instead
+      const proc = spawn('bash', ['-c', command], { cwd: process.cwd() });
 
       let stdout = '';
       let stderr = '';
+      let killed = false;
+
+      // Manual timeout handling
+      const timeoutId = setTimeout(() => {
+        killed = true;
+        proc.kill('SIGTERM');
+      }, effectiveTimeout);
+
       proc.stdout.on('data', (data) => (stdout += data.toString()));
       proc.stderr.on('data', (data) => (stderr += data.toString()));
       proc.on('close', async (code) => {
+        clearTimeout(timeoutId);
         const output = stdout + (stderr ? `\nSTDERR:\n${stderr}` : '');
         const compressed = await smartCompressOutput(output, 'bash', 30000);
-        resolve(`Exit code: ${code}\n${compressed}`);
+        if (killed) {
+          resolve(`Timeout after ${effectiveTimeout}ms\n${compressed}`);
+        } else {
+          resolve(`Exit code: ${code}\n${compressed}`);
+        }
       });
-      proc.on('error', (err) => resolve(`Error: ${err.message}`));
+      proc.on('error', (err) => {
+        clearTimeout(timeoutId);
+        resolve(`Error: ${err.message}`);
+      });
     });
   },
 });
@@ -684,10 +709,10 @@ function createAgentMessagingTools(
   );
   tools.push(broadcastTool);
 
-  // Tool: Get pending messages
-  const getPendingMessagesTool = wrapToolWithPermission(
-    'get_pending_messages',
-    'Get all pending messages in your message queue. These are messages from other agents that you have not yet processed.',
+  // Tool: List pending messages
+  const listPendingMessagesTool = wrapToolWithPermission(
+    'list_pending_messages',
+    'List all pending messages in your message queue. These are messages from other agents that you have not yet processed.',
     z.object({}),
     async () => {
       try {
@@ -701,12 +726,12 @@ function createAgentMessagingTools(
 
         return formatPendingMessages(messages);
       } catch (err) {
-        return formatError('get pending messages', (err as Error).message);
+        return formatError('list pending messages', (err as Error).message);
       }
     },
     onCanUseTool
   );
-  tools.push(getPendingMessagesTool);
+  tools.push(listPendingMessagesTool);
 
   // Tool: Mark message as read/injected
   const markMessageReadTool = wrapToolWithPermission(
@@ -812,23 +837,42 @@ export function getCognitionTools(
       timeout: z.number().optional().describe('Timeout in ms (default 120000)'),
     }),
     async ({ command, timeout }) => {
+      const effectiveTimeout = timeout || 120000;
+
       return new Promise((resolve) => {
-        const proc = spawn('bash', ['-c', command], {
-          cwd: process.cwd(),
-          timeout: timeout || 120000,
-        });
+        // Don't use spawn's timeout option - broken on macOS
+        // Use manual setTimeout instead
+        const proc = spawn('bash', ['-c', command], { cwd: process.cwd() });
 
         let stdout = '';
         let stderr = '';
+        let killed = false;
+
+        // Manual timeout handling
+        const timeoutId = setTimeout(() => {
+          killed = true;
+          proc.kill('SIGTERM');
+        }, effectiveTimeout);
+
         proc.stdout.on('data', (data) => (stdout += data.toString()));
         proc.stderr.on('data', (data) => (stderr += data.toString()));
         proc.on('close', (code) => {
+          clearTimeout(timeoutId);
           const output = stdout + (stderr ? `\nSTDERR:\n${stderr}` : '');
-          resolve(
-            `Exit code: ${code}\n${output.slice(0, 30000)}${output.length > 30000 ? '\n... truncated' : ''}`
-          );
+          if (killed) {
+            resolve(
+              `Timeout after ${effectiveTimeout}ms\n${output.slice(0, 30000)}${output.length > 30000 ? '\n... truncated' : ''}`
+            );
+          } else {
+            resolve(
+              `Exit code: ${code}\n${output.slice(0, 30000)}${output.length > 30000 ? '\n... truncated' : ''}`
+            );
+          }
         });
-        proc.on('error', (err) => resolve(`Error: ${err.message}`));
+        proc.on('error', (err) => {
+          clearTimeout(timeoutId);
+          resolve(`Error: ${err.message}`);
+        });
       });
     },
     onCanUseTool

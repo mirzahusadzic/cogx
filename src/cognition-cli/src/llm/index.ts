@@ -32,6 +32,7 @@
 
 import { registry } from './provider-registry.js';
 import { GeminiAgentProvider } from './providers/gemini-agent-provider.js';
+import { OpenAIAgentProvider } from './providers/openai-agent-provider.js';
 
 // Re-export core types and classes
 export { registry } from './provider-registry.js';
@@ -44,6 +45,7 @@ export type {
 export type { AgentProvider } from './agent-provider-interface.js';
 export { isAgentProvider } from './agent-provider-interface.js';
 export { GeminiAgentProvider } from './providers/gemini-agent-provider.js';
+export { OpenAIAgentProvider } from './providers/openai-agent-provider.js';
 
 // Claude provider is dynamically imported to make it optional
 export type { ClaudeProvider } from './providers/claude-agent-provider.js';
@@ -63,10 +65,20 @@ export interface InitializeOptions {
   googleApiKey?: string;
 
   /**
+   * OpenAI API key (optional, defaults to OPENAI_API_KEY env var)
+   */
+  openaiApiKey?: string;
+
+  /**
+   * OpenAI base URL for custom endpoints like eGemma (optional, defaults to OPENAI_BASE_URL env var)
+   */
+  openaiBaseUrl?: string;
+
+  /**
    * Default provider to use
    * @default 'gemini'
    */
-  defaultProvider?: 'claude' | 'gemini' | string;
+  defaultProvider?: 'claude' | 'gemini' | 'openai' | string;
 
   /**
    * Whether to skip provider initialization if API keys missing
@@ -113,6 +125,8 @@ export async function initializeProviders(
   const {
     anthropicApiKey,
     googleApiKey,
+    openaiApiKey,
+    openaiBaseUrl,
     defaultProvider = 'gemini',
     skipMissingProviders = true, // Changed default to true
   } = options;
@@ -185,6 +199,32 @@ export async function initializeProviders(
     }
   } else if (registry.has('gemini')) {
     registered.push('gemini');
+  }
+
+  // Register OpenAI (works with OpenAI API or OpenAI-compatible endpoints like eGemma)
+  const openaiKey = openaiApiKey || process.env.OPENAI_API_KEY;
+  const openaiBase = openaiBaseUrl || process.env.OPENAI_BASE_URL;
+  // Register if we have an API key OR a custom base URL (local endpoints may not need keys)
+  if ((openaiKey || openaiBase) && !registry.has('openai')) {
+    try {
+      const openai = new OpenAIAgentProvider({
+        apiKey: openaiKey,
+        baseUrl: openaiBase,
+      });
+      registry.register(openai);
+      registered.push('openai');
+    } catch (error) {
+      if (skipMissingProviders) {
+        console.warn(
+          'Skipping OpenAI provider:',
+          error instanceof Error ? error.message : String(error)
+        );
+      } else {
+        throw error;
+      }
+    }
+  } else if (registry.has('openai')) {
+    registered.push('openai');
   }
 
   // Set default provider if it was successfully registered

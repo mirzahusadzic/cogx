@@ -36,7 +36,7 @@ import { initializeProviders, registry } from '../llm/index.js';
 /**
  * Supported LLM provider types
  */
-export type LLMProviderType = 'claude' | 'gemini';
+export type LLMProviderType = 'claude' | 'gemini' | 'openai';
 
 /**
  * Result of LLM provider detection
@@ -52,6 +52,7 @@ export interface LLMProviderDetectionResult {
   providers: {
     claude: { available: boolean; hasKey: boolean };
     gemini: { available: boolean; hasKey: boolean };
+    openai: { available: boolean; hasKey: boolean };
   };
 }
 
@@ -84,6 +85,22 @@ export interface WorkbenchDetectionResult {
 }
 
 /**
+ * Chat model info from workbench health
+ */
+export interface ChatModelInfo {
+  /** Model name (e.g., 'gpt-oss-20b') */
+  name: string;
+  /** Model path (e.g., 'models/gpt-oss-20b-Q4_K_M.gguf') */
+  path?: string;
+  /** Status (e.g., 'loaded', 'unloaded') */
+  status: string;
+  /** Context length (e.g., 65536) */
+  context_length?: number;
+  /** Whether the model supports tool calling */
+  supports_tools?: boolean;
+}
+
+/**
  * Workbench health response structure
  */
 export interface WorkbenchHealthResponse {
@@ -99,6 +116,8 @@ export interface WorkbenchHealthResponse {
     api_key_set?: boolean;
     default_model?: string;
   };
+  /** Chat model info for OpenAI-compatible endpoint */
+  chat_model?: ChatModelInfo;
 }
 
 /**
@@ -111,6 +130,12 @@ export interface WorkbenchHealthResult {
   embeddingReady: boolean;
   /** Whether summarization is available (local or via Gemini API) */
   summarizationReady: boolean;
+  /** Whether chat model is loaded and available */
+  chatModelReady: boolean;
+  /** Chat model info if available */
+  chatModel?: ChatModelInfo;
+  /** OpenAI-compatible endpoint URL derived from workbench (e.g., http://localhost:8000/v1) */
+  openaiBaseUrl?: string;
   /** Raw health response for debugging */
   rawResponse?: WorkbenchHealthResponse;
   /** Error message if check failed */
@@ -186,6 +211,7 @@ export async function checkWorkbenchHealthDetailed(
         reachable: false,
         embeddingReady: false,
         summarizationReady: false,
+        chatModelReady: false,
         error: `HTTP ${response.status}: ${response.statusText}`,
       };
     }
@@ -201,10 +227,21 @@ export async function checkWorkbenchHealthDetailed(
     const geminiApiAvailable = health.gemini_api?.api_key_set === true;
     const summarizationReady = localSummarizationEnabled || geminiApiAvailable;
 
+    // Check chat model availability
+    const chatModelReady = health.chat_model?.status === 'loaded';
+    const chatModel = health.chat_model;
+
+    // Derive OpenAI-compatible base URL if chat model is available
+    // Workbench exposes OpenAI-compatible endpoint at /v1
+    const openaiBaseUrl = chatModelReady ? `${url}/v1` : undefined;
+
     return {
       reachable: true,
       embeddingReady,
       summarizationReady,
+      chatModelReady,
+      chatModel,
+      openaiBaseUrl,
       rawResponse: health,
     };
   } catch (error) {
@@ -216,6 +253,7 @@ export async function checkWorkbenchHealthDetailed(
       reachable: false,
       embeddingReady: false,
       summarizationReady: false,
+      chatModelReady: false,
       error: errorMessage,
     };
   }
@@ -363,10 +401,14 @@ export async function detectLLMProvider(
   const registeredProviders = registry.list();
   const claudeRegistered = registeredProviders.includes('claude');
   const geminiRegistered = registeredProviders.includes('gemini');
+  const openaiRegistered = registeredProviders.includes('openai');
 
   // Also track API key presence for detailed status
   const claudeKey = process.env.ANTHROPIC_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
+  // OpenAI can be configured via API key OR workbench auto-config (OPENAI_BASE_URL)
+  const openaiKey = process.env.OPENAI_API_KEY;
+  const openaiBaseUrl = process.env.OPENAI_BASE_URL;
 
   const providers = {
     claude: {
@@ -376,6 +418,10 @@ export async function detectLLMProvider(
     gemini: {
       available: geminiRegistered,
       hasKey: !!geminiKey,
+    },
+    openai: {
+      available: openaiRegistered,
+      hasKey: !!openaiKey || !!openaiBaseUrl,
     },
   };
 
@@ -391,7 +437,7 @@ export async function detectLLMProvider(
     }
   }
 
-  // Default priority: Claude > Gemini
+  // Default priority: Claude > Gemini > OpenAI
   if (providers.claude.available) {
     return {
       found: true,
@@ -406,6 +452,15 @@ export async function detectLLMProvider(
       found: true,
       provider: 'gemini',
       hasApiKey: providers.gemini.hasKey,
+      providers,
+    };
+  }
+
+  if (providers.openai.available) {
+    return {
+      found: true,
+      provider: 'openai',
+      hasApiKey: providers.openai.hasKey,
       providers,
     };
   }
@@ -455,7 +510,7 @@ export async function checkPrerequisites(
 
   if (!llm.found) {
     errors.push(
-      'No LLM provider configured. Set ANTHROPIC_API_KEY (Claude) or GEMINI_API_KEY (Gemini)'
+      'No LLM provider configured. Set ANTHROPIC_API_KEY (Claude), GEMINI_API_KEY (Gemini), or OPENAI_API_KEY/OPENAI_BASE_URL (OpenAI)'
     );
   }
 
@@ -465,4 +520,176 @@ export async function checkPrerequisites(
     llm,
     errors,
   };
+}
+
+/**
+ * Default safety margin for max tokens (reserve 10% for response + overhead)
+ */
+export const DEFAULT_TOKEN_SAFETY_MARGIN = 0.9;
+
+/**
+ * Result of OpenAI base URL auto-configuration
+ */
+export interface OpenAIAutoConfigResult {
+  /** Whether auto-configuration was successful */
+  configured: boolean;
+  /** The configured base URL (if successful) */
+  baseUrl?: string;
+  /** The detected model name (e.g., 'gpt-oss-20b') */
+  modelName?: string;
+  /** Model context length (raw from health) */
+  contextLength?: number;
+  /** Recommended max tokens for input (contextLength * safety margin) */
+  recommendedMaxTokens?: number;
+  /** Whether the model supports tool calling */
+  supportsTools?: boolean;
+  /** Reason for failure if not configured */
+  reason?: string;
+}
+
+/**
+ * Auto-configure OPENAI_BASE_URL from workbench if gpt-oss model is available
+ *
+ * This function checks if:
+ * 1. OPENAI_BASE_URL is not already set
+ * 2. Workbench is running and has a chat model loaded
+ * 3. The chat model is a gpt-oss variant (gpt-oss-20b, gpt-oss-120b, etc.)
+ *
+ * If all conditions are met, it sets process.env.OPENAI_BASE_URL to the
+ * workbench's OpenAI-compatible endpoint.
+ *
+ * @param targetModel - Optional target model to match (e.g., 'gpt-oss-20b')
+ * @returns Auto-configuration result
+ *
+ * @example
+ * // Auto-configure if gpt-oss-20b is available
+ * const result = await autoConfigureOpenAIFromWorkbench('gpt-oss-20b');
+ * if (result.configured) {
+ *   console.log(`Using ${result.modelName} at ${result.baseUrl}`);
+ * }
+ *
+ * @example
+ * // Auto-configure any available gpt-oss model
+ * const result = await autoConfigureOpenAIFromWorkbench();
+ * if (result.configured) {
+ *   console.log(`Using ${result.modelName} at ${result.baseUrl}`);
+ * }
+ */
+export async function autoConfigureOpenAIFromWorkbench(
+  targetModel?: string,
+  options?: {
+    /** Pre-computed workbench URL (avoids detectWorkbench call) */
+    workbenchUrl?: string;
+    /** Pre-computed health result (avoids checkWorkbenchHealthDetailed call) */
+    cachedHealth?: WorkbenchHealthResult | null;
+  }
+): Promise<OpenAIAutoConfigResult> {
+  // Skip if OPENAI_BASE_URL is already set
+  if (process.env.OPENAI_BASE_URL) {
+    return {
+      configured: false,
+      reason: 'OPENAI_BASE_URL already set',
+    };
+  }
+
+  // Use cached workbench URL or detect
+  let workbenchUrl = options?.workbenchUrl;
+  if (!workbenchUrl) {
+    const workbench = await detectWorkbench();
+    if (!workbench.found || !workbench.url) {
+      return {
+        configured: false,
+        reason: 'Workbench not found',
+      };
+    }
+    workbenchUrl = workbench.url;
+  }
+
+  // Use cached health or fetch
+  const health =
+    options?.cachedHealth ??
+    (await checkWorkbenchHealthDetailed(workbenchUrl, true));
+  if (!health.chatModelReady || !health.chatModel) {
+    return {
+      configured: false,
+      reason: 'Chat model not loaded in workbench',
+    };
+  }
+
+  const chatModel = health.chatModel;
+
+  // Check if model matches target (if specified)
+  if (targetModel && chatModel.name !== targetModel) {
+    return {
+      configured: false,
+      reason: `Chat model '${chatModel.name}' does not match target '${targetModel}'`,
+    };
+  }
+
+  // Check if it's a gpt-oss model (if no target specified)
+  if (!targetModel && !chatModel.name.startsWith('gpt-oss')) {
+    return {
+      configured: false,
+      reason: `Chat model '${chatModel.name}' is not a gpt-oss variant`,
+    };
+  }
+
+  // Configure OPENAI_BASE_URL
+  const baseUrl = health.openaiBaseUrl!;
+  process.env.OPENAI_BASE_URL = baseUrl;
+
+  // Set the model name from workbench health endpoint
+  // This ensures the OpenAI provider only lists the actually available model
+  if (!process.env.COGNITION_OPENAI_MODEL) {
+    process.env.COGNITION_OPENAI_MODEL = chatModel.name;
+  }
+
+  // Mark this as a workbench-configured endpoint (not official OpenAI)
+  // Provider uses this to filter model list
+  process.env.COGNITION_OPENAI_FROM_WORKBENCH = 'true';
+
+  // Calculate recommended max tokens (apply safety margin)
+  // Reserve ~10% for model response + system overhead
+  const contextLength = chatModel.context_length;
+  const recommendedMaxTokens = contextLength
+    ? Math.floor(contextLength * DEFAULT_TOKEN_SAFETY_MARGIN)
+    : undefined;
+
+  // Also set COGNITION_OPENAI_MAX_TOKENS for downstream consumers
+  if (recommendedMaxTokens && !process.env.COGNITION_OPENAI_MAX_TOKENS) {
+    process.env.COGNITION_OPENAI_MAX_TOKENS = String(recommendedMaxTokens);
+  }
+
+  return {
+    configured: true,
+    baseUrl,
+    modelName: chatModel.name,
+    contextLength,
+    recommendedMaxTokens,
+    supportsTools: chatModel.supports_tools,
+  };
+}
+
+/**
+ * Check if a specific gpt-oss model is available via workbench
+ *
+ * This is a quick check that doesn't modify any environment variables.
+ * Use autoConfigureOpenAIFromWorkbench() to actually configure the endpoint.
+ *
+ * @param modelName - The model to check (e.g., 'gpt-oss-20b')
+ * @returns True if the model is loaded and available
+ *
+ * @example
+ * if (await isGptOssAvailable('gpt-oss-20b')) {
+ *   console.log('GPT-OSS 20B is ready!');
+ * }
+ */
+export async function isGptOssAvailable(modelName: string): Promise<boolean> {
+  const workbench = await detectWorkbench();
+  if (!workbench.found || !workbench.url) {
+    return false;
+  }
+
+  const health = await checkWorkbenchHealthDetailed(workbench.url, true);
+  return health.chatModelReady && health.chatModel?.name === modelName;
 }

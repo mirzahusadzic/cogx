@@ -81,7 +81,7 @@ export interface AgentRequest {
   /** Agent message publisher (for send_message/broadcast_message tools) */
   getMessagePublisher?: () => unknown; // MessagePublisher - avoid circular dependency
 
-  /** Agent message queue (for get_pending_messages/mark_messages_read tools) */
+  /** Agent message queue (for list_pending_messages/mark_messages_read tools) */
   getMessageQueue?: () => unknown; // MessageQueue - avoid circular dependency
 
   /** Project root directory (for agent discovery) */

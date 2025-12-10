@@ -38,6 +38,7 @@ import {
   loadSettings,
   saveSettings,
 } from '../core/security/security-bootstrap.js';
+import { autoConfigureOpenAIFromWorkbench } from '../utils/workbench-detect.js';
 
 /**
  * Create provider command
@@ -56,7 +57,9 @@ export function createProviderCommand(): Command {
     .description('List available LLM providers and their status')
     .action(async () => {
       try {
-        // Initialize providers first
+        // Auto-configure OpenAI from workbench if gpt-oss model is available
+        await autoConfigureOpenAIFromWorkbench();
+        // Initialize providers
         await initializeProviders({ skipMissingProviders: true });
 
         const providers = registry.list();
@@ -120,7 +123,9 @@ export function createProviderCommand(): Command {
     .description('Set the default LLM provider')
     .action(async (providerName: string) => {
       try {
-        // Initialize providers first
+        // Auto-configure OpenAI from workbench if gpt-oss model is available
+        await autoConfigureOpenAIFromWorkbench();
+        // Initialize providers
         await initializeProviders({ skipMissingProviders: true });
 
         // Validate provider exists
@@ -168,7 +173,9 @@ export function createProviderCommand(): Command {
     .description('Test provider availability')
     .action(async (providerName: string) => {
       try {
-        // Initialize providers first
+        // Auto-configure OpenAI from workbench if gpt-oss model is available
+        await autoConfigureOpenAIFromWorkbench();
+        // Initialize providers
         await initializeProviders({ skipMissingProviders: true });
 
         console.log(chalk.dim(`Testing ${providerName}...`));
@@ -283,7 +290,9 @@ export function createProviderCommand(): Command {
     .description('List available models for a provider')
     .action(async (providerName?: string) => {
       try {
-        // Initialize providers first
+        // Auto-configure OpenAI from workbench if gpt-oss model is available
+        await autoConfigureOpenAIFromWorkbench();
+        // Initialize providers
         await initializeProviders({ skipMissingProviders: true });
 
         if (providerName) {

@@ -34,10 +34,14 @@
  *    - List Agents: 🤖 List Agents - discovering active agents
  *    - Send Message: 📨 Send Message - to <alias>: "<message preview>"
  *    - Broadcast: 📢 Broadcast - "<message preview>"
- *    - Check Messages: 📬 Check Messages - checking pending messages
+ *    - List Messages: 📬 List Messages - listing pending messages
  *    - Mark Read: ✅ Mark Read - <messageId> as <status>
  *
- * 7. Default: Generic tool icon (🔧) with JSON input
+ * 7. Task Tool: Subagent launcher
+ *    - 🚀 <subagent_type>: <description or prompt preview>
+ *    - Example: 🚀 Explore: Find TypeScript test files
+ *
+ * 8. Default: Generic tool icon (🔧) with JSON input
  *
  * ALGORITHM (formatToolUse):
  * 1. Initialize default icon (🔧)
@@ -317,12 +321,12 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
       inputDesc = JSON.stringify(tool.input);
     }
   } else if (
-    tool.name === 'mcp__agent-messaging__get_pending_messages' ||
-    tool.name === 'get_pending_messages'
+    tool.name === 'mcp__agent-messaging__list_pending_messages' ||
+    tool.name === 'list_pending_messages'
   ) {
     toolIcon = '📬';
-    toolName = 'Check Messages';
-    inputDesc = 'checking pending messages';
+    toolName = 'List Messages';
+    inputDesc = 'listing pending messages';
   } else if (
     tool.name === 'mcp__agent-messaging__mark_message_read' ||
     tool.name === 'mark_message_read'
@@ -334,6 +338,21 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
       inputDesc = `${tool.input.messageId as string} as ${status}`;
     } else {
       inputDesc = JSON.stringify(tool.input);
+    }
+  } else if (tool.name === 'Task') {
+    // Task tool launches subagents - show the agent type and a prompt preview
+    toolIcon = '🚀';
+    const subagentType = (tool.input.subagent_type as string) || 'Agent';
+    toolName = subagentType;
+    if (tool.input.description) {
+      // Use the short description if available
+      inputDesc = tool.input.description as string;
+    } else if (tool.input.prompt) {
+      // Otherwise show a preview of the prompt
+      const prompt = tool.input.prompt as string;
+      inputDesc = prompt.length > 60 ? `${prompt.substring(0, 60)}...` : prompt;
+    } else {
+      inputDesc = 'launching agent';
     }
   } else {
     inputDesc = JSON.stringify(tool.input);

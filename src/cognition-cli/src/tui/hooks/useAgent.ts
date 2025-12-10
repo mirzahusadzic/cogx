@@ -147,7 +147,10 @@ import type { McpSdkServerConfigWithInstance } from './sdk/types.js';
 import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
 import type { MessageQueue } from '../../ipc/MessageQueue.js';
 import { formatPendingMessages } from '../../ipc/agent-messaging-formatters.js';
-import { checkWorkbenchHealthDetailed } from '../../utils/workbench-detect.js';
+import {
+  checkWorkbenchHealthDetailed,
+  type WorkbenchHealthResult,
+} from '../../utils/workbench-detect.js';
 import { createAgentMessagingMcpServer } from '../tools/agent-messaging-tool.js';
 
 /**
@@ -257,7 +260,7 @@ export interface UseAgentOptions {
 
   /**
    * Message queue getter (for agent-to-agent messaging tool to read messages)
-   * Optional - if provided, enables the get_pending_messages and mark_message_read tools
+   * Optional - if provided, enables the list_pending_messages and mark_message_read tools
    */
   getMessageQueue?: () => MessageQueue | null;
 
@@ -267,6 +270,12 @@ export interface UseAgentOptions {
    * @default true
    */
   autoResponse?: boolean;
+
+  /**
+   * Pre-computed workbench health result
+   * If provided, skips redundant health check on startup
+   */
+  initialWorkbenchHealth?: WorkbenchHealthResult | null;
 }
 
 /**
@@ -379,6 +388,7 @@ export function useAgent(options: UseAgentOptions) {
     getMessagePublisher,
     getMessageQueue,
     autoResponse = true,
+    initialWorkbenchHealth,
   } = options;
 
   // ========================================
@@ -1077,8 +1087,11 @@ export function useAgent(options: UseAgentOptions) {
       if (fs.existsSync(pgcPath))
         projectRegistryRef.current = new OverlayRegistry(pgcPath, endpoint);
 
-      // Check workbench health for status bar display (no system message - status bar shows it)
-      const healthResult = await checkWorkbenchHealthDetailed(endpoint, true);
+      // Use cached health result if provided (avoids redundant /health call)
+      // Otherwise check workbench health for status bar display
+      const healthResult =
+        initialWorkbenchHealth ??
+        (await checkWorkbenchHealthDetailed(endpoint, true));
       const hasApiKey = !!process.env.WORKBENCH_API_KEY;
 
       setWorkbenchHealth({
@@ -1090,7 +1103,7 @@ export function useAgent(options: UseAgentOptions) {
     };
 
     initSigmaServices();
-  }, [cwd, debugFlag]);
+  }, [cwd, debugFlag, initialWorkbenchHealth]);
 
   /**
    * Listen for new messages arriving and set notification.

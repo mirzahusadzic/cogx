@@ -106,10 +106,37 @@ export function useMouse(
     const handleData = (data: Buffer) => {
       const str = data.toString();
 
+      // Filter out standalone newlines that leak through with escape sequences
+      // Some terminals send extra newlines when ESC is pressed
+      if (str === '\n' || str === '\r\n' || str === '\r') {
+        return; // Consume standalone newlines - don't pass to terminal
+      }
+
+      // Also filter newlines that trail escape sequences
+      // e.g., "\x1b\n" or "\x1b[...\n" where the newline is unwanted
+      const cleanedStr = str.replace(
+        // eslint-disable-next-line no-control-regex
+        /\x1b(?:\[[^\x1b]*)?[\r\n]+$/g,
+        (match) => {
+          // Keep the escape sequence, drop trailing newlines
+          return match.replace(/[\r\n]+$/, '');
+        }
+      );
+
+      // If we cleaned something and there's nothing left, consume it
+      if (cleanedStr !== str && cleanedStr.length === 0) {
+        return;
+      }
+
+      // Use cleaned string for mouse check
+      const checkStr = cleanedStr || str;
+
       // Check if this contains ANY mouse event sequences (with or without ESC prefix)
       const isMouse =
         // eslint-disable-next-line no-control-regex
-        /\x1b\[<\d+;\d+;\d+[Mm]|<\d+;\d+;\d+[Mm]|\[<\d+;\d+;\d+[Mm]/.test(str);
+        /\x1b\[<\d+;\d+;\d+[Mm]|<\d+;\d+;\d+[Mm]|\[<\d+;\d+;\d+[Mm]/.test(
+          checkStr
+        );
 
       if (isMouse) {
         // Parse and handle the mouse event (flexible regex to catch all variations)
@@ -141,15 +168,19 @@ export function useMouse(
         }
 
         // Pass through to original listeners (for native terminal mouse handling)
+        // Use cleaned data to avoid newline leaks
+        const passData = cleanedStr !== str ? Buffer.from(cleanedStr) : data;
         originalListeners.forEach((listener) => {
-          (listener as (data: Buffer) => void)(data);
+          (listener as (data: Buffer) => void)(passData);
         });
         return;
       }
 
       // Not a mouse event - emit to original listeners
+      // Use cleaned data to avoid newline leaks
+      const passData = cleanedStr !== str ? Buffer.from(cleanedStr) : data;
       originalListeners.forEach((listener) => {
-        (listener as (data: Buffer) => void)(data);
+        (listener as (data: Buffer) => void)(passData);
       });
     };
 

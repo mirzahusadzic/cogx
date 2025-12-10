@@ -100,7 +100,7 @@ export function formatBroadcastSent(
 }
 
 /**
- * Formats the output for the `get_pending_messages` tool.
+ * Formats the output for the `list_pending_messages` tool.
  *
  * @param {QueuedMessage[]} messages An array of pending messages.
  * @returns {string} A formatted string listing the pending messages.

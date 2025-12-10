@@ -41,9 +41,24 @@ describe('getModelShortName', () => {
     expect(getModelShortName('models/gemini-3-pro-001')).toBe('gemini30p');
   });
 
+  it('maps OpenAI GPT-4o models', () => {
+    expect(getModelShortName('gpt-4o')).toBe('gpt4o');
+    expect(getModelShortName('gpt-4o-mini')).toBe('gpt4om');
+  });
+
+  it('maps OpenAI reasoning models', () => {
+    expect(getModelShortName('o1')).toBe('o1');
+    expect(getModelShortName('o3')).toBe('o3');
+  });
+
+  it('maps OpenAI-compatible local models', () => {
+    expect(getModelShortName('gpt-oss-20b')).toBe('oss20b');
+    expect(getModelShortName('gpt-oss-120b')).toBe('oss120b');
+  });
+
   it('returns undefined for unknown models', () => {
-    expect(getModelShortName('gpt-4o')).toBeUndefined();
     expect(getModelShortName('unknown-model')).toBeUndefined();
+    expect(getModelShortName('llama-70b')).toBeUndefined();
   });
 
   it('returns undefined for undefined/empty input', () => {
@@ -54,6 +69,7 @@ describe('getModelShortName', () => {
   it('handles case insensitivity', () => {
     expect(getModelShortName('CLAUDE-OPUS-4-5-20251101')).toBe('opus45');
     expect(getModelShortName('Gemini-2.5-Flash')).toBe('gemini25f');
+    expect(getModelShortName('GPT-4O')).toBe('gpt4o');
   });
 });
 

@@ -73,6 +73,12 @@ import type { TurnAnalysis } from '../../../sigma/types.js';
  * - gemini25f: Gemini 2.5 Flash (gemini-2.5-flash-*)
  * - gemini25p: Gemini 2.5 Pro (gemini-2.5-pro-*)
  * - gemini30p: Gemini 3.0 Pro (gemini-3*-pro-* or models/gemini-3.0-pro-*)
+ * - gpt4o: GPT-4o (gpt-4o)
+ * - gpt4om: GPT-4o Mini (gpt-4o-mini)
+ * - o1: O1 reasoning model (o1)
+ * - o3: O3 reasoning model (o3)
+ * - oss20b: GPT-OSS 20B local model (gpt-oss-20b)
+ * - oss120b: GPT-OSS 120B local model (gpt-oss-120b)
  *
  * @param model Full model ID (e.g., 'claude-opus-4-5-20251101')
  * @returns Short model name (e.g., 'opus45') or undefined if unknown
@@ -102,6 +108,16 @@ export function getModelShortName(model?: string): string | undefined {
     !lower.includes('flash')
   )
     return 'gemini30p';
+
+  // OpenAI models
+  if (lower === 'gpt-4o') return 'gpt4o';
+  if (lower === 'gpt-4o-mini') return 'gpt4om';
+  if (lower === 'o1') return 'o1';
+  if (lower === 'o3') return 'o3';
+
+  // OpenAI-compatible local models (eGemma)
+  if (lower.includes('gpt-oss-20b')) return 'oss20b';
+  if (lower.includes('gpt-oss-120b')) return 'oss120b';
 
   // Unknown model
   return undefined;

@@ -197,10 +197,10 @@ export function createAgentMessagingMcpServer(
     }
   );
 
-  // Tool: Get pending messages
-  const getPendingMessagesTool = tool(
-    'get_pending_messages',
-    'Get all pending messages in your message queue. These are messages from other agents that you have not yet processed.',
+  // Tool: List pending messages
+  const listPendingMessagesTool = tool(
+    'list_pending_messages',
+    'List all pending messages in your message queue. These are messages from other agents that you have not yet processed.',
     {},
     async () => {
       try {
@@ -225,7 +225,10 @@ export function createAgentMessagingMcpServer(
           content: [
             {
               type: 'text',
-              text: formatError('get pending messages', (err as Error).message),
+              text: formatError(
+                'list pending messages',
+                (err as Error).message
+              ),
             },
           ],
           isError: true,
@@ -311,7 +314,7 @@ export function createAgentMessagingMcpServer(
       listAgentsTool,
       sendMessageTool,
       broadcastTool,
-      getPendingMessagesTool,
+      listPendingMessagesTool,
       markMessageReadTool,
     ],
   });

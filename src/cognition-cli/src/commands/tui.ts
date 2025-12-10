@@ -1,3 +1,6 @@
+// NOTE: SDK silencing (OPENAI_AGENTS_DISABLE_TRACING, console overrides)
+// is now handled in cli.ts entry point to ensure it runs before any imports.
+
 /**
  * Terminal User Interface (TUI) Command
  *
@@ -50,7 +53,10 @@ import { WorkspaceManager } from '../core/workspace-manager.js';
 import { startTUI } from '../tui/index.js';
 import {
   checkPrerequisites,
+  autoConfigureOpenAIFromWorkbench,
+  checkWorkbenchHealthDetailed,
   type LLMProviderType,
+  type WorkbenchHealthResult,
 } from '../utils/workbench-detect.js';
 
 /**
@@ -132,6 +138,13 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
   let projectRoot: string;
   let pgcRoot: string;
 
+  // Workbench URL and cached health result (computed once, reused everywhere)
+  const workbenchUrl =
+    options.workbenchUrl ||
+    process.env.WORKBENCH_URL ||
+    'http://localhost:8000';
+  let cachedHealthResult: WorkbenchHealthResult | null = null;
+
   if (!resolvedProjectRoot) {
     // No workspace found at all
     if (options.noOnboarding) {
@@ -169,6 +182,9 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     // Workspace exists - check if it's incomplete (missing genesis or overlays)
     projectRoot = resolvedProjectRoot;
     pgcRoot = path.join(projectRoot, '.open_cognition');
+
+    // Do ONE health check early - reuse for onboarding decision AND pass to TUI
+    cachedHealthResult = await checkWorkbenchHealthDetailed(workbenchUrl, true);
 
     // Check if genesis has been run (index/ directory with JSON files)
     const hasGenesis = (() => {
@@ -251,23 +267,12 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
       (!hasGenesis || !hasDocs || missingOverlays.length > 0) &&
       !options.noOnboarding;
 
-    if (needsOnboarding) {
-      // Check workbench before entering onboarding
-      // Need FULL workbench health (reachable + embeddings + summarization) for onboarding
-      const workbenchUrl =
-        options.workbenchUrl ||
-        process.env.WORKBENCH_URL ||
-        'http://localhost:8000';
-      const { checkWorkbenchHealthDetailed } =
-        await import('../utils/workbench-detect.js');
-      const healthResult = await checkWorkbenchHealthDetailed(
-        workbenchUrl,
-        true
-      );
+    if (needsOnboarding && cachedHealthResult) {
+      // Use cached health check result (already done above)
       const workbenchFullyHealthy =
-        healthResult.reachable &&
-        healthResult.embeddingReady &&
-        healthResult.summarizationReady;
+        cachedHealthResult.reachable &&
+        cachedHealthResult.embeddingReady &&
+        cachedHealthResult.summarizationReady;
 
       if (!workbenchFullyHealthy) {
         // Workbench not fully configured - skip onboarding silently (status bar will show issues)
@@ -296,11 +301,6 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
       }
     }
   }
-
-  const workbenchUrl =
-    options.workbenchUrl ||
-    process.env.WORKBENCH_URL ||
-    'http://localhost:8000';
 
   // Enable BIDI streaming for Gemini agent workflows
   // BIDI mode keeps the stream alive after tool calls for multi-turn conversations
@@ -375,19 +375,32 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     resolvedProvider = options.provider || llmConfig.defaultProvider;
   }
 
-  const resolvedModel =
-    options.model ||
-    stateModel ||
-    llmConfig.providers[resolvedProvider as 'claude' | 'gemini']?.defaultModel;
-
   // Validate and resolve provider
   // Must check resolvedProvider (not just options.provider) because it may come from state file
   let validatedProvider = resolvedProvider;
+  let resolvedModel: string | undefined;
   try {
+    // Auto-configure OpenAI from workbench if gpt-oss model is available
+    // Must happen BEFORE resolvedModel computation so COGNITION_OPENAI_MODEL is set
+    // Pass cached health to avoid redundant /health call
+    const openaiAutoConfig = await autoConfigureOpenAIFromWorkbench(undefined, {
+      workbenchUrl,
+      cachedHealth: cachedHealthResult,
+    });
+
     const { registry, initializeProviders } = await import('../llm/index.js');
     // Pass resolvedProvider as default to avoid "gemini not available" warning
     // when loading from file that uses claude/opus
     await initializeProviders({ defaultProvider: resolvedProvider });
+
+    // Resolve model AFTER auto-config so COGNITION_OPENAI_MODEL is available for OpenAI
+    resolvedModel =
+      options.model ||
+      stateModel ||
+      (resolvedProvider === 'openai'
+        ? process.env.COGNITION_OPENAI_MODEL
+        : llmConfig.providers[resolvedProvider as 'claude' | 'gemini']
+            ?.defaultModel);
 
     if (!registry.has(resolvedProvider)) {
       const availableProviders = registry.list();
@@ -407,19 +420,33 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
         process.exit(1);
       }
 
-      // If user explicitly specified provider via CLI, error out
+      // If user explicitly specified provider via CLI, error out with helpful message
       if (options.provider) {
-        console.error(
-          `Error: Provider '${options.provider}' not found.\n` +
-            `Available providers: ${availableProviders.join(', ')}`
-        );
+        // Special handling for OpenAI - explain workbench requirement
+        if (options.provider === 'openai' && !openaiAutoConfig.configured) {
+          console.error(
+            chalk.red(`\nError: OpenAI provider not available.\n\n`) +
+              `Reason: ${openaiAutoConfig.reason || 'Workbench chat model not loaded'}\n\n` +
+              `To use the OpenAI provider, either:\n` +
+              `  1. Start workbench with a chat model (gpt-oss-20b, etc.)\n` +
+              `  2. Set OPENAI_API_KEY and optionally OPENAI_BASE_URL\n` +
+              (availableProviders.length > 0
+                ? `\nAvailable providers: ${availableProviders.join(', ')}`
+                : '')
+          );
+        } else {
+          console.error(
+            `Error: Provider '${options.provider}' not found.\n` +
+              `Available providers: ${availableProviders.join(', ')}`
+          );
+        }
         process.exit(1);
       }
 
       // New session with config default not available - fall back silently
       if (availableProviders.length === 0) {
         console.error(
-          'Error: No LLM providers available. Configure ANTHROPIC_API_KEY or GEMINI_API_KEY.'
+          'Error: No LLM providers available. Configure ANTHROPIC_API_KEY, GEMINI_API_KEY, or start workbench with a chat model.'
         );
         process.exit(1);
       }
@@ -445,7 +472,25 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
   // Set default sessionTokens based on provider
   // Gemini has 2M token context (gemini-2.5-pro) / 1M (gemini-3-pro)
   // Claude has 200K token context (Sonnet/Opus) - compress at 120K to leave buffer
-  const defaultSessionTokens = validatedProvider === 'gemini' ? 950000 : 120000;
+  // OpenAI/local models use COGNITION_OPENAI_MAX_TOKENS (auto-configured from workbench health)
+  let defaultSessionTokens: number;
+  if (validatedProvider === 'gemini') {
+    defaultSessionTokens = 950000;
+  } else if (validatedProvider === 'openai') {
+    // Use auto-configured token limit from workbench
+    // Fallback: 120K for official OpenAI (GPT-4o has 128K), 4K for unknown local endpoints
+    const isLocalEndpoint =
+      process.env.OPENAI_BASE_URL &&
+      !process.env.OPENAI_BASE_URL.includes('api.openai.com');
+    const defaultFallback = isLocalEndpoint ? 4096 : 120000;
+    const openaiMaxTokens = process.env.COGNITION_OPENAI_MAX_TOKENS
+      ? parseInt(process.env.COGNITION_OPENAI_MAX_TOKENS, 10)
+      : defaultFallback;
+    defaultSessionTokens = openaiMaxTokens;
+  } else {
+    // Claude default
+    defaultSessionTokens = 120000;
+  }
 
   // Launch TUI
   await startTUI({
@@ -461,5 +506,6 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     displayThinking: options.displayThinking ?? true,
     onboardingMode, // NEW: Pass onboarding mode to TUI
     autoResponse: options.autoResponse ?? true, // Auto-respond to agent messages
+    workbenchHealth: cachedHealthResult, // Pre-computed health (avoids 3 redundant /health calls)
   });
 }

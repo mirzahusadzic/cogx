@@ -5,7 +5,7 @@
   "license": "AGPL-3.0-or-later",
   "author": "Mirza Husadzic",
   "engines": {
-    "node": ">=20.18.1"
+    "node": ">=22.0.0"
   },
   "bin": {
     "cognition-cli": "./dist/cli.js"
@@ -41,6 +41,7 @@
     "@inkjs/ui": "^2.0.0",
     "@lancedb/lancedb": "^0.22.3",
     "@modelcontextprotocol/sdk": "^1.17.5",
+    "@openai/agents": "^0.3.4",
     "@opentelemetry/api": "^1.9.0",
     "@types/chokidar": "^1.7.5",
     "@types/workerpool": "^6.4.7",
@@ -79,7 +80,7 @@
     "@types/fs-extra": "^11.0.4",
     "@types/glob": "^8.1.0",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^20.11.0",
+    "@types/node": "^22.0.0",
     "@types/proper-lockfile": "^4.1.4",
     "@types/react": "^19.2.2",
     "@typescript-eslint/eslint-plugin": "^8.46.4",

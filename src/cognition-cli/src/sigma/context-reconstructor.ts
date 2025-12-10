@@ -140,6 +140,13 @@ function getSystemFingerprint(
   if (modelName?.includes('gemini')) {
     providerName = 'Gemini';
     sdkName = 'Google AI SDK';
+  } else if (
+    modelName?.includes('gpt') ||
+    modelName?.includes('o1') ||
+    modelName?.includes('o3')
+  ) {
+    providerName = 'OpenAI Agent';
+    sdkName = 'OpenAI Agents SDK';
   }
 
   return `# SYSTEM IDENTITY

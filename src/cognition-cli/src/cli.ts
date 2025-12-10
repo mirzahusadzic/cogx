@@ -1,5 +1,14 @@
 #!/usr/bin/env node
 
+// ============================================================================
+// SDK Silencing - MUST be first before any imports
+// The @openai/agents SDK uses console.error/warn and the debug package
+// which corrupts Ink-based TUI layout. Set all silencing env vars here.
+// ============================================================================
+process.env.OPENAI_AGENTS_DISABLE_TRACING = '1';
+process.env.OPENAI_AGENTS_DONT_LOG_MODEL_DATA = '1';
+process.env.OPENAI_AGENTS_DONT_LOG_TOOL_DATA = '1';
+
 /**
  * Cognition CLI - Main Entry Point
  *
