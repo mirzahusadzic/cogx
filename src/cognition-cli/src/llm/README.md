@@ -1,12 +1,12 @@
 # LLM Module - Multi-Provider Abstraction Layer
 
-The **LLM (Large Language Model)** module provides a unified interface for interacting with different AI model providers (Claude, Gemini) within the Cognition system.
+The **LLM (Large Language Model)** module provides a unified interface for interacting with different AI model providers (Claude, Gemini, OpenAI/local) within the Cognition system.
 
 It abstracts away the differences between providers, enabling the TUI and other agents to switch models dynamically while maintaining support for advanced features like tool use, streaming, and multi-turn conversations.
 
 ## 🚀 Key Features
 
-- **Multi-Provider Support**: Seamlessly switch between Anthropic Claude and Google Gemini.
+- **Multi-Provider Support**: Seamlessly switch between Anthropic Claude, Google Gemini, and OpenAI/local models.
 - **Unified Interfaces**:
   - `LLMProvider`: Basic completions and streaming.
   - `AgentProvider`: Advanced agent workflows (tools, memory, sessions).
@@ -49,11 +49,17 @@ classDiagram
         +executeAgent()
     }
 
+    class OpenAIAgentProvider {
+        +executeAgent()
+    }
+
     LLMProvider <|-- AgentProvider
     LLMProvider <|.. ClaudeProvider
     LLMProvider <|.. GeminiAgentProvider
+    LLMProvider <|.. OpenAIAgentProvider
     AgentProvider <|.. ClaudeProvider
     AgentProvider <|.. GeminiAgentProvider
+    AgentProvider <|.. OpenAIAgentProvider
     ProviderRegistry --> LLMProvider
 ```
 
@@ -82,8 +88,17 @@ Centralizes settings from environment variables and `settings.json`.
 - **Defaults**:
   - Claude: `claude-opus-4-5-20251101`
   - Gemini: `gemini-2.5-flash`
+  - OpenAI: `gpt-4o` (or auto-detected from workbench)
 
-#### 4. ADK Integration (`providers/gemini-adk-tools.ts`)
+#### 4. OpenAI Agent Provider (`providers/openai-agent-provider.ts`)
+
+Implements the `AgentProvider` interface using the **@openai/agents SDK**.
+
+- Works with official OpenAI API or OpenAI-compatible endpoints (e.g., eGemma workbench).
+- Auto-configures from workbench when local chat models (gpt-oss-20b, etc.) are detected.
+- Full tool parity with other providers (file operations, bash, memory, IPC).
+
+#### 5. ADK Integration (`providers/gemini-adk-tools.ts`)
 
 Bridges Cognition's internal tool system with Google's **Agent Development Kit (ADK)**.
 
@@ -169,19 +184,22 @@ The module implements several layers of protection against common AI workflow fa
 
 The module automatically loads configuration from environment variables.
 
-| Provider    | Env Variable             | Description                                 |
-| ----------- | ------------------------ | ------------------------------------------- |
-| **Claude**  | `ANTHROPIC_API_KEY`      | Required for Claude provider                |
-|             | `COGNITION_CLAUDE_MODEL` | Override default model                      |
-| **Gemini**  | `GEMINI_API_KEY`         | Required for Gemini provider                |
-|             | `COGNITION_GEMINI_MODEL` | Override default model                      |
-| **General** | `COGNITION_LLM_PROVIDER` | Set default provider (`claude` or `gemini`) |
+| Provider    | Env Variable             | Description                                            |
+| ----------- | ------------------------ | ------------------------------------------------------ |
+| **Claude**  | `ANTHROPIC_API_KEY`      | Required for Claude provider                           |
+|             | `COGNITION_CLAUDE_MODEL` | Override default model                                 |
+| **Gemini**  | `GEMINI_API_KEY`         | Required for Gemini provider                           |
+|             | `COGNITION_GEMINI_MODEL` | Override default model                                 |
+| **OpenAI**  | `OPENAI_API_KEY`         | Required for official OpenAI API                       |
+|             | `OPENAI_BASE_URL`        | Custom endpoint (e.g., local workbench)                |
+|             | `COGNITION_OPENAI_MODEL` | Override default model                                 |
+| **General** | `COGNITION_LLM_PROVIDER` | Set default provider (`claude`, `gemini`, or `openai`) |
 
 ---
 
 ## 🔮 Future Roadmap
 
-- **Local LLM Support**: Adapter for Ollama/Llama.cpp to run entirely offline.
+- ~~**Local LLM Support**: Adapter for Ollama/Llama.cpp to run entirely offline.~~ ✅ **DONE** (OpenAI-compatible endpoint via eGemma workbench)
 - **Cost Tracking**: Persist token usage and cost estimates to a local database.
 - **Model Router**: "Smart" router that picks the cheapest model for simple tasks and the smartest model for complex reasoning.
 - **Prompt Caching**: Abstract provider-specific caching mechanisms (Anthropic prompt caching / Gemini context caching).

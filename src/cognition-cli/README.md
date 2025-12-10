@@ -14,13 +14,13 @@ Cognition Σ CLI is the working implementation of the **Grounded Context Pool (P
 
 ## At a Glance
 
-| Metric             | Value                    |
-| ------------------ | ------------------------ |
-| Production Code    | ~78,520 lines TypeScript |
-| Test Coverage      | ~85% (60 test files)     |
-| Core Commands      | 40+ with tab completion  |
-| Cognitive Overlays | 7 (O₁-O₇)                |
-| LLM Providers      | 2 (Gemini, Claude)       |
+| Metric             | Value                            |
+| ------------------ | -------------------------------- |
+| Production Code    | ~86,350 lines TypeScript         |
+| Test Coverage      | ~85% (60+ test files)            |
+| Core Commands      | 40+ with tab completion          |
+| Cognitive Overlays | 7 (O₁-O₇)                        |
+| LLM Providers      | 3 (Gemini, Claude, OpenAI/local) |
 
 _For detailed metrics, see [Comprehensive Analysis](docs/architecture/COMPREHENSIVE_ANALYSIS.md)._
 
@@ -54,6 +54,7 @@ Cognition CLI supports multiple LLM providers:
 
 - **Gemini** (Google) - Included by default
 - **Claude** (Anthropic) - Optional, requires additional setup
+- **OpenAI/Local** - OpenAI API or OpenAI-compatible endpoints (e.g., local models via eGemma workbench)
 
 #### Gemini (Default Provider)
 
@@ -106,6 +107,24 @@ cognition-cli tui --provider claude
 
 **License**: Proprietary (Anthropic Commercial ToS)
 By installing `@anthropic-ai/claude-agent-sdk`, you accept [Anthropic's Terms of Service](https://www.anthropic.com/legal/commercial-terms).
+
+#### OpenAI/Local Provider
+
+Supports official OpenAI API or any OpenAI-compatible endpoint (e.g., local models via eGemma workbench).
+
+```bash
+# With official OpenAI API
+export OPENAI_API_KEY=sk-...
+cognition-cli tui --provider openai
+
+# With local workbench (auto-configures when gpt-oss model is loaded)
+# No API key needed - workbench auto-detected
+cognition-cli tui --provider openai
+```
+
+**Auto-configuration:** When eGemma workbench has a chat model loaded (e.g., `gpt-oss-20b`), cognition-cli automatically configures the OpenAI provider to use the local endpoint.
+
+**License**: MIT (@openai/agents SDK)
 
 ---
 
@@ -176,7 +195,7 @@ cognition tui provider set-default claude
 
 **Features:**
 
-- ✅ Multi-provider support (Claude & Gemini with unified UX)
+- ✅ Multi-provider support (Claude, Gemini & OpenAI/local with unified UX)
 - ✅ Thinking blocks visualization for extended reasoning
 - ✅ Infinite context across sessions with intelligent compression
 - ✅ Real-time lattice visualization with live stats
