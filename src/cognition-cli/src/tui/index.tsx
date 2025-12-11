@@ -1291,7 +1291,6 @@ export function startTUI(options: CognitionTUIProps) {
   process.on('uncaughtException', handleUncaughtError);
 
   const { unmount, waitUntilExit } = render(<CognitionTUI {...options} />, {
-    patchConsole: true, // Patch console to prevent output mixing
     debug: false,
     maxFps: 120, // Higher FPS for smoother rendering and less visible flicker
   });

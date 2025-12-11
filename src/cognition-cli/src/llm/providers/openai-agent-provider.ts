@@ -45,12 +45,20 @@
  * ```
  */
 
-// Disable OpenAI Agents SDK tracing to prevent console output in TUI
+// Disable OpenAI Agents SDK tracing and logging to prevent console output in TUI
 // Must be set BEFORE importing @openai/agents
+// The SDK uses both custom env vars AND the debug package
 process.env.OPENAI_AGENTS_DISABLE_TRACING = '1';
+process.env.OPENAI_AGENTS_DONT_LOG_MODEL_DATA = '1';
+process.env.OPENAI_AGENTS_DONT_LOG_TOOL_DATA = '1';
+process.env.DEBUG = ''; // Disable debug package output
 
 import OpenAI from 'openai';
 import { Agent, run, setDefaultOpenAIClient } from '@openai/agents';
+import {
+  OpenAIResponsesModel,
+  OpenAIConversationsSession,
+} from '@openai/agents-openai';
 import { getOpenAITools } from './openai-agent-tools.js';
 import type { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
 import type { BackgroundTaskManager } from '../../tui/services/BackgroundTaskManager.js';
@@ -155,6 +163,12 @@ export class OpenAIAgentProvider implements AgentProvider {
   constructor(options: OpenAIAgentProviderOptions = {}) {
     this.baseUrl = options.baseUrl || process.env.OPENAI_BASE_URL;
 
+    // Normalize baseURL to always include /v1 suffix for OpenAI API compatibility
+    // This ensures both Chat Completions and Conversations API work correctly
+    if (this.baseUrl && !this.baseUrl.endsWith('/v1')) {
+      this.baseUrl = this.baseUrl.replace(/\/$/, '') + '/v1';
+    }
+
     // For local endpoints, prefer WORKBENCH_API_KEY over dummy key
     const isLocal =
       this.baseUrl &&
@@ -169,6 +183,7 @@ export class OpenAIAgentProvider implements AgentProvider {
     this.client = new OpenAI({
       apiKey: this.apiKey,
       baseURL: this.baseUrl,
+      dangerouslyAllowBrowser: true, // Allow running in test environments
     });
 
     // Check if configured via workbench auto-detection
@@ -439,20 +454,39 @@ export class OpenAIAgentProvider implements AgentProvider {
       // Build tools array
       const tools = this.buildTools(request);
 
+      // Use Responses API for all endpoints (primary API for Agents SDK)
+      // Works with both OpenAI and OpenAI-compatible endpoints like eGemma
+      const modelImpl = new OpenAIResponsesModel(this.client, modelId);
+
       // Create agent
       const agent = new Agent({
         name: 'cognition_agent',
-        model: modelId,
+        model: modelImpl,
         instructions: this.buildSystemPrompt(request),
         tools,
         modelSettings: { temperature: 1.0 },
       });
+
+      // Create session for conversation continuity
+      const session = new OpenAIConversationsSession({
+        conversationId,
+        client: this.client,
+      });
+
+      // Suppress SDK console.error AND stderr output during run and finalOutput access
+      // The SDK logs errors like "Accessed finalOutput before agent run is completed"
+      // when aborted, which leaks to console and causes visual glitches in TUI
+      const originalConsoleError = console.error;
+      const originalStderrWrite = process.stderr.write.bind(process.stderr);
+      console.error = () => {}; // Suppress all console.error during SDK operations
+      process.stderr.write = () => true; // Suppress direct stderr writes
 
       // Run agent with streaming to capture tool events
       const streamedResult = await run(agent, request.prompt, {
         stream: true,
         signal: this.abortController.signal,
         maxTurns: 30,
+        session,
       });
 
       // Track tool calls for display
@@ -627,7 +661,19 @@ export class OpenAIAgentProvider implements AgentProvider {
       }
 
       // Get final output from completed result
-      const finalOutput = outputText || streamedResult.finalOutput;
+      // Wrap in try-catch to suppress SDK error when accessing finalOutput after abort
+      let finalOutput = outputText || '';
+      try {
+        finalOutput = outputText || streamedResult.finalOutput || '';
+      } catch {
+        // Silently ignore SDK error "Accessed finalOutput before agent run is completed"
+        // This happens when user aborts (ESC) before completion
+      }
+
+      // Restore console.error and stderr after SDK operations complete
+      console.error = originalConsoleError;
+      process.stderr.write = originalStderrWrite;
+
       const output =
         typeof finalOutput === 'string'
           ? finalOutput
@@ -662,9 +708,24 @@ export class OpenAIAgentProvider implements AgentProvider {
         // (console output corrupts Ink-based TUI layout)
       }
 
-      // Estimate tokens (rough approximation)
-      totalPromptTokens = Math.ceil(request.prompt.length / 4);
-      totalCompletionTokens = Math.ceil(output.length / 4);
+      // Extract actual token counts from SDK (not estimation!)
+      // The StreamedRunResult.state contains ModelResponse[] with usage data
+      if (streamedResult.state?._modelResponses) {
+        totalPromptTokens = 0;
+        totalCompletionTokens = 0;
+        for (const response of streamedResult.state._modelResponses) {
+          if (response.usage) {
+            totalPromptTokens += response.usage.inputTokens || 0;
+            totalCompletionTokens += response.usage.outputTokens || 0;
+          }
+        }
+      }
+
+      // Fallback to estimation if no usage data available
+      if (totalPromptTokens === 0 && totalCompletionTokens === 0) {
+        totalPromptTokens = Math.ceil(request.prompt.length / 4);
+        totalCompletionTokens = Math.ceil(output.length / 4);
+      }
 
       // Yield final response
       yield {

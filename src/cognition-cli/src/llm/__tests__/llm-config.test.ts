@@ -36,6 +36,9 @@ describe('LLM Configuration', () => {
     delete process.env.COGNITION_CLAUDE_MODEL;
     delete process.env.GEMINI_API_KEY;
     delete process.env.COGNITION_GEMINI_MODEL;
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_BASE_URL;
+    delete process.env.COGNITION_OPENAI_MODEL;
   });
 
   afterEach(() => {
