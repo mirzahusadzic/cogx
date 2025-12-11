@@ -2,10 +2,11 @@
  * OpenAI Agent SDK Tool Definitions for Cognition
  *
  * Maps Cognition tools to @openai/agents tool() format.
- * Mirrors gemini-adk-tools.ts but uses OpenAI's tool() function.
+ * Uses shared tool executors from tool-executors.ts and tool-helpers.ts.
  *
  * TOOL PARITY:
  * - Core: read_file, write_file, glob, grep, bash, edit_file
+ * - Web: fetch_url, WebSearch
  * - Memory: recall_past_conversation
  * - Background: get_background_tasks
  * - IPC: list_agents, send_agent_message, broadcast_agent_message,
@@ -14,10 +15,6 @@
 
 import { tool } from '@openai/agents';
 import { z } from 'zod';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import { spawn } from 'child_process';
-import { glob } from 'glob';
 import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
 import type { MessageQueue } from '../../ipc/MessageQueue.js';
 import {
@@ -34,139 +31,24 @@ import {
 import { getActiveAgents, resolveAgentId } from '../../ipc/agent-discovery.js';
 import type { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
 import { queryConversationLattice } from '../../sigma/query-conversation.js';
-import { WorkbenchClient } from '../../core/executors/workbench-client.js';
 import type { BackgroundTaskManager } from '../../tui/services/BackgroundTaskManager.js';
+import type { OnCanUseTool } from './tool-helpers.js';
+import { formatTaskType, formatDuration } from './tool-helpers.js';
 import {
-  PERSONA_TOOL_OUTPUT_SUMMARIZER,
-  DEFAULT_SUMMARIZER_MODEL_NAME,
-  DEFAULT_SUMMARIZER_MAX_TOKENS,
-} from '../../config.js';
-
-/**
- * Tool permission callback (from AgentRequest interface)
- */
-type OnCanUseTool = (
-  toolName: string,
-  input: unknown
-) => Promise<{ behavior: 'allow' | 'deny'; updatedInput?: unknown }>;
+  executeReadFile,
+  executeWriteFile,
+  executeGlob,
+  executeGrep,
+  executeBash,
+  executeEditFile,
+  executeFetchUrl,
+  executeWebSearch,
+} from './tool-executors.js';
 
 /**
  * OpenAI tool type (return type of tool())
  */
 type OpenAITool = ReturnType<typeof tool>;
-
-/**
- * Maximum characters for tool output before truncation.
- */
-const MAX_TOOL_OUTPUT_CHARS = 50000;
-
-/**
- * Threshold for eGemma summarization (chars).
- */
-const EGEMMA_SUMMARIZE_THRESHOLD = 50000;
-
-/**
- * Absolute max size for tool output before it's truncated without summarization.
- */
-const PRE_TRUNCATE_THRESHOLD = 250000;
-
-/**
- * Workbench client for eGemma summarization (lazy initialized)
- */
-let workbenchClient: WorkbenchClient | null = null;
-let workbenchAvailable: boolean | null = null;
-
-/**
- * Initialize workbench client for eGemma summarization
- */
-function getWorkbenchClient(workbenchUrl?: string): WorkbenchClient {
-  if (!workbenchClient) {
-    workbenchClient = new WorkbenchClient(
-      workbenchUrl || process.env.WORKBENCH_URL || 'http://localhost:8000'
-    );
-  }
-  return workbenchClient;
-}
-
-/**
- * Truncate output if it exceeds max length
- */
-function truncateOutput(
-  output: string,
-  maxChars: number = MAX_TOOL_OUTPUT_CHARS
-): string {
-  if (output.length <= maxChars) return output;
-  const truncated = output.substring(0, maxChars);
-  const lineCount = (output.match(/\n/g) || []).length;
-  const truncatedLineCount = (truncated.match(/\n/g) || []).length;
-  return `${truncated}\n\n... [TRUNCATED: showing ${truncatedLineCount} of ${lineCount} lines. Use limit/offset params for specific sections]`;
-}
-
-/**
- * Intelligently compress tool output using eGemma summarization.
- */
-async function smartCompressOutput(
-  output: string,
-  toolType: 'bash' | 'grep' | 'read_file' | 'glob',
-  maxChars: number = MAX_TOOL_OUTPUT_CHARS,
-  workbenchUrl?: string
-): Promise<string> {
-  // Tier 1: Small outputs pass through untouched.
-  if (output.length <= EGEMMA_SUMMARIZE_THRESHOLD) {
-    return output;
-  }
-
-  // Only summarize bash output - agent needs raw content for read_file/grep/glob
-  if (toolType !== 'bash') {
-    return truncateOutput(output, maxChars);
-  }
-
-  // Tier 3: Catastrophically large outputs - truncate THEN summarize
-  // Don't just truncate and return - still summarize the truncated content!
-  let contentToSummarize = output;
-  let wasTruncated = false;
-  if (output.length > PRE_TRUNCATE_THRESHOLD) {
-    contentToSummarize = output.substring(0, EGEMMA_SUMMARIZE_THRESHOLD);
-    wasTruncated = true;
-  }
-
-  // Tier 2: Medium outputs are suitable for intelligent summarization.
-  if (workbenchAvailable === null) {
-    try {
-      const client = getWorkbenchClient(workbenchUrl);
-      await client.health();
-      workbenchAvailable = true;
-    } catch {
-      workbenchAvailable = false;
-    }
-  }
-
-  if (!workbenchAvailable) {
-    return truncateOutput(contentToSummarize, maxChars);
-  }
-
-  try {
-    const client = getWorkbenchClient(workbenchUrl);
-    const truncationNote = wasTruncated
-      ? `\n[NOTE: Original output was ${output.length} chars, truncated to ${contentToSummarize.length} before summarization]`
-      : '';
-    const response = await client.summarize({
-      content: `Tool: ${toolType}\nOutput length: ${output.length} chars${truncationNote}\n\n${contentToSummarize}`,
-      filename: `tool_output.${toolType}`,
-      persona: PERSONA_TOOL_OUTPUT_SUMMARIZER,
-      max_tokens: DEFAULT_SUMMARIZER_MAX_TOKENS,
-      temperature: 0.1,
-      model_name: DEFAULT_SUMMARIZER_MODEL_NAME,
-    });
-
-    const prefix = wasTruncated
-      ? `[eGemma Summary - ${output.length} chars (truncated+summarized)]`
-      : `[eGemma Summary - ${output.length} chars compressed]`;
-    return `${prefix}\n\n${response.summary}`;
-  } catch {
-    return truncateOutput(contentToSummarize, maxChars);
-  }
-}
 
 /**
  * Create a tool executor wrapped with permission check
@@ -209,29 +91,8 @@ function createReadFileTool(cwd: string, workbenchUrl?: string): OpenAITool {
       limit: z.number().optional().describe('Max lines to read'),
       offset: z.number().optional().describe('Line offset to start from'),
     }),
-    execute: async ({ file_path, limit, offset }) => {
-      try {
-        const content = await fs.readFile(file_path, 'utf-8');
-        const lines = content.split('\n');
-
-        const start = offset || 0;
-        const end = limit ? start + limit : lines.length;
-        const sliced = lines.slice(start, end);
-
-        const result = sliced
-          .map((line, i) => `${String(start + i + 1).padStart(6)}│${line}`)
-          .join('\n');
-
-        return await smartCompressOutput(
-          result,
-          'read_file',
-          undefined,
-          workbenchUrl
-        );
-      } catch (error) {
-        return `Error reading file: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
+    execute: ({ file_path, limit, offset }) =>
+      executeReadFile(file_path, limit, offset, workbenchUrl),
   });
 }
 
@@ -239,21 +100,13 @@ function createReadFileTool(cwd: string, workbenchUrl?: string): OpenAITool {
  * Create write_file tool
  */
 function createWriteFileTool(onCanUseTool?: OnCanUseTool): OpenAITool {
-  const execute = async ({
+  const execute = ({
     file_path,
     content,
   }: {
     file_path: string;
     content: string;
-  }) => {
-    try {
-      await fs.mkdir(path.dirname(file_path), { recursive: true });
-      await fs.writeFile(file_path, content, 'utf-8');
-      return `Successfully wrote ${content.length} bytes to ${file_path}`;
-    } catch (error) {
-      return `Error writing file: ${error instanceof Error ? error.message : String(error)}`;
-    }
-  };
+  }) => executeWriteFile(file_path, content);
 
   return tool({
     name: 'write_file',
@@ -278,18 +131,8 @@ function createGlobTool(cwd: string): OpenAITool {
       pattern: z.string().describe('Glob pattern (e.g., "**/*.ts")'),
       search_cwd: z.string().optional().describe('Working directory'),
     }),
-    execute: async ({ pattern, search_cwd }) => {
-      try {
-        const files = await glob(pattern, {
-          cwd: search_cwd || cwd,
-          nodir: true,
-          absolute: true,
-        });
-        return files.slice(0, 100).join('\n') || 'No matches found';
-      } catch (error) {
-        return `Error: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
+    execute: ({ pattern, search_cwd }) =>
+      executeGlob(pattern, search_cwd || cwd),
   });
 }
 
@@ -306,29 +149,8 @@ function createGrepTool(cwd: string, workbenchUrl?: string): OpenAITool {
       search_path: z.string().optional().describe('Path to search in'),
       glob_filter: z.string().optional().describe('File glob filter'),
     }),
-    execute: async ({ pattern, search_path, glob_filter }) => {
-      return new Promise((resolve) => {
-        const args = ['--color=never', '-n', pattern];
-        if (glob_filter) args.push('--glob', glob_filter);
-        args.push(search_path || cwd);
-
-        const proc = spawn('rg', args, { cwd, timeout: 30000 });
-
-        let output = '';
-        proc.stdout.on('data', (data) => (output += data.toString()));
-        proc.stderr.on('data', (data) => (output += data.toString()));
-        proc.on('close', async () => {
-          const compressed = await smartCompressOutput(
-            output,
-            'grep',
-            15000,
-            workbenchUrl
-          );
-          resolve(compressed || 'No matches');
-        });
-        proc.on('error', () => resolve('Error running grep'));
-      });
-    },
+    execute: ({ pattern, search_path, glob_filter }) =>
+      executeGrep(pattern, search_path, glob_filter, cwd, workbenchUrl),
   });
 }
 
@@ -340,53 +162,13 @@ function createBashTool(
   workbenchUrl?: string,
   onCanUseTool?: OnCanUseTool
 ): OpenAITool {
-  const execute = async ({
+  const execute = ({
     command,
     timeout,
   }: {
     command: string;
     timeout?: number;
-  }) => {
-    const effectiveTimeout = timeout || 120000;
-
-    return new Promise<string>((resolve) => {
-      // Don't use spawn's timeout option - broken on macOS
-      // Use manual setTimeout instead
-      const proc = spawn('bash', ['-c', command], { cwd });
-
-      let stdout = '';
-      let stderr = '';
-      let killed = false;
-
-      // Manual timeout handling
-      const timeoutId = setTimeout(() => {
-        killed = true;
-        proc.kill('SIGTERM');
-      }, effectiveTimeout);
-
-      proc.stdout.on('data', (data) => (stdout += data.toString()));
-      proc.stderr.on('data', (data) => (stderr += data.toString()));
-      proc.on('close', async (code) => {
-        clearTimeout(timeoutId);
-        const output = stdout + (stderr ? `\nSTDERR:\n${stderr}` : '');
-        const compressed = await smartCompressOutput(
-          output,
-          'bash',
-          30000,
-          workbenchUrl
-        );
-        if (killed) {
-          resolve(`Timeout after ${effectiveTimeout}ms\n${compressed}`);
-        } else {
-          resolve(`Exit code: ${code}\n${compressed}`);
-        }
-      });
-      proc.on('error', (err) => {
-        clearTimeout(timeoutId);
-        resolve(`Error: ${err.message}`);
-      });
-    });
-  };
+  }) => executeBash(command, timeout, cwd, workbenchUrl);
 
   return tool({
     name: 'bash',
@@ -411,35 +193,13 @@ function createEditFileTool(onCanUseTool?: OnCanUseTool): OpenAITool {
     replace_all?: boolean;
   }
 
-  const execute = async ({
+  const execute = ({
     file_path,
     old_string,
     new_string,
     replace_all,
-  }: EditInput) => {
-    try {
-      const content = await fs.readFile(file_path, 'utf-8');
-      const escapedPattern = old_string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const count = (content.match(new RegExp(escapedPattern, 'g')) || [])
-        .length;
-
-      if (count === 0) {
-        return 'Error: old_string not found in file';
-      }
-      if (count > 1 && !replace_all) {
-        return `Error: old_string found ${count} times. Use replace_all=true or make it unique.`;
-      }
-
-      const newContent = replace_all
-        ? content.split(old_string).join(new_string)
-        : content.replace(old_string, new_string);
-
-      await fs.writeFile(file_path, newContent, 'utf-8');
-      return `Successfully edited ${file_path}`;
-    } catch (error) {
-      return `Error: ${error instanceof Error ? error.message : String(error)}`;
-    }
-  };
+  }: EditInput) =>
+    executeEditFile(file_path, old_string, new_string, replace_all);
 
   return tool({
     name: 'edit_file',
@@ -460,9 +220,6 @@ function createEditFileTool(onCanUseTool?: OnCanUseTool): OpenAITool {
 
 /**
  * Create fetch_url tool
- *
- * Fetches content from URLs - useful for reading documentation,
- * APIs, or external resources.
  */
 function createFetchUrlTool(): OpenAITool {
   return tool({
@@ -472,71 +229,12 @@ function createFetchUrlTool(): OpenAITool {
     parameters: z.object({
       url: z.string().url().describe('The URL to fetch content from'),
     }),
-    execute: async ({ url }) => {
-      try {
-        // Basic URL validation
-        if (!url.startsWith('http://') && !url.startsWith('https://')) {
-          return 'Error: URL must start with http:// or https://';
-        }
-
-        // Use native fetch (Node 18+)
-        const response = await fetch(url, {
-          headers: {
-            'User-Agent': 'Cognition-CLI/1.0',
-            Accept: 'text/html,application/json,text/plain,*/*',
-          },
-          redirect: 'follow',
-          signal: AbortSignal.timeout(10000), // 10s timeout
-        });
-
-        if (!response.ok) {
-          return `Error: HTTP ${response.status} ${response.statusText}`;
-        }
-
-        const contentType = response.headers.get('content-type') || '';
-        let text = await response.text();
-
-        // Handle JSON
-        if (contentType.includes('application/json')) {
-          try {
-            const json = JSON.parse(text);
-            text = JSON.stringify(json, null, 2);
-          } catch {
-            // Keep raw text if parse fails
-          }
-        }
-        // Basic HTML stripping
-        else if (contentType.includes('text/html')) {
-          // Remove script/style tags
-          text = text.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gim, '');
-          text = text.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gim, '');
-          // Remove HTML tags
-          text = text.replace(/<[^>]+>/g, ' ');
-          // Collapse whitespace
-          text = text.replace(/\s+/g, ' ').trim();
-        }
-
-        // Truncate if too large (100K chars for OpenAI context)
-        const MAX_LENGTH = 100000;
-        if (text.length > MAX_LENGTH) {
-          text =
-            text.substring(0, MAX_LENGTH) +
-            `\n\n[Truncated - total length: ${text.length} chars]`;
-        }
-
-        return text;
-      } catch (error) {
-        return `Error fetching URL: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
+    execute: ({ url }) => executeFetchUrl(url),
   });
 }
 
 /**
  * Create web_search tool
- *
- * Uses the workbench/eGemma web search endpoint to search the web.
- * Falls back to an informative message if workbench is unavailable.
  */
 function createWebSearchTool(workbenchUrl?: string): OpenAITool {
   return tool({
@@ -546,62 +244,7 @@ function createWebSearchTool(workbenchUrl?: string): OpenAITool {
     parameters: z.object({
       query: z.string().describe('The search query'),
     }),
-    execute: async ({ query }) => {
-      try {
-        const baseUrl =
-          workbenchUrl || process.env.WORKBENCH_URL || 'http://localhost:8000';
-
-        // Try the workbench web search endpoint
-        const response = await fetch(`${baseUrl}/v1/web/search`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY || 'dummy'}`,
-          },
-          body: JSON.stringify({ query, max_results: 5 }),
-          signal: AbortSignal.timeout(15000), // 15s timeout
-        });
-
-        if (!response.ok) {
-          // Workbench doesn't have web search endpoint
-          if (response.status === 404) {
-            return `Web search is not available through the current workbench. You can use fetch_url if you have a specific URL to check, or ask the user for more context.`;
-          }
-          return `Error: Web search failed with status ${response.status}`;
-        }
-
-        const results = (await response.json()) as {
-          results?: Array<{
-            title: string;
-            url: string;
-            snippet: string;
-          }>;
-        };
-
-        if (!results.results || results.results.length === 0) {
-          return `No results found for query: "${query}"`;
-        }
-
-        // Format results
-        const formatted = results.results
-          .map(
-            (r, i) =>
-              `${i + 1}. **${r.title}**\n   ${r.url}\n   ${r.snippet || 'No snippet available'}`
-          )
-          .join('\n\n');
-
-        return `Search results for "${query}":\n\n${formatted}`;
-      } catch (error) {
-        // Handle timeout or network errors gracefully
-        if (
-          error instanceof Error &&
-          (error.name === 'TimeoutError' || error.name === 'AbortError')
-        ) {
-          return `Web search timed out. Try a more specific query or use fetch_url with a direct URL.`;
-        }
-        return `Web search unavailable: ${error instanceof Error ? error.message : String(error)}. Use fetch_url with a specific URL instead.`;
-      }
-    },
+    execute: ({ query }) => executeWebSearch(query, workbenchUrl),
   });
 }
 
@@ -646,35 +289,6 @@ function createRecallTool(
 // ============================================================
 // Background Tasks Tool
 // ============================================================
-
-/**
- * Format task type for display
- */
-function formatTaskType(task: { type: string; overlay?: string }): string {
-  switch (task.type) {
-    case 'genesis':
-      return 'Genesis (code analysis)';
-    case 'genesis-docs':
-      return 'Document Ingestion';
-    case 'overlay':
-      return task.overlay
-        ? `${task.overlay} Overlay Generation`
-        : 'Overlay Generation';
-    default:
-      return 'Background Task';
-  }
-}
-
-/**
- * Format duration between two dates
- */
-function formatDuration(start: Date, end: Date): string {
-  const ms = end.getTime() - start.getTime();
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  if (ms < 3600000) return `${(ms / 60000).toFixed(1)}m`;
-  return `${(ms / 3600000).toFixed(1)}h`;
-}
 
 /**
  * Create get_background_tasks tool

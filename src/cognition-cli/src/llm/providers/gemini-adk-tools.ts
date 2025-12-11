@@ -2,14 +2,11 @@
  * ADK Tool Definitions for Gemini Agent Provider
  *
  * Maps Cognition tools to Google ADK FunctionTool format.
+ * Uses shared tool executors from tool-executors.ts and tool-helpers.ts.
  */
 
 import { FunctionTool } from '@google/adk';
 import { z } from 'zod';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import { spawn } from 'child_process';
-import { glob } from 'glob';
 import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
 import type { MessageQueue } from '../../ipc/MessageQueue.js';
 import {
@@ -26,148 +23,17 @@ import {
 import { getActiveAgents, resolveAgentId } from '../../ipc/agent-discovery.js';
 import type { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
 import { queryConversationLattice } from '../../sigma/query-conversation.js';
-import { WorkbenchClient } from '../../core/executors/workbench-client.js';
 import type { BackgroundTaskManager } from '../../tui/services/BackgroundTaskManager.js';
+import type { OnCanUseTool } from './tool-helpers.js';
+import { formatTaskType, formatDuration } from './tool-helpers.js';
 import {
-  PERSONA_TOOL_OUTPUT_SUMMARIZER,
-  DEFAULT_SUMMARIZER_MODEL_NAME,
-  DEFAULT_SUMMARIZER_MAX_TOKENS,
-} from '../../config.js';
-
-/**
- * Tool permission callback (from AgentRequest interface)
- */
-type OnCanUseTool = (
-  toolName: string,
-  input: unknown
-) => Promise<{ behavior: 'allow' | 'deny'; updatedInput?: unknown }>;
-
-/**
- * Maximum characters for tool output before truncation.
- * Helps keep context window manageable and reduces token costs.
- */
-const MAX_TOOL_OUTPUT_CHARS = 50000;
-
-/**
- * Threshold for eGemma summarization (chars).
- * Only bash outputs larger than this will be summarized.
- * read_file/grep/glob are left untouched (agent needs raw content).
- */
-const EGEMMA_SUMMARIZE_THRESHOLD = 50000;
-
-/**
- * Absolute max size for tool output before it's truncated without summarization.
- * Prevents sending excessively large data (e.g., `ls -R` on a large repo)
- * to the summarizer model.
- */
-const PRE_TRUNCATE_THRESHOLD = 250000;
-
-/**
- * Workbench client for eGemma summarization (lazy initialized)
- */
-let workbenchClient: WorkbenchClient | null = null;
-let workbenchAvailable: boolean | null = null;
-
-/**
- * Initialize workbench client for eGemma summarization
- */
-function getWorkbenchClient(workbenchUrl?: string): WorkbenchClient {
-  if (!workbenchClient) {
-    workbenchClient = new WorkbenchClient(
-      workbenchUrl || process.env.WORKBENCH_URL || 'http://localhost:8000'
-    );
-  }
-  return workbenchClient;
-}
-
-/**
- * Truncate output if it exceeds max length (fallback when eGemma unavailable)
- */
-function truncateOutput(
-  output: string,
-  maxChars: number = MAX_TOOL_OUTPUT_CHARS
-): string {
-  if (output.length <= maxChars) return output;
-  const truncated = output.substring(0, maxChars);
-  const lineCount = (output.match(/\n/g) || []).length;
-  const truncatedLineCount = (truncated.match(/\n/g) || []).length;
-  return `${truncated}\n\n... [TRUNCATED: showing ${truncatedLineCount} of ${lineCount} lines. Use limit/offset params for specific sections]`;
-}
-
-/**
- * Intelligently compress tool output using eGemma summarization.
- * Falls back to truncation if eGemma is unavailable.
- *
- * @param output - Raw tool output
- * @param toolType - Type of tool (bash, grep, read_file, glob) for context
- * @param maxChars - Maximum output characters
- * @param workbenchUrl - Optional workbench URL override
- */
-async function smartCompressOutput(
-  output: string,
-  toolType: 'bash' | 'grep' | 'read_file' | 'glob',
-  maxChars: number = MAX_TOOL_OUTPUT_CHARS,
-  workbenchUrl?: string
-): Promise<string> {
-  // Tier 1: Small outputs pass through untouched.
-  if (output.length <= EGEMMA_SUMMARIZE_THRESHOLD) {
-    return output;
-  }
-
-  // Only summarize bash output - agent needs raw content for read_file/grep/glob
-  if (toolType !== 'bash') {
-    return truncateOutput(output, maxChars);
-  }
-
-  // Tier 3: Catastrophically large outputs - truncate THEN summarize
-  // Don't just truncate and return - still summarize the truncated content!
-  let contentToSummarize = output;
-  let wasTruncated = false;
-  if (output.length > PRE_TRUNCATE_THRESHOLD) {
-    contentToSummarize = output.substring(0, EGEMMA_SUMMARIZE_THRESHOLD);
-    wasTruncated = true;
-  }
-
-  // Tier 2: Medium outputs are suitable for intelligent summarization.
-  // Check workbench availability (cached after first check)
-  if (workbenchAvailable === null) {
-    try {
-      const client = getWorkbenchClient(workbenchUrl);
-      await client.health();
-      workbenchAvailable = true;
-    } catch {
-      workbenchAvailable = false;
-    }
-  }
-
-  // Tier 4: Fallback to truncation if summarizer is unavailable or fails.
-  if (!workbenchAvailable) {
-    return truncateOutput(contentToSummarize, maxChars);
-  }
-
-  try {
-    const client = getWorkbenchClient(workbenchUrl);
-    const truncationNote = wasTruncated
-      ? `\n[NOTE: Original output was ${output.length} chars, truncated to ${contentToSummarize.length} before summarization]`
-      : '';
-    const response = await client.summarize({
-      content: `Tool: ${toolType}\nOutput length: ${output.length} chars${truncationNote}\n\n${contentToSummarize}`,
-      filename: `tool_output.${toolType}`,
-      persona: PERSONA_TOOL_OUTPUT_SUMMARIZER,
-      max_tokens: DEFAULT_SUMMARIZER_MAX_TOKENS,
-      temperature: 0.1,
-      model_name: DEFAULT_SUMMARIZER_MODEL_NAME,
-    });
-
-    const prefix = wasTruncated
-      ? `[eGemma Summary - ${output.length} chars (truncated+summarized)]`
-      : `[eGemma Summary - ${output.length} chars compressed]`;
-    return `${prefix}\n\n${response.summary}`;
-  } catch {
-    // Tier 4: Fallback to truncation on any summarization error.
-    return truncateOutput(contentToSummarize, maxChars);
-  }
-}
+  executeReadFile,
+  executeWriteFile,
+  executeGlob,
+  executeGrep,
+  executeBash,
+  executeEditFile,
+} from './tool-executors.js';
 
 /**
  * Read file tool - reads file contents
@@ -184,24 +50,8 @@ export const readFileTool = new FunctionTool({
       .describe('Max lines to read (use for large files!)'),
     offset: z.number().optional().describe('Line offset to start from'),
   }),
-  execute: async ({ file_path, limit, offset }) => {
-    try {
-      const content = await fs.readFile(file_path, 'utf-8');
-      const lines = content.split('\n');
-
-      const start = offset || 0;
-      const end = limit ? start + limit : lines.length;
-      const sliced = lines.slice(start, end);
-
-      const result = sliced
-        .map((line, i) => `${String(start + i + 1).padStart(6)}│${line}`)
-        .join('\n');
-
-      return await smartCompressOutput(result, 'read_file');
-    } catch (error) {
-      return `Error reading file: ${error instanceof Error ? error.message : String(error)}`;
-    }
-  },
+  execute: ({ file_path, limit, offset }) =>
+    executeReadFile(file_path, limit, offset),
 });
 
 /**
@@ -214,15 +64,7 @@ export const writeFileTool = new FunctionTool({
     file_path: z.string().describe('Absolute path to write to'),
     content: z.string().describe('Content to write'),
   }),
-  execute: async ({ file_path, content }) => {
-    try {
-      await fs.mkdir(path.dirname(file_path), { recursive: true });
-      await fs.writeFile(file_path, content, 'utf-8');
-      return `Successfully wrote ${content.length} bytes to ${file_path}`;
-    } catch (error) {
-      return `Error writing file: ${error instanceof Error ? error.message : String(error)}`;
-    }
-  },
+  execute: ({ file_path, content }) => executeWriteFile(file_path, content),
 });
 
 /**
@@ -238,18 +80,7 @@ export const globTool = new FunctionTool({
       .describe('Glob pattern (e.g., "**/*.ts", "src/**/*.py")'),
     cwd: z.string().optional().describe('Working directory'),
   }),
-  execute: async ({ pattern, cwd }) => {
-    try {
-      const files = await glob(pattern, {
-        cwd: cwd || process.cwd(),
-        nodir: true,
-        absolute: true,
-      });
-      return files.slice(0, 100).join('\n') || 'No matches found';
-    } catch (error) {
-      return `Error: ${error instanceof Error ? error.message : String(error)}`;
-    }
-  },
+  execute: ({ pattern, cwd }) => executeGlob(pattern, cwd || process.cwd()),
 });
 
 /**
@@ -267,27 +98,8 @@ export const grepTool = new FunctionTool({
       .optional()
       .describe('File glob filter (e.g., "*.ts")'),
   }),
-  execute: async ({ pattern, path: searchPath, glob_filter }) => {
-    return new Promise((resolve) => {
-      const args = ['--color=never', '-n', pattern];
-      if (glob_filter) args.push('--glob', glob_filter);
-      args.push(searchPath || '.');
-
-      const proc = spawn('rg', args, {
-        cwd: process.cwd(),
-        timeout: 30000,
-      });
-
-      let output = '';
-      proc.stdout.on('data', (data) => (output += data.toString()));
-      proc.stderr.on('data', (data) => (output += data.toString()));
-      proc.on('close', async () => {
-        const compressed = await smartCompressOutput(output, 'grep', 15000);
-        resolve(compressed || 'No matches');
-      });
-      proc.on('error', () => resolve(`Error running grep`));
-    });
-  },
+  execute: ({ pattern, path: searchPath, glob_filter }) =>
+    executeGrep(pattern, searchPath, glob_filter, process.cwd()),
 });
 
 /**
@@ -301,42 +113,8 @@ export const bashTool = new FunctionTool({
     command: z.string().describe('The command to execute'),
     timeout: z.number().optional().describe('Timeout in ms (default 120000)'),
   }),
-  execute: async ({ command, timeout }) => {
-    const effectiveTimeout = timeout || 120000;
-
-    return new Promise((resolve) => {
-      // Don't use spawn's timeout option - broken on macOS
-      // Use manual setTimeout instead
-      const proc = spawn('bash', ['-c', command], { cwd: process.cwd() });
-
-      let stdout = '';
-      let stderr = '';
-      let killed = false;
-
-      // Manual timeout handling
-      const timeoutId = setTimeout(() => {
-        killed = true;
-        proc.kill('SIGTERM');
-      }, effectiveTimeout);
-
-      proc.stdout.on('data', (data) => (stdout += data.toString()));
-      proc.stderr.on('data', (data) => (stderr += data.toString()));
-      proc.on('close', async (code) => {
-        clearTimeout(timeoutId);
-        const output = stdout + (stderr ? `\nSTDERR:\n${stderr}` : '');
-        const compressed = await smartCompressOutput(output, 'bash', 30000);
-        if (killed) {
-          resolve(`Timeout after ${effectiveTimeout}ms\n${compressed}`);
-        } else {
-          resolve(`Exit code: ${code}\n${compressed}`);
-        }
-      });
-      proc.on('error', (err) => {
-        clearTimeout(timeoutId);
-        resolve(`Error: ${err.message}`);
-      });
-    });
-  },
+  execute: ({ command, timeout }) =>
+    executeBash(command, timeout, process.cwd()),
 });
 
 /**
@@ -351,32 +129,8 @@ export const editFileTool = new FunctionTool({
     new_string: z.string().describe('Replacement text'),
     replace_all: z.boolean().optional().describe('Replace all occurrences'),
   }),
-  execute: async ({ file_path, old_string, new_string, replace_all }) => {
-    try {
-      const content = await fs.readFile(file_path, 'utf-8');
-      const count = (
-        content.match(
-          new RegExp(old_string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')
-        ) || []
-      ).length;
-
-      if (count === 0) {
-        return `Error: old_string not found in file`;
-      }
-      if (count > 1 && !replace_all) {
-        return `Error: old_string found ${count} times. Use replace_all=true or make it unique.`;
-      }
-
-      const newContent = replace_all
-        ? content.split(old_string).join(new_string)
-        : content.replace(old_string, new_string);
-
-      await fs.writeFile(file_path, newContent, 'utf-8');
-      return `Successfully edited ${file_path}`;
-    } catch (error) {
-      return `Error: ${error instanceof Error ? error.message : String(error)}`;
-    }
-  },
+  execute: ({ file_path, old_string, new_string, replace_all }) =>
+    executeEditFile(file_path, old_string, new_string, replace_all),
 });
 
 /**
@@ -426,16 +180,6 @@ export function createRecallTool(
  *
  * This bridges the gap between ADK (which doesn't have built-in permission checks)
  * and our TUI's confirmation system (which expects onCanUseTool to be called).
- *
- * We can't access FunctionTool's private properties, so we recreate each tool
- * with the permission check built in.
- *
- * @param name - Tool name
- * @param description - Tool description
- * @param parameters - Zod schema for input parameters
- * @param originalExecute - Original execute function
- * @param onCanUseTool - Optional permission callback
- * @returns Wrapped FunctionTool
  */
 function wrapToolWithPermission<T extends z.ZodRawShape>(
   name: string,
@@ -478,7 +222,6 @@ function wrapToolWithPermission<T extends z.ZodRawShape>(
  * Create background tasks tool for Gemini
  *
  * Allows Gemini to query status of background operations (genesis, overlay generation).
- * Mirrors the functionality of the Claude MCP tool but as an ADK FunctionTool.
  */
 function createBackgroundTasksTool(
   getTaskManager: () => BackgroundTaskManager | null
@@ -578,39 +321,9 @@ function createBackgroundTasksTool(
 }
 
 /**
- * Format task type for display (shared with background-tasks-tool.ts)
- */
-function formatTaskType(task: { type: string; overlay?: string }): string {
-  switch (task.type) {
-    case 'genesis':
-      return 'Genesis (code analysis)';
-    case 'genesis-docs':
-      return 'Document Ingestion';
-    case 'overlay':
-      return task.overlay
-        ? `${task.overlay} Overlay Generation`
-        : 'Overlay Generation';
-    default:
-      return 'Background Task';
-  }
-}
-
-/**
- * Format duration between two dates (shared with background-tasks-tool.ts)
- */
-function formatDuration(start: Date, end: Date): string {
-  const ms = end.getTime() - start.getTime();
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  if (ms < 3600000) return `${(ms / 60000).toFixed(1)}m`;
-  return `${(ms / 3600000).toFixed(1)}h`;
-}
-
-/**
  * Create agent messaging tools for Gemini
  *
  * Allows Gemini to discover other agents, send messages, and read pending messages.
- * Mirrors the functionality of the Claude MCP tool but as ADK FunctionTools.
  */
 function createAgentMessagingTools(
   getMessagePublisher: (() => MessagePublisher | null) | undefined,
@@ -788,15 +501,6 @@ function createAgentMessagingTools(
  *
  * Tool safety/confirmation is handled via onCanUseTool callback (matching Claude's behavior).
  * Each tool is wrapped to call onCanUseTool before execution.
- *
- * @param conversationRegistry - Optional conversation registry for recall tool
- * @param workbenchUrl - Optional workbench URL for recall tool
- * @param onCanUseTool - Optional permission callback (from AgentRequest)
- * @param getTaskManager - Optional getter for BackgroundTaskManager (for background tasks tool)
- * @param getMessagePublisher - Optional getter for MessagePublisher (for agent messaging tools)
- * @param getMessageQueue - Optional getter for MessageQueue (for agent messaging tools)
- * @param projectRoot - Current project root directory (for agent messaging tools)
- * @param currentAgentId - Current agent's ID (for agent messaging tools, to exclude self)
  */
 export function getCognitionTools(
   conversationRegistry?: ConversationOverlayRegistry,
@@ -816,15 +520,7 @@ export function getCognitionTools(
       file_path: z.string().describe('Absolute path to write to'),
       content: z.string().describe('Content to write'),
     }),
-    async ({ file_path, content }) => {
-      try {
-        await fs.mkdir(path.dirname(file_path), { recursive: true });
-        await fs.writeFile(file_path, content, 'utf-8');
-        return `Successfully wrote ${content.length} bytes to ${file_path}`;
-      } catch (error) {
-        return `Error writing file: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
+    ({ file_path, content }) => executeWriteFile(file_path, content),
     onCanUseTool
   );
 
@@ -836,45 +532,7 @@ export function getCognitionTools(
       command: z.string().describe('The command to execute'),
       timeout: z.number().optional().describe('Timeout in ms (default 120000)'),
     }),
-    async ({ command, timeout }) => {
-      const effectiveTimeout = timeout || 120000;
-
-      return new Promise((resolve) => {
-        // Don't use spawn's timeout option - broken on macOS
-        // Use manual setTimeout instead
-        const proc = spawn('bash', ['-c', command], { cwd: process.cwd() });
-
-        let stdout = '';
-        let stderr = '';
-        let killed = false;
-
-        // Manual timeout handling
-        const timeoutId = setTimeout(() => {
-          killed = true;
-          proc.kill('SIGTERM');
-        }, effectiveTimeout);
-
-        proc.stdout.on('data', (data) => (stdout += data.toString()));
-        proc.stderr.on('data', (data) => (stderr += data.toString()));
-        proc.on('close', (code) => {
-          clearTimeout(timeoutId);
-          const output = stdout + (stderr ? `\nSTDERR:\n${stderr}` : '');
-          if (killed) {
-            resolve(
-              `Timeout after ${effectiveTimeout}ms\n${output.slice(0, 30000)}${output.length > 30000 ? '\n... truncated' : ''}`
-            );
-          } else {
-            resolve(
-              `Exit code: ${code}\n${output.slice(0, 30000)}${output.length > 30000 ? '\n... truncated' : ''}`
-            );
-          }
-        });
-        proc.on('error', (err) => {
-          clearTimeout(timeoutId);
-          resolve(`Error: ${err.message}`);
-        });
-      });
-    },
+    ({ command, timeout }) => executeBash(command, timeout, process.cwd()),
     onCanUseTool
   );
 
@@ -888,32 +546,8 @@ export function getCognitionTools(
       new_string: z.string().describe('Replacement text'),
       replace_all: z.boolean().optional().describe('Replace all occurrences'),
     }),
-    async ({ file_path, old_string, new_string, replace_all }) => {
-      try {
-        const content = await fs.readFile(file_path, 'utf-8');
-        const count = (
-          content.match(
-            new RegExp(old_string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')
-          ) || []
-        ).length;
-
-        if (count === 0) {
-          return `Error: old_string not found in file`;
-        }
-        if (count > 1 && !replace_all) {
-          return `Error: old_string found ${count} times. Use replace_all=true or make it unique.`;
-        }
-
-        const newContent = replace_all
-          ? content.split(old_string).join(new_string)
-          : content.replace(old_string, new_string);
-
-        await fs.writeFile(file_path, newContent, 'utf-8');
-        return `Successfully edited ${file_path}`;
-      } catch (error) {
-        return `Error: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
+    ({ file_path, old_string, new_string, replace_all }) =>
+      executeEditFile(file_path, old_string, new_string, replace_all),
     onCanUseTool
   );
 

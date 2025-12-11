@@ -2,12 +2,13 @@
  * Integration tests for OpenAI Agent Provider
  *
  * These tests run against a real OpenAI-compatible endpoint (eGemma or OpenAI).
- * They are OPTIONAL and only run if WORKBENCH_URL is set and the endpoint is healthy.
+ * They are OPTIONAL and only run if both WORKBENCH_URL and WORKBENCH_TEST_INTEGRATION are set.
  *
  * To run these tests:
  * 1. Start eGemma: `cd ~/src/egemma && uv run uvicorn src.server:app --host localhost --port 8000`
  * 2. Set environment: `export WORKBENCH_URL=http://localhost:8000`
- * 3. Run tests: `npm test -- openai-agent-provider.integration`
+ * 3. Enable integration tests: `export WORKBENCH_TEST_INTEGRATION=true`
+ * 4. Run tests: `npm test -- openai-agent-provider.integration`
  *
  * @vitest-environment node
  */
@@ -17,7 +18,9 @@ import { OpenAIAgentProvider } from '../providers/openai-agent-provider.js';
 
 // Check if workbench is available
 const WORKBENCH_URL = process.env.WORKBENCH_URL;
-const shouldRunIntegrationTests = !!WORKBENCH_URL;
+const WORKBENCH_TEST_INTEGRATION =
+  process.env.WORKBENCH_TEST_INTEGRATION === 'true';
+const shouldRunIntegrationTests = !!WORKBENCH_URL && WORKBENCH_TEST_INTEGRATION;
 
 // Helper to check workbench health
 async function checkWorkbenchHealth(): Promise<boolean> {
@@ -46,7 +49,7 @@ describe('OpenAI Agent Provider - Integration Tests', () => {
   beforeAll(async () => {
     if (!shouldRunIntegrationTests) {
       console.log(
-        '⏭️  Skipping integration tests (set WORKBENCH_URL to enable)'
+        '⏭️  Skipping integration tests (set WORKBENCH_URL and WORKBENCH_TEST_INTEGRATION=true to enable)'
       );
       return;
     }

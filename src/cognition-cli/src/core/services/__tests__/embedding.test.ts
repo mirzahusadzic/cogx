@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 // Integration tests - require eGemma to be running
 describe('EmbeddingService - Integration', () => {
   const EGGEMMA_URL = process.env.WORKBENCH_URL || 'http://localhost:8000';
-  const isEGemmaAvailable = process.env.EGGEMMA_AVAILABLE === 'true';
+  const isEGemmaAvailable = process.env.WORKBENCH_TEST_INTEGRATION === 'true';
 
   const skipIfNoEGemma = isEGemmaAvailable ? it : it.skip;
 
