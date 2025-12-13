@@ -65,6 +65,30 @@ import type { BackgroundTaskManager } from '../../tui/services/BackgroundTaskMan
 import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
 import type { MessageQueue } from '../../ipc/MessageQueue.js';
 
+/**
+ * Extended event types from OpenAI Responses API
+ * These are part of the Responses API spec but not fully typed in @openai/agents
+ */
+interface ResponseDeltaEvent {
+  type: 'response.output_text.delta' | 'response.reasoning_summary.delta';
+  delta?: string;
+  item_id?: string;
+  response_id?: string;
+}
+
+/**
+ * Type guard to check if an event is a ResponseDeltaEvent
+ */
+function isResponseDeltaEvent(event: unknown): event is ResponseDeltaEvent {
+  return (
+    typeof event === 'object' &&
+    event !== null &&
+    'type' in event &&
+    (event.type === 'response.output_text.delta' ||
+      event.type === 'response.reasoning_summary.delta')
+  );
+}
+
 import type {
   AgentProvider,
   AgentRequest,
@@ -74,7 +98,6 @@ import type {
 import type {
   CompletionRequest,
   CompletionResponse,
-  StreamChunk,
 } from '../provider-interface.js';
 
 /**
@@ -407,8 +430,9 @@ export class OpenAIAgentProvider implements AgentProvider {
   ): AsyncGenerator<AgentResponse, void, undefined> {
     const modelId = request.model || this.defaultModel;
 
-    // Create abort controller for cancellation
-    this.abortController = new AbortController();
+    // Create abort controller for cancellation (local to avoid race conditions)
+    const abortController = new AbortController();
+    this.abortController = abortController; // Also store for interrupt() method
 
     const messages: AgentMessage[] = [];
     let conversationId: string = 'pending';
@@ -484,7 +508,7 @@ export class OpenAIAgentProvider implements AgentProvider {
       // Run agent with streaming to capture tool events
       const streamedResult = await run(agent, request.prompt, {
         stream: true,
-        signal: this.abortController.signal,
+        signal: abortController.signal,
         maxTurns: 30,
         session,
       });
@@ -495,8 +519,88 @@ export class OpenAIAgentProvider implements AgentProvider {
       // Process streaming events
       for await (const event of streamedResult) {
         // Check for abort at start of each iteration
-        if (this.abortController?.signal.aborted) {
+        if (abortController.signal.aborted) {
           break;
+        }
+
+        // Handle raw model stream events for text and thinking deltas
+        if (event.type === 'raw_model_stream_event') {
+          const rawEvent = event as {
+            data: {
+              type: string;
+              delta?: string;
+              event?: {
+                type: string;
+                delta?: string;
+              };
+            };
+          };
+
+          // Process reasoning/thinking deltas (BEFORE text deltas for correct order)
+          if (
+            rawEvent.data.type === 'model' &&
+            rawEvent.data.event?.type === 'response.reasoning_summary.delta' &&
+            rawEvent.data.event.delta
+          ) {
+            // Create thinking message with delta
+            const thinkingMessage: AgentMessage = {
+              id: `msg-${Date.now()}-thinking`,
+              type: 'thinking',
+              role: 'assistant',
+              content: rawEvent.data.event.delta,
+              timestamp: new Date(),
+              thinking: rawEvent.data.event.delta,
+            };
+
+            messages.push(thinkingMessage);
+
+            // Yield intermediate state with thinking delta
+            yield {
+              messages: [...messages],
+              sessionId: conversationId,
+              tokens: {
+                prompt: totalPromptTokens,
+                completion: totalCompletionTokens,
+                total: totalPromptTokens + totalCompletionTokens,
+              },
+              finishReason: 'stop',
+              numTurns,
+            };
+          }
+
+          // Process output text deltas for streaming
+          if (
+            rawEvent.data.type === 'output_text_delta' &&
+            rawEvent.data.delta
+          ) {
+            outputText += rawEvent.data.delta;
+
+            // Create NEW message with JUST the delta (not accumulated text)
+            // This matches Claude SDK pattern - TUI handles accumulation
+            const deltaMessage: AgentMessage = {
+              id: `msg-${Date.now()}-delta`,
+              type: 'assistant',
+              role: 'assistant',
+              content: rawEvent.data.delta, // ← JUST the delta!
+              timestamp: new Date(),
+            };
+
+            // Push new message for each delta
+            messages.push(deltaMessage);
+
+            // Yield intermediate state with new delta message
+            yield {
+              messages: [...messages],
+              sessionId: conversationId,
+              tokens: {
+                prompt: totalPromptTokens,
+                completion: totalCompletionTokens,
+                total: totalPromptTokens + totalCompletionTokens,
+              },
+              finishReason: 'stop',
+              numTurns,
+            };
+          }
         }
 
         if (event.type === 'run_item_stream_event') {
@@ -550,56 +654,9 @@ export class OpenAIAgentProvider implements AgentProvider {
             };
           }
 
-          // Handle reasoning items (from o1/o3 models)
-          if (
-            itemEvent.name === 'reasoning_item_created' &&
-            itemEvent.item.type === 'reasoning_item'
-          ) {
-            const rawItem = itemEvent.item.rawItem as {
-              type: 'reasoning';
-              content?: Array<{ type: string; text?: string }>;
-              rawContent?: Array<{ type: string; text?: string }>;
-            };
-
-            // Extract reasoning text from content or rawContent
-            let reasoningText = '';
-            if (rawItem?.rawContent) {
-              reasoningText = rawItem.rawContent
-                .filter((c) => c.type === 'reasoning_text' && c.text)
-                .map((c) => c.text)
-                .join('\n');
-            } else if (rawItem?.content) {
-              reasoningText = rawItem.content
-                .filter((c) => c.type === 'input_text' && c.text)
-                .map((c) => c.text)
-                .join('\n');
-            }
-
-            if (reasoningText) {
-              const thinkingMsg: AgentMessage = {
-                id: `msg-${Date.now()}-thinking`,
-                type: 'thinking',
-                role: 'assistant',
-                content: reasoningText,
-                timestamp: new Date(),
-                thinking: reasoningText,
-              };
-              messages.push(thinkingMsg);
-
-              // Yield intermediate state with thinking
-              yield {
-                messages: [...messages],
-                sessionId: conversationId,
-                tokens: {
-                  prompt: totalPromptTokens,
-                  completion: totalCompletionTokens,
-                  total: totalPromptTokens + totalCompletionTokens,
-                },
-                finishReason: 'tool_use',
-                numTurns,
-              };
-            }
-          }
+          // NOTE: Skip reasoning_item_created - we already handled thinking via
+          // response.reasoning_summary.delta events in the streaming loop above.
+          // Processing it here would duplicate the thinking messages.
 
           // Handle tool outputs
           if (
@@ -658,6 +715,98 @@ export class OpenAIAgentProvider implements AgentProvider {
             }
           }
         }
+
+        // Handle streaming text deltas (response.output_text.delta events)
+        // Part of OpenAI Responses API spec - sent by both official OpenAI and compatible endpoints
+        const eventUnknown = event as unknown;
+        if (
+          isResponseDeltaEvent(eventUnknown) &&
+          eventUnknown.type === 'response.output_text.delta'
+        ) {
+          const textEvent = eventUnknown as ResponseDeltaEvent;
+
+          if (textEvent.delta) {
+            outputText += textEvent.delta;
+
+            // Create or update assistant message with accumulated text
+            const assistantMessage: AgentMessage = {
+              id: `msg-${Date.now()}-assistant`,
+              type: 'assistant',
+              role: 'assistant',
+              content: outputText,
+              timestamp: new Date(),
+            };
+
+            // Update last message if it's assistant, otherwise add new
+            if (
+              messages.length > 0 &&
+              messages[messages.length - 1].type === 'assistant'
+            ) {
+              messages[messages.length - 1] = assistantMessage;
+            } else {
+              messages.push(assistantMessage);
+            }
+
+            // Yield intermediate state with streaming text
+            yield {
+              messages: [...messages],
+              sessionId: conversationId,
+              tokens: {
+                prompt: totalPromptTokens,
+                completion: totalCompletionTokens,
+                total: totalPromptTokens + totalCompletionTokens,
+              },
+              finishReason: 'stop', // Still in progress, but 'stop' is closest match
+              numTurns,
+            };
+          }
+        }
+
+        // Handle streaming reasoning deltas (response.reasoning_summary.delta events)
+        // For models with extended thinking (o1/o3, gpt-oss-20b with reasoning)
+        const eventAsAny = event as unknown;
+        if (
+          isResponseDeltaEvent(eventAsAny) &&
+          eventAsAny.type === 'response.reasoning_summary.delta'
+        ) {
+          const reasoningEvent = eventAsAny as ResponseDeltaEvent;
+          if (reasoningEvent.delta) {
+            // Create or update thinking message
+            const thinkingMessage: AgentMessage = {
+              id: `msg-${Date.now()}-thinking`,
+              type: 'thinking',
+              role: 'assistant',
+              content: reasoningEvent.delta,
+              timestamp: new Date(),
+              thinking: reasoningEvent.delta,
+            };
+
+            // Update last message if it's thinking, otherwise add new
+            const lastMsg = messages[messages.length - 1];
+            if (lastMsg && lastMsg.type === 'thinking') {
+              messages[messages.length - 1] = {
+                ...lastMsg,
+                content: (lastMsg.content || '') + reasoningEvent.delta,
+                thinking: (lastMsg.thinking || '') + reasoningEvent.delta,
+              };
+            } else {
+              messages.push(thinkingMessage);
+            }
+
+            // Yield intermediate state with streaming thinking
+            yield {
+              messages: [...messages],
+              sessionId: conversationId,
+              tokens: {
+                prompt: totalPromptTokens,
+                completion: totalCompletionTokens,
+                total: totalPromptTokens + totalCompletionTokens,
+              },
+              finishReason: 'stop', // Still in progress, but 'stop' is closest match
+              numTurns,
+            };
+          }
+        }
       }
 
       // Get final output from completed result
@@ -679,13 +828,22 @@ export class OpenAIAgentProvider implements AgentProvider {
           ? finalOutput
           : JSON.stringify(finalOutput);
 
-      // Create assistant message for final output
-      if (output) {
+      // Check if request was aborted by user (ESC key)
+      const wasAborted = abortController.signal.aborted;
+
+      // Safety: If no assistant messages were yielded during streaming (e.g., abort, error, or SDK failure),
+      // add a final message to ensure we have at least one response
+      // Skip this if the request was aborted - let the abort complete naturally without adding fallback
+      const hasAssistantMessages = messages.some(
+        (m) => m.type === 'assistant' || m.type === 'thinking'
+      );
+      if (!hasAssistantMessages && !wasAborted) {
+        // Always push a message if we don't have any, even if output is empty
         const assistantMessage: AgentMessage = {
           id: `msg-${Date.now()}-assistant`,
           type: 'assistant',
           role: 'assistant',
-          content: output,
+          content: output || '(No response generated)',
           timestamp: new Date(),
         };
         messages.push(assistantMessage);
@@ -749,7 +907,7 @@ export class OpenAIAgentProvider implements AgentProvider {
         errorName === 'AbortError' ||
         errorMessage.includes('abort') ||
         errorMessage.includes('cancel') ||
-        this.abortController?.signal.aborted
+        abortController.signal.aborted
       ) {
         yield {
           messages: [...messages],
@@ -901,6 +1059,7 @@ ${request.cwd || process.cwd()}
 - When making changes, explain what you're doing briefly
 - Prefer editing existing files over creating new ones
 - Run tests after making code changes
+- **ALWAYS use the bash tool for shell commands** (git, grep, npm, yarn, system commands, etc.) - never attempt to execute commands without it
 
 ## Token Economy (IMPORTANT - Each tool call costs tokens!)
 - **NEVER re-read files you just edited** - you already have the content in context
@@ -910,89 +1069,18 @@ ${request.cwd || process.cwd()}
   }
 
   // ========================================
-  // LLMProvider Interface (Basic Completions)
+  // LLMProvider Interface (Required stub)
   // ========================================
 
   /**
-   * Generate a basic completion (non-agent mode)
+   * Basic completion - NOT SUPPORTED
+   * OpenAI Agent provider only supports executeAgent() with Agents SDK
    */
-  async complete(request: CompletionRequest): Promise<CompletionResponse> {
-    try {
-      const response = await this.client.chat.completions.create({
-        model: request.model || this.defaultModel,
-        max_tokens: request.maxTokens || this.defaultMaxTokens,
-        temperature: request.temperature,
-        messages: [
-          ...(request.systemPrompt
-            ? [{ role: 'system' as const, content: request.systemPrompt }]
-            : []),
-          { role: 'user' as const, content: request.prompt },
-        ],
-        stop: request.stopSequences,
-      });
-
-      const text = response.choices[0]?.message?.content || '';
-
-      return {
-        text,
-        model: response.model,
-        tokens: {
-          prompt: response.usage?.prompt_tokens || 0,
-          completion: response.usage?.completion_tokens || 0,
-          total: response.usage?.total_tokens || 0,
-        },
-        finishReason:
-          response.choices[0]?.finish_reason === 'stop' ? 'stop' : 'length',
-      };
-    } catch (error) {
-      throw new Error(
-        `OpenAI completion failed: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
-  }
-
-  /**
-   * Stream a completion
-   */
-  async *stream(request: CompletionRequest): AsyncGenerator<StreamChunk> {
-    try {
-      const stream = await this.client.chat.completions.create({
-        model: request.model || this.defaultModel,
-        max_tokens: request.maxTokens || this.defaultMaxTokens,
-        temperature: request.temperature,
-        messages: [
-          ...(request.systemPrompt
-            ? [{ role: 'system' as const, content: request.systemPrompt }]
-            : []),
-          { role: 'user' as const, content: request.prompt },
-        ],
-        stream: true,
-      });
-
-      let fullText = '';
-
-      for await (const chunk of stream) {
-        const delta = chunk.choices[0]?.delta?.content || '';
-        fullText += delta;
-
-        yield {
-          delta,
-          text: fullText,
-          done: chunk.choices[0]?.finish_reason === 'stop',
-        };
-      }
-
-      // Final chunk
-      yield {
-        delta: '',
-        text: fullText,
-        done: true,
-      };
-    } catch (error) {
-      throw new Error(
-        `OpenAI streaming failed: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async complete(_request: CompletionRequest): Promise<CompletionResponse> {
+    throw new Error(
+      'OpenAI Agent provider does not support complete(). Use executeAgent() instead.'
+    );
   }
 
   /**

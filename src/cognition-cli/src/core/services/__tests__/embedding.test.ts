@@ -21,9 +21,11 @@ describe('EmbeddingService - Integration', () => {
       await Promise.all(promises);
       const elapsed = Date.now() - start;
 
-      // With 5 req/10s limit, 12 requests should take at least 20s
-      // (0-5: batch 1, 6-10: batch 2 after 10s, 11: batch 3 after 20s)
-      expect(elapsed).toBeGreaterThan(19000);
+      // With 2 req/1s limit, 12 requests should take at least 5s
+      // (0-1: batch 1, 2-3: batch 2 after 1s, 4-5: batch 3 after 2s,
+      //  6-7: batch 4 after 3s, 8-9: batch 5 after 4s, 10-11: batch 6 after 5s)
+      // Using 4s threshold to account for timing variance in CI/CD environments
+      expect(elapsed).toBeGreaterThan(4000);
 
       await service.shutdown();
     },

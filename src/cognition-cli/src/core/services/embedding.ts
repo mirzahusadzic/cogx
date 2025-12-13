@@ -205,11 +205,7 @@ export class EmbeddingService extends EventEmitter {
         const job = this.queue.shift()!;
 
         try {
-          // CRITICAL: Use the workbench's public rate limiting method
-          // This ensures all embedding calls respect the same rate limits
-          await this.workbench.waitForEmbedRateLimit();
-
-          // Now make the actual embedding call
+          // Make the embedding call - WorkbenchClient handles rate limiting internally
           const response = await this.workbench.embed({
             signature: job.signature,
             dimensions: job.dimensions,

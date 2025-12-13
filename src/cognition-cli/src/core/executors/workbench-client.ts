@@ -60,7 +60,6 @@
 
 import { fetch, FormData } from 'undici';
 import type { BodyInit } from 'undici';
-import { Blob } from 'node:buffer';
 import chalk from 'chalk';
 import type { StructuralData, SummarizeResponse } from '../types/structural.js';
 import type {
@@ -425,8 +424,11 @@ export class WorkbenchClient {
           const formData = new FormData();
           const fileBuffer = Buffer.from(request.content);
 
-          const blob = new Blob([fileBuffer], { type: 'text/plain' });
-          formData.set('file', blob, request.filename);
+          // Use global File constructor (Node.js 18+, compatible with undici's FormData)
+          const file = new File([fileBuffer], request.filename, {
+            type: 'text/plain',
+          });
+          formData.set('file', file);
 
           formData.set('persona', request.persona);
           if (request.goal) formData.set('goal', request.goal);
@@ -570,9 +572,12 @@ export class WorkbenchClient {
           // FIX: Send as FormData, not JSON
           const formData = new FormData();
           const signatureBuffer = Buffer.from(request.signature);
-          const blob = new Blob([signatureBuffer], { type: 'text/plain' });
+          // Use global File constructor (Node.js 18+, compatible with undici's FormData)
+          const file = new File([signatureBuffer], 'signature.txt', {
+            type: 'text/plain',
+          });
           // The server expects a 'file' field
-          formData.set('file', blob, 'signature.txt');
+          formData.set('file', file);
           const promptName = request.prompt_name || EMBED_PROMPT_NAME;
 
           // Logging disabled - EmbedLogger handles progress tracking
@@ -763,8 +768,11 @@ export class WorkbenchClient {
     const formData = new FormData();
     const fileBuffer = Buffer.from(request.content);
 
-    const blob = new Blob([fileBuffer], { type: 'text/x-python' });
-    formData.set('file', blob, request.filename);
+    // Use global File constructor (Node.js 18+, compatible with undici's FormData)
+    const file = new File([fileBuffer], request.filename, {
+      type: 'text/x-python',
+    });
+    formData.set('file', file);
 
     formData.set('language', request.language);
 

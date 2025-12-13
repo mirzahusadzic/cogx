@@ -173,7 +173,7 @@ function createBashTool(
   return tool({
     name: 'bash',
     description:
-      'Execute bash command (git, npm, etc.). EFFICIENCY TIP: Pipe to head/tail for large outputs.',
+      'Execute shell commands in bash. REQUIRED for: git (status/diff/add/commit/push), npm/yarn (install/build/test), system commands (grep/ls/cd/mkdir/mv/cp), package managers, build tools. IMPORTANT: Always use this tool for ANY terminal/shell command - do not attempt to execute commands without it. EFFICIENCY TIP: Pipe to head/tail for large outputs.',
     parameters: z.object({
       command: z.string().describe('The command to execute'),
       timeout: z.number().optional().describe('Timeout in ms (default 120000)'),
