@@ -232,8 +232,8 @@ export async function injectRelevantContext(
       return `[Recent context ${idx + 1}] ${roleLabel}:\n${snippet}`;
     });
 
-    // Inject context before user message
-    const enrichedMessage = `${contextSnippets.join('\n\n')}\n\n---\n\nBased on the above context:\n${userMessage}`;
+    // Inject context as supporting information after user message
+    const enrichedMessage = `${userMessage}\n\n---\n\n**Recent context for reference:**\n\n${contextSnippets.join('\n\n')}`;
 
     if (debug) {
       console.log('[Context Injector] Injected context successfully');
