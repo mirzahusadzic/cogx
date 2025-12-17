@@ -59,12 +59,13 @@ import type {
  */
 export class GeminiAgentProvider implements AgentProvider {
   name = 'gemini';
-  // Only models that support extended thinking
+  // Only models that support extended thinking (ordered newest first)
   models = [
-    'gemini-2.5-flash', // Default - fast and supports thinking mode
-    'gemini-2.5-pro', // Supports thinking mode
-    'gemini-3-pro-preview', // Supports thinking_level
-    'gemini-2.0-flash-thinking-exp-01-21',
+    'gemini-3-flash-preview', // Gemini 3.0 Flash with high-level thinking (default)
+    'gemini-3-pro-preview', // Gemini 3.0 Pro with advanced reasoning
+    'gemini-2.5-pro', // Gemini 2.5 Pro - most capable 2.x
+    'gemini-2.5-flash', // Gemini 2.5 Flash - fast and efficient
+    'gemini-2.0-flash-thinking-exp-01-21', // Experimental thinking mode
   ];
 
   private apiKey: string;
@@ -162,7 +163,7 @@ export class GeminiAgentProvider implements AgentProvider {
     // Create abort controller for cancellation support
     this.abortController = new AbortController();
 
-    const modelId = request.model || 'gemini-2.5-flash';
+    const modelId = request.model || 'gemini-3-flash-preview';
     const isGemini3 = modelId.includes('gemini-3');
 
     const agent = new LlmAgent({

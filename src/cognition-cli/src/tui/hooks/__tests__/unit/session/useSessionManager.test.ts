@@ -26,6 +26,16 @@ describe('getModelShortName', () => {
     expect(getModelShortName('claude-sonnet-4.5')).toBe('sonnet45');
   });
 
+  it('returns gemini3f for Gemini 3.0 Flash model', () => {
+    expect(getModelShortName('gemini-3-flash-preview')).toBe('gemini3f');
+    expect(getModelShortName('gemini-3.0-flash')).toBe('gemini3f');
+  });
+
+  it('returns gemini3p for Gemini 3.0 Pro model', () => {
+    expect(getModelShortName('gemini-3.0-pro')).toBe('gemini3p');
+    expect(getModelShortName('models/gemini-3-pro-001')).toBe('gemini3p');
+  });
+
   it('returns gemini25f for Gemini 2.5 Flash model', () => {
     expect(getModelShortName('gemini-2.5-flash-preview')).toBe('gemini25f');
     expect(getModelShortName('gemini-2-5-flash')).toBe('gemini25f');
@@ -34,11 +44,6 @@ describe('getModelShortName', () => {
   it('returns gemini25p for Gemini 2.5 Pro model', () => {
     expect(getModelShortName('gemini-2.5-pro')).toBe('gemini25p');
     expect(getModelShortName('gemini-2-5-pro')).toBe('gemini25p');
-  });
-
-  it('returns gemini30p for Gemini 3.0 Pro model', () => {
-    expect(getModelShortName('gemini-3.0-pro')).toBe('gemini30p');
-    expect(getModelShortName('models/gemini-3-pro-001')).toBe('gemini30p');
   });
 
   it('maps OpenAI GPT-4o models', () => {

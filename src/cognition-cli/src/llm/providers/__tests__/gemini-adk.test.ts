@@ -52,7 +52,7 @@ describe('Google ADK', () => {
         parameters: z.object({
           file_path: z.string().describe('Path to the file'),
         }),
-        handler: async (params) => {
+        execute: async (params) => {
           return { content: `Mock content of ${params.file_path}` };
         },
       });

@@ -70,9 +70,10 @@ import type { TurnAnalysis } from '../../../sigma/types.js';
  * Mapping:
  * - sonnet45: Claude Sonnet 4.5 (claude-sonnet-4-5-*)
  * - opus45: Claude Opus 4.5 (claude-opus-4-5-*)
+ * - gemini3f: Gemini 3.0 Flash (gemini-3-flash-preview, gemini-3.0-flash-*)
+ * - gemini3p: Gemini 3.0 Pro (gemini-3-pro-preview, gemini-3.0-pro-*)
  * - gemini25f: Gemini 2.5 Flash (gemini-2.5-flash-*)
  * - gemini25p: Gemini 2.5 Pro (gemini-2.5-pro-*)
- * - gemini30p: Gemini 3.0 Pro (gemini-3*-pro-* or models/gemini-3.0-pro-*)
  * - gpt4o: GPT-4o (gpt-4o)
  * - gpt4om: GPT-4o Mini (gpt-4o-mini)
  * - o1: O1 reasoning model (o1)
@@ -98,16 +99,21 @@ export function getModelShortName(model?: string): string | undefined {
     return 'opus45';
 
   // Gemini models - check specific versions before generic
-  if (lower.includes('gemini-2.5-flash') || lower.includes('gemini-2-5-flash'))
-    return 'gemini25f';
-  if (lower.includes('gemini-2.5-pro') || lower.includes('gemini-2-5-pro'))
-    return 'gemini25p';
+  if (
+    lower.includes('gemini-3-flash') ||
+    (lower.includes('gemini-3') && lower.includes('flash'))
+  )
+    return 'gemini3f';
   if (
     lower.includes('gemini-3') &&
     lower.includes('pro') &&
     !lower.includes('flash')
   )
-    return 'gemini30p';
+    return 'gemini3p';
+  if (lower.includes('gemini-2.5-flash') || lower.includes('gemini-2-5-flash'))
+    return 'gemini25f';
+  if (lower.includes('gemini-2.5-pro') || lower.includes('gemini-2-5-pro'))
+    return 'gemini25p';
 
   // OpenAI models
   if (lower === 'gpt-4o') return 'gpt4o';
