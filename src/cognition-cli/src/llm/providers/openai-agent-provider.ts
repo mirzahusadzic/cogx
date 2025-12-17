@@ -70,7 +70,7 @@ import type { MessageQueue } from '../../ipc/MessageQueue.js';
  * These are part of the Responses API spec but not fully typed in @openai/agents
  */
 interface ResponseDeltaEvent {
-  type: 'response.output_text.delta' | 'response.reasoning_summary.delta';
+  type: 'response.output_text.delta' | 'response.reasoning_text.delta';
   delta?: string;
   item_id?: string;
   response_id?: string;
@@ -85,7 +85,7 @@ function isResponseDeltaEvent(event: unknown): event is ResponseDeltaEvent {
     event !== null &&
     'type' in event &&
     (event.type === 'response.output_text.delta' ||
-      event.type === 'response.reasoning_summary.delta')
+      event.type === 'response.reasoning_text.delta')
   );
 }
 
@@ -539,7 +539,7 @@ export class OpenAIAgentProvider implements AgentProvider {
           // Process reasoning/thinking deltas (BEFORE text deltas for correct order)
           if (
             rawEvent.data.type === 'model' &&
-            rawEvent.data.event?.type === 'response.reasoning_summary.delta' &&
+            rawEvent.data.event?.type === 'response.reasoning_text.delta' &&
             rawEvent.data.event.delta
           ) {
             // Create thinking message with delta
@@ -655,7 +655,7 @@ export class OpenAIAgentProvider implements AgentProvider {
           }
 
           // NOTE: Skip reasoning_item_created - we already handled thinking via
-          // response.reasoning_summary.delta events in the streaming loop above.
+          // response.reasoning_text.delta events in the streaming loop above.
           // Processing it here would duplicate the thinking messages.
 
           // Handle tool outputs
@@ -762,12 +762,12 @@ export class OpenAIAgentProvider implements AgentProvider {
           }
         }
 
-        // Handle streaming reasoning deltas (response.reasoning_summary.delta events)
+        // Handle streaming reasoning deltas (response.reasoning_text.delta events)
         // For models with extended thinking (o1/o3, gpt-oss-20b with reasoning)
         const eventAsAny = event as unknown;
         if (
           isResponseDeltaEvent(eventAsAny) &&
-          eventAsAny.type === 'response.reasoning_summary.delta'
+          eventAsAny.type === 'response.reasoning_text.delta'
         ) {
           const reasoningEvent = eventAsAny as ResponseDeltaEvent;
           if (reasoningEvent.delta) {

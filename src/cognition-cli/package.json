@@ -41,7 +41,7 @@
     "@inkjs/ui": "^2.0.0",
     "@lancedb/lancedb": "^0.22.3",
     "@modelcontextprotocol/sdk": "^1.17.5",
-    "@openai/agents": "^0.3.4",
+    "@openai/agents": "^0.3.6",
     "@opentelemetry/api": "^1.9.0",
     "@types/chokidar": "^1.7.5",
     "@types/workerpool": "^6.4.7",
