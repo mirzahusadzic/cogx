@@ -40,7 +40,7 @@
  * where the assistant left off. This prevents lost work and maintains continuity.
  *
  * MEMORY ARCHITECTURE:
- * - Truncated messages (150 chars) with "..." serve as POINTERS, not complete history
+ * - Truncated messages (256 chars) with "..." serve as POINTERS, not complete history
  * - Full context retrieval via recall_past_conversation tool (semantic search in LanceDB)
  * - System fingerprint prepended to ALL recaps to preserve meta-context
  *
@@ -52,7 +52,12 @@
 
 import type { ConversationLattice, ConversationNode } from './types.js';
 import type { ConversationOverlayRegistry } from './conversation-registry.js';
-import { filterConversationByAlignment } from './query-conversation.js';
+
+/**
+ * Maximum length for truncated message previews in the recap.
+ * Set to 256 to provide enough context for the LLM to decide whether to recall.
+ */
+const RECAP_PREVIEW_LENGTH = 256;
 
 /**
  * Conversation mode classification
@@ -166,15 +171,15 @@ A portable cognitive layer that can be initialized in **any repository**. Create
 ## Memory Architecture
 
 **Compressed Recap (What You See Above):**
-- Recent conversation messages are truncated to 150 characters
-- \`...\` indicates more content available - this is your signal to use the recall tool
+- Recent conversation messages are truncated to ${RECAP_PREVIEW_LENGTH} characters
+- \`...\` indicates more content available - this is your **explicit instruction** to use the recall tool
 - Think of these as **pointers/needles**, not complete verbatim history
 - Designed for token efficiency while preserving navigation context
 
-**Full Context Retrieval (Use When You See \`...\`):**
+**Full Context Retrieval (USE AGGRESSIVELY When You See \`...\`):**
 - \`recall_past_conversation\`: Retrieves FULL untruncated messages from LanceDB
 - Semantic search across all 7 overlays (O1-O7) with complete conversation history
-- When you see truncated content like "**File Modif...", query for full details
+- **CRITICAL**: If a truncated message looks relevant to your current task, you MUST query for full details.
 - Example: \`recall_past_conversation("cursor positioning implementation details")\`
 
 ## Other Available Tools
@@ -409,13 +414,17 @@ function detectCurrentQuest(lattice: ConversationLattice): QuestInfo {
     .sort((a, b) => b.timestamp - a.timestamp)[0];
 
   const lastAction = lastImportant
-    ? lastImportant.content.substring(0, 150).replace(/\n/g, ' ')
+    ? lastImportant.content
+        .substring(0, RECAP_PREVIEW_LENGTH)
+        .replace(/\n/g, ' ')
     : 'Continuing work';
 
   return {
     name: questName,
     completed,
-    description: lastShift.content.substring(0, 200).replace(/\n/g, ' '),
+    description: lastShift.content
+      .substring(0, RECAP_PREVIEW_LENGTH)
+      .replace(/\n/g, ' '),
     lastAction,
     files,
   };
@@ -559,9 +568,14 @@ function getCurrentDepth(lattice: ConversationLattice): {
   const files = [...new Set(fileMatches)];
 
   return {
-    description: currentFocus.content.substring(0, 200).replace(/\n/g, ' '),
+    description: currentFocus.content
+      .substring(0, RECAP_PREVIEW_LENGTH)
+      .replace(/\n/g, ' '),
     files,
-    lastAction: recentNodes[recentNodes.length - 1].content.substring(0, 150),
+    lastAction: recentNodes[recentNodes.length - 1].content.substring(
+      0,
+      RECAP_PREVIEW_LENGTH
+    ),
   };
 }
 
@@ -740,16 +754,33 @@ function getLastConversationTurns(lattice: ConversationLattice): {
   if (lastTurn && lastTurn.role === 'assistant') {
     // Check for task indicators
     const content = lastTurn.content;
-    const hasTodoList =
-      content.includes('TodoWrite') || /\d+\.\s/.test(content);
-    const hasToolUse = content.includes('🔧') || content.includes('Let me');
-    const hasActionWords = /I'll|I will|Let me|Going to|Next I'll/.test(
-      content
-    );
 
-    if (hasTodoList || hasToolUse || hasActionWords) {
-      // Extract first 200 chars as pending task
-      pendingTask = content.substring(0, 200).replace(/\n/g, ' ').trim();
+    // AVOID FALSE POSITIVES: If the message looks like a summary of completed work
+    const isCompletionSummary =
+      /Summary|Finished|Completed|Complete|Success|Tests pass|All tests pass|Done|Pushing to 100%|Finished task/i.test(
+        content
+      );
+
+    if (!isCompletionSummary) {
+      const hasTodoList =
+        content.includes('TodoWrite') || /\d+\.\s/.test(content);
+      const hasToolUse = content.includes('🔧') || content.includes('Let me');
+      const hasActionWords =
+        /I'll|I will|Next I'll|Next, I will|Going to/i.test(content);
+
+      if (hasTodoList || hasToolUse || hasActionWords) {
+        // Try to find the specific intent sentence (e.g., "I will now...")
+        const intentMatch = content.match(
+          /(?:I will|Next I'll|Next, I will|Going to)\s+([^.!?\n]{5,200})/i
+        );
+
+        if (intentMatch) {
+          pendingTask = intentMatch[0].trim();
+        } else {
+          // Fallback to first 120 chars if no specific intent sentence found
+          pendingTask = content.substring(0, 120).replace(/\n/g, ' ').trim();
+        }
+      }
     }
   }
 
@@ -775,7 +806,7 @@ export interface TodoItem {
  * ALGORITHM:
  * 1. For each turn:
  *    a. Format role as uppercase label [USER], [ASSISTANT], [SYSTEM]
- *    b. Truncate content to 150 characters
+ *    b. Truncate content to ${RECAP_PREVIEW_LENGTH} characters
  *    c. Add "..." ellipsis if content was truncated
  *    d. Format as markdown: **[ROLE]**: content...
  * 2. Join all formatted turns with double newlines
@@ -820,8 +851,10 @@ function formatLastTurns(
   const formattedTurns = turns
     .map((turn) => {
       const roleLabel = turn.role.toUpperCase();
-      const preview = turn.content.substring(0, 150).replace(/\n/g, ' ');
-      const ellipsis = turn.content.length > 150 ? '...' : '';
+      const preview = turn.content
+        .substring(0, RECAP_PREVIEW_LENGTH)
+        .replace(/\n/g, ' ');
+      const ellipsis = turn.content.length > RECAP_PREVIEW_LENGTH ? '...' : '';
       return `**[${roleLabel}]**: ${preview}${ellipsis}`;
     })
     .join('\n\n');
@@ -874,23 +907,30 @@ function filterLatticeByOverlayScores(
   lattice: ConversationLattice,
   minAlignment: number = 6
 ): {
-  structural: Array<{ text: string; score: number }>;
-  security: Array<{ text: string; score: number }>;
-  lineage: Array<{ text: string; score: number }>;
-  mission: Array<{ text: string; score: number }>;
-  operational: Array<{ text: string; score: number }>;
-  mathematical: Array<{ text: string; score: number }>;
-  coherence: Array<{ text: string; score: number }>;
+  structural: Array<{ id: string; role: string; text: string; score: number }>;
+  security: Array<{ id: string; role: string; text: string; score: number }>;
+  lineage: Array<{ id: string; role: string; text: string; score: number }>;
+  mission: Array<{ id: string; role: string; text: string; score: number }>;
+  operational: Array<{ id: string; role: string; text: string; score: number }>;
+  mathematical: Array<{
+    id: string;
+    role: string;
+    text: string;
+    score: number;
+  }>;
+  coherence: Array<{ id: string; role: string; text: string; score: number }>;
 } {
   const nodes = lattice.nodes;
 
   // Helper to filter and format turns for an overlay
   const filterByOverlay = (
     overlayKey: keyof ConversationNode['overlay_scores']
-  ): Array<{ text: string; score: number }> => {
+  ): Array<{ id: string; role: string; text: string; score: number }> => {
     return nodes
       .filter((n) => n.overlay_scores[overlayKey] >= minAlignment)
       .map((n) => ({
+        id: n.id,
+        role: n.role,
         text: n.content,
         score: n.overlay_scores[overlayKey],
       }))
@@ -928,7 +968,7 @@ function filterLatticeByOverlayScores(
  *    b. For each overlay dimension (O1-O7):
  *       - Filter turns with alignment >= 6 for that overlay
  *       - Format as numbered list with scores
- *       - Truncate content to 150 chars (pointers, not full text)
+ *       - Truncate content to ${RECAP_PREVIEW_LENGTH} chars (pointers, not full text)
  *    c. Build markdown recap by overlay section
  *    d. Include recent conversation turns
  *    e. Add recall tool instructions
@@ -992,274 +1032,88 @@ async function reconstructChatContext(
 
   const fingerprint = getSystemFingerprint(cwd, 'chat', true, modelName);
 
-  // FAST PATH: Use lattice data directly (in-memory, no disk I/O)
-  // This is MUCH faster than querying conversation overlays from disk
-  const filtered = filterLatticeByOverlayScores(lattice, 6);
-
-  const hasContent =
-    filtered.structural.length > 0 ||
-    filtered.security.length > 0 ||
-    filtered.lineage.length > 0 ||
-    filtered.mission.length > 0 ||
-    filtered.operational.length > 0 ||
-    filtered.mathematical.length > 0 ||
-    filtered.coherence.length > 0;
-
-  if (hasContent) {
-    return (
-      fingerprint +
-      `
-# Conversation Recap
-
-## Architecture & Design (O1 Structural)
-${
-  filtered.structural.length > 0
-    ? filtered.structural
-        .map(
-          (item, i) =>
-            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
-        )
-        .join('\n\n')
-    : '(None)'
-}
-
-## Security Concerns (O2 Security)
-${
-  filtered.security.length > 0
-    ? filtered.security
-        .map(
-          (item, i) =>
-            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
-        )
-        .join('\n\n')
-    : '(None)'
-}
-
-## Knowledge Evolution (O3 Lineage)
-${
-  filtered.lineage.length > 0
-    ? filtered.lineage
-        .map(
-          (item, i) =>
-            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
-        )
-        .join('\n\n')
-    : '(None)'
-}
-
-## Goals & Objectives (O4 Mission)
-${
-  filtered.mission.length > 0
-    ? filtered.mission
-        .map(
-          (item, i) =>
-            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
-        )
-        .join('\n\n')
-    : '(None)'
-}
-
-## Actions Taken (O5 Operational)
-${
-  filtered.operational.length > 0
-    ? filtered.operational
-        .map(
-          (item, i) =>
-            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
-        )
-        .join('\n\n')
-    : '(None)'
-}
-
-## Algorithms & Logic (O6 Mathematical)
-${
-  filtered.mathematical.length > 0
-    ? filtered.mathematical
-        .map(
-          (item, i) =>
-            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
-        )
-        .join('\n\n')
-    : '(None)'
-}
-
-## Conversation Flow (O7 Coherence)
-${
-  filtered.coherence.length > 0
-    ? filtered.coherence
-        .map(
-          (item, i) =>
-            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
-        )
-        .join('\n\n')
-    : '(None)'
-}
-
-${formatLastTurns(turns, pendingTask, todos)}
-
----
-
-**Memory Tool Available**: You have access to \`recall_past_conversation\` tool. Use it anytime you need to remember specific past discussions. The tool uses semantic search across all conversation history.
-
-**IMPORTANT**: The recap above shows messages truncated to 150 characters. When you see \`...\` it's a **signal** that more content is available. Use \`recall_past_conversation\` to retrieve the FULL untruncated message. Think of the recap as navigation pointers, not complete verbatim history.
-`.trim()
-    );
-  }
-
-  // SLOW PATH: Query conversation overlays from disk (kept for backward compatibility)
-  // Only used if lattice filtering returns no content but we have conversation registry
-  if (conversationRegistry) {
-    try {
-      const filteredFromDisk = await filterConversationByAlignment(
-        conversationRegistry,
-        6 // Min alignment score
-      );
-
-      const hasContentFromDisk =
-        filteredFromDisk.structural.length > 0 ||
-        filteredFromDisk.security.length > 0 ||
-        filteredFromDisk.lineage.length > 0 ||
-        filteredFromDisk.mission.length > 0 ||
-        filteredFromDisk.operational.length > 0 ||
-        filteredFromDisk.mathematical.length > 0 ||
-        filteredFromDisk.coherence.length > 0;
-
-      if (hasContentFromDisk) {
-        return (
-          fingerprint +
-          `
-# Conversation Recap
-
-## Architecture & Design (O1 Structural)
-${
-  filteredFromDisk.structural.length > 0
-    ? filteredFromDisk.structural
-        .map(
-          (item, i) =>
-            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
-        )
-        .join('\n\n')
-    : '(None)'
-}
-
-## Security Concerns (O2 Security)
-${
-  filteredFromDisk.security.length > 0
-    ? filteredFromDisk.security
-        .map(
-          (item, i) =>
-            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
-        )
-        .join('\n\n')
-    : '(None)'
-}
-
-## Knowledge Evolution (O3 Lineage)
-${
-  filteredFromDisk.lineage.length > 0
-    ? filteredFromDisk.lineage
-        .map(
-          (item, i) =>
-            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
-        )
-        .join('\n\n')
-    : '(None)'
-}
-
-## Goals & Objectives (O4 Mission)
-${
-  filteredFromDisk.mission.length > 0
-    ? filteredFromDisk.mission
-        .map(
-          (item, i) =>
-            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
-        )
-        .join('\n\n')
-    : '(None)'
-}
-
-## Actions Taken (O5 Operational)
-${
-  filteredFromDisk.operational.length > 0
-    ? filteredFromDisk.operational
-        .map(
-          (item, i) =>
-            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
-        )
-        .join('\n\n')
-    : '(None)'
-}
-
-## Algorithms & Logic (O6 Mathematical)
-${
-  filteredFromDisk.mathematical.length > 0
-    ? filteredFromDisk.mathematical
-        .map(
-          (item, i) =>
-            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
-        )
-        .join('\n\n')
-    : '(None)'
-}
-
-## Conversation Flow (O7 Coherence)
-${
-  filteredFromDisk.coherence.length > 0
-    ? filteredFromDisk.coherence
-        .map(
-          (item, i) =>
-            `${i + 1}. [Score: ${item.score}/10] ${item.text.substring(0, 150)}${item.text.length > 150 ? '...' : ''}`
-        )
-        .join('\n\n')
-    : '(None)'
-}
-
-${formatLastTurns(turns, pendingTask, todos)}
-
----
-
-**Memory Tool Available**: You have access to \`recall_past_conversation\` tool. Use it anytime you need to remember specific past discussions. The tool uses semantic search across all conversation history.
-
-**IMPORTANT**: The recap above shows messages truncated to 150 characters. When you see \`...\` it's a **signal** that more content is available. Use \`recall_past_conversation\` to retrieve the FULL untruncated message. Think of the recap as navigation pointers, not complete verbatim history.
-`.trim()
-        );
-      }
-    } catch (err) {
-      // Fall back to paradigm shifts method
-      console.warn('Failed to use conversation overlays:', err);
-    }
-  }
-
-  // FALLBACK: Old method (paradigm shifts only)
+  // Get paradigm shifts for "Key Breakthroughs" section
   const paradigmShifts = nodes
-    .filter((n) => n.is_paradigm_shift)
-    .sort((a, b) => b.importance_score - a.importance_score)
+    .filter((n) => n.is_paradigm_shift || n.importance_score >= 8)
+    .sort((a, b) => b.timestamp - a.timestamp)
     .slice(0, 5);
 
-  return (
-    fingerprint +
-    `
-# Conversation Recap
+  // FAST PATH: Use lattice data directly (in-memory, no disk I/O)
+  const filtered = filterLatticeByOverlayScores(lattice, 6);
 
-## Key Points Discussed
-${
-  paradigmShifts.length > 0
-    ? paradigmShifts
-        .map((s, i) => {
-          const preview = s.content.substring(0, 120).replace(/\n/g, ' ');
-          return `${i + 1}. ${preview}${s.content.length > 120 ? '...' : ''}`;
-        })
-        .join('\n\n')
-    : '(No major points yet)'
-}
+  // Track shown turn IDs to avoid duplicates
+  const shownTurnIds = new Set<string>();
 
-${formatLastTurns(turns, pendingTask, todos)}
+  const sections = [
+    { title: 'Architecture & Design (O1)', data: filtered.structural },
+    { title: 'Security Concerns (O2)', data: filtered.security },
+    { title: 'Knowledge Evolution (O3)', data: filtered.lineage },
+    { title: 'Goals & Objectives (O4)', data: filtered.mission },
+    { title: 'Actions Taken (O5)', data: filtered.operational },
+    { title: 'Algorithms & Logic (O6)', data: filtered.mathematical },
+    { title: 'Conversation Flow (O7)', data: filtered.coherence },
+  ];
+
+  const activeSections = sections.filter((s) => s.data.length > 0);
+  const emptySections = sections
+    .filter((s) => s.data.length === 0)
+    .map((s) => s.title.split(' (')[0]);
+
+  let recap = fingerprint + '\n# Conversation Recap\n';
+
+  // Add Paradigm Shifts if any
+  if (paradigmShifts.length > 0) {
+    recap += '\n## 💡 Key Breakthroughs (Paradigm Shifts)\n';
+    recap += paradigmShifts
+      .map((n) => {
+        shownTurnIds.add(n.id);
+        const preview = n.content
+          .substring(0, RECAP_PREVIEW_LENGTH)
+          .replace(/\n/g, ' ');
+        return `- **[${n.role.toUpperCase()}]**: ${preview}${n.content.length > RECAP_PREVIEW_LENGTH ? '...' : ''}`;
+      })
+      .join('\n');
+    recap += '\n';
+  }
+
+  // Add active sections with deduplication
+  activeSections.forEach((section) => {
+    const uniqueData = section.data.filter(
+      (item) => !shownTurnIds.has(item.id)
+    );
+    if (uniqueData.length === 0) return;
+
+    recap += `\n## ${section.title}\n`;
+    recap += uniqueData
+      .map((item, i) => {
+        shownTurnIds.add(item.id);
+        const preview = item.text
+          .substring(0, RECAP_PREVIEW_LENGTH)
+          .replace(/\n/g, ' ');
+        return `${i + 1}. [Score: ${item.score}/10] **[${item.role.toUpperCase()}]**: ${preview}${item.text.length > RECAP_PREVIEW_LENGTH ? '...' : ''}`;
+      })
+      .join('\n');
+    recap += '\n';
+  });
+
+  // Add collapsed empty sections
+  if (emptySections.length > 0) {
+    recap += `\n> **Other Perspectives (No Signal):** ${emptySections.join(', ')}\n`;
+  }
+
+  // Suppress redundant pending task if we have paradigm shifts as recent context
+  const effectivePendingTask = paradigmShifts.length > 0 ? null : pendingTask;
+
+  recap += `\n${formatLastTurns(turns, effectivePendingTask, todos)}
 
 ---
 
-*Continue from where the assistant left off.*
-`.trim()
-  );
+**Memory Tool Available**: You have access to \`recall_past_conversation\` tool. Use it anytime you need to remember specific past discussions. The tool uses semantic search across all conversation history.
+
+**IMPORTANT**: The recap above shows messages truncated to ${RECAP_PREVIEW_LENGTH} characters. When you see \`...\` it's an **explicit signal** that more content is available. Use \`recall_past_conversation\` to retrieve the FULL untruncated message. Think of the recap as navigation pointers, not complete verbatim history.
+`;
+
+  return recap.trim();
 }
 
 /**

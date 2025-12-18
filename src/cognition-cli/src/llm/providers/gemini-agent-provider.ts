@@ -465,7 +465,7 @@ export class GeminiAgentProvider implements AgentProvider {
                   `\n[Gemini] === NEW EVENT: ${messageType} (${part.text.length} chars) ===`
                 );
                 console.error(
-                  `[Gemini] Text preview: "${part.text.substring(0, 150)}..."`
+                  `[Gemini] Text preview: "${part.text.substring(0, 256)}..."`
                 );
               }
 

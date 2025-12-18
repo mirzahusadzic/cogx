@@ -180,7 +180,7 @@ export function createRecallTool(
   return new FunctionTool({
     name: 'recall_past_conversation',
     description:
-      'Retrieve FULL untruncated messages from conversation history. The recap you see is truncated to 150 chars - when you see "..." it means more content is available. Use this tool to get complete details. Searches all 7 overlays (O1-O7) in LanceDB with semantic search. Ask about topics, not exact phrases.',
+      'Retrieve FULL untruncated messages from conversation history. The recap you see is truncated to 256 chars - when you see "..." it means more content is available. Use this tool to get complete details. Searches all 7 overlays (O1-O7) in LanceDB with semantic search. Ask about topics, not exact phrases.',
     parameters: z.object({
       query: z
         .string()
