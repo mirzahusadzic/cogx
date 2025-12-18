@@ -145,6 +145,16 @@ function getSystemFingerprint(
   if (modelName?.includes('gemini')) {
     providerName = 'Gemini';
     sdkName = 'Google AI SDK';
+    // Add cutoff information for Gemini models
+    if (modelName?.includes('preview')) {
+      providerName += ' (Experimental Preview)';
+    }
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    providerName += `\n**Knowledge Cutoff**: January 2025\n**Current Date**: ${currentDate}`;
   } else if (
     modelName?.includes('gpt') ||
     modelName?.includes('o1') ||
