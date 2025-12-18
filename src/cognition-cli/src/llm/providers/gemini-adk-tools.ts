@@ -33,6 +33,7 @@ import {
   executeGrep,
   executeBash,
   executeEditFile,
+  executeTodoWrite,
 } from './tool-executors.js';
 
 /**
@@ -132,6 +133,39 @@ export const editFileTool = new FunctionTool({
   execute: ({ file_path, old_string, new_string, replace_all }) =>
     executeEditFile(file_path, old_string, new_string, replace_all),
 });
+
+/**
+ * TodoWrite tool description - shared between standalone and bound versions
+ */
+const TODO_WRITE_DESCRIPTION = `Use this tool to create and manage a structured task list for your current coding session. This helps you track progress, organize complex tasks, and demonstrate thoroughness to the user.
+
+## When to Use This Tool
+Use this tool proactively in these scenarios:
+1. Complex multi-step tasks - When a task requires 3 or more distinct steps or actions
+2. Non-trivial and complex tasks - Tasks that require careful planning or multiple operations
+3. User explicitly requests todo list - When the user directly asks you to use the todo list
+4. User provides multiple tasks - When users provide a list of things to be done (numbered or comma-separated)
+5. After receiving new instructions - Immediately capture user requirements as todos
+6. When you start working on a task - Mark it as in_progress BEFORE beginning work. Ideally you should only have one todo as in_progress at a time
+7. After completing a task - Mark it as completed and add any new follow-up tasks discovered during implementation
+
+## When NOT to Use This Tool
+Skip using this tool when:
+1. There is only a single, straightforward task
+2. The task is trivial and tracking it provides no organizational benefit
+3. The task can be completed in less than 3 trivial steps
+4. The task is purely conversational or informational
+
+## Task States
+- pending: Task not yet started
+- in_progress: Currently working on (limit to ONE task at a time)
+- completed: Task finished successfully
+
+## Important
+- Task descriptions must have two forms: content (imperative, e.g., "Run tests") and activeForm (present continuous, e.g., "Running tests")
+- Mark tasks complete IMMEDIATELY after finishing (don't batch completions)
+- ONLY mark a task as completed when you have FULLY accomplished it
+- If you encounter errors or blockers, keep the task as in_progress and create a new task describing what needs to be resolved`;
 
 /**
  * Create recall conversation tool for Gemini
@@ -497,10 +531,42 @@ function createAgentMessagingTools(
 }
 
 /**
+ * Providers that support external TodoWrite implementation
+ *
+ * Claude has native TodoWrite in SDK - we don't override it.
+ * Gemini and OpenAI don't have native TodoWrite - we provide it.
+ */
+const PROVIDERS_WITH_EXTERNAL_TODO: Record<string, boolean> = {
+  gemini: true,
+  openai: true,
+  claude: false, // Native SDK support
+};
+
+/**
+ * Options for getCognitionTools
+ */
+export interface CognitionToolsOptions {
+  /** LLM provider name (gemini, openai, claude) */
+  provider?: string;
+  /** Session anchor ID for TodoWrite state persistence */
+  anchorId?: string;
+}
+
+/**
  * Get all ADK tools for Cognition
  *
  * Tool safety/confirmation is handled via onCanUseTool callback (matching Claude's behavior).
  * Each tool is wrapped to call onCanUseTool before execution.
+ *
+ * @param conversationRegistry - Optional conversation registry for recall tool
+ * @param workbenchUrl - Optional workbench URL
+ * @param onCanUseTool - Optional permission callback
+ * @param getTaskManager - Optional task manager getter
+ * @param getMessagePublisher - Optional message publisher getter
+ * @param getMessageQueue - Optional message queue getter
+ * @param projectRoot - Project root directory
+ * @param currentAgentId - Current agent ID for messaging
+ * @param options - Additional options (provider, anchorId)
  */
 export function getCognitionTools(
   conversationRegistry?: ConversationOverlayRegistry,
@@ -510,7 +576,8 @@ export function getCognitionTools(
   getMessagePublisher?: () => MessagePublisher | null,
   getMessageQueue?: () => MessageQueue | null,
   projectRoot?: string,
-  currentAgentId?: string
+  currentAgentId?: string,
+  options?: CognitionToolsOptions
 ): FunctionTool[] {
   // Create write_file tool with permission check
   const safeWriteFile = wrapToolWithPermission(
@@ -551,7 +618,7 @@ export function getCognitionTools(
     onCanUseTool
   );
 
-  const baseTools = [
+  const baseTools: FunctionTool[] = [
     readFileTool, // Read-only, no wrapping needed
     safeWriteFile,
     globTool, // Read-only, no wrapping needed
@@ -559,6 +626,52 @@ export function getCognitionTools(
     safeBash,
     safeEditFile,
   ];
+
+  // Add TodoWrite for providers without native support (Gemini, OpenAI)
+  // Claude has native SDK TodoWrite - don't override
+  const provider = options?.provider || 'gemini'; // Default to gemini for this ADK file
+  if (PROVIDERS_WITH_EXTERNAL_TODO[provider]) {
+    const anchorId = options?.anchorId;
+    const cwd = projectRoot || process.cwd();
+
+    // anchorId is required for TodoWrite - should always be available in TUI
+    if (!anchorId) {
+      throw new Error(
+        'TodoWrite requires anchorId - ensure session state is initialized'
+      );
+    }
+
+    // Create TodoWrite tool with anchorId bound for state file persistence
+    const boundTodoWriteTool = new FunctionTool({
+      name: 'TodoWrite',
+      description: TODO_WRITE_DESCRIPTION,
+      parameters: z.object({
+        todos: z
+          .array(
+            z.object({
+              content: z
+                .string()
+                .min(1)
+                .describe(
+                  'The imperative form describing what needs to be done (e.g., "Run tests", "Build the project")'
+                ),
+              status: z
+                .enum(['pending', 'in_progress', 'completed'])
+                .describe('Task status'),
+              activeForm: z
+                .string()
+                .min(1)
+                .describe(
+                  'The present continuous form shown during execution (e.g., "Running tests", "Building the project")'
+                ),
+            })
+          )
+          .describe('The updated todo list'),
+      }),
+      execute: ({ todos }) => executeTodoWrite(todos, cwd, anchorId),
+    });
+    baseTools.push(boundTodoWriteTool);
+  }
 
   // Build final tool list with optional tools
   const tools = [...baseTools];

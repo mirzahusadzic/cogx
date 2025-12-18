@@ -92,6 +92,9 @@ export interface AgentAdapterOptions {
   /** Current agent ID (for excluding self from listings) */
   agentId?: string;
 
+  /** Session anchor ID (for TodoWrite state persistence) */
+  anchorId?: string;
+
   /** Debug mode */
   debug?: boolean;
 }
@@ -150,6 +153,7 @@ export class AgentProviderAdapter {
       getMessageQueue: this.options.getMessageQueue,
       projectRoot: this.options.projectRoot || this.options.cwd,
       agentId: this.options.agentId,
+      anchorId: this.options.anchorId,
       onStderr: this.options.onStderr,
       onCanUseTool: this.options.onCanUseTool,
       systemPrompt: {

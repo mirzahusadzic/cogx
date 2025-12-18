@@ -31,6 +31,7 @@ import {
   executeEditFile,
   executeFetchUrl,
 } from '../tool-executors.js';
+// Note: executeTodoWrite tests use dynamic imports to properly mock session-state module
 
 describe('Tool Executors', () => {
   // Track EventEmitters to clean up after each test
@@ -281,6 +282,161 @@ describe('Tool Executors', () => {
       const result = await executeFetchUrl('https://example.com');
 
       expect(result).toBe('Hello');
+    });
+  });
+
+  describe('executeTodoWrite', () => {
+    beforeEach(() => {
+      // Reset modules to clear any cached session-state imports
+      vi.resetModules();
+    });
+
+    test('should call updateTodosByAnchorId with correct parameters', async () => {
+      // Mock the session-state module
+      const mockUpdateTodosByAnchorId = vi
+        .fn()
+        .mockReturnValue(
+          'Todo list updated (2 items):\n[→] Building feature\n[○] Write tests'
+        );
+
+      vi.doMock('../../../sigma/session-state.js', () => ({
+        updateTodosByAnchorId: mockUpdateTodosByAnchorId,
+      }));
+
+      // Re-import after mocking
+      const { executeTodoWrite: executeTodoWriteTest } =
+        await import('../tool-executors.js');
+
+      const todos = [
+        {
+          content: 'Build feature',
+          status: 'in_progress',
+          activeForm: 'Building feature',
+        },
+        {
+          content: 'Write tests',
+          status: 'pending',
+          activeForm: 'Writing tests',
+        },
+      ];
+
+      const result = await executeTodoWriteTest(
+        todos,
+        '/test/cwd',
+        'tui-test-anchor'
+      );
+
+      expect(mockUpdateTodosByAnchorId).toHaveBeenCalledWith(
+        'tui-test-anchor',
+        '/test/cwd',
+        todos
+      );
+      expect(result).toContain('Todo list updated');
+      expect(result).toContain('Building feature');
+    });
+
+    test('should format todos with status icons in response', async () => {
+      const mockUpdateTodosByAnchorId = vi
+        .fn()
+        .mockReturnValue(
+          'Todo list updated (3 items):\n[✓] Task done\n[→] Working on task\n[○] Future task'
+        );
+
+      vi.doMock('../../../sigma/session-state.js', () => ({
+        updateTodosByAnchorId: mockUpdateTodosByAnchorId,
+      }));
+
+      const { executeTodoWrite: executeTodoWriteTest } =
+        await import('../tool-executors.js');
+
+      const todos = [
+        { content: 'Task done', status: 'completed', activeForm: 'Done' },
+        {
+          content: 'Working task',
+          status: 'in_progress',
+          activeForm: 'Working on task',
+        },
+        { content: 'Future task', status: 'pending', activeForm: 'Future' },
+      ];
+
+      const result = await executeTodoWriteTest(
+        todos,
+        '/test/cwd',
+        'tui-icons-test'
+      );
+
+      expect(result).toContain('[✓]'); // completed
+      expect(result).toContain('[→]'); // in_progress
+      expect(result).toContain('[○]'); // pending
+    });
+
+    test('should handle errors gracefully', async () => {
+      const mockUpdateTodosByAnchorId = vi.fn().mockImplementation(() => {
+        throw new Error('Session state not found');
+      });
+
+      vi.doMock('../../../sigma/session-state.js', () => ({
+        updateTodosByAnchorId: mockUpdateTodosByAnchorId,
+      }));
+
+      const { executeTodoWrite: executeTodoWriteTest } =
+        await import('../tool-executors.js');
+
+      const result = await executeTodoWriteTest(
+        [{ content: 'Task', status: 'pending', activeForm: 'Working' }],
+        '/test/cwd',
+        'non-existent'
+      );
+
+      expect(result).toContain('Error updating TODO');
+      expect(result).toContain('Session state not found');
+    });
+
+    test('should pass anchorId as required parameter', async () => {
+      const mockUpdateTodosByAnchorId = vi.fn().mockReturnValue('Success');
+
+      vi.doMock('../../../sigma/session-state.js', () => ({
+        updateTodosByAnchorId: mockUpdateTodosByAnchorId,
+      }));
+
+      const { executeTodoWrite: executeTodoWriteTest } =
+        await import('../tool-executors.js');
+
+      const anchorId = 'required-anchor-id';
+      await executeTodoWriteTest(
+        [{ content: 'Task', status: 'pending', activeForm: 'Working' }],
+        '/cwd',
+        anchorId
+      );
+
+      // Verify anchorId is first parameter (required, not optional)
+      expect(mockUpdateTodosByAnchorId).toHaveBeenCalledWith(
+        anchorId,
+        '/cwd',
+        expect.any(Array)
+      );
+    });
+
+    test('should handle empty todos array', async () => {
+      const mockUpdateTodosByAnchorId = vi
+        .fn()
+        .mockReturnValue('Todo list updated (0 items):');
+
+      vi.doMock('../../../sigma/session-state.js', () => ({
+        updateTodosByAnchorId: mockUpdateTodosByAnchorId,
+      }));
+
+      const { executeTodoWrite: executeTodoWriteTest } =
+        await import('../tool-executors.js');
+
+      const result = await executeTodoWriteTest([], '/cwd', 'empty-anchor');
+
+      expect(mockUpdateTodosByAnchorId).toHaveBeenCalledWith(
+        'empty-anchor',
+        '/cwd',
+        []
+      );
+      expect(result).toContain('Todo list updated (0 items)');
     });
   });
 });

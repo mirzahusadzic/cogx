@@ -263,6 +263,43 @@ export async function executeFetchUrl(url: string): Promise<string> {
 }
 
 /**
+ * TodoWrite executor
+ *
+ * Embeds todos in session state file via anchorId.
+ * Provides agent-specific persistence with auto-restoration on session resume.
+ *
+ * @param todos - Array of todo items
+ * @param cwd - Working directory
+ * @param anchorId - Session anchor ID for state file embedding (required)
+ */
+export async function executeTodoWrite(
+  todos: Array<{
+    content: string;
+    status: string;
+    activeForm: string;
+  }>,
+  cwd: string,
+  anchorId: string
+): Promise<string> {
+  try {
+    // Dynamic import to avoid circular dependencies
+    const { updateTodosByAnchorId } =
+      await import('../../sigma/session-state.js');
+    return updateTodosByAnchorId(
+      anchorId,
+      cwd,
+      todos as Array<{
+        content: string;
+        status: 'pending' | 'in_progress' | 'completed';
+        activeForm: string;
+      }>
+    );
+  } catch (error) {
+    return `Error updating TODO: ${error instanceof Error ? error.message : String(error)}`;
+  }
+}
+
+/**
  * Web search executor
  */
 export async function executeWebSearch(

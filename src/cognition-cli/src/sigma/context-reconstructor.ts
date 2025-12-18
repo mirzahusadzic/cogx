@@ -612,12 +612,15 @@ function getCurrentDepth(lattice: ConversationLattice): {
  * @private
  * @param lattice - Conversation lattice with nodes and metadata
  * @param cwd - Current working directory
+ * @param modelName - Optional model name for fingerprint
+ * @param todos - Optional todo list from session state
  * @returns Markdown-formatted quest mode recap
  */
 async function reconstructQuestContext(
   lattice: ConversationLattice,
   cwd: string,
-  modelName?: string
+  modelName?: string,
+  todos?: TodoItem[]
 ): Promise<string> {
   const quest = detectCurrentQuest(lattice);
   const mentalMap = buildMentalMap(lattice);
@@ -657,7 +660,7 @@ ${currentDepth.description}
 **Files Involved:**
 ${currentDepth.files.length > 0 ? currentDepth.files.map((f) => `- \`${f}\``).join('\n') : '- (No specific files)'}
 
-${formatLastTurns(turns, pendingTask)}
+${formatLastTurns(turns, pendingTask, todos)}
 
 ## Query Functions Available
 Use these to retrieve specific context from the lattice:
@@ -754,11 +757,20 @@ function getLastConversationTurns(lattice: ConversationLattice): {
 }
 
 /**
+ * Todo item type for injection into recap
+ */
+export interface TodoItem {
+  content: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  activeForm: string;
+}
+
+/**
  * Format last conversation turns for recap
  *
  * Formats the recent conversation turns into markdown with role attribution
  * and truncated content. Adds a prominent warning if the assistant has a
- * pending task.
+ * pending task or active todos.
  *
  * ALGORITHM:
  * 1. For each turn:
@@ -767,11 +779,15 @@ function getLastConversationTurns(lattice: ConversationLattice): {
  *    c. Add "..." ellipsis if content was truncated
  *    d. Format as markdown: **[ROLE]**: content...
  * 2. Join all formatted turns with double newlines
- * 3. If pending task exists:
+ * 3. If todos with incomplete items exist:
+ *    a. Add "## 📋 Active Todo List" section
+ *    b. Show all todos with status icons (✓, →, ○)
+ *    c. Add instruction to continue from in_progress items
+ * 4. Else if pending task exists (fallback heuristic):
  *    a. Add "## ⚠️ Assistant's Pending Task" section
  *    b. Show the pending task description
  *    c. Add "Continue from where the assistant left off" instruction
- * 4. Return formatted markdown string
+ * 5. Return formatted markdown string
  *
  * DESIGN:
  * The truncated turns serve as POINTERS, not complete history. The "..." is
@@ -788,11 +804,13 @@ function getLastConversationTurns(lattice: ConversationLattice): {
  * @private
  * @param turns - Recent conversation turns (role, content, timestamp)
  * @param pendingTask - Optional pending task description from assistant
+ * @param todos - Optional todo list from session state (for providers without native TodoWrite)
  * @returns Markdown-formatted recent conversation with optional pending task warning
  */
 function formatLastTurns(
   turns: Array<{ role: string; content: string; timestamp: number }>,
-  pendingTask: string | null
+  pendingTask: string | null,
+  todos?: TodoItem[]
 ): string {
   if (turns.length === 0) {
     return '(No recent conversation)';
@@ -810,8 +828,31 @@ function formatLastTurns(
 
   let result = `## Recent Conversation\n\n${formattedTurns}`;
 
-  // Add pending task warning if present
-  if (pendingTask) {
+  // Add todo list if present with incomplete items (takes precedence over heuristic)
+  const incompleteTodos = todos?.filter((t) => t.status !== 'completed') || [];
+  if (incompleteTodos.length > 0) {
+    const todoLines = (todos || [])
+      .map((t) => {
+        const icon =
+          t.status === 'completed'
+            ? '✓'
+            : t.status === 'in_progress'
+              ? '→'
+              : '○';
+        const text = t.status === 'in_progress' ? t.activeForm : t.content;
+        return `- [${icon}] ${text}`;
+      })
+      .join('\n');
+
+    const inProgressTask = todos?.find((t) => t.status === 'in_progress');
+    const continueInstruction = inProgressTask
+      ? `\n\n**Continue with: "${inProgressTask.activeForm}"**`
+      : '\n\n**Continue with the next pending task.**';
+
+    result += `\n\n## 📋 Active Todo List\n\n${todoLines}${continueInstruction}`;
+  }
+  // Fallback: Add pending task warning if present (heuristic detection)
+  else if (pendingTask) {
     result += `\n\n## ⚠️ Assistant's Pending Task\n\nThe assistant was in the middle of:\n> ${pendingTask}\n\n**Continue from where the assistant left off.**`;
   }
 
@@ -933,13 +974,16 @@ function filterLatticeByOverlayScores(
  * @param lattice - Conversation lattice with nodes and metadata
  * @param cwd - Current working directory
  * @param conversationRegistry - Optional conversation overlay registry (enables better filtering)
+ * @param modelName - Optional model name for fingerprint
+ * @param todos - Optional todo list from session state
  * @returns Markdown-formatted chat mode recap
  */
 async function reconstructChatContext(
   lattice: ConversationLattice,
   cwd: string,
   conversationRegistry?: ConversationOverlayRegistry,
-  modelName?: string
+  modelName?: string,
+  todos?: TodoItem[]
 ): Promise<string> {
   const nodes = lattice.nodes;
 
@@ -1051,7 +1095,7 @@ ${
     : '(None)'
 }
 
-${formatLastTurns(turns, pendingTask)}
+${formatLastTurns(turns, pendingTask, todos)}
 
 ---
 
@@ -1170,7 +1214,7 @@ ${
     : '(None)'
 }
 
-${formatLastTurns(turns, pendingTask)}
+${formatLastTurns(turns, pendingTask, todos)}
 
 ---
 
@@ -1209,7 +1253,7 @@ ${
     : '(No major points yet)'
 }
 
-${formatLastTurns(turns, pendingTask)}
+${formatLastTurns(turns, pendingTask, todos)}
 
 ---
 
@@ -1343,7 +1387,8 @@ export async function reconstructSessionContext(
   lattice: ConversationLattice,
   cwd: string,
   conversationRegistry?: ConversationOverlayRegistry,
-  modelName?: string
+  modelName?: string,
+  todos?: TodoItem[]
 ): Promise<ReconstructedSessionContext> {
   // 1. Classify conversation mode
   const mode = classifyConversationMode(lattice);
@@ -1364,15 +1409,16 @@ export async function reconstructSessionContext(
     nodes.reduce((sum, n) => sum + n.overlay_scores.O5_operational, 0) /
     nodes.length;
 
-  // 3. Reconstruct based on mode (pass conversationRegistry!)
+  // 3. Reconstruct based on mode (pass conversationRegistry and todos!)
   const recap =
     mode === 'quest'
-      ? await reconstructQuestContext(lattice, cwd, modelName)
+      ? await reconstructQuestContext(lattice, cwd, modelName, todos)
       : await reconstructChatContext(
           lattice,
           cwd,
           conversationRegistry,
-          modelName
+          modelName,
+          todos
         );
 
   return {

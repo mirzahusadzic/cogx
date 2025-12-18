@@ -805,6 +805,8 @@ export function useAgent(options: UseAgentOptions) {
           const { compressContext } = await import('../../sigma/compressor.js');
           const { reconstructSessionContext } =
             await import('../../sigma/context-reconstructor.js');
+          const { loadSessionState } =
+            await import('../../sigma/session-state.js');
           debug('🔍 [COMPRESSION] Step 3: Modules imported successfully');
 
           debug(
@@ -862,11 +864,22 @@ export function useAgent(options: UseAgentOptions) {
           debug(
             `🔍 [COMPRESSION] Step 6: Starting reconstructSessionContext with ${latticeWithPending.nodes.length} nodes...`
           );
+
+          // Load todos from session state for injection into recap
+          // (for providers without native TodoWrite like Gemini/OpenAI)
+          const sessionState = loadSessionState(anchorId, cwd);
+          const incompleteTodos = sessionState?.todos?.filter(
+            (t) => t.status !== 'completed'
+          );
+
           const sessionContext = await reconstructSessionContext(
             latticeWithPending,
             cwd,
             conversationRegistryRef.current || undefined,
-            modelName
+            modelName,
+            incompleteTodos && incompleteTodos.length > 0
+              ? sessionState?.todos
+              : undefined
           );
           debug('🔍 [COMPRESSION] Step 7: reconstructSessionContext complete');
 
@@ -1799,6 +1812,7 @@ export function useAgent(options: UseAgentOptions) {
           getMessageQueue, // Pass message queue getter for agent messaging tools
           projectRoot: cwd, // Pass project root for agent discovery
           agentId: sessionIdProp || 'unknown', // Pass current agent ID for excluding self from listings
+          anchorId, // Pass session anchor ID for TodoWrite state persistence
           onStderr: (data: string) => {
             stderrLines.push(data);
           },

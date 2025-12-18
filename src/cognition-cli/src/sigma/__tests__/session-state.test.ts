@@ -12,6 +12,8 @@ import {
   createSessionState,
   updateSessionState,
   updateSessionStats,
+  updateSessionTodos,
+  updateTodosByAnchorId,
   listSessions,
   migrateOldStateFile,
 } from '../session-state';
@@ -346,6 +348,244 @@ describe('session-state', () => {
       const list = listSessions(tempDir);
       expect(list).toHaveLength(1);
       expect(list[0].anchor_id).toBe('tui-valid');
+    });
+  });
+
+  describe('TodoWrite Functionality', () => {
+    describe('updateSessionTodos', () => {
+      it('should replace entire todos array', () => {
+        const anchorId = 'tui-todo-test';
+        const state = createSessionState(anchorId, 'sdk-1');
+
+        // Add initial todos
+        const withTodos1 = updateSessionTodos(state, [
+          {
+            content: 'Task 1',
+            status: 'pending',
+            activeForm: 'Working on Task 1',
+          },
+          {
+            content: 'Task 2',
+            status: 'in_progress',
+            activeForm: 'Working on Task 2',
+          },
+        ]);
+
+        expect(withTodos1.todos).toHaveLength(2);
+        expect(withTodos1.todos![0].content).toBe('Task 1');
+
+        // Replace with new todos (not append)
+        const withTodos2 = updateSessionTodos(withTodos1, [
+          {
+            content: 'Task 1',
+            status: 'completed',
+            activeForm: 'Completing Task 1',
+          },
+          {
+            content: 'Task 3',
+            status: 'pending',
+            activeForm: 'Working on Task 3',
+          },
+        ]);
+
+        // Should replace, not append
+        expect(withTodos2.todos).toHaveLength(2);
+        expect(withTodos2.todos![0].status).toBe('completed');
+        expect(withTodos2.todos![1].content).toBe('Task 3');
+      });
+
+      it('should update last_updated timestamp', () => {
+        const state = createSessionState('tui-timestamp-test', 'sdk-1');
+        const originalTimestamp = state.last_updated;
+
+        // Update todos
+        const updated = updateSessionTodos(state, [
+          { content: 'Task', status: 'pending', activeForm: 'Working on Task' },
+        ]);
+
+        // Timestamp should be updated (may be same or newer depending on execution speed)
+        expect(updated.last_updated).toBeDefined();
+        expect(new Date(updated.last_updated).getTime()).toBeGreaterThanOrEqual(
+          new Date(originalTimestamp).getTime()
+        );
+      });
+
+      it('should preserve other state fields', () => {
+        const anchorId = 'tui-preserve-fields';
+        let state = createSessionState(anchorId, 'sdk-1');
+
+        // Add compression history and stats
+        state = updateSessionState(state, 'sdk-2', 'compression', 100000);
+        state = updateSessionStats(state, {
+          total_turns_analyzed: 10,
+          paradigm_shifts: 2,
+          routine_turns: 8,
+          avg_novelty: '0.4',
+          avg_importance: '5.5',
+        });
+
+        // Update todos
+        const updated = updateSessionTodos(state, [
+          { content: 'Task', status: 'pending', activeForm: 'Working' },
+        ]);
+
+        // Verify all fields preserved
+        expect(updated.anchor_id).toBe(anchorId);
+        expect(updated.current_session).toBe('sdk-2');
+        expect(updated.compression_history).toHaveLength(2);
+        expect(updated.stats?.total_turns_analyzed).toBe(10);
+        expect(updated.todos).toHaveLength(1);
+      });
+
+      it('should handle empty todos array', () => {
+        const state = createSessionState('tui-empty-todos', 'sdk-1');
+        const updated = updateSessionTodos(state, []);
+
+        expect(updated.todos).toEqual([]);
+      });
+
+      it('should handle undefined todos', () => {
+        const state = createSessionState('tui-undefined-todos', 'sdk-1');
+        const updated = updateSessionTodos(state, undefined);
+
+        expect(updated.todos).toBeUndefined();
+      });
+    });
+
+    describe('updateTodosByAnchorId', () => {
+      it('should load, update, save todos in one operation', () => {
+        const anchorId = 'tui-todo-persist';
+
+        // Create initial session
+        const state = createSessionState(anchorId, 'sdk-1');
+        saveSessionState(state, tempDir);
+
+        // Update todos
+        const result = updateTodosByAnchorId(anchorId, tempDir, [
+          {
+            content: 'Build feature',
+            status: 'in_progress',
+            activeForm: 'Building feature',
+          },
+          {
+            content: 'Write tests',
+            status: 'pending',
+            activeForm: 'Writing tests',
+          },
+        ]);
+
+        // Verify success message
+        expect(result).toContain('Todo list updated (2 items)');
+        expect(result).toContain('[→] Building feature');
+        expect(result).toContain('[○] Write tests');
+
+        // Verify persisted to disk
+        const loaded = loadSessionState(anchorId, tempDir);
+        expect(loaded?.todos).toHaveLength(2);
+        expect(loaded?.todos![0].content).toBe('Build feature');
+        expect(loaded?.todos![0].status).toBe('in_progress');
+      });
+
+      it('should format summary with status icons', () => {
+        const anchorId = 'tui-todo-icons';
+        const state = createSessionState(anchorId, 'sdk-1');
+        saveSessionState(state, tempDir);
+
+        const result = updateTodosByAnchorId(anchorId, tempDir, [
+          {
+            content: 'Done task',
+            status: 'completed',
+            activeForm: 'Completing task',
+          },
+          {
+            content: 'Current task',
+            status: 'in_progress',
+            activeForm: 'Working on current task',
+          },
+          {
+            content: 'Future task',
+            status: 'pending',
+            activeForm: 'Future work',
+          },
+        ]);
+
+        // Check icons
+        expect(result).toContain('[✓] Done task'); // completed
+        expect(result).toContain('[→] Working on current task'); // in_progress (uses activeForm)
+        expect(result).toContain('[○] Future task'); // pending
+      });
+
+      it('should handle multiple updates (replacement behavior)', () => {
+        const anchorId = 'tui-todo-multiple';
+        const state = createSessionState(anchorId, 'sdk-1');
+        saveSessionState(state, tempDir);
+
+        // First update
+        updateTodosByAnchorId(anchorId, tempDir, [
+          { content: 'Task 1', status: 'pending', activeForm: 'Working 1' },
+          { content: 'Task 2', status: 'pending', activeForm: 'Working 2' },
+        ]);
+
+        let loaded = loadSessionState(anchorId, tempDir);
+        expect(loaded?.todos).toHaveLength(2);
+
+        // Second update - should replace, not append
+        updateTodosByAnchorId(anchorId, tempDir, [
+          { content: 'Task 1', status: 'completed', activeForm: 'Done 1' },
+          { content: 'Task 2', status: 'in_progress', activeForm: 'Working 2' },
+          { content: 'Task 3', status: 'pending', activeForm: 'Working 3' },
+        ]);
+
+        loaded = loadSessionState(anchorId, tempDir);
+        expect(loaded?.todos).toHaveLength(3); // Not 5!
+        expect(loaded?.todos![0].status).toBe('completed');
+        expect(loaded?.todos![2].content).toBe('Task 3');
+      });
+
+      it('should return warning when session state does not exist', () => {
+        const result = updateTodosByAnchorId('non-existent-anchor', tempDir, [
+          { content: 'Task', status: 'pending', activeForm: 'Working' },
+        ]);
+
+        expect(result).toContain('Warning');
+        expect(result).toContain('No session state found');
+        expect(result).toContain('non-existent-anchor');
+      });
+
+      it('should handle empty todos list', () => {
+        const anchorId = 'tui-empty-list';
+        const state = createSessionState(anchorId, 'sdk-1');
+        saveSessionState(state, tempDir);
+
+        const result = updateTodosByAnchorId(anchorId, tempDir, []);
+
+        expect(result).toContain('Todo list updated (0 items)');
+
+        const loaded = loadSessionState(anchorId, tempDir);
+        expect(loaded?.todos).toEqual([]);
+      });
+
+      it('should preserve todos across compressions', () => {
+        const anchorId = 'tui-todo-compression';
+
+        // Initial session with todos
+        let state = createSessionState(anchorId, 'sdk-1');
+        state = updateSessionTodos(state, [
+          { content: 'Task 1', status: 'pending', activeForm: 'Working 1' },
+        ]);
+        saveSessionState(state, tempDir);
+
+        // Compress
+        state = loadSessionState(anchorId, tempDir)!;
+        state = updateSessionState(state, 'sdk-2', 'compression', 100000);
+        saveSessionState(state, tempDir);
+
+        // Verify todos survived compression
+        const loaded = loadSessionState(anchorId, tempDir);
+        expect(loaded?.todos).toHaveLength(1);
+        expect(loaded?.todos![0].content).toBe('Task 1');
+        expect(loaded?.current_session).toBe('sdk-2');
+      });
     });
   });
 });

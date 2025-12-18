@@ -175,6 +175,15 @@ export interface SessionLoadResult {
    * Model from saved session (for backward-compatible resume)
    */
   model?: string;
+
+  /**
+   * Restored todos from session state (for providers without native TodoWrite)
+   */
+  todos?: Array<{
+    content: string;
+    status: 'pending' | 'in_progress' | 'completed';
+    activeForm: string;
+  }>;
 }
 
 /**

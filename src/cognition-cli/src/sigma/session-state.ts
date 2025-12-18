@@ -54,6 +54,13 @@ export interface SessionState {
     output: number;
     total: number;
   };
+
+  /** Active todo list for this session (for providers without native TodoWrite) */
+  todos?: Array<{
+    content: string;
+    status: 'pending' | 'in_progress' | 'completed';
+    activeForm: string;
+  }>;
 }
 
 /**
@@ -222,6 +229,66 @@ export function updateSessionStats(
     stats,
     last_updated: new Date().toISOString(),
   };
+}
+
+/**
+ * Update session todos
+ *
+ * Used by providers without native TodoWrite (e.g., Gemini, OpenAI)
+ * to persist task list in the session state file.
+ *
+ * @param state - Current session state
+ * @param todos - Updated todo list
+ * @returns Updated session state with new todos
+ */
+export function updateSessionTodos(
+  state: SessionState,
+  todos: SessionState['todos']
+): SessionState {
+  return {
+    ...state,
+    todos,
+    last_updated: new Date().toISOString(),
+  };
+}
+
+/**
+ * Update todos directly by anchor ID
+ *
+ * Convenience function for tool executors that only have anchor ID and cwd.
+ * Loads state, updates todos, saves state.
+ *
+ * @param anchorId - Session anchor ID
+ * @param projectRoot - Project root directory
+ * @param todos - Updated todo list
+ * @returns Success message or error
+ */
+export function updateTodosByAnchorId(
+  anchorId: string,
+  projectRoot: string,
+  todos: SessionState['todos']
+): string {
+  const state = loadSessionState(anchorId, projectRoot);
+
+  if (!state) {
+    // No state file yet - can't persist todos without session
+    return `Warning: No session state found for ${anchorId}. Todos not persisted.`;
+  }
+
+  const updated = updateSessionTodos(state, todos);
+  saveSessionState(updated, projectRoot);
+
+  // Format summary for tool response
+  const summary = (todos || [])
+    .map((t) => {
+      const icon =
+        t.status === 'completed' ? '✓' : t.status === 'in_progress' ? '→' : '○';
+      const text = t.status === 'in_progress' ? t.activeForm : t.content;
+      return `[${icon}] ${text}`;
+    })
+    .join('\n');
+
+  return `Todo list updated (${(todos || []).length} items):\n${summary}`;
 }
 
 /**

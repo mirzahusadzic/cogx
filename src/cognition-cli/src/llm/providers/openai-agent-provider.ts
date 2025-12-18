@@ -987,6 +987,7 @@ export class OpenAIAgentProvider implements AgentProvider {
         | undefined,
       projectRoot: request.projectRoot,
       agentId: request.agentId,
+      anchorId: request.anchorId,
     });
   }
 
@@ -1014,6 +1015,7 @@ export class OpenAIAgentProvider implements AgentProvider {
 - **grep**: Search code with ripgrep
 - **bash**: Execute shell commands (git, npm, etc.)
 - **edit_file**: Make targeted text replacements
+- **TodoWrite**: Update the task list to track progress and maintain state across the session
 
 ### Web Tools
 - **fetch_url**: Fetch content from URLs (documentation, APIs, external resources)
@@ -1060,6 +1062,32 @@ ${request.cwd || process.cwd()}
 - Prefer editing existing files over creating new ones
 - Run tests after making code changes
 - **ALWAYS use the bash tool for shell commands** (git, grep, npm, yarn, system commands, etc.) - never attempt to execute commands without it
+
+## Task Management with TodoWrite
+You have access to the TodoWrite tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.
+
+### When to Use TodoWrite
+1. Complex multi-step tasks - When a task requires 3 or more distinct steps or actions
+2. Non-trivial and complex tasks - Tasks that require careful planning or multiple operations
+3. User explicitly requests todo list - When the user directly asks you to use the todo list
+4. User provides multiple tasks - When users provide a list of things to be done (numbered or comma-separated)
+5. After receiving new instructions - Immediately capture user requirements as todos
+6. When you start working on a task - Mark it as in_progress BEFORE beginning work
+7. After completing a task - Mark it as completed and add any new follow-up tasks
+
+### When NOT to Use TodoWrite
+1. There is only a single, straightforward task
+2. The task is trivial and tracking it provides no organizational benefit
+3. The task can be completed in less than 3 trivial steps
+4. The task is purely conversational or informational
+
+### Task State Rules
+1. **pending**: Task not yet started
+2. **in_progress**: Currently working on (limit to ONE task at a time)
+3. **completed**: Task finished successfully
+4. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")
+5. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing
+6. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker
 
 ## Token Economy (IMPORTANT - Each tool call costs tokens!)
 - **NEVER re-read files you just edited** - you already have the content in context

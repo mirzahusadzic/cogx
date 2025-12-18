@@ -90,6 +90,9 @@ export interface AgentRequest {
   /** Current agent ID (for excluding self from listings) */
   agentId?: string;
 
+  /** Session anchor ID (for TodoWrite state persistence) */
+  anchorId?: string;
+
   /** Error callback */
   onStderr?: (error: string) => void;
 

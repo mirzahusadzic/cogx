@@ -5,17 +5,43 @@
  * Skipped in CI, run manually with: GEMINI_API_KEY=xxx npx vitest run gemini-adk-integration
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import { GeminiAgentProvider } from '../gemini-agent-provider.js';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import {
+  createSessionState,
+  saveSessionState,
+} from '../../../sigma/session-state.js';
 
 const SKIP_REASON = 'Requires GEMINI_API_KEY - set env var to run';
 const hasApiKey = !!process.env.GEMINI_API_KEY;
 
 describe.skipIf(!hasApiKey)('GeminiAgentProvider Integration', () => {
   let provider: GeminiAgentProvider;
+  let tempDir: string;
+  let anchorId: string;
 
   beforeAll(() => {
     provider = new GeminiAgentProvider(process.env.GEMINI_API_KEY!);
+  });
+
+  beforeEach(() => {
+    // Create temp directory for each test
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gemini-test-'));
+
+    // Create anchorId and initialize session state
+    anchorId = `test-${Date.now()}`;
+    const state = createSessionState(anchorId, `sdk-${Date.now()}`);
+    saveSessionState(state, tempDir);
+  });
+
+  afterEach(() => {
+    // Cleanup temp directory
+    if (tempDir) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 
   // TODO: Re-enable when ADK SDK v0.1.x JSON parsing bug is fixed
@@ -29,7 +55,8 @@ describe.skipIf(!hasApiKey)('GeminiAgentProvider Integration', () => {
     for await (const response of provider.executeAgent({
       prompt: 'What is 2+2? Reply with just the number.',
       model: 'gemini-2.5-flash',
-      cwd: process.cwd(),
+      cwd: tempDir,
+      anchorId,
     })) {
       for (const msg of response.messages) {
         if (msg.role === 'assistant' && typeof msg.content === 'string') {
@@ -51,7 +78,8 @@ describe.skipIf(!hasApiKey)('GeminiAgentProvider Integration', () => {
       prompt:
         'Use the glob tool to find all .ts files in the current directory',
       model: 'gemini-2.5-flash',
-      cwd: process.cwd(),
+      cwd: tempDir,
+      anchorId,
     })) {
       for (const msg of response.messages) {
         responses.push({
@@ -81,7 +109,8 @@ describe.skipIf(!hasApiKey)('GeminiAgentProvider Integration', () => {
     for await (const response of provider.executeAgent({
       prompt: 'Say exactly: "I will remember 42"',
       model: 'gemini-2.5-flash',
-      cwd: process.cwd(),
+      cwd: tempDir,
+      anchorId,
     })) {
       sessionId = response.sessionId;
       firstTurnMessageCount = response.messages.length;
@@ -95,7 +124,8 @@ describe.skipIf(!hasApiKey)('GeminiAgentProvider Integration', () => {
     for await (const response of provider.executeAgent({
       prompt: 'Repeat what you said you would remember',
       model: 'gemini-2.5-flash',
-      cwd: process.cwd(),
+      cwd: tempDir,
+      anchorId,
       resumeSessionId: sessionId,
     })) {
       secondTurnMessageCount = response.messages.length;
@@ -117,7 +147,8 @@ describe.skipIf(!hasApiKey)('GeminiAgentProvider Integration', () => {
     for await (const response of provider.executeAgent({
       prompt: 'Remember: Project Alpha started in 2023',
       model: 'gemini-2.5-flash',
-      cwd: process.cwd(),
+      cwd: tempDir,
+      anchorId,
     })) {
       sessionA = response.sessionId;
     }
@@ -128,7 +159,8 @@ describe.skipIf(!hasApiKey)('GeminiAgentProvider Integration', () => {
     for await (const response of provider.executeAgent({
       prompt: 'What project did we discuss?',
       model: 'gemini-2.5-flash',
-      cwd: process.cwd(),
+      cwd: tempDir,
+      anchorId,
       resumeSessionId: sessionA,
     })) {
       expect(response.sessionId).toBe(sessionA); // Same session
@@ -142,7 +174,8 @@ describe.skipIf(!hasApiKey)('GeminiAgentProvider Integration', () => {
     for await (const response of provider.executeAgent({
       prompt: 'What is 5+5? Reply with just the number.',
       model: 'gemini-2.5-flash',
-      cwd: process.cwd(),
+      cwd: tempDir,
+      anchorId,
       // resumeSessionId intentionally omitted - simulates compression boundary
     })) {
       sessionB = response.sessionId;
