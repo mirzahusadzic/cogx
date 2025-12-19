@@ -470,12 +470,12 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
   }
 
   // Set default sessionTokens based on provider
-  // Gemini has 2M token context (gemini-2.5-pro) / 1M (gemini-3-pro)
+  // Gemini has huge context but we compress early at 200K for "Fire and Execute" snappiness
   // Claude has 200K token context (Sonnet/Opus) - compress at 120K to leave buffer
   // OpenAI/local models use COGNITION_OPENAI_MAX_TOKENS (auto-configured from workbench health)
   let defaultSessionTokens: number;
   if (validatedProvider === 'gemini') {
-    defaultSessionTokens = 950000;
+    defaultSessionTokens = 200000;
   } else if (validatedProvider === 'openai') {
     // Use auto-configured token limit from workbench
     // Fallback: 120K for official OpenAI (GPT-4o has 128K), 4K for unknown local endpoints

@@ -330,13 +330,22 @@ export class GeminiAgentProvider implements AgentProvider {
         numTurns++;
 
         // Capture actual token usage from Gemini API
-        // Accumulate totals for quota tracking, keep current for context size
+        // promptTokenCount includes all history sent in this request
+        // totalTokenCount is the sum of prompt and candidates for this request
         if (evt.usageMetadata) {
           if (evt.usageMetadata.promptTokenCount !== undefined) {
-            cumulativePromptTokens += evt.usageMetadata.promptTokenCount;
+            cumulativePromptTokens = evt.usageMetadata.promptTokenCount;
             currentPromptTokens = evt.usageMetadata.promptTokenCount;
           }
-          if (evt.usageMetadata.candidatesTokenCount !== undefined) {
+          if (
+            evt.usageMetadata.totalTokenCount !== undefined &&
+            evt.usageMetadata.promptTokenCount !== undefined
+          ) {
+            cumulativeCompletionTokens =
+              evt.usageMetadata.totalTokenCount -
+              evt.usageMetadata.promptTokenCount;
+          } else if (evt.usageMetadata.candidatesTokenCount !== undefined) {
+            // Fallback if totalTokenCount is missing
             cumulativeCompletionTokens +=
               evt.usageMetadata.candidatesTokenCount;
             currentCompletionTokens = evt.usageMetadata.candidatesTokenCount;

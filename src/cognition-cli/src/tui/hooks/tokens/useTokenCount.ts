@@ -156,7 +156,11 @@ export function useTokenCount() {
    */
   const initialize = useCallback((initialCount: TokenCount) => {
     setCount(initialCount);
-    justReset.current = false; // Clear any pending reset flag
+    // Set justReset to true to allow the first update after initialization
+    // to override the persisted count. This is critical when a session is
+    // resumed and reconstructed, as the new context size is likely smaller
+    // than the persisted one.
+    justReset.current = true;
   }, []);
 
   return {
