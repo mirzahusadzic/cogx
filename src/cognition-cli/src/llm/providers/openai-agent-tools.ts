@@ -221,7 +221,10 @@ function createEditFileTool(onCanUseTool?: OnCanUseTool): OpenAITool {
  * Manages a task list for tracking progress during multi-step operations.
  * Embeds todos in session state file via anchorId.
  */
-function createTodoWriteTool(cwd: string, anchorId: string): OpenAITool {
+function createTodoWriteTool(
+  cwd: string,
+  anchorId: string | undefined
+): OpenAITool {
   interface TodoInput {
     todos: Array<{
       content: string;
@@ -230,8 +233,25 @@ function createTodoWriteTool(cwd: string, anchorId: string): OpenAITool {
     }>;
   }
 
-  const execute = ({ todos }: TodoInput) =>
-    executeTodoWrite(todos, cwd, anchorId);
+  const execute = ({ todos }: TodoInput) => {
+    if (!anchorId) {
+      // Fallback summary for non-persistent mode
+      const summary = (todos || [])
+        .map((t) => {
+          const icon =
+            t.status === 'completed'
+              ? '✓'
+              : t.status === 'in_progress'
+                ? '→'
+                : '○';
+          const text = t.status === 'in_progress' ? t.activeForm : t.content;
+          return `[${icon}] ${text}`;
+        })
+        .join('\n');
+      return `Todo list updated (${(todos || []).length} items) [NOT PERSISTED]:\n${summary}`;
+    }
+    return executeTodoWrite(todos, cwd, anchorId);
+  };
 
   return tool({
     name: 'TodoWrite',
@@ -723,10 +743,10 @@ export function getOpenAITools(context: OpenAIToolsContext): OpenAITool[] {
   tools.push(createBashTool(cwd, workbenchUrl, onCanUseTool));
   tools.push(createEditFileTool(onCanUseTool));
 
-  // TodoWrite tool (state management) - requires anchorId
+  // TodoWrite tool (state management) - optional anchorId with fallback
   if (!anchorId) {
-    throw new Error(
-      'TodoWrite requires anchorId - ensure session state is initialized'
+    console.warn(
+      '[Sigma] TodoWrite initialized without anchorId. Tasks will NOT be persisted across sessions.'
     );
   }
   tools.push(createTodoWriteTool(cwd, anchorId));

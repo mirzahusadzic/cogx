@@ -634,10 +634,12 @@ export function getCognitionTools(
     const anchorId = options?.anchorId;
     const cwd = projectRoot || process.cwd();
 
-    // anchorId is required for TodoWrite - should always be available in TUI
+    // anchorId is required for TodoWrite state persistence.
+    // In environments without session state (headless/legacy), we return a warning
+    // instead of throwing to avoid crashing the tool initialization.
     if (!anchorId) {
-      throw new Error(
-        'TodoWrite requires anchorId - ensure session state is initialized'
+      console.warn(
+        '[Sigma] TodoWrite initialized without anchorId. Tasks will NOT be persisted across sessions.'
       );
     }
 
@@ -668,7 +670,26 @@ export function getCognitionTools(
           )
           .describe('The updated todo list'),
       }),
-      execute: ({ todos }) => executeTodoWrite(todos, cwd, anchorId),
+      execute: async ({ todos }) => {
+        if (!anchorId) {
+          // Fallback summary for non-persistent mode
+          const summary = (todos || [])
+            .map((t) => {
+              const icon =
+                t.status === 'completed'
+                  ? '✓'
+                  : t.status === 'in_progress'
+                    ? '→'
+                    : '○';
+              const text =
+                t.status === 'in_progress' ? t.activeForm : t.content;
+              return `[${icon}] ${text}`;
+            })
+            .join('\n');
+          return `Todo list updated (${(todos || []).length} items) [NOT PERSISTED]:\n${summary}`;
+        }
+        return executeTodoWrite(todos, cwd, anchorId);
+      },
     });
     baseTools.push(boundTodoWriteTool);
   }

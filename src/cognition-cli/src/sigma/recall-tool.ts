@@ -7,6 +7,7 @@
 
 import { z } from 'zod';
 import { queryConversationLattice } from './query-conversation.js';
+import { RECAP_PREVIEW_LENGTH } from './context-reconstructor.js';
 import type { ConversationOverlayRegistry } from './conversation-registry.js';
 
 type ClaudeAgentSdk = {
@@ -52,7 +53,7 @@ export function createRecallMcpServer(
   const { tool, createSdkMcpServer } = claudeAgentSdk;
   const recallTool = tool(
     'recall_past_conversation',
-    `Retrieve FULL untruncated messages from conversation history. The recap you see is truncated to ${256} chars - when you see "..." it means more content is available. Use this tool to get complete details. Searches all 7 overlays (O1-O7) in LanceDB with semantic search. Ask about topics, not exact phrases.`,
+    `Retrieve FULL untruncated messages from conversation history. The recap you see is truncated to ${RECAP_PREVIEW_LENGTH} chars - when you see "..." it means more content is available. Use this tool to get complete details. Searches all 7 overlays (O1-O7) in LanceDB with semantic search. Ask about topics, not exact phrases.`,
     {
       query: z
         .string()

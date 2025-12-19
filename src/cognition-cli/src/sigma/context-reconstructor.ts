@@ -57,7 +57,7 @@ import type { ConversationOverlayRegistry } from './conversation-registry.js';
  * Maximum length for truncated message previews in the recap.
  * Set to 256 to provide enough context for the LLM to decide whether to recall.
  */
-const RECAP_PREVIEW_LENGTH = 256;
+export const RECAP_PREVIEW_LENGTH = 256;
 
 /**
  * Conversation mode classification
@@ -142,19 +142,21 @@ function getSystemFingerprint(
   // Derive provider name and SDK from model string
   let providerName = 'Claude Code';
   let sdkName = 'Anthropic SDK';
+  let temporalGrounding = '';
+
+  const currentDate = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
   if (modelName?.includes('gemini')) {
     providerName = 'Gemini';
     sdkName = 'Google AI SDK';
-    // Add cutoff information for Gemini models
     if (modelName?.includes('preview')) {
       providerName += ' (Experimental Preview)';
     }
-    const currentDate = new Date().toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-    providerName += `\n**Knowledge Cutoff**: January 2025\n**Current Date**: ${currentDate}`;
+    temporalGrounding = `\n**Knowledge Cutoff**: January 2025\n**Current Date**: ${currentDate}`;
   } else if (
     modelName?.includes('gpt') ||
     modelName?.includes('o1') ||
@@ -162,11 +164,18 @@ function getSystemFingerprint(
   ) {
     providerName = 'OpenAI Agent';
     sdkName = 'OpenAI Agents SDK';
+    // Knowledge cutoff for GPT-4o / o1 is Oct 2023 or later depending on specific model version
+    // but the latest ones usually reach late 2023.
+    temporalGrounding = `\n**Knowledge Cutoff**: October 2023\n**Current Date**: ${currentDate}`;
+  } else {
+    // Default temporal grounding for other providers
+    temporalGrounding = `\n**Current Date**: ${currentDate}`;
   }
 
   return `# SYSTEM IDENTITY
 
 You are **${providerName}** (${sdkName}) running inside **Cognition Σ (Sigma) CLI** - a verifiable AI-human symbiosis architecture with dual-lattice knowledge representation.
+${temporalGrounding}
 
 ## What is Cognition Σ?
 A portable cognitive layer that can be initialized in **any repository**. Creates \`.sigma/\` (conversation memory) and \`.open_cognition/\` (PGC project knowledge store) in the current working directory.
