@@ -871,7 +871,7 @@ You have access to tools for:
 - **list_agents**: List all active agents in the IPC bus
 - **send_agent_message**: Send a message to another agent by alias or ID
 - **broadcast_agent_message**: Broadcast a message to all active agents
-- **list_pending_messages**: List all pending messages from other agents
+- **list_pending_messages**: List all pending messages from other agents (DO NOT poll - system auto-notifies on arrival)
 - **mark_message_read**: Mark a pending message as read/processed
 
 ## Working Directory

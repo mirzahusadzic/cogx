@@ -606,7 +606,7 @@ function createListPendingMessagesTool(
   return tool({
     name: 'list_pending_messages',
     description:
-      'List all pending messages in your message queue. These are messages from other agents that you have not yet processed.',
+      'List all pending messages in your message queue. These are messages from other agents that you have not yet processed. DO NOT poll this tool - the system will notify you automatically when a new message arrives.',
     parameters: z.object({}),
     execute: async () => {
       try {

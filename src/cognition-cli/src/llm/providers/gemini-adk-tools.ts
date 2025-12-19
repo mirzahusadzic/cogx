@@ -459,7 +459,7 @@ function createAgentMessagingTools(
   // Tool: List pending messages
   const listPendingMessagesTool = wrapToolWithPermission(
     'list_pending_messages',
-    'List all pending messages in your message queue. These are messages from other agents that you have not yet processed.',
+    'List all pending messages in your message queue. These are messages from other agents that you have not yet processed. DO NOT poll this tool - the system will notify you automatically when a new message arrives.',
     z.object({}),
     async () => {
       try {

@@ -1039,7 +1039,7 @@ export class OpenAIAgentProvider implements AgentProvider {
 - **list_agents**: Discover other active agents in the IPC bus
 - **send_agent_message**: Send a message to a specific agent
 - **broadcast_agent_message**: Broadcast to ALL agents
-- **list_pending_messages**: List messages in your queue
+- **list_pending_messages**: List messages in your queue (DO NOT poll - system auto-notifies on arrival)
 - **mark_message_read**: Mark messages as processed`);
     }
 
