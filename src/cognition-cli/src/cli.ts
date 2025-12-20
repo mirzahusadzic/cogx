@@ -121,7 +121,7 @@ program
   .name('cognition-cli')
   .usage(USAGE_SYNOPSIS)
   .description('A meta-interpreter for verifiable, stateful AI cognition')
-  .version('2.6.1 (Multi-Agent Collaboration)')
+  .version('2.6.2 (Manager/Worker Delegation)')
   .addHelpText('after', formatGroupedCommands(COMMAND_GROUPS))
   .addHelpText('after', addAllEnvVars())
   .addHelpText('after', addGlobalExamples())

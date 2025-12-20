@@ -5,6 +5,50 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.2] - 2025-12-20
+
+### Summary
+
+**Manager/Worker Delegation & LLM Modernization.** Implements a robust multi-agent collaboration pattern, adds Gemini 3.0 Flash as the new default, and introduces OpenAI Agent SDK support.
+
+### 🚀 New Features
+
+#### Manager/Worker Delegation Architecture
+
+- **Unified Task Management:** Introduced `SigmaTaskUpdate` as the single source of truth for task tracking across all providers (Claude, Gemini, OpenAI).
+- **Manager/Worker Pattern:** Formal delegation flow where Managers assign tasks with explicit **Acceptance Criteria** and Workers report back with a **Result Summary**.
+- **Stable Task IDs:** Persistent identifiers for tasks that survive session restarts and context compression.
+- **Strict Delegation Validation:** Zod-enforced schema requiring `acceptance_criteria` and `delegated_to` fields when a task is marked as delegated.
+- **Auto-Approval:** `SigmaTaskUpdate` now supports auto-approval for seamless task tracking.
+
+#### LLM Provider Modernization
+
+- **Gemini 3.0 Flash:** Weaved Gemini 3.0 Flash into the core and established `gemini-3-flash-preview` as the new default model.
+- **OpenAI Agents SDK:** Added full support for the OpenAI Agents SDK with workbench auto-configuration.
+- **Gemini Cost Estimation:** Added token-based cost estimation for Gemini requests.
+- **Dynamic Temporal Grounding:** Injected dynamic timestamps into the system fingerprint for better temporal awareness.
+- **Snappier Compression:** Reduced Gemini compression threshold to 200K tokens for faster context management.
+
+#### TUI & UX Enhancements
+
+- **Animal Kingdom Icons:** New animal-themed icons for lattice metrics in the TUI.
+- **Platform-Specific UI:** Optimized emoji spacing for macOS and dimmed separator aesthetics.
+- **Strengthened Recall:** Increased conversation recap truncation to 256 characters for better context retrieval.
+- **Node.js 22 Support:** Official support for Node.js 22 runtime.
+
+### 🐛 Bug Fixes
+
+- **Claude TodoWrite Override:** Successfully blocks the native Claude SDK `TodoWrite` tool and replaces it with `SigmaTaskUpdate`.
+- **OpenAI SDK Silence:** Suppressed OpenAI SDK stderr output to prevent TUI corruption.
+- **IPC Discovery:** Extracted shared agent discovery utilities and fixed Gemini alias resolution.
+- **Messaging Protocol:** Hardened instructions to prevent agents from polling `list_pending_messages`.
+- **Reasoning Fix:** Updated `@openai/agents` to 0.3.6 to resolve reasoning event issues.
+
+### 🧹 Refactoring
+
+- **Shared Tool Executors:** Unified tool execution logic between Gemini and OpenAI agents.
+- **Node.js 18+ Compatibility:** Updated core modules for modern Node.js environments.
+
 ## [2.6.1] - 2025-12-08
 
 ### Summary

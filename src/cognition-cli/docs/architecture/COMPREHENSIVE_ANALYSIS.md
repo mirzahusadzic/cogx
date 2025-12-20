@@ -6,9 +6,9 @@
 
 **At a Glance:**
 
-- **Current Version:** 2.6.0 (Multi-Agent Collaborative System)
-- **Production Lines:** ~78,520 TypeScript (excl. tests), ~97,262 total
-- **Test Coverage:** ~85% across 60 test files
+- **Current Version:** 2.6.2 (Manager/Worker Delegation)
+- **Production Lines:** ~87,386 TypeScript (excl. tests), ~108,169 total
+- **Test Coverage:** ~85% across 64 test files
 - **Architecture:** 7 cognitive overlays (O₁-O₇), dual-lattice Σ system, ZeroMQ agent messaging
 - **License:** AGPL-3.0-or-later
 
@@ -265,6 +265,41 @@ Both Claude (MCP) and Gemini (ADK) have access to 5 tools:
 | `broadcast_agent_message` | Broadcast to all agents                  |
 | `list_pending_messages`   | List pending messages                    |
 | `mark_message_read`       | Update status (read/injected/dismissed)  |
+
+### Manager/Worker Delegation Architecture
+
+Introduced in v2.6.2, this pattern leverages a unified `SigmaTaskUpdate` tool to enable structured, verifiable multi-agent collaboration.
+
+#### **Core Concept**
+
+Instead of loosely-coupled chat, agents use a formal **Manager/Worker pattern**:
+
+- **Managers** break complex goals into discrete tasks with explicit **Acceptance Criteria**.
+- **Workers** receive task assignments via IPC, execute them, and report a **Result Summary**.
+- **Unified State**: `SigmaTaskUpdate` provides a single, stable task tracking mechanism across all LLM providers (Claude, Gemini, OpenAI).
+
+#### **The Delegation Schema**
+
+The `SigmaTaskUpdate` tool uses a strict schema to ensure accountability:
+
+```typescript
+{
+  id: string;                   // Stable ID for tracking across sessions
+  status: "delegated";          // Explicit delegation state
+  delegated_to: "agent-alias";  // Target worker ID
+  acceptance_criteria: string[]; // Verifiable success conditions
+  context?: string;              // Background information for the worker
+}
+```
+
+#### **The Collaboration Loop**
+
+1. **Task Assignment**: Manager creates a task with `status: "delegated"` and sends an IPC `task_assignment` message.
+2. **Worker Execution**: Worker acknowledges, executes, and tracks its own sub-tasks using its own lattice.
+3. **Verification**: Worker sends `task_completion` message with a `result_summary`.
+4. **Finalization**: Manager verifies result against criteria and marks task `completed`.
+
+This architecture ensures that multi-agent work is observable, persistent (survives compression), and verifiable.
 
 #### **Auto-Response & Rate Limiting**
 
@@ -823,24 +858,24 @@ The same architecture that understands code can preserve human identity through 
 
 | Metric                     | Value                      |
 | -------------------------- | -------------------------- |
-| **Total TypeScript Lines** | **~105,200** (incl. tests) |
-| Production Code Lines      | ~86,350 (excl. tests)      |
-| Test Code Lines            | ~18,850 (60+ test files)   |
-| Total Source Files         | 272+ (212 prod + 60 test)  |
+| **Total TypeScript Lines** | **~108,169** (incl. tests) |
+| Production Code Lines      | ~87,386 (excl. tests)      |
+| Test Code Lines            | ~20,783 (64 test files)    |
+| Total Source Files         | 279 (215 prod + 64 test)   |
 
 ### Lines of Code by Module
 
 | Module        | LOC        | Files   | % of Prod | Description                   |
 | ------------- | ---------- | ------- | --------- | ----------------------------- |
-| **core/**     | 34,475     | 84      | 43.9%     | PGC, overlays, orchestrators  |
-| **commands/** | 13,255     | 31      | 16.9%     | CLI command implementations   |
-| **tui/**      | 11,098     | 36      | 14.1%     | React Ink terminal interface  |
-| **sigma/**    | 10,092     | 28      | 12.9%     | Infinite context dual-lattice |
-| **llm/**      | 6,229      | 10      | 7.2%      | LLM provider abstraction      |
-| **ipc/**      | 2,350      | 9       | 3.0%      | ZeroMQ agent messaging        |
-| **utils/**    | 2,308      | 8       | 2.9%      | Errors, formatting, helpers   |
-| **root**      | 1,418      | 2       | 1.8%      | cli.ts, config.ts             |
-| **Total**     | **86,350** | **212** | **100%**  |                               |
+| **core/**     | 35,338     | 84      | 40.4%     | PGC, overlays, orchestrators  |
+| **commands/** | 14,244     | 31      | 16.3%     | CLI command implementations   |
+| **tui/**      | 12,027     | 35      | 13.8%     | React Ink terminal interface  |
+| **sigma/**    | 10,408     | 29      | 11.9%     | Infinite context dual-lattice |
+| **llm/**      | 6,852      | 13      | 7.8%      | LLM provider abstraction      |
+| **ipc/**      | 3,413      | 10      | 3.9%      | ZeroMQ agent messaging        |
+| **utils/**    | 3,569      | 11      | 4.1%      | Errors, formatting, helpers   |
+| **root**      | 1,535      | 2       | 1.8%      | cli.ts, config.ts             |
+| **Total**     | **87,386** | **215** | **100%**  |                               |
 
 ### Core Module Breakdown
 
@@ -880,18 +915,38 @@ The same architecture that understands code can preserve human identity through 
 | Cognitive Overlays    | 7 (O₁-O₇)                          |
 | Supported Languages   | 3 (TS/JS/Python)                   |
 | Core Commands         | 40+ (with tab completion)          |
-| Test Files            | 60 (comprehensive coverage)        |
+| Test Files            | 64 (comprehensive coverage)        |
 | Test Coverage         | ~85% (security, compression, UX)   |
-| Current Version       | 2.6.0 (Multi-Agent)                |
+| Current Version       | 2.6.2 (Delegation)                 |
 | License               | AGPL-3.0-or-later                  |
 | Zenodo DOI            | 10.5281/zenodo.17509405            |
-| Innovations Published | 47 (defensive patent publication)  |
+| Innovations Published | 48 (defensive patent publication)  |
 
 ---
 
 ## Version History & Changelog
 
-### Version 2.6.0 (Current - Multi-Agent Collaborative System)
+### Version 2.6.2 (Current - Manager/Worker Delegation)
+
+**Summary:** Unified task management and delegation architecture across all providers.
+
+**New Features:**
+
+- **Manager/Worker Pattern** — Formal delegation flow with acceptance criteria and result summaries.
+- **Unified `SigmaTaskUpdate`** — Replaced provider-specific task tracking (like Claude's `TodoWrite`) with a standardized tool.
+- **Task Persistence** — Tasks are now stable and persist across session compressions and restarts.
+- **Strict Validation** — Zod-based enforcement of delegation requirements (must have criteria and worker ID).
+
+**UX Improvements:**
+
+- **Status Icons** — Visual indicators for pending, in-progress, completed, and delegated tasks in the TUI.
+- **Automatic Migration** — Legacy tasks without IDs are automatically migrated to the new schema.
+
+**Bug Fixes:**
+
+- Fixed Claude SDK's native `TodoWrite` conflict by overriding it with our superior `SigmaTaskUpdate`.
+
+### Version 2.6.1 (Multi-Agent Collaborative System)
 
 **Summary:** 27 commits (Dec 1-3, 2025) adding agent-to-agent communication infrastructure.
 
