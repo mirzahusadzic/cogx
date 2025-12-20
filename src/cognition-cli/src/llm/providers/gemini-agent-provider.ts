@@ -138,8 +138,8 @@ export class GeminiAgentProvider implements AgentProvider {
       request.cwd || request.projectRoot, // Pass project root for agent discovery
       request.agentId, // Pass current agent ID for excluding self from listings
       {
-        provider: 'gemini', // Enable external TodoWrite for Gemini
-        anchorId: request.anchorId, // Session anchor for TodoWrite state persistence
+        provider: 'gemini', // Enable external SigmaTaskUpdate for Gemini
+        anchorId: request.anchorId, // Session anchor for SigmaTaskUpdate state persistence
       }
     );
 
@@ -863,7 +863,7 @@ You have access to tools for:
 - **grep**: Search code with ripgrep
 - **bash**: Execute shell commands (git, npm, etc.)
 - **edit_file**: Make targeted text replacements
-- **TodoWrite**: Update the task list to track progress and maintain state across the session
+- **SigmaTaskUpdate**: Update the task list to track progress and maintain state across the session
 - **WebSearch**: Search the web for current information, news, facts, and real-time data using Google Search
 - **fetch_url**: Fetch and read content from any URL (returns markdown-formatted text with basic HTML stripping)
 - **recall_past_conversation**: Search conversation history for past context (if available)
@@ -886,7 +886,7 @@ ${request.cwd || process.cwd()}
 - Use WebSearch tool when you need current information that might not be in files (e.g., latest docs, recent changes, current events)
 
 ## Task Management
-You have access to the TodoWrite tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.
+You have access to the SigmaTaskUpdate tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.
 This tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.
 
 It is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.
@@ -896,9 +896,9 @@ It is critical that you mark todos as completed as soon as you are done with a t
 **Example 1: Multi-step task with tests**
 User: "Run the build and fix any type errors"
 You should:
-1. Use TodoWrite to create items: "Run the build", "Fix any type errors"
+1. Use SigmaTaskUpdate to create items: "Run the build", "Fix any type errors"
 2. Run the build using bash
-3. If you find 10 type errors, use TodoWrite to add 10 items for each error
+3. If you find 10 type errors, use SigmaTaskUpdate to add 10 items for each error
 4. Mark the first todo as in_progress
 5. Work on the first item, then mark it as completed
 6. Continue until all items are done
@@ -906,7 +906,7 @@ You should:
 **Example 2: Feature implementation**
 User: "Help me write a new feature that allows users to track their usage metrics and export them to various formats"
 You should:
-1. Use TodoWrite to plan: Research existing metrics, Design system, Implement core tracking, Create export functionality
+1. Use SigmaTaskUpdate to plan: Research existing metrics, Design system, Implement core tracking, Create export functionality
 2. Start by researching the existing codebase
 3. Mark items in_progress as you work, completed when done
 
@@ -914,7 +914,7 @@ You should:
 User: "Delegate the database migration to gemini2"
 You should:
 1. List agents to confirm 'gemini2' exists and get their ID
-2. Use TodoWrite to create a task:
+2. Use SigmaTaskUpdate to create a task:
    - status: "delegated"
    - delegated_to: "gemini2"
    - acceptance_criteria: ["Migration script created", "Tests passed"]
@@ -923,12 +923,12 @@ You should:
 4. Wait for gemini2 to report back via IPC
 5. Verify criteria and mark task as completed
 
-**Example 4: When NOT to use TodoWrite**
+**Example 4: When NOT to use SigmaTaskUpdate**
 User: "How do I print 'Hello World' in Python?"
-Do NOT use TodoWrite - this is a simple, trivial task with no multi-step implementation.
+Do NOT use SigmaTaskUpdate - this is a simple, trivial task with no multi-step implementation.
 
 User: "Add a comment to the calculateTotal function"
-Do NOT use TodoWrite - this is a single, straightforward task.
+Do NOT use SigmaTaskUpdate - this is a single, straightforward task.
 
 ### Task State Rules
 1. **Task States**: pending (not started), in_progress (currently working), completed (finished), delegated (assigned to another agent)
@@ -938,7 +938,7 @@ Do NOT use TodoWrite - this is a single, straightforward task.
 5. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker
 6. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")
 
-IMPORTANT: Always use the TodoWrite tool to plan and track tasks throughout the conversation.
+IMPORTANT: Always use the SigmaTaskUpdate tool to plan and track tasks throughout the conversation.
 
 ## Token Economy (IMPORTANT - Each tool call costs tokens!)
 - **NEVER re-read files you just edited** - you already have the content in context

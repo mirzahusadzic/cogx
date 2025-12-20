@@ -43,7 +43,7 @@ import {
   executeEditFile,
   executeFetchUrl,
   executeWebSearch,
-  executeTodoWrite,
+  executeSigmaTaskUpdate,
 } from './tool-executors.js';
 
 /**
@@ -216,12 +216,12 @@ function createEditFileTool(onCanUseTool?: OnCanUseTool): OpenAITool {
 }
 
 /**
- * Create TodoWrite tool
+ * Create SigmaTaskUpdate tool
  *
  * Manages a task list for tracking progress during multi-step operations.
- * Embeds todos in session state file via anchorId.
+ * Embeds tasks in session state file via anchorId.
  */
-function createTodoWriteTool(
+function createSigmaTaskUpdateTool(
   cwd: string,
   anchorId: string | undefined
 ): OpenAITool {
@@ -261,23 +261,23 @@ function createTodoWriteTool(
           return `[${icon}] ${text}${suffix}`;
         })
         .join('\n');
-      return `Todo list updated (${(todos || []).length} items) [NOT PERSISTED]:\n${summary}`;
+      return `Task list updated (${(todos || []).length} items) [NOT PERSISTED]:\n${summary}`;
     }
-    return executeTodoWrite(todos, cwd, anchorId);
+    return executeSigmaTaskUpdate(todos, cwd, anchorId);
   };
 
   return tool({
-    name: 'TodoWrite',
+    name: 'SigmaTaskUpdate',
     description: `Use this tool to create and manage a structured task list for your current coding session. This helps you track progress, organize complex tasks, and demonstrate thoroughness to the user.
 
 ## When to Use This Tool
 Use this tool proactively in these scenarios:
 1. Complex multi-step tasks - When a task requires 3 or more distinct steps or actions
 2. Non-trivial and complex tasks - Tasks that require careful planning or multiple operations
-3. User explicitly requests todo list - When the user directly asks you to use the todo list
+3. User explicitly requests task list - When the user directly asks you to use the task list
 4. User provides multiple tasks - When users provide a list of things to be done (numbered or comma-separated)
-5. After receiving new instructions - Immediately capture user requirements as todos
-6. When you start working on a task - Mark it as in_progress BEFORE beginning work. Ideally you should only have one todo as in_progress at a time
+5. After receiving new instructions - Immediately capture user requirements as tasks
+6. When you start working on a task - Mark it as in_progress BEFORE beginning work. Ideally you should only have one task as in_progress at a time
 7. After completing a task - Mark it as completed and add any new follow-up tasks discovered during implementation
 
 ## When NOT to Use This Tool
@@ -369,7 +369,7 @@ Benefits of delegation:
               .describe("Worker's completion report"),
           })
         )
-        .describe('The updated todo list'),
+        .describe('The updated task list'),
     }),
     execute,
   });
@@ -771,7 +771,7 @@ export interface OpenAIToolsContext {
   projectRoot?: string;
   /** Current agent ID */
   agentId?: string;
-  /** Session anchor ID for TodoWrite state persistence */
+  /** Session anchor ID for SigmaTaskUpdate state persistence */
   anchorId?: string;
 }
 
@@ -807,13 +807,13 @@ export function getOpenAITools(context: OpenAIToolsContext): OpenAITool[] {
   tools.push(createBashTool(cwd, workbenchUrl, onCanUseTool));
   tools.push(createEditFileTool(onCanUseTool));
 
-  // TodoWrite tool (state management) - optional anchorId with fallback
+  // SigmaTaskUpdate tool (state management) - optional anchorId with fallback
   if (!anchorId) {
     console.warn(
-      '[Sigma] TodoWrite initialized without anchorId. Tasks will NOT be persisted across sessions.'
+      '[Sigma] SigmaTaskUpdate initialized without anchorId. Tasks will NOT be persisted across sessions.'
     );
   }
-  tools.push(createTodoWriteTool(cwd, anchorId));
+  tools.push(createSigmaTaskUpdateTool(cwd, anchorId));
 
   // Web tools (read-only)
   tools.push(createFetchUrlTool());

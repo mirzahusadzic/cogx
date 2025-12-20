@@ -2,7 +2,7 @@
  * Tool Formatter
  *
  * Formats tool calls for display in the TUI with intelligent, tool-specific formatting.
- * Provides special rendering for Edit (character-level diffs), TodoWrite (status icons),
+ * Provides special rendering for Edit (character-level diffs), SigmaTaskUpdate (status icons),
  * Bash (command display), memory tools, and background task management.
  *
  * DESIGN:
@@ -15,7 +15,7 @@
  *    - Added lines: dark olive background (\x1b[48;5;58m)
  *    - Unchanged lines: no highlighting
  *
- * 2. TodoWrite: Status icons with color coding
+ * 2. SigmaTaskUpdate: Status icons with color coding
  *    - Completed: ✓ (green)
  *    - In Progress: → (yellow)
  *    - Pending: ○ (gray)
@@ -50,7 +50,7 @@
  *    b. Bash: Command text from input.command
  *    c. Edit: Full diff with formatEditDiff()
  *    d. File operations: Show file path
- *    e. TodoWrite: Format with formatTodoWrite()
+ *    e. SigmaTaskUpdate: Format with formatSigmaTaskUpdate()
  *    f. Pattern operations: Show pattern
  *    g. Default: JSON stringify input
  * 3. Return FormattedTool with icon, name, and description
@@ -68,9 +68,9 @@
  * // Returns diff with colored backgrounds showing change
  *
  * @example
- * // Formatting a TodoWrite tool use
+ * // Formatting a SigmaTaskUpdate tool use
  * const formatted = formatToolUse({
- *   name: 'TodoWrite',
+ *   name: 'SigmaTaskUpdate',
  *   input: {
  *     todos: [
  *       { content: 'Write tests', status: 'completed', activeForm: 'Writing tests' },
@@ -138,7 +138,7 @@ export interface FormattedTool {
  *    b. Bash: Extract command from input.command
  *    c. Edit: Generate diff using formatEditDiff()
  *    d. File operations: Show file path
- *    e. TodoWrite: Format todos using formatTodoWrite()
+ *    e. SigmaTaskUpdate: Format todos using formatSigmaTaskUpdate()
  *    f. Pattern operations: Show search pattern
  *    g. Default: JSON stringify entire input
  * 3. Return FormattedTool with icon, name, and description
@@ -248,9 +248,9 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
     }
   } else if (tool.input.pattern) {
     inputDesc = `pattern: ${tool.input.pattern as string}`;
-  } else if (tool.name === 'TodoWrite' && tool.input.todos) {
+  } else if (tool.name === 'SigmaTaskUpdate' && tool.input.todos) {
     toolName = 'Tasks';
-    inputDesc = formatTodoWrite(
+    inputDesc = formatSigmaTaskUpdate(
       tool.input.todos as Array<{
         content: string;
         status: string;
@@ -467,7 +467,7 @@ function formatEditDiff(
 }
 
 /**
- * Format TodoWrite with status icons
+ * Format SigmaTaskUpdate with status icons
  *
  * Formats todo items with colored status icons to show task progress.
  * Uses different icons and colors for completed, in-progress, and pending tasks.
@@ -495,7 +495,7 @@ function formatEditDiff(
  * @returns Formatted todo list string with newline-separated items
  *
  * @example
- * const formatted = formatTodoWrite([
+ * const formatted = formatSigmaTaskUpdate([
  *   { content: 'Run tests', status: 'completed', activeForm: 'Running tests' },
  *   { content: 'Deploy', status: 'in_progress', activeForm: 'Deploying' },
  *   { content: 'Monitor', status: 'pending', activeForm: 'Monitoring' }
@@ -505,7 +505,7 @@ function formatEditDiff(
  * //   → Deploying       (yellow)
  * //   ○ Monitor         (gray)
  */
-function formatTodoWrite(
+function formatSigmaTaskUpdate(
   todos: Array<{
     content: string;
     status: string;

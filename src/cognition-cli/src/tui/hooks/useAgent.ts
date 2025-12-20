@@ -866,7 +866,7 @@ export function useAgent(options: UseAgentOptions) {
           );
 
           // Load todos from session state for injection into recap
-          // (for providers without native TodoWrite like Gemini/OpenAI)
+          // (for providers without native SigmaTaskUpdate like Gemini/OpenAI)
           const sessionState = loadSessionState(anchorId, cwd);
           const incompleteTodos = sessionState?.todos?.filter(
             (t) => t.status !== 'completed'
@@ -1812,7 +1812,7 @@ export function useAgent(options: UseAgentOptions) {
           getMessageQueue, // Pass message queue getter for agent messaging tools
           projectRoot: cwd, // Pass project root for agent discovery
           agentId: sessionIdProp || 'unknown', // Pass current agent ID for excluding self from listings
-          anchorId, // Pass session anchor ID for TodoWrite state persistence
+          anchorId, // Pass session anchor ID for SigmaTaskUpdate state persistence
           onStderr: (data: string) => {
             stderrLines.push(data);
           },

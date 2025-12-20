@@ -402,7 +402,7 @@ export class SessionStateStore {
       // Include provider/model for backward-compatible resume
       provider: state.provider,
       model: state.model,
-      // Include todos for providers without native TodoWrite (Gemini, OpenAI)
+      // Include todos for providers without native SigmaTaskUpdate (Gemini, OpenAI)
       todos: state.todos,
     };
   }

@@ -177,7 +177,7 @@ export interface SessionLoadResult {
   model?: string;
 
   /**
-   * Restored todos from session state (for providers without native TodoWrite)
+   * Restored tasks from session state (for providers without native SigmaTaskUpdate)
    */
   todos?: Array<{
     id: string;

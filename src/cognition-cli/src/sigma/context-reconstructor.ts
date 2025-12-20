@@ -35,7 +35,7 @@
  *
  * CRITICAL FEATURE - Pending Task Preservation:
  * The reconstructor preserves assistant state across compression. If the last turn
- * shows the assistant was mid-task (has TodoWrite, tool usage, action words like
+ * shows the assistant was mid-task (has SigmaTaskUpdate, tool usage, action words like
  * "I'll", "Let me"), the recap includes a prominent warning to continue from
  * where the assistant left off. This prevents lost work and maintains continuity.
  *
@@ -471,7 +471,7 @@ function detectCurrentQuest(lattice: ConversationLattice): QuestInfo {
  *
  * DESIGN:
  * The mental map is a high-level architecture snapshot showing what components
- * were discussed and their current state. It's like a "architecture todo list"
+ * were discussed and their current state. It's like a "architecture task list"
  * derived from conversation patterns rather than explicit tracking.
  *
  * Status inference:
@@ -646,14 +646,14 @@ function getCurrentDepth(lattice: ConversationLattice): {
  * @param lattice - Conversation lattice with nodes and metadata
  * @param cwd - Current working directory
  * @param modelName - Optional model name for fingerprint
- * @param todos - Optional todo list from session state
+ * @param todos - Optional task list from session state
  * @returns Markdown-formatted quest mode recap
  */
 async function reconstructQuestContext(
   lattice: ConversationLattice,
   cwd: string,
   modelName?: string,
-  todos?: TodoItem[]
+  todos?: SigmaTask[]
 ): Promise<string> {
   const quest = detectCurrentQuest(lattice);
   const mentalMap = buildMentalMap(lattice);
@@ -722,7 +722,7 @@ Use these to retrieve specific context from the lattice:
  * 1. Extract last 5 turns from lattice with role, content, timestamp
  * 2. Examine the very last turn
  * 3. If last turn is from assistant, check for pending task indicators:
- *    - Has TodoWrite (explicit task list)
+ *    - Has SigmaTaskUpdate (explicit task list)
  *    - Has tool usage markers (🔧, "Let me")
  *    - Has action words ("I'll", "I will", "Let me", "Going to", "Next I'll")
  * 4. If indicators found, extract first 200 chars as pending task description
@@ -739,7 +739,7 @@ Use these to retrieve specific context from the lattice:
  * - Ensure continuity across compression boundary
  *
  * Pending task detection looks for:
- * - TodoWrite: Explicit task tracking
+ * - SigmaTaskUpdate: Explicit task tracking
  * - Tool markers: Active work in progress
  * - Action verbs: Commitments like "I'll implement X"
  *
@@ -782,7 +782,7 @@ function getLastConversationTurns(lattice: ConversationLattice): {
 
     if (!isCompletionSummary) {
       const hasTodoList =
-        content.includes('TodoWrite') || /\d+\.\s/.test(content);
+        content.includes('SigmaTaskUpdate') || /\d+\.\s/.test(content);
       const hasToolUse = content.includes('🔧') || content.includes('Let me');
       const hasActionWords =
         /I'll|I will|Next I'll|Next, I will|Going to/i.test(content);
@@ -809,7 +809,7 @@ function getLastConversationTurns(lattice: ConversationLattice): {
 /**
  * Todo item type for injection into recap
  */
-export interface TodoItem {
+export interface SigmaTask {
   id: string;
   content: string;
   status: 'pending' | 'in_progress' | 'completed' | 'delegated';
@@ -827,7 +827,7 @@ export interface TodoItem {
  *
  * Formats the recent conversation turns into markdown with role attribution
  * and truncated content. Adds a prominent warning if the assistant has a
- * pending task or active todos.
+ * pending task or active tasks.
  *
  * ALGORITHM:
  * 1. For each turn:
@@ -837,7 +837,7 @@ export interface TodoItem {
  *    d. Format as markdown: **[ROLE]**: content...
  * 2. Join all formatted turns with double newlines
  * 3. If todos with incomplete items exist:
- *    a. Add "## 📋 Active Todo List" section
+ *    a. Add "## 📋 Active Task List" section
  *    b. Show all todos with status icons (✓, →, ○)
  *    c. Add instruction to continue from in_progress items
  * 4. Else if pending task exists (fallback heuristic):
@@ -861,13 +861,13 @@ export interface TodoItem {
  * @private
  * @param turns - Recent conversation turns (role, content, timestamp)
  * @param pendingTask - Optional pending task description from assistant
- * @param todos - Optional todo list from session state (for providers without native TodoWrite)
+ * @param todos - Optional task list from session state (for providers without native SigmaTaskUpdate)
  * @returns Markdown-formatted recent conversation with optional pending task warning
  */
 function formatLastTurns(
   turns: Array<{ role: string; content: string; timestamp: number }>,
   pendingTask: string | null,
-  todos?: TodoItem[]
+  todos?: SigmaTask[]
 ): string {
   if (turns.length === 0) {
     return '(No recent conversation)';
@@ -887,10 +887,10 @@ function formatLastTurns(
 
   let result = `## Recent Conversation\n\n${formattedTurns}`;
 
-  // Add todo list if present with incomplete items (takes precedence over heuristic)
-  const incompleteTodos = todos?.filter((t) => t.status !== 'completed') || [];
-  if (incompleteTodos.length > 0) {
-    const todoLines = (todos || [])
+  // Add task list if present with incomplete items (takes precedence over heuristic)
+  const incompleteTasks = todos?.filter((t) => t.status !== 'completed') || [];
+  if (incompleteTasks.length > 0) {
+    const taskLines = (todos || [])
       .map((t) => {
         const icon =
           t.status === 'completed'
@@ -908,7 +908,7 @@ function formatLastTurns(
       ? `\n\n**Continue with: "${inProgressTask.activeForm}"**`
       : '\n\n**Continue with the next pending task.**';
 
-    result += `\n\n## 📋 Active Todo List\n\n${todoLines}${continueInstruction}`;
+    result += `\n\n## 📋 Active Task List\n\n${taskLines}${continueInstruction}`;
   }
   // Fallback: Add pending task warning if present (heuristic detection)
   else if (pendingTask) {
@@ -1041,7 +1041,7 @@ function filterLatticeByOverlayScores(
  * @param cwd - Current working directory
  * @param conversationRegistry - Optional conversation overlay registry (enables better filtering)
  * @param modelName - Optional model name for fingerprint
- * @param todos - Optional todo list from session state
+ * @param todos - Optional task list from session state
  * @returns Markdown-formatted chat mode recap
  */
 async function reconstructChatContext(
@@ -1049,7 +1049,7 @@ async function reconstructChatContext(
   cwd: string,
   conversationRegistry?: ConversationOverlayRegistry,
   modelName?: string,
-  todos?: TodoItem[]
+  todos?: SigmaTask[]
 ): Promise<string> {
   const nodes = lattice.nodes;
 
@@ -1268,7 +1268,7 @@ export async function reconstructSessionContext(
   cwd: string,
   conversationRegistry?: ConversationOverlayRegistry,
   modelName?: string,
-  todos?: TodoItem[]
+  todos?: SigmaTask[]
 ): Promise<ReconstructedSessionContext> {
   // 1. Classify conversation mode
   const mode = classifyConversationMode(lattice);

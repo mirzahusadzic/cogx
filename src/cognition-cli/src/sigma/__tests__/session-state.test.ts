@@ -12,8 +12,8 @@ import {
   createSessionState,
   updateSessionState,
   updateSessionStats,
-  updateSessionTodos,
-  updateTodosByAnchorId,
+  updateSessionTasks,
+  updateTasksByAnchorId,
   listSessions,
   migrateOldStateFile,
 } from '../session-state';
@@ -351,14 +351,14 @@ describe('session-state', () => {
     });
   });
 
-  describe('TodoWrite Functionality', () => {
-    describe('updateSessionTodos', () => {
+  describe('SigmaTaskUpdate Functionality', () => {
+    describe('updateSessionTasks', () => {
       it('should replace entire todos array', () => {
         const anchorId = 'tui-todo-test';
         const state = createSessionState(anchorId, 'sdk-1');
 
         // Add initial todos
-        const withTodos1 = updateSessionTodos(state, [
+        const withTodos1 = updateSessionTasks(state, [
           {
             content: 'Task 1',
             status: 'pending',
@@ -375,7 +375,7 @@ describe('session-state', () => {
         expect(withTodos1.todos![0].content).toBe('Task 1');
 
         // Replace with new todos (not append)
-        const withTodos2 = updateSessionTodos(withTodos1, [
+        const withTodos2 = updateSessionTasks(withTodos1, [
           {
             content: 'Task 1',
             status: 'completed',
@@ -399,7 +399,7 @@ describe('session-state', () => {
         const originalTimestamp = state.last_updated;
 
         // Update todos
-        const updated = updateSessionTodos(state, [
+        const updated = updateSessionTasks(state, [
           { content: 'Task', status: 'pending', activeForm: 'Working on Task' },
         ]);
 
@@ -425,7 +425,7 @@ describe('session-state', () => {
         });
 
         // Update todos
-        const updated = updateSessionTodos(state, [
+        const updated = updateSessionTasks(state, [
           { content: 'Task', status: 'pending', activeForm: 'Working' },
         ]);
 
@@ -439,20 +439,20 @@ describe('session-state', () => {
 
       it('should handle empty todos array', () => {
         const state = createSessionState('tui-empty-todos', 'sdk-1');
-        const updated = updateSessionTodos(state, []);
+        const updated = updateSessionTasks(state, []);
 
         expect(updated.todos).toEqual([]);
       });
 
       it('should handle undefined todos', () => {
         const state = createSessionState('tui-undefined-todos', 'sdk-1');
-        const updated = updateSessionTodos(state, undefined);
+        const updated = updateSessionTasks(state, undefined);
 
         expect(updated.todos).toBeUndefined();
       });
     });
 
-    describe('updateTodosByAnchorId', () => {
+    describe('updateTasksByAnchorId', () => {
       it('should load, update, save todos in one operation', () => {
         const anchorId = 'tui-todo-persist';
 
@@ -461,7 +461,7 @@ describe('session-state', () => {
         saveSessionState(state, tempDir);
 
         // Update todos
-        const result = updateTodosByAnchorId(anchorId, tempDir, [
+        const result = updateTasksByAnchorId(anchorId, tempDir, [
           {
             content: 'Build feature',
             status: 'in_progress',
@@ -475,7 +475,7 @@ describe('session-state', () => {
         ]);
 
         // Verify success message
-        expect(result).toContain('Todo list updated (2 items)');
+        expect(result).toContain('Task list updated (2 items)');
         expect(result).toContain('[→] Building feature');
         expect(result).toContain('[○] Write tests');
 
@@ -491,7 +491,7 @@ describe('session-state', () => {
         const state = createSessionState(anchorId, 'sdk-1');
         saveSessionState(state, tempDir);
 
-        const result = updateTodosByAnchorId(anchorId, tempDir, [
+        const result = updateTasksByAnchorId(anchorId, tempDir, [
           {
             content: 'Done task',
             status: 'completed',
@@ -521,7 +521,7 @@ describe('session-state', () => {
         saveSessionState(state, tempDir);
 
         // First update
-        updateTodosByAnchorId(anchorId, tempDir, [
+        updateTasksByAnchorId(anchorId, tempDir, [
           { content: 'Task 1', status: 'pending', activeForm: 'Working 1' },
           { content: 'Task 2', status: 'pending', activeForm: 'Working 2' },
         ]);
@@ -530,7 +530,7 @@ describe('session-state', () => {
         expect(loaded?.todos).toHaveLength(2);
 
         // Second update - should replace, not append
-        updateTodosByAnchorId(anchorId, tempDir, [
+        updateTasksByAnchorId(anchorId, tempDir, [
           { content: 'Task 1', status: 'completed', activeForm: 'Done 1' },
           { content: 'Task 2', status: 'in_progress', activeForm: 'Working 2' },
           { content: 'Task 3', status: 'pending', activeForm: 'Working 3' },
@@ -543,7 +543,7 @@ describe('session-state', () => {
       });
 
       it('should return warning when session state does not exist', () => {
-        const result = updateTodosByAnchorId('non-existent-anchor', tempDir, [
+        const result = updateTasksByAnchorId('non-existent-anchor', tempDir, [
           { content: 'Task', status: 'pending', activeForm: 'Working' },
         ]);
 
@@ -557,9 +557,9 @@ describe('session-state', () => {
         const state = createSessionState(anchorId, 'sdk-1');
         saveSessionState(state, tempDir);
 
-        const result = updateTodosByAnchorId(anchorId, tempDir, []);
+        const result = updateTasksByAnchorId(anchorId, tempDir, []);
 
-        expect(result).toContain('Todo list updated (0 items)');
+        expect(result).toContain('Task list updated (0 items)');
 
         const loaded = loadSessionState(anchorId, tempDir);
         expect(loaded?.todos).toEqual([]);
@@ -570,7 +570,7 @@ describe('session-state', () => {
 
         // Initial session with todos
         let state = createSessionState(anchorId, 'sdk-1');
-        state = updateSessionTodos(state, [
+        state = updateSessionTasks(state, [
           { content: 'Task 1', status: 'pending', activeForm: 'Working 1' },
         ]);
         saveSessionState(state, tempDir);

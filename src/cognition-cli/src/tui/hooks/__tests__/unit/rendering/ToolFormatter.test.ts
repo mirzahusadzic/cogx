@@ -91,9 +91,9 @@ describe('ToolFormatter', () => {
       expect(result.description).toBe('pattern: TODO');
     });
 
-    it('formats TodoWrite with status icons', () => {
+    it('formats SigmaTaskUpdate with status icons', () => {
       const tool: ToolUse = {
-        name: 'TodoWrite',
+        name: 'SigmaTaskUpdate',
         input: {
           todos: [
             { content: 'Task 1', status: 'completed', activeForm: 'Task 1' },
@@ -193,10 +193,10 @@ describe('ToolFormatter', () => {
     });
   });
 
-  describe('TodoWrite formatting edge cases', () => {
+  describe('SigmaTaskUpdate formatting edge cases', () => {
     it('handles empty todos list', () => {
       const tool: ToolUse = {
-        name: 'TodoWrite',
+        name: 'SigmaTaskUpdate',
         input: {
           todos: [],
         },
@@ -209,7 +209,7 @@ describe('ToolFormatter', () => {
 
     it('handles single todo', () => {
       const tool: ToolUse = {
-        name: 'TodoWrite',
+        name: 'SigmaTaskUpdate',
         input: {
           todos: [
             {

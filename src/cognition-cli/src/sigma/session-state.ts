@@ -55,7 +55,7 @@ export interface SessionState {
     total: number;
   };
 
-  /** Active todo list for this session (for providers without native TodoWrite) */
+  /** Active task list for this session (for providers without native SigmaTaskUpdate) */
   todos?: Array<{
     /** Unique stable identifier for this task (e.g., nanoid or semantic slug) */
     id: string;
@@ -251,14 +251,14 @@ export function updateSessionStats(
 /**
  * Update session todos
  *
- * Used by providers without native TodoWrite (e.g., Gemini, OpenAI)
+ * Used by providers without native SigmaTaskUpdate (e.g., Gemini, OpenAI)
  * to persist task list in the session state file.
  *
  * @param state - Current session state
- * @param todos - Updated todo list
+ * @param todos - Updated task list
  * @returns Updated session state with new todos
  */
-export function updateSessionTodos(
+export function updateSessionTasks(
   state: SessionState,
   todos: SessionState['todos']
 ): SessionState {
@@ -277,10 +277,10 @@ export function updateSessionTodos(
  *
  * @param anchorId - Session anchor ID
  * @param projectRoot - Project root directory
- * @param todos - Updated todo list
+ * @param todos - Updated task list
  * @returns Success message or error
  */
-export function updateTodosByAnchorId(
+export function updateTasksByAnchorId(
   anchorId: string,
   projectRoot: string,
   todos: SessionState['todos']
@@ -292,7 +292,7 @@ export function updateTodosByAnchorId(
     return `Warning: No session state found for ${anchorId}. Todos not persisted.`;
   }
 
-  const updated = updateSessionTodos(state, todos);
+  const updated = updateSessionTasks(state, todos);
   saveSessionState(updated, projectRoot);
 
   // Format summary for tool response
@@ -315,7 +315,7 @@ export function updateTodosByAnchorId(
     })
     .join('\n');
 
-  return `Todo list updated (${(todos || []).length} items):\n${summary}`;
+  return `Task list updated (${(todos || []).length} items):\n${summary}`;
 }
 
 /**

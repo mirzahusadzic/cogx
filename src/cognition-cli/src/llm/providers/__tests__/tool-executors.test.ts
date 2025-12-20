@@ -31,7 +31,7 @@ import {
   executeEditFile,
   executeFetchUrl,
 } from '../tool-executors.js';
-// Note: executeTodoWrite tests use dynamic imports to properly mock session-state module
+// Note: executeSigmaTaskUpdate tests use dynamic imports to properly mock session-state module
 
 describe('Tool Executors', () => {
   // Track EventEmitters to clean up after each test
@@ -285,26 +285,26 @@ describe('Tool Executors', () => {
     });
   });
 
-  describe('executeTodoWrite', () => {
+  describe('executeSigmaTaskUpdate', () => {
     beforeEach(() => {
       // Reset modules to clear any cached session-state imports
       vi.resetModules();
     });
 
-    test('should call updateTodosByAnchorId with correct parameters', async () => {
+    test('should call updateTasksByAnchorId with correct parameters', async () => {
       // Mock the session-state module
       const mockUpdateTodosByAnchorId = vi
         .fn()
         .mockReturnValue(
-          'Todo list updated (2 items):\n[→] Building feature\n[○] Write tests'
+          'Task list updated (2 items):\n[→] Building feature\n[○] Write tests'
         );
 
       vi.doMock('../../../sigma/session-state.js', () => ({
-        updateTodosByAnchorId: mockUpdateTodosByAnchorId,
+        updateTasksByAnchorId: mockUpdateTodosByAnchorId,
       }));
 
       // Re-import after mocking
-      const { executeTodoWrite: executeTodoWriteTest } =
+      const { executeSigmaTaskUpdate: executeSigmaTaskUpdateTest } =
         await import('../tool-executors.js');
 
       const todos = [
@@ -320,7 +320,7 @@ describe('Tool Executors', () => {
         },
       ];
 
-      const result = await executeTodoWriteTest(
+      const result = await executeSigmaTaskUpdateTest(
         todos,
         '/test/cwd',
         'tui-test-anchor'
@@ -331,7 +331,7 @@ describe('Tool Executors', () => {
         '/test/cwd',
         todos
       );
-      expect(result).toContain('Todo list updated');
+      expect(result).toContain('Task list updated');
       expect(result).toContain('Building feature');
     });
 
@@ -339,14 +339,14 @@ describe('Tool Executors', () => {
       const mockUpdateTodosByAnchorId = vi
         .fn()
         .mockReturnValue(
-          'Todo list updated (3 items):\n[✓] Task done\n[→] Working on task\n[○] Future task'
+          'Task list updated (3 items):\n[✓] Task done\n[→] Working on task\n[○] Future task'
         );
 
       vi.doMock('../../../sigma/session-state.js', () => ({
-        updateTodosByAnchorId: mockUpdateTodosByAnchorId,
+        updateTasksByAnchorId: mockUpdateTodosByAnchorId,
       }));
 
-      const { executeTodoWrite: executeTodoWriteTest } =
+      const { executeSigmaTaskUpdate: executeSigmaTaskUpdateTest } =
         await import('../tool-executors.js');
 
       const todos = [
@@ -359,7 +359,7 @@ describe('Tool Executors', () => {
         { content: 'Future task', status: 'pending', activeForm: 'Future' },
       ];
 
-      const result = await executeTodoWriteTest(
+      const result = await executeSigmaTaskUpdateTest(
         todos,
         '/test/cwd',
         'tui-icons-test'
@@ -376,13 +376,13 @@ describe('Tool Executors', () => {
       });
 
       vi.doMock('../../../sigma/session-state.js', () => ({
-        updateTodosByAnchorId: mockUpdateTodosByAnchorId,
+        updateTasksByAnchorId: mockUpdateTodosByAnchorId,
       }));
 
-      const { executeTodoWrite: executeTodoWriteTest } =
+      const { executeSigmaTaskUpdate: executeSigmaTaskUpdateTest } =
         await import('../tool-executors.js');
 
-      const result = await executeTodoWriteTest(
+      const result = await executeSigmaTaskUpdateTest(
         [{ content: 'Task', status: 'pending', activeForm: 'Working' }],
         '/test/cwd',
         'non-existent'
@@ -396,14 +396,14 @@ describe('Tool Executors', () => {
       const mockUpdateTodosByAnchorId = vi.fn().mockReturnValue('Success');
 
       vi.doMock('../../../sigma/session-state.js', () => ({
-        updateTodosByAnchorId: mockUpdateTodosByAnchorId,
+        updateTasksByAnchorId: mockUpdateTodosByAnchorId,
       }));
 
-      const { executeTodoWrite: executeTodoWriteTest } =
+      const { executeSigmaTaskUpdate: executeSigmaTaskUpdateTest } =
         await import('../tool-executors.js');
 
       const anchorId = 'required-anchor-id';
-      await executeTodoWriteTest(
+      await executeSigmaTaskUpdateTest(
         [{ content: 'Task', status: 'pending', activeForm: 'Working' }],
         '/cwd',
         anchorId
@@ -420,23 +420,27 @@ describe('Tool Executors', () => {
     test('should handle empty todos array', async () => {
       const mockUpdateTodosByAnchorId = vi
         .fn()
-        .mockReturnValue('Todo list updated (0 items):');
+        .mockReturnValue('Task list updated (0 items):');
 
       vi.doMock('../../../sigma/session-state.js', () => ({
-        updateTodosByAnchorId: mockUpdateTodosByAnchorId,
+        updateTasksByAnchorId: mockUpdateTodosByAnchorId,
       }));
 
-      const { executeTodoWrite: executeTodoWriteTest } =
+      const { executeSigmaTaskUpdate: executeSigmaTaskUpdateTest } =
         await import('../tool-executors.js');
 
-      const result = await executeTodoWriteTest([], '/cwd', 'empty-anchor');
+      const result = await executeSigmaTaskUpdateTest(
+        [],
+        '/cwd',
+        'empty-anchor'
+      );
 
       expect(mockUpdateTodosByAnchorId).toHaveBeenCalledWith(
         'empty-anchor',
         '/cwd',
         []
       );
-      expect(result).toContain('Todo list updated (0 items)');
+      expect(result).toContain('Task list updated (0 items)');
     });
   });
 });

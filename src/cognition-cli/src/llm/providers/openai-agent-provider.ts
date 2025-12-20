@@ -1015,7 +1015,7 @@ export class OpenAIAgentProvider implements AgentProvider {
 - **grep**: Search code with ripgrep
 - **bash**: Execute shell commands (git, npm, etc.)
 - **edit_file**: Make targeted text replacements
-- **TodoWrite**: Update the task list to track progress and maintain state across the session
+- **SigmaTaskUpdate**: Update the task list to track progress and maintain state across the session
 
 ### Web Tools
 - **fetch_url**: Fetch content from URLs (documentation, APIs, external resources)
@@ -1063,10 +1063,10 @@ ${request.cwd || process.cwd()}
 - Run tests after making code changes
 - **ALWAYS use the bash tool for shell commands** (git, grep, npm, yarn, system commands, etc.) - never attempt to execute commands without it
 
-## Task Management with TodoWrite
-You have access to the TodoWrite tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.
+## Task Management with SigmaTaskUpdate
+You have access to the SigmaTaskUpdate tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.
 
-### When to Use TodoWrite
+### When to Use SigmaTaskUpdate
 1. Complex multi-step tasks - When a task requires 3 or more distinct steps or actions
 2. Non-trivial and complex tasks - Tasks that require careful planning or multiple operations
 3. User explicitly requests todo list - When the user directly asks you to use the todo list
@@ -1076,7 +1076,7 @@ You have access to the TodoWrite tool to help you manage and plan tasks. Use thi
 7. After completing a task - Mark it as completed and add any new follow-up tasks
 8. When delegating tasks - Create a task with status 'delegated' before sending the IPC message
 
-### When NOT to Use TodoWrite
+### When NOT to Use SigmaTaskUpdate
 1. There is only a single, straightforward task
 2. The task is trivial and tracking it provides no organizational benefit
 3. The task can be completed in less than 3 trivial steps
@@ -1087,9 +1087,9 @@ You have access to the TodoWrite tool to help you manage and plan tasks. Use thi
 **Example 1: Multi-step task**
 User: "Run the build and fix any type errors"
 You should:
-1. Use TodoWrite to create items: "Run the build", "Fix any type errors"
+1. Use SigmaTaskUpdate to create items: "Run the build", "Fix any type errors"
 2. Run the build using bash
-3. If you find 10 type errors, use TodoWrite to add 10 items for each error
+3. If you find 10 type errors, use SigmaTaskUpdate to add 10 items for each error
 4. Mark the first todo as in_progress
 5. Work on the first item, then mark it as completed
 6. Continue until all items are done
@@ -1098,7 +1098,7 @@ You should:
 User: "Delegate the database migration to gemini2"
 You should:
 1. List agents to confirm 'gemini2' exists and get their ID
-2. Use TodoWrite to create a task:
+2. Use SigmaTaskUpdate to create a task:
    - status: "delegated"
    - delegated_to: "gemini2"
    - acceptance_criteria: ["Migration script created", "Tests passed"]

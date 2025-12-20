@@ -90,7 +90,7 @@ export interface AgentRequest {
   /** Current agent ID (for excluding self from listings) */
   agentId?: string;
 
-  /** Session anchor ID (for TodoWrite state persistence) */
+  /** Session anchor ID (for SigmaTaskUpdate state persistence) */
   anchorId?: string;
 
   /** Error callback */
