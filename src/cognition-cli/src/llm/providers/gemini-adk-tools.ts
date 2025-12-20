@@ -549,8 +549,11 @@ function createAgentMessagingTools(
 /**
  * Providers that support external SigmaTaskUpdate implementation
  *
- * Claude has native SigmaTaskUpdate in SDK - we provide SigmaTaskUpdate for unified tracking.
- * Gemini and OpenAI don't have native task tracking - we provide it.
+ * All providers now use SigmaTaskUpdate for unified task management:
+ * - Gemini: No native task tracking - uses SigmaTaskUpdate
+ * - OpenAI: No native task tracking - uses SigmaTaskUpdate
+ * - Claude: Has native TodoWrite in SDK, but we override it with SigmaTaskUpdate
+ *           because native TodoWrite lacks delegation support needed for Manager/Worker pattern
  */
 const PROVIDERS_WITH_EXTERNAL_TASK_UPDATE: Record<string, boolean> = {
   gemini: true,
@@ -718,10 +721,31 @@ export function getCognitionTools(
                 .optional()
                 .describe("Worker's completion report"),
             })
+            // NOTE: .refine() creates ZodEffects which Gemini ADK doesn't support.
+            // Validation is now done in the execute function instead.
           )
           .describe('The updated task list'),
       }),
       execute: async ({ todos }) => {
+        // Validate delegation requirements (moved from .refine() to support Gemini)
+        for (const task of todos || []) {
+          if (task.status === 'delegated') {
+            if (
+              !task.acceptance_criteria ||
+              task.acceptance_criteria.length === 0
+            ) {
+              throw new Error(
+                `Task "${task.id}" has status 'delegated' but missing 'acceptance_criteria'`
+              );
+            }
+            if (!task.delegated_to || task.delegated_to.length === 0) {
+              throw new Error(
+                `Task "${task.id}" has status 'delegated' but missing 'delegated_to'`
+              );
+            }
+          }
+        }
+
         if (!anchorId) {
           // Fallback summary for non-persistent mode
           const summary = (todos || [])

@@ -295,10 +295,7 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
             ? ({
                 type: 'preset',
                 preset: 'claude_code',
-                append:
-                  request.systemPrompt.preset !== 'claude_code'
-                    ? request.systemPrompt.preset
-                    : undefined,
+                append: request.systemPrompt.append,
               } as const)
             : request.systemPrompt?.custom
               ? (request.systemPrompt.custom as string)

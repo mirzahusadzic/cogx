@@ -81,6 +81,52 @@ export interface SessionState {
 }
 
 /**
+ * Migrate tasks from old format (without id) to new format (with id)
+ *
+ * Ensures backward compatibility with session files created before
+ * the id field was required for delegation support.
+ *
+ * @param tasks - Array of tasks that may be missing id fields
+ * @returns Migrated tasks with guaranteed id fields
+ */
+function migrateTasks(
+  tasks: Array<{
+    id?: string;
+    content: string;
+    status: 'pending' | 'in_progress' | 'completed' | 'delegated';
+    activeForm: string;
+    acceptance_criteria?: string[];
+    delegated_to?: string;
+    context?: string;
+    delegate_session_id?: string;
+    result_summary?: string;
+  }>
+): Array<{
+  id: string;
+  content: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'delegated';
+  activeForm: string;
+  acceptance_criteria?: string[];
+  delegated_to?: string;
+  context?: string;
+  delegate_session_id?: string;
+  result_summary?: string;
+}> {
+  return tasks.map((task, idx) => {
+    if (!task.id) {
+      // Generate stable ID from content hash or index
+      // Use timestamp to ensure uniqueness across migrations
+      const id = `migrated-${idx}-${Date.now()}`;
+      console.warn(
+        `[Session State] Migrating task without ID: "${task.content}" → ${id}`
+      );
+      return { ...task, id };
+    }
+    return task as typeof task & { id: string };
+  });
+}
+
+/**
  * Load session state from disk
  *
  * @param anchorId - User-facing anchor ID for the session
@@ -99,7 +145,19 @@ export function loadSessionState(
 
   try {
     const content = fs.readFileSync(stateFile, 'utf-8');
-    return JSON.parse(content) as SessionState;
+    const state = JSON.parse(content) as SessionState;
+
+    // Migrate tasks without id field (backward compatibility)
+    if (state.todos && state.todos.length > 0) {
+      const hasMissingIds = state.todos.some((t) => !t.id);
+      if (hasMissingIds) {
+        state.todos = migrateTasks(state.todos);
+        // Save migrated state back to disk
+        saveSessionState(state, projectRoot);
+      }
+    }
+
+    return state;
   } catch (err) {
     console.error(`Failed to load session state for ${anchorId}:`, err);
     return null;

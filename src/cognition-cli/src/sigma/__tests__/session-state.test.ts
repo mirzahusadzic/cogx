@@ -351,6 +351,239 @@ describe('session-state', () => {
     });
   });
 
+  describe('Task Migration (ID Field)', () => {
+    it('should migrate tasks without id field when loading session', () => {
+      const anchorId = 'tui-migrate-test';
+
+      // Create state with tasks WITHOUT id field (old format)
+      const stateWithoutIds = createSessionState(anchorId, 'sdk-1');
+      (stateWithoutIds.todos as unknown) = [
+        { content: 'Task 1', status: 'pending', activeForm: 'Working 1' },
+        { content: 'Task 2', status: 'completed', activeForm: 'Working 2' },
+      ];
+
+      // Save state manually (bypass updateSessionTasks which might add IDs)
+      const sigmaDir = path.join(tempDir, '.sigma');
+      fs.mkdirSync(sigmaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(sigmaDir, `${anchorId}.state.json`),
+        JSON.stringify(stateWithoutIds)
+      );
+
+      // Load state - should trigger automatic migration
+      const loaded = loadSessionState(anchorId, tempDir);
+
+      expect(loaded).not.toBeNull();
+      expect(loaded!.todos).toHaveLength(2);
+
+      // Verify IDs were added
+      expect(loaded!.todos![0].id).toBeDefined();
+      expect(loaded!.todos![0].id).toMatch(/^migrated-0-\d+$/);
+      expect(loaded!.todos![1].id).toBeDefined();
+      expect(loaded!.todos![1].id).toMatch(/^migrated-1-\d+$/);
+
+      // Verify other fields preserved
+      expect(loaded!.todos![0].content).toBe('Task 1');
+      expect(loaded!.todos![1].status).toBe('completed');
+    });
+
+    it('should preserve existing IDs during migration', () => {
+      const anchorId = 'tui-preserve-ids';
+
+      // Create state with SOME tasks having IDs
+      const stateWithMixedIds = createSessionState(anchorId, 'sdk-1');
+      (stateWithMixedIds.todos as unknown) = [
+        {
+          id: 'existing-id-1',
+          content: 'Task 1',
+          status: 'pending',
+          activeForm: 'Working 1',
+        },
+        { content: 'Task 2', status: 'pending', activeForm: 'Working 2' }, // No ID
+        {
+          id: 'existing-id-3',
+          content: 'Task 3',
+          status: 'completed',
+          activeForm: 'Working 3',
+        },
+      ];
+
+      // Save manually
+      const sigmaDir = path.join(tempDir, '.sigma');
+      fs.mkdirSync(sigmaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(sigmaDir, `${anchorId}.state.json`),
+        JSON.stringify(stateWithMixedIds)
+      );
+
+      // Load - should migrate only tasks without IDs
+      const loaded = loadSessionState(anchorId, tempDir);
+
+      expect(loaded!.todos![0].id).toBe('existing-id-1'); // Preserved
+      expect(loaded!.todos![1].id).toMatch(/^migrated-1-\d+$/); // Generated
+      expect(loaded!.todos![2].id).toBe('existing-id-3'); // Preserved
+    });
+
+    it('should auto-save migrated state back to disk', () => {
+      const anchorId = 'tui-auto-save-migration';
+
+      // Create state without IDs
+      const stateWithoutIds = createSessionState(anchorId, 'sdk-1');
+      (stateWithoutIds.todos as unknown) = [
+        { content: 'Task', status: 'pending', activeForm: 'Working' },
+      ];
+
+      // Save manually
+      const sigmaDir = path.join(tempDir, '.sigma');
+      fs.mkdirSync(sigmaDir, { recursive: true });
+      const filePath = path.join(sigmaDir, `${anchorId}.state.json`);
+      fs.writeFileSync(filePath, JSON.stringify(stateWithoutIds));
+
+      // Load (triggers migration)
+      loadSessionState(anchorId, tempDir);
+
+      // Read file directly to verify migration was saved
+      const savedContent = fs.readFileSync(filePath, 'utf-8');
+      const savedState = JSON.parse(savedContent);
+
+      expect(savedState.todos[0].id).toBeDefined();
+      expect(savedState.todos[0].id).toMatch(/^migrated-0-\d+$/);
+    });
+
+    it('should not migrate if all tasks already have IDs', () => {
+      const anchorId = 'tui-no-migration-needed';
+
+      // Create state with all tasks having IDs
+      const stateWithIds = createSessionState(anchorId, 'sdk-1');
+      (stateWithIds.todos as unknown) = [
+        {
+          id: 'task-1',
+          content: 'Task 1',
+          status: 'pending',
+          activeForm: 'Working 1',
+        },
+        {
+          id: 'task-2',
+          content: 'Task 2',
+          status: 'completed',
+          activeForm: 'Working 2',
+        },
+      ];
+
+      // Save manually
+      const sigmaDir = path.join(tempDir, '.sigma');
+      fs.mkdirSync(sigmaDir, { recursive: true });
+      const filePath = path.join(sigmaDir, `${anchorId}.state.json`);
+      fs.writeFileSync(filePath, JSON.stringify(stateWithIds));
+
+      // Spy on console.warn to verify no migration warnings
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      // Load state
+      const loaded = loadSessionState(anchorId, tempDir);
+
+      // Verify IDs unchanged
+      expect(loaded!.todos![0].id).toBe('task-1');
+      expect(loaded!.todos![1].id).toBe('task-2');
+
+      // Verify no migration warnings
+      expect(warnSpy).not.toHaveBeenCalled();
+
+      warnSpy.mockRestore();
+    });
+
+    it('should handle empty todos array during migration', () => {
+      const anchorId = 'tui-empty-todos-migration';
+
+      // Create state with empty todos
+      const stateWithEmptyTodos = createSessionState(anchorId, 'sdk-1');
+      stateWithEmptyTodos.todos = [];
+
+      // Save manually
+      const sigmaDir = path.join(tempDir, '.sigma');
+      fs.mkdirSync(sigmaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(sigmaDir, `${anchorId}.state.json`),
+        JSON.stringify(stateWithEmptyTodos)
+      );
+
+      // Load - should not crash
+      const loaded = loadSessionState(anchorId, tempDir);
+
+      expect(loaded!.todos).toEqual([]);
+    });
+
+    it('should generate unique IDs for multiple tasks without IDs', () => {
+      const anchorId = 'tui-unique-ids';
+
+      // Create state with 5 tasks without IDs
+      const state = createSessionState(anchorId, 'sdk-1');
+      (state.todos as unknown) = [
+        { content: 'Task 1', status: 'pending', activeForm: 'Working 1' },
+        { content: 'Task 2', status: 'pending', activeForm: 'Working 2' },
+        { content: 'Task 3', status: 'pending', activeForm: 'Working 3' },
+        { content: 'Task 4', status: 'pending', activeForm: 'Working 4' },
+        { content: 'Task 5', status: 'pending', activeForm: 'Working 5' },
+      ];
+
+      // Save manually
+      const sigmaDir = path.join(tempDir, '.sigma');
+      fs.mkdirSync(sigmaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(sigmaDir, `${anchorId}.state.json`),
+        JSON.stringify(state)
+      );
+
+      // Load - triggers migration
+      const loaded = loadSessionState(anchorId, tempDir);
+
+      // Collect all IDs
+      const ids = loaded!.todos!.map((t) => t.id);
+
+      // Verify all IDs are unique
+      const uniqueIds = new Set(ids);
+      expect(uniqueIds.size).toBe(5);
+
+      // Verify all IDs follow pattern
+      ids.forEach((id, idx) => {
+        expect(id).toMatch(new RegExp(`^migrated-${idx}-\\d+$`));
+      });
+    });
+
+    it('should log warning when migrating tasks', () => {
+      const anchorId = 'tui-migration-warning';
+
+      // Create state without IDs
+      const state = createSessionState(anchorId, 'sdk-1');
+      (state.todos as unknown) = [
+        { content: 'Task A', status: 'pending', activeForm: 'Working A' },
+      ];
+
+      // Save manually
+      const sigmaDir = path.join(tempDir, '.sigma');
+      fs.mkdirSync(sigmaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(sigmaDir, `${anchorId}.state.json`),
+        JSON.stringify(state)
+      );
+
+      // Spy on console.warn
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      // Load - triggers migration
+      loadSessionState(anchorId, tempDir);
+
+      // Verify warning was logged
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          '[Session State] Migrating task without ID: "Task A"'
+        )
+      );
+
+      warnSpy.mockRestore();
+    });
+  });
+
   describe('SigmaTaskUpdate Functionality', () => {
     describe('updateSessionTasks', () => {
       it('should replace entire todos array', () => {

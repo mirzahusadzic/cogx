@@ -52,6 +52,7 @@ export interface AgentRequest {
     type: 'preset' | 'custom';
     preset?: string; // e.g., 'claude_code'
     custom?: string;
+    append?: string; // Additional instructions to append to preset (Claude SDK)
   };
 
   /** Extended thinking token budget */

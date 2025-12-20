@@ -388,7 +388,7 @@ describe('Tool Executors', () => {
         'non-existent'
       );
 
-      expect(result).toContain('Error updating TODO');
+      expect(result).toContain('Error updating task');
       expect(result).toContain('Session state not found');
     });
 

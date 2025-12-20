@@ -290,6 +290,40 @@ export async function executeSigmaTaskUpdate(
   anchorId: string
 ): Promise<string> {
   try {
+    // Log delegation events for debugging (controlled by DEBUG_DELEGATION env var)
+    if (process.env.DEBUG_DELEGATION) {
+      const delegatedTasks = todos.filter((t) => t.status === 'delegated');
+      const completedDelegations = todos.filter(
+        (t) => t.status === 'delegated' && t.result_summary
+      );
+
+      if (delegatedTasks.length > 0) {
+        console.log('[Sigma] Delegation lifecycle events:');
+        delegatedTasks.forEach((task) => {
+          console.log(`  📋 Task: ${task.id} - ${task.content}`);
+          console.log(`     → Delegated to: ${task.delegated_to}`);
+          console.log(
+            `     → Acceptance criteria: ${task.acceptance_criteria?.join(', ')}`
+          );
+          if (task.context) {
+            console.log(`     → Context: ${task.context}`);
+          }
+          if (task.result_summary) {
+            console.log(`     ✅ Result: ${task.result_summary}`);
+          }
+          if (task.delegate_session_id) {
+            console.log(`     → Session: ${task.delegate_session_id}`);
+          }
+        });
+      }
+
+      if (completedDelegations.length > 0) {
+        console.log(
+          `[Sigma] ✅ ${completedDelegations.length} delegated task(s) completed`
+        );
+      }
+    }
+
     // Dynamic import to avoid circular dependencies
     const { updateTasksByAnchorId } =
       await import('../../sigma/session-state.js');
@@ -309,7 +343,7 @@ export async function executeSigmaTaskUpdate(
       }>
     );
   } catch (error) {
-    return `Error updating TODO: ${error instanceof Error ? error.message : String(error)}`;
+    return `Error updating task: ${error instanceof Error ? error.message : String(error)}`;
   }
 }
 

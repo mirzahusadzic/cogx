@@ -116,6 +116,7 @@ import { EmbeddingService } from '../../core/services/embedding.js';
 import { OverlayRegistry } from '../../core/algebra/overlay-registry.js';
 import { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
 import { createRecallMcpServer } from '../../sigma/recall-tool.js';
+import { createSigmaTaskUpdateMcpServer } from '../../sigma/sigma-task-update-tool.js';
 import { createBackgroundTasksMcpServer } from '../tools/background-tasks-tool.js';
 import {
   getBackgroundTaskManager,
@@ -163,6 +164,7 @@ function buildMcpServers(options: {
   recallServer: McpSdkServerConfigWithInstance | null;
   backgroundTasksServer: McpSdkServerConfigWithInstance | null;
   agentMessagingServer: McpSdkServerConfigWithInstance | null;
+  sigmaTaskUpdateServer: McpSdkServerConfigWithInstance | null;
   hasConversationHistory: boolean;
 }): Record<string, McpSdkServerConfigWithInstance> | undefined {
   const servers: Record<string, McpSdkServerConfigWithInstance> = {};
@@ -180,6 +182,11 @@ function buildMcpServers(options: {
   // Agent messaging server: always enable when available
   if (options.agentMessagingServer) {
     servers['agent-messaging'] = options.agentMessagingServer;
+  }
+
+  // SigmaTaskUpdate server: always enable when available (replaces native TodoWrite for Claude)
+  if (options.sigmaTaskUpdateServer) {
+    servers['sigma-task-update'] = options.sigmaTaskUpdateServer;
   }
 
   return Object.keys(servers).length > 0 ? servers : undefined;
@@ -478,6 +485,8 @@ export function useAgent(options: UseAgentOptions) {
   const backgroundTasksMcpServerRef =
     useRef<McpSdkServerConfigWithInstance | null>(null);
   const agentMessagingMcpServerRef =
+    useRef<McpSdkServerConfigWithInstance | null>(null);
+  const sigmaTaskUpdateMcpServerRef =
     useRef<McpSdkServerConfigWithInstance | null>(null);
   const backgroundTaskManagerRef = useRef<BackgroundTaskManager | null>(null);
   const messagesRef = useRef<TUIMessage[]>(messages); // Ref to avoid effect re-running on every message change
@@ -1095,6 +1104,14 @@ export function useAgent(options: UseAgentOptions) {
           claudeAgentSdkModule
         );
       }
+
+      // Initialize SigmaTaskUpdate MCP server (for Claude provider)
+      // Provides task management with delegation support, replacing native TodoWrite
+      sigmaTaskUpdateMcpServerRef.current = createSigmaTaskUpdateMcpServer(
+        cwd,
+        anchorId,
+        claudeAgentSdkModule
+      );
 
       const pgcPath = path.join(cwd, '.open_cognition');
       if (fs.existsSync(pgcPath))
@@ -1817,6 +1834,21 @@ export function useAgent(options: UseAgentOptions) {
             stderrLines.push(data);
           },
           onCanUseTool: async (toolName, input) => {
+            // Block Claude SDK's native TodoWrite - we provide SigmaTaskUpdate instead
+            // Native TodoWrite lacks delegation support needed for Manager/Worker pattern
+            // See: https://github.com/anthropics/claude-code/issues/6760
+            if (toolName === 'TodoWrite' && providerName === 'claude') {
+              if (debugFlag) {
+                console.log(
+                  '[useAgent] Blocking native TodoWrite for Claude provider, using SigmaTaskUpdate instead'
+                );
+              }
+              return {
+                behavior: 'deny',
+                updatedInput: input,
+              };
+            }
+
             // Use confirmation callback if provided (guardrails)
             if (onRequestToolConfirmation) {
               const decision = await onRequestToolConfirmation(toolName, input);
@@ -1837,6 +1869,7 @@ export function useAgent(options: UseAgentOptions) {
             recallServer: recallMcpServerRef.current,
             backgroundTasksServer: backgroundTasksMcpServerRef.current,
             agentMessagingServer: agentMessagingMcpServerRef.current,
+            sigmaTaskUpdateServer: sigmaTaskUpdateMcpServerRef.current,
             hasConversationHistory:
               !!currentResumeId || turnAnalysis.analyses.length > 0,
           }),

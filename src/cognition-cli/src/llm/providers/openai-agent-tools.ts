@@ -241,6 +241,25 @@ function createSigmaTaskUpdateTool(
   }
 
   const execute = ({ todos }: TodoInput) => {
+    // Validate delegation requirements (moved from .refine() for cross-provider compatibility)
+    for (const task of todos || []) {
+      if (task.status === 'delegated') {
+        if (
+          !task.acceptance_criteria ||
+          task.acceptance_criteria.length === 0
+        ) {
+          throw new Error(
+            `Task "${task.id}" has status 'delegated' but missing 'acceptance_criteria'`
+          );
+        }
+        if (!task.delegated_to || task.delegated_to.length === 0) {
+          throw new Error(
+            `Task "${task.id}" has status 'delegated' but missing 'delegated_to'`
+          );
+        }
+      }
+    }
+
     if (!anchorId) {
       // Fallback summary for non-persistent mode
       const summary = (todos || [])
@@ -368,6 +387,8 @@ Benefits of delegation:
               .optional()
               .describe("Worker's completion report"),
           })
+          // NOTE: .refine() creates ZodEffects which Gemini ADK doesn't support.
+          // For cross-provider consistency, validation is done in execute function.
         )
         .describe('The updated task list'),
     }),

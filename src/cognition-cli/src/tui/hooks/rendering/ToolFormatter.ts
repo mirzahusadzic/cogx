@@ -248,7 +248,11 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
     }
   } else if (tool.input.pattern) {
     inputDesc = `pattern: ${tool.input.pattern as string}`;
-  } else if (tool.name === 'SigmaTaskUpdate' && tool.input.todos) {
+  } else if (
+    (tool.name === 'SigmaTaskUpdate' ||
+      tool.name === 'mcp__sigma-task-update__SigmaTaskUpdate') &&
+    tool.input.todos
+  ) {
     toolName = 'Tasks';
     inputDesc = formatSigmaTaskUpdate(
       tool.input.todos as Array<{
