@@ -1849,6 +1849,19 @@ export function useAgent(options: UseAgentOptions) {
               };
             }
 
+            // Auto-approve SigmaTaskUpdate for all providers (matches Gemini/OpenAI behavior)
+            // SigmaTaskUpdate is a read-only tool that only updates session state
+            // Note: MCP tools are prefixed with "mcp__<server-name>__"
+            if (
+              toolName === 'SigmaTaskUpdate' ||
+              toolName === 'mcp__sigma-task-update__SigmaTaskUpdate'
+            ) {
+              return {
+                behavior: 'allow',
+                updatedInput: input,
+              };
+            }
+
             // Use confirmation callback if provided (guardrails)
             if (onRequestToolConfirmation) {
               const decision = await onRequestToolConfirmation(toolName, input);
