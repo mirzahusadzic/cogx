@@ -1074,6 +1074,7 @@ You have access to the TodoWrite tool to help you manage and plan tasks. Use thi
 5. After receiving new instructions - Immediately capture user requirements as todos
 6. When you start working on a task - Mark it as in_progress BEFORE beginning work
 7. After completing a task - Mark it as completed and add any new follow-up tasks
+8. When delegating tasks - Create a task with status 'delegated' before sending the IPC message
 
 ### When NOT to Use TodoWrite
 1. There is only a single, straightforward task
@@ -1081,13 +1082,40 @@ You have access to the TodoWrite tool to help you manage and plan tasks. Use thi
 3. The task can be completed in less than 3 trivial steps
 4. The task is purely conversational or informational
 
+### Examples of Task Management
+
+**Example 1: Multi-step task**
+User: "Run the build and fix any type errors"
+You should:
+1. Use TodoWrite to create items: "Run the build", "Fix any type errors"
+2. Run the build using bash
+3. If you find 10 type errors, use TodoWrite to add 10 items for each error
+4. Mark the first todo as in_progress
+5. Work on the first item, then mark it as completed
+6. Continue until all items are done
+
+**Example 2: Delegating a task (Manager/Worker Pattern)**
+User: "Delegate the database migration to gemini2"
+You should:
+1. List agents to confirm 'gemini2' exists and get their ID
+2. Use TodoWrite to create a task:
+   - status: "delegated"
+   - delegated_to: "gemini2"
+   - acceptance_criteria: ["Migration script created", "Tests passed"]
+   - content: "Create database migration for new schema"
+3. Use send_agent_message to dispatch the task to gemini2
+4. Wait for gemini2 to report back via IPC
+5. Verify criteria and mark task as completed
+
 ### Task State Rules
 1. **pending**: Task not yet started
 2. **in_progress**: Currently working on (limit to ONE task at a time)
 3. **completed**: Task finished successfully
-4. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")
-5. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing
-6. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker
+4. **delegated**: Task assigned to another agent via IPC (Manager/Worker pattern)
+5. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")
+6. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing
+7. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker
+8. **Delegation**: When delegating, include 'delegated_to' and 'acceptance_criteria'. Do not mark completed until worker reports back.
 
 ## Token Economy (IMPORTANT - Each tool call costs tokens!)
 - **NEVER re-read files you just edited** - you already have the content in context

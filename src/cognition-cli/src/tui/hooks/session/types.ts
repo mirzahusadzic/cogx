@@ -180,9 +180,16 @@ export interface SessionLoadResult {
    * Restored todos from session state (for providers without native TodoWrite)
    */
   todos?: Array<{
+    id: string;
     content: string;
-    status: 'pending' | 'in_progress' | 'completed';
+    status: 'pending' | 'in_progress' | 'completed' | 'delegated';
     activeForm: string;
+    // Delegation fields (Manager/Worker paradigm)
+    acceptance_criteria?: string[];
+    delegated_to?: string;
+    context?: string;
+    delegate_session_id?: string;
+    result_summary?: string;
   }>;
 }
 

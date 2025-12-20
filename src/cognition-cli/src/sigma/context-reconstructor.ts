@@ -810,9 +810,16 @@ function getLastConversationTurns(lattice: ConversationLattice): {
  * Todo item type for injection into recap
  */
 export interface TodoItem {
+  id: string;
   content: string;
-  status: 'pending' | 'in_progress' | 'completed';
+  status: 'pending' | 'in_progress' | 'completed' | 'delegated';
   activeForm: string;
+  // Delegation fields (Manager/Worker paradigm)
+  acceptance_criteria?: string[];
+  delegated_to?: string;
+  context?: string;
+  delegate_session_id?: string;
+  result_summary?: string;
 }
 
 /**

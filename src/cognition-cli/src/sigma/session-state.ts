@@ -57,9 +57,26 @@ export interface SessionState {
 
   /** Active todo list for this session (for providers without native TodoWrite) */
   todos?: Array<{
+    /** Unique stable identifier for this task (e.g., nanoid or semantic slug) */
+    id: string;
+    /** Imperative form: "Fix ruff errors in src/api.py" */
     content: string;
-    status: 'pending' | 'in_progress' | 'completed';
+    /** Present continuous form: "Fixing ruff errors in src/api.py" */
     activeForm: string;
+    /** Task status */
+    status: 'pending' | 'in_progress' | 'completed' | 'delegated';
+
+    // Delegation fields (for Manager/Worker paradigm)
+    /** Success criteria for task completion (e.g., ["Must pass 'npm test'"]) */
+    acceptance_criteria?: string[];
+    /** Agent ID this task was delegated to (e.g., "flash1") */
+    delegated_to?: string;
+    /** Additional context for delegated worker */
+    context?: string;
+    /** Worker's session ID (for audit trail) */
+    delegate_session_id?: string;
+    /** Worker's completion report */
+    result_summary?: string;
   }>;
 }
 
@@ -282,9 +299,19 @@ export function updateTodosByAnchorId(
   const summary = (todos || [])
     .map((t) => {
       const icon =
-        t.status === 'completed' ? '✓' : t.status === 'in_progress' ? '→' : '○';
+        t.status === 'completed'
+          ? '✓'
+          : t.status === 'in_progress'
+            ? '→'
+            : t.status === 'delegated'
+              ? '⇨'
+              : '○';
       const text = t.status === 'in_progress' ? t.activeForm : t.content;
-      return `[${icon}] ${text}`;
+      const suffix =
+        t.status === 'delegated' && t.delegated_to
+          ? ` (→ ${t.delegated_to})`
+          : '';
+      return `[${icon}] ${text}${suffix}`;
     })
     .join('\n');
 

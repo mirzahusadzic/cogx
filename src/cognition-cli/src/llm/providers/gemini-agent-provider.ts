@@ -910,7 +910,20 @@ You should:
 2. Start by researching the existing codebase
 3. Mark items in_progress as you work, completed when done
 
-**Example 3: When NOT to use TodoWrite**
+**Example 3: Delegating a task (Manager/Worker Pattern)**
+User: "Delegate the database migration to gemini2"
+You should:
+1. List agents to confirm 'gemini2' exists and get their ID
+2. Use TodoWrite to create a task:
+   - status: "delegated"
+   - delegated_to: "gemini2"
+   - acceptance_criteria: ["Migration script created", "Tests passed"]
+   - content: "Create database migration for new schema"
+3. Use send_agent_message to dispatch the task to gemini2
+4. Wait for gemini2 to report back via IPC
+5. Verify criteria and mark task as completed
+
+**Example 4: When NOT to use TodoWrite**
 User: "How do I print 'Hello World' in Python?"
 Do NOT use TodoWrite - this is a simple, trivial task with no multi-step implementation.
 
@@ -918,11 +931,12 @@ User: "Add a comment to the calculateTotal function"
 Do NOT use TodoWrite - this is a single, straightforward task.
 
 ### Task State Rules
-1. **Task States**: pending (not started), in_progress (currently working), completed (finished)
+1. **Task States**: pending (not started), in_progress (currently working), completed (finished), delegated (assigned to another agent)
 2. **One at a time**: Exactly ONE task should be in_progress at any time
-3. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing
-4. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker
-5. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")
+3. **Delegation**: When delegating, set status to 'delegated' AND send IPC message. Do not mark completed until worker reports back.
+4. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing
+5. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker
+6. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")
 
 IMPORTANT: Always use the TodoWrite tool to plan and track tasks throughout the conversation.
 

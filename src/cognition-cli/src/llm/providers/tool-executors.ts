@@ -267,16 +267,24 @@ export async function executeFetchUrl(url: string): Promise<string> {
  *
  * Embeds todos in session state file via anchorId.
  * Provides agent-specific persistence with auto-restoration on session resume.
+ * Supports delegation fields for Manager/Worker paradigm.
  *
- * @param todos - Array of todo items
+ * @param todos - Array of todo items with optional delegation fields
  * @param cwd - Working directory
  * @param anchorId - Session anchor ID for state file embedding (required)
  */
 export async function executeTodoWrite(
   todos: Array<{
+    id: string;
     content: string;
     status: string;
     activeForm: string;
+    // Delegation fields (Manager/Worker paradigm)
+    acceptance_criteria?: string[];
+    delegated_to?: string;
+    context?: string;
+    delegate_session_id?: string;
+    result_summary?: string;
   }>,
   cwd: string,
   anchorId: string
@@ -289,9 +297,15 @@ export async function executeTodoWrite(
       anchorId,
       cwd,
       todos as Array<{
+        id: string;
         content: string;
-        status: 'pending' | 'in_progress' | 'completed';
+        status: 'pending' | 'in_progress' | 'completed' | 'delegated';
         activeForm: string;
+        acceptance_criteria?: string[];
+        delegated_to?: string;
+        context?: string;
+        delegate_session_id?: string;
+        result_summary?: string;
       }>
     );
   } catch (error) {

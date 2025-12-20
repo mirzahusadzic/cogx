@@ -227,9 +227,16 @@ function createTodoWriteTool(
 ): OpenAITool {
   interface TodoInput {
     todos: Array<{
+      id: string;
       content: string;
       status: string;
       activeForm: string;
+      // Delegation fields (Manager/Worker paradigm)
+      acceptance_criteria?: string[];
+      delegated_to?: string;
+      context?: string;
+      delegate_session_id?: string;
+      result_summary?: string;
     }>;
   }
 
@@ -243,9 +250,15 @@ function createTodoWriteTool(
               ? '✓'
               : t.status === 'in_progress'
                 ? '→'
-                : '○';
+                : t.status === 'delegated'
+                  ? '⇨'
+                  : '○';
           const text = t.status === 'in_progress' ? t.activeForm : t.content;
-          return `[${icon}] ${text}`;
+          const suffix =
+            t.status === 'delegated' && t.delegated_to
+              ? ` (→ ${t.delegated_to})`
+              : '';
+          return `[${icon}] ${text}${suffix}`;
         })
         .join('\n');
       return `Todo list updated (${(todos || []).length} items) [NOT PERSISTED]:\n${summary}`;
@@ -278,8 +291,24 @@ Skip using this tool when:
 - pending: Task not yet started
 - in_progress: Currently working on (limit to ONE task at a time)
 - completed: Task finished successfully
+- delegated: Task assigned to another agent via IPC (Manager/Worker pattern)
+
+## Delegation (Manager/Worker Pattern)
+When delegating a task to another agent:
+1. Set status to 'delegated' and provide delegated_to (agent ID like "flash1")
+2. MUST include acceptance_criteria (array of strings defining success)
+3. Optionally provide context (additional background for the worker)
+4. Use send_agent_message to dispatch the task payload to the worker
+5. Worker reports back via send_agent_message when complete
+6. Manager verifies acceptance_criteria before marking task 'completed'
+
+Benefits of delegation:
+- Keeps Manager context clean (no linter noise, verbose outputs)
+- Manager stays focused on architecture and planning
+- Worker agents handle implementation details
 
 ## Important
+- Each task MUST have a unique 'id' field (use nanoid, UUID, or semantic slug)
 - Task descriptions must have two forms: content (imperative, e.g., "Run tests") and activeForm (present continuous, e.g., "Running tests")
 - Mark tasks complete IMMEDIATELY after finishing (don't batch completions)
 - ONLY mark a task as completed when you have FULLY accomplished it
@@ -288,21 +317,56 @@ Skip using this tool when:
       todos: z
         .array(
           z.object({
+            id: z
+              .string()
+              .min(1)
+              .describe(
+                'Unique stable identifier for this task (use nanoid, UUID, or semantic slug like "fix-ruff-api")'
+              ),
             content: z
               .string()
               .min(1)
               .describe(
                 'The imperative form describing what needs to be done (e.g., "Run tests", "Build the project")'
               ),
-            status: z
-              .enum(['pending', 'in_progress', 'completed'])
-              .describe('Task status'),
             activeForm: z
               .string()
               .min(1)
               .describe(
                 'The present continuous form shown during execution (e.g., "Running tests", "Building the project")'
               ),
+            status: z
+              .enum(['pending', 'in_progress', 'completed', 'delegated'])
+              .describe(
+                'Task status. Use "delegated" when assigning task to another agent via IPC'
+              ),
+            // Delegation fields (Manager/Worker paradigm)
+            acceptance_criteria: z
+              .array(z.string())
+              .optional()
+              .describe(
+                'Success criteria for task completion (e.g., ["Must pass \'npm test\'", "No breaking changes"]). Required when delegating.'
+              ),
+            delegated_to: z
+              .string()
+              .optional()
+              .describe(
+                'Agent ID this task was delegated to (e.g., "flash1"). Set when status is "delegated".'
+              ),
+            context: z
+              .string()
+              .optional()
+              .describe(
+                'Additional context for delegated worker (e.g., "Refactoring auth system - keep OAuth flow intact")'
+              ),
+            delegate_session_id: z
+              .string()
+              .optional()
+              .describe("Worker's session ID (for audit trail)"),
+            result_summary: z
+              .string()
+              .optional()
+              .describe("Worker's completion report"),
           })
         )
         .describe('The updated todo list'),
