@@ -14,7 +14,7 @@ _And I'll show you how deep this rabbit hole really goes._
 
 <div align="center">
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17807587.svg)](https://doi.org/10.5281/zenodo.17807587)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18002801.svg)](https://doi.org/10.5281/zenodo.18002801)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 </div>
@@ -61,17 +61,17 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 ## 🎯 Latest Release
 
-**December 3, 2025** — [v2.6.0: Multi-Agent Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0):
+**December 20, 2025** — [v2.6.2: Manager/Worker Delegation & LLM Modernization](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2):
 
-- 🤝 **Innovation #47: Multi-Agent Collaborative System** - AI agents can now communicate, collaborate, and reason together through persistent message queues
-- 📡 **ZeroMQ Pub/Sub Infrastructure** - Event-driven messaging with zero polling overhead
-- 🔄 **Persistent Message Queues** - Discourse survives session restarts; "the debate survives the debaters"
-- 🛡️ **Yossarian Protocol** - Named rate-limiting to prevent AI agent infinite loops
-- 🔗 **Dual LLM Agent Messaging** - Unified tools for both Claude MCP and Gemini ADK agent communication
+- 🤝 **Manager/Worker Delegation Architecture** - Implements a robust multi-agent collaboration pattern with explicit acceptance criteria and unified task management.
+- ⚡ **Gemini 3.0 Flash Default** - Weaved Gemini 3.0 Flash into the core as the new default model for faster, more capable reasoning.
+- 🤖 **OpenAI Agents SDK Support** - Full support for the OpenAI Agents SDK with workbench auto-configuration.
+- 📊 **Unified Task Tracking** - Introduced `SigmaTaskUpdate` as the single source of truth for task tracking across all providers.
+- ⏱️ **Temporal Grounding** - Dynamic timestamps injected into the system fingerprint for better temporal awareness.
 
-**Impact**: Platform transformation from single-agent tool to multi-agent coordination platform. Validated through actual agent debate — two AI agents debated whether the system deserved innovation status, using the system itself.
+**Impact**: Enhances agent reliability through structured delegation and modernizes the LLM stack with latest-generation models.
 
-**Previous Releases**: [v2.5.1 - Gemini Integration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0 - Multi-Provider LLM](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2 - Documentation & Stability](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1 - Cross-Overlay Workflows](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0 - Production Excellence](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ (Sigma) Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
+**Previous Releases**: [v2.6.0 - Multi-Agent Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1 - Gemini Integration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0 - Multi-Provider LLM](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2 - Documentation & Stability](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1 - Cross-Overlay Workflows](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0 - Production Excellence](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ (Sigma) Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
 
 📜 **[See full release history](src/cognition-cli/CHANGELOG.md)**
 
@@ -143,7 +143,7 @@ The production-ready implementation of verifiable AI-human symbiosis. Combines t
 
 **Breakthrough Achievement (Oct 24, 2025):** First grounded architecture analysis performed **on itself**, proving structured PGC metadata is sufficient for deep architectural understanding without reading source code.
 
-**Latest Release:** [v2.6.0 - Multi-Agent Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0)
+**Latest Release:** [v2.6.2 - Manager/Worker Delegation](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2)
 
 ### eGemma – [The Deterministic Workbench](https://github.com/mirzahusadzic/egemma)
 
@@ -299,7 +299,7 @@ This repository constitutes a **formal defensive publication** establishing prio
   - November 20, 2025 (v2.4.2: Documentation & Stability)
   - December 3, 2025 (Innovation #47: Multi-Agent Collaborative System) — v2.6.0
 - **Public Repository**: https://github.com/mirzahusadzic/cogx
-- **Permanent Archive**: Zenodo DOI [10.5281/zenodo.17807587](https://doi.org/10.5281/zenodo.17807587) (latest)
+- **Permanent Archive**: Zenodo DOI [10.5281/zenodo.18002801](https://doi.org/10.5281/zenodo.18002801) (latest)
 - **License**: AGPLv3 (entire repository — code, documentation, blueprints)
 - **Inventor**: Mirza Husadžić
 
@@ -357,8 +357,8 @@ If you use this work in research, please cite:
   author = {Husadžić, Mirza},
   title = {CogX: A Blueprint for Verifiable, Agentic AI},
   year = {2025},
-  version = {2.6.0},
-  doi = {10.5281/zenodo.17807587},
+  version = {2.6.2},
+  doi = {10.5281/zenodo.18002801},
   url = {https://github.com/mirzahusadzic/cogx}
 }
 ```

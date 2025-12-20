@@ -1,6 +1,6 @@
 # Cognition Σ CLI
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17807587.svg)](https://doi.org/10.5281/zenodo.17807587)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18002801.svg)](https://doi.org/10.5281/zenodo.18002801)
 
 <div align="center" style="margin-top: 20px; margin-bottom: 20px;">
 <img src="./docs/assets/cognition-cli-logo.png" alt="Cognition CLI Logo" width="512"/>
@@ -16,8 +16,8 @@ Cognition Σ CLI is the working implementation of the **Grounded Context Pool (P
 
 | Metric             | Value                            |
 | ------------------ | -------------------------------- |
-| Production Code    | ~86,350 lines TypeScript         |
-| Test Coverage      | ~85% (60+ test files)            |
+| Production Code    | ~87,386 lines TypeScript         |
+| Test Coverage      | ~85% (64 test files)             |
 | Core Commands      | 40+ with tab completion          |
 | Cognitive Overlays | 7 (O₁-O₇)                        |
 | LLM Providers      | 3 (Gemini, Claude, OpenAI/local) |
@@ -363,17 +363,17 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 
 ## 🎉 Latest Release
 
-**v2.6.0 - December 3, 2025** — [Multi-Agent Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0):
+**v2.6.2 - December 20, 2025** — [Manager/Worker Delegation & LLM Modernization](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2):
 
-- 🤝 **Innovation #47: Multi-Agent Collaborative System** — AI agents can now communicate, collaborate, and reason together through persistent message queues
-- 📡 **ZeroMQ Pub/Sub Infrastructure** — Event-driven messaging with zero polling overhead
-- 🔄 **Persistent Message Queues** — Discourse survives session restarts; "the debate survives the debaters"
-- 🛡️ **Yossarian Protocol** — Named rate-limiting to prevent AI agent infinite loops
-- 🔗 **Dual LLM Agent Messaging** — Unified tools for both Claude MCP and Gemini ADK agent communication
+- 🤝 **Manager/Worker Delegation Architecture** — Implements a robust multi-agent collaboration pattern with explicit acceptance criteria and unified task management.
+- ⚡ **Gemini 3.0 Flash Default** — Weaved Gemini 3.0 Flash into the core as the new default model for faster, more capable reasoning.
+- 🤖 **OpenAI Agents SDK Support** — Full support for the OpenAI Agents SDK with workbench auto-configuration.
+- 📊 **Unified Task Tracking** — Introduced `SigmaTaskUpdate` as the single source of truth for task tracking across all providers.
+- ⏱️ **Temporal Grounding** — Dynamic timestamps injected into the system fingerprint for better temporal awareness.
 
-**Impact:** Platform transformation from single-agent tool to multi-agent coordination platform. Validated through actual agent debate — two AI agents debated whether the system deserved innovation status, using the system itself.
+**Impact:** Enhances agent reliability through structured delegation and modernizes the LLM stack with latest-generation models.
 
-**Previous releases:** [v2.5.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ Launch](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
+**Previous releases:** [v2.6.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ Launch](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
 
 **Full changelog:** [CHANGELOG.md](./CHANGELOG.md)
 
@@ -399,6 +399,15 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 - ✅ **Intelligent compression** — Preserves project-relevant, discards noise
 - ✅ **MCP memory tool** — `recall_past_conversation` for deep memory
 - ✅ **Production tested** — 150K+ token sessions, zero context loss
+
+### Manager/Worker Delegation (Dec 20, 2025)
+
+**[Manager/Worker Delegation Architecture](docs/architecture/COMPREHENSIVE_ANALYSIS.md)**
+
+- ✅ **Structured Delegation** — Explicit acceptance criteria for verifiable task completion
+- ✅ **Stateful Task Management** — Stable task IDs across session restarts
+- ✅ **Multi-Provider Support** — Unified delegation flow for Gemini, Claude, and OpenAI agents
+- ✅ **Auto-Verification** — Automated status reporting from workers to managers
 
 **The Math:**
 
@@ -437,7 +446,7 @@ For the complete list of innovations (#1-47) protected as prior art and publicat
 - Interactive TUI with Real-Time Visualization (#46)
 - Multi-Agent Collaborative System (#47)
 
-**Publication DOI:** [10.5281/zenodo.17807587](https://doi.org/10.5281/zenodo.17807587)
+**Publication DOI:** [10.5281/zenodo.18002801](https://doi.org/10.5281/zenodo.18002801)
 
 ---
 
@@ -450,8 +459,8 @@ If you use this work in research, please cite:
   author = {Husadžić, Mirza},
   title = {Cognition Σ CLI: Seven-Overlay Knowledge Graph with Infinite Context},
   year = {2025},
-  version = {2.6.0},
-  doi = {10.5281/zenodo.17807587},
+  version = {2.6.2},
+  doi = {10.5281/zenodo.18002801},
   url = {https://github.com/mirzahusadzic/cogx/tree/main/src/cognition-cli}
 }
 ```
