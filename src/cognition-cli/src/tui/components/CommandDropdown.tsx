@@ -124,8 +124,8 @@ const CommandDropdownComponent = ({
             {command.description && (
               <Text color="gray" dimColor>
                 {' - '}
-                {command.description.slice(0, 25)}
-                {command.description.length > 25 ? '…' : ''}
+                {command.description.slice(0, 80)}
+                {command.description.length > 80 ? '…' : ''}
               </Text>
             )}
           </Box>
