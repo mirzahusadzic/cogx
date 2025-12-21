@@ -17,6 +17,8 @@ import type { QueuedMessage } from './MessageQueue.js';
  * @property {number} startedAt Unix timestamp of when the agent was started.
  * @property {number} lastHeartbeat Unix timestamp of the agent's last heartbeat.
  * @property {'active' | 'idle' | 'disconnected'} status The current status of the agent.
+ * @property {string} [projectRoot] Absolute path to the project root directory.
+ * @property {string} [projectName] Project name (inferred from package.json or folder name).
  */
 export interface AgentInfo {
   agentId: string;
@@ -25,6 +27,8 @@ export interface AgentInfo {
   startedAt: number;
   lastHeartbeat: number;
   status: 'active' | 'idle' | 'disconnected';
+  projectRoot?: string;
+  projectName?: string;
 }
 
 /**
@@ -56,11 +60,12 @@ export function formatListAgents(agents: AgentInfo[]): string {
   }
 
   let text = `**Active Agents (${agents.length})**\n\n`;
-  text += '| Alias | Model | Agent ID |\n';
-  text += '|-------|-------|----------|\n';
+  text += '| Alias | Model | Project | Agent ID |\n';
+  text += '|-------|-------|---------|----------|\n';
 
   for (const agent of agents) {
-    text += `| ${agent.alias || 'unknown'} | ${agent.model} | ${agent.agentId} |\n`;
+    const project = agent.projectName || 'unknown';
+    text += `| ${agent.alias || 'unknown'} | ${agent.model} | ${project} | ${agent.agentId} |\n`;
   }
 
   text +=

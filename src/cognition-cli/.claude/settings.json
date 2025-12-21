@@ -2,8 +2,8 @@
   "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
-      "Bash(node dist/cli.js *)",
-      "Bash(cognition-cli *)",
+      "Bash(node dist/cli.js:*)",
+      "Bash(cognition-cli:*)",
       "Bash(npm run test:*)",
       "Bash(npm run build:*)",
       "Bash(npm test:*)"
