@@ -462,6 +462,17 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
       );
       process.exit(1);
     }
+
+    // CRITICAL: If provider changed during validation (fallback), recompute model
+    // This prevents mismatched provider/model pairs (e.g., claude provider with gemini model)
+    if (validatedProvider !== resolvedProvider) {
+      // Provider changed - need to use the validated provider's default model
+      resolvedModel =
+        validatedProvider === 'openai'
+          ? process.env.COGNITION_OPENAI_MODEL
+          : llmConfig.providers[validatedProvider as 'claude' | 'gemini']
+              ?.defaultModel;
+    }
   } catch (error) {
     console.error(
       `Error: Failed to validate provider: ${error instanceof Error ? error.message : String(error)}`
