@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { coverageConfig } from './vitest.coverage.config';
 
 /**
  * Separate Vitest config for tests that import workerpool
@@ -34,5 +35,6 @@ export default defineConfig({
     },
     teardownTimeout: 10000, // Increase from 5s to 10s
     hookTimeout: 15000, // Increase from 10s to 15s
+    coverage: coverageConfig,
   },
 });

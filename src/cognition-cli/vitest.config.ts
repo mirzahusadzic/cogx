@@ -1,5 +1,6 @@
 import { defineConfig, Plugin } from 'vitest/config';
 import tsconfigPaths from 'vite-tsconfig-paths';
+import { coverageConfig } from './vitest.coverage.config';
 
 // Plugin to prevent Vite from analyzing workerpool's worker code
 const skipWorkerpoolPlugin = (): Plugin => ({
@@ -72,5 +73,6 @@ export default defineConfig({
       },
     },
     pool: 'forks', // Use forks for all tests to prevent native binding segfaults
+    coverage: coverageConfig,
   },
 });

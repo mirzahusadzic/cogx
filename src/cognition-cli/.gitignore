@@ -3,6 +3,7 @@ node_modules/
 
 # Build artifacts
 dist/
+coverage/
 
 # Generated CogX Knowledge Base
 .open_cognition/
