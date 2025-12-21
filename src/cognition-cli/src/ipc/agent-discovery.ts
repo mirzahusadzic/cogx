@@ -8,6 +8,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { AgentInfo } from './agent-messaging-formatters.js';
+import { getMessageQueueDirectory } from './sigma-directory.js';
 
 // Re-export AgentInfo for convenience
 export type { AgentInfo } from './agent-messaging-formatters.js';
@@ -30,7 +31,7 @@ const ACTIVE_THRESHOLD_RESOLVE = 5000;
  * Scans the .sigma/message_queue directory for agent-info.json files
  * and returns agents that have sent a heartbeat within the threshold.
  *
- * @param projectRoot - Project root directory containing .sigma
+ * @param projectRoot - Project root directory containing .sigma (used when IPC_SIGMA_BUS is not set)
  * @param excludeAgentId - Agent ID to exclude from results (typically self)
  * @returns Array of active agent info, sorted by alias
  */
@@ -38,7 +39,7 @@ export function getActiveAgents(
   projectRoot: string,
   excludeAgentId: string
 ): AgentInfo[] {
-  const queueDir = path.join(projectRoot, '.sigma', 'message_queue');
+  const queueDir = getMessageQueueDirectory(projectRoot);
 
   if (!fs.existsSync(queueDir)) {
     return [];
@@ -87,7 +88,7 @@ export function getActiveAgents(
  * Prefers active agents over disconnected ones. If multiple agents match
  * the alias (e.g., from old sessions), returns the active one.
  *
- * @param projectRoot - Project root directory containing .sigma
+ * @param projectRoot - Project root directory containing .sigma (used when IPC_SIGMA_BUS is not set)
  * @param aliasOrId - Alias (e.g., "opus1"), full agent ID, or directory name
  * @returns Full agent ID if found, null otherwise
  */
@@ -95,7 +96,7 @@ export function resolveAgentId(
   projectRoot: string,
   aliasOrId: string
 ): string | null {
-  const queueDir = path.join(projectRoot, '.sigma', 'message_queue');
+  const queueDir = getMessageQueueDirectory(projectRoot);
 
   if (!fs.existsSync(queueDir)) {
     return null;

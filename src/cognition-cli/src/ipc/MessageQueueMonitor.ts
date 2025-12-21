@@ -3,6 +3,7 @@ import path from 'path';
 import { MessageQueue } from './MessageQueue.js';
 import { ZeroMQBus } from './ZeroMQBus.js';
 import { AgentMessage } from './AgentMessage.js';
+import { getSigmaDirectory } from './sigma-directory.js';
 
 /**
  * Represents metadata about an active agent for discovery purposes.
@@ -73,7 +74,7 @@ export class MessageQueueMonitor {
    * @param {string} agentId The base ID for the agent (a unique suffix will be added).
    * @param {ZeroMQBus} bus The connected ZeroMQ bus instance.
    * @param {string[]} topics The initial list of topics to subscribe to.
-   * @param {string} [sigmaDir] The path to the .sigma directory. Defaults to the current working directory.
+   * @param {string} [sigmaDir] The path to the .sigma directory. Defaults to getSigmaDirectory() which respects IPC_SIGMA_BUS.
    * @param {string} [model] The model name of the agent (e.g., 'opus'). If not provided, it's inferred from the agentId.
    * @param {string} [projectRoot] Absolute path to the project root directory.
    */
@@ -91,7 +92,7 @@ export class MessageQueueMonitor {
     this.agentId = `${agentId}-${uniqueSuffix}`;
     this.bus = bus;
     this.topics = topics;
-    this.sigmaDir = sigmaDir || process.cwd();
+    this.sigmaDir = sigmaDir || getSigmaDirectory(projectRoot);
     this.projectRoot = projectRoot || process.cwd();
     // Always extract base model name (opus, sonnet, gemini, etc.)
     this.model = MessageQueueMonitor.extractModelFromId(model || agentId);

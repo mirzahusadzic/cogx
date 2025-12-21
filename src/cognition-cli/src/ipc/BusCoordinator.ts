@@ -192,16 +192,45 @@ export class BusCoordinator {
   /**
    * Determines the appropriate cross-platform socket path.
    *
+   * Supports IPC_SIGMA_BUS environment variable for custom shared bus naming:
+   * - If IPC_SIGMA_BUS is set, uses: ipc-sigma-<value>.sock (Unix) or cognition-sigma-<value> (Windows)
+   * - If not set, uses default: cognition-bus.sock (Unix) or cognition-bus (Windows)
+   *
+   * This allows multiple "meshes" of agents to be isolated by using different
+   * values for IPC_SIGMA_BUS, or unified by using the same value.
+   *
+   * @example
+   * // Default shared bus (all agents on same machine)
+   * // No IPC_SIGMA_BUS set → /tmp/cognition-bus.sock
+   *
+   * @example
+   * // Custom mesh for project group
+   * // IPC_SIGMA_BUS=frontend → /tmp/ipc-sigma-frontend.sock
+   *
+   * @example
+   * // Global mesh across all projects
+   * // IPC_SIGMA_BUS=global → /tmp/ipc-sigma-global.sock
+   *
    * @private
    * @returns {string} The IPC or TCP socket path.
    */
   private getSocketPath(): string {
+    // Check for IPC_SIGMA_BUS environment variable
+    // This allows custom shared bus naming for different agent "meshes"
+    const sharedBusName = process.env.IPC_SIGMA_BUS;
+
     if (process.platform === 'win32') {
       // Windows: Use named pipe
-      return 'ipc:////./pipe/cognition-bus';
+      const pipeName = sharedBusName
+        ? `cognition-sigma-${sharedBusName}`
+        : 'cognition-bus';
+      return `ipc:////./pipe/${pipeName}`;
     } else {
       // Unix/Mac: Use IPC socket in /tmp
-      return `ipc://${path.join(os.tmpdir(), 'cognition-bus.sock')}`;
+      const socketName = sharedBusName
+        ? `ipc-sigma-${sharedBusName}.sock`
+        : 'cognition-bus.sock';
+      return `ipc://${path.join(os.tmpdir(), socketName)}`;
     }
   }
 

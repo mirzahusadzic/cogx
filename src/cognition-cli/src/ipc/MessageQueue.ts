@@ -2,6 +2,7 @@ import fs from 'fs-extra';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { EventEmitter } from 'events';
+import { getSigmaDirectory } from './sigma-directory.js';
 
 /**
  * Represents the status of a message in the queue.
@@ -86,11 +87,11 @@ export class MessageQueue {
    * Creates an instance of MessageQueue.
    *
    * @param {string} agentId The unique ID of the agent this queue belongs to.
-   * @param {string} [sigmaDir] The path to the .sigma directory. Defaults to `${process.cwd()}/.sigma`.
+   * @param {string} [sigmaDir] The path to the .sigma directory. Defaults to getSigmaDirectory() which respects IPC_SIGMA_BUS.
    */
   constructor(
     private agentId: string,
-    private sigmaDir: string = path.join(process.cwd(), '.sigma')
+    private sigmaDir: string = getSigmaDirectory()
   ) {
     this.queueDir = path.join(sigmaDir, 'message_queue', agentId);
     this.indexPath = path.join(this.queueDir, 'queue-index.json');

@@ -28,6 +28,7 @@ import { MessageQueueMonitor } from '../ipc/MessageQueueMonitor.js';
 import { MessageQueue } from '../ipc/MessageQueue.js';
 import { MessagePublisher } from '../ipc/MessagePublisher.js';
 import { BusCoordinator } from '../ipc/BusCoordinator.js';
+import { getSigmaDirectory } from '../ipc/sigma-directory.js';
 import type { WorkbenchHealthResult } from '../utils/workbench-detect.js';
 
 // Custom theme with vivid AIEcho cyan spinner
@@ -170,7 +171,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
 
         // Resolve alias to agent ID (prefer active agents over disconnected)
         let targetAgentId: string | null = null;
-        const sigmaDir = path.join(projectRoot, '.sigma');
+        const sigmaDir = getSigmaDirectory(projectRoot);
         const queueDir = path.join(sigmaDir, 'message_queue');
         const ACTIVE_THRESHOLD_MS = 5000; // 5 seconds (matches heartbeat interval)
         const now = Date.now();
@@ -447,7 +448,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
         };
 
         try {
-          const sigmaDir = path.join(projectRoot, '.sigma');
+          const sigmaDir = getSigmaDirectory(projectRoot);
           const queueDir = path.join(sigmaDir, 'message_queue');
 
           // Check if message_queue directory exists
@@ -817,7 +818,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       try {
         // Use anchor ID as agent ID for message routing (stable across session compression)
         const agentId = anchorId;
-        const sigmaDir = path.join(projectRoot, '.sigma');
+        const sigmaDir = getSigmaDirectory(projectRoot);
 
         // Initialize ZeroMQ bus using BusCoordinator
         // This will either start a new Bus Master or connect to existing one
@@ -930,7 +931,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   // Save conversation log to file
   const saveConversationLog = () => {
     try {
-      const sigmaDir = path.join(projectRoot, '.sigma');
+      const sigmaDir = getSigmaDirectory(projectRoot);
       fs.mkdirSync(sigmaDir, { recursive: true });
 
       const providerName = provider || 'gemini'; // Default to 'gemini'

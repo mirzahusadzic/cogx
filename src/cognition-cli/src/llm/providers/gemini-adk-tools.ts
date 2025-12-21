@@ -543,6 +543,119 @@ function createAgentMessagingTools(
   );
   tools.push(markMessageReadTool);
 
+  // Tool: Query another agent (cross-project semantic query)
+  const queryAgentTool = wrapToolWithPermission(
+    'query_agent',
+    'Ask a semantic question to another agent and get a grounded answer based on their Grounded Context Pool (PGC). Use this to query agents working in different repositories. Example: query_agent("egemma_agent", "How does the lattice merger handle conflicts?")',
+    z.object({
+      target_alias: z
+        .string()
+        .describe(
+          'Target agent alias (e.g., "opus1", "sonnet2") or full agent ID'
+        ),
+      question: z
+        .string()
+        .describe('The semantic question to ask about their codebase'),
+    }),
+    async (args: { target_alias: string; question: string }) => {
+      try {
+        const publisher = getMessagePublisher ? getMessagePublisher() : null;
+        const queue = getMessageQueue ? getMessageQueue() : null;
+
+        if (!publisher || !queue) {
+          return formatNotInitialized('Message publisher or queue');
+        }
+
+        // Resolve alias to agent ID
+        const targetAgentId = resolveAgentId(projectRoot, args.target_alias);
+
+        if (!targetAgentId) {
+          return formatNotFound('agent', args.target_alias);
+        }
+
+        // Generate unique query ID for request/response correlation
+        const queryId = crypto.randomUUID();
+
+        // Send the query to the target agent
+        await publisher.sendMessage(
+          targetAgentId,
+          JSON.stringify({
+            type: 'query_request',
+            queryId,
+            question: args.question,
+          })
+        );
+
+        // Wait for response (60s timeout)
+        const TIMEOUT_MS = 60000;
+        const startTime = Date.now();
+
+        while (Date.now() - startTime < TIMEOUT_MS) {
+          const messages = await queue.getMessages('pending');
+
+          for (const msg of messages) {
+            let responseData: { queryId: string; answer: string } | null = null;
+
+            // Check if it's a direct query_response object
+            if (
+              msg.content &&
+              typeof msg.content === 'object' &&
+              'type' in msg.content &&
+              msg.content.type === 'query_response' &&
+              'queryId' in msg.content &&
+              msg.content.queryId === queryId &&
+              'answer' in msg.content
+            ) {
+              responseData = msg.content as { queryId: string; answer: string };
+            }
+            // Check if it's a text message with JSON-encoded query_response
+            else if (
+              msg.content &&
+              typeof msg.content === 'object' &&
+              'type' in msg.content &&
+              msg.content.type === 'text' &&
+              'message' in msg.content &&
+              typeof msg.content.message === 'string'
+            ) {
+              try {
+                const parsed = JSON.parse(msg.content.message);
+                if (
+                  parsed.type === 'query_response' &&
+                  parsed.queryId === queryId &&
+                  parsed.answer
+                ) {
+                  responseData = parsed;
+                }
+              } catch {
+                // Not JSON, continue
+              }
+            }
+
+            if (responseData) {
+              // Found our response!
+              const answer = responseData.answer;
+
+              // Mark message as processed
+              await queue.updateStatus(msg.id, 'injected');
+
+              return `Query: "${args.question}"\n\nAnswer from ${args.target_alias}:\n\n${answer}`;
+            }
+          }
+
+          // Poll every 500ms
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+
+        // Timeout - no response received
+        return `⏱️ Timeout: No response from ${args.target_alias} after ${TIMEOUT_MS / 1000}s. The agent may be offline or busy.`;
+      } catch (err) {
+        return formatError('query agent', (err as Error).message);
+      }
+    },
+    onCanUseTool
+  );
+  tools.push(queryAgentTool);
+
   return tools;
 }
 

@@ -4,7 +4,7 @@
  * MCP tool that allows agents to semantically query each other across
  * repository boundaries via the ZeroMQ bus. This enables "Peer-to-Peer
  * Grounding" where agents can ask questions about other projects and get
- * grounded answers based on the target agent's Project Grounding Context (PGC).
+ * grounded answers based on the target agent's Grounded Context Pool (PGC).
  *
  * Example usage:
  *   query_agent('egemma_agent', 'How does the lattice merger handle conflicts?')
@@ -64,7 +64,7 @@ export function createCrossProjectQueryMcpServer(
   // Tool: Query another agent
   const queryAgentTool = tool(
     'query_agent',
-    'Ask a semantic question to another agent and get a grounded answer based on their Project Grounding Context (PGC). Use this to query agents working in different repositories. Example: query_agent("egemma_agent", "How does the lattice merger handle conflicts?")',
+    'Ask a semantic question to another agent and get a grounded answer based on their Grounded Context Pool (PGC). Use this to query agents working in different repositories. Example: query_agent("egemma_agent", "How does the lattice merger handle conflicts?")',
     {
       target_alias: z
         .string()
@@ -98,7 +98,10 @@ export function createCrossProjectQueryMcpServer(
         if (!targetAgentId) {
           return {
             content: [
-              { type: 'text', text: formatNotFound('agent', args.target_alias) },
+              {
+                type: 'text',
+                text: formatNotFound('agent', args.target_alias),
+              },
             ],
             isError: true,
           };
@@ -124,8 +127,8 @@ export function createCrossProjectQueryMcpServer(
           })
         );
 
-        // Wait for the response (with 30s timeout)
-        const TIMEOUT_MS = 30000;
+        // Wait for the response (with 60s timeout)
+        const TIMEOUT_MS = 60000;
         const startTime = Date.now();
 
         while (Date.now() - startTime < TIMEOUT_MS) {

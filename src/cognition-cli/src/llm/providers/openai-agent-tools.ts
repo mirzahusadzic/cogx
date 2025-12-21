@@ -10,7 +10,7 @@
  * - Memory: recall_past_conversation
  * - Background: get_background_tasks
  * - IPC: list_agents, send_agent_message, broadcast_agent_message,
- *        list_pending_messages, mark_message_read
+ *        list_pending_messages, mark_message_read, query_agent
  */
 
 import { tool } from '@openai/agents';
@@ -766,6 +766,135 @@ function createMarkMessageReadTool(
   });
 }
 
+/**
+ * Create query_agent tool (cross-project semantic query)
+ */
+function createQueryAgentTool(
+  getMessagePublisher: () => MessagePublisher | null,
+  getMessageQueue: () => MessageQueue | null,
+  projectRoot: string,
+  onCanUseTool?: OnCanUseTool
+): OpenAITool {
+  const execute = async ({
+    target_alias,
+    question,
+  }: {
+    target_alias: string;
+    question: string;
+  }) => {
+    try {
+      const publisher = getMessagePublisher();
+      const queue = getMessageQueue();
+
+      if (!publisher || !queue) {
+        return formatNotInitialized('Message publisher or queue');
+      }
+
+      // Resolve alias to agent ID
+      const targetAgentId = resolveAgentId(projectRoot, target_alias);
+
+      if (!targetAgentId) {
+        return formatNotFound('agent', target_alias);
+      }
+
+      // Generate unique query ID for request/response correlation
+      const queryId = crypto.randomUUID();
+
+      // Send the query to the target agent
+      await publisher.sendMessage(
+        targetAgentId,
+        JSON.stringify({
+          type: 'query_request',
+          queryId,
+          question,
+        })
+      );
+
+      // Wait for response (60s timeout)
+      const TIMEOUT_MS = 60000;
+      const startTime = Date.now();
+
+      while (Date.now() - startTime < TIMEOUT_MS) {
+        const messages = await queue.getMessages('pending');
+
+        for (const msg of messages) {
+          let responseData: { queryId: string; answer: string } | null = null;
+
+          // Check if it's a direct query_response object
+          if (
+            msg.content &&
+            typeof msg.content === 'object' &&
+            'type' in msg.content &&
+            msg.content.type === 'query_response' &&
+            'queryId' in msg.content &&
+            msg.content.queryId === queryId &&
+            'answer' in msg.content
+          ) {
+            responseData = msg.content as { queryId: string; answer: string };
+          }
+          // Check if it's a text message with JSON-encoded query_response
+          else if (
+            msg.content &&
+            typeof msg.content === 'object' &&
+            'type' in msg.content &&
+            msg.content.type === 'text' &&
+            'message' in msg.content &&
+            typeof msg.content.message === 'string'
+          ) {
+            try {
+              const parsed = JSON.parse(msg.content.message);
+              if (
+                parsed.type === 'query_response' &&
+                parsed.queryId === queryId &&
+                parsed.answer
+              ) {
+                responseData = parsed;
+              }
+            } catch {
+              // Not JSON, continue
+            }
+          }
+
+          if (responseData) {
+            // Found our response!
+            const answer = responseData.answer;
+
+            // Mark message as processed
+            await queue.updateStatus(msg.id, 'injected');
+
+            return `Query: "${question}"\n\nAnswer from ${target_alias}:\n\n${answer}`;
+          }
+        }
+
+        // Poll every 500ms
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+
+      // Timeout - no response received
+      return `⏱️ Timeout: No response from ${target_alias} after ${TIMEOUT_MS / 1000}s. The agent may be offline or busy.`;
+    } catch (err) {
+      return formatError('query agent', (err as Error).message);
+    }
+  };
+
+  return tool({
+    name: 'query_agent',
+    description:
+      'Ask a semantic question to another agent and get a grounded answer based on their Grounded Context Pool (PGC). Use this to query agents working in different repositories. Example: query_agent("egemma_agent", "How does the lattice merger handle conflicts?")',
+    parameters: z.object({
+      target_alias: z
+        .string()
+        .describe(
+          'Target agent alias (e.g., "opus1", "sonnet2") or full agent ID'
+        ),
+      question: z
+        .string()
+        .describe('The semantic question to ask about their codebase'),
+    }),
+    execute: withPermissionCheck('query_agent', execute, onCanUseTool),
+  });
+}
+
 // ============================================================
 // Main Export: Build All Tools
 // ============================================================
@@ -869,6 +998,16 @@ export function getOpenAITools(context: OpenAIToolsContext): OpenAITool[] {
       )
     );
     tools.push(createMarkMessageReadTool(getMessageQueue, onCanUseTool));
+
+    // Cross-project query tool (synchronous peer-to-peer queries)
+    tools.push(
+      createQueryAgentTool(
+        getMessagePublisher,
+        getMessageQueue,
+        projectRoot,
+        onCanUseTool
+      )
+    );
   }
 
   return tools;

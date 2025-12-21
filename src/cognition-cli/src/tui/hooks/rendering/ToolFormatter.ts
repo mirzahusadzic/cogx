@@ -36,6 +36,7 @@
  *    - Broadcast: 📢 Broadcast - "<message preview>"
  *    - List Messages: 📬 List Messages - listing pending messages
  *    - Mark Read: ✅ Mark Read - <messageId> as <status>
+ *    - Query Agent: ✨ Query Agent - <target>: "<question preview>"
  *
  * 7. Task Tool: Subagent launcher
  *    - 🚀 <subagent_type>: <description or prompt preview>
@@ -344,6 +345,21 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
     if (tool.input.messageId) {
       const status = (tool.input.status as string) || 'injected';
       inputDesc = `${tool.input.messageId as string} as ${status}`;
+    } else {
+      inputDesc = JSON.stringify(tool.input);
+    }
+  } else if (
+    tool.name === 'mcp__cross-project-query__query_agent' ||
+    tool.name === 'query_agent'
+  ) {
+    toolIcon = '✨';
+    toolName = 'Query Agent';
+    if (tool.input.target_alias && tool.input.question) {
+      const target = tool.input.target_alias as string;
+      const question = tool.input.question as string;
+      const preview =
+        question.length > 50 ? `${question.substring(0, 50)}...` : question;
+      inputDesc = `${target}: "${preview}"`;
     } else {
       inputDesc = JSON.stringify(tool.input);
     }
