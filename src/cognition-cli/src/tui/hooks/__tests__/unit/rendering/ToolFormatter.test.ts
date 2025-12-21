@@ -131,6 +131,34 @@ describe('ToolFormatter', () => {
 
       expect(result.description).toBe('{"foo":"bar","baz":123}');
     });
+
+    it('formats MCPSearch with direct selection query', () => {
+      const tool: ToolUse = {
+        name: 'MCPSearch',
+        input: { query: 'select:mcp__sigma-task-update__SigmaTaskUpdate' },
+      };
+
+      const result = formatToolUse(tool);
+
+      expect(result.icon).toBe('🔍');
+      expect(result.name).toBe('MCP Search');
+      expect(result.description).toBe(
+        'selecting mcp__sigma-task-update__SigmaTaskUpdate'
+      );
+    });
+
+    it('formats MCPSearch with keyword search', () => {
+      const tool: ToolUse = {
+        name: 'MCPSearch',
+        input: { query: 'slack message' },
+      };
+
+      const result = formatToolUse(tool);
+
+      expect(result.icon).toBe('🔍');
+      expect(result.name).toBe('MCP Search');
+      expect(result.description).toBe('"slack message"');
+    });
   });
 
   describe('formatToolUseMessage()', () => {

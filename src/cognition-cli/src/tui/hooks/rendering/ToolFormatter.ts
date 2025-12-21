@@ -41,7 +41,11 @@
  *    - 🚀 <subagent_type>: <description or prompt preview>
  *    - Example: 🚀 Explore: Find TypeScript test files
  *
- * 8. Default: Generic tool icon (🔧) with JSON input
+ * 8. MCPSearch: MCP tool discovery and selection
+ *    - 🔍 MCP Search: selecting <tool_name> (for direct selection)
+ *    - 🔍 MCP Search: "<query>" (for keyword search)
+ *
+ * 9. Default: Generic tool icon (🔧) with JSON input
  *
  * ALGORITHM (formatToolUse):
  * 1. Initialize default icon (🔧)
@@ -357,6 +361,23 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
       inputDesc = prompt.length > 60 ? `${prompt.substring(0, 60)}...` : prompt;
     } else {
       inputDesc = 'launching agent';
+    }
+  } else if (tool.name === 'MCPSearch') {
+    // MCPSearch - search for or select MCP tools
+    toolIcon = '🔍';
+    toolName = 'MCP Search';
+    if (tool.input.query) {
+      const query = tool.input.query as string;
+      // Format direct selection queries nicely
+      if (query.startsWith('select:')) {
+        const toolName = query.replace('select:', '');
+        inputDesc = `selecting ${toolName}`;
+      } else {
+        // Regular search query
+        inputDesc = `"${query}"`;
+      }
+    } else {
+      inputDesc = JSON.stringify(tool.input);
     }
   } else {
     inputDesc = JSON.stringify(tool.input);
