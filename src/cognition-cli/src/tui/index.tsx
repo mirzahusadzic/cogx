@@ -478,6 +478,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
             status: string;
             isYou: boolean;
             isActive: boolean;
+            projectName?: string;
           }
 
           const agents: AgentDisplayInfo[] = [];
@@ -516,6 +517,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
                 status: info.status || 'unknown',
                 isYou,
                 isActive,
+                projectName: info.projectName,
               };
 
               if (isYou) {
@@ -548,7 +550,10 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           // Show current agent identity prominently
           if (currentAgent) {
             const emoji = getProviderEmoji(currentAgent.model);
-            output += `👤 You are: ${emoji} ${currentAgent.alias} (${currentAgent.model})\n`;
+            const project = currentAgent.projectName
+              ? ` [${currentAgent.projectName}]`
+              : '';
+            output += `👤 You are: ${emoji} ${currentAgent.alias} (${currentAgent.model})${project}\n`;
           }
 
           // List other agents
@@ -557,7 +562,10 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
             output += `  🤖 Other Agents (${otherAgents.length}):\n`;
             for (const agent of otherAgents) {
               const emoji = getProviderEmoji(agent.model);
-              output += `     ${emoji} ${agent.alias} (${agent.model})\n`;
+              const project = agent.projectName
+                ? ` [${agent.projectName}]`
+                : '';
+              output += `     ${emoji} ${agent.alias} (${agent.model})${project}\n`;
             }
           } else {
             output += `  🤖 No other agents online\n`;
@@ -829,7 +837,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           bus,
           topics,
           sigmaDir,
-          modelName
+          modelName,
+          projectRoot // Pass projectRoot for cross-project agent discovery
         );
         await monitor.start();
 

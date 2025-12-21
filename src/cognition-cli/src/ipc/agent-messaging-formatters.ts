@@ -114,14 +114,77 @@ export function formatPendingMessages(messages: QueuedMessage[]): string {
 
   for (const msg of messages) {
     const date = new Date(msg.timestamp).toLocaleString();
-    const contentText = formatMessageContent(msg);
 
-    text += `---\n\n`;
-    text += `**From**: \`${msg.from}\`\n`;
-    text += `**Topic**: \`${msg.topic}\`\n`;
-    text += `**Received**: ${date}\n`;
-    text += `**Message ID**: \`${msg.id}\`\n\n`;
-    text += `${contentText}\n\n`;
+    // Try to detect query_request messages (they may be in message field as JSON string)
+    let isQueryRequest = false;
+    let queryContent: {
+      type: string;
+      queryId: string;
+      question: string;
+    } | null = null;
+
+    // Check if it's a direct query_request object
+    if (
+      typeof msg.content === 'object' &&
+      msg.content !== null &&
+      'type' in msg.content &&
+      msg.content.type === 'query_request' &&
+      'question' in msg.content &&
+      'queryId' in msg.content
+    ) {
+      isQueryRequest = true;
+      queryContent = msg.content as {
+        type: string;
+        queryId: string;
+        question: string;
+      };
+    }
+    // Check if it's a text message with JSON-encoded query_request
+    else if (
+      typeof msg.content === 'object' &&
+      msg.content !== null &&
+      'type' in msg.content &&
+      msg.content.type === 'text' &&
+      'message' in msg.content &&
+      typeof msg.content.message === 'string'
+    ) {
+      try {
+        const parsed = JSON.parse(msg.content.message);
+        if (
+          parsed.type === 'query_request' &&
+          parsed.question &&
+          parsed.queryId
+        ) {
+          isQueryRequest = true;
+          queryContent = parsed;
+        }
+      } catch {
+        // Not JSON, continue as regular message
+      }
+    }
+
+    if (isQueryRequest && queryContent) {
+      // Format as cross-project query request
+      text += `---\n\n`;
+      text += `🔍 **Cross-Project Query Request**\n\n`;
+      text += `**From**: \`${msg.from}\`\n`;
+      text += `**Query ID**: \`${queryContent.queryId}\`\n`;
+      text += `**Received**: ${date}\n\n`;
+      text += `**Question**: "${queryContent.question}"\n\n`;
+      text += `**Action Required**: Please answer this question using your knowledge of the codebase. When you have the answer, send it back using:\n\n`;
+      text += `\`\`\`\nsend_agent_message("${msg.from}", JSON.stringify({\n  "type": "query_response",\n  "queryId": "${queryContent.queryId}",\n  "answer": "<your answer here>"\n}))\n\`\`\`\n\n`;
+      text += `Then use \`mark_message_read("${msg.id}")\` to mark this query as processed.\n\n`;
+    } else {
+      // Regular message formatting
+      const contentText = formatMessageContent(msg);
+
+      text += `---\n\n`;
+      text += `**From**: \`${msg.from}\`\n`;
+      text += `**Topic**: \`${msg.topic}\`\n`;
+      text += `**Received**: ${date}\n`;
+      text += `**Message ID**: \`${msg.id}\`\n\n`;
+      text += `${contentText}\n\n`;
+    }
   }
 
   text += `---\n\n`;

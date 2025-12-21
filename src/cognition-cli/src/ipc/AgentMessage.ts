@@ -296,12 +296,16 @@ export type TaskFailedMessage = AgentMessage<TaskFailedPayload>;
  * @property {string} model The underlying model of the agent (e.g., 'gemini').
  * @property {'interactive' | 'background'} type The type of agent.
  * @property {string[]} capabilities A list of the agent's capabilities.
+ * @property {string} [projectRoot] Absolute path to the project root directory.
+ * @property {string} [projectName] Project name (inferred from package.json or folder name).
  */
 export interface AgentRegisteredPayload {
   agentId: string;
   model: string; // 'gemini', 'claude', 'opus'
   type: 'interactive' | 'background';
   capabilities: string[]; // ['code_review', 'architecture_design']
+  projectRoot?: string; // Absolute path to project directory
+  projectName?: string; // Inferred from package.json or folder name
 }
 
 /**
@@ -420,6 +424,8 @@ export const Topics = {
   // Agent communication
   AGENT_QUESTION: 'agent.question',
   AGENT_ANSWER: 'agent.answer',
+  AGENT_QUERY_REQUEST: 'agent.query_request',
+  AGENT_QUERY_RESPONSE: 'agent.query_response',
   AGENT_REGISTERED: 'agent.registered',
   AGENT_UNREGISTERED: 'agent.unregistered',
   AGENT_STATUS_CHANGED: 'agent.status_changed',

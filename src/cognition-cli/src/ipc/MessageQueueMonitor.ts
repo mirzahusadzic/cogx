@@ -15,6 +15,8 @@ import { AgentMessage } from './AgentMessage.js';
  * @property {number} startedAt Unix timestamp of when the agent was started.
  * @property {number} lastHeartbeat Unix timestamp of the agent's last heartbeat.
  * @property {'active' | 'idle' | 'disconnected'} status The current status of the agent.
+ * @property {string} [projectRoot] Absolute path to the project root directory.
+ * @property {string} [projectName] Project name (inferred from package.json or folder name).
  */
 export interface AgentInfo {
   agentId: string;
@@ -23,6 +25,8 @@ export interface AgentInfo {
   startedAt: number; // Unix timestamp when agent started
   lastHeartbeat: number; // Unix timestamp of last heartbeat
   status: 'active' | 'idle' | 'disconnected';
+  projectRoot?: string; // Absolute path to project directory
+  projectName?: string; // Inferred from package.json or folder name
 }
 
 /**
@@ -57,6 +61,7 @@ export class MessageQueueMonitor {
   private model: string;
   private topics: string[];
   private sigmaDir: string;
+  private projectRoot: string;
   private running: boolean = false;
   private abortController: AbortController | null = null;
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
@@ -70,13 +75,15 @@ export class MessageQueueMonitor {
    * @param {string[]} topics The initial list of topics to subscribe to.
    * @param {string} [sigmaDir] The path to the .sigma directory. Defaults to the current working directory.
    * @param {string} [model] The model name of the agent (e.g., 'opus'). If not provided, it's inferred from the agentId.
+   * @param {string} [projectRoot] Absolute path to the project root directory.
    */
   constructor(
     agentId: string,
     bus: ZeroMQBus,
     topics: string[],
     sigmaDir?: string,
-    model?: string
+    model?: string,
+    projectRoot?: string
   ) {
     // Add unique suffix to prevent agent ID collisions when multiple TUIs
     // share the same anchor ID (e.g., started without --session-id)
@@ -85,6 +92,7 @@ export class MessageQueueMonitor {
     this.bus = bus;
     this.topics = topics;
     this.sigmaDir = sigmaDir || process.cwd();
+    this.projectRoot = projectRoot || process.cwd();
     // Always extract base model name (opus, sonnet, gemini, etc.)
     this.model = MessageQueueMonitor.extractModelFromId(model || agentId);
     this.queue = new MessageQueue(this.agentId, sigmaDir);
@@ -110,6 +118,32 @@ export class MessageQueueMonitor {
 
     // Default to 'agent' if unknown
     return 'agent';
+  }
+
+  /**
+   * Infers the project name from package.json or uses the folder name as fallback.
+   *
+   * @param {string} projectRoot Absolute path to the project root directory.
+   * @returns {string} The inferred project name.
+   */
+  private inferProjectName(projectRoot: string): string {
+    // Try to read name from package.json
+    const packageJsonPath = path.join(projectRoot, 'package.json');
+    if (fs.existsSync(packageJsonPath)) {
+      try {
+        const packageJson = JSON.parse(
+          fs.readFileSync(packageJsonPath, 'utf-8')
+        );
+        if (packageJson.name) {
+          return packageJson.name;
+        }
+      } catch {
+        // Ignore parse errors, fall through to folder name
+      }
+    }
+
+    // Fallback: use folder name
+    return path.basename(projectRoot);
   }
 
   /**
@@ -221,6 +255,8 @@ export class MessageQueueMonitor {
       startedAt: Date.now(),
       lastHeartbeat: Date.now(),
       status: 'active',
+      projectRoot: this.projectRoot,
+      projectName: this.inferProjectName(this.projectRoot),
     };
 
     fs.writeFileSync(infoPath, JSON.stringify(info, null, 2));

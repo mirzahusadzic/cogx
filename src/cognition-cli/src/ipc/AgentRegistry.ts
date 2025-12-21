@@ -41,6 +41,8 @@ export interface AgentCapability {
  * @property {Set<string>} subscriptions The set of message topics the agent is subscribed to.
  * @property {number} registeredAt Unix timestamp of when the agent was registered.
  * @property {number} lastSeen Unix timestamp of the agent's last activity.
+ * @property {string} [projectRoot] Absolute path to the project root directory.
+ * @property {string} [projectName] Project name (inferred from package.json or folder name).
  */
 export interface RegisteredAgent {
   id: string; // Unique agent ID (e.g., 'claude-1')
@@ -51,6 +53,8 @@ export interface RegisteredAgent {
   subscriptions: Set<string>; // Topics this agent subscribes to
   registeredAt: number; // Unix timestamp
   lastSeen: number; // Unix timestamp (for heartbeat)
+  projectRoot?: string; // Absolute path to project directory
+  projectName?: string; // Inferred from package.json or folder name
 }
 
 /**
@@ -183,6 +187,8 @@ export class AgentRegistry {
       model: agent.model,
       type: agent.type,
       capabilities: agent.capabilities.map((c) => c.name),
+      projectRoot: agent.projectRoot,
+      projectName: agent.projectName,
     });
 
     this.bus.publish(Topics.AGENT_REGISTERED, message);
@@ -316,7 +322,8 @@ export class AgentRegistry {
   private handleAgentRegistered(
     msg: AgentMessage<AgentRegisteredPayload>
   ): void {
-    const { agentId, model, type, capabilities } = msg.payload;
+    const { agentId, model, type, capabilities, projectRoot, projectName } =
+      msg.payload;
 
     // Don't re-register ourselves
     if (agentId === this.localAgentId) {
@@ -339,11 +346,15 @@ export class AgentRegistry {
       subscriptions: new Set(),
       registeredAt: now,
       lastSeen: now,
+      projectRoot,
+      projectName,
     };
 
     this.agents.set(agentId, agent);
 
-    console.log(`📥 Remote agent registered: ${agentId} (${model})`);
+    console.log(
+      `📥 Remote agent registered: ${agentId} (${model})${projectName ? ` from ${projectName}` : ''}`
+    );
   }
 
   /**

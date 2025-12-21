@@ -5,3 +5,4 @@
  */
 
 export { createBackgroundTasksMcpServer } from './background-tasks-tool.js';
+export { createCrossProjectQueryMcpServer } from './cross-project-query-tool.js';

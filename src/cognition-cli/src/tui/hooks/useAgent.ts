@@ -153,6 +153,7 @@ import {
   type WorkbenchHealthResult,
 } from '../../utils/workbench-detect.js';
 import { createAgentMessagingMcpServer } from '../tools/agent-messaging-tool.js';
+import { createCrossProjectQueryMcpServer } from '../tools/cross-project-query-tool.js';
 
 /**
  * Build MCP servers record for agent adapter
@@ -164,6 +165,7 @@ function buildMcpServers(options: {
   recallServer: McpSdkServerConfigWithInstance | null;
   backgroundTasksServer: McpSdkServerConfigWithInstance | null;
   agentMessagingServer: McpSdkServerConfigWithInstance | null;
+  crossProjectQueryServer: McpSdkServerConfigWithInstance | null;
   sigmaTaskUpdateServer: McpSdkServerConfigWithInstance | null;
   hasConversationHistory: boolean;
 }): Record<string, McpSdkServerConfigWithInstance> | undefined {
@@ -182,6 +184,11 @@ function buildMcpServers(options: {
   // Agent messaging server: always enable when available
   if (options.agentMessagingServer) {
     servers['agent-messaging'] = options.agentMessagingServer;
+  }
+
+  // Cross-project query server: always enable when available
+  if (options.crossProjectQueryServer) {
+    servers['cross-project-query'] = options.crossProjectQueryServer;
   }
 
   // SigmaTaskUpdate server: always enable when available (replaces native TodoWrite for Claude)
@@ -485,6 +492,8 @@ export function useAgent(options: UseAgentOptions) {
   const backgroundTasksMcpServerRef =
     useRef<McpSdkServerConfigWithInstance | null>(null);
   const agentMessagingMcpServerRef =
+    useRef<McpSdkServerConfigWithInstance | null>(null);
+  const crossProjectQueryMcpServerRef =
     useRef<McpSdkServerConfigWithInstance | null>(null);
   const sigmaTaskUpdateMcpServerRef =
     useRef<McpSdkServerConfigWithInstance | null>(null);
@@ -1103,6 +1112,17 @@ export function useAgent(options: UseAgentOptions) {
           sessionIdProp || 'unknown', // Current agent ID for excluding self
           claudeAgentSdkModule
         );
+
+        // Initialize cross-project query MCP server (for semantic queries across repos)
+        crossProjectQueryMcpServerRef.current =
+          createCrossProjectQueryMcpServer(
+            getMessagePublisher,
+            getMessageQueue,
+            cwd,
+            sessionIdProp || 'unknown',
+            claudeAgentSdkModule,
+            addSystemMessage
+          );
       }
 
       // Initialize SigmaTaskUpdate MCP server (for Claude provider)
@@ -1882,6 +1902,7 @@ export function useAgent(options: UseAgentOptions) {
             recallServer: recallMcpServerRef.current,
             backgroundTasksServer: backgroundTasksMcpServerRef.current,
             agentMessagingServer: agentMessagingMcpServerRef.current,
+            crossProjectQueryServer: crossProjectQueryMcpServerRef.current,
             sigmaTaskUpdateServer: sigmaTaskUpdateMcpServerRef.current,
             hasConversationHistory:
               !!currentResumeId || turnAnalysis.analyses.length > 0,
