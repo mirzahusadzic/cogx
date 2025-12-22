@@ -5,6 +5,45 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.3] - 2025-12-22
+
+### Summary
+
+**Cross-Project Agent Collaboration.** Implements IPC_SIGMA_BUS for seamless agent communication across different project directories, enabling true multi-agent workflows and knowledge sharing between codebases.
+
+### 🚀 New Features
+
+#### Cross-Project IPC Mesh
+
+- **IPC_SIGMA_BUS Environment Variable:** Control agent discovery and communication scope via environment variable.
+  - Not set: Project-local `.sigma/` (backward compatible)
+  - `IPC_SIGMA_BUS=global`: Shared state at `~/.cognition/sigma-global/`
+  - `IPC_SIGMA_BUS=<name>`: Custom isolated mesh at `~/.cognition/sigma-<name>/`
+- **Shared Directory Resolution:** New `sigma-directory.ts` helper automatically resolves appropriate .sigma paths based on IPC_SIGMA_BUS value.
+- **Cross-Project Agent Discovery:** Agents can discover and communicate with agents in different project directories on the same mesh.
+- **ZeroMQ Bus Scoping:** Socket paths adapt to IPC_SIGMA_BUS value (e.g., `/tmp/ipc-sigma-global.sock`).
+- **Multiple Mesh Support:** Isolate agent teams by using different IPC_SIGMA_BUS values (e.g., `frontend` vs `backend`).
+
+#### Cross-Project Grounding Mesh
+
+- **Project Awareness:** Agents now track which project they're working in via `projectName` and `projectRoot` fields in agent-info.json.
+- **Agent Listings with Projects:** `list_agents` output now includes a "Project" column showing which codebase each agent is exploring.
+- **Cross-Codebase Queries:** Agents can query other agents about their respective codebases, enabling distributed knowledge sharing.
+
+#### TUI Improvements
+
+- **MCPSearch Tool Formatting:** Enhanced TUI display for MCP tool discovery results.
+- **Extended Command Descriptions:** Increased command description limit from 40 to 80 characters for better clarity.
+
+### 🐛 Bug Fixes
+
+- **Provider Fallback Detection:** Fixed model name detection when provider fallback occurs in agent initialization.
+- **Project Name Display:** Fixed agent listings to properly show project names in cross-project scenarios.
+
+### 🏗️ Infrastructure
+
+- **Code Coverage:** Enabled code coverage infrastructure for better test visibility.
+
 ## [2.6.2] - 2025-12-20
 
 ### Summary

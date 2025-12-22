@@ -363,17 +363,17 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 
 ## 🎉 Latest Release
 
-**v2.6.2 - December 20, 2025** — [Manager/Worker Delegation & LLM Modernization](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2):
+**v2.6.3 - December 22, 2025** — [Cross-Project Agent Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.3):
 
-- 🤝 **Manager/Worker Delegation Architecture** — Implements a robust multi-agent collaboration pattern with explicit acceptance criteria and unified task management.
-- ⚡ **Gemini 3.0 Flash Default** — Weaved Gemini 3.0 Flash into the core as the new default model for faster, more capable reasoning.
-- 🤖 **OpenAI Agents SDK Support** — Full support for the OpenAI Agents SDK with workbench auto-configuration.
-- 📊 **Unified Task Tracking** — Introduced `SigmaTaskUpdate` as the single source of truth for task tracking across all providers.
-- ⏱️ **Temporal Grounding** — Dynamic timestamps injected into the system fingerprint for better temporal awareness.
+- 🌐 **Cross-Project IPC Mesh** — `IPC_SIGMA_BUS` environment variable enables agents across different projects to discover and communicate seamlessly.
+- 📂 **Shared State Directory** — Agents can operate on local `.sigma/`, global `~/.cognition/sigma-global/`, or custom isolated meshes.
+- 🗺️ **Project Awareness** — Agents track `projectName` and `projectRoot` for true multi-codebase workflows.
+- 🔍 **Cross-Codebase Queries** — Agents can query other agents about their respective codebases for distributed knowledge sharing.
+- 🎨 **Enhanced TUI** — MCPSearch tool formatting and agent listings now display project names.
 
-**Impact:** Enhances agent reliability through structured delegation and modernizes the LLM stack with latest-generation models.
+**Impact:** Enables true multi-agent workflows across different codebases with seamless communication and knowledge sharing.
 
-**Previous releases:** [v2.6.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ Launch](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
+**Previous releases:** [v2.6.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2) | [v2.6.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ Launch](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
 
 **Full changelog:** [CHANGELOG.md](./CHANGELOG.md)
 
@@ -459,7 +459,7 @@ If you use this work in research, please cite:
   author = {Husadžić, Mirza},
   title = {Cognition Σ CLI: Seven-Overlay Knowledge Graph with Infinite Context},
   year = {2025},
-  version = {2.6.2},
+  version = {2.6.3},
   doi = {10.5281/zenodo.18002801},
   url = {https://github.com/mirzahusadzic/cogx/tree/main/src/cognition-cli}
 }
