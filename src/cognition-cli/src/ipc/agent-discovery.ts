@@ -37,9 +37,12 @@ const ACTIVE_THRESHOLD_RESOLVE = 5000;
  */
 export function getActiveAgents(
   projectRoot: string,
-  excludeAgentId: string
+  excludeAgentId: string,
+  sigmaDirOverride?: string
 ): AgentInfo[] {
-  const queueDir = getMessageQueueDirectory(projectRoot);
+  const queueDir = sigmaDirOverride
+    ? path.join(sigmaDirOverride, 'message_queue')
+    : getMessageQueueDirectory(projectRoot);
 
   if (!fs.existsSync(queueDir)) {
     return [];
@@ -85,26 +88,52 @@ export function getActiveAgents(
 /**
  * Resolve alias or partial ID to full agent ID.
  *
- * Prefers active agents over disconnected ones. If multiple agents match
- * the alias (e.g., from old sessions), returns the active one.
+ * Only returns ACTIVE agents. If an agent is disconnected or has a stale
+ * heartbeat, it will not be resolved (returns null instead).
  *
  * @param projectRoot - Project root directory containing .sigma (used when IPC_SIGMA_BUS is not set)
  * @param aliasOrId - Alias (e.g., "opus1"), full agent ID, or directory name
- * @returns Full agent ID if found, null otherwise
+ * @returns Full agent ID if active agent found, null otherwise
  */
 export function resolveAgentId(
   projectRoot: string,
-  aliasOrId: string
+  aliasOrId: string,
+  sigmaDirOverride?: string
 ): string | null {
-  const queueDir = getMessageQueueDirectory(projectRoot);
+  const queueDir = sigmaDirOverride
+    ? path.join(sigmaDirOverride, 'message_queue')
+    : getMessageQueueDirectory(projectRoot);
 
   if (!fs.existsSync(queueDir)) {
     return null;
   }
 
-  const entries = fs.readdirSync(queueDir, { withFileTypes: true });
   const now = Date.now();
-  let fallbackAgentId: string | null = null;
+
+  // OPTIMIZATION: If aliasOrId looks like a full agent ID or directory name
+  // (contains hyphens and numbers), try direct lookup first
+  if (aliasOrId.includes('-') && /\d/.test(aliasOrId)) {
+    const directPath = path.join(queueDir, aliasOrId, 'agent-info.json');
+    if (fs.existsSync(directPath)) {
+      try {
+        const info: AgentInfo = JSON.parse(
+          fs.readFileSync(directPath, 'utf-8')
+        );
+        const isActive =
+          info.status === 'active' &&
+          now - info.lastHeartbeat < ACTIVE_THRESHOLD_RESOLVE;
+
+        if (isActive) {
+          return info.agentId;
+        }
+      } catch {
+        // Fall through to directory scan
+      }
+    }
+  }
+
+  // Fall back to directory scan for alias lookup or if direct lookup failed
+  const entries = fs.readdirSync(queueDir, { withFileTypes: true });
 
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
@@ -124,20 +153,15 @@ export function resolveAgentId(
       const idMatch = info.agentId === aliasOrId;
       const dirMatch = entry.name === aliasOrId;
 
-      if (aliasMatch || idMatch || dirMatch) {
-        if (isActive) {
-          // Found active agent - return immediately
-          return info.agentId;
-        } else if (!fallbackAgentId) {
-          // Store first disconnected match as fallback
-          fallbackAgentId = info.agentId;
-        }
+      if ((aliasMatch || idMatch || dirMatch) && isActive) {
+        // Found active agent - return immediately
+        return info.agentId;
       }
     } catch {
       // Ignore parse errors
     }
   }
 
-  // Return fallback if no active agent found
-  return fallbackAgentId;
+  // No active agent found - do not fall back to disconnected agents
+  return null;
 }

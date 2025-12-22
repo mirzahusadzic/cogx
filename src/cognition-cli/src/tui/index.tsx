@@ -169,7 +169,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           return;
         }
 
-        // Resolve alias to agent ID (prefer active agents over disconnected)
+        // Resolve alias to agent ID (ONLY active agents - no fallback to disconnected)
         let targetAgentId: string | null = null;
         const sigmaDir = getSigmaDirectory(projectRoot);
         const queueDir = path.join(sigmaDir, 'message_queue');
@@ -178,7 +178,6 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
 
         if (fs.existsSync(queueDir)) {
           const entries = fs.readdirSync(queueDir, { withFileTypes: true });
-          let fallbackAgentId: string | null = null; // For disconnected matches
 
           for (const entry of entries) {
             if (!entry.isDirectory()) continue;
@@ -196,26 +195,15 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
                   info.alias.toLowerCase() === targetAliasOrId.toLowerCase();
                 const idMatch = info.agentId === targetAliasOrId;
 
-                if (aliasMatch || idMatch) {
-                  const agentId = info.agentId || entry.name;
-                  if (isActive) {
-                    // Found active agent - use immediately
-                    targetAgentId = agentId;
-                    break;
-                  } else if (!fallbackAgentId) {
-                    // Store first disconnected match as fallback
-                    fallbackAgentId = agentId;
-                  }
+                // Only return ACTIVE agents
+                if ((aliasMatch || idMatch) && isActive) {
+                  targetAgentId = info.agentId || entry.name;
+                  break;
                 }
               } catch {
                 // Ignore parse errors
               }
             }
-          }
-
-          // Use fallback if no active agent found
-          if (!targetAgentId && fallbackAgentId) {
-            targetAgentId = fallbackAgentId;
           }
         }
 
@@ -822,7 +810,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
 
         // Initialize ZeroMQ bus using BusCoordinator
         // This will either start a new Bus Master or connect to existing one
-        const coordinator = new BusCoordinator();
+        // Pass projectRoot to create project-specific bus when IPC_SIGMA_BUS is not set
+        const coordinator = new BusCoordinator(projectRoot);
         const bus = await coordinator.connectWithFallback();
 
         if (!mounted) return;

@@ -312,6 +312,81 @@ export class MessageQueueMonitor {
   }
 
   /**
+   * Cleans up stale agent directories (disconnected or crashed agents with old heartbeats).
+   * This prevents accumulation of old agent sessions that can cause message routing issues.
+   *
+   * Cleanup rules:
+   * - Disconnected agents with heartbeats > 1 hour: Normal cleanup
+   * - Active agents with heartbeats > 24 hours: Crashed agent cleanup (never properly disconnected)
+   *
+   * @private
+   * @param {string} sigmaDir The .sigma directory path
+   */
+  private static cleanupStaleAgents(sigmaDir: string): void {
+    const queueDir = path.join(sigmaDir, 'message_queue');
+    if (!fs.existsSync(queueDir)) return;
+
+    const now = Date.now();
+    const DISCONNECTED_THRESHOLD_MS = 3600000; // 1 hour for disconnected agents
+    const CRASHED_THRESHOLD_MS = 86400000; // 24 hours for crashed agents (still marked active)
+    let cleanedCount = 0;
+
+    try {
+      const entries = fs.readdirSync(queueDir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+
+        const infoPath = path.join(queueDir, entry.name, 'agent-info.json');
+        if (!fs.existsSync(infoPath)) continue;
+
+        try {
+          const info: AgentInfo = JSON.parse(
+            fs.readFileSync(infoPath, 'utf-8')
+          );
+
+          const heartbeatAge = now - info.lastHeartbeat;
+
+          // Remove if:
+          // 1. Disconnected AND heartbeat > 1 hour (normal stale cleanup)
+          // 2. Active AND heartbeat > 24 hours (crashed agent - never disconnected properly)
+          const isDisconnectedStale =
+            info.status === 'disconnected' &&
+            heartbeatAge > DISCONNECTED_THRESHOLD_MS;
+
+          const isCrashedAgent =
+            info.status === 'active' && heartbeatAge > CRASHED_THRESHOLD_MS;
+
+          if (isDisconnectedStale || isCrashedAgent) {
+            const agentDir = path.join(queueDir, entry.name);
+            fs.rmSync(agentDir, { recursive: true, force: true });
+            cleanedCount++;
+
+            if (MessageQueueMonitor.DEBUG) {
+              const reason = isCrashedAgent ? 'crashed' : 'stale';
+              console.log(
+                `[MessageQueueMonitor] Cleaned up ${reason} agent: ${entry.name} (alias: ${info.alias})`
+              );
+            }
+          }
+        } catch {
+          // Ignore parse errors - don't delete if we can't read the info
+        }
+      }
+
+      if (cleanedCount > 0 && MessageQueueMonitor.DEBUG) {
+        console.log(
+          `[MessageQueueMonitor] Cleanup complete: removed ${cleanedCount} stale agent(s)`
+        );
+      }
+    } catch (err) {
+      if (MessageQueueMonitor.DEBUG) {
+        console.error('[MessageQueueMonitor] Cleanup error:', err);
+      }
+    }
+  }
+
+  /**
    * Starts the message monitor.
    *
    * This initializes the queue, generates an alias, starts the heartbeat,
@@ -327,6 +402,9 @@ export class MessageQueueMonitor {
 
     // Initialize queue storage
     await this.queue.initialize();
+
+    // Clean up stale agent directories (disconnected for >1 hour)
+    MessageQueueMonitor.cleanupStaleAgents(this.sigmaDir);
 
     // Generate alias and write agent info (with collision detection)
     let alias = await this.generateAlias();

@@ -13,11 +13,13 @@
  */
 
 import * as lockfile from 'proper-lockfile';
+import * as crypto from 'crypto';
 import fs from 'fs-extra';
 import * as os from 'os';
 import * as path from 'path';
 import chalk from 'chalk';
 import { ZeroMQBus } from './ZeroMQBus.js';
+import { getHomeDir } from '../utils/home-dir.js';
 
 const DEBUG_IPC = process.env.DEBUG_IPC === '1';
 
@@ -50,13 +52,49 @@ export class BusCoordinator {
 
   /**
    * Creates an instance of BusCoordinator.
+   *
+   * @param projectRoot - Optional project root path. When provided and IPC_SIGMA_BUS is not set,
+   *                      creates a project-specific bus to isolate agents by project.
    */
-  constructor() {
+  constructor(projectRoot?: string) {
     // Store lock file in .cognition directory
-    const cogniDir = path.join(os.homedir(), '.cognition');
-    this.lockPath = path.join(cogniDir, 'bus.lock');
-    this.pidPath = path.join(cogniDir, 'bus-master.pid');
-    this.socketPath = this.getSocketPath();
+    const cogniDir = path.join(getHomeDir(), '.cognition');
+
+    // Determine bus identifier:
+    // 1. If IPC_SIGMA_BUS is set → use that (e.g., "global", "team")
+    // 2. If projectRoot provided → use project name + hash of full path (collision-resistant)
+    // 3. Otherwise → use "default" (legacy shared bus)
+    const sharedBusName = process.env.IPC_SIGMA_BUS;
+    const busIdentifier = sharedBusName
+      ? sharedBusName
+      : projectRoot
+        ? this.getProjectIdentifier(projectRoot)
+        : 'default';
+
+    const busPrefix = `bus-${busIdentifier}`;
+
+    this.lockPath = path.join(cogniDir, `${busPrefix}.lock`);
+    this.pidPath = path.join(cogniDir, `${busPrefix}-master.pid`);
+    this.socketPath = this.getSocketPath(busIdentifier);
+  }
+
+  /**
+   * Generates a unique, collision-resistant identifier for a project.
+   * Uses basename + short hash of full path to ensure:
+   * - Same project always gets same identifier (multiple agents can find each other)
+   * - Different projects with same name get different identifiers (no collisions)
+   *
+   * @param projectRoot - The full path to the project root
+   * @returns A string like "my-project-a1b2c3" (basename + 6-char hash)
+   */
+  private getProjectIdentifier(projectRoot: string): string {
+    const basename = path.basename(projectRoot);
+    const hash = crypto
+      .createHash('sha256')
+      .update(projectRoot)
+      .digest('hex')
+      .slice(0, 6);
+    return `${basename}-${hash}`;
   }
 
   /**
@@ -214,23 +252,40 @@ export class BusCoordinator {
    * @private
    * @returns {string} The IPC or TCP socket path.
    */
-  private getSocketPath(): string {
-    // Check for IPC_SIGMA_BUS environment variable
-    // This allows custom shared bus naming for different agent "meshes"
-    const sharedBusName = process.env.IPC_SIGMA_BUS;
+  private getSocketPath(busIdentifier: string): string {
+    // Socket naming strategy:
+    // - IPC_SIGMA_BUS set → shared mesh, no UID (intentional cross-user/cross-project sharing)
+    // - IPC_SIGMA_BUS not set → project-specific, include UID for user isolation
+    const isSharedMesh = !!process.env.IPC_SIGMA_BUS;
 
     if (process.platform === 'win32') {
       // Windows: Use named pipe
-      const pipeName = sharedBusName
-        ? `cognition-sigma-${sharedBusName}`
-        : 'cognition-bus';
-      return `ipc:////./pipe/${pipeName}`;
+      if (isSharedMesh) {
+        // Shared mesh: use bus name directly for cross-project discovery
+        return `ipc:////./pipe/cognition-${busIdentifier}`;
+      } else {
+        // Project-specific: include username for user isolation
+        const username = os.userInfo().username;
+        const pipeName =
+          busIdentifier === 'default'
+            ? `cognition-${username}-bus`
+            : `cognition-${username}-${busIdentifier}`;
+        return `ipc:////./pipe/${pipeName}`;
+      }
     } else {
       // Unix/Mac: Use IPC socket in /tmp
-      const socketName = sharedBusName
-        ? `ipc-sigma-${sharedBusName}.sock`
-        : 'cognition-bus.sock';
-      return `ipc://${path.join(os.tmpdir(), socketName)}`;
+      if (isSharedMesh) {
+        // Shared mesh: use bus name directly for cross-project discovery
+        return `ipc://${path.join(os.tmpdir(), `cognition-${busIdentifier}.sock`)}`;
+      } else {
+        // Project-specific: include UID for user isolation
+        const uid = process.getuid?.() ?? os.userInfo().uid;
+        const socketName =
+          busIdentifier === 'default'
+            ? `cognition-${uid}-bus.sock`
+            : `cognition-${uid}-${busIdentifier}.sock`;
+        return `ipc://${path.join(os.tmpdir(), socketName)}`;
+      }
     }
   }
 

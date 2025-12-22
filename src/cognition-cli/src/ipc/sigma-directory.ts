@@ -9,7 +9,7 @@
  */
 
 import * as path from 'path';
-import * as os from 'os';
+import { getHomeDir } from '../utils/home-dir.js';
 
 /**
  * Get the appropriate .sigma directory path based on IPC_SIGMA_BUS.
@@ -46,7 +46,7 @@ export function getSigmaDirectory(projectRoot?: string): string {
 
   if (busName) {
     // Shared .sigma directory in user's home
-    return path.join(os.homedir(), '.cognition', `sigma-${busName}`);
+    return path.join(getHomeDir(), '.cognition', `sigma-${busName}`);
   } else {
     // Project-local .sigma directory
     return path.join(projectRoot || process.cwd(), '.sigma');
