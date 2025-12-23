@@ -4,7 +4,7 @@ const { mockToolExecutor } = vi.hoisted(() => ({
   mockToolExecutor: vi.fn().mockResolvedValue('Task list updated'),
 }));
 
-vi.mock('../../llm/providers/tool-executors.js', () => ({
+vi.mock('../../../llm/providers/tool-executors.js', () => ({
   executeSigmaTaskUpdate: mockToolExecutor,
 }));
 

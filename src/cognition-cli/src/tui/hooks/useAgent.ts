@@ -116,7 +116,7 @@ import { EmbeddingService } from '../../core/services/embedding.js';
 import { OverlayRegistry } from '../../core/algebra/overlay-registry.js';
 import { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
 import { createRecallMcpServer } from '../../sigma/recall-tool.js';
-import { createSigmaTaskUpdateMcpServer } from '../../sigma/sigma-task-update-tool.js';
+import { createSigmaTaskUpdateMcpServer } from '../tools/sigma-task-update-tool.js';
 import { createBackgroundTasksMcpServer } from '../tools/background-tasks-tool.js';
 import {
   getBackgroundTaskManager,

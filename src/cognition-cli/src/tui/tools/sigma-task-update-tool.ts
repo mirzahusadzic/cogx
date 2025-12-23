@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import { executeSigmaTaskUpdate } from '../llm/providers/tool-executors.js';
+import { executeSigmaTaskUpdate } from '../../llm/providers/tool-executors.js';
 
 type ClaudeAgentSdk = {
   tool: (

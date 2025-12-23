@@ -165,6 +165,117 @@ monitor.getQueue().on('countChanged', (count) => {
 
 ---
 
+## 🌐 Project Isolation & IPC_SIGMA_BUS
+
+By default, agents are **isolated by project**. The bus identity is derived from the project root (the directory containing `.open_cognition`).
+
+### Default Behavior (No IPC_SIGMA_BUS)
+
+Each project gets its own bus, identified by `basename-<path-hash>`:
+
+```
+/repo/frontend/.open_cognition  →  bus: frontend-a1b2c3
+/repo/backend/.open_cognition   →  bus: backend-d4e5f6
+```
+
+Agents in `/repo/frontend` **cannot** see agents in `/repo/backend`.
+
+If you run from a subdirectory without `.open_cognition`, the system walks up to find the nearest ancestor.
+
+### Pattern A: Single Project
+
+One `.open_cognition` at repo root. All agents in any subdirectory share the same bus automatically.
+
+```bash
+/repo/.open_cognition
+cd /repo/src/components && cognition tui  # → joins /repo bus
+cd /repo/src/api && cognition tui         # → same bus, agents see each other
+```
+
+### Pattern B: Specialist Sub-Projects (Intra-Repo)
+
+Multiple `.open_cognition` directories for domain-focused PGCs, unified via `IPC_SIGMA_BUS`:
+
+```bash
+# Structure
+/repo/frontend/.open_cognition   # React-focused knowledge graph
+/repo/backend/.open_cognition    # API-focused knowledge graph
+
+# Terminal 1 - Frontend Specialist
+cd /repo/frontend
+IPC_SIGMA_BUS=myapp cognition tui
+
+# Terminal 2 - Backend Specialist
+cd /repo/backend
+IPC_SIGMA_BUS=myapp cognition tui
+```
+
+Each agent has **focused context** (its own PGC), but they share a bus at `~/.cognition/sigma-myapp/` for collaboration via `query_agent()`.
+
+### Pattern C: Cross-Repository Mesh
+
+Entirely separate codebases collaborating on a shared bus:
+
+```bash
+# Repo A - Auth Service
+cd ~/projects/auth-service
+IPC_SIGMA_BUS=platform cognition tui
+
+# Repo B - API Gateway
+cd ~/projects/api-gateway
+IPC_SIGMA_BUS=platform cognition tui
+
+# Repo C - Frontend App
+cd ~/projects/web-app
+IPC_SIGMA_BUS=platform cognition tui
+```
+
+All three agents join the `platform` mesh and can query each other's specialized knowledge.
+
+### Environment Variable Reference
+
+| Value      | Bus Location                  | Use Case                   |
+| ---------- | ----------------------------- | -------------------------- |
+| _(unset)_  | `${projectRoot}/.sigma`       | Default project isolation  |
+| `global`   | `~/.cognition/sigma-global`   | Machine-wide mesh          |
+| `team`     | `~/.cognition/sigma-team`     | Team collaboration         |
+| `<custom>` | `~/.cognition/sigma-<custom>` | Named mesh (e.g., `myapp`) |
+
+---
+
+## 🔍 Cross-Agent Queries
+
+The `query_agent()` tool enables **semantic queries** between agents. Instead of reading another project's code (costly in tokens), ask the specialist agent directly.
+
+### Usage
+
+```typescript
+// Ask the backend agent about API contracts
+query_agent('backend-agent', 'What is the expected payload for POST /users?');
+
+// Ask the auth agent about security requirements
+query_agent(
+  'auth-agent',
+  'What token validation is required for admin routes?'
+);
+```
+
+### How It Works
+
+1. **Caller** sends a `query_request` message via the bus
+2. **Target agent** receives query, consults its local PGC (O₁-O₇ lattice)
+3. **Target agent** sends back a `query_response` with grounded answer
+4. **Caller** receives answer (50 tokens vs 100k tokens of reading source)
+
+### Benefits
+
+- **Token efficiency**: Get answers, not raw code
+- **Specialized knowledge**: Each agent is expert in its domain
+- **Grounded responses**: Answers come from the target's PGC, not hallucination
+- **Async-friendly**: 60s timeout with polling for response
+
+---
+
 ## 🔮 Future Roadmap
 
 - **Network Bridge**: Extend ZeroMQ over WebSocket for remote collaboration.

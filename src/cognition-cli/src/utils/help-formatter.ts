@@ -227,6 +227,12 @@ export const ALL_ENV_VARS = {
       desc: 'CI environment detection (disables colors/prompts)',
     },
   ],
+  ipc: [
+    {
+      name: 'IPC_SIGMA_BUS',
+      desc: 'Named bus for multi-agent mesh (e.g., "team", "global"). Without this, each project is isolated.',
+    },
+  ],
 };
 
 /**
@@ -386,6 +392,7 @@ export function addAllEnvVars(): string {
     { title: 'Workbench', vars: ALL_ENV_VARS.workbench },
     { title: 'Output Control', vars: ALL_ENV_VARS.output },
     { title: 'Standard', vars: ALL_ENV_VARS.standard },
+    { title: 'Multi-Agent IPC', vars: ALL_ENV_VARS.ipc },
   ];
 
   for (const category of categories) {
@@ -417,7 +424,7 @@ export function addGlobalExamples(): string {
 
   const examples = [
     { cmd: 'cognition init', desc: 'Start a new workspace' },
-    { cmd: 'cognition genesis src/', desc: 'Build knowledge graph from code' },
+    { cmd: 'cognition wizard', desc: 'Guided setup (genesis + overlays)' },
     { cmd: 'cognition query "auth"', desc: 'Search the codebase' },
     { cmd: 'cognition ask "how does X work?"', desc: 'AI-powered Q&A' },
     { cmd: 'cognition tui', desc: 'Launch interactive interface' },
