@@ -20,8 +20,29 @@ const skipWorkerpoolPlugin = (): Plugin => ({
   },
 });
 
+// Plugin to prevent Vite from analyzing optional anthropic sdk
+const skipAnthropicSdkPlugin = (): Plugin => ({
+  name: 'skip-anthropic-sdk-analysis',
+  resolveId(id) {
+    if (id === '@anthropic-ai/claude-agent-sdk') {
+      return { id: 'claude-agent-sdk-mock', external: false };
+    }
+  },
+  load(id) {
+    if (id === 'claude-agent-sdk-mock') {
+      return `
+        export const query = () => ({ 
+          interrupt: async () => {},
+          [Symbol.asyncIterator]: async function* () {}
+        });
+        export default { query };
+      `;
+    }
+  },
+});
+
 export default defineConfig({
-  plugins: [tsconfigPaths(), skipWorkerpoolPlugin()],
+  plugins: [tsconfigPaths(), skipWorkerpoolPlugin(), skipAnthropicSdkPlugin()],
   test: {
     // Exclude workerpool tests - they run in a separate config with vmThreads pool
     exclude: [
@@ -37,6 +58,7 @@ export default defineConfig({
       'src/core/overlays/lineage/__tests__/worker.test.ts',
       'src/core/overlays/strategic-coherence/__tests__/manager.test.ts',
       'src/core/overlays/lineage/__tests__/interface-lineage.test.ts',
+      'src/tui/services/__tests__/BackgroundTaskManager.test.ts', // Uses child_process mocking - runs in workerpool config
     ],
     globals: true,
     environment: 'happy-dom',

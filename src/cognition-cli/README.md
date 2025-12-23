@@ -1,6 +1,6 @@
 # Cognition Σ CLI
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18002801.svg)](https://doi.org/10.5281/zenodo.18002801)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18012832.svg)](https://doi.org/10.5281/zenodo.18012832)
 
 <div align="center" style="margin-top: 20px; margin-bottom: 20px;">
 <img src="./docs/assets/cognition-cli-logo.png" alt="Cognition CLI Logo" width="512"/>
@@ -16,8 +16,8 @@ Cognition Σ CLI is the working implementation of the **Grounded Context Pool (P
 
 | Metric             | Value                            |
 | ------------------ | -------------------------------- |
-| Production Code    | ~87,386 lines TypeScript         |
-| Test Coverage      | ~85% (64 test files)             |
+| Production Code    | ~92,033 lines TypeScript         |
+| Test Coverage      | ~92% (129 test files)            |
 | Core Commands      | 40+ with tab completion          |
 | Cognitive Overlays | 7 (O₁-O₇)                        |
 | LLM Providers      | 3 (Gemini, Claude, OpenAI/local) |
@@ -446,7 +446,7 @@ For the complete list of innovations (#1-47) protected as prior art and publicat
 - Interactive TUI with Real-Time Visualization (#46)
 - Multi-Agent Collaborative System (#47)
 
-**Publication DOI:** [10.5281/zenodo.18002801](https://doi.org/10.5281/zenodo.18002801)
+**Publication DOI:** [10.5281/zenodo.18012832](https://doi.org/10.5281/zenodo.18012832)
 
 ---
 
@@ -460,7 +460,7 @@ If you use this work in research, please cite:
   title = {Cognition Σ CLI: Seven-Overlay Knowledge Graph with Infinite Context},
   year = {2025},
   version = {2.6.3},
-  doi = {10.5281/zenodo.18002801},
+  doi = {10.5281/zenodo.18012832},
   url = {https://github.com/mirzahusadzic/cogx/tree/main/src/cognition-cli}
 }
 ```

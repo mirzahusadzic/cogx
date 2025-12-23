@@ -134,31 +134,33 @@ export class FileWatcher extends EventEmitter {
       `Starting file watcher for ${indexedFiles.length} indexed files (${watchPatterns.length} patterns)...`
     );
 
-    this.watcher = chokidar.watch(watchPatterns, {
-      ignored,
-      persistent: true,
-      ignoreInitial: true, // Don't fire events for existing files
-      awaitWriteFinish: {
-        stabilityThreshold: 100,
-        pollInterval: 100,
-      },
-      cwd: this.projectRoot,
-    });
-
-    this.watcher
-      .on('change', (filePath) => this.handleChange(filePath))
-      .on('unlink', (filePath) => this.handleDelete(filePath))
-      .on('add', (filePath) => this.handleAdd(filePath))
-      .on('error', (error) =>
-        this.handleError(
-          error instanceof Error ? error : new Error(String(error))
-        )
-      )
-      .on('ready', () => {
-        this.isWatching = true;
-        console.log('File watcher ready');
-        this.emit('ready');
+    return new Promise((resolve, reject) => {
+      this.watcher = chokidar.watch(watchPatterns, {
+        ignored,
+        persistent: true,
+        ignoreInitial: true, // Don't fire events for existing files
+        cwd: this.projectRoot,
       });
+
+      this.watcher
+        .on('change', (filePath) => this.handleChange(filePath))
+        .on('unlink', (filePath) => this.handleDelete(filePath))
+        .on('add', (filePath) => this.handleAdd(filePath))
+        .on('error', (error) => {
+          const err = error instanceof Error ? error : new Error(String(error));
+          if (!this.isWatching) {
+            reject(err);
+          } else {
+            this.handleError(err);
+          }
+        })
+        .on('ready', () => {
+          this.isWatching = true;
+          console.log('File watcher ready');
+          this.emit('ready');
+          resolve();
+        });
+    });
   }
 
   /**

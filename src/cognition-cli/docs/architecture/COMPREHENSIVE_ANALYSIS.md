@@ -6,9 +6,9 @@
 
 **At a Glance:**
 
-- **Current Version:** 2.6.2 (Manager/Worker Delegation)
-- **Production Lines:** ~87,386 TypeScript (excl. tests), ~108,169 total
-- **Test Coverage:** ~85% across 64 test files
+- **Current Version:** 2.6.3 (Manager/Worker Delegation)
+- **Production Lines:** ~92,033 TypeScript (excl. tests), ~132,153 total
+- **Test Coverage:** ~92% across 129 test files
 - **Architecture:** 7 cognitive overlays (O₁-O₇), dual-lattice Σ system, ZeroMQ agent messaging
 - **License:** AGPL-3.0-or-later
 
@@ -265,6 +265,24 @@ Both Claude (MCP) and Gemini (ADK) have access to 5 tools:
 | `broadcast_agent_message` | Broadcast to all agents                  |
 | `list_pending_messages`   | List pending messages                    |
 | `mark_message_read`       | Update status (read/injected/dismissed)  |
+
+### Fractal Lattice: Cross-Project Mesh Architecture
+
+Introduced in v2.6.3, this architecture enables agents to collaborate across different repositories and projects through a shared communication mesh.
+
+#### **The IPC_SIGMA_BUS Protocol**
+
+The scope of the multi-agent mesh is controlled via the `IPC_SIGMA_BUS` environment variable:
+
+- **Local (Unset)**: Standard isolation where the agent lives within the local `.sigma/` directory.
+- **Global (`global`)**: Connects agents to a shared global bus at `~/.cognition/sigma-global/`.
+- **Named Mesh (`<name>`)**: Creates a specific "Team Mesh" (e.g., `IPC_SIGMA_BUS=project-x`) for targeted collaboration across multiple codebases.
+
+#### **Key Mesh Capabilities**
+
+- **Context Sharding**: Instead of one agent trying to ingest every codebase (hitting context limits), agents query specialized "Gardener" agents of other repositories via `query_agent()`.
+- **Fractal Scalability**: Enables a recursive hierarchy of specialized Grounded Context Pools (PGCs) connected by a high-speed semantic negotiation layer.
+- **Active Negotiation**: When an interface changes, agents negotiate the impact across project boundaries before build failures occur.
 
 ### Manager/Worker Delegation Architecture
 
@@ -659,10 +677,11 @@ ZeroMQ-based pub/sub messaging enabling agent-to-agent collaboration. See [Multi
 
 Key capabilities:
 
-- Persistent message queues surviving session restarts
-- Auto-response flow with rate limiting (Yossarian Protocol)
-- Agent registry with aliases (`opus1`, `sonnet2`) and collision detection
-- Code review, task distribution, and expert consultation workflows
+- **Fractal Lattice Mesh** — Cross-project communication via `IPC_SIGMA_BUS` (#48)
+- **Persistent message queues** surviving session restarts
+- **Auto-response flow** with rate limiting (Yossarian Protocol)
+- **Agent registry** with aliases (`opus1`, `sonnet2`) and collision detection
+- **Code review, task distribution**, and expert consultation workflows
 
 ---
 
@@ -858,42 +877,44 @@ The same architecture that understands code can preserve human identity through 
 
 | Metric                     | Value                      |
 | -------------------------- | -------------------------- |
-| **Total TypeScript Lines** | **~108,169** (incl. tests) |
-| Production Code Lines      | ~87,386 (excl. tests)      |
-| Test Code Lines            | ~20,783 (64 test files)    |
-| Total Source Files         | 279 (215 prod + 64 test)   |
+| **Total TypeScript Lines** | **~132,153** (incl. tests) |
+| Production Code Lines      | ~92,033 (excl. tests)      |
+| Test Code Lines            | ~40,120 (129 test files)   |
+| Total Source Files         | 366 (237 prod + 129 test)  |
 
 ### Lines of Code by Module
 
 | Module        | LOC        | Files   | % of Prod | Description                   |
 | ------------- | ---------- | ------- | --------- | ----------------------------- |
-| **core/**     | 35,338     | 84      | 40.4%     | PGC, overlays, orchestrators  |
-| **commands/** | 14,244     | 31      | 16.3%     | CLI command implementations   |
-| **tui/**      | 12,027     | 35      | 13.8%     | React Ink terminal interface  |
-| **sigma/**    | 10,408     | 29      | 11.9%     | Infinite context dual-lattice |
-| **llm/**      | 6,852      | 13      | 7.8%      | LLM provider abstraction      |
-| **ipc/**      | 3,413      | 10      | 3.9%      | ZeroMQ agent messaging        |
-| **utils/**    | 3,569      | 11      | 4.1%      | Errors, formatting, helpers   |
-| **root**      | 1,535      | 2       | 1.8%      | cli.ts, config.ts             |
-| **Total**     | **87,386** | **215** | **100%**  |                               |
+| **core/**     | 35,341     | 84      | 37.4%     | PGC, overlays, orchestrators  |
+| **tui/**      | 18,334     | 55      | 19.4%     | React Ink terminal interface  |
+| **commands/** | 14,308     | 31      | 15.2%     | CLI command implementations   |
+| **sigma/**    | 10,408     | 29      | 11.0%     | Infinite context dual-lattice |
+| **llm/**      | 7,106      | 13      | 7.5%      | LLM provider abstraction      |
+| **ipc/**      | 3,797      | 11      | 4.0%      | ZeroMQ agent messaging        |
+| **utils/**    | 3,579      | 12      | 3.8%      | Errors, formatting, helpers   |
+| **root**      | 1,535      | 2       | 1.6%      | cli.ts, config.ts             |
+| **Total**     | **92,033** | **237** | **100%**  |                               |
 
 ### Core Module Breakdown
 
 | Submodule      | LOC   | Description                         |
 | -------------- | ----- | ----------------------------------- |
-| overlays/      | 8,077 | 7 cognitive overlays (O₁-O₇)        |
-| orchestrators/ | 5,354 | Genesis, miners, workers            |
-| pgc/           | 4,810 | Object store, index, transforms     |
-| analyzers/     | 3,285 | Concept, strategy, workflow         |
-| security/      | 3,297 | Mission validation, security config |
+| overlays/      | 8,132 | 7 cognitive overlays (O₁-O₇)        |
+| orchestrators/ | 5,665 | Genesis, miners, workers            |
+| pgc/           | 4,808 | Object store, index, transforms     |
+| analyzers/     | 3,651 | Concept, strategy, workflow         |
+| security/      | 3,299 | Mission validation, security config |
 | algebra/       | 1,948 | Lattice operations, query parser    |
-| types/         | 1,457 | Type definitions                    |
+| types/         | 1,443 | Type definitions                    |
 | graph/         | 1,239 | Dependency graph types              |
-| transforms/    | 942   | Genesis document transforms         |
+| transforms/    | 940   | Genesis document transforms         |
 | quest/         | 775   | Operations log                      |
+| watcher/       | 653   | File system monitoring              |
 | query/         | 531   | Query engine                        |
 | parsers/       | 518   | Markdown parser                     |
-| services/      | 331   | Embedding service                   |
+| services/      | 327   | Embedding service                   |
+| errors/        | 238   | Error handling                      |
 | config/        | 123   | Mission sections config             |
 
 ### TUI Module Breakdown
@@ -907,20 +928,20 @@ The same architecture that understands code can preserve human identity through 
 
 ### Other Metrics
 
-| Metric                | Value                              |
-| --------------------- | ---------------------------------- |
-| Total Dependencies    | 54 npm packages (31 prod + 23 dev) |
-| Documentation Pages   | 30+                                |
-| Manual Chapters       | 22 (+ appendix)                    |
-| Cognitive Overlays    | 7 (O₁-O₇)                          |
-| Supported Languages   | 3 (TS/JS/Python)                   |
-| Core Commands         | 40+ (with tab completion)          |
-| Test Files            | 64 (comprehensive coverage)        |
-| Test Coverage         | ~85% (security, compression, UX)   |
-| Current Version       | 2.6.2 (Delegation)                 |
-| License               | AGPL-3.0-or-later                  |
-| Zenodo DOI            | 10.5281/zenodo.17509405            |
-| Innovations Published | 48 (defensive patent publication)  |
+| Metric                | Value                                     |
+| --------------------- | ----------------------------------------- |
+| Total Dependencies    | 54 npm packages (31 prod + 23 dev)        |
+| Documentation Pages   | 30+                                       |
+| Manual Chapters       | 22 (+ appendix)                           |
+| Cognitive Overlays    | 7 (O₁-O₇)                                 |
+| Supported Languages   | 3 (TS/JS/Python)                          |
+| Core Commands         | 40+ (with tab completion)                 |
+| Test Files            | 129 (comprehensive coverage)              |
+| Test Coverage         | ~92% (security, compression, UX)          |
+| Current Version       | 2.6.3 (Cross-Project Agent Collaboration) |
+| License               | AGPL-3.0-or-later                         |
+| Zenodo DOI            | 10.5281/zenodo.18012832                   |
+| Innovations Published | 48 (defensive patent publication)         |
 
 ---
 
@@ -1090,10 +1111,10 @@ The same architecture that understands code can preserve human identity through 
 **9. Performance Metrics**
 
 - **Compression time:** 5-10 minutes → **0.0s (instant)**
-- **LOC:** ~93,382 total (76,170 production + 17,212 tests)
-  - Production: 76,170 across 197 files
-  - Tests: 17,212 across 56 files
-- **Test coverage:** ~60% → ~85%
+- **LOC:** ~132,153 total (92,033 production + 40,120 tests)
+  - Production: 92,033 across 237 files
+  - Tests: 40,120 across 129 files
+- **Test coverage:** ~85% → **~92%**
 - **Commands:** Added tab completion reducing typing by 50-70%
 
 **10. Code Quality**
@@ -1109,7 +1130,7 @@ _For previous release history, see [CHANGELOG.md](https://github.com/mirzahusadz
 
 ## Conclusion
 
-Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.6.0** extends production excellence with a groundbreaking multi-agent collaborative system, enabling true agent-to-agent communication via ZeroMQ pub/sub messaging. This transforms Cognition CLI from a single-agent tool into a multi-agent coordination platform.
+Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.6.3** extends production excellence with a groundbreaking **Fractal Lattice Mesh**, enabling true cross-project agent collaboration via `IPC_SIGMA_BUS`. This transforms Cognition CLI from a single-project tool into a multi-project-scale distributed nervous system for code.
 
 It combines:
 
@@ -1124,5 +1145,7 @@ It combines:
 - **Verifiable memory** (conversation indexed like code)
 - **Production-ready UX** (tab completion, accessibility, graceful degradation)
 - **Multi-agent collaboration** (ZeroMQ pub/sub, persistent queues, auto-response)
+- **Structured Delegation** (Manager/Worker pattern with verifiable criteria)
+- **Fractal Mesh Architecture** (Cross-project context sharding and negotiation)
 
-Rather than treating LLMs as magical oracles, it grounds them in verifiable fact, enabling a new generation of AI-powered developer tools that are trustworthy, auditable, and aligned with human values and principles. With multi-agent capabilities, it now enables complex workflows where multiple AI agents collaborate asynchronously on different aspects of a project.
+Rather than treating LLMs as magical oracles, it grounds them in verifiable fact, enabling a new generation of AI-powered developer tools that are trustworthy, auditable, and aligned with human values and principles. With its fractal mesh and delegation capabilities, it now enables complex workflows where multiple AI agents collaborate asynchronously across massive, distributed codebases.

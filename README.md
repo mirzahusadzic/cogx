@@ -14,7 +14,7 @@ _And I'll show you how deep this rabbit hole really goes._
 
 <div align="center">
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18002801.svg)](https://doi.org/10.5281/zenodo.18002801)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18012832.svg)](https://doi.org/10.5281/zenodo.18012832)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 </div>
@@ -143,7 +143,7 @@ The production-ready implementation of verifiable AI-human symbiosis. Combines t
 
 **Breakthrough Achievement (Oct 24, 2025):** First grounded architecture analysis performed **on itself**, proving structured PGC metadata is sufficient for deep architectural understanding without reading source code.
 
-**Latest Release:** [v2.6.2 - Manager/Worker Delegation](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2)
+**Latest Release:** [v2.6.3: Cross-Project Agent Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.3)
 
 ### eGemma – [The Deterministic Workbench](https://github.com/mirzahusadzic/egemma)
 
@@ -299,7 +299,7 @@ This repository constitutes a **formal defensive publication** establishing prio
   - November 20, 2025 (v2.4.2: Documentation & Stability)
   - December 3, 2025 (Innovation #47: Multi-Agent Collaborative System) — v2.6.0
 - **Public Repository**: https://github.com/mirzahusadzic/cogx
-- **Permanent Archive**: Zenodo DOI [10.5281/zenodo.18002801](https://doi.org/10.5281/zenodo.18002801) (latest)
+- **Permanent Archive**: Zenodo DOI [10.5281/zenodo.18012832](https://doi.org/10.5281/zenodo.18012832) (latest)
 - **License**: AGPLv3 (entire repository — code, documentation, blueprints)
 - **Inventor**: Mirza Husadžić
 
@@ -358,7 +358,7 @@ If you use this work in research, please cite:
   title = {CogX: A Blueprint for Verifiable, Agentic AI},
   year = {2025},
   version = {2.6.2},
-  doi = {10.5281/zenodo.18002801},
+  doi = {10.5281/zenodo.18012832},
   url = {https://github.com/mirzahusadzic/cogx}
 }
 ```

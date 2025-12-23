@@ -53,151 +53,8 @@ export const blastRadiusCommand = new Command('blast-radius')
   .option('--json', 'Output as JSON')
   .option('--no-transitive', 'Only show direct dependencies/consumers')
   .action(async (symbol, options) => {
-    const pgc = new PGCManager(process.cwd());
-    const traversal = new GraphTraversal(pgc);
-
-    console.log(
-      chalk.bold(`\n🎯 Blast Radius Analysis: ${chalk.cyan(symbol)}\n`)
-    );
-
     try {
-      const result = await traversal.getBlastRadius(symbol, {
-        maxDepth: options.transitive ? parseInt(options.maxDepth) : 1,
-        direction: options.direction,
-        includeTransitive: options.transitive,
-      });
-
-      if (options.json) {
-        console.log(
-          JSON.stringify(
-            {
-              symbol: result.symbol,
-              filePath: result.filePath,
-              consumers: result.consumers.map((n) => ({
-                symbol: n.symbol,
-                filePath: n.filePath,
-                type: n.type,
-                role: n.architecturalRole,
-              })),
-              dependencies: result.dependencies.map((n) => ({
-                symbol: n.symbol,
-                filePath: n.filePath,
-                type: n.type,
-                role: n.architecturalRole,
-              })),
-              metrics: result.metrics,
-            },
-            null,
-            2
-          )
-        );
-        return;
-      }
-
-      // ASCII output
-      console.log(chalk.green(`✓ Symbol found: ${result.filePath}`));
-      console.log();
-
-      // Metrics
-      console.log(chalk.bold('📊 Impact Metrics:'));
-      console.log(
-        `   Total impacted: ${chalk.yellow(result.metrics.totalImpacted)}`
-      );
-      console.log(
-        `   Max consumer depth: ${chalk.yellow(result.metrics.maxConsumerDepth)}`
-      );
-      console.log(
-        `   Max dependency depth: ${chalk.yellow(result.metrics.maxDependencyDepth)}`
-      );
-      console.log();
-
-      // Consumers (upstream)
-      if (options.direction === 'up' || options.direction === 'both') {
-        console.log(chalk.bold(`⬆️  Consumers (${result.consumers.length}):`));
-        console.log(
-          chalk.dim('   Changing this symbol will affect these symbols:\n')
-        );
-
-        if (result.consumers.length === 0) {
-          console.log(chalk.dim('   No consumers found'));
-        } else {
-          // Group by architectural role
-          const byRole = groupBy(
-            result.consumers,
-            (n) => n.architecturalRole || 'unknown'
-          );
-
-          for (const [role, nodes] of Object.entries(byRole)) {
-            console.log(chalk.cyan(`   ${role}:`));
-            for (const node of nodes.slice(0, 10)) {
-              console.log(
-                `      • ${chalk.green(node.symbol)} ${chalk.dim(`(${node.filePath})`)}`
-              );
-            }
-            if (nodes.length > 10) {
-              console.log(chalk.dim(`      ... and ${nodes.length - 10} more`));
-            }
-          }
-        }
-        console.log();
-      }
-
-      // Dependencies (downstream)
-      if (options.direction === 'down' || options.direction === 'both') {
-        console.log(
-          chalk.bold(`⬇️  Dependencies (${result.dependencies.length}):`)
-        );
-        console.log(chalk.dim('   This symbol depends on:\n'));
-
-        if (result.dependencies.length === 0) {
-          console.log(chalk.dim('   No dependencies found'));
-        } else {
-          // Group by architectural role
-          const byRole = groupBy(
-            result.dependencies,
-            (n) => n.architecturalRole || 'unknown'
-          );
-
-          for (const [role, nodes] of Object.entries(byRole)) {
-            console.log(chalk.cyan(`   ${role}:`));
-            for (const node of nodes.slice(0, 10)) {
-              console.log(
-                `      • ${chalk.green(node.symbol)} ${chalk.dim(`(${node.filePath})`)}`
-              );
-            }
-            if (nodes.length > 10) {
-              console.log(chalk.dim(`      ... and ${nodes.length - 10} more`));
-            }
-          }
-        }
-        console.log();
-      }
-
-      // Critical paths
-      if (result.metrics.criticalPaths.length > 0) {
-        console.log(chalk.bold('🔥 Critical Paths:'));
-        console.log(chalk.dim('   High-impact chains through the codebase:\n'));
-
-        for (const path of result.metrics.criticalPaths.slice(0, 3)) {
-          console.log(`   ${chalk.yellow(path.reason)} (depth ${path.depth})`);
-          const pathStr = path.path.map((s) => chalk.cyan(s)).join(' → ');
-          console.log(`      ${pathStr}`);
-        }
-        console.log();
-      }
-
-      // Usage hints
-      if (result.metrics.totalImpacted > 20) {
-        console.log(
-          chalk.yellow(
-            '⚠️  High impact detected! Changing this symbol affects many parts of the codebase.'
-          )
-        );
-      } else if (result.metrics.totalImpacted <= 1) {
-        console.log(
-          chalk.green('✓ Low impact! This symbol is relatively isolated.')
-        );
-      }
+      await runBlastRadius(symbol, options);
     } catch (error) {
       if ((error as Error).message.includes('not found in graph')) {
         console.error(
@@ -215,6 +72,174 @@ export const blastRadiusCommand = new Command('blast-radius')
       process.exit(1);
     }
   });
+
+/**
+ * Executes the blast radius analysis for a symbol
+ *
+ * Traverses the structural pattern graph to identify consumers and dependencies
+ * of the specified symbol, then outputs the results in human-readable or JSON format.
+ *
+ * @param symbol - The code symbol to analyze (class, function, etc.)
+ * @param options - Analysis options (maxDepth, direction, json, transitive)
+ */
+export async function runBlastRadius(
+  symbol: string,
+  options: {
+    maxDepth: string;
+    direction: string;
+    json?: boolean;
+    transitive: boolean;
+  },
+  pgcManager?: PGCManager,
+  graphTraversal?: GraphTraversal
+): Promise<void> {
+  const pgc = pgcManager || new PGCManager(process.cwd());
+  const traversal = graphTraversal || new GraphTraversal(pgc);
+
+  const result = await traversal.getBlastRadius(symbol, {
+    maxDepth: options.transitive ? parseInt(options.maxDepth) : 1,
+    direction: options.direction as 'both' | 'up' | 'down',
+    includeTransitive: options.transitive,
+  });
+
+  if (!options.json) {
+    console.log(
+      chalk.bold(`\n🎯 Blast Radius Analysis: ${chalk.cyan(symbol)}\n`)
+    );
+  }
+
+  if (options.json) {
+    console.log(
+      JSON.stringify(
+        {
+          symbol: result.symbol,
+          filePath: result.filePath,
+          consumers: result.consumers.map((n) => ({
+            symbol: n.symbol,
+            filePath: n.filePath,
+            type: n.type,
+            role: n.architecturalRole,
+          })),
+          dependencies: result.dependencies.map((n) => ({
+            symbol: n.symbol,
+            filePath: n.filePath,
+            type: n.type,
+            role: n.architecturalRole,
+          })),
+          metrics: result.metrics,
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
+  // ASCII output
+  console.log(chalk.green(`✓ Symbol found: ${result.filePath}`));
+  console.log();
+
+  // Metrics
+  console.log(chalk.bold('📊 Impact Metrics:'));
+  console.log(
+    `   Total impacted: ${chalk.yellow(result.metrics.totalImpacted)}`
+  );
+  console.log(
+    `   Max consumer depth: ${chalk.yellow(result.metrics.maxConsumerDepth)}`
+  );
+  console.log(
+    `   Max dependency depth: ${chalk.yellow(result.metrics.maxDependencyDepth)}`
+  );
+  console.log();
+
+  // Consumers (upstream)
+  if (options.direction === 'up' || options.direction === 'both') {
+    console.log(chalk.bold(`⬆️  Consumers (${result.consumers.length}):`));
+    console.log(
+      chalk.dim('   Changing this symbol will affect these symbols:\n')
+    );
+
+    if (result.consumers.length === 0) {
+      console.log(chalk.dim('   No consumers found'));
+    } else {
+      // Group by architectural role
+      const byRole = groupBy(
+        result.consumers,
+        (n) => n.architecturalRole || 'unknown'
+      );
+
+      for (const [role, nodes] of Object.entries(byRole)) {
+        console.log(chalk.cyan(`   ${role}:`));
+        for (const node of nodes.slice(0, 10)) {
+          console.log(
+            `      • ${chalk.green(node.symbol)} ${chalk.dim(`(${node.filePath})`)}`
+          );
+        }
+        if (nodes.length > 10) {
+          console.log(chalk.dim(`      ... and ${nodes.length - 10} more`));
+        }
+      }
+    }
+    console.log();
+  }
+
+  // Dependencies (downstream)
+  if (options.direction === 'down' || options.direction === 'both') {
+    console.log(
+      chalk.bold(`⬇️  Dependencies (${result.dependencies.length}):`)
+    );
+    console.log(chalk.dim('   This symbol depends on:\n'));
+
+    if (result.dependencies.length === 0) {
+      console.log(chalk.dim('   No dependencies found'));
+    } else {
+      // Group by architectural role
+      const byRole = groupBy(
+        result.dependencies,
+        (n) => n.architecturalRole || 'unknown'
+      );
+
+      for (const [role, nodes] of Object.entries(byRole)) {
+        console.log(chalk.cyan(`   ${role}:`));
+        for (const node of nodes.slice(0, 10)) {
+          console.log(
+            `      • ${chalk.green(node.symbol)} ${chalk.dim(`(${node.filePath})`)}`
+          );
+        }
+        if (nodes.length > 10) {
+          console.log(chalk.dim(`      ... and ${nodes.length - 10} more`));
+        }
+      }
+    }
+    console.log();
+  }
+
+  // Critical paths
+  if (result.metrics.criticalPaths.length > 0) {
+    console.log(chalk.bold('🔥 Critical Paths:'));
+    console.log(chalk.dim('   High-impact chains through the codebase:\n'));
+
+    for (const path of result.metrics.criticalPaths.slice(0, 3)) {
+      console.log(`   ${chalk.yellow(path.reason)} (depth ${path.depth})`);
+      const pathStr = path.path.map((s) => chalk.cyan(s)).join(' → ');
+      console.log(`      ${pathStr}`);
+    }
+    console.log();
+  }
+
+  // Usage hints
+  if (result.metrics.totalImpacted > 20) {
+    console.log(
+      chalk.yellow(
+        '⚠️  High impact detected! Changing this symbol affects many parts of the codebase.'
+      )
+    );
+  } else if (result.metrics.totalImpacted <= 1) {
+    console.log(
+      chalk.green('✓ Low impact! This symbol is relatively isolated.')
+    );
+  }
+}
 
 /**
  * Group array items by the result of a key function.

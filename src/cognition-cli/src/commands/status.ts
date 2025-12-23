@@ -132,7 +132,7 @@ export function createStatusCommand(): Command {
     )
     .action(async (options) => {
       try {
-        await runStatus(options);
+        await statusCommand(options);
       } catch (error) {
         console.error(chalk.red('Error:'), error);
         process.exit(1);
@@ -163,10 +163,10 @@ export function createStatusCommand(): Command {
  *
  * @example
  * // Get JSON for CI/CD
- * await runStatus({ json: true });
+ * await statusCommand({ json: true });
  * // → { "status": "incoherent", "summary": {...}, ... }
  */
-async function runStatus(options: {
+export async function statusCommand(options: {
   json?: boolean;
   verbose?: boolean;
 }): Promise<void> {
@@ -183,12 +183,15 @@ async function runStatus(options: {
   const projectRoot = workspaceManager.resolvePgcRoot(process.cwd());
 
   if (!projectRoot) {
-    console.error(
-      chalk.red(
-        '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
-      )
-    );
+    if (!options.json) {
+      console.error(
+        chalk.red(
+          '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
+        )
+      );
+    }
     process.exit(1);
+    return; // Prevent further execution
   }
 
   const pgcRoot = path.join(projectRoot, '.open_cognition');

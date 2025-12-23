@@ -26,6 +26,7 @@ export default defineConfig({
       'src/core/overlays/lineage/__tests__/worker.test.ts',
       'src/core/overlays/strategic-coherence/__tests__/manager.test.ts',
       'src/core/overlays/lineage/__tests__/interface-lineage.test.ts',
+      'src/tui/services/__tests__/BackgroundTaskManager.test.ts', // Uses child_process mocking
     ],
     dangerouslyIgnoreUnhandledErrors: true,
     globalTeardown: './vitest.global-teardown.ts', // Share same teardown as main config

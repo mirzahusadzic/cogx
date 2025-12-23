@@ -116,160 +116,170 @@ const OVERLAY_TYPES: OverlayInfo[] = [
 ];
 
 /**
- * Command for listing available overlay types and their status
+ * Factory function for creating a fresh list command instance.
+ * Used by tests to ensure mocks are properly applied.
  *
  * Scans the .open_cognition/overlays directory to determine which
  * overlays have been generated and provides detailed status information
  * for each overlay type.
  */
-const listCommand = new Command('list')
-  .description('List available overlay types and their status.')
-  .action(async () => {
-    const workspaceManager = new WorkspaceManager();
-    // Overlay commands use current working directory - PGC discovery walks up to find .open_cognition
-    const projectRoot = workspaceManager.resolvePgcRoot(process.cwd());
+export const createListCommand = () =>
+  new Command('list')
+    .description('List available overlay types and their status.')
+    .action(async () => {
+      const workspaceManager = new WorkspaceManager();
+      // Overlay commands use current working directory - PGC discovery walks up to find .open_cognition
+      const projectRoot = workspaceManager.resolvePgcRoot(process.cwd());
 
-    if (!projectRoot) {
-      console.error(
-        chalk.red(
-          '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
-        )
-      );
-      process.exit(1);
-    }
-
-    const pgcRoot = path.join(projectRoot, '.open_cognition');
-    const overlaysPath = path.join(pgcRoot, 'overlays');
-
-    console.log('\nAvailable Overlay Types:\n');
-
-    // Initialize vector store once
-    const vectorStore = new LanceVectorStore(pgcRoot);
-
-    for (const overlay of OVERLAY_TYPES) {
-      const overlayDir = path.join(overlaysPath, overlay.name);
-      const manifestPath = path.join(overlayDir, 'manifest.json');
-
-      let status = 'not generated';
-      let manifestCount = 0;
-      let vectorCount = 0;
-
-      // Check manifest
-      if (await fs.pathExists(manifestPath)) {
-        try {
-          const manifest = await fs.readJSON(manifestPath);
-          manifestCount = Object.keys(manifest).length;
-        } catch {
-          status = 'error reading manifest';
-        }
+      if (!projectRoot) {
+        console.error(
+          chalk.red(
+            '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
+          )
+        );
+        process.exit(1);
+        return; // Prevent further execution when process.exit is mocked in tests
       }
 
-      // Check vector DB for pattern overlays
-      if (
-        overlay.name === 'structural_patterns' ||
-        overlay.name === 'lineage_patterns'
-      ) {
-        try {
-          await vectorStore.initialize(overlay.name);
-          const vectors = await vectorStore.getAllVectors();
-          vectorCount = vectors.length;
-        } catch {
-          // Vector DB doesn't exist or error reading
-          vectorCount = 0;
-        }
-      }
+      const pgcRoot = path.join(projectRoot, '.open_cognition');
+      const overlaysPath = path.join(pgcRoot, 'overlays');
 
-      // Check strategic coherence overlay
-      if (overlay.name === 'strategic_coherence') {
-        const coherencePath = path.join(overlayDir, 'coherence.yaml');
-        if (await fs.pathExists(coherencePath)) {
+      console.log('\nAvailable Overlay Types:\n');
+
+      // Initialize vector store once
+      const vectorStore = new LanceVectorStore(pgcRoot);
+
+      for (const overlay of OVERLAY_TYPES) {
+        const overlayDir = path.join(overlaysPath, overlay.name);
+        const manifestPath = path.join(overlayDir, 'manifest.json');
+
+        let status = 'not generated';
+        let manifestCount = 0;
+        let vectorCount = 0;
+
+        // Check manifest
+        if (await fs.pathExists(manifestPath)) {
           try {
-            const yaml = await import('yaml');
-            const content = await fs.readFile(coherencePath, 'utf-8');
-            const coherence = yaml.parse(content);
-            const symbolCount = coherence.symbol_coherence?.length || 0;
-            const aligned =
-              coherence.overall_metrics?.aligned_symbols_count || 0;
-            const drifted =
-              coherence.overall_metrics?.drifted_symbols_count || 0;
-            status = `${symbolCount} symbols analyzed (${chalk.green(aligned + ' aligned')}, ${chalk.yellow(drifted + ' drifted')})`;
+            const manifest = await fs.readJSON(manifestPath);
+            manifestCount = Object.keys(manifest).length;
           } catch {
-            status = 'error reading overlay';
+            status = 'error reading manifest';
           }
-        } else {
-          status = 'not generated';
         }
-      }
 
-      // Check YAML-based overlays (mission, security, operational, mathematical)
-      if (
-        overlay.name === 'mission_concepts' ||
-        overlay.name === 'security_guidelines' ||
-        overlay.name === 'operational_patterns' ||
-        overlay.name === 'mathematical_proofs'
-      ) {
-        if (await fs.pathExists(overlayDir)) {
+        // Check vector DB for pattern overlays
+        if (
+          overlay.name === 'structural_patterns' ||
+          overlay.name === 'lineage_patterns'
+        ) {
           try {
-            const files = await fs.readdir(overlayDir);
-            const yamlFiles = files.filter((f) => f.endsWith('.yaml'));
-            if (yamlFiles.length > 0) {
-              if (overlay.name === 'mission_concepts') {
-                status = `${yamlFiles.length} document(s) processed`;
-              } else if (overlay.name === 'security_guidelines') {
-                status = `${yamlFiles.length} security document(s)`;
-              } else if (overlay.name === 'operational_patterns') {
-                status = `${yamlFiles.length} operational document(s)`;
-              } else if (overlay.name === 'mathematical_proofs') {
-                status = `${yamlFiles.length} proof document(s)`;
-              }
-            } else {
-              status = 'not generated';
+            await vectorStore.initialize(overlay.name);
+            const vectors = await vectorStore.getAllVectors();
+            vectorCount = vectors.length;
+          } catch {
+            // Vector DB doesn't exist or error reading
+            vectorCount = 0;
+          }
+        }
+
+        // Check strategic coherence overlay
+        if (overlay.name === 'strategic_coherence') {
+          const coherencePath = path.join(overlayDir, 'coherence.yaml');
+          if (await fs.pathExists(coherencePath)) {
+            try {
+              const yaml = await import('yaml');
+              const content = await fs.readFile(coherencePath, 'utf-8');
+              const coherence = yaml.parse(content);
+              const symbolCount = coherence.symbol_coherence?.length || 0;
+              const aligned =
+                coherence.overall_metrics?.aligned_symbols_count || 0;
+              const drifted =
+                coherence.overall_metrics?.drifted_symbols_count || 0;
+              status = `${symbolCount} symbols analyzed (${chalk.green(aligned + ' aligned')}, ${chalk.yellow(drifted + ' drifted')})`;
+            } catch {
+              status = 'error reading overlay';
             }
-          } catch {
-            status = 'error reading overlays';
+          } else {
+            status = 'not generated';
           }
-        } else {
-          status = 'not generated';
         }
+
+        // Check YAML-based overlays (mission, security, operational, mathematical)
+        if (
+          overlay.name === 'mission_concepts' ||
+          overlay.name === 'security_guidelines' ||
+          overlay.name === 'operational_patterns' ||
+          overlay.name === 'mathematical_proofs'
+        ) {
+          if (await fs.pathExists(overlayDir)) {
+            try {
+              const files = await fs.readdir(overlayDir);
+              const yamlFiles = files.filter((f) => f.endsWith('.yaml'));
+              if (yamlFiles.length > 0) {
+                if (overlay.name === 'mission_concepts') {
+                  status = `${yamlFiles.length} document(s) processed`;
+                } else if (overlay.name === 'security_guidelines') {
+                  status = `${yamlFiles.length} security document(s)`;
+                } else if (overlay.name === 'operational_patterns') {
+                  status = `${yamlFiles.length} operational document(s)`;
+                } else if (overlay.name === 'mathematical_proofs') {
+                  status = `${yamlFiles.length} proof document(s)`;
+                }
+              } else {
+                status = 'not generated';
+              }
+            } catch {
+              status = 'error reading overlays';
+            }
+          } else {
+            status = 'not generated';
+          }
+        }
+
+        // Determine status for structural/lineage patterns
+        if (
+          overlay.name === 'structural_patterns' ||
+          overlay.name === 'lineage_patterns'
+        ) {
+          // Only update status if not already an error state
+          if (status.startsWith('error')) {
+            // Keep error status
+          } else if (manifestCount === 0 && vectorCount === 0) {
+            status = 'not generated';
+          } else if (manifestCount === vectorCount && manifestCount > 0) {
+            status = `${manifestCount} patterns`;
+          } else if (manifestCount > 0 || vectorCount > 0) {
+            // Mismatch or partial generation
+            status = `${chalk.yellow('⚠')} manifest: ${manifestCount}, embeddings: ${vectorCount}`;
+          } else if (await fs.pathExists(overlayDir)) {
+            status = 'directory exists (no data)';
+          }
+        }
+
+        const generateNote = overlay.generateSupported
+          ? ''
+          : ' (use other commands)';
+
+        console.log(`  ${overlay.name}${generateNote}`);
+        console.log(`    ${overlay.description}`);
+        console.log(`    Status: ${status}\n`);
       }
 
-      // Determine status for structural/lineage patterns
-      if (
-        overlay.name === 'structural_patterns' ||
-        overlay.name === 'lineage_patterns'
-      ) {
-        if (manifestCount === 0 && vectorCount === 0) {
-          status = 'not generated';
-        } else if (manifestCount === vectorCount && manifestCount > 0) {
-          status = `${manifestCount} patterns`;
-        } else if (manifestCount > 0 || vectorCount > 0) {
-          // Mismatch or partial generation
-          status = `${chalk.yellow('⚠')} manifest: ${manifestCount}, embeddings: ${vectorCount}`;
-        } else if (await fs.pathExists(overlayDir)) {
-          status = 'directory exists (no data)';
-        }
-      }
+      await vectorStore.close();
 
-      const generateNote = overlay.generateSupported
-        ? ''
-        : ' (use other commands)';
+      console.log('Usage (reads from PGC index - run genesis first):');
+      console.log('  cognition-cli overlay generate <type>');
+      console.log('  cognition-cli overlay generate structural_patterns');
+      console.log('  cognition-cli overlay generate security_guidelines');
+      console.log('  cognition-cli overlay generate lineage_patterns');
+      console.log('  cognition-cli overlay generate mission_concepts');
+      console.log('  cognition-cli overlay generate operational_patterns');
+      console.log('  cognition-cli overlay generate mathematical_proofs');
+      console.log('  cognition-cli overlay generate strategic_coherence\n');
+    });
 
-      console.log(`  ${overlay.name}${generateNote}`);
-      console.log(`    ${overlay.description}`);
-      console.log(`    Status: ${status}\n`);
-    }
-
-    await vectorStore.close();
-
-    console.log('Usage (reads from PGC index - run genesis first):');
-    console.log('  cognition-cli overlay generate <type>');
-    console.log('  cognition-cli overlay generate structural_patterns');
-    console.log('  cognition-cli overlay generate security_guidelines');
-    console.log('  cognition-cli overlay generate lineage_patterns');
-    console.log('  cognition-cli overlay generate mission_concepts');
-    console.log('  cognition-cli overlay generate operational_patterns');
-    console.log('  cognition-cli overlay generate mathematical_proofs');
-    console.log('  cognition-cli overlay generate strategic_coherence\n');
-  });
-
-export { listCommand };
+/**
+ * Singleton instance for CLI use.
+ * Tests should use createListCommand() factory instead.
+ */
+export const listCommand = createListCommand();
