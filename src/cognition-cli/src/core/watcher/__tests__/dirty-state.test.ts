@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import path from 'path';
 import fs from 'fs-extra';
 import os from 'os';
@@ -172,7 +172,16 @@ describe('DirtyStateManager', () => {
     const filePath = path.join(tempDir, 'dirty_state.json');
     await fs.writeFile(filePath, 'invalid json');
 
+    // Suppress expected console.warn for invalid JSON
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
     const state = await manager.read();
     expect(state.dirty_files).toEqual([]);
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Invalid dirty_state.json, resetting:',
+      expect.any(Error)
+    );
+
+    warnSpy.mockRestore();
   });
 });

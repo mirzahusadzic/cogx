@@ -127,15 +127,21 @@ export async function populateConversationOverlays(
 
   for (const overlayId of overlayIds) {
     const overlay = await conversationRegistry.get(overlayId);
+    if (!overlay) {
+      continue;
+    }
 
     // Get alignment score for this specific overlay
-    const scoreKey = Object.keys(turnAnalysis.overlay_scores).find((key) =>
-      key.startsWith(overlayId)
-    ) as keyof typeof turnAnalysis.overlay_scores;
+    let projectAlignmentScore = 0;
+    if (turnAnalysis.overlay_scores) {
+      const scoreKey = Object.keys(turnAnalysis.overlay_scores).find((key) =>
+        key.startsWith(overlayId)
+      ) as keyof typeof turnAnalysis.overlay_scores;
 
-    const projectAlignmentScore = scoreKey
-      ? turnAnalysis.overlay_scores[scoreKey]
-      : 0;
+      projectAlignmentScore = scoreKey
+        ? turnAnalysis.overlay_scores[scoreKey]
+        : 0;
+    }
 
     // Add turn to this overlay
     if (
@@ -227,6 +233,9 @@ export async function getConversationStats(
 
   for (const overlayId of overlayIds) {
     const overlay = await conversationRegistry.get(overlayId);
+    if (!overlay) {
+      continue;
+    }
 
     if (
       'getInMemoryCount' in overlay &&

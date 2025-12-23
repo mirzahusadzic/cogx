@@ -219,46 +219,55 @@ export function useTurnAnalysis(
   // Last analyzed message index
   const lastAnalyzedIndexRef = useRef(-1);
 
-  // Initialize queue when embedder is ready
+  // Create/Update queue when dependencies change
   useEffect(() => {
     if (!embedder) {
       return;
     }
 
+    const options = {
+      embedder,
+      projectRegistry,
+      cwd,
+      sessionId,
+      debug,
+    };
+
+    const handlers = {
+      onAnalysisComplete: (result: {
+        analysis: TurnAnalysis;
+        messageIndex: number;
+      }) => {
+        // Update analyses state
+        setAnalysesState(queueRef.current!.getAnalyses());
+
+        // Update last analyzed index
+        lastAnalyzedIndexRef.current = result.messageIndex;
+
+        // Populate conversation overlays
+        if (conversationRegistry) {
+          populateOverlays(result.analysis, conversationRegistry);
+        }
+      },
+      onProgress: (status: AnalysisQueueStatus) => {
+        setQueueStatus(status);
+      },
+      onError: (error: Error, task: AnalysisTask) => {
+        if (debug) {
+          console.error('[AnalysisQueue] Error analyzing turn:', error);
+          console.error('[AnalysisQueue] Task:', task);
+        }
+      },
+    };
+
     // Create queue if not exists
     if (!queueRef.current) {
-      queueRef.current = new AnalysisQueue(
-        {
-          embedder,
-          projectRegistry,
-          cwd,
-          sessionId,
-          debug,
-        },
-        {
-          onAnalysisComplete: (result) => {
-            // Update analyses state
-            setAnalysesState(queueRef.current!.getAnalyses());
-
-            // Update last analyzed index
-            lastAnalyzedIndexRef.current = result.messageIndex;
-
-            // Populate conversation overlays
-            if (conversationRegistry) {
-              populateOverlays(result.analysis, conversationRegistry);
-            }
-          },
-          onProgress: (status) => {
-            setQueueStatus(status);
-          },
-          onError: (error, task) => {
-            if (debug) {
-              console.error('[AnalysisQueue] Error analyzing turn:', error);
-              console.error('[AnalysisQueue] Task:', task);
-            }
-          },
-        }
-      );
+      queueRef.current = new AnalysisQueue(options, handlers);
+    } else {
+      // Update existing queue with latest options and handlers
+      // This prevents stale closures in onAnalysisComplete
+      queueRef.current.updateOptions(options);
+      queueRef.current.updateHandlers(handlers);
     }
   }, [embedder, projectRegistry, conversationRegistry, cwd, sessionId, debug]);
 
@@ -377,6 +386,19 @@ async function populateOverlays(
   registry: ConversationOverlayRegistry
 ): Promise<void> {
   try {
+    // Defensive check: ensure registry is valid and has expected methods
+    if (!registry || typeof registry.get !== 'function') {
+      console.warn(
+        '[useTurnAnalysis] Skipping overlay population: invalid registry',
+        {
+          hasRegistry: !!registry,
+          type: typeof registry,
+          hasGet: registry && typeof registry.get === 'function',
+        }
+      );
+      return;
+    }
+
     const { populateConversationOverlays } =
       await import('../../../sigma/conversation-populator.js');
     await populateConversationOverlays(analysis, registry);

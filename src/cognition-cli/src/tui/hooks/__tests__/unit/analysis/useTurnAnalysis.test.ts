@@ -60,7 +60,7 @@ describe('useTurnAnalysis', () => {
   };
 
   const mockConversationRegistry = {
-    getOverlay: vi.fn(),
+    get: vi.fn(),
     flush: vi.fn(),
   };
 

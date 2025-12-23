@@ -52,24 +52,39 @@ describe('useZeroMQ', () => {
   });
 
   describe('initialization', () => {
-    it('should start disconnected', () => {
+    it('should start disconnected', async () => {
       const { result } = renderHook(() => useZeroMQ(defaultConfig));
 
       expect(result.current.connected).toBe(false);
       expect(result.current.bus).toBeNull();
       expect(result.current.registry).toBeNull();
+
+      // Wait for the effect to settle to avoid act() warnings
+      await waitFor(() => {
+        expect(result.current.connected).toBe(true);
+      });
     });
 
-    it('should report multiAgentAvailable', () => {
+    it('should report multiAgentAvailable', async () => {
       const { result } = renderHook(() => useZeroMQ(defaultConfig));
 
       expect(result.current.multiAgentAvailable).toBe(true);
+
+      // Wait for the effect to settle
+      await waitFor(() => {
+        expect(result.current.connected).toBe(true);
+      });
     });
 
-    it('should have no error initially', () => {
+    it('should have no error initially', async () => {
       const { result } = renderHook(() => useZeroMQ(defaultConfig));
 
       expect(result.current.error).toBeNull();
+
+      // Wait for the effect to settle
+      await waitFor(() => {
+        expect(result.current.connected).toBe(true);
+      });
     });
   });
 
@@ -345,7 +360,7 @@ describe('useZeroMQ', () => {
   });
 
   describe('return value structure', () => {
-    it('should return all expected properties', () => {
+    it('should return all expected properties', async () => {
       const { result } = renderHook(() => useZeroMQ(defaultConfig));
 
       expect(result.current).toHaveProperty('bus');
@@ -354,6 +369,11 @@ describe('useZeroMQ', () => {
       expect(result.current).toHaveProperty('isBusMaster');
       expect(result.current).toHaveProperty('error');
       expect(result.current).toHaveProperty('multiAgentAvailable');
+
+      // Wait for the effect to settle
+      await waitFor(() => {
+        expect(result.current.connected).toBe(true);
+      });
     });
   });
 

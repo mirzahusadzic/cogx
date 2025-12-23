@@ -111,6 +111,30 @@ export class AnalysisQueue {
   ) {}
 
   /**
+   * Update queue options with latest values
+   *
+   * Essential for React integration where dependencies like embedder
+   * or registries may change over time.
+   *
+   * @param options - New analysis options
+   */
+  updateOptions(options: AnalysisOptions): void {
+    this.options = options;
+  }
+
+  /**
+   * Update queue handlers with latest closures
+   *
+   * Essential for React integration to avoid stale closures in event
+   * handlers that reference state or refs.
+   *
+   * @param handlers - New queue handlers
+   */
+  updateHandlers(handlers: AnalysisQueueHandlers): void {
+    this.handlers = handlers;
+  }
+
+  /**
    * Get current queue status
    *
    * Returns a snapshot of queue state for UI updates. Called frequently

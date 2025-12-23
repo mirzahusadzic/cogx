@@ -46,11 +46,16 @@ describe('useOverlays', () => {
   });
 
   describe('initial state', () => {
-    it('should start with loading true', () => {
+    it('should start with loading true', async () => {
       const { result } = renderHook(() => useOverlays(defaultOptions));
 
       expect(result.current.loading).toBe(true);
       expect(result.current.overlays).toEqual([]);
+
+      // Wait for the effect to settle to avoid act() warnings
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
     });
   });
 
@@ -180,6 +185,10 @@ describe('useOverlays', () => {
     });
 
     it('should handle hasData errors gracefully', async () => {
+      const consoleError = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
       mockHasData.mockRejectedValue(new Error('Check failed'));
 
       const { result } = renderHook(() => useOverlays(defaultOptions));
@@ -190,6 +199,12 @@ describe('useOverlays', () => {
 
       // The Promise.all should still resolve
       expect(result.current.overlays.length).toBeGreaterThanOrEqual(0);
+      expect(consoleError).toHaveBeenCalledWith(
+        'Failed to load overlays:',
+        expect.any(Error)
+      );
+
+      consoleError.mockRestore();
     });
   });
 
@@ -198,12 +213,17 @@ describe('useOverlays', () => {
       const { OverlayRegistry } =
         await import('../../../../core/algebra/overlay-registry.js');
 
-      renderHook(() =>
+      const { result } = renderHook(() =>
         useOverlays({
           pgcRoot: '/custom/path/.open_cognition',
           workbenchUrl: 'http://localhost:9000',
         })
       );
+
+      // Wait for the effect to settle
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
 
       expect(OverlayRegistry).toHaveBeenCalledWith(
         '/custom/path/.open_cognition',
@@ -215,11 +235,16 @@ describe('useOverlays', () => {
       const { OverlayRegistry } =
         await import('../../../../core/algebra/overlay-registry.js');
 
-      renderHook(() =>
+      const { result } = renderHook(() =>
         useOverlays({
           pgcRoot: '/test/.open_cognition',
         })
       );
+
+      // Wait for the effect to settle
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
 
       expect(OverlayRegistry).toHaveBeenCalledWith(
         '/test/.open_cognition',
