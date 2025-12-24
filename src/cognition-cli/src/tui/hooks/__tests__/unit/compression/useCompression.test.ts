@@ -78,7 +78,7 @@ describe('useCompression', () => {
         result.current.triggerCompression();
       });
 
-      expect(onTrigger).toHaveBeenCalledWith(130000, 10);
+      expect(onTrigger).toHaveBeenCalledWith(130000, 10, false);
       expect(result.current.state.triggered).toBe(true);
       expect(result.current.state.compressionCount).toBe(1);
     });
@@ -108,7 +108,7 @@ describe('useCompression', () => {
         result.current.triggerCompression();
       });
 
-      expect(onTrigger).toHaveBeenCalledWith(130000, 10);
+      expect(onTrigger).toHaveBeenCalledWith(130000, 10, false);
     });
 
     it('should calculate shouldTrigger=false after first manual trigger', async () => {
@@ -182,7 +182,7 @@ describe('useCompression', () => {
         result.current.triggerCompression();
       });
 
-      expect(onTrigger).toHaveBeenCalledWith(100000, 10);
+      expect(onTrigger).toHaveBeenCalledWith(100000, 10, false);
       expect(result.current.state.triggered).toBe(true);
       expect(result.current.state.compressionCount).toBe(1);
     });
@@ -386,7 +386,7 @@ describe('useCompression', () => {
         result.current.triggerCompression();
       });
 
-      expect(onTrigger).toHaveBeenCalledWith(130001, 10);
+      expect(onTrigger).toHaveBeenCalledWith(130001, 10, false);
     });
 
     it('should respect enabled flag', async () => {
@@ -430,7 +430,7 @@ describe('useCompression', () => {
         result.current.triggerCompression();
       });
 
-      expect(onTrigger).toHaveBeenCalledWith(130001, 10);
+      expect(onTrigger).toHaveBeenCalledWith(130001, 10, false);
     });
   });
 
@@ -487,7 +487,7 @@ describe('useCompression', () => {
 
       expect(consoleSpy).toHaveBeenCalled();
       expect(consoleSpy).toHaveBeenCalledWith(
-        '[useCompression] Manual compression trigger'
+        '[useCompression] Manual compression trigger (semantic: false)'
       );
 
       consoleSpy.mockRestore();

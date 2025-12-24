@@ -658,7 +658,11 @@ async function reconstructQuestContext(
   const quest = detectCurrentQuest(lattice);
   const mentalMap = buildMentalMap(lattice);
   const currentDepth = getCurrentDepth(lattice);
-  const { turns, pendingTask } = getLastConversationTurns(lattice);
+
+  // Denser recaps for Gemini to respect 1M TPM
+  const isGemini = modelName && modelName.includes('gemini');
+  const turnCount = isGemini ? 3 : 5;
+  const { turns, pendingTask } = getLastConversationTurns(lattice, turnCount);
 
   const statusEmoji = quest.completed ? '✅' : '🔄';
 
@@ -750,14 +754,17 @@ Use these to retrieve specific context from the lattice:
  * @param lattice - Conversation lattice with nodes and metadata
  * @returns Recent turns (last 5 with roles) and optional pending task description
  */
-function getLastConversationTurns(lattice: ConversationLattice): {
+function getLastConversationTurns(
+  lattice: ConversationLattice,
+  count: number = 5
+): {
   turns: Array<{ role: string; content: string; timestamp: number }>;
   pendingTask: string | null;
 } {
   const nodes = lattice.nodes;
 
-  // Get last 5 turns for context
-  const recentNodes = nodes.slice(-5);
+  // Get last turns for context
+  const recentNodes = nodes.slice(-count);
 
   // Extract turns with roles
   const turns = recentNodes.map((node) => ({

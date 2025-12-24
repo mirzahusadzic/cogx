@@ -134,11 +134,13 @@ export interface UseCompressionOptions extends CompressionOptions {
    *
    * @param tokens - Token count at compression time
    * @param turns - Turn count at compression time
+   * @param isSemanticEvent - Whether this was a semantic trigger
    * @returns Promise that resolves when compression completes (or void for sync callbacks)
    */
   onCompressionTriggered?: (
     tokens: number,
-    turns: number
+    turns: number,
+    isSemanticEvent?: boolean
   ) => void | Promise<void>;
 
   /**
@@ -180,12 +182,12 @@ export interface UseCompressionResult {
   /**
    * Manually trigger compression
    *
-   * Call this function to execute compression when shouldTrigger is true.
    * Updates state and invokes onCompressionTriggered callback.
    *
+   * @param isSemanticEvent - Whether this is a semantic trigger
    * @returns Promise that resolves when compression completes
    */
-  triggerCompression: () => Promise<void>;
+  triggerCompression: (isSemanticEvent?: boolean) => Promise<void>;
 
   /**
    * Reset compression state (call when new session starts)
@@ -200,14 +202,17 @@ export interface UseCompressionResult {
    * Returns diagnostic information about current compression state
    * and why it should/shouldn't trigger.
    *
+   * @param isSemanticEvent - Whether to check for semantic trigger
    * @returns Object with current metrics and reasoning
    */
-  getTriggerInfo: () => {
+  getTriggerInfo: (isSemanticEvent?: boolean) => {
+    shouldTrigger: boolean;
     currentTokens: number;
     threshold: number;
     currentTurns: number;
     minTurns: number;
     reason: string;
+    isSemanticEvent?: boolean;
   };
 }
 
@@ -341,22 +346,31 @@ export function useCompression(
    *
    * @returns Promise that resolves when compression callback completes
    */
-  const triggerCompression = useCallback(async () => {
-    if (debug) {
-      console.log('[useCompression] Manual compression trigger');
-    }
+  const triggerCompression = useCallback(
+    async (isSemanticEvent: boolean = false) => {
+      if (debug) {
+        console.log(
+          `[useCompression] Manual compression trigger (semantic: ${isSemanticEvent})`
+        );
+      }
 
-    triggerRef.current.markTriggered();
-    stateRef.current.triggered = true;
-    setTriggeredState(true); // Update React state to invalidate shouldTrigger memo
-    stateRef.current.lastCompression = new Date();
-    stateRef.current.lastCompressedTokens = tokenCount;
-    stateRef.current.compressionCount++;
+      triggerRef.current.markTriggered();
+      stateRef.current.triggered = true;
+      setTriggeredState(true); // Update React state to invalidate shouldTrigger memo
+      stateRef.current.lastCompression = new Date();
+      stateRef.current.lastCompressedTokens = tokenCount;
+      stateRef.current.compressionCount++;
 
-    // CRITICAL: Await the callback to block UI until compression completes
-    // This ensures recap is ready and session is reset before user can send next message
-    await onCompressionTriggered?.(tokenCount, analyzedTurns);
-  }, [tokenCount, analyzedTurns, onCompressionTriggered, debug]);
+      // CRITICAL: Await the callback to block UI until compression completes
+      // This ensures recap is ready and session is reset before user can send next message
+      await onCompressionTriggered?.(
+        tokenCount,
+        analyzedTurns,
+        isSemanticEvent
+      );
+    },
+    [tokenCount, analyzedTurns, onCompressionTriggered, debug]
+  );
 
   /**
    * Reset compression state
@@ -380,16 +394,25 @@ export function useCompression(
    * Returns current compression decision details including
    * token counts, thresholds, and reasoning.
    */
-  const getTriggerInfo = useCallback(() => {
-    const result = triggerRef.current.shouldTrigger(tokenCount, analyzedTurns);
-    return {
-      currentTokens: result.currentTokens,
-      threshold: result.threshold,
-      currentTurns: result.currentTurns,
-      minTurns: result.minTurns,
-      reason: result.reason,
-    };
-  }, [tokenCount, analyzedTurns]);
+  const getTriggerInfo = useCallback(
+    (isSemanticEvent: boolean = false) => {
+      const result = triggerRef.current.shouldTrigger(
+        tokenCount,
+        analyzedTurns,
+        isSemanticEvent
+      );
+      return {
+        shouldTrigger: result.shouldTrigger,
+        currentTokens: result.currentTokens,
+        threshold: result.threshold,
+        currentTurns: result.currentTurns,
+        minTurns: result.minTurns,
+        reason: result.reason,
+        isSemanticEvent,
+      };
+    },
+    [tokenCount, analyzedTurns]
+  );
 
   // Memoize shouldTrigger to prevent recomputation on every render
   // Include triggeredState so memo updates when triggered/reset is called

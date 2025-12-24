@@ -94,6 +94,9 @@ export interface AgentRequest {
   /** Session anchor ID (for SigmaTaskUpdate state persistence) */
   anchorId?: string;
 
+  /** Remaining Tokens Per Minute (TPM) budget for dynamic adjustment */
+  remainingTPM?: number;
+
   /** Error callback */
   onStderr?: (error: string) => void;
 
@@ -160,6 +163,12 @@ export interface AgentResponse {
 
   /** Number of turns (agent reasoning cycles) */
   numTurns: number;
+
+  /** Tool result information (if this response contains a tool result) */
+  toolResult?: {
+    name: string;
+    response: unknown;
+  };
 }
 
 /**

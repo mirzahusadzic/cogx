@@ -14,8 +14,11 @@ import {
 
 /**
  * Maximum characters for tool output before truncation.
+ * Default is 50k, but we use tighter limits for specific tools to save tokens.
  */
 export const MAX_TOOL_OUTPUT_CHARS = 50000;
+export const MAX_READ_FILE_CHARS = 20000; // ~5k tokens
+export const MAX_BASH_CHARS = 30000; // ~7.5k tokens
 
 /**
  * Threshold for eGemma summarization (chars).
@@ -50,9 +53,24 @@ export function getWorkbenchClient(workbenchUrl?: string): WorkbenchClient {
  */
 export function truncateOutput(
   output: string,
-  maxChars: number = MAX_TOOL_OUTPUT_CHARS
+  maxChars: number = MAX_TOOL_OUTPUT_CHARS,
+  strategy: 'tail' | 'head-tail' = 'tail'
 ): string {
   if (output.length <= maxChars) return output;
+
+  if (strategy === 'head-tail') {
+    const headSize = Math.floor(maxChars * 0.3); // 30% head
+    const tailSize = maxChars - headSize; // 70% tail
+    const head = output.substring(0, headSize);
+    const tail = output.substring(output.length - tailSize);
+    const middleLines =
+      (output.match(/\n/g) || []).length -
+      (head.match(/\n/g) || []).length -
+      (tail.match(/\n/g) || []).length;
+
+    return `${head}\n\n... [TRUNCATED: ${middleLines} lines omitted for token optimization] ...\n\n${tail}`;
+  }
+
   const truncated = output.substring(0, maxChars);
   const lineCount = (output.match(/\n/g) || []).length;
   const truncatedLineCount = (truncated.match(/\n/g) || []).length;
@@ -65,63 +83,60 @@ export function truncateOutput(
 export async function smartCompressOutput(
   output: string,
   toolType: 'bash' | 'grep' | 'read_file' | 'glob',
-  maxChars: number = MAX_TOOL_OUTPUT_CHARS,
+  maxChars?: number,
   workbenchUrl?: string
 ): Promise<string> {
+  // Use tool-specific defaults if maxChars not provided
+  const limit =
+    maxChars ||
+    (toolType === 'read_file' ? MAX_READ_FILE_CHARS : MAX_TOOL_OUTPUT_CHARS);
+
   // Tier 1: Small outputs pass through untouched.
-  if (output.length <= EGEMMA_SUMMARIZE_THRESHOLD) {
+  if (output.length <= limit) {
     return output;
   }
 
-  // Only summarize bash output - agent needs raw content for read_file/grep/glob
-  if (toolType !== 'bash') {
-    return truncateOutput(output, maxChars);
+  // Tier 2: Read file gets aggressive truncation with recall pointer
+  if (toolType === 'read_file') {
+    return truncateOutput(output, limit, 'tail');
   }
 
-  // Tier 3: Catastrophically large outputs - truncate THEN summarize
-  let contentToSummarize = output;
-  let wasTruncated = false;
-  if (output.length > PRE_TRUNCATE_THRESHOLD) {
-    contentToSummarize = output.substring(0, EGEMMA_SUMMARIZE_THRESHOLD);
-    wasTruncated = true;
-  }
+  // Tier 3: Bash gets Head + Tail truncation to preserve errors at the end
+  if (toolType === 'bash') {
+    // If output is extremely large, try to summarize via eGemma first
+    if (output.length > EGEMMA_SUMMARIZE_THRESHOLD) {
+      if (workbenchAvailable === null) {
+        try {
+          const client = getWorkbenchClient(workbenchUrl);
+          await client.health();
+          workbenchAvailable = true;
+        } catch {
+          workbenchAvailable = false;
+        }
+      }
 
-  // Tier 2: Medium outputs are suitable for intelligent summarization.
-  if (workbenchAvailable === null) {
-    try {
-      const client = getWorkbenchClient(workbenchUrl);
-      await client.health();
-      workbenchAvailable = true;
-    } catch {
-      workbenchAvailable = false;
+      if (workbenchAvailable) {
+        try {
+          const client = getWorkbenchClient(workbenchUrl);
+          const response = await client.summarize({
+            content: `Tool: bash\nOutput length: ${output.length} chars\n\n${output.substring(0, EGEMMA_SUMMARIZE_THRESHOLD)}`,
+            filename: `bash_output.txt`,
+            persona: PERSONA_TOOL_OUTPUT_SUMMARIZER,
+            max_tokens: DEFAULT_SUMMARIZER_MAX_TOKENS,
+            temperature: 0.1,
+            model_name: DEFAULT_SUMMARIZER_MODEL_NAME,
+          });
+          return `[eGemma Summary - ${output.length} chars compressed]\n\n${response.summary}\n\n[Final 5k chars of raw output follows]\n${output.substring(output.length - 5000)}`;
+        } catch {
+          // Fallback to head-tail truncation
+        }
+      }
     }
+    return truncateOutput(output, MAX_BASH_CHARS, 'head-tail');
   }
 
-  if (!workbenchAvailable) {
-    return truncateOutput(contentToSummarize, maxChars);
-  }
-
-  try {
-    const client = getWorkbenchClient(workbenchUrl);
-    const truncationNote = wasTruncated
-      ? `\n[NOTE: Original output was ${output.length} chars, truncated to ${contentToSummarize.length} before summarization]`
-      : '';
-    const response = await client.summarize({
-      content: `Tool: ${toolType}\nOutput length: ${output.length} chars${truncationNote}\n\n${contentToSummarize}`,
-      filename: `tool_output.${toolType}`,
-      persona: PERSONA_TOOL_OUTPUT_SUMMARIZER,
-      max_tokens: DEFAULT_SUMMARIZER_MAX_TOKENS,
-      temperature: 0.1,
-      model_name: DEFAULT_SUMMARIZER_MODEL_NAME,
-    });
-
-    const prefix = wasTruncated
-      ? `[eGemma Summary - ${output.length} chars (truncated+summarized)]`
-      : `[eGemma Summary - ${output.length} chars compressed]`;
-    return `${prefix}\n\n${response.summary}`;
-  } catch {
-    return truncateOutput(contentToSummarize, maxChars);
-  }
+  // Tier 4: Default truncation for grep/glob
+  return truncateOutput(output, limit);
 }
 
 /**

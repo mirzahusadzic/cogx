@@ -170,6 +170,12 @@ export class GeminiAgentProvider implements AgentProvider {
     const modelId = request.model || 'gemini-3-flash-preview';
     const isGemini3 = modelId.includes('gemini-3');
 
+    // Dynamic Thinking Budgeting:
+    // If TPM is low (< 200k), reduce thinking budget significantly
+    const remainingTPM = request.remainingTPM ?? 1000000;
+    const isTPMLow = remainingTPM < 200000;
+    const defaultThinkingBudget = isTPMLow ? 8192 : 24576;
+
     const agent = new LlmAgent({
       name: 'cognition_agent',
       model: modelId,
@@ -181,8 +187,9 @@ export class GeminiAgentProvider implements AgentProvider {
           ? {
               // GEMINI 3.0 CONFIG (Requires SDK bypass currently)
               thinkingConfig: {
-                thinkingLevel: 'HIGH', // "LOW" for speed, "HIGH" for deep reasoning
-                includeThoughts: request.displayThinking !== false, // Optional: returns the hidden chain-of-thought
+                // Reduced thinking for low TPM (though HIGH is usually preferred for Gemini 3)
+                thinkingLevel: isTPMLow ? 'LOW' : 'HIGH',
+                includeThoughts: request.displayThinking !== false,
               },
             }
           : {
@@ -190,13 +197,15 @@ export class GeminiAgentProvider implements AgentProvider {
               thinkingConfig: {
                 thinkingBudget:
                   request.maxThinkingTokens !== undefined
-                    ? Math.min(request.maxThinkingTokens, 24576)
-                    : -1,
+                    ? Math.min(request.maxThinkingTokens, defaultThinkingBudget)
+                    : isTPMLow
+                      ? 8192
+                      : -1,
                 includeThoughts: request.displayThinking !== false,
               },
             }),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any, // <--- Cast to 'any' to avoid TS errors in @google/adk v0.1.3
+      } as any,
     });
 
     // Create runner
@@ -451,6 +460,11 @@ export class GeminiAgentProvider implements AgentProvider {
                 },
                 finishReason: 'tool_use', // Tool result, not stop - agent continues
                 numTurns,
+                // Pass back the tool result information for compression triggers
+                toolResult: {
+                  name: part.functionResponse.name,
+                  response: part.functionResponse.response,
+                },
               };
 
               // Reset assistant accumulator after tool result - next assistant message will be a new response

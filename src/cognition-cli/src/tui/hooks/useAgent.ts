@@ -1004,12 +1004,16 @@ export function useAgent(options: UseAgentOptions) {
   );
 
   // Compression orchestration (replaces inline compression trigger logic)
+  const isGemini =
+    providerName === 'gemini' || (modelName && modelName.includes('gemini'));
   const compression = useCompression({
     tokenCount: tokenCounter.count.total,
     analyzedTurns: turnAnalysis.stats.totalAnalyzed,
     isThinking,
     tokenThreshold: sessionTokens,
-    minTurns: 5,
+    semanticThreshold: isGemini ? 50000 : undefined,
+    tpmLimit: isGemini ? 1000000 : undefined,
+    minTurns: isGemini ? 1 : 5,
     enabled: true,
     debug: debugFlag,
     onCompressionTriggered: handleCompressionTriggered,
@@ -1850,6 +1854,7 @@ export function useAgent(options: UseAgentOptions) {
           projectRoot: cwd, // Pass project root for agent discovery
           agentId: sessionIdProp || 'unknown', // Pass current agent ID for excluding self from listings
           anchorId, // Pass session anchor ID for SigmaTaskUpdate state persistence
+          remainingTPM: 1000000 - tokenCounter.count.total, // Pass remaining TPM for dynamic budgeting
           onStderr: (data: string) => {
             stderrLines.push(data);
           },
@@ -1920,6 +1925,7 @@ export function useAgent(options: UseAgentOptions) {
         let lastResponse:
           | import('../../llm/agent-provider-interface.js').AgentResponse
           | null = null;
+        let turnWasSemantic = false; // Tracks if SigmaTaskUpdate was used in this turn
 
         for await (const response of adapter.query(finalPrompt)) {
           lastResponse = response;
@@ -1992,6 +1998,16 @@ export function useAgent(options: UseAgentOptions) {
           };
           tokenCounter.update(newTokens);
 
+          // Check for semantic triggers (SigmaTaskUpdate)
+          if (
+            response.toolResult &&
+            (response.toolResult.name === 'SigmaTaskUpdate' ||
+              response.toolResult.name ===
+                'mcp__sigma-task-update__SigmaTaskUpdate')
+          ) {
+            turnWasSemantic = true;
+          }
+
           // Process new messages
           for (const agentMessage of newMessages) {
             if (agentMessage.type === 'assistant') {
@@ -2037,6 +2053,19 @@ export function useAgent(options: UseAgentOptions) {
                 ]);
               }
             }
+          }
+
+          // Trigger semantic compression if SigmaTaskUpdate was used (Gemini only)
+          if (
+            providerName === 'gemini' &&
+            turnWasSemantic &&
+            compression.getTriggerInfo(true).shouldTrigger
+          ) {
+            debug('🔄 Semantic compression triggered by SigmaTaskUpdate...');
+            // Don't wait - this will happen before the next turn's user message
+            // or we can wait here to ensure it flushes before next turn
+            await compression.triggerCompression(true);
+            debug('✅ Semantic compression complete');
           }
         }
 

@@ -120,7 +120,9 @@ export class CompressionTrigger {
   constructor(options: CompressionOptions = {}) {
     this.options = {
       tokenThreshold: options.tokenThreshold ?? 120000,
-      minTurns: options.minTurns ?? 5,
+      semanticThreshold: options.semanticThreshold ?? 50000,
+      tpmLimit: options.tpmLimit ?? 1000000,
+      minTurns: options.minTurns ?? 1,
       enabled: options.enabled ?? true,
     };
   }
@@ -140,27 +142,18 @@ export class CompressionTrigger {
    *    - If not enough turns, return false with reason
    * 4. Check if token threshold exceeded
    *    - If below threshold, return false with current count
+   *    - Note: Uses semanticThreshold if isSemanticEvent is true
    * 5. All conditions met - return true with detailed reason
    *
    * @param currentTokens - Current total token count from PGC
    * @param currentTurns - Number of conversation turns completed
+   * @param isSemanticEvent - Whether this check is triggered by a semantic event (e.g. SigmaTaskUpdate)
    * @returns Detailed result including decision and reasoning
-   *
-   * @example
-   * const result = trigger.shouldTrigger(125000, 8);
-   * if (result.shouldTrigger) {
-   *   console.log(result.reason);
-   *   // "125000 tokens > 120000 threshold with 8 turns"
-   * }
-   *
-   * @example
-   * const result = trigger.shouldTrigger(85000, 3);
-   * console.log(result.shouldTrigger); // false
-   * console.log(result.reason); // "Only 3 turns analyzed, need 5"
    */
   shouldTrigger(
     currentTokens: number,
-    currentTurns: number
+    currentTurns: number,
+    isSemanticEvent: boolean = false
   ): CompressionTriggerResult {
     // Compression disabled
     if (!this.options.enabled) {
@@ -198,26 +191,51 @@ export class CompressionTrigger {
       };
     }
 
-    // Token threshold not reached
-    if (currentTokens <= this.options.tokenThreshold) {
+    // Determine applicable threshold
+    const effectiveThreshold = isSemanticEvent
+      ? this.options.semanticThreshold
+      : this.options.tokenThreshold;
+
+    // Check TPM-Aware Runway
+    // If next turn + overhead would exceed TPM, force compression
+    const estimatedNextTurnSize = currentTokens / Math.max(currentTurns, 1);
+    const safetyMargin = 1.2; // 20% overhead
+    const remainingTPM = this.options.tpmLimit - currentTokens;
+
+    if (estimatedNextTurnSize * safetyMargin > remainingTPM) {
       return {
-        shouldTrigger: false,
-        reason: `${currentTokens} tokens (threshold: ${this.options.tokenThreshold})`,
+        shouldTrigger: true,
+        reason: `TPM Runway Exhaustion: ${Math.round(remainingTPM)} tokens remaining, next turn estimated at ${Math.round(estimatedNextTurnSize)}`,
         currentTokens,
-        threshold: this.options.tokenThreshold,
+        threshold: effectiveThreshold,
         currentTurns,
         minTurns: this.options.minTurns,
+        isSemanticEvent,
+      };
+    }
+
+    // Token threshold not reached
+    if (currentTokens <= effectiveThreshold) {
+      return {
+        shouldTrigger: false,
+        reason: `${currentTokens} tokens (threshold: ${effectiveThreshold}${isSemanticEvent ? ' [SEMANTIC]' : ''})`,
+        currentTokens,
+        threshold: effectiveThreshold,
+        currentTurns,
+        minTurns: this.options.minTurns,
+        isSemanticEvent,
       };
     }
 
     // All conditions met - trigger compression!
     return {
       shouldTrigger: true,
-      reason: `${currentTokens} tokens > ${this.options.tokenThreshold} threshold with ${currentTurns} turns`,
+      reason: `${currentTokens} tokens > ${effectiveThreshold} threshold ${isSemanticEvent ? '(SEMANTIC) ' : ''}with ${currentTurns} turns`,
       currentTokens,
-      threshold: this.options.tokenThreshold,
+      threshold: effectiveThreshold,
       currentTurns,
       minTurns: this.options.minTurns,
+      isSemanticEvent,
     };
   }
 

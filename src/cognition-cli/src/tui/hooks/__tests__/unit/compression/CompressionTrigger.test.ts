@@ -148,7 +148,7 @@ describe('CompressionTrigger', () => {
       const options = defaultTrigger.getOptions();
 
       expect(options.tokenThreshold).toBe(120000);
-      expect(options.minTurns).toBe(5);
+      expect(options.minTurns).toBe(1);
       expect(options.enabled).toBe(true);
     });
   });

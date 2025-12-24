@@ -95,6 +95,9 @@ export interface AgentAdapterOptions {
   /** Session anchor ID (for SigmaTaskUpdate state persistence) */
   anchorId?: string;
 
+  /** Remaining Tokens Per Minute (TPM) budget for dynamic adjustment */
+  remainingTPM?: number;
+
   /** Debug mode */
   debug?: boolean;
 }
@@ -154,6 +157,7 @@ export class AgentProviderAdapter {
       projectRoot: this.options.projectRoot || this.options.cwd,
       agentId: this.options.agentId,
       anchorId: this.options.anchorId,
+      remainingTPM: this.options.remainingTPM,
       onStderr: this.options.onStderr,
       onCanUseTool: this.options.onCanUseTool,
       systemPrompt: {

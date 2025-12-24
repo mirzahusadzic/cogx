@@ -71,12 +71,31 @@ export interface CompressionOptions {
   tokenThreshold?: number;
 
   /**
+   * Lower token threshold for semantic events (e.g., task updates)
+   *
+   * If a semantic event is detected (like SigmaTaskUpdate), we trigger
+   * compression at a much lower threshold (e.g. 50k) to keep the context lean.
+   *
+   * @default 50000
+   */
+  semanticThreshold?: number;
+
+  /**
+   * Maximum Tokens Per Minute (TPM) for the model.
+   * If current session tokens approach this limit, compression is forced
+   * regardless of other thresholds.
+   *
+   * @default 1000000 (1M for Gemini 3.0)
+   */
+  tpmLimit?: number;
+
+  /**
    * Minimum number of turns required before compression can trigger
    *
    * Prevents premature compression in short conversations where compression
    * overhead would outweigh benefits. A turn is a user-assistant exchange.
    *
-   * @default 5
+   * @default 1
    */
   minTurns?: number;
 
@@ -162,6 +181,11 @@ export interface CompressionTriggerResult {
    * Configured minimum turns value
    */
   minTurns: number;
+
+  /**
+   * Whether the check was triggered by a semantic event
+   */
+  isSemanticEvent?: boolean;
 }
 
 /**
