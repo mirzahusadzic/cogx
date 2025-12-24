@@ -894,9 +894,8 @@ function formatLastTurns(
 
   let result = `## Recent Conversation\n\n${formattedTurns}`;
 
-  // Add task list if present with incomplete items (takes precedence over heuristic)
-  const incompleteTasks = todos?.filter((t) => t.status !== 'completed') || [];
-  if (incompleteTasks.length > 0) {
+  // Add task list if present (takes precedence over heuristic)
+  if ((todos?.length || 0) > 0) {
     const taskLines = (todos || [])
       .map((t) => {
         const icon =
@@ -911,11 +910,20 @@ function formatLastTurns(
       .join('\n');
 
     const inProgressTask = todos?.find((t) => t.status === 'in_progress');
-    const continueInstruction = inProgressTask
-      ? `\n\n**Continue with: "${inProgressTask.activeForm}"**`
-      : '\n\n**Continue with the next pending task.**';
+    const incompleteTasks =
+      todos?.filter((t) => t.status !== 'completed') || [];
 
-    result += `\n\n## 📋 Active Task List\n\n${taskLines}${continueInstruction}`;
+    let continueInstruction = '';
+    if (inProgressTask) {
+      continueInstruction = `\n\n**Continue with: "${inProgressTask.activeForm}"**`;
+    } else if (incompleteTasks.length > 0) {
+      continueInstruction = '\n\n**Continue with the next pending task.**';
+    } else {
+      continueInstruction =
+        '\n\n**All tasks in the current list are completed.**';
+    }
+
+    result += `\n\n## 📋 Task List\n\n${taskLines}${continueInstruction}`;
   }
   // Fallback: Add pending task warning if present (heuristic detection)
   else if (pendingTask) {
@@ -1051,7 +1059,7 @@ function filterLatticeByOverlayScores(
  * @param todos - Optional task list from session state
  * @returns Markdown-formatted chat mode recap
  */
-async function reconstructChatContext(
+export async function reconstructChatContext(
   lattice: ConversationLattice,
   cwd: string,
   conversationRegistry?: ConversationOverlayRegistry,
