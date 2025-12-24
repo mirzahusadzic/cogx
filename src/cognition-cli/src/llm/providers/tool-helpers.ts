@@ -54,7 +54,7 @@ export function getWorkbenchClient(workbenchUrl?: string): WorkbenchClient {
 export function truncateOutput(
   output: string,
   maxChars: number = MAX_TOOL_OUTPUT_CHARS,
-  strategy: 'tail' | 'head-tail' = 'tail'
+  strategy: 'head' | 'tail' | 'head-tail' = 'head'
 ): string {
   if (output.length <= maxChars) return output;
 
@@ -69,6 +69,13 @@ export function truncateOutput(
       (tail.match(/\n/g) || []).length;
 
     return `${head}\n\n... [TRUNCATED: ${middleLines} lines omitted for token optimization] ...\n\n${tail}`;
+  }
+
+  if (strategy === 'tail') {
+    const truncated = output.substring(output.length - maxChars);
+    const lineCount = (output.match(/\n/g) || []).length;
+    const truncatedLineCount = (truncated.match(/\n/g) || []).length;
+    return `... [TRUNCATED: showing last ${truncatedLineCount} of ${lineCount} lines. Use limit/offset params for specific sections]\n\n${truncated}`;
   }
 
   const truncated = output.substring(0, maxChars);
@@ -96,9 +103,9 @@ export async function smartCompressOutput(
     return output;
   }
 
-  // Tier 2: Read file gets aggressive truncation with recall pointer
+  // Tier 2: Read file gets head-tail truncation to preserve imports and end-of-file content (logs/errors)
   if (toolType === 'read_file') {
-    return truncateOutput(output, limit, 'tail');
+    return truncateOutput(output, limit, 'head-tail');
   }
 
   // Tier 3: Bash gets Head + Tail truncation to preserve errors at the end
