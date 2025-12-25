@@ -999,10 +999,8 @@ After Phase 4 implementation, track:
 
 ### Related Documentation
 
-- [IPC Bus Protocol](./ipc-patterns.md)
-- [MCP Tools Reference](./mcp-tools-reference.md)
-- [Sigma Task Update Tool](./sigma-task-update-fixes.md)
-- [PGC Architecture](../architecture/pgc-overlays.md) _(if exists)_
+- [Sigma Task Delegation Architecture](../architecture/SIGMA_TASK_DELEGATION.md)
+- [Multi-Overlay Architecture](../architecture/MULTI_OVERLAY_ARCHITECTURE.md)
 - [Agent Delegation Patterns](./pgc-delegation-protocol.md) _(this document)_
 
 ---
