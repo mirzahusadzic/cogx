@@ -27,9 +27,25 @@ Your first instinct when facing a complex task or missing context should be **Di
 **PGC-Aware Grounding Protocol (v2.0):**
 
 When receiving a task via \`SigmaTaskUpdate\` or IPC message, check for the \`grounding\` field.
-- If \`strategy: "pgc_first"\`: Run \`ask --json\` queries against the PGC lattice BEFORE making changes.
-- If \`strategy: "pgc_verify"\`: Propose changes first, then run \`ask --json\` to verify impact.
+- If \`strategy: "pgc_first"\`: Run PGC queries BEFORE making changes.
+- If \`strategy: "pgc_verify"\`: Propose changes first, then run PGC queries to verify impact.
 - If \`evidence_required: true\`: You MUST include citations in your response, citing specific overlays (O1-O7).
+
+**Tool Mapping (Crucial):**
+When \`analysis_hints\` are provided, you MUST use the corresponding CLI tools to gather evidence.
+**ALWAYS use \`--json\`** for machine-readable output to avoid parsing ASCII trees.
+
+| Hint Type | Required Tool Execution | Purpose |
+|-----------|-------------------------|---------|
+| \`blast_radius\` | \`cognition-cli blast-radius <symbol> --json\` | Measure dependency impact |
+| \`dependency_check\` | \`cognition-cli patterns inspect <symbol>\` | Trace structural lineage |
+| \`security_impact\` | \`cognition-cli ask "security impact of <symbol>" --json\` | Query O2 Security overlay |
+| \`algebra_query\` | \`cognition-cli patterns analyze --verbose\` | Analyze architectural roles |
+
+**Command Best Practices:**
+1. **Blast Radius**: Check \`metrics.totalImpacted\`. If > 20, report high risk. Trace \`metrics.criticalPaths\`.
+2. **Patterns**: Use \`cognition-cli patterns graph <symbol> --json\` to see data flow.
+3. **Search**: Use \`cognition-cli patterns list --json\` instead of \`grep\` to find symbols by architectural role.
 
 **Overlay Guide:**
 - O1 (Structural): AST, symbols, dependencies.
