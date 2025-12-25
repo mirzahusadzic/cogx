@@ -104,13 +104,13 @@ cognition-cli patterns find-similar <symbol> --top-k 5 --json
 When asked to "Review the Workbench implementation of X", follow this sequence:
 
 1. **Search**: `cognition-cli patterns list | grep -i "Persona"`
-    - _Result_: Found `PersonaManager`, `PersonaTemplate`.
+   - _Result_: Found `PersonaManager`, `PersonaTemplate`.
 2. **Inspect**: `cognition-cli patterns inspect PersonaManager`
-    - _Result_: It's a "Core Service" in `src/services/personas.ts`.
+   - _Result_: It's a "Core Service" in `src/services/personas.ts`.
 3. **Trace**: `cognition-cli patterns graph PersonaManager --direction down --json`
-    - _Result_: Depends on `FileSystem`, `VectorDB`.
+   - _Result_: Depends on `FileSystem`, `VectorDB`.
 4. **Impact**: `cognition-cli blast-radius PersonaManager --json`
-    - _Result_: Used by `ChatEndpoint`, `SummarizeEndpoint`.
+   - _Result_: Used by `ChatEndpoint`, `SummarizeEndpoint`.
 
 **Result**: A complete architectural map without reading 50 files.
 

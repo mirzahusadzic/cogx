@@ -886,18 +886,13 @@ export function useAgent(options: UseAgentOptions) {
           // Load todos from session state for injection into recap
           // (for providers without native SigmaTaskUpdate like Gemini/OpenAI)
           const sessionState = loadSessionState(anchorId, cwd);
-          const incompleteTodos = sessionState?.todos?.filter(
-            (t) => t.status !== 'completed'
-          );
 
           const sessionContext = await reconstructSessionContext(
             latticeWithPending,
             cwd,
             conversationRegistryRef.current || undefined,
             modelName,
-            incompleteTodos && incompleteTodos.length > 0
-              ? sessionState?.todos
-              : undefined
+            sessionState?.todos || undefined
           );
           debug('🔍 [COMPRESSION] Step 7: reconstructSessionContext complete');
 

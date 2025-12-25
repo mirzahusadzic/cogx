@@ -14,11 +14,6 @@ vi.mock('../query-conversation.js', () => ({
   queryConversationLattice: vi.fn(),
 }));
 
-// Mock the context-reconstructor module
-vi.mock('../context-reconstructor.js', () => ({
-  RECAP_PREVIEW_LENGTH: 500,
-}));
-
 describe('Recall Tool', () => {
   let mockRegistry: ConversationOverlayRegistry;
   let mockToolFn: ReturnType<typeof vi.fn>;
@@ -92,13 +87,12 @@ describe('Recall Tool', () => {
       );
     });
 
-    it('should include description mentioning overlays and truncation', () => {
+    it('should include description mentioning overlays', () => {
       createRecallMcpServer(mockRegistry, mockClaudeAgentSdk);
 
       const description = mockToolFn.mock.calls[0][1];
       expect(description).toContain('O1-O7');
       expect(description).toContain('LanceDB');
-      expect(description).toContain('truncated');
     });
 
     it('should create server with correct name and version', () => {

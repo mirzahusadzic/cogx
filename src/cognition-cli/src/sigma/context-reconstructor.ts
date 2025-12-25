@@ -54,12 +54,6 @@ import type { ConversationLattice, ConversationNode } from './types.js';
 import type { ConversationOverlayRegistry } from './conversation-registry.js';
 
 /**
- * Maximum length for truncated message previews in the recap.
- * Set to 256 to provide enough context for the LLM to decide whether to recall.
- */
-export const RECAP_PREVIEW_LENGTH = 256;
-
-/**
  * Conversation mode classification
  */
 export type ConversationMode = 'quest' | 'chat';
@@ -190,12 +184,10 @@ A portable cognitive layer that can be initialized in **any repository**. Create
 ## Memory Architecture
 
 **Compressed Recap (What You See Above):**
-- Recent conversation messages are truncated to ${RECAP_PREVIEW_LENGTH} characters
-- \`...\` indicates more content available - this is your **explicit instruction** to use the recall tool
-- Think of these as **pointers/needles**, not complete verbatim history
-- Designed for token efficiency while preserving navigation context
+- Recent conversation messages and key turns are included in full.
+- Designed for preserving navigation context and intent.
 
-**Full Context Retrieval (USE AGGRESSIVELY When You See \`...\`):**
+**Full Context Retrieval (Use when you need to search older history):**
 - \`recall_past_conversation\`: Retrieves FULL untruncated messages from LanceDB
 - Semantic search across all 7 overlays (O1-O7) with complete conversation history
 - **CRITICAL**: If a truncated message looks relevant to your current task, you MUST query for full details.
@@ -432,18 +424,12 @@ function detectCurrentQuest(lattice: ConversationLattice): QuestInfo {
     .filter((n) => n.importance_score >= 7)
     .sort((a, b) => b.timestamp - a.timestamp)[0];
 
-  const lastAction = lastImportant
-    ? lastImportant.content
-        .substring(0, RECAP_PREVIEW_LENGTH)
-        .replace(/\n/g, ' ')
-    : 'Continuing work';
+  const lastAction = lastImportant ? lastImportant.content : 'Continuing work';
 
   return {
     name: questName,
     completed,
-    description: lastShift.content
-      .substring(0, RECAP_PREVIEW_LENGTH)
-      .replace(/\n/g, ' '),
+    description: lastShift.content,
     lastAction,
     files,
   };
@@ -587,14 +573,9 @@ function getCurrentDepth(lattice: ConversationLattice): {
   const files = [...new Set(fileMatches)];
 
   return {
-    description: currentFocus.content
-      .substring(0, RECAP_PREVIEW_LENGTH)
-      .replace(/\n/g, ' '),
+    description: currentFocus.content,
     files,
-    lastAction: recentNodes[recentNodes.length - 1].content.substring(
-      0,
-      RECAP_PREVIEW_LENGTH
-    ),
+    lastAction: recentNodes[recentNodes.length - 1].content,
   };
 }
 
@@ -833,15 +814,14 @@ export interface SigmaTask {
  * Format last conversation turns for recap
  *
  * Formats the recent conversation turns into markdown with role attribution
- * and truncated content. Adds a prominent warning if the assistant has a
+ * and full content. Adds a prominent warning if the assistant has a
  * pending task or active tasks.
  *
  * ALGORITHM:
  * 1. For each turn:
  *    a. Format role as uppercase label [USER], [ASSISTANT], [SYSTEM]
- *    b. Truncate content to ${RECAP_PREVIEW_LENGTH} characters
- *    c. Add "..." ellipsis if content was truncated
- *    d. Format as markdown: **[ROLE]**: content...
+ *    b. Include full content for recent turns
+ *    c. Format as markdown: **[ROLE]**: content
  * 2. Join all formatted turns with double newlines
  * 3. If todos with incomplete items exist:
  *    a. Add "## 📋 Active Task List" section
@@ -854,9 +834,6 @@ export interface SigmaTask {
  * 5. Return formatted markdown string
  *
  * DESIGN:
- * The truncated turns serve as POINTERS, not complete history. The "..." is
- * a deliberate signal to use recall_past_conversation for full content.
- *
  * Role attribution ([USER], [ASSISTANT]) is critical for:
  * - Understanding conversation flow
  * - Knowing who said what
@@ -884,11 +861,7 @@ function formatLastTurns(
   const formattedTurns = turns
     .map((turn) => {
       const roleLabel = turn.role.toUpperCase();
-      const preview = turn.content
-        .substring(0, RECAP_PREVIEW_LENGTH)
-        .replace(/\n/g, ' ');
-      const ellipsis = turn.content.length > RECAP_PREVIEW_LENGTH ? '...' : '';
-      return `**[${roleLabel}]**: ${preview}${ellipsis}`;
+      return `**[${roleLabel}]**: ${turn.content}`;
     })
     .join('\n\n');
 
@@ -1009,7 +982,7 @@ function filterLatticeByOverlayScores(
  *    b. For each overlay dimension (O1-O7):
  *       - Filter turns with alignment >= 6 for that overlay
  *       - Format as numbered list with scores
- *       - Truncate content to ${RECAP_PREVIEW_LENGTH} chars (pointers, not full text)
+ *       - Include full text for key turns
  *    c. Build markdown recap by overlay section
  *    d. Include recent conversation turns
  *    e. Add recall tool instructions
@@ -1108,10 +1081,7 @@ export async function reconstructChatContext(
     recap += paradigmShifts
       .map((n) => {
         shownTurnIds.add(n.id);
-        const preview = n.content
-          .substring(0, RECAP_PREVIEW_LENGTH)
-          .replace(/\n/g, ' ');
-        return `- **[${n.role.toUpperCase()}]**: ${preview}${n.content.length > RECAP_PREVIEW_LENGTH ? '...' : ''}`;
+        return `- **[${n.role.toUpperCase()}]**: ${n.content}`;
       })
       .join('\n');
     recap += '\n';
@@ -1128,10 +1098,7 @@ export async function reconstructChatContext(
     recap += uniqueData
       .map((item, i) => {
         shownTurnIds.add(item.id);
-        const preview = item.text
-          .substring(0, RECAP_PREVIEW_LENGTH)
-          .replace(/\n/g, ' ');
-        return `${i + 1}. [Score: ${item.score}/10] **[${item.role.toUpperCase()}]**: ${preview}${item.text.length > RECAP_PREVIEW_LENGTH ? '...' : ''}`;
+        return `${i + 1}. [Score: ${item.score}/10] **[${item.role.toUpperCase()}]**: ${item.text}`;
       })
       .join('\n');
     recap += '\n';
@@ -1151,7 +1118,7 @@ export async function reconstructChatContext(
 
 **Memory Tool Available**: You have access to \`recall_past_conversation\` tool. Use it anytime you need to remember specific past discussions. The tool uses semantic search across all conversation history.
 
-**IMPORTANT**: The recap above shows messages truncated to ${RECAP_PREVIEW_LENGTH} characters. When you see \`...\` it's an **explicit signal** that more content is available. Use \`recall_past_conversation\` to retrieve the FULL untruncated message. Think of the recap as navigation pointers, not complete verbatim history.
+**IMPORTANT**: The recap above shows key messages from the conversation history. Use \`recall_past_conversation\` to retrieve more content or search across all conversation history. Think of the recap as navigation pointers to the most important moments.
 `;
 
   return recap.trim();

@@ -301,6 +301,7 @@ describe('Tool Executors', () => {
 
       vi.doMock('../../../sigma/session-state.js', () => ({
         updateTasksByAnchorId: mockUpdateTodosByAnchorId,
+        loadSessionState: vi.fn().mockReturnValue({ todos: [] }),
       }));
 
       // Re-import after mocking
@@ -344,6 +345,7 @@ describe('Tool Executors', () => {
 
       vi.doMock('../../../sigma/session-state.js', () => ({
         updateTasksByAnchorId: mockUpdateTodosByAnchorId,
+        loadSessionState: vi.fn().mockReturnValue({ todos: [] }),
       }));
 
       const { executeSigmaTaskUpdate: executeSigmaTaskUpdateTest } =
@@ -377,6 +379,7 @@ describe('Tool Executors', () => {
 
       vi.doMock('../../../sigma/session-state.js', () => ({
         updateTasksByAnchorId: mockUpdateTodosByAnchorId,
+        loadSessionState: vi.fn().mockReturnValue({ todos: [] }),
       }));
 
       const { executeSigmaTaskUpdate: executeSigmaTaskUpdateTest } =
@@ -397,6 +400,7 @@ describe('Tool Executors', () => {
 
       vi.doMock('../../../sigma/session-state.js', () => ({
         updateTasksByAnchorId: mockUpdateTodosByAnchorId,
+        loadSessionState: vi.fn().mockReturnValue({ todos: [] }),
       }));
 
       const { executeSigmaTaskUpdate: executeSigmaTaskUpdateTest } =
@@ -424,6 +428,7 @@ describe('Tool Executors', () => {
 
       vi.doMock('../../../sigma/session-state.js', () => ({
         updateTasksByAnchorId: mockUpdateTodosByAnchorId,
+        loadSessionState: vi.fn().mockReturnValue({ todos: [] }),
       }));
 
       const { executeSigmaTaskUpdate: executeSigmaTaskUpdateTest } =
