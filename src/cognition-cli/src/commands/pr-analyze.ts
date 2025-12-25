@@ -62,10 +62,12 @@ export async function analyzePRImpact(
     // ASCII output
     displayAnalysis(analysis);
   } catch (error) {
-    console.error(chalk.red('\n❌ Error analyzing PR:'));
-    console.error((error as Error).message);
-    if (process.env.DEBUG) {
-      console.error(error);
+    if (!options.json) {
+      console.error(chalk.red('\n❌ Error analyzing PR:'));
+      console.error((error as Error).message);
+      if (process.env.DEBUG) {
+        console.error(error);
+      }
     }
     process.exit(1);
   }

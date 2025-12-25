@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import chalk from 'chalk';
+import { overlayCommand } from '../overlay.js';
 import { createGenerateCommand } from '../overlay/generate.js';
 import { createListCommand } from '../overlay/list.js';
 
@@ -47,6 +48,27 @@ vi.mock('../../utils/progress-protocol.js', () => ({
     error: vi.fn(),
   })),
 }));
+
+describe('overlay aggregator command', () => {
+  it('should have correct name and description', () => {
+    expect(overlayCommand.name()).toBe('overlay');
+    expect(overlayCommand.description()).toContain(
+      'Manage and generate analytical overlays'
+    );
+  });
+
+  it('should have generate subcommand', () => {
+    const generateCmd = overlayCommand.commands.find(
+      (c) => c.name() === 'generate'
+    );
+    expect(generateCmd).toBeDefined();
+  });
+
+  it('should have list subcommand', () => {
+    const listCmd = overlayCommand.commands.find((c) => c.name() === 'list');
+    expect(listCmd).toBeDefined();
+  });
+});
 
 describe('overlay command - generate subcommand', () => {
   let mockOrchestrator: {
