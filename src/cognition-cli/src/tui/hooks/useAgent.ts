@@ -618,7 +618,7 @@ export function useAgent(options: UseAgentOptions) {
 
   // Compression callback (stable reference to prevent infinite loops)
   const handleCompressionTriggered = useCallback(
-    async (tokens: number, turns: number) => {
+    async (tokens: number, turns: number, isSemanticEvent: boolean = false) => {
       // ✅ CRITICAL FIX: Guard against concurrent compression requests
       if (compressionInProgressRef.current) {
         debug(
@@ -633,7 +633,7 @@ export function useAgent(options: UseAgentOptions) {
         // Snapshot session ID before waiting (prevents session boundary race)
         const compressionSessionId = currentSessionId;
 
-        debug('🗜️  Triggering compression');
+        debug(`🗜️  Triggering compression (semantic: ${isSemanticEvent})`);
 
         // 🆕 STEP 1: IMMEDIATELY NOTIFY USER (P0 UX REQUIREMENT)
         let progressMessageIndex = -1;
@@ -948,6 +948,11 @@ export function useAgent(options: UseAgentOptions) {
               timestamp: new Date(),
             },
           ]);
+
+          // Trigger auto-response to keep the flow (important for Gemini)
+          if (isGemini) {
+            setShouldAutoRespond(true);
+          }
         } catch (err) {
           // CRITICAL FIX: Show error to user (not just debug log)
           const errorMessage = err instanceof Error ? err.message : String(err);
@@ -1760,6 +1765,9 @@ export function useAgent(options: UseAgentOptions) {
           await new Promise((resolve) => setTimeout(resolve, 100));
           await compression.triggerCompression(); // Wait for compression
           debug('✅ Compression complete, proceeding with Claude query...');
+
+          // After manual/threshold compression before query, auto-send empty message if it was a recap injection
+          setShouldAutoRespond(true);
         }
 
         // Collect stderr for better error messages
@@ -1787,6 +1795,13 @@ export function useAgent(options: UseAgentOptions) {
           }
           // Clear notification after injection
           setPendingMessageNotification(null);
+        }
+
+        // Handle empty message for compression flow (Gemini)
+        if (isAutoResponse && !pendingMessageNotification && injectedRecap) {
+          // If it's an auto-response with a recap but no other notification,
+          // we use an empty prompt (which will be expanded by context injection)
+          finalPrompt = '';
         }
 
         if (
@@ -2064,6 +2079,9 @@ export function useAgent(options: UseAgentOptions) {
             // Trigger compression immediately (flush=true)
             await compression.triggerCompression(true);
             debug('✅ Semantic compression complete');
+
+            // After compression, auto-send empty message to keep flow
+            setShouldAutoRespond(true);
           } else if (compression.shouldTrigger) {
             // Check for normal compression if semantic didn't trigger
             debug('🔄 Standard compression triggered by token threshold...');
@@ -2242,22 +2260,43 @@ export function useAgent(options: UseAgentOptions) {
 
           // Then show tool uses
           if (toolUses.length > 0) {
-            toolUses.forEach((tool) => {
-              if (tool.name && tool.input) {
-                const formatted = formatToolUse({
-                  name: tool.name,
-                  input: tool.input as Record<string, unknown>,
-                });
-                setMessages((prev) => [
-                  ...prev,
-                  {
-                    type: 'tool_progress',
-                    content: `${formatted.icon} ${formatted.name}: ${formatted.description}`,
-                    timestamp: new Date(),
-                  },
-                ]);
+            // Use a for...of loop to allow await for preemptive compression
+            (async () => {
+              for (const tool of toolUses) {
+                if (tool.name && tool.input) {
+                  // Preemptive compression before SigmaTaskUpdate (Gemini only)
+                  // If token count > 50k, trigger compression BEFORE executing the tool
+                  if (
+                    providerName === 'gemini' &&
+                    (tool.name === 'SigmaTaskUpdate' ||
+                      tool.name ===
+                        'mcp__sigma-task-update__SigmaTaskUpdate') &&
+                    tokenCounter.count.total > 50000 &&
+                    !compressionInProgressRef.current
+                  ) {
+                    debug(
+                      `🔄 Preemptive semantic compression for ${tool.name} (> 50k tokens)...`
+                    );
+                    // Trigger compression and wait for it to complete
+                    await compression.triggerCompression(true);
+                    debug('✅ Preemptive semantic compression complete');
+                  }
+
+                  const formatted = formatToolUse({
+                    name: tool.name,
+                    input: tool.input as Record<string, unknown>,
+                  });
+                  setMessages((prev) => [
+                    ...prev,
+                    {
+                      type: 'tool_progress',
+                      content: `${formatted.icon} ${formatted.name}: ${formatted.description}`,
+                      timestamp: new Date(),
+                    },
+                  ]);
+                }
               }
-            });
+            })();
           }
         }
         break;
