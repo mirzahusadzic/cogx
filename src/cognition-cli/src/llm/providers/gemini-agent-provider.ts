@@ -65,7 +65,6 @@ export class GeminiAgentProvider implements AgentProvider {
     'gemini-3-pro-preview', // Gemini 3.0 Pro with advanced reasoning
     'gemini-2.5-pro', // Gemini 2.5 Pro - most capable 2.x
     'gemini-2.5-flash', // Gemini 2.5 Flash - fast and efficient
-    'gemini-2.0-flash-thinking-exp-01-21', // Experimental thinking mode
   ];
 
   private apiKey: string;
