@@ -140,6 +140,27 @@ When delegating a task to another agent:
               .string()
               .optional()
               .describe("Worker's session ID (for audit trail)"),
+            // PGC Grounding fields (v2.0 protocol)
+            grounding: z
+              .object({
+                strategy: z
+                  .enum(['pgc_first', 'pgc_verify', 'pgc_cite', 'none'])
+                  .describe('Strategy for how worker should approach the task'),
+                overlay_hints: z
+                  .array(z.enum(['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7']))
+                  .optional()
+                  .describe('Hints about which overlays are most relevant'),
+                query_hints: z
+                  .array(z.string())
+                  .optional()
+                  .describe("Semantic query hints for the worker's PGC"),
+                evidence_required: z
+                  .boolean()
+                  .optional()
+                  .describe('Whether response must include evidence citations'),
+              })
+              .optional()
+              .describe('Optional PGC Grounding Instructions for the worker'),
             result_summary: z
               .string()
               .optional()

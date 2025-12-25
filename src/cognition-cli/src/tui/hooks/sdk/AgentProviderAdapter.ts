@@ -27,6 +27,7 @@
  */
 
 import { registry } from '../../../llm/index.js';
+import { DELEGATION_PROTOCOL_PROMPT } from '../../../sigma/prompts/delegation-protocol.js';
 import type {
   AgentRequest,
   AgentResponse,
@@ -164,7 +165,7 @@ export class AgentProviderAdapter {
         type: 'preset',
         preset: 'claude_code',
         append:
-          this.providerName === 'claude'
+          (this.providerName === 'claude'
             ? `\n\n# IMPORTANT: Task Management Tool Change\n\n` +
               `The native TodoWrite tool has been DISABLED for this session. ` +
               `Instead, use the **SigmaTaskUpdate** tool for all task management.\n\n` +
@@ -174,7 +175,7 @@ export class AgentProviderAdapter {
               `- Task delegation with acceptance_criteria and delegated_to fields\n` +
               `- Full state persistence across compressions\n\n` +
               `Use SigmaTaskUpdate exactly as you would use TodoWrite, but with the new schema.`
-            : undefined,
+            : '') + `\n\n${DELEGATION_PROTOCOL_PROMPT}`,
       },
       includePartialMessages: true,
     };

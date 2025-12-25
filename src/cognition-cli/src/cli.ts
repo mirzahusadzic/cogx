@@ -650,13 +650,16 @@ program
     'URL of the egemma workbench (defaults to WORKBENCH_URL env var or http://localhost:8000)'
   )
   .option('--top-k <number>', 'Number of similar concepts to retrieve', '5')
-  .option('--save', 'Save Q&A as markdown document', false)
-  .option('--verbose', 'Show detailed processing steps', false)
-  .action(async (question, options) => {
+  .option('--save', 'Save Q&A as markdown document')
+  .option('--verbose', 'Show detailed processing steps')
+  .option('--json', 'Output machine-readable JSON (for agent-to-agent queries)')
+  .action(async (question, options, command) => {
     const { askCommand } = await import('./commands/ask.js');
+    const allOpts = command.optsWithGlobals();
     await askCommand(question, {
       ...options,
       topK: parseInt(options.topK),
+      json: allOpts.json || options.json, // Check both global and local
     });
   });
 

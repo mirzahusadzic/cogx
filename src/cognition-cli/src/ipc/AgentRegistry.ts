@@ -43,6 +43,7 @@ export interface AgentCapability {
  * @property {number} lastSeen Unix timestamp of the agent's last activity.
  * @property {string} [projectRoot] Absolute path to the project root directory.
  * @property {string} [projectName] Project name (inferred from package.json or folder name).
+ * @property {string} [scope] Subsystem or path within project this agent manages (e.g., "drivers/net", "kernel/mm"). Used for fractal lattice topology discovery in PGC delegation protocol.
  */
 export interface RegisteredAgent {
   id: string; // Unique agent ID (e.g., 'claude-1')
@@ -55,6 +56,7 @@ export interface RegisteredAgent {
   lastSeen: number; // Unix timestamp (for heartbeat)
   projectRoot?: string; // Absolute path to project directory
   projectName?: string; // Inferred from package.json or folder name
+  scope?: string; // Subsystem/path this agent manages (e.g., "drivers/net" for fractal lattice)
 }
 
 /**
@@ -189,6 +191,7 @@ export class AgentRegistry {
       capabilities: agent.capabilities.map((c) => c.name),
       projectRoot: agent.projectRoot,
       projectName: agent.projectName,
+      scope: agent.scope,
     });
 
     this.bus.publish(Topics.AGENT_REGISTERED, message);
@@ -322,8 +325,15 @@ export class AgentRegistry {
   private handleAgentRegistered(
     msg: AgentMessage<AgentRegisteredPayload>
   ): void {
-    const { agentId, model, type, capabilities, projectRoot, projectName } =
-      msg.payload;
+    const {
+      agentId,
+      model,
+      type,
+      capabilities,
+      projectRoot,
+      projectName,
+      scope,
+    } = msg.payload;
 
     // Don't re-register ourselves
     if (agentId === this.localAgentId) {
@@ -348,12 +358,13 @@ export class AgentRegistry {
       lastSeen: now,
       projectRoot,
       projectName,
+      scope,
     };
 
     this.agents.set(agentId, agent);
 
     console.log(
-      `📥 Remote agent registered: ${agentId} (${model})${projectName ? ` from ${projectName}` : ''}`
+      `📥 Remote agent registered: ${agentId} (${model})${projectName ? ` from ${projectName}` : ''}${scope ? ` [${scope}]` : ''}`
     );
   }
 

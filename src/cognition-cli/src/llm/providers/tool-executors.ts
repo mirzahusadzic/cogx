@@ -7,6 +7,7 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { SessionState } from '../../sigma/session-state.js';
 import { spawn } from 'child_process';
 import { glob as globLib } from 'glob';
 import { smartCompressOutput } from './tool-helpers.js';
@@ -284,6 +285,13 @@ export async function executeSigmaTaskUpdate(
     delegated_to?: string;
     context?: string;
     delegate_session_id?: string;
+    // Grounding fields (v2.0 protocol)
+    grounding?: {
+      strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
+      overlay_hints?: string[];
+      query_hints?: string[];
+      evidence_required?: boolean;
+    };
     result_summary?: string;
   }>,
   cwd: string,
@@ -308,6 +316,11 @@ export async function executeSigmaTaskUpdate(
           if (task.context) {
             console.log(`     → Context: ${task.context}`);
           }
+          if (task.grounding) {
+            console.log(
+              `     → Grounding strategy: ${task.grounding.strategy}`
+            );
+          }
           if (task.result_summary) {
             console.log(`     ✅ Result: ${task.result_summary}`);
           }
@@ -325,8 +338,44 @@ export async function executeSigmaTaskUpdate(
     }
 
     // Dynamic import to avoid circular dependencies
-    const { updateTasksByAnchorId } =
+    const { updateTasksByAnchorId, loadSessionState } =
       await import('../../sigma/session-state.js');
+    const { validateTaskCompletion } =
+      await import('../../sigma/validation-service.js');
+
+    const projectRoot = cwd;
+    const currentState = loadSessionState(anchorId, projectRoot);
+
+    // Process validation for tasks being completed
+    if (currentState?.todos) {
+      for (const newTodo of todos) {
+        const oldTodo = currentState.todos.find((t) => t.id === newTodo.id);
+
+        // If task is moving to completed and it was previously delegated or in_progress
+        if (
+          newTodo.status === 'completed' &&
+          oldTodo &&
+          oldTodo.status !== 'completed' &&
+          newTodo.result_summary
+        ) {
+          const validation = await validateTaskCompletion(
+            newTodo as NonNullable<SessionState['todos']>[number],
+            newTodo.result_summary
+          );
+
+          if (!validation.isValid) {
+            // Annotate the result summary with validation warnings
+            const warning = `\n\n⚠️ [Sigma Validation] Missing criteria: ${validation.missing_criteria?.join(', ')}`;
+            newTodo.result_summary += warning;
+          } else {
+            // Annotate with validation success
+            const success = `\n\n✅ [Sigma Validation] All criteria met (Score: ${validation.score.toFixed(2)})`;
+            newTodo.result_summary += success;
+          }
+        }
+      }
+    }
+
     return updateTasksByAnchorId(
       anchorId,
       cwd,
@@ -338,6 +387,12 @@ export async function executeSigmaTaskUpdate(
         acceptance_criteria?: string[];
         delegated_to?: string;
         context?: string;
+        grounding?: {
+          strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
+          overlay_hints?: string[];
+          query_hints?: string[];
+          evidence_required?: boolean;
+        };
         delegate_session_id?: string;
         result_summary?: string;
       }>

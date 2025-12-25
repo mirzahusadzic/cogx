@@ -120,31 +120,50 @@ export function formatPendingMessages(messages: QueuedMessage[]): string {
   for (const msg of messages) {
     const date = new Date(msg.timestamp).toLocaleString();
 
-    // Try to detect query_request messages (they may be in message field as JSON string)
-    let isQueryRequest = false;
-    let queryContent: {
-      type: string;
-      queryId: string;
-      question: string;
-    } | null = null;
-
-    // Check if it's a direct query_request object
+    // Check if it's a direct task_assignment object
     if (
       typeof msg.content === 'object' &&
       msg.content !== null &&
       'type' in msg.content &&
-      msg.content.type === 'query_request' &&
-      'question' in msg.content &&
-      'queryId' in msg.content
+      msg.content.type === 'task_assignment' &&
+      'task_id' in msg.content &&
+      'content' in msg.content &&
+      'acceptance_criteria' in msg.content
     ) {
-      isQueryRequest = true;
-      queryContent = msg.content as {
-        type: string;
-        queryId: string;
-        question: string;
+      const task = msg.content as {
+        task_id: string;
+        content: string;
+        acceptance_criteria: string[];
+        context?: string;
+        grounding?: {
+          strategy: string;
+          overlay_hints?: string[];
+          query_hints?: string[];
+        };
       };
+      text += `---\n\n`;
+      text += `🎯 **Task Assignment (Manager/Worker Protocol)**\n\n`;
+      text += `**From**: \`${msg.from}\`\n`;
+      text += `**Task ID**: \`${task.task_id}\`\n`;
+      text += `**Received**: ${date}\n\n`;
+      text += `**Task**: ${task.content}\n\n`;
+      text += `**Acceptance Criteria**:\n`;
+      (task.acceptance_criteria as string[]).forEach(
+        (c) => (text += `- ${c}\n`)
+      );
+      if (task.context) text += `\n**Context**: ${task.context}\n`;
+      if (task.grounding) {
+        text += `\n**Grounding Instructions (v2.0)**:\n`;
+        text += `- **Strategy**: ${task.grounding.strategy}\n`;
+        if (task.grounding.overlay_hints)
+          text += `- **Overlays**: ${task.grounding.overlay_hints.join(', ')}\n`;
+        if (task.grounding.query_hints)
+          text += `- **Queries**: ${task.grounding.query_hints.join(', ')}\n`;
+      }
+      text += `\n**Action Required**: Use \`SigmaTaskUpdate\` to track this task. When complete, send a \`task_completion\` message back.\n\n`;
+      text += `Then use \`mark_message_read("${msg.id}")\`.\n\n`;
     }
-    // Check if it's a text message with JSON-encoded query_request
+    // Check if it's a text message with JSON-encoded content (query_request, task_assignment, task_completion)
     else if (
       typeof msg.content === 'object' &&
       msg.content !== null &&
@@ -156,33 +175,87 @@ export function formatPendingMessages(messages: QueuedMessage[]): string {
       try {
         const parsed = JSON.parse(msg.content.message);
         if (
+          parsed.type === 'task_assignment' &&
+          parsed.task_id &&
+          parsed.content &&
+          parsed.acceptance_criteria
+        ) {
+          text += `---\n\n`;
+          text += `🎯 **Task Assignment (Manager/Worker Protocol)**\n\n`;
+          text += `**From**: \`${msg.from}\`\n`;
+          text += `**Task ID**: \`${parsed.task_id}\`\n`;
+          text += `**Received**: ${date}\n\n`;
+          text += `**Task**: ${parsed.content}\n\n`;
+          text += `**Acceptance Criteria**:\n`;
+          (parsed.acceptance_criteria as string[]).forEach(
+            (c) => (text += `- ${c}\n`)
+          );
+          if (parsed.context) text += `\n**Context**: ${parsed.context}\n`;
+          if (parsed.grounding) {
+            text += `\n**Grounding Instructions (v2.0)**:\n`;
+            text += `- **Strategy**: ${parsed.grounding.strategy}\n`;
+            if (parsed.grounding.overlay_hints)
+              text += `- **Overlays**: ${parsed.grounding.overlay_hints.join(', ')}\n`;
+            if (parsed.grounding.query_hints)
+              text += `- **Queries**: ${parsed.grounding.query_hints.join(', ')}\n`;
+          }
+          text += `\n**Action Required**: Use \`SigmaTaskUpdate\` to track this task. When complete, send a \`task_completion\` message back.\n\n`;
+          text += `Then use \`mark_message_read("${msg.id}")\`.\n\n`;
+        } else if (
+          parsed.type === 'task_completion' &&
+          parsed.task_id &&
+          parsed.status
+        ) {
+          text += `---\n\n`;
+          text += `✅ **Task Completion Report**\n\n`;
+          text += `**From**: \`${msg.from}\`\n`;
+          text += `**Task ID**: \`${parsed.task_id}\`\n`;
+          text += `**Status**: ${parsed.status.toUpperCase()}\n\n`;
+          text += `**Result Summary**: ${parsed.result_summary || 'No summary provided'}\n`;
+          if (parsed.grounding_evidence) {
+            text += `\n**Grounding Evidence (v2.0)**:\n`;
+            text += `- **Confidence**: ${parsed.grounding_evidence.grounding_confidence}\n`;
+            text += `- **Overlays Consulted**: ${parsed.grounding_evidence.overlays_consulted.join(', ')}\n`;
+            text += `- **Citations**: ${parsed.grounding_evidence.citations.length} found\n`;
+          }
+          text += `\n**Action Required**: Use \`SigmaTaskUpdate\` to mark task as completed after verifying the result.\n\n`;
+          text += `Then use \`mark_message_read("${msg.id}")\`.\n\n`;
+        } else if (
           parsed.type === 'query_request' &&
           parsed.question &&
           parsed.queryId
         ) {
-          isQueryRequest = true;
-          queryContent = parsed;
+          text += `---\n\n`;
+          text += `🔍 **Cross-Project Query Request**\n\n`;
+          text += `**From**: \`${msg.from}\`\n`;
+          text += `**Query ID**: \`${parsed.queryId}\`\n`;
+          text += `**Received**: ${date}\n\n`;
+          text += `**Question**: "${parsed.question}"\n\n`;
+          text += `**Action Required**: Please answer this question using your knowledge of the codebase. When you have the answer, send it back using:\n\n`;
+          text += `\`\`\`\nsend_agent_message("${msg.from}", JSON.stringify({\n  "type": "query_response",\n  "queryId": "${parsed.queryId}",\n  "answer": "<your answer here>"\n}))\n\`\`\`\n\n`;
+          text += `Then use \`mark_message_read("${msg.id}")\` to mark this query as processed.\n\n`;
+        } else {
+          // Regular text message
+          text += `---\n\n`;
+          text += `**From**: \`${msg.from}\`\n`;
+          text += `**Topic**: \`${msg.topic}\`\n`;
+          text += `**Received**: ${date}\n`;
+          text += `**Message ID**: \`${msg.id}\`\n\n`;
+          text += `${parsed.message || JSON.stringify(parsed)}\n\n`;
         }
       } catch {
-        // Not JSON, continue as regular message
+        // Not JSON text message
+        const contentText = formatMessageContent(msg);
+        text += `---\n\n`;
+        text += `**From**: \`${msg.from}\`\n`;
+        text += `**Topic**: \`${msg.topic}\`\n`;
+        text += `**Received**: ${date}\n`;
+        text += `**Message ID**: \`${msg.id}\`\n\n`;
+        text += `${contentText}\n\n`;
       }
-    }
-
-    if (isQueryRequest && queryContent) {
-      // Format as cross-project query request
-      text += `---\n\n`;
-      text += `🔍 **Cross-Project Query Request**\n\n`;
-      text += `**From**: \`${msg.from}\`\n`;
-      text += `**Query ID**: \`${queryContent.queryId}\`\n`;
-      text += `**Received**: ${date}\n\n`;
-      text += `**Question**: "${queryContent.question}"\n\n`;
-      text += `**Action Required**: Please answer this question using your knowledge of the codebase. When you have the answer, send it back using:\n\n`;
-      text += `\`\`\`\nsend_agent_message("${msg.from}", JSON.stringify({\n  "type": "query_response",\n  "queryId": "${queryContent.queryId}",\n  "answer": "<your answer here>"\n}))\n\`\`\`\n\n`;
-      text += `Then use \`mark_message_read("${msg.id}")\` to mark this query as processed.\n\n`;
     } else {
-      // Regular message formatting
+      // Non-text, non-task object message
       const contentText = formatMessageContent(msg);
-
       text += `---\n\n`;
       text += `**From**: \`${msg.from}\`\n`;
       text += `**Topic**: \`${msg.topic}\`\n`;
@@ -193,7 +266,8 @@ export function formatPendingMessages(messages: QueuedMessage[]): string {
   }
 
   text += `---\n\n`;
-  text += `**Actions**: Use \`mark_message_read\` with a message ID to mark it as processed.`;
+  text +=
+    '**Actions**: Use `mark_message_read` with a message ID to mark it as processed.';
 
   return text;
 }

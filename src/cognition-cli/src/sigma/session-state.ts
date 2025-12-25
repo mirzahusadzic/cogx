@@ -77,6 +77,13 @@ export interface SessionState {
     delegate_session_id?: string;
     /** Worker's completion report */
     result_summary?: string;
+    /** Grounding requirements for the task */
+    grounding?: {
+      /** Whether evidence (e.g., file paths, command output) is required */
+      evidence_required?: boolean;
+      /** Specific files or locations to check for evidence */
+      evidence_paths?: string[];
+    };
   }>;
 }
 
@@ -100,6 +107,10 @@ function migrateTasks(
     context?: string;
     delegate_session_id?: string;
     result_summary?: string;
+    grounding?: {
+      evidence_required?: boolean;
+      evidence_paths?: string[];
+    };
   }>
 ): Array<{
   id: string;
@@ -111,6 +122,10 @@ function migrateTasks(
   context?: string;
   delegate_session_id?: string;
   result_summary?: string;
+  grounding?: {
+    evidence_required?: boolean;
+    evidence_paths?: string[];
+  };
 }> {
   return tasks.map((task, idx) => {
     if (!task.id) {

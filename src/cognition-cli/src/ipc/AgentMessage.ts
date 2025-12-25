@@ -298,6 +298,7 @@ export type TaskFailedMessage = AgentMessage<TaskFailedPayload>;
  * @property {string[]} capabilities A list of the agent's capabilities.
  * @property {string} [projectRoot] Absolute path to the project root directory.
  * @property {string} [projectName] Project name (inferred from package.json or folder name).
+ * @property {string} [scope] Subsystem or path within project this agent manages (e.g., "drivers/net", "kernel/mm"). Used for fractal lattice topology discovery.
  */
 export interface AgentRegisteredPayload {
   agentId: string;
@@ -306,6 +307,7 @@ export interface AgentRegisteredPayload {
   capabilities: string[]; // ['code_review', 'architecture_design']
   projectRoot?: string; // Absolute path to project directory
   projectName?: string; // Inferred from package.json or folder name
+  scope?: string; // Subsystem/path this agent manages
 }
 
 /**

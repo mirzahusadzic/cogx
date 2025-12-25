@@ -6,7 +6,7 @@
  *
  * PIPELINE (4-step process):
  * 1. Query Deconstruction (SLM): Parse natural language question into intent, entities, scope
- * 2. Multi-Overlay Search (Lattice Algebra): Vector similarity search across all O1-O6 overlays
+ * 2. Multi-Overlay Search (Lattice Algebra): Vector similarity search across all O1-O7 overlays
  * 3. Answer Synthesis (LLM): Generate coherent answer from top-K semantically similar concepts
  * 4. Optional Caching: Store Q&A pairs with question_hash for instant retrieval
  *
@@ -39,6 +39,8 @@ import { SecurityGuidelinesManager } from '../core/overlays/security-guidelines/
 import { MathematicalProofsManager } from '../core/overlays/mathematical-proofs/manager.js';
 import { OperationalPatternsManager } from '../core/overlays/operational-patterns/manager.js';
 import { StructuralPatternsManager } from '../core/overlays/structural-patterns/manager.js';
+import { CoherenceAlgebraAdapter } from '../core/overlays/strategic-coherence/algebra-adapter.js';
+import { LineageAlgebraAdapter } from '../core/overlays/lineage/algebra-adapter.js';
 import { WorkspaceManager } from '../core/workspace-manager.js';
 import type { SummarizeRequest } from '../core/types/workbench.js';
 import type { OverlayMetadata } from '../core/algebra/overlay-algebra.js';
@@ -62,6 +64,7 @@ interface AskOptions {
   topK?: number;
   save?: boolean;
   verbose?: boolean;
+  json?: boolean;
 }
 
 /**
@@ -70,7 +73,7 @@ interface AskOptions {
  * Executes full four-step pipeline:
  * 1. Checks cache first (SHA256 of question) - if hit, returns immediately
  * 2. Deconstructs query using SLM to extract intent, entities, scope
- * 3. Searches all overlays (O1-O6) using lattice algebra vector similarity
+ * 3. Searches all overlays (O1-O7) using lattice algebra vector similarity
  * 4. Synthesizes answer from top-K results using LLM
  * 5. Optionally caches result to knowledge/qa/ with frontmatter metadata
  *
@@ -93,7 +96,7 @@ export async function askCommand(question: string, options: AskOptions) {
   const workbenchUrl =
     options.workbench || process.env.WORKBENCH_URL || 'http://localhost:8000';
   const topK = options.topK || 5;
-  const verbose = options.verbose || false;
+  const verbose = options.json ? false : options.verbose || false; // Suppress verbose in JSON mode
 
   // Find .open_cognition by walking up directory tree
   const workspaceManager = new WorkspaceManager();
@@ -109,10 +112,13 @@ export async function askCommand(question: string, options: AskOptions) {
   const pgcRoot = path.join(projectRoot, '.open_cognition');
 
   try {
-    console.log('');
-    console.log(chalk.bold.cyan(`🤔 Question: ${chalk.white(question)}`));
-    console.log(chalk.gray('━'.repeat(80)));
-    console.log('');
+    // Suppress decorative output in JSON mode
+    if (!options.json) {
+      console.log('');
+      console.log(chalk.bold.cyan(`🤔 Question: ${chalk.white(question)}`));
+      console.log(chalk.gray('━'.repeat(80)));
+      console.log('');
+    }
 
     // STEP 0: Check cache first (before any LLM calls)
     const questionHash = crypto
@@ -148,10 +154,39 @@ export async function askCommand(question: string, options: AskOptions) {
             );
             const sourcesMatch = content.match(/## Sources\n\n([\s\S]+)/);
 
+            // Extract intent/scope from frontmatter for JSON output
+            const intentMatch = frontmatter.match(/intent:\s*(\S+)/);
+            const scopeMatch = frontmatter.match(/scope:\s*(\S+)/);
+
             if (answerMatch) {
+              const cachedAnswer = answerMatch[1].trim();
+
+              // JSON output for cached results
+              if (options.json) {
+                const jsonOutput = {
+                  question,
+                  answer: cachedAnswer,
+                  query_intent: {
+                    intent: intentMatch?.[1] || 'unknown',
+                    entities: [],
+                    scope: scopeMatch?.[1] || 'unknown',
+                    refined_query: question,
+                  },
+                  sources: [], // Cache doesn't preserve structured sources
+                  metadata: {
+                    question_hash: questionHash,
+                    cached: true,
+                    elapsed_ms: Date.now() - startTime,
+                  },
+                };
+                console.log(JSON.stringify(jsonOutput, null, 2));
+                return;
+              }
+
+              // Human-readable output
               console.log(chalk.bold.green('Answer (from cache):'));
               console.log('');
-              console.log(chalk.white(answerMatch[1].trim()));
+              console.log(chalk.white(cachedAnswer));
               console.log('');
 
               if (sourcesMatch) {
@@ -263,11 +298,13 @@ export async function askCommand(question: string, options: AskOptions) {
 
     // Initialize overlay managers (respecting overlay algebra interface)
     const overlays = [
-      new StructuralPatternsManager(pgcRoot, workbenchUrl), // O1: Code symbols + docstrings (shadow of symbols)
-      new SecurityGuidelinesManager(pgcRoot, workbenchUrl), // O2: Security guidelines
-      new MathematicalProofsManager(pgcRoot, workbenchUrl), // O3: Mathematical proofs
-      new MissionConceptsManager(pgcRoot, workbenchUrl), // O4: Mission concepts
-      new OperationalPatternsManager(pgcRoot, workbenchUrl), // O5: Operational patterns
+      new StructuralPatternsManager(pgcRoot, workbenchUrl), // O1: Structural - AST, symbols, dependencies
+      new SecurityGuidelinesManager(pgcRoot, workbenchUrl), // O2: Security - vulnerabilities, attack surface
+      new LineageAlgebraAdapter(pgcRoot, workbenchUrl), // O3: Lineage - provenance, Git history
+      new MissionConceptsManager(pgcRoot, workbenchUrl), // O4: Mission - strategic alignment, concepts
+      new OperationalPatternsManager(pgcRoot, workbenchUrl), // O5: Operational - workflows, procedures
+      new MathematicalProofsManager(pgcRoot, workbenchUrl), // O6: Mathematical - formal properties, proofs
+      new CoherenceAlgebraAdapter(pgcRoot, workbenchUrl), // O7: Coherence - cross-overlay synthesis
     ];
 
     // Query all overlays using algebra interface
@@ -388,7 +425,31 @@ Provide a clear, accurate answer based ONLY on the concepts above. If the concep
       console.log('');
     }
 
-    // STEP 4: Display Answer
+    // STEP 4: Display Answer (or output JSON for machine consumption)
+    if (options.json) {
+      // Machine-readable output for agent-to-agent queries
+      const jsonOutput = {
+        question,
+        answer,
+        query_intent: queryIntent,
+        sources: conceptsWithSimilarity.map((item) => ({
+          overlay: item.overlay,
+          section: item.concept.section,
+          text: item.concept.text, // Full text, no truncation
+          similarity: item.similarity,
+          weight: item.concept.weight,
+        })),
+        metadata: {
+          question_hash: questionHash,
+          top_k: topK,
+          elapsed_ms: Date.now() - startTime,
+        },
+      };
+      console.log(JSON.stringify(jsonOutput, null, 2));
+      return; // Skip save and other display logic
+    }
+
+    // Human-readable display
     console.log(chalk.bold.green('Answer:'));
     console.log('');
     console.log(chalk.white(answer));
