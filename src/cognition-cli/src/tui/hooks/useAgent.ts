@@ -1756,6 +1756,8 @@ export function useAgent(options: UseAgentOptions) {
         if (compression.shouldTrigger && !compressionInProgressRef.current) {
           debug('🔄 Compression needed after adding user message...');
           // Keep isThinking=true (already set above)
+          // Wait a tick to ensure message state updates propagate (Fixes "Tail Race" condition)
+          await new Promise((resolve) => setTimeout(resolve, 100));
           await compression.triggerCompression(); // Wait for compression
           debug('✅ Compression complete, proceeding with Claude query...');
         }
@@ -2057,10 +2059,18 @@ export function useAgent(options: UseAgentOptions) {
             compression.getTriggerInfo(true).shouldTrigger
           ) {
             debug('🔄 Semantic compression triggered by SigmaTaskUpdate...');
-            // Don't wait - this will happen before the next turn's user message
-            // or we can wait here to ensure it flushes before next turn
+            // Wait a tick to ensure message state updates propagate
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            // Trigger compression immediately (flush=true)
             await compression.triggerCompression(true);
             debug('✅ Semantic compression complete');
+          } else if (compression.shouldTrigger) {
+            // Check for normal compression if semantic didn't trigger
+            debug('🔄 Standard compression triggered by token threshold...');
+            // Wait a tick to ensure message state updates propagate (Fixes "Tail Race" condition)
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            await compression.triggerCompression();
+            debug('✅ Standard compression complete');
           }
         }
 
@@ -2139,6 +2149,14 @@ export function useAgent(options: UseAgentOptions) {
       updateAnchorStats,
       commandsCache,
       getMessageQueue,
+      compression,
+      tokenCounter,
+      providerName,
+      modelName,
+      maxThinkingTokens,
+      displayThinking,
+      getMessagePublisher,
+      getTaskManager,
     ]
   );
 
