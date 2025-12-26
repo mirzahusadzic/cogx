@@ -124,6 +124,82 @@ describe('useAgentHandlers', () => {
     expect(mockState.setMessages).toHaveBeenCalled();
   });
 
+  it('should trigger preemptive compression for Gemini with SigmaTaskUpdate when token count > 50k', async () => {
+    // Setup Gemini provider and high token count
+    const geminiOptions = { ...mockOptions, provider: 'gemini' };
+
+    // We want to test that it uses the PASSED token count (60k), not the state token count (0)
+    const { result } = renderHook(() =>
+      useAgentHandlers({
+        options: geminiOptions,
+        state: mockState,
+        sessionManager: mockSessionManager,
+        tokenCounter: mockTokenCounter, // count.total is 0
+        turnAnalysis: mockTurnAnalysis,
+        compression: mockCompression,
+        debug: mockDebug,
+        debugLog: mockDebugLog,
+      })
+    );
+
+    await act(async () => {
+      // Pass 60000 tokens explicitly
+      result.current.processAgentMessage(
+        {
+          type: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              name: 'SigmaTaskUpdate',
+              input: { todos: [] },
+            },
+          ],
+        },
+        60000 // currentTokens > 50000
+      );
+    });
+
+    expect(mockDebug).toHaveBeenCalledWith(
+      expect.stringContaining('Preemptive semantic compression')
+    );
+    expect(mockCompression.triggerCompression).toHaveBeenCalledWith(true);
+  });
+
+  it('should NOT trigger preemptive compression if token count <= 50k', async () => {
+    const geminiOptions = { ...mockOptions, provider: 'gemini' };
+
+    const { result } = renderHook(() =>
+      useAgentHandlers({
+        options: geminiOptions,
+        state: mockState,
+        sessionManager: mockSessionManager,
+        tokenCounter: mockTokenCounter,
+        turnAnalysis: mockTurnAnalysis,
+        compression: mockCompression,
+        debug: mockDebug,
+        debugLog: mockDebugLog,
+      })
+    );
+
+    await act(async () => {
+      result.current.processAgentMessage(
+        {
+          type: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              name: 'SigmaTaskUpdate',
+              input: { todos: [] },
+            },
+          ],
+        },
+        40000 // currentTokens <= 50000
+      );
+    });
+
+    expect(mockCompression.triggerCompression).not.toHaveBeenCalled();
+  });
+
   it('should send a message and handle the flow', async () => {
     const { result } = renderHook(() =>
       useAgentHandlers({

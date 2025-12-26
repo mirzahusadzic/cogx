@@ -18,6 +18,8 @@ import type { useTokenCount } from '../tokens/useTokenCount.js';
 import type { UseTurnAnalysisReturn } from '../analysis/useTurnAnalysis.js';
 import type { UseCompressionResult } from '../compression/useCompression.js';
 
+const GEMINI_COMPRESSION_THRESHOLD = 50000;
+
 interface UseAgentHandlersOptions {
   options: UseAgentOptions;
   state: AgentState;
@@ -91,7 +93,7 @@ export function useAgentHandlers({
   const anchorId = sessionManager.state.anchorId;
 
   const processAgentMessage = useCallback(
-    (agentMessage: AgentMessage) => {
+    (agentMessage: AgentMessage, currentTokens?: number) => {
       const { type, content } = agentMessage;
 
       switch (type) {
@@ -172,12 +174,18 @@ export function useAgentHandlers({
               (async () => {
                 for (const tool of toolUses) {
                   if (tool.name && tool.input) {
+                    // Use explicitly passed tokens if available, otherwise fall back to state
+                    // This ensures we use the most up-to-date count from the streaming response
+                    // rather than waiting for the React state update cycle
+                    const effectiveTokens =
+                      currentTokens ?? tokenCounter.count.total;
+
                     if (
                       providerName === 'gemini' &&
                       (tool.name === 'SigmaTaskUpdate' ||
                         tool.name ===
                           'mcp__sigma-task-update__SigmaTaskUpdate') &&
-                      tokenCounter.count.total > 50000 &&
+                      effectiveTokens > GEMINI_COMPRESSION_THRESHOLD &&
                       !compressionInProgressRef.current
                     ) {
                       debug(
@@ -502,7 +510,7 @@ export function useAgentHandlers({
 
           for (const agentMessage of newMessages) {
             if (agentMessage.type === 'assistant') hasAssistantMessage = true;
-            processAgentMessage(agentMessage);
+            processAgentMessage(agentMessage, response.tokens.total);
           }
         }
 
