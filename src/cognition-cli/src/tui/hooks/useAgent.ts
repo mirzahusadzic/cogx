@@ -2,9 +2,9 @@ export { useAgent } from './useAgent/index.js';
 export type { TUIMessage, UseAgentOptions } from './useAgent/types.js';
 
 /**
- * Claude Agent SDK Integration Hook
+ * Agent SDK Integration Hook
  *
- * The central orchestrator for the TUI's Claude integration. Manages the complete
+ * The central orchestrator for the TUI's agent integration. Manages the complete
  * lifecycle of AI-assisted conversations with Sigma (Σ) conversation lattice,
  * context compression, and semantic memory.
  *
@@ -112,7 +112,7 @@ export type { TUIMessage, UseAgentOptions } from './useAgent/types.js';
  */
 
 /**
- * Manages Claude Agent SDK integration with Sigma conversation lattice.
+ * Manages Agent SDK integration with Sigma conversation lattice.
  *
  * This is the primary hook for the TUI. It orchestrates:
  * - SDK query lifecycle

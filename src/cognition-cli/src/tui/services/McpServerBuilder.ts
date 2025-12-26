@@ -1,4 +1,4 @@
-import type { McpSdkServerConfigWithInstance } from '../sdk/types.js';
+import type { McpSdkServerConfigWithInstance } from '../hooks/sdk/types.js';
 
 /**
  * McpServerBuilder - Centralizes the construction of MCP server configurations.

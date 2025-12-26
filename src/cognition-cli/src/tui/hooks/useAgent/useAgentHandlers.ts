@@ -7,7 +7,7 @@ import {
   formatAuthError,
   formatSDKError,
 } from '../sdk/index.js';
-import { McpServerBuilder } from './mcpServers.js';
+import { McpServerBuilder } from '../../services/McpServerBuilder.js';
 import { formatPendingMessages } from '../../../ipc/agent-messaging-formatters.js';
 import { stripANSICodes } from '../rendering/MessageRenderer.js';
 import { formatToolUse } from '../rendering/ToolFormatter.js';

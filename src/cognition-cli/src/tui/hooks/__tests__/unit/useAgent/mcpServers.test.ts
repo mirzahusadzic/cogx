@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { McpServerBuilder } from '../../../useAgent/mcpServers.js';
+import { McpServerBuilder } from '../../../../services/McpServerBuilder.js';
 import type { McpSdkServerConfigWithInstance } from '../../../sdk/types.js';
 
 describe('McpServerBuilder', () => {
