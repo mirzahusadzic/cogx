@@ -103,9 +103,10 @@ export async function smartCompressOutput(
     return output;
   }
 
-  // Tier 2: Read file gets head-tail truncation to preserve imports and end-of-file content (logs/errors)
+  // Tier 2: Read file is returned untruncated to support refactoring large files.
+  // The agent is responsible for using offset/limit if they want to optimize.
   if (toolType === 'read_file') {
-    return truncateOutput(output, limit, 'head-tail');
+    return output;
   }
 
   // Tier 3: Bash gets Head + Tail truncation to preserve errors at the end

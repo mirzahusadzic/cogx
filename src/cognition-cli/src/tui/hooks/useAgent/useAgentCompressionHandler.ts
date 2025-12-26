@@ -1,0 +1,344 @@
+import { useCallback } from 'react';
+import path from 'path';
+import fs from 'fs';
+import type { ConversationNode } from '../../../sigma/types.js';
+import type { AgentState } from './useAgentState.js';
+import type { UseSessionManagerResult } from '../session/useSessionManager.js';
+import type { UseTurnAnalysisReturn } from '../analysis/useTurnAnalysis.js';
+import type { useTokenCount } from '../tokens/useTokenCount.js';
+import type { AnalysisQueueStatus } from '../analysis/types.js';
+
+interface UseAgentCompressionHandlerOptions {
+  state: AgentState;
+  sessionManager: UseSessionManagerResult;
+  turnAnalysis: UseTurnAnalysisReturn;
+  tokenCounter: ReturnType<typeof useTokenCount>;
+  cwd: string;
+  debug: (message: string, ...args: unknown[]) => void;
+  currentSessionId: string;
+  anchorId: string;
+  modelName?: string;
+}
+
+export function useAgentCompressionHandler({
+  state,
+  sessionManager,
+  turnAnalysis,
+  tokenCounter,
+  cwd,
+  debug,
+  currentSessionId,
+  anchorId,
+  modelName,
+}: UseAgentCompressionHandlerOptions) {
+  const {
+    messages,
+    setMessages,
+    setIsThinking,
+    setInjectedRecap,
+    setShouldAutoRespond,
+    compressionInProgressRef,
+    conversationRegistryRef,
+  } = state;
+
+  const handleCompressionTriggered = useCallback(
+    async (tokens: number, turns: number, isSemanticEvent: boolean = false) => {
+      if (compressionInProgressRef.current) {
+        debug(
+          '⏭️  Compression already in progress, skipping duplicate request'
+        );
+        return;
+      }
+
+      compressionInProgressRef.current = true;
+
+      try {
+        const compressionSessionId = currentSessionId;
+        debug(`🗜️  Triggering compression (semantic: ${isSemanticEvent})`);
+
+        let progressMessageIndex = -1;
+        setMessages((prev) => {
+          progressMessageIndex = prev.length;
+          return [
+            ...prev,
+            {
+              type: 'system',
+              content:
+                `⏳ Preparing context compression at ${(tokens / 1000).toFixed(1)}K tokens\n` +
+                `   Analyzing ${turns} conversation turns (this may take 5-10s)...`,
+              timestamp: new Date(),
+            },
+          ];
+        });
+
+        const startTime = Date.now();
+        const timeout = parseInt(
+          process.env.SIGMA_COMPRESSION_TIMEOUT_MS || '60000',
+          10
+        );
+
+        let lastProgressUpdate = 0;
+        const PROGRESS_THROTTLE_MS = 500;
+
+        const buildProgressBar = (current: number, total: number): string => {
+          const barLength = 10;
+          const filled = Math.floor((current / total) * barLength);
+          const empty = barLength - filled;
+          return (
+            '[' +
+            '▓'.repeat(filled) +
+            '░'.repeat(empty) +
+            ']' +
+            ` ${current}/${total}`
+          );
+        };
+
+        try {
+          await turnAnalysis.waitForCompressionReady(
+            timeout,
+            (elapsed: number, status: AnalysisQueueStatus) => {
+              const now = Date.now();
+              if (now - lastProgressUpdate < PROGRESS_THROTTLE_MS) {
+                return;
+              }
+              lastProgressUpdate = now;
+
+              const processed = status.totalProcessed;
+              const remaining = status.queueLength;
+              const total = processed + remaining;
+              const elapsedSecs = (elapsed / 1000).toFixed(1);
+
+              setMessages((prev) => {
+                if (
+                  progressMessageIndex < 0 ||
+                  progressMessageIndex >= prev.length
+                ) {
+                  return prev;
+                }
+
+                const updated = [...prev];
+                updated[progressMessageIndex] = {
+                  ...prev[progressMessageIndex],
+                  content:
+                    `⏳ Analyzing conversation turns... ${buildProgressBar(processed, total)}\n` +
+                    `   Elapsed: ${elapsedSecs}s`,
+                };
+                return updated;
+              });
+            }
+          );
+        } catch (waitError) {
+          const timeoutSecs = ((Date.now() - startTime) / 1000).toFixed(1);
+
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: 'system',
+              content:
+                `⚠️  Analysis timeout after ${timeoutSecs}s\n` +
+                `   Compression postponed - your conversation continues normally`,
+              timestamp: new Date(),
+            },
+          ]);
+
+          console.error(
+            '[Σ] Compression aborted: analysis queue timeout',
+            waitError
+          );
+          return;
+        }
+
+        const waitTime = Date.now() - startTime;
+        const finalStatus = turnAnalysis.queueStatus;
+        setMessages((prev) => {
+          if (progressMessageIndex < 0 || progressMessageIndex >= prev.length) {
+            return prev;
+          }
+
+          const updated = [...prev];
+          updated[progressMessageIndex] = {
+            ...prev[progressMessageIndex],
+            content:
+              `⏳ Analyzing conversation turns... ${buildProgressBar(finalStatus.totalProcessed, finalStatus.totalProcessed)}\n` +
+              `   Elapsed: ${(waitTime / 1000).toFixed(1)}s`,
+          };
+          return updated;
+        });
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: 'system',
+            content: `✓ Analysis complete (${(waitTime / 1000).toFixed(1)}s) - compressing conversation...`,
+            timestamp: new Date(),
+          },
+        ]);
+
+        const lastMessage = messages[messages.length - 1];
+        const lastAnalyzed =
+          turnAnalysis.analyses[turnAnalysis.analyses.length - 1];
+
+        const hasPendingTurn =
+          lastMessage &&
+          lastMessage.type !== 'system' &&
+          lastMessage.type !== 'tool_progress' &&
+          (!lastAnalyzed ||
+            lastMessage.timestamp.getTime() > lastAnalyzed.timestamp);
+
+        const pendingTurn = hasPendingTurn
+          ? {
+              message: lastMessage,
+              messageIndex: messages.length - 1,
+              timestamp: lastMessage.timestamp.getTime(),
+            }
+          : null;
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: 'system',
+            content:
+              `🗜️  Context compression triggered at ${(tokens / 1000).toFixed(1)}K tokens\n` +
+              `Compressing ${turns} turns into intelligent recap...`,
+            timestamp: new Date(),
+          },
+        ]);
+
+        setIsThinking(true);
+
+        try {
+          const { compressContext } =
+            await import('../../../sigma/compressor.js');
+          const { reconstructSessionContext } =
+            await import('../../../sigma/context-reconstructor.js');
+          const { loadSessionState } =
+            await import('../../../sigma/session-state.js');
+
+          const result = await compressContext(turnAnalysis.analyses, {
+            target_size: 40000,
+          });
+
+          const latticeWithPending = { ...result.lattice };
+          if (pendingTurn) {
+            const msgType = pendingTurn.message.type;
+            const role: 'user' | 'assistant' | 'system' =
+              msgType === 'user'
+                ? 'user'
+                : msgType === 'system'
+                  ? 'system'
+                  : 'assistant';
+            const content = pendingTurn.message.content;
+
+            const pendingNode: ConversationNode = {
+              id: `pending_${Date.now()}`,
+              type: 'conversation_turn',
+              turn_id: `pending_${Date.now()}`,
+              role,
+              content,
+              timestamp: pendingTurn.timestamp,
+              embedding: [],
+              novelty: 0.5,
+              overlay_scores: {
+                O1_structural: 0,
+                O2_security: 0,
+                O3_lineage: 0,
+                O4_mission: 0,
+                O5_operational: 0,
+                O6_mathematical: 0,
+                O7_strategic: 0,
+              },
+              importance_score: 5,
+              is_paradigm_shift: false,
+              semantic_tags: [],
+            };
+
+            latticeWithPending.nodes = [...result.lattice.nodes, pendingNode];
+          }
+
+          const sessionState = loadSessionState(anchorId, cwd);
+
+          const sessionContext = await reconstructSessionContext(
+            latticeWithPending,
+            cwd,
+            conversationRegistryRef.current || undefined,
+            modelName,
+            sessionState?.todos || undefined
+          );
+
+          const recap =
+            `COMPRESSED CONVERSATION RECAP (${latticeWithPending.nodes.length} key turns)\n` +
+            `${(tokens / 1000).toFixed(1)}K → ${(result.compressed_size / 1000).toFixed(1)}K tokens\n\n` +
+            sessionContext.recap;
+
+          try {
+            fs.writeFileSync(
+              path.join(cwd, '.sigma', `${compressionSessionId}.recap.txt`),
+              recap,
+              'utf-8'
+            );
+          } catch (err) {
+            console.error('Failed to save recap file:', err);
+          }
+
+          setInjectedRecap(recap);
+          tokenCounter.reset();
+
+          if (pendingTurn) {
+            await turnAnalysis.enqueueAnalysis(pendingTurn);
+          }
+
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: 'system',
+              content:
+                `✅ Compression complete!\n` +
+                `   ${result.lattice.nodes.length} key turns preserved (${(tokens / 1000).toFixed(1)}K → ${(result.compressed_size / 1000).toFixed(1)}K tokens)\n` +
+                `   Conversation continues with intelligent recap...`,
+              timestamp: new Date(),
+            },
+          ]);
+
+          const isGemini = modelName?.includes('gemini');
+          if (isGemini) {
+            setShouldAutoRespond(true);
+          }
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: 'system',
+              content:
+                `❌ Context compression failed: ${errorMessage}\n` +
+                `   Starting fresh session anyway to prevent token limit issues.`,
+              timestamp: new Date(),
+            },
+          ]);
+        } finally {
+          sessionManager.resetResumeSession();
+        }
+      } finally {
+        compressionInProgressRef.current = false;
+      }
+    },
+    [
+      debug,
+      messages,
+      turnAnalysis,
+      cwd,
+      currentSessionId,
+      sessionManager,
+      setMessages,
+      setIsThinking,
+      setInjectedRecap,
+      setShouldAutoRespond,
+      compressionInProgressRef,
+      conversationRegistryRef,
+      anchorId,
+      modelName,
+    ]
+  );
+
+  return handleCompressionTriggered;
+}
