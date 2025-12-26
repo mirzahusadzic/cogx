@@ -1,12 +1,12 @@
 import { useCallback } from 'react';
 import path from 'path';
 import fs from 'fs';
-import type { ConversationNode } from '../../../sigma/types.js';
 import type { AgentState } from './useAgentState.js';
 import type { UseSessionManagerResult } from '../session/useSessionManager.js';
 import type { UseTurnAnalysisReturn } from '../analysis/useTurnAnalysis.js';
 import type { useTokenCount } from '../tokens/useTokenCount.js';
 import type { AnalysisQueueStatus } from '../analysis/types.js';
+import { createPendingTurnNode } from '../../../sigma/utils/nodeUtils.js';
 
 interface UseAgentCompressionHandlerOptions {
   state: AgentState;
@@ -18,6 +18,26 @@ interface UseAgentCompressionHandlerOptions {
   currentSessionId: string;
   anchorId: string;
   modelName?: string;
+  // Optional override for compression target size
+  compressionTargetSize?: number;
+}
+
+// Model-specific configurations
+const MODEL_CONFIGS: Record<
+  string,
+  { compressionTarget: number; requiresReprompt: boolean }
+> = {
+  gemini: { compressionTarget: 120000, requiresReprompt: true }, // Gemini 1.5/2.0+ large context
+  claude: { compressionTarget: 40000, requiresReprompt: false }, // Claude standard
+  gpt: { compressionTarget: 20000, requiresReprompt: false }, // GPT-4o
+};
+
+function getModelConfig(modelName?: string) {
+  const lower = (modelName || '').toLowerCase();
+  if (lower.includes('gemini')) return MODEL_CONFIGS.gemini;
+  if (lower.includes('claude')) return MODEL_CONFIGS.claude;
+  if (lower.includes('gpt')) return MODEL_CONFIGS.gpt;
+  return { compressionTarget: 40000, requiresReprompt: false }; // Default
 }
 
 export function useAgentCompressionHandler({
@@ -30,6 +50,7 @@ export function useAgentCompressionHandler({
   currentSessionId,
   anchorId,
   modelName,
+  compressionTargetSize,
 }: UseAgentCompressionHandlerOptions) {
   const {
     messages,
@@ -40,6 +61,36 @@ export function useAgentCompressionHandler({
     compressionInProgressRef,
     conversationRegistryRef,
   } = state;
+
+  const updateProgress = useCallback(
+    (
+      progressMessageIndex: number,
+      processed: number,
+      total: number,
+      elapsed: number
+    ) => {
+      const elapsedSecs = (elapsed / 1000).toFixed(1);
+      const barLength = 10;
+      const filled = Math.floor((processed / total) * barLength) || 0;
+      const empty = Math.max(0, barLength - filled);
+      const progressBar = '[' + '▓'.repeat(filled) + '░'.repeat(empty) + ']';
+
+      setMessages((prev) => {
+        if (progressMessageIndex < 0 || progressMessageIndex >= prev.length) {
+          return prev;
+        }
+        const updated = [...prev];
+        updated[progressMessageIndex] = {
+          ...prev[progressMessageIndex],
+          content:
+            `⏳ Analyzing conversation turns... ${progressBar} ${processed}/${total}\n` +
+            `   Elapsed: ${elapsedSecs}s`,
+        };
+        return updated;
+      });
+    },
+    [setMessages]
+  );
 
   const handleCompressionTriggered = useCallback(
     async (tokens: number, turns: number, isSemanticEvent: boolean = false) => {
@@ -56,6 +107,7 @@ export function useAgentCompressionHandler({
         const compressionSessionId = currentSessionId;
         debug(`🗜️  Triggering compression (semantic: ${isSemanticEvent})`);
 
+        // 1. Initialize Progress Message
         let progressMessageIndex = -1;
         setMessages((prev) => {
           progressMessageIndex = prev.length;
@@ -77,21 +129,9 @@ export function useAgentCompressionHandler({
           10
         );
 
+        // 2. Wait for Analysis to Complete
         let lastProgressUpdate = 0;
         const PROGRESS_THROTTLE_MS = 500;
-
-        const buildProgressBar = (current: number, total: number): string => {
-          const barLength = 10;
-          const filled = Math.floor((current / total) * barLength);
-          const empty = barLength - filled;
-          return (
-            '[' +
-            '▓'.repeat(filled) +
-            '░'.repeat(empty) +
-            ']' +
-            ` ${current}/${total}`
-          );
-        };
 
         try {
           await turnAnalysis.waitForCompressionReady(
@@ -102,34 +142,17 @@ export function useAgentCompressionHandler({
                 return;
               }
               lastProgressUpdate = now;
-
-              const processed = status.totalProcessed;
-              const remaining = status.queueLength;
-              const total = processed + remaining;
-              const elapsedSecs = (elapsed / 1000).toFixed(1);
-
-              setMessages((prev) => {
-                if (
-                  progressMessageIndex < 0 ||
-                  progressMessageIndex >= prev.length
-                ) {
-                  return prev;
-                }
-
-                const updated = [...prev];
-                updated[progressMessageIndex] = {
-                  ...prev[progressMessageIndex],
-                  content:
-                    `⏳ Analyzing conversation turns... ${buildProgressBar(processed, total)}\n` +
-                    `   Elapsed: ${elapsedSecs}s`,
-                };
-                return updated;
-              });
+              const total = status.totalProcessed + status.queueLength;
+              updateProgress(
+                progressMessageIndex,
+                status.totalProcessed,
+                total,
+                elapsed
+              );
             }
           );
         } catch (waitError) {
           const timeoutSecs = ((Date.now() - startTime) / 1000).toFixed(1);
-
           setMessages((prev) => [
             ...prev,
             {
@@ -140,7 +163,6 @@ export function useAgentCompressionHandler({
               timestamp: new Date(),
             },
           ]);
-
           console.error(
             '[Σ] Compression aborted: analysis queue timeout',
             waitError
@@ -148,22 +170,15 @@ export function useAgentCompressionHandler({
           return;
         }
 
+        // Final progress update
         const waitTime = Date.now() - startTime;
         const finalStatus = turnAnalysis.queueStatus;
-        setMessages((prev) => {
-          if (progressMessageIndex < 0 || progressMessageIndex >= prev.length) {
-            return prev;
-          }
-
-          const updated = [...prev];
-          updated[progressMessageIndex] = {
-            ...prev[progressMessageIndex],
-            content:
-              `⏳ Analyzing conversation turns... ${buildProgressBar(finalStatus.totalProcessed, finalStatus.totalProcessed)}\n` +
-              `   Elapsed: ${(waitTime / 1000).toFixed(1)}s`,
-          };
-          return updated;
-        });
+        updateProgress(
+          progressMessageIndex,
+          finalStatus.totalProcessed,
+          finalStatus.totalProcessed,
+          waitTime
+        );
 
         setMessages((prev) => [
           ...prev,
@@ -174,10 +189,10 @@ export function useAgentCompressionHandler({
           },
         ]);
 
+        // 3. Identify Pending Turn (to preserve verbatim)
         const lastMessage = messages[messages.length - 1];
         const lastAnalyzed =
           turnAnalysis.analyses[turnAnalysis.analyses.length - 1];
-
         const hasPendingTurn =
           lastMessage &&
           lastMessage.type !== 'system' &&
@@ -188,7 +203,6 @@ export function useAgentCompressionHandler({
         const pendingTurn = hasPendingTurn
           ? {
               message: lastMessage,
-              messageIndex: messages.length - 1,
               timestamp: lastMessage.timestamp.getTime(),
             }
           : null;
@@ -207,7 +221,7 @@ export function useAgentCompressionHandler({
         setIsThinking(true);
 
         try {
-          // Dynamic imports moved inside for easier mocking in some environments
+          // Dynamic imports
           const { compressContext } =
             await import('../../../sigma/compressor.js');
           const { reconstructSessionContext } =
@@ -215,44 +229,22 @@ export function useAgentCompressionHandler({
           const { loadSessionState } =
             await import('../../../sigma/session-state.js');
 
+          // Determine target size
+          const modelConfig = getModelConfig(modelName);
+          const targetSize =
+            compressionTargetSize || modelConfig.compressionTarget;
+
           const result = await compressContext(turnAnalysis.analyses, {
-            target_size: 40000,
+            target_size: targetSize,
           });
 
+          // Inject pending turn into lattice if needed
           const latticeWithPending = { ...result.lattice };
           if (pendingTurn) {
-            const msgType = pendingTurn.message.type;
-            const role: 'user' | 'assistant' | 'system' =
-              msgType === 'user'
-                ? 'user'
-                : msgType === 'system'
-                  ? 'system'
-                  : 'assistant';
-            const content = pendingTurn.message.content;
-
-            const pendingNode: ConversationNode = {
-              id: `pending_${Date.now()}`,
-              type: 'conversation_turn',
-              turn_id: `pending_${Date.now()}`,
-              role,
-              content,
-              timestamp: pendingTurn.timestamp,
-              embedding: [],
-              novelty: 0.5,
-              overlay_scores: {
-                O1_structural: 0,
-                O2_security: 0,
-                O3_lineage: 0,
-                O4_mission: 0,
-                O5_operational: 0,
-                O6_mathematical: 0,
-                O7_strategic: 0,
-              },
-              importance_score: 5,
-              is_paradigm_shift: false,
-              semantic_tags: [],
-            };
-
+            const pendingNode = createPendingTurnNode(
+              pendingTurn.message,
+              pendingTurn.timestamp
+            );
             latticeWithPending.nodes = [...result.lattice.nodes, pendingNode];
           }
 
@@ -271,6 +263,7 @@ export function useAgentCompressionHandler({
             `${(tokens / 1000).toFixed(1)}K → ${(result.compressed_size / 1000).toFixed(1)}K tokens\n\n` +
             sessionContext.recap;
 
+          // 4. Persist Recap
           try {
             fs.writeFileSync(
               path.join(cwd, '.sigma', `${compressionSessionId}.recap.txt`),
@@ -279,13 +272,26 @@ export function useAgentCompressionHandler({
             );
           } catch (err) {
             console.error('Failed to save recap file:', err);
+            setMessages((prev) => [
+              ...prev,
+              {
+                type: 'system',
+                content:
+                  '⚠️ Recap generated but failed to save to disk. Session resume may be affected.',
+                timestamp: new Date(),
+              },
+            ]);
           }
 
           setInjectedRecap(recap);
           tokenCounter.reset();
 
           if (pendingTurn) {
-            await turnAnalysis.enqueueAnalysis(pendingTurn);
+            await turnAnalysis.enqueueAnalysis({
+              message: pendingTurn.message,
+              messageIndex: messages.length - 1, // Approximate index, fine for requeue
+              timestamp: pendingTurn.timestamp,
+            });
           }
 
           setMessages((prev) => [
@@ -300,8 +306,7 @@ export function useAgentCompressionHandler({
             },
           ]);
 
-          const isGemini = modelName?.includes('gemini');
-          if (isGemini) {
+          if (modelConfig.requiresReprompt) {
             setShouldAutoRespond(true);
           }
         } catch (err) {
@@ -312,7 +317,8 @@ export function useAgentCompressionHandler({
               type: 'system',
               content:
                 `❌ Context compression failed: ${errorMessage}\n` +
-                `   Starting fresh session anyway to prevent token limit issues.`,
+                `   Starting fresh session anyway to prevent token limit issues.\n` +
+                `   Note: Previous context will be lost to the AI, though visible above.`,
               timestamp: new Date(),
             },
           ]);
@@ -338,6 +344,9 @@ export function useAgentCompressionHandler({
       conversationRegistryRef,
       anchorId,
       modelName,
+      compressionTargetSize,
+      updateProgress,
+      tokenCounter,
     ]
   );
 
