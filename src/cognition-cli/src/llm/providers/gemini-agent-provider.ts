@@ -231,10 +231,6 @@ export class GeminiAgentProvider implements AgentProvider {
     const accumulatedThinkingBlocks = new Map<string, string>();
     let accumulatedAssistant = '';
 
-    // Track TOTAL accumulated content (never reset) to catch combined final parts
-    let totalThinkingLength = 0;
-    let totalAssistantLength = 0;
-
     // Create or resume session
     // Add random component to prevent collisions when multiple sessions created in same millisecond
     const sessionId =
@@ -420,7 +416,6 @@ export class GeminiAgentProvider implements AgentProvider {
                 );
               }
               accumulatedAssistant = '';
-              totalAssistantLength = 0;
             }
 
             // Handle function responses (tool results)
@@ -473,7 +468,6 @@ export class GeminiAgentProvider implements AgentProvider {
                 );
               }
               accumulatedAssistant = '';
-              totalAssistantLength = 0;
             }
 
             // Handle text responses (both thinking and regular)
@@ -511,34 +505,11 @@ export class GeminiAgentProvider implements AgentProvider {
                 );
               }
 
-              // Check total accumulated length to catch combined final parts
-              const totalAccumulated = isThinking
-                ? totalThinkingLength
-                : totalAssistantLength;
-
-              if (process.env.DEBUG_GEMINI_STREAM) {
-                console.error(
-                  `[Gemini] Total accumulated: ${totalAccumulated} chars`
-                );
-              }
-
-              // Skip if this part doesn't add new content beyond what we've already sent
-              if (part.text.length <= totalAccumulated) {
-                if (process.env.DEBUG_GEMINI_STREAM) {
-                  console.error(
-                    `[Gemini] SKIP: part.text.length (${part.text.length}) <= totalAccumulated (${totalAccumulated})`
-                  );
-                }
-                // Don't update accumulators when skipping - we need to preserve the longer text
-                // for correct delta extraction on the next event
-                continue;
-              }
-
               // Skip if no new content (shorter than current accumulated = stale event)
-              if (accumulated && part.text.length < accumulated.length) {
+              if (accumulated && part.text.length <= accumulated.length) {
                 if (process.env.DEBUG_GEMINI_STREAM) {
                   console.error(
-                    `[Gemini] SKIP: Stale event (${part.text.length} < ${accumulated.length})`
+                    `[Gemini] SKIP: No new content (${part.text.length} <= ${accumulated.length})`
                   );
                 }
                 continue;
@@ -554,20 +525,6 @@ export class GeminiAgentProvider implements AgentProvider {
                 }
                 // This is likely a restructured event with different text
                 continue;
-              }
-
-              // For thinking blocks, detect if this part contains MULTIPLE headers
-              // (combined block) and skip it if we've already sent content
-              if (isThinking && accumulated) {
-                const headerMatches = part.text.match(/\*\*[^*]+\*\*/g);
-                if (headerMatches && headerMatches.length > 1) {
-                  if (process.env.DEBUG_GEMINI_STREAM) {
-                    console.error(
-                      `[Gemini] SKIP: Multiple headers in thinking block`
-                    );
-                  }
-                  continue;
-                }
               }
 
               // Extract delta text (only the new portion)
@@ -596,15 +553,13 @@ export class GeminiAgentProvider implements AgentProvider {
               // Update accumulated trackers
               if (isThinking) {
                 accumulatedThinkingBlocks.set(blockId, part.text);
-                totalThinkingLength += deltaText.length;
               } else {
                 accumulatedAssistant = part.text;
-                totalAssistantLength += deltaText.length;
               }
 
               if (process.env.DEBUG_GEMINI_STREAM) {
                 console.error(
-                  `[Gemini] ✓ YIELDING delta, new total: ${isThinking ? totalThinkingLength : totalAssistantLength} chars`
+                  `[Gemini] ✓ YIELDING delta, new total: ${part.text.length} chars`
                 );
               }
 
