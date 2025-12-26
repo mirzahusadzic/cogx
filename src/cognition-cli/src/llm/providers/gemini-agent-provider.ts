@@ -412,10 +412,11 @@ export class GeminiAgentProvider implements AgentProvider {
               // Reset assistant accumulator after tool use - next assistant message will be a new response
               if (process.env.DEBUG_GEMINI_STREAM) {
                 console.error(
-                  '[Gemini] Resetting assistant accumulator (post-tool-use)'
+                  '[Gemini] Resetting accumulators (post-tool-use)'
                 );
               }
               accumulatedAssistant = '';
+              accumulatedThinkingBlocks.clear();
             }
 
             // Handle function responses (tool results)
@@ -464,10 +465,11 @@ export class GeminiAgentProvider implements AgentProvider {
               // Reset assistant accumulator after tool result - next assistant message will be a new response
               if (process.env.DEBUG_GEMINI_STREAM) {
                 console.error(
-                  '[Gemini] Resetting assistant accumulator (post-tool-result)'
+                  '[Gemini] Resetting accumulators (post-tool-result)'
                 );
               }
               accumulatedAssistant = '';
+              accumulatedThinkingBlocks.clear();
             }
 
             // Handle text responses (both thinking and regular)
