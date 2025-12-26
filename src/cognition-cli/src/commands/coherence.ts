@@ -39,6 +39,7 @@
  */
 
 import { Command } from 'commander';
+import { getVerboseState } from '../utils/verbose.js';
 import chalk from 'chalk';
 import path from 'path';
 import { OverlayRegistry } from '../core/algebra/overlay-registry.js';
@@ -81,6 +82,7 @@ export function addCoherenceCommands(program: Command) {
     .option('--json', 'Output raw JSON')
     .option('-v, --verbose', 'Show detailed error messages', false)
     .action(async (options) => {
+      const isVerbose = getVerboseState(options);
       const workspaceManager = new WorkspaceManager();
       const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
 
@@ -296,7 +298,7 @@ export function addCoherenceCommands(program: Command) {
         console.log('');
       } catch (error) {
         console.error(chalk.red(`\n✗ ${(error as Error).message}\n`));
-        if (options.verbose) {
+        if (isVerbose) {
           console.error(error);
         }
         process.exit(1);
@@ -323,6 +325,7 @@ export function addCoherenceCommands(program: Command) {
     .option('-l, --limit <number>', 'Maximum number of results to show', '50')
     .option('-v, --verbose', 'Show detailed error messages', false)
     .action(async (options) => {
+      const isVerbose = getVerboseState(options);
       const workspaceManager = new WorkspaceManager();
       const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
 
@@ -383,7 +386,7 @@ export function addCoherenceCommands(program: Command) {
         displayCoherenceItems(filtered, options, minScore);
       } catch (error) {
         console.error(chalk.red(`\n✗ ${(error as Error).message}\n`));
-        if (options.verbose) {
+        if (isVerbose) {
           console.error(error);
         }
         process.exit(1);
@@ -412,6 +415,7 @@ export function addCoherenceCommands(program: Command) {
     .option('-l, --limit <number>', 'Maximum number of results to show', '50')
     .option('-v, --verbose', 'Show detailed error messages', false)
     .action(async (options) => {
+      const isVerbose = getVerboseState(options);
       const workspaceManager = new WorkspaceManager();
       const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
 
@@ -473,7 +477,7 @@ export function addCoherenceCommands(program: Command) {
         displayCoherenceItems(filtered, options, maxScore, true);
       } catch (error) {
         console.error(chalk.red(`\n✗ ${(error as Error).message}\n`));
-        if (options.verbose) {
+        if (isVerbose) {
           console.error(error);
         }
         process.exit(1);
@@ -496,6 +500,7 @@ export function addCoherenceCommands(program: Command) {
     .option('-l, --limit <number>', 'Maximum number of results to show', '50')
     .option('-v, --verbose', 'Show detailed error messages', false)
     .action(async (options) => {
+      const isVerbose = getVerboseState(options);
       const workspaceManager = new WorkspaceManager();
       const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
 
@@ -529,7 +534,7 @@ export function addCoherenceCommands(program: Command) {
         displayCoherenceItems(items, options);
       } catch (error) {
         console.error(chalk.red(`\n✗ ${(error as Error).message}\n`));
-        if (options.verbose) {
+        if (isVerbose) {
           console.error(error);
         }
         process.exit(1);

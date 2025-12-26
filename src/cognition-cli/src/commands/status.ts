@@ -50,6 +50,7 @@
  */
 
 import { Command } from 'commander';
+import { getVerboseState } from '../utils/verbose.js';
 import chalk from 'chalk';
 import path from 'path';
 
@@ -109,7 +110,7 @@ export function createStatusCommand(): Command {
   cmd
     .description('Check PGC coherence state (reads dirty_state.json)')
     .option('--json', 'Output as JSON', false)
-    .option('--verbose', 'Show detailed blast radius info', false)
+    .option('-v, --verbose', 'Show detailed blast radius info', false)
     .addHelpText(
       'after',
       combineHelpSections(
@@ -132,7 +133,8 @@ export function createStatusCommand(): Command {
     )
     .action(async (options) => {
       try {
-        await statusCommand(options);
+        const isVerbose = getVerboseState(options);
+        await statusCommand({ ...options, verbose: isVerbose });
       } catch (error) {
         console.error(chalk.red('Error:'), error);
         process.exit(1);
@@ -484,7 +486,7 @@ function formatAsHuman(report: StatusReport, verbose: boolean): string {
   );
   if (!verbose && report.summary.modifiedCount > 0) {
     lines.push(
-      `  Run ${chalk.cyan('cognition-cli status --verbose')} for detailed impact`
+      `  Run ${chalk.cyan('cognition-cli status -v')} for detailed impact`
     );
   }
 

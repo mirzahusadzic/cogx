@@ -48,6 +48,7 @@
  * // → Shows similarity score and structural differences
  */
 
+import { getVerboseState } from '../utils/verbose.js';
 import { Command } from 'commander';
 import { PGCManager } from '../core/pgc/manager.js';
 import {
@@ -146,8 +147,9 @@ export function addPatternsCommands(program: Command) {
       "The type of patterns to analyze ('structural' or 'lineage')",
       'structural'
     )
-    .option('--verbose', 'Show detailed information including file paths')
+    .option('-v, --verbose', 'Show detailed information including file paths')
     .action(async (options) => {
+      const isVerbose = getVerboseState(options);
       const pgc = new PGCManager(process.cwd());
 
       // Monument 4.8: Manifest as Source of Truth
@@ -228,7 +230,7 @@ export function addPatternsCommands(program: Command) {
           `\n${chalk.cyan(role.padEnd(20))} ${bar} ${chalk.bold(count)}`
         );
 
-        if (options.verbose) {
+        if (isVerbose) {
           // Show first 5 symbols in this role
           const displayCount = Math.min(5, symbols.length);
           for (let i = 0; i < displayCount; i++) {
@@ -262,9 +264,9 @@ export function addPatternsCommands(program: Command) {
         );
       }
 
-      if (!options.verbose) {
+      if (!isVerbose) {
         console.log(
-          chalk.dim('\n💡 Use --verbose to see file paths for each role')
+          chalk.dim('\n💡 Use -v, --verbose to see file paths for each role')
         );
       }
     });

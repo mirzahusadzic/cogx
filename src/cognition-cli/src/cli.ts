@@ -95,6 +95,7 @@ import {
   finalizeDebugLog,
   getDebugLogPath,
 } from './utils/debug-logger.js';
+import { getVerboseState } from './utils/verbose.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -301,6 +302,7 @@ program
     await genesisCommand({
       ...options,
       sources: effectivePaths,
+      verbose: getVerboseState(options),
     });
   });
 
@@ -651,7 +653,7 @@ program
   )
   .option('--top-k <number>', 'Number of similar concepts to retrieve', '5')
   .option('--save', 'Save Q&A as markdown document')
-  .option('--verbose', 'Show detailed processing steps')
+  .option('-v, --verbose', 'Show detailed processing steps')
   .option('--json', 'Output machine-readable JSON (for agent-to-agent queries)')
   .action(async (question, options, command) => {
     const { askCommand } = await import('./commands/ask.js');
@@ -660,6 +662,7 @@ program
       ...options,
       topK: parseInt(options.topK),
       json: allOpts.json || options.json, // Check both global and local
+      verbose: getVerboseState(options),
     });
   });
 
@@ -723,10 +726,14 @@ program
     'table'
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
+  .option('-v, --verbose', 'Show detailed processing steps')
   .option('--json', 'Output results as JSON (shorthand for --format json)')
   .action(async (query, options) => {
     const { latticeCommand } = await import('./commands/lattice.js');
-    await latticeCommand(query, options);
+    await latticeCommand(query, {
+      ...options,
+      verbose: getVerboseState(options),
+    });
   });
 
 // ========================================
@@ -764,7 +771,10 @@ securityCmd
   .action(async (options) => {
     const { securityAttacksCommand } =
       await import('./commands/sugar/security.js');
-    await securityAttacksCommand(options);
+    await securityAttacksCommand({
+      ...options,
+      verbose: getVerboseState(options),
+    });
   });
 
 securityCmd
@@ -785,7 +795,10 @@ securityCmd
   .action(async (options) => {
     const { securityCoverageGapsCommand } =
       await import('./commands/sugar/security.js');
-    await securityCoverageGapsCommand(options);
+    await securityCoverageGapsCommand({
+      ...options,
+      verbose: getVerboseState(options),
+    });
   });
 
 securityCmd
@@ -806,7 +819,10 @@ securityCmd
   .action(async (options) => {
     const { securityBoundariesCommand } =
       await import('./commands/sugar/security.js');
-    await securityBoundariesCommand(options);
+    await securityBoundariesCommand({
+      ...options,
+      verbose: getVerboseState(options),
+    });
   });
 
 // Direct O₂ overlay queries
@@ -852,7 +868,7 @@ securityCmd
           | undefined,
         format: options.format as 'table' | 'json' | 'summary' | undefined,
         limit: options.limit ? parseInt(options.limit) : undefined,
-        verbose: options.verbose,
+        verbose: getVerboseState(options),
       });
     }
   );
@@ -875,7 +891,10 @@ securityCmd
   .action(async (options) => {
     const { securityCVEsCommand } =
       await import('./commands/sugar/security.js');
-    await securityCVEsCommand(options);
+    await securityCVEsCommand({
+      ...options,
+      verbose: getVerboseState(options),
+    });
   });
 
 securityCmd
@@ -896,7 +915,10 @@ securityCmd
   .action(async (searchTerm, options) => {
     const { securityQueryCommand } =
       await import('./commands/sugar/security.js');
-    await securityQueryCommand(searchTerm, options);
+    await securityQueryCommand(searchTerm, {
+      ...options,
+      verbose: getVerboseState(options),
+    });
   });
 
 securityCmd
@@ -912,7 +934,10 @@ securityCmd
   .action(async (options) => {
     const { securityCoherenceCommand } =
       await import('./commands/sugar/security-coherence.js');
-    await securityCoherenceCommand(options);
+    await securityCoherenceCommand({
+      ...options,
+      verbose: getVerboseState(options),
+    });
   });
 
 securityCmd
@@ -939,7 +964,10 @@ securityCmd
 
     await analyzeSecurityBlastRadius(
       target,
-      options,
+      {
+        ...options,
+        verbose: getVerboseState(options),
+      },
       PGCManager,
       GraphTraversal,
       SecurityGuidelinesManager,
@@ -972,7 +1000,10 @@ workflowCmd
   .action(async (options) => {
     const { workflowPatternsCommand } =
       await import('./commands/sugar/workflow.js');
-    await workflowPatternsCommand(options);
+    await workflowPatternsCommand({
+      ...options,
+      verbose: getVerboseState(options),
+    });
   });
 
 workflowCmd
@@ -993,7 +1024,10 @@ workflowCmd
   .action(async (options) => {
     const { workflowQuestsCommand } =
       await import('./commands/sugar/workflow.js');
-    await workflowQuestsCommand(options);
+    await workflowQuestsCommand({
+      ...options,
+      verbose: getVerboseState(options),
+    });
   });
 
 workflowCmd
@@ -1014,7 +1048,10 @@ workflowCmd
   .action(async (options) => {
     const { workflowDepthRulesCommand } =
       await import('./commands/sugar/workflow.js');
-    await workflowDepthRulesCommand(options);
+    await workflowDepthRulesCommand({
+      ...options,
+      verbose: getVerboseState(options),
+    });
   });
 
 // Proofs commands
@@ -1040,7 +1077,10 @@ proofsCmd
   .action(async (options) => {
     const { proofsTheoremsCommand } =
       await import('./commands/sugar/proofs.js');
-    await proofsTheoremsCommand(options);
+    await proofsTheoremsCommand({
+      ...options,
+      verbose: getVerboseState(options),
+    });
   });
 
 proofsCmd
@@ -1060,7 +1100,10 @@ proofsCmd
   .option('-v, --verbose', 'Show detailed error messages', false)
   .action(async (options) => {
     const { proofsLemmasCommand } = await import('./commands/sugar/proofs.js');
-    await proofsLemmasCommand(options);
+    await proofsLemmasCommand({
+      ...options,
+      verbose: getVerboseState(options),
+    });
   });
 
 proofsCmd
@@ -1084,7 +1127,10 @@ proofsCmd
   )
   .action(async (options) => {
     const { proofsListCommand } = await import('./commands/sugar/proofs.js');
-    await proofsListCommand(options);
+    await proofsListCommand({
+      ...options,
+      verbose: getVerboseState(options),
+    });
   });
 
 proofsCmd
@@ -1112,6 +1158,7 @@ proofsCmd
     await proofsAlignedCommand({
       ...options,
       threshold: parseFloat(options.threshold),
+      verbose: getVerboseState(options),
     });
   });
 
@@ -1123,7 +1170,7 @@ import { CognitionError, getExitCode } from './utils/errors.js';
 import { formatError, formatGenericError } from './utils/error-formatter.js';
 
 process.on('uncaughtException', (error) => {
-  const verbose = process.env.COGNITION_VERBOSE === '1';
+  const verbose = getVerboseState({});
   const debugPath = getDebugLogPath();
 
   if (error instanceof CognitionError) {
@@ -1147,7 +1194,7 @@ process.on('uncaughtException', (error) => {
 });
 
 process.on('unhandledRejection', (reason) => {
-  const verbose = process.env.COGNITION_VERBOSE === '1';
+  const verbose = getVerboseState({});
   const debugPath = getDebugLogPath();
 
   if (reason instanceof CognitionError) {

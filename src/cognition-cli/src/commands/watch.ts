@@ -37,6 +37,7 @@
  */
 
 import { Command } from 'commander';
+import { getVerboseState } from '../utils/verbose.js';
 import chalk from 'chalk';
 import path from 'path';
 
@@ -56,10 +57,13 @@ export function createWatchCommand(): Command {
     .description('Watch files for changes and maintain PGC coherence state')
     .option('--untracked', 'Also watch for new untracked files', false)
     .option('--debounce <ms>', 'Debounce delay in milliseconds', '300')
-    .option('--verbose', 'Show detailed change events', false)
+    .option('-v, --verbose', 'Show detailed change events', false)
     .action(async (options) => {
       try {
-        await runWatch(options);
+        await runWatch({
+          ...options,
+          verbose: getVerboseState(options),
+        });
       } catch (error) {
         console.error(chalk.red('Error:'), error);
         process.exit(1);
