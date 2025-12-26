@@ -14,6 +14,7 @@ import { useAgentMessaging } from './useAgentMessaging.js';
 import { useAgentSync } from './useAgentSync.js';
 import { useAgentHandlers } from './useAgentHandlers.js';
 import { useAgentCompressionHandler } from './useAgentCompressionHandler.js';
+import { AUTO_RESPONSE_TRIGGER } from './constants.js';
 
 /**
  * useAgent hook - Professional production-ready version.
@@ -198,7 +199,7 @@ export function useAgent(options: UseAgentOptions) {
   useEffect(() => {
     if (shouldAutoRespond && !isThinking && autoResponse) {
       setShouldAutoRespond(false);
-      sendMessage('__AUTO_RESPONSE__');
+      sendMessage(AUTO_RESPONSE_TRIGGER);
     }
   }, [
     shouldAutoRespond,

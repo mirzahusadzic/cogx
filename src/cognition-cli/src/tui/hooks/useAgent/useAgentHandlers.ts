@@ -17,6 +17,10 @@ import type { UseSessionManagerResult } from '../session/useSessionManager.js';
 import type { useTokenCount } from '../tokens/useTokenCount.js';
 import type { UseTurnAnalysisReturn } from '../analysis/useTurnAnalysis.js';
 import type { UseCompressionResult } from '../compression/useCompression.js';
+import {
+  AUTO_RESPONSE_TRIGGER,
+  COMPRESSION_RECOVERY_PROMPT,
+} from './constants.js';
 
 const GEMINI_COMPRESSION_THRESHOLD = 50000;
 
@@ -337,13 +341,17 @@ export function useAgentHandlers({
           }
         }
 
-        const isAutoResponse = prompt === '__AUTO_RESPONSE__';
+        const isAutoResponse = prompt === AUTO_RESPONSE_TRIGGER;
         const userMessageTimestamp = new Date();
         if (!isAutoResponse) {
           setMessages((prev) => [
             ...prev,
             { type: 'user', content: prompt, timestamp: userMessageTimestamp },
           ]);
+        } else {
+          // For auto-response, we use the expanded prompt for the LLM
+          // but we don't show it in the UI as a user message
+          finalPrompt = COMPRESSION_RECOVERY_PROMPT;
         }
 
         if (compression.shouldTrigger && !compressionInProgressRef.current) {
