@@ -207,6 +207,7 @@ export function useAgentCompressionHandler({
         setIsThinking(true);
 
         try {
+          // Dynamic imports moved inside for easier mocking in some environments
           const { compressContext } =
             await import('../../../sigma/compressor.js');
           const { reconstructSessionContext } =

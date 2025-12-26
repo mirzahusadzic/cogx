@@ -31,11 +31,13 @@ const skipAnthropicSdkPlugin = (): Plugin => ({
   load(id) {
     if (id === 'claude-agent-sdk-mock') {
       return `
+        export const tool = (name, desc, schema, action) => ({ name, action });
+        export const createSdkMcpServer = (config) => ({ ...config, instance: {} });
         export const query = () => ({ 
           interrupt: async () => {},
           [Symbol.asyncIterator]: async function* () {}
         });
-        export default { query };
+        export default { tool, createSdkMcpServer, query };
       `;
     }
   },
