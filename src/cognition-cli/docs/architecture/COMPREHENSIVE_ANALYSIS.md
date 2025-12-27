@@ -6,9 +6,9 @@
 
 **At a Glance:**
 
-- **Current Version:** 2.6.3 (Manager/Worker Delegation)
-- **Production Lines:** ~92,033 TypeScript (excl. tests), ~132,153 total
-- **Test Coverage:** ~92% across 129 test files
+- **Current Version:** 2.6.4-dev (Unreleased)
+- **Production Lines:** ~93,012 TypeScript (excl. tests), ~137,487 total
+- **Test Coverage:** ~92% across 154 test files
 - **Architecture:** 7 cognitive overlays (O₁-O₇), dual-lattice Σ system, ZeroMQ agent messaging
 - **License:** AGPL-3.0-or-later
 
@@ -877,10 +877,10 @@ The same architecture that understands code can preserve human identity through 
 
 | Metric                     | Value                      |
 | -------------------------- | -------------------------- |
-| **Total TypeScript Lines** | **~132,153** (incl. tests) |
-| Production Code Lines      | ~92,033 (excl. tests)      |
-| Test Code Lines            | ~40,120 (129 test files)   |
-| Total Source Files         | 366 (237 prod + 129 test)  |
+| **Total TypeScript Lines** | **~137,487** (incl. tests) |
+| Production Code Lines      | ~93,012 (excl. tests)      |
+| Test Code Lines            | ~44,475 (154 test files)   |
+| Total Source Files         | 397 (243 prod + 154 test)  |
 
 ### Lines of Code by Module
 
@@ -928,24 +928,33 @@ The same architecture that understands code can preserve human identity through 
 
 ### Other Metrics
 
-| Metric                | Value                                     |
-| --------------------- | ----------------------------------------- |
-| Total Dependencies    | 54 npm packages (31 prod + 23 dev)        |
-| Documentation Pages   | 30+                                       |
-| Manual Chapters       | 22 (+ appendix)                           |
-| Cognitive Overlays    | 7 (O₁-O₇)                                 |
-| Supported Languages   | 3 (TS/JS/Python)                          |
-| Core Commands         | 40+ (with tab completion)                 |
-| Test Files            | 129 (comprehensive coverage)              |
-| Test Coverage         | ~92% (security, compression, UX)          |
-| Current Version       | 2.6.3 (Cross-Project Agent Collaboration) |
-| License               | AGPL-3.0-or-later                         |
-| Zenodo DOI            | 10.5281/zenodo.18012832                   |
-| Innovations Published | 48 (defensive patent publication)         |
+| Metric                | Value                              |
+| --------------------- | ---------------------------------- |
+| Total Dependencies    | 54 npm packages (31 prod + 23 dev) |
+| Documentation Pages   | 30+                                |
+| Manual Chapters       | 22 (+ appendix)                    |
+| Cognitive Overlays    | 7 (O₁-O₇)                          |
+| Supported Languages   | 3 (TS/JS/Python)                   |
+| Core Commands         | 40+ (with tab completion)          |
+| Test Files            | 154 (comprehensive coverage)       |
+| Test Coverage         | ~92% (security, compression, UX)   |
+| Current Version       | 2.6.4-dev (Unreleased)             |
+| License               | AGPL-3.0-or-later                  |
+| Zenodo DOI            | 10.5281/zenodo.18012832            |
+| Innovations Published | 48 (defensive patent publication)  |
 
 ---
 
 ## Version History & Changelog
+
+### 2.6.4-dev (Unreleased)
+
+**Summary:** Introduces a fractal lattice mesh architecture for cross-project agent collaboration.
+
+**New Features:**
+
+- **Context Sharding** — Agents can now query specialized "Gardener" agents of other repositories via `query_agent()`.
+- **Active Negotiation** — When an interface changes, agents negotiate the impact across project boundaries before build failures occur.
 
 ### Version 2.6.2 (Current - Manager/Worker Delegation)
 
