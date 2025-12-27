@@ -249,8 +249,8 @@ export async function executeFetchUrl(url: string): Promise<string> {
       text = text.replace(/\s+/g, ' ').trim();
     }
 
-    // Truncate if too large (100K chars for context)
-    const MAX_LENGTH = 100000;
+    // Truncate if too large (200K chars for context)
+    const MAX_LENGTH = 200000;
     if (text.length > MAX_LENGTH) {
       text =
         text.substring(0, MAX_LENGTH) +

@@ -35,6 +35,8 @@ import {
   executeBash,
   executeEditFile,
   executeSigmaTaskUpdate,
+  executeFetchUrl,
+  executeWebSearch,
 } from './tool-executors.js';
 
 /**
@@ -91,6 +93,32 @@ export const writeFileTool = new FunctionTool({
     content: z.string().describe('Content to write'),
   }),
   execute: ({ file_path, content }) => executeWriteFile(file_path, content),
+});
+
+/**
+ * Fetch URL tool - retrieves content from a URL
+ */
+export const fetchUrlTool = new FunctionTool({
+  name: 'fetch_url',
+  description:
+    'Fetch content from a URL to read documentation, APIs, or external resources. Returns text content with basic HTML stripping.',
+  parameters: z.object({
+    url: z.string().url().describe('The URL to fetch content from'),
+  }),
+  execute: async ({ url }) => executeFetchUrl(url),
+});
+
+/**
+ * Web Search tool - search the web
+ */
+export const webSearchTool = new FunctionTool({
+  name: 'WebSearch',
+  description:
+    'Search the web for current information, news, facts, and real-time data using Google Search',
+  parameters: z.object({
+    request: z.string().describe('The search query'),
+  }),
+  execute: async ({ request }) => executeWebSearch(request),
 });
 
 /**
@@ -801,6 +829,8 @@ export function getCognitionTools(
   const baseTools: FunctionTool[] = [
     readFileTool, // Read-only, no wrapping needed
     safeWriteFile,
+    fetchUrlTool, // Read-only, no wrapping needed
+    webSearchTool, // Read-only, no wrapping needed
     globTool, // Read-only, no wrapping needed
     grepTool, // Read-only, no wrapping needed
     safeBash,

@@ -32,7 +32,6 @@ import {
   StreamingMode,
 } from '@google/adk';
 import { getCognitionTools } from './gemini-adk-tools.js';
-import { fetchUrlTool } from './gemini-fetch-url-tool.js';
 import type {
   AgentProvider,
   AgentRequest,
@@ -160,8 +159,8 @@ export class GeminiAgentProvider implements AgentProvider {
       skipSummarization: false,
     });
 
-    // Combine file tools + web search tool + fetch URL tool (always enabled)
-    const tools = [...cognitionTools, webSearchTool, fetchUrlTool];
+    // Combine cognition tools (includes file tools, web search tool, fetch URL tool)
+    const tools = [...cognitionTools];
 
     // Create abort controller for cancellation support
     this.abortController = new AbortController();

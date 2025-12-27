@@ -281,7 +281,7 @@ function createSigmaTaskUpdateTool(
       delegate_session_id?: string | null;
       result_summary?: string | null;
       grounding?: {
-        strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
+        strategy?: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none' | null;
         overlay_hints?: string[] | null;
         query_hints?: string[] | null;
         evidence_required?: boolean | string | null;
@@ -331,7 +331,7 @@ function createSigmaTaskUpdateTool(
       // Handle nested grounding object if present
       if (todo.grounding && typeof todo.grounding === 'object') {
         const grounding: ProcessedGrounding = {
-          strategy: todo.grounding.strategy,
+          strategy: todo.grounding.strategy || 'none',
         };
 
         if (todo.grounding.overlay_hints)
@@ -509,6 +509,8 @@ Benefits of delegation:
               .object({
                 strategy: z
                   .enum(['pgc_first', 'pgc_verify', 'pgc_cite', 'none'])
+                  .optional()
+                  .nullable()
                   .describe('Grounding strategy to use'),
                 overlay_hints: z
                   .array(z.string())
