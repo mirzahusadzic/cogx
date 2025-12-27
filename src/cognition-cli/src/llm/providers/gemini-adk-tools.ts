@@ -6,6 +6,7 @@
  */
 
 import { FunctionTool } from '@google/adk';
+import { Type, type Schema } from '@google/genai';
 import { z } from 'zod';
 import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
 import type { MessageQueue } from '../../ipc/MessageQueue.js';
@@ -779,67 +780,107 @@ export function getCognitionTools(
     const boundSigmaTaskUpdateTool = new FunctionTool({
       name: 'SigmaTaskUpdate',
       description: SIGMA_TASK_UPDATE_DESCRIPTION,
-      parameters: z.object({
-        todos: z
-          .array(
-            z.object({
-              id: z
-                .string()
-                .min(1)
-                .describe(
-                  'Unique stable identifier for this task (use nanoid, UUID, or semantic slug like "fix-ruff-api")'
-                ),
-              content: z
-                .string()
-                .min(1)
-                .describe(
-                  'The imperative form describing what needs to be done (e.g., "Run tests", "Build the project")'
-                ),
-              activeForm: z
-                .string()
-                .min(1)
-                .describe(
-                  'The present continuous form shown during execution (e.g., "Running tests", "Building the project")'
-                ),
-              status: z
-                .enum(['pending', 'in_progress', 'completed', 'delegated'])
-                .describe(
-                  'Task status. Use "delegated" when assigning task to another agent via IPC'
-                ),
-              // Delegation fields (Manager/Worker paradigm)
-              acceptance_criteria: z
-                .array(z.string())
-                .optional()
-                .describe(
-                  'Success criteria for task completion (e.g., ["Must pass \'npm test\'", "No breaking changes"]). Required when delegating.'
-                ),
-              delegated_to: z
-                .string()
-                .optional()
-                .describe(
-                  'Agent ID this task was delegated to (e.g., "flash1"). Set when status is "delegated".'
-                ),
-              context: z
-                .string()
-                .optional()
-                .describe(
-                  'Additional context for delegated worker (e.g., "Refactoring auth system - keep OAuth flow intact")'
-                ),
-              delegate_session_id: z
-                .string()
-                .optional()
-                .describe("Worker's session ID (for audit trail)"),
-              result_summary: z
-                .string()
-                .optional()
-                .describe("Worker's completion report"),
-            })
-            // NOTE: .refine() creates ZodEffects which Gemini ADK doesn't support.
-            // Validation is now done in the execute function instead.
-          )
-          .describe('The updated task list'),
-      }),
-      execute: async ({ todos }) => {
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          todos: {
+            type: Type.ARRAY,
+            description: 'The updated task list',
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id: {
+                  type: Type.STRING,
+                  description:
+                    'Unique stable identifier for this task (use nanoid, UUID, or semantic slug like "fix-ruff-api")',
+                },
+                content: {
+                  type: Type.STRING,
+                  description:
+                    'The imperative form describing what needs to be done (e.g., "Run tests", "Build the project")',
+                },
+                activeForm: {
+                  type: Type.STRING,
+                  description:
+                    'The present continuous form shown during execution (e.g., "Running tests", "Building the project")',
+                },
+                status: {
+                  type: Type.STRING,
+                  enum: ['pending', 'in_progress', 'completed', 'delegated'],
+                  description:
+                    'Task status. Use "delegated" when assigning task to another agent via IPC',
+                },
+                // Delegation fields (Manager/Worker paradigm)
+                acceptance_criteria: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  nullable: true,
+                  description:
+                    'Success criteria for task completion (e.g., ["Must pass \'npm test\'", "No breaking changes"]). Required when delegating.',
+                },
+                delegated_to: {
+                  type: Type.STRING,
+                  nullable: true,
+                  description:
+                    'Agent ID this task was delegated to (e.g., "flash1"). Set when status is "delegated".',
+                },
+                context: {
+                  type: Type.STRING,
+                  nullable: true,
+                  description:
+                    'Additional context for delegated worker (e.g., "Refactoring auth system - keep OAuth flow intact")',
+                },
+                delegate_session_id: {
+                  type: Type.STRING,
+                  nullable: true,
+                  description: "Worker's session ID (for audit trail)",
+                },
+                result_summary: {
+                  type: Type.STRING,
+                  nullable: true,
+                  description: "Worker's completion report",
+                },
+              },
+              required: ['id', 'content', 'activeForm', 'status'],
+            },
+          },
+        },
+        required: ['todos'],
+      } as Schema,
+      execute: async (rawInput: unknown) => {
+        // [Safety Handling] Gemini 2.5 Flash sometimes sends explicit nulls for optional fields
+        // which Zod's .optional() (undefined | string) rejects.
+        // We use a raw schema with nullable: true to allow this at the API level,
+        // and then preprocess the input to remove any null values from the todo items.
+
+        const input = rawInput as { todos?: Record<string, unknown>[] };
+        const rawTodos = input.todos;
+
+        if (!rawTodos || !Array.isArray(rawTodos)) {
+          return 'No tasks provided';
+        }
+
+        const todos = rawTodos.map((todo) => {
+          const cleanTodo = { ...todo };
+          // Remove keys with null values
+          Object.keys(cleanTodo).forEach((key) => {
+            if (cleanTodo[key] === null) {
+              delete cleanTodo[key];
+            }
+          });
+          return cleanTodo;
+        }) as unknown as Array<{
+          id: string;
+          content: string;
+          activeForm: string;
+          status: string;
+          acceptance_criteria?: string[];
+          delegated_to?: string;
+          context?: string;
+          delegate_session_id?: string;
+          result_summary?: string;
+        }>;
+
         // Validate delegation requirements (moved from .refine() to support Gemini)
         for (const task of todos || []) {
           if (task.status === 'delegated') {
