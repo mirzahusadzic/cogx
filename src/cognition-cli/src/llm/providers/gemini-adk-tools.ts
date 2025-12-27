@@ -887,6 +887,35 @@ export function getCognitionTools(
                   nullable: true,
                   description: "Worker's completion report",
                 },
+                grounding: {
+                  type: Type.OBJECT,
+                  nullable: true,
+                  description: 'Grounding strategy and hints for the task',
+                  properties: {
+                    strategy: {
+                      type: Type.STRING,
+                      enum: ['pgc_first', 'pgc_verify', 'pgc_cite', 'none'],
+                      description: 'Grounding strategy to use',
+                    },
+                    overlay_hints: {
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING },
+                      nullable: true,
+                      description: 'Hints for overlay selection',
+                    },
+                    query_hints: {
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING },
+                      nullable: true,
+                      description: 'Hints for semantic search queries',
+                    },
+                    evidence_required: {
+                      type: Type.BOOLEAN,
+                      nullable: true,
+                      description: 'Whether evidence (citations) is required',
+                    },
+                  },
+                },
               },
               required: ['id', 'content', 'activeForm', 'status'],
             },
@@ -915,6 +944,28 @@ export function getCognitionTools(
               delete cleanTodo[key];
             }
           });
+
+          // Handle nested grounding object if present
+          if (cleanTodo.grounding && typeof cleanTodo.grounding === 'object') {
+            const grounding = {
+              ...(cleanTodo.grounding as Record<string, unknown>),
+            };
+            Object.keys(grounding).forEach((key) => {
+              if (grounding[key] === null) {
+                delete grounding[key];
+              }
+            });
+
+            // Coerce evidence_required if it's a string
+            if ('evidence_required' in grounding) {
+              grounding.evidence_required = coerceBoolean(
+                grounding.evidence_required as string | boolean
+              );
+            }
+
+            cleanTodo.grounding = grounding;
+          }
+
           return cleanTodo;
         }) as unknown as Array<{
           id: string;
@@ -926,6 +977,12 @@ export function getCognitionTools(
           context?: string;
           delegate_session_id?: string;
           result_summary?: string;
+          grounding?: {
+            strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
+            overlay_hints?: string[];
+            query_hints?: string[];
+            evidence_required?: boolean;
+          };
         }>;
 
         // Validate delegation requirements (moved from .refine() to support Gemini)

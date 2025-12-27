@@ -47,6 +47,27 @@ import {
 } from './tool-executors.js';
 
 /**
+ * Helper to coerce string | number to number
+ */
+const coerceNumber = (val: string | number | undefined): number | undefined => {
+  if (val === undefined) return undefined;
+  if (typeof val === 'number') return val;
+  const parsed = Number(val);
+  return isNaN(parsed) ? undefined : parsed;
+};
+
+/**
+ * Helper to coerce string | boolean to boolean
+ */
+const coerceBoolean = (
+  val: string | boolean | undefined
+): boolean | undefined => {
+  if (val === undefined) return undefined;
+  if (typeof val === 'boolean') return val;
+  return val === 'true';
+};
+
+/**
  * OpenAI tool type (return type of tool())
  */
 type OpenAITool = ReturnType<typeof tool>;
@@ -89,11 +110,22 @@ function createReadFileTool(cwd: string, workbenchUrl?: string): OpenAITool {
       'Reads a file, prioritizing partial reads. STANDARD WORKFLOW: 1. Use `grep` to find relevant line numbers. 2. Use this tool with `offset` and `limit` to read that specific section.',
     parameters: z.object({
       file_path: z.string().describe('Absolute path to the file to read'),
-      limit: z.number().optional().describe('Max lines to read'),
-      offset: z.number().optional().describe('Line offset to start from'),
+      limit: z
+        .union([z.number(), z.string()])
+        .optional()
+        .describe('Max lines to read'),
+      offset: z
+        .union([z.number(), z.string()])
+        .optional()
+        .describe('Line offset to start from'),
     }),
     execute: ({ file_path, limit, offset }) =>
-      executeReadFile(file_path, limit, offset, workbenchUrl),
+      executeReadFile(
+        file_path,
+        coerceNumber(limit),
+        coerceNumber(offset),
+        workbenchUrl
+      ),
   });
 }
 
@@ -168,8 +200,8 @@ function createBashTool(
     timeout,
   }: {
     command: string;
-    timeout?: number;
-  }) => executeBash(command, timeout, cwd, workbenchUrl);
+    timeout?: number | string;
+  }) => executeBash(command, coerceNumber(timeout), cwd, workbenchUrl);
 
   return tool({
     name: 'bash',
@@ -177,7 +209,10 @@ function createBashTool(
       'Execute shell commands in bash. REQUIRED for: git (status/diff/add/commit/push), npm/yarn (install/build/test), system commands (grep/ls/cd/mkdir/mv/cp), package managers, build tools. IMPORTANT: Always use this tool for ANY terminal/shell command - do not attempt to execute commands without it. EFFICIENCY TIP: Pipe to head/tail for large outputs.',
     parameters: z.object({
       command: z.string().describe('The command to execute'),
-      timeout: z.number().optional().describe('Timeout in ms (default 120000)'),
+      timeout: z
+        .union([z.number(), z.string()])
+        .optional()
+        .describe('Timeout in ms (default 120000)'),
     }),
     execute: withPermissionCheck('bash', execute, onCanUseTool),
   });
@@ -191,7 +226,7 @@ function createEditFileTool(onCanUseTool?: OnCanUseTool): OpenAITool {
     file_path: string;
     old_string: string;
     new_string: string;
-    replace_all?: boolean;
+    replace_all?: boolean | string;
   }
 
   const execute = ({
@@ -200,7 +235,12 @@ function createEditFileTool(onCanUseTool?: OnCanUseTool): OpenAITool {
     new_string,
     replace_all,
   }: EditInput) =>
-    executeEditFile(file_path, old_string, new_string, replace_all);
+    executeEditFile(
+      file_path,
+      old_string,
+      new_string,
+      coerceBoolean(replace_all)
+    );
 
   return tool({
     name: 'edit_file',
@@ -209,7 +249,10 @@ function createEditFileTool(onCanUseTool?: OnCanUseTool): OpenAITool {
       file_path: z.string().describe('Absolute path to the file'),
       old_string: z.string().describe('Text to replace'),
       new_string: z.string().describe('Replacement text'),
-      replace_all: z.boolean().optional().describe('Replace all occurrences'),
+      replace_all: z
+        .union([z.boolean(), z.string()])
+        .optional()
+        .describe('Replace all occurrences'),
     }),
     execute: withPermissionCheck('edit_file', execute, onCanUseTool),
   });
@@ -229,20 +272,91 @@ function createSigmaTaskUpdateTool(
     todos: Array<{
       id: string;
       content: string;
-      status: string;
+      status: 'pending' | 'in_progress' | 'completed' | 'delegated';
       activeForm: string;
       // Delegation fields (Manager/Worker paradigm)
+      acceptance_criteria?: string[] | null;
+      delegated_to?: string | null;
+      context?: string | null;
+      delegate_session_id?: string | null;
+      result_summary?: string | null;
+      grounding?: {
+        strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
+        overlay_hints?: string[] | null;
+        query_hints?: string[] | null;
+        evidence_required?: boolean | string | null;
+      } | null;
+    }>;
+  }
+
+  const execute = ({ todos: rawTodos }: TodoInput) => {
+    // Define target type for processed todos to satisfy linter and executor
+    interface ProcessedGrounding {
+      strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
+      overlay_hints?: string[];
+      query_hints?: string[];
+      evidence_required?: boolean;
+    }
+
+    interface ProcessedTodo {
+      id: string;
+      content: string;
+      status: 'pending' | 'in_progress' | 'completed' | 'delegated';
+      activeForm: string;
       acceptance_criteria?: string[];
       delegated_to?: string;
       context?: string;
       delegate_session_id?: string;
       result_summary?: string;
-    }>;
-  }
+      grounding?: ProcessedGrounding;
+    }
 
-  const execute = ({ todos }: TodoInput) => {
+    // [Safety Handling] Process todos to handle nulls and coercion
+    const processedTodos = (rawTodos || []).map((todo) => {
+      const cleanTodo: ProcessedTodo = {
+        id: todo.id,
+        content: todo.content,
+        status: todo.status,
+        activeForm: todo.activeForm,
+      };
+
+      if (todo.acceptance_criteria)
+        cleanTodo.acceptance_criteria = todo.acceptance_criteria;
+      if (todo.delegated_to) cleanTodo.delegated_to = todo.delegated_to;
+      if (todo.context) cleanTodo.context = todo.context;
+      if (todo.delegate_session_id)
+        cleanTodo.delegate_session_id = todo.delegate_session_id;
+      if (todo.result_summary) cleanTodo.result_summary = todo.result_summary;
+
+      // Handle nested grounding object if present
+      if (todo.grounding && typeof todo.grounding === 'object') {
+        const grounding: ProcessedGrounding = {
+          strategy: todo.grounding.strategy,
+        };
+
+        if (todo.grounding.overlay_hints)
+          grounding.overlay_hints = todo.grounding.overlay_hints;
+        if (todo.grounding.query_hints)
+          grounding.query_hints = todo.grounding.query_hints;
+
+        // Coerce evidence_required if it's a string
+        if (
+          todo.grounding.evidence_required !== undefined &&
+          todo.grounding.evidence_required !== null
+        ) {
+          grounding.evidence_required = coerceBoolean(
+            todo.grounding.evidence_required as string | boolean
+          );
+        }
+
+        cleanTodo.grounding = grounding;
+      }
+
+      return cleanTodo;
+    });
+
     // Validate delegation requirements (moved from .refine() for cross-provider compatibility)
-    for (const task of todos || []) {
+    for (const task of processedTodos) {
       if (task.status === 'delegated') {
         if (
           !task.acceptance_criteria ||
@@ -262,7 +376,7 @@ function createSigmaTaskUpdateTool(
 
     if (!anchorId) {
       // Fallback summary for non-persistent mode
-      const summary = (todos || [])
+      const summary = (processedTodos || [])
         .map((t) => {
           const icon =
             t.status === 'completed'
@@ -280,9 +394,9 @@ function createSigmaTaskUpdateTool(
           return `[${icon}] ${text}${suffix}`;
         })
         .join('\n');
-      return `Task list updated (${(todos || []).length} items) [NOT PERSISTED]:\n${summary}`;
+      return `Task list updated (${(processedTodos || []).length} items) [NOT PERSISTED]:\n${summary}`;
     }
-    return executeSigmaTaskUpdate(todos, cwd, anchorId);
+    return executeSigmaTaskUpdate(processedTodos, cwd, anchorId);
   };
 
   return tool({
@@ -363,29 +477,58 @@ Benefits of delegation:
             acceptance_criteria: z
               .array(z.string())
               .optional()
+              .nullable()
               .describe(
                 'Success criteria for task completion (e.g., ["Must pass \'npm test\'", "No breaking changes"]). Required when delegating.'
               ),
             delegated_to: z
               .string()
               .optional()
+              .nullable()
               .describe(
                 'Agent ID this task was delegated to (e.g., "flash1"). Set when status is "delegated".'
               ),
             context: z
               .string()
               .optional()
+              .nullable()
               .describe(
                 'Additional context for delegated worker (e.g., "Refactoring auth system - keep OAuth flow intact")'
               ),
             delegate_session_id: z
               .string()
               .optional()
+              .nullable()
               .describe("Worker's session ID (for audit trail)"),
             result_summary: z
               .string()
               .optional()
+              .nullable()
               .describe("Worker's completion report"),
+            grounding: z
+              .object({
+                strategy: z
+                  .enum(['pgc_first', 'pgc_verify', 'pgc_cite', 'none'])
+                  .describe('Grounding strategy to use'),
+                overlay_hints: z
+                  .array(z.string())
+                  .optional()
+                  .nullable()
+                  .describe('Hints for overlay selection'),
+                query_hints: z
+                  .array(z.string())
+                  .optional()
+                  .nullable()
+                  .describe('Hints for semantic search queries'),
+                evidence_required: z
+                  .union([z.boolean(), z.string()])
+                  .optional()
+                  .nullable()
+                  .describe('Whether evidence (citations) is required'),
+              })
+              .optional()
+              .nullable()
+              .describe('Grounding strategy and hints for the task'),
           })
           // NOTE: .refine() creates ZodEffects which Gemini ADK doesn't support.
           // For cross-provider consistency, validation is done in execute function.
