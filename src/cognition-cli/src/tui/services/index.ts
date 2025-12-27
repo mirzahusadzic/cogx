@@ -13,3 +13,5 @@ export {
   type TaskUpdateCallback,
   type TaskCompleteCallback,
 } from './BackgroundTaskManager.js';
+
+export { terminal, TerminalService } from './TerminalService.js';

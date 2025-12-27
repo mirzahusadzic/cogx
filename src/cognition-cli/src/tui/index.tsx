@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-  useRef,
-} from 'react';
+import React, { useEffect, useCallback, useMemo, useRef } from 'react';
 import { render, Box, Text, useInput, useStdout, type TextProps } from 'ink';
 import { ThemeProvider, extendTheme, defaultTheme } from '@inkjs/ui';
 import fs from 'fs';
@@ -12,22 +6,21 @@ import path from 'path';
 
 // Toggle mouse tracking - disable to restore native terminal text selection
 const ENABLE_MOUSE_TRACKING = false;
-import { OverlaysBar } from './components/OverlaysBar.js';
-import { ClaudePanelAgent } from './components/ClaudePanelAgent.js';
-import { InputBox } from './components/InputBox.js';
-import { StatusBar } from './components/StatusBar.js';
-import { SigmaInfoPanel } from './components/SigmaInfoPanel.js';
+import { CognitionTUILayout } from './components/CognitionTUILayout.js';
 import { useAgent } from './hooks/useAgent.js';
 import { useOverlays } from './hooks/useOverlays.js';
 import { useToolConfirmation } from './hooks/useToolConfirmation.js';
 import { useBackgroundTaskManager } from './hooks/useBackgroundTaskManager.js';
 import { useOnboardingWizard } from './hooks/useOnboardingWizard.js';
+import { useSlashCommands } from './hooks/useSlashCommands.js';
+import { useMessageMonitor } from './hooks/useMessageMonitor.js';
+import { TUIProvider, useTUI } from './context/TUIContext.js';
+import { terminal } from './services/index.js';
 import { isAuthenticationError } from './hooks/sdk/index.js';
 import type { TUIMessage } from './hooks/useAgent.js';
 import { MessageQueueMonitor } from '../ipc/MessageQueueMonitor.js';
 import { MessageQueue } from '../ipc/MessageQueue.js';
 import { MessagePublisher } from '../ipc/MessagePublisher.js';
-import { BusCoordinator } from '../ipc/BusCoordinator.js';
 import { getSigmaDirectory } from '../ipc/sigma-directory.js';
 import type { WorkbenchHealthResult } from '../utils/workbench-detect.js';
 
@@ -79,15 +72,26 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   workbenchHealth: initialWorkbenchHealth,
 }) => {
   const { stdout } = useStdout();
-  const [focused, setFocused] = useState(true);
-  const [renderError, setRenderError] = useState<Error | null>(null);
-  const [showInfoPanel, setShowInfoPanel] = useState(false);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const [isDropdownVisible, setIsDropdownVisible] = useState(false);
-  const [streamingPaste, setStreamingPaste] = useState<string>('');
-  const [inputLineCount, setInputLineCount] = useState(1);
-  const [pendingMessageCount, setPendingMessageCount] = useState(0);
-  const [monitorError, setMonitorError] = useState<string | null>(null);
+  const {
+    state,
+    toggleFocus,
+    setRenderError,
+    toggleInfoPanel,
+    setSaveMessage,
+    setIsDropdownVisible,
+    setStreamingPaste,
+    setInputLineCount,
+  } = useTUI();
+  const {
+    focused,
+    renderError,
+    showInfoPanel,
+    saveMessage,
+    isDropdownVisible,
+    streamingPaste,
+    inputLineCount,
+  } = state;
+
   const messageQueueMonitorRef = useRef<MessageQueueMonitor | null>(null);
   const messageQueueRef = useRef<MessageQueue | null>(null);
   const messagePublisherRef = useRef<MessagePublisher | null>(null);
@@ -146,444 +150,36 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     initialWorkbenchHealth, // Pre-computed health (avoids redundant /health call)
   });
 
+  const { pendingMessageCount, monitorError } = useMessageMonitor({
+    anchorId,
+    projectRoot,
+    debug,
+    model,
+    provider,
+    messageQueueMonitorRef,
+    messageQueueRef,
+    messagePublisherRef,
+  });
+
+  const { handleSlashCommand } = useSlashCommands({
+    projectRoot,
+    anchorId,
+    addSystemMessage,
+    originalSendMessage,
+    messageQueueRef,
+    messagePublisherRef,
+    setStreamingPaste,
+  });
+
   // Wrap sendMessage to clear streaming paste on regular messages
   const sendMessage = useCallback(
     async (msg: string) => {
-      // Handle /send command for inter-agent messaging (display-only)
-      if (msg.startsWith('/send')) {
-        const args = msg.slice(5).trim(); // Remove '/send'
-        const spaceIndex = args.indexOf(' ');
-
-        if (spaceIndex === -1) {
-          addSystemMessage(
-            '❌ Missing message content\n\nUsage: /send <alias> <message>'
-          );
-          return;
-        }
-
-        const targetAliasOrId = args.slice(0, spaceIndex);
-        const messageContent = args.slice(spaceIndex + 1);
-
-        if (!messageContent.trim()) {
-          addSystemMessage('❌ Message content cannot be empty');
-          return;
-        }
-
-        // Resolve alias to agent ID (ONLY active agents - no fallback to disconnected)
-        let targetAgentId: string | null = null;
-        const sigmaDir = getSigmaDirectory(projectRoot);
-        const queueDir = path.join(sigmaDir, 'message_queue');
-        const ACTIVE_THRESHOLD_MS = 5000; // 5 seconds (matches heartbeat interval)
-        const now = Date.now();
-
-        if (fs.existsSync(queueDir)) {
-          const entries = fs.readdirSync(queueDir, { withFileTypes: true });
-
-          for (const entry of entries) {
-            if (!entry.isDirectory()) continue;
-            const infoPath = path.join(queueDir, entry.name, 'agent-info.json');
-            if (fs.existsSync(infoPath)) {
-              try {
-                const info = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
-                const isActive =
-                  info.status === 'active' &&
-                  now - info.lastHeartbeat < ACTIVE_THRESHOLD_MS;
-
-                // Match by alias (case-insensitive) or full agent ID
-                const aliasMatch =
-                  info.alias &&
-                  info.alias.toLowerCase() === targetAliasOrId.toLowerCase();
-                const idMatch = info.agentId === targetAliasOrId;
-
-                // Only return ACTIVE agents
-                if ((aliasMatch || idMatch) && isActive) {
-                  targetAgentId = info.agentId || entry.name;
-                  break;
-                }
-              } catch {
-                // Ignore parse errors
-              }
-            }
-          }
-        }
-
-        // Error if agent not found (instead of silently using alias)
-        if (!targetAgentId) {
-          addSystemMessage(
-            `❌ Agent "${targetAliasOrId}" not found\n\nUse /agents to see available agents`
-          );
-          return;
-        }
-
-        // Send the message using MessagePublisher
-        try {
-          const publisher = messagePublisherRef.current;
-          if (!publisher) {
-            addSystemMessage('❌ MessagePublisher not initialized');
-            return;
-          }
-
-          await publisher.sendMessage(targetAgentId, messageContent);
-          addSystemMessage(
-            `📤 Sent to ${targetAliasOrId}: "${messageContent}"`
-          );
-        } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : String(err);
-          addSystemMessage(`❌ Send failed: ${errorMsg}`);
-        }
-
-        return;
+      const handled = await handleSlashCommand(msg);
+      if (!handled) {
+        originalSendMessage(msg);
       }
-
-      // Handle /pending command to list messages (display-only)
-      if (msg.trim() === '/pending') {
-        try {
-          const messageQueue = messageQueueRef.current;
-          if (!messageQueue) {
-            addSystemMessage('❌ MessageQueue not initialized');
-            return;
-          }
-
-          const messages = await messageQueue.getMessages('pending');
-
-          if (messages.length === 0) {
-            addSystemMessage('📭 No pending messages');
-            return;
-          }
-
-          let output = `📬 Pending Messages (${messages.length})\n\n`;
-
-          for (const msg of messages) {
-            const time = new Date(msg.timestamp).toLocaleTimeString();
-            const contentPreview =
-              typeof msg.content === 'object' &&
-              msg.content !== null &&
-              'message' in msg.content
-                ? (msg.content as { message: string }).message
-                : JSON.stringify(msg.content);
-
-            // Truncate long messages
-            const preview =
-              contentPreview.length > 80
-                ? contentPreview.slice(0, 77) + '...'
-                : contentPreview;
-
-            output += `• [${msg.id.slice(0, 8)}] ${msg.from} (${time})\n`;
-            output += `  "${preview}"\n\n`;
-          }
-
-          output += `💬 /inject <id> | /inject-all | /dismiss <id>`;
-
-          addSystemMessage(output);
-        } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : String(err);
-          addSystemMessage(`❌ Error: ${errorMsg}`);
-        }
-
-        return;
-      }
-
-      // Handle /inject command to inject a specific message
-      if (msg.startsWith('/inject')) {
-        const messageId = msg.slice(7).trim();
-
-        if (!messageId) {
-          originalSendMessage(
-            '❌ Error: Missing message ID\n\nUsage: /inject <message-id>\n\nUse `/pending` to see available messages.'
-          );
-          return;
-        }
-
-        try {
-          const messageQueue = messageQueueRef.current;
-          if (!messageQueue) {
-            originalSendMessage('❌ Error: MessageQueue not initialized.');
-            return;
-          }
-
-          const message = await messageQueue.getMessage(messageId);
-
-          if (!message) {
-            originalSendMessage(
-              `❌ **Error: Message not found**\n\nMessage ID \`${messageId}\` does not exist in the queue.\n\nUse \`/pending\` to see available messages.`
-            );
-            return;
-          }
-
-          // Update status to injected
-          await messageQueue.updateStatus(messageId, 'injected');
-
-          const date = new Date(message.timestamp).toLocaleString();
-          const contentText =
-            typeof message.content === 'object' &&
-            message.content !== null &&
-            'message' in message.content
-              ? (message.content as { message: string }).message
-              : JSON.stringify(message.content);
-
-          const output =
-            `📨 **Injected Message from ${message.from}**\n\n` +
-            `**Topic**: \`${message.topic}\`\n` +
-            `**Received**: ${date}\n\n` +
-            `---\n\n` +
-            `${contentText}\n\n` +
-            `---\n\n` +
-            `_Message status updated to: injected_`;
-
-          originalSendMessage(output);
-        } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : String(err);
-          originalSendMessage(`❌ Error injecting message: ${errorMsg}`);
-        }
-
-        return;
-      }
-
-      // Handle /inject-all command
-      if (msg.trim() === '/inject-all') {
-        try {
-          const messageQueue = messageQueueRef.current;
-          if (!messageQueue) {
-            originalSendMessage('❌ Error: MessageQueue not initialized.');
-            return;
-          }
-
-          const messages = await messageQueue.getMessages('pending');
-
-          if (messages.length === 0) {
-            originalSendMessage(
-              '📭 **No pending messages to inject**\n\nYour message queue is empty.'
-            );
-            return;
-          }
-
-          let output = `📨 **Injecting ${messages.length} Messages**\n\n`;
-
-          for (const msg of messages) {
-            const date = new Date(msg.timestamp).toLocaleString();
-            const contentText =
-              typeof msg.content === 'object' &&
-              msg.content !== null &&
-              'message' in msg.content
-                ? (msg.content as { message: string }).message
-                : JSON.stringify(msg.content);
-
-            output += `---\n\n`;
-            output += `**From**: \`${msg.from}\` | **Topic**: \`${msg.topic}\` | **Received**: ${date}\n\n`;
-            output += `${contentText}\n\n`;
-
-            // Update status
-            await messageQueue.updateStatus(msg.id, 'injected');
-          }
-
-          output += `---\n\n_All messages marked as injected_`;
-
-          originalSendMessage(output);
-        } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : String(err);
-          originalSendMessage(`❌ Error injecting messages: ${errorMsg}`);
-        }
-
-        return;
-      }
-
-      // Handle /dismiss command (display-only)
-      if (msg.startsWith('/dismiss')) {
-        const messageId = msg.slice(8).trim();
-
-        if (!messageId) {
-          addSystemMessage('❌ Missing message ID\n\nUsage: /dismiss <id>');
-          return;
-        }
-
-        try {
-          const messageQueue = messageQueueRef.current;
-          if (!messageQueue) {
-            addSystemMessage('❌ MessageQueue not initialized');
-            return;
-          }
-
-          const message = await messageQueue.getMessage(messageId);
-
-          if (!message) {
-            addSystemMessage(`❌ Message not found: ${messageId}`);
-            return;
-          }
-
-          // Update status to dismissed
-          await messageQueue.updateStatus(messageId, 'dismissed');
-          addSystemMessage(`🗑️ Dismissed message from ${message.from}`);
-        } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : String(err);
-          addSystemMessage(`❌ Error: ${errorMsg}`);
-        }
-
-        return;
-      }
-
-      // Handle /agents command to list active agents (display-only, not sent to agent)
-      if (msg.trim() === '/agents') {
-        // Provider emoji mapping (matches StatusBar)
-        const getProviderEmoji = (model: string): string => {
-          if (model.includes('gemini')) return '🔵';
-          if (
-            model.includes('opus') ||
-            model.includes('sonnet') ||
-            model.includes('claude')
-          )
-            return '🟠';
-          return '⚪';
-        };
-
-        try {
-          const sigmaDir = getSigmaDirectory(projectRoot);
-          const queueDir = path.join(sigmaDir, 'message_queue');
-
-          // Check if message_queue directory exists
-          if (!fs.existsSync(queueDir)) {
-            addSystemMessage(
-              '📭 No agents found\n\nNo message queue directory exists yet. Agents will appear here once they connect.'
-            );
-            return;
-          }
-
-          // Get all agent directories
-          const entries = fs.readdirSync(queueDir, { withFileTypes: true });
-          const agentDirs = entries.filter((e) => e.isDirectory());
-
-          if (agentDirs.length === 0) {
-            addSystemMessage(
-              '📭 No agents found\n\nNo agents have connected yet.'
-            );
-            return;
-          }
-
-          // Get stats for each agent from agent-info.json
-          interface AgentDisplayInfo {
-            id: string;
-            alias: string;
-            model: string;
-            lastHeartbeat: number;
-            status: string;
-            isYou: boolean;
-            isActive: boolean;
-            projectRoot?: string;
-          }
-
-          const agents: AgentDisplayInfo[] = [];
-          const now = Date.now();
-          const ACTIVE_THRESHOLD = 30000; // 30 seconds
-          let currentAgent: AgentDisplayInfo | null = null;
-
-          for (const dir of agentDirs) {
-            const agentDir = path.join(queueDir, dir.name);
-            const infoPath = path.join(agentDir, 'agent-info.json');
-
-            // Only show agents with agent-info.json (properly registered)
-            if (!fs.existsSync(infoPath)) {
-              continue;
-            }
-
-            try {
-              const info = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
-              const isActive =
-                info.status === 'active' &&
-                now - info.lastHeartbeat < ACTIVE_THRESHOLD;
-
-              // Only include active agents (heartbeat within threshold)
-              if (!isActive) {
-                continue;
-              }
-
-              // Check if this is "you" by matching anchor ID pattern
-              const isYou = info.agentId?.startsWith(anchorId + '-') || false;
-
-              const agentInfo: AgentDisplayInfo = {
-                id: info.agentId || dir.name,
-                alias: info.alias || info.model || 'agent',
-                model: info.model || 'unknown',
-                lastHeartbeat: info.lastHeartbeat || 0,
-                status: info.status || 'unknown',
-                isYou,
-                isActive,
-                projectRoot: info.projectRoot,
-              };
-
-              if (isYou) {
-                currentAgent = agentInfo;
-              }
-
-              agents.push(agentInfo);
-            } catch {
-              // Ignore parse errors
-            }
-          }
-
-          if (agents.length === 0) {
-            addSystemMessage(
-              '📭 No active agents\n\nNo agents are currently connected. Start another TUI instance to see it here.'
-            );
-            return;
-          }
-
-          // Sort by alias (for consistent ordering), but put "you" first
-          agents.sort((a, b) => {
-            if (a.isYou) return -1;
-            if (b.isYou) return 1;
-            return a.alias.localeCompare(b.alias);
-          });
-
-          // Build clean output (note: system messages get • prefix automatically)
-          let output = '';
-
-          // Show current agent identity prominently
-          if (currentAgent) {
-            const emoji = getProviderEmoji(currentAgent.model);
-            const project = currentAgent.projectRoot
-              ? ` [${currentAgent.projectRoot}]`
-              : '';
-            output += `👤 You are: ${emoji} ${currentAgent.alias} (${currentAgent.model})${project}\n`;
-          }
-
-          // List other agents
-          const otherAgents = agents.filter((a) => !a.isYou);
-          if (otherAgents.length > 0) {
-            output += `  🤖 Other Agents (${otherAgents.length}):\n`;
-            for (const agent of otherAgents) {
-              const emoji = getProviderEmoji(agent.model);
-              const project = agent.projectRoot
-                ? ` [${agent.projectRoot}]`
-                : '';
-              output += `     ${emoji} ${agent.alias} (${agent.model})${project}\n`;
-            }
-          } else {
-            output += `  🤖 No other agents online\n`;
-          }
-
-          output += `  💬 /send <alias> <message>`;
-
-          addSystemMessage(output);
-        } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : String(err);
-          addSystemMessage(`❌ Error listing agents: ${errorMsg}`);
-        }
-
-        return;
-      }
-
-      // Clear streaming paste when sending a regular message
-      if (!msg.startsWith('[Pasted content')) {
-        setStreamingPaste('');
-      }
-      originalSendMessage(msg);
     },
-    [
-      originalSendMessage,
-      addSystemMessage,
-      currentSessionId,
-      projectRoot,
-      anchorId,
-    ]
+    [handleSlashCommand, originalSendMessage]
   );
 
   // Onboarding wizard (async, non-blocking) - must be after sendMessage
@@ -628,28 +224,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   useEffect(() => {
     // Add direct SIGINT handler for Ctrl+C - use 'once' to ensure it only fires once
     const sigintHandler = () => {
-      try {
-        process.stdout.write('\x1b[0m'); // Reset colors
-        if (ENABLE_MOUSE_TRACKING) {
-          process.stdout.write('\x1b[?1000l\x1b[?1006l'); // Disable mouse
-        }
-      } catch (e) {
-        // Ignore errors during cleanup
-        console.error(
-          `Cleanup error: ${e instanceof Error ? e.message : String(e)}`
-        );
-      }
-      // Kill the entire process group to ensure workers die too
-      // SIGKILL (-9) is unblockable and immediate
-      try {
-        process.kill(-process.pid, 'SIGKILL');
-      } catch (e) {
-        // If that fails, use abort as fallback
-        console.error(
-          `Process kill error: ${e instanceof Error ? e.message : String(e)}`
-        );
-        process.abort();
-      }
+      terminal.forceKill();
     };
 
     // Use 'once' instead of 'on' to prevent multiple firings
@@ -657,34 +232,19 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
 
     if (process.stdin.isTTY && typeof process.stdin.setRawMode === 'function') {
       // Enable bracketed paste mode (always on)
-      // 2004 = Bracketed paste mode (pastes wrapped with \x1b[200~ and \x1b[201~)
-      process.stdout.write('\x1b[?2004h');
+      terminal.setBracketedPaste(true);
 
       if (ENABLE_MOUSE_TRACKING) {
-        // Enable mouse scroll tracking
-        // 1000 = Basic mouse tracking (needed for scroll wheel events)
-        // 1006 = SGR mouse mode (better coordinate encoding)
-        process.stdout.write('\x1b[?1000h'); // Basic mouse tracking (clicks + scroll)
-        process.stdout.write('\x1b[?1006h'); // SGR encoding (position-aware)
+        terminal.setMouseTracking(true);
       }
 
       return () => {
-        // Disable bracketed paste
-        process.stdout.write('\x1b[?2004l');
-
-        if (ENABLE_MOUSE_TRACKING) {
-          // Disable mouse tracking on cleanup
-          process.stdout.write('\x1b[?1000l');
-          process.stdout.write('\x1b[?1006l');
-        }
-        // Reset colors on exit
-        process.stdout.write('\x1b[0m');
+        terminal.cleanup();
       };
     }
 
     return () => {
-      // Reset colors on exit
-      process.stdout.write('\x1b[0m');
+      terminal.resetColors();
     };
   }, []);
 
@@ -770,127 +330,6 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       }
     }
   }, [error, sessionId, projectRoot]);
-
-  // Initialize MessageQueueMonitor when anchor starts
-  // Use a ref to prevent double initialization
-  // anchorId is stable (doesn't change during compression), unlike currentSessionId
-  const monitorInitializedRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!anchorId || !projectRoot) {
-      return;
-    }
-
-    // Prevent double initialization for the same anchor
-    if (monitorInitializedRef.current === anchorId) {
-      return;
-    }
-
-    // If we have a different anchor, clean up the old one first
-    if (
-      messageQueueMonitorRef.current &&
-      monitorInitializedRef.current !== anchorId
-    ) {
-      messageQueueMonitorRef.current.stop().catch(() => {});
-      messageQueueMonitorRef.current = null;
-      messagePublisherRef.current = null;
-      messageQueueRef.current = null;
-    }
-
-    monitorInitializedRef.current = anchorId;
-
-    let mounted = true;
-    let cleanupFn: (() => void) | null = null;
-
-    const initializeMonitor = async () => {
-      try {
-        // Use anchor ID as agent ID for message routing (stable across session compression)
-        const agentId = anchorId;
-        const sigmaDir = getSigmaDirectory(projectRoot);
-
-        // Initialize ZeroMQ bus using BusCoordinator
-        // This will either start a new Bus Master or connect to existing one
-        // Pass projectRoot to create project-specific bus when IPC_SIGMA_BUS is not set
-        const coordinator = new BusCoordinator(projectRoot);
-        const bus = await coordinator.connectWithFallback();
-
-        if (!mounted) return;
-
-        // Topics to subscribe to
-        const topics = ['agent.command', 'agent.notification', 'agent.message'];
-
-        // Create and start monitor
-        // Pass model to monitor for alias generation (use model prop or extract from provider)
-        const modelName = model || provider || 'agent';
-        const monitor = new MessageQueueMonitor(
-          agentId,
-          bus,
-          topics,
-          sigmaDir,
-          modelName,
-          projectRoot // Pass projectRoot for cross-project agent discovery
-        );
-        await monitor.start();
-
-        if (!mounted) {
-          await monitor.stop();
-          return;
-        }
-
-        // Store monitor instance for cleanup
-        messageQueueMonitorRef.current = monitor;
-
-        // Create MessagePublisher for sending messages to other agents
-        // Use the monitor's actual agent ID (with suffix) so replies go to the right queue
-        const monitorAgentId = monitor.getQueue().getAgentId();
-        const publisher = new MessagePublisher(bus, monitorAgentId);
-        messagePublisherRef.current = publisher;
-
-        // Use the monitor's queue instance for event-driven updates
-        // This ensures /pending reads from the same queue where messages are delivered
-        const messageQueue = monitor.getQueue();
-        messageQueueRef.current = messageQueue;
-
-        // Subscribe to count changes via event emitter
-        const handleCountChanged = (...args: unknown[]) => {
-          const count = args[0] as number;
-          setPendingMessageCount(count);
-        };
-
-        messageQueue.on('countChanged', handleCountChanged);
-
-        // Get initial count
-        const initialCount = await messageQueue.getPendingCount();
-        setPendingMessageCount(initialCount);
-
-        // Clear any previous errors
-        setMonitorError(null);
-
-        // Store cleanup function
-        cleanupFn = () => {
-          messageQueue.off('countChanged', handleCountChanged);
-          monitor.stop().catch((err) => {
-            if (debug) {
-              console.error('[MessageQueueMonitor] Stop error:', err);
-            }
-          });
-        };
-      } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : String(err);
-        setMonitorError(`Failed to initialize message monitor: ${errorMsg}`);
-        if (debug) {
-          console.error('[MessageQueueMonitor] Initialization error:', err);
-        }
-      }
-    };
-
-    initializeMonitor();
-
-    return () => {
-      mounted = false;
-      if (cleanupFn) cleanupFn();
-    };
-  }, [anchorId, projectRoot, debug, model, provider]);
 
   // Handle pasted content - stream it line by line
   const handlePasteContent = useCallback(
@@ -1056,26 +495,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       // PRIORITY 3: Global keyboard shortcuts (only when modal NOT active)
       if (key.ctrl && input === 'c') {
         // Force immediate exit - kill entire process group including workers
-        try {
-          process.stdout.write('\x1b[0m'); // Reset colors
-          if (ENABLE_MOUSE_TRACKING) {
-            process.stdout.write('\x1b[?1000l\x1b[?1006l'); // Disable mouse
-          }
-        } catch (e) {
-          // Ignore errors
-          console.error(
-            `Cleanup error: ${e instanceof Error ? e.message : String(e)}`
-          );
-        }
-        // Kill process group to ensure workers die
-        try {
-          process.kill(-process.pid, 'SIGKILL');
-        } catch (e) {
-          console.error(
-            `Process kill error: ${e instanceof Error ? e.message : String(e)}`
-          );
-          process.abort(); // Fallback if process group kill fails
-        }
+        terminal.forceKill();
       } else if (key.ctrl && input === 's') {
         // Save conversation log with Ctrl+S
         saveConversationLog();
@@ -1084,7 +504,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
         wizard.startWizard();
       } else if (key.tab) {
         // Toggle focus between input and panel
-        setFocused((prev) => !prev);
+        toggleFocus();
       } else if (
         input === 'i' &&
         !key.ctrl &&
@@ -1093,7 +513,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
         !focused
       ) {
         // Toggle info panel with 'i' key (only when NOT in input box)
-        setShowInfoPanel((prev) => !prev);
+        toggleInfoPanel();
       }
       // Note: Arrow keys, etc. are handled by TextInput component
       // We just need to not interfere with them
@@ -1143,98 +563,36 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   try {
     return (
       <ThemeProvider theme={customTheme}>
-        <Box
-          flexDirection="column"
-          width="100%"
-          height="100%"
-          paddingTop={0}
-          marginTop={0}
-        >
-          <OverlaysBar
-            sigmaStats={sigmaStats}
-            activeTask={taskManager.activeTask}
-            pendingMessageCount={pendingMessageCount}
-            monitorError={monitorError}
-            workbenchHealth={workbenchHealth ?? undefined}
-          />
-          <Text color="#3a3f4b">
-            {'─'.repeat(process.stdout.columns || 80)}
-          </Text>
-          <Box
-            height={chatAreaHeight}
-            width="100%"
-            overflow="hidden"
-            flexDirection="row"
-          >
-            <ClaudePanelAgent
-              messages={
-                displayThinking
-                  ? messages
-                  : messages.filter((m) => m.type !== 'thinking')
-              }
-              isThinking={isThinking}
-              focused={!focused}
-              streamingPaste={streamingPaste}
-            />
-            {showInfoPanel && sigmaStats && (
-              <Box marginLeft={1}>
-                <SigmaInfoPanel
-                  sigmaStats={sigmaStats}
-                  overlays={avgOverlays}
-                />
-              </Box>
-            )}
-          </Box>
-
-          {/* Reserved space for dropdown/confirmation - dynamically sized based on visibility */}
-          <Box
-            height={(() => {
-              const wizardSelectHeight =
-                wizard.confirmationState?.mode === 'select' &&
-                wizard.confirmationState.items
-                  ? Math.min(wizard.confirmationState.items.length + 4, 12)
-                  : 0;
-              if (isDropdownVisible) return 9 + inputLineCount + 2;
-              if (wizardSelectHeight > 0)
-                return wizardSelectHeight + inputLineCount + 2;
-              if (
-                confirmationState?.pending ||
-                wizard.confirmationState?.pending
-              )
-                return 5 + inputLineCount + 2;
-              return inputLineCount + 2;
-            })()}
-            flexDirection="column"
-            justifyContent="flex-end"
-          >
-            <InputBox
-              onSubmit={sendMessage}
-              focused={focused}
-              disabled={isThinking}
-              onInterrupt={interrupt}
-              onDropdownVisibleChange={setIsDropdownVisible}
-              onPasteContent={handlePasteContent}
-              onInputChange={(value: string) =>
-                setInputLineCount(value.split('\n').length)
-              }
-              providerName={provider}
-              confirmationState={confirmationState}
-              wizardConfirmationState={wizard.confirmationState}
-            />
-          </Box>
-          {/* Always reserve space for save message to prevent layout shift */}
-          <Box height={1}>
-            {saveMessage && <Text color="green">{saveMessage}</Text>}
-          </Box>
-          <StatusBar
-            sessionId={currentSessionId}
-            focused={focused}
-            tokenCount={tokenCount}
-            compressionThreshold={sessionTokens}
-            providerName={provider}
-            modelId={model}
-          />
-        </Box>
+        <CognitionTUILayout
+          sigmaStats={sigmaStats}
+          activeTask={taskManager.activeTask}
+          pendingMessageCount={pendingMessageCount}
+          monitorError={monitorError}
+          workbenchHealth={workbenchHealth}
+          messages={messages}
+          isThinking={isThinking}
+          focused={focused}
+          streamingPaste={streamingPaste}
+          showInfoPanel={showInfoPanel}
+          avgOverlays={avgOverlays}
+          isDropdownVisible={isDropdownVisible}
+          inputLineCount={inputLineCount}
+          chatAreaHeight={chatAreaHeight}
+          saveMessage={saveMessage}
+          currentSessionId={currentSessionId}
+          tokenCount={tokenCount}
+          sessionTokens={sessionTokens}
+          provider={provider}
+          model={model}
+          displayThinking={displayThinking}
+          confirmationState={confirmationState}
+          wizardConfirmationState={wizard.confirmationState}
+          sendMessage={sendMessage}
+          interrupt={interrupt}
+          setIsDropdownVisible={setIsDropdownVisible}
+          handlePasteContent={handlePasteContent}
+          setInputLineCount={setInputLineCount}
+        />
       </ThemeProvider>
     );
   } catch (err) {
@@ -1289,10 +647,15 @@ export function startTUI(options: CognitionTUIProps) {
   // Catch uncaught exceptions
   process.on('uncaughtException', handleUncaughtError);
 
-  const { unmount, waitUntilExit } = render(<CognitionTUI {...options} />, {
-    debug: false,
-    maxFps: 120, // Higher FPS for smoother rendering and less visible flicker
-  });
+  const { unmount, waitUntilExit } = render(
+    <TUIProvider>
+      <CognitionTUI {...options} />
+    </TUIProvider>,
+    {
+      debug: false,
+      maxFps: 120, // Higher FPS for smoother rendering and less visible flicker
+    }
+  );
 
   // Only handle SIGTERM gracefully (kill command)
   // SIGINT (Ctrl+C) is handled inside the component with immediate kill
