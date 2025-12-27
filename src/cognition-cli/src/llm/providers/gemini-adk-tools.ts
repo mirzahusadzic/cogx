@@ -38,6 +38,27 @@ import {
 } from './tool-executors.js';
 
 /**
+ * Helper to coerce string | number to number
+ */
+const coerceNumber = (val: string | number | undefined): number | undefined => {
+  if (val === undefined) return undefined;
+  if (typeof val === 'number') return val;
+  const parsed = Number(val);
+  return isNaN(parsed) ? undefined : parsed;
+};
+
+/**
+ * Helper to coerce string | boolean to boolean
+ */
+const coerceBoolean = (
+  val: string | boolean | undefined
+): boolean | undefined => {
+  if (val === undefined) return undefined;
+  if (typeof val === 'boolean') return val;
+  return val === 'true';
+};
+
+/**
  * Read file tool - reads file contents
  */
 export const readFileTool = new FunctionTool({
@@ -47,13 +68,16 @@ export const readFileTool = new FunctionTool({
   parameters: z.object({
     file_path: z.string().describe('Absolute path to the file to read'),
     limit: z
-      .number()
+      .union([z.number(), z.string()])
       .optional()
       .describe('Max lines to read (use for large files!)'),
-    offset: z.number().optional().describe('Line offset to start from'),
+    offset: z
+      .union([z.number(), z.string()])
+      .optional()
+      .describe('Line offset to start from'),
   }),
   execute: ({ file_path, limit, offset }) =>
-    executeReadFile(file_path, limit, offset),
+    executeReadFile(file_path, coerceNumber(limit), coerceNumber(offset)),
 });
 
 /**
@@ -113,10 +137,13 @@ export const bashTool = new FunctionTool({
     'Execute bash command (git, npm, etc.). EFFICIENCY TIP: Pipe to head/tail for large outputs. Avoid verbose flags.',
   parameters: z.object({
     command: z.string().describe('The command to execute'),
-    timeout: z.number().optional().describe('Timeout in ms (default 120000)'),
+    timeout: z
+      .union([z.number(), z.string()])
+      .optional()
+      .describe('Timeout in ms (default 120000)'),
   }),
   execute: ({ command, timeout }) =>
-    executeBash(command, timeout, process.cwd()),
+    executeBash(command, coerceNumber(timeout), process.cwd()),
 });
 
 /**
@@ -129,10 +156,18 @@ export const editFileTool = new FunctionTool({
     file_path: z.string().describe('Absolute path to the file'),
     old_string: z.string().describe('Text to replace'),
     new_string: z.string().describe('Replacement text'),
-    replace_all: z.boolean().optional().describe('Replace all occurrences'),
+    replace_all: z
+      .union([z.boolean(), z.string()])
+      .optional()
+      .describe('Replace all occurrences'),
   }),
   execute: ({ file_path, old_string, new_string, replace_all }) =>
-    executeEditFile(file_path, old_string, new_string, replace_all),
+    executeEditFile(
+      file_path,
+      old_string,
+      new_string,
+      coerceBoolean(replace_all)
+    ),
 });
 
 /**
@@ -730,9 +765,13 @@ export function getCognitionTools(
     'Execute a bash command (use for git, npm, etc.)',
     z.object({
       command: z.string().describe('The command to execute'),
-      timeout: z.number().optional().describe('Timeout in ms (default 120000)'),
+      timeout: z
+        .union([z.number(), z.string()])
+        .optional()
+        .describe('Timeout in ms (default 120000)'),
     }),
-    ({ command, timeout }) => executeBash(command, timeout, process.cwd()),
+    ({ command, timeout }) =>
+      executeBash(command, coerceNumber(timeout), process.cwd()),
     onCanUseTool
   );
 
@@ -744,10 +783,18 @@ export function getCognitionTools(
       file_path: z.string().describe('Absolute path to the file'),
       old_string: z.string().describe('Text to replace'),
       new_string: z.string().describe('Replacement text'),
-      replace_all: z.boolean().optional().describe('Replace all occurrences'),
+      replace_all: z
+        .union([z.boolean(), z.string()])
+        .optional()
+        .describe('Replace all occurrences'),
     }),
     ({ file_path, old_string, new_string, replace_all }) =>
-      executeEditFile(file_path, old_string, new_string, replace_all),
+      executeEditFile(
+        file_path,
+        old_string,
+        new_string,
+        coerceBoolean(replace_all)
+      ),
     onCanUseTool
   );
 
