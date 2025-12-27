@@ -824,122 +824,116 @@ export function getCognitionTools(
     }
 
     // Create SigmaTaskUpdate tool with anchorId bound for state file persistence
+    // Create SigmaTaskUpdate tool with anchorId bound for state file persistence
     const boundSigmaTaskUpdateTool = new FunctionTool({
       name: 'SigmaTaskUpdate',
       description: SIGMA_TASK_UPDATE_DESCRIPTION,
-      parameters: z.object({
-        todos: z
-          .array(
-            z.object({
-              id: z
-                .string()
-                .describe(
-                  'Unique stable identifier for this task (use nanoid, UUID, or semantic slug like "fix-ruff-api")'
-                ),
-              content: z
-                .string()
-                .describe(
-                  'The imperative form describing what needs to be done (e.g., "Run tests", "Build the project")'
-                ),
-              activeForm: z
-                .string()
-                .describe(
-                  'The present continuous form shown during execution (e.g., "Running tests", "Building the project")'
-                ),
-              status: z
-                .enum(['pending', 'in_progress', 'completed', 'delegated'])
-                .describe(
-                  'Task status. Use "delegated" when assigning task to another agent via IPC'
-                ),
-              // Delegation fields (Manager/Worker paradigm)
-              acceptance_criteria: z
-                .array(z.string())
-                .optional()
-                .nullable()
-                .describe(
-                  'Success criteria for task completion (e.g., ["Must pass \'npm test\'", "No breaking changes"]). Required when delegating.'
-                ),
-              delegated_to: z
-                .string()
-                .optional()
-                .nullable()
-                .describe(
-                  'Agent ID this task was delegated to (e.g., "flash1"). Set when status is "delegated".'
-                ),
-              context: z
-                .string()
-                .optional()
-                .nullable()
-                .describe(
-                  'Additional context for delegated worker (e.g., "Refactoring auth system - keep OAuth flow intact")'
-                ),
-              delegate_session_id: z
-                .string()
-                .optional()
-                .nullable()
-                .describe("Worker's session ID (for audit trail)"),
-              result_summary: z
-                .string()
-                .optional()
-                .nullable()
-                .describe("Worker's completion report"),
-              grounding: z
-                .object({
-                  strategy: z
-                    .enum(['pgc_first', 'pgc_verify', 'pgc_cite', 'none'])
-                    .optional()
-                    .nullable()
-                    .describe('Grounding strategy to use'),
-                  overlay_hints: z
-                    .array(z.string())
-                    .optional()
-                    .nullable()
-                    .describe('Hints for overlay selection'),
-                  query_hints: z
-                    .array(z.string())
-                    .optional()
-                    .nullable()
-                    .describe('Hints for semantic search queries'),
-                  evidence_required: z
-                    .union([z.boolean(), z.string()])
-                    .optional()
-                    .nullable()
-                    .describe('Whether evidence (citations) is required'),
-                })
-                .optional()
-                .nullable()
-                .describe('Grounding strategy and hints for the task'),
-            })
-          )
-          .describe('The updated task list'),
-      }),
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          todos: {
+            type: Type.ARRAY,
+            description: 'The updated task list',
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id: {
+                  type: Type.STRING,
+                  description:
+                    'Unique stable identifier for this task (use nanoid, UUID, or semantic slug like "fix-ruff-api")',
+                },
+                content: {
+                  type: Type.STRING,
+                  description:
+                    'The imperative form describing what needs to be done (e.g., "Run tests", "Build the project")',
+                },
+                activeForm: {
+                  type: Type.STRING,
+                  description:
+                    'The present continuous form shown during execution (e.g., "Running tests", "Building the project")',
+                },
+                status: {
+                  type: Type.STRING,
+                  enum: ['pending', 'in_progress', 'completed', 'delegated'],
+                  description:
+                    'Task status. Use "delegated" when assigning task to another agent via IPC',
+                },
+                // Delegation fields (Manager/Worker paradigm)
+                acceptance_criteria: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  nullable: true,
+                  description:
+                    'Success criteria for task completion (e.g., ["Must pass \'npm test\'", "No breaking changes"]). Required when delegating.',
+                },
+                delegated_to: {
+                  type: Type.STRING,
+                  nullable: true,
+                  description:
+                    'Agent ID this task was delegated to (e.g., "flash1"). Set when status is "delegated".',
+                },
+                context: {
+                  type: Type.STRING,
+                  nullable: true,
+                  description:
+                    'Additional context for delegated worker (e.g., "Refactoring auth system - keep OAuth flow intact")',
+                },
+                delegate_session_id: {
+                  type: Type.STRING,
+                  nullable: true,
+                  description: "Worker's session ID (for audit trail)",
+                },
+                result_summary: {
+                  type: Type.STRING,
+                  nullable: true,
+                  description: "Worker's completion report",
+                },
+                grounding: {
+                  type: Type.OBJECT,
+                  nullable: true,
+                  description: 'Grounding strategy and hints for the task',
+                  properties: {
+                    strategy: {
+                      type: Type.STRING,
+                      enum: ['pgc_first', 'pgc_verify', 'pgc_cite', 'none'],
+                      nullable: true,
+                      description: 'Grounding strategy to use',
+                    },
+                    overlay_hints: {
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING },
+                      nullable: true,
+                      description: 'Hints for overlay selection',
+                    },
+                    query_hints: {
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING },
+                      nullable: true,
+                      description: 'Hints for semantic search queries',
+                    },
+                    evidence_required: {
+                      type: Type.BOOLEAN,
+                      nullable: true,
+                      description: 'Whether evidence (citations) is required',
+                    },
+                  },
+                },
+              },
+              required: ['id', 'content', 'activeForm', 'status'],
+            },
+          },
+        },
+        required: ['todos'],
+      } as Schema,
       execute: async (rawInput: unknown) => {
         // [Safety Handling] Gemini 2.5 Flash sometimes sends explicit nulls for optional fields
-        // which Zod's .optional() (undefined | string) rejects if not also .nullable().
-        // We preprocess the input to remove any null values from the todo items and
-        // perform necessary type coercions.
+        // which Zod's .optional() (undefined | string) rejects.
+        // We use a raw schema with nullable: true to allow this at the API level,
+        // and then preprocess the input to remove any null values from the todo items.
 
-        const input = rawInput as {
-          todos: Array<{
-            id: string;
-            content: string;
-            status: 'pending' | 'in_progress' | 'completed' | 'delegated';
-            activeForm: string;
-            acceptance_criteria?: string[] | null;
-            delegated_to?: string | null;
-            context?: string | null;
-            delegate_session_id?: string | null;
-            result_summary?: string | null;
-            grounding?: {
-              strategy?: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none' | null;
-              overlay_hints?: string[] | null;
-              query_hints?: string[] | null;
-              evidence_required?: boolean | string | null;
-            } | null;
-          }>;
-        };
-
+        const input = rawInput as { todos?: Record<string, any>[] };
         const rawTodos = input.todos;
+
         if (!rawTodos || !Array.isArray(rawTodos)) {
           return 'No tasks provided';
         }
@@ -966,7 +960,7 @@ export function getCognitionTools(
         }
 
         const processedTodos = rawTodos.map((todo) => {
-          const cleanTodo: ProcessedTodo = {
+          const cleanTodo: any = {
             id: todo.id,
             content: todo.content,
             status: todo.status,
@@ -983,8 +977,12 @@ export function getCognitionTools(
             cleanTodo.result_summary = todo.result_summary;
 
           // Handle nested grounding object if present
-          if (todo.grounding && typeof todo.grounding === 'object') {
-            const grounding: ProcessedGrounding = {
+          if (
+            todo.grounding !== undefined &&
+            todo.grounding !== null &&
+            typeof todo.grounding === 'object'
+          ) {
+            const grounding: any = {
               strategy: todo.grounding.strategy || 'none',
             };
 
@@ -1006,7 +1004,7 @@ export function getCognitionTools(
             cleanTodo.grounding = grounding;
           }
 
-          return cleanTodo;
+          return cleanTodo as ProcessedTodo;
         });
 
         // Validate delegation requirements (moved from .refine() to support Gemini)
