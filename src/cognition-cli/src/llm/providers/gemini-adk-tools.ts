@@ -36,7 +36,6 @@ import {
   executeEditFile,
   executeSigmaTaskUpdate,
   executeFetchUrl,
-  executeWebSearch,
 } from './tool-executors.js';
 
 /**
@@ -106,19 +105,6 @@ export const fetchUrlTool = new FunctionTool({
     url: z.string().url().describe('The URL to fetch content from'),
   }),
   execute: async ({ url }) => executeFetchUrl(url),
-});
-
-/**
- * Web Search tool - search the web
- */
-export const webSearchTool = new FunctionTool({
-  name: 'WebSearch',
-  description:
-    'Search the web for current information, news, facts, and real-time data using Google Search',
-  parameters: z.object({
-    request: z.string().describe('The search query'),
-  }),
-  execute: async ({ request }) => executeWebSearch(request),
 });
 
 /**
@@ -830,7 +816,6 @@ export function getCognitionTools(
     readFileTool, // Read-only, no wrapping needed
     safeWriteFile,
     fetchUrlTool, // Read-only, no wrapping needed
-    webSearchTool, // Read-only, no wrapping needed
     globTool, // Read-only, no wrapping needed
     grepTool, // Read-only, no wrapping needed
     safeBash,
@@ -961,7 +946,25 @@ export function getCognitionTools(
         // We use a raw schema with nullable: true to allow this at the API level,
         // and then preprocess the input to remove any null values from the todo items.
 
-        const input = rawInput as { todos?: Record<string, any>[] };
+        interface RawTodo {
+          id: string;
+          content: string;
+          status: 'pending' | 'in_progress' | 'completed' | 'delegated';
+          activeForm: string;
+          acceptance_criteria?: string[] | null;
+          delegated_to?: string | null;
+          context?: string | null;
+          delegate_session_id?: string | null;
+          result_summary?: string | null;
+          grounding?: {
+            strategy?: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none' | null;
+            overlay_hints?: string[] | null;
+            query_hints?: string[] | null;
+            evidence_required?: boolean | string | null;
+          } | null;
+        }
+
+        const input = rawInput as { todos?: RawTodo[] };
         const rawTodos = input.todos;
 
         if (!rawTodos || !Array.isArray(rawTodos)) {
@@ -990,7 +993,7 @@ export function getCognitionTools(
         }
 
         const processedTodos = rawTodos.map((todo) => {
-          const cleanTodo: any = {
+          const cleanTodo: ProcessedTodo = {
             id: todo.id,
             content: todo.content,
             status: todo.status,
@@ -1012,7 +1015,7 @@ export function getCognitionTools(
             todo.grounding !== null &&
             typeof todo.grounding === 'object'
           ) {
-            const grounding: any = {
+            const grounding: ProcessedGrounding = {
               strategy: todo.grounding.strategy || 'none',
             };
 

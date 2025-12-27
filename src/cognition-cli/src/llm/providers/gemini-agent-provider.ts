@@ -159,8 +159,8 @@ export class GeminiAgentProvider implements AgentProvider {
       skipSummarization: false,
     });
 
-    // Combine cognition tools (includes file tools, web search tool, fetch URL tool)
-    const tools = [...cognitionTools];
+    // Combine cognition tools + web search tool (always enabled)
+    const tools = [...cognitionTools, webSearchTool];
 
     // Create abort controller for cancellation support
     this.abortController = new AbortController();
