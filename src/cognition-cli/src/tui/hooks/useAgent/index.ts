@@ -276,7 +276,7 @@ export function useAgent(options: UseAgentOptions) {
       edges: Math.max(0, turnAnalysis.stats.totalAnalyzed - 1),
       paradigmShifts: turnAnalysis.stats.paradigmShifts,
       avgNovelty: turnAnalysis.stats.avgNovelty,
-      avgImportance: turnAnalysis.stats.avgImportance * 10, // Scale to 0-10
+      avgImportance: turnAnalysis.stats.avgImportance, // Already scaled 0-10
     }),
     [turnAnalysis.stats]
   );
