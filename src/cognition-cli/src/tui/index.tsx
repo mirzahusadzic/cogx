@@ -467,7 +467,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
             status: string;
             isYou: boolean;
             isActive: boolean;
-            projectName?: string;
+            projectRoot?: string;
           }
 
           const agents: AgentDisplayInfo[] = [];
@@ -506,7 +506,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
                 status: info.status || 'unknown',
                 isYou,
                 isActive,
-                projectName: info.projectName,
+                projectRoot: info.projectRoot,
               };
 
               if (isYou) {
@@ -539,8 +539,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           // Show current agent identity prominently
           if (currentAgent) {
             const emoji = getProviderEmoji(currentAgent.model);
-            const project = currentAgent.projectName
-              ? ` [${currentAgent.projectName}]`
+            const project = currentAgent.projectRoot
+              ? ` [${currentAgent.projectRoot}]`
               : '';
             output += `👤 You are: ${emoji} ${currentAgent.alias} (${currentAgent.model})${project}\n`;
           }
@@ -551,8 +551,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
             output += `  🤖 Other Agents (${otherAgents.length}):\n`;
             for (const agent of otherAgents) {
               const emoji = getProviderEmoji(agent.model);
-              const project = agent.projectName
-                ? ` [${agent.projectName}]`
+              const project = agent.projectRoot
+                ? ` [${agent.projectRoot}]`
                 : '';
               output += `     ${emoji} ${agent.alias} (${agent.model})${project}\n`;
             }

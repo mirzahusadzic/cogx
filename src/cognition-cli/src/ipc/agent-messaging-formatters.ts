@@ -64,7 +64,7 @@ export function formatListAgents(agents: AgentInfo[]): string {
   text += '|-------|-------|---------|----------|\n';
 
   for (const agent of agents) {
-    const project = agent.projectName || 'unknown';
+    const project = agent.projectRoot || agent.projectName || 'unknown';
     text += `| ${agent.alias || 'unknown'} | ${agent.model} | ${project} | ${agent.agentId} |\n`;
   }
 
