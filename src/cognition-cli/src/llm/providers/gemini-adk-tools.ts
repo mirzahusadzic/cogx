@@ -281,6 +281,15 @@ When delegating a task to another agent:
 5. Worker reports back via send_agent_message when complete
 6. Manager verifies acceptance_criteria before marking task 'completed'
 
+## PGC Grounding (v2.0 Protocol)
+Use the 'grounding' field to specify how a task should be grounded in the Grounded Context Pool (PGC).
+- Strategies:
+  - pgc_first: Query PGC before acting (for research/planning)
+  - pgc_verify: Verify changes against PGC (for safety/security)
+  - pgc_cite: Must include citations in evidence
+- Manager: Set 'grounding' requirements when delegating.
+- Worker: Populate 'grounding_evidence' with citations and confidence when completing tasks.
+
 Benefits of delegation:
 - Keeps Manager context clean (no linter noise, verbose outputs)
 - Manager stays focused on architecture and planning

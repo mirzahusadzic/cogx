@@ -4,7 +4,7 @@ This guide defines the standard operating procedure (SOP) for agents using the `
 
 ## Core Philosophy: "Query, Don't Guess"
 
-Agents often try to "read the code" to understand architecture. This is inefficient and error-prone for large codebases. Instead, use the **Project Grounding Context (PGC)** tools which query pre-computed knowledge graphs.
+Agents often try to "read the code" to understand architecture. This is inefficient and error-prone for large codebases. Instead, use the **Grounded Context Pool (PGC)** tools which query pre-computed knowledge graphs.
 
 **The Loop:**
 

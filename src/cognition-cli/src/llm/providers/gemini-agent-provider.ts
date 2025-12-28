@@ -859,7 +859,7 @@ You have access to tools for:
 - **broadcast_agent_message**: Broadcast a message to all active agents
 - **list_pending_messages**: List all pending messages from other agents (DO NOT poll - system auto-notifies on arrival)
 - **mark_message_read**: Mark a pending message as read/processed
-- **query_agent**: Ask semantic questions to agents in other repositories and get grounded answers based on their Project Grounding Context
+- **query_agent**: Ask semantic questions to agents in other repositories and get grounded answers based on their Grounded Context Pool
 
 ## Working Directory
 ${request.cwd || process.cwd()}
