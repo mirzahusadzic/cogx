@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { useAgentServices } from '../../../useAgent/useAgentServices.js';
 import type { AgentState } from '../../../useAgent/useAgentState.js';
 import type { UseAgentOptions } from '../../../useAgent/types.js';
@@ -93,11 +93,10 @@ describe('useAgentServices', () => {
       })
     );
 
-    // Wait for async effects
-    await new Promise((resolve) => setTimeout(resolve, 10));
-
-    expect(mockState.embedderRef.current).toBeDefined();
-    expect(mockState.conversationRegistryRef.current).toBeDefined();
-    expect(mockState.setWorkbenchHealth).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockState.embedderRef.current).toBeDefined();
+      expect(mockState.conversationRegistryRef.current).toBeDefined();
+      expect(mockState.setWorkbenchHealth).toHaveBeenCalled();
+    });
   });
 });
