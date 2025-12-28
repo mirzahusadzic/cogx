@@ -66,9 +66,8 @@ Use this tool proactively in these scenarios:
 
 ## When NOT to Use This Tool
 1. There is only a single, straightforward task
-2. The task is trivial and tracking it provides no organizational benefit
+2. The task is purely conversational or informational
 3. The task can be completed in less than 3 trivial steps
-4. The task is purely conversational or informational
 
 ## Task States
 - pending: Task not yet started
@@ -84,6 +83,15 @@ When delegating a task to another agent:
 4. Use send_agent_message to dispatch the task payload to the worker
 5. Worker reports back via send_agent_message when complete
 6. Manager verifies acceptance_criteria before marking task 'completed'
+
+## PGC Grounding (v2.0 Protocol)
+Use the 'grounding' field to specify how a task should be grounded in the Grounded Context Pool (PGC).
+- Strategies:
+  - pgc_first: Query PGC before acting (for research/planning)
+  - pgc_verify: Verify changes against PGC (for safety/security)
+  - pgc_cite: Must include citations in evidence
+- Manager: Set 'grounding' requirements when delegating.
+- Worker: Populate 'grounding_evidence' with citations and confidence when completing tasks.
 
 ## Important
 - Each task MUST have a unique 'id' field (use nanoid, UUID, or semantic slug)
