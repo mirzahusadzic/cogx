@@ -77,8 +77,19 @@ export const readFileTool = new FunctionTool({
       .optional()
       .describe('Line offset to start from'),
   }),
-  execute: ({ file_path, limit, offset }) =>
-    executeReadFile(file_path, coerceNumber(limit), coerceNumber(offset)),
+  execute: ({ file_path, limit, offset }) => {
+    if (process.env.DEBUG_GEMINI_TOOLS) {
+      console.error(
+        '[DEBUG read_file] Raw input: ',
+        JSON.stringify({ file_path, limit, offset }, null, 2)
+      );
+    }
+    return executeReadFile(
+      file_path,
+      coerceNumber(limit),
+      coerceNumber(offset)
+    );
+  },
 });
 
 /**
@@ -91,7 +102,15 @@ export const writeFileTool = new FunctionTool({
     file_path: z.string().describe('Absolute path to write to'),
     content: z.string().describe('Content to write'),
   }),
-  execute: ({ file_path, content }) => executeWriteFile(file_path, content),
+  execute: ({ file_path, content }) => {
+    if (process.env.DEBUG_GEMINI_TOOLS) {
+      console.error(
+        '[DEBUG write_file] Raw input: ',
+        JSON.stringify({ file_path, content }, null, 2)
+      );
+    }
+    return executeWriteFile(file_path, content);
+  },
 });
 
 /**
@@ -104,7 +123,15 @@ export const fetchUrlTool = new FunctionTool({
   parameters: z.object({
     url: z.string().url().describe('The URL to fetch content from'),
   }),
-  execute: async ({ url }) => executeFetchUrl(url),
+  execute: async ({ url }) => {
+    if (process.env.DEBUG_GEMINI_TOOLS) {
+      console.error(
+        '[DEBUG fetch_url] Raw input: ',
+        JSON.stringify({ url }, null, 2)
+      );
+    }
+    return executeFetchUrl(url);
+  },
 });
 
 /**
@@ -120,7 +147,15 @@ export const globTool = new FunctionTool({
       .describe('Glob pattern (e.g., "**/*.ts", "src/**/*.py")'),
     cwd: z.string().optional().describe('Working directory'),
   }),
-  execute: ({ pattern, cwd }) => executeGlob(pattern, cwd || process.cwd()),
+  execute: ({ pattern, cwd }) => {
+    if (process.env.DEBUG_GEMINI_TOOLS) {
+      console.error(
+        '[DEBUG glob] Raw input: ',
+        JSON.stringify({ pattern, cwd }, null, 2)
+      );
+    }
+    return executeGlob(pattern, cwd || process.cwd());
+  },
 });
 
 /**
@@ -138,8 +173,15 @@ export const grepTool = new FunctionTool({
       .optional()
       .describe('File glob filter (e.g., "*.ts")'),
   }),
-  execute: ({ pattern, path: searchPath, glob_filter }) =>
-    executeGrep(pattern, searchPath, glob_filter, process.cwd()),
+  execute: ({ pattern, path: searchPath, glob_filter }) => {
+    if (process.env.DEBUG_GEMINI_TOOLS) {
+      console.error(
+        '[DEBUG grep] Raw input: ',
+        JSON.stringify({ pattern, path: searchPath, glob_filter }, null, 2)
+      );
+    }
+    return executeGrep(pattern, searchPath, glob_filter, process.cwd());
+  },
 });
 
 /**
@@ -156,8 +198,15 @@ export const bashTool = new FunctionTool({
       .optional()
       .describe('Timeout in ms (default 120000)'),
   }),
-  execute: ({ command, timeout }) =>
-    executeBash(command, coerceNumber(timeout), process.cwd()),
+  execute: ({ command, timeout }) => {
+    if (process.env.DEBUG_GEMINI_TOOLS) {
+      console.error(
+        '[DEBUG bash] Raw input: ',
+        JSON.stringify({ command, timeout }, null, 2)
+      );
+    }
+    return executeBash(command, coerceNumber(timeout), process.cwd());
+  },
 });
 
 /**
@@ -175,13 +224,24 @@ export const editFileTool = new FunctionTool({
       .optional()
       .describe('Replace all occurrences'),
   }),
-  execute: ({ file_path, old_string, new_string, replace_all }) =>
-    executeEditFile(
+  execute: ({ file_path, old_string, new_string, replace_all }) => {
+    if (process.env.DEBUG_GEMINI_TOOLS) {
+      console.error(
+        '[DEBUG edit_file] Raw input: ',
+        JSON.stringify(
+          { file_path, old_string, new_string, replace_all },
+          null,
+          2
+        )
+      );
+    }
+    return executeEditFile(
       file_path,
       old_string,
       new_string,
       coerceBoolean(replace_all)
-    ),
+    );
+  },
 });
 
 /**
@@ -255,6 +315,12 @@ export function createRecallTool(
         ),
     }),
     execute: async ({ query }) => {
+      if (process.env.DEBUG_GEMINI_TOOLS) {
+        console.error(
+          '[DEBUG recall_past_conversation] Raw input: ',
+          JSON.stringify({ query }, null, 2)
+        );
+      }
       try {
         // Query conversation lattice with SLM + LLM synthesis
         const answer = await queryConversationLattice(
@@ -339,6 +405,12 @@ function createBackgroundTasksTool(
         ),
     }),
     execute: async ({ filter: filterArg }) => {
+      if (process.env.DEBUG_GEMINI_TOOLS) {
+        console.error(
+          '[DEBUG get_background_tasks] Raw input: ',
+          JSON.stringify({ filter: filterArg }, null, 2)
+        );
+      }
       const filter = filterArg || 'all';
       try {
         const taskManager = getTaskManager();
@@ -439,7 +511,13 @@ function createAgentMessagingTools(
     'list_agents',
     'List all active agents in the IPC bus. Returns agent aliases, models, and status. Use this to discover other agents before sending messages.',
     z.object({}),
-    async () => {
+    async (rawInput: unknown) => {
+      if (process.env.DEBUG_GEMINI_TOOLS) {
+        console.error(
+          '[DEBUG list_agents] Raw input: ',
+          JSON.stringify(rawInput, null, 2)
+        );
+      }
       try {
         const agents = getActiveAgents(projectRoot, currentAgentId);
         return formatListAgents(agents);
@@ -463,7 +541,14 @@ function createAgentMessagingTools(
         ),
       message: z.string().describe('The message content to send'),
     }),
-    async (args: { to: string; message: string }) => {
+    async (rawInput: { to: string; message: string }) => {
+      if (process.env.DEBUG_GEMINI_TOOLS) {
+        console.error(
+          '[DEBUG send_agent_message] Raw input: ',
+          JSON.stringify(rawInput, null, 2)
+        );
+      }
+      const args = rawInput;
       try {
         const publisher = getMessagePublisher ? getMessagePublisher() : null;
 
@@ -497,7 +582,14 @@ function createAgentMessagingTools(
     z.object({
       message: z.string().describe('The message content to broadcast'),
     }),
-    async (args: { message: string }) => {
+    async (rawInput: { message: string }) => {
+      if (process.env.DEBUG_GEMINI_TOOLS) {
+        console.error(
+          '[DEBUG broadcast_agent_message] Raw input: ',
+          JSON.stringify(rawInput, null, 2)
+        );
+      }
+      const args = rawInput;
       try {
         const publisher = getMessagePublisher ? getMessagePublisher() : null;
 
@@ -527,7 +619,13 @@ function createAgentMessagingTools(
     'list_pending_messages',
     'List all pending messages in your message queue. These are messages from other agents that you have not yet processed. DO NOT poll this tool - the system will notify you automatically when a new message arrives.',
     z.object({}),
-    async () => {
+    async (rawInput: unknown) => {
+      if (process.env.DEBUG_GEMINI_TOOLS) {
+        console.error(
+          '[DEBUG list_pending_messages] Raw input: ',
+          JSON.stringify(rawInput, null, 2)
+        );
+      }
       try {
         const queue = getMessageQueue ? getMessageQueue() : null;
 
@@ -559,10 +657,17 @@ function createAgentMessagingTools(
           'New status: "injected" (default/processed), "read" (seen), or "dismissed" (ignored)'
         ),
     }),
-    async (args: {
+    async (rawInput: {
       messageId: string;
       status?: 'read' | 'injected' | 'dismissed';
     }) => {
+      if (process.env.DEBUG_GEMINI_TOOLS) {
+        console.error(
+          '[DEBUG mark_message_read] Raw input: ',
+          JSON.stringify(rawInput, null, 2)
+        );
+      }
+      const args = rawInput;
       try {
         const queue = getMessageQueue ? getMessageQueue() : null;
 
@@ -607,7 +712,14 @@ function createAgentMessagingTools(
         .string()
         .describe('The semantic question to ask about their codebase'),
     }),
-    async (args: { target_alias: string; question: string }) => {
+    async (rawInput: { target_alias: string; question: string }) => {
+      if (process.env.DEBUG_GEMINI_TOOLS) {
+        console.error(
+          '[DEBUG query_agent] Raw input: ',
+          JSON.stringify(rawInput, null, 2)
+        );
+      }
+      const args = rawInput;
       try {
         const publisher = getMessagePublisher ? getMessagePublisher() : null;
         const queue = getMessageQueue ? getMessageQueue() : null;
@@ -839,7 +951,6 @@ export function getCognitionTools(
     }
 
     // Create SigmaTaskUpdate tool with anchorId bound for state file persistence
-    // Create SigmaTaskUpdate tool with anchorId bound for state file persistence
     const boundSigmaTaskUpdateTool = new FunctionTool({
       name: 'SigmaTaskUpdate',
       description: SIGMA_TASK_UPDATE_DESCRIPTION,
@@ -941,6 +1052,12 @@ export function getCognitionTools(
         required: ['todos'],
       } as Schema,
       execute: async (rawInput: unknown) => {
+        if (process.env.DEBUG_GEMINI_TOOLS) {
+          console.error(
+            '[DEBUG SigmaTaskUpdate] Raw input:',
+            JSON.stringify(rawInput, null, 2)
+          );
+        }
         // [Safety Handling] Gemini 2.5 Flash sometimes sends explicit nulls for optional fields
         // which Zod's .optional() (undefined | string) rejects.
         // We use a raw schema with nullable: true to allow this at the API level,
@@ -1040,6 +1157,13 @@ export function getCognitionTools(
           return cleanTodo as ProcessedTodo;
         });
 
+        if (process.env.DEBUG_GEMINI_TOOLS) {
+          console.error(
+            '[DEBUG SigmaTaskUpdate] Processed todos:',
+            JSON.stringify(processedTodos, null, 2)
+          );
+        }
+
         // Validate delegation requirements (moved from .refine() to support Gemini)
         for (const task of processedTodos) {
           if (task.status === 'delegated') {
@@ -1048,12 +1172,12 @@ export function getCognitionTools(
               task.acceptance_criteria.length === 0
             ) {
               throw new Error(
-                `Task "${task.id}" has status 'delegated' but missing 'acceptance_criteria'`
+                `[DEBUG SigmaTaskUpdate] Delegation validation failed: Task "${task.id}" has status 'delegated' but missing 'acceptance_criteria'`
               );
             }
             if (!task.delegated_to || task.delegated_to.length === 0) {
               throw new Error(
-                `Task "${task.id}" has status 'delegated' but missing 'delegated_to'`
+                `[DEBUG SigmaTaskUpdate] Delegation validation failed: Task "${task.id}" has status 'delegated' but missing 'delegated_to'`
               );
             }
           }
