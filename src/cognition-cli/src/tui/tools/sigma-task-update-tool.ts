@@ -161,6 +161,25 @@ When delegating a task to another agent:
               })
               .optional()
               .describe('Optional PGC Grounding Instructions for the worker'),
+            grounding_evidence: z
+              .object({
+                queries_executed: z.array(z.string()),
+                overlays_consulted: z.array(
+                  z.enum(['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'])
+                ),
+                citations: z.array(
+                  z.object({
+                    overlay: z.string(),
+                    content: z.string(),
+                    relevance: z.string(),
+                    file_path: z.string().optional(),
+                  })
+                ),
+                grounding_confidence: z.enum(['high', 'medium', 'low']),
+                overlay_warnings: z.array(z.string()).optional(),
+              })
+              .optional()
+              .describe('Structured evidence returned by worker'),
             result_summary: z
               .string()
               .optional()
@@ -181,6 +200,26 @@ When delegating a task to another agent:
         delegated_to?: string;
         context?: string;
         delegate_session_id?: string;
+        grounding?: {
+          strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
+          overlay_hints?: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
+          query_hints?: string[];
+          evidence_required?: boolean;
+        };
+        grounding_evidence?: {
+          queries_executed: string[];
+          overlays_consulted: Array<
+            'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'
+          >;
+          citations: Array<{
+            overlay: string;
+            content: string;
+            relevance: string;
+            file_path?: string;
+          }>;
+          grounding_confidence: 'high' | 'medium' | 'low';
+          overlay_warnings?: string[];
+        };
         result_summary?: string;
       }>;
     }) => {
