@@ -172,19 +172,19 @@ Benefits of delegation:
               .describe('Strategy for how worker should approach the task'),
             overlay_hints: z
               .array(z.enum(['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7']))
-              .optional()
+              .nullable()
               .describe('Hints about which overlays are most relevant'),
             query_hints: z
               .array(z.string())
-              .optional()
+              .nullable()
               .describe("Semantic query hints for the worker's PGC"),
             evidence_required: z
-              .boolean()
-              .optional()
+              .union([z.boolean(), z.string()])
+              .nullable()
               .describe('Whether response must include evidence citations'),
           })
         )
-        .optional()
+        .nullable()
         .describe(
           'Grounding strategy and hints for tasks (correlate via id). Optional PGC Grounding Instructions for the worker'
         ),
@@ -205,10 +205,10 @@ Benefits of delegation:
               })
             ),
             grounding_confidence: z.enum(['high', 'medium', 'low']),
-            overlay_warnings: z.array(z.string()).optional(),
+            overlay_warnings: z.array(z.string()).nullable(),
           })
         )
-        .optional()
+        .nullable()
         .describe('Structured evidence returned by worker (correlate via id)'),
     },
     async (args: {
@@ -226,10 +226,12 @@ Benefits of delegation:
       grounding?: Array<{
         id: string;
         strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
-        overlay_hints?: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
-        query_hints?: string[];
-        evidence_required?: boolean;
-      }>;
+        overlay_hints?: Array<
+          'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'
+        > | null;
+        query_hints?: string[] | null;
+        evidence_required?: boolean | string | null;
+      }> | null;
       grounding_evidence?: Array<{
         id: string;
         queries_executed: string[];
@@ -243,8 +245,8 @@ Benefits of delegation:
           file_path?: string;
         }>;
         grounding_confidence: 'high' | 'medium' | 'low';
-        overlay_warnings?: string[];
-      }>;
+        overlay_warnings?: string[] | null;
+      }> | null;
     }) => {
       try {
         // Validate delegation requirements (moved from .refine() for cross-provider compatibility)
@@ -269,30 +271,66 @@ Benefits of delegation:
         const result = await executeSigmaTaskUpdate(
           // Merge top-level arrays back into todo items for the executor
           args.todos.map((todo) => {
+            const cleanTodo: Parameters<
+              typeof executeSigmaTaskUpdate
+            >[0][number] = {
+              id: todo.id,
+              content: todo.content,
+              status: todo.status,
+              activeForm: todo.activeForm,
+            };
+
+            if (todo.acceptance_criteria)
+              cleanTodo.acceptance_criteria = todo.acceptance_criteria;
+            if (todo.delegated_to) cleanTodo.delegated_to = todo.delegated_to;
+            if (todo.context) cleanTodo.context = todo.context;
+            if (todo.delegate_session_id)
+              cleanTodo.delegate_session_id = todo.delegate_session_id;
+            if (todo.result_summary)
+              cleanTodo.result_summary = todo.result_summary;
+
             const grounding = args.grounding?.find((g) => g.id === todo.id);
             const evidence = args.grounding_evidence?.find(
               (e) => e.id === todo.id
             );
-            return {
-              ...todo,
-              grounding: grounding
-                ? {
-                    strategy: grounding.strategy,
-                    overlay_hints: grounding.overlay_hints,
-                    query_hints: grounding.query_hints,
-                    evidence_required: grounding.evidence_required,
-                  }
-                : undefined,
-              grounding_evidence: evidence
-                ? {
-                    queries_executed: evidence.queries_executed,
-                    overlays_consulted: evidence.overlays_consulted,
-                    citations: evidence.citations,
-                    grounding_confidence: evidence.grounding_confidence,
-                    overlay_warnings: evidence.overlay_warnings,
-                  }
-                : undefined,
-            };
+
+            if (grounding) {
+              cleanTodo.grounding = {
+                strategy: grounding.strategy,
+              };
+              if (grounding.overlay_hints) {
+                cleanTodo.grounding.overlay_hints = grounding.overlay_hints;
+              }
+              if (grounding.query_hints) {
+                cleanTodo.grounding.query_hints = grounding.query_hints;
+              }
+              if (
+                grounding.evidence_required !== null &&
+                grounding.evidence_required !== undefined
+              ) {
+                cleanTodo.grounding.evidence_required =
+                  grounding.evidence_required;
+              }
+            }
+
+            if (evidence) {
+              const cleanEvidence: NonNullable<
+                Parameters<
+                  typeof executeSigmaTaskUpdate
+                >[0][number]['grounding_evidence']
+              > = {
+                queries_executed: evidence.queries_executed,
+                overlays_consulted: evidence.overlays_consulted,
+                citations: evidence.citations,
+                grounding_confidence: evidence.grounding_confidence,
+              };
+              if (evidence.overlay_warnings !== undefined) {
+                cleanEvidence.overlay_warnings = evidence.overlay_warnings;
+              }
+              cleanTodo.grounding_evidence = cleanEvidence;
+            }
+
+            return cleanTodo;
           }),
           cwd,
           anchorId || 'no-anchor'

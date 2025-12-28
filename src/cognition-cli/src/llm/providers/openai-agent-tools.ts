@@ -299,7 +299,7 @@ function createSigmaTaskUpdateTool(
         file_path?: string;
       }>;
       grounding_confidence: 'high' | 'medium' | 'low';
-      overlay_warnings?: string[];
+      overlay_warnings?: string[] | null;
     }> | null;
   }
 
@@ -326,7 +326,7 @@ function createSigmaTaskUpdateTool(
         file_path?: string;
       }>;
       grounding_confidence: 'high' | 'medium' | 'low';
-      overlay_warnings?: string[];
+      overlay_warnings?: string[] | null;
     }
 
     interface ProcessedTodo {
@@ -390,8 +390,23 @@ function createSigmaTaskUpdateTool(
       // Merge grounding_evidence from separate array if present
       const evidenceData = (rawEvidences || []).find((e) => e.id === todo.id);
       if (evidenceData) {
-        cleanTodo.grounding_evidence =
-          evidenceData as unknown as ProcessedEvidence;
+        const evidence: ProcessedEvidence = {
+          queries_executed: evidenceData.queries_executed,
+          overlays_consulted: evidenceData.overlays_consulted as Array<
+            'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'
+          >,
+          citations: evidenceData.citations.map((c) => ({
+            ...c,
+            file_path: c.file_path === null ? undefined : c.file_path,
+          })),
+          grounding_confidence: evidenceData.grounding_confidence,
+        };
+
+        if (evidenceData.overlay_warnings) {
+          evidence.overlay_warnings = evidenceData.overlay_warnings;
+        }
+
+        cleanTodo.grounding_evidence = evidence;
       }
 
       return cleanTodo;
@@ -529,33 +544,28 @@ Benefits of delegation:
             // Delegation fields (Manager/Worker paradigm)
             acceptance_criteria: z
               .array(z.string())
-              .optional()
               .nullable()
               .describe(
                 'Success criteria for task completion (e.g., ["Must pass \'npm test\'", "No breaking changes"]). Required when delegating.'
               ),
             delegated_to: z
               .string()
-              .optional()
               .nullable()
               .describe(
                 'Agent ID this task was delegated to (e.g., "flash1"). Set when status is "delegated".'
               ),
             context: z
               .string()
-              .optional()
               .nullable()
               .describe(
                 'Additional context for delegated worker (e.g., "Refactoring auth system - keep OAuth flow intact")'
               ),
             delegate_session_id: z
               .string()
-              .optional()
               .nullable()
               .describe("Worker's session ID (for audit trail)"),
             result_summary: z
               .string()
-              .optional()
               .nullable()
               .describe("Worker's completion report"),
           })
@@ -570,7 +580,7 @@ Benefits of delegation:
               .nullable()
               .describe('Grounding strategy to use'),
             overlay_hints: z
-              .array(z.string())
+              .array(z.enum(['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7']))
               .nullable()
               .describe('Hints for overlay selection'),
             query_hints: z
@@ -578,12 +588,11 @@ Benefits of delegation:
               .nullable()
               .describe('Hints for semantic search queries'),
             evidence_required: z
-              .boolean()
+              .union([z.boolean(), z.string()])
               .nullable()
               .describe('Whether evidence (citations) is required'),
           })
         )
-        .optional()
         .nullable()
         .describe('Grounding strategy and hints for tasks (correlate via id)'),
       grounding_evidence: z
@@ -591,7 +600,9 @@ Benefits of delegation:
           z.object({
             id: z.string(),
             queries_executed: z.array(z.string()),
-            overlays_consulted: z.array(z.string()),
+            overlays_consulted: z.array(
+              z.enum(['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'])
+            ),
             citations: z.array(
               z.object({
                 overlay: z.string(),
@@ -601,10 +612,9 @@ Benefits of delegation:
               })
             ),
             grounding_confidence: z.enum(['high', 'medium', 'low']),
-            overlay_warnings: z.array(z.string()).optional(),
+            overlay_warnings: z.array(z.string()).nullable(),
           })
         )
-        .optional()
         .nullable()
         .describe('Structured evidence returned by worker (correlate via id)'),
     }),

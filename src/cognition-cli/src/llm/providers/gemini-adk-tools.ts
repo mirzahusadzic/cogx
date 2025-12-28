@@ -1046,7 +1046,10 @@ export function getCognitionTools(
                 },
                 overlay_hints: {
                   type: Type.ARRAY,
-                  items: { type: Type.STRING },
+                  items: {
+                    type: Type.STRING,
+                    enum: ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'],
+                  },
                   nullable: true,
                   description: 'Hints for overlay selection',
                 },
@@ -1057,7 +1060,7 @@ export function getCognitionTools(
                   description: 'Hints for semantic search queries',
                 },
                 evidence_required: {
-                  type: Type.BOOLEAN,
+                  anyOf: [{ type: Type.BOOLEAN }, { type: Type.STRING }],
                   nullable: true,
                   description: 'Whether evidence (citations) is required',
                 },
@@ -1080,7 +1083,10 @@ export function getCognitionTools(
                 },
                 overlays_consulted: {
                   type: Type.ARRAY,
-                  items: { type: Type.STRING },
+                  items: {
+                    type: Type.STRING,
+                    enum: ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'],
+                  },
                 },
                 citations: {
                   type: Type.ARRAY,
@@ -1097,6 +1103,11 @@ export function getCognitionTools(
                 grounding_confidence: {
                   type: Type.STRING,
                   enum: ['high', 'medium', 'low'],
+                },
+                overlay_warnings: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  nullable: true,
                 },
               },
               required: ['id'],
@@ -1248,8 +1259,20 @@ export function getCognitionTools(
           // Merge grounding_evidence from separate array if present
           const evidenceData = rawEvidences.find((e) => e.id === todo.id);
           if (evidenceData) {
-            cleanTodo.grounding_evidence =
-              evidenceData as unknown as ProcessedEvidence;
+            const evidence: ProcessedEvidence = {
+              queries_executed: evidenceData.queries_executed,
+              overlays_consulted: evidenceData.overlays_consulted as Array<
+                'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'
+              >,
+              citations: evidenceData.citations,
+              grounding_confidence: evidenceData.grounding_confidence,
+            };
+
+            if (evidenceData.overlay_warnings) {
+              evidence.overlay_warnings = evidenceData.overlay_warnings;
+            }
+
+            cleanTodo.grounding_evidence = evidence;
           }
 
           return cleanTodo as ProcessedTodo;

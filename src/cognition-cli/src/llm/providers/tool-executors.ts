@@ -289,7 +289,7 @@ export async function executeSigmaTaskUpdate(
       strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
       overlay_hints?: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
       query_hints?: string[];
-      evidence_required?: boolean;
+      evidence_required?: boolean | string;
     };
     grounding_evidence?: {
       queries_executed: string[];
@@ -301,7 +301,7 @@ export async function executeSigmaTaskUpdate(
         file_path?: string;
       }>;
       grounding_confidence: 'high' | 'medium' | 'low';
-      overlay_warnings?: string[];
+      overlay_warnings?: string[] | null;
     };
     result_summary?: string;
   }>,
