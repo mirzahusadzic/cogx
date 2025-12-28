@@ -285,7 +285,6 @@ export async function executeSigmaTaskUpdate(
     delegated_to?: string;
     context?: string;
     delegate_session_id?: string;
-    // Grounding fields (v2.0 protocol)
     grounding?: {
       strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
       overlay_hints?: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
@@ -358,9 +357,22 @@ export async function executeSigmaTaskUpdate(
     const projectRoot = cwd;
     const currentState = loadSessionState(anchorId, projectRoot);
 
+    // Merge separate grounding arrays into tasks for processing
+    const processedTodos = todos.map((todo) => {
+      // NOTE: We don't have direct access to 'grounding' or 'grounding_evidence' arrays here
+      // because they are passed as separate arguments to the tool executor function in the provider,
+      // but 'executeSigmaTaskUpdate' interface expects them to be nested in 'todos' for legacy reasons
+      // or already merged.
+
+      // However, the interface of this function (executeSigmaTaskUpdate) still defines
+      // grounding/grounding_evidence as properties of the todo item.
+      // The calling provider MUST merge them before calling this function.
+      return todo;
+    });
+
     // Process validation for tasks being completed
     if (currentState?.todos) {
-      for (const newTodo of todos) {
+      for (const newTodo of processedTodos) {
         const oldTodo = currentState.todos.find((t) => t.id === newTodo.id);
 
         // If task is moving to completed and it was previously delegated or in_progress

@@ -282,13 +282,13 @@ When delegating a task to another agent:
 6. Manager verifies acceptance_criteria before marking task 'completed'
 
 ## PGC Grounding (v2.0 Protocol)
-Use the 'grounding' field to specify how a task should be grounded in the Grounded Context Pool (PGC).
+Use the 'grounding' and 'grounding_evidence' arrays to manage task grounding (correlate via 'id').
 - Strategies:
   - pgc_first: Query PGC before acting (for research/planning)
   - pgc_verify: Verify changes against PGC (for safety/security)
   - pgc_cite: Must include citations in evidence
-- Manager: Set 'grounding' requirements when delegating.
-- Worker: Populate 'grounding_evidence' with citations and confidence when completing tasks.
+- Manager: Set 'grounding' requirements in the 'grounding' array when delegating.
+- Worker: Populate 'grounding_evidence' array with citations and confidence when completing tasks.
 
 Benefits of delegation:
 - Keeps Manager context clean (no linter noise, verbose outputs)
@@ -297,10 +297,12 @@ Benefits of delegation:
 
 ## Important
 - Each task MUST have a unique 'id' field (use nanoid, UUID, or semantic slug)
+- Use 'grounding' and 'grounding_evidence' top-level arrays for PGC data (correlate via 'id')
 - Task descriptions must have two forms: content (imperative, e.g., "Run tests") and activeForm (present continuous, e.g., "Running tests")
 - Mark tasks complete IMMEDIATELY after finishing (don't batch completions)
 - ONLY mark a task as completed when you have FULLY accomplished it
-- If you encounter errors or blockers, keep the task as in_progress and create a new task describing what needs to be resolved`;
+- If you encounter errors or blockers, keep the task as in_progress and create a new task describing what needs to be resolved
+- **Reasoning First**: You MUST engage your internal reasoning/thinking process first to plan the action and validate parameters.`;
 
 /**
  * Create recall conversation tool for Gemini
@@ -1023,69 +1025,81 @@ export function getCognitionTools(
                   nullable: true,
                   description: "Worker's completion report",
                 },
-                grounding: {
-                  type: Type.OBJECT,
-                  nullable: true,
-                  description: 'Grounding strategy and hints for the task',
-                  properties: {
-                    strategy: {
-                      type: Type.STRING,
-                      enum: ['pgc_first', 'pgc_verify', 'pgc_cite', 'none'],
-                      nullable: true,
-                      description: 'Grounding strategy to use',
-                    },
-                    overlay_hints: {
-                      type: Type.ARRAY,
-                      items: { type: Type.STRING },
-                      nullable: true,
-                      description: 'Hints for overlay selection',
-                    },
-                    query_hints: {
-                      type: Type.ARRAY,
-                      items: { type: Type.STRING },
-                      nullable: true,
-                      description: 'Hints for semantic search queries',
-                    },
-                    evidence_required: {
-                      type: Type.BOOLEAN,
-                      nullable: true,
-                      description: 'Whether evidence (citations) is required',
-                    },
-                  },
-                },
-                grounding_evidence: {
-                  type: Type.OBJECT,
-                  nullable: true,
-                  description: 'Structured evidence returned by worker',
-                  properties: {
-                    queries_executed: {
-                      type: Type.ARRAY,
-                      items: { type: Type.STRING },
-                    },
-                    overlays_consulted: {
-                      type: Type.ARRAY,
-                      items: { type: Type.STRING },
-                    },
-                    citations: {
-                      type: Type.ARRAY,
-                      items: {
-                        type: Type.OBJECT,
-                        properties: {
-                          overlay: { type: Type.STRING },
-                          content: { type: Type.STRING },
-                          relevance: { type: Type.STRING },
-                          file_path: { type: Type.STRING, nullable: true },
-                        },
-                      },
-                    },
-                    grounding_confidence: {
-                      type: Type.STRING,
-                      enum: ['high', 'medium', 'low'],
-                    },
-                  },
-                },
               },
               required: ['id', 'content', 'activeForm', 'status'],
+            },
+          },
+          grounding: {
+            type: Type.ARRAY,
+            nullable: true,
+            description:
+              'Grounding strategy and hints for tasks (correlate via id)',
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.STRING },
+                strategy: {
+                  type: Type.STRING,
+                  enum: ['pgc_first', 'pgc_verify', 'pgc_cite', 'none'],
+                  nullable: true,
+                  description: 'Grounding strategy to use',
+                },
+                overlay_hints: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  nullable: true,
+                  description: 'Hints for overlay selection',
+                },
+                query_hints: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  nullable: true,
+                  description: 'Hints for semantic search queries',
+                },
+                evidence_required: {
+                  type: Type.BOOLEAN,
+                  nullable: true,
+                  description: 'Whether evidence (citations) is required',
+                },
+              },
+              required: ['id'],
+            },
+          },
+          grounding_evidence: {
+            type: Type.ARRAY,
+            nullable: true,
+            description:
+              'Structured evidence returned by worker (correlate via id)',
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.STRING },
+                queries_executed: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                },
+                overlays_consulted: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                },
+                citations: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      overlay: { type: Type.STRING },
+                      content: { type: Type.STRING },
+                      relevance: { type: Type.STRING },
+                      file_path: { type: Type.STRING, nullable: true },
+                    },
+                  },
+                },
+                grounding_confidence: {
+                  type: Type.STRING,
+                  enum: ['high', 'medium', 'low'],
+                },
+              },
+              required: ['id'],
             },
           },
         },
@@ -1113,28 +1127,38 @@ export function getCognitionTools(
           context?: string | null;
           delegate_session_id?: string | null;
           result_summary?: string | null;
-          grounding?: {
-            strategy?: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none' | null;
-            overlay_hints?: string[] | null;
-            query_hints?: string[] | null;
-            evidence_required?: boolean | string | null;
-          } | null;
-          grounding_evidence?: {
-            queries_executed: string[];
-            overlays_consulted: string[];
-            citations: Array<{
-              overlay: string;
-              content: string;
-              relevance: string;
-              file_path?: string;
-            }>;
-            grounding_confidence: 'high' | 'medium' | 'low';
-            overlay_warnings?: string[];
-          } | null;
         }
 
-        const input = rawInput as { todos?: RawTodo[] };
+        interface RawGrounding {
+          id: string;
+          strategy?: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none' | null;
+          overlay_hints?: string[] | null;
+          query_hints?: string[] | null;
+          evidence_required?: boolean | string | null;
+        }
+
+        interface RawEvidence {
+          id: string;
+          queries_executed: string[];
+          overlays_consulted: string[];
+          citations: Array<{
+            overlay: string;
+            content: string;
+            relevance: string;
+            file_path?: string;
+          }>;
+          grounding_confidence: 'high' | 'medium' | 'low';
+          overlay_warnings?: string[];
+        }
+
+        const input = rawInput as {
+          todos?: RawTodo[];
+          grounding?: RawGrounding[];
+          grounding_evidence?: RawEvidence[];
+        };
         const rawTodos = input.todos;
+        const rawGroundings = input.grounding || [];
+        const rawEvidences = input.grounding_evidence || [];
 
         if (!rawTodos || !Array.isArray(rawTodos)) {
           return 'No tasks provided';
@@ -1194,39 +1218,38 @@ export function getCognitionTools(
           if (todo.result_summary)
             cleanTodo.result_summary = todo.result_summary;
 
-          // Handle nested grounding object if present
-          if (
-            todo.grounding !== undefined &&
-            todo.grounding !== null &&
-            typeof todo.grounding === 'object'
-          ) {
+          // Merge grounding from separate array if present
+          const groundingData = rawGroundings.find((g) => g.id === todo.id);
+          if (groundingData) {
             const grounding: ProcessedGrounding = {
-              strategy: todo.grounding.strategy || 'none',
+              strategy: groundingData.strategy || 'none',
             };
 
-            if (todo.grounding.overlay_hints)
-              grounding.overlay_hints = todo.grounding.overlay_hints as Array<
+            if (groundingData.overlay_hints)
+              grounding.overlay_hints = groundingData.overlay_hints as Array<
                 'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'
               >;
-            if (todo.grounding.query_hints)
-              grounding.query_hints = todo.grounding.query_hints;
+            if (groundingData.query_hints)
+              grounding.query_hints = groundingData.query_hints;
 
             // Coerce evidence_required if it's a string
             if (
-              todo.grounding.evidence_required !== undefined &&
-              todo.grounding.evidence_required !== null
+              groundingData.evidence_required !== undefined &&
+              groundingData.evidence_required !== null
             ) {
               grounding.evidence_required = coerceBoolean(
-                todo.grounding.evidence_required as string | boolean
+                groundingData.evidence_required as string | boolean
               );
             }
 
             cleanTodo.grounding = grounding;
           }
 
-          if (todo.grounding_evidence) {
+          // Merge grounding_evidence from separate array if present
+          const evidenceData = rawEvidences.find((e) => e.id === todo.id);
+          if (evidenceData) {
             cleanTodo.grounding_evidence =
-              todo.grounding_evidence as ProcessedEvidence;
+              evidenceData as unknown as ProcessedEvidence;
           }
 
           return cleanTodo as ProcessedTodo;

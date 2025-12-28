@@ -280,28 +280,34 @@ function createSigmaTaskUpdateTool(
       context?: string | null;
       delegate_session_id?: string | null;
       result_summary?: string | null;
-      grounding?: {
-        strategy?: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none' | null;
-        overlay_hints?: string[] | null;
-        query_hints?: string[] | null;
-        evidence_required?: boolean | string | null;
-      } | null;
-      grounding_evidence?: {
-        queries_executed: string[];
-        overlays_consulted: string[];
-        citations: Array<{
-          overlay: string;
-          content: string;
-          relevance: string;
-          file_path?: string;
-        }>;
-        grounding_confidence: 'high' | 'medium' | 'low';
-        overlay_warnings?: string[];
-      } | null;
     }>;
+    grounding?: Array<{
+      id: string;
+      strategy?: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none' | null;
+      overlay_hints?: string[] | null;
+      query_hints?: string[] | null;
+      evidence_required?: boolean | string | null;
+    }> | null;
+    grounding_evidence?: Array<{
+      id: string;
+      queries_executed: string[];
+      overlays_consulted: string[];
+      citations: Array<{
+        overlay: string;
+        content: string;
+        relevance: string;
+        file_path?: string;
+      }>;
+      grounding_confidence: 'high' | 'medium' | 'low';
+      overlay_warnings?: string[];
+    }> | null;
   }
 
-  const execute = ({ todos: rawTodos }: TodoInput) => {
+  const execute = ({
+    todos: rawTodos,
+    grounding: rawGroundings,
+    grounding_evidence: rawEvidences,
+  }: TodoInput) => {
     // Define target type for processed todos to satisfy linter and executor
     interface ProcessedGrounding {
       strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
@@ -353,34 +359,39 @@ function createSigmaTaskUpdateTool(
       if (todo.delegate_session_id)
         cleanTodo.delegate_session_id = todo.delegate_session_id;
       if (todo.result_summary) cleanTodo.result_summary = todo.result_summary;
-      if (todo.grounding_evidence)
-        cleanTodo.grounding_evidence =
-          todo.grounding_evidence as ProcessedEvidence;
 
-      // Handle nested grounding object if present
-      if (todo.grounding && typeof todo.grounding === 'object') {
+      // Merge grounding from separate array if present
+      const groundingData = (rawGroundings || []).find((g) => g.id === todo.id);
+      if (groundingData) {
         const grounding: ProcessedGrounding = {
-          strategy: todo.grounding.strategy || 'none',
+          strategy: groundingData.strategy || 'none',
         };
 
-        if (todo.grounding.overlay_hints)
-          grounding.overlay_hints = todo.grounding.overlay_hints as Array<
+        if (groundingData.overlay_hints)
+          grounding.overlay_hints = groundingData.overlay_hints as Array<
             'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'
           >;
-        if (todo.grounding.query_hints)
-          grounding.query_hints = todo.grounding.query_hints;
+        if (groundingData.query_hints)
+          grounding.query_hints = groundingData.query_hints;
 
         // Coerce evidence_required if it's a string
         if (
-          todo.grounding.evidence_required !== undefined &&
-          todo.grounding.evidence_required !== null
+          groundingData.evidence_required !== undefined &&
+          groundingData.evidence_required !== null
         ) {
           grounding.evidence_required = coerceBoolean(
-            todo.grounding.evidence_required as string | boolean
+            groundingData.evidence_required as string | boolean
           );
         }
 
         cleanTodo.grounding = grounding;
+      }
+
+      // Merge grounding_evidence from separate array if present
+      const evidenceData = (rawEvidences || []).find((e) => e.id === todo.id);
+      if (evidenceData) {
+        cleanTodo.grounding_evidence =
+          evidenceData as unknown as ProcessedEvidence;
       }
 
       return cleanTodo;
@@ -467,13 +478,13 @@ When delegating a task to another agent:
 6. Manager verifies acceptance_criteria before marking task 'completed'
 
 ## PGC Grounding (v2.0 Protocol)
-Use the 'grounding' field to specify how a task should be grounded in the Grounded Context Pool (PGC).
+Use the 'grounding' and 'grounding_evidence' arrays to manage task grounding (correlate via 'id').
 - Strategies:
   - pgc_first: Query PGC before acting (for research/planning)
   - pgc_verify: Verify changes against PGC (for safety/security)
   - pgc_cite: Must include citations in evidence
-- Manager: Set 'grounding' requirements when delegating.
-- Worker: Populate 'grounding_evidence' with citations and confidence when completing tasks.
+- Manager: Set 'grounding' requirements in the 'grounding' array when delegating.
+- Worker: Populate 'grounding_evidence' array with citations and confidence when completing tasks.
 
 Benefits of delegation:
 - Keeps Manager context clean (no linter noise, verbose outputs)
@@ -482,10 +493,12 @@ Benefits of delegation:
 
 ## Important
 - Each task MUST have a unique 'id' field (use nanoid, UUID, or semantic slug)
+- Use 'grounding' and 'grounding_evidence' top-level arrays for PGC data (correlate via 'id')
 - Task descriptions must have two forms: content (imperative, e.g., "Run tests") and activeForm (present continuous, e.g., "Running tests")
 - Mark tasks complete IMMEDIATELY after finishing (don't batch completions)
 - ONLY mark a task as completed when you have FULLY accomplished it
-- If you encounter errors or blockers, keep the task as in_progress and create a new task describing what needs to be resolved`,
+- If you encounter errors or blockers, keep the task as in_progress and create a new task describing what needs to be resolved
+- **Reasoning First**: You MUST engage your internal reasoning/thinking process first to plan the action and validate parameters.`,
     parameters: z.object({
       todos: z
         .array(
@@ -545,55 +558,55 @@ Benefits of delegation:
               .optional()
               .nullable()
               .describe("Worker's completion report"),
-            grounding: z
-              .object({
-                strategy: z
-                  .enum(['pgc_first', 'pgc_verify', 'pgc_cite', 'none'])
-                  .optional()
-                  .nullable()
-                  .describe('Grounding strategy to use'),
-                overlay_hints: z
-                  .array(z.string())
-                  .optional()
-                  .nullable()
-                  .describe('Hints for overlay selection'),
-                query_hints: z
-                  .array(z.string())
-                  .optional()
-                  .nullable()
-                  .describe('Hints for semantic search queries'),
-                evidence_required: z
-                  .union([z.boolean(), z.string()])
-                  .optional()
-                  .nullable()
-                  .describe('Whether evidence (citations) is required'),
-              })
-              .optional()
-              .nullable()
-              .describe('Grounding strategy and hints for the task'),
-            grounding_evidence: z
-              .object({
-                queries_executed: z.array(z.string()),
-                overlays_consulted: z.array(z.string()),
-                citations: z.array(
-                  z.object({
-                    overlay: z.string(),
-                    content: z.string(),
-                    relevance: z.string(),
-                    file_path: z.string().optional(),
-                  })
-                ),
-                grounding_confidence: z.enum(['high', 'medium', 'low']),
-                overlay_warnings: z.array(z.string()).optional(),
-              })
-              .optional()
-              .nullable()
-              .describe('Structured evidence returned by worker'),
           })
-          // NOTE: .refine() creates ZodEffects which Gemini ADK doesn't support.
-          // For cross-provider consistency, validation is done in execute function.
         )
         .describe('The updated task list'),
+      grounding: z
+        .array(
+          z.object({
+            id: z.string(),
+            strategy: z
+              .enum(['pgc_first', 'pgc_verify', 'pgc_cite', 'none'])
+              .nullable()
+              .describe('Grounding strategy to use'),
+            overlay_hints: z
+              .array(z.string())
+              .nullable()
+              .describe('Hints for overlay selection'),
+            query_hints: z
+              .array(z.string())
+              .nullable()
+              .describe('Hints for semantic search queries'),
+            evidence_required: z
+              .boolean()
+              .nullable()
+              .describe('Whether evidence (citations) is required'),
+          })
+        )
+        .optional()
+        .nullable()
+        .describe('Grounding strategy and hints for tasks (correlate via id)'),
+      grounding_evidence: z
+        .array(
+          z.object({
+            id: z.string(),
+            queries_executed: z.array(z.string()),
+            overlays_consulted: z.array(z.string()),
+            citations: z.array(
+              z.object({
+                overlay: z.string(),
+                content: z.string(),
+                relevance: z.string(),
+                file_path: z.string().optional(),
+              })
+            ),
+            grounding_confidence: z.enum(['high', 'medium', 'low']),
+            overlay_warnings: z.array(z.string()).optional(),
+          })
+        )
+        .optional()
+        .nullable()
+        .describe('Structured evidence returned by worker (correlate via id)'),
     }),
     execute,
   });
