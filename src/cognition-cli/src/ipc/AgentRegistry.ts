@@ -453,4 +453,25 @@ export class AgentRegistry {
       },
     };
   }
+
+  /**
+   * Discovers the lattice topology based on agent scopes.
+   * Enables fractal lattice query routing.
+   *
+   * @returns {Record<string, string[]>} Map of scope -> agent IDs
+   */
+  getLatticeTopology(): Record<string, string[]> {
+    const topology: Record<string, string[]> = {};
+
+    for (const agent of this.agents.values()) {
+      if (agent.scope) {
+        if (!topology[agent.scope]) {
+          topology[agent.scope] = [];
+        }
+        topology[agent.scope].push(agent.id);
+      }
+    }
+
+    return topology;
+  }
 }

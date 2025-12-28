@@ -1044,6 +1044,37 @@ export function getCognitionTools(
                     },
                   },
                 },
+                grounding_evidence: {
+                  type: Type.OBJECT,
+                  nullable: true,
+                  description: 'Structured evidence returned by worker',
+                  properties: {
+                    queries_executed: {
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING },
+                    },
+                    overlays_consulted: {
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING },
+                    },
+                    citations: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          overlay: { type: Type.STRING },
+                          content: { type: Type.STRING },
+                          relevance: { type: Type.STRING },
+                          file_path: { type: Type.STRING, nullable: true },
+                        },
+                      },
+                    },
+                    grounding_confidence: {
+                      type: Type.STRING,
+                      enum: ['high', 'medium', 'low'],
+                    },
+                  },
+                },
               },
               required: ['id', 'content', 'activeForm', 'status'],
             },
@@ -1079,6 +1110,18 @@ export function getCognitionTools(
             query_hints?: string[] | null;
             evidence_required?: boolean | string | null;
           } | null;
+          grounding_evidence?: {
+            queries_executed: string[];
+            overlays_consulted: string[];
+            citations: Array<{
+              overlay: string;
+              content: string;
+              relevance: string;
+              file_path?: string;
+            }>;
+            grounding_confidence: 'high' | 'medium' | 'low';
+            overlay_warnings?: string[];
+          } | null;
         }
 
         const input = rawInput as { todos?: RawTodo[] };
@@ -1089,9 +1132,24 @@ export function getCognitionTools(
         }
 
         // Define target types for processed todos to satisfy linter and executor
+        interface ProcessedEvidence {
+          queries_executed: string[];
+          overlays_consulted: Array<
+            'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'
+          >;
+          citations: Array<{
+            overlay: string;
+            content: string;
+            relevance: string;
+            file_path?: string;
+          }>;
+          grounding_confidence: 'high' | 'medium' | 'low';
+          overlay_warnings?: string[];
+        }
+
         interface ProcessedGrounding {
           strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
-          overlay_hints?: string[];
+          overlay_hints?: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
           query_hints?: string[];
           evidence_required?: boolean;
         }
@@ -1107,6 +1165,7 @@ export function getCognitionTools(
           delegate_session_id?: string;
           result_summary?: string;
           grounding?: ProcessedGrounding;
+          grounding_evidence?: ProcessedEvidence;
         }
 
         const processedTodos = rawTodos.map((todo) => {
@@ -1137,7 +1196,9 @@ export function getCognitionTools(
             };
 
             if (todo.grounding.overlay_hints)
-              grounding.overlay_hints = todo.grounding.overlay_hints;
+              grounding.overlay_hints = todo.grounding.overlay_hints as Array<
+                'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'
+              >;
             if (todo.grounding.query_hints)
               grounding.query_hints = todo.grounding.query_hints;
 
@@ -1152,6 +1213,11 @@ export function getCognitionTools(
             }
 
             cleanTodo.grounding = grounding;
+          }
+
+          if (todo.grounding_evidence) {
+            cleanTodo.grounding_evidence =
+              todo.grounding_evidence as ProcessedEvidence;
           }
 
           return cleanTodo as ProcessedTodo;

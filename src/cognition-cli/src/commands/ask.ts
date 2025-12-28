@@ -67,6 +67,25 @@ interface AskOptions {
   json?: boolean;
 }
 
+export interface AskResult {
+  question: string;
+  answer: string;
+  query_intent: QueryIntent;
+  sources: Array<{
+    overlay: string;
+    section: string;
+    text: string;
+    similarity: number;
+    weight: number;
+  }>;
+  metadata: {
+    question_hash: string;
+    top_k: number;
+    elapsed_ms: number;
+    cached?: boolean;
+  };
+}
+
 /**
  * Semantic Q&A command - ask questions about the manual and get synthesized answers.
  *
@@ -82,6 +101,7 @@ interface AskOptions {
  *
  * @param question - Natural language question to ask
  * @param options - Ask command options (project root, workbench URL, top-K, save, verbose)
+ * @returns {Promise<AskResult | void>} Result object if called programmatically, or void if it handled its own output
  * @throws Error if PGC not found, no overlay data available, or workbench unreachable
  * @example
  * await askCommand("What is the authentication flow?", {
@@ -91,7 +111,10 @@ interface AskOptions {
  *   verbose: true
  * });
  */
-export async function askCommand(question: string, options: AskOptions) {
+export async function askCommand(
+  question: string,
+  options: AskOptions
+): Promise<AskResult | void> {
   const startTime = Date.now();
   const workbenchUrl =
     options.workbench || process.env.WORKBENCH_URL || 'http://localhost:8000';
@@ -163,7 +186,7 @@ export async function askCommand(question: string, options: AskOptions) {
 
               // JSON output for cached results
               if (options.json) {
-                const jsonOutput = {
+                const jsonOutput: AskResult = {
                   question,
                   answer: cachedAnswer,
                   query_intent: {
@@ -176,11 +199,11 @@ export async function askCommand(question: string, options: AskOptions) {
                   metadata: {
                     question_hash: questionHash,
                     cached: true,
+                    top_k: topK,
                     elapsed_ms: Date.now() - startTime,
                   },
                 };
-                console.log(JSON.stringify(jsonOutput, null, 2));
-                return;
+                return jsonOutput;
               }
 
               // Human-readable output
@@ -428,7 +451,7 @@ Provide a clear, accurate answer based ONLY on the concepts above. If the concep
     // STEP 4: Display Answer (or output JSON for machine consumption)
     if (options.json) {
       // Machine-readable output for agent-to-agent queries
-      const jsonOutput = {
+      const jsonOutput: AskResult = {
         question,
         answer,
         query_intent: queryIntent,
@@ -445,8 +468,7 @@ Provide a clear, accurate answer based ONLY on the concepts above. If the concep
           elapsed_ms: Date.now() - startTime,
         },
       };
-      console.log(JSON.stringify(jsonOutput, null, 2));
-      return; // Skip save and other display logic
+      return jsonOutput;
     }
 
     // Human-readable display

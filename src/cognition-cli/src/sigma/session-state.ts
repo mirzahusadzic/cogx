@@ -79,10 +79,47 @@ export interface SessionState {
     result_summary?: string;
     /** Grounding requirements for the task */
     grounding?: {
-      /** Whether evidence (e.g., file paths, command output) is required */
+      /**
+       * Strategy for how worker should approach the task
+       * - "pgc_first": Query PGC before any code changes
+       * - "pgc_verify": Use PGC to verify proposed changes
+       * - "pgc_cite": Must cite PGC sources in response
+       * - "none": Free-form (legacy behavior)
+       */
+      strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
+
+      /**
+       * Hints about which overlays are most relevant
+       * Helps worker focus lattice queries
+       */
+      overlay_hints?: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
+
+      /**
+       * Semantic query hints for the worker's PGC
+       * Worker should run these queries before acting
+       */
+      query_hints?: string[];
+
+      /**
+       * Whether response must include evidence citations
+       */
       evidence_required?: boolean;
-      /** Specific files or locations to check for evidence */
-      evidence_paths?: string[];
+    };
+    /**
+     * Structured grounding evidence returned by the worker
+     * Stores the actual citations and confidence scores
+     */
+    grounding_evidence?: {
+      queries_executed: string[];
+      overlays_consulted: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
+      citations: Array<{
+        overlay: string;
+        content: string;
+        relevance: string;
+        file_path?: string;
+      }>;
+      grounding_confidence: 'high' | 'medium' | 'low';
+      overlay_warnings?: string[];
     };
   }>;
 }
@@ -108,8 +145,26 @@ function migrateTasks(
     delegate_session_id?: string;
     result_summary?: string;
     grounding?: {
+      strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
+      overlay_hints?: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
+      query_hints?: string[];
       evidence_required?: boolean;
-      evidence_paths?: string[];
+    };
+    /**
+     * Structured grounding evidence returned by the worker
+     * Stores the actual citations and confidence scores
+     */
+    grounding_evidence?: {
+      queries_executed: string[];
+      overlays_consulted: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
+      citations: Array<{
+        overlay: string;
+        content: string;
+        relevance: string;
+        file_path?: string;
+      }>;
+      grounding_confidence: 'high' | 'medium' | 'low';
+      overlay_warnings?: string[];
     };
   }>
 ): Array<{
@@ -123,8 +178,22 @@ function migrateTasks(
   delegate_session_id?: string;
   result_summary?: string;
   grounding?: {
+    strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
+    overlay_hints?: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
+    query_hints?: string[];
     evidence_required?: boolean;
-    evidence_paths?: string[];
+  };
+  grounding_evidence?: {
+    queries_executed: string[];
+    overlays_consulted: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
+    citations: Array<{
+      overlay: string;
+      content: string;
+      relevance: string;
+      file_path?: string;
+    }>;
+    grounding_confidence: 'high' | 'medium' | 'low';
+    overlay_warnings?: string[];
   };
 }> {
   return tasks.map((task, idx) => {

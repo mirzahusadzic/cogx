@@ -658,12 +658,17 @@ program
   .action(async (question, options, command) => {
     const { askCommand } = await import('./commands/ask.js');
     const allOpts = command.optsWithGlobals();
-    await askCommand(question, {
+    const result = await askCommand(question, {
       ...options,
       topK: parseInt(options.topK),
       json: allOpts.json || options.json, // Check both global and local
       verbose: getVerboseState(options),
     });
+
+    // If result returned (json mode), output to console
+    if (result) {
+      console.log(JSON.stringify(result, null, 2));
+    }
   });
 
 // NOTE: Complex command groups (overlay, patterns, etc.) loaded eagerly for now

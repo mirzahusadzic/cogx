@@ -26,6 +26,7 @@
  */
 
 import type { LLMProvider } from './provider-interface.js';
+import type { GroundingInstructions } from '../ipc/DelegationProtocol.js';
 type McpSdkServerConfigWithInstance = unknown; // Placeholder for optional Claude SDK
 
 /**
@@ -102,6 +103,11 @@ export interface AgentRequest {
 
   /** Enable streaming (partial messages) */
   includePartialMessages?: boolean;
+
+  /** Optional grounding instructions (v2.0 protocol) */
+  grounding?:
+    | GroundingInstructions
+    | Promise<GroundingInstructions | undefined>;
 
   /** Additional options */
   maxTokens?: number;

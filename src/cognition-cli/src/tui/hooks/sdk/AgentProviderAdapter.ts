@@ -178,6 +178,22 @@ export class AgentProviderAdapter {
             : '') + `\n\n${DELEGATION_PROTOCOL_PROMPT}`,
       },
       includePartialMessages: true,
+      // Add grounding requirements from session state if available
+      // This is used by the provider to decide whether to run automated PGC queries
+      grounding: this.options.anchorId
+        ? (async () => {
+            const { loadSessionState } =
+              await import('../../../sigma/session-state.js');
+            const state = loadSessionState(
+              this.options.anchorId!,
+              this.options.cwd
+            );
+            const inProgressTask = state?.todos?.find(
+              (t) => t.status === 'in_progress'
+            );
+            return inProgressTask?.grounding;
+          })()
+        : undefined,
     };
 
     if (this.options.debug) {

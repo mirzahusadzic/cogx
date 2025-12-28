@@ -56,14 +56,72 @@ export async function validateTaskCompletion(
   // 2. Check Grounding Evidence if required
   let evidence_found = false;
   if (grounding?.evidence_required) {
-    const hasCitations = /\[O[1-7]\]|citations|evidence|source/i.test(summary);
-    const hasConfidence = /confidence|score/i.test(summary);
+    if (task.grounding_evidence) {
+      // Robust structured validation
+      evidence_found = true;
+      const evidence = task.grounding_evidence;
 
-    evidence_found = hasCitations && hasConfidence;
+      // Check for citations
+      if (evidence.citations.length === 0) {
+        missing_criteria.push(
+          'Required grounding evidence: No citations provided'
+        );
+        evidence_found = false;
+      }
+
+      // Check for requested overlays
+      if (grounding.overlay_hints && grounding.overlay_hints.length > 0) {
+        const consultedSet = new Set(evidence.overlays_consulted);
+        const hasAnyRequiredOverlay = grounding.overlay_hints.some((hint) =>
+          consultedSet.has(hint)
+        );
+
+        if (!hasAnyRequiredOverlay) {
+          missing_criteria.push(
+            `Required grounding evidence: None of the requested overlays (${grounding.overlay_hints.join(', ')}) were consulted`
+          );
+          evidence_found = false;
+        }
+      }
+
+      // Check confidence (warning only, doesn't fail validation unless critical)
+      if (evidence.grounding_confidence === 'low') {
+        missing_criteria.push('Warning: Grounding confidence is low (< 0.7)');
+        // Don't fail evidence_found, but it might affect score if we weighted it
+      }
+    } else {
+      // Legacy string-based validation (fallback)
+      const hasCitations =
+        /\[O[1-7]\]|citations|evidence|source|grounding_evidence/i.test(
+          summary
+        );
+      const hasConfidence =
+        /confidence|score|similarity|grounding_confidence/i.test(summary);
+
+      evidence_found = hasCitations && hasConfidence;
+
+      // Check for specific overlays if hinted (string check)
+      if (grounding.overlay_hints && grounding.overlay_hints.length > 0) {
+        const overlaysMentioned = grounding.overlay_hints.filter((o) =>
+          summary.includes(o)
+        );
+        if (overlaysMentioned.length === 0) {
+          missing_criteria.push(
+            `None of the requested overlays (${grounding.overlay_hints.join(', ')}) found in evidence (string check)`
+          );
+          evidence_found = false;
+        }
+      }
+
+      if (!evidence_found) {
+        missing_criteria.push(
+          'Required grounding evidence/citations missing (structured object not found)'
+        );
+      }
+    }
+
     if (evidence_found) {
       score_acc += 1;
-    } else {
-      missing_criteria.push('Required grounding evidence/citations missing');
     }
   }
 

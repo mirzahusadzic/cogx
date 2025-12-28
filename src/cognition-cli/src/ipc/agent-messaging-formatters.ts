@@ -19,6 +19,7 @@ import type { QueuedMessage } from './MessageQueue.js';
  * @property {'active' | 'idle' | 'disconnected'} status The current status of the agent.
  * @property {string} [projectRoot] Absolute path to the project root directory.
  * @property {string} [projectName] Project name (inferred from package.json or folder name).
+ * @property {string} [scope] Subsystem or path this agent manages (e.g., "drivers/net"). Used for fractal lattice topology discovery.
  */
 export interface AgentInfo {
   agentId: string;
@@ -29,6 +30,7 @@ export interface AgentInfo {
   status: 'active' | 'idle' | 'disconnected';
   projectRoot?: string;
   projectName?: string;
+  scope?: string;
 }
 
 /**
@@ -60,12 +62,13 @@ export function formatListAgents(agents: AgentInfo[]): string {
   }
 
   let text = `**Active Agents (${agents.length})**\n\n`;
-  text += '| Alias | Model | Project | Agent ID |\n';
-  text += '|-------|-------|---------|----------|\n';
+  text += '| Alias | Model | Project | Scope | Agent ID |\n';
+  text += '|-------|-------|---------|-------|----------|\n';
 
   for (const agent of agents) {
     const project = agent.projectRoot || agent.projectName || 'unknown';
-    text += `| ${agent.alias || 'unknown'} | ${agent.model} | ${project} | ${agent.agentId} |\n`;
+    const scope = agent.scope || '-';
+    text += `| ${agent.alias || 'unknown'} | ${agent.model} | ${project} | ${scope} | ${agent.agentId} |\n`;
   }
 
   text +=

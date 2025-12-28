@@ -286,6 +286,18 @@ function createSigmaTaskUpdateTool(
         query_hints?: string[] | null;
         evidence_required?: boolean | string | null;
       } | null;
+      grounding_evidence?: {
+        queries_executed: string[];
+        overlays_consulted: string[];
+        citations: Array<{
+          overlay: string;
+          content: string;
+          relevance: string;
+          file_path?: string;
+        }>;
+        grounding_confidence: 'high' | 'medium' | 'low';
+        overlay_warnings?: string[];
+      } | null;
     }>;
   }
 
@@ -293,9 +305,22 @@ function createSigmaTaskUpdateTool(
     // Define target type for processed todos to satisfy linter and executor
     interface ProcessedGrounding {
       strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
-      overlay_hints?: string[];
+      overlay_hints?: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
       query_hints?: string[];
       evidence_required?: boolean;
+    }
+
+    interface ProcessedEvidence {
+      queries_executed: string[];
+      overlays_consulted: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
+      citations: Array<{
+        overlay: string;
+        content: string;
+        relevance: string;
+        file_path?: string;
+      }>;
+      grounding_confidence: 'high' | 'medium' | 'low';
+      overlay_warnings?: string[];
     }
 
     interface ProcessedTodo {
@@ -309,6 +334,7 @@ function createSigmaTaskUpdateTool(
       delegate_session_id?: string;
       result_summary?: string;
       grounding?: ProcessedGrounding;
+      grounding_evidence?: ProcessedEvidence;
     }
 
     // [Safety Handling] Process todos to handle nulls and coercion
@@ -327,6 +353,9 @@ function createSigmaTaskUpdateTool(
       if (todo.delegate_session_id)
         cleanTodo.delegate_session_id = todo.delegate_session_id;
       if (todo.result_summary) cleanTodo.result_summary = todo.result_summary;
+      if (todo.grounding_evidence)
+        cleanTodo.grounding_evidence =
+          todo.grounding_evidence as ProcessedEvidence;
 
       // Handle nested grounding object if present
       if (todo.grounding && typeof todo.grounding === 'object') {
@@ -335,7 +364,9 @@ function createSigmaTaskUpdateTool(
         };
 
         if (todo.grounding.overlay_hints)
-          grounding.overlay_hints = todo.grounding.overlay_hints;
+          grounding.overlay_hints = todo.grounding.overlay_hints as Array<
+            'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'
+          >;
         if (todo.grounding.query_hints)
           grounding.query_hints = todo.grounding.query_hints;
 
@@ -531,6 +562,24 @@ Benefits of delegation:
               .optional()
               .nullable()
               .describe('Grounding strategy and hints for the task'),
+            grounding_evidence: z
+              .object({
+                queries_executed: z.array(z.string()),
+                overlays_consulted: z.array(z.string()),
+                citations: z.array(
+                  z.object({
+                    overlay: z.string(),
+                    content: z.string(),
+                    relevance: z.string(),
+                    file_path: z.string().optional(),
+                  })
+                ),
+                grounding_confidence: z.enum(['high', 'medium', 'low']),
+                overlay_warnings: z.array(z.string()).optional(),
+              })
+              .optional()
+              .nullable()
+              .describe('Structured evidence returned by worker'),
           })
           // NOTE: .refine() creates ZodEffects which Gemini ADK doesn't support.
           // For cross-provider consistency, validation is done in execute function.

@@ -33,6 +33,7 @@
  * ```
  */
 
+import { getGroundingContext } from './grounding-utils.js';
 import Anthropic from '@anthropic-ai/sdk';
 import type {
   LLMProvider,
@@ -277,6 +278,9 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
       );
     }
 
+    // Handle automated grounding queries if requested
+    const groundingContext = await getGroundingContext(request);
+
     // Create AbortController for cancellation support
     this.abortController = new AbortController();
 
@@ -284,7 +288,9 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
     this.currentQuery = (
       this.claudeAgentSdk as { query: (options: unknown) => Query }
     ).query({
-      prompt: request.prompt,
+      prompt: groundingContext
+        ? `${groundingContext}\n\nTask: ${request.prompt}`
+        : request.prompt,
       options: {
         abortController: this.abortController,
         cwd: request.cwd,

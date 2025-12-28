@@ -53,6 +53,7 @@ process.env.OPENAI_AGENTS_DONT_LOG_MODEL_DATA = '1';
 process.env.OPENAI_AGENTS_DONT_LOG_TOOL_DATA = '1';
 process.env.DEBUG = ''; // Disable debug package output
 
+import { getGroundingContext } from './grounding-utils.js';
 import OpenAI from 'openai';
 import { Agent, run, setDefaultOpenAIClient } from '@openai/agents';
 import {
@@ -475,6 +476,9 @@ export class OpenAIAgentProvider implements AgentProvider {
         numTurns: 0,
       };
 
+      // Handle automated grounding queries if requested
+      const groundingContext = await getGroundingContext(request);
+
       // Build tools array
       const tools = this.buildTools(request);
 
@@ -486,7 +490,11 @@ export class OpenAIAgentProvider implements AgentProvider {
       const agent = new Agent({
         name: 'cognition_agent',
         model: modelImpl,
-        instructions: this.buildSystemPrompt(request),
+        instructions:
+          this.buildSystemPrompt(request) +
+          (groundingContext
+            ? `\n\n## Automated Grounding Context\n${groundingContext}`
+            : ''),
         tools,
         modelSettings: { temperature: 1.0 },
       });

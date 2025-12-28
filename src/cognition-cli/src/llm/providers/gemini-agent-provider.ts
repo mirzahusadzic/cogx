@@ -31,6 +31,7 @@ import {
   LogLevel,
   StreamingMode,
 } from '@google/adk';
+import { getGroundingContext } from './grounding-utils.js';
 import { getCognitionTools } from './gemini-adk-tools.js';
 import type {
   AgentProvider,
@@ -162,6 +163,9 @@ export class GeminiAgentProvider implements AgentProvider {
     // Combine cognition tools + web search tool (always enabled)
     const tools = [...cognitionTools, webSearchTool];
 
+    // Handle automated grounding queries if requested
+    const groundingContext = await getGroundingContext(request);
+
     // Create abort controller for cancellation support
     this.abortController = new AbortController();
 
@@ -177,7 +181,11 @@ export class GeminiAgentProvider implements AgentProvider {
     const agent = new LlmAgent({
       name: 'cognition_agent',
       model: modelId,
-      instruction: this.buildSystemPrompt(request),
+      instruction:
+        this.buildSystemPrompt(request) +
+        (groundingContext
+          ? `\n\n## Automated Grounding Context\n${groundingContext}`
+          : ''),
       tools,
       generateContentConfig: {
         abortSignal: this.abortController.signal,

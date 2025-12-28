@@ -288,9 +288,21 @@ export async function executeSigmaTaskUpdate(
     // Grounding fields (v2.0 protocol)
     grounding?: {
       strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
-      overlay_hints?: string[];
+      overlay_hints?: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
       query_hints?: string[];
       evidence_required?: boolean;
+    };
+    grounding_evidence?: {
+      queries_executed: string[];
+      overlays_consulted: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
+      citations: Array<{
+        overlay: string;
+        content: string;
+        relevance: string;
+        file_path?: string;
+      }>;
+      grounding_confidence: 'high' | 'medium' | 'low';
+      overlay_warnings?: string[];
     };
     result_summary?: string;
   }>,
@@ -379,23 +391,7 @@ export async function executeSigmaTaskUpdate(
     return updateTasksByAnchorId(
       anchorId,
       cwd,
-      todos as Array<{
-        id: string;
-        content: string;
-        status: 'pending' | 'in_progress' | 'completed' | 'delegated';
-        activeForm: string;
-        acceptance_criteria?: string[];
-        delegated_to?: string;
-        context?: string;
-        grounding?: {
-          strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
-          overlay_hints?: string[];
-          query_hints?: string[];
-          evidence_required?: boolean;
-        };
-        delegate_session_id?: string;
-        result_summary?: string;
-      }>
+      todos as NonNullable<SessionState['todos']>
     );
   } catch (error) {
     return `Error updating task: ${error instanceof Error ? error.message : String(error)}`;
