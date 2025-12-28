@@ -68,4 +68,107 @@ describe('SigmaTaskUpdate Gemini Tool', () => {
       'session-1'
     );
   });
+
+  it('should handle nested nulls in grounding object', async () => {
+    const tools = getCognitionTools(
+      undefined,
+      'http://localhost:3000',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      process.cwd(),
+      'agent-1',
+      { provider: 'gemini', anchorId: 'session-1' }
+    );
+
+    const sigmaTaskUpdate = tools.find((t) => t.name === 'SigmaTaskUpdate');
+    const { executeSigmaTaskUpdate } = await import('../tool-executors.js');
+
+    const rawInput = {
+      todos: [
+        {
+          id: 'task-2',
+          content: 'Verify grounding',
+          activeForm: 'Verifying grounding',
+          status: 'in_progress',
+          grounding: {
+            strategy: 'pgc_cite',
+            evidence_required: null,
+            query_hints: null,
+            overlay_hints: ['hint1'],
+          },
+        },
+      ],
+    };
+
+    await sigmaTaskUpdate!.runAsync({
+      args: rawInput as Record<string, unknown>,
+      toolContext: {},
+    });
+
+    expect(executeSigmaTaskUpdate).toHaveBeenCalledWith(
+      [
+        {
+          id: 'task-2',
+          content: 'Verify grounding',
+          activeForm: 'Verifying grounding',
+          status: 'in_progress',
+          grounding: {
+            strategy: 'pgc_cite',
+            overlay_hints: ['hint1'],
+          },
+        },
+      ],
+      process.cwd(),
+      'session-1'
+    );
+  });
+
+  it('should handle top-level null grounding', async () => {
+    const tools = getCognitionTools(
+      undefined,
+      'http://localhost:3000',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      process.cwd(),
+      'agent-1',
+      { provider: 'gemini', anchorId: 'session-1' }
+    );
+
+    const sigmaTaskUpdate = tools.find((t) => t.name === 'SigmaTaskUpdate');
+    const { executeSigmaTaskUpdate } = await import('../tool-executors.js');
+
+    const rawInput = {
+      todos: [
+        {
+          id: 'task-3',
+          content: 'Null grounding',
+          activeForm: 'Null grounding',
+          status: 'completed',
+          grounding: null,
+        },
+      ],
+    };
+
+    await sigmaTaskUpdate!.runAsync({
+      args: rawInput as Record<string, unknown>,
+      toolContext: {},
+    });
+
+    expect(executeSigmaTaskUpdate).toHaveBeenCalledWith(
+      [
+        {
+          id: 'task-3',
+          content: 'Null grounding',
+          activeForm: 'Null grounding',
+          status: 'completed',
+        },
+      ],
+      process.cwd(),
+      'session-1'
+    );
+  });
 });
