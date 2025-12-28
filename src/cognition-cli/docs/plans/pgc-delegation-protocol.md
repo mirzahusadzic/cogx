@@ -1008,3 +1008,97 @@ After Phase 4 implementation, track:
 **Document Status**: Ready for Phase 1 implementation
 **Next Steps**: Create TypeScript types in `src/ipc/DelegationProtocol.ts`
 **Reviewers**: @opus1, @gemini1, @gemini2 (multi-agent review completed 2025-01-23)
+
+---
+
+## 8. Realistic Scenarios
+
+These scenarios demonstrate the protocol in action within the Cognition Σ architecture, using actual overlays (O₁-O₇).
+
+### Scenario A: Implementing an Operational Procedure (O₅ + O₁)
+
+**Context**: The Manager needs to automate the "PGC Audit" workflow. This requires understanding the existing operational patterns (O₅) and the structural implementation of the PGC (O₁).
+
+**Manager Delegation**:
+
+```json
+{
+  "id": "impl-pgc-audit-quest",
+  "content": "Implement a new O5 quest for automated PGC integrity auditing",
+  "grounding": {
+    "strategy": "pgc_first",
+    "overlay_hints": ["O5", "O1"],
+    "query_hints": [
+      "What are the existing quest patterns in O5?",
+      "How does the PGC audit command (O1) verify object hashes?"
+    ],
+    "evidence_required": true
+  }
+}
+```
+
+**System Behavior**:
+
+1. Before the Worker starts, `grounding-utils` runs `askCommand` for both hints.
+2. The Worker receives the task along with extracted snippets from the **Operational (O₅)** and **Structural (O₁)** overlays.
+3. The Worker implements the quest, citing the hash verification logic it found in `src/core/PGCManager.ts`.
+
+---
+
+### Scenario B: Security Blast Radius Analysis (O₂ + O₃)
+
+**Context**: A vulnerability is discovered in the content-addressable storage layer. The Manager needs to know the "Blast Radius"—which files are most at risk—before delegating the fix.
+
+**Manager Delegation**:
+
+```json
+{
+  "id": "security-remediation-pgc",
+  "content": "Fix vulnerability in PGC object resolution and analyze impact",
+  "grounding": {
+    "strategy": "pgc_verify",
+    "overlay_hints": ["O2", "O3"],
+    "query_hints": [
+      "What is the attack surface of the PGC resolution logic?",
+      "Which files have the highest lineage (O3) complexity in src/core/objects/?"
+    ],
+    "evidence_required": true
+  }
+}
+```
+
+**Worker Behavior**:
+
+1. The Worker proposes a fix for the vulnerability.
+2. It then runs a `pgc_verify` step: "Does this fix impact the security invariants in O₂?"
+3. It reports completion with `grounding_evidence` showing high confidence and citations from the **Security (O₂)** overlay.
+
+---
+
+### Scenario C: Mission-Code Coherence Check (O₄ + O₇)
+
+**Context**: A new feature for "External API Mesh" is proposed. The Manager wants to ensure it aligns with the project's strategic mission (O₄) and maintained architectural coherence (O₇).
+
+**Manager Delegation**:
+
+```json
+{
+  "id": "mission-alignment-mesh",
+  "content": "Assess if the External API Mesh feature aligns with our dual-lattice vision",
+  "grounding": {
+    "strategy": "pgc_cite",
+    "overlay_hints": ["O4", "O7"],
+    "query_hints": [
+      "What are the core mission concepts related to 'symbiosis'?",
+      "Are there coherence warnings (O7) regarding cross-project IPC?"
+    ],
+    "evidence_required": true
+  }
+}
+```
+
+**Validation Service**:
+
+1. The Worker provides an analysis citing the **Mission (O₄)** overlay's definition of "Human-AI Symbiosis".
+2. The `validation-service` checks if the **Coherence (O₇)** overlay was consulted to ensure no architectural violations were ignored.
+3. If the Worker fails to cite the mission concepts, the Manager marks the task as `blocked` for lack of grounding.

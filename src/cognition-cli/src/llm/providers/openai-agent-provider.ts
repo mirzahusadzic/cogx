@@ -1012,6 +1012,13 @@ export class OpenAIAgentProvider implements AgentProvider {
 
     const modelName = request.model || this.defaultModel;
 
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
     // Build available tools section based on what's configured
     const toolSections: string[] = [];
 
@@ -1053,6 +1060,8 @@ export class OpenAIAgentProvider implements AgentProvider {
     }
 
     return `You are **${modelName}** (OpenAI Agents SDK) running inside **Cognition Σ (Sigma) CLI** - a verifiable AI-human symbiosis architecture with dual-lattice knowledge representation.
+
+**Current Date**: ${currentDate}
 
 ## What is Cognition Σ?
 A portable cognitive layer that can be initialized in **any repository**. Creates \`.sigma/\` (conversation memory) and \`.open_cognition/\` (PGC project knowledge store) in the current working directory.
