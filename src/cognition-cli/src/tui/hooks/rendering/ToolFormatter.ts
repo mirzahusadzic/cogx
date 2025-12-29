@@ -260,11 +260,9 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
   ) {
     toolName = 'Tasks';
     inputDesc = formatSigmaTaskUpdate(
-      tool.input.todos as Array<{
-        content: string;
-        status: string;
-        activeForm: string;
-      }>
+      tool.input.todos as SigmaTodo[],
+      tool.input.grounding as SigmaGrounding[],
+      tool.input.grounding_evidence as SigmaGroundingEvidence[]
     );
   } else if (tool.name === 'WebFetch' && tool.input.url) {
     toolIcon = '🌐';
@@ -546,14 +544,44 @@ function formatEditDiff(
  * //   → Deploying       (yellow)
  * //   ○ Monitor         (gray)
  */
+interface SigmaTodo {
+  id: string;
+  content: string;
+  status: string;
+  activeForm: string;
+  delegated_to?: string;
+}
+
+interface SigmaGrounding {
+  id: string;
+  strategy: string;
+}
+
+interface SigmaGroundingEvidence {
+  id: string;
+  grounding_confidence: string;
+}
+
 function formatSigmaTaskUpdate(
-  todos: Array<{
-    content: string;
-    status: string;
-    activeForm: string;
-  }>
+  todos: SigmaTodo[],
+  grounding?: SigmaGrounding[],
+  groundingEvidence?: SigmaGroundingEvidence[]
 ): string {
   const todoLines: string[] = [];
+
+  const groundingMap = new Map<string, SigmaGrounding>();
+  if (grounding) {
+    grounding.forEach((g) => {
+      if (g.id) groundingMap.set(g.id, g);
+    });
+  }
+
+  const evidenceMap = new Map<string, SigmaGroundingEvidence>();
+  if (groundingEvidence) {
+    groundingEvidence.forEach((e) => {
+      if (e.id) evidenceMap.set(e.id, e);
+    });
+  }
 
   todos.forEach((todo) => {
     let statusIcon = '';
@@ -565,13 +593,39 @@ function formatSigmaTaskUpdate(
     } else if (todo.status === 'in_progress') {
       statusIcon = '→';
       statusColor = '\x1b[33m'; // yellow
+    } else if (todo.status === 'delegated') {
+      statusIcon = '🤖';
+      statusColor = '\x1b[36m'; // cyan
     } else {
       statusIcon = '○';
       statusColor = '\x1b[90m'; // gray
     }
 
-    const displayText =
+    let displayText =
       todo.status === 'in_progress' ? todo.activeForm : todo.content;
+
+    if (todo.status === 'delegated' && todo.delegated_to) {
+      displayText += ` (to: ${todo.delegated_to})`;
+    }
+
+    // Add grounding indicators
+    const gReq = groundingMap.get(todo.id);
+    const gEv = evidenceMap.get(todo.id);
+
+    if (gReq && gReq.strategy && gReq.strategy !== 'none') {
+      displayText += ` \x1b[90m[PGC:${gReq.strategy}]\x1b[0m`;
+    }
+
+    if (gEv && gEv.grounding_confidence) {
+      const confColor =
+        gEv.grounding_confidence === 'high'
+          ? '\x1b[32m'
+          : gEv.grounding_confidence === 'medium'
+            ? '\x1b[33m'
+            : '\x1b[31m';
+      displayText += ` ${confColor}●\x1b[0m`;
+    }
+
     // Use \x1b[39m (fg reset only) instead of \x1b[0m to avoid clearing Ink's codes
     todoLines.push(`  ${statusColor}${statusIcon}\x1b[39m ${displayText}`);
   });

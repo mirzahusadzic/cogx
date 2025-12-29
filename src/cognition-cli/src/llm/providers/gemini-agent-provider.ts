@@ -867,6 +867,17 @@ ${request.cwd || process.cwd()}
 ## Guidelines
 - Be concise and helpful
 - **Reasoning First**: For any complex operation or tool call (especially \`SigmaTaskUpdate\`, \`edit_file\`, or IPC delegation), you MUST engage your internal reasoning/thinking process first to plan the action and validate parameters.
+  When planning \`SigmaTaskUpdate\`, ensure your JSON structure matches the parallel array pattern:
+  \`\`\`json
+  {
+    "todos": [
+      { "id": "task-1", "content": "Task description", "activeForm": "Doing task", "status": "in_progress" }
+    ],
+    "grounding": [
+      { "id": "task-1", "strategy": "pgc_first" }
+    ]
+  }
+  \`\`\`
 - Use tools proactively to gather context before answering
 - When making changes, explain what you're doing briefly
 - Prefer editing existing files over creating new ones

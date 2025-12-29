@@ -7,6 +7,7 @@
 
 import { z } from 'zod';
 import { executeSigmaTaskUpdate } from '../../llm/providers/tool-executors.js';
+import { SIGMA_TASK_UPDATE_DESCRIPTION } from '../../llm/providers/tool-helpers.js';
 
 type ClaudeAgentSdk = {
   tool: (
@@ -51,61 +52,7 @@ export function createSigmaTaskUpdateMcpServer(
 
   const sigmaTaskUpdateTool = tool(
     'SigmaTaskUpdate',
-    `Use this tool to create and manage a structured task list for your current coding session. This helps you track progress, organize complex tasks, and demonstrate thoroughness to the user.
-
-## When to Use This Tool
-Use this tool proactively in these scenarios:
-1. Complex multi-step tasks - When a task requires 3 or more distinct steps or actions
-2. Non-trivial and complex tasks - Tasks that require careful planning or multiple operations
-3. User explicitly requests task list - When the user directly asks you to use the task list
-4. User provides multiple tasks - When users provide a list of things to be done (numbered or comma-separated)
-5. After receiving new instructions - Immediately capture user requirements as tasks
-6. When you start working on a task - Mark it as in_progress BEFORE beginning work
-7. After completing a task - Mark it as completed and add any new follow-up tasks
-8. When delegating tasks - Create a task with status 'delegated' before sending the IPC message
-
-## When NOT to Use This Tool
-1. There is only a single, straightforward task
-2. The task is purely conversational or informational
-3. The task can be completed in less than 3 trivial steps
-
-## Task States
-- pending: Task not yet started
-- in_progress: Currently working on (limit to ONE task at a time)
-- completed: Task finished successfully
-- delegated: Task assigned to another agent via IPC (Manager/Worker pattern)
-
-## Delegation (Manager/Worker Pattern)
-When delegating a task to another agent:
-1. Set status to 'delegated' and provide delegated_to (agent ID like "flash1")
-2. MUST include acceptance_criteria (array of strings defining success)
-3. Optionally provide context (additional background for the worker)
-4. Use send_agent_message to dispatch the task payload to the worker
-5. Worker reports back via send_agent_message when complete
-6. Manager verifies acceptance_criteria before marking task 'completed'
-
-## PGC Grounding (v2.0 Protocol)
-Use the 'grounding' and 'grounding_evidence' arrays to manage task grounding (correlate via 'id').
-- Strategies:
-  - pgc_first: Query PGC before acting (for research/planning)
-  - pgc_verify: Verify changes against PGC (for safety/security)
-  - pgc_cite: Must include citations in evidence
-- Manager: Set 'grounding' requirements in the 'grounding' array when delegating.
-- Worker: Populate 'grounding_evidence' array with citations and confidence when completing tasks.
-
-Benefits of delegation:
-- Keeps Manager context clean (no linter noise, verbose outputs)
-- Manager stays focused on architecture and planning
-- Worker agents handle implementation details
-
-## Important
-- Each task MUST have a unique 'id' field (use nanoid, UUID, or semantic slug)
-- Use 'grounding' and 'grounding_evidence' top-level arrays for PGC data (correlate via 'id')
-- Task descriptions must have two forms: content (imperative) and activeForm (present continuous)
-- Mark tasks complete IMMEDIATELY after finishing (don't batch completions)
-- ONLY mark a task as completed when you have FULLY accomplished it
-- If you encounter errors or blockers, keep the task as in_progress and create a new task describing what needs to be resolved
-- **Reasoning First**: You MUST engage your internal reasoning/thinking process first to plan the action and validate parameters.`,
+    SIGMA_TASK_UPDATE_DESCRIPTION,
     {
       todos: z
         .array(

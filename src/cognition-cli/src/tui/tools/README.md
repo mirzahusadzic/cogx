@@ -75,47 +75,109 @@ get_background_tasks({ filter: 'completed' });
 
 ### 📋 SigmaTaskUpdate (`sigma-task-update-tool.ts`)
 
-Task management with delegation support. Replaces the native `TodoWrite` tool with enhanced features.
+Task management with delegation and PGC grounding support, using the **v2.0 Protocol**. This tool replaces the native `TodoWrite` with enhanced features for structured task management, delegation, and robust knowledge grounding.
 
-| Field                 | Description                                           |
-| --------------------- | ----------------------------------------------------- |
-| `id`                  | Unique stable identifier for the task                 |
-| `content`             | What needs to be done (imperative)                    |
-| `activeForm`          | Present continuous form ("Running tests")             |
-| `status`              | `pending` / `in_progress` / `completed` / `delegated` |
-| `delegated_to`        | Agent ID for delegation (e.g., `flash1`)              |
-| `acceptance_criteria` | Array of success criteria for delegated tasks         |
-| `context`             | Additional context for the worker                     |
+**v2.0 Protocol**: Uses three parallel top-level arrays (`todos`, `grounding`, `grounding_evidence`) that correlate via a shared `id` to reduce schema complexity.
 
-**Delegation workflow**:
+#### `todos` Array (Core Task Information)
+
+| Field                 | Description                                                                           |
+| --------------------- | ------------------------------------------------------------------------------------- |
+| `id`                  | Unique stable identifier for the task (e.g., `fix-ruff-api`)                          |
+| `content`             | Imperative form describing the task (e.g., "Run tests")                               |
+| `activeForm`          | Present continuous form for UI display (e.g., "Running tests")                        |
+| `status`              | `pending` / `in_progress` / `completed` / `delegated`                                 |
+| `delegated_to`        | Agent ID this task was delegated to (e.g., `flash1`). Set when status is `delegated`. |
+| `acceptance_criteria` | Array of strings defining success criteria. **Required when delegating.**             |
+| `context`             | Additional context for the delegated worker                                           |
+| `delegate_session_id` | Worker's session ID (for audit trail)                                                 |
+| `result_summary`      | Worker's completion report                                                            |
+
+#### `grounding` Array (PGC Grounding Instructions for Worker)
+
+| Field               | Description                                                                            |
+| ------------------- | -------------------------------------------------------------------------------------- |
+| `id`                | Correlates with a `todo` item's `id`.                                                  |
+| `strategy`          | PGC grounding strategy: `pgc_first`, `pgc_verify`, `pgc_cite`, `none`                  |
+| `overlay_hints`     | Hints about which PGC overlays (O1-O7) are most relevant                               |
+| `query_hints`       | Semantic query hints for the worker's PGC                                              |
+| `evidence_required` | `true`/`false` or `"true"`/`"false"` (string bool) if evidence citations are required. |
+
+#### `grounding_evidence` Array (Structured Evidence Returned by Worker)
+
+| Field                  | Description                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------ |
+| `id`                   | Correlates with a `todo` item's `id`.                                                |
+| `queries_executed`     | List of semantic queries run by the worker                                           |
+| `overlays_consulted`   | List of PGC overlays (O1-O7) consulted by the worker                                 |
+| `citations`            | Array of objects with `overlay`, `content`, `relevance`, and `file_path` (optional). |
+| `grounding_confidence` | Worker's confidence in grounding: `high`, `medium`, `low`                            |
+| `overlay_warnings`     | Any warnings encountered during overlay consultation                                 |
+
+**Example Usage**:
 
 ```typescript
-// Manager creates delegated task
+// Manager creates a delegated task with PGC grounding requirements
 SigmaTaskUpdate({
   todos: [
     {
-      id: 'fix-auth-bug',
-      content: 'Fix authentication timeout',
-      activeForm: 'Fixing authentication timeout',
+      id: 'refactor-user-auth',
+      content: 'Refactor user authentication module',
+      activeForm: 'Refactoring user authentication module',
       status: 'delegated',
-      delegated_to: 'flash1',
-      acceptance_criteria: ['Tests pass', 'No breaking changes'],
-      context: 'The bug is in src/auth/session.ts',
+      delegated_to: 'auth-expert-agent',
+      acceptance_criteria: [
+        'All auth tests pass',
+        'No regressions in OAuth flow',
+        'Code adheres to security standards',
+      ],
+      context: 'Focus on improving token validation and session management.',
+    },
+  ],
+  grounding: [
+    {
+      id: 'refactor-user-auth',
+      strategy: 'pgc_verify',
+      overlay_hints: ['O2', 'O4'], // Security, Mission overlays
+      query_hints: ['security standards', 'token validation best practices'],
+      evidence_required: true,
     },
   ],
 });
 
-// Manager sends task via IPC
-send_agent_message('flash1', JSON.stringify(taskPayload));
-
-// Worker completes and reports back
-send_agent_message(
-  'opus1',
-  JSON.stringify({ taskId: 'fix-auth-bug', result: 'Done' })
-);
-
-// Manager verifies and marks complete
-SigmaTaskUpdate({ todos: [{ ...task, status: 'completed' }] });
+// Worker completes the task and reports back with grounding evidence
+SigmaTaskUpdate({
+  todos: [
+    {
+      id: 'refactor-user-auth',
+      content: 'Refactor user authentication module',
+      activeForm: 'Refactoring user authentication module',
+      status: 'completed',
+      delegated_to: 'auth-expert-agent',
+      result_summary: 'Auth module refactored, new tests added, all passing.',
+    },
+  ],
+  grounding_evidence: [
+    {
+      id: 'refactor-user-auth',
+      queries_executed: [
+        'semantic search for "token validation"',
+        '"auth best practices" in PGC',
+      ],
+      overlays_consulted: ['O2', 'O4'],
+      citations: [
+        {
+          overlay: 'O2',
+          content: 'Recommended token expiry is 1 hour for session tokens.',
+          relevance: 'Directly applied to session token configuration.',
+          file_path: 'src/auth/config.ts',
+        },
+      ],
+      grounding_confidence: 'high',
+      overlay_warnings: [],
+    },
+  ],
+});
 ```
 
 ---

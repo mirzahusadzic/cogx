@@ -96,14 +96,34 @@ describe('ToolFormatter', () => {
         name: 'SigmaTaskUpdate',
         input: {
           todos: [
-            { content: 'Task 1', status: 'completed', activeForm: 'Task 1' },
             {
+              id: '1',
+              content: 'Task 1',
+              status: 'completed',
+              activeForm: 'Task 1',
+            },
+            {
+              id: '2',
               content: 'Task 2',
               status: 'in_progress',
               activeForm: 'Working on Task 2',
             },
-            { content: 'Task 3', status: 'pending', activeForm: 'Task 3' },
+            {
+              id: '3',
+              content: 'Task 3',
+              status: 'pending',
+              activeForm: 'Task 3',
+            },
+            {
+              id: '4',
+              content: 'Task 4',
+              status: 'delegated',
+              activeForm: 'Task 4',
+              delegated_to: 'worker1',
+            },
           ],
+          grounding: [{ id: '2', strategy: 'pgc_first' }],
+          grounding_evidence: [{ id: '1', grounding_confidence: 'high' }],
         },
       };
 
@@ -112,12 +132,18 @@ describe('ToolFormatter', () => {
       expect(result.description).toContain('✓'); // Completed icon
       expect(result.description).toContain('→'); // In progress icon
       expect(result.description).toContain('○'); // Pending icon
+      expect(result.description).toContain('🤖'); // Delegated icon
+      expect(result.description).toContain('worker1'); // Delegated to
       expect(result.description).toContain('Task 1');
       expect(result.description).toContain('Working on Task 2'); // Uses activeForm
       expect(result.description).toContain('Task 3');
+      expect(result.description).toContain('[PGC:pgc_first]'); // Grounding strategy
+      expect(result.description).toContain('●'); // Confidence indicator
+
       // Check for color codes
       expect(result.description).toContain('\x1b[32m'); // Green for completed
       expect(result.description).toContain('\x1b[33m'); // Yellow for in_progress
+      expect(result.description).toContain('\x1b[36m'); // Cyan for delegated
       expect(result.description).toContain('\x1b[90m'); // Gray for pending
     });
 

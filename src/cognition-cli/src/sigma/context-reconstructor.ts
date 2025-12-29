@@ -150,6 +150,7 @@ function getSystemFingerprint(
     if (modelName?.includes('preview')) {
       providerName += ' (Experimental Preview)';
     }
+    // Gemini 2.0/3.0 models have cutoffs around late 2024 / early 2025
     temporalGrounding = `\n**Knowledge Cutoff**: January 2025\n**Current Date**: ${currentDate}`;
   } else if (
     modelName?.includes('gpt') ||
@@ -158,14 +159,31 @@ function getSystemFingerprint(
   ) {
     providerName = 'OpenAI Agent';
     sdkName = 'OpenAI Agents SDK';
-    // Knowledge cutoff for GPT-4o / o1 is Oct 2023 or later depending on specific model version
-    // but the latest ones usually reach late 2023.
-    temporalGrounding = `\n**Knowledge Cutoff**: October 2023\n**Current Date**: ${currentDate}`;
+    // GPT-4o / o1 / o3 models generally have cutoffs in 2024
+    temporalGrounding = `\n**Knowledge Cutoff**: October 2024\n**Current Date**: ${currentDate}`;
   } else {
     // Default temporal grounding for other providers
     temporalGrounding = `\n**Current Date**: ${currentDate}`;
   }
 
+  return [
+    getIdentityHeader(providerName, sdkName, temporalGrounding),
+    getArchitectureOverview(),
+    getMemoryArchitecture(),
+    getToolInstructions(),
+    getSlashCommandInstructions(),
+    getSessionContext(cwd, mode, isCompressed),
+  ].join('\n');
+}
+
+/**
+ * Get identity and temporal grounding section
+ */
+function getIdentityHeader(
+  providerName: string,
+  sdkName: string,
+  temporalGrounding: string
+): string {
   return `# SYSTEM IDENTITY
 
 You are **${providerName}** (${sdkName}) running inside **Cognition Σ (Sigma) CLI** - a verifiable AI-human symbiosis architecture with dual-lattice knowledge representation.
@@ -173,15 +191,27 @@ ${temporalGrounding}
 
 ## What is Cognition Σ?
 A portable cognitive layer that can be initialized in **any repository**. Creates \`.sigma/\` (conversation memory) and \`.open_cognition/\` (PGC project knowledge store) in the current working directory.
+`;
+}
 
-## Architecture Overview
+/**
+ * Get core architecture overview section
+ */
+function getArchitectureOverview(): string {
+  return `## Architecture Overview
 - **Dual-lattice**: Local (project-specific) + Global (cross-project patterns)
 - **Seven Overlays** (O1-O7): Structural, Security, Lineage, Mission, Operational, Mathematical, Coherence
 - **PGC**: Content-addressable storage with SHA-256 hashing
 - **Shadow Architecture**: Body (structural) + Shadow (semantic) embeddings
 - **Blast radius**: Dependency tracking via lineage overlay (4 relationships: imports, extends, implements, uses)
+`;
+}
 
-## Memory Architecture
+/**
+ * Get memory architecture and retrieval guidelines
+ */
+function getMemoryArchitecture(): string {
+  return `## Memory Architecture
 
 **Compressed Recap (What You See Above):**
 - Recent conversation messages and key turns are included in full.
@@ -190,16 +220,40 @@ A portable cognitive layer that can be initialized in **any repository**. Create
 **Full Context Retrieval (Use when you need to search older history):**
 - \`recall_past_conversation\`: Retrieves FULL untruncated messages from LanceDB
 - Semantic search across all 7 overlays (O1-O7) with complete conversation history
-- **CRITICAL**: If a truncated message looks relevant to your current task, you MUST query for full details.
+- If a truncated message looks relevant to your current task, you MUST query for full details.
 - Example: \`recall_past_conversation("cursor positioning implementation details")\`
+`;
+}
 
-## Other Available Tools
-- Query overlays for architectural reasoning (structural patterns, dependencies, mission alignment)
-- Analyze coherence drift and blast radius
-- Access both local lattice (this repo) and global lattice (cross-project knowledge)
-- \`get_background_tasks\`: Query status of background operations (genesis, overlay generation) - check progress, see completed/failed tasks
+/**
+ * Get tool usage and grounding protocol instructions
+ */
+function getToolInstructions(): string {
+  return `## Tool Protocols
 
-## Slash Commands (from .claude/commands/)
+- **v2.0 Task Protocol**: Use parallel arrays (\`todos\`, \`grounding\`, \`grounding_evidence\`) in \`SigmaTaskUpdate\` to maintain shallow schema depth and prevent model fatigue.
+- **Architectural Reasoning**: Query overlays for structural patterns, dependencies, mission alignment, and coherence drift.
+- **Background Operations**: Use \`get_background_tasks\` to check progress of genesis or overlay generation.
+- **Reasoning First**: For any complex operation or tool call (especially \`SigmaTaskUpdate\`, \`edit_file\`, or IPC delegation), you MUST engage your internal reasoning/thinking process first to plan the action and validate parameters.
+  When planning \`SigmaTaskUpdate\`, ensure your JSON structure matches the parallel array pattern:
+  \`\`\`json
+  {
+    "todos": [
+      { "id": "task-1", "content": "Task description", "activeForm": "Doing task", "status": "in_progress" }
+    ],
+    "grounding": [
+      { "id": "task-1", "strategy": "pgc_first" }
+    ]
+  }
+  \`\`\`
+`;
+}
+
+/**
+ * Get slash command discovery and execution instructions
+ */
+function getSlashCommandInstructions(): string {
+  return `## Slash Commands (from .claude/commands/)
 
 **Discovery**: List all \`.md\` files in \`.claude/commands/\` directory (each filename without extension is a command)
 
@@ -214,8 +268,18 @@ A portable cognitive layer that can be initialized in **any repository**. Create
 5. Format output following the template
 
 **Example**: \`/check-alignment "zero-trust"\` → Read check-alignment.md → Execute commands → Format results
+`;
+}
 
-## Current Session
+/**
+ * Get session state context
+ */
+function getSessionContext(
+  cwd: string,
+  mode: ConversationMode,
+  isCompressed: boolean
+): string {
+  return `## Current Session
 - **Working Directory**: \`${cwd}\`
 - **Lattice Stores**: \`.sigma/\` (conversation), \`.open_cognition/\` (PGC)
 - **Session Type**: ${mode}
