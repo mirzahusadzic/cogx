@@ -570,7 +570,6 @@ const tuiCmd = program
   )
   .option('--provider <name>', 'LLM provider to use (claude, gemini)')
   .option('--model <name>', 'Model to use (provider-specific)')
-  .option('--debug', 'Enable debug logging for Sigma compression')
   .option('--no-show-thinking', 'Hide thinking blocks in TUI')
   .option(
     '--no-onboarding',
@@ -611,7 +610,7 @@ const tuiCmd = program
       ])
     )
   )
-  .action(async (options) => {
+  .action(async (options, command) => {
     const { tuiCommand } = await import('./commands/tui.js');
     await tuiCommand({
       projectRoot: options.projectRoot,
@@ -624,7 +623,7 @@ const tuiCmd = program
       maxThinkingTokens: options.maxThinkingTokens
         ? parseInt(options.maxThinkingTokens)
         : undefined,
-      debug: options.debug,
+      debug: command.optsWithGlobals().debug || process.env.COGNITION_DEBUG === '1',
       provider: options.provider,
       model: options.model,
       displayThinking: options.showThinking !== false,
