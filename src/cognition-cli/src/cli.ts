@@ -623,7 +623,8 @@ const tuiCmd = program
       maxThinkingTokens: options.maxThinkingTokens
         ? parseInt(options.maxThinkingTokens)
         : undefined,
-      debug: command.optsWithGlobals().debug || process.env.COGNITION_DEBUG === '1',
+      debug:
+        command.optsWithGlobals().debug || process.env.COGNITION_DEBUG === '1',
       provider: options.provider,
       model: options.model,
       displayThinking: options.showThinking !== false,
