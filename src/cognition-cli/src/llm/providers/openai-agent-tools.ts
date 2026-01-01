@@ -13,6 +13,7 @@
  *        list_pending_messages, mark_message_read, query_agent
  */
 
+import { systemLog } from '../../utils/debug-logger.js';
 import { tool } from '@openai/agents';
 import { z } from 'zod';
 import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
@@ -1134,8 +1135,11 @@ export function getOpenAITools(context: OpenAIToolsContext): OpenAITool[] {
 
   // SigmaTaskUpdate tool (state management) - optional anchorId with fallback
   if (!anchorId) {
-    console.warn(
-      '[Sigma] SigmaTaskUpdate initialized without anchorId. Tasks will NOT be persisted across sessions.'
+    systemLog(
+      'sigma',
+      'SigmaTaskUpdate initialized without anchorId. Tasks will NOT be persisted across sessions.',
+      undefined,
+      'warn'
     );
   }
   tools.push(createSigmaTaskUpdateTool(cwd, anchorId));

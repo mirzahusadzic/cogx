@@ -346,8 +346,7 @@ describe('useTurnAnalysis', () => {
       });
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[AnalysisQueue]'),
-        expect.any(Error)
+        expect.stringContaining('[AnalysisQueue] Error analyzing turn:')
       );
 
       consoleSpy.mockRestore();

@@ -14,6 +14,7 @@ import {
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../config.js';
 import { withDbRetry } from '../core/utils/retry.js';
 import { DatabaseError } from '../core/errors/index.js';
+import { systemLog } from '../utils/debug-logger.js';
 
 /**
  * Represents a conversation turn record stored in LanceDB.
@@ -557,7 +558,12 @@ export class ConversationLanceStore {
     };
 
     if (!this.isValidTurnRecord(plainRecord)) {
-      console.warn(`Invalid conversation turn record found for id: ${turnId}`);
+      systemLog(
+        'sigma',
+        `Invalid conversation turn record found for id: ${turnId}`,
+        {},
+        'warn'
+      );
       return undefined;
     }
 

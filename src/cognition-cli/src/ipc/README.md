@@ -151,7 +151,7 @@ await monitor.start();
 
 // React to new messages
 monitor.getQueue().on('countChanged', (count) => {
-  console.log(`You have ${count} pending messages!`);
+  systemLog('ipc', `You have ${count} pending messages!`);
 });
 ```
 

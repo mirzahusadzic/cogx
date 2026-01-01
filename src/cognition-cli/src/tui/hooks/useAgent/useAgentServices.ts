@@ -13,6 +13,7 @@ import { createSigmaTaskUpdateMcpServer } from '../../tools/sigma-task-update-to
 import { OverlayRegistry } from '../../../core/algebra/overlay-registry.js';
 import { checkWorkbenchHealthDetailed } from '../../../utils/workbench-detect.js';
 import { loadCommands } from '../../commands/loader.js';
+import { systemLog } from '../../../utils/debug-logger.js';
 import type { UseAgentOptions } from './types.js';
 import type { AgentState } from './useAgentState.js';
 
@@ -59,15 +60,15 @@ export function useAgentServices({
         await initializeProviders();
         if (debugFlag) {
           const { registry } = await import('../../../llm/index.js');
-          console.log(
-            chalk.dim('[Σ] LLM providers initialized:'),
-            registry.list().join(', ')
+          systemLog(
+            'tui',
+            `${chalk.dim('[Σ] LLM providers initialized:')} ${registry.list().join(', ')}`
           );
         }
       } catch (error) {
-        console.error(
-          'Failed to initialize LLM providers:',
-          error instanceof Error ? error.message : String(error)
+        systemLog(
+          'tui',
+          `Failed to initialize LLM providers: ${error instanceof Error ? error.message : String(error)}`
         );
       }
     };
@@ -182,14 +183,20 @@ export function useAgentServices({
       .then((result) => {
         setCommandsCache(result.commands);
         if (result.errors.length > 0 && debugFlag) {
-          console.error('Command loading errors:', result.errors);
+          systemLog(
+            'tui',
+            `Command loading errors: ${JSON.stringify(result.errors)}`
+          );
         }
         if (result.warnings.length > 0 && debugFlag) {
-          console.warn('Command loading warnings:', result.warnings);
+          systemLog(
+            'tui',
+            `Command loading warnings: ${JSON.stringify(result.warnings)}`
+          );
         }
       })
       .catch((error) => {
-        console.error('Failed to load commands:', error);
+        systemLog('tui', `Failed to load commands: ${error}`);
       });
   }, [cwd, debugFlag, setCommandsCache]);
 }

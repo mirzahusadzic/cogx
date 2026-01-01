@@ -13,6 +13,7 @@
 
 import type { TurnAnalysis } from './types.js';
 import type { EmbeddingService } from '../core/services/embedding.js';
+import { systemLog } from '../utils/debug-logger.js';
 
 /**
  * Cosine similarity between two vectors
@@ -149,7 +150,12 @@ export async function injectRelevantContext(
   }
 
   if (debug) {
-    console.log('[Context Injector] Querying lattice for relevant context');
+    systemLog(
+      'sigma',
+      'Querying lattice for relevant context',
+      undefined,
+      'info'
+    );
   }
 
   try {
@@ -168,8 +174,11 @@ export async function injectRelevantContext(
     // Validate embedding is an array
     if (!Array.isArray(userEmbed)) {
       if (debug) {
-        console.log(
-          `[Context Injector] Invalid embedding format, skipping. Got keys: ${Object.keys(embedResponse).join(', ')}`
+        systemLog(
+          'sigma',
+          'Invalid embedding format, skipping',
+          { keys: Object.keys(embedResponse) },
+          'warn'
         );
       }
       return { message: userMessage, embedding: null };
@@ -202,20 +211,20 @@ export async function injectRelevantContext(
 
     if (relevantTurns.length === 0) {
       if (debug) {
-        console.log(
-          '[Context Injector] No turns above relevance threshold',
-          minRelevance
+        systemLog(
+          'sigma',
+          'No turns above relevance threshold',
+          { minRelevance },
+          'info'
         );
       }
       return { message: userMessage, embedding: userEmbed };
     }
 
     if (debug) {
-      console.log('[Context Injector] Found relevant context:');
-      relevantTurns.forEach((scored, i) => {
-        console.log(
-          `  ${i + 1}. [Relevance: ${scored.relevance.toFixed(2)}] ${scored.turn.content.substring(0, 60)}...`
-        );
+      systemLog('sigma', 'Found relevant context', {
+        count: relevantTurns.length,
+        relevanceScores: relevantTurns.map((t) => t.relevance.toFixed(2)),
       });
     }
 
@@ -236,14 +245,19 @@ export async function injectRelevantContext(
     const enrichedMessage = `${userMessage}\n\n---\n\n**Recent context for reference:**\n\n${contextSnippets.join('\n\n')}`;
 
     if (debug) {
-      console.log('[Context Injector] Injected context successfully');
+      systemLog('sigma', 'Injected context successfully');
     }
 
     return { message: enrichedMessage, embedding: userEmbed };
   } catch (err) {
     // On error, return original message (fail gracefully)
     if (debug) {
-      console.error('[Context Injector] Error:', err);
+      systemLog(
+        'sigma',
+        'Context injection failed',
+        { error: err instanceof Error ? err.message : String(err) },
+        'error'
+      );
     }
     return { message: userMessage, embedding: null };
   }

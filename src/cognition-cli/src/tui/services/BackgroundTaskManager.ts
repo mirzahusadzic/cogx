@@ -7,7 +7,7 @@
  *
  * @example
  * const manager = new BackgroundTaskManager('/path/to/project');
- * manager.onTaskUpdate((task) => console.log('Update:', task));
+ * manager.onTaskUpdate((task) => systemLog('tui', `Update: ${task}`));
  * await manager.startGenesis(['src']);
  */
 
@@ -21,6 +21,7 @@ import {
   isErrorEvent,
   isWarningEvent,
 } from '../../utils/progress-protocol.js';
+import { systemLog } from '../../utils/debug-logger.js';
 
 /**
  * Represents a background task (genesis or overlay generation)
@@ -325,7 +326,7 @@ export class BackgroundTaskManager {
       // Log stderr but don't treat as fatal
       const message = chunk.toString().trim();
       if (message) {
-        console.error(`[${taskId}] stderr:`, message);
+        systemLog('tui', `[${taskId}] stderr: ${message}`, undefined, 'error');
       }
     });
 
@@ -460,7 +461,14 @@ export class BackgroundTaskManager {
       try {
         callback(task);
       } catch (error) {
-        console.error('Error in task update callback:', error);
+        systemLog(
+          'tui',
+          'Error in task update callback:',
+          {
+            error: error instanceof Error ? error.message : String(error),
+          },
+          'error'
+        );
       }
     }
   }
@@ -473,7 +481,14 @@ export class BackgroundTaskManager {
       try {
         callback(task);
       } catch (error) {
-        console.error('Error in task complete callback:', error);
+        systemLog(
+          'tui',
+          'Error in task complete callback:',
+          {
+            error: error instanceof Error ? error.message : String(error),
+          },
+          'error'
+        );
       }
     }
   }

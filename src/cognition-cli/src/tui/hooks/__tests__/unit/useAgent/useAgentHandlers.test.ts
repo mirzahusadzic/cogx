@@ -44,7 +44,6 @@ describe('useAgentHandlers', () => {
   let mockTurnAnalysis: UseTurnAnalysisReturn;
   let mockCompression: UseCompressionResult;
   const mockDebug = vi.fn();
-  const mockDebugLog = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -110,7 +109,6 @@ describe('useAgentHandlers', () => {
         turnAnalysis: mockTurnAnalysis,
         compression: mockCompression,
         debug: mockDebug,
-        debugLog: mockDebugLog,
       })
     );
 
@@ -138,7 +136,6 @@ describe('useAgentHandlers', () => {
         turnAnalysis: mockTurnAnalysis,
         compression: mockCompression,
         debug: mockDebug,
-        debugLog: mockDebugLog,
       })
     );
 
@@ -177,7 +174,6 @@ describe('useAgentHandlers', () => {
         turnAnalysis: mockTurnAnalysis,
         compression: mockCompression,
         debug: mockDebug,
-        debugLog: mockDebugLog,
       })
     );
 
@@ -210,7 +206,6 @@ describe('useAgentHandlers', () => {
         turnAnalysis: mockTurnAnalysis,
         compression: mockCompression,
         debug: mockDebug,
-        debugLog: mockDebugLog,
       })
     );
 

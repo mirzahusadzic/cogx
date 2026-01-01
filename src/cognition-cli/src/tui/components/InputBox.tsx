@@ -7,6 +7,7 @@ import { loadCommands, filterCommands, Command } from '../commands/loader.js';
 import { writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { systemLog } from '../../utils/debug-logger.js';
 import type { ToolConfirmationState } from '../hooks/useToolConfirmation.js';
 import type { WizardConfirmationState } from '../hooks/useOnboardingWizard.js';
 import { WizardConfirmationModal } from './WizardConfirmationModal.js';
@@ -126,23 +127,35 @@ export const InputBox: React.FC<InputBoxProps> = ({
   // Debug: Track when disabled prop changes
   useEffect(() => {
     if (process.env.DEBUG_ESC_INPUT) {
-      console.error('[InputBox] disabled prop changed to:', disabled);
+      systemLog(
+        'tui',
+        `[InputBox] disabled prop changed to: ${disabled}`,
+        {},
+        'error'
+      );
     }
   }, [disabled]);
 
   // Debug: Track when focused prop changes
   useEffect(() => {
     if (process.env.DEBUG_ESC_INPUT) {
-      console.error('[InputBox] focused prop changed to:', focused);
+      systemLog(
+        'tui',
+        `[InputBox] focused prop changed to: ${focused}`,
+        {},
+        'error'
+      );
     }
   }, [focused]);
 
   // Debug: Track when confirmationPending changes
   useEffect(() => {
     if (process.env.DEBUG_ESC_INPUT) {
-      console.error(
-        '[InputBox] confirmationPending changed to:',
-        confirmationPending
+      systemLog(
+        'tui',
+        `[InputBox] confirmationPending changed to: ${confirmationPending}`,
+        {},
+        'error'
       );
     }
   }, [confirmationPending]);
@@ -151,14 +164,11 @@ export const InputBox: React.FC<InputBoxProps> = ({
   const isInputActive = focused && !confirmationPending;
   useEffect(() => {
     if (process.env.DEBUG_ESC_INPUT) {
-      console.error(
-        '[InputBox] useInput isActive:',
-        isInputActive,
-        '(focused:',
-        focused,
-        'confirmationPending:',
-        confirmationPending,
-        ')'
+      systemLog(
+        'tui',
+        `[InputBox] useInput isActive: ${isInputActive} (focused: ${focused} confirmationPending: ${confirmationPending})`,
+        {},
+        'error'
       );
     }
   }, [isInputActive, focused, confirmationPending]);
@@ -175,10 +185,17 @@ export const InputBox: React.FC<InputBoxProps> = ({
     | { type: 'content'; value: string }
     | { type: 'file'; filepath: string } => {
     if (process.env.DEBUG_INPUT) {
-      console.error('PASTE DEBUG: Processing paste, length:', content.length);
-      console.error(
-        'PASTE DEBUG: Raw content:',
-        JSON.stringify(content.substring(0, 200))
+      systemLog(
+        'tui',
+        `PASTE DEBUG: Processing paste, length: ${content.length}`,
+        {},
+        'error'
+      );
+      systemLog(
+        'tui',
+        `PASTE DEBUG: Raw content: ${JSON.stringify(content.substring(0, 200))}`,
+        {},
+        'error'
       );
     }
 
@@ -190,9 +207,11 @@ export const InputBox: React.FC<InputBoxProps> = ({
       .replace(/\[201~/g, ''); // Bracketed paste end
 
     if (process.env.DEBUG_INPUT) {
-      console.error(
-        'PASTE DEBUG: Normalized content:',
-        JSON.stringify(normalizedContent.substring(0, 200))
+      systemLog(
+        'tui',
+        `PASTE DEBUG: Normalized content: ${JSON.stringify(normalizedContent.substring(0, 200))}`,
+        {},
+        'error'
       );
     }
 
@@ -200,7 +219,12 @@ export const InputBox: React.FC<InputBoxProps> = ({
     // This threshold can be adjusted, e.g., 500 characters or less
     if (normalizedContent.length < 500) {
       if (process.env.DEBUG_INPUT) {
-        console.error('PASTE DEBUG: Small paste, inserting directly');
+        systemLog(
+          'tui',
+          'PASTE DEBUG: Small paste, inserting directly',
+          {},
+          'error'
+        );
       }
       return { type: 'content', value: normalizedContent };
     }
@@ -214,7 +238,12 @@ export const InputBox: React.FC<InputBoxProps> = ({
       writeFileSync(filepath, normalizedContent, 'utf-8');
 
       if (process.env.DEBUG_INPUT) {
-        console.error('PASTE DEBUG: Large paste saved to:', filepath);
+        systemLog(
+          'tui',
+          `PASTE DEBUG: Large paste saved to: ${filepath}`,
+          {},
+          'error'
+        );
       }
 
       // Notify parent to display the content
@@ -226,7 +255,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
       return { type: 'file', filepath }; // Successfully saved to file
     } catch (error) {
       // If save fails, just return content to be pasted normally into input
-      console.error('Failed to save paste:', error);
+      systemLog('tui', `Failed to save paste: ${error}`, {}, 'error');
       return { type: 'content', value: normalizedContent };
     }
   };
@@ -257,14 +286,24 @@ export const InputBox: React.FC<InputBoxProps> = ({
         setCommandsLoading(false);
         // Log any errors/warnings
         if (result.errors.length > 0) {
-          console.error('Command loading errors:', result.errors);
+          systemLog(
+            'tui',
+            `Command loading errors: ${result.errors}`,
+            {},
+            'error'
+          );
         }
         if (result.warnings.length > 0) {
-          console.warn('Command loading warnings:', result.warnings);
+          systemLog(
+            'tui',
+            `Command loading warnings: ${result.warnings}`,
+            {},
+            'warn'
+          );
         }
       })
       .catch((error) => {
-        console.error('Failed to load commands:', error);
+        systemLog('tui', `Failed to load commands: ${error}`, {}, 'error');
         setCommandsLoading(false);
       });
   }, []);
@@ -273,7 +312,12 @@ export const InputBox: React.FC<InputBoxProps> = ({
     (input, key) => {
       // Debug logging - remove after testing
       if (process.env.DEBUG_INPUT) {
-        console.error('INPUT DEBUG:', { input, key, value, cursorPosition });
+        systemLog(
+          'tui',
+          `INPUT DEBUG: ${JSON.stringify({ input, key, value, cursorPosition })}`,
+          {},
+          'error'
+        );
       }
 
       let newValue = value;
@@ -283,8 +327,11 @@ export const InputBox: React.FC<InputBoxProps> = ({
         try {
           process.stdout.write('\x1b[0m');
         } catch (e) {
-          console.error(
-            `Cleanup error: ${e instanceof Error ? e.message : String(e)}`
+          systemLog(
+            'tui',
+            `Cleanup error: ${e instanceof Error ? e.message : String(e)}`,
+            {},
+            'error'
           );
         }
         process.abort();
@@ -389,14 +436,23 @@ export const InputBox: React.FC<InputBoxProps> = ({
           }
           // Update state immediately for pastes
           if (process.env.DEBUG_INPUT) {
-            console.error(
-              'PASTE DEBUG: Setting value to:',
-              JSON.stringify(newValue.substring(0, 100))
+            systemLog(
+              'tui',
+              `PASTE DEBUG: Setting value to: ${JSON.stringify(newValue.substring(0, 100))}`,
+              {},
+              'error'
             );
-            console.error('PASTE DEBUG: Cursor position:', newCursorPosition);
-            console.error(
-              'PASTE DEBUG: Previous value was:',
-              JSON.stringify(value.substring(0, 100))
+            systemLog(
+              'tui',
+              `PASTE DEBUG: Cursor position: ${newCursorPosition}`,
+              {},
+              'error'
+            );
+            systemLog(
+              'tui',
+              `PASTE DEBUG: Previous value was: ${JSON.stringify(value.substring(0, 100))}`,
+              {},
+              'error'
             );
           }
           // Update state using functional form to ensure clean update
@@ -535,24 +591,26 @@ export const InputBox: React.FC<InputBoxProps> = ({
         const timeSinceLastEsc = now - lastEscapeTime.current;
 
         if (process.env.DEBUG_ESC_INPUT) {
-          console.error(
-            '[InputBox] ESC pressed, disabled:',
-            disabled,
-            'onInterrupt:',
-            !!onInterrupt,
-            'timeSinceLastEsc:',
-            timeSinceLastEsc
+          systemLog(
+            'tui',
+            'ESC pressed',
+            {
+              disabled,
+              onInterrupt: !!onInterrupt,
+              timeSinceLastEsc,
+            },
+            'debug'
           );
         }
 
         if (disabled && onInterrupt) {
           if (process.env.DEBUG_ESC_INPUT) {
-            console.error('[InputBox] Calling onInterrupt()');
+            systemLog('tui', 'Calling onInterrupt()', undefined, 'debug');
           }
           onInterrupt();
         } else if (timeSinceLastEsc < 500) {
           if (process.env.DEBUG_ESC_INPUT) {
-            console.error('[InputBox] Double ESC - clearing input');
+            systemLog('tui', 'Double ESC - clearing input', undefined, 'debug');
           }
           newValue = '';
           newCursorPosition = 0;
@@ -688,18 +746,26 @@ export const InputBox: React.FC<InputBoxProps> = ({
                   value.length > 0 &&
                   lines.length > 3
                 ) {
-                  console.error(
-                    'RENDER DEBUG: Value has',
-                    lines.length,
-                    'lines'
+                  systemLog(
+                    'tui',
+                    `RENDER DEBUG: Value has ${lines.length} lines`,
+                    {},
+                    'error'
                   );
-                  console.error(
-                    'RENDER DEBUG: Value:',
-                    JSON.stringify(value.substring(0, 100))
+                  systemLog(
+                    'tui',
+                    `RENDER DEBUG: Value: ${JSON.stringify(value.substring(0, 100))}`,
+                    {},
+                    'error'
                   );
-                  console.error(
-                    'RENDER DEBUG: First 3 lines:',
-                    lines.slice(0, 3).map((l) => JSON.stringify(l))
+                  systemLog(
+                    'tui',
+                    `RENDER DEBUG: First 3 lines: ${lines
+                      .slice(0, 3)
+                      .map((l) => JSON.stringify(l))
+                      .join(', ')}`,
+                    {},
+                    'error'
                   );
                 }
 

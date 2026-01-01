@@ -32,6 +32,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { OverlayRegistry } from '../../core/algebra/overlay-registry.js';
 import { OverlayInfo } from '../types.js';
+import { systemLog } from '../../utils/debug-logger.js';
 
 /**
  * Configuration options for useOverlays hook
@@ -141,7 +142,14 @@ export function useOverlays(options: UseOverlaysOptions) {
 
         setOverlays(overlaysWithStatus);
       } catch (err) {
-        console.error('Failed to load overlays:', err);
+        systemLog(
+          'tui',
+          'Failed to load overlays:',
+          {
+            error: err instanceof Error ? err.message : String(err),
+          },
+          'error'
+        );
       } finally {
         setLoading(false);
         loadingRef.current = false;

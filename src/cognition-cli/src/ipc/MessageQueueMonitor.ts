@@ -4,6 +4,7 @@ import { MessageQueue } from './MessageQueue.js';
 import { ZeroMQBus } from './ZeroMQBus.js';
 import { AgentMessage } from './AgentMessage.js';
 import { getSigmaDirectory } from './sigma-directory.js';
+import { systemLog, debugError } from '../utils/debug-logger.js';
 
 /**
  * Represents metadata about an active agent for discovery purposes.
@@ -364,8 +365,9 @@ export class MessageQueueMonitor {
 
             if (MessageQueueMonitor.DEBUG) {
               const reason = isCrashedAgent ? 'crashed' : 'stale';
-              console.log(
-                `[MessageQueueMonitor] Cleaned up ${reason} agent: ${entry.name} (alias: ${info.alias})`
+              systemLog(
+                'ipc',
+                `Cleaned up ${reason} agent: ${entry.name} (alias: ${info.alias})`
               );
             }
           }
@@ -375,13 +377,14 @@ export class MessageQueueMonitor {
       }
 
       if (cleanedCount > 0 && MessageQueueMonitor.DEBUG) {
-        console.log(
-          `[MessageQueueMonitor] Cleanup complete: removed ${cleanedCount} stale agent(s)`
+        systemLog(
+          'ipc',
+          `Cleanup complete: removed ${cleanedCount} stale agent(s)`
         );
       }
     } catch (err) {
       if (MessageQueueMonitor.DEBUG) {
-        console.error('[MessageQueueMonitor] Cleanup error:', err);
+        debugError('[MessageQueueMonitor] Cleanup error', err);
       }
     }
   }
@@ -438,8 +441,9 @@ export class MessageQueueMonitor {
     }, 3000);
 
     if (MessageQueueMonitor.DEBUG) {
-      console.log(
-        `[MessageQueueMonitor] Started for agent ${this.agentId} as ${alias} (topics: ${this.topics.join(', ')})`
+      systemLog(
+        'ipc',
+        `Started for agent ${this.agentId} as ${alias} (topics: ${this.topics.join(', ')})`
       );
     }
   }
@@ -479,7 +483,7 @@ export class MessageQueueMonitor {
     }
 
     if (MessageQueueMonitor.DEBUG) {
-      console.log(`[MessageQueueMonitor] Stopped for agent ${this.agentId}`);
+      systemLog('ipc', `Stopped for agent ${this.agentId}`);
     }
   }
 
@@ -509,13 +513,14 @@ export class MessageQueueMonitor {
       });
 
       if (MessageQueueMonitor.DEBUG) {
-        console.log(
-          `[MessageQueueMonitor] Queued message ${messageId} from ${message.from} (topic: ${message.topic})`
+        systemLog(
+          'ipc',
+          `Queued message ${messageId} from ${message.from} (topic: ${message.topic})`
         );
       }
     } catch (error) {
       if (MessageQueueMonitor.DEBUG) {
-        console.error('[MessageQueueMonitor] Error queueing message:', error);
+        debugError('[MessageQueueMonitor] Error queueing message', error);
       }
     }
   }
@@ -557,9 +562,7 @@ export class MessageQueueMonitor {
       this.topics.push(topic);
       this.bus.subscribe(topic, this.handleMessage.bind(this));
       if (MessageQueueMonitor.DEBUG) {
-        console.log(
-          `[MessageQueueMonitor] Subscribed to additional topic: ${topic}`
-        );
+        systemLog('ipc', `Subscribed to additional topic: ${topic}`);
       }
     }
   }
@@ -575,7 +578,7 @@ export class MessageQueueMonitor {
       this.topics.splice(index, 1);
       this.bus.unsubscribe(topic, this.handleMessage.bind(this));
       if (MessageQueueMonitor.DEBUG) {
-        console.log(`[MessageQueueMonitor] Unsubscribed from topic: ${topic}`);
+        systemLog('ipc', `Unsubscribed from topic: ${topic}`);
       }
     }
   }

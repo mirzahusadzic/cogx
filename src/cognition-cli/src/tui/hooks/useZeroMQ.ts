@@ -15,6 +15,7 @@ import {
   AgentRegistry,
   isMultiAgentAvailable,
 } from '../../ipc/index.js';
+import { systemLog } from '../../utils/debug-logger.js';
 
 export interface UseZeroMQConfig {
   agentId: string; // Unique agent ID (e.g., 'claude-1')
@@ -48,7 +49,7 @@ export function useZeroMQ(config: UseZeroMQConfig): UseZeroMQResult {
     // Skip if disabled or not available
     if (!config.enabled || !multiAgentAvailable) {
       if (config.debug) {
-        console.log('ZeroMQ: Skipped (disabled or unavailable)');
+        systemLog('tui', 'ZeroMQ: Skipped (disabled or unavailable)');
       }
       return;
     }
@@ -58,7 +59,7 @@ export function useZeroMQ(config: UseZeroMQConfig): UseZeroMQResult {
     async function connect() {
       try {
         if (config.debug) {
-          console.log('ZeroMQ: Connecting...');
+          systemLog('tui', 'ZeroMQ: Connecting...');
         }
 
         // Create coordinator
@@ -93,7 +94,8 @@ export function useZeroMQ(config: UseZeroMQConfig): UseZeroMQResult {
         setIsBusMaster(coordinator.getIsBusMaster());
 
         if (config.debug) {
-          console.log(
+          systemLog(
+            'tui',
             `ZeroMQ: Connected (${coordinator.getIsBusMaster() ? 'Bus Master' : 'Peer'})`
           );
         }
@@ -112,12 +114,17 @@ export function useZeroMQ(config: UseZeroMQConfig): UseZeroMQResult {
         setError(error);
 
         if (config.debug) {
-          console.error('ZeroMQ: Connection failed:', error);
+          systemLog('tui', 'ZeroMQ: Connection failed:', {
+            error: error.message,
+          });
         }
 
         // Gracefully degrade to single-agent mode
-        console.warn(
-          '⚠️  Multi-agent mode unavailable. Running in single-agent mode.'
+        systemLog(
+          'tui',
+          '⚠️  Multi-agent mode unavailable. Running in single-agent mode.',
+          undefined,
+          'warn'
         );
       }
     }
@@ -130,7 +137,7 @@ export function useZeroMQ(config: UseZeroMQConfig): UseZeroMQResult {
 
       if (cleanupRef.current) {
         cleanupRef.current().catch((err) => {
-          console.error('ZeroMQ: Cleanup error:', err);
+          systemLog('tui', 'ZeroMQ: Cleanup error:', err);
         });
       }
     };

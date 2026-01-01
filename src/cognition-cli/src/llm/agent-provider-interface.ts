@@ -20,7 +20,7 @@
  *   cwd: process.cwd(),
  *   maxThinkingTokens: 10000
  * })) {
- *   console.log(response.messages);
+ *   systemLog('agent', 'Response messages:', response.messages);
  * }
  * ```
  */
@@ -209,7 +209,7 @@ export interface AgentProvider extends LLMProvider {
    *   // response.messages contains all messages so far
    *   // Last message may be partial (streaming)
    *   const lastMsg = response.messages[response.messages.length - 1];
-   *   console.log(lastMsg);
+   *   systemLog('agent', 'Last message:', lastMsg);
    * }
    * ```
    *

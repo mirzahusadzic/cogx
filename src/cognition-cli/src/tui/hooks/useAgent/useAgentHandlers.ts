@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { expandCommand } from '../../commands/loader.js';
 import { injectRelevantContext } from '../../../sigma/context-injector.js';
+import { systemLog } from '../../../utils/debug-logger.js';
 import {
   AgentProviderAdapter,
   isAuthenticationError,
@@ -32,7 +33,6 @@ interface UseAgentHandlersOptions {
   turnAnalysis: UseTurnAnalysisReturn;
   compression: UseCompressionResult;
   debug: (message: string, ...args: unknown[]) => void;
-  debugLog: (content: string) => void;
 }
 
 interface MessageBlock {
@@ -400,7 +400,7 @@ export function useAgentHandlers({
               );
             }
           } catch (err) {
-            console.error(`Context injection error: ${err}`);
+            systemLog('sigma', `Context injection error: ${err}`, {}, 'error');
           }
         }
 

@@ -33,6 +33,7 @@ import {
 } from '@google/adk';
 import { getGroundingContext } from './grounding-utils.js';
 import { getCognitionTools } from './gemini-adk-tools.js';
+import { systemLog } from '../../utils/debug-logger.js';
 import type {
   AgentProvider,
   AgentRequest,
@@ -306,14 +307,24 @@ export class GeminiAgentProvider implements AgentProvider {
         // Check if abort was requested (ESC key pressed)
         if (this.abortController?.signal.aborted) {
           if (process.env.DEBUG_ESC_INPUT) {
-            console.error('[Gemini] Abort signal detected, exiting loop');
+            systemLog(
+              'gemini',
+              'Abort signal detected, exiting loop',
+              undefined,
+              'debug'
+            );
           }
           // Exit cleanly - don't throw, just break
           break;
         }
 
         if (process.env.DEBUG_GEMINI_STREAM) {
-          console.error(`[Gemini] Processing event (turn ${numTurns + 1})`);
+          systemLog(
+            'gemini',
+            `Processing event (turn ${numTurns + 1})`,
+            undefined,
+            'debug'
+          );
         }
 
         // Cast event to access properties (ADK types are not well defined yet)
@@ -380,7 +391,8 @@ export class GeminiAgentProvider implements AgentProvider {
             // Handle function calls (tool use)
             if (part.functionCall) {
               if (process.env.DEBUG_GEMINI_STREAM) {
-                console.error(
+                systemLog(
+                  'gemini',
                   `\n[Gemini] === TOOL CALL: ${part.functionCall.name} ===`
                 );
               }
@@ -418,7 +430,8 @@ export class GeminiAgentProvider implements AgentProvider {
 
               // Reset assistant accumulator after tool use - next assistant message will be a new response
               if (process.env.DEBUG_GEMINI_STREAM) {
-                console.error(
+                systemLog(
+                  'gemini',
                   '[Gemini] Resetting accumulators (post-tool-use)'
                 );
               }
@@ -429,7 +442,8 @@ export class GeminiAgentProvider implements AgentProvider {
             // Handle function responses (tool results)
             if (part.functionResponse) {
               if (process.env.DEBUG_GEMINI_STREAM) {
-                console.error(
+                systemLog(
+                  'gemini',
                   `\n[Gemini] === TOOL RESULT: ${part.functionResponse.name} ===`
                 );
               }
@@ -471,7 +485,8 @@ export class GeminiAgentProvider implements AgentProvider {
 
               // Reset assistant accumulator after tool result - next assistant message will be a new response
               if (process.env.DEBUG_GEMINI_STREAM) {
-                console.error(
+                systemLog(
+                  'gemini',
                   '[Gemini] Resetting accumulators (post-tool-result)'
                 );
               }
@@ -486,10 +501,12 @@ export class GeminiAgentProvider implements AgentProvider {
               const messageType = isThinking ? 'thinking' : 'assistant';
 
               if (process.env.DEBUG_GEMINI_STREAM) {
-                console.error(
+                systemLog(
+                  'gemini',
                   `\n[Gemini] === NEW EVENT: ${messageType} (${part.text.length} chars) ===`
                 );
-                console.error(
+                systemLog(
+                  'gemini',
                   `[Gemini] Text preview: "${part.text.substring(0, 256)}..."`
                 );
               }
@@ -509,7 +526,8 @@ export class GeminiAgentProvider implements AgentProvider {
               }
 
               if (process.env.DEBUG_GEMINI_STREAM) {
-                console.error(
+                systemLog(
+                  'gemini',
                   `[Gemini] Accumulated: ${accumulated.length} chars: "${accumulated.substring(0, 100)}..."`
                 );
               }
@@ -517,7 +535,8 @@ export class GeminiAgentProvider implements AgentProvider {
               // Skip if no new content (shorter than current accumulated = stale event)
               if (accumulated && part.text.length <= accumulated.length) {
                 if (process.env.DEBUG_GEMINI_STREAM) {
-                  console.error(
+                  systemLog(
+                    'gemini',
                     `[Gemini] SKIP: No new content (${part.text.length} <= ${accumulated.length})`
                   );
                 }
@@ -528,7 +547,8 @@ export class GeminiAgentProvider implements AgentProvider {
               // Both thinking AND assistant messages can get restructured by Gemini
               if (accumulated && !part.text.startsWith(accumulated)) {
                 if (process.env.DEBUG_GEMINI_STREAM) {
-                  console.error(
+                  systemLog(
+                    'gemini',
                     `[Gemini] SKIP: ${messageType} doesn't start with accumulated (restructured event)`
                   );
                 }
@@ -540,7 +560,8 @@ export class GeminiAgentProvider implements AgentProvider {
               const deltaText = part.text.substring(accumulated.length);
 
               if (process.env.DEBUG_GEMINI_STREAM) {
-                console.error(
+                systemLog(
+                  'gemini',
                   `[Gemini] Delta (${deltaText.length} chars): "${deltaText.substring(0, 100)}..."`
                 );
               }
@@ -548,7 +569,7 @@ export class GeminiAgentProvider implements AgentProvider {
               // Skip if delta is empty or just whitespace (final event with no new content)
               if (!deltaText || deltaText.trim().length === 0) {
                 if (process.env.DEBUG_GEMINI_STREAM) {
-                  console.error(`[Gemini] SKIP: Empty delta`);
+                  systemLog('gemini', `[Gemini] SKIP: Empty delta`);
                 }
                 // Update accumulated tracker even though we're skipping
                 if (isThinking) {
@@ -567,7 +588,8 @@ export class GeminiAgentProvider implements AgentProvider {
               }
 
               if (process.env.DEBUG_GEMINI_STREAM) {
-                console.error(
+                systemLog(
+                  'gemini',
                   `[Gemini] ✓ YIELDING delta, new total: ${part.text.length} chars`
                 );
               }
@@ -614,7 +636,8 @@ export class GeminiAgentProvider implements AgentProvider {
       // Final response with actual token counts from Gemini API
       // Always yield final response to signal completion (even if we've yielded before)
       if (process.env.DEBUG_GEMINI_STREAM) {
-        console.error(
+        systemLog(
+          'gemini',
           `\n[Gemini] === STREAM LOOP EXITED ===\n[Gemini] Total turns: ${numTurns}\n[Gemini] Cumulative tokens: ${cumulativePromptTokens} prompt, ${cumulativeCompletionTokens} completion\n[Gemini] Current context: ${currentPromptTokens} prompt, ${currentCompletionTokens} completion\n[Gemini] Last message type: ${messages[messages.length - 1]?.type || 'none'}\n[Gemini] Yielding final response with finishReason='stop'`
         );
       }
@@ -660,13 +683,16 @@ export class GeminiAgentProvider implements AgentProvider {
         hasAssistantMessages;
 
       if (process.env.DEBUG_ESC_INPUT && isAbort) {
-        console.error('[Gemini] Caught abort-related error:', errorMessage);
+        systemLog('gemini', '[Gemini] Caught abort-related error:', {
+          error: errorMessage,
+        });
       }
 
       if (process.env.DEBUG_GEMINI_STREAM && isBenignSdkError) {
-        console.error(
+        systemLog(
+          'gemini',
           '[Gemini] Ignoring benign ADK SDK JSON parsing error:',
-          errorMessage
+          { error: errorMessage }
         );
       }
 
@@ -716,13 +742,13 @@ export class GeminiAgentProvider implements AgentProvider {
    */
   async interrupt(): Promise<void> {
     if (process.env.DEBUG_ESC_INPUT) {
-      console.error('[Gemini] interrupt() called');
+      systemLog('gemini', '[Gemini] interrupt() called');
     }
 
     // Signal abort for the loop check
     if (this.abortController) {
       if (process.env.DEBUG_ESC_INPUT) {
-        console.error('[Gemini] Aborting controller');
+        systemLog('gemini', '[Gemini] Aborting controller');
       }
       this.abortController.abort();
     }
@@ -731,15 +757,17 @@ export class GeminiAgentProvider implements AgentProvider {
     if (this.currentGenerator) {
       try {
         if (process.env.DEBUG_ESC_INPUT) {
-          console.error('[Gemini] Calling generator.return()');
+          systemLog('gemini', '[Gemini] Calling generator.return()');
         }
         await this.currentGenerator.return(undefined);
         if (process.env.DEBUG_ESC_INPUT) {
-          console.error('[Gemini] generator.return() completed');
+          systemLog('gemini', '[Gemini] generator.return() completed');
         }
       } catch (err) {
         if (process.env.DEBUG_ESC_INPUT) {
-          console.error('[Gemini] generator.return() error:', err);
+          systemLog('gemini', '[Gemini] generator.return() error:', {
+            error: err,
+          });
         }
       }
     }
@@ -747,7 +775,7 @@ export class GeminiAgentProvider implements AgentProvider {
     this.currentRunner = null;
     this.currentGenerator = null;
     if (process.env.DEBUG_ESC_INPUT) {
-      console.error('[Gemini] interrupt() completed');
+      systemLog('gemini', '[Gemini] interrupt() completed');
     }
   }
 

@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Box, Text } from 'ink';
+import { systemLog } from '../../../utils/debug-logger.js';
 
 interface Props {
   children: ReactNode;
@@ -22,10 +23,11 @@ export class ComponentErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error(
-      `Error in ${this.props.componentName || 'component'}:`,
-      error,
-      errorInfo
+    systemLog(
+      'tui',
+      `Error in ${this.props.componentName || 'component'}: ${error.message}`,
+      { error: error.stack, errorInfo },
+      'error'
     );
   }
 

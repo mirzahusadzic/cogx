@@ -8,6 +8,7 @@
 import { z } from 'zod';
 import { executeSigmaTaskUpdate } from '../../llm/providers/tool-executors.js';
 import { SIGMA_TASK_UPDATE_DESCRIPTION } from '../../llm/providers/tool-helpers.js';
+import { systemLog } from '../../utils/debug-logger.js';
 
 type ClaudeAgentSdk = {
   tool: (
@@ -43,8 +44,11 @@ export function createSigmaTaskUpdateMcpServer(
   }
 
   if (!anchorId) {
-    console.warn(
-      '[Sigma] SigmaTaskUpdate MCP server initialized without anchorId. Tasks will NOT be persisted.'
+    systemLog(
+      'tui',
+      '[Sigma] SigmaTaskUpdate MCP server initialized without anchorId. Tasks will NOT be persisted.',
+      {},
+      'warn'
     );
   }
 

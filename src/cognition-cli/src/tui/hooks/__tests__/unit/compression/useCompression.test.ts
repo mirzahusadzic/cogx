@@ -487,7 +487,7 @@ describe('useCompression', () => {
 
       expect(consoleSpy).toHaveBeenCalled();
       expect(consoleSpy).toHaveBeenCalledWith(
-        '[useCompression] Manual compression trigger (semantic: false)'
+        'Manual compression trigger (semantic: false)'
       );
 
       consoleSpy.mockRestore();

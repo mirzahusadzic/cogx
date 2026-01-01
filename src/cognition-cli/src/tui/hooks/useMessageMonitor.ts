@@ -4,6 +4,7 @@ import { MessageQueue } from '../../ipc/MessageQueue.js';
 import { MessagePublisher } from '../../ipc/MessagePublisher.js';
 import { BusCoordinator } from '../../ipc/BusCoordinator.js';
 import { getSigmaDirectory } from '../../ipc/sigma-directory.js';
+import { systemLog } from '../../utils/debug-logger.js';
 
 interface UseMessageMonitorOptions {
   anchorId: string | null;
@@ -106,7 +107,7 @@ export function useMessageMonitor({
           messageQueue.off('countChanged', handleCountChanged);
           monitor.stop().catch((err) => {
             if (debug) {
-              console.error('[MessageQueueMonitor] Stop error:', err);
+              systemLog('tui', `[MessageQueueMonitor] Stop error: ${err}`);
             }
           });
         };
@@ -114,7 +115,10 @@ export function useMessageMonitor({
         const errorMsg = err instanceof Error ? err.message : String(err);
         setMonitorError(`Failed to initialize message monitor: ${errorMsg}`);
         if (debug) {
-          console.error('[MessageQueueMonitor] Initialization error:', err);
+          systemLog(
+            'tui',
+            `[MessageQueueMonitor] Initialization error: ${err}`
+          );
         }
       }
     };

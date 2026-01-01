@@ -527,8 +527,7 @@ describe('AgentProviderAdapter', () => {
       }
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[AgentAdapter]'),
-        'Test error'
+        expect.stringContaining('[AgentAdapter] Error: Test error')
       );
 
       consoleSpy.mockRestore();

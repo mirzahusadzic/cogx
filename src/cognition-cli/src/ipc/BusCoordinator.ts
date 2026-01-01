@@ -17,11 +17,9 @@ import * as crypto from 'crypto';
 import fs from 'fs-extra';
 import * as os from 'os';
 import * as path from 'path';
-import chalk from 'chalk';
 import { ZeroMQBus } from './ZeroMQBus.js';
 import { getHomeDir } from '../utils/home-dir.js';
-
-const DEBUG_IPC = process.env.DEBUG_IPC === '1';
+import { systemLog } from '../utils/debug-logger.js';
 
 /**
  * Coordinates the creation of a single ZeroMQ bus master.
@@ -37,7 +35,7 @@ const DEBUG_IPC = process.env.DEBUG_IPC === '1';
  * const coordinator = new BusCoordinator();
  * try {
  *   const bus = await coordinator.connectWithFallback();
- *   console.log('Connected to bus. Master:', coordinator.getIsBusMaster());
+ *   systemLog('ipc', `Connected to bus. Master: ${coordinator.getIsBusMaster()}`);
  *   // ... use bus
  * } finally {
  *   await coordinator.cleanup();
@@ -134,17 +132,13 @@ export class BusCoordinator {
         await this.bus.bind();
         await this.writePidFile();
         this.isBusMaster = true;
-        if (DEBUG_IPC) {
-          console.log(chalk.dim('🚌 Bus Master: Bound to', this.socketPath));
-        }
+        systemLog('ipc', `Bus Master: Bound to ${this.socketPath}`);
       } else {
         // Connect as peer
         this.bus = new ZeroMQBus({ address: this.socketPath });
         await this.bus.connect();
         this.isBusMaster = false;
-        if (DEBUG_IPC) {
-          console.log(chalk.dim('🔌 Peer: Connected to', this.socketPath));
-        }
+        systemLog('ipc', `Peer: Connected to ${this.socketPath}`);
       }
 
       return this.bus;
@@ -301,10 +295,11 @@ export class BusCoordinator {
     try {
       return await this.connect();
     } catch (err) {
-      console.warn('⚠️  IPC socket failed, falling back to TCP');
-      console.warn(
-        '   Error:',
-        err instanceof Error ? err.message : String(err)
+      systemLog(
+        'ipc',
+        'IPC socket failed, falling back to TCP',
+        { error: err instanceof Error ? err.message : String(err) },
+        'warn'
       );
 
       // Fallback to TCP on localhost
@@ -356,9 +351,7 @@ export class BusCoordinator {
           await fs.remove(socketFile);
           await fs.remove(subSocketFile);
 
-          if (DEBUG_IPC) {
-            console.log('🧹 Cleaned up socket files');
-          }
+          systemLog('ipc', 'Cleaned up socket files');
         } catch {
           // Ignore cleanup errors
         }

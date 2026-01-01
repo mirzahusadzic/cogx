@@ -36,14 +36,14 @@
  *   sessionIdProp: cliArgs.sessionId,
  *   cwd: process.cwd(),
  *   debug: true,
- *   onSessionLoaded: (msg) => console.log(msg),
- *   onSDKSessionChanged: (evt) => console.log(evt)
+ *   onSessionLoaded: (msg) => systemLog('tui', `Session loaded: ${msg}`),
+ *   onSDKSessionChanged: (evt) => systemLog('tui', `SDK Session changed: ${evt.reason}`)
  * });
  *
  * // Access session state
- * console.log(`Anchor: ${sessionManager.state.anchorId}`);
- * console.log(`Current: ${sessionManager.state.currentSessionId}`);
- * console.log(`Resume: ${sessionManager.state.resumeSessionId}`);
+ * systemLog('tui', `Anchor: ${sessionManager.state.anchorId}`);
+ * systemLog('tui', `Current: ${sessionManager.state.currentSessionId}`);
+ * systemLog('tui', `Resume: ${sessionManager.state.resumeSessionId}`);
  *
  * @example
  * // Update SDK session after compression
@@ -56,6 +56,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { SessionStateStore } from './SessionStateStore.js';
+import { systemLog } from '../../../utils/debug-logger.js';
 import type {
   SessionOptions,
   SessionState,
@@ -239,7 +240,7 @@ export interface UseSessionManagerResult {
  *     if (message) showUserMessage(message);
  *   },
  *   onSDKSessionChanged: (event) => {
- *     console.log(`Session changed: ${event.reason}`);
+ *     systemLog('tui', `Session changed: ${event.reason}`);
  *   }
  * });
  *
@@ -330,14 +331,16 @@ export function useSessionManager(
       if (result.restoredTokens) {
         onTokensRestored?.(result.restoredTokens);
         if (debug) {
-          console.log(
+          systemLog(
+            'tui',
             `[useSessionManager] Restored tokens: ${result.restoredTokens.total}`
           );
         }
       }
 
       if (debug) {
-        console.log(
+        systemLog(
+          'tui',
           `[useSessionManager] Loaded session: ${result.currentSessionId}, resume: ${result.resumeSessionId || 'none'}`
         );
       }
@@ -363,7 +366,7 @@ export function useSessionManager(
         // Check if session actually changed
         if (previousSessionId === newSessionId) {
           if (debug) {
-            console.log('[useSessionManager] SDK session unchanged');
+            systemLog('tui', '[useSessionManager] SDK session unchanged');
           }
           return prev; // No change
         }
@@ -375,7 +378,8 @@ export function useSessionManager(
           // No state file exists - create initial state (with provider/model for resume)
           store.create(newSessionId, provider, model);
           if (debug) {
-            console.log(
+            systemLog(
+              'tui',
               `[useSessionManager] Created initial state: ${anchorId} → ${newSessionId} (${provider}/${model})`
             );
           }
@@ -394,7 +398,8 @@ export function useSessionManager(
           store.update(event);
 
           if (debug) {
-            console.log(
+            systemLog(
+              'tui',
               `[useSessionManager] Preserved state on restart: ${anchorId} → ${newSessionId} (${sessionState.compression_history.length} sessions in history)`
             );
           }
@@ -405,7 +410,8 @@ export function useSessionManager(
           // State exists but has only initial entry - recreate it (with provider/model for resume)
           store.create(newSessionId, provider, model);
           if (debug) {
-            console.log(
+            systemLog(
+              'tui',
               `[useSessionManager] Recreated initial state: ${anchorId} → ${newSessionId} (${provider}/${model})`
             );
           }
@@ -424,7 +430,8 @@ export function useSessionManager(
         }
 
         if (debug) {
-          console.log(
+          systemLog(
+            'tui',
             `[useSessionManager] SDK session updated: ${previousSessionId} → ${newSessionId} (${reason})`
           );
         }
@@ -433,7 +440,8 @@ export function useSessionManager(
         // Clear forceNewSession flag (both ref and state) when session changes
         // This allows resumeSessionId to be used for subsequent messages
         if (debug) {
-          console.log(
+          systemLog(
+            'tui',
             `[useSessionManager.updateSDKSession] Clearing forceNewSession flag (was ${forceNewSessionRef.current})`
           );
         }
@@ -479,7 +487,10 @@ export function useSessionManager(
       storeRef.current.updateStats(stats);
 
       if (debug) {
-        console.log('[useSessionManager] Stats updated:', stats);
+        systemLog(
+          'tui',
+          `[useSessionManager] Stats updated: ${JSON.stringify(stats)}`
+        );
       }
     },
     [debug]
@@ -497,7 +508,8 @@ export function useSessionManager(
     }));
 
     if (debug) {
-      console.log(
+      systemLog(
+        'tui',
         '[useSessionManager] Resume session reset (forceNewSession=true, ref set)'
       );
     }
@@ -505,30 +517,27 @@ export function useSessionManager(
 
   // Get effective resume session ID (respects synchronous forceNewSession flag)
   const getResumeSessionId = useCallback(() => {
-    const refValue = forceNewSessionRef.current;
-    const stateValue = state.resumeSessionId;
-
-    if (debug) {
-      console.log(
-        `[useSessionManager.getResumeSessionId] ref=${refValue}, state=${stateValue}`
-      );
-    }
+    // debug logging removed to prevent render loops
 
     // Check synchronous ref FIRST - it's set immediately by resetResumeSession
     // This bypasses React's async state updates and prevents race conditions
     if (forceNewSessionRef.current) {
       if (debug) {
-        console.log(
-          '[useSessionManager.getResumeSessionId] Returning undefined (force new session)'
-        );
+        // Reduced frequency logging to avoid render loops
+        // systemLog(
+        //   'tui',
+        //   '[useSessionManager.getResumeSessionId] Returning undefined (force new session)'
+        // );
       }
       return undefined; // Force new session
     }
 
     if (debug) {
-      console.log(
-        `[useSessionManager.getResumeSessionId] Returning ${state.resumeSessionId}`
-      );
+      // Reduced frequency logging to avoid render loops
+      // systemLog(
+      //   'tui',
+      //   `[useSessionManager.getResumeSessionId] Returning ${state.resumeSessionId}`
+      // );
     }
     return state.resumeSessionId;
   }, [state.resumeSessionId, debug]);
@@ -538,7 +547,7 @@ export function useSessionManager(
     (tokens: SessionTokens) => {
       storeRef.current.updateTokens(tokens);
       if (debug) {
-        console.log(`[useSessionManager] Saved tokens: ${tokens.total}`);
+        systemLog('tui', `[useSessionManager] Saved tokens: ${tokens.total}`);
       }
     },
     [debug]

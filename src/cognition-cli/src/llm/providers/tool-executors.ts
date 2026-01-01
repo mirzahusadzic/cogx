@@ -11,6 +11,7 @@ import { SessionState } from '../../sigma/session-state.js';
 import { spawn } from 'child_process';
 import { glob as globLib } from 'glob';
 import { smartCompressOutput } from './tool-helpers.js';
+import { systemLog } from '../../utils/debug-logger.js';
 
 /**
  * Read file executor
@@ -317,33 +318,36 @@ export async function executeSigmaTaskUpdate(
       );
 
       if (delegatedTasks.length > 0) {
-        console.log('[Sigma] Delegation lifecycle events:');
+        systemLog('sigma', 'Delegation lifecycle events:');
         delegatedTasks.forEach((task) => {
-          console.log(`  📋 Task: ${task.id} - ${task.content}`);
-          console.log(`     → Delegated to: ${task.delegated_to}`);
-          console.log(
+          systemLog('sigma', `  📋 Task: ${task.id} - ${task.content}`);
+          systemLog('sigma', `     → Delegated to: ${task.delegated_to}`);
+          systemLog(
+            'sigma',
             `     → Acceptance criteria: ${task.acceptance_criteria?.join(', ')}`
           );
           if (task.context) {
-            console.log(`     → Context: ${task.context}`);
+            systemLog('sigma', `     → Context: ${task.context}`);
           }
           if (task.grounding) {
-            console.log(
+            systemLog(
+              'sigma',
               `     → Grounding strategy: ${task.grounding.strategy}`
             );
           }
           if (task.result_summary) {
-            console.log(`     ✅ Result: ${task.result_summary}`);
+            systemLog('sigma', `     ✅ Result: ${task.result_summary}`);
           }
           if (task.delegate_session_id) {
-            console.log(`     → Session: ${task.delegate_session_id}`);
+            systemLog('sigma', `     → Session: ${task.delegate_session_id}`);
           }
         });
       }
 
       if (completedDelegations.length > 0) {
-        console.log(
-          `[Sigma] ✅ ${completedDelegations.length} delegated task(s) completed`
+        systemLog(
+          'sigma',
+          `✅ ${completedDelegations.length} delegated task(s) completed`
         );
       }
     }

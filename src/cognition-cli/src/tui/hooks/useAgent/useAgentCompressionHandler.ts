@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import path from 'path';
 import fs from 'fs';
+import { systemLog } from '../../../utils/debug-logger.js';
 import type { AgentState } from './useAgentState.js';
 import type { UseSessionManagerResult } from '../session/useSessionManager.js';
 import type { UseTurnAnalysisReturn } from '../analysis/useTurnAnalysis.js';
@@ -163,9 +164,11 @@ export function useAgentCompressionHandler({
               timestamp: new Date(),
             },
           ]);
-          console.error(
-            '[Σ] Compression aborted: analysis queue timeout',
-            waitError
+          systemLog(
+            'sigma',
+            `Compression aborted: analysis queue timeout: ${waitError}`,
+            {},
+            'error'
           );
           return;
         }
@@ -271,7 +274,12 @@ export function useAgentCompressionHandler({
               'utf-8'
             );
           } catch (err) {
-            console.error('Failed to save recap file:', err);
+            systemLog(
+              'sigma',
+              `Failed to save recap file: ${err}`,
+              {},
+              'error'
+            );
             setMessages((prev) => [
               ...prev,
               {

@@ -30,7 +30,7 @@
  *
  * if (ptySession) {
  *   ptySession.onData((data) => {
- *     console.log('Claude output:', data);
+ *     systemLog('tui', `Claude output: ${data}`);
  *   });
  *
  *   write('What is 2+2?\n');
@@ -80,7 +80,7 @@ export interface UseClaudeOptions {
  * });
  *
  * if (error) {
- *   console.error('Session failed:', error);
+ *   systemLog('tui', 'Session failed', { error }, 'error');
  * }
  */
 export function useClaude(options: UseClaudeOptions) {

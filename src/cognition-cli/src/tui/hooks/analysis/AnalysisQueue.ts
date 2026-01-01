@@ -42,13 +42,13 @@
  *     debug: true
  *   },
  *   {
- *     onAnalysisComplete: (result) => {
- *       console.log(`Analyzed turn ${result.messageIndex}`);
- *       updateUI(result.analysis);
- *     },
- *     onProgress: (status) => {
- *       console.log(`Queue: ${status.queueLength} pending`);
- *     }
+ *   onAnalysisComplete: (result) => {
+ *     systemLog('tui', `Analyzed turn ${result.messageIndex}`);
+ *     updateUI(result.analysis);
+ *   },
+ *   onProgress: (status) => {
+ *     systemLog('tui', `Queue: ${status.queueLength} pending`);
+ *   }
  *   }
  * );
  *
@@ -63,7 +63,7 @@
  * // Compression coordination
  * // Wait for queue to finish before compressing
  * await queue.waitForCompressionReady(60000, (elapsed, status) => {
- *   console.log(`Waiting ${elapsed}ms, ${status.queueLength} pending`);
+ *   systemLog('tui', `Waiting ${elapsed}ms, ${status.queueLength} pending`);
  * });
  *
  * // Now safe to compress
@@ -144,7 +144,7 @@ export class AnalysisQueue {
    *
    * @example
    * const status = queue.getStatus();
-   * console.log(`Queue: ${status.queueLength} pending, processing: ${status.isProcessing}`);
+   * systemLog('tui', `Queue: ${status.queueLength} pending, processing: ${status.isProcessing}`);
    */
   getStatus(): AnalysisQueueStatus {
     return {
@@ -171,7 +171,7 @@ export class AnalysisQueue {
    * @example
    * const analyses = queue.getAnalyses();
    * const paradigmShifts = analyses.filter(a => a.is_paradigm_shift);
-   * console.log(`Found ${paradigmShifts.length} paradigm shifts`);
+   * systemLog('tui', `Found ${paradigmShifts.length} paradigm shifts`);
    */
   getAnalyses(): TurnAnalysis[] {
     return [...this.turnAnalyses];
@@ -437,7 +437,7 @@ export class AnalysisQueue {
    * @example
    * // Start fresh session
    * queue.clear();
-   * console.log('Queue reset, ready for new conversation');
+   * systemLog('tui', 'Queue reset, ready for new conversation');
    */
   clear(): void {
     this.queue = [];
@@ -461,7 +461,7 @@ export class AnalysisQueue {
    * @example
    * // Wait for all analyses to complete
    * await queue.waitForCompletion();
-   * console.log('All tasks processed');
+   * systemLog('tui', 'All tasks processed');
    */
   async waitForCompletion(): Promise<void> {
     while (this.processing || this.queue.length > 0) {
@@ -488,7 +488,7 @@ export class AnalysisQueue {
    * if (queue.isReadyForCompression()) {
    *   await compressConversation();
    * } else {
-   *   console.log('Waiting for analysis to complete...');
+   *   systemLog('tui', 'Waiting for analysis to complete...');
    * }
    */
   isReadyForCompression(): boolean {
@@ -526,9 +526,9 @@ export class AnalysisQueue {
    * @example
    * // Wait with progress reporting
    * await queue.waitForCompressionReady(60000, (elapsed, status) => {
-   *   console.log(`${elapsed}ms: ${status.queueLength} pending, ${status.totalProcessed} done`);
+   *   systemLog('tui', `${elapsed}ms: ${status.queueLength} pending, ${status.totalProcessed} done`);
    * });
-   * console.log('Ready to compress!');
+   * systemLog('tui', 'Ready to compress!');
    *
    * @example
    * // With timeout handling
@@ -536,7 +536,7 @@ export class AnalysisQueue {
    *   await queue.waitForCompressionReady(30000);
    *   await compressConversation();
    * } catch (error) {
-   *   console.error('Timeout waiting for analysis:', error);
+   *   systemLog('tui', 'Timeout waiting for analysis', { error }, 'error');
    * }
    */
   async waitForCompressionReady(
@@ -589,10 +589,7 @@ export class AnalysisQueue {
    * @example
    * const unanalyzed = queue.getUnanalyzedMessages(messages);
    * if (unanalyzed.length > 0) {
-   *   console.warn(`${unanalyzed.length} messages not analyzed:`);
-   *   for (const msg of unanalyzed) {
-   *     console.warn(`  - Message ${msg.index} at ${msg.timestamp}`);
-   *   }
+   *   systemLog('tui', `${unanalyzed.length} messages not analyzed`, { unanalyzed }, 'warn');
    * }
    */
   getUnanalyzedMessages(

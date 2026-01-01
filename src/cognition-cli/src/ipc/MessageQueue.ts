@@ -67,7 +67,7 @@ interface QueueIndex {
  * await queue.initialize();
  *
  * queue.on('countChanged', (count) => {
- *   console.log(`Pending messages: ${count}`);
+ *   systemLog('ipc', `Pending messages: ${count}`);
  * });
  *
  * await queue.enqueue({
@@ -107,7 +107,7 @@ export class MessageQueue {
    *
    * @example
    * queue.on('messageAdded', (message) => {
-   *   console.log('New message received:', message.topic);
+   *   systemLog('ipc', `New message received: ${message.topic}`);
    * });
    */
   on(event: string, listener: (...args: unknown[]) => void): void {

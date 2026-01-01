@@ -33,6 +33,7 @@
 import { registry } from './provider-registry.js';
 import { GeminiAgentProvider } from './providers/gemini-agent-provider.js';
 import { OpenAIAgentProvider } from './providers/openai-agent-provider.js';
+import { systemLog } from '../utils/debug-logger.js';
 
 // Re-export core types and classes
 export { registry } from './provider-registry.js';
@@ -166,10 +167,14 @@ export async function initializeProviders(
         ) {
           // SDK not installed - this is OK
         } else {
-          console.error(
-            'Failed to load Claude provider due to dynamic import error:',
-            error instanceof Error ? error.message : String(error),
-            error // Log the full error object for more details
+          systemLog(
+            'llm',
+            'Failed to load Claude provider due to dynamic import error',
+            {
+              error: error instanceof Error ? error.message : String(error),
+              fullError: error, // Log the full error object for more details
+            },
+            'error'
           );
         }
       } else {
@@ -189,9 +194,11 @@ export async function initializeProviders(
       registered.push('gemini');
     } catch (error) {
       if (skipMissingProviders) {
-        console.warn(
-          'Skipping Gemini provider:',
-          error instanceof Error ? error.message : String(error)
+        systemLog(
+          'llm',
+          'Skipping Gemini provider',
+          { error: error instanceof Error ? error.message : String(error) },
+          'warn'
         );
       } else {
         throw error;
@@ -215,9 +222,11 @@ export async function initializeProviders(
       registered.push('openai');
     } catch (error) {
       if (skipMissingProviders) {
-        console.warn(
-          'Skipping OpenAI provider:',
-          error instanceof Error ? error.message : String(error)
+        systemLog(
+          'llm',
+          'Skipping OpenAI provider',
+          { error: error instanceof Error ? error.message : String(error) },
+          'warn'
         );
       } else {
         throw error;
@@ -233,8 +242,11 @@ export async function initializeProviders(
   } else if (registered.length > 0) {
     // Fallback to first registered provider
     registry.setDefault(registered[0]);
-    console.warn(
-      `Default provider '${defaultProvider}' not available, using '${registered[0]}' instead`
+    systemLog(
+      'llm',
+      `Default provider '${defaultProvider}' not available, using '${registered[0]}' instead`,
+      undefined,
+      'warn'
     );
   } else {
     throw new Error(

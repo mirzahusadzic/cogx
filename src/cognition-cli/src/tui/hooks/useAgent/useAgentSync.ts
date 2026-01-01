@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import path from 'path';
 import fs from 'fs';
+import { systemLog } from '../../../utils/debug-logger.js';
 import type { AgentState } from './useAgentState.js';
 import type { UseSessionManagerResult } from '../session/useSessionManager.js';
 import type { UseTurnAnalysisReturn } from '../analysis/useTurnAnalysis.js';
@@ -70,7 +71,12 @@ export function useAgentSync(
           },
         ]);
       } catch (err) {
-        console.warn('Failed to load lattice from LanceDB:', err);
+        systemLog(
+          'sigma',
+          `Failed to load lattice from LanceDB: ${err}`,
+          {},
+          'warn'
+        );
       }
     };
 
@@ -92,7 +98,12 @@ export function useAgentSync(
       conversationRegistryRef.current
         ?.flushAll(currentSessionIdValue)
         .catch((err: Error) => {
-          console.error('Failed to flush conversation overlays:', err);
+          systemLog(
+            'sigma',
+            `Failed to flush conversation overlays: ${err}`,
+            {},
+            'error'
+          );
         });
     };
   }, [currentSessionIdValue, conversationRegistryRef]);

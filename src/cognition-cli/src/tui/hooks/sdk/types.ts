@@ -26,7 +26,7 @@
  *   cwd: "/home/user/project",
  *   resumeSessionId: "session-123",
  *   maxThinkingTokens: 10000,
- *   onStderr: (data) => console.error(data)
+ *   onStderr: (data) => systemLog('tui', data, undefined, 'error')
  * };
  *
  * @example
@@ -84,7 +84,7 @@ export type SDKMessage = {
  *   resumeSessionId: previousSession?.id,
  *   maxThinkingTokens: 10000,
  *   mcpServers: { 'memory': memoryServerConfig },
- *   onStderr: (data) => console.error('SDK Error:', data)
+ *   onStderr: (data) => systemLog('tui', `SDK Error: ${data}`, undefined, 'error')
  * };
  */
 export interface SDKQueryOptions {
@@ -147,7 +147,6 @@ export interface SDKQueryOptions {
  * - Token tracking for PGC (onTokenUpdate)
  * - Tool execution display (onToolUse)
  * - Content streaming (onAssistantContent)
- * - Debug logging (onDebugLog)
  *
  * @example
  * const callbacks: MessageProcessingCallbacks = {
@@ -198,12 +197,6 @@ export interface MessageProcessingCallbacks {
    * Used for real-time text display
    */
   onAssistantContent: (content: string) => void;
-
-  /**
-   * Optional debug logging callback
-   * Used for development and troubleshooting
-   */
-  onDebugLog?: (message: string) => void;
 }
 
 /**

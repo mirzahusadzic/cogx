@@ -9,6 +9,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import YAML from 'yaml';
 import { ConversationLanceStore } from './conversation-lance-store.js';
+import { systemLog, debugError } from '../utils/debug-logger.js';
 
 export interface YAMLConversationOverlay {
   session_id: string;
@@ -129,7 +130,7 @@ export async function migrateYAMLToLanceDB(
     lanceStore = new ConversationLanceStore(sigmaRoot);
     await lanceStore.initialize('conversation_turns');
     if (verbose) {
-      console.log('✓ LanceDB store initialized');
+      systemLog('sigma', 'LanceDB store initialized');
     }
   }
 
@@ -151,7 +152,12 @@ export async function migrateYAMLToLanceDB(
 
     if (!(await fs.pathExists(overlayPath))) {
       if (verbose) {
-        console.log(`⊘ Skipping ${overlay} - directory not found`);
+        systemLog(
+          'sigma',
+          `Skipping ${overlay} - directory not found`,
+          {},
+          'warn'
+        );
       }
       continue;
     }
@@ -159,7 +165,7 @@ export async function migrateYAMLToLanceDB(
     result.byOverlay[overlay] = 0;
 
     if (verbose) {
-      console.log(`\n📂 Processing ${overlay}...`);
+      systemLog('sigma', `Processing ${overlay}...`);
     }
 
     // Read all YAML files in overlay directory
@@ -178,13 +184,13 @@ export async function migrateYAMLToLanceDB(
 
         if (!yamlData.turns || yamlData.turns.length === 0) {
           if (verbose) {
-            console.log(`  ⊘ ${file}: No turns found`);
+            systemLog('sigma', `File ${file}: No turns found`, {}, 'warn');
           }
           continue;
         }
 
         if (verbose) {
-          console.log(`  📄 ${file}: ${yamlData.turns.length} turns`);
+          systemLog('sigma', `File ${file}: ${yamlData.turns.length} turns`);
         }
 
         result.totalTurns += yamlData.turns.length;
@@ -254,8 +260,11 @@ export async function migrateYAMLToLanceDB(
             });
 
             if (verbose) {
-              console.log(
-                `    ✗ ${turn.turn_id}: ${(turnError as Error).message}`
+              systemLog(
+                'sigma',
+                `Turn ${turn.turn_id}: ${(turnError as Error).message}`,
+                {},
+                'error'
               );
             }
           }
@@ -268,32 +277,47 @@ export async function migrateYAMLToLanceDB(
         });
 
         if (verbose) {
-          console.log(`  ✗ ${file}: ${(fileError as Error).message}`);
+          systemLog(
+            'sigma',
+            `File ${file}: ${(fileError as Error).message}`,
+            {},
+            'error'
+          );
         }
       }
     }
   }
 
   if (verbose) {
-    console.log('\n' + '='.repeat(50));
-    console.log('Migration Summary:');
-    console.log('='.repeat(50));
-    console.log(`Total files processed: ${result.totalFiles}`);
-    console.log(`Total turns found: ${result.totalTurns}`);
-    console.log(`Successfully migrated: ${result.successfulTurns}`);
-    console.log(`Failed: ${result.failedTurns}`);
-    console.log('\nBy Overlay:');
+    systemLog('sigma', '\n' + '='.repeat(50));
+    systemLog('sigma', 'Migration Summary:');
+    systemLog('sigma', '='.repeat(50));
+    systemLog('sigma', `Total files processed: ${result.totalFiles}`);
+    systemLog('sigma', `Total turns found: ${result.totalTurns}`);
+    systemLog('sigma', `Successfully migrated: ${result.successfulTurns}`);
+    systemLog('sigma', `Failed: ${result.failedTurns}`);
+    systemLog('sigma', '\nBy Overlay:');
     for (const [overlay, count] of Object.entries(result.byOverlay)) {
-      console.log(`  ${overlay}: ${count} turns`);
+      systemLog('sigma', `  ${overlay}: ${count} turns`);
     }
 
     if (result.errors.length > 0) {
-      console.log('\nErrors:');
+      systemLog('sigma', '\nErrors:', {}, 'error');
       result.errors.slice(0, 10).forEach((err) => {
-        console.log(`  ${err.file} / ${err.turn}: ${err.error}`);
+        systemLog(
+          'sigma',
+          `  ${err.file} / ${err.turn}: ${err.error}`,
+          {},
+          'error'
+        );
       });
       if (result.errors.length > 10) {
-        console.log(`  ... and ${result.errors.length - 10} more errors`);
+        systemLog(
+          'sigma',
+          `  ... and ${result.errors.length - 10} more errors`,
+          {},
+          'error'
+        );
       }
     }
   }
@@ -409,10 +433,10 @@ export async function runMigration(
     overlays?: string[];
   } = {}
 ): Promise<void> {
-  console.log('🚀 Starting YAML to LanceDB migration...\n');
+  systemLog('sigma', 'Starting YAML to LanceDB migration...');
 
   if (options.dryRun) {
-    console.log('⚠️  DRY RUN MODE - No data will be written\n');
+    systemLog('sigma', 'DRY RUN MODE - No data will be written', {}, 'warn');
   }
 
   const result = await migrateYAMLToLanceDB(sigmaRoot, {
@@ -421,11 +445,14 @@ export async function runMigration(
   });
 
   if (result.failedTurns === 0) {
-    console.log('\n✅ Migration completed successfully!');
+    systemLog('sigma', 'Migration completed successfully!');
   } else {
-    console.log('\n⚠️  Migration completed with errors');
-    console.log(
-      `   ${result.successfulTurns} successful, ${result.failedTurns} failed`
+    systemLog('sigma', 'Migration completed with errors', {}, 'warn');
+    systemLog(
+      'sigma',
+      `   ${result.successfulTurns} successful, ${result.failedTurns} failed`,
+      {},
+      'warn'
     );
   }
 }
@@ -440,7 +467,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       process.exit(0);
     })
     .catch((err) => {
-      console.error('Migration failed:', err);
+      debugError('Migration failed', err);
       process.exit(1);
     });
 }

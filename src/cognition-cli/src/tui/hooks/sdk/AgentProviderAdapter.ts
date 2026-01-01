@@ -21,13 +21,14 @@
  * for await (const response of adapter.query("Analyze this code")) {
  *   // response.messages contains conversation history
  *   // response.sessionId is current session ID
- *   console.log(response.messages);
+ *   systemLog('tui', JSON.stringify(response.messages));
  * }
  * ```
  */
 
 import { registry } from '../../../llm/index.js';
 import { DELEGATION_PROTOCOL_PROMPT } from '../../../sigma/prompts/delegation-protocol.js';
+import { systemLog } from '../../../utils/debug-logger.js';
 import type {
   AgentRequest,
   AgentResponse,
@@ -136,8 +137,8 @@ export class AgentProviderAdapter {
    * @example
    * ```typescript
    * for await (const response of adapter.query("Review this code")) {
-   *   console.log(response.messages.length, "messages");
-   *   console.log("Session:", response.sessionId);
+   *   systemLog('tui', `${response.messages.length} messages`);
+   *   systemLog('tui', `Session: ${response.sessionId}`);
    * }
    * ```
    */
@@ -197,7 +198,7 @@ export class AgentProviderAdapter {
     };
 
     if (this.options.debug) {
-      console.log('[AgentAdapter] Query:', {
+      systemLog('tui', '[AgentAdapter] Query:', {
         provider: this.providerName,
         model: this.model,
         prompt: prompt.substring(0, 100) + '...',
@@ -208,7 +209,7 @@ export class AgentProviderAdapter {
     try {
       for await (const response of this.provider.executeAgent(request)) {
         if (this.options.debug) {
-          console.log('[AgentAdapter] Response:', {
+          systemLog('tui', '[AgentAdapter] Response:', {
             messageCount: response.messages.length,
             sessionId: response.sessionId,
             tokens: response.tokens.total,
@@ -221,7 +222,12 @@ export class AgentProviderAdapter {
       const errorMsg = error instanceof Error ? error.message : String(error);
 
       if (this.options.debug) {
-        console.error('[AgentAdapter] Error:', errorMsg);
+        systemLog(
+          'tui',
+          `[AgentAdapter] Error: ${errorMsg}`,
+          undefined,
+          'error'
+        );
       }
 
       // Call stderr callback if provided

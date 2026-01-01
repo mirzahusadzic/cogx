@@ -14,6 +14,7 @@ import {
   Topics,
   MessageFactory,
 } from './AgentMessage.js';
+import { systemLog } from '../utils/debug-logger.js';
 
 /**
  * Represents an agent's capability.
@@ -196,7 +197,7 @@ export class AgentRegistry {
 
     this.bus.publish(Topics.AGENT_REGISTERED, message);
 
-    console.log(`✅ Registered agent: ${agent.id} (${agent.model})`);
+    systemLog('ipc', `Registered agent: ${agent.id} (${agent.model})`);
   }
 
   /**
@@ -218,7 +219,7 @@ export class AgentRegistry {
 
     this.bus.publish(Topics.AGENT_UNREGISTERED, message);
 
-    console.log(`❌ Unregistered agent: ${agentId}`);
+    systemLog('ipc', `Unregistered agent: ${agentId}`);
   }
 
   /**
@@ -363,8 +364,9 @@ export class AgentRegistry {
 
     this.agents.set(agentId, agent);
 
-    console.log(
-      `📥 Remote agent registered: ${agentId} (${model})${projectName ? ` from ${projectName}` : ''}${scope ? ` [${scope}]` : ''}`
+    systemLog(
+      'ipc',
+      `Remote agent registered: ${agentId} (${model})${projectName ? ` from ${projectName}` : ''}${scope ? ` [${scope}]` : ''}`
     );
   }
 
@@ -385,7 +387,7 @@ export class AgentRegistry {
 
     this.agents.delete(agentId);
 
-    console.log(`📤 Remote agent unregistered: ${agentId}`);
+    systemLog('ipc', `Remote agent unregistered: ${agentId}`);
   }
 
   /**
@@ -424,7 +426,7 @@ export class AgentRegistry {
         now - agent.lastSeen > staleThreshold
       ) {
         this.agents.delete(agentId);
-        console.log(`🧹 Cleaned up stale agent: ${agentId}`);
+        systemLog('ipc', `Cleaned up stale agent: ${agentId}`);
       }
     }
   }

@@ -34,6 +34,7 @@
  */
 
 import { getGroundingContext } from './grounding-utils.js';
+import { systemLog } from '../../utils/debug-logger.js';
 import Anthropic from '@anthropic-ai/sdk';
 import type {
   LLMProvider,
@@ -332,7 +333,7 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
         // Check if abort was requested
         if (this.abortController?.signal.aborted) {
           if (process.env.DEBUG_ESC_INPUT) {
-            console.error('[Claude] Loop aborted - exiting');
+            systemLog('claude', 'Loop aborted - exiting', undefined, 'debug');
           }
           break;
         }
@@ -381,7 +382,12 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
         errorMessage.includes('Operation aborted')
       ) {
         if (process.env.DEBUG_ESC_INPUT) {
-          console.error('[Claude] Query aborted by user - exiting gracefully');
+          systemLog(
+            'claude',
+            'Query aborted by user - exiting gracefully',
+            undefined,
+            'debug'
+          );
         }
         // Return gracefully with stop status (user-initiated)
         yield {
@@ -439,7 +445,12 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
       }
 
       // 6. For all other errors, provide context but don't crash with raw error
-      console.error('[Claude Provider] Error during query:', errorMessage);
+      systemLog(
+        'claude',
+        'Error during query',
+        { error: errorMessage },
+        'error'
+      );
       throw new Error(
         `Claude API error: ${errorMessage.substring(0, 200)}${errorMessage.length > 200 ? '...' : ''}`
       );
@@ -458,18 +469,26 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
    */
   async interrupt(): Promise<void> {
     if (process.env.DEBUG_ESC_INPUT) {
-      console.error(
-        '[Claude] interrupt() called, currentQuery:',
-        !!this.currentQuery,
-        'abortController:',
-        !!this.abortController
+      systemLog(
+        'claude',
+        'interrupt() called',
+        {
+          currentQuery: !!this.currentQuery,
+          abortController: !!this.abortController,
+        },
+        'debug'
       );
     }
 
     // Abort the query using AbortController (recommended pattern from GitHub #7181)
     if (this.abortController) {
       if (process.env.DEBUG_ESC_INPUT) {
-        console.error('[Claude] Calling abortController.abort()');
+        systemLog(
+          'claude',
+          'Calling abortController.abort()',
+          undefined,
+          'debug'
+        );
       }
       this.abortController.abort();
     }
@@ -478,19 +497,39 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
     if (this.currentQuery && this.claudeAgentSdk) {
       try {
         if (process.env.DEBUG_ESC_INPUT) {
-          console.error('[Claude] Calling currentQuery.interrupt()');
+          systemLog(
+            'claude',
+            'Calling currentQuery.interrupt()',
+            undefined,
+            'debug'
+          );
         }
         await this.currentQuery.interrupt();
         if (process.env.DEBUG_ESC_INPUT) {
-          console.error('[Claude] currentQuery.interrupt() completed');
+          systemLog(
+            'claude',
+            'currentQuery.interrupt() completed',
+            undefined,
+            'debug'
+          );
         }
       } catch (err) {
         // AbortError is expected when interrupting, don't log as error
         const isAbortError = err instanceof Error && err.name === 'AbortError';
         if (process.env.DEBUG_ESC_INPUT && !isAbortError) {
-          console.error('[Claude] currentQuery.interrupt() error:', err);
+          systemLog(
+            'claude',
+            'currentQuery.interrupt() error',
+            { error: String(err) },
+            'error'
+          );
         } else if (process.env.DEBUG_ESC_INPUT && isAbortError) {
-          console.error('[Claude] Request successfully aborted');
+          systemLog(
+            'claude',
+            'Request successfully aborted',
+            undefined,
+            'debug'
+          );
         }
       }
     }
@@ -500,7 +539,7 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
     this.abortController = null;
 
     if (process.env.DEBUG_ESC_INPUT) {
-      console.error('[Claude] interrupt() completed');
+      systemLog('claude', 'interrupt() completed', undefined, 'debug');
     }
   }
 

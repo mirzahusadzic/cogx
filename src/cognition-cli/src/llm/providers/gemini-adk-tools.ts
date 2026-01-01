@@ -8,6 +8,7 @@
 import { FunctionTool } from '@google/adk';
 import { Type, type Schema } from '@google/genai';
 import { z } from 'zod';
+import { systemLog } from '../../utils/debug-logger.js';
 import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
 import type { MessageQueue } from '../../ipc/MessageQueue.js';
 import {
@@ -83,9 +84,11 @@ export const readFileTool = new FunctionTool({
   }),
   execute: ({ file_path, limit, offset }) => {
     if (process.env.DEBUG_GEMINI_TOOLS) {
-      console.error(
-        '[DEBUG read_file] Raw input: ',
-        JSON.stringify({ file_path, limit, offset }, null, 2)
+      systemLog(
+        'gemini-tools',
+        'read_file input',
+        { file_path, limit, offset },
+        'debug'
       );
     }
     return executeReadFile(
@@ -108,9 +111,11 @@ export const writeFileTool = new FunctionTool({
   }),
   execute: ({ file_path, content }) => {
     if (process.env.DEBUG_GEMINI_TOOLS) {
-      console.error(
-        '[DEBUG write_file] Raw input: ',
-        JSON.stringify({ file_path, content }, null, 2)
+      systemLog(
+        'gemini-tools',
+        'write_file input',
+        { file_path, content },
+        'debug'
       );
     }
     return executeWriteFile(file_path, content);
@@ -129,10 +134,7 @@ export const fetchUrlTool = new FunctionTool({
   }),
   execute: async ({ url }) => {
     if (process.env.DEBUG_GEMINI_TOOLS) {
-      console.error(
-        '[DEBUG fetch_url] Raw input: ',
-        JSON.stringify({ url }, null, 2)
-      );
+      systemLog('gemini-tools', 'fetch_url input', { url }, 'debug');
     }
     return executeFetchUrl(url);
   },
@@ -153,10 +155,7 @@ export const globTool = new FunctionTool({
   }),
   execute: ({ pattern, cwd }) => {
     if (process.env.DEBUG_GEMINI_TOOLS) {
-      console.error(
-        '[DEBUG glob] Raw input: ',
-        JSON.stringify({ pattern, cwd }, null, 2)
-      );
+      systemLog('gemini-tools', 'glob input', { pattern, cwd }, 'debug');
     }
     return executeGlob(pattern, cwd || process.cwd());
   },
@@ -179,9 +178,11 @@ export const grepTool = new FunctionTool({
   }),
   execute: ({ pattern, path: searchPath, glob_filter }) => {
     if (process.env.DEBUG_GEMINI_TOOLS) {
-      console.error(
-        '[DEBUG grep] Raw input: ',
-        JSON.stringify({ pattern, path: searchPath, glob_filter }, null, 2)
+      systemLog(
+        'gemini-tools',
+        'grep input',
+        { pattern, path: searchPath, glob_filter },
+        'debug'
       );
     }
     return executeGrep(pattern, searchPath, glob_filter, process.cwd());
@@ -204,10 +205,7 @@ export const bashTool = new FunctionTool({
   }),
   execute: ({ command, timeout }) => {
     if (process.env.DEBUG_GEMINI_TOOLS) {
-      console.error(
-        '[DEBUG bash] Raw input: ',
-        JSON.stringify({ command, timeout }, null, 2)
-      );
+      systemLog('gemini-tools', 'bash input', { command, timeout }, 'debug');
     }
     return executeBash(command, coerceNumber(timeout), process.cwd());
   },
@@ -230,13 +228,11 @@ export const editFileTool = new FunctionTool({
   }),
   execute: ({ file_path, old_string, new_string, replace_all }) => {
     if (process.env.DEBUG_GEMINI_TOOLS) {
-      console.error(
-        '[DEBUG edit_file] Raw input: ',
-        JSON.stringify(
-          { file_path, old_string, new_string, replace_all },
-          null,
-          2
-        )
+      systemLog(
+        'gemini-tools',
+        'edit_file input',
+        { file_path, old_string, new_string, replace_all },
+        'debug'
       );
     }
     return executeEditFile(
@@ -271,9 +267,11 @@ export function createRecallTool(
     }),
     execute: async ({ query }) => {
       if (process.env.DEBUG_GEMINI_TOOLS) {
-        console.error(
-          '[DEBUG recall_past_conversation] Raw input: ',
-          JSON.stringify({ query }, null, 2)
+        systemLog(
+          'gemini-tools',
+          'recall_past_conversation input',
+          { query },
+          'debug'
         );
       }
       try {
@@ -361,9 +359,11 @@ function createBackgroundTasksTool(
     }),
     execute: async ({ filter: filterArg }) => {
       if (process.env.DEBUG_GEMINI_TOOLS) {
-        console.error(
-          '[DEBUG get_background_tasks] Raw input: ',
-          JSON.stringify({ filter: filterArg }, null, 2)
+        systemLog(
+          'gemini-tools',
+          'get_background_tasks input',
+          { filter: filterArg },
+          'debug'
         );
       }
       const filter = filterArg || 'all';
@@ -468,10 +468,7 @@ function createAgentMessagingTools(
     z.object({}),
     async (rawInput: unknown) => {
       if (process.env.DEBUG_GEMINI_TOOLS) {
-        console.error(
-          '[DEBUG list_agents] Raw input: ',
-          JSON.stringify(rawInput, null, 2)
-        );
+        systemLog('gemini-tools', 'list_agents input', { rawInput }, 'debug');
       }
       try {
         const agents = getActiveAgents(projectRoot, currentAgentId);
@@ -498,9 +495,11 @@ function createAgentMessagingTools(
     }),
     async (rawInput: { to: string; message: string }) => {
       if (process.env.DEBUG_GEMINI_TOOLS) {
-        console.error(
-          '[DEBUG send_agent_message] Raw input: ',
-          JSON.stringify(rawInput, null, 2)
+        systemLog(
+          'gemini-tools',
+          'send_agent_message input',
+          { rawInput },
+          'debug'
         );
       }
       const args = rawInput;
@@ -539,9 +538,11 @@ function createAgentMessagingTools(
     }),
     async (rawInput: { message: string }) => {
       if (process.env.DEBUG_GEMINI_TOOLS) {
-        console.error(
-          '[DEBUG broadcast_agent_message] Raw input: ',
-          JSON.stringify(rawInput, null, 2)
+        systemLog(
+          'gemini-tools',
+          'broadcast_agent_message input',
+          { rawInput },
+          'debug'
         );
       }
       const args = rawInput;
@@ -576,9 +577,11 @@ function createAgentMessagingTools(
     z.object({}),
     async (rawInput: unknown) => {
       if (process.env.DEBUG_GEMINI_TOOLS) {
-        console.error(
-          '[DEBUG list_pending_messages] Raw input: ',
-          JSON.stringify(rawInput, null, 2)
+        systemLog(
+          'gemini-tools',
+          'list_pending_messages input',
+          { rawInput },
+          'debug'
         );
       }
       try {
@@ -617,9 +620,11 @@ function createAgentMessagingTools(
       status?: 'read' | 'injected' | 'dismissed';
     }) => {
       if (process.env.DEBUG_GEMINI_TOOLS) {
-        console.error(
-          '[DEBUG mark_message_read] Raw input: ',
-          JSON.stringify(rawInput, null, 2)
+        systemLog(
+          'gemini-tools',
+          'mark_message_read input',
+          { rawInput },
+          'debug'
         );
       }
       const args = rawInput;
@@ -669,10 +674,7 @@ function createAgentMessagingTools(
     }),
     async (rawInput: { target_alias: string; question: string }) => {
       if (process.env.DEBUG_GEMINI_TOOLS) {
-        console.error(
-          '[DEBUG query_agent] Raw input: ',
-          JSON.stringify(rawInput, null, 2)
-        );
+        systemLog('gemini-tools', 'query_agent input', { rawInput }, 'debug');
       }
       const args = rawInput;
       try {
@@ -900,8 +902,11 @@ export function getCognitionTools(
     // In environments without session state (headless/legacy), we return a warning
     // instead of throwing to avoid crashing the tool initialization.
     if (!anchorId) {
-      console.warn(
-        '[Sigma] SigmaTaskUpdate initialized without anchorId. Tasks will NOT be persisted across sessions.'
+      systemLog(
+        'sigma',
+        'SigmaTaskUpdate initialized without anchorId. Tasks will NOT be persisted across sessions.',
+        undefined,
+        'warn'
       );
     }
 
@@ -1062,9 +1067,11 @@ export function getCognitionTools(
       } as Schema,
       execute: async (rawInput: unknown) => {
         if (process.env.DEBUG_GEMINI_TOOLS) {
-          console.error(
-            '[DEBUG SigmaTaskUpdate] Raw input:',
-            JSON.stringify(rawInput, null, 2)
+          systemLog(
+            'gemini-tools',
+            'SigmaTaskUpdate input',
+            { rawInput },
+            'debug'
           );
         }
         // [Safety Handling] Gemini 2.5 Flash sometimes sends explicit nulls for optional fields
@@ -1223,9 +1230,11 @@ export function getCognitionTools(
         });
 
         if (process.env.DEBUG_GEMINI_TOOLS) {
-          console.error(
-            '[DEBUG SigmaTaskUpdate] Processed todos:',
-            JSON.stringify(processedTodos, null, 2)
+          systemLog(
+            'gemini-tools',
+            'Processed todos',
+            { processedTodos },
+            'debug'
           );
         }
 

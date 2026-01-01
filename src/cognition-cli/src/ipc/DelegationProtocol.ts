@@ -439,7 +439,7 @@ export function validateGroundingEvidence(
  *   task.grounding
  * );
  * if (errors.length > 0) {
- *   console.error('Grounding validation failed:', errors);
+ *   systemLog('ipc', 'Grounding validation failed', { errors }, 'error');
  * }
  * ```
  */

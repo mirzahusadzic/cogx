@@ -97,16 +97,16 @@ export type { TUIMessage, UseAgentOptions } from './useAgent/types.js';
  *
  * @example
  * // Monitor Sigma statistics
- * console.log(`Lattice nodes: ${agent.sigmaStats.nodes}`);
- * console.log(`Paradigm shifts: ${agent.sigmaStats.paradigmShifts}`);
- * console.log(`Avg novelty: ${agent.sigmaStats.avgNovelty}`);
+ * systemLog('tui', `Lattice nodes: ${agent.sigmaStats.nodes}`);
+ * systemLog('tui', `Paradigm shifts: ${agent.sigmaStats.paradigmShifts}`);
+ * systemLog('tui', `Avg novelty: ${agent.sigmaStats.avgNovelty}`);
  *
  * @example
  * // Handle compression
  * useEffect(() => {
  *   if (agent.tokenCount.total > 80000) {
  *     // Compression will trigger automatically via useCompression
- *     console.log('Approaching compression threshold...');
+ *     systemLog('tui', 'Approaching compression threshold...');
  *   }
  * }, [agent.tokenCount.total]);
  */

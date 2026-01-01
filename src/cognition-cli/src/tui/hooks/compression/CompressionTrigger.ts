@@ -284,7 +284,7 @@ export class CompressionTrigger {
    *
    * @example
    * if (trigger.isTriggered()) {
-   *   console.log('Compression already occurred this session');
+   *   systemLog('tui', 'Compression already occurred this session');
    * }
    */
   isTriggered(): boolean {
@@ -300,7 +300,7 @@ export class CompressionTrigger {
    *
    * @example
    * const options = trigger.getOptions();
-   * console.log(`Threshold: ${options.tokenThreshold}`);
+   * systemLog('tui', `Threshold: ${options.tokenThreshold}`);
    */
   getOptions(): Required<CompressionOptions> {
     return { ...this.options };

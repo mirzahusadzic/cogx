@@ -53,7 +53,7 @@
  * // Resume existing session
  * const store = new SessionStateStore('my-project', cwd);
  * const result = store.loadForResume();
- * console.log(`Resume from: ${result.resumeSessionId}`);
+ * systemLog('tui', `Resume from: ${result.resumeSessionId}`);
  */
 
 import {
@@ -65,6 +65,7 @@ import {
   migrateOldStateFile,
   type SessionState,
 } from '../../../sigma/session-state.js';
+import { systemLog } from '../../../utils/debug-logger.js';
 import type {
   SessionLoadResult,
   SessionUpdateEvent,
@@ -108,7 +109,7 @@ export interface SessionStats {
  * const store = new SessionStateStore('my-session', '/home/user/project');
  * const state = store.load();
  * if (state) {
- *   console.log(`Current SDK session: ${state.current_session}`);
+ *   systemLog('tui', `Current SDK session: ${state.current_session}`);
  * }
  */
 export class SessionStateStore {
@@ -137,7 +138,7 @@ export class SessionStateStore {
    * const store = new SessionStateStore('my-session', cwd);
    * const state = store.load();
    * if (state) {
-   *   console.log(`Session has ${state.compression_history.length} compressions`);
+   *   systemLog('tui', `Session has ${state.compression_history.length} compressions`);
    * }
    */
   load(): SessionState | null {
@@ -145,7 +146,7 @@ export class SessionStateStore {
       return loadSessionState(this.anchorId, this.cwd);
     } catch (err) {
       if (this.debug) {
-        console.error('[SessionStateStore] Failed to load state:', err);
+        systemLog('tui', `[SessionStateStore] Failed to load state: ${err}`);
       }
       return null;
     }
@@ -166,7 +167,7 @@ export class SessionStateStore {
       return true;
     } catch (err) {
       if (this.debug) {
-        console.error('[SessionStateStore] Failed to save state:', err);
+        systemLog('tui', `[SessionStateStore] Failed to save state: ${err}`);
       }
       return false;
     }
@@ -205,7 +206,8 @@ export class SessionStateStore {
     );
     this.save(state);
     if (this.debug) {
-      console.log(
+      systemLog(
+        'tui',
         `[SessionStateStore] Created state: ${this.anchorId} → ${sdkSessionId} (${provider}/${model})`
       );
     }
@@ -233,7 +235,7 @@ export class SessionStateStore {
     const state = this.load();
     if (!state) {
       if (this.debug) {
-        console.error('[SessionStateStore] No state to update');
+        systemLog('tui', '[SessionStateStore] No state to update');
       }
       return null;
     }
@@ -247,7 +249,8 @@ export class SessionStateStore {
 
     this.save(updated);
     if (this.debug) {
-      console.log(
+      systemLog(
+        'tui',
         `[SessionStateStore] Updated: ${this.anchorId} → ${event.newSessionId} (${event.reason})`
       );
     }
@@ -277,7 +280,7 @@ export class SessionStateStore {
     const state = this.load();
     if (!state) {
       if (this.debug) {
-        console.warn('[SessionStateStore] No state to update stats');
+        systemLog('tui', '[SessionStateStore] No state to update stats');
       }
       return false;
     }
@@ -299,7 +302,7 @@ export class SessionStateStore {
     const state = this.load();
     if (!state) {
       if (this.debug) {
-        console.warn('[SessionStateStore] No state to update tokens');
+        systemLog('tui', '[SessionStateStore] No state to update tokens');
       }
       return false;
     }
@@ -332,7 +335,7 @@ export class SessionStateStore {
       // Check if migration needed
       if (!('compression_history' in state)) {
         if (this.debug) {
-          console.log('[SessionStateStore] Migrating old state file');
+          systemLog('tui', '[SessionStateStore] Migrating old state file');
         }
         return migrateOldStateFile(this.anchorId, this.cwd);
       }
@@ -340,7 +343,7 @@ export class SessionStateStore {
       return state;
     } catch (err) {
       if (this.debug) {
-        console.error('[SessionStateStore] Migration failed:', err);
+        systemLog('tui', `[SessionStateStore] Migration failed: ${err}`);
       }
       return null;
     }
@@ -361,7 +364,7 @@ export class SessionStateStore {
    * @example
    * const result = store.loadForResume();
    * if (result.resumeSessionId) {
-   *   console.log('Resuming from:', result.resumeSessionId);
+   *   systemLog('tui', `Resuming from: ${result.resumeSessionId}`);
    *   if (result.message) {
    *     showUserMessage(result.message);
    *   }

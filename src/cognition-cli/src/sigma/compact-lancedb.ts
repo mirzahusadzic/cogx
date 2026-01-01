@@ -17,6 +17,7 @@
 import { connect } from '@lancedb/lancedb';
 import path from 'path';
 import fs from 'fs-extra';
+import { systemLog } from '../utils/debug-logger.js';
 
 export interface CompactionResult {
   before: {
@@ -98,14 +99,14 @@ export async function compactConversationLanceDB(
   const versionsBefore = await countVersionFiles(lanceDbPath);
 
   if (verbose) {
-    console.log(`Before compaction:`);
-    console.log(`  Size: ${formatBytes(sizeBefore)}`);
-    console.log(`  Version files: ${versionsBefore}`);
+    systemLog('sigma', 'Before compaction:');
+    systemLog('sigma', `  Size: ${formatBytes(sizeBefore)}`);
+    systemLog('sigma', `  Version files: ${versionsBefore}`);
   }
 
   if (dryRun) {
     if (verbose) {
-      console.log('\n[DRY RUN] Would compact LanceDB...');
+      systemLog('sigma', '[DRY RUN] Would compact LanceDB...', {}, 'warn');
     }
     return {
       before: { versions: versionsBefore, dataSize: sizeBefore },
@@ -124,7 +125,7 @@ export async function compactConversationLanceDB(
     const allRecords = await table.query().toArray();
 
     if (verbose) {
-      console.log(`\nRead ${allRecords.length} records from LanceDB`);
+      systemLog('sigma', `Read ${allRecords.length} records from LanceDB`);
     }
 
     // Deduplicate by turn ID (keep latest)
@@ -145,14 +146,14 @@ export async function compactConversationLanceDB(
     }
 
     if (verbose) {
-      console.log(`Deduplicated to ${uniqueRecords.size} unique turns`);
+      systemLog('sigma', `Deduplicated to ${uniqueRecords.size} unique turns`);
     }
 
     // Drop and recreate table with deduplicated records
     await db.dropTable('conversation_turns');
 
     if (verbose) {
-      console.log('Dropped old table');
+      systemLog('sigma', 'Dropped old table');
     }
 
     // Recreate table with same schema
@@ -170,7 +171,7 @@ export async function compactConversationLanceDB(
     );
 
     if (verbose) {
-      console.log('✓ Table recreated with deduplicated data');
+      systemLog('sigma', 'Table recreated with deduplicated data');
     }
   } finally {
     // LanceDB doesn't require explicit close
@@ -187,13 +188,13 @@ export async function compactConversationLanceDB(
   };
 
   if (verbose) {
-    console.log(`\nAfter compaction:`);
-    console.log(`  Size: ${formatBytes(sizeAfter)}`);
-    console.log(`  Version files: ${versionsAfter}`);
-    console.log(`\nReduction:`);
-    console.log(`  Versions removed: ${reduction.versions}`);
-    console.log(`  Bytes saved: ${formatBytes(reduction.bytes)}`);
-    console.log(`  Total reduction: ${reduction.percentage}%`);
+    systemLog('sigma', '\nAfter compaction:');
+    systemLog('sigma', `  Size: ${formatBytes(sizeAfter)}`);
+    systemLog('sigma', `  Version files: ${versionsAfter}`);
+    systemLog('sigma', '\nReduction:');
+    systemLog('sigma', `  Versions removed: ${reduction.versions}`);
+    systemLog('sigma', `  Bytes saved: ${formatBytes(reduction.bytes)}`);
+    systemLog('sigma', `  Total reduction: ${reduction.percentage}%`);
   }
 
   return {

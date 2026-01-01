@@ -53,6 +53,7 @@ import chokidar, { FSWatcher } from 'chokidar';
 import path from 'path';
 import fs from 'fs-extra';
 import { EventEmitter } from 'events';
+import { systemLog } from '../../utils/debug-logger.js';
 
 import { Index } from '../pgc/index.js';
 import { ObjectStore } from '../pgc/object-store.js';
@@ -130,7 +131,8 @@ export class FileWatcher extends EventEmitter {
     // Generate glob patterns from indexed files to watch directories
     const watchPatterns = this.getWatchPatternsFromFiles(indexedFiles);
 
-    console.log(
+    systemLog(
+      'watcher',
       `Starting file watcher for ${indexedFiles.length} indexed files (${watchPatterns.length} patterns)...`
     );
 
@@ -156,7 +158,7 @@ export class FileWatcher extends EventEmitter {
         })
         .on('ready', () => {
           this.isWatching = true;
-          console.log('File watcher ready');
+          systemLog('watcher', 'File watcher ready');
           this.emit('ready');
           resolve();
         });
@@ -177,7 +179,7 @@ export class FileWatcher extends EventEmitter {
       await this.watcher.close();
       this.watcher = undefined;
       this.isWatching = false;
-      console.log('File watcher stopped');
+      systemLog('watcher', 'File watcher stopped');
     }
     // Clean up event listeners to prevent memory leaks
     this.removeAllListeners();
@@ -221,7 +223,12 @@ export class FileWatcher extends EventEmitter {
       // Get tracked hash from index
       const indexData = await this.index.get(relativePath);
       if (!indexData) {
-        console.warn(`File ${relativePath} changed but not in index`);
+        systemLog(
+          'watcher',
+          `File ${relativePath} changed but not in index`,
+          undefined,
+          'warn'
+        );
         return;
       }
 
@@ -249,10 +256,15 @@ export class FileWatcher extends EventEmitter {
         };
 
         this.emit('change', event);
-        console.log(`Detected change: ${relativePath}`);
+        systemLog('watcher', `Detected change: ${relativePath}`);
       }
     } catch (error) {
-      console.error(`Error processing change for ${relativePath}:`, error);
+      systemLog(
+        'watcher',
+        `Error processing change for ${relativePath}`,
+        { error: error instanceof Error ? error.message : String(error) },
+        'error'
+      );
     }
   }
 
@@ -279,9 +291,14 @@ export class FileWatcher extends EventEmitter {
       };
 
       this.emit('change', event);
-      console.log(`Detected deletion: ${relativePath}`);
+      systemLog('watcher', `Detected deletion: ${relativePath}`);
     } catch (error) {
-      console.error(`Error processing deletion for ${relativePath}:`, error);
+      systemLog(
+        'watcher',
+        `Error processing deletion for ${relativePath}`,
+        { error: error instanceof Error ? error.message : String(error) },
+        'error'
+      );
     }
   }
 
@@ -317,14 +334,24 @@ export class FileWatcher extends EventEmitter {
       };
 
       this.emit('change', event);
-      console.log(`Detected new file: ${relativePath}`);
+      systemLog('watcher', `Detected new file: ${relativePath}`);
     } catch (error) {
-      console.error(`Error processing new file ${relativePath}:`, error);
+      systemLog(
+        'watcher',
+        `Error processing new file ${relativePath}`,
+        { error: error instanceof Error ? error.message : String(error) },
+        'error'
+      );
     }
   }
 
   private handleError(error: Error): void {
-    console.error('File watcher error:', error);
+    systemLog(
+      'watcher',
+      'File watcher error',
+      { error: error.message },
+      'error'
+    );
     this.emit('error', error);
   }
 

@@ -187,7 +187,7 @@ export function extractSessionId(sdkMessage: SDKMessage): string | undefined {
  * @example
  * const messages = processAssistantMessage(sdkMessage);
  * messages.forEach(msg => {
- *   console.log(`${msg.content}`); // "Edit: file.ts (diff shown)"
+ *   systemLog('tui', `${msg.content}`); // "Edit: file.ts (diff shown)"
  * });
  */
 export function processAssistantMessage(
@@ -332,7 +332,7 @@ export function processStreamEvent(sdkMessage: SDKMessage): StreamEventData {
  * @example
  * const message = processToolProgress(sdkMessage);
  * if (message) {
- *   console.log(message.content); // "⏱️ Bash (5s)"
+ *   systemLog('tui', message.content); // "⏱️ Bash (5s)"
  * }
  */
 export function processToolProgress(
@@ -373,7 +373,7 @@ export function processToolProgress(
  * if (result?.tokenUpdate) {
  *   recordFinalTokenCount(result.tokenUpdate.total);
  * }
- * console.log(result.message.content); // "✓ Complete (3 turns, $0.0042)"
+ * systemLog('tui', result.message.content); // "✓ Complete (3 turns, $0.0042)"
  */
 export function processResult(sdkMessage: SDKMessage): {
   message: ProcessedMessage;
@@ -429,7 +429,7 @@ export function processResult(sdkMessage: SDKMessage): {
  * @example
  * const message = processSystemMessage(sdkMessage);
  * if (message) {
- *   console.log(message.content); // "Connected to Claude (claude-sonnet-4-5)"
+ *   systemLog('tui', message.content); // "Connected to Claude (claude-sonnet-4-5)"
  * }
  */
 export function processSystemMessage(

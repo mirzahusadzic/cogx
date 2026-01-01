@@ -5,6 +5,8 @@
  * mouse tracking, and clean process exit handling.
  */
 
+import { systemLog } from '../../utils/debug-logger.js';
+
 export class TerminalService {
   private static instance: TerminalService;
   private isMouseTrackingEnabled: boolean = false;
@@ -45,7 +47,7 @@ export class TerminalService {
       }
       this.isBracketedPasteEnabled = enabled;
     } catch (e) {
-      console.error(`Failed to set bracketed paste: ${e}`);
+      systemLog('tui', `Failed to set bracketed paste: ${e}`);
     }
   }
 
@@ -67,7 +69,7 @@ export class TerminalService {
       }
       this.isMouseTrackingEnabled = enabled;
     } catch (e) {
-      console.error(`Failed to set mouse tracking: ${e}`);
+      systemLog('tui', `Failed to set mouse tracking: ${e}`);
     }
   }
 

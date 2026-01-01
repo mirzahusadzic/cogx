@@ -575,9 +575,8 @@ describe('session-state', () => {
 
       // Verify warning was logged
       expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          '[Session State] Migrating task without ID: "Task A"'
-        )
+        expect.stringContaining('Migrating task without ID'),
+        expect.objectContaining({ content: 'Task A' })
       );
 
       warnSpy.mockRestore();

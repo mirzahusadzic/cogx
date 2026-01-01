@@ -10,6 +10,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Text, useStdout } from 'ink';
+import { systemLog } from '../../utils/debug-logger.js';
 import type { WizardConfirmationState } from '../hooks/useOnboardingWizard.js';
 
 export interface WizardConfirmationModalProps {
@@ -65,19 +66,17 @@ const WizardConfirmationModalComponent: React.FC<
     });
   }, [selectedIndex, maxHeight]);
 
-  // DEBUG: Log items to console
+  // DEBUG: Log items to systemLog
   if (mode === 'select' && items && process.env.DEBUG_WIZARD) {
-    console.error(
-      '[WizardModal] Rendering',
-      items.length,
-      'items:',
-      items.map((i) => i.label),
-      'selectedIndex:',
-      selectedIndex,
-      'highlighted:',
-      items[selectedIndex || 0]?.label,
-      'scrollOffset:',
-      scrollOffset
+    systemLog(
+      'tui',
+      `[WizardModal] Rendering ${items.length} items: ${items.map((i) => i.label).join(', ')}`,
+      {
+        selectedIndex,
+        highlighted: items[selectedIndex || 0]?.label,
+        scrollOffset,
+      },
+      'error'
     );
   }
 
@@ -91,17 +90,17 @@ const WizardConfirmationModalComponent: React.FC<
 
     // DEBUG: Log visible items calculation
     if (process.env.DEBUG_WIZARD) {
-      console.error(
-        '[WizardModal] totalItems:',
-        totalItems,
-        'maxHeight:',
-        maxHeight,
-        'actualOffset:',
-        actualOffset
+      systemLog(
+        'tui',
+        `[WizardModal] totalItems: ${totalItems}, maxHeight: ${maxHeight}, actualOffset: ${actualOffset}`,
+        {},
+        'error'
       );
-      console.error(
-        '[WizardModal] visibleItems:',
-        visibleItems.map((it, idx) => `${idx}:${it.label}`).join(', ')
+      systemLog(
+        'tui',
+        `[WizardModal] visibleItems: ${visibleItems.map((it, idx) => `${idx}:${it.label}`).join(', ')}`,
+        {},
+        'error'
       );
     }
 
@@ -129,8 +128,11 @@ const WizardConfirmationModalComponent: React.FC<
 
               // DEBUG: Log each visible item being rendered
               if (process.env.DEBUG_WIZARD) {
-                console.error(
-                  `[WizardModal] Rendering visible item ${visibleIdx} (actualIdx ${actualIdx}): "${item.label}" description="${item.description}" highlighted=${isHighlighted}`
+                systemLog(
+                  'tui',
+                  `[WizardModal] Rendering visible item ${visibleIdx} (actualIdx ${actualIdx}): "${item.label}" description="${item.description}" highlighted=${isHighlighted}`,
+                  {},
+                  'error'
                 );
               }
 
@@ -140,7 +142,12 @@ const WizardConfirmationModalComponent: React.FC<
               const line = `${prefix}${checkbox} ${item.label}${desc}`;
 
               if (process.env.DEBUG_WIZARD && item.label === 'dev') {
-                console.error(`[WizardModal] DEV item line: "${line}"`);
+                systemLog(
+                  'tui',
+                  `[WizardModal] DEV item line: "${line}"`,
+                  {},
+                  'error'
+                );
               }
 
               return (

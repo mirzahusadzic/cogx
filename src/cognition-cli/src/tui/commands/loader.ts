@@ -31,8 +31,7 @@
  * //   security-audit.md
  *
  * const { commands, errors, warnings } = await loadCommands('/home/user/project');
- * console.log(`Loaded ${commands.size} commands`);
- * // → "Loaded 3 commands"
+ * systemLog('tui', `Loaded ${commands.size} commands`);
  *
  * @example
  * // Command with placeholders (analyze-symbol.md):
@@ -45,6 +44,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { systemLog } from '../../utils/debug-logger.js';
 
 /**
  * Command metadata and content
@@ -111,12 +111,12 @@ export interface LoadCommandsResult {
  *
  * @example
  * const result = await loadCommands('/home/user/project');
- * console.log(`Loaded ${result.commands.size} commands`);
+ * systemLog('tui', `Loaded ${result.commands.size} commands`);
  * if (result.errors.length > 0) {
- *   console.error('Errors:', result.errors);
+ *   systemLog('tui', 'Errors: ' + JSON.stringify(result.errors), undefined, 'error');
  * }
  * if (result.warnings.length > 0) {
- *   console.warn('Warnings:', result.warnings);
+ *   systemLog('tui', 'Warnings: ' + JSON.stringify(result.warnings), undefined, 'warn');
  * }
  *
  * @example
@@ -124,8 +124,8 @@ export interface LoadCommandsResult {
  * const { commands } = await loadCommands('/home/user/project');
  * const questStart = commands.get('quest-start');
  * if (questStart) {
- *   console.log(questStart.description);
- *   console.log(questStart.category); // "quest"
+ *   systemLog('tui', questStart.description || '');
+ *   systemLog('tui', questStart.category || ''); // "quest"
  * }
  */
 export async function loadCommands(
@@ -370,7 +370,7 @@ export function filterCommands(
  *
  * UNKNOWN PLACEHOLDERS:
  * If a placeholder is not recognized, it's preserved in the output and a
- * warning is logged to console. This allows for future placeholder extensions.
+ * warning is logged to systemLog. This allows for future placeholder extensions.
  *
  * @param input - Slash command invocation with arguments
  * @param commands - Map of available commands
@@ -421,7 +421,7 @@ export function expandCommand(
         return placeholders[key];
       }
       // Log warning for unknown placeholder but keep it in output
-      console.warn(`Unknown placeholder: {{${key}}}`);
+      systemLog('tui', `Unknown placeholder: {{${key}}}`, undefined, 'warn');
       return match;
     });
 

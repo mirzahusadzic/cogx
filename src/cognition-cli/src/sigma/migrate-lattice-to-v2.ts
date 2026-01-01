@@ -18,6 +18,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 import type { ConversationLattice, ConversationNode } from './types.js';
+import { systemLog, debugError } from '../utils/debug-logger.js';
 
 export interface MigrationResult {
   totalFiles: number;
@@ -102,7 +103,12 @@ export async function migrateLatticeToV2(
 
   if (latticeFiles.length === 0) {
     if (verbose) {
-      console.log('No lattice.json files found in .sigma directory');
+      systemLog(
+        'sigma',
+        'No lattice.json files found in .sigma directory',
+        {},
+        'warn'
+      );
     }
     return {
       totalFiles: 0,
@@ -140,7 +146,7 @@ export async function migrateLatticeToV2(
       // Check if already v2
       if (lattice.format_version === 2) {
         if (verbose) {
-          console.log(`✓ ${fileName}: Already v2 format, skipping`);
+          systemLog('sigma', `✓ ${fileName}: Already v2 format, skipping`);
         }
         result.totalSizeAfter += stats.size;
         continue;
@@ -174,8 +180,11 @@ export async function migrateLatticeToV2(
 
       if (dryRun) {
         if (verbose) {
-          console.log(
-            `[DRY RUN] ${fileName}: ${formatBytes(stats.size)} → ${formatBytes(v2Size)} (${Math.round((1 - v2Size / stats.size) * 100)}% reduction)`
+          systemLog(
+            'sigma',
+            `[DRY RUN] ${fileName}: ${formatBytes(stats.size)} → ${formatBytes(v2Size)} (${Math.round((1 - v2Size / stats.size) * 100)}% reduction)`,
+            {},
+            'info'
           );
         }
       } else {
@@ -188,7 +197,8 @@ export async function migrateLatticeToV2(
         await fs.writeFile(filePath, v2Content, 'utf-8');
 
         if (verbose) {
-          console.log(
+          systemLog(
+            'sigma',
             `✓ ${fileName}: ${formatBytes(stats.size)} → ${formatBytes(v2Size)} (${Math.round((1 - v2Size / stats.size) * 100)}% reduction)`
           );
         }
@@ -203,7 +213,7 @@ export async function migrateLatticeToV2(
       });
 
       if (verbose) {
-        console.error(`✗ ${fileName}: ${(error as Error).message}`);
+        debugError(`✗ ${fileName}: ${(error as Error).message}`, error);
       }
     }
   }

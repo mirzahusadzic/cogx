@@ -8,6 +8,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { systemLog } from '../utils/debug-logger.js';
 
 /**
  * Session state file format
@@ -201,8 +202,11 @@ function migrateTasks(
       // Generate stable ID from content hash or index
       // Use timestamp to ensure uniqueness across migrations
       const id = `migrated-${idx}-${Date.now()}`;
-      console.warn(
-        `[Session State] Migrating task without ID: "${task.content}" → ${id}`
+      systemLog(
+        'sigma',
+        'Migrating task without ID',
+        { content: task.content, id },
+        'warn'
       );
       return { ...task, id };
     }
@@ -243,7 +247,12 @@ export function loadSessionState(
 
     return state;
   } catch (err) {
-    console.error(`Failed to load session state for ${anchorId}:`, err);
+    systemLog(
+      'sigma',
+      `Failed to load session state for ${anchorId}`,
+      { error: err instanceof Error ? err.message : String(err) },
+      'error'
+    );
     return null;
   }
 }
@@ -496,8 +505,11 @@ export function listSessions(projectRoot: string): Array<{
         sessions_count: state.compression_history.length,
       });
     } catch (err) {
-      console.warn(
-        `Failed to load session state from ${file}: ${err instanceof Error ? err.message : String(err)}`
+      systemLog(
+        'sigma',
+        `Failed to load session state from ${file}`,
+        { error: err instanceof Error ? err.message : String(err) },
+        'warn'
       );
       continue;
     }
@@ -547,7 +559,7 @@ export function migrateOldStateFile(
     }
 
     // Migrate old format
-    console.log(`🔄 Migrating old state file: ${anchorId}`);
+    systemLog('sigma', `Migrating old state file: ${anchorId}`);
 
     const compressionHistory: SessionState['compression_history'] = [];
 
@@ -587,7 +599,12 @@ export function migrateOldStateFile(
         currentState = nextState;
         nextId = nextState.newSessionId; // May be undefined in leaf nodes
       } catch (err) {
-        console.error(`  ⚠️  Failed to process chain file ${nextId}:`, err);
+        systemLog(
+          'sigma',
+          `Failed to process chain file ${nextId}`,
+          { error: err instanceof Error ? err.message : String(err) },
+          'error'
+        );
         break;
       }
     }
@@ -597,9 +614,14 @@ export function migrateOldStateFile(
       try {
         fs.unlinkSync(file);
         const filename = path.basename(file);
-        console.log(`  🗑️  Removed old chained file: ${filename}`);
+        systemLog('sigma', `Removed old chained file: ${filename}`);
       } catch (err) {
-        console.error(`  ⚠️  Failed to delete ${file}:`, err);
+        systemLog(
+          'sigma',
+          `Failed to delete ${file}`,
+          { error: err instanceof Error ? err.message : String(err) },
+          'error'
+        );
       }
     }
 
@@ -626,13 +648,19 @@ export function migrateOldStateFile(
 
     // Save migrated state
     saveSessionState(newState, projectRoot);
-    console.log(
-      `  ✅ Migrated to new format (${compressionHistory.length} sessions)`
+    systemLog(
+      'sigma',
+      `Migrated to new format (${compressionHistory.length} sessions)`
     );
 
     return newState;
   } catch (err) {
-    console.error(`Failed to migrate state file ${anchorId}:`, err);
+    systemLog(
+      'sigma',
+      `Failed to migrate state file ${anchorId}`,
+      { error: err instanceof Error ? err.message : String(err) },
+      'error'
+    );
     return null;
   }
 }
@@ -674,8 +702,9 @@ export function migrateAllOldStates(projectRoot: string): void {
   }
 
   if (migratedCount > 0) {
-    console.log(
-      `\n✅ Migrated ${migratedCount} session(s) to new anchor format\n`
+    systemLog(
+      'sigma',
+      `Migrated ${migratedCount} session(s) to new anchor format`
     );
   }
 }

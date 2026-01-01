@@ -80,7 +80,7 @@ interface MouseEvent {
  * @example
  * // Simple scroll handler
  * useMouse((event) => {
- *   console.log(`${event.type} at (${event.x}, ${event.y})`);
+ *   systemLog('tui', `Mouse event: ${event.type}`, { x: event.x, y: event.y }, 'debug');
  * });
  *
  * @example

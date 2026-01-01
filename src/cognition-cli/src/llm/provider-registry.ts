@@ -17,13 +17,14 @@
  *
  * // List available agent providers
  * const agents = registry.listAgentProviders();
- * console.log('Available agents:', agents);
+ * systemLog('llm', 'Available agents:', agents);
  * ```
  */
 
 import type { LLMProvider } from './provider-interface.js';
 import type { AgentProvider } from './agent-provider-interface.js';
 import { isAgentProvider } from './agent-provider-interface.js';
+import { systemLog } from '../utils/debug-logger.js';
 
 /**
  * Provider Registry
@@ -178,7 +179,7 @@ export class ProviderRegistry {
    * @example
    * ```typescript
    * const defaultName = registry.getDefaultName();
-   * console.log(`Default provider: ${defaultName}`);
+   * systemLog('llm', `Default provider: ${defaultName}`);
    * ```
    */
   getDefaultName(): string {
@@ -204,7 +205,11 @@ export class ProviderRegistry {
    */
   async healthCheck(name: string): Promise<boolean> {
     const provider = this.get(name);
-    return await provider.isAvailable();
+    const available = await provider.isAvailable();
+    if (!available) {
+      systemLog('llm', `Provider '${name}' is unavailable`, undefined, 'warn');
+    }
+    return available;
   }
 
   /**
@@ -215,7 +220,7 @@ export class ProviderRegistry {
    * @example
    * ```typescript
    * const providers = registry.list();
-   * console.log('Available:', providers);
+   * systemLog('llm', 'Available:', providers);
    * ```
    */
   list(): string[] {
@@ -230,7 +235,7 @@ export class ProviderRegistry {
    * @example
    * ```typescript
    * const agents = registry.listAgentProviders();
-   * console.log('Agent providers:', agents);
+   * systemLog('llm', 'Agent providers:', agents);
    * ```
    */
   listAgentProviders(): string[] {
@@ -324,7 +329,7 @@ export class ProviderRegistry {
    * @example
    * ```typescript
    * const count = registry.count();
-   * console.log(`${count} providers registered`);
+   * systemLog('llm', `${count} providers registered`);
    * ```
    */
   count(): number {
@@ -342,7 +347,7 @@ export class ProviderRegistry {
    * ```typescript
    * const results = await registry.healthCheckAll();
    * for (const [name, available] of Object.entries(results)) {
-   *   console.log(`${name}: ${available ? 'available' : 'unavailable'}`);
+   *   systemLog('llm', `${name}: ${available ? 'available' : 'unavailable'}`);
    * }
    * ```
    */

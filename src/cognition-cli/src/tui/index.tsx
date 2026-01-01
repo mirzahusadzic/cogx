@@ -3,6 +3,7 @@ import { render, Box, Text, useInput, useStdout, type TextProps } from 'ink';
 import { ThemeProvider, extendTheme, defaultTheme } from '@inkjs/ui';
 import fs from 'fs';
 import path from 'path';
+import { logEmitter, LogEvent, systemLog } from '../utils/debug-logger.js';
 
 // Toggle mouse tracking - disable to restore native terminal text selection
 const ENABLE_MOUSE_TRACKING = false;
@@ -266,10 +267,17 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     if (error) {
       // Debug: log the actual error to help diagnose OAuth detection issues
       if (debug) {
-        console.error('[TUI Debug] Error detected:', error);
-        console.error(
+        systemLog(
+          'tui',
+          '[TUI Debug] Error detected',
+          { error: String(error) },
+          'error'
+        );
+        systemLog(
+          'tui',
           '[TUI Debug] Is auth error?',
-          isAuthenticationError([error])
+          { isAuthError: isAuthenticationError([error]) },
+          'error'
         );
       }
 
@@ -279,25 +287,19 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           : 'session state file';
 
         // Display error message
-        console.error(
-          '\n\n╔════════════════════════════════════════════════════════════════════════════╗'
-        );
-        console.error(
-          '║                     OAuth Token Expired                                    ║'
-        );
-        console.error(
-          '╚════════════════════════════════════════════════════════════════════════════╝\n'
-        );
-        console.error(
-          '  Your OAuth token has expired and the TUI must exit.\n'
-        );
-        console.error('  📝 Your session has been saved automatically.\n');
-        console.error('  To continue:\n');
-        console.error('  1. Run: claude /login');
-        console.error(
-          '  2. Restart with: cognition tui --file ' + sessionStateFile + '\n'
-        );
-        console.error('  Press any key to exit...\n');
+        const authErrorMessage = [
+          '\n\n╔════════════════════════════════════════════════════════════════════════════╗',
+          '║                     OAuth Token Expired                                    ║',
+          '╚════════════════════════════════════════════════════════════════════════════╝\n',
+          '  Your OAuth token has expired and the TUI must exit.\n',
+          '  📝 Your session has been saved automatically.\n',
+          '  To continue:\n',
+          '  1. Run: claude /login',
+          '  2. Restart with: cognition tui --file ' + sessionStateFile + '\n',
+          '  Press any key to exit...\n',
+        ].join('\n');
+
+        systemLog('tui', authErrorMessage, {}, 'error');
 
         // Clean up and exit after user presses a key or 5 seconds
         let exited = false;
@@ -309,8 +311,11 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
             process.stdout.write('\x1b[?1000l\x1b[?1006l'); // Disable mouse
           } catch (e) {
             // Ignore cleanup errors
-            console.error(
-              `Cleanup error: ${e instanceof Error ? e.message : String(e)}`
+            systemLog(
+              'tui',
+              `Cleanup error: ${e instanceof Error ? e.message : String(e)}`,
+              {},
+              'error'
             );
           }
           process.exit(1);
@@ -330,6 +335,45 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       }
     }
   }, [error, sessionId, projectRoot]);
+
+  // Subscribe to system logs for TUI display
+  useEffect(() => {
+    const logHandler = (event: LogEvent) => {
+      // Only show ERROR logs in the main chat window
+      // Info/Debug/Warn logs are still written to file but kept out of the UI to avoid clutter
+      if (event.level !== 'error') {
+        return;
+      }
+
+      // Format the log event into a TUIMessage
+      let content = `[${event.level.toUpperCase()}]`;
+      if (event.source) {
+        content += ` [${event.source}]`;
+      }
+      content += ` ${event.message}`;
+      if (event.data) {
+        try {
+          // Only show first 2 lines of data to avoid clutter
+          const dataString = JSON.stringify(event.data, null, 2);
+          content += `\n${dataString.split('\n').slice(0, 3).join('\n')}`;
+          if (dataString.split('\n').length > 3) {
+            content += '...';
+          }
+        } catch {
+          content += ' [Unserializable data]';
+        }
+      }
+
+      // Add to TUI messages as a system message
+      addSystemMessage(content);
+    };
+
+    logEmitter.on('log', logHandler);
+
+    return () => {
+      logEmitter.off('log', logHandler);
+    };
+  }, [addSystemMessage]); // Dependency: addSystemMessage from useAgent
 
   // Handle pasted content - stream it line by line
   const handlePasteContent = useCallback(
@@ -395,11 +439,14 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     (input, key) => {
       // Debug: Log all ESC key presses
       if (key.escape && process.env.DEBUG_ESC_INPUT) {
-        console.error(
-          '[TUI.useInput] ESC pressed, confirmationPending:',
-          confirmationState?.pending,
-          'isThinking:',
-          isThinking
+        systemLog(
+          'tui',
+          '[TUI.useInput] ESC pressed',
+          {
+            confirmationPending: confirmationState?.pending,
+            isThinking: isThinking,
+          },
+          'error'
         );
       }
 
@@ -427,15 +474,18 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
         const isSelectMode = wizard.confirmationState.mode === 'select';
 
         if (process.env.DEBUG_WIZARD || process.env.DEBUG_ESC_INPUT) {
-          console.error(
-            '[TUI] Wizard modal active, mode:',
-            wizard.confirmationState.mode,
-            'input:',
-            JSON.stringify(input),
-            'input.length:',
-            input?.length,
-            'key:',
-            Object.keys(key).filter((k) => key[k as keyof typeof key])
+          systemLog(
+            'tui',
+            '[TUI] Wizard modal active',
+            {
+              mode: wizard.confirmationState.mode,
+              input: input,
+              inputLength: input?.length,
+              key: Object.keys(key).filter(
+                (k) => k && key[k as keyof typeof key]
+              ),
+            },
+            'error'
           );
         }
 
@@ -449,7 +499,12 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
             return;
           } else if (input === ' ') {
             if (process.env.DEBUG_WIZARD) {
-              console.error('[TUI] Space pressed, toggling selection');
+              systemLog(
+                'tui',
+                '[TUI] Space pressed, toggling selection',
+                {},
+                'error'
+              );
             }
             wizard.toggleSelection();
             return;
@@ -458,7 +513,12 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
             return;
           } else if (key.escape) {
             if (process.env.DEBUG_WIZARD || process.env.DEBUG_ESC_INPUT) {
-              console.error('[TUI] ESC pressed, calling wizard.cancel()');
+              systemLog(
+                'tui',
+                '[TUI] ESC pressed, calling wizard.cancel()',
+                {},
+                'error'
+              );
             }
             wizard.cancel();
             return;
@@ -483,9 +543,11 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       // PRIORITY 2: ESC to abort agent (only when thinking)
       if (key.escape && isThinking) {
         if (process.env.DEBUG_ESC_INPUT) {
-          console.error(
-            '[TUI.useInput] Calling interrupt() - isThinking:',
-            isThinking
+          systemLog(
+            'tui',
+            '[TUI.useInput] Calling interrupt()',
+            { isThinking: isThinking },
+            'error'
           );
         }
         interrupt();
@@ -615,24 +677,38 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
 export function startTUI(options: CognitionTUIProps) {
   // Set up global error handlers for uncaught errors
   const handleUncaughtError = (error: Error) => {
-    console.error('\n[TUI] Uncaught error:', error.message);
+    systemLog(
+      'tui',
+      '[TUI] Uncaught error',
+      { message: error.message },
+      'error'
+    );
     if (options.debug) {
-      console.error('[TUI] Stack trace:', error.stack);
+      systemLog('tui', '[TUI] Stack trace', { stack: error.stack }, 'error');
     }
 
     // Check if it's an OAuth error
     if (isAuthenticationError([error.message])) {
-      console.error(
-        '\n\n╔════════════════════════════════════════════════════════════════════════════╗'
+      systemLog(
+        'tui',
+        '\n\n╔════════════════════════════════════════════════════════════════════════════╗',
+        {},
+        'error'
       );
-      console.error(
-        '║                     OAuth Token Expired                                    ║'
+      systemLog(
+        'tui',
+        '║                     OAuth Token Expired                                    ║',
+        {},
+        'error'
       );
-      console.error(
-        '╚════════════════════════════════════════════════════════════════════════════╝\n'
+      systemLog(
+        'tui',
+        '╚════════════════════════════════════════════════════════════════════════════╝\n',
+        {},
+        'error'
       );
-      console.error('  Your OAuth token has expired.\n');
-      console.error('  Please run: claude /login\n');
+      systemLog('tui', '  Your OAuth token has expired.\n', {}, 'error');
+      systemLog('tui', '  Please run: claude /login\n', {}, 'error');
     }
 
     process.exit(1);

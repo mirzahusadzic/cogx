@@ -350,7 +350,7 @@ describe('Context Injector', () => {
         });
 
         expect(consoleSpy).toHaveBeenCalledWith(
-          expect.stringContaining('[Context Injector]')
+          expect.stringContaining('Querying lattice for relevant context')
         );
 
         consoleSpy.mockRestore();

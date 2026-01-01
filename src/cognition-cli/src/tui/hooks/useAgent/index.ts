@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import path from 'path';
-import fs from 'fs';
-import chalk from 'chalk';
+import { systemLog } from '../../../utils/debug-logger.js';
 import { useTokenCount } from '../tokens/useTokenCount.js';
 import { useSessionManager } from '../session/useSessionManager.js';
 import { useTurnAnalysis } from '../analysis/index.js';
@@ -37,25 +35,10 @@ export function useAgent(options: UseAgentOptions) {
   const debug = useCallback(
     (message: string, ...args: unknown[]) => {
       if (debugFlag) {
-        console.log(chalk.dim(`[Σ] ${message}`), ...args);
+        systemLog('sigma', message, args.length > 0 ? { args } : {});
       }
     },
     [debugFlag]
-  );
-
-  const debugLog = useCallback(
-    (content: string) => {
-      if (debugFlag) {
-        try {
-          fs.appendFileSync(path.join(cwd, 'tui-debug.log'), content);
-        } catch (err) {
-          console.error(
-            `Debug log write error: ${err instanceof Error ? err.message : String(err)}`
-          );
-        }
-      }
-    },
-    [debugFlag, cwd]
   );
 
   const tokenCounter = useTokenCount();
@@ -77,10 +60,9 @@ export function useAgent(options: UseAgentOptions) {
       reason: string;
     }) => {
       if (debugFlag) {
-        console.log(
-          chalk.dim(
-            `[Σ]  Session updated: ${event.previousSessionId} → ${event.newSessionId} (${event.reason})`
-          )
+        systemLog(
+          'sigma',
+          `Session updated: ${event.previousSessionId} → ${event.newSessionId} (${event.reason})`
         );
       }
     },
@@ -190,7 +172,6 @@ export function useAgent(options: UseAgentOptions) {
     turnAnalysis,
     compression,
     debug,
-    debugLog,
   });
 
   // 8. Integration effects (specific lifecycle hooks)

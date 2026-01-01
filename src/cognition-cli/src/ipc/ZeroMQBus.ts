@@ -14,10 +14,8 @@
  */
 
 import * as zmq from 'zeromq';
-import chalk from 'chalk';
 import { AgentMessage } from './AgentMessage.js';
-
-const DEBUG_IPC = process.env.DEBUG_IPC === '1';
+import { systemLog } from '../utils/debug-logger.js';
 
 /**
  * Configuration for the ZeroMQBus.
@@ -76,7 +74,9 @@ export interface BusStats {
  * const peerBus = new ZeroMQBus({ address: 'ipc:///tmp/bus.sock' });
  * await peerBus.connect();
  *
- * peerBus.subscribe('chat.message', (msg) => console.log(msg.payload));
+ * peerBus.subscribe('chat.message', (msg) => {
+ *   systemLog('ipc', `Chat message: ${msg.payload}`);
+ * });
  * masterBus.publish('chat.message', { from: 'master', text: 'Hello!' });
  */
 export class ZeroMQBus {
@@ -141,13 +141,10 @@ export class ZeroMQBus {
     this.started = true;
     this.startListening();
 
-    if (DEBUG_IPC) {
-      console.log(
-        chalk.dim(
-          `🚌 ZeroMQ Bus Master: Broker running (frontend: ${frontendAddress}, backend: ${backendAddress})`
-        )
-      );
-    }
+    systemLog(
+      'ipc',
+      `ZeroMQ Bus Master: Broker running (frontend: ${frontendAddress}, backend: ${backendAddress})`
+    );
   }
 
   /**
@@ -176,9 +173,7 @@ export class ZeroMQBus {
     this.started = true;
     this.startListening();
 
-    if (DEBUG_IPC) {
-      console.log(`🔌 ZeroMQ Peer: Connected to broker at ${frontendAddress}`);
-    }
+    systemLog('ipc', `ZeroMQ Peer: Connected to broker at ${frontendAddress}`);
   }
 
   /**
@@ -204,7 +199,12 @@ export class ZeroMQBus {
         }
       } catch (err) {
         if (this.forwarderRunning) {
-          console.error('Forwarder error (XSUB→XPUB):', err);
+          systemLog(
+            'ipc',
+            'Forwarder error (XSUB→XPUB)',
+            { error: err instanceof Error ? err.message : String(err) },
+            'error'
+          );
         }
       }
     })();
@@ -220,7 +220,12 @@ export class ZeroMQBus {
         }
       } catch (err) {
         if (this.forwarderRunning) {
-          console.error('Forwarder error (XPUB→XSUB):', err);
+          systemLog(
+            'ipc',
+            'Forwarder error (XPUB→XSUB)',
+            { error: err instanceof Error ? err.message : String(err) },
+            'error'
+          );
         }
       }
     })();
@@ -243,7 +248,12 @@ export class ZeroMQBus {
 
     // ZeroMQ pub/sub uses multipart messages: [topic, payload]
     this.pubSocket.send([topic, payload]).catch((err) => {
-      console.error('Failed to publish message:', err);
+      systemLog(
+        'ipc',
+        'Failed to publish message',
+        { topic, error: err instanceof Error ? err.message : String(err) },
+        'error'
+      );
     });
   }
 
@@ -257,13 +267,13 @@ export class ZeroMQBus {
    * @example
    * // Subscribe to specific topic
    * bus.subscribe('agent.message', (msg) => {
-   *   console.log('Received:', msg);
+   *   systemLog('ipc', 'Received message', { topic: msg.topic });
    * });
    *
    * @example
    * // Subscribe using wildcard
    * bus.subscribe('code.*', (msg) => {
-   *   console.log('Code event:', msg.topic);
+   *   systemLog('ipc', `Code event: ${msg.topic}`);
    * });
    */
   subscribe(topic: string, handler: MessageHandler): void {
@@ -294,7 +304,9 @@ export class ZeroMQBus {
    * @returns {void}
    *
    * @example
-   * const handler = (msg) => console.log(msg);
+   * const handler = (msg: AgentMessage) => {
+   *   systemLog('ipc', 'Received message', { topic: msg.topic });
+   * };
    * bus.subscribe('agent.message', handler);
    * // Later...
    * bus.unsubscribe('agent.message', handler);
@@ -371,9 +383,7 @@ export class ZeroMQBus {
       this.isBroker = false;
     }
 
-    if (DEBUG_IPC) {
-      console.log('🛑 ZeroMQ Bus: Closed');
-    }
+    systemLog('ipc', 'ZeroMQ Bus: Closed');
   }
 
   /**
@@ -392,13 +402,26 @@ export class ZeroMQBus {
             const message: AgentMessage = JSON.parse(payload);
             this.dispatchMessage(topic, message);
           } catch (err) {
-            console.error('Failed to parse message:', err);
+            systemLog(
+              'ipc',
+              'Failed to parse message',
+              {
+                payload,
+                error: err instanceof Error ? err.message : String(err),
+              },
+              'error'
+            );
           }
         }
       } catch (err) {
         // Socket closed or error
         if (this.started) {
-          console.error('ZeroMQ listener error:', err);
+          systemLog(
+            'ipc',
+            'ZeroMQ listener error',
+            { error: err instanceof Error ? err.message : String(err) },
+            'error'
+          );
         }
       }
     })();
@@ -425,11 +448,21 @@ export class ZeroMQBus {
               'catch' in result
             ) {
               (result as Promise<void>).catch((err: unknown) => {
-                console.error(`Async handler error for topic ${topic}:`, err);
+                systemLog(
+                  'ipc',
+                  `Async handler error for topic ${topic}:`,
+                  { error: err instanceof Error ? err.message : String(err) },
+                  'error'
+                );
               });
             }
           } catch (err) {
-            console.error(`Handler error for topic ${topic}:`, err);
+            systemLog(
+              'ipc',
+              `Handler error for topic ${topic}:`,
+              { error: err instanceof Error ? err.message : String(err) },
+              'error'
+            );
           }
         }
       }

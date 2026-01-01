@@ -56,7 +56,7 @@
  *   tokenThreshold: 120000,
  *   minTurns: 5,
  *   onCompressionTriggered: (tokens, turns) => {
- *     console.log(`Compressing at ${tokens} tokens, ${turns} turns`);
+ *     systemLog('tui', `Compressing at ${tokens} tokens, ${turns} turns`);
  *     performCompression();
  *   }
  * });
@@ -82,6 +82,7 @@
  */
 
 import { useRef, useCallback, useEffect, useMemo, useState } from 'react';
+import { systemLog } from '../../../utils/debug-logger.js';
 import { CompressionTrigger } from './CompressionTrigger.js';
 import type { CompressionOptions, CompressionState } from './types.js';
 
@@ -245,7 +246,7 @@ export interface UseCompressionResult {
  *   tokenThreshold: 120000,
  *   minTurns: 5,
  *   onCompressionTriggered: (tokens, turns) => {
- *     console.log(`Compressing ${tokens} tokens`);
+ *     systemLog('tui', `Compressing ${tokens} tokens`);
  *     performCompression();
  *   }
  * });
@@ -313,7 +314,7 @@ export function useCompression(
   //
   //   if (result.shouldTrigger) {
   //     if (debug) {
-  //       console.log('[useCompression] Triggering compression:', result.reason);
+  //       systemLog('tui', `Triggering compression: ${result.reason}`, undefined, 'debug');
   //     }
   //
   //     // Mark as triggered
@@ -349,8 +350,9 @@ export function useCompression(
   const triggerCompression = useCallback(
     async (isSemanticEvent: boolean = false) => {
       if (debug) {
-        console.log(
-          `[useCompression] Manual compression trigger (semantic: ${isSemanticEvent})`
+        systemLog(
+          'sigma',
+          `Manual compression trigger (semantic: ${isSemanticEvent})`
         );
       }
 
@@ -380,7 +382,7 @@ export function useCompression(
    */
   const reset = useCallback(() => {
     if (debug) {
-      console.log('[useCompression] Resetting compression state');
+      systemLog('sigma', 'Resetting compression state');
     }
 
     triggerRef.current.reset();

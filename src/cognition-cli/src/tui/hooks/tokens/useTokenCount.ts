@@ -39,7 +39,7 @@
  *   total: 2300
  * });
  *
- * console.log(`Tokens: ${tokenCounter.count.total}`);
+ * systemLog('tui', `Tokens: ${tokenCounter.count.total}`);
  *
  * @example
  * // Compression workflow
@@ -54,7 +54,7 @@
  * // SDK starts new session, sends first update
  * tokenCounter.update({ input: 200, output: 0, total: 200 });
  * // Accepted! (justReset flag bypasses Math.max)
- * console.log(tokenCounter.count.total); // 200 (not 95000!)
+ * systemLog('tui', `Tokens: ${tokenCounter.count.total}`); // 200 (not 95000!)
  */
 
 import { useState, useCallback, useRef } from 'react';

@@ -424,9 +424,9 @@ describe('useBackgroundTaskManager', () => {
       });
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[BackgroundTaskManager]'),
-        expect.anything(),
-        expect.anything()
+        expect.stringContaining(
+          '[BackgroundTaskManager] Task update: task-1 running'
+        )
       );
 
       consoleSpy.mockRestore();

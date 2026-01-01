@@ -88,7 +88,7 @@ export function formatAuthError(): string {
  *   ["Network error: ECONNREFUSED"],
  *   false
  * );
- * console.error(error);
+ * systemLog('tui', error, undefined, 'error');
  */
 export function formatSDKError(
   stderrLines: string[],

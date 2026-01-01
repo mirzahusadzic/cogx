@@ -32,6 +32,7 @@ import { ConversationOperationalManager } from './overlays/conversation-operatio
 import { ConversationMathematicalManager } from './overlays/conversation-mathematical/manager.js';
 import { ConversationCoherenceManager } from './overlays/conversation-coherence/manager.js';
 import { AsyncMutex } from './utils/AsyncMutex.js';
+import { systemLog } from '../utils/debug-logger.js';
 
 /**
  * Overlay identifiers (same as project)
@@ -101,22 +102,26 @@ export class ConversationOverlayRegistry {
     // CRITICAL FIX: Set current session ID on newly created manager
     // This ensures lazy-loaded managers get the session filter
     if (this.debug) {
-      console.log(
-        `🔍 [Registry] Creating ${overlayId}, currentSessionId=${this.currentSessionId || 'NULL'}`
-      );
+      systemLog('sigma', `[Registry] Creating ${overlayId}`, {
+        currentSessionId: this.currentSessionId || 'NULL',
+      });
     }
     if (this.currentSessionId && 'setCurrentSession' in manager) {
       if (this.debug) {
-        console.log(
-          `🔍 [Registry] Setting session ${this.currentSessionId} on ${overlayId}`
+        systemLog(
+          'sigma',
+          `[Registry] Setting session ${this.currentSessionId} on ${overlayId}`
         );
       }
       (manager as ConversationOverlayWithLifecycle).setCurrentSession!(
         this.currentSessionId
       );
     } else if (this.debug) {
-      console.log(
-        `🔍 [Registry] ⚠️  NOT setting session on ${overlayId} - currentSessionId=${this.currentSessionId}`
+      systemLog(
+        'sigma',
+        `[Registry] NOT setting session on ${overlayId}`,
+        { currentSessionId: this.currentSessionId },
+        'warn'
       );
     }
 
@@ -330,7 +335,7 @@ export class ConversationOverlayRegistry {
   async setCurrentSession(sessionId: string): Promise<void> {
     // CRITICAL FIX: Store session ID so lazy-loaded managers get it too
     if (this.debug) {
-      console.log(`🔍 [Registry] setCurrentSession called with: ${sessionId}`);
+      systemLog('sigma', `setCurrentSession called with: ${sessionId}`);
     }
     this.currentSessionId = sessionId;
 

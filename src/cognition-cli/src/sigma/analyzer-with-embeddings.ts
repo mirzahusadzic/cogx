@@ -16,6 +16,7 @@ import type {
 } from './types.js';
 import { EmbeddingService } from '../core/services/embedding.js';
 import { OverlayRegistry } from '../core/algebra/overlay-registry.js';
+import { systemLog } from '../utils/debug-logger.js';
 
 const DEFAULT_OPTIONS: Required<AnalyzerOptions> = {
   overlay_threshold: 5,
@@ -195,15 +196,23 @@ async function detectOverlaysByProjectAlignment(
         }
       } catch (error) {
         // Overlay not populated yet, skip
-        console.warn(
-          `Failed to query overlay ${overlayId}: ${error instanceof Error ? error.message : String(error)}`
+        systemLog(
+          'sigma',
+          `Failed to query overlay ${overlayId}: ${error instanceof Error ? error.message : String(error)}`,
+          undefined,
+          'warn'
         );
         continue;
       }
     }
   } catch (error) {
     // Project lattice not available, graceful degradation
-    console.warn('Project lattice query failed:', error);
+    systemLog(
+      'sigma',
+      'Project lattice query failed:',
+      { error: error instanceof Error ? error.message : String(error) },
+      'warn'
+    );
   }
 
   return scores;

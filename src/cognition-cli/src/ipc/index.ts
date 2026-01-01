@@ -5,6 +5,8 @@
  * Supports both interactive TUI instances and background tasks.
  */
 
+import { systemLog } from '../utils/debug-logger.js';
+
 // Check if ZeroMQ is available (graceful degradation)
 let ZeroMQAvailable = true;
 let ZeroMQLoadError: Error | null = null;
@@ -17,9 +19,12 @@ try {
   ZeroMQAvailable = false;
   ZeroMQLoadError = err as Error;
 
-  console.warn('⚠️  ZeroMQ not available. Multi-agent features disabled.');
-  console.warn('   Install with: npm install zeromq');
-  console.warn('   Or rebuild with: npm rebuild zeromq');
+  systemLog(
+    'ipc',
+    'ZeroMQ not available. Multi-agent features disabled.',
+    undefined,
+    'warn'
+  );
 }
 
 // Export types and classes
@@ -56,7 +61,7 @@ export const isMultiAgentAvailable = ZeroMQAvailable;
  *
  * @example
  * if (!isMultiAgentAvailable) {
- *   console.error('ZeroMQ load error:', multiAgentLoadError);
+ *   systemLog('ipc', 'ZeroMQ load error:', { error: multiAgentLoadError?.message }, 'error');
  * }
  */
 export const multiAgentLoadError = ZeroMQLoadError;
@@ -79,41 +84,21 @@ export const multiAgentLoadError = ZeroMQLoadError;
  */
 export function checkMultiAgentAvailability(): boolean {
   if (!ZeroMQAvailable) {
-    console.warn('');
-    console.warn(
-      '╔══════════════════════════════════════════════════════════════╗'
-    );
-    console.warn(
-      '║  ⚠️  Multi-Agent Mode Unavailable                           ║'
-    );
-    console.warn(
-      '║                                                              ║'
-    );
-    console.warn(
-      '║  ZeroMQ native bindings failed to load.                     ║'
-    );
-    console.warn(
-      '║  Running in single-agent mode (no pub/sub).                 ║'
-    );
-    console.warn(
-      '║                                                              ║'
-    );
-    console.warn(
-      '║  To enable multi-agent features:                            ║'
-    );
-    console.warn(
-      '║  1. Install build tools: npm install -g node-gyp            ║'
-    );
-    console.warn(
-      '║  2. Rebuild ZeroMQ: npm rebuild zeromq                      ║'
-    );
-    console.warn(
-      '║                                                              ║'
-    );
-    console.warn(
-      '╚══════════════════════════════════════════════════════════════╝'
-    );
-    console.warn('');
+    const warningMessage = [
+      '╔══════════════════════════════════════════════════════════════╗',
+      '║  ⚠️  Multi-Agent Mode Unavailable                           ║',
+      '║                                                              ║',
+      '║  ZeroMQ native bindings failed to load.                     ║',
+      '║  Running in single-agent mode (no pub/sub).                 ║',
+      '║                                                              ║',
+      '║  To enable multi-agent features:                            ║',
+      '║  1. Install build tools: npm install -g node-gyp            ║',
+      '║  2. Rebuild ZeroMQ: npm rebuild zeromq                      ║',
+      '║                                                              ║',
+      '╚══════════════════════════════════════════════════════════════╝',
+    ].join('\n');
+
+    systemLog('ipc', warningMessage, undefined, 'warn');
 
     return false;
   }

@@ -199,10 +199,9 @@ describe('useOverlays', () => {
 
       // The Promise.all should still resolve
       expect(result.current.overlays.length).toBeGreaterThanOrEqual(0);
-      expect(consoleError).toHaveBeenCalledWith(
-        'Failed to load overlays:',
-        expect.any(Error)
-      );
+      expect(consoleError).toHaveBeenCalledWith('Failed to load overlays:', {
+        error: 'Check failed',
+      });
 
       consoleError.mockRestore();
     });

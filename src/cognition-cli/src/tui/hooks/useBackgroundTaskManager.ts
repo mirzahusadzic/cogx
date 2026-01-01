@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { systemLog } from '../../utils/debug-logger.js';
 import {
   BackgroundTaskManager,
   getBackgroundTaskManager,
@@ -70,7 +71,7 @@ export interface UseBackgroundTaskManagerResult {
  *
  * // Check active task
  * if (activeTask) {
- *   console.log(`${activeTask.type}: ${activeTask.progress}%`);
+ *   systemLog('tui', `${activeTask.type}: ${activeTask.progress}%`);
  * }
  */
 export function useBackgroundTaskManager(
@@ -101,10 +102,9 @@ export function useBackgroundTaskManager(
       // Subscribe to updates
       const unsubUpdate = managerRef.current.onTaskUpdate((task) => {
         if (debug) {
-          console.log(
-            '[BackgroundTaskManager] Task update:',
-            task.id,
-            task.status
+          systemLog(
+            'tui',
+            `[BackgroundTaskManager] Task update: ${task.id} ${task.status}`
           );
         }
         setTasks(managerRef.current!.getAllTasks());
@@ -113,10 +113,9 @@ export function useBackgroundTaskManager(
 
       const unsubComplete = managerRef.current.onTaskComplete((task) => {
         if (debug) {
-          console.log(
-            '[BackgroundTaskManager] Task complete:',
-            task.id,
-            task.status
+          systemLog(
+            'tui',
+            `[BackgroundTaskManager] Task complete: ${task.id} ${task.status}`
           );
         }
         setTasks(managerRef.current!.getAllTasks());
@@ -131,7 +130,12 @@ export function useBackgroundTaskManager(
       };
     } catch (err) {
       if (debug) {
-        console.error('[BackgroundTaskManager] Init error:', err);
+        systemLog(
+          'tui',
+          `[BackgroundTaskManager] Init error: ${err}`,
+          {},
+          'error'
+        );
       }
     }
   }, [projectRoot, workbenchUrl, workbenchApiKey, debug]);

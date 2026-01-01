@@ -9,6 +9,7 @@ import { WorkbenchClient } from '../core/executors/workbench-client.js';
 import type { ConversationOverlayRegistry } from './conversation-registry.js';
 import type { SummarizeRequest } from '../core/types/workbench.js';
 import type { OverlayMetadata } from '../core/algebra/overlay-algebra.js';
+import { systemLog } from '../utils/debug-logger.js';
 import {
   DEFAULT_SLM_MODEL_NAME,
   MEMORY_RECALL_MAX_TOKENS,
@@ -69,7 +70,7 @@ export async function queryConversationLattice(
 
   // STEP 1: Query Deconstruction (SLM)
   if (verbose) {
-    console.log('[1/3] Deconstructing query intent...');
+    systemLog('sigma', 'Deconstructing query intent');
   }
 
   const deconstructRequest: SummarizeRequest = {
@@ -101,13 +102,15 @@ export async function queryConversationLattice(
   const queryIntent: QueryIntent = JSON.parse(jsonMatch[1]);
 
   if (verbose) {
-    console.log(`  Intent: ${queryIntent.intent}`);
-    console.log(`  Refined: "${queryIntent.refined_query}"`);
+    systemLog('sigma', 'Query intent deconstructed', {
+      intent: queryIntent.intent,
+      refined: queryIntent.refined_query,
+    });
   }
 
   // STEP 2: Multi-Overlay Semantic Search
   if (verbose) {
-    console.log('[2/3] Searching conversation overlays...');
+    systemLog('sigma', 'Searching conversation overlays');
   }
 
   const overlayIds = ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'] as const;
@@ -130,9 +133,11 @@ export async function queryConversationLattice(
     } catch (error) {
       // Overlay might be empty, skip
       if (verbose) {
-        console.log(`  ${overlayId}: No data`);
-        console.warn(
-          `Query error for ${overlayId}: ${error instanceof Error ? error.message : String(error)}`
+        systemLog(
+          'sigma',
+          `No data found for overlay ${overlayId}`,
+          { error: error instanceof Error ? error.message : String(error) },
+          'warn'
         );
       }
     }
@@ -155,18 +160,19 @@ export async function queryConversationLattice(
   });
 
   if (verbose) {
-    console.log(`  Found ${topResults.length} relevant turns`);
-    topResults.forEach((item, i) => {
-      const simPercent = (item.similarity * 100).toFixed(1);
-      console.log(
-        `  ${i + 1}. [${simPercent}%] [${item.overlay}] ${item.item.metadata.text.slice(0, 50)}...`
-      );
+    systemLog('sigma', 'Found relevant turns', {
+      count: topResults.length,
+      topMatches: topResults.map((item) => ({
+        sim: (item.similarity * 100).toFixed(1) + '%',
+        overlay: item.overlay,
+        text: item.item.metadata.text.slice(0, 50),
+      })),
     });
   }
 
   // STEP 3: Answer Synthesis (LLM with improved context)
   if (verbose) {
-    console.log('[3/3] Synthesizing answer...');
+    systemLog('sigma', 'Synthesizing answer');
   }
 
   // Build richer context with metadata

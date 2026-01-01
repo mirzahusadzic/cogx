@@ -34,10 +34,10 @@
  * // Subscribing to queue status
  * const handlers: AnalysisQueueHandlers = {
  *   onProgress: (status) => {
- *     console.log(`Queue: ${status.queueLength} pending, ${status.totalProcessed} done`);
+ *     systemLog('tui', `Queue: ${status.queueLength} pending, ${status.totalProcessed} done`);
  *   },
  *   onAnalysisComplete: (result) => {
- *     console.log(`Analyzed turn ${result.messageIndex}: novelty=${result.analysis.novelty}`);
+ *     systemLog('tui', `Analyzed turn ${result.messageIndex}`, { novelty: result.analysis.novelty });
  *   }
  * };
  */
@@ -195,10 +195,10 @@ export interface AnalysisOptions {
  *     setQueueStatus(status);
  *   },
  *   onError: (error, task) => {
- *     console.error(`Failed to analyze turn ${task.messageIndex}:`, error);
+ *     systemLog('tui', `Failed to analyze turn ${task.messageIndex}`, { error }, 'error');
  *   },
  *   onQueueEmpty: () => {
- *     console.log('All analyses complete');
+ *     systemLog('tui', 'All analyses complete');
  *   }
  * };
  */

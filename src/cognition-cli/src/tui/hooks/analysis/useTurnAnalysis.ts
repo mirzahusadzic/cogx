@@ -58,18 +58,19 @@
  *
  * // Before compressing, ensure all analyses complete
  * await waitForCompressionReady(60000, (elapsed, status) => {
- *   console.log(`Waiting for analysis: ${status.queueLength} pending`);
+ *   systemLog('tui', `Waiting for analysis: ${status.queueLength} pending`);
  * });
  *
  * // Check for missed messages
  * const unanalyzed = getUnanalyzedMessages(allMessages);
  * if (unanalyzed.length > 0) {
- *   console.warn(`${unanalyzed.length} messages not analyzed`);
+ *   systemLog('tui', `${unanalyzed.length} messages not analyzed`, { unanalyzed }, 'warn');
  * }
  */
 
 import { useRef, useCallback, useEffect, useState, useMemo } from 'react';
 import { AnalysisQueue } from './AnalysisQueue.js';
+import { systemLog } from '../../../utils/debug-logger.js';
 import type { EmbeddingService } from '../../../core/services/embedding.js';
 import type { OverlayRegistry } from '../../../core/algebra/overlay-registry.js';
 import type { ConversationOverlayRegistry } from '../../../sigma/conversation-registry.js';
@@ -254,8 +255,18 @@ export function useTurnAnalysis(
       },
       onError: (error: Error, task: AnalysisTask) => {
         if (debug) {
-          console.error('[AnalysisQueue] Error analyzing turn:', error);
-          console.error('[AnalysisQueue] Task:', task);
+          systemLog(
+            'tui',
+            `[AnalysisQueue] Error analyzing turn: ${error}`,
+            undefined,
+            'error'
+          );
+          systemLog(
+            'tui',
+            `[AnalysisQueue] Task: ${JSON.stringify(task)}`,
+            undefined,
+            'error'
+          );
         }
       },
     };
@@ -388,7 +399,8 @@ async function populateOverlays(
   try {
     // Defensive check: ensure registry is valid and has expected methods
     if (!registry || typeof registry.get !== 'function') {
-      console.warn(
+      systemLog(
+        'tui',
         '[useTurnAnalysis] Skipping overlay population: invalid registry',
         {
           hasRegistry: !!registry,
@@ -406,6 +418,6 @@ async function populateOverlays(
     // Note: Periodic flushing is handled by the caller (useClaudeAgent)
     // We just populate overlays here
   } catch (error) {
-    console.error('[useTurnAnalysis] Failed to populate overlays:', error);
+    systemLog('tui', `[useTurnAnalysis] Failed to populate overlays: ${error}`);
   }
 }

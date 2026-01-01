@@ -22,6 +22,21 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { EventEmitter } from 'events';
+
+/**
+ * Global log emitter for real-time observation.
+ * Used by the TUI to display logs without flicker.
+ */
+export const logEmitter = new EventEmitter();
+
+export interface LogEvent {
+  timestamp: string;
+  level: 'info' | 'warn' | 'error' | 'debug';
+  message: string;
+  source?: string;
+  data?: Record<string, unknown>;
+}
 
 let debugLogPath: string | null = null;
 let debugEnabled = false;
@@ -113,9 +128,18 @@ export function debugLog(
   message: string,
   data?: Record<string, unknown>
 ): void {
+  const timestamp = new Date().toISOString();
+
+  // NEW: Emit event for observers (TUI)
+  logEmitter.emit('log', {
+    timestamp,
+    level: 'debug',
+    message,
+    data,
+  });
+
   if (!debugEnabled || !debugLogPath) return;
 
-  const timestamp = new Date().toISOString();
   let line = `[${timestamp}] ${message}`;
 
   if (data) {
@@ -142,9 +166,18 @@ export function debugLog(
  * @param error - The error object
  */
 export function debugError(message: string, error: unknown): void {
+  const timestamp = new Date().toISOString();
+
+  // NEW: Emit event for observers (TUI)
+  logEmitter.emit('log', {
+    timestamp,
+    level: 'error',
+    message,
+    data: { error: error instanceof Error ? error.message : String(error) },
+  });
+
   if (!debugEnabled || !debugLogPath) return;
 
-  const timestamp = new Date().toISOString();
   let line = `[${timestamp}] ERROR: ${message}\n`;
 
   if (error instanceof Error) {
@@ -161,6 +194,75 @@ export function debugError(message: string, error: unknown): void {
     fs.appendFileSync(debugLogPath, line);
   } catch {
     // Silently fail
+  }
+}
+
+/**
+ * Log a system event from a specific source.
+ * Always emits to the logEmitter (for TUI visibility),
+ * and writes to the debug log file if debug mode is enabled.
+ *
+ * @param source - Subsystem name (e.g., 'sigma', 'ipc', 'tui')
+ * @param message - Log message
+ * @param data - Optional structured data
+ */
+export function systemLog(
+  source: string,
+  message: string,
+  data?: Record<string, unknown>,
+  level: 'info' | 'warn' | 'error' | 'debug' = 'info'
+): void {
+  const timestamp = new Date().toISOString();
+
+  // Redirect to console for tests/CLI if not in TUI mode
+  // This ensures tests that spy on console still work
+  if (process.env.NODE_ENV === 'test') {
+    const args: unknown[] = [message];
+
+    if (data !== undefined) {
+      args.push(data);
+    }
+
+    if (level === 'error') {
+      console.error(...args);
+    } else if (level === 'warn') {
+      console.warn(...args);
+    } else {
+      console.log(...args);
+    }
+  }
+
+  // Always emit for real-time observation
+  logEmitter.emit('log', {
+    timestamp,
+    level,
+    source,
+    message,
+    data,
+  });
+
+  // Only write to file if debug enabled
+  if (debugEnabled && debugLogPath) {
+    const levelPrefix = level !== 'info' ? `${level.toUpperCase()}: ` : '';
+
+    // Log directly to file instead of calling debugLog to avoid duplicate emission
+    const timestampLog = new Date().toISOString();
+    let line = `[${timestampLog}] [${source}] ${levelPrefix}${message}`;
+
+    if (data) {
+      try {
+        line += '\n  ' + JSON.stringify(data, null, 2).replace(/\n/g, '\n  ');
+      } catch {
+        line += '\n  [Unable to serialize data]';
+      }
+    }
+    line += '\n';
+
+    try {
+      fs.appendFileSync(debugLogPath, line);
+    } catch {
+      // Silently fail
+    }
   }
 }
 

@@ -16,6 +16,7 @@ import {
   SelectOptions,
 } from '../../core/algebra/overlay-algebra.js';
 import { ConversationLanceStore } from '../conversation-lance-store.js';
+import { systemLog } from '../../utils/debug-logger.js';
 
 /**
  * Metadata for conversation turn items
@@ -127,8 +128,9 @@ export abstract class BaseConversationManager<
    */
   setCurrentSession(sessionId: string): void {
     if (this.debug) {
-      console.log(
-        `🔍 [Manager] ${this.overlayName}.setCurrentSession(${sessionId})`
+      systemLog(
+        'sigma',
+        `[Manager] ${this.overlayName}.setCurrentSession(${sessionId})`
       );
     }
     this.currentSessionId = sessionId;
@@ -153,8 +155,12 @@ export abstract class BaseConversationManager<
     if (await fs.pathExists(this.overlayPath)) {
       const overlayFiles = await fs.readdir(this.overlayPath);
       if (this.debug) {
-        console.log(
-          `🔍 [getAllItems] ${this.overlayName}: Found ${overlayFiles.length} files, currentSessionId=${this.currentSessionId || 'NONE'}`
+        systemLog(
+          'sigma',
+          `[getAllItems] ${this.overlayName}: Found ${overlayFiles.length} files`,
+          {
+            currentSessionId: this.currentSessionId || 'NONE',
+          }
         );
       }
 
@@ -167,16 +173,18 @@ export abstract class BaseConversationManager<
         // This prevents I/O blocking during compression when currentSessionId is set
         if (this.currentSessionId && sessionId !== this.currentSessionId) {
           if (this.debug) {
-            console.log(
-              `🔍 [getAllItems] ${this.overlayName}: Skipping historical session ${sessionId}`
+            systemLog(
+              'sigma',
+              `[getAllItems] ${this.overlayName}: Skipping historical session ${sessionId}`
             );
           }
           continue; // Skip sessions that aren't the current one
         }
 
         if (this.debug) {
-          console.log(
-            `🔍 [getAllItems] ${this.overlayName}: Loading session ${sessionId}`
+          systemLog(
+            'sigma',
+            `[getAllItems] ${this.overlayName}: Loading session ${sessionId}`
           );
         }
 
@@ -184,15 +192,17 @@ export abstract class BaseConversationManager<
         try {
           const lanceStartTime = Date.now();
           if (this.debug) {
-            console.log(
-              `🔍 [getAllItems] ${this.overlayName}: Querying LanceDB for session ${sessionId}...`
+            systemLog(
+              'sigma',
+              `[getAllItems] ${this.overlayName}: Querying LanceDB for session ${sessionId}...`
             );
           }
           const lanceTurns = await this.lanceStore.getSessionTurns(sessionId);
           const lanceTime = Date.now() - lanceStartTime;
           if (this.debug) {
-            console.log(
-              `🔍 [getAllItems] ${this.overlayName}: LanceDB returned ${lanceTurns.length} turns in ${lanceTime}ms`
+            systemLog(
+              'sigma',
+              `[getAllItems] ${this.overlayName}: LanceDB returned ${lanceTurns.length} turns in ${lanceTime}ms`
             );
           }
 
@@ -224,11 +234,16 @@ export abstract class BaseConversationManager<
           }
         } catch (lanceError) {
           // LanceDB failed or not initialized - fall through to YAML
-          console.warn(
-            `[BaseConversationManager] LanceDB unavailable for ${sessionId}, using YAML fallback`
-          );
-          console.error(
-            `LanceDB error: ${lanceError instanceof Error ? lanceError.message : String(lanceError)}`
+          systemLog(
+            'sigma',
+            `LanceDB unavailable for ${sessionId}, using YAML fallback`,
+            {
+              error:
+                lanceError instanceof Error
+                  ? lanceError.message
+                  : String(lanceError),
+            },
+            'warn'
           );
         }
 
@@ -245,11 +260,11 @@ export abstract class BaseConversationManager<
           formatVersion === 1 && overlay.turns[0]?.embedding;
 
         if (isLegacyFormat) {
-          console.warn(
-            `[DEPRECATED] Session ${sessionId} uses v1 format (embeddings in YAML). Migrating to v2 (LanceDB)...`
-          );
-          console.warn(
-            `[DEPRECATED] v1 format will be removed in v3.0. Migration happens automatically.`
+          systemLog(
+            'sigma',
+            `Session ${sessionId} uses v1 format (embeddings in YAML). Migrating to v2 (LanceDB)...`,
+            undefined,
+            'warn'
           );
 
           // Migrate to LanceDB
@@ -270,8 +285,11 @@ export abstract class BaseConversationManager<
               // These will be regenerated in background during future refactor
               // Only log in debug mode to avoid spamming TUI
               if (process.env.DEBUG) {
-                console.warn(
-                  `[BaseConversationManager] Skipping turn ${turn.turn_id} - no embedding in LanceDB`
+                systemLog(
+                  'sigma',
+                  `Skipping turn ${turn.turn_id} - no embedding in LanceDB`,
+                  undefined,
+                  'warn'
                 );
               }
               continue; // Skip this turn instead of blocking UI
@@ -395,9 +413,11 @@ export abstract class BaseConversationManager<
       });
     } catch (error) {
       // Fallback to in-memory search if LanceDB fails
-      console.warn(
-        '[BaseConversationManager] LanceDB query failed, falling back to in-memory:',
-        error
+      systemLog(
+        'sigma',
+        'LanceDB query failed, falling back to in-memory',
+        { error: error instanceof Error ? error.message : String(error) },
+        'warn'
       );
       const allItems = await this.getAllItems();
       const results = allItems.map((item) => ({
@@ -582,16 +602,19 @@ export abstract class BaseConversationManager<
         );
         migratedCount++;
       } catch (error) {
-        console.error(
-          `[Migration] Failed to migrate turn ${turn.turn_id}:`,
-          error
+        systemLog(
+          'sigma',
+          `Failed to migrate turn ${turn.turn_id}`,
+          { error: error instanceof Error ? error.message : String(error) },
+          'error'
         );
         failedCount++;
       }
     }
 
-    console.log(
-      `[Migration] ✓ Migrated ${migratedCount} turns to LanceDB (${failedCount} failed)`
+    systemLog(
+      'sigma',
+      `Migrated ${migratedCount} turns to LanceDB (${failedCount} failed)`
     );
   }
 
@@ -680,9 +703,11 @@ export abstract class BaseConversationManager<
         );
       }
     } catch (error) {
-      console.warn(
-        '[BaseConversationManager] Failed to write to LanceDB:',
-        error
+      systemLog(
+        'sigma',
+        'Failed to write to LanceDB',
+        { error: error instanceof Error ? error.message : String(error) },
+        'warn'
       );
       // Continue even if LanceDB write fails - YAML is the source of truth
     }

@@ -54,6 +54,7 @@ process.env.OPENAI_AGENTS_DONT_LOG_TOOL_DATA = '1';
 process.env.DEBUG = ''; // Disable debug package output
 
 import { getGroundingContext } from './grounding-utils.js';
+import { systemLog } from '../../utils/debug-logger.js';
 import OpenAI from 'openai';
 import { Agent, run, setDefaultOpenAIClient } from '@openai/agents';
 import {
@@ -254,6 +255,18 @@ export class OpenAIAgentProvider implements AgentProvider {
 
     // Set as default client for the SDK
     setDefaultOpenAIClient(this.client);
+
+    systemLog(
+      'openai',
+      'Initialized OpenAI Agent Provider',
+      {
+        baseUrl: this.baseUrl,
+        model: this.defaultModel,
+        isLocal: this.isLocalEndpoint,
+        isWorkbench: this.isWorkbenchConfigured,
+      },
+      'debug'
+    );
   }
 
   // =========================================================================
@@ -302,16 +315,30 @@ export class OpenAIAgentProvider implements AgentProvider {
   private async createConversation(): Promise<string> {
     const url = `${this.getConversationsBaseUrl()}/conversations`;
 
+    systemLog('openai', 'Creating new conversation', { url }, 'debug');
+
     const response = await fetch(url, {
       method: 'POST',
       headers: this.getConversationHeaders(true),
     });
 
     if (!response.ok) {
+      systemLog(
+        'openai',
+        'Failed to create conversation',
+        { status: response.status },
+        'error'
+      );
       throw new Error(`Failed to create conversation: ${response.status}`);
     }
 
     const data = (await response.json()) as ConversationResponse;
+    systemLog(
+      'openai',
+      'Created conversation',
+      { conversationId: data.id },
+      'debug'
+    );
     return data.id;
   }
 
@@ -325,6 +352,8 @@ export class OpenAIAgentProvider implements AgentProvider {
   ): Promise<ConversationResponse | null> {
     const url = `${this.getConversationsBaseUrl()}/conversations/${conversationId}`;
 
+    systemLog('openai', 'Retrieving conversation', { conversationId }, 'debug');
+
     const response = await fetch(url, {
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
@@ -332,14 +361,33 @@ export class OpenAIAgentProvider implements AgentProvider {
     });
 
     if (response.status === 404) {
+      systemLog(
+        'openai',
+        'Conversation not found',
+        { conversationId },
+        'debug'
+      );
       return null;
     }
 
     if (!response.ok) {
+      systemLog(
+        'openai',
+        'Failed to get conversation',
+        { conversationId, status: response.status },
+        'error'
+      );
       throw new Error(`Failed to get conversation: ${response.status}`);
     }
 
-    return (await response.json()) as ConversationResponse;
+    const data = (await response.json()) as ConversationResponse;
+    systemLog(
+      'openai',
+      'Retrieved conversation',
+      { conversationId: data.id },
+      'debug'
+    );
+    return data;
   }
 
   /**
@@ -355,6 +403,13 @@ export class OpenAIAgentProvider implements AgentProvider {
   ): Promise<ConversationItemResponse[]> {
     const url = `${this.getConversationsBaseUrl()}/conversations/${conversationId}/items?limit=${limit}&order=${order}`;
 
+    systemLog(
+      'openai',
+      'Retrieving conversation items',
+      { conversationId, limit, order },
+      'debug'
+    );
+
     const response = await fetch(url, {
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
@@ -362,12 +417,24 @@ export class OpenAIAgentProvider implements AgentProvider {
     });
 
     if (!response.ok) {
+      systemLog(
+        'openai',
+        'Failed to get conversation items',
+        { conversationId, status: response.status },
+        'error'
+      );
       throw new Error(`Failed to get conversation items: ${response.status}`);
     }
 
     const data = (await response.json()) as {
       data: ConversationItemResponse[];
     };
+    systemLog(
+      'openai',
+      'Retrieved conversation items',
+      { conversationId, count: data.data.length },
+      'debug'
+    );
     return data.data;
   }
 
@@ -387,6 +454,13 @@ export class OpenAIAgentProvider implements AgentProvider {
   ): Promise<ConversationItemResponse[]> {
     const url = `${this.getConversationsBaseUrl()}/conversations/${conversationId}/items`;
 
+    systemLog(
+      'openai',
+      'Adding items to conversation',
+      { conversationId, count: items.length },
+      'debug'
+    );
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -397,12 +471,24 @@ export class OpenAIAgentProvider implements AgentProvider {
     });
 
     if (!response.ok) {
+      systemLog(
+        'openai',
+        'Failed to add conversation items',
+        { conversationId, status: response.status },
+        'error'
+      );
       throw new Error(`Failed to add conversation items: ${response.status}`);
     }
 
     const data = (await response.json()) as {
       data: ConversationItemResponse[];
     };
+    systemLog(
+      'openai',
+      'Added items to conversation',
+      { conversationId, count: data.data.length },
+      'debug'
+    );
     return data.data;
   }
 
@@ -430,6 +516,17 @@ export class OpenAIAgentProvider implements AgentProvider {
     request: AgentRequest
   ): AsyncGenerator<AgentResponse, void, undefined> {
     const modelId = request.model || this.defaultModel;
+
+    systemLog(
+      'openai',
+      'Executing agent query',
+      {
+        model: modelId,
+        promptLength: request.prompt.length,
+        resumeSessionId: request.resumeSessionId,
+      },
+      'debug'
+    );
 
     // Create abort controller for cancellation (local to avoid race conditions)
     const abortController = new AbortController();
@@ -467,6 +564,8 @@ export class OpenAIAgentProvider implements AgentProvider {
         conversationId = await this.createConversation();
       }
 
+      systemLog('openai', 'Using conversation ID', { conversationId }, 'debug');
+
       // Yield initial state after conversation is ready
       yield {
         messages: [...messages],
@@ -478,9 +577,18 @@ export class OpenAIAgentProvider implements AgentProvider {
 
       // Handle automated grounding queries if requested
       const groundingContext = await getGroundingContext(request);
+      if (groundingContext) {
+        systemLog(
+          'openai',
+          'Injected grounding context',
+          { length: groundingContext.length },
+          'debug'
+        );
+      }
 
       // Build tools array
       const tools = this.buildTools(request);
+      systemLog('openai', 'Built tools', { count: tools.length }, 'debug');
 
       // Use Responses API for all endpoints (primary API for Agents SDK)
       // Works with both OpenAI and OpenAI-compatible endpoints like eGemma
@@ -514,6 +622,7 @@ export class OpenAIAgentProvider implements AgentProvider {
       process.stderr.write = () => true; // Suppress direct stderr writes
 
       // Run agent with streaming to capture tool events
+      systemLog('openai', 'Starting agent run', { model: modelId }, 'debug');
       const streamedResult = await run(agent, request.prompt, {
         stream: true,
         signal: abortController.signal,
@@ -526,8 +635,22 @@ export class OpenAIAgentProvider implements AgentProvider {
 
       // Process streaming events
       for await (const event of streamedResult) {
+        if (process.env.DEBUG_OPENAI_STREAM) {
+          systemLog(
+            'openai',
+            `Processing event: ${event.type}`,
+            undefined,
+            'debug'
+          );
+        }
         // Check for abort at start of each iteration
         if (abortController.signal.aborted) {
+          systemLog(
+            'openai',
+            'Abort signal detected, exiting loop',
+            undefined,
+            'debug'
+          );
           break;
         }
 
@@ -632,6 +755,14 @@ export class OpenAIAgentProvider implements AgentProvider {
           ) {
             const rawItem = itemEvent.item.rawItem;
             const toolName = rawItem?.name || 'unknown';
+
+            systemLog(
+              'openai',
+              `Tool call detected: ${toolName}`,
+              { toolName },
+              'debug'
+            );
+
             const toolInput = rawItem?.arguments
               ? JSON.parse(rawItem.arguments)
               : {};
@@ -680,6 +811,16 @@ export class OpenAIAgentProvider implements AgentProvider {
             const lastToolUse = [...messages]
               .reverse()
               .find((m) => m.type === 'tool_use');
+
+            systemLog(
+              'openai',
+              `Tool output received: ${lastToolUse?.toolName}`,
+              {
+                toolName: lastToolUse?.toolName,
+                outputLength: toolOutput.length,
+              },
+              'debug'
+            );
 
             const toolResultMsg: AgentMessage = {
               id: `msg-${Date.now()}-tool-result`,
@@ -869,9 +1010,15 @@ export class OpenAIAgentProvider implements AgentProvider {
           { role: 'user', content: request.prompt },
           { role: 'assistant', content: output },
         ]);
-      } catch {
+      } catch (err) {
         // Non-fatal: silently ignore - don't log to console in TUI context
         // (console output corrupts Ink-based TUI layout)
+        systemLog(
+          'openai',
+          'Failed to add conversation items',
+          { error: String(err) },
+          'debug'
+        );
       }
 
       // Extract actual token counts from SDK (not estimation!)
@@ -893,6 +1040,20 @@ export class OpenAIAgentProvider implements AgentProvider {
         totalCompletionTokens = Math.ceil(output.length / 4);
       }
 
+      systemLog(
+        'openai',
+        'Agent run completed',
+        {
+          tokens: {
+            prompt: totalPromptTokens,
+            completion: totalCompletionTokens,
+          },
+          turns: numTurns,
+          wasAborted,
+        },
+        'debug'
+      );
+
       // Yield final response
       yield {
         messages: [...messages],
@@ -910,6 +1071,13 @@ export class OpenAIAgentProvider implements AgentProvider {
         error instanceof Error ? error.message : String(error);
       const errorName = error instanceof Error ? error.name : '';
 
+      systemLog(
+        'openai',
+        'Agent execution failed',
+        { error: errorMessage, name: errorName },
+        'error'
+      );
+
       // Check for abort (AbortError, user cancellation, or signal already aborted)
       if (
         errorName === 'AbortError' ||
@@ -917,6 +1085,7 @@ export class OpenAIAgentProvider implements AgentProvider {
         errorMessage.includes('cancel') ||
         abortController.signal.aborted
       ) {
+        systemLog('openai', 'Request aborted by user', undefined, 'debug');
         yield {
           messages: [...messages],
           sessionId: conversationId,
@@ -1216,14 +1385,34 @@ When delegating via send_agent_message, use this structured format:
     try {
       // Try a simple models list call
       await this.client.models.list();
+      systemLog('openai', 'OpenAI API is available', undefined, 'debug');
       return true;
-    } catch {
+    } catch (error) {
+      systemLog(
+        'openai',
+        'OpenAI API check failed',
+        { error: String(error) },
+        'debug'
+      );
       // If we have a custom base URL, check if it's reachable
       if (process.env.OPENAI_BASE_URL) {
         try {
           const response = await fetch(`${process.env.OPENAI_BASE_URL}/models`);
-          return response.ok;
-        } catch {
+          const ok = response.ok;
+          systemLog(
+            'openai',
+            'Custom base URL availability check',
+            { url: process.env.OPENAI_BASE_URL, ok },
+            'debug'
+          );
+          return ok;
+        } catch (fetchError) {
+          systemLog(
+            'openai',
+            'Custom base URL fetch failed',
+            { error: String(fetchError) },
+            'debug'
+          );
           return false;
         }
       }
