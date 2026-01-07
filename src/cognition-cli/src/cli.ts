@@ -149,7 +149,10 @@ program
     process.env.COGNITION_NO_COLOR = opts.color === false ? '1' : '0';
     process.env.COGNITION_NO_EMOJI = opts.emoji === false ? '1' : '0';
     // --json flag overrides --format
-    process.env.COGNITION_FORMAT = opts.json ? 'json' : opts.format || 'auto';
+    process.env.COGNITION_FORMAT =
+      opts.json || process.env.COGNITION_FORMAT === 'json'
+        ? 'json'
+        : opts.format || 'auto';
     process.env.COGNITION_VERBOSE = opts.verbose ? '1' : '0';
     process.env.COGNITION_QUIET = opts.quiet ? '1' : '0';
     process.env.COGNITION_NO_INPUT = opts.input === false ? '1' : '0';
@@ -318,6 +321,8 @@ interface QueryCommandOptions {
   depth: string;
   /** Output dependency lineage in JSON format instead of human-readable */
   lineage: boolean;
+  /** Output results as JSON for scripting */
+  json?: boolean;
   /** Test property to trigger Monument 4.7 overlay invalidation */
   testOverlayInvalidation?: boolean;
 }
@@ -348,14 +353,26 @@ interface QueryCommandOptions {
  *   lineage: true
  * });
  */
-async function queryAction(question: string, options: QueryCommandOptions) {
+async function queryAction(
+  question: string,
+  options: QueryCommandOptions,
+  command: Command
+) {
   const { queryCommand, formatAsHumanReadable, formatAsLineageJSON } =
     await import('./core/query/query.js');
 
+  const allOpts = command.optsWithGlobals();
+  const useJson = allOpts.json || options.json;
+
   const queryResult = await queryCommand(question, options);
-  if (options.lineage) {
-    const jsonOutput = formatAsLineageJSON(queryResult);
-    console.log(jsonOutput);
+
+  if (useJson || options.lineage) {
+    // If specifically asking for lineage, use that format, otherwise standard JSON
+    if (options.lineage) {
+      console.log(formatAsLineageJSON(queryResult));
+    } else {
+      console.log(JSON.stringify(queryResult, null, 2));
+    }
   } else {
     const humanReadableOutput = formatAsHumanReadable(queryResult);
     console.log(humanReadableOutput);
@@ -706,10 +723,14 @@ program
   .option('--branch <name>', 'Branch to analyze (default: current changes)')
   .option('--max-depth <N>', 'Maximum blast radius depth', '3')
   .option('--json', 'Output as JSON')
-  .action(async (options) => {
+  .action(async (options, command) => {
     const { analyzePRImpact } = await import('./commands/pr-analyze.js');
     const { PGCManager } = await import('./core/pgc/manager.js');
-    await analyzePRImpact(options, PGCManager);
+    const allOpts = command.optsWithGlobals();
+    await analyzePRImpact(
+      { ...options, json: allOpts.json || options.json },
+      PGCManager
+    );
   });
 
 // Lattice algebra commands
@@ -733,10 +754,12 @@ program
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed processing steps')
   .option('--json', 'Output results as JSON (shorthand for --format json)')
-  .action(async (query, options) => {
+  .action(async (query, options, command) => {
     const { latticeCommand } = await import('./commands/lattice.js');
+    const allOpts = command.optsWithGlobals();
     await latticeCommand(query, {
       ...options,
+      json: allOpts.json || options.json,
       verbose: getVerboseState(options),
     });
   });
@@ -773,11 +796,14 @@ securityCmd
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(async (options) => {
+  .option('--json', 'Output results as JSON')
+  .action(async (options, command) => {
     const { securityAttacksCommand } =
       await import('./commands/sugar/security.js');
+    const allOpts = command.optsWithGlobals();
     await securityAttacksCommand({
       ...options,
+      json: allOpts.json || options.json,
       verbose: getVerboseState(options),
     });
   });
@@ -797,11 +823,14 @@ securityCmd
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(async (options) => {
+  .option('--json', 'Output results as JSON')
+  .action(async (options, command) => {
     const { securityCoverageGapsCommand } =
       await import('./commands/sugar/security.js');
+    const allOpts = command.optsWithGlobals();
     await securityCoverageGapsCommand({
       ...options,
+      json: allOpts.json || options.json,
       verbose: getVerboseState(options),
     });
   });
@@ -821,11 +850,14 @@ securityCmd
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(async (options) => {
+  .option('--json', 'Output results as JSON')
+  .action(async (options, command) => {
     const { securityBoundariesCommand } =
       await import('./commands/sugar/security.js');
+    const allOpts = command.optsWithGlobals();
     await securityBoundariesCommand({
       ...options,
+      json: allOpts.json || options.json,
       verbose: getVerboseState(options),
     });
   });
@@ -851,17 +883,23 @@ securityCmd
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
+  .option('--json', 'Output results as JSON')
   .action(
-    async (options: {
-      projectRoot: string;
-      type?: string;
-      severity?: string;
-      format?: string;
-      limit?: string;
-      verbose?: boolean;
-    }) => {
+    async (
+      options: {
+        projectRoot: string;
+        type?: string;
+        severity?: string;
+        format?: string;
+        limit?: string;
+        verbose?: boolean;
+        json?: boolean;
+      },
+      command
+    ) => {
       const { securityListCommand } =
         await import('./commands/sugar/security.js');
+      const allOpts = command.optsWithGlobals();
       await securityListCommand({
         projectRoot: options.projectRoot,
         type: options.type,
@@ -871,7 +909,10 @@ securityCmd
           | 'medium'
           | 'low'
           | undefined,
-        format: options.format as 'table' | 'json' | 'summary' | undefined,
+        format:
+          allOpts.json || options.json
+            ? 'json'
+            : (options.format as 'table' | 'json' | 'summary' | undefined),
         limit: options.limit ? parseInt(options.limit) : undefined,
         verbose: getVerboseState(options),
       });
@@ -893,11 +934,14 @@ securityCmd
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(async (options) => {
+  .option('--json', 'Output results as JSON')
+  .action(async (options, command) => {
     const { securityCVEsCommand } =
       await import('./commands/sugar/security.js');
+    const allOpts = command.optsWithGlobals();
     await securityCVEsCommand({
       ...options,
+      format: allOpts.json || options.json ? 'json' : options.format,
       verbose: getVerboseState(options),
     });
   });
@@ -917,11 +961,14 @@ securityCmd
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '10')
   .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(async (searchTerm, options) => {
+  .option('--json', 'Output results as JSON')
+  .action(async (searchTerm, options, command) => {
     const { securityQueryCommand } =
       await import('./commands/sugar/security.js');
+    const allOpts = command.optsWithGlobals();
     await securityQueryCommand(searchTerm, {
       ...options,
+      format: allOpts.json || options.json ? 'json' : options.format,
       verbose: getVerboseState(options),
     });
   });
@@ -936,11 +983,14 @@ securityCmd
   )
   .option('-f, --format <format>', 'Output format: table, json', 'table')
   .option('-v, --verbose', 'Show detailed security class breakdown', false)
-  .action(async (options) => {
+  .option('--json', 'Output results as JSON')
+  .action(async (options, command) => {
     const { securityCoherenceCommand } =
       await import('./commands/sugar/security-coherence.js');
+    const allOpts = command.optsWithGlobals();
     await securityCoherenceCommand({
       ...options,
+      format: allOpts.json || options.json ? 'json' : options.format,
       verbose: getVerboseState(options),
     });
   });
@@ -952,7 +1002,7 @@ securityCmd
   )
   .option('--max-depth <N>', 'Maximum traversal depth', '3')
   .option('--json', 'Output as JSON')
-  .action(async (target, options) => {
+  .action(async (target, options, command) => {
     const PGCManager = (await import('./core/pgc/manager.js')).PGCManager;
     const GraphTraversal = (await import('./core/graph/traversal.js'))
       .GraphTraversal;
@@ -967,10 +1017,12 @@ securityCmd
     const { analyzeSecurityBlastRadius } =
       await import('./commands/security-blast-radius.js');
 
+    const allOpts = command.optsWithGlobals();
     await analyzeSecurityBlastRadius(
       target,
       {
         ...options,
+        json: allOpts.json || options.json,
         verbose: getVerboseState(options),
       },
       PGCManager,
@@ -1002,11 +1054,14 @@ workflowCmd
   .option('-v, --verbose', 'Show detailed error messages', false)
   .option('--secure', 'Show workflows aligned with security boundaries', false)
   .option('--aligned', 'Show workflows aligned with mission', false)
-  .action(async (options) => {
+  .option('--json', 'Output results as JSON')
+  .action(async (options, command) => {
     const { workflowPatternsCommand } =
       await import('./commands/sugar/workflow.js');
+    const allOpts = command.optsWithGlobals();
     await workflowPatternsCommand({
       ...options,
+      format: allOpts.json || options.json ? 'json' : options.format,
       verbose: getVerboseState(options),
     });
   });
@@ -1026,11 +1081,14 @@ workflowCmd
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(async (options) => {
+  .option('--json', 'Output results as JSON')
+  .action(async (options, command) => {
     const { workflowQuestsCommand } =
       await import('./commands/sugar/workflow.js');
+    const allOpts = command.optsWithGlobals();
     await workflowQuestsCommand({
       ...options,
+      format: allOpts.json || options.json ? 'json' : options.format,
       verbose: getVerboseState(options),
     });
   });
@@ -1050,11 +1108,14 @@ workflowCmd
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(async (options) => {
+  .option('--json', 'Output results as JSON')
+  .action(async (options, command) => {
     const { workflowDepthRulesCommand } =
       await import('./commands/sugar/workflow.js');
+    const allOpts = command.optsWithGlobals();
     await workflowDepthRulesCommand({
       ...options,
+      format: allOpts.json || options.json ? 'json' : options.format,
       verbose: getVerboseState(options),
     });
   });
@@ -1079,11 +1140,14 @@ proofsCmd
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(async (options) => {
+  .option('--json', 'Output results as JSON')
+  .action(async (options, command) => {
     const { proofsTheoremsCommand } =
       await import('./commands/sugar/proofs.js');
+    const allOpts = command.optsWithGlobals();
     await proofsTheoremsCommand({
       ...options,
+      format: allOpts.json || options.json ? 'json' : options.format,
       verbose: getVerboseState(options),
     });
   });
@@ -1103,10 +1167,13 @@ proofsCmd
   )
   .option('-l, --limit <number>', 'Maximum number of results to show', '50')
   .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(async (options) => {
+  .option('--json', 'Output results as JSON')
+  .action(async (options, command) => {
     const { proofsLemmasCommand } = await import('./commands/sugar/proofs.js');
+    const allOpts = command.optsWithGlobals();
     await proofsLemmasCommand({
       ...options,
+      format: allOpts.json || options.json ? 'json' : options.format,
       verbose: getVerboseState(options),
     });
   });
@@ -1130,10 +1197,13 @@ proofsCmd
     '--type <type>',
     'Filter by type: theorem, lemma, axiom, proof, identity'
   )
-  .action(async (options) => {
+  .option('--json', 'Output results as JSON')
+  .action(async (options, command) => {
     const { proofsListCommand } = await import('./commands/sugar/proofs.js');
+    const allOpts = command.optsWithGlobals();
     await proofsListCommand({
       ...options,
+      format: allOpts.json || options.json ? 'json' : options.format,
       verbose: getVerboseState(options),
     });
   });
@@ -1158,11 +1228,14 @@ proofsCmd
     '0.5'
   )
   .option('-v, --verbose', 'Show detailed error messages', false)
-  .action(async (options) => {
+  .option('--json', 'Output results as JSON')
+  .action(async (options, command) => {
     const { proofsAlignedCommand } = await import('./commands/sugar/proofs.js');
+    const allOpts = command.optsWithGlobals();
     await proofsAlignedCommand({
       ...options,
       threshold: parseFloat(options.threshold),
+      format: allOpts.json || options.json ? 'json' : options.format,
       verbose: getVerboseState(options),
     });
   });

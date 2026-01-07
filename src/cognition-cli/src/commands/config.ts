@@ -169,27 +169,42 @@ export function createConfigCommand(): Command {
   );
 
   // Default action: list settings
-  cmd.action(() => {
+  cmd.option('--json', 'Output results as JSON').action((options, command) => {
     const settings = loadSettings();
-    displaySettings(settings, process.env.COGNITION_FORMAT === 'json');
+    const allOpts = command.optsWithGlobals();
+    displaySettings(
+      settings,
+      allOpts.json || options.json || process.env.COGNITION_FORMAT === 'json'
+    );
   });
 
   // config list
   cmd
     .command('list')
     .description('List all settings')
-    .action(() => {
+    .option('--json', 'Output results as JSON')
+    .action((options, command) => {
       const settings = loadSettings();
-      displaySettings(settings, process.env.COGNITION_FORMAT === 'json');
+      const allOpts = command.optsWithGlobals();
+      displaySettings(
+        settings,
+        allOpts.json || options.json || process.env.COGNITION_FORMAT === 'json'
+      );
     });
 
   // config get <key>
   cmd
     .command('get <key>')
     .description('Get a specific setting value')
-    .action((key) => {
+    .option('--json', 'Output results as JSON')
+    .action((key, options, command) => {
       const settings = loadSettings();
-      getSetting(key, settings, process.env.COGNITION_FORMAT === 'json');
+      const allOpts = command.optsWithGlobals();
+      getSetting(
+        key,
+        settings,
+        allOpts.json || options.json || process.env.COGNITION_FORMAT === 'json'
+      );
     });
 
   // config set <key> <value>

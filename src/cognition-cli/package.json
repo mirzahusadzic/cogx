@@ -20,6 +20,7 @@
     "docs:build": "vitepress build docs",
     "docs:api": "typedoc",
     "docs:api:serve": "npx http-server docs/api -p 3001 -o",
+    "pretest": "npm run build",
     "test": "npm run test:main && sleep 3 && npm run test:workerpool",
     "test:coverage": "npm run test:main -- --coverage && sleep 3 && npm run test:workerpool -- --coverage",
     "test:main": "NODE_OPTIONS='--max-old-space-size=4096' vitest run --config vitest.config.ts",

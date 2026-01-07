@@ -91,9 +91,11 @@ export async function analyzeSecurityBlastRadius(
   const securityManager = new SecurityGuidelinesManager(pgc.pgcRoot);
   const structuralManager = new StructuralPatternsManager(pgc.pgcRoot);
 
-  console.log(
-    chalk.bold(`\n🔒 Security Blast Radius: ${chalk.cyan(target)}\n`)
-  );
+  if (!options.json) {
+    console.log(
+      chalk.bold(`\n🔒 Security Blast Radius: ${chalk.cyan(target)}\n`)
+    );
+  }
 
   try {
     // Step 1: Determine if target is a file path or symbol name
@@ -107,16 +109,20 @@ export async function analyzeSecurityBlastRadius(
       const symbolsInFile = await structuralManager.getItemsByFile(targetFile);
 
       if (symbolsInFile.length === 0) {
-        console.error(
-          chalk.red(
-            `\n❌ No symbols found in file '${targetFile}'. File may not be indexed.`
-          )
-        );
-        console.log(
-          chalk.dim(
-            '\n💡 Make sure to run: cognition-cli overlay generate structural_patterns'
-          )
-        );
+        if (!options.json) {
+          console.error(
+            chalk.red(
+              `\n❌ No symbols found in file '${targetFile}'. File may not be indexed.`
+            )
+          );
+          console.log(
+            chalk.dim(
+              '\n💡 Make sure to run: cognition-cli overlay generate structural_patterns'
+            )
+          );
+        } else {
+          console.log(JSON.stringify([], null, 2));
+        }
         process.exit(1);
       }
 
@@ -130,11 +136,13 @@ export async function analyzeSecurityBlastRadius(
         ? primarySymbol.metadata.symbol
         : symbolsInFile[0].metadata.symbol;
 
-      console.log(
-        chalk.dim(
-          `Analyzing primary symbol: ${chalk.cyan(targetSymbol)} (and ${symbolsInFile.length - 1} other symbols in file)\n`
-        )
-      );
+      if (!options.json) {
+        console.log(
+          chalk.dim(
+            `Analyzing primary symbol: ${chalk.cyan(targetSymbol)} (and ${symbolsInFile.length - 1} other symbols in file)\n`
+          )
+        );
+      }
     } else {
       // Target is a symbol name
       targetSymbol = target;
@@ -145,16 +153,20 @@ export async function analyzeSecurityBlastRadius(
       );
 
       if (!symbolItem) {
-        console.error(
-          chalk.red(
-            `\n❌ Symbol '${targetSymbol}' not found in structural patterns.`
-          )
-        );
-        console.log(
-          chalk.dim(
-            '\n💡 Make sure to run: cognition-cli overlay generate structural_patterns'
-          )
-        );
+        if (!options.json) {
+          console.error(
+            chalk.red(
+              `\n❌ Symbol '${targetSymbol}' not found in structural patterns.`
+            )
+          );
+          console.log(
+            chalk.dim(
+              '\n💡 Make sure to run: cognition-cli overlay generate structural_patterns'
+            )
+          );
+        } else {
+          console.log(JSON.stringify([], null, 2));
+        }
         process.exit(1);
       }
 
@@ -162,7 +174,9 @@ export async function analyzeSecurityBlastRadius(
     }
 
     // Step 2: Query O2 for security threats in this file
-    console.log(chalk.bold('🔍 Querying O2 (Security Guidelines)...'));
+    if (!options.json) {
+      console.log(chalk.bold('🔍 Querying O2 (Security Guidelines)...'));
+    }
 
     // Query for threats related to this file/symbol
     const securityQuery = `${targetFile} ${targetSymbol} authentication authorization security vulnerability`;
@@ -174,7 +188,9 @@ export async function analyzeSecurityBlastRadius(
     );
 
     // Step 3: Query O3 for blast radius
-    console.log(chalk.bold('🎯 Querying O3 (Lineage Patterns)...\n'));
+    if (!options.json) {
+      console.log(chalk.bold('🎯 Querying O3 (Lineage Patterns)...\n'));
+    }
     const blastResult = await traversal.getBlastRadius(targetSymbol, {
       maxDepth: parseInt(options.maxDepth || '3'),
       direction: 'both',
@@ -375,20 +391,29 @@ export async function analyzeSecurityBlastRadius(
       )
     );
   } catch (error) {
+    const useJson = options.json;
     if ((error as Error).message.includes('not found in graph')) {
-      console.error(
-        chalk.red(`\n❌ Symbol '${target}' not found in structural patterns.`)
-      );
-      console.log(
-        chalk.dim(
-          '\n💡 Make sure to run: cognition-cli overlay generate structural_patterns'
-        )
-      );
+      if (!useJson) {
+        console.error(
+          chalk.red(`\n❌ Symbol '${target}' not found in structural patterns.`)
+        );
+        console.log(
+          chalk.dim(
+            '\n💡 Make sure to run: cognition-cli overlay generate structural_patterns'
+          )
+        );
+      } else {
+        console.log(JSON.stringify([], null, 2));
+      }
     } else {
-      console.error(chalk.red('\n❌ Error analyzing security blast radius:'));
-      console.error((error as Error).message);
-      if (process.env.DEBUG) {
-        console.error(error);
+      if (!useJson) {
+        console.error(chalk.red('\n❌ Error analyzing security blast radius:'));
+        console.error((error as Error).message);
+        if (process.env.DEBUG) {
+          console.error(error);
+        }
+      } else {
+        console.log(JSON.stringify([], null, 2));
       }
     }
     process.exit(1);

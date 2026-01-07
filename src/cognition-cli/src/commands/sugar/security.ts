@@ -80,6 +80,7 @@ import { WorkspaceManager } from '../../core/workspace-manager.js';
 interface SecurityOptions {
   projectRoot: string;
   format?: 'table' | 'json' | 'summary';
+  json?: boolean;
   limit?: number;
   verbose?: boolean;
 }
@@ -91,16 +92,22 @@ interface SecurityOptions {
  * @returns Absolute path to .open_cognition directory
  * @throws {Error} Exits process if no workspace found
  */
-function resolvePgcRoot(startPath: string): string {
+function resolvePgcRoot(startPath: string, options?: SecurityOptions): string {
   const workspaceManager = new WorkspaceManager();
   const projectRoot = workspaceManager.resolvePgcRoot(startPath);
+  const useJson =
+    options?.json ||
+    options?.format === 'json' ||
+    process.env.COGNITION_FORMAT === 'json';
 
   if (!projectRoot) {
-    log.error(
-      chalk.red(
-        'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
-      )
-    );
+    if (!useJson) {
+      log.error(
+        chalk.red(
+          'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
+        )
+      );
+    }
     process.exit(1);
   }
 
@@ -142,12 +149,21 @@ function resolvePgcRoot(startPath: string): string {
 export async function securityAttacksCommand(
   options: SecurityOptions
 ): Promise<void> {
-  intro(chalk.bold('Security: Attacks vs Mission Principles'));
+  const useJson =
+    options.json ||
+    options.format === 'json' ||
+    process.env.COGNITION_FORMAT === 'json';
 
-  const pgcRoot = resolvePgcRoot(options.projectRoot);
+  if (!useJson) {
+    intro(chalk.bold('Security: Attacks vs Mission Principles'));
+  }
+
+  const pgcRoot = resolvePgcRoot(options.projectRoot, options);
 
   const s = spinner();
-  s.start('Finding attack vectors that conflict with mission principles');
+  if (!useJson) {
+    s.start('Finding attack vectors that conflict with mission principles');
+  }
 
   try {
     const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
@@ -157,13 +173,23 @@ export async function securityAttacksCommand(
     const query = 'O2[attack_vector] ~ O4[principle]';
     const result = await engine.execute(query);
 
-    s.stop('Analysis complete');
+    if (!useJson) {
+      s.stop('Analysis complete');
+    }
 
-    displayMeetResults(result, options);
-    outro(chalk.green('✓ Security analysis complete'));
+    if (useJson) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      displayMeetResults(result, options);
+    }
+    if (!useJson) {
+      outro(chalk.green('✓ Security analysis complete'));
+    }
   } catch (error) {
-    s.stop('Analysis failed');
-    log.error(chalk.red((error as Error).message));
+    if (!useJson) {
+      s.stop('Analysis failed');
+      log.error(chalk.red((error as Error).message));
+    }
     if (options.verbose) {
       console.error(error);
     }
@@ -207,12 +233,21 @@ export async function securityAttacksCommand(
 export async function securityCoverageGapsCommand(
   options: SecurityOptions
 ): Promise<void> {
-  intro(chalk.bold('Security: Coverage Gaps'));
+  const useJson =
+    options.json ||
+    options.format === 'json' ||
+    process.env.COGNITION_FORMAT === 'json';
 
-  const pgcRoot = resolvePgcRoot(options.projectRoot);
+  if (!useJson) {
+    intro(chalk.bold('Security: Coverage Gaps'));
+  }
+
+  const pgcRoot = resolvePgcRoot(options.projectRoot, options);
 
   const s = spinner();
-  s.start('Finding code symbols without security coverage');
+  if (!useJson) {
+    s.start('Finding code symbols without security coverage');
+  }
 
   try {
     const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
@@ -222,13 +257,23 @@ export async function securityCoverageGapsCommand(
     const query = 'O1 - O2';
     const result = await engine.execute(query);
 
-    s.stop('Analysis complete');
+    if (!useJson) {
+      s.stop('Analysis complete');
+    }
 
-    displayItemList(result, options);
-    outro(chalk.green('✓ Coverage gap analysis complete'));
+    if (useJson) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      displayItemList(result, options);
+    }
+    if (!useJson) {
+      outro(chalk.green('✓ Coverage gap analysis complete'));
+    }
   } catch (error) {
-    s.stop('Analysis failed');
-    log.error(chalk.red((error as Error).message));
+    if (!useJson) {
+      s.stop('Analysis failed');
+      log.error(chalk.red((error as Error).message));
+    }
     if (options.verbose) {
       console.error(error);
     }
@@ -270,12 +315,21 @@ export async function securityCoverageGapsCommand(
 export async function securityBoundariesCommand(
   options: SecurityOptions
 ): Promise<void> {
-  intro(chalk.bold('Security: Boundaries & Constraints'));
+  const useJson =
+    options.json ||
+    options.format === 'json' ||
+    process.env.COGNITION_FORMAT === 'json';
 
-  const pgcRoot = resolvePgcRoot(options.projectRoot);
+  if (!useJson) {
+    intro(chalk.bold('Security: Boundaries & Constraints'));
+  }
+
+  const pgcRoot = resolvePgcRoot(options.projectRoot, options);
 
   const s = spinner();
-  s.start('Loading security boundaries and constraints');
+  if (!useJson) {
+    s.start('Loading security boundaries and constraints');
+  }
 
   try {
     const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
@@ -285,13 +339,23 @@ export async function securityBoundariesCommand(
     const query = 'O2[boundary] | O2[constraint]';
     const result = await engine.execute(query);
 
-    s.stop('Analysis complete');
+    if (!useJson) {
+      s.stop('Analysis complete');
+    }
 
-    displayItemList(result, options);
-    outro(chalk.green('✓ Boundary analysis complete'));
+    if (useJson) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      displayItemList(result, options);
+    }
+    if (!useJson) {
+      outro(chalk.green('✓ Boundary analysis complete'));
+    }
   } catch (error) {
-    s.stop('Analysis failed');
-    log.error(chalk.red((error as Error).message));
+    if (!useJson) {
+      s.stop('Analysis failed');
+      log.error(chalk.red((error as Error).message));
+    }
     if (options.verbose) {
       console.error(error);
     }
@@ -333,33 +397,39 @@ function displayItemList(result: unknown, options: SecurityOptions): void {
 
   if (isSetOperationResult(result)) {
     items = result.items;
-    log.info(
-      chalk.bold(
-        `\n${result.metadata.operation.toUpperCase()}: ${result.metadata.itemCount} item(s)`
-      )
-    );
-    log.info(
-      chalk.dim(
-        `  Source overlays: ${result.metadata.sourceOverlays.join(', ')}`
-      )
-    );
-    log.info('');
+    if (format !== 'json') {
+      log.info(
+        chalk.bold(
+          `\n${result.metadata.operation.toUpperCase()}: ${result.metadata.itemCount} item(s)`
+        )
+      );
+      log.info(
+        chalk.dim(
+          `  Source overlays: ${result.metadata.sourceOverlays.join(', ')}`
+        )
+      );
+      log.info('');
+    }
   } else if (isOverlayItemArray(result)) {
     items = result;
   }
 
   if (items.length === 0) {
-    log.warn(chalk.yellow('No items found'));
+    if (format !== 'json') {
+      log.warn(chalk.yellow('No items found'));
+    } else {
+      console.log(JSON.stringify([], null, 2));
+    }
     return;
   }
-
-  log.info(chalk.bold(`Results: ${items.length} item(s)`));
-  log.info('');
 
   if (format === 'json') {
     console.log(JSON.stringify(items.slice(0, limit), null, 2));
     return;
   }
+
+  log.info(chalk.bold(`Results: ${items.length} item(s)`));
+  log.info('');
 
   if (format === 'summary') {
     log.info(
@@ -411,8 +481,11 @@ function displayItemList(result: unknown, options: SecurityOptions): void {
  * Display Meet results (semantic alignment)
  */
 function displayMeetResults(result: unknown, options: SecurityOptions): void {
-  const format = options.format || 'table';
   const limit = options.limit || 50;
+  const useJson =
+    options.json ||
+    options.format === 'json' ||
+    process.env.COGNITION_FORMAT === 'json';
 
   // Type guard for MeetResult
   const isMeetResultArray = (
@@ -433,22 +506,30 @@ function displayMeetResults(result: unknown, options: SecurityOptions): void {
   };
 
   if (!isMeetResultArray(result)) {
-    log.warn(chalk.yellow('Unexpected result format'));
+    if (!useJson) {
+      log.warn(chalk.yellow('Unexpected result format'));
+    } else {
+      console.log(JSON.stringify([], null, 2));
+    }
     return;
   }
 
   if (result.length === 0) {
-    log.warn(chalk.yellow('No alignments found'));
+    if (!useJson) {
+      log.warn(chalk.yellow('No alignments found'));
+    } else {
+      console.log(JSON.stringify([], null, 2));
+    }
+    return;
+  }
+
+  if (useJson) {
+    console.log(JSON.stringify(result.slice(0, limit), null, 2));
     return;
   }
 
   log.info(chalk.bold(`\nMeet Results: ${result.length} alignment(s)`));
   log.info('');
-
-  if (format === 'json') {
-    console.log(JSON.stringify(result.slice(0, limit), null, 2));
-    return;
-  }
 
   log.info(
     chalk.dim(
@@ -525,29 +606,44 @@ export async function securityListCommand(
     severity?: 'critical' | 'high' | 'medium' | 'low';
   }
 ): Promise<void> {
-  intro(chalk.bold('Security: O₂ Overlay Contents'));
+  const useJson =
+    options.json ||
+    options.format === 'json' ||
+    process.env.COGNITION_FORMAT === 'json';
+
+  if (!useJson) {
+    intro(chalk.bold('Security: O₂ Overlay Contents'));
+  }
 
   const pgcRoot = path.join(options.projectRoot, '.open_cognition');
   const manager = new SecurityGuidelinesManager(pgcRoot);
 
   const s = spinner();
-  s.start('Loading security knowledge from O₂ overlay');
+  if (!useJson) {
+    s.start('Loading security knowledge from O₂ overlay');
+  }
 
   try {
     let items = await manager.getAllItems();
-    s.stop('Analysis complete');
+    if (!useJson) {
+      s.stop('Analysis complete');
+    }
 
     if (items.length === 0) {
-      log.warn(
-        chalk.yellow(
-          '\n⚠️  No security knowledge found in O₂ overlay.\n\n' +
-            'To populate security overlay:\n' +
-            '  1. Add security documentation (SECURITY.md, THREAT_MODEL.md)\n' +
-            '  2. Run: cognition-cli genesis:docs docs/security/\n' +
-            '  3. Or scan code: cognition-cli overlay generate security-guidelines\n'
-        )
-      );
-      outro(chalk.dim('Security list complete (empty overlay)'));
+      if (!useJson) {
+        log.warn(
+          chalk.yellow(
+            '\n⚠️  No security knowledge found in O₂ overlay.\n\n' +
+              'To populate security overlay:\n' +
+              '  1. Add security documentation (SECURITY.md, THREAT_MODEL.md)\n' +
+              '  2. Run: cognition-cli genesis:docs docs/security/\n' +
+              '  3. Or scan code: cognition-cli overlay generate security-guidelines\n'
+          )
+        );
+        outro(chalk.dim('Security list complete (empty overlay)'));
+      } else {
+        console.log(JSON.stringify([], null, 2));
+      }
       return;
     }
 
@@ -567,7 +663,7 @@ export async function securityListCommand(
 
     const limited = items.slice(0, options.limit || 50);
 
-    if (options.format === 'json') {
+    if (useJson) {
       console.log(
         JSON.stringify(
           limited.map((i) => i.metadata),
@@ -604,10 +700,14 @@ export async function securityListCommand(
       });
     }
 
-    outro(chalk.green('✓ Security list complete'));
+    if (!useJson) {
+      outro(chalk.green('✓ Security list complete'));
+    }
   } catch (error) {
-    s.stop('Analysis failed');
-    log.error(chalk.red((error as Error).message));
+    if (!useJson) {
+      s.stop('Analysis failed');
+      log.error(chalk.red((error as Error).message));
+    }
     if (options.verbose) {
       console.error(error);
     }
@@ -645,29 +745,44 @@ export async function securityListCommand(
 export async function securityCVEsCommand(
   options: SecurityOptions
 ): Promise<void> {
-  intro(chalk.bold.red('Security: CVE Tracking'));
+  const useJson =
+    options.json ||
+    options.format === 'json' ||
+    process.env.COGNITION_FORMAT === 'json';
+
+  if (!useJson) {
+    intro(chalk.bold.red('Security: CVE Tracking'));
+  }
 
   const pgcRoot = path.join(options.projectRoot, '.open_cognition');
   const manager = new SecurityGuidelinesManager(pgcRoot);
 
   const s = spinner();
-  s.start('Loading CVEs from O₂ overlay');
+  if (!useJson) {
+    s.start('Loading CVEs from O₂ overlay');
+  }
 
   try {
     const cves = await manager.getCVEs();
-    s.stop('Analysis complete');
+    if (!useJson) {
+      s.stop('Analysis complete');
+    }
 
     if (cves.length === 0) {
-      log.warn(
-        chalk.yellow(
-          '⚠️  No CVEs tracked in O₂ overlay. Add vulnerability documentation to populate.'
-        )
-      );
-      outro(chalk.dim('CVE tracking complete (no CVEs found)'));
+      if (!useJson) {
+        log.warn(
+          chalk.yellow(
+            '⚠️  No CVEs tracked in O₂ overlay. Add vulnerability documentation to populate.'
+          )
+        );
+        outro(chalk.dim('CVE tracking complete (no CVEs found)'));
+      } else {
+        console.log(JSON.stringify([], null, 2));
+      }
       return;
     }
 
-    if (options.format === 'json') {
+    if (useJson) {
       console.log(JSON.stringify(cves, null, 2));
     } else {
       log.info(chalk.bold.red(`\n🚨 CVEs Tracked: ${cves.length}\n`));
@@ -689,10 +804,14 @@ export async function securityCVEsCommand(
       });
     }
 
-    outro(chalk.green('✓ CVE tracking complete'));
+    if (!useJson) {
+      outro(chalk.green('✓ CVE tracking complete'));
+    }
   } catch (error) {
-    s.stop('Analysis failed');
-    log.error(chalk.red((error as Error).message));
+    if (!useJson) {
+      s.stop('Analysis failed');
+      log.error(chalk.red((error as Error).message));
+    }
     if (options.verbose) {
       console.error(error);
     }
@@ -734,27 +853,42 @@ export async function securityQueryCommand(
   searchTerm: string,
   options: SecurityOptions
 ): Promise<void> {
-  intro(chalk.bold(`Security: Query "${searchTerm}"`));
+  const useJson =
+    options.json ||
+    options.format === 'json' ||
+    process.env.COGNITION_FORMAT === 'json';
+
+  if (!useJson) {
+    intro(chalk.bold(`Security: Query "${searchTerm}"`));
+  }
 
   const pgcRoot = path.join(options.projectRoot, '.open_cognition');
   const manager = new SecurityGuidelinesManager(pgcRoot);
 
   const s = spinner();
-  s.start('Searching security knowledge');
+  if (!useJson) {
+    s.start('Searching security knowledge');
+  }
 
   try {
     const results = await manager.queryKnowledge(searchTerm);
-    s.stop('Analysis complete');
+    if (!useJson) {
+      s.stop('Analysis complete');
+    }
 
     if (results.length === 0) {
-      log.warn(
-        chalk.yellow(`⚠️  No security knowledge matching "${searchTerm}"`)
-      );
-      outro(chalk.dim('Query complete (no matches)'));
+      if (!useJson) {
+        log.warn(
+          chalk.yellow(`⚠️  No security knowledge matching "${searchTerm}"`)
+        );
+        outro(chalk.dim('Query complete (no matches)'));
+      } else {
+        console.log(JSON.stringify([], null, 2));
+      }
       return;
     }
 
-    if (options.format === 'json') {
+    if (useJson) {
       console.log(JSON.stringify(results, null, 2));
     } else {
       log.info(
@@ -779,10 +913,14 @@ export async function securityQueryCommand(
       });
     }
 
-    outro(chalk.green('✓ Query complete'));
+    if (!useJson) {
+      outro(chalk.green('✓ Query complete'));
+    }
   } catch (error) {
-    s.stop('Query failed');
-    log.error(chalk.red((error as Error).message));
+    if (!useJson) {
+      s.stop('Query failed');
+      log.error(chalk.red((error as Error).message));
+    }
     if (options.verbose) {
       console.error(error);
     }

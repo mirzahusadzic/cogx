@@ -82,16 +82,18 @@ interface ProofsOptions {
  * @returns Absolute path to .open_cognition directory
  * @throws {Error} Exits process if no workspace found
  */
-function resolvePgcRoot(startPath: string): string {
+function resolvePgcRoot(startPath: string, options?: ProofsOptions): string {
   const workspaceManager = new WorkspaceManager();
   const projectRoot = workspaceManager.resolvePgcRoot(startPath);
 
   if (!projectRoot) {
-    log.error(
-      chalk.red(
-        'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
-      )
-    );
+    if (options?.format !== 'json' && process.env.COGNITION_FORMAT !== 'json') {
+      log.error(
+        chalk.red(
+          'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
+        )
+      );
+    }
     process.exit(1);
   }
 
@@ -123,12 +125,19 @@ function resolvePgcRoot(startPath: string): string {
 export async function proofsTheoremsCommand(
   options: ProofsOptions
 ): Promise<void> {
-  intro(chalk.bold('Proofs: Theorems'));
+  const useJson =
+    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
 
-  const pgcRoot = resolvePgcRoot(options.projectRoot);
+  if (!useJson) {
+    intro(chalk.bold('Proofs: Theorems'));
+  }
+
+  const pgcRoot = resolvePgcRoot(options.projectRoot, options);
 
   const s = spinner();
-  s.start('Loading theorems');
+  if (!useJson) {
+    s.start('Loading theorems');
+  }
 
   try {
     const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
@@ -137,13 +146,19 @@ export async function proofsTheoremsCommand(
     const query = 'O6[theorem]';
     const result = await engine.execute(query);
 
-    s.stop('Analysis complete');
+    if (!useJson) {
+      s.stop('Analysis complete');
+    }
 
     displayItemList(result, options);
-    outro(chalk.green('✓ Theorem analysis complete'));
+    if (!useJson) {
+      outro(chalk.green('✓ Theorem analysis complete'));
+    }
   } catch (error) {
-    s.stop('Analysis failed');
-    log.error(chalk.red((error as Error).message));
+    if (!useJson) {
+      s.stop('Analysis failed');
+      log.error(chalk.red((error as Error).message));
+    }
     if (options.verbose) {
       console.error(error);
     }
@@ -175,12 +190,19 @@ export async function proofsTheoremsCommand(
 export async function proofsLemmasCommand(
   options: ProofsOptions
 ): Promise<void> {
-  intro(chalk.bold('Proofs: Lemmas'));
+  const useJson =
+    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
 
-  const pgcRoot = resolvePgcRoot(options.projectRoot);
+  if (!useJson) {
+    intro(chalk.bold('Proofs: Lemmas'));
+  }
+
+  const pgcRoot = resolvePgcRoot(options.projectRoot, options);
 
   const s = spinner();
-  s.start('Loading lemmas');
+  if (!useJson) {
+    s.start('Loading lemmas');
+  }
 
   try {
     const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
@@ -189,13 +211,19 @@ export async function proofsLemmasCommand(
     const query = 'O6[lemma]';
     const result = await engine.execute(query);
 
-    s.stop('Analysis complete');
+    if (!useJson) {
+      s.stop('Analysis complete');
+    }
 
     displayItemList(result, options);
-    outro(chalk.green('✓ Lemma analysis complete'));
+    if (!useJson) {
+      outro(chalk.green('✓ Lemma analysis complete'));
+    }
   } catch (error) {
-    s.stop('Analysis failed');
-    log.error(chalk.red((error as Error).message));
+    if (!useJson) {
+      s.stop('Analysis failed');
+      log.error(chalk.red((error as Error).message));
+    }
     if (options.verbose) {
       console.error(error);
     }
@@ -234,9 +262,14 @@ export async function proofsLemmasCommand(
  * });
  */
 export async function proofsListCommand(options: ProofsOptions): Promise<void> {
-  intro(chalk.bold('Proofs: All Mathematical Statements'));
+  const useJson =
+    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
 
-  const pgcRoot = resolvePgcRoot(options.projectRoot);
+  if (!useJson) {
+    intro(chalk.bold('Proofs: All Mathematical Statements'));
+  }
+
+  const pgcRoot = resolvePgcRoot(options.projectRoot, options);
 
   const s = spinner();
 
@@ -248,7 +281,9 @@ export async function proofsListCommand(options: ProofsOptions): Promise<void> {
     description = `Loading ${options.type}s`;
   }
 
-  s.start(description);
+  if (!useJson) {
+    s.start(description);
+  }
 
   try {
     const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
@@ -256,13 +291,19 @@ export async function proofsListCommand(options: ProofsOptions): Promise<void> {
 
     const result = await engine.execute(query);
 
-    s.stop('Analysis complete');
+    if (!useJson) {
+      s.stop('Analysis complete');
+    }
 
     displayItemList(result, options);
-    outro(chalk.green('✓ Mathematical analysis complete'));
+    if (!useJson) {
+      outro(chalk.green('✓ Mathematical analysis complete'));
+    }
   } catch (error) {
-    s.stop('Analysis failed');
-    log.error(chalk.red((error as Error).message));
+    if (!useJson) {
+      s.stop('Analysis failed');
+      log.error(chalk.red((error as Error).message));
+    }
     if (options.verbose) {
       console.error(error);
     }
@@ -307,17 +348,23 @@ export async function proofsAlignedCommand(
 ): Promise<void> {
   // Default threshold is lower (0.5) for cross-domain alignment (proofs ↔ principles)
   const threshold = options.threshold ?? 0.5;
+  const useJson =
+    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
 
-  intro(
-    chalk.bold(
-      `Proofs: Aligned with Mission (threshold: ${(threshold * 100).toFixed(0)}%)`
-    )
-  );
+  if (!useJson) {
+    intro(
+      chalk.bold(
+        `Proofs: Aligned with Mission (threshold: ${(threshold * 100).toFixed(0)}%)`
+      )
+    );
+  }
 
-  const pgcRoot = resolvePgcRoot(options.projectRoot);
+  const pgcRoot = resolvePgcRoot(options.projectRoot, options);
 
   const s = spinner();
-  s.start('Finding proofs aligned with mission principles');
+  if (!useJson) {
+    s.start('Finding proofs aligned with mission principles');
+  }
 
   try {
     const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
@@ -344,32 +391,42 @@ export async function proofsAlignedCommand(
     const principlesArray = extractItems(o4Items);
 
     if (proofsArray.length === 0) {
-      s.stop('No proofs found');
-      log.warn(
-        chalk.yellow(
-          'O6 overlay is empty - run genesis to populate mathematical proofs'
-        )
-      );
-      outro(chalk.green('✓ Alignment analysis complete'));
+      if (!useJson) {
+        s.stop('No proofs found');
+        log.warn(
+          chalk.yellow(
+            'O6 overlay is empty - run genesis to populate mathematical proofs'
+          )
+        );
+        outro(chalk.green('✓ Alignment analysis complete'));
+      } else {
+        console.log(JSON.stringify([], null, 2));
+      }
       return;
     }
 
     if (principlesArray.length === 0) {
-      s.stop('No principles found');
-      log.warn(
-        chalk.yellow(
-          'O4[principle] is empty - run genesis to populate mission concepts'
-        )
-      );
-      outro(chalk.green('✓ Alignment analysis complete'));
+      if (!useJson) {
+        s.stop('No principles found');
+        log.warn(
+          chalk.yellow(
+            'O4[principle] is empty - run genesis to populate mission concepts'
+          )
+        );
+        outro(chalk.green('✓ Alignment analysis complete'));
+      } else {
+        console.log(JSON.stringify([], null, 2));
+      }
       return;
     }
 
-    log.info(
-      chalk.dim(
-        `Comparing ${proofsArray.length} proofs with ${principlesArray.length} principles...`
-      )
-    );
+    if (!useJson) {
+      log.info(
+        chalk.dim(
+          `Comparing ${proofsArray.length} proofs with ${principlesArray.length} principles...`
+        )
+      );
+    }
 
     // Use meet with configurable threshold
     const result = await meet(proofsArray, principlesArray, {
@@ -377,13 +434,19 @@ export async function proofsAlignedCommand(
       topK: 10,
     });
 
-    s.stop('Analysis complete');
+    if (!useJson) {
+      s.stop('Analysis complete');
+    }
 
     displayMeetResults(result, options);
-    outro(chalk.green('✓ Alignment analysis complete'));
+    if (!useJson) {
+      outro(chalk.green('✓ Alignment analysis complete'));
+    }
   } catch (error) {
-    s.stop('Analysis failed');
-    log.error(chalk.red((error as Error).message));
+    if (!useJson) {
+      s.stop('Analysis failed');
+      log.error(chalk.red((error as Error).message));
+    }
     if (options.verbose) {
       console.error(error);
     }
@@ -397,6 +460,8 @@ export async function proofsAlignedCommand(
 function displayItemList(result: unknown, options: ProofsOptions): void {
   const format = options.format || 'table';
   const limit = options.limit || 50;
+  const useJson =
+    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
 
   // Type guard for OverlayItem array or SetOperationResult
   const isOverlayItemArray = (value: unknown): value is OverlayItem[] => {
@@ -425,33 +490,39 @@ function displayItemList(result: unknown, options: ProofsOptions): void {
 
   if (isSetOperationResult(result)) {
     items = result.items;
-    log.info(
-      chalk.bold(
-        `\n${result.metadata.operation.toUpperCase()}: ${result.metadata.itemCount} item(s)`
-      )
-    );
-    log.info(
-      chalk.dim(
-        `  Source overlays: ${result.metadata.sourceOverlays.join(', ')}`
-      )
-    );
-    log.info('');
+    if (!useJson) {
+      log.info(
+        chalk.bold(
+          `\n${result.metadata.operation.toUpperCase()}: ${result.metadata.itemCount} item(s)`
+        )
+      );
+      log.info(
+        chalk.dim(
+          `  Source overlays: ${result.metadata.sourceOverlays.join(', ')}`
+        )
+      );
+      log.info('');
+    }
   } else if (isOverlayItemArray(result)) {
     items = result;
   }
 
   if (items.length === 0) {
-    log.warn(chalk.yellow('No items found'));
+    if (!useJson) {
+      log.warn(chalk.yellow('No items found'));
+    } else {
+      console.log(JSON.stringify([], null, 2));
+    }
+    return;
+  }
+
+  if (useJson) {
+    console.log(JSON.stringify(items.slice(0, limit), null, 2));
     return;
   }
 
   log.info(chalk.bold(`Results: ${items.length} item(s)`));
   log.info('');
-
-  if (format === 'json') {
-    console.log(JSON.stringify(items.slice(0, limit), null, 2));
-    return;
-  }
 
   if (format === 'summary') {
     log.info(
@@ -503,8 +574,9 @@ function displayItemList(result: unknown, options: ProofsOptions): void {
  * Display Meet results (semantic alignment)
  */
 function displayMeetResults(result: unknown, options: ProofsOptions): void {
-  const format = options.format || 'table';
   const limit = options.limit || 50;
+  const useJson =
+    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
 
   // Type guard for MeetResult (allows empty arrays)
   const isMeetResultArray = (
@@ -527,16 +599,24 @@ function displayMeetResults(result: unknown, options: ProofsOptions): void {
   };
 
   if (!isMeetResultArray(result)) {
-    log.warn(chalk.yellow('Unexpected result format'));
+    if (!useJson) {
+      log.warn(chalk.yellow('Unexpected result format'));
+    } else {
+      console.log(JSON.stringify([], null, 2));
+    }
     return;
   }
 
   if (result.length === 0) {
-    log.warn(
-      chalk.yellow(
-        'No alignments found (O6 may be empty - run genesis to populate mathematical proofs)'
-      )
-    );
+    if (!useJson) {
+      log.warn(
+        chalk.yellow(
+          'No alignments found (O6 may be empty - run genesis to populate mathematical proofs)'
+        )
+      );
+    } else {
+      console.log(JSON.stringify([], null, 2));
+    }
     return;
   }
 
@@ -549,6 +629,11 @@ function displayMeetResults(result: unknown, options: ProofsOptions): void {
     return true;
   });
 
+  if (useJson) {
+    console.log(JSON.stringify(uniqueResults.slice(0, limit), null, 2));
+    return;
+  }
+
   log.info(
     chalk.bold(`\nMeet Results: ${uniqueResults.length} unique alignment(s)`)
   );
@@ -556,11 +641,6 @@ function displayMeetResults(result: unknown, options: ProofsOptions): void {
     log.info(chalk.dim(`  (deduplicated from ${result.length} raw matches)`));
   }
   log.info('');
-
-  if (format === 'json') {
-    console.log(JSON.stringify(uniqueResults.slice(0, limit), null, 2));
-    return;
-  }
 
   log.info(
     chalk.dim(

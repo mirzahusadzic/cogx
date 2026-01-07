@@ -73,16 +73,18 @@ import { WorkspaceManager } from '../../core/workspace-manager.js';
  * const pgcRoot = resolvePgcRoot('/path/to/project/src');
  * // Returns: /path/to/project/.open_cognition
  */
-function resolvePgcRoot(startPath: string): string {
+function resolvePgcRoot(startPath: string, options?: WorkflowOptions): string {
   const workspaceManager = new WorkspaceManager();
   const projectRoot = workspaceManager.resolvePgcRoot(startPath);
 
   if (!projectRoot) {
-    log.error(
-      chalk.red(
-        'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
-      )
-    );
+    if (options?.format !== 'json' && process.env.COGNITION_FORMAT !== 'json') {
+      log.error(
+        chalk.red(
+          'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
+        )
+      );
+    }
     process.exit(1);
   }
 
@@ -137,9 +139,14 @@ interface WorkflowOptions {
 export async function workflowPatternsCommand(
   options: WorkflowOptions
 ): Promise<void> {
-  intro(chalk.bold('Workflow: Operational Patterns'));
+  const useJson =
+    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
 
-  const pgcRoot = resolvePgcRoot(options.projectRoot);
+  if (!useJson) {
+    intro(chalk.bold('Workflow: Operational Patterns'));
+  }
+
+  const pgcRoot = resolvePgcRoot(options.projectRoot, options);
 
   const s = spinner();
 
@@ -156,7 +163,9 @@ export async function workflowPatternsCommand(
     description = 'Finding workflows aligned with mission';
   }
 
-  s.start(description);
+  if (!useJson) {
+    s.start(description);
+  }
 
   try {
     const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
@@ -164,7 +173,9 @@ export async function workflowPatternsCommand(
 
     const result = await engine.execute(query);
 
-    s.stop('Analysis complete');
+    if (!useJson) {
+      s.stop('Analysis complete');
+    }
 
     if (options.secure || options.aligned) {
       displayMeetResults(result, options);
@@ -172,10 +183,14 @@ export async function workflowPatternsCommand(
       displayItemList(result, options);
     }
 
-    outro(chalk.green('✓ Workflow analysis complete'));
+    if (!useJson) {
+      outro(chalk.green('✓ Workflow analysis complete'));
+    }
   } catch (error) {
-    s.stop('Analysis failed');
-    log.error(chalk.red((error as Error).message));
+    if (!useJson) {
+      s.stop('Analysis failed');
+      log.error(chalk.red((error as Error).message));
+    }
     if (options.verbose) {
       console.error(error);
     }
@@ -210,12 +225,19 @@ export async function workflowPatternsCommand(
 export async function workflowQuestsCommand(
   options: WorkflowOptions
 ): Promise<void> {
-  intro(chalk.bold('Workflow: Quest Structures'));
+  const useJson =
+    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
 
-  const pgcRoot = resolvePgcRoot(options.projectRoot);
+  if (!useJson) {
+    intro(chalk.bold('Workflow: Quest Structures'));
+  }
+
+  const pgcRoot = resolvePgcRoot(options.projectRoot, options);
 
   const s = spinner();
-  s.start('Loading quest structures');
+  if (!useJson) {
+    s.start('Loading quest structures');
+  }
 
   try {
     const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
@@ -224,13 +246,19 @@ export async function workflowQuestsCommand(
     const query = 'O5[quest_structure]';
     const result = await engine.execute(query);
 
-    s.stop('Analysis complete');
+    if (!useJson) {
+      s.stop('Analysis complete');
+    }
 
     displayItemList(result, options);
-    outro(chalk.green('✓ Quest analysis complete'));
+    if (!useJson) {
+      outro(chalk.green('✓ Quest analysis complete'));
+    }
   } catch (error) {
-    s.stop('Analysis failed');
-    log.error(chalk.red((error as Error).message));
+    if (!useJson) {
+      s.stop('Analysis failed');
+      log.error(chalk.red((error as Error).message));
+    }
     if (options.verbose) {
       console.error(error);
     }
@@ -264,12 +292,19 @@ export async function workflowQuestsCommand(
 export async function workflowDepthRulesCommand(
   options: WorkflowOptions
 ): Promise<void> {
-  intro(chalk.bold('Workflow: Depth Rules'));
+  const useJson =
+    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
 
-  const pgcRoot = resolvePgcRoot(options.projectRoot);
+  if (!useJson) {
+    intro(chalk.bold('Workflow: Depth Rules'));
+  }
+
+  const pgcRoot = resolvePgcRoot(options.projectRoot, options);
 
   const s = spinner();
-  s.start('Loading depth rules');
+  if (!useJson) {
+    s.start('Loading depth rules');
+  }
 
   try {
     const workbenchUrl = process.env.WORKBENCH_URL || 'http://localhost:8000';
@@ -278,13 +313,19 @@ export async function workflowDepthRulesCommand(
     const query = 'O5[depth_rule]';
     const result = await engine.execute(query);
 
-    s.stop('Analysis complete');
+    if (!useJson) {
+      s.stop('Analysis complete');
+    }
 
     displayItemList(result, options);
-    outro(chalk.green('✓ Depth rule analysis complete'));
+    if (!useJson) {
+      outro(chalk.green('✓ Depth rule analysis complete'));
+    }
   } catch (error) {
-    s.stop('Analysis failed');
-    log.error(chalk.red((error as Error).message));
+    if (!useJson) {
+      s.stop('Analysis failed');
+      log.error(chalk.red((error as Error).message));
+    }
     if (options.verbose) {
       console.error(error);
     }
@@ -339,33 +380,39 @@ function displayItemList(result: unknown, options: WorkflowOptions): void {
 
   if (isSetOperationResult(result)) {
     items = result.items;
-    log.info(
-      chalk.bold(
-        `\n${result.metadata.operation.toUpperCase()}: ${result.metadata.itemCount} item(s)`
-      )
-    );
-    log.info(
-      chalk.dim(
-        `  Source overlays: ${result.metadata.sourceOverlays.join(', ')}`
-      )
-    );
-    log.info('');
+    if (format !== 'json' && process.env.COGNITION_FORMAT !== 'json') {
+      log.info(
+        chalk.bold(
+          `\n${result.metadata.operation.toUpperCase()}: ${result.metadata.itemCount} item(s)`
+        )
+      );
+      log.info(
+        chalk.dim(
+          `  Source overlays: ${result.metadata.sourceOverlays.join(', ')}`
+        )
+      );
+      log.info('');
+    }
   } else if (isOverlayItemArray(result)) {
     items = result;
   }
 
   if (items.length === 0) {
-    log.warn(chalk.yellow('No items found'));
+    if (format !== 'json' && process.env.COGNITION_FORMAT !== 'json') {
+      log.warn(chalk.yellow('No items found'));
+    } else if (format === 'json' || process.env.COGNITION_FORMAT === 'json') {
+      console.log(JSON.stringify([], null, 2));
+    }
+    return;
+  }
+
+  if (format === 'json' || process.env.COGNITION_FORMAT === 'json') {
+    console.log(JSON.stringify(items.slice(0, limit), null, 2));
     return;
   }
 
   log.info(chalk.bold(`Results: ${items.length} item(s)`));
   log.info('');
-
-  if (format === 'json') {
-    console.log(JSON.stringify(items.slice(0, limit), null, 2));
-    return;
-  }
 
   if (format === 'summary') {
     log.info(
@@ -455,22 +502,30 @@ function displayMeetResults(result: unknown, options: WorkflowOptions): void {
   };
 
   if (!isMeetResultArray(result)) {
-    log.warn(chalk.yellow('Unexpected result format'));
+    if (format !== 'json' && process.env.COGNITION_FORMAT !== 'json') {
+      log.warn(chalk.yellow('Unexpected result format'));
+    } else {
+      console.log(JSON.stringify([], null, 2));
+    }
     return;
   }
 
   if (result.length === 0) {
-    log.warn(chalk.yellow('No alignments found'));
+    if (format !== 'json' && process.env.COGNITION_FORMAT !== 'json') {
+      log.warn(chalk.yellow('No alignments found'));
+    } else {
+      console.log(JSON.stringify([], null, 2));
+    }
+    return;
+  }
+
+  if (format === 'json' || process.env.COGNITION_FORMAT === 'json') {
+    console.log(JSON.stringify(result.slice(0, limit), null, 2));
     return;
   }
 
   log.info(chalk.bold(`\nMeet Results: ${result.length} alignment(s)`));
   log.info('');
-
-  if (format === 'json') {
-    console.log(JSON.stringify(result.slice(0, limit), null, 2));
-    return;
-  }
 
   log.info(
     chalk.dim(

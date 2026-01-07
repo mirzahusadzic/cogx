@@ -131,10 +131,15 @@ export function createStatusCommand(): Command {
         ])
       )
     )
-    .action(async (options) => {
+    .action(async (options, command) => {
       try {
         const isVerbose = getVerboseState(options);
-        await statusCommand({ ...options, verbose: isVerbose });
+        const allOpts = command.optsWithGlobals();
+        await statusCommand({
+          ...options,
+          json: allOpts.json || options.json,
+          verbose: isVerbose,
+        });
       } catch (error) {
         console.error(chalk.red('Error:'), error);
         process.exit(1);
@@ -172,7 +177,9 @@ export async function statusCommand(options: {
   json?: boolean;
   verbose?: boolean;
 }): Promise<void> {
-  if (!options.json) {
+  const useJson = options.json || process.env.COGNITION_FORMAT === 'json';
+
+  if (!useJson) {
     console.log(chalk.cyan('📦 PGC = Grounded Context Pool'));
     console.log(
       chalk.dim(
@@ -185,7 +192,7 @@ export async function statusCommand(options: {
   const projectRoot = workspaceManager.resolvePgcRoot(process.cwd());
 
   if (!projectRoot) {
-    if (!options.json) {
+    if (!useJson) {
       console.error(
         chalk.red(
           '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
@@ -229,7 +236,7 @@ export async function statusCommand(options: {
     },
   };
 
-  if (options.json) {
+  if (useJson) {
     console.log(JSON.stringify(formatAsJSON(report), null, 2));
   } else {
     console.log(formatAsHuman(report, options.verbose || false));

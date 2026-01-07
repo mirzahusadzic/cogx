@@ -81,17 +81,19 @@ export function addCoherenceCommands(program: Command) {
     .option('-p, --project-root <path>', 'The root of the project.', '.')
     .option('--json', 'Output raw JSON')
     .option('-v, --verbose', 'Show detailed error messages', false)
-    .action(async (options) => {
+    .action(async (options, command) => {
       const isVerbose = getVerboseState(options);
       const workspaceManager = new WorkspaceManager();
       const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
 
       if (!projectRoot) {
-        console.error(
-          chalk.red(
-            '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
-          )
-        );
+        if (!(command.optsWithGlobals().json || options.json)) {
+          console.error(
+            chalk.red(
+              '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
+            )
+          );
+        }
         process.exit(1);
       }
 
@@ -114,11 +116,13 @@ export function addCoherenceCommands(program: Command) {
         const items = await coherenceAdapter.getAllItems();
 
         if (items.length === 0 || !overlay) {
-          console.error(
-            chalk.red(
-              '\n✗ No strategic coherence overlay found. Run "cognition-cli overlay generate strategic_coherence" first.\n'
-            )
-          );
+          if (!(command.optsWithGlobals().json || options.json)) {
+            console.error(
+              chalk.red(
+                '\n✗ No strategic coherence overlay found. Run "cognition-cli overlay generate strategic_coherence" first.\n'
+              )
+            );
+          }
           process.exit(1);
         }
 
@@ -143,7 +147,10 @@ export function addCoherenceCommands(program: Command) {
         // Get rich metrics from overlay
         const metrics = overlay.overall_metrics;
 
-        if (options.json) {
+        const allOpts = command.optsWithGlobals();
+        const useJson = allOpts.json || options.json;
+
+        if (useJson) {
           console.log(
             JSON.stringify(
               {
@@ -324,17 +331,23 @@ export function addCoherenceCommands(program: Command) {
     )
     .option('-l, --limit <number>', 'Maximum number of results to show', '50')
     .option('-v, --verbose', 'Show detailed error messages', false)
-    .action(async (options) => {
+    .option('--json', 'Output results as JSON')
+    .action(async (options, command) => {
       const isVerbose = getVerboseState(options);
       const workspaceManager = new WorkspaceManager();
       const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
 
+      const allOpts = command.optsWithGlobals();
+      const useJson = allOpts.json || options.json || options.format === 'json';
+
       if (!projectRoot) {
-        console.error(
-          chalk.red(
-            '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
-          )
-        );
+        if (!useJson) {
+          console.error(
+            chalk.red(
+              '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
+            )
+          );
+        }
         process.exit(1);
       }
 
@@ -355,11 +368,13 @@ export function addCoherenceCommands(program: Command) {
         const overlay = await manager.retrieve();
 
         if (!overlay) {
-          console.error(
-            chalk.red(
-              '\n✗ No strategic coherence overlay found. Run "cognition-cli overlay generate strategic_coherence" first.\n'
-            )
-          );
+          if (!useJson) {
+            console.error(
+              chalk.red(
+                '\n✗ No strategic coherence overlay found. Run "cognition-cli overlay generate strategic_coherence" first.\n'
+              )
+            );
+          }
           process.exit(1);
         }
 
@@ -375,15 +390,23 @@ export function addCoherenceCommands(program: Command) {
         );
 
         if (filtered.length === 0) {
-          console.log(
-            chalk.yellow(
-              `\nNo symbols found with coherence score ≥ ${minScore.toFixed(2)}\n`
-            )
-          );
+          if (!useJson) {
+            console.log(
+              chalk.yellow(
+                `\nNo symbols found with coherence score ≥ ${minScore.toFixed(2)}\n`
+              )
+            );
+          } else {
+            console.log(JSON.stringify([], null, 2));
+          }
           return;
         }
 
-        displayCoherenceItems(filtered, options, minScore);
+        displayCoherenceItems(
+          filtered,
+          { ...options, format: useJson ? 'json' : options.format },
+          minScore
+        );
       } catch (error) {
         console.error(chalk.red(`\n✗ ${(error as Error).message}\n`));
         if (isVerbose) {
@@ -414,17 +437,23 @@ export function addCoherenceCommands(program: Command) {
     )
     .option('-l, --limit <number>', 'Maximum number of results to show', '50')
     .option('-v, --verbose', 'Show detailed error messages', false)
-    .action(async (options) => {
+    .option('--json', 'Output results as JSON')
+    .action(async (options, command) => {
       const isVerbose = getVerboseState(options);
       const workspaceManager = new WorkspaceManager();
       const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
 
+      const allOpts = command.optsWithGlobals();
+      const useJson = allOpts.json || options.json || options.format === 'json';
+
       if (!projectRoot) {
-        console.error(
-          chalk.red(
-            '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
-          )
-        );
+        if (!useJson) {
+          console.error(
+            chalk.red(
+              '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
+            )
+          );
+        }
         process.exit(1);
       }
 
@@ -445,11 +474,13 @@ export function addCoherenceCommands(program: Command) {
         const overlay = await manager.retrieve();
 
         if (!overlay) {
-          console.error(
-            chalk.red(
-              '\n✗ No strategic coherence overlay found. Run "cognition-cli overlay generate strategic_coherence" first.\n'
-            )
-          );
+          if (!useJson) {
+            console.error(
+              chalk.red(
+                '\n✗ No strategic coherence overlay found. Run "cognition-cli overlay generate strategic_coherence" first.\n'
+              )
+            );
+          }
           process.exit(1);
         }
 
@@ -466,15 +497,24 @@ export function addCoherenceCommands(program: Command) {
         );
 
         if (filtered.length === 0) {
-          console.log(
-            chalk.yellow(
-              `\nNo symbols found with coherence score ≤ ${maxScore.toFixed(2)}\n`
-            )
-          );
+          if (!useJson) {
+            console.log(
+              chalk.yellow(
+                `\nNo symbols found with coherence score ≤ ${maxScore.toFixed(2)}\n`
+              )
+            );
+          } else {
+            console.log(JSON.stringify([], null, 2));
+          }
           return;
         }
 
-        displayCoherenceItems(filtered, options, maxScore, true);
+        displayCoherenceItems(
+          filtered,
+          { ...options, format: useJson ? 'json' : options.format },
+          maxScore,
+          true
+        );
       } catch (error) {
         console.error(chalk.red(`\n✗ ${(error as Error).message}\n`));
         if (isVerbose) {
@@ -499,17 +539,23 @@ export function addCoherenceCommands(program: Command) {
     )
     .option('-l, --limit <number>', 'Maximum number of results to show', '50')
     .option('-v, --verbose', 'Show detailed error messages', false)
-    .action(async (options) => {
+    .option('--json', 'Output results as JSON')
+    .action(async (options, command) => {
       const isVerbose = getVerboseState(options);
       const workspaceManager = new WorkspaceManager();
       const projectRoot = workspaceManager.resolvePgcRoot(options.projectRoot);
 
+      const allOpts = command.optsWithGlobals();
+      const useJson = allOpts.json || options.json || options.format === 'json';
+
       if (!projectRoot) {
-        console.error(
-          chalk.red(
-            '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
-          )
-        );
+        if (!useJson) {
+          console.error(
+            chalk.red(
+              '\n✗ No .open_cognition workspace found. Run "cognition-cli init" to create one.\n'
+            )
+          );
+        }
         process.exit(1);
       }
 
@@ -527,11 +573,18 @@ export function addCoherenceCommands(program: Command) {
         const items = await coherenceAdapter.getItemsByCoherence(true);
 
         if (items.length === 0) {
-          console.log(chalk.yellow('\nNo coherence data found\n'));
+          if (!useJson) {
+            console.log(chalk.yellow('\nNo coherence data found\n'));
+          } else {
+            console.log(JSON.stringify([], null, 2));
+          }
           return;
         }
 
-        displayCoherenceItems(items, options);
+        displayCoherenceItems(items, {
+          ...options,
+          format: useJson ? 'json' : options.format,
+        });
       } catch (error) {
         console.error(chalk.red(`\n✗ ${(error as Error).message}\n`));
         if (isVerbose) {

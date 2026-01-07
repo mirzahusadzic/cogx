@@ -218,9 +218,6 @@ describe('latticeCommand', () => {
       });
 
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Results: 1 item(s)')
-      );
-      expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining('"id": "test-id"')
       );
     });

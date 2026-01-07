@@ -391,7 +391,7 @@ _cognition_cli_completions() {
     aligned)
       # proofs aligned options
       if [[ "\${COMP_WORDS[1]}" == "proofs" ]]; then
-        COMPREPLY=( $(compgen -W "-p --project-root -f --format -l --limit -t --threshold -v --verbose table json summary" -- \${cur}) )
+        COMPREPLY=( $(compgen -W "-p --project-root -f --format -l --limit -t --threshold -v --verbose --json table json summary" -- \${cur}) )
         return 0
       fi
       ;;
@@ -485,28 +485,78 @@ _cognition_cli_completions() {
         return 0
         ;;
       query|q)
-        local query_flags="-p --project-root -w --workbench --json -h --help"
+        local query_flags="-p --project-root -d --depth --lineage --json -h --help"
         COMPREPLY=( $(compgen -W "\${query_flags}" -- \${cur}) )
         return 0
         ;;
       ask)
-        local ask_flags="-p --project-root --provider --model -h --help"
+        local ask_flags="-p --project-root -w --workbench --top-k --save --verbose --json -h --help"
         COMPREPLY=( $(compgen -W "\${ask_flags}" -- \${cur}) )
         return 0
         ;;
       lattice|l)
-        local lattice_flags="-p --project-root --json -h --help"
+        local lattice_flags="-p --project-root -f --format -l --limit -v --verbose --json -h --help"
         COMPREPLY=( $(compgen -W "\${lattice_flags}" -- \${cur}) )
         return 0
         ;;
       blast-radius)
-        local br_flags="-p --project-root --depth --json -h --help"
+        local br_flags="-p --project-root --max-depth --json -h --help"
         COMPREPLY=( $(compgen -W "\${br_flags}" -- \${cur}) )
+        return 0
+        ;;
+      security)
+        local security_flags="-p --project-root -f --format -l --limit -v --verbose --json -h --help"
+        COMPREPLY=( $(compgen -W "\${security_flags}" -- \${cur}) )
+        return 0
+        ;;
+      workflow)
+        local workflow_flags="-p --project-root -f --format -l --limit -v --verbose --secure --aligned --json -h --help"
+        COMPREPLY=( $(compgen -W "\${workflow_flags}" -- \${cur}) )
+        return 0
+        ;;
+      proofs)
+        local proofs_flags="-p --project-root -f --format -l --limit -v --verbose --json -h --help"
+        COMPREPLY=( $(compgen -W "\${proofs_flags}" -- \${cur}) )
+        return 0
+        ;;
+      pr-analyze)
+        local pr_flags="--branch --max-depth --json -h --help"
+        COMPREPLY=( $(compgen -W "\${pr_flags}" -- \${cur}) )
         return 0
         ;;
       watch)
         local watch_flags="-p --project-root --debounce -h --help"
         COMPREPLY=( $(compgen -W "\${watch_flags}" -- \${cur}) )
+        return 0
+        ;;
+      status)
+        local status_flags="-p --project-root -v --verbose --json -h --help"
+        COMPREPLY=( $(compgen -W "\${status_flags}" -- \${cur}) )
+        return 0
+        ;;
+      overlay)
+        local overlay_flags="-h --help --json"
+        COMPREPLY=( $(compgen -W "\${overlay_flags}" -- \${cur}) )
+        return 0
+        ;;
+      patterns)
+        local patterns_flags="-p --project-root --json -h --help"
+        COMPREPLY=( $(compgen -W "\${patterns_flags}" -- \${cur}) )
+        return 0
+        ;;
+      concepts)
+        local concepts_flags="-p --project-root --json --limit -h --help"
+        COMPREPLY=( $(compgen -W "\${concepts_flags}" -- \${cur}) )
+        return 0
+        ;;
+      coherence)
+        local coherence_flags="-p --project-root --json -v --verbose -h --help"
+        COMPREPLY=( $(compgen -W "\${coherence_flags}" -- \${cur}) )
+        return 0
+        ;;
+      config)
+        local config_flags="--json -h --help"
+        COMPREPLY=( $(compgen -W "\${config_flags}" -- \${cur}) )
         return 0
         ;;
       completion)
@@ -650,16 +700,102 @@ _cognition_cli() {
               ;;
           esac
           ;;
+        ask)
+          _arguments -C \
+            {-p,--project-root}'[Project root directory]:directory:_directories' \
+            {-w,--workbench}'[Workbench URL]:url:' \
+            '--top-k[Number of results]:number:' \
+            '--save[Save as markdown]' \
+            {-v,--verbose}'[Verbose output]' \
+            '--json[Output as JSON]' \
+            {-h,--help}'[Show help]'
+          ;;
+        query|q)
+          _arguments -C \
+            {-p,--project-root}'[Project root directory]:directory:_directories' \
+            {-d,--depth}'[Traversal depth]:number:' \
+            '--lineage[Output dependency lineage]' \
+            '--json[Output results as JSON]' \
+            {-h,--help}'[Show help]'
+          ;;
+        lattice|l)
+          _arguments -C \
+            {-p,--project-root}'[Project root directory]:directory:_directories' \
+            {-f,--format}'[Output format]:format:(table json summary)' \
+            {-l,--limit}'[Maximum results]:number:' \
+            {-v,--verbose}'[Detailed processing]' \
+            '--json[Shorthand for JSON format]' \
+            {-h,--help}'[Show help]'
+          ;;
+        blast-radius)
+          _arguments -C \
+            '--max-depth[Maximum traversal depth]:number:' \
+            '--json[Output as JSON]' \
+            {-h,--help}'[Show help]'
+          ;;
+        pr-analyze)
+          _arguments -C \
+            '--branch[Branch to analyze]:branch:' \
+            '--max-depth[Maximum blast radius depth]:number:' \
+            '--json[Output as JSON]' \
+            {-h,--help}'[Show help]'
+          ;;
+        status)
+          _arguments -C \
+            {-p,--project-root}'[Project root directory]:directory:_directories' \
+            {-v,--verbose}'[Show detailed blast radius info]' \
+            '--json[Output as JSON]' \
+            {-h,--help}'[Show help]'
+          ;;
         overlay)
           _arguments \
+            '--json[Output as JSON]' \
             '1:subcommand:(generate list)' \
             '2:type:(structural_patterns security_guidelines lineage_patterns mission_concepts operational_patterns mathematical_proofs strategic_coherence all)'
           ;;
+        patterns)
+          _arguments \
+            '--json[Output as JSON]' \
+            '1:subcommand:(find-similar compare analyze inspect list graph)'
+          ;;
+        concepts)
+          _arguments \
+            '--json[Output raw JSON]' \
+            '--limit[Limit number of concepts to show]:number:' \
+            '1:subcommand:(list search by-section inspect top)'
+          ;;
+        coherence)
+          _arguments \
+            '--json[Output raw JSON]' \
+            {-v,--verbose}'[Show detailed error messages]' \
+            '1:subcommand:(report aligned drifted list)'
+          ;;
+        config)
+          _arguments \
+            '--json[Output results as JSON]' \
+            '1:subcommand:(list get set path)'
+          ;;
         security)
-          _arguments '1:subcommand:(mandate attacks coverage-gaps boundaries list cves query coherence blast-radius)'
+          _arguments \
+            {-p,--project-root}'[Project root directory]:directory:_directories' \
+            {-f,--format}'[Output format]:format:(table json summary)' \
+            {-l,--limit}'[Maximum results]:number:' \
+            {-v,--verbose}'[Detailed output]' \
+            '--json[Output as JSON]' \
+            {-h,--help}'[Show help]' \
+            '1:subcommand:(mandate attacks coverage-gaps boundaries list cves query coherence blast-radius)'
           ;;
         workflow)
-          _arguments '1:subcommand:(patterns quests depth-rules)'
+          _arguments \
+            {-p,--project-root}'[Project root directory]:directory:_directories' \
+            {-f,--format}'[Output format]:format:(table json summary)' \
+            {-l,--limit}'[Maximum results]:number:' \
+            {-v,--verbose}'[Detailed output]' \
+            '--secure[Security-aligned only]' \
+            '--aligned[Mission-aligned only]' \
+            '--json[Output as JSON]' \
+            {-h,--help}'[Show help]' \
+            '1:subcommand:(patterns quests depth-rules)'
           ;;
         proofs)
           case \${words[3]} in
@@ -674,16 +810,25 @@ _cognition_cli() {
                 '-t[Similarity threshold (0.0-1.0)]:threshold:' \
                 '--threshold[Similarity threshold (0.0-1.0)]:threshold:' \
                 '-v[Verbose output]' \
-                '--verbose[Verbose output]'
+                '--verbose[Verbose output]' \
+                '--json[Output as JSON]'
               ;;
             list)
               _arguments \
                 '--type[Filter by type]:type:(theorem lemma axiom proof identity)' \
                 '-f[Output format]:format:(table json summary)' \
-                '--format[Output format]:format:(table json summary)'
+                '--format[Output format]:format:(table json summary)' \
+                '--json[Output as JSON]'
               ;;
             *)
-              _arguments '1:subcommand:(theorems lemmas list aligned)'
+              _arguments \
+                {-p,--project-root}'[Project root directory]:directory:_directories' \
+                {-f,--format}'[Output format]:format:(table json summary)' \
+                {-l,--limit}'[Maximum results]:number:' \
+                {-v,--verbose}'[Detailed output]' \
+                '--json[Output as JSON]' \
+                {-h,--help}'[Show help]' \
+                '1:subcommand:(theorems lemmas list aligned)'
               ;;
           esac
           ;;
@@ -697,7 +842,10 @@ _cognition_cli() {
           _arguments '1:subcommand:(report aligned drifted list)'
           ;;
         audit)
-          _arguments '1:subcommand:(transformations docs)'
+          _arguments \
+            {-p,--project-root}'[Project root directory]:directory:_directories' \
+            {-l,--limit}'[Number of transformations]:number:' \
+            '1:subcommand:(transformations docs)'
           ;;
         migrate)
           _arguments '1:subcommand:(lance)'
@@ -711,17 +859,19 @@ _cognition_cli() {
           _arguments '1:subcommand:(list get set path)'
           ;;
         genesis|g)
-          # Handle genesis:<TAB> to suggest 'docs'
-          local -a subcommands
-          subcommands=(
-            'docs:Generate documentation from genesis'
-          )
-          _describe -t subcommands 'genesis subcommand' subcommands -S ''
+          _arguments \
+            {-w,--workbench}'[Workbench URL]:url:' \
+            {-p,--project-root}'[Project root directory]:directory:_directories' \
+            {-n,--dry-run}'[Preview only]' \
+            {-r,--resume}'[Resume run]' \
+            '--json[JSON lines output]' \
+            {-h,--help}'[Show help]'
           ;;
         genesis:docs)
           _arguments \
             {-p,--project-root}'[Project root directory]:directory:_directories' \
             {-f,--force}'[Force re-ingestion]' \
+            '--json[JSON lines output]' \
             '*:markdown-file-or-dir:_files -g "*.md" -g "*(-/)"'
           ;;
       esac
@@ -780,6 +930,7 @@ complete -c cognition-cli -s h -l help -d "Show help"
 # Overlay subcommands
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from overlay" -a "generate" -d "Generate overlay"
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from overlay" -a "list" -d "List overlays"
+complete -c cognition-cli -n "__fish_seen_subcommand_from overlay" -l json -d "Output as JSON"
 
 # Overlay types
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from generate; and __fish_seen_subcommand_from overlay" -a "structural_patterns" -d "Structural patterns (O1)"
@@ -793,34 +944,52 @@ complete -c cognition-cli -f -n "__fish_seen_subcommand_from generate; and __fis
 
 # Audit subcommands
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from audit" -a "transformations docs"
+complete -c cognition-cli -n "__fish_seen_subcommand_from audit" -s p -l project-root -d "Project root directory" -xa "(__fish_complete_directories)"
+complete -c cognition-cli -n "__fish_seen_subcommand_from audit" -s l -l limit -d "Number of transformations"
 
 # Migrate subcommands
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from migrate" -a "lance"
 
 # Security subcommands
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from security" -a "mandate attacks coverage-gaps boundaries list cves query coherence blast-radius"
+complete -c cognition-cli -n "__fish_seen_subcommand_from security" -s p -l project-root -d "Project root directory" -xa "(__fish_complete_directories)"
+complete -c cognition-cli -n "__fish_seen_subcommand_from security" -s f -l format -d "Output format" -xa "table json summary"
+complete -c cognition-cli -n "__fish_seen_subcommand_from security" -s l -l limit -d "Maximum results"
+complete -c cognition-cli -n "__fish_seen_subcommand_from security" -s v -l verbose -d "Detailed output"
+complete -c cognition-cli -n "__fish_seen_subcommand_from security" -l json -d "Output as JSON"
 
 # Workflow subcommands
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from workflow" -a "patterns quests depth-rules"
+complete -c cognition-cli -n "__fish_seen_subcommand_from workflow" -s p -l project-root -d "Project root directory" -xa "(__fish_complete_directories)"
+complete -c cognition-cli -n "__fish_seen_subcommand_from workflow" -s f -l format -d "Output format" -xa "table json summary"
+complete -c cognition-cli -n "__fish_seen_subcommand_from workflow" -s l -l limit -d "Maximum results"
+complete -c cognition-cli -n "__fish_seen_subcommand_from workflow" -s v -l verbose -d "Detailed output"
+complete -c cognition-cli -n "__fish_seen_subcommand_from workflow" -l secure -d "Security-aligned only"
+complete -c cognition-cli -n "__fish_seen_subcommand_from workflow" -l aligned -d "Mission-aligned only"
+complete -c cognition-cli -n "__fish_seen_subcommand_from workflow" -l json -d "Output as JSON"
 
 # Patterns subcommands
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from patterns" -a "find-similar compare analyze inspect list graph"
+complete -c cognition-cli -n "__fish_seen_subcommand_from patterns" -l json -d "Output as JSON"
 
 # Concepts subcommands
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from concepts" -a "list search by-section inspect top"
+complete -c cognition-cli -n "__fish_seen_subcommand_from concepts" -l json -d "Output raw JSON"
 
 # Coherence subcommands
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from coherence" -a "report aligned drifted list"
+complete -c cognition-cli -n "__fish_seen_subcommand_from coherence" -l json -d "Output raw JSON"
 
 # Proofs subcommands
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from proofs" -a "theorems lemmas list aligned"
+complete -c cognition-cli -n "__fish_seen_subcommand_from proofs" -s p -l project-root -d "Project root directory" -xa "(__fish_complete_directories)"
+complete -c cognition-cli -n "__fish_seen_subcommand_from proofs" -s f -l format -d "Output format" -xa "table json summary"
+complete -c cognition-cli -n "__fish_seen_subcommand_from proofs" -s l -l limit -d "Maximum results"
+complete -c cognition-cli -n "__fish_seen_subcommand_from proofs" -s v -l verbose -d "Detailed output"
+complete -c cognition-cli -n "__fish_seen_subcommand_from proofs" -l json -d "Output as JSON"
 
 # Proofs aligned options
-complete -c cognition-cli -n "__fish_seen_subcommand_from proofs; and __fish_seen_subcommand_from aligned" -s p -l project-root -d "Project root directory" -xa "(__fish_complete_directories)"
-complete -c cognition-cli -n "__fish_seen_subcommand_from proofs; and __fish_seen_subcommand_from aligned" -s f -l format -d "Output format" -xa "table json summary"
-complete -c cognition-cli -n "__fish_seen_subcommand_from proofs; and __fish_seen_subcommand_from aligned" -s l -l limit -d "Maximum results to show"
 complete -c cognition-cli -n "__fish_seen_subcommand_from proofs; and __fish_seen_subcommand_from aligned" -s t -l threshold -d "Semantic similarity threshold (0.0-1.0)"
-complete -c cognition-cli -n "__fish_seen_subcommand_from proofs; and __fish_seen_subcommand_from aligned" -s v -l verbose -d "Show detailed error messages"
 
 # Proofs list options
 complete -c cognition-cli -n "__fish_seen_subcommand_from proofs; and __fish_seen_subcommand_from list" -l type -d "Filter by type" -xa "theorem lemma axiom proof identity"
@@ -854,9 +1023,41 @@ complete -c cognition-cli -f -n "__fish_seen_subcommand_from tui; and __fish_see
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from tui; and __fish_seen_subcommand_from provider; and __fish_seen_subcommand_from test set-default models" -a "gemini" -d "Google Gemini"
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from tui; and __fish_seen_subcommand_from provider; and __fish_seen_subcommand_from test set-default models" -a "openai" -d "OpenAI / OpenAI-compatible"
 
+# Ask options
+complete -c cognition-cli -n "__fish_seen_subcommand_from ask" -s p -l project-root -d "Project root directory" -xa "(__fish_complete_directories)"
+complete -c cognition-cli -n "__fish_seen_subcommand_from ask" -s w -l workbench -d "Workbench URL"
+complete -c cognition-cli -n "__fish_seen_subcommand_from ask" -l top-k -d "Number of results"
+complete -c cognition-cli -n "__fish_seen_subcommand_from ask" -l save -d "Save as markdown"
+complete -c cognition-cli -n "__fish_seen_subcommand_from ask" -s v -l verbose -d "Verbose output"
+complete -c cognition-cli -n "__fish_seen_subcommand_from ask" -l json -d "Output as JSON"
+
+# Query options
+complete -c cognition-cli -n "__fish_seen_subcommand_from query" -s p -l project-root -d "Project root directory" -xa "(__fish_complete_directories)"
+complete -c cognition-cli -n "__fish_seen_subcommand_from query" -s d -l depth -d "Traversal depth"
+complete -c cognition-cli -n "__fish_seen_subcommand_from query" -l lineage -d "Output dependency lineage"
+complete -c cognition-cli -n "__fish_seen_subcommand_from query" -l json -d "Output as JSON"
+
+# Status options
+complete -c cognition-cli -n "__fish_seen_subcommand_from status" -s p -l project-root -d "Project root directory" -xa "(__fish_complete_directories)"
+complete -c cognition-cli -n "__fish_seen_subcommand_from status" -s v -l verbose -d "Show detailed blast radius info"
+complete -c cognition-cli -n "__fish_seen_subcommand_from status" -l json -d "Output as JSON"
+
+# Lattice options
+complete -c cognition-cli -n "__fish_seen_subcommand_from lattice" -s p -l project-root -d "Project root directory" -xa "(__fish_complete_directories)"
+complete -c cognition-cli -n "__fish_seen_subcommand_from lattice" -s f -l format -d "Output format" -xa "table json summary"
+complete -c cognition-cli -n "__fish_seen_subcommand_from lattice" -s l -l limit -d "Maximum results"
+complete -c cognition-cli -n "__fish_seen_subcommand_from lattice" -s v -l verbose -d "Detailed processing"
+complete -c cognition-cli -n "__fish_seen_subcommand_from lattice" -l json -d "Shorthand for JSON format"
+
+# PR Impact options
+complete -c cognition-cli -n "__fish_seen_subcommand_from pr-analyze" -l branch -d "Branch to analyze"
+complete -c cognition-cli -n "__fish_seen_subcommand_from pr-analyze" -l max-depth -d "Maximum blast radius depth"
+complete -c cognition-cli -n "__fish_seen_subcommand_from pr-analyze" -l json -d "Output as JSON"
+
 # genesis:docs options
 complete -c cognition-cli -n "__fish_seen_subcommand_from genesis:docs" -s p -l project-root -d "Project root directory" -xa "(__fish_complete_directories)"
 complete -c cognition-cli -n "__fish_seen_subcommand_from genesis:docs" -s f -l force -d "Force re-ingestion"
+complete -c cognition-cli -n "__fish_seen_subcommand_from genesis:docs" -l json -d "JSON lines output"
 complete -c cognition-cli -n "__fish_seen_subcommand_from genesis:docs" -xa "(ls *.md 2>/dev/null)" -d "Markdown file"
 complete -c cognition-cli -n "__fish_seen_subcommand_from genesis:docs" -xa "(__fish_complete_directories)" -d "Directory"
 
@@ -865,10 +1066,8 @@ complete -c cognition-cli -f -n "__fish_seen_subcommand_from completion" -a "ins
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from completion; and __fish_seen_subcommand_from install uninstall" -l shell -xa "bash zsh fish"
 
 # Config subcommands
-complete -c cognition-cli -f -n "__fish_seen_subcommand_from config" -a "list" -d "List all settings"
-complete -c cognition-cli -f -n "__fish_seen_subcommand_from config" -a "get" -d "Get a setting value"
-complete -c cognition-cli -f -n "__fish_seen_subcommand_from config" -a "set" -d "Set a setting value"
-complete -c cognition-cli -f -n "__fish_seen_subcommand_from config" -a "path" -d "Show config file path"
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from config" -a "list get set path"
+complete -c cognition-cli -n "__fish_seen_subcommand_from config" -l json -d "Output results as JSON"
 `;
 }
 

@@ -52,22 +52,40 @@ export const blastRadiusCommand = new Command('blast-radius')
   )
   .option('--json', 'Output as JSON')
   .option('--no-transitive', 'Only show direct dependencies/consumers')
-  .action(async (symbol, options) => {
+  .action(async (symbol, options, command) => {
     try {
-      await runBlastRadius(symbol, options);
+      const allOpts = command.optsWithGlobals();
+      const effectiveOptions = {
+        ...options,
+        json: allOpts.json || options.json,
+      };
+      await runBlastRadius(symbol, effectiveOptions);
     } catch (error) {
+      const allOpts = command.optsWithGlobals();
+      const useJson = allOpts.json || options.json;
+
       if ((error as Error).message.includes('not found in graph')) {
-        console.error(
-          chalk.red(`\n❌ Symbol '${symbol}' not found in structural patterns.`)
-        );
-        console.log(
-          chalk.dim(
-            '\n💡 Make sure to run: cognition-cli overlay generate structural_patterns'
-          )
-        );
+        if (!useJson) {
+          console.error(
+            chalk.red(
+              `\n❌ Symbol '${symbol}' not found in structural patterns.`
+            )
+          );
+          console.log(
+            chalk.dim(
+              '\n💡 Make sure to run: cognition-cli overlay generate structural_patterns'
+            )
+          );
+        } else {
+          console.log(JSON.stringify([], null, 2));
+        }
       } else {
-        console.error(chalk.red('\n❌ Error analyzing blast radius:'));
-        console.error((error as Error).message);
+        if (!useJson) {
+          console.error(chalk.red('\n❌ Error analyzing blast radius:'));
+          console.error((error as Error).message);
+        } else {
+          console.log(JSON.stringify([], null, 2));
+        }
       }
       process.exit(1);
     }

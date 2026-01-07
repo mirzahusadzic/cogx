@@ -85,7 +85,7 @@ export function addPatternsCommands(program: Command) {
       'structural'
     )
     .option('--json', 'Output raw JSON')
-    .action(async (symbol, options) => {
+    .action(async (symbol, options, command) => {
       const pgc = new PGCManager(process.cwd());
       const vectorDB = new LanceVectorStore(pgc.pgcRoot);
       const tableName = `${options.type}_patterns`;
@@ -103,7 +103,10 @@ export function addPatternsCommands(program: Command) {
         parseInt(options.topK)
       );
 
-      if (options.json) {
+      const allOpts = command.optsWithGlobals();
+      const useJson = allOpts.json || options.json;
+
+      if (useJson) {
         console.log(JSON.stringify(results, null, 2));
       } else {
         console.log(
@@ -148,9 +151,13 @@ export function addPatternsCommands(program: Command) {
       'structural'
     )
     .option('-v, --verbose', 'Show detailed information including file paths')
-    .action(async (options) => {
+    .option('--json', 'Output as JSON')
+    .action(async (options, command) => {
       const isVerbose = getVerboseState(options);
       const pgc = new PGCManager(process.cwd());
+
+      const allOpts = command.optsWithGlobals();
+      const useJson = allOpts.json || options.json;
 
       // Monument 4.8: Manifest as Source of Truth
       // Read manifest first to determine which patterns should exist
@@ -159,14 +166,16 @@ export function addPatternsCommands(program: Command) {
       );
 
       if (!manifest || Object.keys(manifest).length === 0) {
-        console.log(
-          chalk.yellow(`\nNo ${options.type} patterns found in manifest.`)
-        );
-        console.log(
-          chalk.dim(
-            `Run: cognition-cli overlay generate ${options.type}_patterns`
-          )
-        );
+        if (!useJson) {
+          console.log(
+            chalk.yellow(`\nNo ${options.type} patterns found in manifest.`)
+          );
+          console.log(
+            chalk.dim(
+              `Run: cognition-cli overlay generate ${options.type}_patterns`
+            )
+          );
+        }
         return;
       }
 
@@ -213,15 +222,32 @@ export function addPatternsCommands(program: Command) {
         }
       }
 
-      console.log(
-        chalk.bold(
-          `\n📊 Architectural Pattern Distribution (${options.type}):\n`
-        )
-      );
-
       const sortedRoles = Object.entries(roleGroups).sort(
         ([, a], [, b]) => b.length - a.length
       );
+
+      if (useJson) {
+        console.log(
+          JSON.stringify(
+            {
+              type: options.type,
+              totalPatterns,
+              roles: sortedRoles.map(([role, symbols]) => ({
+                role,
+                count: symbols.length,
+                symbols: symbols.map((s) => ({
+                  symbol: s.symbol,
+                  filePath: s.filePath,
+                })),
+              })),
+              staleVectors,
+            },
+            null,
+            2
+          )
+        );
+        return;
+      }
 
       for (const [role, symbols] of sortedRoles) {
         const count = symbols.length;
@@ -280,9 +306,14 @@ export function addPatternsCommands(program: Command) {
       "The type of patterns to list ('structural' or 'lineage')",
       'structural'
     )
-    .action(async (options) => {
+    .option('--json', 'Output as JSON')
+    .action(async (options, command) => {
       const pgc = new PGCManager(process.cwd());
       const vectorDB = new LanceVectorStore(pgc.pgcRoot);
+
+      const allOpts = command.optsWithGlobals();
+      const useJson = allOpts.json || options.json;
+
       const tableName = `${options.type}_patterns`;
       await vectorDB.initialize(tableName);
       const allVectors: VectorRecord[] = await vectorDB.getAllVectors();
@@ -300,15 +331,29 @@ export function addPatternsCommands(program: Command) {
       }
 
       if (filteredVectors.length === 0) {
-        if (options.role) {
-          console.log(
-            chalk.yellow(
-              `\nNo patterns found with role: ${chalk.cyan(options.role)}`
-            )
-          );
+        if (!useJson) {
+          if (options.role) {
+            console.log(
+              chalk.yellow(
+                `\nNo patterns found with role: ${chalk.cyan(options.role)}`
+              )
+            );
+          } else {
+            console.log(chalk.yellow('\nNo patterns found.'));
+          }
         } else {
-          console.log(chalk.yellow('\nNo patterns found.'));
+          console.log(JSON.stringify([], null, 2));
         }
+        return;
+      }
+
+      if (useJson) {
+        const results = filteredVectors.map((v) => ({
+          symbol: v.symbol,
+          filePath: getFilePathFromId(v.id as string),
+          role: v.architectural_role,
+        }));
+        console.log(JSON.stringify(results, null, 2));
         return;
       }
 
@@ -361,13 +406,19 @@ export function addPatternsCommands(program: Command) {
   patternsCommand
     .command('inspect <symbol>')
     .description('Show comprehensive information about a symbol')
-    .action(async (symbol) => {
+    .option('--json', 'Output as JSON')
+    .action(async (symbol, options, command) => {
       const pgc = new PGCManager(process.cwd());
       const vectorDB = new LanceVectorStore(pgc.pgcRoot);
 
-      console.log(
-        chalk.bold(`\n🔍 Inspecting symbol: ${chalk.cyan(symbol)}\n`)
-      );
+      const allOpts = command.optsWithGlobals();
+      const useJson = allOpts.json || options.json;
+
+      if (!useJson) {
+        console.log(
+          chalk.bold(`\n🔍 Inspecting symbol: ${chalk.cyan(symbol)}\n`)
+        );
+      }
 
       // Check structural patterns
       const structuralManifest = await pgc.overlays.getManifest(
@@ -376,16 +427,31 @@ export function addPatternsCommands(program: Command) {
       const structuralFilePath = structuralManifest?.[symbol];
 
       if (!structuralFilePath) {
-        console.log(chalk.red(`❌ Symbol '${symbol}' not found in patterns.`));
-        console.log(
-          chalk.dim('\n💡 Use `patterns list` to see all available symbols')
-        );
+        if (!useJson) {
+          console.log(
+            chalk.red(`❌ Symbol '${symbol}' not found in patterns.`)
+          );
+          console.log(
+            chalk.dim('\n💡 Use `patterns list` to see all available symbols')
+          );
+        } else {
+          console.log(
+            JSON.stringify({ error: `Symbol '${symbol}' not found` }, null, 2)
+          );
+        }
         return;
       }
 
-      console.log(
-        chalk.green(`✅ Found in: ${chalk.dim(structuralFilePath)}\n`)
-      );
+      if (!useJson) {
+        console.log(
+          chalk.green(`✅ Found in: ${chalk.dim(structuralFilePath)}\n`)
+        );
+      }
+
+      const result: Record<string, unknown> = {
+        symbol,
+        filePath: structuralFilePath,
+      };
 
       // Load structural pattern metadata
       const structuralOverlayKey = `${structuralFilePath}#${symbol}`;
@@ -397,17 +463,20 @@ export function addPatternsCommands(program: Command) {
 
       if (structuralMeta) {
         const meta = structuralMeta as Record<string, unknown>;
-        console.log(chalk.bold('📦 Structural Pattern:'));
-        console.log(`   Role: ${chalk.cyan(meta.architecturalRole)}`);
-        console.log(`   Signature: ${chalk.dim(meta.structuralSignature)}`);
-        console.log(`   Computed: ${chalk.dim(meta.computedAt)}`);
+        result.structural = meta;
+        if (!useJson) {
+          console.log(chalk.bold('📦 Structural Pattern:'));
+          console.log(`   Role: ${chalk.cyan(meta.architecturalRole)}`);
+          console.log(`   Signature: ${chalk.dim(meta.structuralSignature)}`);
+          console.log(`   Computed: ${chalk.dim(meta.computedAt)}`);
 
-        const validation = meta.validation as Record<string, unknown>;
-        if (validation) {
-          console.log(chalk.bold('\n✅ Validation:'));
-          console.log(`   Extraction: ${validation.extractionMethod}`);
-          console.log(`   Fidelity: ${validation.fidelity}`);
-          console.log(`   Model: ${validation.embeddingModelVersion}`);
+          const validation = meta.validation as Record<string, unknown>;
+          if (validation) {
+            console.log(chalk.bold('\n✅ Validation:'));
+            console.log(`   Extraction: ${validation.extractionMethod}`);
+            console.log(`   Fidelity: ${validation.fidelity}`);
+            console.log(`   Model: ${validation.embeddingModelVersion}`);
+          }
         }
       }
 
@@ -426,34 +495,46 @@ export function addPatternsCommands(program: Command) {
 
         if (lineageMeta) {
           const meta = lineageMeta as Record<string, unknown>;
-          console.log(chalk.bold('\n🌳 Lineage Pattern:'));
+          result.lineage = meta;
+          if (!useJson) {
+            console.log(chalk.bold('\n🌳 Lineage Pattern:'));
 
-          try {
-            const lineageData = JSON.parse(meta.lineageSignature as string);
-            if (lineageData.lineage && lineageData.lineage.length > 0) {
-              console.log(`   Dependencies (${lineageData.lineage.length}):`);
-              lineageData.lineage.forEach(
-                (dep: { type: string; depth: number }) => {
-                  const indent = '  '.repeat(dep.depth);
-                  console.log(
-                    `   ${indent}└─ ${chalk.cyan(dep.type)} ${chalk.dim(`(depth ${dep.depth})`)}`
-                  );
-                }
-              );
-            } else {
-              console.log(chalk.dim('   No dependencies found'));
+            try {
+              const lineageData = JSON.parse(meta.lineageSignature as string);
+              result.lineageData = lineageData;
+              if (lineageData.lineage && lineageData.lineage.length > 0) {
+                console.log(`   Dependencies (${lineageData.lineage.length}):`);
+                lineageData.lineage.forEach(
+                  (dep: { type: string; depth: number }) => {
+                    const indent = '  '.repeat(dep.depth);
+                    console.log(
+                      `   ${indent}└─ ${chalk.cyan(dep.type)} ${chalk.dim(`(depth ${dep.depth})`)}`
+                    );
+                  }
+                );
+              } else {
+                console.log(chalk.dim('   No dependencies found'));
+              }
+            } catch {
+              console.log(chalk.dim('   Could not parse lineage data'));
             }
-          } catch {
-            console.log(chalk.dim('   Could not parse lineage data'));
+          } else {
+            try {
+              result.lineageData = JSON.parse(meta.lineageSignature as string);
+            } catch {
+              // Ignore parse errors
+            }
           }
         }
       } else {
-        console.log(
-          chalk.yellow('\n⚠️  No lineage pattern found for this symbol')
-        );
-        console.log(
-          chalk.dim('   Run: cognition-cli overlay generate lineage_patterns')
-        );
+        if (!useJson) {
+          console.log(
+            chalk.yellow('\n⚠️  No lineage pattern found for this symbol')
+          );
+          console.log(
+            chalk.dim('   Run: cognition-cli overlay generate lineage_patterns')
+          );
+        }
       }
 
       // Find similar patterns
@@ -469,20 +550,29 @@ export function addPatternsCommands(program: Command) {
           symbol,
           5
         );
+        result.similar = similar;
         if (similar.length > 0) {
-          console.log(chalk.bold('\n🔗 Similar Patterns:'));
-          similar.forEach((s, i) => {
-            console.log(
-              `   ${i + 1}. ${chalk.green(s.symbol)} ${chalk.dim(`(${(s.similarity * 100).toFixed(1)}%)`)}`
-            );
-            console.log(`      📁 ${chalk.dim(s.filePath)}`);
-          });
+          if (!useJson) {
+            console.log(chalk.bold('\n🔗 Similar Patterns:'));
+            similar.forEach((s, i) => {
+              console.log(
+                `   ${i + 1}. ${chalk.green(s.symbol)} ${chalk.dim(`(${(s.similarity * 100).toFixed(1)}%)`)}`
+              );
+              console.log(`      📁 ${chalk.dim(s.filePath)}`);
+            });
+          }
         }
       } catch (error) {
-        console.log(chalk.dim('\n💡 Similar patterns search unavailable'));
-        console.warn(
-          `Similar patterns search error: ${error instanceof Error ? error.message : String(error)}`
-        );
+        if (!useJson) {
+          console.log(chalk.dim('\n💡 Similar patterns search unavailable'));
+          console.warn(
+            `Similar patterns search error: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+      }
+
+      if (useJson) {
+        console.log(JSON.stringify(result, null, 2));
       }
     });
 
@@ -491,12 +581,17 @@ export function addPatternsCommands(program: Command) {
     .description('Visualize dependency graph for a symbol')
     .option('--json', 'Output as JSON instead of ASCII tree')
     .option('--max-depth <number>', 'Maximum depth to traverse', '3')
-    .action(async (symbol, options) => {
+    .action(async (symbol, options, command) => {
       const pgc = new PGCManager(process.cwd());
 
-      console.log(
-        chalk.bold(`\n🌳 Dependency Graph for: ${chalk.cyan(symbol)}\n`)
-      );
+      const allOpts = command.optsWithGlobals();
+      const useJson = allOpts.json || options.json;
+
+      if (!useJson) {
+        console.log(
+          chalk.bold(`\n🌳 Dependency Graph for: ${chalk.cyan(symbol)}\n`)
+        );
+      }
 
       // Check if symbol exists in lineage patterns
       const lineageManifest =
@@ -504,12 +599,16 @@ export function addPatternsCommands(program: Command) {
       const filePath = lineageManifest?.[symbol];
 
       if (!filePath) {
-        console.log(
-          chalk.red(`❌ Symbol '${symbol}' not found in lineage patterns.`)
-        );
-        console.log(
-          chalk.dim('\n💡 Run: cognition-cli overlay generate lineage_patterns')
-        );
+        if (!useJson) {
+          console.log(
+            chalk.red(`❌ Symbol '${symbol}' not found in lineage patterns.`)
+          );
+          console.log(
+            chalk.dim(
+              '\n💡 Run: cognition-cli overlay generate lineage_patterns'
+            )
+          );
+        }
         return;
       }
 
@@ -522,7 +621,9 @@ export function addPatternsCommands(program: Command) {
       );
 
       if (!lineageMeta) {
-        console.log(chalk.red(`❌ No lineage data found for '${symbol}'.`));
+        if (!useJson) {
+          console.log(chalk.red(`❌ No lineage data found for '${symbol}'.`));
+        }
         return;
       }
 
@@ -531,7 +632,7 @@ export function addPatternsCommands(program: Command) {
       try {
         const lineageData = JSON.parse(meta.lineageSignature as string);
 
-        if (options.json) {
+        if (useJson) {
           // Output as JSON for external visualization tools
           const graph = {
             symbol: lineageData.symbol,
@@ -617,11 +718,15 @@ export function addPatternsCommands(program: Command) {
       "The type of patterns to compare ('structural' or 'lineage')",
       'structural'
     )
-    .action(async (symbol1, symbol2, options) => {
+    .option('--json', 'Output as JSON')
+    .action(async (symbol1, symbol2, options, command) => {
       const pgc = new PGCManager(process.cwd());
       const vectorDB = new LanceVectorStore(pgc.pgcRoot);
       const tableName = `${options.type}_patterns`;
       await vectorDB.initialize(tableName);
+
+      const allOpts = command.optsWithGlobals();
+      const useJson = allOpts.json || options.json;
 
       const workbench = new WorkbenchClient(process.env.WORKBENCH_URL!);
 
@@ -634,7 +739,17 @@ export function addPatternsCommands(program: Command) {
       const vector2 = await manager.getVectorForSymbol(symbol2);
 
       if (!vector1 || !vector2) {
-        console.error(chalk.red('Could not find patterns for both symbols.'));
+        if (!useJson) {
+          console.error(chalk.red('Could not find patterns for both symbols.'));
+        } else {
+          console.log(
+            JSON.stringify(
+              { error: 'Could not find patterns for both symbols' },
+              null,
+              2
+            )
+          );
+        }
         return;
       }
 
@@ -642,6 +757,37 @@ export function addPatternsCommands(program: Command) {
         vector1.embedding,
         vector2.embedding
       );
+
+      if (useJson) {
+        const vectorData1 = vector1 as Record<string, unknown>;
+        const vectorData2 = vector2 as Record<string, unknown>;
+        const metadata1 = vector1.metadata as Record<string, unknown>;
+        const metadata2 = vector2.metadata as Record<string, unknown>;
+
+        console.log(
+          JSON.stringify(
+            {
+              symbol1,
+              symbol2,
+              type: options.type,
+              similarity,
+              metadata1: vector1.metadata,
+              metadata2: vector2.metadata,
+              signature1:
+                vectorData1.structural_signature ||
+                metadata1.structural_signature ||
+                metadata1.lineage_signature,
+              signature2:
+                vectorData2.structural_signature ||
+                metadata2.structural_signature ||
+                metadata2.lineage_signature,
+            },
+            null,
+            2
+          )
+        );
+        return;
+      }
 
       console.log(
         chalk.bold(

@@ -56,6 +56,7 @@ import {
 interface LatticeOptions {
   projectRoot: string;
   format?: 'table' | 'json' | 'summary';
+  json?: boolean;
   limit?: number;
   verbose?: boolean;
 }
@@ -151,7 +152,7 @@ export async function latticeCommand(
  * displayResults(queryResult, { format: 'table', limit: 50 });
  */
 function displayResults(result: unknown, options: LatticeOptions): void {
-  const format = options.format || 'table';
+  const format = options.json ? 'json' : options.format || 'table';
   const limit = options.limit || 50;
 
   // Type guard for MeetResult
@@ -225,17 +226,23 @@ function displayItemList(
   format: string,
   limit: number
 ): void {
+  const useJson = format === 'json' || process.env.COGNITION_FORMAT === 'json';
+
   if (items.length === 0) {
-    console.warn('No items found');
+    if (!useJson) {
+      console.warn('No items found');
+    } else {
+      console.log(JSON.stringify([], null, 2));
+    }
+    return;
+  }
+
+  if (useJson) {
+    console.log(JSON.stringify(items.slice(0, limit), null, 2));
     return;
   }
 
   console.log(`\nResults: ${items.length} item(s)\n`);
-
-  if (format === 'json') {
-    console.log(JSON.stringify(items.slice(0, limit), null, 2));
-    return;
-  }
 
   if (format === 'summary') {
     console.log(`Showing summary of ${Math.min(limit, items.length)} items`);
@@ -336,17 +343,23 @@ function displayMeetResults(
   format: string,
   limit: number
 ): void {
+  const useJson = format === 'json' || process.env.COGNITION_FORMAT === 'json';
+
   if (results.length === 0) {
-    console.warn('No alignments found (try lowering --threshold)');
+    if (!useJson) {
+      console.warn('No alignments found (try lowering --threshold)');
+    } else {
+      console.log(JSON.stringify([], null, 2));
+    }
+    return;
+  }
+
+  if (useJson) {
+    console.log(JSON.stringify(results.slice(0, limit), null, 2));
     return;
   }
 
   console.log(`\nMeet Results: ${results.length} alignment(s)\n`);
-
-  if (format === 'json') {
-    console.log(JSON.stringify(results.slice(0, limit), null, 2));
-    return;
-  }
 
   console.log(
     `Showing ${Math.min(limit, results.length)} of ${results.length} pairs\n`

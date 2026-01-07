@@ -61,6 +61,7 @@ export default defineConfig({
       'src/core/overlays/strategic-coherence/__tests__/manager.test.ts',
       'src/core/overlays/lineage/__tests__/interface-lineage.test.ts',
       'src/tui/services/__tests__/BackgroundTaskManager.test.ts', // Uses child_process mocking - runs in workerpool config
+      'src/__tests__/json-output.test.ts', // Slow E2E test - runs in workerpool config
     ],
     globals: true,
     environment: 'happy-dom',

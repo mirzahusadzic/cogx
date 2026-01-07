@@ -109,20 +109,25 @@ export function addConceptsCommands(program: Command) {
     .option('-p, --project-root <path>', 'The root of the project.', '.')
     .option('--json', 'Output raw JSON')
     .option('--limit <number>', 'Limit number of concepts to show', '100')
-    .action(async (options) => {
+    .action(async (options, command) => {
       const pgcRoot = resolvePgcRoot(options.projectRoot);
       const manager = new MissionConceptsManager(pgcRoot);
       const limit = parseInt(options.limit);
+
+      const allOpts = command.optsWithGlobals();
+      const useJson = allOpts.json || options.json;
 
       // Get all document hashes
       const docHashes = await manager.list();
 
       if (docHashes.length === 0) {
-        console.error(
-          chalk.red(
-            '\n✗ No mission concepts found. Run "cognition-cli overlay generate mission_concepts" first.\n'
-          )
-        );
+        if (!useJson) {
+          console.error(
+            chalk.red(
+              '\n✗ No mission concepts found. Run "cognition-cli overlay generate mission_concepts" first.\n'
+            )
+          );
+        }
         process.exit(1);
       }
 
@@ -147,7 +152,7 @@ export function addConceptsCommands(program: Command) {
       // Limit results
       const concepts = allConcepts.slice(0, limit);
 
-      if (options.json) {
+      if (useJson) {
         console.log(JSON.stringify(concepts, null, 2));
         return;
       }
@@ -207,23 +212,28 @@ export function addConceptsCommands(program: Command) {
     .description('Show top mission concepts by weight (default: 20)')
     .option('-p, --project-root <path>', 'The root of the project.', '.')
     .option('--json', 'Output raw JSON')
-    .action(async (count, options) => {
+    .action(async (count, options, command) => {
       const pgcRoot = resolvePgcRoot(options.projectRoot);
       const manager = new MissionConceptsManager(pgcRoot);
       const topN = parseInt(count || '20');
 
+      const allOpts = command.optsWithGlobals();
+      const useJson = allOpts.json || options.json;
+
       const topConcepts = await manager.getTopConcepts(topN);
 
       if (topConcepts.length === 0) {
-        console.error(
-          chalk.red(
-            '\n✗ No mission concepts found. Run "cognition-cli overlay generate mission_concepts" first.\n'
-          )
-        );
+        if (!useJson) {
+          console.error(
+            chalk.red(
+              '\n✗ No mission concepts found. Run "cognition-cli overlay generate mission_concepts" first.\n'
+            )
+          );
+        }
         process.exit(1);
       }
 
-      if (options.json) {
+      if (useJson) {
         console.log(JSON.stringify(topConcepts, null, 2));
         return;
       }
@@ -266,19 +276,24 @@ export function addConceptsCommands(program: Command) {
     .description('Find concepts matching a keyword')
     .option('-p, --project-root <path>', 'The root of the project.', '.')
     .option('--json', 'Output raw JSON')
-    .action(async (keyword, options) => {
+    .action(async (keyword, options, command) => {
       const pgcRoot = resolvePgcRoot(options.projectRoot);
       const manager = new MissionConceptsManager(pgcRoot);
+
+      const allOpts = command.optsWithGlobals();
+      const useJson = allOpts.json || options.json;
 
       // Get all document hashes
       const docHashes = await manager.list();
 
       if (docHashes.length === 0) {
-        console.error(
-          chalk.red(
-            '\n✗ No mission concepts found. Run "cognition-cli overlay generate mission_concepts" first.\n'
-          )
-        );
+        if (!useJson) {
+          console.error(
+            chalk.red(
+              '\n✗ No mission concepts found. Run "cognition-cli overlay generate mission_concepts" first.\n'
+            )
+          );
+        }
         process.exit(1);
       }
 
@@ -301,7 +316,7 @@ export function addConceptsCommands(program: Command) {
       // Sort by weight descending
       matches.sort((a, b) => b.weight - a.weight);
 
-      if (options.json) {
+      if (useJson) {
         console.log(JSON.stringify(matches, null, 2));
         return;
       }
@@ -368,19 +383,24 @@ export function addConceptsCommands(program: Command) {
     )
     .option('-p, --project-root <path>', 'The root of the project.', '.')
     .option('--json', 'Output raw JSON')
-    .action(async (section, options) => {
+    .action(async (section, options, command) => {
       const pgcRoot = resolvePgcRoot(options.projectRoot);
       const manager = new MissionConceptsManager(pgcRoot);
+
+      const allOpts = command.optsWithGlobals();
+      const useJson = allOpts.json || options.json;
 
       // Get all document hashes
       const docHashes = await manager.list();
 
       if (docHashes.length === 0) {
-        console.error(
-          chalk.red(
-            '\n✗ No mission concepts found. Run "cognition-cli overlay generate mission_concepts" first.\n'
-          )
-        );
+        if (!useJson) {
+          console.error(
+            chalk.red(
+              '\n✗ No mission concepts found. Run "cognition-cli overlay generate mission_concepts" first.\n'
+            )
+          );
+        }
         process.exit(1);
       }
 
@@ -403,7 +423,7 @@ export function addConceptsCommands(program: Command) {
       // Sort by weight descending
       matches.sort((a, b) => b.weight - a.weight);
 
-      if (options.json) {
+      if (useJson) {
         console.log(JSON.stringify(matches, null, 2));
         return;
       }
@@ -463,19 +483,24 @@ export function addConceptsCommands(program: Command) {
     .description('Show detailed information about a specific concept')
     .option('-p, --project-root <path>', 'The root of the project.', '.')
     .option('--json', 'Output raw JSON')
-    .action(async (text, options) => {
+    .action(async (text, options, command) => {
       const pgcRoot = resolvePgcRoot(options.projectRoot);
       const manager = new MissionConceptsManager(pgcRoot);
+
+      const allOpts = command.optsWithGlobals();
+      const useJson = allOpts.json || options.json;
 
       // Get all document hashes
       const docHashes = await manager.list();
 
       if (docHashes.length === 0) {
-        console.error(
-          chalk.red(
-            '\n✗ No mission concepts found. Run "cognition-cli overlay generate mission_concepts" first.\n'
-          )
-        );
+        if (!useJson) {
+          console.error(
+            chalk.red(
+              '\n✗ No mission concepts found. Run "cognition-cli overlay generate mission_concepts" first.\n'
+            )
+          );
+        }
         process.exit(1);
       }
 
@@ -509,17 +534,19 @@ export function addConceptsCommands(program: Command) {
       }
 
       if (!foundConcept) {
-        console.error(chalk.red(`\n✗ Concept not found: "${text}"\n`));
-        console.log(
-          chalk.dim(
-            '  Use "concepts search <keyword>" to find similar concepts.'
-          )
-        );
-        console.log('');
+        if (!useJson) {
+          console.error(chalk.red(`\n✗ Concept not found: "${text}"\n`));
+          console.log(
+            chalk.dim(
+              '  Use "concepts search <keyword>" to find similar concepts.'
+            )
+          );
+          console.log('');
+        }
         process.exit(1);
       }
 
-      if (options.json) {
+      if (useJson) {
         console.log(JSON.stringify(foundConcept, null, 2));
         return;
       }

@@ -74,16 +74,21 @@ interface SecurityCoherenceOptions {
  * @returns Absolute path to .open_cognition directory
  * @throws {Error} Exits process if no workspace found
  */
-function resolvePgcRoot(startPath: string): string {
+function resolvePgcRoot(
+  startPath: string,
+  options?: SecurityCoherenceOptions
+): string {
   const workspaceManager = new WorkspaceManager();
   const projectRoot = workspaceManager.resolvePgcRoot(startPath);
 
   if (!projectRoot) {
-    log.error(
-      chalk.red(
-        'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
-      )
-    );
+    if (options?.format !== 'json' && process.env.COGNITION_FORMAT !== 'json') {
+      log.error(
+        chalk.red(
+          'No .open_cognition workspace found. Run "cognition-cli init" to create one.'
+        )
+      );
+    }
     process.exit(1);
   }
 
@@ -163,12 +168,19 @@ interface SecurityCoherenceMetrics {
 export async function securityCoherenceCommand(
   options: SecurityCoherenceOptions
 ): Promise<void> {
-  intro(chalk.bold.cyan('🔒 Security Coherence Metrics'));
+  const useJson =
+    options.format === 'json' || process.env.COGNITION_FORMAT === 'json';
 
-  const pgcRoot = resolvePgcRoot(options.projectRoot);
+  if (!useJson) {
+    intro(chalk.bold.cyan('🔒 Security Coherence Metrics'));
+  }
+
+  const pgcRoot = resolvePgcRoot(options.projectRoot, options);
 
   const s = spinner();
-  s.start('Analyzing security implementation alignment');
+  if (!useJson) {
+    s.start('Analyzing security implementation alignment');
+  }
 
   try {
     // Load coherence data
@@ -185,20 +197,26 @@ export async function securityCoherenceCommand(
         item.metadata.symbolName.toLowerCase().includes('transparency')
     );
 
-    s.stop('Analysis complete');
+    if (!useJson) {
+      s.stop('Analysis complete');
+    }
 
     if (securitySymbols.length === 0) {
-      log.warn(
-        chalk.yellow(
-          '\n⚠️  No security symbols found in coherence overlay.\n\n' +
-            'This might indicate:\n' +
-            '  1. Security classes not extracted into O₁ structural overlay\n' +
-            '  2. O₇ coherence overlay needs regeneration\n' +
-            '  3. Security symbols not matching filter criteria\n\n' +
-            'Try: cognition-cli overlay generate strategic-coherence --force\n'
-        )
-      );
-      outro(chalk.dim('Security coherence analysis complete (no data)'));
+      if (!useJson) {
+        log.warn(
+          chalk.yellow(
+            '\n⚠️  No security symbols found in coherence overlay.\n\n' +
+              'This might indicate:\n' +
+              '  1. Security classes not extracted into O₁ structural overlay\n' +
+              '  2. O₇ coherence overlay needs regeneration\n' +
+              '  3. Security symbols not matching filter criteria\n\n' +
+              'Try: cognition-cli overlay generate strategic-coherence --force\n'
+          )
+        );
+        outro(chalk.dim('Security coherence analysis complete (no data)'));
+      } else {
+        console.log(JSON.stringify([], null, 2));
+      }
       return;
     }
 
@@ -206,16 +224,20 @@ export async function securityCoherenceCommand(
     const metrics = await calculateSecurityMetrics(securitySymbols);
 
     // Display results
-    if (options.format === 'json') {
+    if (useJson) {
       console.log(JSON.stringify(metrics, null, 2));
     } else {
       displaySecurityCoherenceReport(metrics, options.verbose || false);
     }
 
-    outro(chalk.green('✓ Security coherence analysis complete'));
+    if (!useJson) {
+      outro(chalk.green('✓ Security coherence analysis complete'));
+    }
   } catch (error) {
-    s.stop('Analysis failed');
-    log.error(chalk.red((error as Error).message));
+    if (!useJson) {
+      s.stop('Analysis failed');
+      log.error(chalk.red((error as Error).message));
+    }
     if (options.verbose) {
       console.error(error);
     }
