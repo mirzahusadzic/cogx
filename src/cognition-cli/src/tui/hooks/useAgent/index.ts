@@ -29,6 +29,7 @@ export function useAgent(options: UseAgentOptions) {
     provider: providerName = 'claude',
     model: modelName,
     autoResponse = true,
+    semanticThreshold: semanticThresholdProp,
   } = options;
 
   // 1. Utilities (defined early for use in sessionManager and sub-hooks)
@@ -133,7 +134,7 @@ export function useAgent(options: UseAgentOptions) {
     analyzedTurns: turnAnalysis.stats.totalAnalyzed,
     isThinking,
     tokenThreshold: sessionTokens,
-    semanticThreshold: isGemini ? 50000 : undefined,
+    semanticThreshold: semanticThresholdProp ?? (isGemini ? 50000 : undefined),
     tpmLimit: isGemini ? 1000000 : undefined,
     minTurns: isGemini ? 1 : 5,
     enabled: true,

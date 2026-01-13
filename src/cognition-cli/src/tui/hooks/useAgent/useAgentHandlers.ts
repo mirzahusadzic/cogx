@@ -23,8 +23,6 @@ import {
   COMPRESSION_RECOVERY_PROMPT,
 } from './constants.js';
 
-const GEMINI_COMPRESSION_THRESHOLD = 50000;
-
 interface UseAgentHandlersOptions {
   options: UseAgentOptions;
   state: AgentState;
@@ -92,6 +90,7 @@ export function useAgentHandlers({
     getMessageQueue,
     onRequestToolConfirmation,
     debug: debugFlag,
+    semanticThreshold = 50000,
   } = options;
 
   const anchorId = sessionManager.state.anchorId;
@@ -189,11 +188,11 @@ export function useAgentHandlers({
                       (tool.name === 'SigmaTaskUpdate' ||
                         tool.name ===
                           'mcp__sigma-task-update__SigmaTaskUpdate') &&
-                      effectiveTokens > GEMINI_COMPRESSION_THRESHOLD &&
+                      effectiveTokens > semanticThreshold &&
                       !compressionInProgressRef.current
                     ) {
                       debug(
-                        `Preemptive semantic compression for ${tool.name} (> 50k tokens)...`
+                        `Preemptive semantic compression for ${tool.name} (> ${semanticThreshold} tokens)...`
                       );
                       await compression.triggerCompression(true);
                     }
@@ -371,6 +370,20 @@ export function useAgentHandlers({
             ? `<system-reminder>\n${state.pendingMessageNotification}\n</system-reminder>`
             : `<system-reminder>\n${state.pendingMessageNotification}\n</system-reminder>\n\n${finalPrompt}`;
           setPendingMessageNotification(null);
+        }
+
+        // Proactive token pressure injection (Gemini specific)
+        if (
+          providerName === 'gemini' &&
+          tokenCounter.count.total > semanticThreshold &&
+          !isAutoResponse
+        ) {
+          const warning = `<token-pressure-warning>
+Current context is at ${tokenCounter.count.total.toLocaleString()} tokens. 
+To maintain performance and stay within TPM limits, please consider marking your current task as "completed" using SigmaTaskUpdate as soon as you reach a logical stopping point. 
+This will trigger a semantic compression event, flushing implementation noise while preserving your high-level plan.
+</token-pressure-warning>`;
+          finalPrompt = `${warning}\n\n${finalPrompt}`;
         }
 
         if (

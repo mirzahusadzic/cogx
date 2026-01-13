@@ -23,6 +23,12 @@ export interface UseAgentOptions {
   sessionTokens?: number;
 
   /**
+   * Token threshold for semantic compression (task completion)
+   * @default 50000 (Gemini)
+   */
+  semanticThreshold?: number;
+
+  /**
    * Maximum tokens for extended thinking (experimental)
    * Enables Claude to think longer on complex problems
    */

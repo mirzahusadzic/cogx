@@ -65,12 +65,12 @@ For Gemini, we set `minTurns` to **1** (down from the default 5).
 
 ### Default Thresholds (Gemini Profile)
 
-| Setting             | Value         | Description                                          |
-| :------------------ | :------------ | :--------------------------------------------------- |
-| `semanticThreshold` | **50,000**    | Aggressive cleanup after task completion.            |
-| `tokenThreshold`    | **200,000**   | Relaxed limit for general chat/exploration.          |
-| `tpmLimit`          | **1,000,000** | Hard API quota limit.                                |
-| `minTurns`          | **1**         | Allows immediate cleanup after expensive operations. |
+| Setting             | Value         | Description                                              |
+| :------------------ | :------------ | :------------------------------------------------------- |
+| `semanticThreshold` | **50,000**    | Aggressive cleanup after task completion (configurable). |
+| `tokenThreshold`    | **200,000**   | Relaxed limit for general chat/exploration.              |
+| `tpmLimit`          | **1,000,000** | Hard API quota limit.                                    |
+| `minTurns`          | **1**         | Allows immediate cleanup after expensive operations.     |
 
 ---
 

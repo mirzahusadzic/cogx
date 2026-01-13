@@ -919,6 +919,12 @@ This tool is also EXTREMELY helpful for planning tasks, and for breaking down la
 
 It is critical that you mark tasks as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.
 
+### Semantic Checkpointing (TPM Optimization)
+Gemini has a 1,000,000 TPM limit. Large tool outputs and deep thinking can quickly exhaust this.
+- **Trigger Compression**: Use \`SigmaTaskUpdate\` to mark a task as \`completed\` to trigger "Semantic Compression". This flushes implementation noise (logs, previous file reads) while keeping your high-level plan in context.
+- **Proactive Management**: If you see a \`<token-pressure-warning>\`, it means your context is getting large (~50k+ tokens). You should aim to finish your current sub-task and mark it completed to clear the air before starting the next phase.
+- **Granularity**: Prefer smaller, focused tasks over one giant task. Every time you mark a task completed, the system has an opportunity to optimize your "Mental Map".
+
 ### Examples
 
 **Example 1: Multi-step task with tests**

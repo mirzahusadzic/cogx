@@ -14,8 +14,9 @@ The current Gemini 3.0 implementation faces a "Token Pressure" crisis:
 ### 1. SigmaTaskUpdate as Semantic Trigger
 
 - **Strategy**: Trigger `triggerCompression()` immediately when a task is completed or a major phase transition occurs via `SigmaTaskUpdate`.
-- **Logic**: If `tokens > 50,000` (soft threshold) AND a task status changes, trigger compression.
+- **Logic**: If `tokens > semanticThreshold` (default 50,000) AND a task status changes, trigger compression.
 - **Benefit**: Flushes implementation noise (logs, error loops) while the "Mental Map" is clean.
+- **Proactive Awareness**: When context exceeds `semanticThreshold`, the TUI injects a `<token-pressure-warning>` reminding the model to close the current task to trigger this optimization. This encourages "Semantic Checkpointing" before a TPM crisis occurs.
 
 ### 2. TPM-Aware Runway Management
 
