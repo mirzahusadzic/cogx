@@ -154,7 +154,6 @@ cognition-cli tui --no-auto-response
 - `/agents`: List all active agents.
 - `/pending`: View pending messages in the queue.
 - `/inject <id>`: Manually inject a pending message.
-- `/login`: Re-authenticate with the LLM provider.
 
 ---
 

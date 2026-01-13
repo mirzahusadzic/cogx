@@ -16,15 +16,15 @@ describe('SDKQueryManager', () => {
     it('detects 401 authentication_error', () => {
       const stderrLines = [
         'Error: 401',
-        'authentication_error: OAuth token has expired',
+        'authentication_error: token has expired',
       ];
       expect(isAuthenticationError(stderrLines)).toBe(true);
     });
 
-    it('detects 401 with "OAuth token has expired"', () => {
+    it('detects 401 with "token has expired"', () => {
       const stderrLines = [
         'HTTP Error 401',
-        'OAuth token has expired. Please refresh.',
+        'token has expired. Please refresh.',
       ];
       expect(isAuthenticationError(stderrLines)).toBe(true);
     });
@@ -39,10 +39,10 @@ describe('SDKQueryManager', () => {
       expect(isAuthenticationError(stderrLines)).toBe(false);
     });
 
-    it('returns true for explicit OAuth expiration messages', () => {
-      // Enhanced detection: catches OAuth expiration even without HTTP 401
+    it('returns true for explicit expiration messages', () => {
+      // Enhanced detection: catches expiration even without HTTP 401
       // This handles cases where the SDK error message doesn't include status codes
-      const stderrLines = ['OAuth token has expired'];
+      const stderrLines = ['token has expired'];
       expect(isAuthenticationError(stderrLines)).toBe(true);
     });
 
@@ -65,21 +65,23 @@ describe('SDKQueryManager', () => {
       expect(isAuthenticationError(stderrLines)).toBe(true);
     });
 
-    it('detects various OAuth error patterns', () => {
+    it('detects various auth error patterns', () => {
       expect(isAuthenticationError(['token expired'])).toBe(true);
       expect(isAuthenticationError(['authentication failed'])).toBe(true);
-      expect(isAuthenticationError(['invalid_grant'])).toBe(true);
+      expect(isAuthenticationError(['invalid_api_key'])).toBe(true);
       expect(isAuthenticationError(['credentials have expired'])).toBe(true);
     });
 
     it('detects errors with 401 and generic auth keywords', () => {
       expect(isAuthenticationError(['Error 401 unauthorized'])).toBe(true);
       expect(isAuthenticationError(['401 token invalid'])).toBe(true);
-      expect(isAuthenticationError(['HTTP 401 oauth error'])).toBe(true);
+      expect(isAuthenticationError(['HTTP 401 authentication error'])).toBe(
+        true
+      );
     });
 
     it('is case-insensitive', () => {
-      expect(isAuthenticationError(['OAUTH TOKEN HAS EXPIRED'])).toBe(true);
+      expect(isAuthenticationError(['TOKEN HAS EXPIRED'])).toBe(true);
       expect(isAuthenticationError(['401 Authentication_Error'])).toBe(true);
       expect(isAuthenticationError(['Token Expired'])).toBe(true);
     });
@@ -89,13 +91,7 @@ describe('SDKQueryManager', () => {
     it('returns formatted authentication error message', () => {
       const result = formatAuthError();
       expect(result).toContain('API Error: 401');
-      expect(result).toContain('OAuth token has expired');
-      expect(result).toContain('/login');
-    });
-
-    it('includes instruction to run /login', () => {
-      const result = formatAuthError();
-      expect(result).toContain('Please run /login');
+      expect(result).toContain('Authentication failed');
     });
   });
 

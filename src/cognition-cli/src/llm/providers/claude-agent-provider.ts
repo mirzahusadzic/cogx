@@ -78,7 +78,6 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
 
     // Start loading Claude Agent SDK asynchronously in the constructor
     // but do NOT await it here. We'll await it in executeAgent().
-    // Note: Always load SDK even without API key to support OAuth authentication
     this.agentSdkLoadingPromise = this.initAgentSdk();
   }
 
@@ -215,16 +214,17 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
   /**
    * Check if Claude API is available
    *
-   * For Claude, we check if the Agent SDK is loaded (supports both API key and OAuth),
-   * rather than testing the basic SDK client which requires an API key.
+   * For Claude, we check if the Agent SDK is loaded AND if the API key is set.
    */
   async isAvailable(): Promise<boolean> {
     // Ensure Agent SDK is loaded
     await this.ensureAgentSdkLoaded();
 
-    // If Agent SDK is available, Claude is available
-    // (works with both API key and OAuth authentication)
-    return !!this.claudeAgentSdk;
+    // Check for API key
+    const hasApiKey = !!process.env.ANTHROPIC_API_KEY;
+
+    // If Agent SDK is available and API key is set, Claude is available
+    return !!this.claudeAgentSdk && hasApiKey;
   }
 
   /**
@@ -400,17 +400,6 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
         return;
       }
 
-      // 2. OAuth token expiration (GitHub #10784, #2830, #1746)
-      if (
-        errorMessage.includes('OAuth token has expired') ||
-        errorMessage.includes('OAuth authentication') ||
-        errorMessage.includes('token_expired')
-      ) {
-        throw new Error(
-          `OAuth token has expired. Please run the login command to re-authenticate.`
-        );
-      }
-
       // 3. General authentication errors
       if (
         errorMessage.includes('authentication_error') ||
@@ -419,7 +408,7 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
         errorMessage.includes('401')
       ) {
         throw new Error(
-          `Authentication failed: Please check your ANTHROPIC_API_KEY or re-authenticate with OAuth`
+          `Authentication failed: Please check your ANTHROPIC_API_KEY`
         );
       }
 
@@ -430,17 +419,14 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
         );
       }
 
-      // 5. Claude Code subprocess exit with code 1 (often auth error, but SDK eats the message)
-      // The SDK spawns Claude Code which prints "use /login" on auth failure, but only
-      // returns generic "process exited with code 1" to us
+      // 5. Claude Code subprocess exit with code 1
       if (
         errorMessage.includes('process exited with code 1') ||
         errorMessage.includes('exited with code 1')
       ) {
         throw new Error(
           `Claude Code exited unexpectedly. This is often an authentication issue.\n` +
-            `Please run: claude /login\n` +
-            `If the issue persists, check your API key or OAuth token.`
+            `Please check your ANTHROPIC_API_KEY.`
         );
       }
 

@@ -9,15 +9,14 @@
  * 2. Check for HTTP 401 status code
  * 3. Check for authentication-related error messages:
  *    - "authentication_error"
- *    - "OAuth token has expired"
- *    - "token has expired"
- * 4. Return true if both 401 and error message found
+ *    - "invalid_api_key"
+ * 4. Return true if auth error found
  *
  * @param stderrLines - Array of stderr output lines from SDK
  * @returns True if authentication error detected
  *
  * @example
- * const stderrLines = ["Error: 401 - OAuth token has expired"];
+ * const stderrLines = ["Error: 401 - Unauthorized"];
  * if (isAuthenticationError(stderrLines)) {
  *   showLoginPrompt();
  * }
@@ -25,28 +24,27 @@
 export function isAuthenticationError(stderrLines: string[]): boolean {
   const stderrText = stderrLines.join(' ').toLowerCase();
 
-  // Check for various OAuth/auth error patterns
+  // Check for various auth error patterns
   return (
     // HTTP 401 status
     (stderrText.includes('401') &&
       (stderrText.includes('authentication_error') ||
-        stderrText.includes('oauth') ||
+        stderrText.includes('api key') ||
         stderrText.includes('token') ||
         stderrText.includes('unauthorized'))) ||
-    // Explicit OAuth expiration messages
-    stderrText.includes('oauth token has expired') ||
+    // Explicit expiration messages
     stderrText.includes('token has expired') ||
     stderrText.includes('token expired') ||
     stderrText.includes('authentication failed') ||
-    stderrText.includes('invalid_grant') ||
+    stderrText.includes('invalid_api_key') ||
     stderrText.includes('credentials have expired') ||
     // Claude/Anthropic specific errors
     stderrText.includes('anthropic_api_error') ||
     stderrText.includes('authentication error') ||
-    // Claude Code subprocess exit (SDK swallows actual error, we only get exit code)
-    // Our claude-agent-provider.ts converts this to a helpful message containing these keywords
-    stderrText.includes('claude code exited unexpectedly') ||
-    stderrText.includes('please run: claude /login')
+    // Claude/OpenAI/Gemini provider error wrappers
+    stderrText.includes('please check your anthropic_api_key') ||
+    stderrText.includes('please check your gemini_api_key') ||
+    stderrText.includes('please check your openai_api_key')
   );
 }
 
@@ -54,17 +52,11 @@ export function isAuthenticationError(stderrLines: string[]): boolean {
  * Format authentication error message
  *
  * Returns a user-friendly error message for authentication failures.
- * Includes instructions for re-authentication via /login command.
  *
  * @returns Formatted authentication error message
- *
- * @example
- * if (isAuthenticationError(stderr)) {
- *   displayError(formatAuthError());
- * }
  */
 export function formatAuthError(): string {
-  return '⎿ API Error: 401 - OAuth token has expired. Please obtain a new token or refresh your existing token.\n· Please run /login';
+  return '⎿ API Error: 401 - Authentication failed. Please check your API key.';
 }
 
 /**

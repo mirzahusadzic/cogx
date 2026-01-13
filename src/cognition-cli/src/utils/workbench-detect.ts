@@ -369,8 +369,7 @@ export async function detectWorkbench(): Promise<WorkbenchDetectionResult> {
  * - Claude: ANTHROPIC_API_KEY environment variable
  * - Gemini: GEMINI_API_KEY environment variable
  *
- * Note: Claude also supports OAuth authentication (handled separately by TUI),
- * but for onboarding we check for API key presence as the simplest validation.
+ * Note: Providers are initialized to detect all available options based on API keys.
  *
  * @param preferredProvider - Optional preferred provider to check first
  * @returns Detection result with provider details
@@ -386,7 +385,7 @@ export async function detectWorkbench(): Promise<WorkbenchDetectionResult> {
 export async function detectLLMProvider(
   preferredProvider?: LLMProviderType
 ): Promise<LLMProviderDetectionResult> {
-  // Initialize providers to detect all available options (including OAuth-based Claude)
+  // Initialize providers to detect all available options
   // Pass preferredProvider as default to avoid misleading "X not available" warnings
   try {
     await initializeProviders({

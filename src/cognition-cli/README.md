@@ -92,14 +92,9 @@ cognition-cli tui --provider claude
 
 Claude can be used with:
 
-1. **API Key**: Set `ANTHROPIC_API_KEY` environment variable
-2. **OAuth**: Authenticate via Claude Agent SDK CLI (no API key needed)
-
 ```bash
-# With API key
-ANTHROPIC_API_KEY=sk-ant-... cognition-cli tui --provider claude
-
-# With OAuth (uses Claude Agent SDK authentication)
+# With official OpenAI API
+export ANTHROPIC_API_KEY=sk-ant-...
 cognition-cli tui --provider claude
 ```
 

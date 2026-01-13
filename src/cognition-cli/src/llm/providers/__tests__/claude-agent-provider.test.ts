@@ -334,34 +334,6 @@ describe('ClaudeProvider', () => {
   });
 
   describe('Error Handling', () => {
-    describe('OAuth Token Expiration', () => {
-      it('should throw friendly error for OAuth expiration', async () => {
-        const provider = new ClaudeProvider('test-key');
-        await provider.ensureAgentModeReady();
-
-        // Mock the query to throw OAuth error
-        const claudeAgentSdk = await import('@anthropic-ai/claude-agent-sdk');
-        (claudeAgentSdk.query as ReturnType<typeof vi.fn>).mockImplementation(
-          () => ({
-            // eslint-disable-next-line require-yield
-            [Symbol.asyncIterator]: async function* () {
-              throw new Error('OAuth token has expired');
-            },
-          })
-        );
-
-        const generator = provider.executeAgent({
-          prompt: 'Hello',
-          model: 'claude-sonnet-4-5-20250929',
-          cwd: '/test',
-        });
-
-        await expect(generator.next()).rejects.toThrow(
-          'OAuth token has expired. Please run the login command to re-authenticate.'
-        );
-      });
-    });
-
     describe('Authentication Errors', () => {
       it('should throw friendly error for invalid API key', async () => {
         const provider = new ClaudeProvider('test-key');

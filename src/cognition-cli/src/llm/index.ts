@@ -140,24 +140,26 @@ export async function initializeProviders(
   // Track which providers were successfully registered
   const registered: string[] = [];
 
-  // Register Claude (optional - requires optional peer dependency)
+  // Register Claude (optional - requires optional peer dependency and API key)
   if (!registry.has('claude')) {
     try {
-      // Dynamic import to make Claude SDK optional
-      const { ClaudeProvider } =
-        await import('./providers/claude-agent-provider.js');
       const apiKey = anthropicApiKey || process.env.ANTHROPIC_API_KEY;
 
-      // Register Claude provider even without API key to support OAuth authentication
-      const claude = new ClaudeProvider(apiKey);
+      if (apiKey) {
+        // Dynamic import to make Claude SDK optional
+        const { ClaudeProvider } =
+          await import('./providers/claude-agent-provider.js');
 
-      // Always register the provider (basic completions work without Agent SDK)
-      registry.register(claude);
-      registered.push('claude');
+        const claude = new ClaudeProvider(apiKey);
 
-      // Check if agent mode is available (requires optional Claude Agent SDK)
-      await claude.ensureAgentModeReady();
-      // Note: If SDK is not available, agent mode will be disabled silently
+        // Always register the provider (basic completions work without Agent SDK)
+        registry.register(claude);
+        registered.push('claude');
+
+        // Check if agent mode is available (requires optional Claude Agent SDK)
+        await claude.ensureAgentModeReady();
+        // Note: If SDK is not available, agent mode will be disabled silently
+      }
     } catch (error) {
       if (skipMissingProviders) {
         // Silent skip if SDK not installed

@@ -18,8 +18,8 @@ describe('error-helpers', () => {
       expect(isAuthenticationError(stderrLines)).toBe(true);
     });
 
-    it('should detect HTTP 401 with oauth keyword', () => {
-      const stderrLines = ['HTTP 401 - OAuth authentication required'];
+    it('should detect HTTP 401 with api key keyword', () => {
+      const stderrLines = ['HTTP 401 - API key required'];
       expect(isAuthenticationError(stderrLines)).toBe(true);
     });
 
@@ -30,11 +30,6 @@ describe('error-helpers', () => {
 
     it('should detect HTTP 401 with unauthorized keyword', () => {
       const stderrLines = ['401 Unauthorized access'];
-      expect(isAuthenticationError(stderrLines)).toBe(true);
-    });
-
-    it('should detect OAuth token expired message', () => {
-      const stderrLines = ['OAuth token has expired'];
       expect(isAuthenticationError(stderrLines)).toBe(true);
     });
 
@@ -53,8 +48,8 @@ describe('error-helpers', () => {
       expect(isAuthenticationError(stderrLines)).toBe(true);
     });
 
-    it('should detect invalid_grant error', () => {
-      const stderrLines = ['OAuth error: invalid_grant'];
+    it('should detect invalid_api_key error', () => {
+      const stderrLines = ['Error: invalid_api_key'];
       expect(isAuthenticationError(stderrLines)).toBe(true);
     });
 
@@ -73,13 +68,8 @@ describe('error-helpers', () => {
       expect(isAuthenticationError(stderrLines)).toBe(true);
     });
 
-    it('should detect Claude Code unexpected exit message', () => {
-      const stderrLines = ['Claude Code exited unexpectedly with code 1'];
-      expect(isAuthenticationError(stderrLines)).toBe(true);
-    });
-
-    it('should detect login prompt message', () => {
-      const stderrLines = ['Please run: claude /login'];
+    it('should detect provider specific API key check message', () => {
+      const stderrLines = ['Please check your ANTHROPIC_API_KEY'];
       expect(isAuthenticationError(stderrLines)).toBe(true);
     });
 
@@ -127,13 +117,7 @@ describe('error-helpers', () => {
     it('should return formatted auth error message', () => {
       const result = formatAuthError();
       expect(result).toContain('401');
-      expect(result).toContain('OAuth token has expired');
-      expect(result).toContain('/login');
-    });
-
-    it('should include login instruction', () => {
-      const result = formatAuthError();
-      expect(result).toContain('Please run /login');
+      expect(result).toContain('Authentication failed');
     });
   });
 

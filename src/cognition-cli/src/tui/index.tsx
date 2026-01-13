@@ -289,12 +289,12 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
         // Display error message
         const authErrorMessage = [
           '\n\n╔════════════════════════════════════════════════════════════════════════════╗',
-          '║                     OAuth Token Expired                                    ║',
+          '║                     Authentication Failed                                  ║',
           '╚════════════════════════════════════════════════════════════════════════════╝\n',
-          '  Your OAuth token has expired and the TUI must exit.\n',
+          '  Your API key is invalid or has expired and the TUI must exit.\n',
           '  📝 Your session has been saved automatically.\n',
           '  To continue:\n',
-          '  1. Run: claude /login',
+          '  1. Check your API key environment variable (e.g. ANTHROPIC_API_KEY)',
           '  2. Restart with: cognition tui --file ' + sessionStateFile + '\n',
           '  Press any key to exit...\n',
         ].join('\n');
@@ -687,7 +687,7 @@ export function startTUI(options: CognitionTUIProps) {
       systemLog('tui', '[TUI] Stack trace', { stack: error.stack }, 'error');
     }
 
-    // Check if it's an OAuth error
+    // Check if it's an auth error
     if (isAuthenticationError([error.message])) {
       systemLog(
         'tui',
@@ -697,7 +697,7 @@ export function startTUI(options: CognitionTUIProps) {
       );
       systemLog(
         'tui',
-        '║                     OAuth Token Expired                                    ║',
+        '║                     Authentication Failed                                  ║',
         {},
         'error'
       );
@@ -707,8 +707,18 @@ export function startTUI(options: CognitionTUIProps) {
         {},
         'error'
       );
-      systemLog('tui', '  Your OAuth token has expired.\n', {}, 'error');
-      systemLog('tui', '  Please run: claude /login\n', {}, 'error');
+      systemLog(
+        'tui',
+        '  Your API key is invalid or has expired.\n',
+        {},
+        'error'
+      );
+      systemLog(
+        'tui',
+        '  Please check your environment variables.\n',
+        {},
+        'error'
+      );
     }
 
     process.exit(1);

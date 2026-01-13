@@ -175,7 +175,6 @@ The module implements several layers of protection against common AI workflow fa
 - **Missing API Keys**: The registry validates configuration on startup. If a provider lacks keys, it remains unregistered, preventing runtime crashes.
 - **Health Checks**: `healthCheckAll()` actively tests connectivity to provider APIs.
 - **Rate Limiting**: Providers (specifically Claude) catch `429` errors and expose them gracefully, allowing the TUI to prompt for retry or backoff.
-- **OAuth Expiration**: The Claude provider detects expired OAuth tokens and prompts the user to re-authenticate via `/login`.
 - **Provider Fallbacks**: While `getDefault()` is deterministic, removing a failing provider via `unregister()` triggers an automatic fallback to the next available provider in the list.
 
 ---

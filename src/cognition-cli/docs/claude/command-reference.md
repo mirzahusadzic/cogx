@@ -931,9 +931,6 @@ cognition-cli tui
 # Start with Claude provider (using API key)
 ANTHROPIC_API_KEY=sk-ant-... cognition-cli tui --provider claude
 
-# Start with Claude provider (using OAuth)
-cognition-cli tui --provider claude
-
 # Resume previous session
 cognition-cli tui --session-id abc123
 
