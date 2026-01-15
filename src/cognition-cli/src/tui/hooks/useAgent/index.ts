@@ -12,7 +12,10 @@ import { useAgentMessaging } from './useAgentMessaging.js';
 import { useAgentSync } from './useAgentSync.js';
 import { useAgentHandlers } from './useAgentHandlers.js';
 import { useAgentCompressionHandler } from './useAgentCompressionHandler.js';
-import { AUTO_RESPONSE_TRIGGER } from './constants.js';
+import {
+  AUTO_RESPONSE_TRIGGER,
+  isProviderContextSensitive,
+} from './constants.js';
 
 /**
  * useAgent hook - Professional production-ready version.
@@ -127,16 +130,19 @@ export function useAgent(options: UseAgentOptions) {
     modelName,
   });
 
-  const isGemini =
-    providerName === 'gemini' || (modelName && modelName.includes('gemini'));
+  const isContextSensitive = isProviderContextSensitive(
+    providerName,
+    modelName
+  );
   const compression = useCompression({
     tokenCount: tokenCounter.count.total,
     analyzedTurns: turnAnalysis.stats.totalAnalyzed,
     isThinking,
     tokenThreshold: sessionTokens,
-    semanticThreshold: semanticThresholdProp ?? (isGemini ? 50000 : undefined),
-    tpmLimit: isGemini ? 1000000 : undefined,
-    minTurns: isGemini ? 1 : 5,
+    semanticThreshold:
+      semanticThresholdProp ?? (isContextSensitive ? 50000 : undefined),
+    tpmLimit: isContextSensitive ? 1000000 : undefined,
+    minTurns: isContextSensitive ? 1 : 5,
     enabled: true,
     debug: debugFlag,
     onCompressionTriggered: handleCompressionTriggered,

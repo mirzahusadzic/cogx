@@ -21,6 +21,7 @@ import type { UseCompressionResult } from '../compression/useCompression.js';
 import {
   AUTO_RESPONSE_TRIGGER,
   COMPRESSION_RECOVERY_PROMPT,
+  isProviderContextSensitive,
 } from './constants.js';
 
 interface UseAgentHandlersOptions {
@@ -372,9 +373,9 @@ export function useAgentHandlers({
           setPendingMessageNotification(null);
         }
 
-        // Proactive token pressure injection (Gemini specific)
+        // Proactive token pressure injection (Gemini & OpenAI specific)
         if (
-          providerName === 'gemini' &&
+          isProviderContextSensitive(providerName, modelName) &&
           tokenCounter.count.total > semanticThreshold &&
           !isAutoResponse
         ) {
@@ -569,7 +570,7 @@ This will trigger a semantic compression event, flushing implementation noise wh
           }
 
           if (
-            providerName === 'gemini' &&
+            isProviderContextSensitive(providerName, modelName) &&
             turnWasSemantic &&
             compression.getTriggerInfo(true).shouldTrigger
           ) {

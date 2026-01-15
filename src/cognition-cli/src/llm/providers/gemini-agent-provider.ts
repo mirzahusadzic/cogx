@@ -32,6 +32,7 @@ import {
   StreamingMode,
 } from '@google/adk';
 import { getGroundingContext } from './grounding-utils.js';
+import { getDynamicThinkingBudget } from './thinking-utils.js';
 import { getCognitionTools } from './gemini-adk-tools.js';
 import { systemLog } from '../../utils/debug-logger.js';
 import type {
@@ -174,10 +175,9 @@ export class GeminiAgentProvider implements AgentProvider {
     const isGemini3 = modelId.includes('gemini-3');
 
     // Dynamic Thinking Budgeting:
-    // If TPM is low (< 200k), reduce thinking budget significantly
-    const remainingTPM = request.remainingTPM ?? 1000000;
-    const isTPMLow = remainingTPM < 200000;
-    const defaultThinkingBudget = isTPMLow ? 8192 : 24576;
+    const { thinkingLevel, thinkingBudget } = getDynamicThinkingBudget(
+      request.remainingTPM
+    );
 
     const agent = new LlmAgent({
       name: 'cognition_agent',
@@ -195,7 +195,7 @@ export class GeminiAgentProvider implements AgentProvider {
               // GEMINI 3.0 CONFIG (Requires SDK bypass currently)
               thinkingConfig: {
                 // Reduced thinking for low TPM (though HIGH is usually preferred for Gemini 3)
-                thinkingLevel: isTPMLow ? 'LOW' : 'HIGH',
+                thinkingLevel,
                 includeThoughts: request.displayThinking !== false,
               },
             }
@@ -204,10 +204,8 @@ export class GeminiAgentProvider implements AgentProvider {
               thinkingConfig: {
                 thinkingBudget:
                   request.maxThinkingTokens !== undefined
-                    ? Math.min(request.maxThinkingTokens, defaultThinkingBudget)
-                    : isTPMLow
-                      ? 8192
-                      : -1,
+                    ? Math.min(request.maxThinkingTokens, thinkingBudget)
+                    : thinkingBudget,
                 includeThoughts: request.displayThinking !== false,
               },
             }),
@@ -925,7 +923,7 @@ Gemini has a 1,000,000 TPM limit. Large tool outputs and deep thinking can quick
 - **Proactive Management**: If you see a \`<token-pressure-warning>\`, it means your context is getting large (~50k+ tokens). You should aim to finish your current sub-task and mark it completed to clear the air before starting the next phase.
 - **Granularity**: Prefer smaller, focused tasks over one giant task. Every time you mark a task completed, the system has an opportunity to optimize your "Mental Map".
 
-### Examples
+### Examples of Task Management
 
 **Example 1: Multi-step task with tests**
 User: "Run the build and fix any type errors"

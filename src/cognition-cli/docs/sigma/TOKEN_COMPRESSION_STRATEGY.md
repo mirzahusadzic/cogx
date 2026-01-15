@@ -1,10 +1,10 @@
-# Gemini Token Optimization & Compression Strategy
+# Token Optimization & Compression Strategy
 
 ## Overview
 
-Gemini 3.0 Flash, while powerful, introduces a strict constraint: a **1,000,000 Tokens Per Minute (TPM)** quota. In large-scale coding tasks, simply reading a few files or running a build can spike context usage to 100k+ tokens instantly. If this "context bloat" persists across multiple turns, the session will quickly hit the 1M TPM wall and crash.
+Many powerful reasoning models, including Gemini 3.0 Flash, OpenAI o1/o3, and eGemma, operate under strict **Tokens Per Minute (TPM)** quotas (e.g., 1,000,000 TPM for Gemini). In large-scale coding tasks, simply reading a few files or running a build can spike context usage to 100k+ tokens instantly. If this "context bloat" persists across multiple turns, the session will quickly hit the TPM wall and crash.
 
-To solve this, Cognition Σ implements a **Tri-Modal Compression Strategy** specifically tuned for Gemini. This system shifts from "reactive" context management to "proactive" pruning, ensuring the agent always operates within a safe TPM envelope.
+To solve this, Cognition Σ implements a **Tri-Modal Compression Strategy**. This system shifts from "reactive" context management to "proactive" pruning, ensuring the agent always operates within a safe TPM envelope across various context-sensitive providers.
 
 ---
 
@@ -54,6 +54,18 @@ To solve this, Cognition Σ implements a **Tri-Modal Compression Strategy** spec
 
 ---
 
+## Dynamic Thinking Budgeting
+
+To prevent "Thinking Token Bloat" from exhausting the TPM quota, Cognition Σ implements dynamic budgeting for reasoning models (Gemini 3, OpenAI o1/o3, eGemma).
+
+- **Trigger:** Remaining TPM < 200,000.
+- **Logic:**
+  - **Gemini:** Switches `thinkingLevel` to `LOW` and caps `thinkingBudget` to 8,192 tokens.
+  - **OpenAI/eGemma:** Sets `reasoning_effort` to `low` to prioritize speed and token conservation over deep reasoning.
+- **Parity:** Both providers use a shared utility (`thinking-utils.ts`) to ensure synchronized behavior across the dual-lattice architecture.
+
+---
+
 ## Configuration
 
 ### Why `minTurns: 1`?
@@ -63,7 +75,7 @@ For Gemini, we set `minTurns` to **1** (down from the default 5).
 - **Reason:** Semantic Mode relies on seizing the _exact moment_ a task is done. If the user asks "Fix this bug" and the agent does it in 1 turn (reading 80k tokens of logs), we **must** compress immediately. Waiting for 5 turns would force the agent to carry that 80k noise into the next 4 turns, likely triggering a TPM crash.
 - **Safety:** Infinite loops are prevented by the `triggered` state flag. Once compressed, the system locks until the context grows again.
 
-### Default Thresholds (Gemini Profile)
+### Default Thresholds (Context-Sensitive Provider Profile)
 
 | Setting             | Value         | Description                                              |
 | :------------------ | :------------ | :------------------------------------------------------- |

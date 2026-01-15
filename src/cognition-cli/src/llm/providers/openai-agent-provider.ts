@@ -62,6 +62,7 @@ import {
   OpenAIConversationsSession,
 } from '@openai/agents-openai';
 import { getOpenAITools } from './openai-agent-tools.js';
+import { getDynamicThinkingBudget } from './thinking-utils.js';
 import type { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
 import type { BackgroundTaskManager } from '../../tui/services/BackgroundTaskManager.js';
 import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
@@ -682,6 +683,11 @@ export class OpenAIAgentProvider implements AgentProvider {
       // Works with both OpenAI and OpenAI-compatible endpoints like eGemma
       const modelImpl = new OpenAIResponsesModel(this.client, modelId);
 
+      // Dynamic Thinking Budgeting:
+      const { reasoningEffort } = getDynamicThinkingBudget(
+        request.remainingTPM
+      );
+
       // Create agent
       const agent = new Agent({
         name: 'cognition_agent',
@@ -692,7 +698,12 @@ export class OpenAIAgentProvider implements AgentProvider {
             ? `\n\n## Automated Grounding Context\n${groundingContext}`
             : ''),
         tools,
-        modelSettings: { temperature: 1.0 },
+        modelSettings: {
+          temperature: 1.0,
+          reasoning: {
+            effort: reasoningEffort,
+          },
+        },
       });
 
       // Create session for conversation continuity
@@ -1350,28 +1361,22 @@ ${request.cwd || process.cwd()}
 - Run tests after making code changes
 - **ALWAYS use the bash tool for shell commands** (git, grep, npm, yarn, system commands, etc.) - never attempt to execute commands without it
 
-## Task Management with SigmaTaskUpdate
+## Task Management
 You have access to the SigmaTaskUpdate tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.
+This tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.
+**Planning in your internal thought blocks before calling SigmaTaskUpdate ensures reliable task tracking and prevents malformed tool arguments.**
 
-### When to Use SigmaTaskUpdate
-1. Complex multi-step tasks - When a task requires 3 or more distinct steps or actions
-2. Non-trivial and complex tasks - Tasks that require careful planning or multiple operations
-3. User explicitly requests task list - When the user directly asks you to use the task list
-4. User provides multiple tasks - When users provide a list of things to be done (numbered or comma-separated)
-5. After receiving new instructions - Immediately capture user requirements as tasks
-6. When you start working on a task - Mark it as in_progress BEFORE beginning work
-7. After completing a task - Mark it as completed and add any new follow-up tasks
-8. When delegating tasks - Create a task with status 'delegated' before sending the IPC message
+It is critical that you mark tasks as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.
 
-### When NOT to Use SigmaTaskUpdate
-1. There is only a single, straightforward task
-2. The task is trivial and tracking it provides no organizational benefit
-3. The task can be completed in less than 3 trivial steps
-4. The task is purely conversational or informational
+### Semantic Checkpointing (TPM Optimization)
+OpenAI endpoints (especially via Cognition Σ) benefit from proactive context management.
+- **Trigger Compression**: Use \`SigmaTaskUpdate\` to mark a task as \`completed\` to trigger "Semantic Compression". This flushes implementation noise (logs, previous file reads) while keeping your high-level plan in context.
+- **Proactive Management**: If you see a \`<token-pressure-warning>\`, it means your context is getting large (~50k+ tokens). You should aim to finish your current sub-task and mark it completed to clear the air before starting the next phase.
+- **Granularity**: Prefer smaller, focused tasks over one giant task. Every time you mark a task completed, the system has an opportunity to optimize your "Mental Map".
 
 ### Examples of Task Management
 
-**Example 1: Multi-step task**
+**Example 1: Multi-step task with tests**
 User: "Run the build and fix any type errors"
 You should:
 1. Use SigmaTaskUpdate to create items: "Run the build", "Fix any type errors"
@@ -1381,7 +1386,14 @@ You should:
 5. Work on the first item, then mark it as completed
 6. Continue until all items are done
 
-**Example 2: Delegating a task (Manager/Worker Pattern)**
+**Example 2: Feature implementation**
+User: "Help me write a new feature that allows users to track their usage metrics and export them to various formats"
+You should:
+1. Use SigmaTaskUpdate to plan: Research existing metrics, Design system, Implement core tracking, Create export functionality
+2. Start by researching the existing codebase
+3. Mark items in_progress as you work, completed when done
+
+**Example 3: Delegating a task (Manager/Worker Pattern)**
 User: "Delegate the database migration to gemini2"
 You should:
 1. List agents to confirm 'gemini2' exists and get their ID
@@ -1434,21 +1446,31 @@ When delegating via send_agent_message, use this structured format:
 }
 \`\`\`
 
+**Example 4: When NOT to use SigmaTaskUpdate**
+User: "How do I print 'Hello World' in Python?"
+Do NOT use SigmaTaskUpdate - this is a simple, trivial task with no multi-step implementation.
+
+User: "Add a comment to the calculateTotal function"
+Do NOT use SigmaTaskUpdate - this is a single, straightforward task.
+
 ### Task State Rules
-1. **pending**: Task not yet started
-2. **in_progress**: Currently working on (limit to ONE task at a time)
-3. **completed**: Task finished successfully
-4. **delegated**: Task assigned to another agent via IPC (Manager/Worker pattern)
-5. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")
-6. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing
-7. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker
-8. **Delegation**: When delegating, include 'delegated_to' and 'acceptance_criteria'. Do not mark completed until worker reports back.
+1. **Task States**: pending (not started), in_progress (currently working), completed (finished), delegated (assigned to another agent)
+2. **One at a time**: Exactly ONE task should be in_progress at any time
+3. **Delegation**: When delegating, set status to 'delegated' AND send IPC message. Do not mark completed until worker reports back.
+4. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing
+5. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker
+6. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")
+
+IMPORTANT: Always use the SigmaTaskUpdate tool to plan and track tasks throughout the conversation.
 
 ## Token Economy (IMPORTANT - Each tool call costs tokens!)
 - **NEVER re-read files you just edited** - you already have the content in context
 - **Use glob/grep BEFORE read_file** - find specific content instead of reading entire files
 - **Batch operations** - if you need multiple files, plan which ones first, then read them efficiently
-- **Use limit/offset for large files** - read only the sections you need`;
+- **Use limit/offset for large files** - read only the sections you need
+- **Prefer git diff or reading specific line ranges; avoid \`cat\` or \`read_file\` on full files unless the file is small (<50 lines) or strictly necessary.**
+- **Avoid redundant reads** - if you read a file earlier in this conversation, don't read it again unless it changed
+- **Summarize don't quote** - explain findings concisely rather than quoting entire file contents`;
   }
 
   // ========================================
