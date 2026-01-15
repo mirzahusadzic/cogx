@@ -12,6 +12,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const mockModelsList = vi.fn();
 const mockRun = vi.fn();
 const mockSetDefaultOpenAIClient = vi.fn();
+const mockResponsesCreate = vi.fn();
 
 // Mock OpenAI client
 vi.mock('openai', () => {
@@ -19,6 +20,9 @@ vi.mock('openai', () => {
     default: vi.fn().mockImplementation(() => ({
       models: {
         list: mockModelsList,
+      },
+      responses: {
+        create: mockResponsesCreate,
       },
     })),
   };

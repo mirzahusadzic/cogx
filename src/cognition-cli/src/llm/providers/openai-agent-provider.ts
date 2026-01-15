@@ -256,6 +256,94 @@ export class OpenAIAgentProvider implements AgentProvider {
     // Set as default client for the SDK
     setDefaultOpenAIClient(this.client);
 
+    // Wrap responses.create to support cache_control for persistent caching
+    // This allows utilizing persistent caching on both official OpenAI (via prompt_cache_retention)
+    // and OpenAI-compatible endpoints like eGemma (via cache_control on items)
+    const originalCreate = this.client.responses.create.bind(
+      this.client.responses
+    );
+    // @ts-expect-error - modifying SDK object to inject caching parameters
+    this.client.responses.create = async (
+      params: Record<string, unknown>,
+      options: unknown
+    ) => {
+      // 1. Mark system prompt with cache_control
+      // If provided as top-level instructions, move to input array to support per-item cache_control
+      if (params.instructions && typeof params.instructions === 'string') {
+        const systemPrompt = params.instructions;
+        delete params.instructions;
+
+        const systemItem = {
+          role: 'system',
+          content: [
+            {
+              type: 'text',
+              text: systemPrompt,
+              cache_control: { type: 'persistent' },
+            },
+          ],
+        };
+
+        if (params.input && Array.isArray(params.input)) {
+          params.input.unshift(systemItem);
+        } else if (typeof params.input === 'string') {
+          params.input = [systemItem, { role: 'user', content: params.input }];
+        } else {
+          params.input = [systemItem];
+        }
+      } else if (params.input && Array.isArray(params.input)) {
+        // If already in input array, inject cache_control into system messages
+        const input = params.input as Array<{
+          role?: string;
+          content?:
+            | string
+            | Array<{
+                type?: string;
+                text?: string;
+                input_text?: string;
+                cache_control?: unknown;
+              }>;
+        }>;
+        for (const item of input) {
+          if (item.role === 'system') {
+            if (Array.isArray(item.content)) {
+              for (const content of item.content) {
+                if (content.type === 'text' || content.type === 'input_text') {
+                  content.cache_control = { type: 'persistent' };
+                }
+              }
+            } else if (typeof item.content === 'string') {
+              item.content = [
+                {
+                  type: 'text',
+                  text: item.content,
+                  cache_control: { type: 'persistent' },
+                },
+              ];
+            }
+          }
+        }
+      }
+
+      // 2. Mark all tools with cache_control
+      if (params.tools && Array.isArray(params.tools)) {
+        params.tools = (params.tools as Array<Record<string, unknown>>).map(
+          (tool) => ({
+            ...tool,
+            cache_control: { type: 'persistent' },
+          })
+        );
+      }
+
+      // 3. Enable standard OpenAI Extended Prompt Caching (24h retention)
+      params.prompt_cache_retention = '24h';
+
+      return originalCreate(
+        params as Parameters<typeof originalCreate>[0],
+        options as Parameters<typeof originalCreate>[1]
+      );
+    };
+
     systemLog(
       'openai',
       'Initialized OpenAI Agent Provider',
