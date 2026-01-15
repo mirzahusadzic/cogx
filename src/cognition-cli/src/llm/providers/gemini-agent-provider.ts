@@ -41,6 +41,10 @@ import {
  * custom function calling is also used.
  *
  * Tracked in: https://github.com/google/adk-js/issues/64
+ *
+ * TODO(dependency): Check if future versions of @google/adk (0.2.4+) offer
+ * an explicit opt-out or opt-in for codeExecution so we can remove this workaround.
+ * We have pinned the version to 0.2.3 in package.json to ensure stability.
  */
 class NoOpCodeExecutor extends BuiltInCodeExecutor {
   /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
