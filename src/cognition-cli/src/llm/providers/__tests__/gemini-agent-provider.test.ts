@@ -28,6 +28,9 @@ vi.mock('@google/adk', () => ({
   setLogLevel: vi.fn(),
   LogLevel: { ERROR: 3 },
   StreamingMode: { SSE: 'SSE', BIDI: 'BIDI' },
+  BuiltInCodeExecutor: class {
+    processLlmRequest() {}
+  },
 }));
 
 // Mock the tools

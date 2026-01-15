@@ -38,7 +38,7 @@
     "@anthropic-ai/sdk": "^0.69.0",
     "@clack/prompts": "^0.7.0",
     "@google-cloud/storage": "^7.17.1",
-    "@google/adk": "^0.2.1",
+    "@google/adk": "^0.2.3",
     "@google/genai": "^1.14.0",
     "@inkjs/ui": "^2.0.0",
     "@lancedb/lancedb": "^0.22.3",

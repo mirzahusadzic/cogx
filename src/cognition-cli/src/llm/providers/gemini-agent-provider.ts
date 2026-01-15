@@ -30,7 +30,25 @@ import {
   setLogLevel,
   LogLevel,
   StreamingMode,
+  BuiltInCodeExecutor,
 } from '@google/adk';
+
+/**
+ * No-Op Code Executor
+ *
+ * Prevents the ADK Runner from automatically injecting { "codeExecution": {} }
+ * into the tools configuration, which triggers a Gemini API error when
+ * custom function calling is also used.
+ *
+ * Tracked in: https://github.com/google/adk-js/issues/64
+ */
+class NoOpCodeExecutor extends BuiltInCodeExecutor {
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+  override processLlmRequest(_llmRequest: any): void {
+    // Do nothing to prevent the 'codeExecution' tool from being added
+  }
+  /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+}
 import { getGroundingContext } from './grounding-utils.js';
 import { getDynamicThinkingBudget } from './thinking-utils.js';
 import { getCognitionTools } from './gemini-adk-tools.js';
@@ -154,6 +172,7 @@ export class GeminiAgentProvider implements AgentProvider {
       instruction:
         'You are a web search specialist. When called, search Google for the requested information and return concise, accurate results with sources.',
       tools: [GOOGLE_SEARCH],
+      codeExecutor: new NoOpCodeExecutor(),
     });
 
     // Wrap the web search agent as a tool
@@ -188,6 +207,7 @@ export class GeminiAgentProvider implements AgentProvider {
           ? `\n\n## Automated Grounding Context\n${groundingContext}`
           : ''),
       tools,
+      codeExecutor: new NoOpCodeExecutor(),
       generateContentConfig: {
         abortSignal: this.abortController.signal,
         ...(isGemini3
