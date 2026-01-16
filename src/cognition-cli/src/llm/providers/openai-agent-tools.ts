@@ -198,7 +198,8 @@ function createGrepTool(cwd: string, workbenchUrl?: string): OpenAITool {
 function createBashTool(
   cwd: string,
   workbenchUrl?: string,
-  onCanUseTool?: OnCanUseTool
+  onCanUseTool?: OnCanUseTool,
+  onToolOutput?: (output: string) => void
 ): OpenAITool {
   const execute = ({
     command,
@@ -206,7 +207,14 @@ function createBashTool(
   }: {
     command: string;
     timeout?: number | string;
-  }) => executeBash(command, coerceNumber(timeout), cwd, workbenchUrl);
+  }) =>
+    executeBash(
+      command,
+      coerceNumber(timeout),
+      cwd,
+      onToolOutput,
+      workbenchUrl
+    );
 
   return tool({
     name: 'bash',
@@ -1099,6 +1107,8 @@ export interface OpenAIToolsContext {
   agentId?: string;
   /** Session anchor ID for SigmaTaskUpdate state persistence */
   anchorId?: string;
+  /** Callback for streaming tool output */
+  onToolOutput?: (output: string) => void;
 }
 
 /**
@@ -1119,6 +1129,7 @@ export function getOpenAITools(context: OpenAIToolsContext): OpenAITool[] {
     projectRoot,
     agentId,
     anchorId,
+    onToolOutput,
   } = context;
 
   const tools: OpenAITool[] = [];
@@ -1130,7 +1141,7 @@ export function getOpenAITools(context: OpenAIToolsContext): OpenAITool[] {
 
   // Mutating tools (with permission check built-in)
   tools.push(createWriteFileTool(onCanUseTool));
-  tools.push(createBashTool(cwd, workbenchUrl, onCanUseTool));
+  tools.push(createBashTool(cwd, workbenchUrl, onCanUseTool, onToolOutput));
   tools.push(createEditFileTool(onCanUseTool));
 
   // SigmaTaskUpdate tool (state management) - optional anchorId with fallback

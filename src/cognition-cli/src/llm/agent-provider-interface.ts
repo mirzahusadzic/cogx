@@ -104,6 +104,9 @@ export interface AgentRequest {
   /** Enable streaming (partial messages) */
   includePartialMessages?: boolean;
 
+  /** Tool output callback for streaming tool results (e.g. bash) */
+  onToolOutput?: (output: string) => void;
+
   /** Optional grounding instructions (v2.0 protocol) */
   grounding?:
     | GroundingInstructions

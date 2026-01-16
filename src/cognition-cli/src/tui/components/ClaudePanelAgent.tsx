@@ -80,7 +80,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   const lastProcessedSignalTs = useRef<number>(0);
   const containerRef = useRef<DOMElement>(null);
 
-  // Initial height guess - be conservative to avoid disabling scroll
+  // Initial dimensions guess
   const [availableHeight, setAvailableHeight] = useState(
     () => (stdout?.rows || 24) / 2
   );
@@ -127,7 +127,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
           } else if (msg.content.includes('🔧')) {
             color = '#f5a623';
           } else {
-            color = '#8b949e'; // Muted gray for tool results (e.g. file content)
+            color = '#c9d1d9'; // Brighter off-white for tool results
           }
 
           // Special handling: split tool name from command/details
@@ -218,10 +218,11 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   useEffect(() => {
     if (containerRef.current) {
       const dimensions = measureElement(containerRef.current);
-      // Height minus borders
+      // Dimensions minus borders
       const newHeight = Math.max(1, dimensions.height - 2);
+
       if (newHeight !== availableHeight) {
-        systemLog('tui', '[ClaudePanelAgent] New height measured', {
+        systemLog('tui', '[ClaudePanelAgent] New dimensions measured', {
           height: dimensions.height,
           availableHeight: newHeight,
           totalLines: allLines.length,
@@ -363,11 +364,15 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       paddingX={1}
     >
       <Box flexDirection="column" flexGrow={1}>
-        {visibleLines.map((line, idx) => (
-          <Text key={idx} color={line.color}>
-            {line.text}
-          </Text>
-        ))}
+        {visibleLines.map((line, idx) => {
+          // Check if line contains ANSI escape codes (colors)
+          const hasAnsi = ANSI_REGEX.test(line.text);
+          return (
+            <Text key={idx} color={hasAnsi ? undefined : line.color}>
+              {hasAnsi ? `\u001b[0m${line.text}\u001b[0m` : line.text}
+            </Text>
+          );
+        })}
         {isThinking && (
           <Box marginTop={1}>
             <Spinner label="Thinking…" />
@@ -385,4 +390,6 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
 // Memoize to prevent re-renders when parent re-renders but props haven't changed
 // This fixes flickering when navigating dropdown with keyboard
+// eslint-disable-next-line no-control-regex
+const ANSI_REGEX = /\u001b\[[0-9;]*m/;
 export const ClaudePanelAgent = React.memo(ClaudePanelAgentComponent);

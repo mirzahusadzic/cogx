@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { expandCommand } from '../../commands/loader.js';
 import { injectRelevantContext } from '../../../sigma/context-injector.js';
 import { systemLog } from '../../../utils/debug-logger.js';
@@ -95,6 +95,12 @@ export function useAgentHandlers({
   } = options;
 
   const anchorId = sessionManager.state.anchorId;
+
+  // Track the original content of the active tool message (before streaming updates)
+  // This allows us to revert the "streaming" view when the final result arrives,
+  // preventing duplication of output in the chat history.
+  const isStreamingToolOutputRef = useRef<boolean>(false);
+  const activeToolContentRef = useRef<string | null>(null);
 
   const processAgentMessage = useCallback(
     (agentMessage: AgentMessage, currentTokens?: number) => {
@@ -202,11 +208,14 @@ export function useAgentHandlers({
                       name: tool.name,
                       input: tool.input as Record<string, unknown>,
                     });
+                    const content = `${formatted.icon} ${formatted.name}: ${formatted.description}`;
+                    activeToolContentRef.current = content;
+
                     setMessages((prev) => [
                       ...prev,
                       {
                         type: 'tool_progress',
-                        content: `${formatted.icon} ${formatted.name}: ${formatted.description}`,
+                        content,
                         timestamp: new Date(),
                       },
                     ]);
@@ -248,20 +257,26 @@ export function useAgentHandlers({
               name: agentMessage.toolName,
               input: agentMessage.toolInput as Record<string, unknown>,
             });
+            const content = `${formatted.icon} ${formatted.name}: ${formatted.description}`;
+            activeToolContentRef.current = content;
+
             setMessages((prev) => [
               ...prev,
               {
                 type: 'tool_progress',
-                content: `${formatted.icon} ${formatted.name}: ${formatted.description}`,
+                content,
                 timestamp: new Date(),
               },
             ]);
           } else if (typeof content === 'string') {
+            const contentStr = `🔧 ${content}`;
+            activeToolContentRef.current = contentStr;
+
             setMessages((prev) => [
               ...prev,
               {
                 type: 'tool_progress',
-                content: `🔧 ${content}`,
+                content: contentStr,
                 timestamp: new Date(),
               },
             ]);
@@ -272,11 +287,14 @@ export function useAgentHandlers({
                   name: tool.name,
                   input: tool.input as Record<string, unknown>,
                 });
+                const contentStr = `${formatted.icon} ${formatted.name}: ${formatted.description}`;
+                activeToolContentRef.current = contentStr;
+
                 setMessages((prev) => [
                   ...prev,
                   {
                     type: 'tool_progress',
-                    content: `${formatted.icon} ${formatted.name}: ${formatted.description}`,
+                    content: contentStr,
                     timestamp: new Date(),
                   },
                 ]);
@@ -287,6 +305,18 @@ export function useAgentHandlers({
         }
 
         case 'tool_result': {
+          if (process.env.DEBUG_INPUT) {
+            systemLog(
+              'tui',
+              `[tool_result] processing ${agentMessage.toolName}`,
+              {
+                contentLength:
+                  typeof agentMessage.content === 'string'
+                    ? agentMessage.content.length
+                    : 'unknown',
+              }
+            );
+          }
           if (agentMessage.toolName) {
             // content for tool_result might be in agentMessage.content (string or block array)
             const resultData =
@@ -294,19 +324,51 @@ export function useAgentHandlers({
                 ? agentMessage.content
                 : agentMessage.content; // Use as is, formatToolResult handles it
 
-            const formattedResult = formatToolResult(
+            let formattedResult = formatToolResult(
               agentMessage.toolName,
               resultData
             );
+
+            if (
+              isStreamingToolOutputRef.current &&
+              (agentMessage.toolName === 'bash' ||
+                agentMessage.toolName === 'shell')
+            ) {
+              // For streamed bash output, provide a concise summary in the TUI
+              // The agent still receives the full output from tool-executors.ts
+              const exitCodeStr = (resultData as string).includes('Exit code:')
+                ? (resultData as string)
+                    .split('Exit code:')[1]
+                    .split('\n')[0]
+                    .trim()
+                : 'unknown';
+
+              const codeColor = exitCodeStr === '0' ? '\x1b[32m' : '\x1b[31m'; // Green for 0, Red otherwise
+
+              formattedResult = `\x1b[90mExit code: ${codeColor}${exitCodeStr}\x1b[90m (streamed)\x1b[0m`;
+            }
             if (formattedResult) {
-              setMessages((prev) => [
-                ...prev,
-                {
-                  type: 'tool_progress',
-                  content: formattedResult,
-                  timestamp: new Date(),
-                },
-              ]);
+              setMessages((prev) => {
+                // We simply append the result.
+                // The previous message (which was streaming) stays as is, acting as the "log".
+                // This preserves the full output (tail-truncated) for the user to see.
+                return [
+                  ...prev,
+                  {
+                    type: 'tool_progress',
+                    content: formattedResult,
+                    timestamp: new Date(),
+                  },
+                ];
+              });
+              // Reset the ref
+              activeToolContentRef.current = null;
+              isStreamingToolOutputRef.current = false;
+            } else if (process.env.DEBUG_INPUT) {
+              systemLog(
+                'tui',
+                `[tool_result] SKIPPED: ${agentMessage.toolName} (empty formatted result)`
+              );
             }
           }
           break;
@@ -462,6 +524,49 @@ This will trigger a semantic compression event, flushing implementation noise wh
           anchorId,
           remainingTPM: 1000000 - tokenCounter.count.total,
           onStderr: (data: string) => stderrLines.push(data),
+          onToolOutput: (chunk: string) => {
+            setMessages((prev) => {
+              const last = prev[prev.length - 1];
+              if (last && last.type === 'tool_progress') {
+                isStreamingToolOutputRef.current = true;
+                // For streaming tool output, ensure there's a newline between
+                // the tool invocation and the first piece of output.
+                // ALSO: Reset color to default (or gray) so output doesn't inherit
+                // the tool header's color (usually yellow/orange).
+                const hasNewline = last.content.includes('\n');
+
+                // \x1b[0m resets all attributes (color, bold, etc.)
+                // \x1b[90m sets text to bright black (gray)
+                const prefix = hasNewline ? '' : '\n\x1b[0m\x1b[90m';
+
+                let content = last.content + prefix + chunk;
+
+                // FLOATING WINDOW LOGIC:
+                // If output becomes too long, truncate it to keep only the last 30 lines
+                // to prevent the "active" message from growing indefinitely.
+                const header = activeToolContentRef.current;
+                if (header && content.startsWith(header)) {
+                  // Split header from output
+                  const outputPart = content.slice(header.length);
+                  const lines = outputPart.split('\n');
+                  const MAX_STREAM_LINES = 30;
+
+                  if (lines.length > MAX_STREAM_LINES) {
+                    // Keep the header and the last N lines
+                    // We add a marker to indicate truncation
+                    const keptLines = lines.slice(-MAX_STREAM_LINES);
+                    content =
+                      header +
+                      '\n\x1b[90m... (tail of stream)\x1b[0m\n' +
+                      keptLines.join('\n');
+                  }
+                }
+
+                return [...prev.slice(0, -1), { ...last, content }];
+              }
+              return prev;
+            });
+          },
           onCanUseTool: async (toolName, input) => {
             if (toolName === 'TodoWrite' && providerName === 'claude') {
               return { behavior: 'deny', updatedInput: input };

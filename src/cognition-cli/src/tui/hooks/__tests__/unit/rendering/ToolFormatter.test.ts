@@ -68,6 +68,8 @@ describe('ToolFormatter', () => {
       expect(result.description).toContain('const x = 2');
       // Check for ANSI color codes
       expect(result.description).toContain('\x1b['); // Has color codes
+      // Check for unified line number format (pipe separator)
+      expect(result.description).toMatch(/\s+\d+│/);
     });
 
     it('formats Bash tool with command', () => {
@@ -286,13 +288,15 @@ describe('ToolFormatter', () => {
   describe('formatToolResult()', () => {
     it('formats read_file result with string content', () => {
       const result = formatToolResult('read_file', 'line1\nline2');
-      expect(result).toContain('    line1');
-      expect(result).toContain('    line2');
+      expect(result).toContain('line1');
+      expect(result).toContain('line2');
+      expect(result).toContain('\x1b[90m'); // Check for muted color
     });
 
     it('formats Read result with object content', () => {
       const result = formatToolResult('Read', { content: 'hello world' });
-      expect(result).toContain('    hello world');
+      expect(result).toContain('hello world');
+      expect(result).toContain('\x1b[90m');
     });
 
     it('truncates long file content', () => {
@@ -302,15 +306,15 @@ describe('ToolFormatter', () => {
       ).join('\n');
       const result = formatToolResult('read_file', longContent);
 
-      expect(result.split('\n').length).toBeLessThanOrEqual(101); // 100 lines + 1 truncation message
+      expect(result.split('\n').length).toBeLessThanOrEqual(33); // 30 lines + 1 truncation message + potential borders
       expect(result).toContain('... (truncated');
       expect(result).toContain('\x1b[90m'); // Dim gray for truncation message
     });
 
     it('formats read_file result with result property', () => {
       const result = formatToolResult('read_file', { result: 'line1\nline2' });
-      expect(result).toContain('    line1');
-      expect(result).toContain('    line2');
+      expect(result).toContain('line1');
+      expect(result).toContain('line2');
       expect(result).not.toContain('{"result":');
     });
 
@@ -318,13 +322,38 @@ describe('ToolFormatter', () => {
       const result = formatToolResult('read_file', {
         content: [{ type: 'text', text: 'line1\nline2' }],
       });
-      expect(result).toContain('    line1');
-      expect(result).toContain('    line2');
+      expect(result).toContain('line1');
+      expect(result).toContain('line2');
     });
 
-    it('returns empty string for non-read tools', () => {
+    it('formats bash result', () => {
       const result = formatToolResult('bash', 'success');
-      expect(result).toBe('');
+      expect(result).not.toContain('Bash Output');
+      expect(result).toContain('success');
+      expect(result).not.toContain('%TB%');
+      expect(result).not.toContain('%BB%');
+    });
+
+    it('formats grep result with unified line numbers', () => {
+      // Simulating ripgrep output: file:line:content
+      const result = formatToolResult(
+        'grep',
+        'src/index.ts:10:console.log("hello")'
+      );
+      // Should replace the last colon with a pipe
+      expect(result).toContain('src/index.ts:10│');
+      // Check for cyan color on prefix and added space
+      expect(result).toContain('\x1b[36msrc/index.ts:10│\x1b[0m ');
+    });
+
+    it('formats read_file result with existing line numbers', () => {
+      // Simulating read_file output which already has pipes
+      const result = formatToolResult(
+        'read_file',
+        '     1│line1\n     2│line2'
+      );
+      expect(result).toContain('\x1b[36m     1│\x1b[0m ');
+      expect(result).toContain('line1');
     });
 
     it('handles empty content', () => {

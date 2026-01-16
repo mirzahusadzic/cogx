@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Box, Text, useStdout } from 'ink';
 import { OverlaysBar } from './OverlaysBar.js';
 import { ClaudePanelAgent } from './ClaudePanelAgent.js';
@@ -79,6 +79,24 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
   isDropdownVisible,
 }) => {
   const { stdout } = useStdout();
+  const [dimensions, setDimensions] = useState({
+    rows: stdout?.rows || 24,
+    columns: stdout?.columns || 80,
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setDimensions({
+        rows: stdout?.rows || 24,
+        columns: stdout?.columns || 80,
+      });
+    };
+
+    stdout?.on('resize', handleResize);
+    return () => {
+      stdout?.off('resize', handleResize);
+    };
+  }, [stdout]);
 
   // Memoize filtered messages to prevent unnecessary re-renders of ClaudePanelAgent
   const filteredMessages = useMemo(() => {
@@ -101,7 +119,7 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
     <Box
       flexDirection="column"
       width="100%"
-      height={stdout?.rows || 24}
+      height={dimensions.rows}
       paddingTop={0}
       marginTop={0}
     >
@@ -115,7 +133,7 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
             workbenchHealth={adaptedHealth}
           />
         </ComponentErrorBoundary>
-        <Text color="#3a3f4b">{'─'.repeat(stdout?.columns || 80)}</Text>
+        <Text color="#3a3f4b">{'─'.repeat(dimensions.columns)}</Text>
       </Box>
 
       {/* Use flexGrow: 1 to automatically fill available space */}
@@ -126,7 +144,7 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
             isThinking={isThinking}
             focused={!focused}
             streamingPaste={streamingPaste}
-            layoutVersion={`${inputLineCount}-${isDropdownVisible}-${stdout?.rows}`}
+            layoutVersion={`${inputLineCount}-${isDropdownVisible}-${dimensions.rows}-${dimensions.columns}`}
           />
         </ComponentErrorBoundary>
         {showInfoPanel && sigmaStats && (

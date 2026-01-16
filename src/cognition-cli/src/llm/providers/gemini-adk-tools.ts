@@ -207,6 +207,7 @@ export const bashTool = new FunctionTool({
     if (process.env.DEBUG_GEMINI_TOOLS) {
       systemLog('gemini-tools', 'bash input', { command, timeout }, 'debug');
     }
+    // Top-level constant tool (used when getCognitionTools is not used)
     return executeBash(command, coerceNumber(timeout), process.cwd());
   },
 });
@@ -801,6 +802,8 @@ export interface CognitionToolsOptions {
   provider?: string;
   /** Session anchor ID for SigmaTaskUpdate state persistence */
   anchorId?: string;
+  /** Callback for streaming tool output */
+  onToolOutput?: (output: string) => void;
 }
 
 /**
@@ -854,7 +857,12 @@ export function getCognitionTools(
         .describe('Timeout in ms (default 120000)'),
     }),
     ({ command, timeout }) =>
-      executeBash(command, coerceNumber(timeout), process.cwd()),
+      executeBash(
+        command,
+        coerceNumber(timeout),
+        process.cwd(),
+        options?.onToolOutput
+      ),
     onCanUseTool
   );
 

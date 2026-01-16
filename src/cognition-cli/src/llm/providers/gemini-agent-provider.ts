@@ -163,6 +163,7 @@ export class GeminiAgentProvider implements AgentProvider {
       {
         provider: 'gemini', // Enable external SigmaTaskUpdate for Gemini
         anchorId: request.anchorId, // Session anchor for SigmaTaskUpdate state persistence
+        onToolOutput: request.onToolOutput, // Pass streaming callback for tools like bash
       }
     );
 
@@ -464,9 +465,14 @@ export class GeminiAgentProvider implements AgentProvider {
             // Handle function responses (tool results)
             if (part.functionResponse) {
               if (process.env.DEBUG_GEMINI_STREAM) {
+                // Always log for now to debug bash
                 systemLog(
                   'gemini',
                   `\n[Gemini] === TOOL RESULT: ${part.functionResponse.name} ===`
+                );
+                systemLog(
+                  'gemini',
+                  `[Gemini] Result type: ${typeof part.functionResponse.response}`
                 );
               }
 

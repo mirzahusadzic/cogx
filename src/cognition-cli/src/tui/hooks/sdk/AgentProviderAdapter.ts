@@ -100,6 +100,9 @@ export interface AgentAdapterOptions {
   /** Remaining Tokens Per Minute (TPM) budget for dynamic adjustment */
   remainingTPM?: number;
 
+  /** Tool output callback for streaming tool results (e.g. bash) */
+  onToolOutput?: (output: string) => void;
+
   /** Debug mode */
   debug?: boolean;
 }
@@ -161,6 +164,7 @@ export class AgentProviderAdapter {
       anchorId: this.options.anchorId,
       remainingTPM: this.options.remainingTPM,
       onStderr: this.options.onStderr,
+      onToolOutput: this.options.onToolOutput,
       onCanUseTool: this.options.onCanUseTool,
       systemPrompt: {
         type: 'preset',

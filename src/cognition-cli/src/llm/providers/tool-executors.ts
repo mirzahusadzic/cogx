@@ -130,12 +130,17 @@ export async function executeBash(
   command: string,
   timeout: number | undefined,
   cwd: string,
+  onChunk?: (chunk: string) => void,
   workbenchUrl?: string
 ): Promise<string> {
   const effectiveTimeout = timeout || 120000;
 
   return new Promise<string>((resolve) => {
-    const proc = spawn('bash', ['-c', command], { cwd });
+    const MAX_BUFFER_SIZE = 1024 * 1024; // 1MB
+    const proc = spawn('bash', ['-c', command], {
+      cwd,
+      env: { ...process.env, FORCE_COLOR: '1', NO_COLOR: undefined },
+    });
 
     let stdout = '';
     let stderr = '';
@@ -147,21 +152,52 @@ export async function executeBash(
       proc.kill('SIGTERM');
     }, effectiveTimeout);
 
-    proc.stdout.on('data', (data) => (stdout += data.toString()));
-    proc.stderr.on('data', (data) => (stderr += data.toString()));
+    proc.stdout.on('data', (data) => {
+      const chunk = data.toString();
+      if (stdout.length + chunk.length > MAX_BUFFER_SIZE) {
+        stdout = stdout.substring(0, MAX_BUFFER_SIZE - 50) + '... (truncated)';
+        proc.stdout.removeAllListeners('data'); // Stop accumulating
+      } else {
+        stdout += chunk;
+      }
+      if (onChunk) onChunk(chunk);
+    });
+    proc.stderr.on('data', (data) => {
+      const chunk = data.toString();
+      if (stderr.length + chunk.length > MAX_BUFFER_SIZE) {
+        stderr = stderr.substring(0, MAX_BUFFER_SIZE - 50) + '... (truncated)';
+        proc.stderr.removeAllListeners('data'); // Stop accumulating
+      } else {
+        stderr += chunk;
+      }
+      if (onChunk) onChunk(chunk);
+    });
     proc.on('close', async (code) => {
       clearTimeout(timeoutId);
-      const output = stdout + (stderr ? `\nSTDERR:\n${stderr}` : '');
+      // Strip ANSI codes from output for the LLM to save tokens and prevent confusion
+      const ansiRegex =
+        // eslint-disable-next-line no-control-regex
+        /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
+      const cleanStdout = stdout.replace(ansiRegex, '');
+      const cleanStderr = stderr.replace(ansiRegex, '');
+
+      const output =
+        cleanStdout + (cleanStderr ? `\nSTDERR:\n${cleanStderr}` : '');
+      // Determine max output size based on command importance
+      // git diffs are critical for context and should be preserved
+      const isGitDiff = command.includes('git diff');
+      const maxChars = isGitDiff ? 1000000 : 30000;
+
       const compressed = await smartCompressOutput(
         output,
         'bash',
-        30000,
+        maxChars,
         workbenchUrl
       );
       if (killed) {
         resolve(`Timeout after ${effectiveTimeout}ms\n${compressed}`);
       } else {
-        resolve(`Exit code: ${code}\n${compressed}`);
+        resolve(`Exit code: ${code}\n${compressed}.`);
       }
     });
     proc.on('error', (err) => {

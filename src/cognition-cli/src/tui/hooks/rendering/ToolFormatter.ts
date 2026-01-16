@@ -89,6 +89,7 @@
  */
 
 import * as Diff from 'diff';
+import * as fs from 'fs';
 
 /**
  * Tool use input from SDK
@@ -457,52 +458,76 @@ function formatEditDiff(
   newString: string
 ): string {
   const diffLines: string[] = [];
-  diffLines.push(filePath);
+  diffLines.push(`\x1b[90m${filePath}\x1b[0m`);
+
+  // Try to find the starting line number in the file
+  let startLine = 1;
+  try {
+    if (fs.existsSync(filePath)) {
+      // Avoid blocking the event loop with large files
+      const stats = fs.statSync(filePath);
+      const MAX_SYNC_READ_SIZE = 100 * 1024; // 100KB
+
+      if (stats.size <= MAX_SYNC_READ_SIZE) {
+        const content = fs.readFileSync(filePath, 'utf8');
+        const index = content.indexOf(oldString);
+        if (index !== -1) {
+          startLine = content.substring(0, index).split('\n').length;
+        }
+      }
+    }
+  } catch {
+    // Fall back to line 1 if file reading fails
+  }
 
   // Use diff library to get line changes
   const lineDiff = Diff.diffLines(oldString, newString);
 
+  let oldLine = startLine;
+  let newLine = startLine;
   lineDiff.forEach((part) => {
-    const lines = part.value
-      .split('\n')
-      .filter((line) => line.length > 0 || part.value.endsWith('\n'));
+    const lines = part.value.split('\n');
+    // Remove last element if it's empty (trailing newline from split)
+    if (lines.length > 0 && lines[lines.length - 1] === '') {
+      lines.pop();
+    }
 
     if (part.added) {
       // Added lines - olive/dark green background with white text
       lines.forEach((line) => {
-        if (line) {
-          // \x1b[48;5;58m = dark olive background, \x1b[97m = bright white text
-          // \x1b[49m explicitly resets background to prevent bleed
-          diffLines.push(
-            `  \x1b[32m+\x1b[0m \x1b[48;5;58m\x1b[97m${line}\x1b[0m\x1b[49m`
-          );
-        }
+        const lineNum = `      ${newLine}`.slice(-6);
+        // \x1b[48;5;58m = dark olive background, \x1b[97m = bright white text
+        // \x1b[49m explicitly resets background to prevent bleed
+        diffLines.push(
+          `  \x1b[36m${lineNum}│\x1b[32m+\x1b[0m \x1b[48;5;58m\x1b[97m${line}\x1b[0m\x1b[49m`
+        );
+        newLine++;
       });
     } else if (part.removed) {
       // Removed lines - dark red background with white text
       lines.forEach((line) => {
-        if (line) {
-          // \x1b[48;5;52m = dark red background, \x1b[97m = bright white text
-          // \x1b[49m explicitly resets background to prevent bleed
-          diffLines.push(
-            `  \x1b[31m-\x1b[0m \x1b[48;5;52m\x1b[97m${line}\x1b[0m\x1b[49m`
-          );
-        }
+        const lineNum = `      ${oldLine}`.slice(-6);
+        // \x1b[48;5;52m = dark red background, \x1b[97m = bright white text
+        // \x1b[49m explicitly resets background to prevent bleed
+        diffLines.push(
+          `  \x1b[36m${lineNum}│\x1b[31m-\x1b[0m \x1b[48;5;52m\x1b[97m${line}\x1b[0m\x1b[49m`
+        );
+        oldLine++;
       });
     } else {
-      // Unchanged lines - no color
+      // Unchanged lines - show only one line number for clarity
       lines.forEach((line) => {
-        if (line) {
-          diffLines.push(`   ${line}`);
-        }
+        const newNum = `      ${newLine}`.slice(-6);
+        diffLines.push(`  \x1b[36m${newNum}│ \x1b[0m\x1b[90m${line}\x1b[0m`);
+        oldLine++;
+        newLine++;
       });
     }
   });
 
   // Ensure final reset to prevent color bleeding to subsequent messages
-  // Use \x1b[49m (bg reset) + \x1b[39m (fg reset) instead of \x1b[0m (full reset)
-  // to avoid clearing Ink's color codes when rendered in <Text color={...}>
-  return diffLines.join('\n') + '\x1b[49m\x1b[39m';
+  // Use \x1b[0m (full reset) to ensure terminal state is clean
+  return diffLines.join('\n') + '\x1b[0m';
 }
 
 /**
@@ -586,27 +611,35 @@ function formatSigmaTaskUpdate(
   todos.forEach((todo) => {
     let statusIcon = '';
     let statusColor = '';
+    let textColor = '';
 
     if (todo.status === 'completed') {
       statusIcon = '✓';
       statusColor = '\x1b[32m'; // green
+      textColor = '\x1b[90m'; // gray
     } else if (todo.status === 'in_progress') {
       statusIcon = '→';
       statusColor = '\x1b[33m'; // yellow
+      textColor = '\x1b[97m'; // bright white
     } else if (todo.status === 'delegated') {
       statusIcon = '🤖';
       statusColor = '\x1b[36m'; // cyan
+      textColor = ''; // default
     } else {
       statusIcon = '○';
       statusColor = '\x1b[90m'; // gray
+      textColor = '\x1b[90m'; // gray
     }
 
-    let displayText =
+    let contentText =
       todo.status === 'in_progress' ? todo.activeForm : todo.content;
 
     if (todo.status === 'delegated' && todo.delegated_to) {
-      displayText += ` (to: ${todo.delegated_to})`;
+      contentText += ` (to: ${todo.delegated_to})`;
     }
+
+    // Build the display text with grounding indicators first
+    let displayText = contentText;
 
     // Add grounding indicators
     const gReq = groundingMap.get(todo.id);
@@ -626,16 +659,21 @@ function formatSigmaTaskUpdate(
       displayText += ` ${confColor}●\x1b[0m`;
     }
 
-    // Use \x1b[39m (fg reset only) instead of \x1b[0m to avoid clearing Ink's codes
-    todoLines.push(`  ${statusColor}${statusIcon}\x1b[39m ${displayText}`);
+    // Apply bold for in-progress tasks
+    const boldText = todo.status === 'in_progress' ? '\x1b[1m' : '';
+
+    // Use \x1b[0m (full reset) to ensure terminal state is clean
+    todoLines.push(
+      `  ${statusColor}${statusIcon}\x1b[0m ${textColor}${boldText}${displayText}\x1b[0m`
+    );
   });
 
   // Ensure final reset to prevent color bleeding (only if there are todos)
-  // Use \x1b[39m (fg reset only) instead of \x1b[0m to avoid clearing Ink's codes
+  // Use \x1b[0m (full reset) to ensure terminal state is clean
   if (todoLines.length === 0) {
     return '\n';
   }
-  return '\n' + todoLines.join('\n') + '\x1b[39m';
+  return '\n' + todoLines.join('\n') + '\x1b[0m';
 }
 
 /**
@@ -676,7 +714,14 @@ export function formatToolResult(name: string, result: unknown): string {
   if (
     normalizedName === 'readfile' ||
     normalizedName === 'read' ||
-    normalizedName === 'grep'
+    normalizedName === 'grep' ||
+    normalizedName === 'bash' ||
+    normalizedName === 'shell' ||
+    normalizedName === 'glob' ||
+    normalizedName === 'fetchurl' ||
+    normalizedName === 'webfetch' ||
+    normalizedName === 'fetch_url' ||
+    normalizedName === 'websearch'
   ) {
     let content = '';
     let processedResult = result;
@@ -726,11 +771,72 @@ export function formatToolResult(name: string, result: unknown): string {
       lines.pop();
     }
 
-    const truncatedLines = lines.slice(0, MAX_LINES);
-    // Indent content for better visual separation
-    const resultLines = truncatedLines.map((line) => `    ${line}`);
+    let truncatedLines: string[] = [];
+    let wasTruncated = false;
 
     if (lines.length > MAX_LINES) {
+      wasTruncated = true;
+      // Show first 5 lines and last 25 lines
+      const head = lines.slice(0, 5);
+      const tail = lines.slice(-(MAX_LINES - 5));
+      truncatedLines = [...head, '... (truncated) ...', ...tail];
+    } else {
+      truncatedLines = lines;
+    }
+
+    // Determine color scheme based on tool
+    const isRead = normalizedName === 'readfile' || normalizedName === 'read';
+    const isGrep = normalizedName === 'grep';
+    const isGlob = normalizedName === 'glob';
+
+    // Indent and format content for better visual separation
+    const resultLines = truncatedLines.map((line) => {
+      let formattedLine = line;
+
+      if (isRead) {
+        // executeReadFile adds line numbers like "      1│line content"
+        const match = line.match(/^(\s*\d+│)(.*)$/);
+        if (match) {
+          const [, lineNum, content] = match;
+          // Line numbers in cyan, content in muted gray
+          formattedLine = `\x1b[36m${lineNum}\x1b[0m \x1b[90m${content}\x1b[0m`;
+        } else {
+          formattedLine = `\x1b[90m${line}\x1b[0m`;
+        }
+      } else if (isGrep) {
+        // Handle "line:content" (single file/context) - align line numbers
+        const lineMatch = line.match(/^(\d+):(.*)$/);
+        // Handle "path:line:content" (multi file) - distinct colors
+        const pathMatch = line.match(/^(.+):(\d+):(.*)$/);
+
+        if (lineMatch) {
+          const [, lineNum, content] = lineMatch;
+          // Pad line number to 6 chars and add pipe
+          const alignedLineNum = lineNum.padStart(6, ' ');
+          formattedLine = `\x1b[36m${alignedLineNum}│\x1b[0m \x1b[90m${content}\x1b[0m`;
+        } else if (pathMatch) {
+          const [, path, lineNum, content] = pathMatch;
+          // Path in gray, line number in cyan, pipe separator
+          formattedLine = `\x1b[36m${path}:${lineNum}│\x1b[0m \x1b[90m${content}\x1b[0m`;
+        } else {
+          formattedLine = `\x1b[90m${line}\x1b[0m`;
+        }
+      } else if (isGlob) {
+        // Glob output is paths - use cyan to match file prefixes in other tools
+        formattedLine = `\x1b[36m${line}\x1b[0m`;
+      } else {
+        // Mute other output (bash, fetch, search) but keep it readable
+        formattedLine = `\x1b[90m${line}\x1b[0m`;
+      }
+
+      return `    ${formattedLine}`;
+    });
+
+    if (wasTruncated) {
+      // If we did our own head/tail truncation
+      // (The marker was already added to truncatedLines array as a string, but needs formatting)
+    } else if (lines.length > MAX_LINES) {
+      // Legacy check (shouldn't be reached with new logic, but safe to keep)
       resultLines.push(
         `    \x1b[90m... (truncated ${lines.length - MAX_LINES} more lines)\x1b[0m`
       );

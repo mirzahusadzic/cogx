@@ -56,6 +56,7 @@ describe('JSON Output Regression Tests', () => {
         env: {
           ...process.env,
           NO_COLOR: '1',
+          FORCE_COLOR: undefined,
           COGNITION_HOME_DIR: tempHome,
           ...env,
         },

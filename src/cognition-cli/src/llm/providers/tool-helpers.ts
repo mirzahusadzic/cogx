@@ -112,7 +112,7 @@ export async function smartCompressOutput(
   // Tier 3: Bash gets Head + Tail truncation to preserve errors at the end
   if (toolType === 'bash') {
     // If output is extremely large, try to summarize via eGemma first
-    if (output.length > EGEMMA_SUMMARIZE_THRESHOLD) {
+    if (output.length > limit && output.length > EGEMMA_SUMMARIZE_THRESHOLD) {
       if (workbenchAvailable === null) {
         try {
           const client = getWorkbenchClient(workbenchUrl);
@@ -140,7 +140,7 @@ export async function smartCompressOutput(
         }
       }
     }
-    return truncateOutput(output, MAX_BASH_CHARS, 'head-tail');
+    return truncateOutput(output, limit, 'head-tail');
   }
 
   // Tier 4: Default truncation for grep/glob
