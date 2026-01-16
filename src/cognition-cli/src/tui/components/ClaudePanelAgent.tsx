@@ -1,6 +1,14 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { Box, Text, useInput, useStdout } from 'ink';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
+import {
+  Box,
+  Text,
+  useInput,
+  useStdout,
+  measureElement,
+  DOMElement,
+} from 'ink';
 import { Spinner } from '@inkjs/ui';
+import { systemLog } from '../../utils/debug-logger.js';
 import type { TUIMessage } from '../hooks/useAgent.js';
 
 /**
@@ -18,6 +26,12 @@ export interface ClaudePanelAgentProps {
 
   /** Content being streamed during paste operation */
   streamingPaste?: string;
+
+  /**
+   * A string that changes whenever the layout around this component might have changed.
+   * This ensures the component re-measures its available height even if other props are stable.
+   */
+  layoutVersion?: string;
 }
 
 /**
@@ -49,22 +63,42 @@ export interface ClaudePanelAgentProps {
  *   isThinking={isProcessing}
  *   focused={isPanelFocused}
  *   streamingPaste={pasteContent}
- * />
+ *   />
  */
 const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   messages,
   isThinking,
   focused,
   streamingPaste = '',
+  layoutVersion, // Used implicitly by React.memo to trigger re-renders on layout changes
 }) => {
   const { stdout } = useStdout();
   const [scrollOffset, setScrollOffset] = useState(0);
+  const containerRef = useRef<DOMElement>(null);
 
-  // Calculate available height - memoize to prevent recalculation on every render
-  const availableHeight = useMemo(
-    () => (stdout?.rows || 24) - 11,
-    [stdout?.rows]
+  // Initial height guess to minimize first-render jump
+  const [availableHeight, setAvailableHeight] = useState(
+    () => (stdout?.rows || 24) - 10
   );
+
+  // Use measureElement to get the actual height allocated by Yoga
+  useEffect(() => {
+    if (containerRef.current) {
+      const dimensions = measureElement(containerRef.current);
+      // Height minus borders
+      const newHeight = Math.max(1, dimensions.height - 2);
+      if (newHeight !== availableHeight) {
+        systemLog('tui', '[ClaudePanelAgent] New height measured', {
+          height: dimensions.height,
+          availableHeight: newHeight,
+          totalLines: allLines.length,
+          messagesCount: messages.length,
+          layoutVersion,
+        });
+        setAvailableHeight(newHeight);
+      }
+    }
+  }); // Run on every render. Since component is memoized, this only runs when props change.
 
   // Note: Paste streaming is handled by parent component (index.tsx)
   // The [PASTE:filepath] message is sent after streaming completes
@@ -213,7 +247,11 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
   return (
     <Box
+      ref={containerRef}
       flexDirection="column"
+      flexGrow={1}
+      height="100%"
+      minHeight={3}
       borderTop
       borderBottom
       borderColor={focused ? '#2ea043' : '#30363d'}

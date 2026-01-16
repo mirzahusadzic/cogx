@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Box, Text, useStdout } from 'ink';
 import { OverlaysBar } from './OverlaysBar.js';
 import { ClaudePanelAgent } from './ClaudePanelAgent.js';
@@ -31,9 +31,6 @@ export interface CognitionTUILayoutProps {
   streamingPaste: string;
   showInfoPanel: boolean;
   avgOverlays: OverlayScores;
-  isDropdownVisible: boolean;
-  inputLineCount: number;
-  chatAreaHeight: number;
   saveMessage: string | null;
   currentSessionId: string | undefined;
   tokenCount: TokenCount;
@@ -48,6 +45,8 @@ export interface CognitionTUILayoutProps {
   setIsDropdownVisible: (visible: boolean) => void;
   handlePasteContent: (content: string, filepath: string) => void;
   setInputLineCount: (count: number) => void;
+  inputLineCount: number;
+  isDropdownVisible: boolean;
 }
 
 export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
@@ -62,9 +61,6 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
   streamingPaste,
   showInfoPanel,
   avgOverlays,
-  isDropdownVisible,
-  inputLineCount,
-  chatAreaHeight,
   saveMessage,
   currentSessionId,
   tokenCount,
@@ -79,8 +75,17 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
   setIsDropdownVisible,
   handlePasteContent,
   setInputLineCount,
+  inputLineCount,
+  isDropdownVisible,
 }) => {
   const { stdout } = useStdout();
+
+  // Memoize filtered messages to prevent unnecessary re-renders of ClaudePanelAgent
+  const filteredMessages = useMemo(() => {
+    return displayThinking
+      ? messages
+      : messages.filter((m) => m.type !== 'thinking');
+  }, [messages, displayThinking]);
 
   // Adapt to WorkbenchHealthStatus for OverlaysBar
   const adaptedHealth: WorkbenchHealthStatus | undefined = workbenchHealth
@@ -96,40 +101,36 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
     <Box
       flexDirection="column"
       width="100%"
-      height="100%"
+      height={stdout?.rows || 24}
       paddingTop={0}
       marginTop={0}
     >
-      <ComponentErrorBoundary componentName="OverlaysBar">
-        <OverlaysBar
-          sigmaStats={sigmaStats}
-          activeTask={activeTask}
-          pendingMessageCount={pendingMessageCount}
-          monitorError={monitorError}
-          workbenchHealth={adaptedHealth}
-        />
-      </ComponentErrorBoundary>
-      <Text color="#3a3f4b">{'─'.repeat(stdout?.columns || 80)}</Text>
-      <Box
-        height={chatAreaHeight}
-        width="100%"
-        overflow="hidden"
-        flexDirection="row"
-      >
+      <Box flexShrink={0} flexDirection="column">
+        <ComponentErrorBoundary componentName="OverlaysBar">
+          <OverlaysBar
+            sigmaStats={sigmaStats}
+            activeTask={activeTask}
+            pendingMessageCount={pendingMessageCount}
+            monitorError={monitorError}
+            workbenchHealth={adaptedHealth}
+          />
+        </ComponentErrorBoundary>
+        <Text color="#3a3f4b">{'─'.repeat(stdout?.columns || 80)}</Text>
+      </Box>
+
+      {/* Use flexGrow: 1 to automatically fill available space */}
+      <Box flexGrow={1} flexShrink={1} width="100%" flexDirection="row">
         <ComponentErrorBoundary componentName="ClaudePanelAgent">
           <ClaudePanelAgent
-            messages={
-              displayThinking
-                ? messages
-                : messages.filter((m) => m.type !== 'thinking')
-            }
+            messages={filteredMessages}
             isThinking={isThinking}
             focused={!focused}
             streamingPaste={streamingPaste}
+            layoutVersion={`${inputLineCount}-${isDropdownVisible}-${stdout?.rows}`}
           />
         </ComponentErrorBoundary>
         {showInfoPanel && sigmaStats && (
-          <Box marginLeft={1}>
+          <Box marginLeft={1} flexShrink={0}>
             <ComponentErrorBoundary componentName="SigmaInfoPanel">
               <SigmaInfoPanel sigmaStats={sigmaStats} overlays={avgOverlays} />
             </ComponentErrorBoundary>
@@ -137,23 +138,8 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
         )}
       </Box>
 
-      <Box
-        height={(() => {
-          const wizardSelectHeight =
-            wizardConfirmationState?.mode === 'select' &&
-            wizardConfirmationState.items
-              ? Math.min(wizardConfirmationState.items.length + 4, 12)
-              : 0;
-          if (isDropdownVisible) return 9 + inputLineCount + 2;
-          if (wizardSelectHeight > 0)
-            return wizardSelectHeight + inputLineCount + 2;
-          if (confirmationState?.pending || wizardConfirmationState?.pending)
-            return 5 + inputLineCount + 2;
-          return inputLineCount + 2;
-        })()}
-        flexDirection="column"
-        justifyContent="flex-end"
-      >
+      {/* Input area naturally takes only as much space as it needs */}
+      <Box flexDirection="column" justifyContent="flex-end" flexShrink={0}>
         <ComponentErrorBoundary componentName="InputBox">
           <InputBox
             onSubmit={sendMessage}
@@ -170,20 +156,20 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
             wizardConfirmationState={wizardConfirmationState}
           />
         </ComponentErrorBoundary>
+        <Box height={1} flexShrink={0}>
+          {saveMessage && <Text color="green">{saveMessage}</Text>}
+        </Box>
+        <ComponentErrorBoundary componentName="StatusBar">
+          <StatusBar
+            sessionId={currentSessionId}
+            focused={focused}
+            tokenCount={tokenCount}
+            compressionThreshold={sessionTokens}
+            providerName={provider}
+            modelId={model}
+          />
+        </ComponentErrorBoundary>
       </Box>
-      <Box height={1}>
-        {saveMessage && <Text color="green">{saveMessage}</Text>}
-      </Box>
-      <ComponentErrorBoundary componentName="StatusBar">
-        <StatusBar
-          sessionId={currentSessionId}
-          focused={focused}
-          tokenCount={tokenCount}
-          compressionThreshold={sessionTokens}
-          providerName={provider}
-          modelId={model}
-        />
-      </ComponentErrorBoundary>
     </Box>
   );
 };

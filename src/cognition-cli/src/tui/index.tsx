@@ -1,5 +1,5 @@
-import React, { useEffect, useCallback, useMemo, useRef } from 'react';
-import { render, Box, Text, useInput, useStdout, type TextProps } from 'ink';
+import React, { useEffect, useCallback, useRef } from 'react';
+import { render, Box, Text, useInput, type TextProps } from 'ink';
 import { ThemeProvider, extendTheme, defaultTheme } from '@inkjs/ui';
 import fs from 'fs';
 import path from 'path';
@@ -72,7 +72,6 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   autoResponse = true,
   workbenchHealth: initialWorkbenchHealth,
 }) => {
-  const { stdout } = useStdout();
   const {
     state,
     toggleFocus,
@@ -88,9 +87,9 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     renderError,
     showInfoPanel,
     saveMessage,
-    isDropdownVisible,
     streamingPaste,
     inputLineCount,
+    isDropdownVisible,
   } = state;
 
   const messageQueueMonitorRef = useRef<MessageQueueMonitor | null>(null);
@@ -106,7 +105,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   // Getter for message queue (used by agent messaging tool)
   const getMessageQueue = useCallback(() => messageQueueRef.current, []);
 
-  // Tool confirmation hook (guardrails) - must be before chatAreaHeight useMemo
+  // Tool confirmation hook (guardrails) for managing interactive tool approvals
   const { confirmationState, requestConfirmation, allow, deny, alwaysAllow } =
     useToolConfirmation();
 
@@ -191,35 +190,6 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     debug,
     onSendMessage: sendMessage, // Allow wizard to execute slash commands
   });
-
-  // Calculate fixed chat area height to prevent InputBox from shifting
-  // when messages populate - memoize to avoid recalculation on every render
-  const chatAreaHeight = useMemo(() => {
-    const terminalHeight = stdout?.rows || 24;
-    // Dynamic reserved space: expand when dropdown OR confirmation modal is visible
-    // OverlaysBar(1) + separator(1) + separator(1) + InputBox+Dropdown/Modal(variable) + separator(1) + saveMessage(1) + StatusBar(3)
-    // Dropdown needs more space (9 lines) than confirmation modal (5 lines)
-    // Wizard selection mode needs more space based on items count
-    const wizardSelectHeight =
-      wizard.confirmationState?.mode === 'select' &&
-      wizard.confirmationState.items
-        ? Math.min(wizard.confirmationState.items.length + 4, 12) // items + header/footer, max 12
-        : 0;
-    const inputAndDropdownHeight = isDropdownVisible
-      ? 9 // Dropdown is tall (command list)
-      : wizardSelectHeight > 0
-        ? wizardSelectHeight // Wizard selection
-        : confirmationState?.pending || wizard.confirmationState?.pending
-          ? 5 // Confirmation modal is compact (just 2-3 lines)
-          : 1; // Just input when nothing is open
-    const reservedHeight = 3 + inputAndDropdownHeight + 5; // 3 top + input area + 5 bottom
-    return Math.max(5, terminalHeight - reservedHeight); // Minimum 5 lines for chat
-  }, [
-    stdout?.rows,
-    isDropdownVisible,
-    confirmationState?.pending,
-    wizard.confirmationState,
-  ]);
 
   // Add Ctrl+C handler and optionally enable mouse tracking
   useEffect(() => {
@@ -637,9 +607,6 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           streamingPaste={streamingPaste}
           showInfoPanel={showInfoPanel}
           avgOverlays={avgOverlays}
-          isDropdownVisible={isDropdownVisible}
-          inputLineCount={inputLineCount}
-          chatAreaHeight={chatAreaHeight}
           saveMessage={saveMessage}
           currentSessionId={currentSessionId}
           tokenCount={tokenCount}
@@ -654,6 +621,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           setIsDropdownVisible={setIsDropdownVisible}
           handlePasteContent={handlePasteContent}
           setInputLineCount={setInputLineCount}
+          inputLineCount={inputLineCount}
+          isDropdownVisible={isDropdownVisible}
         />
       </ThemeProvider>
     );
