@@ -138,7 +138,7 @@ cognition-cli tui --provider openai
 Project Lattice ∧ Conversation Lattice = Project Alignment Score
 ```
 
-When context limit (150K tokens) is hit:
+When context limit (200K tokens) is hit:
 
 1. Flush conversation lattice to `.sigma/overlays/`
 2. Query all 7 overlays for high-alignment turns
@@ -193,9 +193,11 @@ cognition tui provider set-default claude
 - ✅ Multi-provider support (Claude, Gemini & OpenAI/local with unified UX)
 - ✅ Thinking blocks visualization for extended reasoning
 - ✅ Infinite context across sessions with intelligent compression
+- ✅ **Tri-Modal Compression Strategy** (Semantic, Standard, Survival) for TPM protection
+- ✅ **Dynamic Thinking Budgeting** for optimized reasoning performance
 - ✅ Real-time lattice visualization with live stats
 - ✅ Live overlay status (O₁-O₇) in status bar
-- ✅ Token tracking with compression threshold (150K)
+- ✅ Token tracking with compression threshold (200K)
 - ✅ Multiline input with improved paste handling
 - ✅ ESC interrupt for aborting agent responses
 - ✅ Tool execution with permission confirmation dialogs
@@ -358,17 +360,17 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 
 ## 🎉 Latest Release
 
-**v2.6.3 - December 22, 2025** — [Cross-Project Agent Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.3):
+**v2.6.4 - January 16, 2026** — [PGC Grounding & Multi-Provider Token Optimization](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.4):
 
-- 🌐 **Cross-Project IPC Mesh** — `IPC_SIGMA_BUS` environment variable enables agents across different projects to discover and communicate seamlessly.
-- 📂 **Shared State Directory** — Agents can operate on local `.sigma/`, global `~/.cognition/sigma-global/`, or custom isolated meshes.
-- 🗺️ **Project Awareness** — Agents track `projectName` and `projectRoot` for true multi-codebase workflows.
-- 🔍 **Cross-Codebase Queries** — Agents can query other agents about their respective codebases for distributed knowledge sharing.
-- 🎨 **Enhanced TUI** — MCPSearch tool formatting and agent listings now display project names.
+- 🎯 **Sigma Task Protocol v2.0** — Verifiable task execution via `grounding` and `grounding_evidence` arrays with robust Manager/Worker delegation.
+- ⚡ **Tri-Modal Compression Strategy** — Unified context management for Gemini, OpenAI, and eGemma with Semantic, Standard, and Survival modes.
+- 🧠 **Dynamic Thinking Budgeting** — Automatically scales reasoning effort (`thinkingLevel`, `reasoning_effort`) based on remaining TPM quota.
+- 🏗️ **Modular TUI Architecture** — Refactored into hooks and services with a new Observer-Stream architecture for system diagnostics.
+- 🌐 **IPC Enhancements** — Project-specific bus isolation and automatic cleanup of stale agents.
 
-**Impact:** Enables true multi-agent workflows across different codebases with seamless communication and knowledge sharing.
+**Impact:** Dramatically improves reliability of multi-agent collaboration and ensures session survival through proactive, multi-provider token optimization.
 
-**Previous releases:** [v2.6.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2) | [v2.6.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ Launch](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
+**Previous releases:** [v2.6.3](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.3) | [v2.6.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2) | [v2.6.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.0.0 - Σ Launch](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
 
 **Full changelog:** [CHANGELOG.md](./CHANGELOG.md)
 
@@ -404,13 +406,14 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 - ✅ **Multi-Provider Support** — Unified delegation flow for Gemini, Claude, and OpenAI agents
 - ✅ **Auto-Verification** — Automated status reporting from workers to managers
 
-**The Math:**
+### Sigma Task Protocol v2.0 (Jan 16, 2026)
 
-```
-importance = novelty × 5 + max(alignment_O1..O7) × 0.5
-if alignment ≥ 6: preserve in recap
-if alignment < 6: discard
-```
+**[Verifiable Task Execution](docs/sigma/ARCHITECTURE.md)**
+
+- ✅ **Structured Grounding** — Verifiable execution via `grounding` and `grounding_evidence` arrays
+- ✅ **Tri-Modal Compression** — Proactive context management (Semantic, Standard, Survival)
+- ✅ **Multi-Provider Optimization** — Unified TPM protection for Gemini, OpenAI, and eGemma
+- ✅ **Reasoning-First Enforcement** — Agents plan complex operations before execution
 
 ---
 
@@ -450,11 +453,11 @@ For the complete list of innovations (#1-47) protected as prior art and publicat
 If you use this work in research, please cite:
 
 ```bibtex
-@software{cognition_cli_2025,
+@software{cognition_cli_2026,
   author = {Husadžić, Mirza},
   title = {Cognition Σ CLI: Seven-Overlay Knowledge Graph with Infinite Context},
-  year = {2025},
-  version = {2.6.3},
+  year = {2026},
+  version = {2.6.4},
   doi = {10.5281/zenodo.18012832},
   url = {https://github.com/mirzahusadzic/cogx/tree/main/src/cognition-cli}
 }

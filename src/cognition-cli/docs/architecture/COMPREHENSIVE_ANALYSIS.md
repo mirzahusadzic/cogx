@@ -6,9 +6,9 @@
 
 **At a Glance:**
 
-- **Current Version:** 2.6.4-dev (Unreleased)
-- **Production Lines:** ~93,012 TypeScript (excl. tests), ~137,487 total
-- **Test Coverage:** ~92% across 154 test files
+- **Current Version:** 2.6.4 (January 16, 2026)
+- **Production Lines:** ~92,899 TypeScript (excl. tests), ~136,200 total
+- **Test Coverage:** ~92% across 153 test files
 - **Architecture:** 7 cognitive overlays (O₁-O₇), dual-lattice Σ system, ZeroMQ agent messaging
 - **License:** AGPL-3.0-or-later
 
@@ -115,18 +115,19 @@ Project Lattice (PGC)          Conversation Lattice (Sigma)
 1. **Proactive Compression**
    - Uses intelligent importance formula: `novelty × 5 + max(alignment_O1..O7) × 0.5`
    - Preserves high-signal turns, discards noise
+   - **Tri-Modal Strategy:** Semantic (>50k), Standard (>200k), and Survival (TPM-driven) modes.
 
-2. **Fresh Start at <20K**
-   - Gives larger usable runway per session
+2. **Dynamic Thinking Budgeting**
+   - Automatically scales reasoning effort (`thinkingLevel`, `reasoning_effort`) based on remaining TPM quota.
 
 3. **Session Lifecycle Management**
 
    ```
-   Session N: 0K → 140K → INTELLIGENT COMPRESSION
+   Session N: 0K → 200K → INTELLIGENT COMPRESSION
                              ↓
-   Session N+1: <10K → 140K → COMPRESSION
+   Session N+1: <20K → 200K → COMPRESSION
                                 ↓
-   Session N+2: <10K → ... (infinite chain)
+   Session N+2: <20K → ... (infinite chain)
    ```
 
 4. **High-Fidelity Memory Recall**
@@ -158,7 +159,9 @@ Sigma includes a production-ready terminal user interface built with **Ink** (Re
 **Features:**
 
 - ✅ **Live Lattice Visualization** — Real-time overlay counts (O1-O7)
-- ✅ **Token Tracking** — Exact count with compression threshold
+- ✅ **Token Tracking** — Exact count with 200K compression threshold
+- ✅ **Tri-Modal Status** — Visual indication of Semantic/Standard/Survival mode
+- ✅ **Reasoning Progress** — Thinking blocks and dynamic budget visualization
 - ✅ **Lattice Statistics** — Nodes, edges, context shifts
 - ✅ **Importance Scoring** — Novelty + alignment per turn
 - ✅ **Toggle Info Panel** — Detailed overlay breakdown
@@ -172,14 +175,16 @@ The TUI provides **radical transparency**:
 - See exactly how many tokens you're using
 - Watch the lattice grow in real-time as you chat
 - Understand which overlays are being activated
-- Know when compression will trigger
+- Know when compression will trigger (Semantic vs Standard)
+- Monitor real-time TPM runway and thinking budgets
 - Trust the system through visibility
 
 **Example TUI Output:**
 
 ```
-Tokens: 57.5K / 150K
+Tokens: 57.5K / 200K [MODE: SEMANTIC]
 Lattice: 10 nodes, 9 edges, 1 shift
+Budget: Medium (75k TPM remaining)
 Novelty: 0.53 | Importance: 5.2
 O₁: 0.0  O₂: 3.4  O₃: 3.2  O₄: 0.0  O₅: 5.0  O₆: —  O₇: —
 ```
@@ -284,17 +289,17 @@ The scope of the multi-agent mesh is controlled via the `IPC_SIGMA_BUS` environm
 - **Fractal Scalability**: Enables a recursive hierarchy of specialized Grounded Context Pools (PGCs) connected by a high-speed semantic negotiation layer.
 - **Active Negotiation**: When an interface changes, agents negotiate the impact across project boundaries before build failures occur.
 
-### Manager/Worker Delegation Architecture
+### Manager/Worker Delegation Architecture (Sigma Task Protocol v2.0)
 
-Introduced in v2.6.2, this pattern leverages a unified `SigmaTaskUpdate` tool to enable structured, verifiable multi-agent collaboration.
+Updated in v2.6.4, this protocol leverages a unified `SigmaTaskUpdate` tool to enable verifiable, grounded multi-agent collaboration.
 
 #### **Core Concept**
 
-Instead of loosely-coupled chat, agents use a formal **Manager/Worker pattern**:
+Agents use a formal **Manager/Worker pattern** with cryptographic grounding:
 
-- **Managers** break complex goals into discrete tasks with explicit **Acceptance Criteria**.
-- **Workers** receive task assignments via IPC, execute them, and report a **Result Summary**.
-- **Unified State**: `SigmaTaskUpdate` provides a single, stable task tracking mechanism across all LLM providers (Claude, Gemini, OpenAI).
+- **Managers** break complex goals into discrete tasks with explicit **Acceptance Criteria** and **Grounding Strategies**.
+- **Workers** receive assignments, execute them, and report a **Result Summary** with **Grounding Evidence**.
+- **Structured Grounding**: Parallel `grounding` and `grounding_evidence` arrays ensure that task execution is backed by PGC citations and overlay analysis.
 
 #### **The Delegation Schema**
 
@@ -302,11 +307,20 @@ The `SigmaTaskUpdate` tool uses a strict schema to ensure accountability:
 
 ```typescript
 {
-  id: string;                   // Stable ID for tracking across sessions
-  status: "delegated";          // Explicit delegation state
-  delegated_to: "agent-alias";  // Target worker ID
-  acceptance_criteria: string[]; // Verifiable success conditions
-  context?: string;              // Background information for the worker
+  todos: [
+    {
+      id: string;                   // Stable ID for tracking
+      status: "delegated";          // Explicit delegation state
+      delegated_to: "agent-alias";  // Target worker ID
+      acceptance_criteria: string[]; // Verifiable success conditions
+    }
+  ],
+  grounding: [
+    {
+      id: string;
+      strategy: "pgc_first" | "pgc_verify" | "pgc_cite";
+    }
+  ]
 }
 ```
 
@@ -877,24 +891,24 @@ The same architecture that understands code can preserve human identity through 
 
 | Metric                     | Value                      |
 | -------------------------- | -------------------------- |
-| **Total TypeScript Lines** | **~137,487** (incl. tests) |
-| Production Code Lines      | ~93,012 (excl. tests)      |
-| Test Code Lines            | ~44,475 (154 test files)   |
-| Total Source Files         | 397 (243 prod + 154 test)  |
+| **Total TypeScript Lines** | **~136,200** (incl. tests) |
+| Production Code Lines      | ~92,899 (excl. tests)      |
+| Test Code Lines            | ~43,301 (153 test files)   |
+| Total Source Files         | 390 (237 prod + 153 test)  |
 
 ### Lines of Code by Module
 
 | Module        | LOC        | Files   | % of Prod | Description                   |
 | ------------- | ---------- | ------- | --------- | ----------------------------- |
-| **core/**     | 35,341     | 84      | 37.4%     | PGC, overlays, orchestrators  |
-| **tui/**      | 18,334     | 55      | 19.4%     | React Ink terminal interface  |
-| **commands/** | 14,308     | 31      | 15.2%     | CLI command implementations   |
-| **sigma/**    | 10,408     | 29      | 11.0%     | Infinite context dual-lattice |
-| **llm/**      | 7,106      | 13      | 7.5%      | LLM provider abstraction      |
-| **ipc/**      | 3,797      | 11      | 4.0%      | ZeroMQ agent messaging        |
-| **utils/**    | 3,579      | 12      | 3.8%      | Errors, formatting, helpers   |
-| **root**      | 1,535      | 2       | 1.6%      | cli.ts, config.ts             |
-| **Total**     | **92,033** | **237** | **100%**  |                               |
+| **core/**     | 35,368     | 84      | 38.1%     | PGC, overlays, orchestrators  |
+| **tui/**      | 13,528     | 50      | 14.6%     | React Ink terminal interface  |
+| **commands/** | 15,236     | 31      | 16.4%     | CLI command implementations   |
+| **sigma/**    | 10,711     | 31      | 11.5%     | Infinite context dual-lattice |
+| **llm/**      | 8,325      | 14      | 9.0%      | LLM provider abstraction      |
+| **ipc/**      | 4,369      | 12      | 4.7%      | ZeroMQ agent messaging        |
+| **utils/**    | 3,699      | 13      | 4.0%      | Errors, formatting, helpers   |
+| **root**      | 1,663      | 2       | 1.8%      | cli.ts, config.ts             |
+| **Total**     | **92,899** | **237** | **100%**  |                               |
 
 ### Core Module Breakdown
 
@@ -919,12 +933,12 @@ The same architecture that understands code can preserve human identity through 
 
 ### TUI Module Breakdown
 
-| Submodule   | LOC   | Description                        |
-| ----------- | ----- | ---------------------------------- |
-| hooks/      | 7,919 | React hooks (agent, session, etc.) |
-| components/ | 1,805 | UI components (Ink/React)          |
-| root files  | 697   | Entry points, types                |
-| commands/   | 413   | TUI command loader                 |
+| Submodule   | LOC    | Description                            |
+| ----------- | ------ | -------------------------------------- |
+| hooks/      | 10,924 | Modular React hooks (agent, task, etc) |
+| components/ | 2,642  | UI components (Ink/React)              |
+| services/   | 716    | Background services and diagnostics    |
+| commands/   | 433    | TUI command loader                     |
 
 ### Other Metrics
 
@@ -936,18 +950,30 @@ The same architecture that understands code can preserve human identity through 
 | Cognitive Overlays    | 7 (O₁-O₇)                          |
 | Supported Languages   | 3 (TS/JS/Python)                   |
 | Core Commands         | 40+ (with tab completion)          |
-| Test Files            | 154 (comprehensive coverage)       |
+| Test Files            | 153 (comprehensive coverage)       |
 | Test Coverage         | ~92% (security, compression, UX)   |
-| Current Version       | 2.6.4-dev (Unreleased)             |
+| Current Version       | 2.6.4 (January 16, 2026)           |
 | License               | AGPL-3.0-or-later                  |
 | Zenodo DOI            | 10.5281/zenodo.18012832            |
-| Innovations Published | 48 (defensive patent publication)  |
+| Innovations Published | 49 (defensive patent publication)  |
 
 ---
 
 ## Version History & Changelog
 
-### 2.6.4-dev (Unreleased)
+### Version 2.6.4 (Current - PGC Grounding & Multi-Provider Token Optimization)
+
+**Summary:** Implements Sigma Task Protocol v2.0 with structured grounding and unified Tri-Modal Compression Strategy for Gemini, OpenAI, and eGemma.
+
+**New Features:**
+
+- **Sigma Task Protocol v2.0** — Verifiable task execution via `grounding` and `grounding_evidence` arrays.
+- **Tri-Modal Compression Strategy** — Unified context management (Semantic, Standard, Survival) for proactive TPM protection.
+- **Dynamic Thinking Budgeting** — Automatically scales reasoning effort based on remaining TPM quota.
+- **Modular TUI Architecture** — Refactored into hooks and services with new system diagnostics.
+- **Project-Specific Bus Isolation** — Improved isolation for agent communication across different projects.
+
+### Version 2.6.3 (Cross-Project Agent Collaboration)
 
 **Summary:** Introduces a fractal lattice mesh architecture for cross-project agent collaboration.
 
@@ -955,26 +981,7 @@ The same architecture that understands code can preserve human identity through 
 
 - **Context Sharding** — Agents can now query specialized "Gardener" agents of other repositories via `query_agent()`.
 - **Active Negotiation** — When an interface changes, agents negotiate the impact across project boundaries before build failures occur.
-
-### Version 2.6.2 (Current - Manager/Worker Delegation)
-
-**Summary:** Unified task management and delegation architecture across all providers.
-
-**New Features:**
-
-- **Manager/Worker Pattern** — Formal delegation flow with acceptance criteria and result summaries.
-- **Unified `SigmaTaskUpdate`** — Replaced provider-specific task tracking (like Claude's `TodoWrite`) with a standardized tool.
-- **Task Persistence** — Tasks are now stable and persist across session compressions and restarts.
-- **Strict Validation** — Zod-based enforcement of delegation requirements (must have criteria and worker ID).
-
-**UX Improvements:**
-
-- **Status Icons** — Visual indicators for pending, in-progress, completed, and delegated tasks in the TUI.
-- **Automatic Migration** — Legacy tasks without IDs are automatically migrated to the new schema.
-
-**Bug Fixes:**
-
-- Fixed Claude SDK's native `TodoWrite` conflict by overriding it with our superior `SigmaTaskUpdate`.
+- **Team Meshes** — `IPC_SIGMA_BUS` enables isolated communication channels for specific project groups.
 
 ### Version 2.6.1 (Multi-Agent Collaborative System)
 
@@ -1139,7 +1146,7 @@ _For previous release history, see [CHANGELOG.md](https://github.com/mirzahusadz
 
 ## Conclusion
 
-Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.6.3** extends production excellence with a groundbreaking **Fractal Lattice Mesh**, enabling true cross-project agent collaboration via `IPC_SIGMA_BUS`. This transforms Cognition CLI from a single-project tool into a multi-project-scale distributed nervous system for code.
+Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.6.4** extends production excellence with **Sigma Task Protocol v2.0** and **Tri-Modal Compression**, ensuring verifiable multi-agent collaboration and session survival through proactive token optimization. This transforms Cognition CLI from a single-project tool into a multi-project-scale distributed nervous system for code.
 
 It combines:
 
@@ -1150,11 +1157,11 @@ It combines:
 - **Radical transparency** (audit trails + live TUI)
 - **Security-first design** (dual-use awareness)
 - **Extensible overlays** (7 cognitive dimensions)
-- **Infinite context** (Sigma dual-lattice with intelligent compression)
+- **Infinite context** (Sigma dual-lattice with Tri-Modal compression)
 - **Verifiable memory** (conversation indexed like code)
 - **Production-ready UX** (tab completion, accessibility, graceful degradation)
 - **Multi-agent collaboration** (ZeroMQ pub/sub, persistent queues, auto-response)
-- **Structured Delegation** (Manager/Worker pattern with verifiable criteria)
+- **Structured Delegation** (Manager/Worker pattern with Sigma Task Protocol v2.0)
 - **Fractal Mesh Architecture** (Cross-project context sharding and negotiation)
 
 Rather than treating LLMs as magical oracles, it grounds them in verifiable fact, enabling a new generation of AI-powered developer tools that are trustworthy, auditable, and aligned with human values and principles. With its fractal mesh and delegation capabilities, it now enables complex workflows where multiple AI agents collaborate asynchronously across massive, distributed codebases.

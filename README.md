@@ -61,17 +61,17 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 ## 🎯 Latest Release
 
-**December 22, 2025** — [v2.6.3: Cross-Project Agent Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.3):
+**January 16, 2026** — [v2.6.4: PGC Grounding & Multi-Provider Token Optimization](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.4):
 
-- 🌐 **Cross-Project IPC Mesh** - `IPC_SIGMA_BUS` environment variable enables agents across different projects to discover and communicate seamlessly.
-- 📂 **Shared State Directory** - Agents can operate on local `.sigma/`, global `~/.cognition/sigma-global/`, or custom isolated meshes.
-- 🗺️ **Project Awareness** - Agents track `projectName` and `projectRoot` for true multi-codebase workflows.
-- 🔍 **Cross-Codebase Queries** - Agents can query other agents about their respective codebases for distributed knowledge sharing.
-- 🎨 **Enhanced TUI** - MCPSearch tool formatting and agent listings now display project names.
+- 🎯 **Sigma Task Protocol v2.0** — Verifiable task execution via `grounding` and `grounding_evidence` arrays with robust Manager/Worker delegation.
+- ⚡ **Tri-Modal Compression Strategy** — Unified context management for Gemini, OpenAI, and eGemma with Semantic, Standard, and Survival modes.
+- 🧠 **Dynamic Thinking Budgeting** — Automatically scales reasoning effort (`thinkingLevel`, `reasoning_effort`) based on remaining TPM quota.
+- 🏗️ **Modular TUI Architecture** — Refactored into hooks and services with a new Observer-Stream architecture for system diagnostics.
+- 🌐 **IPC Enhancements** — Project-specific bus isolation and automatic cleanup of stale agents.
 
-**Impact**: Enables true multi-agent workflows across different codebases with seamless communication and knowledge sharing.
+**Impact:** Dramatically improves reliability of multi-agent collaboration and ensures session survival through proactive, multi-provider token optimization.
 
-**Previous Releases**: [v2.6.2 - Manager/Worker Delegation](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2) | [v2.6.0 - Multi-Agent Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1 - Gemini Integration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0 - Multi-Provider LLM](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2 - Documentation & Stability](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1 - Cross-Overlay Workflows](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0 - Production Excellence](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ (Sigma) Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
+**Previous Releases**: [v2.6.3 - Cross-Project Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.3) | [v2.6.2 - Manager/Worker Delegation](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2) | [v2.6.0 - Multi-Agent Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1 - Gemini Integration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0 - Multi-Provider LLM](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2 - Documentation & Stability](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1 - Cross-Overlay Workflows](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0 - Production Excellence](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ (Sigma) Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
 
 📜 **[See full release history](src/cognition-cli/CHANGELOG.md)**
 
@@ -135,15 +135,17 @@ The production-ready implementation of verifiable AI-human symbiosis. Combines t
 
 **Core Capabilities:**
 
-- **Multi-Provider LLM Support:** Claude (Anthropic) and Gemini (Google) with unified UX, thinking blocks, and tool execution
-- **Project Lattice (PGC):** Content-addressable knowledge graph with 7-dimensional overlays (O₁-O₇) analyzing structure, security, lineage, mission, operations, proofs, and coherence
-- **Conversation Lattice (Σ):** Real-time conversation indexing with intelligent compression, preserving high-value insights across unlimited sessions
-- **Interactive TUI:** Production-ready terminal interface with live lattice visualization and session management
-- **Production Scale:** Successfully analyzed 55K+ line codebases with zero hallucinations and sub-second semantic queries
+- **Multi-Provider LLM Support:** Claude (Anthropic), Gemini (Google), and OpenAI with unified UX, thinking blocks, and tool execution.
+- **Tri-Modal Compression Strategy:** Proactive TPM protection using Semantic, Standard, and Survival compression modes across all providers.
+- **Sigma Task Protocol v2.0:** Verifiable task execution with structured grounding and multi-agent delegation patterns.
+- **Project Lattice (PGC):** Content-addressable knowledge graph with 7-dimensional overlays (O₁-O₇) analyzing structure, security, lineage, mission, operations, proofs, and coherence.
+- **Conversation Lattice (Σ):** Real-time conversation indexing with intelligent compression, preserving high-value insights across unlimited sessions.
+- **Interactive TUI:** Production-ready terminal interface with live lattice visualization and session management.
+- **Production Scale:** Successfully analyzed 55K+ line codebases with zero hallucinations and sub-second semantic queries.
 
 **Breakthrough Achievement (Oct 24, 2025):** First grounded architecture analysis performed **on itself**, proving structured PGC metadata is sufficient for deep architectural understanding without reading source code.
 
-**Latest Release:** [v2.6.3: Cross-Project Agent Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.3)
+**Latest Release:** [v2.6.4: PGC Grounding & Multi-Provider Token Optimization](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.4)
 
 ### eGemma – [The Deterministic Workbench](https://github.com/mirzahusadzic/egemma)
 
@@ -241,7 +243,7 @@ This repository constitutes a **formal defensive publication** establishing prio
 </details>
 
 <details>
-<summary><strong>Post-Publication Additions (Innovations #25-47)</strong> — Published: October 27, 2025 - December 3, 2025</summary>
+<summary><strong>Post-Publication Additions (Innovations #25-49)</strong> — Published: October 27, 2025 - January 16, 2026</summary>
 
 25. **Context Sampling Function (Σ)** — Efficient lattice traversal for relevant knowledge extraction
 26. **Monument 4.7: The Shadow** — Dual embedding system for structural and semantic signatures
@@ -272,6 +274,11 @@ This repository constitutes a **formal defensive publication** establishing prio
 **v2.6.0 - Published December 3, 2025** — Multi-Agent Collaborative System
 
 47. **Multi-Agent Collaborative System** — ZeroMQ pub/sub infrastructure enabling asynchronous agent-to-agent communication with persistent message queues, auto-response flow with Yossarian Protocol rate limiting, agent registry with heartbeat monitoring, and unified MCP/ADK tools for cross-model collaboration
+
+**v2.6.4 - Published January 16, 2026** — Sigma Task Protocol v2.0 & Tri-Modal Compression
+
+48. **Sigma Task Protocol v2.0** — Verifiable task execution using parallel `grounding` and `grounding_evidence` arrays for shallow schema depth and reliable model performance.
+49. **Tri-Modal Compression Strategy** — Context-aware state management with Semantic (task-driven), Standard (conversation-driven), and Survival (TPM-driven) compression modes to ensure session continuity across high-latency reasoning models.
 
 </details>
 
@@ -353,11 +360,11 @@ Organizations requiring closed-source commercial implementations should contact 
 If you use this work in research, please cite:
 
 ```bibtex
-@software{cogx_2025,
+@software{cogx_2026,
   author = {Husadžić, Mirza},
   title = {CogX: A Blueprint for Verifiable, Agentic AI},
-  year = {2025},
-  version = {2.6.2},
+  year = {2026},
+  version = {2.6.4},
   doi = {10.5281/zenodo.18012832},
   url = {https://github.com/mirzahusadzic/cogx}
 }

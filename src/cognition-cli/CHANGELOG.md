@@ -5,6 +5,56 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.4] - 2026-01-16
+
+### Summary
+
+**PGC Grounding & Multi-Provider Token Optimization.** Implements Sigma Task Protocol v2.0 with structured grounding and multi-agent delegation. Introduces a unified Tri-Modal Compression Strategy for Gemini, OpenAI, and eGemma, featuring semantic checkpointing, survival mode TPM protection, and dynamic thinking budgets. Modularizes TUI architecture and expands the test suite for core services.
+
+### 🚀 New Features
+
+#### Sigma Task Protocol v2.0
+
+- **Structured Grounding:** Implemented `grounding` and `grounding_evidence` arrays in `SigmaTaskUpdate` for verifiable task execution.
+- **PGC-Aware Delegation:** Full support for Manager/Worker delegation pattern with acceptance criteria and result summaries.
+- **Grounding Strategies:** Support for `pgc_first`, `pgc_verify`, and `pgc_cite` strategies across Gemini, OpenAI, and Claude providers.
+
+#### Multi-Provider Token Optimization
+
+- **Tri-Modal Compression Strategy:** Implemented unified context management for Gemini, OpenAI, and eGemma:
+  - **Semantic Mode:** Aggressive cleanup (>50k tokens) after task completion to flush implementation noise.
+  - **Standard Mode:** Safety net (>200k tokens) for natural conversation and exploration.
+  - **Survival Mode:** Real-time TPM runway protection that forces compression before API rejection.
+- **Dynamic Thinking Budgeting:** Automatically scales reasoning effort (Gemini `thinkingLevel`, OpenAI `reasoning_effort`) based on remaining TPM quota.
+- **Semantic Checkpointing:** Automatically flushes implementation noise while preserving high-level plan after task completion.
+- **Proactive Token Warnings:** Visual alerts when context pressure reaches 50K tokens to prevent TPM exhaustion.
+- **Preemptive Compression:** Background compression triggered before reaching limits to maintain TUI responsiveness.
+- **Reasoning-First Enforcement:** Encourages agents to plan before executing complex tool calls.
+
+#### TUI & Architecture
+
+- **Modular TUI Architecture:** Refactored TUI into hooks and services (`useAgent`, `useAgentServices`, etc.) for better maintainability.
+- **Observer-Stream Architecture:** New system diagnostics logging for better visibility into agent activities.
+- **Auto-Response Mechanism:** Expanded recovery prompts for post-compression state restoration.
+
+#### IPC Enhancements
+
+- **Project-Specific Bus Isolation:** Improved isolation for agent communication across different projects.
+- **Stale Agent Cleanup:** Automatic removal of inactive agents from the IPC registry.
+
+### 🐛 Bug Fixes
+
+- **Gemini Tool Coercion:** Fixed issues where Gemini's tool calls would fail due to parameter type mismatches (using Zod schema for `SigmaTaskUpdate`).
+- **TUI State Desync:** Resolved "tail race" conditions and state desync in compression logic.
+- **Thinking Block Accumulators:** Fixed missing thinking blocks and cleared accumulators after tool execution in Gemini provider.
+- **Debug Flag Handling:** Correctly pass global `--debug` flag to TUI commands.
+
+### 🏗️ Infrastructure & Tests
+
+- **Comprehensive Test Suite:** Expanded unit tests for TUI hooks, core commands, and sugar modules.
+- **Regression Tests:** Added tests for tool coercion, schema parity, and TUI lifecycle.
+- **Dependency Updates:** Updated `@openai/agents` to 0.3.8, `openai` to 6.16.0, and `@google/adk` to 0.2.3.
+
 ## [2.6.3] - 2025-12-22
 
 ### Summary
