@@ -74,14 +74,15 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   layoutVersion, // Used implicitly by React.memo to trigger re-renders on layout changes
 }) => {
   const { stdout } = useStdout();
-  const { state: tuiState } = useTUI();
+  const { state: tuiState, clearScrollSignal } = useTUI();
   const { scrollSignal } = tuiState;
   const [scrollOffset, setScrollOffset] = useState(0);
+  const lastProcessedSignalTs = useRef<number>(0);
   const containerRef = useRef<DOMElement>(null);
 
-  // Initial height guess to minimize first-render jump
+  // Initial height guess - be conservative to avoid disabling scroll
   const [availableHeight, setAvailableHeight] = useState(
-    () => (stdout?.rows || 24) - 10
+    () => (stdout?.rows || 24) / 2
   );
 
   // Build colored text lines with color metadata
@@ -120,7 +121,14 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
         case 'tool_progress': {
           prefix = '  ';
           // Use amber-orange for tool commands, but blue for Edit diffs (they have their own formatting)
-          color = msg.content.includes('🔧 Edit:') ? '#58a6ff' : '#f5a623';
+          // Results (no 🔧) are rendered in muted gray
+          if (msg.content.includes('🔧 Edit:')) {
+            color = '#58a6ff';
+          } else if (msg.content.includes('🔧')) {
+            color = '#f5a623';
+          } else {
+            color = '#8b949e'; // Muted gray for tool results (e.g. file content)
+          }
 
           // Special handling: split tool name from command/details
           // Format: "🔧 ToolName: command/details"
@@ -141,12 +149,24 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       }
 
       // Split content into lines and store with color
-      const contentLines = (prefix + msg.content).split('\n');
-      const indent = msg.type === 'thinking' ? '    ' : ''; // Indent thinking blocks
-      contentLines.forEach((line) => {
+      const contentLines = msg.content.split('\n');
+      contentLines.forEach((line, index) => {
         // Process markdown bold syntax (adds resets only if colors were added)
         const processedLine = processBold(line);
-        lines.push({ text: indent + processedLine, color });
+
+        if (msg.type === 'thinking') {
+          // Thinking messages: 🤖 icon on first line, aligned on subsequent lines
+          // We don't add extra indentation here to keep the icon close to the text
+          if (index === 0) {
+            lines.push({ text: '🤖 ' + processedLine, color });
+          } else {
+            lines.push({ text: '   ' + processedLine, color });
+          }
+        } else {
+          // Only show prefix on the first line for other message types
+          const linePrefix = index === 0 ? prefix : ' '.repeat(prefix.length);
+          lines.push({ text: linePrefix + processedLine, color });
+        }
       });
       lines.push({ text: '', color }); // Empty line between messages
     });
@@ -166,7 +186,10 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
   // Handle global scroll signals (e.g. from InputBox)
   useEffect(() => {
-    if (!scrollSignal) return;
+    if (!scrollSignal || scrollSignal.ts === lastProcessedSignalTs.current)
+      return;
+
+    lastProcessedSignalTs.current = scrollSignal.ts;
 
     const maxOffset = Math.max(0, allLines.length - availableHeight);
     switch (scrollSignal.type) {
@@ -186,7 +209,10 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
         setScrollOffset(0);
         break;
     }
-  }, [scrollSignal, availableHeight, allLines.length]);
+
+    // Clear the signal so it doesn't re-trigger on other dependency changes
+    clearScrollSignal();
+  }, [scrollSignal, availableHeight, allLines.length, clearScrollSignal]);
 
   // Use measureElement to get the actual height allocated by Yoga
   useEffect(() => {
@@ -229,15 +255,66 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
       const maxOffset = Math.max(0, allLines.length - availableHeight);
 
+      // Support multiple ways to trigger Page Up/Down and Home/End
+      // Some terminals don't correctly map pageUp/pageDown in Ink's useInput
+      const isPageUp = key.pageUp || (key.ctrl && input === 'u');
+      const isPageDown = key.pageDown || (key.ctrl && input === 'd');
+      const isHome = input === '\x1b[H' || input === '\x1b[1~';
+      const isEnd = input === '\x1b[F' || input === '\x1b[4~';
+
+      if (process.env.DEBUG_INPUT) {
+        if (isPageUp || isPageDown || isHome || isEnd) {
+          systemLog(
+            'tui',
+            `INPUT DEBUG [ClaudePanelAgent]: ${JSON.stringify({
+              input,
+              key,
+              isPageUp,
+              isPageDown,
+              isHome,
+              isEnd,
+            })}`
+          );
+        }
+
+        if (isPageUp || isPageDown) {
+          systemLog(
+            'tui',
+            `[ClaudePanelAgent] Received ${isPageUp ? 'PageUp' : 'PageDown'} action`,
+            {
+              focused,
+              isThinking,
+              availableHeight,
+              allLinesLength: allLines.length,
+              method: key.pageUp || key.pageDown ? 'key' : 'manual',
+            }
+          );
+        }
+      }
+
       if (key.upArrow) {
-        setScrollOffset((prev) => Math.min(prev + 1, maxOffset));
+        if (key.shift) {
+          // Shift+Up as a fallback for PageUp
+          setScrollOffset((prev) =>
+            Math.min(prev + availableHeight, maxOffset)
+          );
+        } else {
+          setScrollOffset((prev) => Math.min(prev + 1, maxOffset));
+        }
       } else if (key.downArrow) {
-        setScrollOffset((prev) => Math.max(0, prev - 1));
-      } else if (key.pageUp) {
+        if (key.shift) {
+          // Shift+Down as a fallback for PageDown
+          setScrollOffset((prev) => Math.max(0, prev - availableHeight));
+        } else {
+          setScrollOffset((prev) => Math.max(0, prev - 1));
+        }
+      } else if (isPageUp) {
         setScrollOffset((prev) => Math.min(prev + availableHeight, maxOffset));
-      } else if (key.pageDown) {
+      } else if (isPageDown) {
         setScrollOffset((prev) => Math.max(0, prev - availableHeight));
-      } else if (key.return) {
+      } else if (isHome) {
+        setScrollOffset(maxOffset);
+      } else if (isEnd || key.return) {
         setScrollOffset(0); // Jump to bottom
       }
     },

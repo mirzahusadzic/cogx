@@ -33,7 +33,8 @@ type TUIAction =
   | {
       type: 'SEND_SCROLL_SIGNAL';
       payload: 'up' | 'down' | 'pageUp' | 'pageDown' | 'bottom';
-    };
+    }
+  | { type: 'CLEAR_SCROLL_SIGNAL' };
 
 const initialState: TUIState = {
   focused: true,
@@ -71,6 +72,11 @@ function tuiReducer(state: TUIState, action: TUIAction): TUIState {
         ...state,
         scrollSignal: { type: action.payload, ts: Date.now() },
       };
+    case 'CLEAR_SCROLL_SIGNAL':
+      return {
+        ...state,
+        scrollSignal: null,
+      };
     default:
       return state;
   }
@@ -90,6 +96,7 @@ interface TUIContextType {
   sendScrollSignal: (
     type: 'up' | 'down' | 'pageUp' | 'pageDown' | 'bottom'
   ) => void;
+  clearScrollSignal: () => void;
 }
 
 const TUIContext = createContext<TUIContextType | undefined>(undefined);
@@ -140,6 +147,10 @@ export function TUIProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SEND_SCROLL_SIGNAL', payload: type }),
     []
   );
+  const clearScrollSignal = useCallback(
+    () => dispatch({ type: 'CLEAR_SCROLL_SIGNAL' }),
+    []
+  );
 
   return (
     <TUIContext.Provider
@@ -155,6 +166,7 @@ export function TUIProvider({ children }: { children: ReactNode }) {
         setStreamingPaste,
         setInputLineCount,
         sendScrollSignal,
+        clearScrollSignal,
       }}
     >
       {children}

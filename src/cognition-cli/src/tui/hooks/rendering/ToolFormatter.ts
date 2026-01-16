@@ -658,3 +658,87 @@ export function formatToolUseMessage(tool: ToolUse): string {
   const formatted = formatToolUse(tool);
   return `${formatted.icon} ${formatted.name}: ${formatted.description}`;
 }
+
+/**
+ * Format a tool result for display
+ *
+ * Provides specialized formatting for tool outputs to show what the model received.
+ * Currently supports Read (file content) with truncation.
+ *
+ * @param name - Tool name
+ * @param result - Tool output
+ * @returns Formatted result string, or empty if no specialized formatting
+ */
+export function formatToolResult(name: string, result: unknown): string {
+  // Normalize name to handle snake_case and various forms
+  const normalizedName = name.toLowerCase().replace(/_/g, '');
+
+  if (
+    normalizedName === 'readfile' ||
+    normalizedName === 'read' ||
+    normalizedName === 'grep'
+  ) {
+    let content = '';
+    let processedResult = result;
+
+    // Robust handling for JSON-encoded tool results (e.g. from Gemini ADK wrapping)
+    if (typeof result === 'string' && result.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(result);
+        if (parsed && typeof parsed === 'object') {
+          processedResult = parsed;
+        }
+      } catch {
+        // Not valid JSON or parsing failed, use original string
+      }
+    }
+
+    if (typeof processedResult === 'string') {
+      content = processedResult;
+    } else if (processedResult && typeof processedResult === 'object') {
+      const resObj = processedResult as Record<string, unknown>;
+      // Handle MCP standard: { content: [{ type: 'text', text: '...' }] }
+      if (
+        Array.isArray(resObj.content) &&
+        resObj.content.length > 0 &&
+        resObj.content[0] &&
+        typeof resObj.content[0] === 'object' &&
+        (resObj.content[0] as Record<string, unknown>).type === 'text'
+      ) {
+        content = String(
+          (resObj.content[0] as Record<string, unknown>).text || ''
+        );
+      } else if ('content' in resObj) {
+        content = String(resObj.content);
+      } else if ('result' in resObj) {
+        content = String(resObj.result);
+      } else {
+        content = JSON.stringify(processedResult, null, 2);
+      }
+    } else {
+      content = JSON.stringify(processedResult, null, 2);
+    }
+
+    const lines = content.split('\n');
+    const MAX_LINES = 30;
+    // Remove empty trailing lines
+    while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
+      lines.pop();
+    }
+
+    const truncatedLines = lines.slice(0, MAX_LINES);
+    // Indent content for better visual separation
+    const resultLines = truncatedLines.map((line) => `    ${line}`);
+
+    if (lines.length > MAX_LINES) {
+      resultLines.push(
+        `    \x1b[90m... (truncated ${lines.length - MAX_LINES} more lines)\x1b[0m`
+      );
+    }
+
+    return resultLines.length > 0 ? resultLines.join('\n') : '    (empty)';
+  }
+
+  // Default: don't show result for other tools to keep UI clean
+  return '';
+}

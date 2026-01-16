@@ -11,7 +11,7 @@ import {
 import { McpServerBuilder } from '../../services/McpServerBuilder.js';
 import { formatPendingMessages } from '../../../ipc/agent-messaging-formatters.js';
 import { stripANSICodes } from '../rendering/MessageRenderer.js';
-import { formatToolUse } from '../rendering/ToolFormatter.js';
+import { formatToolUse, formatToolResult } from '../rendering/ToolFormatter.js';
 import type { AgentState } from './useAgentState.js';
 import type { UseAgentOptions } from './types.js';
 import type { UseSessionManagerResult } from '../session/useSessionManager.js';
@@ -282,6 +282,32 @@ export function useAgentHandlers({
                 ]);
               }
             });
+          }
+          break;
+        }
+
+        case 'tool_result': {
+          if (agentMessage.toolName) {
+            // content for tool_result might be in agentMessage.content (string or block array)
+            const resultData =
+              typeof agentMessage.content === 'string'
+                ? agentMessage.content
+                : agentMessage.content; // Use as is, formatToolResult handles it
+
+            const formattedResult = formatToolResult(
+              agentMessage.toolName,
+              resultData
+            );
+            if (formattedResult) {
+              setMessages((prev) => [
+                ...prev,
+                {
+                  type: 'tool_progress',
+                  content: formattedResult,
+                  timestamp: new Date(),
+                },
+              ]);
+            }
           }
           break;
         }

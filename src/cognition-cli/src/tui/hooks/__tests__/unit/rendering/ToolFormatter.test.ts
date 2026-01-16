@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest';
 import {
   formatToolUse,
   formatToolUseMessage,
+  formatToolResult,
   type ToolUse,
 } from '../../../rendering/ToolFormatter.js';
 
@@ -279,6 +280,56 @@ describe('ToolFormatter', () => {
 
       expect(result.description).toContain('Single task');
       expect(result.description).toContain('○');
+    });
+  });
+
+  describe('formatToolResult()', () => {
+    it('formats read_file result with string content', () => {
+      const result = formatToolResult('read_file', 'line1\nline2');
+      expect(result).toContain('    line1');
+      expect(result).toContain('    line2');
+    });
+
+    it('formats Read result with object content', () => {
+      const result = formatToolResult('Read', { content: 'hello world' });
+      expect(result).toContain('    hello world');
+    });
+
+    it('truncates long file content', () => {
+      const longContent = Array.from(
+        { length: 150 },
+        (_, i) => `line ${i}`
+      ).join('\n');
+      const result = formatToolResult('read_file', longContent);
+
+      expect(result.split('\n').length).toBeLessThanOrEqual(101); // 100 lines + 1 truncation message
+      expect(result).toContain('... (truncated');
+      expect(result).toContain('\x1b[90m'); // Dim gray for truncation message
+    });
+
+    it('formats read_file result with result property', () => {
+      const result = formatToolResult('read_file', { result: 'line1\nline2' });
+      expect(result).toContain('    line1');
+      expect(result).toContain('    line2');
+      expect(result).not.toContain('{"result":');
+    });
+
+    it('formats read_file result with MCP-style content array', () => {
+      const result = formatToolResult('read_file', {
+        content: [{ type: 'text', text: 'line1\nline2' }],
+      });
+      expect(result).toContain('    line1');
+      expect(result).toContain('    line2');
+    });
+
+    it('returns empty string for non-read tools', () => {
+      const result = formatToolResult('bash', 'success');
+      expect(result).toBe('');
+    });
+
+    it('handles empty content', () => {
+      const result = formatToolResult('read_file', '');
+      expect(result).toContain('(empty)');
     });
   });
 });

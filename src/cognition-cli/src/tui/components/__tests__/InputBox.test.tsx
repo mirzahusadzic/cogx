@@ -5,6 +5,34 @@ import type { ToolConfirmationState } from '../../hooks/useToolConfirmation.js';
 import { ToolRiskLevel } from '../../utils/tool-safety.js';
 import type { WizardConfirmationState } from '../../hooks/useOnboardingWizard.js';
 
+// Mock useTUI to provide a stable context for tests
+const mockTUIContext = {
+  state: {
+    focused: true,
+    renderError: null,
+    showInfoPanel: false,
+    saveMessage: null,
+    isDropdownVisible: false,
+    streamingPaste: '',
+    inputLineCount: 1,
+    scrollSignal: null,
+  },
+  setFocus: vi.fn(),
+  toggleFocus: vi.fn(),
+  setRenderError: vi.fn(),
+  setShowInfoPanel: vi.fn(),
+  toggleInfoPanel: vi.fn(),
+  setSaveMessage: vi.fn(),
+  setIsDropdownVisible: vi.fn(),
+  setStreamingPaste: vi.fn(),
+  setInputLineCount: vi.fn(),
+  sendScrollSignal: vi.fn(),
+};
+
+vi.mock('../../context/TUIContext.js', () => ({
+  useTUI: () => mockTUIContext,
+}));
+
 // Mock the loader to avoid file system access
 vi.mock('../../commands/loader.js', () => ({
   loadCommands: vi.fn().mockResolvedValue({

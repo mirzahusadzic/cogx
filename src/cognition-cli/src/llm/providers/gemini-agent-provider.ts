@@ -474,10 +474,19 @@ export class GeminiAgentProvider implements AgentProvider {
                 id: `msg-${Date.now()}-result-${numTurns}`,
                 type: 'tool_result',
                 role: 'user',
-                content:
-                  typeof part.functionResponse.response === 'string'
-                    ? part.functionResponse.response
-                    : JSON.stringify(part.functionResponse.response),
+                content: (function () {
+                  const resp = part.functionResponse.response;
+                  if (typeof resp === 'string') return resp;
+                  if (
+                    resp &&
+                    typeof resp === 'object' &&
+                    'result' in resp &&
+                    typeof (resp as Record<string, unknown>).result === 'string'
+                  ) {
+                    return (resp as Record<string, unknown>).result as string;
+                  }
+                  return JSON.stringify(resp);
+                })(),
                 timestamp: new Date(),
                 toolName: part.functionResponse.name,
               };

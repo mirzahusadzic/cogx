@@ -323,6 +323,26 @@ export const InputBox: React.FC<InputBoxProps> = ({
         );
       }
 
+      // Support multiple ways to trigger Page Up/Down
+      const isPageUpAction =
+        key.pageUp || (key.ctrl && input === 'u') || input === '\x1b[5~';
+      const isPageDownAction =
+        key.pageDown || (key.ctrl && input === 'd') || input === '\x1b[6~';
+
+      // Debug PageUp/PageDown in InputBox
+      if (process.env.DEBUG_INPUT && (isPageUpAction || isPageDownAction)) {
+        systemLog(
+          'tui',
+          `[InputBox] ${isPageUpAction ? 'PageUp' : 'PageDown'} action received`,
+          {
+            focused,
+            disabled,
+            confirmationPending,
+            method: key.pageUp || key.pageDown ? 'key' : 'manual',
+          }
+        );
+      }
+
       let newValue = value;
       let newCursorPosition = cursorPosition;
       // Global exit via Ctrl+C
@@ -508,11 +528,16 @@ export const InputBox: React.FC<InputBoxProps> = ({
         newCursorPosition = Math.max(0, newCursorPosition - 1);
       } else if (key.rightArrow) {
         newCursorPosition = Math.min(value.length, newCursorPosition + 1);
-      } else if (key.pageUp) {
+      } else if (isPageUpAction) {
         sendScrollSignal('pageUp');
-      } else if (key.pageDown) {
+      } else if (isPageDownAction) {
         sendScrollSignal('pageDown');
       } else if (key.upArrow && !showDropdown) {
+        // Shift+Up scrolls chat, normal Up moves cursor
+        if (key.shift) {
+          sendScrollSignal('pageUp');
+          return;
+        }
         // Move cursor up one line in multiline input
         const textBefore = value.substring(0, newCursorPosition);
         const lastNewline = textBefore.lastIndexOf('\n');
@@ -528,6 +553,11 @@ export const InputBox: React.FC<InputBoxProps> = ({
             prevLineStart + Math.min(currentCol, prevLineLength);
         }
       } else if (key.downArrow && !showDropdown) {
+        // Shift+Down scrolls chat, normal Down moves cursor
+        if (key.shift) {
+          sendScrollSignal('pageDown');
+          return;
+        }
         // Move cursor down one line in multiline input
         const textAfter = value.substring(newCursorPosition);
         const nextNewline = textAfter.indexOf('\n');

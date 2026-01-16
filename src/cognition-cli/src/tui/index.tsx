@@ -420,6 +420,25 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
         );
       }
 
+      // Debug: Log PageUp/PageDown key presses
+      const isPageUpAction =
+        key.pageUp || (key.ctrl && input === 'u') || input === '\x1b[5~';
+      const isPageDownAction =
+        key.pageDown || (key.ctrl && input === 'd') || input === '\x1b[6~';
+
+      if (isPageUpAction || isPageDownAction) {
+        systemLog(
+          'tui',
+          `[TUI.useInput] ${isPageUpAction ? 'PageUp' : 'PageDown'} pressed`,
+          {
+            focused,
+            confirmationPending: confirmationState?.pending,
+            isThinking: isThinking,
+            method: key.pageUp || key.pageDown ? 'key' : 'manual',
+          }
+        );
+      }
+
       // PRIORITY 1: Handle tool confirmation modal keyboard input FIRST
       if (confirmationState?.pending) {
         if (input === 'y' || input === 'Y') {
