@@ -139,7 +139,7 @@ export async function executeBash(
     const MAX_BUFFER_SIZE = 1024 * 1024; // 1MB
     const proc = spawn('bash', ['-c', command], {
       cwd,
-      env: { ...process.env, FORCE_COLOR: '1', NO_COLOR: undefined },
+      env: { ...process.env, NO_COLOR: undefined },
     });
 
     let stdout = '';
