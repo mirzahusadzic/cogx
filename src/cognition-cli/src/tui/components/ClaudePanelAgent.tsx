@@ -9,6 +9,7 @@ import {
 } from 'ink';
 import { Spinner } from '@inkjs/ui';
 import { systemLog } from '../../utils/debug-logger.js';
+import { useTUI } from '../context/TUIContext.js';
 import type { TUIMessage } from '../hooks/useAgent.js';
 
 /**
@@ -73,6 +74,8 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   layoutVersion, // Used implicitly by React.memo to trigger re-renders on layout changes
 }) => {
   const { stdout } = useStdout();
+  const { state: tuiState } = useTUI();
+  const { scrollSignal } = tuiState;
   const [scrollOffset, setScrollOffset] = useState(0);
   const containerRef = useRef<DOMElement>(null);
 
@@ -80,28 +83,6 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   const [availableHeight, setAvailableHeight] = useState(
     () => (stdout?.rows || 24) - 10
   );
-
-  // Use measureElement to get the actual height allocated by Yoga
-  useEffect(() => {
-    if (containerRef.current) {
-      const dimensions = measureElement(containerRef.current);
-      // Height minus borders
-      const newHeight = Math.max(1, dimensions.height - 2);
-      if (newHeight !== availableHeight) {
-        systemLog('tui', '[ClaudePanelAgent] New height measured', {
-          height: dimensions.height,
-          availableHeight: newHeight,
-          totalLines: allLines.length,
-          messagesCount: messages.length,
-          layoutVersion,
-        });
-        setAvailableHeight(newHeight);
-      }
-    }
-  }); // Run on every render. Since component is memoized, this only runs when props change.
-
-  // Note: Paste streaming is handled by parent component (index.tsx)
-  // The [PASTE:filepath] message is sent after streaming completes
 
   // Build colored text lines with color metadata
   const allLines = useMemo(() => {
@@ -182,6 +163,52 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
     return lines;
   }, [messages, streamingPaste]);
+
+  // Handle global scroll signals (e.g. from InputBox)
+  useEffect(() => {
+    if (!scrollSignal) return;
+
+    const maxOffset = Math.max(0, allLines.length - availableHeight);
+    switch (scrollSignal.type) {
+      case 'up':
+        setScrollOffset((prev) => Math.min(prev + 1, maxOffset));
+        break;
+      case 'down':
+        setScrollOffset((prev) => Math.max(0, prev - 1));
+        break;
+      case 'pageUp':
+        setScrollOffset((prev) => Math.min(prev + availableHeight, maxOffset));
+        break;
+      case 'pageDown':
+        setScrollOffset((prev) => Math.max(0, prev - availableHeight));
+        break;
+      case 'bottom':
+        setScrollOffset(0);
+        break;
+    }
+  }, [scrollSignal, availableHeight, allLines.length]);
+
+  // Use measureElement to get the actual height allocated by Yoga
+  useEffect(() => {
+    if (containerRef.current) {
+      const dimensions = measureElement(containerRef.current);
+      // Height minus borders
+      const newHeight = Math.max(1, dimensions.height - 2);
+      if (newHeight !== availableHeight) {
+        systemLog('tui', '[ClaudePanelAgent] New height measured', {
+          height: dimensions.height,
+          availableHeight: newHeight,
+          totalLines: allLines.length,
+          messagesCount: messages.length,
+          layoutVersion,
+        });
+        setAvailableHeight(newHeight);
+      }
+    }
+  }); // Run on every render. Since component is memoized, this only runs when props change.
+
+  // Note: Paste streaming is handled by parent component (index.tsx)
+  // The [PASTE:filepath] message is sent after streaming completes
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {

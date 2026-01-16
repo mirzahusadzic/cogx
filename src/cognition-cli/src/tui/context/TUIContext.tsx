@@ -14,6 +14,10 @@ export interface TUIState {
   isDropdownVisible: boolean;
   streamingPaste: string;
   inputLineCount: number;
+  scrollSignal: {
+    type: 'up' | 'down' | 'pageUp' | 'pageDown' | 'bottom';
+    ts: number;
+  } | null;
 }
 
 type TUIAction =
@@ -25,7 +29,11 @@ type TUIAction =
   | { type: 'SET_SAVE_MESSAGE'; payload: string | null }
   | { type: 'SET_DROPDOWN_VISIBLE'; payload: boolean }
   | { type: 'SET_STREAMING_PASTE'; payload: string }
-  | { type: 'SET_INPUT_LINE_COUNT'; payload: number };
+  | { type: 'SET_INPUT_LINE_COUNT'; payload: number }
+  | {
+      type: 'SEND_SCROLL_SIGNAL';
+      payload: 'up' | 'down' | 'pageUp' | 'pageDown' | 'bottom';
+    };
 
 const initialState: TUIState = {
   focused: true,
@@ -35,6 +43,7 @@ const initialState: TUIState = {
   isDropdownVisible: false,
   streamingPaste: '',
   inputLineCount: 1,
+  scrollSignal: null,
 };
 
 function tuiReducer(state: TUIState, action: TUIAction): TUIState {
@@ -57,6 +66,11 @@ function tuiReducer(state: TUIState, action: TUIAction): TUIState {
       return { ...state, streamingPaste: action.payload };
     case 'SET_INPUT_LINE_COUNT':
       return { ...state, inputLineCount: action.payload };
+    case 'SEND_SCROLL_SIGNAL':
+      return {
+        ...state,
+        scrollSignal: { type: action.payload, ts: Date.now() },
+      };
     default:
       return state;
   }
@@ -73,6 +87,9 @@ interface TUIContextType {
   setIsDropdownVisible: (visible: boolean) => void;
   setStreamingPaste: (paste: string) => void;
   setInputLineCount: (count: number) => void;
+  sendScrollSignal: (
+    type: 'up' | 'down' | 'pageUp' | 'pageDown' | 'bottom'
+  ) => void;
 }
 
 const TUIContext = createContext<TUIContextType | undefined>(undefined);
@@ -118,6 +135,11 @@ export function TUIProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_INPUT_LINE_COUNT', payload: count }),
     []
   );
+  const sendScrollSignal = useCallback(
+    (type: 'up' | 'down' | 'pageUp' | 'pageDown' | 'bottom') =>
+      dispatch({ type: 'SEND_SCROLL_SIGNAL', payload: type }),
+    []
+  );
 
   return (
     <TUIContext.Provider
@@ -132,6 +154,7 @@ export function TUIProvider({ children }: { children: ReactNode }) {
         setIsDropdownVisible,
         setStreamingPaste,
         setInputLineCount,
+        sendScrollSignal,
       }}
     >
       {children}

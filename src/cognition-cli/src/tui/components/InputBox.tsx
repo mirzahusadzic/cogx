@@ -11,6 +11,7 @@ import { systemLog } from '../../utils/debug-logger.js';
 import type { ToolConfirmationState } from '../hooks/useToolConfirmation.js';
 import type { WizardConfirmationState } from '../hooks/useOnboardingWizard.js';
 import { WizardConfirmationModal } from './WizardConfirmationModal.js';
+import { useTUI } from '../context/TUIContext.js';
 
 /**
  * Props for InputBox component
@@ -108,6 +109,8 @@ export const InputBox: React.FC<InputBoxProps> = ({
   confirmationState = null,
   wizardConfirmationState = null,
 }) => {
+  const { sendScrollSignal } = useTUI();
+
   // Derive confirmation pending state (either tool OR wizard)
   const confirmationPending =
     (confirmationState?.pending ?? false) ||
@@ -505,6 +508,10 @@ export const InputBox: React.FC<InputBoxProps> = ({
         newCursorPosition = Math.max(0, newCursorPosition - 1);
       } else if (key.rightArrow) {
         newCursorPosition = Math.min(value.length, newCursorPosition + 1);
+      } else if (key.pageUp) {
+        sendScrollSignal('pageUp');
+      } else if (key.pageDown) {
+        sendScrollSignal('pageDown');
       } else if (key.upArrow && !showDropdown) {
         // Move cursor up one line in multiline input
         const textBefore = value.substring(0, newCursorPosition);
