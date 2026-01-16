@@ -122,7 +122,7 @@ program
   .name('cognition-cli')
   .usage(USAGE_SYNOPSIS)
   .description('A meta-interpreter for verifiable, stateful AI cognition')
-  .version('2.6.4 (PGC Grounding & Multi-Provider Token Optimization)')
+  .version('2.6.5-dev')
   .addHelpText('after', formatGroupedCommands(COMMAND_GROUPS))
   .addHelpText('after', addAllEnvVars())
   .addHelpText('after', addGlobalExamples())
