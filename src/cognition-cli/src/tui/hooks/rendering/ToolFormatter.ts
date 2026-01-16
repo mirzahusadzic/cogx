@@ -620,7 +620,7 @@ function formatSigmaTaskUpdate(
     } else if (todo.status === 'in_progress') {
       statusIcon = '→';
       statusColor = '\x1b[33m'; // yellow
-      textColor = '\x1b[97m'; // bright white
+      textColor = '\x1b[32m'; // green
     } else if (todo.status === 'delegated') {
       statusIcon = '🤖';
       statusColor = '\x1b[36m'; // cyan
