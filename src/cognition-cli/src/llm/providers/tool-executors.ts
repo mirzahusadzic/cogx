@@ -7,6 +7,7 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import stripAnsi from 'strip-ansi';
 import { SessionState } from '../../sigma/session-state.js';
 import { spawn } from 'child_process';
 import { glob as globLib } from 'glob';
@@ -175,11 +176,8 @@ export async function executeBash(
     proc.on('close', async (code) => {
       clearTimeout(timeoutId);
       // Strip ANSI codes from output for the LLM to save tokens and prevent confusion
-      const ansiRegex =
-        // eslint-disable-next-line no-control-regex
-        /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
-      const cleanStdout = stdout.replace(ansiRegex, '');
-      const cleanStderr = stderr.replace(ansiRegex, '');
+      const cleanStdout = stripAnsi(stdout);
+      const cleanStderr = stripAnsi(stderr);
 
       const output =
         cleanStdout + (cleanStderr ? `\nSTDERR:\n${cleanStderr}` : '');

@@ -6,7 +6,6 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  stripANSICodes,
   formatSystemMessage,
   formatUserMessage,
   formatAssistantMessage,
@@ -14,37 +13,6 @@ import {
 } from '../../../rendering/MessageRenderer.js';
 
 describe('MessageRenderer', () => {
-  describe('stripANSICodes()', () => {
-    it('strips ANSI color codes', () => {
-      const text = '\x1b[32mGreen text\x1b[0m';
-      expect(stripANSICodes(text)).toBe('Green text');
-    });
-
-    it('strips multiple ANSI codes', () => {
-      const text = '\x1b[1m\x1b[31mBold red\x1b[0m\x1b[0m';
-      expect(stripANSICodes(text)).toBe('Bold red');
-    });
-
-    it('strips ANSI codes with multiple parameters', () => {
-      const text = '\x1b[48;5;58m\x1b[97mColored background\x1b[0m';
-      expect(stripANSICodes(text)).toBe('Colored background');
-    });
-
-    it('returns plain text unchanged', () => {
-      const text = 'No ANSI codes here';
-      expect(stripANSICodes(text)).toBe('No ANSI codes here');
-    });
-
-    it('handles empty string', () => {
-      expect(stripANSICodes('')).toBe('');
-    });
-
-    it('handles text with mixed ANSI and regular content', () => {
-      const text = 'Hello \x1b[32mworld\x1b[0m!';
-      expect(stripANSICodes(text)).toBe('Hello world!');
-    });
-  });
-
   describe('formatSystemMessage()', () => {
     it('returns message unchanged', () => {
       const message = 'System notification';

@@ -1,6 +1,7 @@
 import React from 'react';
 import { render } from 'ink-testing-library';
 import { InputBox } from '../InputBox.js';
+import stripAnsi from 'strip-ansi';
 import type { ToolConfirmationState } from '../../hooks/useToolConfirmation.js';
 import { ToolRiskLevel } from '../../utils/tool-safety.js';
 import type { WizardConfirmationState } from '../../hooks/useOnboardingWizard.js';
@@ -55,14 +56,16 @@ describe('InputBox', () => {
       const { lastFrame } = render(
         <InputBox onSubmit={mockOnSubmit} focused={false} />
       );
-      expect(lastFrame()).toContain('Press Tab to focus input');
+      expect(stripAnsi(lastFrame() ?? '')).toContain(
+        'Press Tab to focus input'
+      );
     });
 
     it('does not show input prompt when unfocused', () => {
       const { lastFrame } = render(
         <InputBox onSubmit={mockOnSubmit} focused={false} />
       );
-      expect(lastFrame()).not.toContain('>');
+      expect(stripAnsi(lastFrame() ?? '')).not.toContain('>');
     });
   });
 
@@ -71,28 +74,28 @@ describe('InputBox', () => {
       const { lastFrame } = render(
         <InputBox onSubmit={mockOnSubmit} focused={true} />
       );
-      expect(lastFrame()).toContain('>');
+      expect(stripAnsi(lastFrame() ?? '')).toContain('>');
     });
 
     it('shows placeholder text when empty', () => {
       const { lastFrame } = render(
         <InputBox onSubmit={mockOnSubmit} focused={true} />
       );
-      expect(lastFrame()).toContain('Type a message');
+      expect(stripAnsi(lastFrame() ?? '')).toContain('Type a message');
     });
 
     it('shows newline hint in placeholder', () => {
       const { lastFrame } = render(
         <InputBox onSubmit={mockOnSubmit} focused={true} />
       );
-      expect(lastFrame()).toContain('Ctrl+O for newline');
+      expect(stripAnsi(lastFrame() ?? '')).toContain('Ctrl+O for newline');
     });
 
     it('shows ESC hint in placeholder', () => {
       const { lastFrame } = render(
         <InputBox onSubmit={mockOnSubmit} focused={true} />
       );
-      expect(lastFrame()).toContain('ESC ESC to clear');
+      expect(stripAnsi(lastFrame() ?? '')).toContain('ESC ESC to clear');
     });
   });
 
@@ -106,7 +109,7 @@ describe('InputBox', () => {
           providerName="claude"
         />
       );
-      expect(lastFrame()).toContain('Claude is thinking');
+      expect(stripAnsi(lastFrame() ?? '')).toContain('Claude is thinking');
     });
 
     it('shows ESC to interrupt hint when disabled', () => {
@@ -118,7 +121,7 @@ describe('InputBox', () => {
           providerName="claude"
         />
       );
-      expect(lastFrame()).toContain('ESC to interrupt');
+      expect(stripAnsi(lastFrame() ?? '')).toContain('ESC to interrupt');
     });
 
     it('capitalizes provider name in thinking message', () => {
@@ -130,7 +133,7 @@ describe('InputBox', () => {
           providerName="gemini"
         />
       );
-      expect(lastFrame()).toContain('Gemini is thinking');
+      expect(stripAnsi(lastFrame() ?? '')).toContain('Gemini is thinking');
     });
   });
 
@@ -150,7 +153,7 @@ describe('InputBox', () => {
           confirmationState={confirmationState}
         />
       );
-      const output = lastFrame() ?? '';
+      const output = stripAnsi(lastFrame() ?? '');
       // Should show the tool confirmation modal elements
       expect(output).toContain('[!]');
       expect(output).toContain('ls -la');
@@ -171,7 +174,7 @@ describe('InputBox', () => {
           confirmationState={confirmationState}
         />
       );
-      const output = lastFrame() ?? '';
+      const output = stripAnsi(lastFrame() ?? '');
       expect(output).toContain('Waiting for tool confirmation');
       // Verify prompt and message are on the same line
       expect(output).toMatch(/>\s*Waiting for tool confirmation/);
@@ -192,7 +195,7 @@ describe('InputBox', () => {
           confirmationState={confirmationState}
         />
       );
-      const output = lastFrame() ?? '';
+      const output = stripAnsi(lastFrame() ?? '');
       expect(output).toContain('Y Allow');
       expect(output).toContain('N Deny');
     });
@@ -215,7 +218,7 @@ describe('InputBox', () => {
           wizardConfirmationState={wizardState}
         />
       );
-      const output = lastFrame() ?? '';
+      const output = stripAnsi(lastFrame() ?? '');
       expect(output).toContain('[?]');
       expect(output).toContain('Initialize Project?');
     });
@@ -236,7 +239,7 @@ describe('InputBox', () => {
           wizardConfirmationState={wizardState}
         />
       );
-      expect(lastFrame()).toContain('Press Y to confirm');
+      expect(stripAnsi(lastFrame() ?? '')).toContain('Press Y to confirm');
     });
 
     it('shows wizard-specific hint for select mode', () => {
@@ -260,7 +263,7 @@ describe('InputBox', () => {
           wizardConfirmationState={wizardState}
         />
       );
-      const output = lastFrame() ?? '';
+      const output = stripAnsi(lastFrame() ?? '');
       expect(output).toContain('↑↓ arrows');
       expect(output).toContain('Space to toggle');
     });
@@ -271,7 +274,7 @@ describe('InputBox', () => {
       const { lastFrame } = render(
         <InputBox onSubmit={mockOnSubmit} focused={true} />
       );
-      expect(lastFrame()).toContain('─');
+      expect(stripAnsi(lastFrame() ?? '')).toContain('─');
     });
 
     it('changes border color when confirmation pending', () => {
@@ -290,7 +293,7 @@ describe('InputBox', () => {
         />
       );
       // The border should still contain the horizontal rule character
-      expect(lastFrame()).toContain('─');
+      expect(stripAnsi(lastFrame() ?? '')).toContain('─');
     });
   });
 
@@ -302,7 +305,7 @@ describe('InputBox', () => {
         <InputBox onSubmit={mockOnSubmit} focused={true} />
       );
       // Initial render should not show loading (value is empty)
-      expect(lastFrame()).not.toContain('Loading');
+      expect(stripAnsi(lastFrame() ?? '')).not.toContain('Loading');
     });
   });
 
@@ -311,7 +314,7 @@ describe('InputBox', () => {
       const { lastFrame } = render(
         <InputBox onSubmit={mockOnSubmit} focused={true} disabled={true} />
       );
-      expect(lastFrame()).toContain('AI is thinking');
+      expect(stripAnsi(lastFrame() ?? '')).toContain('AI is thinking');
     });
 
     it('uses custom provider name', () => {
@@ -323,7 +326,7 @@ describe('InputBox', () => {
           providerName="custom-llm"
         />
       );
-      expect(lastFrame()).toContain('Custom-llm is thinking');
+      expect(stripAnsi(lastFrame() ?? '')).toContain('Custom-llm is thinking');
     });
   });
 

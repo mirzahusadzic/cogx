@@ -10,7 +10,7 @@ import {
 } from '../sdk/index.js';
 import { McpServerBuilder } from '../../services/McpServerBuilder.js';
 import { formatPendingMessages } from '../../../ipc/agent-messaging-formatters.js';
-import { stripANSICodes } from '../rendering/MessageRenderer.js';
+import stripAnsi from 'strip-ansi';
 import { formatToolUse, formatToolResult } from '../rendering/ToolFormatter.js';
 import type { AgentState } from './useAgentState.js';
 import type { UseAgentOptions } from './types.js';
@@ -109,7 +109,7 @@ export function useAgentHandlers({
       switch (type) {
         case 'assistant': {
           if (typeof content === 'string') {
-            const colorReplacedText = stripANSICodes(content);
+            const colorReplacedText = stripAnsi(content);
             setMessages((prev) => {
               const last = prev[prev.length - 1];
               if (last && last.type === 'assistant') {
@@ -159,7 +159,7 @@ export function useAgentHandlers({
 
             if (textBlocks.length > 0) {
               const text = textBlocks.map((b) => b.text || '').join('\n');
-              const colorReplacedText = stripANSICodes(text);
+              const colorReplacedText = stripAnsi(text);
               setMessages((prev) => {
                 const last = prev[prev.length - 1];
                 if (last && last.type === 'assistant') {

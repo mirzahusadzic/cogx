@@ -53,6 +53,7 @@
  */
 
 import chalk from 'chalk';
+import stripAnsi from 'strip-ansi';
 import { useColor, getBoxChars, isPlainMode } from './terminal-capabilities.js';
 
 // ========================================
@@ -548,21 +549,6 @@ export function separator(char: string = '─', length: number = 60): string {
   const chars = getBoxChars();
   const separatorChar = char === '─' ? chars.horizontal : char;
   return c.dim(separatorChar.repeat(length));
-}
-
-/**
- * Strip ANSI color codes for length calculation
- *
- * Internal utility for accurate width measurement when text
- * contains ANSI escape sequences. Essential for proper box
- * formatting and text wrapping.
- *
- * @param text - Text with ANSI codes
- * @returns Plain text without ANSI codes
- */
-function stripAnsi(text: string): string {
-  // eslint-disable-next-line no-control-regex
-  return text.replace(/\u001b\[[0-9;]*m/g, '');
 }
 
 /**

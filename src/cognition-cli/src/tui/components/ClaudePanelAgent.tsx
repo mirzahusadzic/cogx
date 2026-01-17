@@ -8,6 +8,7 @@ import {
   DOMElement,
 } from 'ink';
 import { Spinner } from '@inkjs/ui';
+import stripAnsi from 'strip-ansi';
 import { systemLog } from '../../utils/debug-logger.js';
 import { useTUI } from '../context/TUIContext.js';
 import type { TUIMessage } from '../hooks/useAgent.js';
@@ -369,7 +370,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       <Box flexDirection="column" flexGrow={1}>
         {visibleLines.map((line, idx) => {
           // Check if line contains ANSI escape codes (colors)
-          const hasAnsi = ANSI_REGEX.test(line.text);
+          const hasAnsi = stripAnsi(line.text) !== line.text;
           return (
             <Text key={idx} color={hasAnsi ? undefined : line.color}>
               {hasAnsi ? `\u001b[0m${line.text}\u001b[0m` : line.text}
@@ -393,6 +394,4 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
 // Memoize to prevent re-renders when parent re-renders but props haven't changed
 // This fixes flickering when navigating dropdown with keyboard
-// eslint-disable-next-line no-control-regex
-const ANSI_REGEX = /\u001b\[[0-9;]*m/;
 export const ClaudePanelAgent = React.memo(ClaudePanelAgentComponent);

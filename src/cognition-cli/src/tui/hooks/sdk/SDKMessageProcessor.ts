@@ -59,7 +59,7 @@
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { SDKMessage, ContentBlock } from './types.js';
-import { stripANSICodes } from '../rendering/MessageRenderer.js';
+import stripAnsi from 'strip-ansi';
 import { formatToolUse } from '../rendering/ToolFormatter.js';
 
 /**
@@ -310,7 +310,7 @@ export function processStreamEvent(sdkMessage: SDKMessage): StreamEventData {
     event.type === 'content_block_delta' &&
     event.delta?.type === 'text_delta'
   ) {
-    const colorReplacedText = stripANSICodes(event.delta.text);
+    const colorReplacedText = stripAnsi(event.delta.text);
     return {
       type: 'text_delta',
       textDelta: colorReplacedText,
