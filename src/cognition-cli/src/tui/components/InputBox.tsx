@@ -528,6 +528,12 @@ export const InputBox: React.FC<InputBoxProps> = ({
         newCursorPosition = Math.max(0, newCursorPosition - 1);
       } else if (key.rightArrow) {
         newCursorPosition = Math.min(value.length, newCursorPosition + 1);
+      } else if (key.home || ((key.meta || key.ctrl) && input === 'a')) {
+        // Home key or Ctrl+A / Cmd+A: Move to start of entire block
+        newCursorPosition = 0;
+      } else if (key.end || ((key.meta || key.ctrl) && input === 'e')) {
+        // End key or Ctrl+E / Cmd+E: Move to end of entire block
+        newCursorPosition = value.length;
       } else if (isPageUpAction) {
         sendScrollSignal('pageUp');
       } else if (isPageDownAction) {
@@ -579,12 +585,6 @@ export const InputBox: React.FC<InputBoxProps> = ({
           newCursorPosition =
             nextLineStart + Math.min(currentCol, nextLineLength);
         }
-      } else if ((key.meta || key.ctrl) && input === 'a') {
-        // Ctrl+A / Cmd+A: Move to start of entire block
-        newCursorPosition = 0;
-      } else if ((key.meta || key.ctrl) && input === 'e') {
-        // Ctrl+E / Cmd+E: Move to end of entire block
-        newCursorPosition = value.length;
       } else if (input === '\n' && !key.return) {
         // Shift+Enter sends \n directly (not as key.return) in some terminals
         newValue =

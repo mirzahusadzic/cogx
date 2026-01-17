@@ -258,10 +258,13 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
       // Support multiple ways to trigger Page Up/Down and Home/End
       // Some terminals don't correctly map pageUp/pageDown in Ink's useInput
-      const isPageUp = key.pageUp || (key.ctrl && input === 'u');
-      const isPageDown = key.pageDown || (key.ctrl && input === 'd');
-      const isHome = input === '\x1b[H' || input === '\x1b[1~';
-      const isEnd = input === '\x1b[F' || input === '\x1b[4~';
+      const isPageUp =
+        key.pageUp || (key.ctrl && input === 'u') || input === '\x1b[5~';
+      const isPageDown =
+        key.pageDown || (key.ctrl && input === 'd') || input === '\x1b[6~';
+      // Ink 6.6.0+ supports key.home and key.end natively
+      const isHome = key.home || input === '\x1b[H' || input === '\x1b[1~';
+      const isEnd = key.end || input === '\x1b[F' || input === '\x1b[4~';
 
       if (process.env.DEBUG_INPUT) {
         if (isPageUp || isPageDown || isHome || isEnd) {
