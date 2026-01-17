@@ -157,7 +157,12 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
       </Box>
 
       {/* Input area naturally takes only as much space as it needs */}
-      <Box flexDirection="column" justifyContent="flex-end" flexShrink={0}>
+      <Box
+        flexDirection="column"
+        justifyContent="flex-end"
+        flexShrink={0}
+        width="100%"
+      >
         <ComponentErrorBoundary componentName="InputBox">
           <InputBox
             onSubmit={sendMessage}

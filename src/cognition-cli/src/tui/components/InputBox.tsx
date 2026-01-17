@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Text, useInput, Key } from 'ink';
+import { Box, Text, useInput, Key, useStdout } from 'ink';
 // import TextInput from 'ink-text-input'; // Replaced with custom multi-line input
 import { CommandDropdown } from './CommandDropdown.js';
 import { ToolConfirmationModal } from './ToolConfirmationModal.js';
@@ -110,6 +110,8 @@ export const InputBox: React.FC<InputBoxProps> = ({
   wizardConfirmationState = null,
 }) => {
   const { sendScrollSignal } = useTUI();
+  const { stdout } = useStdout();
+  const columns = stdout?.columns || 80;
 
   // Derive confirmation pending state (either tool OR wizard)
   const confirmationPending =
@@ -123,6 +125,19 @@ export const InputBox: React.FC<InputBoxProps> = ({
   const cursorPositionRef = useRef(0);
   const [cursorVisible, setCursorVisible] = useState(true); // For blinking cursor
   const [renderKey, setRenderKey] = useState(0); // Force re-render workaround
+
+  /**
+   * Helper to force multiple re-renders to settle Ink layout.
+   * Useful when large content changes (paste, history) might cause layout glitches.
+   */
+  const forceLayoutUpdate = React.useCallback(() => {
+    // Increment render key multiple times to force clean re-render
+    [5, 20, 50, 100].forEach((delay) => {
+      setTimeout(() => {
+        setRenderKey((k) => k + 1);
+      }, delay);
+    });
+  }, []);
 
   useEffect(() => {
     const blinkInterval = setInterval(() => {
@@ -474,16 +489,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
           // For empty box paste, force re-renders to fix display bug
           if (wasEmpty) {
-            // Increment render key multiple times to force clean re-render
-            setTimeout(() => {
-              setRenderKey((k) => k + 1);
-            }, 5);
-            setTimeout(() => {
-              setRenderKey((k) => k + 1);
-            }, 20);
-            setTimeout(() => {
-              setRenderKey((k) => k + 1);
-            }, 50);
+            forceLayoutUpdate();
           }
 
           // Call onInputChange AFTER state updates to prevent race conditions
@@ -560,6 +566,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
             newValue = historyItem;
             newCursorPosition = historyItem.length;
             setHistoryIndex(newIndex);
+            forceLayoutUpdate();
           }
         }
       } else if (key.downArrow && !showDropdown) {
@@ -598,6 +605,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
               : currentHistory[currentHistory.length - 1 - newIndex];
           newValue = historyValue;
           newCursorPosition = historyValue.length;
+          forceLayoutUpdate();
         }
       } else if (input === '\n' && !key.return) {
         // Shift+Enter sends \n directly (not as key.return) in some terminals
@@ -754,6 +762,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
       onInterrupt,
       onInputChange,
       sendScrollSignal,
+      forceLayoutUpdate,
     ]
   );
 
@@ -797,14 +806,14 @@ export const InputBox: React.FC<InputBoxProps> = ({
       <Box width="100%" flexDirection="column">
         {/* Top border */}
         <Text color={confirmationPending ? '#f85149' : '#3a3f4b'}>
-          {'─'.repeat(process.stdout.columns || 80)}
+          {'─'.repeat(columns)}
         </Text>
 
         {/* Input content area */}
-        <Box flexDirection="column" minHeight={1}>
+        <Box flexDirection="column" minHeight={1} width="100%">
           {confirmationPending ? (
             /* Show static tip when confirmation modal is active - EXACT pattern from tool confirmation */
-            <Box>
+            <>
               <Text color="#f85149">{'> '}</Text>
               <Text dimColor color="#8b949e">
                 {wizardConfirmationState?.pending
@@ -813,7 +822,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
                     : `${wizardConfirmationState.title || 'Confirm'} - Press Y to confirm, N to skip, Esc to cancel`
                   : 'Waiting for tool confirmation... (See prompt above)'}
               </Text>
-            </Box>
+            </>
           ) : (
             /* Normal input rendering when NOT confirming */
             <>
@@ -828,7 +837,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
                   const prefix = idx === 0 ? '> ' : '  ';
 
                   return (
-                    <Box key={idx}>
+                    <Box key={idx} width="100%">
                       <Text color="white">{prefix}</Text>
                       <Text color="#56d364">
                         {process.env.NODE_ENV === 'test' ? (
@@ -877,7 +886,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
         {/* Bottom border */}
         <Text color={confirmationPending ? '#f85149' : '#3a3f4b'}>
-          {'─'.repeat(process.stdout.columns || 80)}
+          {'─'.repeat(columns)}
         </Text>
       </Box>
 
