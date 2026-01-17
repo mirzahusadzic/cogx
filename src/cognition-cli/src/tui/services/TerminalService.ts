@@ -11,6 +11,7 @@ export class TerminalService {
   private static instance: TerminalService;
   private isMouseTrackingEnabled: boolean = false;
   private isBracketedPasteEnabled: boolean = false;
+  private isCursorHidden: boolean = false;
 
   private constructor() {}
 
@@ -74,12 +75,31 @@ export class TerminalService {
   }
 
   /**
+   * Show/hide the terminal cursor
+   */
+  public setCursorVisibility(visible: boolean): void {
+    const hidden = !visible;
+
+    try {
+      if (hidden) {
+        process.stdout.write('\x1b[?25l');
+      } else {
+        process.stdout.write('\x1b[?25h');
+      }
+      this.isCursorHidden = hidden;
+    } catch (e) {
+      systemLog('tui', `Failed to set cursor visibility: ${e}`);
+    }
+  }
+
+  /**
    * Perform full terminal cleanup
    */
   public cleanup(): void {
     this.resetColors();
     this.setBracketedPaste(false);
     this.setMouseTracking(false);
+    this.setCursorVisibility(true);
   }
 
   /**

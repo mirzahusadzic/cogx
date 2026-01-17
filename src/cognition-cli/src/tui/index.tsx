@@ -205,6 +205,9 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       // Enable bracketed paste mode (always on)
       terminal.setBracketedPaste(true);
 
+      // Hide cursor since we use a custom manual cursor in InputBox
+      terminal.setCursorVisibility(false);
+
       if (ENABLE_MOUSE_TRACKING) {
         terminal.setMouseTracking(true);
       }
@@ -277,8 +280,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           if (exited) return;
           exited = true;
           try {
-            process.stdout.write('\x1b[0m'); // Reset colors
-            process.stdout.write('\x1b[?1000l\x1b[?1006l'); // Disable mouse
+            terminal.cleanup();
           } catch (e) {
             // Ignore cleanup errors
             systemLog(
@@ -709,6 +711,7 @@ export function startTUI(options: CognitionTUIProps) {
       );
     }
 
+    terminal.cleanup();
     process.exit(1);
   };
 
@@ -720,6 +723,8 @@ export function startTUI(options: CognitionTUIProps) {
 
   // Catch uncaught exceptions
   process.on('uncaughtException', handleUncaughtError);
+
+  terminal.setCursorVisibility(false);
 
   const { unmount, waitUntilExit } = render(
     <TUIProvider>

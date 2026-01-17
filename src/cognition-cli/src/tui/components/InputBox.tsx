@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text, useInput, Key } from 'ink';
 // import TextInput from 'ink-text-input'; // Replaced with custom multi-line input
 import { CommandDropdown } from './CommandDropdown.js';
 import { ToolConfirmationModal } from './ToolConfirmationModal.js';
@@ -116,7 +116,11 @@ export const InputBox: React.FC<InputBoxProps> = ({
     (confirmationState?.pending ?? false) ||
     (wizardConfirmationState?.pending ?? false);
   const [value, setValue] = useState('');
+  const [history, setHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [draftValue, setDraftValue] = useState('');
   const [cursorPosition, setCursorPosition] = useState(0);
+  const cursorPositionRef = useRef(0);
   const [cursorVisible, setCursorVisible] = useState(true); // For blinking cursor
   const [renderKey, setRenderKey] = useState(0); // Force re-render workaround
 
@@ -311,17 +315,13 @@ export const InputBox: React.FC<InputBoxProps> = ({
       });
   }, []);
 
-  useInput(
-    (input, key) => {
-      // Debug logging - remove after testing
-      if (process.env.DEBUG_INPUT) {
-        systemLog(
-          'tui',
-          `INPUT DEBUG: ${JSON.stringify({ input, key, value, cursorPosition })}`,
-          {},
-          'error'
-        );
-      }
+  const handleInput = React.useCallback(
+    (input: string, key: Key) => {
+      const currentValue = valueRef.current;
+      const currentCursorPosition = cursorPositionRef.current;
+      const currentHistoryIndex = historyIndex;
+      const currentHistory = history;
+      const currentDraftValue = draftValue;
 
       // Support multiple ways to trigger Page Up/Down
       const isPageUpAction =
@@ -329,22 +329,8 @@ export const InputBox: React.FC<InputBoxProps> = ({
       const isPageDownAction =
         key.pageDown || (key.ctrl && input === 'd') || input === '\x1b[6~';
 
-      // Debug PageUp/PageDown in InputBox
-      if (process.env.DEBUG_INPUT && (isPageUpAction || isPageDownAction)) {
-        systemLog(
-          'tui',
-          `[InputBox] ${isPageUpAction ? 'PageUp' : 'PageDown'} action received`,
-          {
-            focused,
-            disabled,
-            confirmationPending,
-            method: key.pageUp || key.pageDown ? 'key' : 'manual',
-          }
-        );
-      }
-
-      let newValue = value;
-      let newCursorPosition = cursorPosition;
+      let newValue = currentValue;
+      let newCursorPosition = currentCursorPosition;
       // Global exit via Ctrl+C
       if (key.ctrl && input === 'c') {
         try {
@@ -391,11 +377,12 @@ export const InputBox: React.FC<InputBoxProps> = ({
         if (key.return && filteredCommands.length > 0) {
           const selected = filteredCommands[selectedCommandIndex];
           if (selected) {
-            const args = value.split(' ').slice(1).join(' ');
+            const args = currentValue.split(' ').slice(1).join(' ');
             const newValue = `/${selected.name} ${args}`.trim() + ' ';
             valueRef.current = newValue;
-            setValue(newValue);
-            setCursorPosition(newValue.length); // Move cursor to end
+            setValue(() => newValue);
+            cursorPositionRef.current = newValue.length;
+            setCursorPosition(() => newValue.length); // Move cursor to end
             setShowDropdown(false);
             if (onInputChange) {
               onInputChange(newValue);
@@ -448,9 +435,9 @@ export const InputBox: React.FC<InputBoxProps> = ({
           if (pasteResult.type === 'content') {
             // Small paste: insert directly at cursor
             newValue =
-              value.substring(0, newCursorPosition) +
+              currentValue.substring(0, newCursorPosition) +
               pasteResult.value +
-              value.substring(newCursorPosition);
+              currentValue.substring(newCursorPosition);
             newCursorPosition = newCursorPosition + pasteResult.value.length;
           } else {
             // Large paste: saved to file, clear input
@@ -473,15 +460,16 @@ export const InputBox: React.FC<InputBoxProps> = ({
             );
             systemLog(
               'tui',
-              `PASTE DEBUG: Previous value was: ${JSON.stringify(value.substring(0, 100))}`,
+              `PASTE DEBUG: Previous value was: ${JSON.stringify(currentValue.substring(0, 100))}`,
               {},
               'error'
             );
           }
           // Update state using functional form to ensure clean update
-          const wasEmpty = value.length === 0;
+          const wasEmpty = currentValue.length === 0;
           valueRef.current = newValue;
           setValue(() => newValue);
+          cursorPositionRef.current = newCursorPosition;
           setCursorPosition(() => newCursorPosition);
 
           // For empty box paste, force re-renders to fix display bug
@@ -520,20 +508,23 @@ export const InputBox: React.FC<InputBoxProps> = ({
       if (key.backspace || key.delete) {
         if (newCursorPosition > 0) {
           newValue =
-            value.substring(0, newCursorPosition - 1) +
-            value.substring(newCursorPosition);
+            currentValue.substring(0, newCursorPosition - 1) +
+            currentValue.substring(newCursorPosition);
           newCursorPosition--;
         }
       } else if (key.leftArrow) {
         newCursorPosition = Math.max(0, newCursorPosition - 1);
       } else if (key.rightArrow) {
-        newCursorPosition = Math.min(value.length, newCursorPosition + 1);
+        newCursorPosition = Math.min(
+          currentValue.length,
+          newCursorPosition + 1
+        );
       } else if (key.home || ((key.meta || key.ctrl) && input === 'a')) {
         // Home key or Ctrl+A / Cmd+A: Move to start of entire block
         newCursorPosition = 0;
       } else if (key.end || ((key.meta || key.ctrl) && input === 'e')) {
         // End key or Ctrl+E / Cmd+E: Move to end of entire block
-        newCursorPosition = value.length;
+        newCursorPosition = currentValue.length;
       } else if (isPageUpAction) {
         sendScrollSignal('pageUp');
       } else if (isPageDownAction) {
@@ -545,7 +536,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
           return;
         }
         // Move cursor up one line in multiline input
-        const textBefore = value.substring(0, newCursorPosition);
+        const textBefore = currentValue.substring(0, newCursorPosition);
         const lastNewline = textBefore.lastIndexOf('\n');
         if (lastNewline >= 0) {
           // Find column position in current line
@@ -557,6 +548,19 @@ export const InputBox: React.FC<InputBoxProps> = ({
           // Move to same column or end of previous line
           newCursorPosition =
             prevLineStart + Math.min(currentCol, prevLineLength);
+        } else if (currentHistory.length > 0) {
+          // At first line, navigate history up
+          const newIndex = currentHistoryIndex + 1;
+          if (newIndex < currentHistory.length) {
+            if (currentHistoryIndex === -1) {
+              setDraftValue(currentValue);
+            }
+            const historyItem =
+              currentHistory[currentHistory.length - 1 - newIndex];
+            newValue = historyItem;
+            newCursorPosition = historyItem.length;
+            setHistoryIndex(newIndex);
+          }
         }
       } else if (key.downArrow && !showDropdown) {
         // Shift+Down scrolls chat, normal Down moves cursor
@@ -565,11 +569,11 @@ export const InputBox: React.FC<InputBoxProps> = ({
           return;
         }
         // Move cursor down one line in multiline input
-        const textAfter = value.substring(newCursorPosition);
+        const textAfter = currentValue.substring(newCursorPosition);
         const nextNewline = textAfter.indexOf('\n');
         if (nextNewline >= 0) {
           // Find column position in current line
-          const textBefore = value.substring(0, newCursorPosition);
+          const textBefore = currentValue.substring(0, newCursorPosition);
           const lastNewline = textBefore.lastIndexOf('\n');
           const currentCol =
             lastNewline >= 0
@@ -577,40 +581,63 @@ export const InputBox: React.FC<InputBoxProps> = ({
               : newCursorPosition;
           // Find end of next line
           const nextLineStart = newCursorPosition + nextNewline + 1;
-          const afterNextLine = value.substring(nextLineStart);
+          const afterNextLine = currentValue.substring(nextLineStart);
           const nextLineEnd = afterNextLine.indexOf('\n');
           const nextLineLength =
             nextLineEnd >= 0 ? nextLineEnd : afterNextLine.length;
           // Move to same column or end of next line
           newCursorPosition =
             nextLineStart + Math.min(currentCol, nextLineLength);
+        } else if (currentHistoryIndex >= 0) {
+          // At last line, navigate history down
+          const newIndex = currentHistoryIndex - 1;
+          setHistoryIndex(newIndex);
+          const historyValue =
+            newIndex === -1
+              ? currentDraftValue
+              : currentHistory[currentHistory.length - 1 - newIndex];
+          newValue = historyValue;
+          newCursorPosition = historyValue.length;
         }
       } else if (input === '\n' && !key.return) {
         // Shift+Enter sends \n directly (not as key.return) in some terminals
         newValue =
-          value.substring(0, newCursorPosition) +
+          currentValue.substring(0, newCursorPosition) +
           '\n' +
-          value.substring(newCursorPosition);
+          currentValue.substring(newCursorPosition);
         newCursorPosition++;
       } else if (key.return) {
         // Check for Alt+Enter (meta+return) or Ctrl+Enter for newline
         if (key.meta || key.ctrl) {
           newValue =
-            value.substring(0, newCursorPosition) +
+            currentValue.substring(0, newCursorPosition) +
             '\n' +
-            value.substring(newCursorPosition);
+            currentValue.substring(newCursorPosition);
           newCursorPosition++;
         } else if (key.shift) {
           // Some terminals do support key.shift with return
           newValue =
-            value.substring(0, newCursorPosition) +
+            currentValue.substring(0, newCursorPosition) +
             '\n' +
-            value.substring(newCursorPosition);
+            currentValue.substring(newCursorPosition);
           newCursorPosition++;
         } else if (!showDropdown) {
           // Regular Enter for submission, if dropdown not active
-          if (value.trim()) {
-            onSubmit(value.trim());
+          if (currentValue.trim()) {
+            const submittedValue = currentValue.trim();
+            onSubmit(submittedValue);
+
+            // Add to history
+            setHistory((prev) => {
+              // Don't add duplicate of most recent entry
+              if (prev.length > 0 && prev[prev.length - 1] === submittedValue) {
+                return prev;
+              }
+              return [...prev, submittedValue];
+            });
+            setHistoryIndex(-1);
+            setDraftValue('');
+
             newValue = '';
             newCursorPosition = 0;
           }
@@ -618,9 +645,9 @@ export const InputBox: React.FC<InputBoxProps> = ({
       } else if ((key.meta || key.ctrl) && input === 'o') {
         // Ctrl+O or Alt+O as alternative for newline
         newValue =
-          value.substring(0, newCursorPosition) +
+          currentValue.substring(0, newCursorPosition) +
           '\n' +
-          value.substring(newCursorPosition);
+          currentValue.substring(newCursorPosition);
         newCursorPosition++;
       } else if (key.escape) {
         // Double ESC to clear input if not disabled and no dropdown
@@ -657,22 +684,22 @@ export const InputBox: React.FC<InputBoxProps> = ({
         input && // Only process if there's an actual input character
         !key.ctrl &&
         !key.meta &&
-        input.length === 1 // Ensure it's a single character (not an escape sequence)
+        !input.includes('\x1b') // Filter out escape sequences
       ) {
-        // Insert character at cursor position
+        // Insert character(s) at cursor position
         newValue =
-          value.substring(0, newCursorPosition) +
+          currentValue.substring(0, newCursorPosition) +
           input +
-          value.substring(newCursorPosition);
-        newCursorPosition++;
+          currentValue.substring(newCursorPosition);
+        newCursorPosition += input.length;
       }
 
       // Update state only if something changed
-      const valueChanged = newValue !== value;
-      const cursorChanged = newCursorPosition !== cursorPosition;
+      const valueChanged = newValue !== currentValue;
+      const cursorChanged = newCursorPosition !== currentCursorPosition;
 
       if (valueChanged) {
-        setValue(newValue);
+        setValue(() => newValue);
         valueRef.current = newValue;
         if (onInputChange) {
           onInputChange(newValue);
@@ -680,7 +707,8 @@ export const InputBox: React.FC<InputBoxProps> = ({
       }
 
       if (cursorChanged) {
-        setCursorPosition(newCursorPosition);
+        setCursorPosition(() => newCursorPosition);
+        cursorPositionRef.current = newCursorPosition;
       }
 
       // Update dropdown visibility based on new value if not explicitly handled by command selection
@@ -711,8 +739,25 @@ export const InputBox: React.FC<InputBoxProps> = ({
         }
       }
     },
-    { isActive: isInputActive }
+    [
+      focused,
+      disabled,
+      confirmationPending,
+      showDropdown,
+      historyIndex,
+      history,
+      draftValue,
+      allCommands,
+      filteredCommands,
+      selectedCommandIndex,
+      onSubmit,
+      onInterrupt,
+      onInputChange,
+      sendScrollSignal,
+    ]
   );
+
+  useInput(handleInput, { isActive: isInputActive });
 
   if (!focused) {
     return (
@@ -778,34 +823,6 @@ export const InputBox: React.FC<InputBoxProps> = ({
                 const fullText = beforeCursor + '█' + afterCursor;
                 const lines = fullText.split('\n');
 
-                if (
-                  process.env.DEBUG_INPUT &&
-                  value.length > 0 &&
-                  lines.length > 3
-                ) {
-                  systemLog(
-                    'tui',
-                    `RENDER DEBUG: Value has ${lines.length} lines`,
-                    {},
-                    'error'
-                  );
-                  systemLog(
-                    'tui',
-                    `RENDER DEBUG: Value: ${JSON.stringify(value.substring(0, 100))}`,
-                    {},
-                    'error'
-                  );
-                  systemLog(
-                    'tui',
-                    `RENDER DEBUG: First 3 lines: ${lines
-                      .slice(0, 3)
-                      .map((l) => JSON.stringify(l))
-                      .join(', ')}`,
-                    {},
-                    'error'
-                  );
-                }
-
                 return lines.map((line, idx) => {
                   const cursorIndex = line.indexOf('█');
                   const prefix = idx === 0 ? '> ' : '  ';
@@ -814,7 +831,9 @@ export const InputBox: React.FC<InputBoxProps> = ({
                     <Box key={idx}>
                       <Text color="white">{prefix}</Text>
                       <Text color="#56d364">
-                        {cursorIndex === -1 ? (
+                        {process.env.NODE_ENV === 'test' ? (
+                          line.replace('█', '')
+                        ) : cursorIndex === -1 ? (
                           line
                         ) : (
                           <>
