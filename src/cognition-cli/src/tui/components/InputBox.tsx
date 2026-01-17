@@ -759,7 +759,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
         <Box flexDirection="column" minHeight={1}>
           {confirmationPending ? (
             /* Show static tip when confirmation modal is active - EXACT pattern from tool confirmation */
-            <>
+            <Box>
               <Text color="#f85149">{'> '}</Text>
               <Text dimColor color="#8b949e">
                 {wizardConfirmationState?.pending
@@ -768,7 +768,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
                     : `${wizardConfirmationState.title || 'Confirm'} - Press Y to confirm, N to skip, Esc to cancel`
                   : 'Waiting for tool confirmation... (See prompt above)'}
               </Text>
-            </>
+            </Box>
           ) : (
             /* Normal input rendering when NOT confirming */
             <>

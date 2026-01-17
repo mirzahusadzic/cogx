@@ -171,7 +171,10 @@ describe('InputBox', () => {
           confirmationState={confirmationState}
         />
       );
-      expect(lastFrame()).toContain('Waiting for tool confirmation');
+      const output = lastFrame() ?? '';
+      expect(output).toContain('Waiting for tool confirmation');
+      // Verify prompt and message are on the same line
+      expect(output).toMatch(/>\s*Waiting for tool confirmation/);
     });
 
     it('shows keyboard options for confirmation', () => {
