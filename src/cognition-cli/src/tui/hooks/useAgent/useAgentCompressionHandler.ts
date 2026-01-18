@@ -94,12 +94,16 @@ export function useAgentCompressionHandler({
   );
 
   const handleCompressionTriggered = useCallback(
-    async (tokens: number, turns: number, isSemanticEvent: boolean = false) => {
+    async (
+      tokens: number,
+      turns: number,
+      isSemanticEvent: boolean = false
+    ): Promise<boolean> => {
       if (compressionInProgressRef.current) {
         debug(
           '⏭️  Compression already in progress, skipping duplicate request'
         );
-        return;
+        return true;
       }
 
       compressionInProgressRef.current = true;
@@ -170,7 +174,7 @@ export function useAgentCompressionHandler({
             {},
             'error'
           );
-          return;
+          return false;
         }
 
         // Final progress update
@@ -313,10 +317,10 @@ export function useAgentCompressionHandler({
               timestamp: new Date(),
             },
           ]);
-
           if (modelConfig.requiresReprompt) {
             setShouldAutoRespond(true);
           }
+          return true;
         } catch (err) {
           const errorMessage = err instanceof Error ? err.message : String(err);
           setMessages((prev) => [
@@ -330,6 +334,7 @@ export function useAgentCompressionHandler({
               timestamp: new Date(),
             },
           ]);
+          return false;
         } finally {
           sessionManager.resetResumeSession();
         }

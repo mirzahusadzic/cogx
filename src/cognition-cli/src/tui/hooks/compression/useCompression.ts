@@ -136,13 +136,14 @@ export interface UseCompressionOptions extends CompressionOptions {
    * @param tokens - Token count at compression time
    * @param turns - Turn count at compression time
    * @param isSemanticEvent - Whether this was a semantic trigger
-   * @returns Promise that resolves when compression completes (or void for sync callbacks)
+   * @returns Promise that resolves when compression completes (or void for sync callbacks).
+   *          Returning false indicates compression failed/postponed and should be retried.
    */
   onCompressionTriggered?: (
     tokens: number,
     turns: number,
     isSemanticEvent?: boolean
-  ) => void | Promise<void>;
+  ) => void | Promise<void | boolean>;
 
   /**
    * Whether to enable debug logging
@@ -186,9 +187,9 @@ export interface UseCompressionResult {
    * Updates state and invokes onCompressionTriggered callback.
    *
    * @param isSemanticEvent - Whether this is a semantic trigger
-   * @returns Promise that resolves when compression completes
+   * @returns Promise that resolves with success status when compression completes
    */
-  triggerCompression: (isSemanticEvent?: boolean) => Promise<void>;
+  triggerCompression: (isSemanticEvent?: boolean) => Promise<boolean>;
 
   /**
    * Reset compression state (call when new session starts)
@@ -330,6 +331,22 @@ export function useCompression(
   // }, [tokenCount, analyzedTurns, isThinking, onCompressionTriggered, debug]);
 
   /**
+   * Reset compression state
+   *
+   * Clears triggered flag to allow compression in new session.
+   * Call when starting fresh conversation or after compression completes.
+   */
+  const reset = useCallback(() => {
+    if (debug) {
+      systemLog('sigma', 'Resetting compression state');
+    }
+
+    triggerRef.current.reset();
+    stateRef.current.triggered = false;
+    setTriggeredState(false); // Update React state to invalidate shouldTrigger memo
+  }, [debug]);
+
+  /**
    * Manually trigger compression
    *
    * Updates compression state and invokes callback. Should be called
@@ -345,10 +362,10 @@ export function useCompression(
    *    - compressionCount incremented
    * 4. Invoke onCompressionTriggered callback and AWAIT completion
    *
-   * @returns Promise that resolves when compression callback completes
+   * @returns Promise that resolves with success status when compression completes
    */
   const triggerCompression = useCallback(
-    async (isSemanticEvent: boolean = false) => {
+    async (isSemanticEvent: boolean = false): Promise<boolean> => {
       if (debug) {
         systemLog(
           'sigma',
@@ -365,30 +382,29 @@ export function useCompression(
 
       // CRITICAL: Await the callback to block UI until compression completes
       // This ensures recap is ready and session is reset before user can send next message
-      await onCompressionTriggered?.(
+      const result = await onCompressionTriggered?.(
         tokenCount,
         analyzedTurns,
         isSemanticEvent
       );
+
+      // If callback explicitly returns false, it means compression was postponed/failed
+      // In this case we reset the trigger state to allow retry on next message
+      if (result === false) {
+        if (debug) {
+          systemLog(
+            'sigma',
+            'Compression failed/postponed, resetting trigger state for retry'
+          );
+        }
+        reset();
+        return false;
+      }
+
+      return true;
     },
-    [tokenCount, analyzedTurns, onCompressionTriggered, debug]
+    [tokenCount, analyzedTurns, onCompressionTriggered, debug, reset]
   );
-
-  /**
-   * Reset compression state
-   *
-   * Clears triggered flag to allow compression in new session.
-   * Call when starting fresh conversation or after compression completes.
-   */
-  const reset = useCallback(() => {
-    if (debug) {
-      systemLog('sigma', 'Resetting compression state');
-    }
-
-    triggerRef.current.reset();
-    stateRef.current.triggered = false;
-    setTriggeredState(false); // Update React state to invalidate shouldTrigger memo
-  }, [debug]);
 
   /**
    * Get compression trigger diagnostic info

@@ -716,8 +716,10 @@ This will trigger a semantic compression event, flushing implementation noise wh
             compression.getTriggerInfo(true).shouldTrigger
           ) {
             await new Promise((resolve) => setTimeout(resolve, 100));
-            await compression.triggerCompression(true);
-            setShouldAutoRespond(true);
+            const success = await compression.triggerCompression(true);
+            if (success) {
+              setShouldAutoRespond(true);
+            }
           } else if (compression.shouldTrigger) {
             await new Promise((resolve) => setTimeout(resolve, 100));
             await compression.triggerCompression();
