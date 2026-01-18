@@ -61,17 +61,16 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 ## 🎯 Latest Release
 
-**January 16, 2026** — [v2.6.4: PGC Grounding & Multi-Provider Token Optimization](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.4):
+**January 18, 2026** — [v2.6.5: TUI Responsiveness & LLM Context Improvements](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.5):
 
-- 🎯 **Sigma Task Protocol v2.0** — Verifiable task execution via `grounding` and `grounding_evidence` arrays with robust Manager/Worker delegation.
-- ⚡ **Tri-Modal Compression Strategy** — Unified context management for Gemini, OpenAI, and eGemma with Semantic, Standard, and Survival modes.
-- 🧠 **Dynamic Thinking Budgeting** — Automatically scales reasoning effort (`thinkingLevel`, `reasoning_effort`) based on remaining TPM quota.
-- 🏗️ **Modular TUI Architecture** — Refactored into hooks and services with a new Observer-Stream architecture for system diagnostics.
-- 🌐 **IPC Enhancements** — Project-specific bus isolation and automatic cleanup of stale agents.
+- 🚀 **TUI Enhancements** — Major layout and responsiveness upgrades, global scrolling, improved navigation, and robust cursor management.
+- 🧠 **LLM Context Improvements** — Auto-relativized git paths and simplified system prompts for more accurate context awareness.
+- 🐛 **Key Bug Fixes** — Resolved InputBox rendering glitches, terminal cursor issues, and improved test script execution.
+- 🏗️ **Infrastructure Updates** — Upgraded core dependencies and optimized test scripts for better performance.
 
-**Impact:** Dramatically improves reliability of multi-agent collaboration and ensures session survival through proactive, multi-provider token optimization.
+**Impact:** Significantly improves the user experience within the TUI and enhances the agent's understanding of the project context, leading to more fluid and accurate interactions.
 
-**Previous Releases**: [v2.6.3 - Cross-Project Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.3) | [v2.6.2 - Manager/Worker Delegation](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2) | [v2.6.0 - Multi-Agent Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1 - Gemini Integration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0 - Multi-Provider LLM](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2 - Documentation & Stability](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1 - Cross-Overlay Workflows](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0 - Production Excellence](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ (Sigma) Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
+**Previous Releases**: [v2.6.4 - PGC Grounding & Multi-Provider Token Optimization](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.4) | [v2.6.3 - Cross-Project Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.3) | [v2.6.2 - Manager/Worker Delegation](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2) | [v2.6.0 - Multi-Agent Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1 - Gemini Integration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0 - Multi-Provider LLM](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2 - Documentation & Stability](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1 - Cross-Overlay Workflows](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0 - Production Excellence](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ (Sigma) Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
 
 📜 **[See full release history](src/cognition-cli/CHANGELOG.md)**
 
@@ -145,7 +144,7 @@ The production-ready implementation of verifiable AI-human symbiosis. Combines t
 
 **Breakthrough Achievement (Oct 24, 2025):** First grounded architecture analysis performed **on itself**, proving structured PGC metadata is sufficient for deep architectural understanding without reading source code.
 
-**Latest Release:** [v2.6.4: PGC Grounding & Multi-Provider Token Optimization](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.4)
+**Latest Release:** [v2.6.5: TUI Responsiveness & LLM Context Improvements](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.5)
 
 ### eGemma – [The Deterministic Workbench](https://github.com/mirzahusadzic/egemma)
 
@@ -275,7 +274,7 @@ This repository constitutes a **formal defensive publication** establishing prio
 
 47. **Multi-Agent Collaborative System** — ZeroMQ pub/sub infrastructure enabling asynchronous agent-to-agent communication with persistent message queues, auto-response flow with Yossarian Protocol rate limiting, agent registry with heartbeat monitoring, and unified MCP/ADK tools for cross-model collaboration
 
-**v2.6.4 - Published January 16, 2026** — Sigma Task Protocol v2.0 & Tri-Modal Compression
+**v2.6.5 - Published January 18, 2026** — TUI Responsiveness & LLM Context Improvements
 
 48. **Sigma Task Protocol v2.0** — Verifiable task execution using parallel `grounding` and `grounding_evidence` arrays for shallow schema depth and reliable model performance.
 49. **Tri-Modal Compression Strategy** — Context-aware state management with Semantic (task-driven), Standard (conversation-driven), and Survival (TPM-driven) compression modes to ensure session continuity across high-latency reasoning models.
@@ -364,7 +363,7 @@ If you use this work in research, please cite:
   author = {Husadžić, Mirza},
   title = {CogX: A Blueprint for Verifiable, Agentic AI},
   year = {2026},
-  version = {2.6.4},
+  version = {2.6.5},
   doi = {10.5281/zenodo.18012832},
   url = {https://github.com/mirzahusadzic/cogx}
 }

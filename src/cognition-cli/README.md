@@ -360,17 +360,16 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 
 ## 🎉 Latest Release
 
-**v2.6.4 - January 16, 2026** — [PGC Grounding & Multi-Provider Token Optimization](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.4):
+**v2.6.5 - January 18, 2026** — [TUI Responsiveness & LLM Context Improvements](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.5):
 
-- 🎯 **Sigma Task Protocol v2.0** — Verifiable task execution via `grounding` and `grounding_evidence` arrays with robust Manager/Worker delegation.
-- ⚡ **Tri-Modal Compression Strategy** — Unified context management for Gemini, OpenAI, and eGemma with Semantic, Standard, and Survival modes.
-- 🧠 **Dynamic Thinking Budgeting** — Automatically scales reasoning effort (`thinkingLevel`, `reasoning_effort`) based on remaining TPM quota.
-- 🏗️ **Modular TUI Architecture** — Refactored into hooks and services with a new Observer-Stream architecture for system diagnostics.
-- 🌐 **IPC Enhancements** — Project-specific bus isolation and automatic cleanup of stale agents.
+- 🚀 **TUI Enhancements** — Major layout and responsiveness upgrades, global scrolling, improved navigation, and robust cursor management.
+- 🧠 **LLM Context Improvements** — Auto-relativized git paths and simplified system prompts for more accurate context awareness.
+- 🐛 **Key Bug Fixes** — Resolved InputBox rendering glitches, terminal cursor issues, and improved test script execution.
+- 🏗️ **Infrastructure Updates** — Upgraded core dependencies and optimized test scripts for better performance.
 
-**Impact:** Dramatically improves reliability of multi-agent collaboration and ensures session survival through proactive, multi-provider token optimization.
+**Impact:** Significantly improves the user experience within the TUI and enhances the agent's understanding of the project context, leading to more fluid and accurate interactions.
 
-**Previous releases:** [v2.6.3](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.3) | [v2.6.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2) | [v2.6.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.0.0 - Σ Launch](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
+**Previous releases:** [v2.6.4](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.4) | [v2.6.3](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.3) | [v2.6.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2) | [v2.6.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.0.0 - Σ Launch](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
 
 **Full changelog:** [CHANGELOG.md](./CHANGELOG.md)
 

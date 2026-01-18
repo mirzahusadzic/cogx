@@ -5,6 +5,45 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.5] - 2026-01-18
+
+### Summary
+
+**TUI Responsiveness & LLM Context Improvements.** This release focuses on enhancing the Terminal User Interface (TUI) with major layout and responsiveness upgrades, including global scrolling, improved navigation, and robust cursor management. It also improves LLM context awareness by auto-relativizing git paths and optimizing test scripts.
+
+### 🚀 New Features
+
+#### TUI & User Experience
+
+- **Refactored Layout Engine:** Implemented flexbox and dynamic measurement for a more robust and adaptable TUI layout.
+- **Global Scrolling:** Added global Page Up/Down scrolling functionality for the chat window.
+- **Enhanced Navigation:** Improved Home/End/Page keys support and general navigation within the TUI.
+- **Real-time Tool Output Streaming:** Enhanced tool output, streaming, and responsiveness with intelligent content compression.
+- **Command History:** Introduced command history with up/down arrow navigation for input.
+- **Layered Cursor Suppression:** Implemented aggressive, layered cursor hiding and ANSI sanitization to prevent visual glitches.
+
+#### LLM & Context Management
+
+- **Auto-Relativized Git Paths:** Improved LLM context by automatically converting git output paths to be relative to the current working directory.
+- **Simplified System Prompt:** Streamlined the system prompt to provide clearer context for LLMs.
+- **Improved Color Handling:** Enhanced `NO_COLOR` and `FORCE_COLOR` environment variable handling.
+
+### 🐛 Bug Fixes
+
+- **InputBox Rendering:** Resolved multi-line rendering glitches in the InputBox component, especially after history recall or pasting, by introducing forced layout updates.
+- **Cursor Glitches:** Fixed various terminal cursor visibility issues by explicitly hiding the cursor after tool completion and during streaming.
+- **InputBox Confirmation:** Ensured InputBox confirmation messages consistently display on a single line.
+- **Test Script Execution:** Addressed issues where `npm test` might not correctly support file paths or could double-run tests by introducing a dedicated test runner script.
+
+### 🏗️ Infrastructure & Tests
+
+- **Dependency Updates:** Upgraded `ink` to 6.6.0 and `@google/adk` to 0.2.4.
+- **Test Script Optimization:** Optimized the test script's `sleep` function using `Atomics.wait` for better performance.
+- **Input History Management:** Bounded the InputBox command history to the last 100 entries to improve memory usage.
+- **Consistent ANSI Stripping:** Centralized ANSI code stripping using the `strip-ansi` package for improved robustness and consistency.
+
+---
+
 ## [2.6.4] - 2026-01-16
 
 ### Summary
