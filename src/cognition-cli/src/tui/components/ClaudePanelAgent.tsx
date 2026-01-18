@@ -11,6 +11,8 @@ import { Spinner } from '@inkjs/ui';
 import stripAnsi from 'strip-ansi';
 import { systemLog } from '../../utils/debug-logger.js';
 import { useTUI } from '../context/TUIContext.js';
+import { terminal } from '../services/TerminalService.js';
+import { stripCursorSequences } from '../utils/ansi-utils.js';
 import type { TUIMessage } from '../hooks/useAgent.js';
 
 /**
@@ -217,6 +219,9 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
   // Use measureElement to get the actual height allocated by Yoga
   useEffect(() => {
+    // Layer 8: Ensure cursor is hidden while message panel is rendering/scrolling
+    terminal.setCursorVisibility(false);
+
     if (containerRef.current) {
       const dimensions = measureElement(containerRef.current);
       // Dimensions minus borders
@@ -373,7 +378,9 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
           const hasAnsi = stripAnsi(line.text) !== line.text;
           return (
             <Text key={idx} color={hasAnsi ? undefined : line.color}>
-              {hasAnsi ? `\u001b[0m${line.text}\u001b[0m` : line.text}
+              {hasAnsi
+                ? `\u001b[0m${stripCursorSequences(line.text)}\u001b[0m`
+                : line.text}
             </Text>
           );
         })}

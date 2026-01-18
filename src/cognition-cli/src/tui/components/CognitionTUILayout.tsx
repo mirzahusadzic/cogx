@@ -6,6 +6,7 @@ import { InputBox } from './InputBox.js';
 import { StatusBar } from './StatusBar.js';
 import { SigmaInfoPanel } from './SigmaInfoPanel.js';
 import { ComponentErrorBoundary } from './ErrorBoundaries/ComponentErrorBoundary.js';
+import { terminal } from '../services/TerminalService.js';
 import type { TUIMessage } from '../hooks/useAgent/types.js';
 import type { BackgroundTask } from '../services/BackgroundTaskManager.js';
 import type { ToolConfirmationState } from '../hooks/useToolConfirmation.js';
@@ -97,6 +98,13 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
       stdout?.off('resize', handleResize);
     };
   }, [stdout]);
+
+  // Ensure cursor is hidden (InputBox uses its own manual cursor)
+  // Re-apply whenever thinking status, focus, messages or dimensions change
+  // to prevent terminal-intensive tools from showing the cursor.
+  useEffect(() => {
+    terminal.setCursorVisibility(false);
+  }, [isThinking, focused, messages, dimensions]);
 
   // Memoize filtered messages to prevent unnecessary re-renders of ClaudePanelAgent
   const filteredMessages = useMemo(() => {

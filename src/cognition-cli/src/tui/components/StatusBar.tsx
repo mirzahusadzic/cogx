@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Box, Text } from 'ink';
+import { terminal } from '../services/TerminalService.js';
 
 // Extra space needed after certain emojis on macOS (terminal width calculation differs)
 const EMOJI_SPACER = process.platform === 'darwin' ? ' ' : '';
@@ -93,6 +94,12 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   providerName = 'claude',
   modelId,
 }) => {
+  // Layer 7: Aggressively ensure cursor is hidden when rendering the bottom bar
+  // This handles any stray escape sequences from the panels above it.
+  useEffect(() => {
+    terminal.setCursorVisibility(false);
+  }); // Run on every render
+
   // Format token count with K suffix for readability
   const formatTokens = (count: number) => {
     if (count >= 1000) {

@@ -79,6 +79,7 @@ export class TerminalService {
    */
   public setCursorVisibility(visible: boolean): void {
     const hidden = !visible;
+    if (this.isCursorHidden === hidden) return;
 
     try {
       if (hidden) {

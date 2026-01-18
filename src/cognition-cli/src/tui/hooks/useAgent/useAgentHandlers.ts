@@ -12,6 +12,8 @@ import { McpServerBuilder } from '../../services/McpServerBuilder.js';
 import { formatPendingMessages } from '../../../ipc/agent-messaging-formatters.js';
 import stripAnsi from 'strip-ansi';
 import { formatToolUse, formatToolResult } from '../rendering/ToolFormatter.js';
+import { terminal } from '../../services/TerminalService.js';
+import { stripCursorSequences } from '../../utils/ansi-utils.js';
 import type { AgentState } from './useAgentState.js';
 import type { UseAgentOptions } from './types.js';
 import type { UseSessionManagerResult } from '../session/useSessionManager.js';
@@ -305,6 +307,8 @@ export function useAgentHandlers({
         }
 
         case 'tool_result': {
+          // Immediately hide cursor after tool completes, as its final output might have requested to show it
+          terminal.setCursorVisibility(false);
           if (process.env.DEBUG_INPUT) {
             systemLog(
               'tui',
@@ -525,6 +529,12 @@ This will trigger a semantic compression event, flushing implementation noise wh
           remainingTPM: 1000000 - tokenCounter.count.total,
           onStderr: (data: string) => stderrLines.push(data),
           onToolOutput: (chunk: string) => {
+            // Layer 10: Aggressively hide terminal cursor while streaming tool output
+            terminal.setCursorVisibility(false);
+
+            // Pre-strip cursor control sequences from output chunks before storing
+            const cleanChunk = stripCursorSequences(chunk);
+
             setMessages((prev) => {
               const last = prev[prev.length - 1];
               if (last && last.type === 'tool_progress') {
@@ -539,7 +549,7 @@ This will trigger a semantic compression event, flushing implementation noise wh
                 // \x1b[90m sets text to bright black (gray)
                 const prefix = hasNewline ? '' : '\n\x1b[0m\x1b[90m';
 
-                let content = last.content + prefix + chunk;
+                let content = last.content + prefix + cleanChunk;
 
                 // FLOATING WINDOW LOGIC:
                 // If output becomes too long, truncate it to keep only the last 30 lines

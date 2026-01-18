@@ -8,6 +8,7 @@ import { writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { systemLog } from '../../utils/debug-logger.js';
+import { terminal } from '../services/TerminalService.js';
 import type { ToolConfirmationState } from '../hooks/useToolConfirmation.js';
 import type { WizardConfirmationState } from '../hooks/useOnboardingWizard.js';
 import { WizardConfirmationModal } from './WizardConfirmationModal.js';
@@ -142,6 +143,9 @@ export const InputBox: React.FC<InputBoxProps> = ({
   useEffect(() => {
     const blinkInterval = setInterval(() => {
       setCursorVisible((prev) => !prev);
+      // Aggressively re-hide terminal cursor because some tools/events might show it
+      // This handles cases where child processes or stray escape sequences show it.
+      terminal.setCursorVisibility(false);
     }, 500);
     return () => clearInterval(blinkInterval);
   }, []);

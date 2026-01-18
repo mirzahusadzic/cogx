@@ -90,6 +90,7 @@
 
 import * as Diff from 'diff';
 import * as fs from 'fs';
+import { stripCursorSequences } from '../../utils/ansi-utils.js';
 
 /**
  * Tool use input from SDK
@@ -763,6 +764,10 @@ export function formatToolResult(name: string, result: unknown): string {
     } else {
       content = JSON.stringify(processedResult, null, 2);
     }
+
+    // Layer 9: Aggressively strip cursor control sequences from tool result content
+    // to prevent terminal-intensive tools (like npm test) from showing the cursor.
+    content = stripCursorSequences(content);
 
     const lines = content.split('\n');
     const MAX_LINES = 30;
