@@ -26,6 +26,7 @@
  * ```
  */
 
+import path from 'path';
 import { registry } from '../../../llm/index.js';
 import { DELEGATION_PROTOCOL_PROMPT } from '../../../sigma/prompts/delegation-protocol.js';
 import { systemLog } from '../../../utils/debug-logger.js';
@@ -146,6 +147,18 @@ export class AgentProviderAdapter {
    * ```
    */
   async *query(prompt: string): AsyncGenerator<AgentResponse> {
+    const cwd = this.options.cwd || process.cwd();
+    const projectRoot = this.options.projectRoot || cwd;
+    const projectRootInfo =
+      projectRoot !== cwd
+        ? `\n\n## Project Root\n${projectRoot}\n(CWD is ${path.relative(projectRoot, cwd)} relative to root)`
+        : '';
+
+    const filePathInfo =
+      projectRoot !== cwd
+        ? `\n\n## File Paths\nNote: You are working in a subdirectory. Tools have been patched to handle git paths automatically.`
+        : '';
+
     const request: AgentRequest = {
       prompt,
       model: this.model,
@@ -180,7 +193,9 @@ export class AgentProviderAdapter {
               `- Task delegation with acceptance_criteria and delegated_to fields\n` +
               `- Full state persistence across compressions\n\n` +
               `Use SigmaTaskUpdate exactly as you would use TodoWrite, but with the new schema.`
-            : '') + `\n\n${DELEGATION_PROTOCOL_PROMPT}`,
+            : '') +
+          `\n\n## Working Directory\n${cwd}${projectRootInfo}${filePathInfo}` +
+          `\n\n${DELEGATION_PROTOCOL_PROMPT}`,
       },
       includePartialMessages: true,
       // Add grounding requirements from session state if available

@@ -13,17 +13,20 @@ function sleep(ms) {
 if (args.length > 0) {
   // If arguments are provided, run vitest with those arguments.
   // This will use the vitest.workspace.ts to correctly identify which config to use for each file.
-  const result = spawnSync('npx', ['vitest', 'run', ...args], { 
-    stdio: 'inherit', 
+  const result = spawnSync('npx', ['vitest', 'run', ...args], {
+    stdio: 'inherit',
     shell: true,
-    env: { ...process.env, NODE_OPTIONS: '--max-old-space-size=4096' }
+    env: { ...process.env, NODE_OPTIONS: '--max-old-space-size=4096' },
   });
   process.exit(result.status ?? 1);
 } else {
   // If no arguments, run the main tests and then the workerpool tests sequentially with a delay.
   console.log('Running main tests...');
-  const mainResult = spawnSync('npm', ['run', 'test:main'], { stdio: 'inherit', shell: true });
-  
+  const mainResult = spawnSync('npm', ['run', 'test:main'], {
+    stdio: 'inherit',
+    shell: true,
+  });
+
   if (mainResult.status !== 0) {
     process.exit(mainResult.status ?? 1);
   }
@@ -32,6 +35,9 @@ if (args.length > 0) {
   sleep(3000);
 
   console.log('Running workerpool tests...');
-  const workerpoolResult = spawnSync('npm', ['run', 'test:workerpool'], { stdio: 'inherit', shell: true });
+  const workerpoolResult = spawnSync('npm', ['run', 'test:workerpool'], {
+    stdio: 'inherit',
+    shell: true,
+  });
   process.exit(workerpoolResult.status ?? 1);
 }

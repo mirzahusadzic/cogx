@@ -1327,7 +1327,13 @@ export class OpenAIAgentProvider implements AgentProvider {
 - **query_agent**: Ask semantic questions to agents in other repositories and get grounded answers based on their Grounded Context Pool`);
     }
 
-    return `You are **${modelName}** (OpenAI Agents SDK) running inside **Cognition Σ (Sigma) CLI** - a verifiable AI-human symbiosis architecture with dual-lattice knowledge representation.
+    const appendInfo =
+      request.systemPrompt?.type === 'preset' && request.systemPrompt.append
+        ? request.systemPrompt.append
+        : '';
+
+    return (
+      `You are **${modelName}** (OpenAI Agents SDK) running inside **Cognition Σ (Sigma) CLI** - a verifiable AI-human symbiosis architecture with dual-lattice knowledge representation.
 
 **Current Date**: ${currentDate}
 
@@ -1337,9 +1343,6 @@ A portable cognitive layer that can be initialized in **any repository**. Create
 ## Your Capabilities
 
 ${toolSections.join('\n\n')}
-
-## Working Directory
-${request.cwd || process.cwd()}
 
 ## Guidelines
 - Be concise and helpful
@@ -1470,7 +1473,9 @@ IMPORTANT: Always use the SigmaTaskUpdate tool to plan and track tasks throughou
 - **Use limit/offset for large files** - read only the sections you need
 - **Prefer git diff or reading specific line ranges; avoid \`cat\` or \`read_file\` on full files unless the file is small (<50 lines) or strictly necessary.**
 - **Avoid redundant reads** - if you read a file earlier in this conversation, don't read it again unless it changed
-- **Summarize don't quote** - explain findings concisely rather than quoting entire file contents`;
+- **Summarize don't quote** - explain findings concisely rather than quoting entire file contents` +
+      (appendInfo ? `\n\n${appendInfo}` : '')
+    );
   }
 
   // ========================================

@@ -9,10 +9,152 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import stripAnsi from 'strip-ansi';
 import { SessionState } from '../../sigma/session-state.js';
-import { spawn } from 'child_process';
+import { spawn, exec } from 'child_process';
 import { glob as globLib } from 'glob';
 import { smartCompressOutput } from './tool-helpers.js';
 import { systemLog } from '../../utils/debug-logger.js';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
+
+/**
+ * Helper to get the repository root
+ */
+async function getRepoRoot(cwd: string): Promise<string | null> {
+  try {
+    const { stdout: rootOut } = await execAsync(
+      'git rev-parse --show-toplevel',
+      { cwd }
+    );
+    return rootOut.trim();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Helper to relativize git output paths (file lists)
+ *
+ * Transforms git's repo-relative paths to be relative to the current working directory.
+ * e.g. if CWD is src/app and git returns src/app/main.ts, this returns main.ts
+ */
+async function relativizeGitPaths(
+  output: string,
+  cwd: string
+): Promise<string> {
+  // fast check: if output is empty or error, skip
+  const trimmed = output.trim();
+  if (
+    !trimmed ||
+    trimmed.startsWith('fatal:') ||
+    trimmed.startsWith('error:')
+  ) {
+    return output;
+  }
+
+  const repoRoot = await getRepoRoot(cwd);
+  if (!repoRoot) return output;
+
+  // If we're at root, no change needed
+  if (path.relative(repoRoot, cwd) === '') {
+    return output;
+  }
+
+  const lines = output.split('\n');
+  const processed = lines.map((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return line;
+
+    // Simple heuristic: if line looks like a path (no spaces, or escaped spaces)
+    // We assume the whole line is a path for --name-only and ls-files
+
+    // Construct absolute path from repo root
+    const absPath = path.join(repoRoot, trimmed);
+
+    // Relativize to CWD
+    const relPath = path.relative(cwd, absPath);
+
+    return relPath;
+  });
+
+  return processed.join('\n');
+}
+
+/**
+ * Helper to relativize standard git diff output
+ *
+ * Adjusts paths in diff headers (diff --git, ---, +++) to be relative to CWD.
+ */
+async function relativizeDiffOutput(
+  output: string,
+  cwd: string
+): Promise<string> {
+  // fast check
+  const trimmed = output.trim();
+  if (
+    !trimmed ||
+    trimmed.startsWith('fatal:') ||
+    trimmed.startsWith('error:')
+  ) {
+    return output;
+  }
+
+  const repoRoot = await getRepoRoot(cwd);
+  if (!repoRoot) return output;
+
+  // If we're at root, no change needed
+  const relCwd = path.relative(repoRoot, cwd);
+  if (relCwd === '') {
+    return output;
+  }
+
+  // Normalize separator for regex
+  const prefix = relCwd.split(path.sep).join('/');
+
+  // Also need to handle the second path in "diff --git"
+  // The line looks like: diff --git a/src/file.ts b/src/file.ts
+  // The first regex handles the start of line. The second path is harder to target safely with global regex.
+  // We'll iterate lines for safety.
+
+  const lines = output.split('\n');
+  const processed = lines.map((line) => {
+    // Target: diff --git a/path b/path
+    if (line.startsWith('diff --git ')) {
+      // Replace a/prefix/ with a/ and b/prefix/ with b/
+      // We assume paths don't contain spaces for simple replacement,
+      // but to be safer we can replace strict occurrences.
+      let newLine = line.replace(` a/${prefix}/`, ' a/');
+      newLine = newLine.replace(` b/${prefix}/`, ' b/');
+      return newLine;
+    }
+    // Target: --- a/path
+    if (line.startsWith('--- a/')) {
+      return line.replace(`--- a/${prefix}/`, '--- a/');
+    }
+    // Target: +++ b/path
+    if (line.startsWith('+++ b/')) {
+      return line.replace(`+++ b/${prefix}/`, '+++ b/');
+    }
+
+    // Also handle "rename from", "rename to", "copy from", "copy to"
+    // These usually look like: "rename from src/file.ts"
+    // But git output for these doesn't have a/ b/ prefixes usually?
+    // Wait, "rename from" usually shows the path relative to repo root.
+    // Let's check: "rename from src/cognition-cli/..."
+    if (
+      line.startsWith('rename from ') ||
+      line.startsWith('rename to ') ||
+      line.startsWith('copy from ') ||
+      line.startsWith('copy to ')
+    ) {
+      return line.replace(` ${prefix}/`, ' ');
+    }
+
+    return line;
+  });
+
+  return processed.join('\n');
+}
 
 /**
  * Read file executor
@@ -177,10 +319,28 @@ export async function executeBash(
       clearTimeout(timeoutId);
       // Strip ANSI codes from output for the LLM to save tokens and prevent confusion
       const cleanStdout = stripAnsi(stdout);
+      let finalStdout = cleanStdout;
+
+      // Intercept git commands that return paths to relativize them
+      // This fixes the "CWD vs Repo Root" confusion for the LLM
+      if (!killed && code === 0) {
+        if (
+          (command.includes('git diff') && command.includes('--name-only')) ||
+          command.includes('git ls-files')
+        ) {
+          finalStdout = await relativizeGitPaths(cleanStdout, cwd);
+        } else if (
+          command.includes('git diff') &&
+          !command.includes('--name-only')
+        ) {
+          finalStdout = await relativizeDiffOutput(cleanStdout, cwd);
+        }
+      }
+
       const cleanStderr = stripAnsi(stderr);
 
       const output =
-        cleanStdout + (cleanStderr ? `\nSTDERR:\n${cleanStderr}` : '');
+        finalStdout + (cleanStderr ? `\nSTDERR:\n${cleanStderr}` : '');
       // Determine max output size based on command importance
       // git diffs are critical for context and should be preserved
       const isGitDiff = command.includes('git diff');
