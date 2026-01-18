@@ -6,8 +6,7 @@ const args = process.argv.slice(2);
  * Sync sleep function
  */
 function sleep(ms) {
-  const start = Date.now();
-  while (Date.now() - start < ms) {}
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
 if (args.length > 0) {

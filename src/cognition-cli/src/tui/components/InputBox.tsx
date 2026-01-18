@@ -645,7 +645,8 @@ export const InputBox: React.FC<InputBoxProps> = ({
               if (prev.length > 0 && prev[prev.length - 1] === submittedValue) {
                 return prev;
               }
-              return [...prev, submittedValue];
+              const newHistory = [...prev, submittedValue];
+              return newHistory.slice(-100);
             });
             setHistoryIndex(-1);
             setDraftValue('');
