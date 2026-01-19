@@ -182,6 +182,7 @@ export function extractSessionId(sdkMessage: SDKMessage): string | undefined {
  * 4. Return all tool use messages
  *
  * @param sdkMessage - SDK message to process
+ * @param cwd - Current working directory (optional)
  * @returns Array of processed messages (empty if not assistant or no tools)
  *
  * @example
@@ -191,7 +192,8 @@ export function extractSessionId(sdkMessage: SDKMessage): string | undefined {
  * });
  */
 export function processAssistantMessage(
-  sdkMessage: SDKMessage
+  sdkMessage: SDKMessage,
+  cwd?: string
 ): ProcessedMessage[] {
   if (sdkMessage.type !== 'assistant') {
     return [];
@@ -210,7 +212,7 @@ export function processAssistantMessage(
 
   if (toolUses.length > 0) {
     toolUses.forEach((tool) => {
-      const formatted = formatToolUse(tool);
+      const formatted = formatToolUse(tool, cwd);
       messages.push({
         type: 'tool_progress',
         content: `${formatted.icon} ${formatted.name}: ${formatted.description}`,
@@ -476,6 +478,7 @@ export function processSystemMessage(
  * - Type safety (TypeScript ensures all message types handled)
  *
  * @param sdkMessage - SDK message to process
+ * @param cwd - Current working directory (optional)
  * @returns Aggregated processing result with messages, session ID, and token updates
  *
  * @example
@@ -495,7 +498,10 @@ export function processSystemMessage(
  *   });
  * }
  */
-export function processSDKMessage(sdkMessage: SDKMessage): ProcessingResult {
+export function processSDKMessage(
+  sdkMessage: SDKMessage,
+  cwd?: string
+): ProcessingResult {
   const result: ProcessingResult = {
     messages: [],
   };
@@ -509,7 +515,7 @@ export function processSDKMessage(sdkMessage: SDKMessage): ProcessingResult {
   // Process based on message type
   switch (sdkMessage.type) {
     case 'assistant': {
-      const messages = processAssistantMessage(sdkMessage);
+      const messages = processAssistantMessage(sdkMessage, cwd);
       result.messages.push(...messages);
       break;
     }

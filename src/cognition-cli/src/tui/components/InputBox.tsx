@@ -48,6 +48,9 @@ export interface InputBoxProps {
 
   /** Wizard confirmation state for rendering wizard modal */
   wizardConfirmationState?: WizardConfirmationState | null;
+
+  /** Current working directory for path relativization */
+  cwd?: string;
 }
 
 /**
@@ -110,6 +113,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
   providerName = 'AI',
   confirmationState = null,
   wizardConfirmationState = null,
+  cwd,
 }) => {
   const { sendScrollSignal } = useTUI();
   const { stdout } = useStdout();
@@ -792,7 +796,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
     <Box flexDirection="column" width="100%" key={renderKey}>
       {/* Tool Confirmation Modal - render ABOVE input, SAME placement as dropdown */}
       {confirmationState && confirmationState.pending && (
-        <ToolConfirmationModal state={confirmationState} />
+        <ToolConfirmationModal state={confirmationState} cwd={cwd} />
       )}
 
       {/* Wizard Confirmation Modal - render ABOVE input, SAME placement as tool modal */}

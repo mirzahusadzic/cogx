@@ -206,10 +206,13 @@ export function useAgentHandlers({
                       await compression.triggerCompression(true);
                     }
 
-                    const formatted = formatToolUse({
-                      name: tool.name,
-                      input: tool.input as Record<string, unknown>,
-                    });
+                    const formatted = formatToolUse(
+                      {
+                        name: tool.name,
+                        input: tool.input as Record<string, unknown>,
+                      },
+                      cwd
+                    );
                     const content = `${formatted.icon} ${formatted.name}: ${formatted.description}`;
                     activeToolContentRef.current = content;
 
@@ -255,10 +258,13 @@ export function useAgentHandlers({
 
         case 'tool_use': {
           if (agentMessage.toolName && agentMessage.toolInput) {
-            const formatted = formatToolUse({
-              name: agentMessage.toolName,
-              input: agentMessage.toolInput as Record<string, unknown>,
-            });
+            const formatted = formatToolUse(
+              {
+                name: agentMessage.toolName,
+                input: agentMessage.toolInput as Record<string, unknown>,
+              },
+              cwd
+            );
             const content = `${formatted.icon} ${formatted.name}: ${formatted.description}`;
             activeToolContentRef.current = content;
 
@@ -285,10 +291,13 @@ export function useAgentHandlers({
           } else if (Array.isArray(content)) {
             content.forEach((tool) => {
               if (tool.name && tool.input) {
-                const formatted = formatToolUse({
-                  name: tool.name,
-                  input: tool.input as Record<string, unknown>,
-                });
+                const formatted = formatToolUse(
+                  {
+                    name: tool.name,
+                    input: tool.input as Record<string, unknown>,
+                  },
+                  cwd
+                );
                 const contentStr = `${formatted.icon} ${formatted.name}: ${formatted.description}`;
                 activeToolContentRef.current = contentStr;
 
@@ -330,7 +339,8 @@ export function useAgentHandlers({
 
             let formattedResult = formatToolResult(
               agentMessage.toolName,
-              resultData
+              resultData,
+              cwd
             );
 
             if (

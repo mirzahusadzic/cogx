@@ -11,6 +11,8 @@ import { TUITheme } from '../theme.js';
 export interface ToolConfirmationModalProps {
   /** Current tool confirmation state with tool name and input */
   state: ToolConfirmationState;
+  /** Current working directory for path relativization */
+  cwd?: string;
 }
 
 /**
@@ -50,17 +52,21 @@ export interface ToolConfirmationModalProps {
  */
 const ToolConfirmationModalComponent: React.FC<ToolConfirmationModalProps> = ({
   state,
+  cwd,
 }) => {
   const { toolName, input } = state;
 
   // Format tool name and icon using ToolFormatter
   const formattedTool = React.useMemo(
     () =>
-      formatToolUse({
-        name: toolName,
-        input: input as Record<string, unknown>,
-      }),
-    [toolName, input]
+      formatToolUse(
+        {
+          name: toolName,
+          input: input as Record<string, unknown>,
+        },
+        cwd
+      ),
+    [toolName, input, cwd]
   );
 
   // Format tool input once to prevent re-calculations

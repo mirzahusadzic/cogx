@@ -42,6 +42,7 @@ export interface CognitionTUILayoutProps {
   displayThinking: boolean;
   confirmationState: ToolConfirmationState | null;
   wizardConfirmationState: WizardConfirmationState | null;
+  cwd?: string;
   sendMessage: (msg: string) => Promise<void>;
   interrupt: () => void;
   setIsDropdownVisible: (visible: boolean) => void;
@@ -79,6 +80,7 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
   setInputLineCount,
   inputLineCount,
   isDropdownVisible,
+  cwd,
 }) => {
   const { stdout } = useStdout();
   const [dimensions, setDimensions] = useState({
@@ -189,6 +191,7 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
             providerName={provider}
             confirmationState={confirmationState}
             wizardConfirmationState={wizardConfirmationState}
+            cwd={cwd}
           />
         </ComponentErrorBoundary>
         <Box height={1} flexShrink={0}>

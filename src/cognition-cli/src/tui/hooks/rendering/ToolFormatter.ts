@@ -141,19 +141,20 @@ export interface FormattedTool {
 }
 
 /**
- * Relativize an absolute path to the current working directory.
+ * Relativize an absolute path to a base directory (usually CWD).
  * Used to reduce clutter in tool output display.
  *
  * @param p - Path to relativize
+ * @param basePath - Base directory for relativization (defaults to process.cwd())
  * @returns Relative path if possible, otherwise original path
  */
 // Only relativize if the path doesn't go too many levels up (e.g., ../../../src/file.ts)
 const MAX_PARENT_DIR_DEPTH_FOR_RELATIVE_PATH = 2; // e.g., ../../file.ts (2 levels up)
 
-function relativizePath(p: string): string {
+function relativizePath(p: string, basePath: string = process.cwd()): string {
   if (typeof p !== 'string' || !p) return p;
   if (path.isAbsolute(p)) {
-    const relative = path.relative(process.cwd(), p);
+    const relative = path.relative(basePath, p);
     // Only return relative if it's not too many ".." levels up
     // and not absolute (path.relative might return absolute on some systems/edge cases)
     if (
@@ -187,6 +188,7 @@ function relativizePath(p: string): string {
  * 3. Return FormattedTool with icon, name, and description
  *
  * @param tool - Tool use to format
+ * @param cwd - Current working directory for path relativization (defaults to process.cwd())
  * @returns Formatted tool with icon, name, and description
  *
  * @example
@@ -207,9 +209,10 @@ function relativizePath(p: string): string {
  * });
  * // Returns: { icon: '🔧', name: 'Edit', description: 'app.ts\n...(diff)...' }
  */
-export function formatToolUse(tool: ToolUse): FormattedTool {
+export function formatToolUse(tool: ToolUse, cwd?: string): FormattedTool {
   let inputDesc = '';
   let toolIcon = '🔧';
+  const effectiveCwd = cwd || process.cwd();
 
   // Normalize name for comparison (remove underscores, lowercase)
   const normName = tool.name.toLowerCase().replace(/_/g, '');
@@ -304,12 +307,12 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
       input.new_string
     ) {
       inputDesc = formatEditDiff(
-        relativizePath(input.file_path as string),
+        relativizePath(input.file_path as string, effectiveCwd),
         input.old_string as string,
         input.new_string as string
       );
     } else {
-      let filePathDesc = `file: ${relativizePath(input.file_path as string)}`;
+      let filePathDesc = `file: ${relativizePath(input.file_path as string, effectiveCwd)}`;
       if (typeof input.offset === 'number' && typeof input.limit === 'number') {
         filePathDesc += ` (offset: ${input.offset}, limit: ${input.limit})`;
       } else if (typeof input.offset === 'number') {
@@ -323,14 +326,14 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
     let desc = `pattern: ${input.pattern as string}`;
     const searchPath = (input.search_path || input.path) as string;
     if (searchPath) {
-      desc += ` in ${relativizePath(searchPath)}`;
+      desc += ` in ${relativizePath(searchPath, effectiveCwd)}`;
     }
     inputDesc = desc;
   } else if (normName === 'glob' && input.pattern) {
     let desc = `pattern: ${input.pattern as string}`;
     const globCwd = (input.cwd || input.search_cwd) as string;
     if (globCwd) {
-      desc += ` in ${relativizePath(globCwd)}`;
+      desc += ` in ${relativizePath(globCwd, effectiveCwd)}`;
     }
     inputDesc = desc;
   } else if (input.pattern) {
@@ -737,6 +740,7 @@ function formatSigmaTaskUpdate(
  * and description into a single display string.
  *
  * @param tool - Tool use to format
+ * @param cwd - Current working directory (defaults to process.cwd())
  * @returns Single-line formatted string combining all formatted components
  *
  * @example
@@ -746,8 +750,8 @@ function formatSigmaTaskUpdate(
  * });
  * // Returns: "🔧 Read: file: /src/config.ts"
  */
-export function formatToolUseMessage(tool: ToolUse): string {
-  const formatted = formatToolUse(tool);
+export function formatToolUseMessage(tool: ToolUse, cwd?: string): string {
+  const formatted = formatToolUse(tool, cwd);
   return `${formatted.icon} ${formatted.name}: ${formatted.description}`;
 }
 
@@ -759,11 +763,17 @@ export function formatToolUseMessage(tool: ToolUse): string {
  *
  * @param name - Tool name
  * @param result - Tool output
+ * @param cwd - Current working directory (defaults to process.cwd())
  * @returns Formatted result string, or empty if no specialized formatting
  */
-export function formatToolResult(name: string, result: unknown): string {
+export function formatToolResult(
+  name: string,
+  result: unknown,
+  cwd?: string
+): string {
   // Normalize name to handle snake_case and various forms
   const normalizedName = name.toLowerCase().replace(/_/g, '');
+  const effectiveCwd = cwd || process.cwd();
 
   if (
     normalizedName === 'readfile' ||
@@ -871,7 +881,7 @@ export function formatToolResult(name: string, result: unknown): string {
         // Handle "line:content" (single file/context) - align line numbers
         const lineMatch = line.match(/^(\d+):(.*)$/);
         // Handle "path:line:content" (multi file) - distinct colors
-        const pathMatch = line.match(/^(.+):(\d+):(.*)$/);
+        const pathMatch = line.match(/^(.+?):(\d+):(.*)$/);
 
         if (lineMatch) {
           const [, lineNum, content] = lineMatch;
@@ -880,7 +890,7 @@ export function formatToolResult(name: string, result: unknown): string {
           formattedLine = `${lineNumColor}${alignedLineNum}│${ANSI_RESET} ${gray}${content}${ANSI_RESET}`;
         } else if (pathMatch) {
           const [, fullPath, lineNum, content] = pathMatch;
-          const displayPath = relativizePath(fullPath);
+          const displayPath = relativizePath(fullPath, effectiveCwd);
           // Path in cyan, line number in gray, pipe separator
           formattedLine = `${cyan}${displayPath}:${lineNumColor}${lineNum}│${ANSI_RESET} ${gray}${content}${ANSI_RESET}`;
         } else {
@@ -888,7 +898,7 @@ export function formatToolResult(name: string, result: unknown): string {
         }
       } else if (isGlob) {
         // Glob output is paths - use cyan to match file prefixes in other tools
-        formattedLine = `${cyan}${relativizePath(line)}${ANSI_RESET}`;
+        formattedLine = `${cyan}${relativizePath(line, effectiveCwd)}${ANSI_RESET}`;
       } else {
         // Mute other output (bash, fetch, search) but keep it readable
         formattedLine = `${gray}${line}${ANSI_RESET}`;
