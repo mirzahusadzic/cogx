@@ -82,7 +82,7 @@ describe('ToolFormatter', () => {
 
       const result = formatToolUse(tool);
 
-      expect(result.description).toBe('npm test');
+      expect(result.description).toBe('\nnpm test\n');
     });
 
     it('formats Grep tool with pattern', () => {

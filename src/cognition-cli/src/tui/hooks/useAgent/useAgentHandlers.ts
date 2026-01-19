@@ -363,11 +363,25 @@ export function useAgentHandlers({
             }
             if (formattedResult) {
               setMessages((prev) => {
-                // We simply append the result.
-                // The previous message (which was streaming) stays as is, acting as the "log".
-                // This preserves the full output (tail-truncated) for the user to see.
+                // Clean up any remaining streaming markers from the previous message
+                const cleanedPrev = [...prev];
+                const lastIdx = cleanedPrev.length - 1;
+                if (
+                  lastIdx >= 0 &&
+                  cleanedPrev[lastIdx].type === 'tool_progress'
+                ) {
+                  cleanedPrev[lastIdx] = {
+                    ...cleanedPrev[lastIdx],
+                    content: cleanedPrev[lastIdx].content.replace(
+                      // eslint-disable-next-line no-control-regex
+                      /\n\x1b\[90m\(streaming\)\x1b\[0m$/,
+                      ''
+                    ),
+                  };
+                }
+
                 return [
-                  ...prev,
+                  ...cleanedPrev,
                   {
                     type: 'tool_progress',
                     content: formattedResult,
@@ -549,17 +563,18 @@ This will trigger a semantic compression event, flushing implementation noise wh
               const last = prev[prev.length - 1];
               if (last && last.type === 'tool_progress') {
                 isStreamingToolOutputRef.current = true;
-                // For streaming tool output, ensure there's a newline between
-                // the tool invocation and the first piece of output.
-                // ALSO: Reset color to default (or gray) so output doesn't inherit
-                // the tool header's color (usually yellow/orange).
-                const hasNewline = last.content.includes('\n');
 
-                // \x1b[0m resets all attributes (color, bold, etc.)
-                // \x1b[90m sets text to bright black (gray)
-                const prefix = hasNewline ? '' : '\n\x1b[0m\x1b[90m';
+                // Strip existing streaming marker if present from previous chunk
+                // Use a non-capturing group for the optional newline to avoid issues
+                let content = last.content.replace(
+                  // eslint-disable-next-line no-control-regex
+                  /(?:\n)?\x1b\[90m\(streaming\)\x1b\[0m$/,
+                  ''
+                );
 
-                let content = last.content + prefix + cleanChunk;
+                // Simply append the new chunk. If there are newlines in the chunk,
+                // they will be preserved. No need to add extra ones.
+                content = content + cleanChunk;
 
                 // FLOATING WINDOW LOGIC:
                 // If output becomes too long, truncate it to keep only the last 30 lines
@@ -569,7 +584,7 @@ This will trigger a semantic compression event, flushing implementation noise wh
                   // Split header from output
                   const outputPart = content.slice(header.length);
                   const lines = outputPart.split('\n');
-                  const MAX_STREAM_LINES = 30;
+                  const MAX_STREAM_LINES = 25;
 
                   if (lines.length > MAX_STREAM_LINES) {
                     // Keep the header and the last N lines
@@ -581,6 +596,13 @@ This will trigger a semantic compression event, flushing implementation noise wh
                       keptLines.join('\n');
                   }
                 }
+
+                // Add streaming marker to the end - this triggers stabilization in ClaudePanelAgent
+                // We ensure it starts on a new line unless it's already there
+                if (!content.endsWith('\n')) {
+                  content += '\n';
+                }
+                content += '\x1b[90m(streaming)\x1b[0m';
 
                 return [...prev.slice(0, -1), { ...last, content }];
               }

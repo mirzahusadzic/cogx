@@ -142,7 +142,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
           ) {
             baseColor = TUITheme.roles.tool; // Consistent green for Tasks
           } else if (msg.content.match(/[🔧📋📄🧠🔍🌐🛑📊🤖📨📢📬✅✨🚀]/u)) {
-            baseColor = TUITheme.roles.tool; // Green for all tools
+            baseColor = TUITheme.roles.tool; // Same for all tools
           }
 
           // Use [\s\S]* to capture multi-line content (dot (.) doesn't match newlines)
@@ -155,7 +155,8 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
             // FIX: Handle carriage returns to stabilize streaming output
             // This collapses "Progress 10%\rProgress 20%" into "Progress 20%"
-            let finalDetails = details.replace(/.*\r/g, '');
+            // We use [^\n]* to only match within a single line
+            let finalDetails = details.replace(/[^\n]*\r/g, '');
 
             const isEdit = toolName.includes('Edit:');
             const isTasks = toolName.includes('Tasks:');
@@ -204,14 +205,40 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
             // 2. DO NOT trim start if it starts with a newline (respect ToolFormatter intent)
             // 3. Wrap in code block to prevent markdown parsing of raw output
             const trimmedDetails = finalDetails.trimEnd();
-            const startsWithNewline = trimmedDetails.startsWith('\n');
-            const processDetails = shouldWrapInCode
-              ? '```' + lang + '\n' + trimmedDetails + '\n```'
-              : trimmedDetails;
 
-            const detailLines = markdownToLines(
+            // Layer 12: Floating Window Stabilization.
+            // If we are streaming tool output (e.g. bash), we want to prevent the header
+            // from jumping up and down as lines wrap or as the tail-truncation kicks in.
+            // We do this by ensuring the output block has a stable height (e.g. 30 lines)
+            // during the streaming process.
+            const isStreaming =
+              msg.content.includes('(streaming)') ||
+              msg.content.includes('(tail of stream)');
+            const STABILIZED_HEIGHT = 25; // Matches useAgentHandlers MAX_STREAM_LINES
+
+            // For streaming output, force a leading newline.
+            // This ensures the "ToolName:" header is always on its own line,
+            // separating it from the scrolling content and allowing full-width rendering.
+            let effectiveDetails = trimmedDetails;
+            if (isStreaming && !effectiveDetails.startsWith('\n')) {
+              effectiveDetails = '\n' + effectiveDetails;
+            }
+
+            const startsWithNewline = effectiveDetails.startsWith('\n');
+            const processDetails = shouldWrapInCode
+              ? '```' + lang + '\n' + effectiveDetails + '\n```'
+              : effectiveDetails;
+
+            // Layer 11: Stabilize width for multi-line tool output.
+            // If it starts with a newline, it doesn't share the first line with the header,
+            // so we don't need to subtract the tool name length.
+            const detailsWidthReduction = startsWithNewline
+              ? 0
+              : stripAnsi(toolName).length + 1;
+
+            let detailLines = markdownToLines(
               processDetails,
-              width - prefix.length - stripAnsi(toolName).length - 1 - 4,
+              width - prefix.length - detailsWidthReduction - 4,
               {
                 baseColor: TUITheme.roles.toolResult,
                 baseBg: bg,
@@ -222,6 +249,15 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                     : TUITheme.roles.toolResult,
               }
             );
+
+            // Layer 12: Stabilization - Truncate to visual window
+            if (isStreaming && detailLines.length > STABILIZED_HEIGHT) {
+              // Keep the first line (header anchor) and the last (H-1) lines of content
+              detailLines = [
+                detailLines[0],
+                ...detailLines.slice(-(STABILIZED_HEIGHT - 1)),
+              ];
+            }
 
             if (detailLines.length > 0) {
               const firstLine = detailLines[0];
@@ -255,6 +291,26 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                   bg,
                 });
                 lines.push(detailLines[i]);
+              }
+
+              // Layer 12: Floating Window Stabilization - Padding
+              if (isStreaming && detailLines.length < STABILIZED_HEIGHT) {
+                const indentSize = startsWithNewline
+                  ? prefix.length
+                  : prefix.length + stripAnsi(toolName).length + 1;
+                const indent = ' '.repeat(indentSize + 4);
+
+                for (let i = detailLines.length; i < STABILIZED_HEIGHT; i++) {
+                  lines.push({
+                    chunks: [
+                      {
+                        text: indent,
+                        color: TUITheme.roles.toolResult,
+                        bg,
+                      },
+                    ],
+                  });
+                }
               }
             } else {
               lines.push({
