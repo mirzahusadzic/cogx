@@ -904,7 +904,7 @@ export function formatToolResult(
         formattedLine = `${gray}${line}${ANSI_RESET}`;
       }
 
-      return `    ${formattedLine}`;
+      return formattedLine;
     });
 
     if (wasTruncated) {
@@ -913,11 +913,11 @@ export function formatToolResult(
     } else if (lines.length > MAX_LINES) {
       // Legacy check (shouldn't be reached with new logic, but safe to keep)
       resultLines.push(
-        `    ${gray}... (truncated ${lines.length - MAX_LINES} more lines)${ANSI_RESET}`
+        `${gray}... (truncated ${lines.length - MAX_LINES} more lines)${ANSI_RESET}`
       );
     }
 
-    return resultLines.length > 0 ? resultLines.join('\n') : '    (empty)';
+    return resultLines.length > 0 ? resultLines.join('\n') : '(empty)';
   }
 
   // Default: don't show result for other tools to keep UI clean

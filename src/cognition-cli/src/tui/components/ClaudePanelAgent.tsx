@@ -33,6 +33,9 @@ export interface ClaudePanelAgentProps {
   /** Whether this panel is currently focused for scrolling */
   focused: boolean;
 
+  /** Whether the Sigma Info Panel (sidebar) is currently visible */
+  showInfoPanel?: boolean;
+
   /** Content being streamed during paste operation */
   streamingPaste?: string;
 
@@ -78,6 +81,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   messages,
   isThinking,
   focused,
+  showInfoPanel = false,
   streamingPaste = '',
   layoutVersion, // Used implicitly by React.memo to trigger re-renders on layout changes
 }) => {
@@ -95,10 +99,11 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
   // Build colored text lines with color metadata
   // PERFORMANCE: Decouple message rendering from paste streaming
-  // This memo only re-runs when messages change or terminal width changes
+  // This memo only re-runs when messages change, terminal width changes or layout changes
   const renderedMessages = useMemo(() => {
     const lines: StyledLine[] = [];
-    const width = (stdout?.columns || 100) - 4; // Account for padding
+    const infoPanelWidth = showInfoPanel ? 41 : 0; // 40 (width) + 1 (marginLeft)
+    const width = Math.max(20, (stdout?.columns || 100) - 2 - infoPanelWidth); // Account for padding and sidebar
 
     messages.forEach((msg) => {
       let prefix = '';
@@ -206,7 +211,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
             const detailLines = markdownToLines(
               processDetails,
-              width - prefix.length - stripAnsi(toolName).length - 1,
+              width - prefix.length - stripAnsi(toolName).length - 1 - 4,
               {
                 baseColor: TUITheme.roles.toolResult,
                 baseBg: bg,
@@ -243,10 +248,10 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                 const indentSize = startsWithNewline
                   ? prefix.length
                   : prefix.length + stripAnsi(toolName).length + 1;
-                const indent = ' '.repeat(indentSize);
+                const indent = ' '.repeat(indentSize + 4);
                 detailLines[i].chunks.unshift({
                   text: indent,
-                  color: baseColor,
+                  color: TUITheme.roles.toolResult,
                   bg,
                 });
                 lines.push(detailLines[i]);
@@ -273,11 +278,12 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       // Universal Markdown Renderer for all message types
       const renderedLines = markdownToLines(
         msg.content,
-        width - prefix.length,
+        width - prefix.length - (msg.type === 'tool_progress' ? 4 : 0),
         {
           baseColor: color,
           baseBg: bg,
           baseDim: msg.type === 'thinking',
+          wrapIndent: msg.type === 'tool_progress' ? 4 : undefined,
           bulletColor: msg.type === 'thinking' ? color : undefined,
           // For thinking blocks, force code to match the vibrant role color
           // while the surrounding text is dimmed.
@@ -303,7 +309,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       if (renderedLines.length > 0) {
         // Prepend prefix to the first line
         renderedLines[0].chunks.unshift({
-          text: prefix,
+          text: prefix + (msg.type === 'tool_progress' ? '    ' : ''),
           color,
           bg,
           bold: msg.type === 'user',
@@ -311,10 +317,12 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
         });
 
         // Add subsequent lines with proper indentation
-        if (prefix.length > 0) {
+        if (prefix.length > 0 || msg.type === 'tool_progress') {
           for (let i = 1; i < renderedLines.length; i++) {
             renderedLines[i].chunks.unshift({
-              text: ' '.repeat(prefix.length),
+              text:
+                ' '.repeat(prefix.length) +
+                (msg.type === 'tool_progress' ? '    ' : ''),
               color,
               bg,
               dim: msg.type === 'thinking',
@@ -330,7 +338,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
     });
 
     return lines;
-  }, [messages, stdout?.columns]);
+  }, [messages, stdout?.columns, showInfoPanel]);
 
   // Merge static messages with dynamic paste content
   // This is the HOT path during pastes, so we keep it very light
@@ -543,7 +551,6 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       borderColor={
         focused ? TUITheme.ui.border.focused : TUITheme.ui.border.default
       }
-      width="100%"
       paddingX={1}
     >
       <Box flexDirection="column" flexGrow={1}>
@@ -556,7 +563,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                   return (
                     <Text
                       key={cIdx}
-                      color={hasAnsi ? undefined : chunk.color}
+                      color={chunk.color}
                       backgroundColor={chunk.bg}
                       bold={chunk.bold}
                       italic={chunk.italic}

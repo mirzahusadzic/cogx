@@ -129,13 +129,13 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
   return (
     <Box
       flexDirection="column"
-      width="100%"
+      width={dimensions.columns}
       height={dimensions.rows}
       paddingTop={0}
       marginTop={0}
       backgroundColor={TUITheme.background.primary}
     >
-      <Box flexShrink={0} flexDirection="column">
+      <Box flexShrink={0} flexDirection="column" width={dimensions.columns}>
         <ComponentErrorBoundary componentName="OverlaysBar">
           <OverlaysBar
             sigmaStats={sigmaStats}
@@ -151,18 +151,24 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
       </Box>
 
       {/* Use flexGrow: 1 to automatically fill available space */}
-      <Box flexGrow={1} flexShrink={1} width="100%" flexDirection="row">
+      <Box
+        flexGrow={1}
+        flexShrink={1}
+        width={dimensions.columns}
+        flexDirection="row"
+      >
         <ComponentErrorBoundary componentName="ClaudePanelAgent">
           <ClaudePanelAgent
             messages={filteredMessages}
             isThinking={isThinking}
             focused={!focused}
+            showInfoPanel={showInfoPanel}
             streamingPaste={streamingPaste}
             layoutVersion={`${inputLineCount}-${isDropdownVisible}-${dimensions.rows}-${dimensions.columns}`}
           />
         </ComponentErrorBoundary>
         {showInfoPanel && sigmaStats && (
-          <Box marginLeft={1} flexShrink={0}>
+          <Box marginLeft={1} flexShrink={0} width={40}>
             <ComponentErrorBoundary componentName="SigmaInfoPanel">
               <SigmaInfoPanel sigmaStats={sigmaStats} overlays={avgOverlays} />
             </ComponentErrorBoundary>

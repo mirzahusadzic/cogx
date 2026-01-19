@@ -53,6 +53,7 @@ export interface MarkdownRendererOptions {
   strongDim?: boolean;
   emphasisDim?: boolean;
   vibrantTitles?: string[];
+  wrapIndent?: number;
 }
 
 /**
@@ -60,6 +61,7 @@ export interface MarkdownRendererOptions {
  */
 interface RendererState extends Partial<TextChunk> {
   indent: number;
+  wrapIndent?: number;
   suppressInitialGap?: boolean;
 }
 
@@ -100,6 +102,7 @@ export class MarkdownRenderer {
         bg: this.options.baseBg,
         dim: this.options.baseDim,
         indent: 0,
+        wrapIndent: this.options.wrapIndent,
       })
     );
 
@@ -155,9 +158,10 @@ export class MarkdownRenderer {
         if (part) this.addChunk({ ...chunk, text: part }, state);
         if (i < parts.length - 1) {
           this.flushLine();
-          if (state.indent > 0) {
+          const totalIndent = state.indent + (state.wrapIndent || 0);
+          if (totalIndent > 0) {
             this.currentLine.chunks.push({
-              text: ' '.repeat(state.indent),
+              text: ' '.repeat(totalIndent),
               color: state.color,
               bg: state.bg,
               dim: state.dim,
@@ -172,9 +176,10 @@ export class MarkdownRenderer {
       this.options.width - this.getLineLength(this.currentLine);
 
     // Ensure indentation is applied to the start of a fresh line
-    if (this.currentLine.chunks.length === 0 && state.indent > 0) {
+    const totalIndent = state.indent + (state.wrapIndent || 0);
+    if (this.currentLine.chunks.length === 0 && totalIndent > 0) {
       this.currentLine.chunks.push({
-        text: ' '.repeat(state.indent),
+        text: ' '.repeat(totalIndent),
         color: state.color,
         bg: state.bg,
         dim: state.dim,
@@ -213,9 +218,10 @@ export class MarkdownRenderer {
           }
 
           // Apply indent for the new wrapped line
-          if (state.indent > 0) {
+          const totalIndent = state.indent + (state.wrapIndent || 0);
+          if (totalIndent > 0) {
             this.currentLine.chunks.push({
-              text: ' '.repeat(state.indent),
+              text: ' '.repeat(totalIndent),
               color: state.color,
               bg: state.bg,
               dim: state.dim,
@@ -405,6 +411,7 @@ export class MarkdownRenderer {
               text: ' '.repeat(state.indent),
               color: state.color,
               bg: state.bg,
+              dim: state.dim,
             });
           }
 
@@ -414,6 +421,7 @@ export class MarkdownRenderer {
             color: this.options.bulletColor || TUITheme.roles.assistant,
             bg: state.bg,
             bold: true,
+            dim: state.dim,
           });
 
           // Pass the bullet length as indent for the list item content
