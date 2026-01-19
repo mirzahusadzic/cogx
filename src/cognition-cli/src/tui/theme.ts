@@ -5,9 +5,9 @@ export const TUITheme = {
     secondary: '#94a3b8', // Slate gray
     tertiary: '#8b9cb0', // Muted blue-gray (Improved contrast)
     inverse: '#0d131c', // Dark background
-    error: '#ffb1ab', // Red (+15% brightness)
+    error: '#ff7b72', // Red
     warning: '#fcae27', // Amber
-    success: '#5ee2b0', // Emerald (+15% brightness)
+    success: '#34d399', // Emerald
   },
 
   // Background colors (AIEcho Palette)
@@ -53,7 +53,7 @@ export const TUITheme = {
   overlays: {
     o1_structural: '#4dd0e1', // Cyan 300
     o2_security: '#fcae27', // Amber (Keep for visibility)
-    o3_lineage: '#5ee2b0', // Green (+15% brightness)
+    o3_lineage: '#34d399', // Green
     o4_mission: '#80deea', // Cyan 200
     o5_operational: '#94a3b8', // Slate (Neutral)
     o6_mathematical: '#26c6da', // Cyan 400
@@ -75,9 +75,9 @@ export const TUITheme = {
       background: '#090e14',
     },
     diff: {
-      add: '#5ee2b0', // Green (+15% brightness)
+      add: '#34d399', // Green
       addBg: '#11221a',
-      remove: '#ffb1ab', // Red (+15% brightness)
+      remove: '#ff7b72', // Red
       removeBg: '#2a1414',
       header: '#4dd0e1', // Cyan
       meta: '#828c9b', // Muted
@@ -98,9 +98,9 @@ export const TUITheme = {
       content: '#a0b0c0', // Silver
     },
     spinner: '#4dd0e1', // Cyan
-    error: '#ffb1ab',
+    error: '#ff7b72',
     warning: '#fcae27',
-    success: '#5ee2b0',
+    success: '#34d399',
   },
 
   // Cognition markers

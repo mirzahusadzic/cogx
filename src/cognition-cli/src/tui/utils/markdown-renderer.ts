@@ -353,7 +353,10 @@ export class MarkdownRenderer {
             ...state,
             text: ic.value,
             color: this.options.inlineCodeColor || TUITheme.syntax.code.inline,
-            bg: this.options.inlineCodeBg || TUITheme.syntax.code.inlineBg || state.bg,
+            bg:
+              this.options.inlineCodeBg ||
+              TUITheme.syntax.code.inlineBg ||
+              state.bg,
             bold:
               this.options.inlineCodeBold !== undefined
                 ? this.options.inlineCodeBold
@@ -376,6 +379,7 @@ export class MarkdownRenderer {
         codeLines.forEach((line) => {
           let lineColor =
             this.options.codeBlockColor || TUITheme.syntax.code.block;
+          let lineBg = state.bg;
 
           // Simple Diff Highlighting (only if no override provided)
           if (
@@ -384,8 +388,10 @@ export class MarkdownRenderer {
           ) {
             if (line.startsWith('+')) {
               lineColor = TUITheme.syntax.diff.add;
+              lineBg = TUITheme.syntax.diff.addBg;
             } else if (line.startsWith('-')) {
               lineColor = TUITheme.syntax.diff.remove;
+              lineBg = TUITheme.syntax.diff.removeBg;
             } else if (line.startsWith('@')) {
               lineColor = TUITheme.syntax.diff.header;
             } else if (line.startsWith('index') || line.startsWith('diff')) {
@@ -398,7 +404,7 @@ export class MarkdownRenderer {
             {
               text: line,
               color: lineColor,
-              bg: state.bg,
+              bg: lineBg,
               dim:
                 this.options.codeBlockDim !== undefined
                   ? this.options.codeBlockDim
