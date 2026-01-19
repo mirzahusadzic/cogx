@@ -136,7 +136,7 @@ describe('Tool Executors', () => {
 
       expect(globLib).toHaveBeenCalledWith(
         '*.ts',
-        expect.objectContaining({ cwd: '/cwd' })
+        expect.objectContaining({ cwd: '/cwd', absolute: false })
       );
       expect(result).toContain('/path/file1.ts');
       expect(result).toContain('/path/file2.ts');
@@ -171,12 +171,31 @@ describe('Tool Executors', () => {
 
       expect(spawn).toHaveBeenCalledWith(
         'rg',
-        expect.arrayContaining(['pattern']),
-        expect.any(Object)
+        expect.arrayContaining(['pattern', '.']),
+        expect.objectContaining({ cwd: '/cwd' })
       );
       expect(result).toContain('match found');
 
       vi.useRealTimers();
+    });
+
+    test('should relativize absolute search path', async () => {
+      const mockProc = createMockProc();
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      mockProc.kill = () => {};
+      vi.mocked(spawn).mockReturnValue(mockProc);
+
+      const promise = executeGrep('pattern', '/cwd/src', undefined, '/cwd');
+
+      await new Promise((resolve) => process.nextTick(resolve));
+      mockProc.emit('close', 0);
+      await promise;
+
+      expect(spawn).toHaveBeenCalledWith(
+        'rg',
+        expect.arrayContaining(['pattern', 'src']),
+        expect.objectContaining({ cwd: '/cwd' })
+      );
     });
   });
 

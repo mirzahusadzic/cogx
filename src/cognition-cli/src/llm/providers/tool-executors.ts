@@ -215,7 +215,7 @@ export async function executeGlob(
     const files = await globLib(pattern, {
       cwd,
       nodir: true,
-      absolute: true,
+      absolute: false,
     });
     return files.slice(0, 100).join('\n') || 'No matches found';
   } catch (error) {
@@ -236,7 +236,12 @@ export async function executeGrep(
   return new Promise((resolve) => {
     const args = ['--color=never', '-n', pattern];
     if (glob_filter) args.push('--glob', glob_filter);
-    args.push(search_path || cwd);
+
+    const searchPathArg = search_path || cwd;
+    const targetPath = path.isAbsolute(searchPathArg)
+      ? path.relative(cwd, searchPathArg)
+      : searchPathArg;
+    args.push(targetPath || '.');
 
     const proc = spawn('rg', args, { cwd });
 

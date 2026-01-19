@@ -90,6 +90,7 @@
 
 import * as Diff from 'diff';
 import * as fs from 'fs';
+import * as path from 'path';
 import stripAnsi from 'strip-ansi';
 import {
   stripCursorSequences,
@@ -137,6 +138,34 @@ export interface FormattedTool {
    * (may include diffs, command text, or formatted input)
    */
   description: string;
+}
+
+/**
+ * Relativize an absolute path to the current working directory.
+ * Used to reduce clutter in tool output display.
+ *
+ * @param p - Path to relativize
+ * @returns Relative path if possible, otherwise original path
+ */
+// Only relativize if the path doesn't go too many levels up (e.g., ../../../src/file.ts)
+const MAX_PARENT_DIR_DEPTH_FOR_RELATIVE_PATH = 2; // e.g., ../../file.ts (2 levels up)
+
+function relativizePath(p: string): string {
+  if (typeof p !== 'string' || !p) return p;
+  if (path.isAbsolute(p)) {
+    const relative = path.relative(process.cwd(), p);
+    // Only return relative if it's not too many ".." levels up
+    // and not absolute (path.relative might return absolute on some systems/edge cases)
+    if (
+      !relative.startsWith(
+        '../'.repeat(MAX_PARENT_DIR_DEPTH_FOR_RELATIVE_PATH + 1)
+      ) &&
+      !path.isAbsolute(relative)
+    ) {
+      return relative;
+    }
+  }
+  return p;
 }
 
 /**
@@ -275,12 +304,12 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
       input.new_string
     ) {
       inputDesc = formatEditDiff(
-        input.file_path as string,
+        relativizePath(input.file_path as string),
         input.old_string as string,
         input.new_string as string
       );
     } else {
-      let filePathDesc = `file: ${input.file_path as string}`;
+      let filePathDesc = `file: ${relativizePath(input.file_path as string)}`;
       if (typeof input.offset === 'number' && typeof input.limit === 'number') {
         filePathDesc += ` (offset: ${input.offset}, limit: ${input.limit})`;
       } else if (typeof input.offset === 'number') {
@@ -290,6 +319,20 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
       }
       inputDesc = filePathDesc;
     }
+  } else if (normName === 'grep' && input.pattern) {
+    let desc = `pattern: ${input.pattern as string}`;
+    const searchPath = (input.search_path || input.path) as string;
+    if (searchPath) {
+      desc += ` in ${relativizePath(searchPath)}`;
+    }
+    inputDesc = desc;
+  } else if (normName === 'glob' && input.pattern) {
+    let desc = `pattern: ${input.pattern as string}`;
+    const globCwd = (input.cwd || input.search_cwd) as string;
+    if (globCwd) {
+      desc += ` in ${relativizePath(globCwd)}`;
+    }
+    inputDesc = desc;
   } else if (input.pattern) {
     inputDesc = `pattern: ${input.pattern as string}`;
   } else if (
@@ -836,15 +879,16 @@ export function formatToolResult(name: string, result: unknown): string {
           const alignedLineNum = lineNum.padStart(6, ' ');
           formattedLine = `${lineNumColor}${alignedLineNum}│${ANSI_RESET} ${gray}${content}${ANSI_RESET}`;
         } else if (pathMatch) {
-          const [, path, lineNum, content] = pathMatch;
+          const [, fullPath, lineNum, content] = pathMatch;
+          const displayPath = relativizePath(fullPath);
           // Path in cyan, line number in gray, pipe separator
-          formattedLine = `${cyan}${path}:${lineNumColor}${lineNum}│${ANSI_RESET} ${gray}${content}${ANSI_RESET}`;
+          formattedLine = `${cyan}${displayPath}:${lineNumColor}${lineNum}│${ANSI_RESET} ${gray}${content}${ANSI_RESET}`;
         } else {
           formattedLine = `${gray}${line}${ANSI_RESET}`;
         }
       } else if (isGlob) {
         // Glob output is paths - use cyan to match file prefixes in other tools
-        formattedLine = `${cyan}${line}${ANSI_RESET}`;
+        formattedLine = `${cyan}${relativizePath(line)}${ANSI_RESET}`;
       } else {
         // Mute other output (bash, fetch, search) but keep it readable
         formattedLine = `${gray}${line}${ANSI_RESET}`;
