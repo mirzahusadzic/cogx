@@ -12,6 +12,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Text, useStdout } from 'ink';
 import { systemLog } from '../../utils/debug-logger.js';
 import type { WizardConfirmationState } from '../hooks/useOnboardingWizard.js';
+import { TUITheme } from '../theme.js';
 
 export interface WizardConfirmationModalProps {
   state: WizardConfirmationState;
@@ -108,12 +109,12 @@ const WizardConfirmationModalComponent: React.FC<
       <Box
         flexDirection="column"
         borderStyle="round"
-        borderColor="yellow"
+        borderColor={TUITheme.ui.warning}
         paddingX={1}
       >
         {/* Title */}
         <Box>
-          <Text color="yellow" bold>
+          <Text color={TUITheme.ui.warning} bold>
             [?]{' '}
           </Text>
           <Text bold>{title}</Text>
@@ -151,7 +152,12 @@ const WizardConfirmationModalComponent: React.FC<
               }
 
               return (
-                <Text key={item.id} color={isHighlighted ? 'green' : 'white'}>
+                <Text
+                  key={item.id}
+                  color={
+                    isHighlighted ? TUITheme.roles.user : TUITheme.text.primary
+                  }
+                >
                   {line}
                   {'\n'}
                 </Text>
@@ -162,11 +168,11 @@ const WizardConfirmationModalComponent: React.FC<
 
         {/* Footer with scroll indicators */}
         <Box borderTop justifyContent="space-between">
-          <Text color="gray" dimColor>
+          <Text color={TUITheme.text.secondary} dimColor>
             ↑↓ Navigate | Space Toggle | Enter {confirmLabel} | Esc {denyLabel}
           </Text>
           {hasMore && (
-            <Text color="gray" dimColor>
+            <Text color={TUITheme.text.secondary} dimColor>
               {actualOffset > 0 && `↑${actualOffset} `}
               {actualOffset < maxOffset && `↓${maxOffset - actualOffset}`}
             </Text>
@@ -181,12 +187,12 @@ const WizardConfirmationModalComponent: React.FC<
     <Box
       flexDirection="column"
       borderStyle="round"
-      borderColor="yellow"
+      borderColor={TUITheme.ui.warning}
       paddingX={1}
     >
       <Box flexDirection="column">
         <Box>
-          <Text color="yellow" bold>
+          <Text color={TUITheme.ui.warning} bold>
             [?]{' '}
           </Text>
           <Text bold>{title}</Text>
@@ -197,7 +203,7 @@ const WizardConfirmationModalComponent: React.FC<
       </Box>
 
       <Box borderTop justifyContent="space-between" marginTop={1}>
-        <Text color="gray" dimColor>
+        <Text color={TUITheme.text.secondary} dimColor>
           {confirmLabel} | {denyLabel} | Esc Cancel
         </Text>
       </Box>

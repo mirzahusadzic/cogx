@@ -3,6 +3,7 @@ import { Box, Text } from 'ink';
 import { formatToolInput, extractBaseCommand } from '../utils/tool-safety.js';
 import { formatToolUse } from '../hooks/rendering/ToolFormatter.js';
 import type { ToolConfirmationState } from '../hooks/useToolConfirmation.js';
+import { TUITheme } from '../theme.js';
 
 /**
  * Props for ToolConfirmationModal component
@@ -107,22 +108,26 @@ const ToolConfirmationModalComponent: React.FC<ToolConfirmationModalProps> = ({
     <Box
       flexDirection="column"
       borderStyle="round"
-      borderColor="yellow"
+      borderColor={TUITheme.ui.warning}
       paddingX={1}
     >
       {/* Tool and file path only - diff shown in main window */}
       <Box>
-        <Text color="yellow" bold>
+        <Text color={TUITheme.ui.warning} bold>
           [!]{' '}
         </Text>
         <Text bold>{formattedTool.name}</Text>
         <Text dimColor>: </Text>
-        <Text color="cyan">{displayDescription}</Text>
+        <Text color={TUITheme.text.primary}>{displayDescription}</Text>
       </Box>
 
       {/* Compact footer with options - same style as CommandDropdown */}
-      <Box borderTop borderColor="gray" justifyContent="space-between">
-        <Text color="gray" dimColor>
+      <Box
+        borderTop
+        borderColor={TUITheme.ui.border.dim}
+        justifyContent="space-between"
+      >
+        <Text color={TUITheme.text.secondary} dimColor>
           Y Allow | N Deny | A Always ({alwaysLabel}) | Esc
         </Text>
       </Box>

@@ -11,11 +11,11 @@
  *
  * Tool-Specific Strategies:
  * 1. Edit: Character-level diff with colored backgrounds
- *    - Removed lines: dark red background (\x1b[48;5;52m)
- *    - Added lines: dark olive background (\x1b[48;5;58m)
+ *    - Removed lines: Red background
+ *    - Added lines: Green background
  *    - Unchanged lines: no highlighting
  *
- * 2. SigmaTaskUpdate: Status icons with color coding
+ * 2. SigmaTaskUpdate: 📋 Tasks - Status icons with color coding
  *    - Completed: ✓ (green)
  *    - In Progress: → (yellow)
  *    - Pending: ○ (gray)
@@ -27,7 +27,7 @@
  *
  * 5. Background Tasks: Clean, human-readable output (no JSON)
  *    - KillShell: 🛑 Stop Shell - shell <id>
- *    - BashOutput: 📋 Check Output - shell <id>
+ *    - BashOutput: 📄 Check Output - shell <id>
  *    - Background Tasks: 📊 Background Tasks - checking status
  *
  * 6. Agent Messaging: Inter-agent communication tools
@@ -90,7 +90,14 @@
 
 import * as Diff from 'diff';
 import * as fs from 'fs';
-import { stripCursorSequences } from '../../utils/ansi-utils.js';
+import stripAnsi from 'strip-ansi';
+import {
+  stripCursorSequences,
+  hexToAnsi,
+  hexToAnsiBg,
+  ANSI_RESET,
+} from '../../utils/ansi-utils.js';
+import { TUITheme } from '../../theme.js';
 
 /**
  * Tool use input from SDK
@@ -175,16 +182,48 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
   let inputDesc = '';
   let toolIcon = '🔧';
 
+  // Normalize name for comparison (remove underscores, lowercase)
+  const normName = tool.name.toLowerCase().replace(/_/g, '');
+
+  // Robust handling for input (handle strings, nested input)
+  let input = tool.input;
+  if (typeof input === 'string') {
+    try {
+      input = JSON.parse(input);
+    } catch {
+      // Not JSON, keep as string
+    }
+  }
+  // Handle Gemini/MCP double wrapping if it occurs
+  if (
+    input &&
+    typeof input === 'object' &&
+    'input' in input &&
+    Object.keys(input).length === 1
+  ) {
+    input = (input as Record<string, unknown>).input as Record<string, unknown>;
+  }
+
   // Normalize tool name: snake_case → PascalCase (e.g., read_file → Read)
   const normalizeName = (name: string): string => {
     // Handle special cases first
     if (name === 'WebSearch' || name === 'WebFetch') return name;
-    if (name.startsWith('mcp__')) return name;
+    if (name.startsWith('mcp__')) {
+      const parts = name.split('__');
+      return parts[parts.length - 1];
+    }
 
-    // Convert snake_case to PascalCase: read_file → Read, write_file → Write
+    // Special cases for common file tools to keep them short
+    if (name === 'read_file') return 'Read';
+    if (name === 'write_file') return 'Write';
+    if (name === 'edit_file') return 'Edit';
+
+    // Convert snake_case to PascalCase: sigma_task_update → SigmaTaskUpdate
     if (name.includes('_')) {
-      const base = name.split('_')[0]; // read_file → read
-      return base.charAt(0).toUpperCase() + base.slice(1); // read → Read
+      return name
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join('');
     }
 
     // Return as-is if already PascalCase
@@ -195,78 +234,79 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
 
   // Special formatting for memory recall tool (both MCP and Gemini versions)
   if (
-    tool.name === 'mcp__conversation-memory__recall_past_conversation' ||
-    tool.name === 'recall_past_conversation'
+    normName === 'recallpastconversation' ||
+    normName.includes('recallpastconversation')
   ) {
     toolIcon = '🧠';
     toolName = 'Recall';
-    if (tool.input.query) {
-      inputDesc = `"${tool.input.query as string}"`;
+    if (input.query) {
+      inputDesc = `"${input.query as string}"`;
     } else {
-      inputDesc = JSON.stringify(tool.input);
+      inputDesc = JSON.stringify(input);
     }
-  } else if (tool.name === 'WebSearch') {
+  } else if (normName === 'websearch') {
     toolIcon = '🔍';
-    if (tool.input.request) {
-      inputDesc = `${tool.input.request as string}`;
-    } else if (tool.input.query) {
+    if (input.request) {
+      inputDesc = `${input.request as string}`;
+    } else if (input.query) {
       // Handle cases where 'query' might be used instead of 'request'
-      inputDesc = `"${tool.input.query as string}"`;
+      inputDesc = `"${input.query as string}"`;
     } else {
-      inputDesc = JSON.stringify(tool.input);
+      inputDesc = JSON.stringify(input);
     }
-  } else if (tool.name === 'fetch_url') {
+  } else if (normName === 'fetchurl') {
     toolIcon = '🌐';
-    if (tool.input.url) {
-      inputDesc = `${tool.input.url as string}`;
+    if (input.url) {
+      inputDesc = `${input.url as string}`;
     } else {
-      inputDesc = JSON.stringify(tool.input);
+      inputDesc = JSON.stringify(input);
     }
-  } else if (tool.input.command) {
+  } else if (input.command) {
     // For Bash, show the actual command (not the description)
-    inputDesc = `${tool.input.command as string}`;
-  } else if (tool.input.description) {
-    inputDesc = tool.input.description as string;
-  } else if (tool.input.file_path) {
+    inputDesc = `${input.command as string}`;
+  } else if (input.description && !input.todos) {
+    // Show description if it's not a task update (which has its own formatting)
+    inputDesc = input.description as string;
+  } else if (input.file_path) {
     // For Edit tool, show character-level diff with background colors
     if (
-      (tool.name === 'Edit' || tool.name === 'edit_file') &&
-      tool.input.old_string &&
-      tool.input.new_string
+      (normName === 'edit' || normName === 'editfile') &&
+      input.old_string &&
+      input.new_string
     ) {
       inputDesc = formatEditDiff(
-        tool.input.file_path as string,
-        tool.input.old_string as string,
-        tool.input.new_string as string
+        input.file_path as string,
+        input.old_string as string,
+        input.new_string as string
       );
     } else {
-      let filePathDesc = `file: ${tool.input.file_path as string}`;
-      if (
-        typeof tool.input.offset === 'number' &&
-        typeof tool.input.limit === 'number'
-      ) {
-        filePathDesc += ` (offset: ${tool.input.offset}, limit: ${tool.input.limit})`;
-      } else if (typeof tool.input.offset === 'number') {
-        filePathDesc += ` (offset: ${tool.input.offset})`;
-      } else if (typeof tool.input.limit === 'number') {
-        filePathDesc += ` (limit: ${tool.input.limit})`;
+      let filePathDesc = `file: ${input.file_path as string}`;
+      if (typeof input.offset === 'number' && typeof input.limit === 'number') {
+        filePathDesc += ` (offset: ${input.offset}, limit: ${input.limit})`;
+      } else if (typeof input.offset === 'number') {
+        filePathDesc += ` (offset: ${input.offset})`;
+      } else if (typeof input.limit === 'number') {
+        filePathDesc += ` (limit: ${input.limit})`;
       }
       inputDesc = filePathDesc;
     }
-  } else if (tool.input.pattern) {
-    inputDesc = `pattern: ${tool.input.pattern as string}`;
+  } else if (input.pattern) {
+    inputDesc = `pattern: ${input.pattern as string}`;
   } else if (
-    (tool.name === 'SigmaTaskUpdate' ||
-      tool.name === 'mcp__sigma-task-update__SigmaTaskUpdate') &&
-    tool.input.todos
+    normName === 'sigmataskupdate' ||
+    normName.includes('sigmataskupdate')
   ) {
-    toolName = 'Tasks';
-    inputDesc = formatSigmaTaskUpdate(
-      tool.input.todos as SigmaTodo[],
-      tool.input.grounding as SigmaGrounding[],
-      tool.input.grounding_evidence as SigmaGroundingEvidence[]
-    );
-  } else if (tool.name === 'WebFetch' && tool.input.url) {
+    const taskInput = input as SigmaTaskUpdateInput;
+    if (taskInput.todos) {
+      toolIcon = '📋';
+      toolName = 'Tasks';
+      const todos = taskInput.todos;
+      const grounding = taskInput.grounding;
+      const groundingEvidence = taskInput.grounding_evidence;
+
+      inputDesc = formatSigmaTaskUpdate(todos, grounding, groundingEvidence);
+    }
+  } else if (normName === 'webfetch' && input.url) {
     toolIcon = '🌐';
     inputDesc = tool.input.url as string;
   } else if (tool.name === 'KillShell') {
@@ -278,7 +318,7 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
       inputDesc = 'background task';
     }
   } else if (tool.name === 'BashOutput') {
-    toolIcon = '📋';
+    toolIcon = '📄';
     toolName = 'Check Output';
     if (tool.input.bash_id) {
       inputDesc = `shell ${tool.input.bash_id as string}`;
@@ -419,39 +459,20 @@ export function formatToolUse(tool: ToolUse): FormattedTool {
  *    a. Split into lines
  *    b. If added:
  *       - Prefix with green '+' symbol
- *       - Apply dark olive background (\x1b[48;5;58m)
- *       - Use bright white text (\x1b[97m)
+ *       - Apply green background
+ *       - Use bright white text
  *    c. If removed:
  *       - Prefix with red '-' symbol
- *       - Apply dark red background (\x1b[48;5;52m)
- *       - Use bright white text (\x1b[97m)
+ *       - Apply red background
+ *       - Use bright white text
  *    d. If unchanged:
  *       - No prefix or coloring
  * 4. Join lines and return formatted diff
- *
- * Color Codes Used:
- * - \x1b[48;5;58m: Dark olive background (for additions)
- * - \x1b[48;5;52m: Dark red background (for deletions)
- * - \x1b[97m: Bright white text
- * - \x1b[32m: Green text (+ symbol)
- * - \x1b[31m: Red text (- symbol)
- * - \x1b[0m: Reset all formatting
  *
  * @param filePath - Path to file being edited
  * @param oldString - Original content being replaced
  * @param newString - New content being inserted
  * @returns Formatted diff string with ANSI color codes
- *
- * @example
- * const diff = formatEditDiff(
- *   'config.ts',
- *   'const port = 3000;',
- *   'const port = 8080;'
- * );
- * // Returns:
- * // config.ts
- * //   - const port = 3000; (with red background)
- * //   + const port = 8080; (with olive background)
  */
 function formatEditDiff(
   filePath: string,
@@ -459,7 +480,8 @@ function formatEditDiff(
   newString: string
 ): string {
   const diffLines: string[] = [];
-  diffLines.push(`\x1b[90m${filePath}\x1b[0m`);
+  const gray = hexToAnsi(TUITheme.text.secondary);
+  diffLines.push(`${gray}${filePath}${ANSI_RESET}`);
 
   // Try to find the starting line number in the file
   let startLine = 1;
@@ -486,6 +508,16 @@ function formatEditDiff(
 
   let oldLine = startLine;
   let newLine = startLine;
+
+  // Pre-calculate ANSI codes
+  const lineNumColor = hexToAnsi(TUITheme.syntax.lineNumber); // Cyan for line numbers
+  const addBg = hexToAnsiBg(TUITheme.syntax.diff.addBg); // Green BG
+  const removeBg = hexToAnsiBg(TUITheme.syntax.diff.removeBg); // Red BG
+  const addFg = hexToAnsi(TUITheme.syntax.diff.add); // Green Text
+  const removeFg = hexToAnsi(TUITheme.syntax.diff.remove); // Red Text
+  const whiteFg = '\x1b[38;2;255;255;255m'; // Pure white text for diff content pop
+  const resetBg = '\x1b[49m'; // Reset background
+
   lineDiff.forEach((part) => {
     const lines = part.value.split('\n');
     // Remove last element if it's empty (trailing newline from split)
@@ -494,24 +526,20 @@ function formatEditDiff(
     }
 
     if (part.added) {
-      // Added lines - olive/dark green background with white text
+      // Added lines - green background with white text
       lines.forEach((line) => {
         const lineNum = `      ${newLine}`.slice(-6);
-        // \x1b[48;5;58m = dark olive background, \x1b[97m = bright white text
-        // \x1b[49m explicitly resets background to prevent bleed
         diffLines.push(
-          `  \x1b[36m${lineNum}│\x1b[32m+\x1b[0m \x1b[48;5;58m\x1b[97m${line}\x1b[0m\x1b[49m`
+          `  ${lineNumColor}${lineNum}│${addFg}+${ANSI_RESET} ${addBg}${whiteFg}${line}${ANSI_RESET}${resetBg}`
         );
         newLine++;
       });
     } else if (part.removed) {
-      // Removed lines - dark red background with white text
+      // Removed lines - red background with white text
       lines.forEach((line) => {
         const lineNum = `      ${oldLine}`.slice(-6);
-        // \x1b[48;5;52m = dark red background, \x1b[97m = bright white text
-        // \x1b[49m explicitly resets background to prevent bleed
         diffLines.push(
-          `  \x1b[36m${lineNum}│\x1b[31m-\x1b[0m \x1b[48;5;52m\x1b[97m${line}\x1b[0m\x1b[49m`
+          `  ${lineNumColor}${lineNum}│${removeFg}-${ANSI_RESET} ${removeBg}${whiteFg}${line}${ANSI_RESET}${resetBg}`
         );
         oldLine++;
       });
@@ -519,7 +547,9 @@ function formatEditDiff(
       // Unchanged lines - show only one line number for clarity
       lines.forEach((line) => {
         const newNum = `      ${newLine}`.slice(-6);
-        diffLines.push(`  \x1b[36m${newNum}│ \x1b[0m\x1b[90m${line}\x1b[0m`);
+        diffLines.push(
+          `  ${lineNumColor}${newNum}│ ${ANSI_RESET}${gray}${line}${ANSI_RESET}`
+        );
         oldLine++;
         newLine++;
       });
@@ -527,8 +557,7 @@ function formatEditDiff(
   });
 
   // Ensure final reset to prevent color bleeding to subsequent messages
-  // Use \x1b[0m (full reset) to ensure terminal state is clean
-  return diffLines.join('\n') + '\x1b[0m';
+  return diffLines.join('\n') + ANSI_RESET;
 }
 
 /**
@@ -536,40 +565,13 @@ function formatEditDiff(
  *
  * Formats todo items with colored status icons to show task progress.
  * Uses different icons and colors for completed, in-progress, and pending tasks.
- *
- * ALGORITHM:
- * 1. Initialize empty lines array
- * 2. For each todo:
- *    a. Determine status icon and color:
- *       - completed: ✓ (green \x1b[32m)
- *       - in_progress: → (yellow \x1b[33m)
- *       - pending: ○ (gray \x1b[90m)
- *    b. Choose display text:
- *       - in_progress: Use activeForm (e.g., "Running tests")
- *       - Other: Use content (e.g., "Run tests")
- *    c. Format line with colored icon and text
- *    d. Add to lines array
- * 3. Join with newlines and return
- *
- * Status Icons:
- * - ✓: Task completed
- * - →: Task in progress
- * - ○: Task pending
- *
- * @param todos - Array of todo items with status
- * @returns Formatted todo list string with newline-separated items
- *
- * @example
- * const formatted = formatSigmaTaskUpdate([
- *   { content: 'Run tests', status: 'completed', activeForm: 'Running tests' },
- *   { content: 'Deploy', status: 'in_progress', activeForm: 'Deploying' },
- *   { content: 'Monitor', status: 'pending', activeForm: 'Monitoring' }
- * ]);
- * // Returns:
- * //   ✓ Run tests       (green)
- * //   → Deploying       (yellow)
- * //   ○ Monitor         (gray)
  */
+interface SigmaTaskUpdateInput {
+  todos?: SigmaTodo[];
+  grounding?: SigmaGrounding[];
+  grounding_evidence?: SigmaGroundingEvidence[];
+}
+
 interface SigmaTodo {
   id: string;
   content: string;
@@ -609,6 +611,15 @@ function formatSigmaTaskUpdate(
     });
   }
 
+  // AIEcho Theme Mapping:
+  // User = Amber (Active/Focus)
+  // Tool = Green (Success/Operational)
+  const successColor = hexToAnsi(TUITheme.roles.tool); // Green
+  const activeColor = hexToAnsi(TUITheme.roles.user); // Amber
+  const gray = hexToAnsi(TUITheme.text.secondary); // Gray
+  const cyan = hexToAnsi(TUITheme.overlays.o7_strategic); // Cyan
+  const red = hexToAnsi(TUITheme.text.error); // Red
+
   todos.forEach((todo) => {
     let statusIcon = '';
     let statusColor = '';
@@ -616,20 +627,20 @@ function formatSigmaTaskUpdate(
 
     if (todo.status === 'completed') {
       statusIcon = '✓';
-      statusColor = '\x1b[32m'; // green
-      textColor = '\x1b[90m'; // gray
+      statusColor = successColor;
+      textColor = gray;
     } else if (todo.status === 'in_progress') {
       statusIcon = '→';
-      statusColor = '\x1b[33m'; // yellow
-      textColor = '\x1b[32m'; // green
+      statusColor = activeColor;
+      textColor = activeColor;
     } else if (todo.status === 'delegated') {
       statusIcon = '🤖';
-      statusColor = '\x1b[36m'; // cyan
+      statusColor = cyan;
       textColor = ''; // default
     } else {
       statusIcon = '○';
-      statusColor = '\x1b[90m'; // gray
-      textColor = '\x1b[90m'; // gray
+      statusColor = gray;
+      textColor = gray;
     }
 
     let contentText =
@@ -647,34 +658,33 @@ function formatSigmaTaskUpdate(
     const gEv = evidenceMap.get(todo.id);
 
     if (gReq && gReq.strategy && gReq.strategy !== 'none') {
-      displayText += ` \x1b[90m[PGC:${gReq.strategy}]\x1b[0m`;
+      displayText += ` ${gray}[PGC:${gReq.strategy}]${ANSI_RESET}`;
     }
 
     if (gEv && gEv.grounding_confidence) {
       const confColor =
         gEv.grounding_confidence === 'high'
-          ? '\x1b[32m'
+          ? successColor
           : gEv.grounding_confidence === 'medium'
-            ? '\x1b[33m'
-            : '\x1b[31m';
-      displayText += ` ${confColor}●\x1b[0m`;
+            ? activeColor
+            : red;
+      displayText += ` ${confColor}●${ANSI_RESET}`;
     }
 
     // Apply bold for in-progress tasks
     const boldText = todo.status === 'in_progress' ? '\x1b[1m' : '';
 
-    // Use \x1b[0m (full reset) to ensure terminal state is clean
+    // Use ANSI_RESET (full reset) to ensure terminal state is clean
     todoLines.push(
-      `  ${statusColor}${statusIcon}\x1b[0m ${textColor}${boldText}${displayText}\x1b[0m`
+      `${statusColor}${statusIcon}${ANSI_RESET} ${textColor}${boldText}${displayText}${ANSI_RESET}`
     );
   });
 
   // Ensure final reset to prevent color bleeding (only if there are todos)
-  // Use \x1b[0m (full reset) to ensure terminal state is clean
   if (todoLines.length === 0) {
-    return '\n';
+    return '';
   }
-  return '\n' + todoLines.join('\n') + '\x1b[0m';
+  return '\n' + todoLines.join('\n') + ANSI_RESET;
 }
 
 /**
@@ -765,9 +775,10 @@ export function formatToolResult(name: string, result: unknown): string {
       content = JSON.stringify(processedResult, null, 2);
     }
 
-    // Layer 9: Aggressively strip cursor control sequences from tool result content
-    // to prevent terminal-intensive tools (like npm test) from showing the cursor.
-    content = stripCursorSequences(content);
+    // Layer 9: Aggressively strip cursor control sequences and ANSI from tool result content
+    // to prevent terminal-intensive tools (like npm test) from showing the cursor
+    // and to ensure that internal resets don't "brighten" muted output.
+    content = stripAnsi(stripCursorSequences(content));
 
     const lines = content.split('\n');
     const MAX_LINES = 30;
@@ -794,6 +805,11 @@ export function formatToolResult(name: string, result: unknown): string {
     const isGrep = normalizedName === 'grep';
     const isGlob = normalizedName === 'glob';
 
+    // ANSI Colors
+    const lineNumColor = hexToAnsi(TUITheme.syntax.lineNumber);
+    const cyan = hexToAnsi(TUITheme.syntax.code.block); // Keep cyan for glob/paths
+    const gray = hexToAnsi(TUITheme.text.secondary);
+
     // Indent and format content for better visual separation
     const resultLines = truncatedLines.map((line) => {
       let formattedLine = line;
@@ -803,10 +819,10 @@ export function formatToolResult(name: string, result: unknown): string {
         const match = line.match(/^(\s*\d+│)(.*)$/);
         if (match) {
           const [, lineNum, content] = match;
-          // Line numbers in cyan, content in muted gray
-          formattedLine = `\x1b[36m${lineNum}\x1b[0m \x1b[90m${content}\x1b[0m`;
+          // Line numbers in custom color, content in muted gray
+          formattedLine = `${lineNumColor}${lineNum}${ANSI_RESET} ${gray}${content}${ANSI_RESET}`;
         } else {
-          formattedLine = `\x1b[90m${line}\x1b[0m`;
+          formattedLine = `${gray}${line}${ANSI_RESET}`;
         }
       } else if (isGrep) {
         // Handle "line:content" (single file/context) - align line numbers
@@ -818,20 +834,20 @@ export function formatToolResult(name: string, result: unknown): string {
           const [, lineNum, content] = lineMatch;
           // Pad line number to 6 chars and add pipe
           const alignedLineNum = lineNum.padStart(6, ' ');
-          formattedLine = `\x1b[36m${alignedLineNum}│\x1b[0m \x1b[90m${content}\x1b[0m`;
+          formattedLine = `${lineNumColor}${alignedLineNum}│${ANSI_RESET} ${gray}${content}${ANSI_RESET}`;
         } else if (pathMatch) {
           const [, path, lineNum, content] = pathMatch;
-          // Path in gray, line number in cyan, pipe separator
-          formattedLine = `\x1b[36m${path}:${lineNum}│\x1b[0m \x1b[90m${content}\x1b[0m`;
+          // Path in cyan, line number in gray, pipe separator
+          formattedLine = `${cyan}${path}:${lineNumColor}${lineNum}│${ANSI_RESET} ${gray}${content}${ANSI_RESET}`;
         } else {
-          formattedLine = `\x1b[90m${line}\x1b[0m`;
+          formattedLine = `${gray}${line}${ANSI_RESET}`;
         }
       } else if (isGlob) {
         // Glob output is paths - use cyan to match file prefixes in other tools
-        formattedLine = `\x1b[36m${line}\x1b[0m`;
+        formattedLine = `${cyan}${line}${ANSI_RESET}`;
       } else {
         // Mute other output (bash, fetch, search) but keep it readable
-        formattedLine = `\x1b[90m${line}\x1b[0m`;
+        formattedLine = `${gray}${line}${ANSI_RESET}`;
       }
 
       return `    ${formattedLine}`;
@@ -843,7 +859,7 @@ export function formatToolResult(name: string, result: unknown): string {
     } else if (lines.length > MAX_LINES) {
       // Legacy check (shouldn't be reached with new logic, but safe to keep)
       resultLines.push(
-        `    \x1b[90m... (truncated ${lines.length - MAX_LINES} more lines)\x1b[0m`
+        `    ${gray}... (truncated ${lines.length - MAX_LINES} more lines)${ANSI_RESET}`
       );
     }
 

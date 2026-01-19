@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Box, Text } from 'ink';
 import { systemLog } from '../../../utils/debug-logger.js';
+import { TUITheme } from '../../theme.js';
 
 interface Props {
   children: ReactNode;
@@ -36,11 +37,11 @@ export class ComponentErrorBoundary extends Component<Props, State> {
       return (
         <Box
           flexDirection="column"
-          borderColor="red"
+          borderColor={TUITheme.text.error}
           borderStyle="single"
           padding={1}
         >
-          <Text color="red">
+          <Text color={TUITheme.text.error}>
             💥 {this.props.componentName || 'Component'} Error:
           </Text>
           <Text>{this.state.error?.message}</Text>

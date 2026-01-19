@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { terminal } from '../services/TerminalService.js';
+import { TUITheme } from '../theme.js';
 
 // Extra space needed after certain emojis on macOS (terminal width calculation differs)
 const EMOJI_SPACER = process.platform === 'darwin' ? ' ' : '';
@@ -30,9 +31,10 @@ export interface StatusBarProps {
 
 // Provider color/emoji mapping
 const PROVIDER_STYLES: Record<string, { color: string; emoji: string }> = {
-  claude: { color: '#d4a574', emoji: '🟠' },
-  gemini: { color: '#4285f4', emoji: '🔵' },
-  'gemini-agent': { color: '#4285f4', emoji: '🤖' },
+  claude: { color: TUITheme.providers.anthropic, emoji: '🟠' },
+  gemini: { color: TUITheme.providers.google, emoji: '🔵' },
+  'gemini-agent': { color: TUITheme.providers.google, emoji: '🤖' },
+  openai: { color: TUITheme.providers.openai, emoji: '⚪️' },
 };
 
 // Model ID to display name mapping
@@ -115,7 +117,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 
   // Get provider style
   const providerStyle = PROVIDER_STYLES[providerName] || {
-    color: '#8b949e',
+    color: TUITheme.text.secondary,
     emoji: '⚪',
   };
 
@@ -129,37 +131,37 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 
     return (
       <>
-        <Text color="#8b949e">
+        <Text color={providerStyle.color}>
           {providerStyle.emoji} {displayName}
         </Text>
-        <Text color="#3a3f4b"> | </Text>
-        <Text color="#8b949e">[Tab] Toggle Focus</Text>
-        <Text color="#3a3f4b"> | </Text>
+        <Text color={TUITheme.ui.border.dim}> | </Text>
+        <Text color={TUITheme.text.secondary}>[Tab] Toggle Focus</Text>
+        <Text color={TUITheme.ui.border.dim}> | </Text>
         {!focused ? (
-          <Text color="#8b949e">[↑↓/⌨️ ] Scroll</Text>
+          <Text color={TUITheme.text.secondary}>[↑↓/⌨️ ] Scroll</Text>
         ) : (
-          <Text color="#8b949e">[ESC ESC] Clear</Text>
+          <Text color={TUITheme.text.secondary}>[ESC ESC] Clear</Text>
         )}
-        <Text color="#3a3f4b"> | </Text>
-        <Text color="#8b949e">[Ctrl+S] 💬 Save</Text>
-        <Text color="#3a3f4b"> | </Text>
-        <Text color="#8b949e">[Ctrl+C] Quit</Text>
+        <Text color={TUITheme.ui.border.dim}> | </Text>
+        <Text color={TUITheme.text.secondary}>[Ctrl+S] 💬 Save</Text>
+        <Text color={TUITheme.ui.border.dim}> | </Text>
+        <Text color={TUITheme.text.secondary}>[Ctrl+C] Quit</Text>
         {sessionId && (
           <>
-            <Text color="#3a3f4b"> | </Text>
-            <Text color="#8b949e">
+            <Text color={TUITheme.ui.border.dim}> | </Text>
+            <Text color={TUITheme.text.secondary}>
               🪪 {sessionId.replace(/^[a-z]+-/, '').slice(0, 8)}
             </Text>
           </>
         )}
         {tokenCount && tokenCount.total > 0 && (
           <>
-            <Text color="#3a3f4b"> | </Text>
-            <Text color="#8b949e">
+            <Text color={TUITheme.ui.border.dim}> | </Text>
+            <Text color={TUITheme.text.secondary}>
               📊 {formatTokens(tokenCount.total)} ({tokenPercentage}%)
             </Text>
-            <Text color="#3a3f4b"> | </Text>
-            <Text color="#8b949e">
+            <Text color={TUITheme.ui.border.dim}> | </Text>
+            <Text color={TUITheme.text.secondary}>
               🗜️{EMOJI_SPACER} {formatTokens(compressionThreshold)}
             </Text>
           </>
@@ -169,7 +171,12 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   };
 
   return (
-    <Box borderTop borderColor="#30363d" paddingX={1} width="100%">
+    <Box
+      borderTop
+      borderColor={TUITheme.ui.border.default}
+      paddingX={1}
+      width="100%"
+    >
       {renderStatusText()}
     </Box>
   );

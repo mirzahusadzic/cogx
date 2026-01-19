@@ -245,9 +245,9 @@ Benefits of delegation:
 - Mark tasks complete IMMEDIATELY after finishing (don't batch completions)
 - ONLY mark a task as completed when you have FULLY accomplished it
 - If you encounter errors or blockers, keep the task as in_progress and create a new task describing what needs to be resolved
-- **Reasoning First**: You MUST engage your internal reasoning/thinking process first to plan the action and validate parameters.
+- **Reasoning First**: You MUST engage your internal reasoning/thinking process first to plan the action and validate parameters. **CRITICAL: NEVER include the JSON for SigmaTaskUpdate in your assistant response text. ONLY use it as the direct input to the SigmaTaskUpdate tool call. If you include JSON in your response text, the TUI will not update and the user will see raw data.**
 
-**Example Plan (Reasoning Block):**
+**Example of Internal Planning (NOT for Response Text):**
 \`\`\`json
 {
   "todos": [

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Text } from 'ink';
+import { TUITheme } from '../theme.js';
 
 /**
  * Sigma conversation lattice statistics
@@ -59,13 +60,41 @@ export interface SigmaInfoPanelProps {
 }
 
 const OVERLAY_INFO = {
-  O1_structural: { icon: '🏗️ ', label: 'Structural', color: '#58a6ff' },
-  O2_security: { icon: '🛡️ ', label: 'Security', color: '#f0883e' },
-  O3_lineage: { icon: '🌳', label: 'Lineage', color: '#56d364' },
-  O4_mission: { icon: '🎯', label: 'Mission', color: '#d29922' },
-  O5_operational: { icon: '⚙️ ', label: 'Operational', color: '#79c0ff' },
-  O6_mathematical: { icon: '📐', label: 'Mathematical', color: '#bc8cff' },
-  O7_strategic: { icon: '🧭', label: 'Strategic', color: '#9ed2f5' },
+  O1_structural: {
+    icon: '🏗️ ',
+    label: 'Structural',
+    color: TUITheme.overlays.o1_structural,
+  },
+  O2_security: {
+    icon: '🛡️ ',
+    label: 'Security',
+    color: TUITheme.overlays.o2_security,
+  },
+  O3_lineage: {
+    icon: '🌳',
+    label: 'Lineage',
+    color: TUITheme.overlays.o3_lineage,
+  },
+  O4_mission: {
+    icon: '🎯',
+    label: 'Mission',
+    color: TUITheme.overlays.o4_mission,
+  },
+  O5_operational: {
+    icon: '⚙️ ',
+    label: 'Operational',
+    color: TUITheme.overlays.o5_operational,
+  },
+  O6_mathematical: {
+    icon: '📐',
+    label: 'Mathematical',
+    color: TUITheme.overlays.o6_mathematical,
+  },
+  O7_strategic: {
+    icon: '🧭',
+    label: 'Strategic',
+    color: TUITheme.overlays.o7_strategic,
+  },
 };
 
 /**
@@ -136,34 +165,40 @@ export const SigmaInfoPanel: React.FC<SigmaInfoPanelProps> = ({
       flexDirection="column"
       borderTop
       borderBottom
-      borderColor="cyan"
+      borderColor={TUITheme.overlays.o7_strategic} // Cyan-ish
       paddingX={1}
       paddingY={0}
       width={50}
     >
       <Box marginBottom={1} marginTop={1}>
-        <Text bold color="cyan">
+        <Text bold color={TUITheme.overlays.o7_strategic}>
           ━━━━━━ SIGMA STATS ━━━━━━
         </Text>
       </Box>
 
       <Box flexDirection="column" marginBottom={1}>
-        <Text color="#8b949e">Lattice:</Text>
-        <Text color="#58a6ff"> 🌿 Nodes: {sigmaStats.nodes ?? 0}</Text>
-        <Text color="#79c0ff"> 🐘 Edges: {sigmaStats.edges ?? 0}</Text>
-        <Text color="#d29922">
+        <Text color={TUITheme.text.secondary}>Lattice:</Text>
+        <Text color={TUITheme.overlays.o1_structural}>
+          {' '}
+          🌿 Nodes: {sigmaStats.nodes ?? 0}
+        </Text>
+        <Text color={TUITheme.overlays.o5_operational}>
+          {' '}
+          🐘 Edges: {sigmaStats.edges ?? 0}
+        </Text>
+        <Text color={TUITheme.overlays.o4_mission}>
           {' '}
           🦋 Shifts: {sigmaStats.paradigmShifts ?? 0}
         </Text>
       </Box>
 
       <Box flexDirection="column" marginBottom={1}>
-        <Text color="#8b949e">Averages:</Text>
-        <Text color="#56d364">
+        <Text color={TUITheme.text.secondary}>Averages:</Text>
+        <Text color={TUITheme.overlays.o3_lineage}>
           {' '}
           🐇 Novelty: {(sigmaStats.avgNovelty ?? 0).toFixed(3)}
         </Text>
-        <Text color="#bc8cff">
+        <Text color={TUITheme.overlays.o6_mathematical}>
           {' '}
           🐍 Importance: {(sigmaStats.avgImportance ?? 0).toFixed(1)}
         </Text>
@@ -171,7 +206,7 @@ export const SigmaInfoPanel: React.FC<SigmaInfoPanelProps> = ({
 
       <Box flexDirection="column">
         <Box marginBottom={1}>
-          <Text color="#8b949e">Overlay Activations:</Text>
+          <Text color={TUITheme.text.secondary}>Overlay Activations:</Text>
         </Box>
         {Object.entries(OVERLAY_INFO).map(([key, info]) => {
           const score = overlays[key as keyof OverlayScores];

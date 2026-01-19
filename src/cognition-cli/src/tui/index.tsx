@@ -24,6 +24,7 @@ import { MessageQueue } from '../ipc/MessageQueue.js';
 import { MessagePublisher } from '../ipc/MessagePublisher.js';
 import { getSigmaDirectory } from '../ipc/sigma-directory.js';
 import type { WorkbenchHealthResult } from '../utils/workbench-detect.js';
+import { TUITheme } from './theme.js';
 
 // Custom theme with vivid AIEcho cyan spinner
 const customTheme = extendTheme(defaultTheme, {
@@ -31,7 +32,7 @@ const customTheme = extendTheme(defaultTheme, {
     Spinner: {
       styles: {
         frame: (): TextProps => ({
-          color: '#9ed2f5', // AIEcho accent-green-light (vivid cyan)
+          color: TUITheme.overlays.o7_strategic, // AIEcho accent-green-light (vivid cyan)
         }),
       },
     },
@@ -577,8 +578,10 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   if (renderError) {
     return (
       <Box flexDirection="column" padding={1}>
-        <Box borderColor="red" borderStyle="single" padding={1}>
-          <Text color="red">💥 Render Error (Hot reload will fix this):</Text>
+        <Box borderColor={TUITheme.text.error} borderStyle="single" padding={1}>
+          <Text color={TUITheme.text.error}>
+            💥 Render Error (Hot reload will fix this):
+          </Text>
         </Box>
         <Box paddingTop={1}>
           <Text>{renderError.message}</Text>
@@ -606,7 +609,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   if (error) {
     return (
       <Box flexDirection="column">
-        <Box borderStyle="single" borderColor="red" padding={1}>
+        <Box borderStyle="single" borderColor={TUITheme.text.error} padding={1}>
           <Text>Error: {error}</Text>
         </Box>
       </Box>
@@ -650,8 +653,10 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   } catch (err) {
     return (
       <Box flexDirection="column" padding={1}>
-        <Box borderColor="red" borderStyle="single" padding={1}>
-          <Text color="red">💥 Caught Error (Hot reload will fix this):</Text>
+        <Box borderColor={TUITheme.text.error} borderStyle="single" padding={1}>
+          <Text color={TUITheme.text.error}>
+            💥 Caught Error (Hot reload will fix this):
+          </Text>
         </Box>
         <Box paddingTop={1}>
           <Text>{(err as Error).message}</Text>
@@ -724,6 +729,8 @@ export function startTUI(options: CognitionTUIProps) {
   // Catch uncaught exceptions
   process.on('uncaughtException', handleUncaughtError);
 
+  terminal.enterAlternateScreen();
+  terminal.setTerminalBackgroundColor(TUITheme.background.primary);
   terminal.setCursorVisibility(false);
 
   const { unmount, waitUntilExit } = render(

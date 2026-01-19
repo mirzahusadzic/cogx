@@ -11,6 +11,8 @@ import {
   formatToolResult,
   type ToolUse,
 } from '../../../rendering/ToolFormatter.js';
+import { hexToAnsi } from '../../../../utils/ansi-utils.js';
+import { TUITheme } from '../../../../theme.js';
 
 describe('ToolFormatter', () => {
   describe('formatToolUse()', () => {
@@ -144,10 +146,12 @@ describe('ToolFormatter', () => {
       expect(result.description).toContain('●'); // Confidence indicator
 
       // Check for color codes
-      expect(result.description).toContain('\x1b[32m'); // Green for completed
-      expect(result.description).toContain('\x1b[33m'); // Yellow for in_progress
-      expect(result.description).toContain('\x1b[36m'); // Cyan for delegated
-      expect(result.description).toContain('\x1b[90m'); // Gray for pending
+      expect(result.description).toContain(hexToAnsi(TUITheme.roles.tool)); // Green for completed
+      expect(result.description).toContain(hexToAnsi(TUITheme.roles.user)); // Amber for in_progress
+      expect(result.description).toContain(
+        hexToAnsi(TUITheme.overlays.o7_strategic)
+      ); // Cyan for delegated
+      expect(result.description).toContain(hexToAnsi(TUITheme.text.secondary)); // Gray for pending
     });
 
     it('formats generic tool with JSON input', () => {
@@ -261,7 +265,7 @@ describe('ToolFormatter', () => {
 
       const result = formatToolUse(tool);
 
-      expect(result.description).toBe('\n');
+      expect(result.description).toBe('');
     });
 
     it('handles single todo', () => {
@@ -280,6 +284,7 @@ describe('ToolFormatter', () => {
 
       const result = formatToolUse(tool);
 
+      expect(result.icon).toBe('📋');
       expect(result.description).toContain('Single task');
       expect(result.description).toContain('○');
     });
@@ -290,13 +295,13 @@ describe('ToolFormatter', () => {
       const result = formatToolResult('read_file', 'line1\nline2');
       expect(result).toContain('line1');
       expect(result).toContain('line2');
-      expect(result).toContain('\x1b[90m'); // Check for muted color
+      expect(result).toContain(hexToAnsi(TUITheme.text.secondary)); // Check for muted color
     });
 
     it('formats Read result with object content', () => {
       const result = formatToolResult('Read', { content: 'hello world' });
       expect(result).toContain('hello world');
-      expect(result).toContain('\x1b[90m');
+      expect(result).toContain(hexToAnsi(TUITheme.text.secondary));
     });
 
     it('truncates long file content', () => {
@@ -308,7 +313,7 @@ describe('ToolFormatter', () => {
 
       expect(result.split('\n').length).toBeLessThanOrEqual(33); // 30 lines + 1 truncation message + potential borders
       expect(result).toContain('... (truncated');
-      expect(result).toContain('\x1b[90m'); // Dim gray for truncation message
+      expect(result).toContain(hexToAnsi(TUITheme.text.secondary)); // Dim gray for truncation message
     });
 
     it('formats read_file result with result property', () => {
@@ -340,10 +345,18 @@ describe('ToolFormatter', () => {
         'grep',
         'src/index.ts:10:console.log("hello")'
       );
-      // Should replace the last colon with a pipe
-      expect(result).toContain('src/index.ts:10│');
-      // Check for cyan color on prefix and added space
-      expect(result).toContain('\x1b[36msrc/index.ts:10│\x1b[0m ');
+
+      // Path should be cyan (code block color)
+      expect(result).toContain(
+        `${hexToAnsi(TUITheme.syntax.code.block)}src/index.ts:`
+      );
+
+      // Line number should be gray (line number color)
+      // Note: In path match mode (grep), line number is NOT padded currently
+      expect(result).toContain(`${hexToAnsi(TUITheme.syntax.lineNumber)}10│`);
+
+      // Content should be present
+      expect(result).toContain('console.log("hello")');
     });
 
     it('formats read_file result with existing line numbers', () => {
@@ -352,7 +365,9 @@ describe('ToolFormatter', () => {
         'read_file',
         '     1│line1\n     2│line2'
       );
-      expect(result).toContain('\x1b[36m     1│\x1b[0m ');
+      expect(result).toContain(
+        `${hexToAnsi(TUITheme.syntax.lineNumber)}     1│\x1b[0m `
+      );
       expect(result).toContain('line1');
     });
 

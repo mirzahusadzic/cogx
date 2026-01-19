@@ -12,6 +12,7 @@ export class TerminalService {
   private isMouseTrackingEnabled: boolean = false;
   private isBracketedPasteEnabled: boolean = false;
   private isCursorHidden: boolean = false;
+  private isAlternateScreenEnabled: boolean = false;
 
   private constructor() {}
 
@@ -23,11 +24,76 @@ export class TerminalService {
   }
 
   /**
+   * Enter alternate screen buffer
+   */
+  public enterAlternateScreen(): void {
+    if (
+      this.isAlternateScreenEnabled ||
+      !process.stdout.isTTY ||
+      process.env.NODE_ENV === 'test'
+    )
+      return;
+    try {
+      process.stdout.write('\x1b[?1049h');
+      this.isAlternateScreenEnabled = true;
+    } catch (e) {
+      systemLog('tui', `Failed to enter alternate screen: ${e}`);
+    }
+  }
+
+  /**
+   * Exit alternate screen buffer
+   */
+  public exitAlternateScreen(): void {
+    if (
+      !this.isAlternateScreenEnabled ||
+      !process.stdout.isTTY ||
+      process.env.NODE_ENV === 'test'
+    )
+      return;
+    try {
+      process.stdout.write('\x1b[?1049l');
+      this.isAlternateScreenEnabled = false;
+    } catch (e) {
+      systemLog('tui', `Failed to exit alternate screen: ${e}`);
+    }
+  }
+
+  /**
+   * Set terminal background color using OSC 11
+   * This affects the entire terminal window including margins in some terminals.
+   */
+  public setTerminalBackgroundColor(hexColor: string): void {
+    if (!process.stdout.isTTY || process.env.NODE_ENV === 'test') return;
+    try {
+      // OSC 11 sets the default background color
+      // Format: \x1b]11;#RRGGBB\x07
+      process.stdout.write(`\x1b]11;${hexColor}\x07`);
+    } catch (e) {
+      systemLog('tui', `Failed to set terminal background color: ${e}`);
+    }
+  }
+
+  /**
+   * Reset terminal background color to default
+   */
+  public resetTerminalBackgroundColor(): void {
+    if (!process.stdout.isTTY || process.env.NODE_ENV === 'test') return;
+    try {
+      // OSC 111 resets the default background color
+      process.stdout.write('\x1b]111\x07');
+    } catch (e) {
+      systemLog('tui', `Failed to reset terminal background color: ${e}`);
+    }
+  }
+
+  /**
    * Reset terminal colors and attributes
    */
   public resetColors(): void {
     try {
       process.stdout.write('\x1b[0m');
+      this.resetTerminalBackgroundColor();
     } catch {
       // Ignore errors during cleanup
     }
@@ -101,6 +167,7 @@ export class TerminalService {
     this.setBracketedPaste(false);
     this.setMouseTracking(false);
     this.setCursorVisibility(true);
+    this.exitAlternateScreen();
   }
 
   /**

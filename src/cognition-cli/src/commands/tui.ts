@@ -97,7 +97,7 @@ interface TUIOptions {
  * validates PGC workspace existence, and configures the terminal display.
  *
  * TERMINAL SETUP:
- * - Sets background color to AIEcho dark (#0d1117)
+ * - Sets background color to AIEcho dark (#0d131c)
  * - Clears screen for clean slate
  * - Configures TTY for interactive input
  *
@@ -308,9 +308,17 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     process.env.GEMINI_USE_BIDI = '1';
   }
 
-  // Skip background color setting - let terminal inherit its own background
+  // Clear screen for a clean slate
   // Only clear screen if not in onboarding mode (onboarding is a short wizard)
-  if (process.stdout.isTTY && !onboardingMode) {
+  if (
+    process.stdout.isTTY &&
+    !onboardingMode &&
+    process.env.NODE_ENV !== 'test'
+  ) {
+    // Set background color to AIEcho dark (#0d131c) before clearing
+    // to ensure the entire terminal (including margins) matches the TUI theme
+    process.stdout.write('\x1b]11;#0d131c\x07');
+    process.stdout.write('\x1b[48;2;13;19;28m');
     process.stdout.write('\x1b[2J'); // Clear visible screen
     process.stdout.write('\x1b[3J'); // Clear scrollback buffer
     process.stdout.write('\x1b[H'); // Move cursor to home

@@ -911,8 +911,8 @@ You have access to tools for:
 
 ## Guidelines
 - Be concise and helpful
-- **Reasoning First**: For any complex operation or tool call (especially \`SigmaTaskUpdate\`, \`edit_file\`, or IPC delegation), you MUST engage your internal reasoning/thinking process first to plan the action and validate parameters.
-  When planning \`SigmaTaskUpdate\`, ensure your JSON structure matches the parallel array pattern:
+- **Reasoning First**: For any complex operation or tool call (especially \`SigmaTaskUpdate\`, \`edit_file\`, or IPC delegation), you MUST engage your internal reasoning/thinking process first to plan the action and validate parameters. **CRITICAL: NEVER include the JSON for SigmaTaskUpdate in your assistant response text. ONLY use it as the direct input to the SigmaTaskUpdate tool call.**
+  When planning \`SigmaTaskUpdate\`, ensure your JSON structure matches the parallel array pattern (inside your internal thought block, not the response):
   \`\`\`json
   {
     "todos": [

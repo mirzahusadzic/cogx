@@ -1,5 +1,6 @@
 import React from 'react';
 import { render } from 'ink-testing-library';
+import stripAnsi from 'strip-ansi';
 import { ClaudePanelAgent } from '../ClaudePanelAgent.js';
 import type { TUIMessage } from '../../hooks/useAgent.js';
 
@@ -54,7 +55,7 @@ describe('ClaudePanelAgent', () => {
       const { lastFrame } = render(
         <ClaudePanelAgent messages={[]} isThinking={true} focused={false} />
       );
-      expect(lastFrame()).toContain('Thinking');
+      expect(stripAnsi(lastFrame() ?? '')).toContain('Thinking');
     });
   });
 
@@ -68,7 +69,7 @@ describe('ClaudePanelAgent', () => {
           focused={false}
         />
       );
-      const output = lastFrame() ?? '';
+      const output = stripAnsi(lastFrame() ?? '');
       expect(output).toContain('>');
       expect(output).toContain('Hello Claude');
     });
@@ -84,7 +85,9 @@ describe('ClaudePanelAgent', () => {
           focused={false}
         />
       );
-      expect(lastFrame()).toContain('Hello! How can I help you?');
+      expect(stripAnsi(lastFrame() ?? '')).toContain(
+        'Hello! How can I help you?'
+      );
     });
 
     it('displays system messages with bullet prefix', () => {
@@ -98,8 +101,8 @@ describe('ClaudePanelAgent', () => {
           focused={false}
         />
       );
-      const output = lastFrame() ?? '';
-      expect(output).toContain('•');
+      const output = stripAnsi(lastFrame() ?? '');
+      expect(output).toContain('*');
       expect(output).toContain('Session started');
     });
 
@@ -114,14 +117,15 @@ describe('ClaudePanelAgent', () => {
           focused={false}
         />
       );
-      const output = lastFrame() ?? '';
+      const output = stripAnsi(lastFrame() ?? '');
       expect(output).toContain('🤖');
       expect(output).toContain('Analyzing the code');
     });
 
-    it('displays tool_progress messages', () => {
+    it('displays tool_progress messages with various icons', () => {
       const messages: TUIMessage[] = [
         createMessage('tool_progress', '🔧 Bash: npm install'),
+        createMessage('tool_progress', '📋 Tasks: Update tests'),
       ];
       const { lastFrame } = render(
         <ClaudePanelAgent
@@ -130,10 +134,55 @@ describe('ClaudePanelAgent', () => {
           focused={false}
         />
       );
-      const output = lastFrame() ?? '';
+      const output = stripAnsi(lastFrame() ?? '');
       expect(output).toContain('🔧');
       expect(output).toContain('Bash');
-      expect(output).toContain('npm install');
+      expect(output).toContain('📋');
+      expect(output).toContain('Tasks');
+    });
+
+    it('strips 4-space prefix and ANSI from tool results', () => {
+      // Simulation of formatToolResult output for read_file
+      const toolOutput =
+        '    \x1b[36m   914│\x1b[0m \x1b[90mline content\x1b[0m';
+      const messages: TUIMessage[] = [
+        createMessage('tool_progress', '🔧 Read: file.ts\n' + toolOutput),
+      ];
+      const { lastFrame } = render(
+        <ClaudePanelAgent
+          messages={messages}
+          isThinking={false}
+          focused={false}
+        />
+      );
+      const output = stripAnsi(lastFrame() ?? '');
+      // The output should contain the tool name and the cleaned content.
+      expect(output).toContain('🔧 Read: file.ts');
+      expect(output).toContain('914│ line content');
+    });
+
+    it('preserves ANSI and protects against markdown in Edit tool results', () => {
+      // Simulation of formatToolResult output for Edit tool
+      // Includes ANSI for added line and markdown-like characters (backticks)
+      const toolOutput =
+        '    \x1b[36m    99│\x1b[0m \x1b[32m+\x1b[0m \x1b[42m\x1b[37mconst lines = markdownToLines(`\\n` + longCode);\x1b[0m';
+      const messages: TUIMessage[] = [
+        createMessage('tool_progress', '🔧 Edit: file.ts\n' + toolOutput),
+      ];
+      const { lastFrame } = render(
+        <ClaudePanelAgent
+          messages={messages}
+          isThinking={false}
+          focused={false}
+        />
+      );
+      const output = stripAnsi(lastFrame() ?? '');
+      expect(output).toContain('🔧 Edit: file.ts');
+      expect(output).toContain(
+        '99│ + const lines = markdownToLines(`\\n` + longCode);'
+      );
+      // Should NOT contain backticks stripped (since it's in a code block)
+      expect(output).toContain('`\\n`');
     });
 
     it('displays multiple messages in order', () => {
@@ -149,7 +198,7 @@ describe('ClaudePanelAgent', () => {
           focused={false}
         />
       );
-      const output = lastFrame() ?? '';
+      const output = stripAnsi(lastFrame() ?? '');
       expect(output).toContain('First message');
       expect(output).toContain('Second message');
       expect(output).toContain('Third message');
@@ -168,7 +217,7 @@ describe('ClaudePanelAgent', () => {
           focused={false}
         />
       );
-      const output = lastFrame() ?? '';
+      const output = stripAnsi(lastFrame() ?? '');
       expect(output).toContain('bold');
       expect(output).not.toContain('**');
     });
@@ -184,7 +233,7 @@ describe('ClaudePanelAgent', () => {
           focused={false}
         />
       );
-      expect(lastFrame()).toContain('Thinking');
+      expect(stripAnsi(lastFrame() ?? '')).toContain('Thinking');
     });
 
     it('hides spinner when isThinking is false', () => {
@@ -196,7 +245,7 @@ describe('ClaudePanelAgent', () => {
           focused={false}
         />
       );
-      expect(lastFrame()).not.toContain('Thinking');
+      expect(stripAnsi(lastFrame() ?? '')).not.toContain('Thinking');
     });
   });
 
@@ -210,7 +259,7 @@ describe('ClaudePanelAgent', () => {
           streamingPaste="Some pasted content"
         />
       );
-      const output = lastFrame() ?? '';
+      const output = stripAnsi(lastFrame() ?? '');
       expect(output).toContain('📋');
       expect(output).toContain('Pasting');
     });
@@ -224,7 +273,7 @@ describe('ClaudePanelAgent', () => {
           streamingPaste="function hello() {\n  console.log('world');\n}"
         />
       );
-      const output = lastFrame() ?? '';
+      const output = stripAnsi(lastFrame() ?? '');
       expect(output).toContain('function hello');
       expect(output).toContain("console.log('world')");
     });
@@ -259,8 +308,8 @@ describe('ClaudePanelAgent', () => {
           focused={true}
         />
       );
-      expect(unfocused()).toContain('Test');
-      expect(focused()).toContain('Test');
+      expect(stripAnsi(unfocused() ?? '')).toContain('Test');
+      expect(stripAnsi(focused() ?? '')).toContain('Test');
     });
 
     it('shows scroll indicator when focused and content overflows', () => {
@@ -275,7 +324,7 @@ describe('ClaudePanelAgent', () => {
           focused={true}
         />
       );
-      const output = lastFrame() ?? '';
+      const output = stripAnsi(lastFrame() ?? '');
       // Should show scroll percentage indicator
       expect(output).toMatch(/↕.*%/);
     });
@@ -293,7 +342,7 @@ describe('ClaudePanelAgent', () => {
           focused={false}
         />
       );
-      const output = lastFrame() ?? '';
+      const output = stripAnsi(lastFrame() ?? '');
       expect(output).toContain('Line 1');
       expect(output).toContain('Line 2');
       expect(output).toContain('Line 3');
@@ -310,7 +359,7 @@ describe('ClaudePanelAgent', () => {
           focused={false}
         />
       );
-      const output = lastFrame() ?? '';
+      const output = stripAnsi(lastFrame() ?? '');
       // Green user prefix is "> "
       expect(output).toContain('> User Line 1');
       // Second line should NOT have the prefix

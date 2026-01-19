@@ -13,7 +13,12 @@ import { systemLog } from '../../utils/debug-logger.js';
 import { useTUI } from '../context/TUIContext.js';
 import { terminal } from '../services/TerminalService.js';
 import { stripCursorSequences } from '../utils/ansi-utils.js';
+import {
+  markdownToLines,
+  type StyledLine,
+} from '../utils/markdown-renderer.js';
 import type { TUIMessage } from '../hooks/useAgent.js';
+import { TUITheme } from '../theme.js';
 
 /**
  * Props for ClaudePanelAgent component
@@ -89,103 +94,261 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   );
 
   // Build colored text lines with color metadata
-  const allLines = useMemo(() => {
-    const lines: Array<{ text: string; color: string }> = [];
-
-    // Helper to strip markdown bold (**text**) markers
-    // Let Ink handle all coloring to avoid ANSI/Ink conflicts that cause bleeding
-    // Tool messages (Edit diffs, etc.) have their own ANSI codes in the content itself
-    const processBold = (text: string): string => {
-      // Simply remove ** markers and let Ink's color prop handle coloring
-      return text.replace(/\*\*/g, '');
-    };
+  // PERFORMANCE: Decouple message rendering from paste streaming
+  // This memo only re-runs when messages change or terminal width changes
+  const renderedMessages = useMemo(() => {
+    const lines: StyledLine[] = [];
+    const width = (stdout?.columns || 100) - 4; // Account for padding
 
     messages.forEach((msg) => {
       let prefix = '';
-      let color = '#58a6ff'; // Default: O1 structural blue
+      let color = TUITheme.text.primary;
+      let bg: string | undefined = undefined;
 
       switch (msg.type) {
         case 'user':
           prefix = '> ';
-          color = '#56d364'; // O3 lineage green
+          color = TUITheme.messages.user.text;
+          bg = TUITheme.messages.user.bg;
           break;
         case 'system':
-          prefix = '• ';
-          color = '#8b949e'; // Muted gray
+          prefix = '* ';
+          color = TUITheme.messages.system.text;
+          bg = TUITheme.messages.system.bg;
           break;
         case 'assistant':
           prefix = '';
-          color = '#58a6ff'; // O1 structural blue
+          color = TUITheme.messages.assistant.text;
+          bg = TUITheme.messages.assistant.bg;
           break;
         case 'thinking':
           prefix = '🤖 ';
-          color = '#8b949e'; // Muted gray for thinking (matches system)
+          color = TUITheme.messages.thinking.text;
+          bg = TUITheme.messages.thinking.bg;
           break;
         case 'tool_progress': {
           prefix = '  ';
-          // Use amber-orange for tool commands, but blue for Edit diffs (they have their own formatting)
-          // Results (no 🔧) are rendered in muted gray
-          if (msg.content.includes('🔧 Edit:')) {
-            color = '#58a6ff';
-          } else if (msg.content.includes('🔧')) {
-            color = '#f5a623';
-          } else {
-            color = '#c9d1d9'; // Brighter off-white for tool results
+          let baseColor = TUITheme.roles.toolResult;
+          bg = TUITheme.messages.assistant.bg;
+
+          if (
+            msg.content.includes('📋 Tasks:') ||
+            msg.content.includes('🔧 Tasks:')
+          ) {
+            baseColor = TUITheme.roles.tool; // Consistent green for Tasks
+          } else if (msg.content.match(/[🔧📋📄🧠🔍🌐🛑📊🤖📨📢📬✅✨🚀]/u)) {
+            baseColor = TUITheme.roles.tool; // Green for all tools
           }
 
-          // Special handling: split tool name from command/details
-          // Format: "🔧 ToolName: command/details"
-          const toolMatch = msg.content.match(/^(🔧\s+\S+:)\s*(.*)$/);
-          if (toolMatch && !msg.content.includes('🔧 Edit:')) {
-            // Tool name in amber-orange, details rendered by Ink (no inline ANSI)
+          // Use [\s\S]* to capture multi-line content (dot (.) doesn't match newlines)
+          const toolMatch = msg.content.match(
+            /^([🔧📋📄🧠🔍🌐🛑📊🤖📨📢📬✅✨🚀]\s+[^:]+:)\s?([\s\S]*)$/u
+          );
+          if (toolMatch) {
             const toolName = toolMatch[1];
-            const details = processBold(toolMatch[2]);
-            lines.push({
-              text: `${prefix}${toolName} ${details}`,
-              color,
-            });
-            lines.push({ text: '', color }); // Empty line between messages
-            return; // Skip normal processing
+            const details = toolMatch[2];
+
+            // FIX: Handle carriage returns to stabilize streaming output
+            // This collapses "Progress 10%\rProgress 20%" into "Progress 20%"
+            let finalDetails = details.replace(/.*\r/g, '');
+
+            const isEdit = toolName.includes('Edit:');
+            const isTasks = toolName.includes('Tasks:');
+
+            // Strip ANSI codes for cleaner detection and rendering
+            // (ToolFormatter adds ANSI colors and line numbers that we want to remove for Diff view)
+            // Also remove the 4-space indentation added by ToolFormatter to all tool outputs.
+            // EXCEPT for Edit and Tasks, where we want to keep ANSI and indentation.
+            if (isEdit || isTasks) {
+              finalDetails = finalDetails.replace(/^ {4}/gm, '');
+            } else {
+              finalDetails = stripAnsi(finalDetails).replace(/^ {4}/gm, '');
+            }
+
+            // Determine if we should treat this as a diff
+            let lang = 'text';
+            if (isTasks) {
+              lang = 'sigma-tasks';
+            } else if (
+              !isEdit &&
+              (finalDetails.includes('diff --git') ||
+                finalDetails.includes('\nindex ') ||
+                (finalDetails.includes('@@') &&
+                  finalDetails.includes('+') &&
+                  finalDetails.includes('-')) ||
+                toolName.toLowerCase().includes('diff'))
+            ) {
+              lang = 'diff';
+              // Remove line numbers (123│) and indentation added by ToolFormatter
+              finalDetails = finalDetails.replace(/^\s*(\d+│\s)?/gm, '');
+            }
+
+            // Wrap raw tool output (bash, read_file, diffs) in code blocks to prevent
+            // accidental markdown parsing (e.g. diffs becoming lists)
+            const shouldWrapInCode =
+              finalDetails.includes('\n') ||
+              toolName.includes('bash') ||
+              toolName.includes('read_file') ||
+              toolName.includes('grep') ||
+              toolName.includes('glob') ||
+              isEdit ||
+              lang === 'diff';
+
+            // Stabilize output:
+            // 1. Trim end to remove trailing junk (preserved leading newlines if intended)
+            // 2. DO NOT trim start if it starts with a newline (respect ToolFormatter intent)
+            // 3. Wrap in code block to prevent markdown parsing of raw output
+            const trimmedDetails = finalDetails.trimEnd();
+            const startsWithNewline = trimmedDetails.startsWith('\n');
+            const processDetails = shouldWrapInCode
+              ? '```' + lang + '\n' + trimmedDetails + '\n```'
+              : trimmedDetails;
+
+            const detailLines = markdownToLines(
+              processDetails,
+              width - prefix.length - stripAnsi(toolName).length - 1,
+              {
+                baseColor: TUITheme.roles.toolResult,
+                baseBg: bg,
+                // Only force code block color if it's NOT a diff or sigma-tasks, to allow custom highlighting
+                codeBlockColor:
+                  lang === 'diff' || lang === 'sigma-tasks'
+                    ? undefined
+                    : TUITheme.roles.toolResult,
+              }
+            );
+
+            if (detailLines.length > 0) {
+              const firstLine = detailLines[0];
+              // Use spread to avoid mutating the original chunks array if it's reused (safety first)
+              const firstLineChunks = [
+                { text: prefix, color: baseColor, bg },
+                { text: toolName, color: baseColor, bg, bold: true },
+                { text: ' ', color: baseColor, bg },
+                ...firstLine.chunks.map((chunk) => ({
+                  ...chunk,
+                  // If the chunk is using the default tool result color, upgrade it to baseColor (Green)
+                  // for the first line (which contains the tool command/parameters)
+                  color:
+                    chunk.color === TUITheme.roles.toolResult
+                      ? baseColor
+                      : chunk.color,
+                })),
+              ];
+              lines.push({ chunks: firstLineChunks });
+
+              for (let i = 1; i < detailLines.length; i++) {
+                // If the details started with a newline, we want subsequent lines to be indented
+                // less (just aligned with the prefix) to create a list-like appearance.
+                const indentSize = startsWithNewline
+                  ? prefix.length
+                  : prefix.length + stripAnsi(toolName).length + 1;
+                const indent = ' '.repeat(indentSize);
+                detailLines[i].chunks.unshift({
+                  text: indent,
+                  color: baseColor,
+                  bg,
+                });
+                lines.push(detailLines[i]);
+              }
+            } else {
+              lines.push({
+                chunks: [
+                  { text: prefix, color: baseColor, bg },
+                  { text: toolName, color: baseColor, bg, bold: true },
+                ],
+              });
+            }
+
+            // Only add a trailing gap if there's actual content to separate from
+            lines.push({ chunks: [] });
+            return;
           }
+
+          color = baseColor;
           break;
         }
       }
 
-      // Split content into lines and store with color
-      const contentLines = msg.content.split('\n');
-      contentLines.forEach((line, index) => {
-        // Process markdown bold syntax (adds resets only if colors were added)
-        const processedLine = processBold(line);
-
-        if (msg.type === 'thinking') {
-          // Thinking messages: 🤖 icon on first line, aligned on subsequent lines
-          // We don't add extra indentation here to keep the icon close to the text
-          if (index === 0) {
-            lines.push({ text: '🤖 ' + processedLine, color });
-          } else {
-            lines.push({ text: '   ' + processedLine, color });
-          }
-        } else {
-          // Only show prefix on the first line for other message types
-          const linePrefix = index === 0 ? prefix : ' '.repeat(prefix.length);
-          lines.push({ text: linePrefix + processedLine, color });
+      // Universal Markdown Renderer for all message types
+      const renderedLines = markdownToLines(
+        msg.content,
+        width - prefix.length,
+        {
+          baseColor: color,
+          baseBg: bg,
+          bulletColor: msg.type === 'thinking' ? color : undefined,
+          // For thinking blocks, force code to match the muted text color
+          inlineCodeColor:
+            msg.type === 'thinking'
+              ? TUITheme.roles.thinkingInlineCode
+              : undefined,
+          inlineCodeDim: msg.type === 'thinking',
+          codeBlockColor: msg.type === 'thinking' ? color : undefined,
+          headingColor:
+            msg.type === 'thinking'
+              ? TUITheme.roles.thinkingInlineCode
+              : undefined,
+          headingDim: msg.type === 'thinking',
         }
-      });
-      lines.push({ text: '', color }); // Empty line between messages
+      );
+
+      if (renderedLines.length > 0) {
+        // Prepend prefix to the first line
+        renderedLines[0].chunks.unshift({
+          text: prefix,
+          color,
+          bg,
+          bold: msg.type === 'user',
+        });
+
+        // Add subsequent lines with proper indentation
+        if (prefix.length > 0) {
+          for (let i = 1; i < renderedLines.length; i++) {
+            renderedLines[i].chunks.unshift({
+              text: ' '.repeat(prefix.length),
+              color,
+              bg,
+            });
+          }
+        }
+        lines.push(...renderedLines);
+      } else if (prefix) {
+        lines.push({ chunks: [{ text: prefix, color }] });
+      }
+
+      lines.push({ chunks: [] });
     });
 
-    // Add streaming paste content if present
-    if (streamingPaste) {
-      const pasteLines = streamingPaste.split('\n');
-      const pasteColor = '#f5a623'; // Amber-orange for pasted content
-      lines.push({ text: '📋 Pasting...', color: '#2eb572' }); // Green header
-      pasteLines.forEach((line) => {
-        lines.push({ text: line, color: pasteColor });
+    return lines;
+  }, [messages, stdout?.columns]);
+
+  // Merge static messages with dynamic paste content
+  // This is the HOT path during pastes, so we keep it very light
+  const allLines = useMemo(() => {
+    if (!streamingPaste) return renderedMessages;
+
+    const lines = [...renderedMessages];
+    const pasteLines = streamingPaste.split('\n');
+
+    lines.push({
+      chunks: [
+        {
+          text: '📋 Pasting...',
+          color: TUITheme.ui.paste.header,
+          bold: true,
+        },
+      ],
+    });
+
+    pasteLines.forEach((line) => {
+      lines.push({
+        chunks: [{ text: line, color: TUITheme.ui.paste.content }],
       });
-    }
+    });
 
     return lines;
-  }, [messages, streamingPaste]);
+  }, [renderedMessages, streamingPaste]);
 
   // Handle global scroll signals (e.g. from InputBox)
   useEffect(() => {
@@ -238,7 +401,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
         setAvailableHeight(newHeight);
       }
     }
-  }); // Run on every render. Since component is memoized, this only runs when props change.
+  }, [layoutVersion, stdout?.rows, stdout?.columns]); // Only re-measure when layout or terminal size changes
 
   // Note: Paste streaming is handled by parent component (index.tsx)
   // The [PASTE:filepath] message is sent after streaming completes
@@ -368,24 +531,37 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       minHeight={3}
       borderTop
       borderBottom
-      borderColor={focused ? '#2ea043' : '#30363d'}
+      borderColor={
+        focused ? TUITheme.ui.border.focused : TUITheme.ui.border.default
+      }
       width="100%"
       paddingX={1}
     >
       <Box flexDirection="column" flexGrow={1}>
-        {visibleLines.map((line, idx) => {
-          // Check if line contains ANSI escape codes (colors)
-          const hasAnsi = stripAnsi(line.text) !== line.text;
-          return (
-            <Text key={idx} color={hasAnsi ? undefined : line.color}>
-              {hasAnsi
-                ? `\u001b[0m${stripCursorSequences(line.text)}\u001b[0m`
-                : line.text}
-            </Text>
-          );
-        })}
+        {visibleLines.map((line, idx) => (
+          <Text key={idx}>
+            {line.chunks.length === 0
+              ? ' '
+              : line.chunks.map((chunk, cIdx) => {
+                  const hasAnsi = stripAnsi(chunk.text) !== chunk.text;
+                  return (
+                    <Text
+                      key={cIdx}
+                      color={hasAnsi ? undefined : chunk.color}
+                      backgroundColor={chunk.bg}
+                      bold={chunk.bold}
+                      italic={chunk.italic}
+                      dimColor={chunk.dim}
+                      inverse={chunk.inverse}
+                    >
+                      {hasAnsi ? stripCursorSequences(chunk.text) : chunk.text}
+                    </Text>
+                  );
+                })}
+          </Text>
+        ))}
         {isThinking && (
-          <Box marginTop={1}>
+          <Box>
             <Spinner label="Thinking…" />
           </Box>
         )}

@@ -14,6 +14,7 @@ import type { WizardConfirmationState } from '../hooks/useOnboardingWizard.js';
 import type { WorkbenchHealthStatus } from './OverlaysBar.js';
 import type { SigmaStats, OverlayScores } from './SigmaInfoPanel.js';
 import type { TokenCount } from '../hooks/tokens/useTokenCount.js';
+import { TUITheme } from '../theme.js';
 
 export interface CognitionTUILayoutProps {
   sigmaStats: SigmaStats;
@@ -130,6 +131,7 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
       height={dimensions.rows}
       paddingTop={0}
       marginTop={0}
+      backgroundColor={TUITheme.background.primary}
     >
       <Box flexShrink={0} flexDirection="column">
         <ComponentErrorBoundary componentName="OverlaysBar">
@@ -141,7 +143,9 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
             workbenchHealth={adaptedHealth}
           />
         </ComponentErrorBoundary>
-        <Text color="#3a3f4b">{'─'.repeat(dimensions.columns)}</Text>
+        <Text color={TUITheme.ui.border.dim}>
+          {'─'.repeat(dimensions.columns)}
+        </Text>
       </Box>
 
       {/* Use flexGrow: 1 to automatically fill available space */}
@@ -188,7 +192,9 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
           />
         </ComponentErrorBoundary>
         <Box height={1} flexShrink={0}>
-          {saveMessage && <Text color="green">{saveMessage}</Text>}
+          {saveMessage && (
+            <Text color={TUITheme.text.success}>{saveMessage}</Text>
+          )}
         </Box>
         <ComponentErrorBoundary componentName="StatusBar">
           <StatusBar

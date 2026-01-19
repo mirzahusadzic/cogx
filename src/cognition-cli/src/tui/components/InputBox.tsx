@@ -13,6 +13,7 @@ import type { ToolConfirmationState } from '../hooks/useToolConfirmation.js';
 import type { WizardConfirmationState } from '../hooks/useOnboardingWizard.js';
 import { WizardConfirmationModal } from './WizardConfirmationModal.js';
 import { useTUI } from '../context/TUIContext.js';
+import { TUITheme } from '../theme.js';
 
 /**
  * Props for InputBox component
@@ -778,11 +779,11 @@ export const InputBox: React.FC<InputBoxProps> = ({
       <Box
         borderTop
         borderBottom
-        borderColor="#30363d"
+        borderColor={TUITheme.ui.border.default}
         paddingX={1}
         width="100%"
       >
-        <Text color="#8b949e">Press Tab to focus input</Text>
+        <Text color={TUITheme.text.secondary}>Press Tab to focus input</Text>
       </Box>
     );
   }
@@ -810,7 +811,11 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
       <Box width="100%" flexDirection="column">
         {/* Top border */}
-        <Text color={confirmationPending ? '#f85149' : '#3a3f4b'}>
+        <Text
+          color={
+            confirmationPending ? TUITheme.text.error : TUITheme.ui.border.dim
+          }
+        >
           {'─'.repeat(columns)}
         </Text>
 
@@ -818,16 +823,16 @@ export const InputBox: React.FC<InputBoxProps> = ({
         <Box flexDirection="column" minHeight={1} width="100%">
           {confirmationPending ? (
             /* Show static tip when confirmation modal is active - EXACT pattern from tool confirmation */
-            <>
-              <Text color="#f85149">{'> '}</Text>
-              <Text dimColor color="#8b949e">
+            <Box>
+              <Text color={TUITheme.text.error}>{'> '}</Text>
+              <Text dimColor color={TUITheme.text.secondary}>
                 {wizardConfirmationState?.pending
                   ? wizardConfirmationState.mode === 'select'
                     ? `${wizardConfirmationState.title || 'Select items'} - Use ↑↓ arrows, Space to toggle, Enter to confirm, Esc to cancel`
                     : `${wizardConfirmationState.title || 'Confirm'} - Press Y to confirm, N to skip, Esc to cancel`
                   : 'Waiting for tool confirmation... (See prompt above)'}
               </Text>
-            </>
+            </Box>
           ) : (
             /* Normal input rendering when NOT confirming */
             <>
@@ -843,8 +848,8 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
                   return (
                     <Box key={idx} width="100%">
-                      <Text color="white">{prefix}</Text>
-                      <Text color="#56d364">
+                      <Text color={TUITheme.text.primary}>{prefix}</Text>
+                      <Text color={TUITheme.roles.user}>
                         {process.env.NODE_ENV === 'test' ? (
                           line.replace('█', '')
                         ) : cursorIndex === -1 ? (
@@ -855,9 +860,15 @@ export const InputBox: React.FC<InputBoxProps> = ({
                             {focused && !confirmationPending && !disabled ? (
                               <Text
                                 backgroundColor={
-                                  cursorVisible ? 'white' : undefined
+                                  cursorVisible
+                                    ? TUITheme.text.primary
+                                    : undefined
                                 }
-                                color={cursorVisible ? 'black' : '#56d364'}
+                                color={
+                                  cursorVisible
+                                    ? TUITheme.text.inverse
+                                    : TUITheme.roles.user
+                                }
                               >
                                 {line.substring(
                                   cursorIndex + 1,
@@ -875,7 +886,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
                         )}
                       </Text>
                       {value.length === 0 && idx === 0 && (
-                        <Text dimColor color="#8b949e">
+                        <Text dimColor color={TUITheme.text.secondary}>
                           {disabled
                             ? ` ${providerName.charAt(0).toUpperCase() + providerName.slice(1)} is thinking... (ESC to interrupt)`
                             : ' Type a message... (Ctrl+O for newline, ESC ESC to clear)'}
@@ -890,7 +901,11 @@ export const InputBox: React.FC<InputBoxProps> = ({
         </Box>
 
         {/* Bottom border */}
-        <Text color={confirmationPending ? '#f85149' : '#3a3f4b'}>
+        <Text
+          color={
+            confirmationPending ? TUITheme.text.error : TUITheme.ui.border.dim
+          }
+        >
           {'─'.repeat(columns)}
         </Text>
       </Box>
@@ -898,7 +913,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
       {/* Loading indicator */}
       {commandsLoading && value.startsWith('/') && focused && (
         <Box paddingX={1}>
-          <Text color="yellow">⏳ Loading...</Text>
+          <Text color={TUITheme.ui.warning}>⏳ Loading...</Text>
         </Box>
       )}
     </Box>

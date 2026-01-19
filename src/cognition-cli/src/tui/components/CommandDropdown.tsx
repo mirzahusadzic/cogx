@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Text, useStdout } from 'ink';
 import { Command } from '../commands/loader.js';
+import { TUITheme } from '../theme.js';
 
 /**
  * Props for CommandDropdown component
@@ -108,7 +109,7 @@ const CommandDropdownComponent = ({
     <Box
       flexDirection="column"
       borderStyle="round"
-      borderColor="cyan"
+      borderColor={TUITheme.overlays.o7_strategic}
       paddingX={1}
     >
       {/* Command list - compact, no header */}
@@ -118,11 +119,13 @@ const CommandDropdownComponent = ({
 
         return (
           <Box key={command.name}>
-            <Text color={isSelected ? 'green' : 'white'}>
+            <Text
+              color={isSelected ? TUITheme.roles.user : TUITheme.text.primary}
+            >
               {isSelected ? '▸ ' : '  '}/{command.name}
             </Text>
             {command.description && (
-              <Text color="gray" dimColor>
+              <Text color={TUITheme.text.secondary} dimColor>
                 {' - '}
                 {command.description.slice(0, 80)}
                 {command.description.length > 80 ? '…' : ''}
@@ -133,12 +136,16 @@ const CommandDropdownComponent = ({
       })}
 
       {/* Compact footer with scroll indicator */}
-      <Box borderTop borderColor="gray" justifyContent="space-between">
-        <Text color="gray" dimColor>
+      <Box
+        borderTop
+        borderColor={TUITheme.ui.border.dim}
+        justifyContent="space-between"
+      >
+        <Text color={TUITheme.text.secondary} dimColor>
           ↑↓ ⏎ Esc
         </Text>
         {hasMore && (
-          <Text color="gray" dimColor>
+          <Text color={TUITheme.text.secondary} dimColor>
             {actualOffset > 0 && `↑${actualOffset} `}
             {actualOffset < maxOffset && `↓${maxOffset - actualOffset}`}
           </Text>

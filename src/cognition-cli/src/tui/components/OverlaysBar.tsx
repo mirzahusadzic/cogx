@@ -4,6 +4,7 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import type { BackgroundTask } from '../services/BackgroundTaskManager.js';
+import { TUITheme } from '../theme.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -169,19 +170,23 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
 
     return (
       <>
-        <Text color="#8b949e">🌿 Nodes: {nodes}</Text>
-        <Text color="#3a3f4b">|</Text>
-        <Text color="#8b949e">🐘 Edges: {edges}</Text>
-        <Text color="#3a3f4b">|</Text>
-        <Text color="#8b949e">🦋 Shifts: {shifts}</Text>
-        <Text color="#3a3f4b">|</Text>
-        <Text color="#8b949e">🐇 Novelty: {novelty}</Text>
-        <Text color="#3a3f4b">|</Text>
-        <Text color="#8b949e">🐍 Importance: {importance}</Text>
+        <Text color={TUITheme.overlays.o1_structural}>🌿 Nodes: {nodes}</Text>
+        <Text color={TUITheme.ui.border.dim}>|</Text>
+        <Text color={TUITheme.overlays.o5_operational}>🐘 Edges: {edges}</Text>
+        <Text color={TUITheme.ui.border.dim}>|</Text>
+        <Text color={TUITheme.overlays.o4_mission}>🦋 Shifts: {shifts}</Text>
+        <Text color={TUITheme.ui.border.dim}>|</Text>
+        <Text color={TUITheme.overlays.o3_lineage}>🐇 Novelty: {novelty}</Text>
+        <Text color={TUITheme.ui.border.dim}>|</Text>
+        <Text color={TUITheme.overlays.o6_mathematical}>
+          🐍 Importance: {importance}
+        </Text>
         {pendingMessageCount > 0 && (
           <>
-            <Text color="#3a3f4b">|</Text>
-            <Text color="#f0883e">🐦 Messages: {pendingMessageCount}</Text>
+            <Text color={TUITheme.ui.border.dim}>|</Text>
+            <Text color={TUITheme.overlays.o2_security}>
+              🐦 Messages: {pendingMessageCount}
+            </Text>
           </>
         )}
       </>
@@ -192,7 +197,7 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
     <Box
       paddingX={1}
       borderBottom
-      borderColor="#30363d"
+      borderColor={TUITheme.ui.border.default}
       flexDirection="row"
       justifyContent="space-between"
       width="100%"
@@ -200,28 +205,34 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
       <Box flexDirection="row" gap={1}>
         {monitorError ? (
           // Show error if monitor failed
-          <Text color="#f85149">⚠ Message Monitor: {monitorError}</Text>
+          <Text color={TUITheme.text.error}>
+            ⚠ Message Monitor: {monitorError}
+          </Text>
         ) : hasWorkbenchIssues ? (
           // Show workbench issues when health check failed
           <>
-            <Text color="#f85149">
+            <Text color={TUITheme.text.error}>
               ⚠️ Workbench: {workbenchIssues.join(', ')}
             </Text>
             {pendingMessageCount > 0 && (
               <>
-                <Text color="#3a3f4b">|</Text>
-                <Text color="#f0883e">🐦 Messages: {pendingMessageCount}</Text>
+                <Text color={TUITheme.ui.border.dim}>|</Text>
+                <Text color={TUITheme.overlays.o2_security}>
+                  🐦 Messages: {pendingMessageCount}
+                </Text>
               </>
             )}
           </>
         ) : !sigmaStats || sigmaStats.nodes === 0 ? (
           <>
-            <Text color="#8b949e">Lattice: Warming up...</Text>
+            <Text color={TUITheme.text.secondary}>Lattice: Warming up...</Text>
             {/* Always show pending messages, even when lattice is warming up */}
             {pendingMessageCount > 0 && (
               <>
-                <Text color="#3a3f4b">|</Text>
-                <Text color="#f0883e">🐦 Messages: {pendingMessageCount}</Text>
+                <Text color={TUITheme.ui.border.dim}>|</Text>
+                <Text color={TUITheme.overlays.o2_security}>
+                  🐦 Messages: {pendingMessageCount}
+                </Text>
               </>
             )}
           </>
@@ -234,7 +245,10 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
           <TaskStatusDisplay task={activeTask} />
         ) : (
           <>
-            <Text bold color="cyan">{`COGNITION Σ CLI v${VERSION}`}</Text>
+            <Text
+              bold
+              color={TUITheme.overlays.o7_strategic}
+            >{`COGNITION Σ CLI v${VERSION}`}</Text>
             <Text> {BRAND_EMOJI}</Text>
           </>
         )}
@@ -278,7 +292,7 @@ const TaskStatusDisplay: React.FC<{ task: BackgroundTask }> = ({ task }) => {
   return (
     <Box flexDirection="row">
       <Text>{icon}</Text>
-      <Text color="#8b949e">{message}</Text>
+      <Text color={TUITheme.text.secondary}>{message}</Text>
     </Box>
   );
 };
