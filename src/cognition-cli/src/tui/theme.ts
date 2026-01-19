@@ -70,7 +70,8 @@ export const TUITheme = {
     },
     code: {
       block: '#a0b0c0',
-      inline: '#4dd0e1', // Cyan accent
+      inline: '#80deea', // Brighter Cyan for better contrast against normal text
+      inlineBg: '#151c28', // Subtler background for inline code (halfway to primary bg)
       background: '#090e14',
     },
     diff: {

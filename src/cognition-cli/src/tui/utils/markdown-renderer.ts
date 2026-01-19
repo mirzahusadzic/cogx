@@ -45,7 +45,9 @@ export interface MarkdownRendererOptions {
   baseDim?: boolean;
   bulletColor?: string;
   inlineCodeColor?: string;
+  inlineCodeBg?: string;
   inlineCodeDim?: boolean;
+  inlineCodeBold?: boolean;
   codeBlockColor?: string;
   codeBlockDim?: boolean;
   headingColor?: string;
@@ -351,6 +353,11 @@ export class MarkdownRenderer {
             ...state,
             text: ic.value,
             color: this.options.inlineCodeColor || TUITheme.syntax.code.inline,
+            bg: this.options.inlineCodeBg || TUITheme.syntax.code.inlineBg || state.bg,
+            bold:
+              this.options.inlineCodeBold !== undefined
+                ? this.options.inlineCodeBold
+                : true, // Default to bold for better visibility
             dim:
               this.options.inlineCodeDim !== undefined
                 ? this.options.inlineCodeDim
