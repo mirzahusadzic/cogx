@@ -376,26 +376,60 @@ export class MarkdownRenderer {
         this.ensureGap(state);
 
         const codeLines = c.value.split('\n');
+        // Determine if this block should use diff highlighting
+        // Always for diff/patch, or if text/untagged blocks look like diffs
+        const isDiffBlock =
+          c.lang === 'diff' ||
+          c.lang === 'patch' ||
+          ((c.lang === 'text' || !c.lang) &&
+            codeLines.slice(0, 10).some((l) => {
+              const clean = stripAnsi(l);
+              return (
+                clean.startsWith('--- ') ||
+                clean.startsWith('+++ ') ||
+                clean.startsWith('diff --git') ||
+                clean.startsWith('@@ -') ||
+                /^\s*\d+[│|][+-]/.test(clean)
+              );
+            }));
+
         codeLines.forEach((line) => {
           let lineColor =
             this.options.codeBlockColor || TUITheme.syntax.code.block;
           let lineBg = state.bg;
+          let isAdd = false;
+          let isRemove = false;
+          let isHeader = false;
 
-          // Simple Diff Highlighting (only if no override provided)
-          if (
-            !this.options.codeBlockColor &&
-            (c.lang === 'diff' || c.lang === 'patch')
-          ) {
-            if (line.startsWith('+')) {
+          // Simple Diff Highlighting
+          if (isDiffBlock) {
+            // Enhanced detection for both standard git diffs and CLI 'edit' views
+            // Strip ANSI for detection and to ensure our colors take precedence
+            const cleanLine = stripAnsi(line);
+            isAdd =
+              cleanLine.startsWith('+') || /^\s*\d+[│|]\s*\+/.test(cleanLine);
+            isRemove =
+              cleanLine.startsWith('-') || /^\s*\d+[│|]\s*-/.test(cleanLine);
+            isHeader =
+              cleanLine.startsWith('@') || /^\s*\d+[│|]\s*@/.test(cleanLine);
+
+            if (isAdd) {
               lineColor = TUITheme.syntax.diff.add;
               lineBg = TUITheme.syntax.diff.addBg;
-            } else if (line.startsWith('-')) {
+              line = cleanLine; // Use clean line to ensure coloring works
+            } else if (isRemove) {
               lineColor = TUITheme.syntax.diff.remove;
               lineBg = TUITheme.syntax.diff.removeBg;
-            } else if (line.startsWith('@')) {
+              line = cleanLine; // Use clean line to ensure coloring works
+            } else if (isHeader) {
               lineColor = TUITheme.syntax.diff.header;
-            } else if (line.startsWith('index') || line.startsWith('diff')) {
+              line = cleanLine;
+            } else if (
+              cleanLine.startsWith('index') ||
+              cleanLine.startsWith('diff')
+            ) {
               lineColor = TUITheme.syntax.diff.meta;
+              line = cleanLine;
             }
           }
 
@@ -408,9 +442,15 @@ export class MarkdownRenderer {
               dim:
                 this.options.codeBlockDim !== undefined
                   ? this.options.codeBlockDim
-                  : state.dim,
+                  : isAdd || isRemove || isHeader
+                    ? false
+                    : state.dim,
             },
-            state
+            {
+              ...state,
+              bg: lineBg, // Ensure wrapped lines and indentation use the diff background
+              dim: isAdd || isRemove || isHeader ? false : state.dim,
+            }
           );
           this.flushLine();
         });

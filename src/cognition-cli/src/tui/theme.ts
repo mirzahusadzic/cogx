@@ -66,7 +66,7 @@ export const TUITheme = {
       h1: '#4dd0e1', // Cyan
       h2: '#4dd0e1', // Cyan
       h3: '#4dd0e1', // Cyan
-      prefix: '#506b9b',
+      prefix: '#6280b5',
     },
     code: {
       block: '#a0b0c0',
