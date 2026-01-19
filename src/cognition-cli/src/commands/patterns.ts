@@ -330,6 +330,18 @@ export function addPatternsCommands(program: Command) {
         );
       }
 
+      // Helper function to extract file path from vector id
+      const getFilePathFromId = (id: string): string => {
+        const parts = id.split('_');
+        if (parts.length < 3) return 'unknown';
+        const pathParts = parts.slice(1, -1);
+        let path = pathParts.join('/');
+        if (path.endsWith('/ts')) {
+          path = path.substring(0, path.length - 3) + '.ts';
+        }
+        return path || 'unknown';
+      };
+
       if (filteredVectors.length === 0) {
         if (!useJson) {
           if (options.role) {
@@ -364,18 +376,6 @@ export function addPatternsCommands(program: Command) {
       console.log(
         chalk.bold(`\n📋 ${title} (${filteredVectors.length} found):\n`)
       );
-
-      // Helper function to extract file path from vector id
-      const getFilePathFromId = (id: string): string => {
-        const parts = id.split('_');
-        if (parts.length < 3) return 'unknown';
-        const pathParts = parts.slice(1, -1);
-        let path = pathParts.join('/');
-        if (path.endsWith('/ts')) {
-          path = path.substring(0, path.length - 3) + '.ts';
-        }
-        return path || 'unknown';
-      };
 
       filteredVectors.forEach((v, i) => {
         const symbol = (v.symbol as string) || 'unknown';
