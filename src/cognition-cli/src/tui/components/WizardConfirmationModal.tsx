@@ -155,7 +155,12 @@ const WizardConfirmationModalComponent: React.FC<
                 <Text
                   key={item.id}
                   color={
-                    isHighlighted ? TUITheme.roles.user : TUITheme.text.primary
+                    isHighlighted
+                      ? TUITheme.text.inverse
+                      : TUITheme.text.primary
+                  }
+                  backgroundColor={
+                    isHighlighted ? TUITheme.background.selection : undefined
                   }
                 >
                   {line}

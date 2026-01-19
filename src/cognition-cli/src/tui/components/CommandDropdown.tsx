@@ -120,12 +120,23 @@ const CommandDropdownComponent = ({
         return (
           <Box key={command.name}>
             <Text
-              color={isSelected ? TUITheme.roles.user : TUITheme.text.primary}
+              color={isSelected ? TUITheme.text.inverse : TUITheme.text.primary}
+              backgroundColor={
+                isSelected ? TUITheme.background.selection : undefined
+              }
             >
               {isSelected ? '▸ ' : '  '}/{command.name}
             </Text>
             {command.description && (
-              <Text color={TUITheme.text.secondary} dimColor>
+              <Text
+                color={
+                  isSelected ? TUITheme.text.inverse : TUITheme.text.secondary
+                }
+                backgroundColor={
+                  isSelected ? TUITheme.background.selection : undefined
+                }
+                dimColor={!isSelected}
+              >
                 {' - '}
                 {command.description.slice(0, 80)}
                 {command.description.length > 80 ? '…' : ''}

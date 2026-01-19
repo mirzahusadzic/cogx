@@ -5,9 +5,9 @@ export const TUITheme = {
     secondary: '#94a3b8', // Slate gray
     tertiary: '#8b9cb0', // Muted blue-gray (Improved contrast)
     inverse: '#0d131c', // Dark background
-    error: '#ff7b72', // Red
+    error: '#ffb1ab', // Red (+15% brightness)
     warning: '#fcae27', // Amber
-    success: '#34d399', // Emerald
+    success: '#5ee2b0', // Emerald (+15% brightness)
   },
 
   // Background colors (AIEcho Palette)
@@ -15,12 +15,12 @@ export const TUITheme = {
     primary: '#0d131c', // Dark blue-charcoal
     secondary: '#1c2433', // Deep blue-charcoal
     code: '#090e14', // Slightly darker for code blocks
-    selection: '#34d399',
+    selection: '#4dd0e1', // Monolith Cyan selection
   },
 
   // Role-based colors - MONOLITH SCHEME
   roles: {
-    user: '#a0b0c0', // Primary Silver
+    user: '#80deea', // Light Cyan for input distinction
     assistant: '#4dd0e1', // Cyan
     system: '#94a3b8', // Slate Gray
     thinking: '#94a3b8', // Slate Gray
@@ -53,7 +53,7 @@ export const TUITheme = {
   overlays: {
     o1_structural: '#4dd0e1', // Cyan 300
     o2_security: '#fcae27', // Amber (Keep for visibility)
-    o3_lineage: '#34d399', // Green (Keep for visibility)
+    o3_lineage: '#5ee2b0', // Green (+15% brightness)
     o4_mission: '#80deea', // Cyan 200
     o5_operational: '#94a3b8', // Slate (Neutral)
     o6_mathematical: '#26c6da', // Cyan 400
@@ -74,9 +74,9 @@ export const TUITheme = {
       background: '#090e14',
     },
     diff: {
-      add: '#34d399', // Green
+      add: '#5ee2b0', // Green (+15% brightness)
       addBg: '#11221a',
-      remove: '#ff7b72', // Red
+      remove: '#ffb1ab', // Red (+15% brightness)
       removeBg: '#2a1414',
       header: '#4dd0e1', // Cyan
       meta: '#828c9b', // Muted
@@ -97,9 +97,9 @@ export const TUITheme = {
       content: '#a0b0c0', // Silver
     },
     spinner: '#4dd0e1', // Cyan
-    error: '#ff7b72',
+    error: '#ffb1ab',
     warning: '#fcae27',
-    success: '#34d399',
+    success: '#5ee2b0',
   },
 
   // Cognition markers
