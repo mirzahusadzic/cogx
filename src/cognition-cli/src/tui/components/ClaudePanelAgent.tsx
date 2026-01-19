@@ -277,19 +277,26 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
         {
           baseColor: color,
           baseBg: bg,
+          baseDim: msg.type === 'thinking',
           bulletColor: msg.type === 'thinking' ? color : undefined,
-          // For thinking blocks, force code to match the muted text color
+          // For thinking blocks, force code to match the vibrant role color
+          // while the surrounding text is dimmed.
           inlineCodeColor:
             msg.type === 'thinking'
               ? TUITheme.roles.thinkingInlineCode
               : undefined,
-          inlineCodeDim: msg.type === 'thinking',
+          inlineCodeDim: msg.type === 'thinking' ? false : undefined,
           codeBlockColor: msg.type === 'thinking' ? color : undefined,
+          codeBlockDim: msg.type === 'thinking' ? false : undefined,
           headingColor:
             msg.type === 'thinking'
               ? TUITheme.roles.thinkingInlineCode
               : undefined,
-          headingDim: msg.type === 'thinking',
+          headingDim: msg.type === 'thinking' ? false : undefined,
+          strongDim: msg.type === 'thinking' ? false : undefined,
+          emphasisDim: msg.type === 'thinking' ? false : undefined,
+          vibrantTitles:
+            msg.type === 'thinking' ? TUITheme.cognition.vibrantTitles : [],
         }
       );
 
@@ -300,6 +307,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
           color,
           bg,
           bold: msg.type === 'user',
+          dim: msg.type === 'thinking',
         });
 
         // Add subsequent lines with proper indentation
@@ -309,6 +317,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
               text: ' '.repeat(prefix.length),
               color,
               bg,
+              dim: msg.type === 'thinking',
             });
           }
         }

@@ -42,12 +42,17 @@ export interface MarkdownRendererOptions {
   width: number;
   baseColor?: string;
   baseBg?: string;
+  baseDim?: boolean;
   bulletColor?: string;
   inlineCodeColor?: string;
   inlineCodeDim?: boolean;
   codeBlockColor?: string;
+  codeBlockDim?: boolean;
   headingColor?: string;
   headingDim?: boolean;
+  strongDim?: boolean;
+  emphasisDim?: boolean;
+  vibrantTitles?: string[];
 }
 
 /**
@@ -93,6 +98,7 @@ export class MarkdownRenderer {
       this.processNode(node as Content, {
         color: this.options.baseColor,
         bg: this.options.baseBg,
+        dim: this.options.baseDim,
         indent: 0,
       })
     );
@@ -154,6 +160,7 @@ export class MarkdownRenderer {
               text: ' '.repeat(state.indent),
               color: state.color,
               bg: state.bg,
+              dim: state.dim,
             });
           }
         }
@@ -170,6 +177,7 @@ export class MarkdownRenderer {
         text: ' '.repeat(state.indent),
         color: state.color,
         bg: state.bg,
+        dim: state.dim,
       });
     }
 
@@ -210,6 +218,7 @@ export class MarkdownRenderer {
               text: ' '.repeat(state.indent),
               color: state.color,
               bg: state.bg,
+              dim: state.dim,
             });
           }
 
@@ -260,7 +269,10 @@ export class MarkdownRenderer {
             ...state,
             color: hColor,
             bold: true,
-            dim: this.options.headingDim || state.dim,
+            dim:
+              this.options.headingDim !== undefined
+                ? this.options.headingDim
+                : state.dim,
             suppressInitialGap: false,
           })
         );
@@ -281,19 +293,46 @@ export class MarkdownRenderer {
 
       case 'text': {
         const t = node as Text;
-        this.addChunk({ ...state, text: t.value }, state);
+        let dim = state.dim;
+        const trimmed = t.value.trim();
+        // Highlight specific thinking block titles even if they aren't styled
+        if (state.dim && this.options.vibrantTitles) {
+          const lowerTrimmed = trimmed.toLowerCase().replace(/[:.!?]$/, '');
+          const isVibrant = this.options.vibrantTitles.some((title) => {
+            const lowerTitle = title.toLowerCase();
+            return lowerTrimmed === lowerTitle;
+          });
+          if (isVibrant) {
+            dim = false;
+          }
+        }
+        this.addChunk({ ...state, text: t.value, dim }, state);
         break;
       }
 
       case 'strong':
         node.children.forEach((child) =>
-          this.processNode(child as Content, { ...state, bold: true })
+          this.processNode(child as Content, {
+            ...state,
+            bold: true,
+            dim:
+              this.options.strongDim !== undefined
+                ? this.options.strongDim
+                : state.dim,
+          })
         );
         break;
 
       case 'emphasis':
         node.children.forEach((child) =>
-          this.processNode(child as Content, { ...state, italic: true })
+          this.processNode(child as Content, {
+            ...state,
+            italic: true,
+            dim:
+              this.options.emphasisDim !== undefined
+                ? this.options.emphasisDim
+                : state.dim,
+          })
         );
         break;
 
@@ -304,7 +343,10 @@ export class MarkdownRenderer {
             ...state,
             text: ic.value,
             color: this.options.inlineCodeColor || TUITheme.syntax.code.inline,
-            dim: this.options.inlineCodeDim || state.dim,
+            dim:
+              this.options.inlineCodeDim !== undefined
+                ? this.options.inlineCodeDim
+                : state.dim,
           },
           state
         );
@@ -342,6 +384,10 @@ export class MarkdownRenderer {
               text: line,
               color: lineColor,
               bg: state.bg,
+              dim:
+                this.options.codeBlockDim !== undefined
+                  ? this.options.codeBlockDim
+                  : state.dim,
             },
             state
           );

@@ -131,9 +131,8 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 
     return (
       <>
-        <Text color={providerStyle.color}>
-          {providerStyle.emoji} {displayName}
-        </Text>
+        <Text color={providerStyle.color}>{providerStyle.emoji}</Text>
+        <Text color={TUITheme.text.secondary}> {displayName}</Text>
         <Text color={TUITheme.ui.border.dim}> | </Text>
         <Text color={TUITheme.text.secondary}>[Tab] Toggle Focus</Text>
         <Text color={TUITheme.ui.border.dim}> | </Text>
