@@ -247,9 +247,12 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
               ? 0
               : stripAnsi(toolName).length + 1;
 
+            const targetWidth =
+              width - prefix.length - detailsWidthReduction - 4;
+
             let detailLines = markdownToLines(
               processDetails,
-              width - prefix.length - detailsWidthReduction - 4,
+              Math.max(10, targetWidth),
               {
                 baseColor: TUITheme.roles.toolResult,
                 baseBg: bg,
@@ -345,7 +348,10 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       // Universal Markdown Renderer for all message types
       const renderedLines = markdownToLines(
         msg.content,
-        width - prefix.length - (msg.type === 'tool_progress' ? 4 : 0),
+        Math.max(
+          10,
+          width - prefix.length - (msg.type === 'tool_progress' ? 4 : 0)
+        ),
         {
           baseColor: color,
           baseBg: bg,
@@ -462,7 +468,13 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
     // Clear the signal so it doesn't re-trigger on other dependency changes
     clearScrollSignal();
-  }, [scrollSignal, availableHeight, allLines.length, clearScrollSignal]);
+  }, [
+    scrollSignal,
+    availableHeight,
+    allLines.length,
+    scrollOffset,
+    clearScrollSignal,
+  ]);
 
   // Use measureElement to get the actual height allocated by Yoga
   useEffect(() => {

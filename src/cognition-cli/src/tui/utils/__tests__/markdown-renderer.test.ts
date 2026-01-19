@@ -128,4 +128,23 @@ describe('MarkdownRenderer', () => {
     expect(titleChunk).toBeDefined();
     expect(titleChunk?.dim).toBe(true);
   });
+
+  it('handles negative or very small width gracefully without infinite looping', () => {
+    const markdown = 'This is a long sentence that should be wrapped.';
+    // Use a very small width that would normally cause issues
+    const lines = markdownToLines(markdown, -5);
+
+    // It should produce some lines but definitely not an infinite number or crash
+    expect(lines.length).toBeGreaterThan(0);
+    expect(lines.length).toBeLessThan(100);
+  });
+
+  it('handles indentation larger than width gracefully', () => {
+    const markdown = '- Item 1\n- Item 2';
+    // Indent for list is at least 2. With width 1, it might have issues if not handled.
+    const lines = markdownToLines(markdown, 1);
+
+    expect(lines.length).toBeGreaterThan(0);
+    expect(lines.length).toBeLessThan(50);
+  });
 });

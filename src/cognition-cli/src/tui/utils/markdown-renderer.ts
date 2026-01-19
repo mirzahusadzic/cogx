@@ -175,11 +175,17 @@ export class MarkdownRenderer {
     const remainingWidth =
       this.options.width - this.getLineLength(this.currentLine);
 
+    // Safety: ensure we have at least some width to work with, even if width is negative
+    const effectiveWidth = Math.max(2, this.options.width);
+
     // Ensure indentation is applied to the start of a fresh line
     const totalIndent = state.indent + (state.wrapIndent || 0);
-    if (this.currentLine.chunks.length === 0 && totalIndent > 0) {
+    // Only apply indent if it doesn't consume the entire line
+    const safeIndent = totalIndent < effectiveWidth ? totalIndent : 0;
+
+    if (this.currentLine.chunks.length === 0 && safeIndent > 0) {
       this.currentLine.chunks.push({
-        text: ' '.repeat(totalIndent),
+        text: ' '.repeat(safeIndent),
         color: state.color,
         bg: state.bg,
         dim: state.dim,
@@ -202,10 +208,7 @@ export class MarkdownRenderer {
 
       for (const word of words) {
         const lineLen = this.getLineLength(this.currentLine);
-        if (
-          lineLen + currentChunkText.length + word.length >
-          this.options.width
-        ) {
+        if (lineLen + currentChunkText.length + word.length > effectiveWidth) {
           // Flush current accumulated text in this chunk
           if (currentChunkText) {
             this.currentLine.chunks.push({ ...chunk, text: currentChunkText });
@@ -218,10 +221,9 @@ export class MarkdownRenderer {
           }
 
           // Apply indent for the new wrapped line
-          const totalIndent = state.indent + (state.wrapIndent || 0);
-          if (totalIndent > 0) {
+          if (safeIndent > 0) {
             this.currentLine.chunks.push({
-              text: ' '.repeat(totalIndent),
+              text: ' '.repeat(safeIndent),
               color: state.color,
               bg: state.bg,
               dim: state.dim,
