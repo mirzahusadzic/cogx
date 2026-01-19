@@ -155,8 +155,8 @@ export const SigmaInfoPanel: React.FC<SigmaInfoPanelProps> = ({
   overlays,
 }) => {
   const renderBar = (value: number, max: number = 10) => {
-    const filled = Math.round((value / max) * 15);
-    const empty = 15 - filled;
+    const filled = Math.round((value / max) * 13);
+    const empty = 13 - filled;
     return '█'.repeat(filled) + '░'.repeat(empty);
   };
 
@@ -172,7 +172,7 @@ export const SigmaInfoPanel: React.FC<SigmaInfoPanelProps> = ({
     >
       <Box marginBottom={1} marginTop={1}>
         <Text bold color={TUITheme.overlays.o7_strategic}>
-          ━━━━━━━━━━━━━ SIGMA STATS ━━━━━━━━━━━━
+          ━━━━━━━━━━━━ SIGMA STATS ━━━━━━━━━━━━
         </Text>
       </Box>
 
