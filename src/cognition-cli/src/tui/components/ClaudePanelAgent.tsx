@@ -89,6 +89,17 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   const { state: tuiState, clearScrollSignal } = useTUI();
   const { scrollSignal } = tuiState;
   const [scrollOffset, setScrollOffset] = useState(0);
+  const [userScrolledUp, setUserScrolledUp] = useState(false);
+  /**
+   * Handles scroll offset changes and updates the userScrolledUp state.
+   * This centralizes scroll logic to ensure the userScrolledUp state is
+   * always correctly reflecting user interaction.
+   * @param {number} newOffset The new scroll offset.
+   */
+  const handleScroll = (newOffset: number) => {
+    setScrollOffset(newOffset);
+    setUserScrolledUp(newOffset > 0);
+  };
   const lastProcessedSignalTs = useRef<number>(0);
   const containerRef = useRef<DOMElement>(null);
 
@@ -433,19 +444,19 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
     const maxOffset = Math.max(0, allLines.length - availableHeight);
     switch (scrollSignal.type) {
       case 'up':
-        setScrollOffset((prev) => Math.min(prev + 1, maxOffset));
+        handleScroll(Math.min(scrollOffset + 1, maxOffset));
         break;
       case 'down':
-        setScrollOffset((prev) => Math.max(0, prev - 1));
+        handleScroll(Math.max(0, scrollOffset - 1));
         break;
       case 'pageUp':
-        setScrollOffset((prev) => Math.min(prev + availableHeight, maxOffset));
+        handleScroll(Math.min(scrollOffset + availableHeight, maxOffset));
         break;
       case 'pageDown':
-        setScrollOffset((prev) => Math.max(0, prev - availableHeight));
+        handleScroll(Math.max(0, scrollOffset - availableHeight));
         break;
       case 'bottom':
-        setScrollOffset(0);
+        handleScroll(0);
         break;
     }
 
@@ -481,15 +492,17 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    setScrollOffset(0); // Reset to bottom
-  }, [messages.length]);
+    if (!userScrolledUp) {
+      setScrollOffset(0); // Reset to bottom
+    }
+  }, [messages.length, userScrolledUp]);
 
   // Auto-scroll to bottom when switching focus back to input
   useEffect(() => {
     if (!focused) {
       setScrollOffset(0); // Input focused - scroll to bottom
     }
-  }, [focused]);
+  }, [focused, userScrolledUp]);
 
   // Handle keyboard scrolling when panel is focused
   useInput(
@@ -541,27 +554,25 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       if (key.upArrow) {
         if (key.shift) {
           // Shift+Up as a fallback for PageUp
-          setScrollOffset((prev) =>
-            Math.min(prev + availableHeight, maxOffset)
-          );
+          handleScroll(Math.min(scrollOffset + availableHeight, maxOffset));
         } else {
-          setScrollOffset((prev) => Math.min(prev + 1, maxOffset));
+          handleScroll(Math.min(scrollOffset + 1, maxOffset));
         }
       } else if (key.downArrow) {
         if (key.shift) {
           // Shift+Down as a fallback for PageDown
-          setScrollOffset((prev) => Math.max(0, prev - availableHeight));
+          handleScroll(Math.max(0, scrollOffset - availableHeight));
         } else {
-          setScrollOffset((prev) => Math.max(0, prev - 1));
+          handleScroll(Math.max(0, scrollOffset - 1));
         }
       } else if (isPageUp) {
-        setScrollOffset((prev) => Math.min(prev + availableHeight, maxOffset));
+        handleScroll(Math.min(scrollOffset + availableHeight, maxOffset));
       } else if (isPageDown) {
-        setScrollOffset((prev) => Math.max(0, prev - availableHeight));
+        handleScroll(Math.max(0, scrollOffset - availableHeight));
       } else if (isHome) {
-        setScrollOffset(maxOffset);
+        handleScroll(maxOffset);
       } else if (isEnd || key.return) {
-        setScrollOffset(0); // Jump to bottom
+        handleScroll(0); // Jump to bottom
       }
     },
     { isActive: focused }
