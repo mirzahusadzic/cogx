@@ -343,6 +343,94 @@ describe('GeminiAgentProvider', () => {
       expect(allMessages.some((m) => m.type === 'thinking')).toBe(true);
     });
 
+    it('should normalize literal \\n in thinking content', async () => {
+      const provider = new GeminiAgentProvider('test-key');
+
+      mockRunAsync.mockReturnValue({
+        [Symbol.asyncIterator]: async function* () {
+          // Chunk 1: Thinking header
+          yield {
+            author: 'cognition_agent',
+            content: {
+              role: 'model',
+              parts: [{ text: '**Analyzing**', thought: true }],
+            },
+          };
+          // Chunk 2: Literal \n\n followed by content
+          yield {
+            author: 'cognition_agent',
+            content: {
+              role: 'model',
+              parts: [
+                { text: '**Analyzing**\\n\\nI am thinking', thought: true },
+              ],
+            },
+          };
+        },
+      });
+
+      const generator = provider.executeAgent({
+        prompt: 'Think',
+        model: 'gemini-3-flash-preview',
+        cwd: '/test',
+      });
+
+      const allDeltas: string[] = [];
+      for await (const response of generator) {
+        const thinkingMsgs = response.messages.filter(
+          (m) => m.type === 'thinking'
+        );
+        if (thinkingMsgs.length > 0) {
+          // The provider yields new messages for each delta
+          // We want to capture the content of the NEWEST thinking message in this response
+          const latestMsg = thinkingMsgs[thinkingMsgs.length - 1];
+          // Only add if it's not the same message object we already processed
+          // (Wait, response.messages is a new array [...messages] each time,
+          // but the message objects inside might be the same if not newly created)
+          // Actually, the provider creates a NEW message for each delta.
+          allDeltas.push(latestMsg.content);
+        }
+      }
+
+      // First chunk delta: "**Analyzing**"
+      // Second chunk delta: "\\n\\nI am thinking" should be normalized to "\n\nI am thinking"
+      expect(allDeltas).toContain('\n\nI am thinking');
+    });
+
+    it('should normalize literal \\n in first chunk of assistant message', async () => {
+      const provider = new GeminiAgentProvider('test-key');
+
+      mockRunAsync.mockReturnValue({
+        [Symbol.asyncIterator]: async function* () {
+          yield {
+            author: 'cognition_agent',
+            content: {
+              role: 'model',
+              parts: [{ text: '\\n\\nHello world' }],
+            },
+          };
+        },
+      });
+
+      const generator = provider.executeAgent({
+        prompt: 'Greet',
+        model: 'gemini-3-flash-preview',
+        cwd: '/test',
+      });
+
+      let content = '';
+      for await (const response of generator) {
+        const assistantMsg = response.messages.find(
+          (m) => m.type === 'assistant'
+        );
+        if (assistantMsg) {
+          content = assistantMsg.content;
+        }
+      }
+
+      expect(content).toBe('Hello world');
+    });
+
     it('should yield tool calls from functionCall parts', async () => {
       const provider = new GeminiAgentProvider('test-key');
 

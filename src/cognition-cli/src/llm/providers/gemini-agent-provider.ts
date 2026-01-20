@@ -660,9 +660,19 @@ export class GeminiAgentProvider implements AgentProvider {
               // Extract delta text (only the new portion)
               let deltaText = part.text.substring(accumulated.length);
 
-              // Trim leading newlines from the first chunk of a message
+              // Special handling for thinking block headers to ensure clean spacing
+              // This handles cases where the header and content are in different chunks
+              if (isThinking && accumulated) {
+                const fullHeaderMatch = part.text.match(/^(\*\*([^*]+)\*\*)/);
+                if (fullHeaderMatch && accumulated === fullHeaderMatch[1]) {
+                  // We just finished the header and are starting the content in this chunk
+                  deltaText = deltaText.replace(/^([\n\r]|\\n)+/, '\n\n');
+                }
+              }
+
+              // Trim leading newlines from the first chunk of any message
               if (!accumulated) {
-                deltaText = deltaText.replace(/^[\n\r]+/, '');
+                deltaText = deltaText.replace(/^([\n\r]|\\n)+/, '');
 
                 if (isThinking) {
                   // For thinking blocks, ensure a double newline after the header
@@ -672,7 +682,8 @@ export class GeminiAgentProvider implements AgentProvider {
                     const headerPart = headerMatch[1];
                     const contentPart = deltaText.substring(headerPart.length);
                     deltaText =
-                      headerPart + contentPart.replace(/^[\n\r]+/, '\n\n');
+                      headerPart +
+                      contentPart.replace(/^([\n\r]|\\n)+/, '\n\n');
                   }
                 }
               }
