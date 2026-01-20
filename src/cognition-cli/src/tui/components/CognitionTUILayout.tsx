@@ -89,16 +89,22 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
   });
 
   useEffect(() => {
+    let resizeTimer: NodeJS.Timeout;
     const handleResize = () => {
-      setDimensions({
-        rows: stdout?.rows || 24,
-        columns: stdout?.columns || 80,
-      });
+      // Debounce resize to prevent render storms during terminal drag
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        setDimensions({
+          rows: stdout?.rows || 24,
+          columns: stdout?.columns || 80,
+        });
+      }, 50);
     };
 
     stdout?.on('resize', handleResize);
     return () => {
       stdout?.off('resize', handleResize);
+      clearTimeout(resizeTimer);
     };
   }, [stdout]);
 

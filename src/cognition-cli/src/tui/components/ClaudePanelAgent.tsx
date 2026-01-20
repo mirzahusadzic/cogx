@@ -21,6 +21,24 @@ import type { TUIMessage } from '../hooks/useAgent.js';
 import { TUITheme } from '../theme.js';
 
 /**
+ * Ensures each line has a stable key for efficient TUI rendering.
+ * Should be called in useMemo blocks that produce StyledLine arrays.
+ * This prevents expensive string concatenation during every render cycle.
+ */
+function ensureLineKeys(lines: StyledLine[], prefix: string): StyledLine[] {
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].key) {
+      const content = lines[i].chunks
+        .map((c) => c.text)
+        .join('')
+        .slice(0, 32);
+      lines[i].key = `${prefix}-${i}-${content}`;
+    }
+  }
+  return lines;
+}
+
+/**
  * Props for ClaudePanelAgent component
  */
 export interface ClaudePanelAgentProps {
@@ -104,8 +122,8 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   const containerRef = useRef<DOMElement>(null);
 
   // Initial dimensions guess
-  const [availableHeight, setAvailableHeight] = useState(
-    () => (stdout?.rows || 24) / 2
+  const [availableHeight, setAvailableHeight] = useState(() =>
+    Math.max(1, (stdout?.rows || 24) / 2 - 3)
   );
 
   // Layer 13: Message rendering cache.
@@ -434,7 +452,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       }
     });
 
-    return lines;
+    return ensureLineKeys(lines, 'm');
   }, [messages, stdout?.columns, showInfoPanel]);
 
   // Merge static messages with dynamic paste content
@@ -461,7 +479,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       });
     });
 
-    return lines;
+    return ensureLineKeys(lines, 'p');
   }, [renderedMessages, streamingPaste]);
 
   // Handle global scroll signals (e.g. from InputBox)
@@ -507,8 +525,8 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
     if (containerRef.current) {
       const dimensions = measureElement(containerRef.current);
-      // Dimensions minus borders
-      const newHeight = Math.max(1, dimensions.height - 2);
+      // Dimensions minus borders (2) and footer (1)
+      const newHeight = Math.max(1, dimensions.height - 3);
 
       if (newHeight !== availableHeight) {
         systemLog('tui', '[ClaudePanelAgent] New dimensions measured', {
@@ -657,39 +675,38 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       paddingX={1}
     >
       <Box flexDirection="column" flexGrow={1}>
-        {visibleLines.map((line, idx) => (
-          <Text key={idx}>
-            {line.chunks.length === 0
-              ? ' '
-              : line.chunks.map((chunk, cIdx) => {
-                  const hasAnsi = stripAnsi(chunk.text) !== chunk.text;
-                  return (
-                    <Text
-                      key={cIdx}
-                      color={chunk.color}
-                      backgroundColor={chunk.bg}
-                      bold={chunk.bold}
-                      italic={chunk.italic}
-                      dimColor={chunk.dim}
-                      inverse={chunk.inverse}
-                    >
-                      {hasAnsi ? stripCursorSequences(chunk.text) : chunk.text}
-                    </Text>
-                  );
-                })}
-          </Text>
-        ))}
-        {isThinking && (
-          <Box>
-            <Spinner label="Thinking…" />
-          </Box>
-        )}
+        {visibleLines.map((line, idx) => {
+          return (
+            <Text key={line.key || `fallback-${idx}`}>
+              {line.chunks.length === 0
+                ? ' '
+                : line.chunks.map((chunk, cIdx) => {
+                    const hasAnsi = stripAnsi(chunk.text) !== chunk.text;
+                    return (
+                      <Text
+                        key={cIdx}
+                        color={chunk.color}
+                        backgroundColor={chunk.bg}
+                        bold={chunk.bold}
+                        italic={chunk.italic}
+                        dimColor={chunk.dim}
+                        inverse={chunk.inverse}
+                      >
+                        {hasAnsi
+                          ? stripCursorSequences(chunk.text)
+                          : chunk.text}
+                      </Text>
+                    );
+                  })}
+            </Text>
+          );
+        })}
       </Box>
-      {scrollInfo && focused && (
-        <Box justifyContent="flex-end">
-          <Text dimColor>{scrollInfo}</Text>
-        </Box>
-      )}
+      {/* Footer line for status and scroll info - always takes 1 line to prevent jump */}
+      <Box height={1} flexDirection="row" justifyContent="space-between">
+        <Box>{isThinking && <Spinner label="Thinking…" />}</Box>
+        <Box>{scrollInfo && focused && <Text dimColor>{scrollInfo}</Text>}</Box>
+      </Box>
     </Box>
   );
 };

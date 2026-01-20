@@ -33,6 +33,10 @@ export interface TextChunk {
  */
 export interface StyledLine {
   chunks: TextChunk[];
+  /**
+   * Optional stable key for rendering (e.g. in React/Ink)
+   */
+  key?: string;
 }
 
 /**

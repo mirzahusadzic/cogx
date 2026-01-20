@@ -142,7 +142,7 @@ function getWorkbenchIssues(health: WorkbenchHealthStatus): string[] {
   return issues;
 }
 
-export const OverlaysBar: React.FC<OverlaysBarProps> = ({
+const OverlaysBarComponent: React.FC<OverlaysBarProps> = ({
   sigmaStats,
   activeTask,
   pendingMessageCount = 0,
@@ -202,42 +202,54 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
       justifyContent="space-between"
       width="100%"
     >
-      <Box flexDirection="row" gap={1}>
+      <Box flexDirection="row">
         {monitorError ? (
           // Show error if monitor failed
-          <Text color={TUITheme.text.error}>
-            ⚠ Message Monitor: {monitorError}
-          </Text>
+          <Box paddingRight={1}>
+            <Text color={TUITheme.text.error}>
+              ⚠ Message Monitor: {monitorError}
+            </Text>
+          </Box>
         ) : hasWorkbenchIssues ? (
           // Show workbench issues when health check failed
           <>
-            <Text color={TUITheme.text.error}>
-              ⚠️ Workbench: {workbenchIssues.join(', ')}
-            </Text>
+            <Box paddingRight={1}>
+              <Text color={TUITheme.text.error}>
+                ⚠️ Workbench: {workbenchIssues.join(', ')}
+              </Text>
+            </Box>
             {pendingMessageCount > 0 && (
               <>
                 <Text color={TUITheme.ui.border.dim}>|</Text>
-                <Text color={TUITheme.overlays.o2_security}>
-                  🐦 Messages: {pendingMessageCount}
-                </Text>
+                <Box paddingX={1}>
+                  <Text color={TUITheme.overlays.o2_security}>
+                    🐦 Messages: {pendingMessageCount}
+                  </Text>
+                </Box>
               </>
             )}
           </>
         ) : !sigmaStats || sigmaStats.nodes === 0 ? (
           <>
-            <Text color={TUITheme.text.secondary}>Lattice: Warming up...</Text>
+            <Box paddingRight={1}>
+              <Text color={TUITheme.text.secondary}>
+                Lattice: Warming up...
+              </Text>
+            </Box>
             {/* Always show pending messages, even when lattice is warming up */}
             {pendingMessageCount > 0 && (
               <>
                 <Text color={TUITheme.ui.border.dim}>|</Text>
-                <Text color={TUITheme.overlays.o2_security}>
-                  🐦 Messages: {pendingMessageCount}
-                </Text>
+                <Box paddingX={1}>
+                  <Text color={TUITheme.overlays.o2_security}>
+                    🐦 Messages: {pendingMessageCount}
+                  </Text>
+                </Box>
               </>
             )}
           </>
         ) : (
-          renderSigmaStats()
+          <Box gap={1}>{renderSigmaStats()}</Box>
         )}
       </Box>
       <Box>
@@ -256,6 +268,8 @@ export const OverlaysBar: React.FC<OverlaysBarProps> = ({
     </Box>
   );
 };
+
+export const OverlaysBar = React.memo(OverlaysBarComponent);
 
 /**
  * Get icon for overlay type (matches SigmaInfoPanel icons)
