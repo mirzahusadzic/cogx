@@ -96,6 +96,15 @@ export class GeminiAgentProvider implements AgentProvider {
 
     // Suppress ADK info logs (only show errors)
     setLogLevel(LogLevel.ERROR);
+
+    // Suppress gRPC and Google SDK logging which can leak to stdout/stderr and mess up the TUI.
+    // This is especially common when using Vertex AI auth (ALTS warnings, etc.)
+    if (!process.env.GRPC_VERBOSITY) {
+      process.env.GRPC_VERBOSITY = 'NONE';
+    }
+    if (!process.env.GOOGLE_SDK_LOG_LEVEL) {
+      process.env.GOOGLE_SDK_LOG_LEVEL = 'error';
+    }
   }
 
   /**
@@ -285,7 +294,30 @@ export class GeminiAgentProvider implements AgentProvider {
     // BIDI mode is experimental (ADK v0.1.x) and can throw JSON parsing errors
     const useBidiMode = process.env.GEMINI_USE_BIDI === '1';
 
+    // Suppress SDK console logging and stderr output during the agent run
+    // This prevents "ALTS: Platforms other than Linux..." and other gRPC/SDK
+    // noise from causing visual glitches (jumping) in the TUI.
+    // We redirect console calls to systemLog(..., 'debug') so they are
+    // captured in the debug log file but don't clutter the terminal.
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+    const originalConsoleWarn = console.warn;
+    const originalConsoleInfo = console.info;
+    const originalStderrWrite = process.stderr.write.bind(process.stderr);
+
     try {
+      console.log = (...args) =>
+        systemLog('gemini', 'Intercepted SDK log', { args }, 'debug');
+      console.error = (...args) =>
+        systemLog('gemini', 'Intercepted SDK error', { args }, 'debug');
+      console.warn = (...args) =>
+        systemLog('gemini', 'Intercepted SDK warn', { args }, 'debug');
+      console.info = (...args) =>
+        systemLog('gemini', 'Intercepted SDK info', { args }, 'debug');
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      process.stderr.write = (() => true) as any;
+
       // Run agent - runAsync returns an async generator
       const runGenerator = this.currentRunner.runAsync({
         userId,
@@ -571,7 +603,24 @@ export class GeminiAgentProvider implements AgentProvider {
               }
 
               // Extract delta text (only the new portion)
-              const deltaText = part.text.substring(accumulated.length);
+              let deltaText = part.text.substring(accumulated.length);
+
+              // Trim leading newlines from the first chunk of a message
+              if (!accumulated) {
+                deltaText = deltaText.replace(/^[\n\r]+/, '');
+
+                if (isThinking) {
+                  // For thinking blocks, ensure a double newline after the header
+                  // Header is usually **Thinking** or similar
+                  const headerMatch = deltaText.match(/^(\*\*([^*]+)\*\*)/);
+                  if (headerMatch) {
+                    const headerPart = headerMatch[1];
+                    const contentPart = deltaText.substring(headerPart.length);
+                    deltaText =
+                      headerPart + contentPart.replace(/^[\n\r]+/, '\n\n');
+                  }
+                }
+              }
 
               if (process.env.DEBUG_GEMINI_STREAM) {
                 systemLog(
@@ -741,6 +790,13 @@ export class GeminiAgentProvider implements AgentProvider {
         numTurns,
       };
     } finally {
+      // Restore original console and stderr
+      console.log = originalConsoleLog;
+      console.error = originalConsoleError;
+      console.warn = originalConsoleWarn;
+      console.info = originalConsoleInfo;
+      process.stderr.write = originalStderrWrite;
+
       this.currentRunner = null;
       this.abortController = null;
       this.currentGenerator = null;
