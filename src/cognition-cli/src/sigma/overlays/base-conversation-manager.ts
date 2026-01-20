@@ -153,165 +153,27 @@ export abstract class BaseConversationManager<
 
     // Priority: LanceDB first (fast), YAML fallback (migration)
     if (await fs.pathExists(this.overlayPath)) {
-      const overlayFiles = await fs.readdir(this.overlayPath);
-      if (this.debug) {
-        systemLog(
-          'sigma',
-          `[getAllItems] ${this.overlayName}: Found ${overlayFiles.length} files`,
-          {
-            currentSessionId: this.currentSessionId || 'NONE',
-          }
-        );
-      }
-
-      for (const file of overlayFiles) {
-        if (!file.endsWith('.yaml')) continue;
-
-        const sessionId = file.replace('.yaml', '');
-
-        // CRITICAL FIX: Filter by current session to prevent loading all historical sessions
-        // This prevents I/O blocking during compression when currentSessionId is set
-        if (this.currentSessionId && sessionId !== this.currentSessionId) {
-          if (this.debug) {
-            systemLog(
-              'sigma',
-              `[getAllItems] ${this.overlayName}: Skipping historical session ${sessionId}`
-            );
-          }
-          continue; // Skip sessions that aren't the current one
-        }
-
+      // OPTIMIZATION: If currentSessionId is set, only load that session.
+      // This avoids scanning the whole directory and logging "Skipping historical session"
+      // for hundreds of files on every turn.
+      if (this.currentSessionId) {
+        await this.loadItemsFromSession(this.currentSessionId, items);
+      } else {
+        const overlayFiles = await fs.readdir(this.overlayPath);
         if (this.debug) {
           systemLog(
             'sigma',
-            `[getAllItems] ${this.overlayName}: Loading session ${sessionId}`
-          );
-        }
-
-        // 1. Try LanceDB first (fast path - avoid reading YAML)
-        try {
-          const lanceStartTime = Date.now();
-          if (this.debug) {
-            systemLog(
-              'sigma',
-              `[getAllItems] ${this.overlayName}: Querying LanceDB for session ${sessionId}...`
-            );
-          }
-          const lanceTurns = await this.lanceStore.getSessionTurns(sessionId);
-          const lanceTime = Date.now() - lanceStartTime;
-          if (this.debug) {
-            systemLog(
-              'sigma',
-              `[getAllItems] ${this.overlayName}: LanceDB returned ${lanceTurns.length} turns in ${lanceTime}ms`
-            );
-          }
-
-          if (lanceTurns.length > 0) {
-            // LanceDB has data - use it! (skip YAML)
-            for (const turn of lanceTurns) {
-              // Get overlay-specific alignment score
-              const overlayId = this.getOverlayId();
-              const alignmentKey =
-                `alignment_${overlayId}` as keyof typeof turn;
-              const alignmentScore = (turn[alignmentKey] as number) || 0;
-
-              items.push({
-                id: turn.id,
-                embedding: turn.embedding,
-                metadata: {
-                  text: turn.content,
-                  turn_id: turn.id,
-                  role: turn.role as 'user' | 'assistant' | 'system',
-                  timestamp: turn.timestamp,
-                  project_alignment_score: alignmentScore,
-                  novelty: turn.novelty,
-                  importance: turn.importance,
-                  session_id: turn.session_id,
-                } as T,
-              });
-            }
-            continue; // Skip YAML for this session
-          }
-        } catch (lanceError) {
-          // LanceDB failed or not initialized - fall through to YAML
-          systemLog(
-            'sigma',
-            `LanceDB unavailable for ${sessionId}, using YAML fallback`,
+            `[getAllItems] ${this.overlayName}: Found ${overlayFiles.length} files`,
             {
-              error:
-                lanceError instanceof Error
-                  ? lanceError.message
-                  : String(lanceError),
-            },
-            'warn'
-          );
-        }
-
-        // 2. LanceDB empty/failed - Load from YAML and migrate
-        const content = await fs.readFile(
-          path.join(this.overlayPath, file),
-          'utf-8'
-        );
-        const overlay = YAML.parse(content) as ConversationOverlay;
-
-        // Detect format version
-        const formatVersion = overlay.format_version || 1;
-        const isLegacyFormat =
-          formatVersion === 1 && overlay.turns[0]?.embedding;
-
-        if (isLegacyFormat) {
-          systemLog(
-            'sigma',
-            `Session ${sessionId} uses v1 format (embeddings in YAML). Migrating to v2 (LanceDB)...`,
-            undefined,
-            'warn'
-          );
-
-          // Migrate to LanceDB
-          await this.migrateSessionToLanceDB(sessionId, overlay);
-        }
-
-        // Add items from YAML
-        for (const turn of overlay.turns) {
-          let embedding = turn.embedding;
-
-          // If no embedding in YAML (v2 format), load from LanceDB
-          if (!embedding) {
-            const lanceRecord = await this.lanceStore.getTurn(turn.turn_id);
-            if (lanceRecord) {
-              embedding = lanceRecord.embedding;
-            } else {
-              // DISABLED: Re-embedding blocks UI - skip turns without embeddings
-              // These will be regenerated in background during future refactor
-              // Only log in debug mode to avoid spamming TUI
-              if (process.env.DEBUG) {
-                systemLog(
-                  'sigma',
-                  `Skipping turn ${turn.turn_id} - no embedding in LanceDB`,
-                  undefined,
-                  'warn'
-                );
-              }
-              continue; // Skip this turn instead of blocking UI
+              currentSessionId: 'NONE',
             }
-          }
+          );
+        }
 
-          if (embedding && Array.isArray(embedding) && embedding.length > 0) {
-            items.push({
-              id: turn.turn_id,
-              embedding: embedding,
-              metadata: {
-                text: turn.content,
-                turn_id: turn.turn_id,
-                role: turn.role,
-                timestamp: turn.timestamp,
-                project_alignment_score: turn.project_alignment_score,
-                novelty: turn.novelty,
-                importance: turn.importance,
-                session_id: sessionId,
-              } as T,
-            });
-          }
+        for (const file of overlayFiles) {
+          if (!file.endsWith('.yaml')) continue;
+          const sessionId = file.replace('.yaml', '');
+          await this.loadItemsFromSession(sessionId, items);
         }
       }
     }
@@ -341,6 +203,147 @@ export abstract class BaseConversationManager<
     }
 
     return items;
+  }
+
+  /**
+   * Load items from a specific session into the provided items array.
+   * Checks LanceDB first, then falls back to YAML.
+   *
+   * @param sessionId - Session ID to load
+   * @param items - Array to add items to
+   * @private
+   */
+  private async loadItemsFromSession(
+    sessionId: string,
+    items: OverlayItem<T>[]
+  ): Promise<void> {
+    // 1. Try LanceDB first (fast path - avoid reading YAML)
+    try {
+      const lanceStartTime = Date.now();
+      const lanceTurns = await this.lanceStore.getSessionTurns(sessionId);
+      const lanceTime = Date.now() - lanceStartTime;
+
+      if (lanceTurns.length > 0) {
+        if (this.debug) {
+          systemLog(
+            'sigma',
+            `[getAllItems] ${this.overlayName}: Loaded session ${sessionId} from LanceDB in ${lanceTime}ms`
+          );
+        }
+
+        for (const turn of lanceTurns) {
+          // Get overlay-specific alignment score
+          const overlayId = this.getOverlayId();
+          const alignmentKey = `alignment_${overlayId}` as keyof typeof turn;
+          const alignmentScore = (turn[alignmentKey] as number) || 0;
+
+          items.push({
+            id: turn.id,
+            embedding: turn.embedding,
+            metadata: {
+              text: turn.content,
+              turn_id: turn.id,
+              role: turn.role as 'user' | 'assistant' | 'system',
+              timestamp: turn.timestamp,
+              project_alignment_score: alignmentScore,
+              novelty: turn.novelty,
+              importance: turn.importance,
+              session_id: turn.session_id,
+            } as T,
+          });
+        }
+        return; // Success, skip YAML
+      }
+    } catch (lanceError) {
+      // LanceDB failed or not initialized - fall through to YAML
+      systemLog(
+        'sigma',
+        `LanceDB unavailable for ${sessionId}, using YAML fallback`,
+        {
+          error:
+            lanceError instanceof Error
+              ? lanceError.message
+              : String(lanceError),
+        },
+        'warn'
+      );
+    }
+
+    // 2. LanceDB empty/failed - Load from YAML and migrate
+    const yamlPath = path.join(this.overlayPath, `${sessionId}.yaml`);
+    if (!(await fs.pathExists(yamlPath))) return;
+
+    try {
+      const content = await fs.readFile(yamlPath, 'utf-8');
+      const overlay = YAML.parse(content) as ConversationOverlay;
+
+      // Detect format version
+      const formatVersion = overlay.format_version || 1;
+      const isLegacyFormat = formatVersion === 1 && overlay.turns[0]?.embedding;
+
+      if (isLegacyFormat) {
+        systemLog(
+          'sigma',
+          `Session ${sessionId} uses v1 format (embeddings in YAML). Migrating to v2 (LanceDB)...`,
+          undefined,
+          'warn'
+        );
+
+        // Migrate to LanceDB
+        await this.migrateSessionToLanceDB(sessionId, overlay);
+      }
+
+      // Add items from YAML
+      for (const turn of overlay.turns) {
+        let embedding = turn.embedding;
+
+        // If no embedding in YAML (v2 format), load from LanceDB
+        if (!embedding) {
+          const lanceRecord = await this.lanceStore.getTurn(turn.turn_id);
+          if (lanceRecord) {
+            embedding = lanceRecord.embedding;
+          } else {
+            // DISABLED: Re-embedding blocks UI - skip turns without embeddings
+            if (process.env.DEBUG) {
+              systemLog(
+                'sigma',
+                `Skipping turn ${turn.turn_id} - no embedding in LanceDB`,
+                undefined,
+                'warn'
+              );
+            }
+            continue;
+          }
+        }
+
+        if (embedding && Array.isArray(embedding) && embedding.length > 0) {
+          items.push({
+            id: turn.turn_id,
+            embedding: embedding,
+            metadata: {
+              text: turn.content,
+              turn_id: turn.turn_id,
+              role: turn.role,
+              timestamp: turn.timestamp,
+              project_alignment_score: turn.project_alignment_score,
+              novelty: turn.novelty,
+              importance: turn.importance,
+              session_id: sessionId,
+            } as T,
+          });
+        }
+      }
+    } catch (yamlError) {
+      systemLog(
+        'sigma',
+        `Failed to load session ${sessionId} from YAML`,
+        {
+          error:
+            yamlError instanceof Error ? yamlError.message : String(yamlError),
+        },
+        'error'
+      );
+    }
   }
 
   async getItemsByType(type: string): Promise<OverlayItem<T>[]> {
