@@ -86,88 +86,7 @@ function isStdoutNoise(str: string): boolean {
   return STDOUT_NOISE_PATTERNS.some((p) => str.includes(p));
 }
 
-/**
- * Executes a function while suppressing stderr, node warnings, AND SDK stdout noise.
- * Standard Output (stdout) is filtered to allow TUI updates but block SDK noise.
- * Critical for keeping the TUI stable during gRPC handshakes and SDK initialization.
- */
-async function runSilently<T>(fn: () => Promise<T> | T): Promise<T> {
-  const originalStderrWrite = process.stderr.write;
-  const originalStdoutWrite = process.stdout.write;
-  const originalEmitWarning = process.emitWarning;
-  const originalConsoleLog = console.log;
-  const originalConsoleInfo = console.info;
-  const originalConsoleWarn = console.warn;
-  const originalConsoleError = console.error;
-
-  // Create a null stream sink
-  const noop = () => true;
-
-  try {
-    // Only suppress stderr (where gRPC logs go) and warnings
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    process.stderr.write = noop as any;
-
-    // Suppress node-level warnings (punycode, experimental features)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    process.emitWarning = noop as any;
-
-    // Filter stdout for noise too
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    process.stdout.write = ((...args: any[]) => {
-      const [chunk] = args;
-      const str = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk);
-
-      if (isStdoutNoise(str)) {
-        if (process.env.DEBUG_GEMINI_STREAM) {
-          systemLog(
-            'gemini',
-            'Suppressed stdout noise (init)',
-            { text: str },
-            'debug'
-          );
-        }
-        // Invoke callback if provided
-        const cb = args[args.length - 1];
-        if (typeof cb === 'function') cb();
-        return true;
-      }
-
-      return (originalStdoutWrite as (...args: unknown[]) => boolean).apply(
-        process.stdout,
-        args
-      );
-    }) as typeof process.stdout.write;
-
-    // Helper to wrap console methods with noise filtering
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const createSafeLogger = (originalLogger: (...args: any[]) => void) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (...args: any[]) => {
-        const str = args.map((a) => String(a)).join(' ');
-        if (isStdoutNoise(str)) {
-          return;
-        }
-        originalLogger.apply(console, args);
-      };
-    };
-
-    console.log = createSafeLogger(originalConsoleLog);
-    console.info = createSafeLogger(originalConsoleInfo);
-    console.warn = createSafeLogger(originalConsoleWarn);
-    console.error = createSafeLogger(originalConsoleError);
-
-    return await fn();
-  } finally {
-    process.stderr.write = originalStderrWrite;
-    process.stdout.write = originalStdoutWrite;
-    process.emitWarning = originalEmitWarning;
-    console.log = originalConsoleLog;
-    console.info = originalConsoleInfo;
-    console.warn = originalConsoleWarn;
-    console.error = originalConsoleError;
-  }
-}
+// runSilently removed - logic moved to executeAgent for global scope suppression
 
 /**
  * Gemini Agent Provider
@@ -247,77 +166,165 @@ export class GeminiAgentProvider implements AgentProvider {
   async *executeAgent(
     request: AgentRequest
   ): AsyncGenerator<AgentResponse, void, undefined> {
-    // Get file tools (with optional recall tool if conversation registry provided)
-    const conversationRegistry = request.conversationRegistry as
-      | import('../../sigma/conversation-registry.js').ConversationOverlayRegistry
-      | undefined;
-    const taskManager = request.getTaskManager as
-      | (() =>
-          | import('../../tui/services/BackgroundTaskManager.js').BackgroundTaskManager
-          | null)
-      | undefined;
-    const messagePublisher = request.getMessagePublisher as
-      | (() => import('../../ipc/MessagePublisher.js').MessagePublisher | null)
-      | undefined;
-    const messageQueue = request.getMessageQueue as
-      | (() => import('../../ipc/MessageQueue.js').MessageQueue | null)
-      | undefined;
+    // CAPTURE ORIGINALS IMMEDIATELY to prevent any leakage during setup
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+    const originalConsoleWarn = console.warn;
+    const originalConsoleInfo = console.info;
+    const originalStderrWrite = process.stderr.write;
+    const originalStdoutWrite = process.stdout.write;
+    const originalEmitWarning = process.emitWarning;
 
-    const cognitionTools = getCognitionTools(
-      conversationRegistry,
-      request.workbenchUrl,
-      request.onCanUseTool, // Pass permission callback for tool confirmations
-      taskManager, // Pass task manager getter for background tasks tool
-      messagePublisher, // Pass message publisher getter for agent messaging tools
-      messageQueue, // Pass message queue getter for agent messaging tools
-      request.cwd || request.projectRoot, // Pass project root for agent discovery
-      request.agentId, // Pass current agent ID for excluding self from listings
-      {
-        provider: 'gemini', // Enable external SigmaTaskUpdate for Gemini
-        anchorId: request.anchorId, // Session anchor for SigmaTaskUpdate state persistence
-        onToolOutput: request.onToolOutput, // Pass streaming callback for tools like bash
-      }
-    );
+    // State variables for tracking conversation and tokens
+    // Declared outside try/catch to be available for error handling
+    const messages: AgentMessage[] = [];
+    let numTurns = 0;
+    let currentTurnOutputEstimate = 0;
+    let cumulativePromptTokens = 0;
+    let cumulativeCompletionTokens = 0;
+    let currentPromptTokens = 0;
+    let currentCompletionTokens = 0;
+    const accumulatedThinkingBlocks = new Map<string, string>();
+    let accumulatedAssistant = '';
+    const sessionId =
+      request.resumeSessionId ||
+      `gemini-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-    // Create a specialized web search agent
-    // Use Agent-as-Tool pattern to combine with file tools
-    const webSearchAgent = new LlmAgent({
-      name: 'WebSearch',
-      description:
-        'Search the web for current information, news, facts, and real-time data using Google Search',
-      model: request.model || 'gemini-2.5-flash',
-      instruction:
-        'You are a web search specialist. When called, search Google for the requested information and return concise, accurate results with sources.',
-      tools: [GOOGLE_SEARCH],
-    });
+    // Create a null stream sink for stderr/warnings
+    const noop = () => true;
 
-    // Wrap the web search agent as a tool
-    const webSearchTool = new AgentTool({
-      agent: webSearchAgent,
-      skipSummarization: false,
-    });
+    try {
+      // 1. SUPPRESS STDERR & WARNINGS COMPLETELY (where gRPC logs go)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      process.stderr.write = noop as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      process.emitWarning = noop as any;
 
-    // Combine cognition tools + web search tool (always enabled)
-    const tools = [...cognitionTools, webSearchTool];
+      // 2. FILTER STDOUT: Intercept to block SDK noise but allow TUI/Ink
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      process.stdout.write = ((...args: any[]) => {
+        const [chunk] = args;
+        const str = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk);
 
-    // Handle automated grounding queries if requested
-    const groundingContext = await getGroundingContext(request);
+        if (isStdoutNoise(str)) {
+          if (process.env.DEBUG_GEMINI_STREAM) {
+            systemLog(
+              'gemini',
+              'Suppressed stdout noise',
+              { text: str },
+              'debug'
+            );
+          }
+          // Invoke callback if provided
+          const cb = args[args.length - 1];
+          if (typeof cb === 'function') cb();
+          return true;
+        }
 
-    // Create abort controller for cancellation support
-    this.abortController = new AbortController();
-    const abortSignal = this.abortController.signal;
+        return (originalStdoutWrite as (...args: unknown[]) => boolean).apply(
+          process.stdout,
+          args
+        );
+      }) as typeof process.stdout.write;
 
-    const modelId = request.model || 'gemini-3-flash-preview';
-    const isGemini3 = modelId.includes('gemini-3');
+      // 3. WRAP CONSOLE METHODS: Catch direct console.log/info/warn usage
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const createSafeLogger = (originalLogger: (...args: any[]) => void) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (...args: any[]) => {
+          const str = args.map((a) => String(a)).join(' ');
+          if (isStdoutNoise(str)) {
+            if (process.env.DEBUG_GEMINI_STREAM) {
+              systemLog(
+                'gemini',
+                'Suppressed console noise',
+                { text: str },
+                'debug'
+              );
+            }
+            return;
+          }
+          originalLogger.apply(console, args);
+        };
+      };
 
-    // Dynamic Thinking Budgeting:
-    const { thinkingLevel, thinkingBudget } = getDynamicThinkingBudget(
-      request.remainingTPM
-    );
+      console.log = createSafeLogger(originalConsoleLog);
+      console.info = createSafeLogger(originalConsoleInfo);
+      console.warn = createSafeLogger(originalConsoleWarn);
+      console.error = createSafeLogger(originalConsoleError);
 
-    // Initialize in silence to catch initial ALTS/Auth gRPC noise
-    // But allow stdout to pass through (via corrected runSilently)
-    const { runner } = await runSilently(async () => {
+      // --- START AGENT SETUP (Now running in silenced environment) ---
+
+      // Get file tools (with optional recall tool if conversation registry provided)
+      const conversationRegistry = request.conversationRegistry as
+        | import('../../sigma/conversation-registry.js').ConversationOverlayRegistry
+        | undefined;
+      const taskManager = request.getTaskManager as
+        | (() =>
+            | import('../../tui/services/BackgroundTaskManager.js').BackgroundTaskManager
+            | null)
+        | undefined;
+      const messagePublisher = request.getMessagePublisher as
+        | (() =>
+            | import('../../ipc/MessagePublisher.js').MessagePublisher
+            | null)
+        | undefined;
+      const messageQueue = request.getMessageQueue as
+        | (() => import('../../ipc/MessageQueue.js').MessageQueue | null)
+        | undefined;
+
+      const cognitionTools = getCognitionTools(
+        conversationRegistry,
+        request.workbenchUrl,
+        request.onCanUseTool, // Pass permission callback for tool confirmations
+        taskManager, // Pass task manager getter for background tasks tool
+        messagePublisher, // Pass message publisher getter for agent messaging tools
+        messageQueue, // Pass message queue getter for agent messaging tools
+        request.cwd || request.projectRoot, // Pass project root for agent discovery
+        request.agentId, // Pass current agent ID for excluding self from listings
+        {
+          provider: 'gemini', // Enable external SigmaTaskUpdate for Gemini
+          anchorId: request.anchorId, // Session anchor for SigmaTaskUpdate state persistence
+          onToolOutput: request.onToolOutput, // Pass streaming callback for tools like bash
+        }
+      );
+
+      // Create a specialized web search agent
+      const webSearchAgent = new LlmAgent({
+        name: 'WebSearch',
+        description:
+          'Search the web for current information, news, facts, and real-time data using Google Search',
+        model: request.model || 'gemini-2.5-flash',
+        instruction:
+          'You are a web search specialist. When called, search Google for the requested information and return concise, accurate results with sources.',
+        tools: [GOOGLE_SEARCH],
+      });
+
+      // Wrap the web search agent as a tool
+      const webSearchTool = new AgentTool({
+        agent: webSearchAgent,
+        skipSummarization: false,
+      });
+
+      // Combine cognition tools + web search tool (always enabled)
+      const tools = [...cognitionTools, webSearchTool];
+
+      // Handle automated grounding queries if requested
+      const groundingContext = await getGroundingContext(request);
+
+      // Create abort controller for cancellation support
+      this.abortController = new AbortController();
+      const abortSignal = this.abortController.signal;
+
+      const modelId = request.model || 'gemini-3-flash-preview';
+      const isGemini3 = modelId.includes('gemini-3');
+
+      // Dynamic Thinking Budgeting:
+      const { thinkingLevel, thinkingBudget } = getDynamicThinkingBudget(
+        request.remainingTPM
+      );
+
+      // Initialize Agent & Runner (No runSilently needed, we are already silent)
       const agentInstance = new LlmAgent({
         name: 'cognition_agent',
         model: modelId,
@@ -333,7 +340,6 @@ export class GeminiAgentProvider implements AgentProvider {
             ? {
                 // GEMINI 3.0 CONFIG (Requires SDK bypass currently)
                 thinkingConfig: {
-                  // Reduced thinking for low TPM (though HIGH is usually preferred for Gemini 3)
                   thinkingLevel,
                   includeThoughts: request.displayThinking !== false,
                 },
@@ -358,123 +364,46 @@ export class GeminiAgentProvider implements AgentProvider {
         sessionService: this.sessionService,
       });
 
-      return { runner: runnerInstance };
-    });
+      this.currentRunner = runnerInstance;
 
-    this.currentRunner = runner;
+      const userId = 'cognition-user';
 
-    const messages: AgentMessage[] = [];
-    let numTurns = 0;
-    let currentTurnOutputEstimate = 0;
-
-    // Track actual token usage from Gemini API
-    // cumulativeXxxTokens = total API consumption across all turns (for quota tracking)
-    // currentXxxTokens = last turn's tokens (for current context size)
-    let cumulativePromptTokens = 0;
-    let cumulativeCompletionTokens = 0;
-    let currentPromptTokens = 0;
-    let currentCompletionTokens = 0;
-
-    // Track accumulated content to extract deltas (SSE sends full text each time)
-    // Use Map for thinking blocks (key = block ID extracted from header)
-    const accumulatedThinkingBlocks = new Map<string, string>();
-    let accumulatedAssistant = '';
-
-    // Create or resume session
-    // Add random component to prevent collisions when multiple sessions created in same millisecond
-    const sessionId =
-      request.resumeSessionId ||
-      `gemini-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    const userId = 'cognition-user';
-
-    // Get or create session
-    let session = await this.sessionService.getSession({
-      appName: 'cognition-cli',
-      userId,
-      sessionId,
-    });
-
-    if (!session) {
-      session = await this.sessionService.createSession({
+      // Get or create session
+      let session = await this.sessionService.getSession({
         appName: 'cognition-cli',
         userId,
         sessionId,
       });
-    }
 
-    // Add user message
-    const userMessage: AgentMessage = {
-      id: `msg-${Date.now()}`,
-      type: 'user',
-      role: 'user',
-      content: request.prompt,
-      timestamp: new Date(),
-    };
-    messages.push(userMessage);
+      if (!session) {
+        session = await this.sessionService.createSession({
+          appName: 'cognition-cli',
+          userId,
+          sessionId,
+        });
+      }
 
-    // Yield initial state
-    yield {
-      messages: [...messages],
-      sessionId,
-      tokens: { prompt: 0, completion: 0, total: 0 },
-      finishReason: 'stop',
-      numTurns: 0,
-    };
+      // Add user message
+      const userMessage: AgentMessage = {
+        id: `msg-${Date.now()}`,
+        type: 'user',
+        role: 'user',
+        content: request.prompt,
+        timestamp: new Date(),
+      };
+      messages.push(userMessage);
 
-    // BIDI (bidirectional) streaming mode handles multi-turn tool conversations better than SSE
-    // Use BIDI if explicitly enabled (via env var), otherwise use SSE for stability
-    // BIDI mode is experimental (ADK v0.1.x) and can throw JSON parsing errors
-    const useBidiMode = process.env.GEMINI_USE_BIDI === '1';
+      // Yield initial state
+      yield {
+        messages: [...messages],
+        sessionId,
+        tokens: { prompt: 0, completion: 0, total: 0 },
+        finishReason: 'stop',
+        numTurns: 0,
+      };
 
-    // Suppress SDK console logging and stderr output during the agent run
-    const originalConsoleLog = console.log;
-    const originalConsoleError = console.error;
-    const originalConsoleWarn = console.warn;
-    const originalConsoleInfo = console.info;
-    const originalStderrWrite = process.stderr.write;
-    const originalStdoutWrite = process.stdout.write;
-
-    try {
-      console.log = (...args) =>
-        systemLog('gemini', 'Intercepted SDK log', { args }, 'debug');
-      console.error = (...args) =>
-        systemLog('gemini', 'Intercepted SDK error', { args }, 'debug');
-      console.warn = (...args) =>
-        systemLog('gemini', 'Intercepted SDK warn', { args }, 'debug');
-      console.info = (...args) =>
-        systemLog('gemini', 'Intercepted SDK info', { args }, 'debug');
-
-      // CRITICAL: Suppress raw stderr writes (where gRPC/ALTS noise lives).
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      process.stderr.write = (() => true) as any;
-
-      // FILTER STDOUT: Intercept stdout to filter out Vertex AI SDK noise that bypasses console.log
-      // while preserving TUI updates (which usually start with ANSI codes or are pure newlines/whitespace).
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      process.stdout.write = ((...args: any[]) => {
-        const [chunk] = args;
-        const str = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk);
-
-        if (isStdoutNoise(str)) {
-          if (process.env.DEBUG_GEMINI_STREAM) {
-            systemLog(
-              'gemini',
-              'Suppressed stdout noise',
-              { text: str },
-              'debug'
-            );
-          }
-          // Invoke callback if provided to satisfy stream contract
-          const cb = args[args.length - 1];
-          if (typeof cb === 'function') cb();
-          return true;
-        }
-
-        return (originalStdoutWrite as (...args: unknown[]) => boolean).apply(
-          process.stdout,
-          args
-        );
-      }) as typeof process.stdout.write;
+      // BIDI vs SSE
+      const useBidiMode = process.env.GEMINI_USE_BIDI === '1';
 
       // Run agent - runAsync returns an async generator
       const runGenerator = this.currentRunner.runAsync({
@@ -542,8 +471,6 @@ export class GeminiAgentProvider implements AgentProvider {
         numTurns++;
 
         // Capture actual token usage from Gemini API
-        // promptTokenCount includes all history sent in this request
-        // totalTokenCount is the sum of prompt and candidates for this request
         if (evt.usageMetadata) {
           if (evt.usageMetadata.promptTokenCount !== undefined) {
             cumulativePromptTokens = evt.usageMetadata.promptTokenCount;
@@ -996,6 +923,7 @@ export class GeminiAgentProvider implements AgentProvider {
       console.info = originalConsoleInfo;
       process.stderr.write = originalStderrWrite;
       process.stdout.write = originalStdoutWrite;
+      process.emitWarning = originalEmitWarning;
 
       this.currentRunner = null;
       this.abortController = null;
