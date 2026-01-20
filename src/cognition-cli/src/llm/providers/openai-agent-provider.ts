@@ -624,7 +624,7 @@ export class OpenAIAgentProvider implements AgentProvider {
     const messages: AgentMessage[] = [];
     let conversationId: string = 'pending';
     let numTurns = 0;
-    
+
     // Initial estimates
     let totalPromptTokens = Math.ceil(request.prompt.length / 4);
     let totalCompletionTokens = 0;
@@ -786,7 +786,9 @@ export class OpenAIAgentProvider implements AgentProvider {
             };
 
             messages.push(thinkingMessage);
-            currentTurnOutputEstimate += Math.ceil(rawEvent.data.event.delta.length / 4);
+            currentTurnOutputEstimate += Math.ceil(
+              rawEvent.data.event.delta.length / 4
+            );
 
             // Yield intermediate state with thinking delta
             yield {
@@ -795,7 +797,10 @@ export class OpenAIAgentProvider implements AgentProvider {
               tokens: {
                 prompt: totalPromptTokens,
                 completion: totalCompletionTokens + currentTurnOutputEstimate,
-                total: totalPromptTokens + totalCompletionTokens + currentTurnOutputEstimate,
+                total:
+                  totalPromptTokens +
+                  totalCompletionTokens +
+                  currentTurnOutputEstimate,
               },
               finishReason: 'stop',
               numTurns,
@@ -808,7 +813,9 @@ export class OpenAIAgentProvider implements AgentProvider {
             rawEvent.data.delta
           ) {
             outputText += rawEvent.data.delta;
-            currentTurnOutputEstimate += Math.ceil(rawEvent.data.delta.length / 4);
+            currentTurnOutputEstimate += Math.ceil(
+              rawEvent.data.delta.length / 4
+            );
 
             // Create NEW message with JUST the delta (not accumulated text)
             // This matches Claude SDK pattern - TUI handles accumulation
@@ -830,7 +837,10 @@ export class OpenAIAgentProvider implements AgentProvider {
               tokens: {
                 prompt: totalPromptTokens,
                 completion: totalCompletionTokens + currentTurnOutputEstimate,
-                total: totalPromptTokens + totalCompletionTokens + currentTurnOutputEstimate,
+                total:
+                  totalPromptTokens +
+                  totalCompletionTokens +
+                  currentTurnOutputEstimate,
               },
               finishReason: 'stop',
               numTurns,
@@ -890,7 +900,10 @@ export class OpenAIAgentProvider implements AgentProvider {
               tokens: {
                 prompt: totalPromptTokens,
                 completion: totalCompletionTokens + currentTurnOutputEstimate,
-                total: totalPromptTokens + totalCompletionTokens + currentTurnOutputEstimate,
+                total:
+                  totalPromptTokens +
+                  totalCompletionTokens +
+                  currentTurnOutputEstimate,
               },
               finishReason: 'tool_use',
               numTurns,
@@ -947,7 +960,10 @@ export class OpenAIAgentProvider implements AgentProvider {
               tokens: {
                 prompt: totalPromptTokens,
                 completion: totalCompletionTokens + currentTurnOutputEstimate,
-                total: totalPromptTokens + totalCompletionTokens + currentTurnOutputEstimate,
+                total:
+                  totalPromptTokens +
+                  totalCompletionTokens +
+                  currentTurnOutputEstimate,
               },
               finishReason: 'tool_use',
               numTurns,
@@ -1016,7 +1032,10 @@ export class OpenAIAgentProvider implements AgentProvider {
               tokens: {
                 prompt: totalPromptTokens,
                 completion: totalCompletionTokens + currentTurnOutputEstimate,
-                total: totalPromptTokens + totalCompletionTokens + currentTurnOutputEstimate,
+                total:
+                  totalPromptTokens +
+                  totalCompletionTokens +
+                  currentTurnOutputEstimate,
               },
               finishReason: 'stop', // Still in progress, but 'stop' is closest match
               numTurns,
@@ -1062,7 +1081,10 @@ export class OpenAIAgentProvider implements AgentProvider {
               tokens: {
                 prompt: totalPromptTokens,
                 completion: totalCompletionTokens + currentTurnOutputEstimate,
-                total: totalPromptTokens + totalCompletionTokens + currentTurnOutputEstimate,
+                total:
+                  totalPromptTokens +
+                  totalCompletionTokens +
+                  currentTurnOutputEstimate,
               },
               finishReason: 'stop', // Still in progress, but 'stop' is closest match
               numTurns,

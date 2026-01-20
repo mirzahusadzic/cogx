@@ -49,6 +49,35 @@ import type {
 } from '../provider-interface.js';
 
 /**
+ * Executes a function while suppressing stderr and node warnings.
+ * Standard Output (stdout) is LEFT ALONE to ensure TUI can render spinners/updates.
+ * Critical for keeping the TUI stable during gRPC handshakes and SDK initialization.
+ */
+async function runSilently<T>(fn: () => Promise<T> | T): Promise<T> {
+  const originalStderrWrite = process.stderr.write;
+  const originalEmitWarning = process.emitWarning;
+
+  // Create a null stream sink
+  const noop = () => true;
+
+  try {
+    // Only suppress stderr (where gRPC logs go) and warnings
+    // We MUST preserve stdout so the TUI can render during initialization if needed
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    process.stderr.write = noop as any;
+
+    // Suppress node-level warnings (punycode, experimental features)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    process.emitWarning = noop as any;
+
+    return await fn();
+  } finally {
+    process.stderr.write = originalStderrWrite;
+    process.emitWarning = originalEmitWarning;
+  }
+}
+
+/**
  * Gemini Agent Provider
  *
  * Implements AgentProvider using Google ADK for agent workflows.
@@ -181,6 +210,7 @@ export class GeminiAgentProvider implements AgentProvider {
 
     // Create abort controller for cancellation support
     this.abortController = new AbortController();
+    const abortSignal = this.abortController.signal;
 
     const modelId = request.model || 'gemini-3-flash-preview';
     const isGemini3 = modelId.includes('gemini-3');
@@ -190,46 +220,53 @@ export class GeminiAgentProvider implements AgentProvider {
       request.remainingTPM
     );
 
-    const agent = new LlmAgent({
-      name: 'cognition_agent',
-      model: modelId,
-      instruction:
-        this.buildSystemPrompt(request) +
-        (groundingContext
-          ? `\n\n## Automated Grounding Context\n${groundingContext}`
-          : ''),
-      tools,
-      generateContentConfig: {
-        abortSignal: this.abortController.signal,
-        ...(isGemini3
-          ? {
-              // GEMINI 3.0 CONFIG (Requires SDK bypass currently)
-              thinkingConfig: {
-                // Reduced thinking for low TPM (though HIGH is usually preferred for Gemini 3)
-                thinkingLevel,
-                includeThoughts: request.displayThinking !== false,
-              },
-            }
-          : {
-              // GEMINI 2.5 / LEGACY CONFIG
-              thinkingConfig: {
-                thinkingBudget:
-                  request.maxThinkingTokens !== undefined
-                    ? Math.min(request.maxThinkingTokens, thinkingBudget)
-                    : thinkingBudget,
-                includeThoughts: request.displayThinking !== false,
-              },
-            }),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any,
+    // Initialize in silence to catch initial ALTS/Auth gRPC noise
+    // But allow stdout to pass through (via corrected runSilently)
+    const { runner } = await runSilently(async () => {
+      const agentInstance = new LlmAgent({
+        name: 'cognition_agent',
+        model: modelId,
+        instruction:
+          this.buildSystemPrompt(request) +
+          (groundingContext
+            ? `\n\n## Automated Grounding Context\n${groundingContext}`
+            : ''),
+        tools,
+        generateContentConfig: {
+          abortSignal,
+          ...(isGemini3
+            ? {
+                // GEMINI 3.0 CONFIG (Requires SDK bypass currently)
+                thinkingConfig: {
+                  // Reduced thinking for low TPM (though HIGH is usually preferred for Gemini 3)
+                  thinkingLevel,
+                  includeThoughts: request.displayThinking !== false,
+                },
+              }
+            : {
+                // GEMINI 2.5 / LEGACY CONFIG
+                thinkingConfig: {
+                  thinkingBudget:
+                    request.maxThinkingTokens !== undefined
+                      ? Math.min(request.maxThinkingTokens, thinkingBudget)
+                      : thinkingBudget,
+                  includeThoughts: request.displayThinking !== false,
+                },
+              }),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any,
+      });
+
+      const runnerInstance = new Runner({
+        agent: agentInstance,
+        appName: 'cognition-cli',
+        sessionService: this.sessionService,
+      });
+
+      return { runner: runnerInstance };
     });
 
-    // Create runner
-    this.currentRunner = new Runner({
-      agent,
-      appName: 'cognition-cli',
-      sessionService: this.sessionService,
-    });
+    this.currentRunner = runner;
 
     const messages: AgentMessage[] = [];
     let numTurns = 0;
@@ -295,15 +332,13 @@ export class GeminiAgentProvider implements AgentProvider {
     const useBidiMode = process.env.GEMINI_USE_BIDI === '1';
 
     // Suppress SDK console logging and stderr output during the agent run
-    // This prevents "ALTS: Platforms other than Linux..." and other gRPC/SDK
-    // noise from causing visual glitches (jumping) in the TUI.
-    // We redirect console calls to systemLog(..., 'debug') so they are
-    // captured in the debug log file but don't clutter the terminal.
     const originalConsoleLog = console.log;
     const originalConsoleError = console.error;
     const originalConsoleWarn = console.warn;
     const originalConsoleInfo = console.info;
-    const originalStderrWrite = process.stderr.write.bind(process.stderr);
+    const originalStderrWrite = process.stderr.write;
+
+    // NOTE: We do NOT intercept stdout.write here because the TUI needs it to render the interface!
 
     try {
       console.log = (...args) =>
@@ -315,6 +350,8 @@ export class GeminiAgentProvider implements AgentProvider {
       console.info = (...args) =>
         systemLog('gemini', 'Intercepted SDK info', { args }, 'debug');
 
+      // CRITICAL: Suppress raw stderr writes (where gRPC/ALTS noise lives).
+      // DO NOT suppress stdout, or the TUI will freeze.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       process.stderr.write = (() => true) as any;
 
@@ -744,11 +781,7 @@ export class GeminiAgentProvider implements AgentProvider {
             Math.max(
               cumulativePromptTokens,
               Math.ceil(request.prompt.length / 4)
-            ) +
-            Math.max(
-              cumulativeCompletionTokens,
-              currentTurnOutputEstimate
-            ),
+            ) + Math.max(cumulativeCompletionTokens, currentTurnOutputEstimate),
         },
         finishReason: 'stop',
         numTurns,
@@ -818,22 +851,19 @@ export class GeminiAgentProvider implements AgentProvider {
             Math.max(
               cumulativePromptTokens,
               Math.ceil(request.prompt.length / 4)
-            ) +
-            Math.max(
-              cumulativeCompletionTokens,
-              currentTurnOutputEstimate
-            ),
+            ) + Math.max(cumulativeCompletionTokens, currentTurnOutputEstimate),
         },
         finishReason: isAbort || isBenignSdkError ? 'stop' : 'error',
         numTurns,
       };
     } finally {
-      // Restore original console and stderr
+      // Restore original console and streams
       console.log = originalConsoleLog;
       console.error = originalConsoleError;
       console.warn = originalConsoleWarn;
       console.info = originalConsoleInfo;
       process.stderr.write = originalStderrWrite;
+      // Note: stdout was not silenced, so no need to restore it here
 
       this.currentRunner = null;
       this.abortController = null;
