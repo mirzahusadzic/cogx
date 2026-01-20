@@ -9,6 +9,13 @@ process.env.OPENAI_AGENTS_DISABLE_TRACING = '1';
 process.env.OPENAI_AGENTS_DONT_LOG_MODEL_DATA = '1';
 process.env.OPENAI_AGENTS_DONT_LOG_TOOL_DATA = '1';
 
+// Suppress gRPC and Google SDK logging which can leak to stdout/stderr and mess up the TUI.
+// This is especially common when using Vertex AI auth (ALTS warnings, etc.)
+process.env.GRPC_VERBOSITY = 'NONE';
+process.env.GOOGLE_SDK_LOG_LEVEL = 'error';
+process.env.ALTS_LOG_LEVEL = 'none';
+process.env.SUPPRESS_GCP_NOT_FOUND_ERROR = 'true';
+
 /**
  * Cognition CLI - Main Entry Point
  *
