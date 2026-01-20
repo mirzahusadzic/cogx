@@ -108,6 +108,11 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
     () => (stdout?.rows || 24) / 2
   );
 
+  // Layer 13: Message rendering cache.
+  // We cache the rendered StyledLine arrays for each message to avoid re-parsing
+  // markdown for the entire history on every chunk update.
+  const messageCache = useRef<Map<string, StyledLine[]>>(new Map());
+
   // Build colored text lines with color metadata
   // PERFORMANCE: Decouple message rendering from paste streaming
   // This memo only re-runs when messages change, terminal width changes or layout changes
@@ -116,7 +121,18 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
     const infoPanelWidth = showInfoPanel ? 41 : 0; // 40 (width) + 1 (marginLeft)
     const width = Math.max(20, (stdout?.columns || 100) - 2 - infoPanelWidth); // Account for padding and sidebar
 
-    messages.forEach((msg) => {
+    messages.forEach((msg, idx) => {
+      // For performance, we cache rendered lines for all messages EXCEPT the last one
+      // (which might still be streaming).
+      const isLast = idx === messages.length - 1;
+      const cacheKey = `${msg.type}-${msg.timestamp.getTime()}-${msg.content.length}-${width}`;
+
+      if (!isLast && messageCache.current.has(cacheKey)) {
+        lines.push(...messageCache.current.get(cacheKey)!);
+        return;
+      }
+
+      const messageLines: StyledLine[] = [];
       let prefix = '';
       let color = TUITheme.text.primary;
       let bg: string | undefined = undefined;
@@ -290,7 +306,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                       : chunk.color,
                 })),
               ];
-              lines.push({ chunks: firstLineChunks });
+              messageLines.push({ chunks: firstLineChunks });
 
               for (let i = 1; i < detailLines.length; i++) {
                 // If the details started with a newline, we want subsequent lines to be indented
@@ -304,7 +320,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                   color: TUITheme.roles.toolResult,
                   bg,
                 });
-                lines.push(detailLines[i]);
+                messageLines.push(detailLines[i]);
               }
 
               // Layer 12: Floating Window Stabilization - Padding
@@ -315,7 +331,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                 const indent = ' '.repeat(indentSize + 4);
 
                 for (let i = detailLines.length; i < STABILIZED_HEIGHT; i++) {
-                  lines.push({
+                  messageLines.push({
                     chunks: [
                       {
                         text: indent,
@@ -327,7 +343,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                 }
               }
             } else {
-              lines.push({
+              messageLines.push({
                 chunks: [
                   { text: prefix, color: baseColor, bg },
                   { text: toolName, color: baseColor, bg, bold: true },
@@ -336,7 +352,10 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
             }
 
             // Only add a trailing gap if there's actual content to separate from
-            lines.push({ chunks: [] });
+            messageLines.push({ chunks: [] });
+
+            lines.push(...messageLines);
+            if (!isLast) messageCache.current.set(cacheKey, messageLines);
             return;
           }
 
@@ -402,12 +421,17 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
             });
           }
         }
-        lines.push(...renderedLines);
+        messageLines.push(...renderedLines);
       } else if (prefix) {
-        lines.push({ chunks: [{ text: prefix, color }] });
+        messageLines.push({ chunks: [{ text: prefix, color }] });
       }
 
-      lines.push({ chunks: [] });
+      messageLines.push({ chunks: [] });
+      lines.push(...messageLines);
+
+      if (!isLast) {
+        messageCache.current.set(cacheKey, messageLines);
+      }
     });
 
     return lines;

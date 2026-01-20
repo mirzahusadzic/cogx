@@ -118,11 +118,13 @@ export function useAgentSync(
 
   // Compute overlay scores
   useEffect(() => {
-    async function computeOverlayScores() {
-      if (!conversationRegistryRef.current || !currentSessionIdValue) return;
+    function computeOverlayScores() {
+      if (turnAnalysis.analyses.length === 0) return;
 
       try {
-        const registry = conversationRegistryRef.current;
+        const analyses = turnAnalysis.analyses;
+        const totalTurns = analyses.length;
+
         const scores = {
           O1_structural: 0,
           O2_security: 0,
@@ -133,33 +135,27 @@ export function useAgentSync(
           O7_strategic: 0,
         };
 
-        const overlayIds: Array<
-          'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'
-        > = ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'];
-
-        for (const overlayId of overlayIds) {
-          try {
-            const manager = await registry.get(overlayId);
-            const items = await manager.getAllItems();
-
-            if (items.length > 0) {
-              const total = items.reduce((sum: number, item) => {
-                return (
-                  sum +
-                  ((item.metadata as { project_alignment_score?: number })
-                    .project_alignment_score || 0)
-                );
-              }, 0);
-              const avg = total / items.length;
-
-              const key =
-                `${overlayId}_${overlayId === 'O1' ? 'structural' : overlayId === 'O2' ? 'security' : overlayId === 'O3' ? 'lineage' : overlayId === 'O4' ? 'mission' : overlayId === 'O5' ? 'operational' : overlayId === 'O6' ? 'mathematical' : 'strategic'}` as keyof typeof scores;
-              scores[key] = avg;
-            }
-          } catch (err) {
-            debug(`Failed to compute ${overlayId} scores: ${err}`);
-          }
+        // Accumulate scores from all analyses in memory
+        // PERFORMANCE: This avoids O(N) LanceDB queries per update
+        for (const analysis of analyses) {
+          const os = analysis.overlay_scores;
+          scores.O1_structural += os.O1_structural || 0;
+          scores.O2_security += os.O2_security || 0;
+          scores.O3_lineage += os.O3_lineage || 0;
+          scores.O4_mission += os.O4_mission || 0;
+          scores.O5_operational += os.O5_operational || 0;
+          scores.O6_mathematical += os.O6_mathematical || 0;
+          scores.O7_strategic += os.O7_strategic || 0;
         }
+
+        // Calculate averages
+        scores.O1_structural /= totalTurns;
+        scores.O2_security /= totalTurns;
+        scores.O3_lineage /= totalTurns;
+        scores.O4_mission /= totalTurns;
+        scores.O5_operational /= totalTurns;
+        scores.O6_mathematical /= totalTurns;
+        scores.O7_strategic /= totalTurns;
 
         setOverlayScores(scores);
       } catch (err) {
@@ -172,9 +168,8 @@ export function useAgentSync(
     }
   }, [
     turnAnalysis.stats.totalAnalyzed,
-    currentSessionIdValue,
+    turnAnalysis.analyses,
     debug,
-    conversationRegistryRef,
     setOverlayScores,
   ]);
 }
