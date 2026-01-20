@@ -49,20 +49,62 @@ import type {
 } from '../provider-interface.js';
 
 /**
- * Executes a function while suppressing stderr and node warnings.
- * Standard Output (stdout) is LEFT ALONE to ensure TUI can render spinners/updates.
+ * Patterns of SDK noise to suppress from stdout.
+ * These are typically printed by Google Cloud/Vertex AI SDKs directly to stdout
+ * bypassing console.log, or via C++ bindings.
+ */
+const STDOUT_NOISE_PATTERNS = [
+  'Pub/Sub',
+  'google-cloud',
+  'google-auth',
+  'transport',
+  'gRPC',
+  'ALTS',
+  'metadata',
+  'credential',
+  'Default Credentials',
+  '[GoogleAuth]',
+  'The user provided Google Cloud credentials',
+  'Requesting active client',
+  'Sending request',
+  'precedence',
+  'Vertex AI SDK',
+];
+
+/**
+ * Check if a string looks like SDK noise that should be suppressed.
+ * Heuristic: TUI output usually starts with ANSI escape codes (\x1b).
+ * SDK noise usually starts with plain text.
+ */
+function isStdoutNoise(str: string): boolean {
+  // If it starts with ANSI escape code, it's likely TUI/Ink - keep it!
+  if (str.startsWith('\x1b')) {
+    return false;
+  }
+
+  // Check for known noise patterns
+  return STDOUT_NOISE_PATTERNS.some((p) => str.includes(p));
+}
+
+/**
+ * Executes a function while suppressing stderr, node warnings, AND SDK stdout noise.
+ * Standard Output (stdout) is filtered to allow TUI updates but block SDK noise.
  * Critical for keeping the TUI stable during gRPC handshakes and SDK initialization.
  */
 async function runSilently<T>(fn: () => Promise<T> | T): Promise<T> {
   const originalStderrWrite = process.stderr.write;
+  const originalStdoutWrite = process.stdout.write;
   const originalEmitWarning = process.emitWarning;
+  const originalConsoleLog = console.log;
+  const originalConsoleInfo = console.info;
+  const originalConsoleWarn = console.warn;
+  const originalConsoleError = console.error;
 
   // Create a null stream sink
   const noop = () => true;
 
   try {
     // Only suppress stderr (where gRPC logs go) and warnings
-    // We MUST preserve stdout so the TUI can render during initialization if needed
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     process.stderr.write = noop as any;
 
@@ -70,10 +112,60 @@ async function runSilently<T>(fn: () => Promise<T> | T): Promise<T> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     process.emitWarning = noop as any;
 
+    // Filter stdout for noise too
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    process.stdout.write = ((...args: any[]) => {
+      const [chunk] = args;
+      const str = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk);
+
+      if (isStdoutNoise(str)) {
+        if (process.env.DEBUG_GEMINI_STREAM) {
+          systemLog(
+            'gemini',
+            'Suppressed stdout noise (init)',
+            { text: str },
+            'debug'
+          );
+        }
+        // Invoke callback if provided
+        const cb = args[args.length - 1];
+        if (typeof cb === 'function') cb();
+        return true;
+      }
+
+      return (originalStdoutWrite as (...args: unknown[]) => boolean).apply(
+        process.stdout,
+        args
+      );
+    }) as typeof process.stdout.write;
+
+    // Helper to wrap console methods with noise filtering
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const createSafeLogger = (originalLogger: (...args: any[]) => void) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (...args: any[]) => {
+        const str = args.map((a) => String(a)).join(' ');
+        if (isStdoutNoise(str)) {
+          return;
+        }
+        originalLogger.apply(console, args);
+      };
+    };
+
+    console.log = createSafeLogger(originalConsoleLog);
+    console.info = createSafeLogger(originalConsoleInfo);
+    console.warn = createSafeLogger(originalConsoleWarn);
+    console.error = createSafeLogger(originalConsoleError);
+
     return await fn();
   } finally {
     process.stderr.write = originalStderrWrite;
+    process.stdout.write = originalStdoutWrite;
     process.emitWarning = originalEmitWarning;
+    console.log = originalConsoleLog;
+    console.info = originalConsoleInfo;
+    console.warn = originalConsoleWarn;
+    console.error = originalConsoleError;
   }
 }
 
@@ -125,6 +217,9 @@ export class GeminiAgentProvider implements AgentProvider {
 
     // Suppress ADK info logs (only show errors)
     setLogLevel(LogLevel.ERROR);
+    if (!process.env.ADK_LOG_LEVEL) {
+      process.env.ADK_LOG_LEVEL = 'ERROR';
+    }
 
     // Suppress gRPC and Google SDK logging which can leak to stdout/stderr and mess up the TUI.
     // This is especially common when using Vertex AI auth (ALTS warnings, etc.)
@@ -337,8 +432,7 @@ export class GeminiAgentProvider implements AgentProvider {
     const originalConsoleWarn = console.warn;
     const originalConsoleInfo = console.info;
     const originalStderrWrite = process.stderr.write;
-
-    // NOTE: We do NOT intercept stdout.write here because the TUI needs it to render the interface!
+    const originalStdoutWrite = process.stdout.write;
 
     try {
       console.log = (...args) =>
@@ -351,9 +445,36 @@ export class GeminiAgentProvider implements AgentProvider {
         systemLog('gemini', 'Intercepted SDK info', { args }, 'debug');
 
       // CRITICAL: Suppress raw stderr writes (where gRPC/ALTS noise lives).
-      // DO NOT suppress stdout, or the TUI will freeze.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       process.stderr.write = (() => true) as any;
+
+      // FILTER STDOUT: Intercept stdout to filter out Vertex AI SDK noise that bypasses console.log
+      // while preserving TUI updates (which usually start with ANSI codes or are pure newlines/whitespace).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      process.stdout.write = ((...args: any[]) => {
+        const [chunk] = args;
+        const str = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk);
+
+        if (isStdoutNoise(str)) {
+          if (process.env.DEBUG_GEMINI_STREAM) {
+            systemLog(
+              'gemini',
+              'Suppressed stdout noise',
+              { text: str },
+              'debug'
+            );
+          }
+          // Invoke callback if provided to satisfy stream contract
+          const cb = args[args.length - 1];
+          if (typeof cb === 'function') cb();
+          return true;
+        }
+
+        return (originalStdoutWrite as (...args: unknown[]) => boolean).apply(
+          process.stdout,
+          args
+        );
+      }) as typeof process.stdout.write;
 
       // Run agent - runAsync returns an async generator
       const runGenerator = this.currentRunner.runAsync({
@@ -874,7 +995,7 @@ export class GeminiAgentProvider implements AgentProvider {
       console.warn = originalConsoleWarn;
       console.info = originalConsoleInfo;
       process.stderr.write = originalStderrWrite;
-      // Note: stdout was not silenced, so no need to restore it here
+      process.stdout.write = originalStdoutWrite;
 
       this.currentRunner = null;
       this.abortController = null;
