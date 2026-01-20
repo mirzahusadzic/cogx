@@ -233,7 +233,7 @@ export class GeminiAgentProvider implements AgentProvider {
 
     const messages: AgentMessage[] = [];
     let numTurns = 0;
-    let totalTokens = 0;
+    let currentTurnOutputEstimate = 0;
 
     // Track actual token usage from Gemini API
     // cumulativeXxxTokens = total API consumption across all turns (for quota tracking)
@@ -449,26 +449,35 @@ export class GeminiAgentProvider implements AgentProvider {
                     cumulativePromptTokens,
                     Math.ceil(request.prompt.length / 4)
                   ),
-                  completion: Math.max(cumulativeCompletionTokens, totalTokens),
+                  completion: Math.max(
+                    cumulativeCompletionTokens,
+                    currentTurnOutputEstimate
+                  ),
                   total:
                     Math.max(
                       cumulativePromptTokens,
                       Math.ceil(request.prompt.length / 4)
-                    ) + Math.max(cumulativeCompletionTokens, totalTokens),
+                    ) +
+                    Math.max(
+                      cumulativeCompletionTokens,
+                      currentTurnOutputEstimate
+                    ),
                 },
                 finishReason: 'tool_use',
                 numTurns,
               };
 
-              // Reset assistant accumulator after tool use - next assistant message will be a new response
+              // Reset turn-specific accumulators after tool use - next assistant message will be a new response
               if (process.env.DEBUG_GEMINI_STREAM) {
                 systemLog(
                   'gemini',
-                  '[Gemini] Resetting accumulators (post-tool-use)'
+                  '[Gemini] Resetting turn accumulators (post-tool-use)'
                 );
               }
               accumulatedAssistant = '';
               accumulatedThinkingBlocks.clear();
+              currentTurnOutputEstimate = 0;
+              cumulativeCompletionTokens = 0;
             }
 
             // Handle function responses (tool results)
@@ -514,11 +523,18 @@ export class GeminiAgentProvider implements AgentProvider {
                   prompt:
                     cumulativePromptTokens ||
                     Math.ceil(request.prompt.length / 4),
-                  completion: cumulativeCompletionTokens || totalTokens,
+                  completion:
+                    Math.max(
+                      cumulativeCompletionTokens,
+                      currentTurnOutputEstimate
+                    ) || 0,
                   total:
                     (cumulativePromptTokens ||
                       Math.ceil(request.prompt.length / 4)) +
-                    (cumulativeCompletionTokens || totalTokens),
+                    Math.max(
+                      cumulativeCompletionTokens,
+                      currentTurnOutputEstimate
+                    ),
                 },
                 finishReason: 'tool_use', // Tool result, not stop - agent continues
                 numTurns,
@@ -529,15 +545,17 @@ export class GeminiAgentProvider implements AgentProvider {
                 },
               };
 
-              // Reset assistant accumulator after tool result - next assistant message will be a new response
+              // Reset turn-specific accumulators after tool result - next assistant message will be a new response
               if (process.env.DEBUG_GEMINI_STREAM) {
                 systemLog(
                   'gemini',
-                  '[Gemini] Resetting accumulators (post-tool-result)'
+                  '[Gemini] Resetting turn accumulators (post-tool-result)'
                 );
               }
               accumulatedAssistant = '';
               accumulatedThinkingBlocks.clear();
+              currentTurnOutputEstimate = 0;
+              cumulativeCompletionTokens = 0;
             }
 
             // Handle text responses (both thinking and regular)
@@ -673,7 +691,7 @@ export class GeminiAgentProvider implements AgentProvider {
 
               messages.push(message);
 
-              totalTokens += Math.ceil(part.text.length / 4);
+              currentTurnOutputEstimate += Math.ceil(part.text.length / 4);
 
               yield {
                 messages: [...messages],
@@ -682,11 +700,17 @@ export class GeminiAgentProvider implements AgentProvider {
                   prompt:
                     cumulativePromptTokens ||
                     Math.ceil(request.prompt.length / 4),
-                  completion: cumulativeCompletionTokens || totalTokens,
+                  completion: Math.max(
+                    cumulativeCompletionTokens,
+                    currentTurnOutputEstimate
+                  ),
                   total:
                     (cumulativePromptTokens ||
                       Math.ceil(request.prompt.length / 4)) +
-                    (cumulativeCompletionTokens || totalTokens),
+                    Math.max(
+                      cumulativeCompletionTokens,
+                      currentTurnOutputEstimate
+                    ),
                 },
                 finishReason: 'stop',
                 numTurns,
@@ -712,12 +736,19 @@ export class GeminiAgentProvider implements AgentProvider {
             cumulativePromptTokens,
             Math.ceil(request.prompt.length / 4)
           ),
-          completion: Math.max(cumulativeCompletionTokens, totalTokens),
+          completion: Math.max(
+            cumulativeCompletionTokens,
+            currentTurnOutputEstimate
+          ),
           total:
             Math.max(
               cumulativePromptTokens,
               Math.ceil(request.prompt.length / 4)
-            ) + Math.max(cumulativeCompletionTokens, totalTokens),
+            ) +
+            Math.max(
+              cumulativeCompletionTokens,
+              currentTurnOutputEstimate
+            ),
         },
         finishReason: 'stop',
         numTurns,
@@ -779,12 +810,19 @@ export class GeminiAgentProvider implements AgentProvider {
             cumulativePromptTokens,
             Math.ceil(request.prompt.length / 4)
           ),
-          completion: Math.max(cumulativeCompletionTokens, totalTokens),
+          completion: Math.max(
+            cumulativeCompletionTokens,
+            currentTurnOutputEstimate
+          ),
           total:
             Math.max(
               cumulativePromptTokens,
               Math.ceil(request.prompt.length / 4)
-            ) + Math.max(cumulativeCompletionTokens, totalTokens),
+            ) +
+            Math.max(
+              cumulativeCompletionTokens,
+              currentTurnOutputEstimate
+            ),
         },
         finishReason: isAbort || isBenignSdkError ? 'stop' : 'error',
         numTurns,

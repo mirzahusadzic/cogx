@@ -624,8 +624,11 @@ export class OpenAIAgentProvider implements AgentProvider {
     const messages: AgentMessage[] = [];
     let conversationId: string = 'pending';
     let numTurns = 0;
-    let totalPromptTokens = 0;
+    
+    // Initial estimates
+    let totalPromptTokens = Math.ceil(request.prompt.length / 4);
     let totalCompletionTokens = 0;
+    let currentTurnOutputEstimate = 0;
 
     // Add user message first (always shown even if errors occur)
     const userMessage: AgentMessage = {
@@ -783,6 +786,7 @@ export class OpenAIAgentProvider implements AgentProvider {
             };
 
             messages.push(thinkingMessage);
+            currentTurnOutputEstimate += Math.ceil(rawEvent.data.event.delta.length / 4);
 
             // Yield intermediate state with thinking delta
             yield {
@@ -790,8 +794,8 @@ export class OpenAIAgentProvider implements AgentProvider {
               sessionId: conversationId,
               tokens: {
                 prompt: totalPromptTokens,
-                completion: totalCompletionTokens,
-                total: totalPromptTokens + totalCompletionTokens,
+                completion: totalCompletionTokens + currentTurnOutputEstimate,
+                total: totalPromptTokens + totalCompletionTokens + currentTurnOutputEstimate,
               },
               finishReason: 'stop',
               numTurns,
@@ -804,6 +808,7 @@ export class OpenAIAgentProvider implements AgentProvider {
             rawEvent.data.delta
           ) {
             outputText += rawEvent.data.delta;
+            currentTurnOutputEstimate += Math.ceil(rawEvent.data.delta.length / 4);
 
             // Create NEW message with JUST the delta (not accumulated text)
             // This matches Claude SDK pattern - TUI handles accumulation
@@ -824,8 +829,8 @@ export class OpenAIAgentProvider implements AgentProvider {
               sessionId: conversationId,
               tokens: {
                 prompt: totalPromptTokens,
-                completion: totalCompletionTokens,
-                total: totalPromptTokens + totalCompletionTokens,
+                completion: totalCompletionTokens + currentTurnOutputEstimate,
+                total: totalPromptTokens + totalCompletionTokens + currentTurnOutputEstimate,
               },
               finishReason: 'stop',
               numTurns,
@@ -884,12 +889,16 @@ export class OpenAIAgentProvider implements AgentProvider {
               sessionId: conversationId,
               tokens: {
                 prompt: totalPromptTokens,
-                completion: totalCompletionTokens,
-                total: totalPromptTokens + totalCompletionTokens,
+                completion: totalCompletionTokens + currentTurnOutputEstimate,
+                total: totalPromptTokens + totalCompletionTokens + currentTurnOutputEstimate,
               },
               finishReason: 'tool_use',
               numTurns,
             };
+
+            // After tool call, current turn's output is part of "total"
+            totalCompletionTokens += currentTurnOutputEstimate;
+            currentTurnOutputEstimate = 0;
           }
 
           // NOTE: Skip reasoning_item_created - we already handled thinking via
@@ -937,12 +946,17 @@ export class OpenAIAgentProvider implements AgentProvider {
               sessionId: conversationId,
               tokens: {
                 prompt: totalPromptTokens,
-                completion: totalCompletionTokens,
-                total: totalPromptTokens + totalCompletionTokens,
+                completion: totalCompletionTokens + currentTurnOutputEstimate,
+                total: totalPromptTokens + totalCompletionTokens + currentTurnOutputEstimate,
               },
               finishReason: 'tool_use',
               numTurns,
             };
+
+            // After tool result, prompt tokens will increase (handled by estimation later)
+            // For now just keep totals consistent
+            totalCompletionTokens += currentTurnOutputEstimate;
+            currentTurnOutputEstimate = 0;
           }
 
           // Handle message output (final text)
@@ -1001,8 +1015,8 @@ export class OpenAIAgentProvider implements AgentProvider {
               sessionId: conversationId,
               tokens: {
                 prompt: totalPromptTokens,
-                completion: totalCompletionTokens,
-                total: totalPromptTokens + totalCompletionTokens,
+                completion: totalCompletionTokens + currentTurnOutputEstimate,
+                total: totalPromptTokens + totalCompletionTokens + currentTurnOutputEstimate,
               },
               finishReason: 'stop', // Still in progress, but 'stop' is closest match
               numTurns,
@@ -1047,8 +1061,8 @@ export class OpenAIAgentProvider implements AgentProvider {
               sessionId: conversationId,
               tokens: {
                 prompt: totalPromptTokens,
-                completion: totalCompletionTokens,
-                total: totalPromptTokens + totalCompletionTokens,
+                completion: totalCompletionTokens + currentTurnOutputEstimate,
+                total: totalPromptTokens + totalCompletionTokens + currentTurnOutputEstimate,
               },
               finishReason: 'stop', // Still in progress, but 'stop' is closest match
               numTurns,
