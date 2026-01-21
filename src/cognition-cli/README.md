@@ -58,17 +58,27 @@ Cognition CLI supports multiple LLM providers:
 
 #### Gemini (Default Provider)
 
-```bash
-# The Gemini SDK is included by default
+You can connect to Gemini using either an API key or Google Cloud Vertex AI (ADC).
 
-# Set your API key
+```bash
+# Option A: API Key
 export GEMINI_API_KEY=your-key-here
+
+# Option B: Vertex AI
+# No API key required - uses Application Default Credentials (ADC)
+export GOOGLE_GENAI_USE_VERTEXAI=true
+export GOOGLE_CLOUD_PROJECT=your-project-id  # Optional if set in gcloud config
+export GOOGLE_CLOUD_LOCATION=us-central1     # Optional if set in gcloud config
+
+# Ensure you are authenticated
+gcloud auth application-default login
 
 # Launch TUI (uses Gemini by default)
 cognition tui
 ```
 
 **License**: Apache 2.0 (Open Source)
+By using the Gemini provider, you agree to the [Google Gemini API Terms of Service](https://ai.google.dev/gemini-api/terms).
 
 #### Enabling Claude Support
 

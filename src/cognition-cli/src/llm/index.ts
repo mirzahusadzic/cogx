@@ -187,9 +187,11 @@ export async function initializeProviders(
     registered.push('claude');
   }
 
-  // Register Gemini (ADK-based agent) if API key is available
+  // Register Gemini (ADK-based agent) if API key is available OR Vertex AI is enabled
   const geminiKey = googleApiKey || process.env.GEMINI_API_KEY;
-  if (geminiKey && !registry.has('gemini')) {
+  const useVertex = process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true';
+
+  if ((geminiKey || useVertex) && !registry.has('gemini')) {
     try {
       const gemini = new GeminiAgentProvider(geminiKey);
       registry.register(gemini);

@@ -405,6 +405,7 @@ export async function detectLLMProvider(
   // Also track API key presence for detailed status
   const claudeKey = process.env.ANTHROPIC_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
+  const useVertex = process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true';
   // OpenAI can be configured via API key OR workbench auto-config (OPENAI_BASE_URL)
   const openaiKey = process.env.OPENAI_API_KEY;
   const openaiBaseUrl = process.env.OPENAI_BASE_URL;
@@ -416,7 +417,7 @@ export async function detectLLMProvider(
     },
     gemini: {
       available: geminiRegistered,
-      hasKey: !!geminiKey,
+      hasKey: !!geminiKey || useVertex,
     },
     openai: {
       available: openaiRegistered,
@@ -509,7 +510,7 @@ export async function checkPrerequisites(
 
   if (!llm.found) {
     errors.push(
-      'No LLM provider configured. Set ANTHROPIC_API_KEY (Claude), GEMINI_API_KEY (Gemini), or OPENAI_API_KEY/OPENAI_BASE_URL (OpenAI)'
+      'No LLM provider configured. Set ANTHROPIC_API_KEY (Claude), GEMINI_API_KEY (Gemini), GOOGLE_GENAI_USE_VERTEXAI (Vertex AI), or OPENAI_API_KEY/OPENAI_BASE_URL (OpenAI)'
     );
   }
 

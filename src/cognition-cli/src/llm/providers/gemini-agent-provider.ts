@@ -124,15 +124,19 @@ export class GeminiAgentProvider implements AgentProvider {
    */
   constructor(apiKey?: string) {
     const key = apiKey || process.env.GEMINI_API_KEY;
+    const isVertex = process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true';
 
-    if (!key) {
+    if (!key && !isVertex) {
       throw new Error(
         'Gemini provider requires an API key. ' +
-          'Provide it as constructor argument or set GEMINI_API_KEY environment variable.'
+          'Provide it as constructor argument or set GEMINI_API_KEY environment variable.\n' +
+          'Alternatively, set GOOGLE_GENAI_USE_VERTEXAI=true and configure Google Cloud credentials.'
       );
     }
 
-    this.apiKey = key;
+    // In Vertex AI mode, the API key is not used for auth (ADC is used),
+    // but the SDK type definition might strictly require a string.
+    this.apiKey = key || 'vertex-managed';
 
     // Suppress ADK info logs (only show errors)
     setLogLevel(LogLevel.ERROR);

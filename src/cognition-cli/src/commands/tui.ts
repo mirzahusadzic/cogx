@@ -423,7 +423,7 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
             (availableProviders.length > 0
               ? `Available providers: ${availableProviders.join(', ')}\n` +
                 `To start a new session with an available provider, omit the -f flag.`
-              : `Configure ANTHROPIC_API_KEY or GEMINI_API_KEY to enable a provider.`)
+              : `Configure ANTHROPIC_API_KEY, GEMINI_API_KEY, or GOOGLE_GENAI_USE_VERTEXAI to enable a provider.`)
         );
         process.exit(1);
       }
@@ -454,7 +454,7 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
       // New session with config default not available - fall back silently
       if (availableProviders.length === 0) {
         console.error(
-          'Error: No LLM providers available. Configure ANTHROPIC_API_KEY, GEMINI_API_KEY, or start workbench with a chat model.'
+          'Error: No LLM providers available. Configure ANTHROPIC_API_KEY, GEMINI_API_KEY, GOOGLE_GENAI_USE_VERTEXAI, or start workbench with a chat model.'
         );
         process.exit(1);
       }

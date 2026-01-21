@@ -243,7 +243,12 @@ export function validateLLMConfig(config: LLMConfig): string[] {
     defaultProvider === 'openai' &&
     (config.providers.openai as OpenAIProviderConfig)?.baseUrl;
 
-  if (!providerConfig.apiKey && !isOpenAIWithCustomUrl) {
+  // Gemini with Vertex AI doesn't require GEMINI_API_KEY
+  const isGeminiVertex =
+    defaultProvider === 'gemini' &&
+    process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true';
+
+  if (!providerConfig.apiKey && !isOpenAIWithCustomUrl && !isGeminiVertex) {
     const envVarMap: Record<string, string> = {
       claude: 'ANTHROPIC_API_KEY',
       gemini: 'GEMINI_API_KEY',
@@ -331,6 +336,12 @@ export function isProviderConfigured(
   if (provider === 'openai') {
     const openaiConfig = providerConfig as OpenAIProviderConfig | undefined;
     return !!(openaiConfig?.apiKey || openaiConfig?.baseUrl);
+  }
+
+  // Gemini is considered configured if it has an API key OR Vertex AI is enabled
+  if (provider === 'gemini') {
+    const isVertex = process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true';
+    return !!(providerConfig?.apiKey || isVertex);
   }
 
   return !!providerConfig?.apiKey;

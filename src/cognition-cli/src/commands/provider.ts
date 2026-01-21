@@ -68,7 +68,11 @@ export function createProviderCommand(): Command {
           console.log(chalk.yellow('\n⚠️  No providers are configured\n'));
           console.log('Configure providers by setting environment variables:');
           console.log(chalk.dim('  ANTHROPIC_API_KEY=... for Claude'));
-          console.log(chalk.dim('  GEMINI_API_KEY=... for Gemini'));
+          console.log(
+            chalk.dim(
+              '  GEMINI_API_KEY=... or GOOGLE_GENAI_USE_VERTEXAI=true for Gemini'
+            )
+          );
           console.log();
           return;
         }
@@ -240,12 +244,25 @@ export function createProviderCommand(): Command {
 
         // Show Gemini configuration
         console.log(chalk.cyan('Gemini (Google):'));
-        if (config.providers.gemini?.apiKey) {
-          const key = config.providers.gemini.apiKey;
-          const maskedKey = `${key.slice(0, 8)}...${key.slice(-4)}`;
-          console.log(`  API Key: ${chalk.dim(maskedKey)}`);
+        const isVertex = process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true';
+
+        if (config.providers.gemini?.apiKey || isVertex) {
+          if (isVertex) {
+            console.log(`  Auth Mode: ${chalk.green('Vertex AI (ADC)')}`);
+            console.log(
+              `  Project: ${chalk.dim(process.env.GOOGLE_CLOUD_PROJECT || 'auto')}`
+            );
+            console.log(
+              `  Location: ${chalk.dim(process.env.GOOGLE_CLOUD_LOCATION || 'auto')}`
+            );
+          } else if (config.providers.gemini?.apiKey) {
+            const key = config.providers.gemini.apiKey;
+            const maskedKey = `${key.slice(0, 8)}...${key.slice(-4)}`;
+            console.log(`  API Key: ${chalk.dim(maskedKey)}`);
+          }
+
           console.log(
-            `  Default Model: ${config.providers.gemini.defaultModel || chalk.dim('not set')}`
+            `  Default Model: ${config.providers.gemini?.defaultModel || chalk.dim('not set')}`
           );
           console.log(
             chalk.dim(
@@ -253,7 +270,11 @@ export function createProviderCommand(): Command {
             )
           );
         } else {
-          console.log(chalk.yellow('  Not configured (set GEMINI_API_KEY)'));
+          console.log(
+            chalk.yellow(
+              '  Not configured (set GEMINI_API_KEY or use Vertex AI)'
+            )
+          );
         }
         console.log();
 
