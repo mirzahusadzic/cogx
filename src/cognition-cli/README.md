@@ -37,15 +37,15 @@ npm install && npm run build && npm link
 cd /path/to/your/project
 
 # Run interactive setup wizard
-cognition wizard
+cognition-cli wizard
 
 # Or manually initialize
-cognition init
-cognition genesis src/
-cognition genesis:docs docs/
+cognition-cli init
+cognition-cli genesis src/
+cognition-cli genesis:docs docs/
 
 # Launch interactive TUI with infinite context
-cognition tui
+cognition-cli tui
 ```
 
 ### LLM Provider Support
@@ -74,7 +74,7 @@ export GOOGLE_CLOUD_LOCATION=us-central1     # Optional if set in gcloud config
 gcloud auth application-default login
 
 # Launch TUI (uses Gemini by default)
-cognition tui
+cognition-cli tui
 ```
 
 **License**: Apache 2.0 (Open Source)
@@ -166,36 +166,36 @@ When context limit (200K tokens) is hit:
 
 ```bash
 # Build structural knowledge graph
-cognition genesis src/
+cognition-cli genesis src/
 
 # Generate structural overlay
-cognition overlay generate structural_patterns
+cognition-cli overlay generate structural_patterns
 
 # Find similar patterns
-cognition patterns find-similar App
+cognition-cli patterns find-similar App
 
 # Analyze blast radius
-cognition blast-radius PGCManager
+cognition-cli blast-radius PGCManager
 ```
 
 ### 2. Interactive TUI with Infinite Context
 
 ```bash
 # Launch interactive session with Gemini (default)
-cognition tui
+cognition-cli tui
 
 # Use Claude provider
-cognition tui --provider claude
+cognition-cli tui --provider claude
 
 # Use specific model
-cognition tui --provider claude --model claude-sonnet-4-5
+cognition-cli tui --provider claude --model claude-sonnet-4-5
 
 # With debug mode to see turn analysis
-cognition tui --debug
+cognition-cli tui --debug
 
 # Manage providers
-cognition tui provider list
-cognition tui provider set-default claude
+cognition-cli tui provider list
+cognition-cli tui provider set-default claude
 ```
 
 **Features:**
@@ -220,13 +220,13 @@ Comprehensive PR assessment combining all 5 overlays:
 
 ```bash
 # Analyze current changes
-cognition pr-analyze
+cognition-cli pr-analyze
 
 # Analyze specific branch
-cognition pr-analyze --branch feature/auth-refactor
+cognition-cli pr-analyze --branch feature/auth-refactor
 
 # Export for CI/CD
-cognition pr-analyze --json > pr-analysis.json
+cognition-cli pr-analyze --json > pr-analysis.json
 ```
 
 **Output includes:**
@@ -244,13 +244,13 @@ Cascading security impact when a file/symbol is compromised:
 
 ```bash
 # Analyze security impact
-cognition security blast-radius src/auth.ts
+cognition-cli security blast-radius src/auth.ts
 
 # By symbol name
-cognition security blast-radius validateToken
+cognition-cli security blast-radius validateToken
 
 # Export for security audit
-cognition security blast-radius src/auth.ts --json
+cognition-cli security blast-radius src/auth.ts --json
 ```
 
 **Use cases:**
@@ -263,13 +263,13 @@ cognition security blast-radius src/auth.ts --json
 
 ```bash
 # Terminal 1: Start file watcher
-cognition watch
+cognition-cli watch
 
 # Terminal 2: Check status (< 10ms)
-cognition status
+cognition-cli status
 
 # Terminal 2: Incremental update
-cognition update
+cognition-cli update
 ```
 
 **The Complete Loop:**
@@ -466,7 +466,7 @@ If you use this work in research, please cite:
   author = {Husadžić, Mirza},
   title = {Cognition Σ CLI: Seven-Overlay Knowledge Graph with Infinite Context},
   year = {2026},
-  version = {2.6.4},
+  version = {2.6.6},
   doi = {10.5281/zenodo.18012832},
   url = {https://github.com/mirzahusadzic/cogx/tree/main/src/cognition-cli}
 }
