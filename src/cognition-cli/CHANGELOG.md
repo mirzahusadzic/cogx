@@ -5,6 +5,34 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.6] - 2026-01-21
+
+### Summary
+
+**TUI Theme Overhaul & Vertex AI Robustness.** This release introduces the "Monolith Cyan" theme with AST-based markdown rendering for a more vibrant and stable terminal experience. It significantly improves Gemini/Vertex AI integration by enforcing global noise suppression and enabling Vertex AI support without requiring a legacy API key. Key performance optimizations in rendering and session scanning are also included.
+
+### 🚀 New Features
+
+- **TUI Theme Overhaul:** Introduced the "Monolith Cyan" theme with refined thinking blocks, improved contrast, and vibrant accent colors.
+- **AST-based Markdown Rendering:** Replaced regex-based markdown rendering with a more robust AST-based engine for reliable formatting.
+- **Vertex AI Support:** Enabled Vertex AI support without requiring a `GEMINI_API_KEY`, streamlining enterprise and cloud deployments.
+- **Smart Auto-scroll:** Prevent auto-scroll when the user has manually scrolled up in the chat window.
+- **Enhanced Path Relativization:** Improved path relativization across tools and executors for cleaner and more consistent TUI display.
+
+### 🐛 Bug Fixes
+
+- **Gemini/Vertex AI Noise Suppression:** Implemented aggressive global stdout suppression and robust interception to eliminate SDK/gRPC logging noise and TUI flicker.
+- **TUI Stability:** Fixed hangs on narrow terminals, stabilized streaming tool output to prevent layout jumping, and resolved stale scroll closures.
+- **Token Tracking:** Improved token tracking and reporting accuracy for Gemini and OpenAI providers.
+- **Patterns Command:** Resolved a `ReferenceError` in the `patterns list` command.
+- **Stream Formatting:** Fixed literal `\n\n` string normalization in stream output.
+
+### ⚡ Performance & Infrastructure
+
+- **Rendering Optimization:** Optimized message rendering, overlay score calculation, and theme engine performance.
+- **Session Scanning:** Optimized session scanning and reduced log noise in `getAllItems`.
+- **Markdown Diffing:** Enhanced the markdown renderer with smart diff detection and color refinements.
+
 ## [2.6.5] - 2026-01-18
 
 ### Summary

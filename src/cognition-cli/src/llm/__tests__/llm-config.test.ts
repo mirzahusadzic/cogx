@@ -39,6 +39,7 @@ describe('LLM Configuration', () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.OPENAI_BASE_URL;
     delete process.env.COGNITION_OPENAI_MODEL;
+    delete process.env.GOOGLE_GENAI_USE_VERTEXAI;
   });
 
   afterEach(() => {

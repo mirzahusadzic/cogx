@@ -54,6 +54,7 @@ describe('GeminiAgentProvider', () => {
     delete process.env.GEMINI_USE_BIDI;
     delete process.env.DEBUG_GEMINI_STREAM;
     delete process.env.DEBUG_ESC_INPUT;
+    delete process.env.GOOGLE_GENAI_USE_VERTEXAI;
 
     // Default session mocks
     mockGetSession.mockResolvedValue(null);

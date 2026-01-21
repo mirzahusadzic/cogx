@@ -61,16 +61,16 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 ## 🎯 Latest Release
 
-**January 18, 2026** — [v2.6.5: TUI Responsiveness & LLM Context Improvements](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.5):
+**January 21, 2026** — [v2.6.6: TUI Theme Overhaul & Vertex AI Robustness](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.6):
 
-- 🚀 **TUI Enhancements** — Major layout and responsiveness upgrades, global scrolling, improved navigation, and robust cursor management.
-- 🧠 **LLM Context Improvements** — Auto-relativized git paths and simplified system prompts for more accurate context awareness.
-- 🐛 **Key Bug Fixes** — Resolved InputBox rendering glitches, terminal cursor issues, and improved test script execution.
-- 🏗️ **Infrastructure Updates** — Upgraded core dependencies and optimized test scripts for better performance.
+- 🎨 **TUI Theme Overhaul** — Introduced the "Monolith Cyan" theme with AST-based markdown rendering for a more vibrant and stable experience.
+- ☁️ **Vertex AI Support** — Enabled Vertex AI support without requiring a `GEMINI_API_KEY`, streamlining enterprise and cloud deployments.
+- 🔇 **Noise Suppression** — Implemented aggressive global stdout suppression to eliminate SDK/gRPC logging noise and TUI flicker.
+- 🐛 **Key Bug Fixes** — Resolved hangs on narrow terminals, stabilized streaming tool output, and improved token tracking accuracy.
 
-**Impact:** Significantly improves the user experience within the TUI and enhances the agent's understanding of the project context, leading to more fluid and accurate interactions.
+**Impact:** Dramatically improves visual stability and integration robustness, especially for Vertex AI users, while providing a more modern and readable TUI theme.
 
-**Previous Releases**: [v2.6.4 - PGC Grounding & Multi-Provider Token Optimization](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.4) | [v2.6.3 - Cross-Project Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.3) | [v2.6.2 - Manager/Worker Delegation](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2) | [v2.6.0 - Multi-Agent Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1 - Gemini Integration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0 - Multi-Provider LLM](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2 - Documentation & Stability](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1 - Cross-Overlay Workflows](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0 - Production Excellence](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ (Sigma) Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
+**Previous Releases**: [v2.6.5 - TUI Responsiveness & LLM Context Improvements](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.5) | [v2.6.4 - PGC Grounding & Multi-Provider Token Optimization](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.4) | [v2.6.3 - Cross-Project Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.3) | [v2.6.2 - Manager/Worker Delegation](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2) | [v2.6.0 - Multi-Agent Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1 - Gemini Integration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0 - Multi-Provider LLM](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2 - Documentation & Stability](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1 - Cross-Overlay Workflows](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0 - Production Excellence](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ (Sigma) Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
 
 📜 **[See full release history](src/cognition-cli/CHANGELOG.md)**
 
