@@ -62,6 +62,11 @@ export interface ClaudePanelAgentProps {
    * This ensures the component re-measures its available height even if other props are stable.
    */
   layoutVersion?: string;
+
+  /**
+   * Current retry attempt count (if any)
+   */
+  retryCount?: number;
 }
 
 /**
@@ -102,6 +107,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   showInfoPanel = false,
   streamingPaste = '',
   layoutVersion, // Used implicitly by React.memo to trigger re-renders on layout changes
+  retryCount = 0,
 }) => {
   const { stdout } = useStdout();
   const { state: tuiState, clearScrollSignal } = useTUI();
@@ -704,7 +710,29 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       </Box>
       {/* Footer line for status and scroll info - always takes 1 line to prevent jump */}
       <Box height={1} flexDirection="row" justifyContent="space-between">
-        <Box>{isThinking && <Spinner label="Thinking…" />}</Box>
+        <Box>
+          {isThinking && (
+            <Box>
+              <Spinner />
+              <Box marginLeft={1}>
+                <Text
+                  color={
+                    retryCount > 0
+                      ? retryCount >= 3
+                        ? '#ff8a80'
+                        : '#ffd54f'
+                      : undefined
+                  }
+                  bold={retryCount >= 2}
+                >
+                  {retryCount > 0
+                    ? `Thinking (retry ${retryCount})…`
+                    : 'Thinking…'}
+                </Text>
+              </Box>
+            </Box>
+          )}
+        </Box>
         <Box>{scrollInfo && focused && <Text dimColor>{scrollInfo}</Text>}</Box>
       </Box>
     </Box>

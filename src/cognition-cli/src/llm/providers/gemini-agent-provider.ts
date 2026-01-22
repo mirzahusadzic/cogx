@@ -32,6 +32,8 @@ import {
   StreamingMode,
 } from '@google/adk';
 
+import { ThinkingLevel } from '@google/genai';
+
 import { getGroundingContext } from './grounding-utils.js';
 import { getDynamicThinkingBudget } from './thinking-utils.js';
 import { getCognitionTools } from './gemini-adk-tools.js';
@@ -86,6 +88,46 @@ function isStdoutNoise(str: string): boolean {
   return STDOUT_NOISE_PATTERNS.some((p) => str.includes(p));
 }
 
+/**
+ * Internal ADK Session interface for history inspection.
+ * Note: history is an internal field in some ADK implementations used for turn tracking.
+ */
+interface AdkSession {
+  history?: Array<{
+    role: string;
+    parts?: Array<{ text?: string }>;
+  }>;
+}
+
+/**
+ * ADK Run Options with support for optional newMessage injection.
+ * The SDK type definition marks newMessage as required, but the implementation
+ * handles its absence for session resumption.
+ */
+interface AdkRunOptions {
+  userId: string;
+  sessionId: string;
+  runConfig: {
+    streamingMode: StreamingMode;
+  };
+  newMessage?: {
+    role: string;
+    parts: Array<{ text: string }>;
+  };
+}
+
+/**
+ * Extended GenerateContentConfig to support experimental thinking features.
+ */
+interface GeminiGenerateContentConfig {
+  abortSignal?: AbortSignal;
+  thinkingConfig?: {
+    includeThoughts?: boolean;
+    thinkingBudget?: number;
+    thinkingLevel?: ThinkingLevel;
+  };
+}
+
 // runSilently removed - logic moved to executeAgent for global scope suppression
 
 /**
@@ -108,6 +150,7 @@ export class GeminiAgentProvider implements AgentProvider {
     'gemini-3-pro-preview', // Gemini 3.0 Pro with advanced reasoning
     'gemini-2.5-pro', // Gemini 2.5 Pro - most capable 2.x
     'gemini-2.5-flash', // Gemini 2.5 Flash - fast and efficient
+    'gemini-2.0-flash', // Gemini 2.0 Flash - stable GA model
   ];
 
   private apiKey: string;
@@ -320,74 +363,12 @@ export class GeminiAgentProvider implements AgentProvider {
       this.abortController = new AbortController();
       const abortSignal = this.abortController.signal;
 
-      const modelId = request.model || 'gemini-3-flash-preview';
-      const isGemini3 = modelId.includes('gemini-3');
+      let activeModel = request.model || 'gemini-3-flash-preview';
+      let attempt = 0;
+      const maxRetries = 5;
+      let retryDelay = 1000;
 
-      // Dynamic Thinking Budgeting:
-      const { thinkingLevel, thinkingBudget } = getDynamicThinkingBudget(
-        request.remainingTPM
-      );
-
-      // Initialize Agent & Runner (No runSilently needed, we are already silent)
-      const agentInstance = new LlmAgent({
-        name: 'cognition_agent',
-        model: modelId,
-        instruction:
-          this.buildSystemPrompt(request) +
-          (groundingContext
-            ? `\n\n## Automated Grounding Context\n${groundingContext}`
-            : ''),
-        tools,
-        generateContentConfig: {
-          abortSignal,
-          ...(isGemini3
-            ? {
-                // GEMINI 3.0 CONFIG (Requires SDK bypass currently)
-                thinkingConfig: {
-                  thinkingLevel,
-                  includeThoughts: request.displayThinking !== false,
-                },
-              }
-            : {
-                // GEMINI 2.5 / LEGACY CONFIG
-                thinkingConfig: {
-                  thinkingBudget:
-                    request.maxThinkingTokens !== undefined
-                      ? Math.min(request.maxThinkingTokens, thinkingBudget)
-                      : thinkingBudget,
-                  includeThoughts: request.displayThinking !== false,
-                },
-              }),
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any,
-      });
-
-      const runnerInstance = new Runner({
-        agent: agentInstance,
-        appName: 'cognition-cli',
-        sessionService: this.sessionService,
-      });
-
-      this.currentRunner = runnerInstance;
-
-      const userId = 'cognition-user';
-
-      // Get or create session
-      let session = await this.sessionService.getSession({
-        appName: 'cognition-cli',
-        userId,
-        sessionId,
-      });
-
-      if (!session) {
-        session = await this.sessionService.createSession({
-          appName: 'cognition-cli',
-          userId,
-          sessionId,
-        });
-      }
-
-      // Add user message
+      // Add user message to local state once
       const userMessage: AgentMessage = {
         id: `msg-${Date.now()}`,
         type: 'user',
@@ -399,526 +380,774 @@ export class GeminiAgentProvider implements AgentProvider {
 
       // Yield initial state
       yield {
+        activeModel,
         messages: [...messages],
         sessionId,
         tokens: { prompt: 0, completion: 0, total: 0 },
         finishReason: 'stop',
         numTurns: 0,
+        retryCount: 0,
       };
 
-      // BIDI vs SSE
-      const useBidiMode = process.env.GEMINI_USE_BIDI === '1';
+      while (true) {
+        try {
+          const isGemini3 = activeModel.includes('gemini-3');
 
-      // Run agent - runAsync returns an async generator
-      const runGenerator = this.currentRunner.runAsync({
-        userId,
-        sessionId,
-        newMessage: {
-          role: 'user',
-          parts: [{ text: request.prompt }],
-        },
-        runConfig: {
-          streamingMode: useBidiMode ? StreamingMode.BIDI : StreamingMode.SSE,
-        },
-      });
+          // Dynamic Thinking Budgeting:
+          const { thinkingLevel, thinkingBudget } = getDynamicThinkingBudget(
+            request.remainingTPM
+          );
 
-      // Store generator reference for interrupt support
-      this.currentGenerator = runGenerator as AsyncGenerator<unknown>;
+          // Initialize Agent & Runner (No runSilently needed, we are already silent)
+          const agentInstance = new LlmAgent({
+            name: 'cognition_agent',
+            model: activeModel,
+            instruction:
+              this.buildSystemPrompt(request) +
+              (groundingContext
+                ? `\n\n## Automated Grounding Context\n${groundingContext}`
+                : ''),
+            tools,
+            generateContentConfig: {
+              abortSignal,
+              ...(isGemini3
+                ? {
+                    // GEMINI 3.0 CONFIG (Requires SDK bypass currently)
+                    thinkingConfig: {
+                      thinkingLevel,
+                      includeThoughts: request.displayThinking !== false,
+                    },
+                  }
+                : {
+                    // GEMINI 2.5 / LEGACY CONFIG
+                    thinkingConfig: {
+                      thinkingBudget:
+                        request.maxThinkingTokens !== undefined
+                          ? Math.min(request.maxThinkingTokens, thinkingBudget)
+                          : thinkingBudget,
+                      includeThoughts: request.displayThinking !== false,
+                    },
+                  }),
+              // Use custom interface to support experimental thinkingConfig
+            } as GeminiGenerateContentConfig,
+          });
 
-      // Process events from the generator
-      for await (const event of runGenerator) {
-        // Check if abort was requested (ESC key pressed)
-        if (this.abortController?.signal.aborted) {
-          if (process.env.DEBUG_ESC_INPUT) {
+          const runnerInstance = new Runner({
+            agent: agentInstance,
+            appName: 'cognition-cli',
+            sessionService: this.sessionService,
+          });
+
+          this.currentRunner = runnerInstance;
+
+          const userId = 'cognition-user';
+
+          // Get or create session
+          let session = await this.sessionService.getSession({
+            appName: 'cognition-cli',
+            userId,
+            sessionId,
+          });
+
+          if (!session) {
+            session = await this.sessionService.createSession({
+              appName: 'cognition-cli',
+              userId,
+              sessionId,
+            });
+          }
+
+          // BIDI vs SSE
+          const useBidiMode = process.env.GEMINI_USE_BIDI === '1';
+
+          // Run agent - runAsync returns an async generator
+          const runOptions: AdkRunOptions = {
+            userId,
+            sessionId,
+            runConfig: {
+              streamingMode: useBidiMode
+                ? StreamingMode.BIDI
+                : StreamingMode.SSE,
+            },
+          };
+
+          // Only add newMessage if it's not already in the session history
+          // This prevents duplication on retries while ensuring the runner has input
+          // if the session was not persisted (e.g. failure during first turn).
+          let shouldInjectMessage = true;
+          const history = (session as unknown as AdkSession).history || [];
+          if (history.length > 0) {
+            // Scan last few messages to see if this prompt is already active
+            // (Handle cases like autonomous turns or retries where persistence succeeded)
+            const lookback = Math.min(history.length, 5);
+            for (let i = 1; i <= lookback; i++) {
+              const msg = history[history.length - i];
+              if (
+                msg.role === 'user' &&
+                msg.parts?.[0]?.text === request.prompt
+              ) {
+                shouldInjectMessage = false;
+                break;
+              }
+            }
+          }
+
+          if (shouldInjectMessage) {
+            runOptions.newMessage = {
+              role: 'user',
+              parts: [{ text: request.prompt }],
+            };
+          }
+
+          // Use AdkRunOptions cast to satisfy required newMessage in SDK type definition
+          // while allowing its absence for session resumption.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const runGenerator = this.currentRunner.runAsync(runOptions as any);
+
+          // Store generator reference for interrupt support
+          this.currentGenerator = runGenerator as AsyncGenerator<unknown>;
+
+          // Process events from the generator
+          for await (const event of runGenerator) {
+            // ... (rest of the processing logic)
+            // Check if abort was requested (ESC key pressed)
+            if (this.abortController?.signal.aborted) {
+              if (process.env.DEBUG_ESC_INPUT) {
+                systemLog(
+                  'gemini',
+                  'Abort signal detected, exiting loop',
+                  undefined,
+                  'debug'
+                );
+              }
+              // Exit cleanly - don't throw, just break
+              break;
+            }
+
+            if (process.env.DEBUG_GEMINI_STREAM) {
+              systemLog(
+                'gemini',
+                `Processing event (turn ${numTurns + 1})`,
+                undefined,
+                'debug'
+              );
+            }
+
+            // Cast event to access properties (ADK types are not well defined yet)
+            const evt = event as unknown as {
+              author?: string;
+              errorCode?: string;
+              errorMessage?: string;
+              content?: {
+                role?: string;
+                parts?: Array<{
+                  text?: string;
+                  thought?: boolean; // true if this part contains thinking/reasoning
+                  functionCall?: {
+                    name: string;
+                    args: Record<string, unknown>;
+                  };
+                  functionResponse?: { name: string; response: unknown };
+                }>;
+              };
+              usageMetadata?: {
+                promptTokenCount?: number;
+                candidatesTokenCount?: number;
+                totalTokenCount?: number;
+                thoughtsTokenCount?: number; // thinking token usage
+              };
+            };
+
+            numTurns++;
+
+            // Capture actual token usage from Gemini API
+            if (evt.usageMetadata) {
+              if (evt.usageMetadata.promptTokenCount !== undefined) {
+                cumulativePromptTokens = evt.usageMetadata.promptTokenCount;
+                currentPromptTokens = evt.usageMetadata.promptTokenCount;
+              }
+              if (
+                evt.usageMetadata.totalTokenCount !== undefined &&
+                evt.usageMetadata.promptTokenCount !== undefined
+              ) {
+                cumulativeCompletionTokens =
+                  evt.usageMetadata.totalTokenCount -
+                  evt.usageMetadata.promptTokenCount;
+              } else if (evt.usageMetadata.candidatesTokenCount !== undefined) {
+                // Fallback if totalTokenCount is missing
+                cumulativeCompletionTokens +=
+                  evt.usageMetadata.candidatesTokenCount;
+                currentCompletionTokens =
+                  evt.usageMetadata.candidatesTokenCount;
+              }
+            }
+
+            // Handle error events (but skip "STOP" which is a normal finish reason, not an error)
+            if (
+              (evt.errorCode && evt.errorCode !== 'STOP') ||
+              evt.errorMessage
+            ) {
+              const errorMsg =
+                evt.errorMessage || `Error code: ${evt.errorCode}`;
+              throw new Error(`Gemini API Error: ${errorMsg}`);
+            }
+
+            // Skip user echo events
+            if (evt.author === 'user') {
+              continue;
+            }
+
+            // Handle assistant/model responses
+            if (evt.author === 'cognition_agent' && evt.content?.parts) {
+              for (const part of evt.content.parts) {
+                // Handle function calls (tool use)
+                if (part.functionCall) {
+                  if (process.env.DEBUG_GEMINI_STREAM) {
+                    systemLog(
+                      'gemini',
+                      `\n[Gemini] === TOOL CALL: ${part.functionCall.name} ===`
+                    );
+                  }
+
+                  // Don't pre-format - let TUI handle formatting via toolName/toolInput
+                  const toolMessage: AgentMessage = {
+                    id: `msg-${Date.now()}-tool-${numTurns}`,
+                    type: 'tool_use',
+                    role: 'assistant',
+                    content: '', // TUI will format using toolName and toolInput
+                    timestamp: new Date(),
+                    toolName: part.functionCall.name,
+                    toolInput: part.functionCall.args,
+                  };
+                  messages.push(toolMessage);
+
+                  yield {
+                    activeModel,
+                    messages: [...messages],
+                    sessionId,
+                    tokens: {
+                      prompt: Math.max(
+                        cumulativePromptTokens,
+                        Math.ceil(request.prompt.length / 4)
+                      ),
+                      completion: Math.max(
+                        cumulativeCompletionTokens,
+                        currentTurnOutputEstimate
+                      ),
+                      total:
+                        Math.max(
+                          cumulativePromptTokens,
+                          Math.ceil(request.prompt.length / 4)
+                        ) +
+                        Math.max(
+                          cumulativeCompletionTokens,
+                          currentTurnOutputEstimate
+                        ),
+                    },
+                    finishReason: 'tool_use',
+                    numTurns,
+                  };
+
+                  // Reset turn-specific accumulators after tool use - next assistant message will be a new response
+                  if (process.env.DEBUG_GEMINI_STREAM) {
+                    systemLog(
+                      'gemini',
+                      '[Gemini] Resetting turn accumulators (post-tool-use)'
+                    );
+                  }
+                  accumulatedAssistant = '';
+                  accumulatedThinkingBlocks.clear();
+                  currentTurnOutputEstimate = 0;
+                  cumulativeCompletionTokens = 0;
+                }
+
+                // Handle function responses (tool results)
+                if (part.functionResponse) {
+                  if (process.env.DEBUG_GEMINI_STREAM) {
+                    // Always log for now to debug bash
+                    systemLog(
+                      'gemini',
+                      `\n[Gemini] === TOOL RESULT: ${part.functionResponse.name} ===`
+                    );
+                    systemLog(
+                      'gemini',
+                      `[Gemini] Result type: ${typeof part.functionResponse.response}`
+                    );
+                  }
+
+                  const resultMessage: AgentMessage = {
+                    id: `msg-${Date.now()}-result-${numTurns}`,
+                    type: 'tool_result',
+                    role: 'user',
+                    content: (function () {
+                      const resp = part.functionResponse.response;
+                      if (typeof resp === 'string') return resp;
+                      if (
+                        resp &&
+                        typeof resp === 'object' &&
+                        'result' in resp &&
+                        typeof (resp as Record<string, unknown>).result ===
+                          'string'
+                      ) {
+                        return (resp as Record<string, unknown>)
+                          .result as string;
+                      }
+                      return JSON.stringify(resp);
+                    })(),
+                    timestamp: new Date(),
+                    toolName: part.functionResponse.name,
+                  };
+                  messages.push(resultMessage);
+
+                  yield {
+                    activeModel,
+                    messages: [...messages],
+                    sessionId,
+                    tokens: {
+                      prompt:
+                        cumulativePromptTokens ||
+                        Math.ceil(request.prompt.length / 4),
+                      completion:
+                        Math.max(
+                          cumulativeCompletionTokens,
+                          currentTurnOutputEstimate
+                        ) || 0,
+                      total:
+                        (cumulativePromptTokens ||
+                          Math.ceil(request.prompt.length / 4)) +
+                        Math.max(
+                          cumulativeCompletionTokens,
+                          currentTurnOutputEstimate
+                        ),
+                    },
+                    finishReason: 'tool_use', // Tool result, not stop - agent continues
+                    numTurns,
+                    // Pass back the tool result information for compression triggers
+                    toolResult: {
+                      name: part.functionResponse.name,
+                      response: part.functionResponse.response,
+                    },
+                  };
+
+                  // Reset turn-specific accumulators after tool result - next assistant message will be a new response
+                  if (process.env.DEBUG_GEMINI_STREAM) {
+                    systemLog(
+                      'gemini',
+                      '[Gemini] Resetting turn accumulators (post-tool-result)'
+                    );
+                  }
+                  accumulatedAssistant = '';
+                  accumulatedThinkingBlocks.clear();
+                  currentTurnOutputEstimate = 0;
+                  cumulativeCompletionTokens = 0;
+                }
+
+                // Handle text responses (both thinking and regular)
+                if (part.text) {
+                  // Check if this is thinking content
+                  const isThinking = part.thought === true;
+                  const messageType = isThinking ? 'thinking' : 'assistant';
+
+                  if (process.env.DEBUG_GEMINI_STREAM) {
+                    systemLog(
+                      'gemini',
+                      `\n[Gemini] === NEW EVENT: ${messageType} (${part.text.length} chars) ===`
+                    );
+                    systemLog(
+                      'gemini',
+                      `[Gemini] Text preview: "${part.text.substring(0, 256)}..."`
+                    );
+                  }
+
+                  // SSE mode sends FULL accumulated text each time, not deltas
+                  // For thinking blocks, extract block ID from header (e.g., "**Analyzing Code**")
+                  let blockId = '';
+                  let accumulated = '';
+
+                  if (isThinking) {
+                    // Extract thinking block header (first line, usually bold)
+                    const match = part.text.match(/^\*\*([^*]+)\*\*/);
+                    blockId = match ? match[1] : 'default';
+                    accumulated = accumulatedThinkingBlocks.get(blockId) || '';
+                  } else {
+                    accumulated = accumulatedAssistant;
+                  }
+
+                  if (process.env.DEBUG_GEMINI_STREAM) {
+                    systemLog(
+                      'gemini',
+                      `[Gemini] Accumulated: ${accumulated.length} chars: "${accumulated.substring(0, 100)}..."`
+                    );
+                  }
+
+                  // Skip if no new content (shorter than current accumulated = stale event)
+                  // Only applicable for SSE (cumulative) mode. BIDI sends deltas.
+                  const isBidi = process.env.GEMINI_USE_BIDI === '1';
+
+                  if (
+                    !isBidi &&
+                    accumulated &&
+                    part.text.length <= accumulated.length
+                  ) {
+                    if (process.env.DEBUG_GEMINI_STREAM) {
+                      systemLog(
+                        'gemini',
+                        `[Gemini] SKIP: No new content (${part.text.length} <= ${accumulated.length})`
+                      );
+                    }
+                    continue;
+                  }
+
+                  // Verify this is a legitimate continuation (not a restructured/combined event)
+                  // Both thinking AND assistant messages can get restructured by Gemini
+                  // Only applicable for SSE (cumulative) mode.
+                  if (
+                    !isBidi &&
+                    accumulated &&
+                    !part.text.startsWith(accumulated)
+                  ) {
+                    if (process.env.DEBUG_GEMINI_STREAM) {
+                      systemLog(
+                        'gemini',
+                        `[Gemini] SKIP: ${messageType} doesn't start with accumulated (restructured event)`
+                      );
+                    }
+                    // This is likely a restructured event with different text
+                    continue;
+                  }
+
+                  // Extract delta text (only the new portion)
+                  // In BIDI mode, part.text IS the delta.
+                  // In SSE mode, part.text IS the full text.
+                  let deltaText = isBidi
+                    ? part.text
+                    : part.text.substring(accumulated.length);
+
+                  // Special handling for thinking block headers to ensure clean spacing
+                  // This handles cases where the header and content are in different chunks
+                  if (isThinking && accumulated) {
+                    const fullHeaderMatch =
+                      part.text.match(/^(\*\*([^*]+)\*\*)/);
+                    if (fullHeaderMatch && accumulated === fullHeaderMatch[1]) {
+                      // We just finished the header and are starting the content in this chunk
+                      deltaText = deltaText.replace(/^([\n\r]|\\n)+/, '\n\n');
+                    }
+                  }
+
+                  // Trim leading newlines from the first chunk of any message
+                  if (!accumulated) {
+                    deltaText = deltaText.replace(/^([\n\r]|\\n)+/, '');
+
+                    if (isThinking) {
+                      // For thinking blocks, ensure a double newline after the header
+                      // Header is usually **Thinking** or similar
+                      const headerMatch = deltaText.match(/^(\*\*([^*]+)\*\*)/);
+                      if (headerMatch) {
+                        const headerPart = headerMatch[1];
+                        const contentPart = deltaText.substring(
+                          headerPart.length
+                        );
+                        deltaText =
+                          headerPart +
+                          contentPart.replace(/^([\n\r]|\\n)+/, '\n\n');
+                      }
+                    }
+                  }
+
+                  if (process.env.DEBUG_GEMINI_STREAM) {
+                    systemLog(
+                      'gemini',
+                      `[Gemini] Delta (${deltaText.length} chars): "${deltaText.substring(0, 100)}..."`
+                    );
+                  }
+
+                  // Skip if delta is empty or just whitespace (final event with no new content)
+                  if (!deltaText || deltaText.trim().length === 0) {
+                    if (process.env.DEBUG_GEMINI_STREAM) {
+                      systemLog('gemini', `[Gemini] SKIP: Empty delta`);
+                    }
+                    // Update accumulated tracker even though we're skipping
+                    if (isThinking) {
+                      const current =
+                        accumulatedThinkingBlocks.get(blockId) || '';
+                      accumulatedThinkingBlocks.set(
+                        blockId,
+                        isBidi ? current + part.text : part.text
+                      );
+                    } else {
+                      if (isBidi) {
+                        accumulatedAssistant += part.text;
+                      } else {
+                        accumulatedAssistant = part.text;
+                      }
+                    }
+                    continue;
+                  }
+
+                  // Update accumulated trackers
+                  if (isThinking) {
+                    const current =
+                      accumulatedThinkingBlocks.get(blockId) || '';
+                    accumulatedThinkingBlocks.set(
+                      blockId,
+                      isBidi ? current + part.text : part.text
+                    );
+                  } else {
+                    if (isBidi) {
+                      accumulatedAssistant += part.text;
+                    } else {
+                      accumulatedAssistant = part.text;
+                    }
+                  }
+
+                  if (process.env.DEBUG_GEMINI_STREAM) {
+                    systemLog(
+                      'gemini',
+                      `[Gemini] ✓ YIELDING delta, new total: ${part.text.length} chars`
+                    );
+                  }
+
+                  // Create new message with delta text
+                  // The TUI will accumulate these deltas via processAgentMessage
+                  const message: AgentMessage = {
+                    id: `msg-${Date.now()}-${numTurns}-${messageType}`,
+                    type: messageType,
+                    role: 'assistant',
+                    content: deltaText, // Send only the delta
+                    timestamp: new Date(),
+                  };
+
+                  if (isThinking) {
+                    message.thinking = deltaText;
+                  }
+
+                  messages.push(message);
+
+                  currentTurnOutputEstimate += Math.ceil(part.text.length / 4);
+
+                  yield {
+                    activeModel,
+                    messages: [...messages],
+                    sessionId,
+                    tokens: {
+                      prompt:
+                        cumulativePromptTokens ||
+                        Math.ceil(request.prompt.length / 4),
+                      completion: Math.max(
+                        cumulativeCompletionTokens,
+                        currentTurnOutputEstimate
+                      ),
+                      total:
+                        (cumulativePromptTokens ||
+                          Math.ceil(request.prompt.length / 4)) +
+                        Math.max(
+                          cumulativeCompletionTokens,
+                          currentTurnOutputEstimate
+                        ),
+                    },
+                    finishReason: 'stop',
+                    numTurns,
+                    retryCount: attempt,
+                  };
+                }
+              }
+            }
+          }
+
+          // Final response with actual token counts from Gemini API
+          // Always yield final response to signal completion (even if we've yielded before)
+          if (process.env.DEBUG_GEMINI_STREAM) {
             systemLog(
               'gemini',
-              'Abort signal detected, exiting loop',
-              undefined,
-              'debug'
+              `\n[Gemini] === STREAM LOOP EXITED ===\n[Gemini] Total turns: ${numTurns}\n[Gemini] Cumulative tokens: ${cumulativePromptTokens} prompt, ${cumulativeCompletionTokens} completion\n[Gemini] Current context: ${currentPromptTokens} prompt, ${currentCompletionTokens} completion\n[Gemini] Last message type: ${messages[messages.length - 1]?.type || 'none'}\n[Gemini] Yielding final response with finishReason='stop'`
             );
           }
-          // Exit cleanly - don't throw, just break
-          break;
-        }
+          yield {
+            activeModel,
+            messages: [...messages],
+            sessionId,
+            tokens: {
+              prompt: Math.max(
+                cumulativePromptTokens,
+                Math.ceil(request.prompt.length / 4)
+              ),
+              completion: Math.max(
+                cumulativeCompletionTokens,
+                currentTurnOutputEstimate
+              ),
+              total:
+                Math.max(
+                  cumulativePromptTokens,
+                  Math.ceil(request.prompt.length / 4)
+                ) +
+                Math.max(cumulativeCompletionTokens, currentTurnOutputEstimate),
+            },
+            finishReason: 'stop',
+            numTurns,
+            retryCount: 0, // Reset UI on success
+          };
 
-        if (process.env.DEBUG_GEMINI_STREAM) {
-          systemLog(
-            'gemini',
-            `Processing event (turn ${numTurns + 1})`,
-            undefined,
-            'debug'
+          // Reset retry attempt counter on success!
+          // This ensures that transient errors don't accumulate across turns
+          // and only consecutive failures lead to failover.
+          attempt = 0;
+
+          break; // SUCCESS: Exit retry loop
+        } catch (error) {
+          // Check if this is a user-initiated abort (not an actual error)
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          const isAbort =
+            errorMessage === 'Operation aborted by user' ||
+            errorMessage.includes('aborted') ||
+            errorMessage.includes('abort') ||
+            errorMessage.includes('signal') ||
+            // SDK might throw JSON parsing errors when aborted
+            (errorMessage.includes('JSON') &&
+              this.abortController?.signal.aborted);
+
+          if (isAbort) {
+            if (process.env.DEBUG_ESC_INPUT) {
+              systemLog('gemini', '[Gemini] Caught abort-related error:', {
+                error: errorMessage,
+              });
+            }
+            break; // Exit loop on abort
+          }
+
+          // ADK SDK (experimental v0.1.x) can throw JSON parsing errors in both SSE and BIDI modes
+          // These are typically benign SDK bugs when the stream ends, not real errors
+          const hasAssistantMessages = messages.some(
+            (m) => m.type === 'assistant' || m.type === 'thinking'
           );
-        }
+          const isBenignSdkError =
+            errorMessage.includes('JSON') &&
+            errorMessage.includes('Unexpected token') &&
+            hasAssistantMessages;
 
-        // Cast event to access properties (ADK types are not well defined yet)
-        const evt = event as unknown as {
-          author?: string;
-          errorCode?: string;
-          errorMessage?: string;
-          content?: {
-            role?: string;
-            parts?: Array<{
-              text?: string;
-              thought?: boolean; // true if this part contains thinking/reasoning
-              functionCall?: { name: string; args: Record<string, unknown> };
-              functionResponse?: { name: string; response: unknown };
-            }>;
-          };
-          usageMetadata?: {
-            promptTokenCount?: number;
-            candidatesTokenCount?: number;
-            totalTokenCount?: number;
-            thoughtsTokenCount?: number; // thinking token usage
-          };
-        };
-
-        numTurns++;
-
-        // Capture actual token usage from Gemini API
-        if (evt.usageMetadata) {
-          if (evt.usageMetadata.promptTokenCount !== undefined) {
-            cumulativePromptTokens = evt.usageMetadata.promptTokenCount;
-            currentPromptTokens = evt.usageMetadata.promptTokenCount;
+          if (isBenignSdkError) {
+            if (process.env.DEBUG_GEMINI_STREAM) {
+              systemLog(
+                'gemini',
+                '[Gemini] Ignoring benign ADK SDK JSON parsing error:',
+                { error: errorMessage }
+              );
+            }
+            break; // Exit loop on benign SDK error (treat as success)
           }
-          if (
-            evt.usageMetadata.totalTokenCount !== undefined &&
-            evt.usageMetadata.promptTokenCount !== undefined
-          ) {
-            cumulativeCompletionTokens =
-              evt.usageMetadata.totalTokenCount -
-              evt.usageMetadata.promptTokenCount;
-          } else if (evt.usageMetadata.candidatesTokenCount !== undefined) {
-            // Fallback if totalTokenCount is missing
-            cumulativeCompletionTokens +=
-              evt.usageMetadata.candidatesTokenCount;
-            currentCompletionTokens = evt.usageMetadata.candidatesTokenCount;
-          }
-        }
 
-        // Handle error events (but skip "STOP" which is a normal finish reason, not an error)
-        if ((evt.errorCode && evt.errorCode !== 'STOP') || evt.errorMessage) {
-          const errorMsg = evt.errorMessage || `Error code: ${evt.errorCode}`;
-          throw new Error(`Gemini API Error: ${errorMsg}`);
-        }
+          // CHECK FOR RETRYABLE ERRORS (429, 503, etc.)
+          const isRetryable =
+            errorMessage.includes('429') ||
+            errorMessage.includes('503') ||
+            errorMessage.includes('Resource exhausted') ||
+            errorMessage.includes('Service Unavailable') ||
+            errorMessage.includes('Deadline exceeded') ||
+            errorMessage.includes('Unknown error') ||
+            errorMessage.includes('Internal error') ||
+            errorMessage.includes('Internal Server Error') ||
+            errorMessage.includes('ECONNRESET') ||
+            errorMessage.includes('ETIMEDOUT');
 
-        // Skip user echo events
-        if (evt.author === 'user') {
-          continue;
-        }
+          if (isRetryable && attempt < maxRetries) {
+            attempt++;
 
-        // Handle assistant/model responses
-        if (evt.author === 'cognition_agent' && evt.content?.parts) {
-          for (const part of evt.content.parts) {
-            // Handle function calls (tool use)
-            if (part.functionCall) {
-              if (process.env.DEBUG_GEMINI_STREAM) {
-                systemLog(
-                  'gemini',
-                  `\n[Gemini] === TOOL CALL: ${part.functionCall.name} ===`
-                );
-              }
+            // Log retry attempt
+            systemLog(
+              'gemini',
+              `[Gemini] Hit retryable error (${errorMessage}). Retrying in ${retryDelay}ms... (Attempt ${attempt}/${maxRetries})`,
+              undefined,
+              'warn'
+            );
 
-              // Don't pre-format - let TUI handle formatting via toolName/toolInput
-              const toolMessage: AgentMessage = {
-                id: `msg-${Date.now()}-tool-${numTurns}`,
-                type: 'tool_use',
-                role: 'assistant',
-                content: '', // TUI will format using toolName and toolInput
-                timestamp: new Date(),
-                toolName: part.functionCall.name,
-                toolInput: part.functionCall.args,
-              };
-              messages.push(toolMessage);
-
-              yield {
-                messages: [...messages],
-                sessionId,
-                tokens: {
-                  prompt: Math.max(
+            // Yield state to TUI with retryCount to trigger UI feedback
+            yield {
+              activeModel,
+              messages: [...messages],
+              sessionId,
+              tokens: {
+                prompt: Math.max(
+                  cumulativePromptTokens,
+                  Math.ceil(request.prompt.length / 4)
+                ),
+                completion: Math.max(
+                  cumulativeCompletionTokens,
+                  currentTurnOutputEstimate
+                ),
+                total:
+                  Math.max(
                     cumulativePromptTokens,
                     Math.ceil(request.prompt.length / 4)
-                  ),
-                  completion: Math.max(
+                  ) +
+                  Math.max(
                     cumulativeCompletionTokens,
                     currentTurnOutputEstimate
                   ),
-                  total:
-                    Math.max(
-                      cumulativePromptTokens,
-                      Math.ceil(request.prompt.length / 4)
-                    ) +
-                    Math.max(
-                      cumulativeCompletionTokens,
-                      currentTurnOutputEstimate
-                    ),
-                },
-                finishReason: 'tool_use',
-                numTurns,
-              };
+              },
+              finishReason: 'stop', // Keep as stop so TUI continues to show "Thinking"
+              numTurns,
+              retryCount: attempt,
+            };
 
-              // Reset turn-specific accumulators after tool use - next assistant message will be a new response
-              if (process.env.DEBUG_GEMINI_STREAM) {
-                systemLog(
-                  'gemini',
-                  '[Gemini] Resetting turn accumulators (post-tool-use)'
-                );
-              }
-              accumulatedAssistant = '';
-              accumulatedThinkingBlocks.clear();
-              currentTurnOutputEstimate = 0;
-              cumulativeCompletionTokens = 0;
+            // Wait with exponential backoff + jitter
+            const jitter = Math.random() * 1000;
+            await new Promise((resolve) =>
+              setTimeout(resolve, retryDelay + jitter)
+            );
+            retryDelay *= 2;
+
+            // FALLOVER PATTERN: Switch to more stable model if preview fails repeatedly
+            if (attempt >= 3 && activeModel.includes('preview')) {
+              const fallback = 'gemini-2.5-flash';
+              systemLog(
+                'gemini',
+                `[Gemini] Falling back to stable model: ${fallback} after ${attempt} failures`,
+                undefined,
+                'warn'
+              );
+              activeModel = fallback;
             }
 
-            // Handle function responses (tool results)
-            if (part.functionResponse) {
-              if (process.env.DEBUG_GEMINI_STREAM) {
-                // Always log for now to debug bash
-                systemLog(
-                  'gemini',
-                  `\n[Gemini] === TOOL RESULT: ${part.functionResponse.name} ===`
-                );
-                systemLog(
-                  'gemini',
-                  `[Gemini] Result type: ${typeof part.functionResponse.response}`
-                );
-              }
-
-              const resultMessage: AgentMessage = {
-                id: `msg-${Date.now()}-result-${numTurns}`,
-                type: 'tool_result',
-                role: 'user',
-                content: (function () {
-                  const resp = part.functionResponse.response;
-                  if (typeof resp === 'string') return resp;
-                  if (
-                    resp &&
-                    typeof resp === 'object' &&
-                    'result' in resp &&
-                    typeof (resp as Record<string, unknown>).result === 'string'
-                  ) {
-                    return (resp as Record<string, unknown>).result as string;
-                  }
-                  return JSON.stringify(resp);
-                })(),
-                timestamp: new Date(),
-                toolName: part.functionResponse.name,
-              };
-              messages.push(resultMessage);
-
-              yield {
-                messages: [...messages],
-                sessionId,
-                tokens: {
-                  prompt:
-                    cumulativePromptTokens ||
-                    Math.ceil(request.prompt.length / 4),
-                  completion:
-                    Math.max(
-                      cumulativeCompletionTokens,
-                      currentTurnOutputEstimate
-                    ) || 0,
-                  total:
-                    (cumulativePromptTokens ||
-                      Math.ceil(request.prompt.length / 4)) +
-                    Math.max(
-                      cumulativeCompletionTokens,
-                      currentTurnOutputEstimate
-                    ),
-                },
-                finishReason: 'tool_use', // Tool result, not stop - agent continues
-                numTurns,
-                // Pass back the tool result information for compression triggers
-                toolResult: {
-                  name: part.functionResponse.name,
-                  response: part.functionResponse.response,
-                },
-              };
-
-              // Reset turn-specific accumulators after tool result - next assistant message will be a new response
-              if (process.env.DEBUG_GEMINI_STREAM) {
-                systemLog(
-                  'gemini',
-                  '[Gemini] Resetting turn accumulators (post-tool-result)'
-                );
-              }
-              accumulatedAssistant = '';
-              accumulatedThinkingBlocks.clear();
-              currentTurnOutputEstimate = 0;
-              cumulativeCompletionTokens = 0;
-            }
-
-            // Handle text responses (both thinking and regular)
-            if (part.text) {
-              // Check if this is thinking content
-              const isThinking = part.thought === true;
-              const messageType = isThinking ? 'thinking' : 'assistant';
-
-              if (process.env.DEBUG_GEMINI_STREAM) {
-                systemLog(
-                  'gemini',
-                  `\n[Gemini] === NEW EVENT: ${messageType} (${part.text.length} chars) ===`
-                );
-                systemLog(
-                  'gemini',
-                  `[Gemini] Text preview: "${part.text.substring(0, 256)}..."`
-                );
-              }
-
-              // SSE mode sends FULL accumulated text each time, not deltas
-              // For thinking blocks, extract block ID from header (e.g., "**Analyzing Code**")
-              let blockId = '';
-              let accumulated = '';
-
-              if (isThinking) {
-                // Extract thinking block header (first line, usually bold)
-                const match = part.text.match(/^\*\*([^*]+)\*\*/);
-                blockId = match ? match[1] : 'default';
-                accumulated = accumulatedThinkingBlocks.get(blockId) || '';
-              } else {
-                accumulated = accumulatedAssistant;
-              }
-
-              if (process.env.DEBUG_GEMINI_STREAM) {
-                systemLog(
-                  'gemini',
-                  `[Gemini] Accumulated: ${accumulated.length} chars: "${accumulated.substring(0, 100)}..."`
-                );
-              }
-
-              // Skip if no new content (shorter than current accumulated = stale event)
-              if (accumulated && part.text.length <= accumulated.length) {
-                if (process.env.DEBUG_GEMINI_STREAM) {
-                  systemLog(
-                    'gemini',
-                    `[Gemini] SKIP: No new content (${part.text.length} <= ${accumulated.length})`
-                  );
-                }
-                continue;
-              }
-
-              // Verify this is a legitimate continuation (not a restructured/combined event)
-              // Both thinking AND assistant messages can get restructured by Gemini
-              if (accumulated && !part.text.startsWith(accumulated)) {
-                if (process.env.DEBUG_GEMINI_STREAM) {
-                  systemLog(
-                    'gemini',
-                    `[Gemini] SKIP: ${messageType} doesn't start with accumulated (restructured event)`
-                  );
-                }
-                // This is likely a restructured event with different text
-                continue;
-              }
-
-              // Extract delta text (only the new portion)
-              let deltaText = part.text.substring(accumulated.length);
-
-              // Special handling for thinking block headers to ensure clean spacing
-              // This handles cases where the header and content are in different chunks
-              if (isThinking && accumulated) {
-                const fullHeaderMatch = part.text.match(/^(\*\*([^*]+)\*\*)/);
-                if (fullHeaderMatch && accumulated === fullHeaderMatch[1]) {
-                  // We just finished the header and are starting the content in this chunk
-                  deltaText = deltaText.replace(/^([\n\r]|\\n)+/, '\n\n');
-                }
-              }
-
-              // Trim leading newlines from the first chunk of any message
-              if (!accumulated) {
-                deltaText = deltaText.replace(/^([\n\r]|\\n)+/, '');
-
-                if (isThinking) {
-                  // For thinking blocks, ensure a double newline after the header
-                  // Header is usually **Thinking** or similar
-                  const headerMatch = deltaText.match(/^(\*\*([^*]+)\*\*)/);
-                  if (headerMatch) {
-                    const headerPart = headerMatch[1];
-                    const contentPart = deltaText.substring(headerPart.length);
-                    deltaText =
-                      headerPart +
-                      contentPart.replace(/^([\n\r]|\\n)+/, '\n\n');
-                  }
-                }
-              }
-
-              if (process.env.DEBUG_GEMINI_STREAM) {
-                systemLog(
-                  'gemini',
-                  `[Gemini] Delta (${deltaText.length} chars): "${deltaText.substring(0, 100)}..."`
-                );
-              }
-
-              // Skip if delta is empty or just whitespace (final event with no new content)
-              if (!deltaText || deltaText.trim().length === 0) {
-                if (process.env.DEBUG_GEMINI_STREAM) {
-                  systemLog('gemini', `[Gemini] SKIP: Empty delta`);
-                }
-                // Update accumulated tracker even though we're skipping
-                if (isThinking) {
-                  accumulatedThinkingBlocks.set(blockId, part.text);
-                } else {
-                  accumulatedAssistant = part.text;
-                }
-                continue;
-              }
-
-              // Update accumulated trackers
-              if (isThinking) {
-                accumulatedThinkingBlocks.set(blockId, part.text);
-              } else {
-                accumulatedAssistant = part.text;
-              }
-
-              if (process.env.DEBUG_GEMINI_STREAM) {
-                systemLog(
-                  'gemini',
-                  `[Gemini] ✓ YIELDING delta, new total: ${part.text.length} chars`
-                );
-              }
-
-              // Create new message with delta text
-              // The TUI will accumulate these deltas via processAgentMessage
-              const message: AgentMessage = {
-                id: `msg-${Date.now()}-${numTurns}-${messageType}`,
-                type: messageType,
-                role: 'assistant',
-                content: deltaText, // Send only the delta
-                timestamp: new Date(),
-              };
-
-              if (isThinking) {
-                message.thinking = deltaText;
-              }
-
-              messages.push(message);
-
-              currentTurnOutputEstimate += Math.ceil(part.text.length / 4);
-
-              yield {
-                messages: [...messages],
-                sessionId,
-                tokens: {
-                  prompt:
-                    cumulativePromptTokens ||
-                    Math.ceil(request.prompt.length / 4),
-                  completion: Math.max(
-                    cumulativeCompletionTokens,
-                    currentTurnOutputEstimate
-                  ),
-                  total:
-                    (cumulativePromptTokens ||
-                      Math.ceil(request.prompt.length / 4)) +
-                    Math.max(
-                      cumulativeCompletionTokens,
-                      currentTurnOutputEstimate
-                    ),
-                },
-                finishReason: 'stop',
-                numTurns,
-              };
-            }
+            continue; // RETRY
           }
+
+          // NOT RETRYABLE or MAX RETRIES REACHED
+          // Only show error message if it's not an abort or benign SDK error
+          const errorMsg: AgentMessage = {
+            id: `msg-${Date.now()}-error`,
+            type: 'assistant',
+            role: 'assistant',
+            content: `Error: ${errorMessage}`,
+            timestamp: new Date(),
+          };
+          messages.push(errorMsg);
+
+          yield {
+            activeModel,
+            messages: [...messages],
+            sessionId,
+            tokens: {
+              prompt: Math.max(
+                cumulativePromptTokens,
+                Math.ceil(request.prompt.length / 4)
+              ),
+              completion: Math.max(
+                cumulativeCompletionTokens,
+                currentTurnOutputEstimate
+              ),
+              total:
+                Math.max(
+                  cumulativePromptTokens,
+                  Math.ceil(request.prompt.length / 4)
+                ) +
+                Math.max(cumulativeCompletionTokens, currentTurnOutputEstimate),
+            },
+            finishReason: 'error',
+            numTurns,
+          };
+          break; // Exit loop after yielding error
         }
       }
-
-      // Final response with actual token counts from Gemini API
-      // Always yield final response to signal completion (even if we've yielded before)
-      if (process.env.DEBUG_GEMINI_STREAM) {
-        systemLog(
-          'gemini',
-          `\n[Gemini] === STREAM LOOP EXITED ===\n[Gemini] Total turns: ${numTurns}\n[Gemini] Cumulative tokens: ${cumulativePromptTokens} prompt, ${cumulativeCompletionTokens} completion\n[Gemini] Current context: ${currentPromptTokens} prompt, ${currentCompletionTokens} completion\n[Gemini] Last message type: ${messages[messages.length - 1]?.type || 'none'}\n[Gemini] Yielding final response with finishReason='stop'`
-        );
-      }
-      yield {
-        messages: [...messages],
-        sessionId,
-        tokens: {
-          prompt: Math.max(
-            cumulativePromptTokens,
-            Math.ceil(request.prompt.length / 4)
-          ),
-          completion: Math.max(
-            cumulativeCompletionTokens,
-            currentTurnOutputEstimate
-          ),
-          total:
-            Math.max(
-              cumulativePromptTokens,
-              Math.ceil(request.prompt.length / 4)
-            ) + Math.max(cumulativeCompletionTokens, currentTurnOutputEstimate),
-        },
-        finishReason: 'stop',
-        numTurns,
-      };
-    } catch (error) {
-      // Check if this is a user-initiated abort (not an actual error)
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      const isAbort =
-        errorMessage === 'Operation aborted by user' ||
-        errorMessage.includes('aborted') ||
-        errorMessage.includes('abort') ||
-        errorMessage.includes('signal') ||
-        // SDK might throw JSON parsing errors when aborted
-        (errorMessage.includes('JSON') && this.abortController?.signal.aborted);
-
-      // ADK SDK (experimental v0.1.x) can throw JSON parsing errors in both SSE and BIDI modes
-      // These are typically benign SDK bugs when the stream ends, not real errors
-      // If we got any assistant messages before the error, treat as successful completion
-      const hasAssistantMessages = messages.some(
-        (m) => m.type === 'assistant' || m.type === 'thinking'
-      );
-      const isBenignSdkError =
-        errorMessage.includes('JSON') &&
-        errorMessage.includes('Unexpected token') &&
-        hasAssistantMessages;
-
-      if (process.env.DEBUG_ESC_INPUT && isAbort) {
-        systemLog('gemini', '[Gemini] Caught abort-related error:', {
-          error: errorMessage,
-        });
-      }
-
-      if (process.env.DEBUG_GEMINI_STREAM && isBenignSdkError) {
-        systemLog(
-          'gemini',
-          '[Gemini] Ignoring benign ADK SDK JSON parsing error:',
-          { error: errorMessage }
-        );
-      }
-
-      // Only show error message if it's not an abort or benign SDK error
-      if (!isAbort && !isBenignSdkError) {
-        const errorMessage: AgentMessage = {
-          id: `msg-${Date.now()}-error`,
-          type: 'assistant',
-          role: 'assistant',
-          content: `Error: ${error instanceof Error ? error.message : String(error)}`,
-          timestamp: new Date(),
-        };
-        messages.push(errorMessage);
-      }
-
-      yield {
-        messages: [...messages],
-        sessionId,
-        tokens: {
-          prompt: Math.max(
-            cumulativePromptTokens,
-            Math.ceil(request.prompt.length / 4)
-          ),
-          completion: Math.max(
-            cumulativeCompletionTokens,
-            currentTurnOutputEstimate
-          ),
-          total:
-            Math.max(
-              cumulativePromptTokens,
-              Math.ceil(request.prompt.length / 4)
-            ) + Math.max(cumulativeCompletionTokens, currentTurnOutputEstimate),
-        },
-        finishReason: isAbort || isBenignSdkError ? 'stop' : 'error',
-        numTurns,
-      };
     } finally {
       // Restore original console and streams
       console.log = originalConsoleLog;
