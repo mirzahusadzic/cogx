@@ -294,9 +294,8 @@ export function formatToolUse(tool: ToolUse, cwd?: string): FormattedTool {
       inputDesc = JSON.stringify(input);
     }
   } else if (input.command) {
-    // For Bash, show the actual command (not the description)
-    // Start with a newline to ensure full width for the command and subsequent output
-    // End with a newline so that streamed output starts on its own line
+    // For Bash, show the actual command (not the description).
+    // Use a single space after the colon for same-line display.
     inputDesc = `\n${input.command as string}\n`;
   } else if (input.description && !input.todos) {
     // Show description if it's not a task update (which has its own formatting)

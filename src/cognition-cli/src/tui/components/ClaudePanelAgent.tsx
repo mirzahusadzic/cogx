@@ -48,6 +48,9 @@ export interface ClaudePanelAgentProps {
   /** Whether the agent is currently thinking/streaming a response */
   isThinking: boolean;
 
+  /** Number of retries attempted (for Gemini 429 errors) */
+  retryCount?: number;
+
   /** Whether this panel is currently focused for scrolling */
   focused: boolean;
 
@@ -62,11 +65,6 @@ export interface ClaudePanelAgentProps {
    * This ensures the component re-measures its available height even if other props are stable.
    */
   layoutVersion?: string;
-
-  /**
-   * Current retry attempt count (if any)
-   */
-  retryCount?: number;
 }
 
 /**
@@ -156,6 +154,22 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
         return;
       }
 
+      // Universal normalization: Handle line endings and carriage returns for all message types
+      // to ensure consistent rendering and prevent terminal overwrite artifacts.
+      let processedContent = msg.content;
+      processedContent = processedContent.replace(/\r\n/g, '\n');
+
+      const isStreaming =
+        processedContent.includes('(streaming)') ||
+        processedContent.includes('(tail of stream)');
+
+      if (isStreaming) {
+        // Handle streaming carriage returns that overwrite the current line
+        processedContent = processedContent.replace(/[^\n]*\r/g, '');
+      }
+      // Remove any remaining standalone CR characters if they are not part of an overwrite
+      processedContent = processedContent.replace(/\r/g, '');
+
       const messageLines: StyledLine[] = [];
       let prefix = '';
       let color = TUITheme.text.primary;
@@ -188,37 +202,43 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
           bg = TUITheme.messages.assistant.bg;
 
           if (
-            msg.content.includes('📋 Tasks:') ||
-            msg.content.includes('🔧 Tasks:')
+            processedContent.includes('📋 Tasks:') ||
+            processedContent.includes('🔧 Tasks:')
           ) {
             baseColor = TUITheme.roles.tool; // Consistent green for Tasks
-          } else if (msg.content.match(/[🔧📋📄🧠🔍🌐🛑📊🤖📨📢📬✅✨🚀]/u)) {
+          } else if (
+            processedContent.match(/[🔧📋📄🧠🔍🌐🛑📊🤖📨📢📬✅✨🚀]/u)
+          ) {
             baseColor = TUITheme.roles.tool; // Same for all tools
           }
 
           // Use [\s\S]* to capture multi-line content (dot (.) doesn't match newlines)
-          const toolMatch = msg.content.match(
+          const toolMatch = processedContent.match(
             /^([🔧📋📄🧠🔍🌐🛑📊🤖📨📢📬✅✨🚀]\s+[^:]+:)\s?([\s\S]*)$/u
           );
           if (toolMatch) {
             const toolName = toolMatch[1];
             const details = toolMatch[2];
 
-            // FIX: Handle carriage returns to stabilize streaming output
-            // This collapses "Progress 10%\rProgress 20%" into "Progress 20%"
-            // We use [^\n]* to only match within a single line
-            let finalDetails = details.replace(/[^\n]*\r/g, '');
+            // Normalize tool name for robust detection (remove icon, colons, and spaces)
+            const cleanToolName = stripAnsi(toolName)
+              .replace(/[🔧📋📄🧠🔍🌐🛑📊🤖📨📢📬✅✨🚀:\s]/gu, '')
+              .toLowerCase();
 
-            const isEdit = toolName.includes('Edit:');
-            const isTasks = toolName.includes('Tasks:');
+            let finalDetails = details;
+
+            const isEdit = cleanToolName === 'edit';
+            const isTasks = cleanToolName === 'tasks';
+            const isRead = cleanToolName === 'read';
+            const isGrep = cleanToolName === 'grep';
 
             // Strip ANSI codes for cleaner detection and rendering
-            // (ToolFormatter adds ANSI colors and line numbers that we want to remove for Diff view)
-            // Also remove the 4-space indentation added by ToolFormatter to all tool outputs.
-            // EXCEPT for Edit and Tasks, where we want to keep ANSI and indentation.
-            if (isEdit || isTasks) {
+            // EXCEPT for Edit, Tasks, Read, and Grep where we want to keep ANSI and indentation.
+            if (isEdit || isTasks || isRead || isGrep) {
               finalDetails = finalDetails.replace(/^ {4}/gm, '');
             } else {
+              // Strip 4-space indentation added by ToolFormatter to all tool outputs
+              // and also strip ANSI for cleaner detection/wrapping.
               finalDetails = stripAnsi(finalDetails).replace(/^ {4}/gm, '');
             }
 
@@ -233,21 +253,31 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                 (finalDetails.includes('@@') &&
                   finalDetails.includes('+') &&
                   finalDetails.includes('-')) ||
-                toolName.toLowerCase().includes('diff'))
+                cleanToolName.includes('diff'))
             ) {
               lang = 'diff';
               // Remove line numbers (123│) and indentation added by ToolFormatter
               finalDetails = finalDetails.replace(/^\s*(\d+│\s)?/gm, '');
+            } else if (cleanToolName === 'read' || cleanToolName === 'write') {
+              // Try to detect extension from the "file: path" header
+              const pathMatch = finalDetails.match(/file:\s+([^\s\n()]+)/);
+              if (pathMatch) {
+                const ext = pathMatch[1].split('.').pop();
+                if (ext && ext.length < 5) lang = ext;
+              }
+            } else if (cleanToolName === 'bash') {
+              lang = 'bash';
             }
 
             // Wrap raw tool output (bash, read_file, diffs) in code blocks to prevent
             // accidental markdown parsing (e.g. diffs becoming lists)
             const shouldWrapInCode =
               finalDetails.includes('\n') ||
-              toolName.includes('bash') ||
-              toolName.includes('read_file') ||
-              toolName.includes('grep') ||
-              toolName.includes('glob') ||
+              cleanToolName === 'bash' ||
+              cleanToolName === 'read' ||
+              cleanToolName === 'write' ||
+              cleanToolName === 'grep' ||
+              cleanToolName === 'glob' ||
               isEdit ||
               lang === 'diff';
 
@@ -262,9 +292,6 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
             // from jumping up and down as lines wrap or as the tail-truncation kicks in.
             // We do this by ensuring the output block has a stable height (e.g. 30 lines)
             // during the streaming process.
-            const isStreaming =
-              msg.content.includes('(streaming)') ||
-              msg.content.includes('(tail of stream)');
             const STABILIZED_HEIGHT = 25; // Matches useAgentHandlers MAX_STREAM_LINES
 
             // For streaming output, force a leading newline.
@@ -276,8 +303,17 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
             }
 
             const startsWithNewline = effectiveDetails.startsWith('\n');
+            // Layer 13: Dynamic Code Block Wrapping (The "Markdown Escape" Fix)
+            // If the content itself contains backticks (e.g. reading a markdown file or source code with template strings),
+            // we must use N+1 backticks to wrap it, otherwise the renderer will prematurely close the block.
+            const maxBackticks = (effectiveDetails.match(/`+/g) || []).reduce(
+              (max, match) => Math.max(max, match.length),
+              0
+            );
+            const fence = '`'.repeat(Math.max(3, maxBackticks + 1));
+
             const processDetails = shouldWrapInCode
-              ? '```' + lang + '\n' + effectiveDetails + '\n```'
+              ? fence + lang + '\n' + effectiveDetails + '\n' + fence
               : effectiveDetails;
 
             // Layer 11: Stabilize width for multi-line tool output.
@@ -316,6 +352,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
             if (detailLines.length > 0) {
               const firstLine = detailLines[0];
               // Use spread to avoid mutating the original chunks array if it's reused (safety first)
+              // Use spread to avoid mutating the original chunks array if it's reused (safety first)
               const firstLineChunks = [
                 { text: prefix, color: baseColor, bg },
                 { text: toolName, color: baseColor, bg, bold: true },
@@ -339,12 +376,20 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                   ? prefix.length
                   : prefix.length + stripAnsi(toolName).length + 1;
                 const indent = ' '.repeat(indentSize + 4);
-                detailLines[i].chunks.unshift({
-                  text: indent,
-                  color: TUITheme.roles.toolResult,
-                  bg,
-                });
-                messageLines.push(detailLines[i]);
+
+                // Clone the line and chunks to prevent mutation bugs during re-renders
+                const newLine = {
+                  ...detailLines[i],
+                  chunks: [
+                    {
+                      text: indent,
+                      color: TUITheme.roles.toolResult,
+                      bg,
+                    },
+                    ...detailLines[i].chunks,
+                  ],
+                };
+                messageLines.push(newLine);
               }
 
               // Layer 12: Floating Window Stabilization - Padding
@@ -390,7 +435,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
       // Universal Markdown Renderer for all message types
       const renderedLines = markdownToLines(
-        msg.content,
+        processedContent,
         Math.max(
           10,
           width - prefix.length - (msg.type === 'tool_progress' ? 4 : 0)
@@ -699,7 +744,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                         inverse={chunk.inverse}
                       >
                         {hasAnsi
-                          ? stripCursorSequences(chunk.text)
+                          ? stripCursorSequences(chunk.text) + '\x1b[0m'
                           : chunk.text}
                       </Text>
                     );
