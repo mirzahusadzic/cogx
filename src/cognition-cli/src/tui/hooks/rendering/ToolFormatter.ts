@@ -577,7 +577,7 @@ function formatEditDiff(
       lines.forEach((line) => {
         const lineNum = `      ${newLine}`.slice(-6);
         diffLines.push(
-          `  ${lineNumColor}${lineNum}│${addFg}+${ANSI_RESET} ${addBg}${whiteFg}${line}${ANSI_RESET}${resetBg}`
+          `${addFg}+${ANSI_RESET} ${lineNumColor}${lineNum}│${ANSI_RESET} ${addBg}${whiteFg}${line}${ANSI_RESET}${resetBg}`
         );
         newLine++;
       });
@@ -586,7 +586,7 @@ function formatEditDiff(
       lines.forEach((line) => {
         const lineNum = `      ${oldLine}`.slice(-6);
         diffLines.push(
-          `  ${lineNumColor}${lineNum}│${removeFg}-${ANSI_RESET} ${removeBg}${whiteFg}${line}${ANSI_RESET}${resetBg}`
+          `${removeFg}-${ANSI_RESET} ${lineNumColor}${lineNum}│${ANSI_RESET} ${removeBg}${whiteFg}${line}${ANSI_RESET}${resetBg}`
         );
         oldLine++;
       });
@@ -595,7 +595,7 @@ function formatEditDiff(
       lines.forEach((line) => {
         const newNum = `      ${newLine}`.slice(-6);
         diffLines.push(
-          `  ${lineNumColor}${newNum}│ ${ANSI_RESET}${gray}${line}${ANSI_RESET}`
+          `  ${lineNumColor}${newNum}│${ANSI_RESET} ${gray}${line}${ANSI_RESET}`
         );
         oldLine++;
         newLine++;

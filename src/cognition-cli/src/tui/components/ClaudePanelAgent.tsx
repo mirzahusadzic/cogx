@@ -217,7 +217,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
           // Use [\s\S]* to capture multi-line content (dot (.) doesn't match newlines)
           const toolMatch = processedContent.match(
-            /^([🔧📋📄🧠🔍🌐🛑📊🤖📨📢📬✅✨🚀]\s+[^:]+:)\s?([\s\S]*)$/u
+            /^([🔧📋📄🔍🌐🛑📊🤖📨📢📬✅✨🚀]\s+[^:]+:)[ \t]?([\s\S]*)$/u
           );
           if (toolMatch) {
             const toolName = toolMatch[1];
@@ -236,14 +236,12 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
             const isGrep = cleanToolName === 'grep';
 
             // Strip ANSI codes for cleaner detection and rendering
-            // EXCEPT for Edit, Tasks, Read, and Grep where we want to keep ANSI and indentation.
-            if (isEdit || isTasks || isRead || isGrep) {
-              finalDetails = finalDetails.replace(/^ {4}/gm, '');
-            } else {
-              // Strip 4-space indentation added by ToolFormatter to all tool outputs
-              // and also strip ANSI for cleaner detection/wrapping.
-              finalDetails = stripAnsi(finalDetails).replace(/^ {4}/gm, '');
+            // EXCEPT for Edit, Tasks, Read, and Grep where we want to keep ANSI.
+            if (!(isEdit || isTasks || isRead || isGrep)) {
+              finalDetails = stripAnsi(finalDetails);
             }
+            // Strip 4-space indentation that might be present in tool output
+            finalDetails = finalDetails.replace(/^ {4}/gm, '');
 
             // Determine if we should treat this as a diff
             let lang = 'text';
@@ -276,6 +274,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
             // accidental markdown parsing (e.g. diffs becoming lists)
             const shouldWrapInCode =
               finalDetails.includes('\n') ||
+              isTasks ||
               cleanToolName === 'bash' ||
               cleanToolName === 'read' ||
               cleanToolName === 'write' ||
@@ -301,7 +300,10 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
             // This ensures the "ToolName:" header is always on its own line,
             // separating it from the scrolling content and allowing full-width rendering.
             let effectiveDetails = trimmedDetails;
-            if (isStreaming && !effectiveDetails.startsWith('\n')) {
+            if (
+              (isStreaming || isTasks) &&
+              !effectiveDetails.startsWith('\n')
+            ) {
               effectiveDetails = '\n' + effectiveDetails;
             }
 
@@ -332,7 +334,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
               : stripAnsi(toolName).length + 1;
 
             const targetWidth =
-              width - prefix.length - detailsWidthReduction - 4;
+              width - prefix.length - detailsWidthReduction - 2;
 
             let detailLines = markdownToLines(
               processDetails,
@@ -340,6 +342,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
               {
                 baseColor: TUITheme.roles.toolResult,
                 baseBg: bg,
+                wrapIndent: 2,
                 // Only force code block color if it's NOT a diff or sigma-tasks, to allow custom highlighting
                 codeBlockColor:
                   lang === 'diff' || lang === 'sigma-tasks'
@@ -358,32 +361,43 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
             }
 
             if (detailLines.length > 0) {
-              const firstLine = detailLines[0];
-              // Use spread to avoid mutating the original chunks array if it's reused (safety first)
-              // Use spread to avoid mutating the original chunks array if it's reused (safety first)
-              const firstLineChunks = [
-                { text: prefix, color: baseColor, bg },
-                { text: toolName, color: baseColor, bg, bold: true },
-                { text: ' ', color: baseColor, bg },
-                ...firstLine.chunks.map((chunk) => ({
-                  ...chunk,
-                  // If the chunk is using the default tool result color, upgrade it to baseColor (Green)
-                  // for the first line (which contains the tool command/parameters)
-                  color:
-                    chunk.color === TUITheme.roles.toolResult
-                      ? baseColor
-                      : chunk.color,
-                })),
-              ];
-              messageLines.push({ chunks: firstLineChunks });
+              let iStart = 1;
+              if (startsWithNewline) {
+                // If the details started with a newline, the header gets its own line
+                messageLines.push({
+                  chunks: [
+                    { text: prefix, color: baseColor, bg },
+                    { text: toolName, color: baseColor, bg, bold: true },
+                  ],
+                });
+                iStart = 0;
+              } else {
+                const firstLine = detailLines[0];
+                const firstLineChunks = [
+                  { text: prefix, color: baseColor, bg },
+                  { text: toolName, color: baseColor, bg, bold: true },
+                  { text: ' ', color: baseColor, bg },
+                  ...firstLine.chunks.map((chunk) => ({
+                    ...chunk,
+                    // If the chunk is using the default tool result color, upgrade it to baseColor (Green)
+                    // for the first line (which contains the tool command/parameters)
+                    color:
+                      chunk.color === TUITheme.roles.toolResult
+                        ? baseColor
+                        : chunk.color,
+                  })),
+                ];
+                messageLines.push({ chunks: firstLineChunks });
+                iStart = 1;
+              }
 
-              for (let i = 1; i < detailLines.length; i++) {
+              for (let i = iStart; i < detailLines.length; i++) {
                 // If the details started with a newline, we want subsequent lines to be indented
                 // less (just aligned with the prefix) to create a list-like appearance.
                 const indentSize = startsWithNewline
                   ? prefix.length
                   : prefix.length + stripAnsi(toolName).length + 1;
-                const indent = ' '.repeat(indentSize + 4);
+                const indent = ' '.repeat(indentSize + 2);
 
                 // Clone the line and chunks to prevent mutation bugs during re-renders
                 const newLine = {
@@ -405,7 +419,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                 const indentSize = startsWithNewline
                   ? prefix.length
                   : prefix.length + stripAnsi(toolName).length + 1;
-                const indent = ' '.repeat(indentSize + 4);
+                const indent = ' '.repeat(indentSize + 2);
 
                 for (let i = detailLines.length; i < STABILIZED_HEIGHT; i++) {
                   messageLines.push({
@@ -446,13 +460,13 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
         processedContent,
         Math.max(
           10,
-          width - prefix.length - (msg.type === 'tool_progress' ? 4 : 0)
+          width - prefix.length - (msg.type === 'tool_progress' ? 2 : 0)
         ),
         {
           baseColor: color,
           baseBg: bg,
           baseDim: msg.type === 'thinking',
-          wrapIndent: msg.type === 'tool_progress' ? 4 : undefined,
+          wrapIndent: msg.type === 'tool_progress' ? 2 : undefined,
           bulletColor: msg.type === 'thinking' ? color : undefined,
           // For thinking blocks, force code to match the vibrant role color
           // while the surrounding text is dimmed.

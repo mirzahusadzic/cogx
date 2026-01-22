@@ -472,9 +472,12 @@ export class MarkdownRenderer {
             const trimmedLine = cleanLine.trimStart();
             isAdd =
               cleanLine.startsWith('+') ||
+              /^\+\s*\d+\s*[│|]/.test(cleanLine) ||
               /^\s*\d+\s*[│|]\s*\+/.test(cleanLine);
             isRemove =
-              cleanLine.startsWith('-') || /^\s*\d+\s*[│|]\s*-/.test(cleanLine);
+              cleanLine.startsWith('-') ||
+              /^-\s*\d+\s*[│|]/.test(cleanLine) ||
+              /^\s*\d+\s*[│|]\s*-/.test(cleanLine);
             isHeader =
               trimmedLine.startsWith('@') ||
               /^\s*\d+\s*[│|]\s*@/.test(cleanLine);
@@ -499,14 +502,31 @@ export class MarkdownRenderer {
             }
           }
 
-          const diffMatch = line.match(/^(\s*\d+\s*[│|]\s*)(.*)$/);
+          // Regex to match: optional marker ([+-]), optional spaces, digits, separator (│ or |), optional space
+          const diffMatch = line.match(/^(([+-]\s*)?\s*\d+\s*[│|]\s*)(.*)$/);
           if (diffMatch && isDiffBlock) {
-            const [, prefix, rest] = diffMatch;
-            // Line number prefix (dim)
+            const [, prefix, markerPart, rest] = diffMatch;
+            // Marker (+/-) if present at the very start
+            if (markerPart) {
+              this.addChunk(
+                {
+                  text: markerPart,
+                  color: lineColor,
+                  bg: lineBg,
+                  bold: true,
+                },
+                { ...state, bg: lineBg }
+              );
+            }
+
+            // Line number prefix
+            const lineNumPart = markerPart
+              ? prefix.slice(markerPart.length)
+              : prefix;
             this.addChunk(
               {
-                text: prefix,
-                color: lineColor,
+                text: lineNumPart,
+                color: TUITheme.syntax.lineNumber,
                 bg: lineBg,
                 dim: true,
               },
@@ -516,6 +536,7 @@ export class MarkdownRenderer {
                 dim: true,
               }
             );
+
             // Content (bright if add/remove)
             this.addChunk(
               {

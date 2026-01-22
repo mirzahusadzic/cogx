@@ -141,6 +141,34 @@ describe('ClaudePanelAgent', () => {
       expect(output).toContain('Tasks');
     });
 
+    it('ensures Tasks tool results start on a new line even without explicit newline in input', () => {
+      const messages: TUIMessage[] = [
+        createMessage('tool_progress', '📋 Tasks: Update tests'),
+      ];
+      const { lastFrame } = render(
+        <ClaudePanelAgent
+          messages={messages}
+          isThinking={false}
+          focused={false}
+        />
+      );
+      const output = lastFrame() ?? '';
+      const lines = stripAnsi(output).split('\n');
+
+      // Find the line containing "Tasks:"
+      const tasksLineIndex = lines.findIndex((l) => l.includes('Tasks:'));
+      expect(tasksLineIndex).toBeGreaterThanOrEqual(0);
+
+      // The task content ("Update tests") should NOT be on the same line as "Tasks:"
+      expect(lines[tasksLineIndex]).not.toContain('Update tests');
+
+      // It should be on a subsequent line (wrapped in a code block)
+      const contentFound = lines
+        .slice(tasksLineIndex + 1)
+        .some((l) => l.includes('Update tests'));
+      expect(contentFound).toBe(true);
+    });
+
     it('strips 4-space prefix and ANSI from tool results', () => {
       // Simulation of formatToolResult output for read_file
       const toolOutput =
@@ -157,7 +185,8 @@ describe('ClaudePanelAgent', () => {
       );
       const output = stripAnsi(lastFrame() ?? '');
       // The output should contain the tool name and the cleaned content.
-      expect(output).toContain('🔧 Read: file.ts');
+      expect(output).toContain('🔧 Read:');
+      expect(output).toContain('file.ts');
       expect(output).toContain('914│ line content');
     });
 
@@ -177,7 +206,8 @@ describe('ClaudePanelAgent', () => {
         />
       );
       const output = stripAnsi(lastFrame() ?? '');
-      expect(output).toContain('🔧 Edit: file.ts');
+      expect(output).toContain('🔧 Edit:');
+      expect(output).toContain('file.ts');
       expect(output).toContain(
         '99│ + const lines = markdownToLines(`\\n` + longCode);'
       );
