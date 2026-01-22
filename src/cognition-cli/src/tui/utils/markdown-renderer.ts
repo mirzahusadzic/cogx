@@ -1,9 +1,10 @@
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import stripAnsi from 'strip-ansi';
+import stringWidth from 'string-width';
 import type {
   Root,
-  Content,
+  RootContent,
   Text,
   Code,
   Link,
@@ -103,7 +104,7 @@ export class MarkdownRenderer {
     this.currentLine = { chunks: [] };
 
     tree.children.forEach((node) =>
-      this.processNode(node as Content, {
+      this.processNode(node as RootContent, {
         color: this.options.baseColor,
         bg: this.options.baseBg,
         dim: this.options.baseDim,
@@ -199,7 +200,7 @@ export class MarkdownRenderer {
     }
 
     // Strip ANSI to check actual visual length
-    const visualLength = stripAnsi(text).length;
+    const visualLength = stringWidth(text);
 
     if (visualLength <= remainingWidth) {
       this.currentLine.chunks.push(chunk);
@@ -214,7 +215,10 @@ export class MarkdownRenderer {
 
       for (const word of words) {
         const lineLen = this.getLineLength(this.currentLine);
-        if (lineLen + currentChunkText.length + word.length > effectiveWidth) {
+        const currentChunkWidth = stringWidth(currentChunkText);
+        const wordWidth = stringWidth(word);
+
+        if (lineLen + currentChunkWidth + wordWidth > effectiveWidth) {
           // Flush current accumulated text in this chunk
           if (currentChunkText) {
             this.currentLine.chunks.push({ ...chunk, text: currentChunkText });
@@ -252,7 +256,7 @@ export class MarkdownRenderer {
     }
   }
 
-  private processNode(node: Content, state: RendererState) {
+  private processNode(node: RootContent, state: RendererState) {
     switch (node.type) {
       case 'heading': {
         const h = node as Heading;
@@ -279,7 +283,7 @@ export class MarkdownRenderer {
         );
 
         h.children.forEach((child) =>
-          this.processNode(child as Content, {
+          this.processNode(child as RootContent, {
             ...state,
             color: hColor,
             bold: true,
@@ -297,7 +301,7 @@ export class MarkdownRenderer {
       case 'paragraph':
         this.ensureGap(state);
         node.children.forEach((child) =>
-          this.processNode(child as Content, {
+          this.processNode(child as RootContent, {
             ...state,
             suppressInitialGap: false,
           })
@@ -326,7 +330,7 @@ export class MarkdownRenderer {
 
       case 'strong':
         node.children.forEach((child) =>
-          this.processNode(child as Content, {
+          this.processNode(child as RootContent, {
             ...state,
             bold: true,
             dim:
@@ -339,7 +343,7 @@ export class MarkdownRenderer {
 
       case 'emphasis':
         node.children.forEach((child) =>
-          this.processNode(child as Content, {
+          this.processNode(child as RootContent, {
             ...state,
             italic: true,
             dim:
@@ -385,17 +389,69 @@ export class MarkdownRenderer {
         const isDiffBlock =
           c.lang === 'diff' ||
           c.lang === 'patch' ||
-          ((c.lang === 'text' || !c.lang) &&
-            codeLines.slice(0, 10).some((l) => {
-              const clean = stripAnsi(l);
-              return (
-                clean.startsWith('--- ') ||
-                clean.startsWith('+++ ') ||
-                clean.startsWith('diff --git') ||
-                clean.startsWith('@@ -') ||
-                /^\s*\d+[│|][+-]/.test(clean)
+          ((c.lang === 'text' || c.lang === 'bash' || !c.lang) &&
+            (() => {
+              const samples = codeLines.slice(0, 20);
+              const hasStrongIndicator = samples.some((l) => {
+                const clean = stripAnsi(l).trimStart();
+                return (
+                  clean.startsWith('--- ') ||
+                  clean.startsWith('+++ ') ||
+                  clean.startsWith('diff --git') ||
+                  clean.startsWith('@@ -')
+                );
+              });
+              const numberedLines = samples.filter((l) =>
+                /^\s*\d+\s*[│|]/.test(stripAnsi(l))
               );
-            }));
+              const numberedDiffCount = numberedLines.filter((l) =>
+                /^\s*\d+\s*[│|]\s*[+-]/.test(stripAnsi(l))
+              ).length;
+
+              if (hasStrongIndicator) return true;
+              if (numberedDiffCount >= 2) return true;
+
+              // If it has line numbers, but also has lines WITHOUT +/- indicators,
+              // then it's likely a read_file output, not a diff, unless it has strong headers.
+              if (numberedLines.length > 0 && numberedDiffCount === 0) {
+                return false;
+              }
+
+              // Check for git log output - should not be treated as a diff unless it has strong markers
+              const looksLikeGitLog = samples.some((l) => {
+                const clean = stripAnsi(l);
+                return (
+                  clean.startsWith('commit ') ||
+                  clean.startsWith('Author: ') ||
+                  clean.startsWith('Date:   ')
+                );
+              });
+
+              if (looksLikeGitLog && !hasStrongIndicator) return false;
+
+              // Check for simple +/- markers at the start of lines even without headers
+              // We are more strict here: lines must start with +/- (not indented)
+              // to avoid false positives with commit messages or lists.
+              const plusCount = samples.filter((l) =>
+                stripAnsi(l).startsWith('+')
+              ).length;
+              const minusCount = samples.filter((l) =>
+                stripAnsi(l).startsWith('-')
+              ).length;
+
+              // If we have both, it's very likely a diff
+              if (
+                plusCount > 0 &&
+                minusCount > 0 &&
+                plusCount + minusCount >= 2
+              )
+                return true;
+
+              // If only one type, require more evidence
+              if (plusCount >= 5 || minusCount >= 5) return true;
+
+              return false;
+            })());
 
         codeLines.forEach((line) => {
           let lineColor =
@@ -410,12 +466,15 @@ export class MarkdownRenderer {
             // Enhanced detection for both standard git diffs and CLI 'edit' views
             // Strip ANSI for detection and to ensure our colors take precedence
             const cleanLine = stripAnsi(line);
+            const trimmedLine = cleanLine.trimStart();
             isAdd =
-              cleanLine.startsWith('+') || /^\s*\d+[│|]\s*\+/.test(cleanLine);
+              cleanLine.startsWith('+') ||
+              /^\s*\d+\s*[│|]\s*\+/.test(cleanLine);
             isRemove =
-              cleanLine.startsWith('-') || /^\s*\d+[│|]\s*-/.test(cleanLine);
+              cleanLine.startsWith('-') || /^\s*\d+\s*[│|]\s*-/.test(cleanLine);
             isHeader =
-              cleanLine.startsWith('@') || /^\s*\d+[│|]\s*@/.test(cleanLine);
+              trimmedLine.startsWith('@') ||
+              /^\s*\d+\s*[│|]\s*@/.test(cleanLine);
 
             if (isAdd) {
               lineColor = TUITheme.syntax.diff.add;
@@ -429,33 +488,66 @@ export class MarkdownRenderer {
               lineColor = TUITheme.syntax.diff.header;
               line = cleanLine;
             } else if (
-              cleanLine.startsWith('index') ||
-              cleanLine.startsWith('diff')
+              trimmedLine.startsWith('index') ||
+              trimmedLine.startsWith('diff')
             ) {
               lineColor = TUITheme.syntax.diff.meta;
               line = cleanLine;
             }
           }
 
-          // Use addChunk to handle wrapping within the code block
-          this.addChunk(
-            {
-              text: line,
-              color: lineColor,
-              bg: lineBg,
-              dim:
-                this.options.codeBlockDim !== undefined
-                  ? this.options.codeBlockDim
-                  : isAdd || isRemove || isHeader
-                    ? false
-                    : state.dim,
-            },
-            {
-              ...state,
-              bg: lineBg, // Ensure wrapped lines and indentation use the diff background
-              dim: isAdd || isRemove || isHeader ? false : state.dim,
-            }
-          );
+          const diffMatch = line.match(/^(\s*\d+\s*[│|]\s*)(.*)$/);
+          if (diffMatch && isDiffBlock) {
+            const [, prefix, rest] = diffMatch;
+            // Line number prefix (dim)
+            this.addChunk(
+              {
+                text: prefix,
+                color: lineColor,
+                bg: lineBg,
+                dim: true,
+              },
+              {
+                ...state,
+                bg: lineBg,
+                dim: true,
+              }
+            );
+            // Content (bright if add/remove)
+            this.addChunk(
+              {
+                text: rest,
+                color: lineColor,
+                bg: lineBg,
+                dim: isAdd || isRemove || isHeader ? false : state.dim,
+              },
+              {
+                ...state,
+                bg: lineBg,
+                dim: isAdd || isRemove || isHeader ? false : state.dim,
+              }
+            );
+          } else {
+            // Use addChunk to handle wrapping within the code block
+            this.addChunk(
+              {
+                text: line,
+                color: lineColor,
+                bg: lineBg,
+                dim:
+                  this.options.codeBlockDim !== undefined
+                    ? this.options.codeBlockDim
+                    : isAdd || isRemove || isHeader
+                      ? false
+                      : state.dim,
+              },
+              {
+                ...state,
+                bg: lineBg, // Ensure wrapped lines and indentation use the diff background
+                dim: isAdd || isRemove || isHeader ? false : state.dim,
+              }
+            );
+          }
           this.flushLine();
         });
         break;
@@ -465,7 +557,11 @@ export class MarkdownRenderer {
         const l = node as List;
         this.ensureGap(state);
         l.children.forEach((item, index) => {
-          if (this.currentLine.chunks.length === 0 && state.indent > 0) {
+          if (this.currentLine.chunks.length > 0) {
+            this.flushLine();
+          }
+
+          if (state.indent > 0) {
             this.currentLine.chunks.push({
               text: ' '.repeat(state.indent),
               color: state.color,
@@ -484,19 +580,20 @@ export class MarkdownRenderer {
           });
 
           // Pass the bullet length as indent for the list item content
-          this.processNode(item as Content, {
+          this.processNode(item as RootContent, {
             ...state,
             indent: state.indent + bullet.length,
             suppressInitialGap: true, // First child shouldn't force a newline
           });
         });
+        this.flushLine();
         break;
       }
 
       case 'listItem': {
         const li = node as ListItem;
         li.children.forEach((child, idx) => {
-          this.processNode(child as Content, {
+          this.processNode(child as RootContent, {
             ...state,
             suppressInitialGap: state.suppressInitialGap && idx === 0,
           });
@@ -512,7 +609,7 @@ export class MarkdownRenderer {
         const link = node as Link;
         this.addChunk({ ...state, text: '[', dim: true }, state);
         link.children.forEach((child) =>
-          this.processNode(child as Content, state)
+          this.processNode(child as RootContent, state)
         );
         this.addChunk({ ...state, text: ']', dim: true }, state);
         this.addChunk(
@@ -528,18 +625,15 @@ export class MarkdownRenderer {
 
       default:
         if ('children' in node) {
-          (node as Parent).children.forEach((child: Content) =>
-            this.processNode(child as Content, state)
+          (node as Parent).children.forEach((child: RootContent) =>
+            this.processNode(child as RootContent, state)
           );
         }
     }
   }
 
   private getLineLength(line: StyledLine): number {
-    return line.chunks.reduce(
-      (sum, chunk) => sum + stripAnsi(chunk.text).length,
-      0
-    );
+    return line.chunks.reduce((sum, chunk) => sum + stringWidth(chunk.text), 0);
   }
 }
 

@@ -147,4 +147,122 @@ describe('MarkdownRenderer', () => {
     expect(lines.length).toBeGreaterThan(0);
     expect(lines.length).toBeLessThan(50);
   });
+
+  describe('Diff highlighting', () => {
+    it('detects and highlights standard unified diffs', () => {
+      const diff =
+        '```diff\n--- a/file.txt\n+++ b/file.txt\n@@ -1,1 +1,1 @@\n-old\n+new\n```';
+      const lines = markdownToLines(diff, width);
+
+      const oldLine = lines.find((l) =>
+        l.chunks.some((c) => c.text === '-old')
+      );
+      const newLine = lines.find((l) =>
+        l.chunks.some((c) => c.text === '+new')
+      );
+
+      expect(oldLine?.chunks[0].color).toBe(TUITheme.syntax.diff.remove);
+      expect(newLine?.chunks[0].color).toBe(TUITheme.syntax.diff.add);
+    });
+
+    it('does NOT highlight git log output as a diff', () => {
+      const gitLog =
+        '```\ncommit 1234567890abcdef\nAuthor: John Doe <john@example.com>\nDate:   Mon Jan 1 00:00:00 2024 +0000\n\n    - fix: a bug\n    - feat: a feature\n    - docs: some docs\n```';
+      const lines = markdownToLines(gitLog, width);
+
+      const bulletLines = lines.filter((l) =>
+        l.chunks.some(
+          (c) => c.text.includes('- fix:') || c.text.includes('- feat:')
+        )
+      );
+
+      expect(bulletLines.length).toBeGreaterThan(0);
+      bulletLines.forEach((line) => {
+        // Should use standard code block color, not diff remove color
+        expect(line.chunks[0].color).not.toBe(TUITheme.syntax.diff.remove);
+        expect(line.chunks[0].color).toBe(TUITheme.syntax.code.block);
+      });
+    });
+
+    it('highlights diff fragments without headers if they have enough markers', () => {
+      const fragment =
+        '```\n-old line 1\n+new line 1\n-old line 2\n+new line 2\n```';
+      const lines = markdownToLines(fragment, width);
+
+      const oldLines = lines.filter((l) =>
+        l.chunks.some((c) => c.text.startsWith('-old'))
+      );
+      expect(oldLines.length).toBe(2);
+      oldLines.forEach((l) => {
+        expect(l.chunks[0].color).toBe(TUITheme.syntax.diff.remove);
+      });
+    });
+
+    it('does NOT highlight simple lists in code blocks as diffs', () => {
+      const list = '```\n- Item 1\n- Item 2\n- Item 3\n```';
+      const lines = markdownToLines(list, width);
+
+      const itemLines = lines.filter((l) =>
+        l.chunks.some((c) => c.text.startsWith('- Item'))
+      );
+      expect(itemLines.length).toBe(3);
+      itemLines.forEach((l) => {
+        expect(l.chunks[0].color).not.toBe(TUITheme.syntax.diff.remove);
+      });
+    });
+  });
+
+  describe('List and Item rendering', () => {
+    it('renders list items on separate lines', () => {
+      const markdown = '- Item 1\n- Item 2';
+      const lines = markdownToLines(markdown, width);
+
+      const item1Line = lines.find((l) =>
+        l.chunks.some((c) => c.text === 'Item 1')
+      );
+      const item2Line = lines.find((l) =>
+        l.chunks.some((c) => c.text === 'Item 2')
+      );
+
+      expect(item1Line).toBeDefined();
+      expect(item2Line).toBeDefined();
+      expect(lines.indexOf(item1Line!)).not.toBe(lines.indexOf(item2Line!));
+    });
+
+    it('renders tool progress style task lists correctly', () => {
+      const markdown = '📋 Tasks:\n- Task 1\n- Task 2';
+      const lines = markdownToLines(markdown, width);
+
+      const headerLine = lines.find((l) =>
+        l.chunks.some((c) => c.text === '📋 Tasks:')
+      );
+      const task1Line = lines.find((l) =>
+        l.chunks.some((c) => c.text === 'Task 1')
+      );
+      const task2Line = lines.find((l) =>
+        l.chunks.some((c) => c.text === 'Task 2')
+      );
+
+      expect(headerLine).toBeDefined();
+      expect(task1Line).toBeDefined();
+      expect(task2Line).toBeDefined();
+
+      const headerIdx = lines.indexOf(headerLine!);
+      const t1Idx = lines.indexOf(task1Line!);
+      const t2Idx = lines.indexOf(task2Line!);
+
+      expect(t1Idx).toBeGreaterThan(headerIdx);
+      expect(t2Idx).toBeGreaterThan(t1Idx);
+    });
+
+    it('handles leading newlines in code blocks', () => {
+      const markdown = '```sigma-tasks\n\n- Task 1\n```';
+      const lines = markdownToLines(markdown, width);
+
+      // Should have an empty first line for the leading \n in the code block
+      expect(lines.length).toBeGreaterThan(1);
+      expect(lines[0].chunks.length).toBe(0);
+      expect(lines[1].chunks[0].text).toContain('- Task 1');
+    });
+  });
 });
