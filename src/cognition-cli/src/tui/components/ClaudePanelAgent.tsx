@@ -157,7 +157,10 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       // Universal normalization: Handle line endings and carriage returns for all message types
       // to ensure consistent rendering and prevent terminal overwrite artifacts.
       let processedContent = msg.content;
-      processedContent = processedContent.replace(/\r\n/g, '\n');
+      // Normalize CRLF and standalone CR to LF
+      processedContent = processedContent
+        .replace(/\r\n/g, '\n')
+        .replace(/\r(?!\n)/g, '\n');
 
       const isStreaming =
         processedContent.includes('(streaming)') ||
@@ -313,7 +316,12 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
             const fence = '`'.repeat(Math.max(3, maxBackticks + 1));
 
             const processDetails = shouldWrapInCode
-              ? fence + lang + '\n' + effectiveDetails + '\n' + fence
+              ? fence +
+                lang +
+                '\n' +
+                effectiveDetails.replace(/^\n+/, '') +
+                '\n' +
+                fence
               : effectiveDetails;
 
             // Layer 11: Stabilize width for multi-line tool output.

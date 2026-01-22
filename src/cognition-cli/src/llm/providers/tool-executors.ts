@@ -421,7 +421,7 @@ export async function executeBash(
       if (killed) {
         resolve(`Timeout after ${effectiveTimeout}ms\n${compressed}`);
       } else {
-        resolve(`Exit code: ${code}\n${compressed}.`);
+        resolve(`Exit code: ${code}\n${compressed}`);
       }
     });
     proc.on('error', (err) => {

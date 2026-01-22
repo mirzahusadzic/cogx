@@ -118,10 +118,13 @@ export class MarkdownRenderer {
       this.flushLine();
     }
 
-    // Remove trailing empty lines
+    // Remove trailing empty lines (including those with only whitespace/indentation)
     while (
       this.lines.length > 0 &&
-      this.lines[this.lines.length - 1].chunks.length === 0
+      (this.lines[this.lines.length - 1].chunks.length === 0 ||
+        this.lines[this.lines.length - 1].chunks.every(
+          (c) => c.text.trim() === ''
+        ))
     ) {
       this.lines.pop();
     }
