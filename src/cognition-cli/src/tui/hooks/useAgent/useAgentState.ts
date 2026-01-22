@@ -13,6 +13,10 @@ export interface AgentState {
   setMessages: React.Dispatch<React.SetStateAction<TUIMessage[]>>;
   isThinking: boolean;
   setIsThinking: React.Dispatch<React.SetStateAction<boolean>>;
+  retryCount: number;
+  setRetryCount: React.Dispatch<React.SetStateAction<number>>;
+  activeModel: string | undefined;
+  setActiveModel: React.Dispatch<React.SetStateAction<string | undefined>>;
   error: string | null;
   setError: React.Dispatch<React.SetStateAction<string | null>>;
   overlayScores: {
@@ -83,6 +87,10 @@ export function useAgentState(
     },
   ]);
   const [isThinking, setIsThinking] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [activeModel, setActiveModel] = useState<string | undefined>(
+    _options.model
+  );
   const [error, setError] = useState<string | null>(null);
   const [overlayScores, setOverlayScores] = useState({
     O1_structural: 0,
@@ -147,6 +155,10 @@ export function useAgentState(
     setMessages,
     isThinking,
     setIsThinking,
+    retryCount,
+    setRetryCount,
+    activeModel,
+    setActiveModel,
     error,
     setError,
     overlayScores,

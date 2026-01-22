@@ -274,6 +274,8 @@ export function useAgent(options: UseAgentOptions) {
     sendMessage,
     addSystemMessage,
     isThinking,
+    retryCount: state.retryCount,
+    activeModel: state.activeModel,
     error: state.error,
     overlayScores,
     tokenCount: tokenCounter.count,

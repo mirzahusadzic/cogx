@@ -173,6 +173,12 @@ export interface AgentResponse {
   /** Number of turns (agent reasoning cycles) */
   numTurns: number;
 
+  /** Number of retries attempted for this request (due to 429/503) */
+  retryCount?: number;
+
+  /** The actual model used for this response (if it changed due to failover) */
+  activeModel?: string;
+
   /** Tool result information (if this response contains a tool result) */
   toolResult?: {
     name: string;

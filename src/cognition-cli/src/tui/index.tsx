@@ -126,6 +126,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     sendMessage: originalSendMessage,
     addSystemMessage,
     isThinking,
+    retryCount,
+    activeModel,
     error,
     tokenCount,
     interrupt,
@@ -627,6 +629,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           workbenchHealth={workbenchHealth}
           messages={messages}
           isThinking={isThinking}
+          retryCount={retryCount}
+          model={activeModel || model}
           focused={focused}
           streamingPaste={streamingPaste}
           showInfoPanel={showInfoPanel}
@@ -636,7 +640,6 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           tokenCount={tokenCount}
           sessionTokens={sessionTokens}
           provider={provider}
-          model={model}
           displayThinking={displayThinking}
           confirmationState={confirmationState}
           wizardConfirmationState={wizard.confirmationState}

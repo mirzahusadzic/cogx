@@ -63,6 +63,8 @@ export function useAgentHandlers({
   const {
     setMessages,
     setIsThinking,
+    setRetryCount,
+    setActiveModel,
     setError,
     setInjectedRecap,
     setPendingMessageNotification,
@@ -417,6 +419,7 @@ export function useAgentHandlers({
     async (prompt: string) => {
       try {
         setIsThinking(true);
+        setRetryCount(0);
         setError(null);
 
         let finalPrompt = prompt;
@@ -653,6 +656,16 @@ This will trigger a semantic compression event, flushing implementation noise wh
 
         const queryResult = adapter.query(finalPrompt);
         for await (const response of queryResult) {
+          // Update retry count if provider is retrying (Gemini specific)
+          if (response.retryCount !== undefined) {
+            setRetryCount(response.retryCount);
+          }
+
+          // Update active model if it changed due to failover (Gemini specific)
+          if (response.activeModel) {
+            setActiveModel(response.activeModel);
+          }
+
           lastResponse = response as unknown as {
             sessionId?: string;
             tokens: { prompt: number; completion: number; total: number };

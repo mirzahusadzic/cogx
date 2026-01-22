@@ -29,6 +29,7 @@ export interface CognitionTUILayoutProps {
   } | null;
   messages: TUIMessage[];
   isThinking: boolean;
+  retryCount?: number;
   focused: boolean;
   streamingPaste: string;
   showInfoPanel: boolean;
@@ -60,6 +61,7 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
   workbenchHealth,
   messages,
   isThinking,
+  retryCount,
   focused,
   streamingPaste,
   showInfoPanel,
@@ -167,6 +169,7 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
           <ClaudePanelAgent
             messages={filteredMessages}
             isThinking={isThinking}
+            retryCount={retryCount}
             focused={!focused}
             showInfoPanel={showInfoPanel}
             streamingPaste={streamingPaste}
