@@ -166,6 +166,17 @@ export async function executeReadFile(
   workbenchUrl?: string
 ): Promise<string> {
   try {
+    const stats = await fs.stat(file_path);
+    // 1MB safety cap for total file read without limits
+    if (stats.size > 1024 * 1024 && !limit) {
+      return `Error: File is too large (${(stats.size / 1024 / 1024).toFixed(2)} MB). Please use 'limit' and 'offset' to read specific parts of the file.`;
+    }
+
+    // Absolute hard limit to prevent OOM
+    if (stats.size > 50 * 1024 * 1024) {
+      return `Error: File is too large (${(stats.size / 1024 / 1024).toFixed(2)} MB). Maximum supported file size is 50MB.`;
+    }
+
     const content = await fs.readFile(file_path, 'utf-8');
     const lines = content.split('\n');
 
@@ -174,13 +185,21 @@ export async function executeReadFile(
     const sliced = lines.slice(start, end);
 
     const result = sliced
-      .map((line, i) => `${String(start + i + 1).padStart(6)}│${line}`)
+      .map((line, i) => {
+        // Cap extremely long lines to prevent TUI crashes
+        const displayLine =
+          line.length > 2000
+            ? line.substring(0, 2000) +
+              ' ... (long line truncated for TUI safety)'
+            : line;
+        return `${String(start + i + 1).padStart(6)}│${displayLine}`;
+      })
       .join('\n');
 
     return await smartCompressOutput(
       result,
       'read_file',
-      undefined,
+      1024 * 1024, // 1MB cap for tool output
       workbenchUrl
     );
   } catch (error) {
@@ -234,7 +253,15 @@ export async function executeGrep(
   workbenchUrl?: string
 ): Promise<string> {
   return new Promise((resolve) => {
-    const args = ['--color=never', '-n', pattern];
+    const args = [
+      '--color=never',
+      '-n',
+      '--with-filename',
+      '--no-heading',
+      '--glob',
+      '!*.map',
+      pattern,
+    ];
     if (glob_filter) args.push('--glob', glob_filter);
 
     const searchPathArg = search_path || cwd;
@@ -252,12 +279,46 @@ export async function executeGrep(
     }, 30000);
 
     let output = '';
-    proc.stdout.on('data', (data) => (output += data.toString()));
-    proc.stderr.on('data', (data) => (output += data.toString()));
+    const MAX_OUTPUT_SIZE = 1024 * 1024; // 1MB safety cap
+
+    proc.stdout.on('data', (data) => {
+      const chunk = data.toString();
+      if (output.length + chunk.length > MAX_OUTPUT_SIZE) {
+        if (output.length < MAX_OUTPUT_SIZE) {
+          output += chunk.substring(0, MAX_OUTPUT_SIZE - output.length);
+          output += '\n... (output truncated at 1MB)';
+        }
+        proc.kill('SIGTERM');
+      } else {
+        output += chunk;
+      }
+    });
+
+    proc.stderr.on('data', (data) => {
+      const chunk = data.toString();
+      if (output.length + chunk.length < MAX_OUTPUT_SIZE) {
+        output += chunk;
+      }
+    });
+
     proc.on('close', async () => {
       clearTimeout(timeoutId);
+
+      // Final safety check: cap extremely long lines which can crash TUIs
+      const lines = output.split('\n');
+      const cappedLines = lines.map((line) => {
+        if (line.length > 2000) {
+          return (
+            line.substring(0, 2000) +
+            ' ... (long line truncated for TUI safety)'
+          );
+        }
+        return line;
+      });
+      const finalOutput = cappedLines.join('\n');
+
       const compressed = await smartCompressOutput(
-        output,
+        finalOutput,
         'grep',
         15000,
         workbenchUrl

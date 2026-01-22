@@ -103,9 +103,13 @@ export async function smartCompressOutput(
     return output;
   }
 
-  // Tier 2: Read file is returned untruncated to support refactoring large files.
+  // Tier 2: Read file is capped at 1MB to prevent TUI crashes, but generally
+  // returned untruncated below that to support refactoring large files.
   // The agent is responsible for using offset/limit if they want to optimize.
   if (toolType === 'read_file') {
+    if (output.length > 1024 * 1024) {
+      return truncateOutput(output, 1024 * 1024);
+    }
     return output;
   }
 

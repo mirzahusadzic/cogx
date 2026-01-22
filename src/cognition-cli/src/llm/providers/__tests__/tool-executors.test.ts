@@ -1,5 +1,6 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs/promises';
+import { Stats } from 'fs';
 import { spawn, ChildProcess } from 'child_process';
 import { glob as globLib } from 'glob';
 import { EventEmitter } from 'events';
@@ -50,6 +51,8 @@ describe('Tool Executors', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    // Default mock for fs.stat to prevent "Cannot read properties of undefined (reading 'size')"
+    vi.mocked(fs.stat).mockResolvedValue({ size: 100 } as unknown as Stats);
   });
 
   afterEach(() => {
