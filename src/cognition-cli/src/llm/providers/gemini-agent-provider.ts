@@ -672,7 +672,6 @@ export class GeminiAgentProvider implements AgentProvider {
                   accumulatedAssistant = '';
                   accumulatedThinkingBlocks.clear();
                   currentTurnOutputEstimate = 0;
-                  cumulativeCompletionTokens = 0;
                 }
 
                 // Handle function responses (tool results)
@@ -753,7 +752,6 @@ export class GeminiAgentProvider implements AgentProvider {
                   accumulatedAssistant = '';
                   accumulatedThinkingBlocks.clear();
                   currentTurnOutputEstimate = 0;
-                  cumulativeCompletionTokens = 0;
                 }
 
                 // Handle text responses (both thinking and regular)
@@ -937,7 +935,9 @@ export class GeminiAgentProvider implements AgentProvider {
 
                   messages.push(message);
 
-                  currentTurnOutputEstimate += Math.ceil(part.text.length / 4);
+                  currentTurnOutputEstimate += Math.ceil(
+                    (part.text?.length || 0) / 4
+                  );
 
                   yield {
                     activeModel,
