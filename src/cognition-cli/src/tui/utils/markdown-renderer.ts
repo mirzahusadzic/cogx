@@ -405,11 +405,15 @@ export class MarkdownRenderer {
                 );
               });
               const numberedLines = samples.filter((l) =>
-                /^\s*\d+\s*[│|]/.test(stripAnsi(l))
+                /^\s*([+-]\s*)?\d+\s*[│|]/.test(stripAnsi(l))
               );
-              const numberedDiffCount = numberedLines.filter((l) =>
-                /^\s*\d+\s*[│|]\s*[+-]/.test(stripAnsi(l))
-              ).length;
+              const numberedDiffCount = numberedLines.filter((l) => {
+                const clean = stripAnsi(l);
+                return (
+                  /^\s*\d+\s*[│|]\s*[+-]/.test(clean) || // [+-] after line number
+                  /^[+-]\s*\d+\s*[│|]/.test(clean) // [+-] before line number (Edit tool)
+                );
+              }).length;
 
               if (hasStrongIndicator) return true;
               if (numberedDiffCount >= 2) return true;
@@ -420,17 +424,24 @@ export class MarkdownRenderer {
                 return false;
               }
 
-              // Check for git log output - should not be treated as a diff unless it has strong markers
-              const looksLikeGitLog = samples.some((l) => {
-                const clean = stripAnsi(l);
+              // Check for git log/commit output - should not be treated as a diff unless it has strong markers
+              const looksLikeGitOutput = samples.some((l) => {
+                const clean = stripAnsi(l).trim();
                 return (
                   clean.startsWith('commit ') ||
                   clean.startsWith('Author: ') ||
-                  clean.startsWith('Date:   ')
+                  clean.startsWith('Date: ') ||
+                  clean.startsWith('Merge: ') ||
+                  clean.startsWith('On branch ') ||
+                  clean.startsWith('Changes to be committed:') ||
+                  clean.startsWith('Changes not staged for commit:') ||
+                  /^[0-9a-f]{7,40}(?: \(.*\))?$/.test(clean) || // git log --oneline
+                  /^[0-9a-f]{7,40}\s/.test(clean) || // Hash followed by space
+                  /^\[\S+ [0-9a-f]{7,40}\]/.test(clean) // git commit summary [branch hash]
                 );
               });
 
-              if (looksLikeGitLog && !hasStrongIndicator) return false;
+              if (looksLikeGitOutput && !hasStrongIndicator) return false;
 
               // Check for simple +/- markers at the start of lines even without headers
               // We are more strict here: lines must start with +/- (not indented)
@@ -485,11 +496,11 @@ export class MarkdownRenderer {
             if (isAdd) {
               lineColor = TUITheme.syntax.diff.add;
               lineBg = TUITheme.syntax.diff.addBg;
-              line = cleanLine; // Use clean line to ensure coloring works
+              line = cleanLine; // Use clean line to ensure wrapping and consistent background
             } else if (isRemove) {
               lineColor = TUITheme.syntax.diff.remove;
               lineBg = TUITheme.syntax.diff.removeBg;
-              line = cleanLine; // Use clean line to ensure coloring works
+              line = cleanLine; // Use clean line to ensure wrapping and consistent background
             } else if (isHeader) {
               lineColor = TUITheme.syntax.diff.header;
               line = cleanLine;
@@ -511,7 +522,9 @@ export class MarkdownRenderer {
               this.addChunk(
                 {
                   text: markerPart,
-                  color: lineColor,
+                  color: isAdd
+                    ? TUITheme.syntax.diff.add
+                    : TUITheme.syntax.diff.remove,
                   bg: lineBg,
                   bold: true,
                 },
@@ -528,12 +541,10 @@ export class MarkdownRenderer {
                 text: lineNumPart,
                 color: TUITheme.syntax.lineNumber,
                 bg: lineBg,
-                dim: true,
               },
               {
                 ...state,
                 bg: lineBg,
-                dim: true,
               }
             );
 

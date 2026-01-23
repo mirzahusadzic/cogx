@@ -184,6 +184,34 @@ describe('MarkdownRenderer', () => {
       });
     });
 
+    it('does NOT highlight git log with custom format as a diff', () => {
+      const gitLog =
+        '```\n7f3a2b1 Fix - some bug\n\ncommit 7f3a2b1234567890abcdef\nAuthor: John Doe <john@example.com>\nDate: Fri Jan 23 10:00:00 2026 +0000\n\n- item 1\n- item 2\n```';
+      const lines = markdownToLines(gitLog, width);
+
+      const bulletLines = lines.filter((l) =>
+        l.chunks.some((c) => c.text.includes('- item'))
+      );
+
+      expect(bulletLines.length).toBe(2);
+      bulletLines.forEach((line) => {
+        expect(line.chunks[0].color).not.toBe(TUITheme.syntax.diff.remove);
+      });
+    });
+
+    it('does NOT highlight git commit output as a diff', () => {
+      const gitCommit =
+        '```\n[main 7f3a2b1] feat: something\n 1 file changed, 1 insertion(+), 1 deletion(-)\n\nOn branch main\nYour branch is up to date with \'origin/main\'.\n\nChanges to be committed:\n  (use "git restore --staged <file>..." to unstage)\n\tmodified:   file.txt\n\n- some commit message line\n```';
+      const lines = markdownToLines(gitCommit, width);
+
+      const minusLine = lines.find((l) =>
+        l.chunks.some((c) => c.text.includes('- some commit message line'))
+      );
+
+      expect(minusLine).toBeDefined();
+      expect(minusLine!.chunks[0].color).not.toBe(TUITheme.syntax.diff.remove);
+    });
+
     it('highlights diff fragments without headers if they have enough markers', () => {
       const fragment =
         '```\n-old line 1\n+new line 1\n-old line 2\n+new line 2\n```';

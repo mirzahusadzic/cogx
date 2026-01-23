@@ -240,13 +240,13 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
             if (!(isEdit || isTasks || isRead || isGrep)) {
               finalDetails = stripAnsi(finalDetails);
             }
-            // Strip 4-space indentation that might be present in tool output
-            finalDetails = finalDetails.replace(/^ {4}/gm, '');
 
             // Determine if we should treat this as a diff
             let lang = 'text';
             if (isTasks) {
               lang = 'sigma-tasks';
+            } else if (isEdit) {
+              lang = 'diff';
             } else if (
               !isEdit &&
               (finalDetails.includes('diff --git') ||

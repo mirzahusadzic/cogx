@@ -562,7 +562,6 @@ function formatEditDiff(
   const removeBg = hexToAnsiBg(TUITheme.syntax.diff.removeBg); // Red BG
   const addFg = hexToAnsi(TUITheme.syntax.diff.add); // Green Text
   const removeFg = hexToAnsi(TUITheme.syntax.diff.remove); // Red Text
-  const whiteFg = '\x1b[38;2;255;255;255m'; // Pure white text for diff content pop
   const resetBg = '\x1b[49m'; // Reset background
 
   lineDiff.forEach((part) => {
@@ -573,20 +572,20 @@ function formatEditDiff(
     }
 
     if (part.added) {
-      // Added lines - green background with white text
+      // Added lines - green background with green text (from theme)
       lines.forEach((line) => {
         const lineNum = `      ${newLine}`.slice(-6);
         diffLines.push(
-          `${addFg}+${ANSI_RESET} ${lineNumColor}${lineNum}│${ANSI_RESET} ${addBg}${whiteFg}${line}${ANSI_RESET}${resetBg}`
+          `${addBg}${addFg}+ ${lineNumColor}${lineNum}│ ${addFg}${line}${ANSI_RESET}${resetBg}`
         );
         newLine++;
       });
     } else if (part.removed) {
-      // Removed lines - red background with white text
+      // Removed lines - red background with red text (from theme)
       lines.forEach((line) => {
         const lineNum = `      ${oldLine}`.slice(-6);
         diffLines.push(
-          `${removeFg}-${ANSI_RESET} ${lineNumColor}${lineNum}│${ANSI_RESET} ${removeBg}${whiteFg}${line}${ANSI_RESET}${resetBg}`
+          `${removeBg}${removeFg}- ${lineNumColor}${lineNum}│ ${removeFg}${line}${ANSI_RESET}${resetBg}`
         );
         oldLine++;
       });
