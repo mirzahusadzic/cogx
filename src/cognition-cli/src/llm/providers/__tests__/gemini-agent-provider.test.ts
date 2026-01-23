@@ -1150,4 +1150,159 @@ describe('GeminiAgentProvider', () => {
       expect(assistantMessages.length).toBeGreaterThanOrEqual(1);
     });
   });
+
+  describe('Retry and Failover', () => {
+    it('should retry on 429/503 errors', async () => {
+      const { LlmAgent } = await import('@google/adk');
+      const provider = new GeminiAgentProvider('test-key');
+
+      let attempt = 0;
+      mockRunAsync.mockReturnValue({
+        [Symbol.asyncIterator]: async function* () {
+          attempt++;
+          if (attempt <= 2) {
+            throw new Error('429 Resource Exhausted');
+          }
+          yield {
+            author: 'cognition_agent',
+            content: { parts: [{ text: 'Success after retry' }] },
+          };
+        },
+      });
+
+      // Speed up retries
+      vi.useFakeTimers();
+
+      const generator = provider.executeAgent({
+        prompt: 'Retry me',
+        model: 'gemini-3-flash-preview',
+        cwd: '/test',
+      });
+
+      // Need to advance timers while iterating
+      const iterationPromise = (async () => {
+        const responses = [];
+        for await (const response of generator) {
+          responses.push(response);
+        }
+        return responses;
+      })();
+
+      // Advance timers for backoff (1s, 2s)
+      await vi.advanceTimersByTimeAsync(10000);
+
+      const responses = await iterationPromise;
+      vi.useRealTimers();
+
+      // Should have succeeded eventually
+      const successMsg = responses
+        .flatMap((r) => r.messages)
+        .find((m) => m.content.includes('Success after retry'));
+      expect(successMsg).toBeDefined();
+
+      // LlmAgent should have been instantiated 4 times:
+      // 1. WebSearch agent (always created)
+      // 2. Initial main agent attempt
+      // 3. Retry 1
+      // 4. Retry 2
+      expect(LlmAgent).toHaveBeenCalledTimes(4);
+    });
+
+    it('should fail over to stable model after 3 failures', async () => {
+      const { LlmAgent } = await import('@google/adk');
+      const provider = new GeminiAgentProvider('test-key');
+
+      let attempt = 0;
+      mockRunAsync.mockReturnValue({
+        [Symbol.asyncIterator]: async function* () {
+          attempt++;
+          // Fail 4 times (Initial + 3 retries)
+          if (attempt <= 4) {
+            throw new Error('503 Service Unavailable');
+          }
+          yield {
+            author: 'cognition_agent',
+            content: { parts: [{ text: 'Success on stable model' }] },
+          };
+        },
+      });
+
+      vi.useFakeTimers();
+
+      const generator = provider.executeAgent({
+        prompt: 'Failover me',
+        model: 'gemini-3-flash-preview', // Preview model
+        cwd: '/test',
+      });
+
+      const iterationPromise = (async () => {
+        const responses = [];
+        for await (const response of generator) {
+          responses.push(response);
+        }
+        return responses;
+      })();
+
+      // Advance timers enough for 4 retries
+      await vi.advanceTimersByTimeAsync(30000);
+
+      await iterationPromise;
+      vi.useRealTimers();
+
+      // Check the models passed to LlmAgent
+      // Call 0: WebSearch
+      // Call 1: Initial
+      // Call 2: Retry 1
+      // Call 3: Retry 2
+      // Call 4: Retry 3 (Failover triggered before this creation)
+      // Call 5: Retry 4 (Success)
+      expect(LlmAgent).toHaveBeenCalledTimes(6);
+
+      const calls = vi.mocked(LlmAgent).mock.calls;
+      const initialCallConfig = calls[1][0]; // Index 1 (Initial)
+      const fourthCallConfig = calls[4][0]; // Index 4 (Retry 3, where failover should happen)
+
+      expect(initialCallConfig.model).toBe('gemini-3-flash-preview');
+      expect(fourthCallConfig.model).toBe('gemini-2.5-flash');
+    });
+
+    it('should give up after maxRetries', async () => {
+      const provider = new GeminiAgentProvider('test-key');
+
+      mockRunAsync.mockReturnValue({
+        [Symbol.asyncIterator]: async function* () {
+          yield* []; // Satisfy require-yield
+          throw new Error('429 Resource Exhausted');
+        },
+      });
+
+      vi.useFakeTimers();
+
+      const generator = provider.executeAgent({
+        prompt: 'Fail completely',
+        model: 'gemini-3-flash-preview',
+        cwd: '/test',
+      });
+
+      const iterationPromise = (async () => {
+        const responses = [];
+        for await (const response of generator) {
+          responses.push(response);
+        }
+        return responses;
+      })();
+
+      // Advance lots of time
+      await vi.advanceTimersByTimeAsync(100000);
+
+      const responses = await iterationPromise;
+      vi.useRealTimers();
+
+      const lastResponse = responses[responses.length - 1];
+      expect(lastResponse.finishReason).toBe('error');
+      expect(
+        lastResponse.messages.some((m) => m.content.includes('Error'))
+      ).toBe(true);
+    });
+  });
 });
