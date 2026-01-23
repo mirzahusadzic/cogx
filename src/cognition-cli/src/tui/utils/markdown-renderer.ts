@@ -467,6 +467,8 @@ export class MarkdownRenderer {
               return false;
             })());
 
+        let baselineIndent = -1;
+
         codeLines.forEach((line) => {
           let lineColor =
             this.options.codeBlockColor || TUITheme.syntax.code.block;
@@ -477,21 +479,56 @@ export class MarkdownRenderer {
 
           // Simple Diff Highlighting
           if (isDiffBlock) {
-            // Enhanced detection for both standard git diffs and CLI 'edit' views
-            // Strip ANSI for detection and to ensure our colors take precedence
+            // Calculate baseline indentation once per block
+            if (baselineIndent === -1) {
+              const cleanLines = codeLines.map((l) => stripAnsi(l));
+              const headerLine = cleanLines.find((l) => {
+                const t = l.trimStart();
+                return (
+                  t.startsWith('diff --git') ||
+                  t.startsWith('index ') ||
+                  t.startsWith('--- ') ||
+                  t.startsWith('+++ ') ||
+                  t.startsWith('@@ ')
+                );
+              });
+
+              if (headerLine) {
+                baselineIndent = headerLine.match(/^\s*/)?.[0].length || 0;
+              } else {
+                // Fallback: find first line starting with + or - (trimmed)
+                const diffLine = cleanLines.find((l) => {
+                  const t = l.trimStart();
+                  return t.startsWith('+') || t.startsWith('-');
+                });
+                if (diffLine) {
+                  baselineIndent = diffLine.match(/^\s*/)?.[0].length || 0;
+                } else {
+                  baselineIndent = 0;
+                }
+              }
+            }
+
             const cleanLine = stripAnsi(line);
+            const lineIndent = cleanLine.match(/^\s*/)?.[0].length || 0;
             const trimmedLine = cleanLine.trimStart();
-            isAdd =
-              cleanLine.startsWith('+') ||
-              /^\+\s*\d+\s*[│|]/.test(cleanLine) ||
-              /^\s*\d+\s*[│|]\s*\+/.test(cleanLine);
-            isRemove =
-              cleanLine.startsWith('-') ||
-              /^-\s*\d+\s*[│|]/.test(cleanLine) ||
-              /^\s*\d+\s*[│|]\s*-/.test(cleanLine);
-            isHeader =
-              trimmedLine.startsWith('@') ||
-              /^\s*\d+\s*[│|]\s*@/.test(cleanLine);
+
+            // Strict indentation check to avoid identifying context lines as additions
+            const isAtBaseline = lineIndent === baselineIndent;
+
+            if (isAtBaseline) {
+              isAdd =
+                trimmedLine.startsWith('+') ||
+                /^\+\s*\d+\s*[│|]/.test(trimmedLine) ||
+                /^\s*\d+\s*[│|]\s*\+/.test(trimmedLine);
+              isRemove =
+                trimmedLine.startsWith('-') ||
+                /^-\s*\d+\s*[│|]/.test(trimmedLine) ||
+                /^\s*\d+\s*[│|]\s*-/.test(trimmedLine);
+              isHeader =
+                trimmedLine.startsWith('@') ||
+                /^\s*\d+\s*[│|]\s*@/.test(trimmedLine);
+            }
 
             if (isAdd) {
               lineColor = TUITheme.syntax.diff.add;
@@ -505,8 +542,9 @@ export class MarkdownRenderer {
               lineColor = TUITheme.syntax.diff.header;
               line = cleanLine;
             } else if (
-              trimmedLine.startsWith('index') ||
-              trimmedLine.startsWith('diff')
+              isAtBaseline &&
+              (trimmedLine.startsWith('index') ||
+                trimmedLine.startsWith('diff'))
             ) {
               lineColor = TUITheme.syntax.diff.meta;
               line = cleanLine;

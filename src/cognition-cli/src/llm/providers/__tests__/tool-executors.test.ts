@@ -222,7 +222,7 @@ describe('Tool Executors', () => {
         ['-c', 'echo hello'],
         expect.any(Object)
       );
-      expect(result).toContain('Exit code: 0');
+      expect(result).toMatch(/Exit code: .*0/);
       expect(result).toContain('hello');
     });
 

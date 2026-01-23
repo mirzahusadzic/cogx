@@ -229,16 +229,21 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
               .toLowerCase();
 
             let finalDetails = details;
+            // Create a clean version for detection logic
+            const cleanDetails = stripAnsi(details);
 
             const isEdit = cleanToolName === 'edit';
             const isTasks = cleanToolName === 'tasks';
             const isRead = cleanToolName === 'read';
             const isGrep = cleanToolName === 'grep';
+            const isBash = cleanToolName === 'bash';
 
             // Strip ANSI codes for cleaner detection and rendering
-            // EXCEPT for Edit, Tasks, Read, and Grep where we want to keep ANSI.
-            if (!(isEdit || isTasks || isRead || isGrep)) {
-              finalDetails = stripAnsi(finalDetails);
+            // EXCEPT for Edit, Tasks, Read, Grep, and Bash where we want to keep ANSI.
+            if (!(isEdit || isTasks || isRead || isGrep || isBash)) {
+              finalDetails = cleanDetails;
+              // Strip 4-space indentation that might be present in tool output
+              finalDetails = finalDetails.replace(/^ {4}/gm, '');
             }
 
             // Determine if we should treat this as a diff
@@ -249,19 +254,32 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
               lang = 'diff';
             } else if (
               !isEdit &&
-              (finalDetails.includes('diff --git') ||
-                finalDetails.includes('\nindex ') ||
-                (finalDetails.includes('@@') &&
-                  finalDetails.includes('+') &&
-                  finalDetails.includes('-')) ||
+              (cleanDetails.includes('diff --git') ||
+                cleanDetails.includes('git diff') ||
+                cleanDetails.includes('diff --cc') ||
+                cleanDetails.includes('diff --combined') ||
+                (cleanDetails.includes('--- ') &&
+                  cleanDetails.includes('+++ ')) ||
+                cleanDetails.includes('\nindex ') ||
+                (cleanDetails.includes('@@') &&
+                  cleanDetails.includes('+') &&
+                  cleanDetails.includes('-')) ||
                 cleanToolName.includes('diff'))
             ) {
               lang = 'diff';
-              // Remove line numbers (123│) and indentation added by ToolFormatter
-              finalDetails = finalDetails.replace(/^\s*(\d+│\s)?/gm, '');
+              // Keep ANSI codes for syntax highlighting (e.g. green/red exit codes),
+              // but we must strip line numbers which might contain ANSI sequences themselves.
+
+              // Regex to strip line numbers (e.g. "123│ ") handling optional ANSI codes
+              const ansiPattern = '(?:\x1b\\[[0-9;]*m)*';
+              const lineNumRegex = new RegExp(
+                `^\\s*${ansiPattern}\\d+${ansiPattern}│${ansiPattern}\\s?`,
+                'gm'
+              );
+              finalDetails = finalDetails.replace(lineNumRegex, '');
             } else if (cleanToolName === 'read' || cleanToolName === 'write') {
               // Try to detect extension from the "file: path" header
-              const pathMatch = finalDetails.match(/file:\s+([^\s\n()]+)/);
+              const pathMatch = cleanDetails.match(/file:\s+([^\s\n()]+)/);
               if (pathMatch) {
                 const ext = pathMatch[1].split('.').pop();
                 if (ext && ext.length < 5) lang = ext;

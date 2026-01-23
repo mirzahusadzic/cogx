@@ -421,7 +421,8 @@ export async function executeBash(
       if (killed) {
         resolve(`Timeout after ${effectiveTimeout}ms\n${compressed}`);
       } else {
-        resolve(`Exit code: ${code}\n${compressed}`);
+        const color = code === 0 ? '\x1b[32m' : '\x1b[31m'; // Green for 0, Red otherwise
+        resolve(`${compressed}\nExit code: ${color}${code}\x1b[0m`);
       }
     });
     proc.on('error', (err) => {

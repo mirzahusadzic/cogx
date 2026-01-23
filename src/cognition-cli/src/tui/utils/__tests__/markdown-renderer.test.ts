@@ -212,7 +212,118 @@ describe('MarkdownRenderer', () => {
       expect(minusLine!.chunks[0].color).not.toBe(TUITheme.syntax.diff.remove);
     });
 
-    it('highlights diff fragments without headers if they have enough markers', () => {
+    it('highlights git diff output in bash block', () => {
+      const gitDiff = [
+        '```bash',
+        'diff --git a/file.ts b/file.ts',
+        'index 1234567..89abcdef 100644',
+        '--- a/file.ts',
+        '+++ b/file.ts',
+        '@@ -1,5 +1,5 @@',
+        '-old line',
+        '+new line',
+        ' context line',
+        '```',
+      ].join('\n');
+
+      const lines = markdownToLines(gitDiff, width);
+
+      // Check for removal highlight
+      const removeLine = lines.find((l) =>
+        l.chunks.some((c) => c.text.includes('-old line'))
+      );
+      expect(removeLine).toBeDefined();
+      expect(removeLine!.chunks[0].color).toBe(TUITheme.syntax.diff.remove);
+
+      // Check for addition highlight
+      const addLine = lines.find((l) =>
+        l.chunks.some((c) => c.text.includes('+new line'))
+      );
+      expect(addLine).toBeDefined();
+      expect(addLine!.chunks[0].color).toBe(TUITheme.syntax.diff.add);
+    });
+
+    it('highlights indented git diff output (e.g. from bash tool)', () => {
+      const indentedDiff = [
+        '```bash',
+        '    diff --git a/file.ts b/file.ts',
+        '    index 1234567..89abcdef 100644',
+        '    --- a/file.ts',
+        '    +++ b/file.ts',
+        '    @@ -1,5 +1,5 @@',
+        '    -old line',
+        '    +new line',
+        '     context line',
+        '```',
+      ].join('\n');
+
+      const lines = markdownToLines(indentedDiff, width);
+
+      // Check for removal highlight
+      const removeLine = lines.find((l) =>
+        l.chunks.some((c) => c.text.includes('-old line'))
+      );
+      expect(removeLine).toBeDefined();
+      expect(removeLine!.chunks[0].color).toBe(TUITheme.syntax.diff.remove);
+
+      // Check for addition highlight
+      const addLine = lines.find((l) =>
+        l.chunks.some((c) => c.text.includes('+new line'))
+      );
+      expect(addLine).toBeDefined();
+      expect(addLine!.chunks[0].color).toBe(TUITheme.syntax.diff.add);
+    });
+
+    it('handles tricky context lines in indented diffs', () => {
+      const indentedDiff = [
+        '```bash',
+        '    diff --git a/file.ts b/file.ts',
+        '    @@ -1,5 +1,5 @@',
+        '    +new line',
+        '     + context line looks like add',
+        '```',
+      ].join('\n');
+
+      const lines = markdownToLines(indentedDiff, width);
+
+      const addLine = lines.find((l) =>
+        l.chunks.some((c) => c.text.includes('+new line'))
+      );
+      expect(addLine).toBeDefined();
+      expect(addLine!.chunks[0].color).toBe(TUITheme.syntax.diff.add);
+
+      const contextLine = lines.find((l) =>
+        l.chunks.some((c) => c.text.includes('+ context line'))
+      );
+      // Should NOT be green (Add)
+      expect(contextLine).toBeDefined();
+      expect(contextLine!.chunks[0].color).not.toBe(TUITheme.syntax.diff.add);
+    });
+
+    it('highlights explict diff block', () => {
+      const gitDiff = [
+        '```diff',
+        'diff --git a/file.ts b/file.ts',
+        'index 1234567..89abcdef 100644',
+        '--- a/file.ts',
+        '+++ b/file.ts',
+        '@@ -1,5 +1,5 @@',
+        '-old line',
+        '+new line',
+        ' context line',
+        '```',
+      ].join('\n');
+
+      const lines = markdownToLines(gitDiff, width);
+
+      const removeLine = lines.find((l) =>
+        l.chunks.some((c) => c.text.includes('-old line'))
+      );
+      expect(removeLine).toBeDefined();
+      expect(removeLine!.chunks[0].color).toBe(TUITheme.syntax.diff.remove);
+    });
+
+    it('highlights git diff output without language', () => {
       const fragment =
         '```\n-old line 1\n+new line 1\n-old line 2\n+new line 2\n```';
       const lines = markdownToLines(fragment, width);
