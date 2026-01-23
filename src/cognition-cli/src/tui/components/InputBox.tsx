@@ -137,8 +137,12 @@ export const InputBox: React.FC<InputBoxProps> = ({
    * Useful when large content changes (paste, history) might cause layout glitches.
    */
   const forceLayoutUpdate = React.useCallback(() => {
-    // Increment render key once to force clean re-render
-    setRenderKey((k) => k + 1);
+    // Increment render key multiple times to force clean re-render
+    [5, 20, 50, 100].forEach((delay) => {
+      setTimeout(() => {
+        setRenderKey((k) => k + 1);
+      }, delay);
+    });
   }, []);
 
   useEffect(() => {
