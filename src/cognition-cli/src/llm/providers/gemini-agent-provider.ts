@@ -6,6 +6,7 @@
  * - Multi-turn conversation
  * - Tool execution (Phase 3)
  * - Streaming responses
+ * - Automatic thought signature handling (Gemini 3) via ADK Runner
  *
  * EXPERIMENTAL: Google ADK TypeScript SDK is pre-release (v0.1.x)
  *
@@ -543,6 +544,7 @@ export class GeminiAgentProvider implements AgentProvider {
                 parts?: Array<{
                   text?: string;
                   thought?: boolean; // true if this part contains thinking/reasoning
+                  thoughtSignature?: string; // encrypted reasoning state for Gemini 3
                   functionCall?: {
                     name: string;
                     args: Record<string, unknown>;
@@ -632,6 +634,7 @@ export class GeminiAgentProvider implements AgentProvider {
                     timestamp: new Date(),
                     toolName: part.functionCall.name,
                     toolInput: part.functionCall.args,
+                    thoughtSignature: part.thoughtSignature,
                   };
                   messages.push(toolMessage);
 
@@ -672,10 +675,7 @@ export class GeminiAgentProvider implements AgentProvider {
                   accumulatedAssistant = '';
                   accumulatedThinkingBlocks.clear();
                   currentTurnOutputEstimate = 0;
-                }
-
-                // Handle function responses (tool results)
-                if (part.functionResponse) {
+                } else if (part.functionResponse) {
                   if (process.env.DEBUG_GEMINI_STREAM) {
                     // Always log for now to debug bash
                     systemLog(
@@ -752,10 +752,7 @@ export class GeminiAgentProvider implements AgentProvider {
                   accumulatedAssistant = '';
                   accumulatedThinkingBlocks.clear();
                   currentTurnOutputEstimate = 0;
-                }
-
-                // Handle text responses (both thinking and regular)
-                if (part.text) {
+                } else if (part.text || part.thoughtSignature) {
                   // Check if this is thinking content
                   const isThinking = part.thought === true;
                   const messageType = isThinking ? 'thinking' : 'assistant';
@@ -763,12 +760,20 @@ export class GeminiAgentProvider implements AgentProvider {
                   if (process.env.DEBUG_GEMINI_STREAM) {
                     systemLog(
                       'gemini',
-                      `\n[Gemini] === NEW EVENT: ${messageType} (${part.text.length} chars) ===`
+                      `\n[Gemini] === NEW EVENT: ${messageType} (${part.text?.length || 0} chars) ===`
                     );
-                    systemLog(
-                      'gemini',
-                      `[Gemini] Text preview: "${part.text.substring(0, 256)}..."`
-                    );
+                    if (part.text) {
+                      systemLog(
+                        'gemini',
+                        `[Gemini] Text preview: "${part.text.substring(0, 256)}..."`
+                      );
+                    }
+                    if (part.thoughtSignature) {
+                      systemLog(
+                        'gemini',
+                        `[Gemini] Thought Signature present: ${part.thoughtSignature.substring(0, 20)}...`
+                      );
+                    }
                   }
 
                   // SSE mode sends FULL accumulated text each time, not deltas
@@ -778,7 +783,7 @@ export class GeminiAgentProvider implements AgentProvider {
 
                   if (isThinking) {
                     // Extract thinking block header (first line, usually bold)
-                    const match = part.text.match(/^\*\*([^*]+)\*\*/);
+                    const match = part.text?.match(/^\*\*([^*]+)\*\*/);
                     blockId = match ? match[1] : 'default';
                     accumulated = accumulatedThinkingBlocks.get(blockId) || '';
                   } else {
@@ -798,6 +803,7 @@ export class GeminiAgentProvider implements AgentProvider {
 
                   if (
                     !isBidi &&
+                    part.text &&
                     accumulated &&
                     part.text.length <= accumulated.length
                   ) {
@@ -815,6 +821,7 @@ export class GeminiAgentProvider implements AgentProvider {
                   // Only applicable for SSE (cumulative) mode.
                   if (
                     !isBidi &&
+                    part.text &&
                     accumulated &&
                     !part.text.startsWith(accumulated)
                   ) {
@@ -832,12 +839,12 @@ export class GeminiAgentProvider implements AgentProvider {
                   // In BIDI mode, part.text IS the delta.
                   // In SSE mode, part.text IS the full text.
                   let deltaText = isBidi
-                    ? part.text
-                    : part.text.substring(accumulated.length);
+                    ? part.text || ''
+                    : (part.text || '').substring(accumulated.length);
 
                   // Special handling for thinking block headers to ensure clean spacing
                   // This handles cases where the header and content are in different chunks
-                  if (isThinking && accumulated) {
+                  if (isThinking && accumulated && part.text) {
                     const fullHeaderMatch =
                       part.text.match(/^(\*\*([^*]+)\*\*)/);
                     if (fullHeaderMatch && accumulated === fullHeaderMatch[1]) {
@@ -847,7 +854,7 @@ export class GeminiAgentProvider implements AgentProvider {
                   }
 
                   // Trim leading newlines from the first chunk of any message
-                  if (!accumulated) {
+                  if (!accumulated && part.text) {
                     deltaText = deltaText.replace(/^([\n\r]|\\n)+/, '');
 
                     if (isThinking) {
@@ -873,24 +880,38 @@ export class GeminiAgentProvider implements AgentProvider {
                     );
                   }
 
-                  // Skip if delta is empty or just whitespace (final event with no new content)
+                  // Skip if delta is empty (final event or just a signature update)
+                  // We capture the signature in the last message to preserve state without
+                  // pushing empty messages that break the TUI's streaming tool output logic.
                   if (!deltaText || deltaText.trim().length === 0) {
                     if (process.env.DEBUG_GEMINI_STREAM) {
-                      systemLog('gemini', `[Gemini] SKIP: Empty delta`);
+                      systemLog(
+                        'gemini',
+                        `[Gemini] SKIP: Empty delta (signature: ${!!part.thoughtSignature})`
+                      );
                     }
+
+                    if (part.thoughtSignature && messages.length > 0) {
+                      messages[messages.length - 1].thoughtSignature =
+                        part.thoughtSignature;
+                    }
+
                     // Update accumulated tracker even though we're skipping
                     if (isThinking) {
                       const current =
                         accumulatedThinkingBlocks.get(blockId) || '';
                       accumulatedThinkingBlocks.set(
                         blockId,
-                        isBidi ? current + part.text : part.text
+                        isBidi
+                          ? current + (part.text || '')
+                          : part.text || current
                       );
                     } else {
                       if (isBidi) {
-                        accumulatedAssistant += part.text;
+                        accumulatedAssistant += part.text || '';
                       } else {
-                        accumulatedAssistant = part.text;
+                        accumulatedAssistant =
+                          part.text || accumulatedAssistant;
                       }
                     }
                     continue;
@@ -902,20 +923,22 @@ export class GeminiAgentProvider implements AgentProvider {
                       accumulatedThinkingBlocks.get(blockId) || '';
                     accumulatedThinkingBlocks.set(
                       blockId,
-                      isBidi ? current + part.text : part.text
+                      isBidi
+                        ? current + (part.text || '')
+                        : part.text || current
                     );
                   } else {
                     if (isBidi) {
-                      accumulatedAssistant += part.text;
+                      accumulatedAssistant += part.text || '';
                     } else {
-                      accumulatedAssistant = part.text;
+                      accumulatedAssistant = part.text || accumulatedAssistant;
                     }
                   }
 
-                  if (process.env.DEBUG_GEMINI_STREAM) {
+                  if (process.env.DEBUG_GEMINI_STREAM && deltaText) {
                     systemLog(
                       'gemini',
-                      `[Gemini] ✓ YIELDING delta, new total: ${part.text.length} chars`
+                      `[Gemini] ✓ YIELDING delta, new total: ${part.text?.length || 0} chars`
                     );
                   }
 
@@ -927,6 +950,7 @@ export class GeminiAgentProvider implements AgentProvider {
                     role: 'assistant',
                     content: deltaText, // Send only the delta
                     timestamp: new Date(),
+                    thoughtSignature: part.thoughtSignature,
                   };
 
                   if (isThinking) {

@@ -365,16 +365,21 @@ export function useAgentHandlers({
             }
             if (formattedResult) {
               setMessages((prev) => {
-                // Clean up any remaining streaming markers from the previous message
+                // Clean up any remaining streaming markers from the active tool_progress message.
+                // We search backwards to find it robustly.
                 const cleanedPrev = [...prev];
-                const lastIdx = cleanedPrev.length - 1;
-                if (
-                  lastIdx >= 0 &&
-                  cleanedPrev[lastIdx].type === 'tool_progress'
-                ) {
-                  cleanedPrev[lastIdx] = {
-                    ...cleanedPrev[lastIdx],
-                    content: cleanedPrev[lastIdx].content.replace(
+                let targetIdx = -1;
+                for (let i = cleanedPrev.length - 1; i >= 0; i--) {
+                  if (cleanedPrev[i].type === 'tool_progress') {
+                    targetIdx = i;
+                    break;
+                  }
+                }
+
+                if (targetIdx !== -1) {
+                  cleanedPrev[targetIdx] = {
+                    ...cleanedPrev[targetIdx],
+                    content: cleanedPrev[targetIdx].content.replace(
                       // eslint-disable-next-line no-control-regex
                       /\n\x1b\[90m\(streaming\)\x1b\[0m$/,
                       ''
@@ -563,13 +568,24 @@ This will trigger a semantic compression event, flushing implementation noise wh
             const cleanChunk = stripCursorSequences(chunk);
 
             setMessages((prev) => {
-              const last = prev[prev.length - 1];
-              if (last && last.type === 'tool_progress') {
+              // Robustly find the active tool_progress message by searching backwards.
+              // This ensures that intermediate assistant messages (e.g. from Gemini thought signatures)
+              // don't break streaming output updates.
+              let targetIdx = -1;
+              for (let i = prev.length - 1; i >= 0; i--) {
+                if (prev[i].type === 'tool_progress') {
+                  targetIdx = i;
+                  break;
+                }
+              }
+
+              if (targetIdx !== -1) {
+                const target = prev[targetIdx];
                 isStreamingToolOutputRef.current = true;
 
                 // Strip existing streaming marker if present from previous chunk
                 // Use a non-capturing group for the optional newline to avoid issues
-                let content = last.content.replace(
+                let content = target.content.replace(
                   // eslint-disable-next-line no-control-regex
                   /(?:\n)?\x1b\[90m\(streaming\)\x1b\[0m$/,
                   ''
@@ -607,7 +623,9 @@ This will trigger a semantic compression event, flushing implementation noise wh
                 }
                 content += '\x1b[90m(streaming)\x1b[0m';
 
-                return [...prev.slice(0, -1), { ...last, content }];
+                const newMessages = [...prev];
+                newMessages[targetIdx] = { ...target, content };
+                return newMessages;
               }
               return prev;
             });
