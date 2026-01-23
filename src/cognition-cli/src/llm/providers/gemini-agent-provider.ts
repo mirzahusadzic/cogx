@@ -560,6 +560,20 @@ export class GeminiAgentProvider implements AgentProvider {
 
             numTurns++;
 
+            // Reset retry attempt counter and delay on any successful event processing.
+            // This ensures that we only count CONSECUTIVE failures towards the failover limit.
+            // If we receive even one valid event from the model, we consider the connection "working".
+            if (attempt > 0) {
+              if (process.env.DEBUG_GEMINI_STREAM) {
+                systemLog(
+                  'gemini',
+                  `[Gemini] Resetting retry counter (was ${attempt}) after successful event`
+                );
+              }
+              attempt = 0;
+              retryDelay = 1000;
+            }
+
             // Capture actual token usage from Gemini API
             if (evt.usageMetadata) {
               if (evt.usageMetadata.promptTokenCount !== undefined) {

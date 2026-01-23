@@ -1304,5 +1304,62 @@ describe('GeminiAgentProvider', () => {
         lastResponse.messages.some((m) => m.content.includes('Error'))
       ).toBe(true);
     });
+
+    it('should reset retryCount if progress is made during a turn', async () => {
+      const provider = new GeminiAgentProvider('test-key');
+
+      let callCount = 0;
+      mockRunAsync.mockImplementation(() => ({
+        [Symbol.asyncIterator]: async function* () {
+          callCount++;
+          if (callCount === 1) {
+            // First call fails immediately
+            throw new Error('429 Resource Exhausted');
+          } else if (callCount === 2) {
+            // Second call (Retry 1) yields something, then fails
+            yield {
+              author: 'cognition_agent',
+              content: { parts: [{ text: 'Some progress...' }] },
+            };
+            throw new Error('429 Resource Exhausted');
+          } else {
+            // Third call (Retry 2) succeeds
+            yield {
+              author: 'cognition_agent',
+              content: { parts: [{ text: 'Final success' }] },
+            };
+          }
+        },
+      }));
+
+      vi.useFakeTimers();
+
+      const generator = provider.executeAgent({
+        prompt: 'Test retry reset',
+        model: 'gemini-3-flash-preview',
+        cwd: '/test',
+      });
+
+      const retryCounts: number[] = [];
+      const iterationPromise = (async () => {
+        for await (const response of generator) {
+          retryCounts.push(response.retryCount || 0);
+        }
+      })();
+
+      // Initial failure + Retry 1 start
+      await vi.advanceTimersByTimeAsync(2000);
+      // Retry 1 failure + Retry 2 start
+      await vi.advanceTimersByTimeAsync(5000);
+
+      await iterationPromise;
+      vi.useRealTimers();
+
+      // Expect retryCount to reset to 0 after 'Some progress...'
+      // and then go to 1 for the second failure.
+      // It should NOT reach 2.
+      expect(retryCounts.every((c) => c < 2)).toBe(true);
+      expect(retryCounts).toContain(1); // Should have at least one retry
+    });
   });
 });
