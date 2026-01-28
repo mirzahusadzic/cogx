@@ -96,6 +96,23 @@ describe('ToolFormatter', () => {
       expect(result.description).toBe('pattern: TODO');
     });
 
+    it('formats snake_case tools to proper labels', () => {
+      const tools = [
+        { name: 'bash', expected: 'Bash' },
+        { name: 'glob', expected: 'Glob' },
+        { name: 'grep', expected: 'Grep' },
+        { name: 'fetch_url', expected: 'Fetch' },
+        { name: 'list_agents', expected: 'List Agents' },
+        { name: 'send_agent_message', expected: 'Send Message' },
+        { name: 'query_agent', expected: 'Query Agent' },
+      ];
+
+      for (const t of tools) {
+        const result = formatToolUse({ name: t.name, input: {} });
+        expect(result.name).toBe(t.expected);
+      }
+    });
+
     it('formats SigmaTaskUpdate with status icons', () => {
       const tool: ToolUse = {
         name: 'SigmaTaskUpdate',

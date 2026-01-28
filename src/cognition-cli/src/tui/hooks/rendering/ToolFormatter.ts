@@ -249,6 +249,18 @@ export function formatToolUse(tool: ToolUse, cwd?: string): FormattedTool {
     if (name === 'read_file') return 'Read';
     if (name === 'write_file') return 'Write';
     if (name === 'edit_file') return 'Edit';
+    if (name === 'bash') return 'Bash';
+    if (name === 'glob') return 'Glob';
+    if (name === 'grep') return 'Grep';
+    if (name === 'fetch_url') return 'Fetch';
+    if (name === 'recall_past_conversation') return 'Recall';
+    if (name === 'get_background_tasks') return 'Tasks';
+    if (name === 'list_agents') return 'Agents';
+    if (name === 'send_agent_message') return 'Send';
+    if (name === 'broadcast_agent_message') return 'Broadcast';
+    if (name === 'list_pending_messages') return 'Messages';
+    if (name === 'mark_message_read') return 'MarkRead';
+    if (name === 'query_agent') return 'Query';
 
     // Convert snake_case to PascalCase: sigma_task_update → SigmaTaskUpdate
     if (name.includes('_')) {
@@ -256,6 +268,11 @@ export function formatToolUse(tool: ToolUse, cwd?: string): FormattedTool {
         .split('_')
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join('');
+    }
+
+    // Capitalize if it's a single word (e.g. bash -> Bash, glob -> Glob)
+    if (name.length > 0) {
+      return name.charAt(0).toUpperCase() + name.slice(1);
     }
 
     // Return as-is if already PascalCase
