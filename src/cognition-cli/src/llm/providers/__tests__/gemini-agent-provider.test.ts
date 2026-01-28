@@ -22,6 +22,7 @@ vi.mock('@google/adk', () => ({
   InMemorySessionService: vi.fn().mockImplementation(() => ({
     getSession: mockGetSession,
     createSession: mockCreateSession,
+    appendEvent: vi.fn(),
   })),
   GOOGLE_SEARCH: {},
   AgentTool: vi.fn().mockImplementation(() => ({})),

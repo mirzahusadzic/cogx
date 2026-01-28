@@ -31,6 +31,8 @@ import {
   setLogLevel,
   LogLevel,
   StreamingMode,
+  Session,
+  Event,
 } from '@google/adk';
 
 import { ThinkingLevel } from '@google/genai';
@@ -232,6 +234,7 @@ export class GeminiAgentProvider implements AgentProvider {
     let cumulativeCompletionTokens = 0;
     let currentPromptTokens = 0;
     let currentCompletionTokens = 0;
+    let lastCapturedSignature: string | undefined = undefined; // Track for ADK persistence
     const accumulatedThinkingBlocks = new Map<string, string>();
     let accumulatedAssistant = '';
     const sessionId =
@@ -440,6 +443,38 @@ export class GeminiAgentProvider implements AgentProvider {
           });
 
           this.currentRunner = runnerInstance;
+
+          // Persistence Hack: Monkey-patch session service to ensure thoughtSignature is preserved.
+          // Gemini 3 requires thought_signature to resume reasoning, but ADK 0.2.4 doesn't store it.
+          const originalAppendEvent = this.sessionService.appendEvent.bind(
+            this.sessionService
+          );
+          this.sessionService.appendEvent = async (args: {
+            session: Session;
+            event: Event;
+          }) => {
+            if (
+              args.event.author === 'cognition_agent' &&
+              args.event.content?.parts &&
+              lastCapturedSignature
+            ) {
+              // Ensure the last captured signature is in the event being persisted
+              const parts = args.event.content.parts;
+              const lastPart = parts[parts.length - 1] as {
+                thoughtSignature?: string;
+              };
+              if (lastPart && !lastPart.thoughtSignature) {
+                lastPart.thoughtSignature = lastCapturedSignature;
+                if (process.env.DEBUG_GEMINI_STREAM) {
+                  systemLog(
+                    'gemini',
+                    '[Gemini] Injected signature into ADK event persistence'
+                  );
+                }
+              }
+            }
+            return originalAppendEvent(args);
+          };
 
           const userId = 'cognition-user';
 
@@ -753,6 +788,13 @@ export class GeminiAgentProvider implements AgentProvider {
                   accumulatedThinkingBlocks.clear();
                   currentTurnOutputEstimate = 0;
                 } else if (part.text || part.thoughtSignature) {
+                  // Capture thought signature into ADK session history to prevent looping
+                  // Gemini 3 requires the thought_signature to be present in subsequent turns
+                  // to resume reasoning state. ADK 0.2.4 doesn't handle this automatically.
+                  if (part.thoughtSignature) {
+                    lastCapturedSignature = part.thoughtSignature;
+                  }
+
                   // Check if this is thinking content
                   const isThinking = part.thought === true;
                   const messageType = isThinking ? 'thinking' : 'assistant';
@@ -892,8 +934,16 @@ export class GeminiAgentProvider implements AgentProvider {
                     }
 
                     if (part.thoughtSignature && messages.length > 0) {
-                      messages[messages.length - 1].thoughtSignature =
-                        part.thoughtSignature;
+                      // Only update assistant or thinking messages, never tool results
+                      for (let i = messages.length - 1; i >= 0; i--) {
+                        if (
+                          messages[i].role === 'assistant' ||
+                          messages[i].type === 'thinking'
+                        ) {
+                          messages[i].thoughtSignature = part.thoughtSignature;
+                          break;
+                        }
+                      }
                     }
 
                     // Update accumulated tracker even though we're skipping

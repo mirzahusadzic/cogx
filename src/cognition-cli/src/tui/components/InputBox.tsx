@@ -64,10 +64,7 @@ const Cursor: React.FC<{ focused: boolean; char?: string }> = ({
   if (!focused) return <Text>{char}</Text>;
 
   return (
-    <Text
-      backgroundColor={TUITheme.text.primary}
-      color={TUITheme.text.inverse}
-    >
+    <Text backgroundColor={TUITheme.text.primary} color={TUITheme.text.inverse}>
       {char}
     </Text>
   );
