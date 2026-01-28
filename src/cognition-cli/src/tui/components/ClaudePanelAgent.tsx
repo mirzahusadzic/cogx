@@ -468,6 +468,19 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
           }
 
           color = baseColor;
+
+          // Layer 13: Universal Markdown Escape for raw tool output.
+          // If a tool result doesn't match the standard "Icon Name: Details" format,
+          // we must still wrap it in a code block if it contains newlines or backticks.
+          // This prevents accidental markdown parsing (e.g. backticks in source code becoming inline blocks).
+          const maxBackticks = (processedContent.match(/`+/g) || []).reduce(
+            (max, match) => Math.max(max, match.length),
+            0
+          );
+          if (processedContent.includes('\n') || maxBackticks > 0) {
+            const fence = '`'.repeat(Math.max(3, maxBackticks + 1));
+            processedContent = `${fence}\n${processedContent}\n${fence}`;
+          }
           break;
         }
       }

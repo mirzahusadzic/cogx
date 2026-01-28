@@ -364,6 +364,18 @@ export function useAgentHandlers({
               formattedResult = `\x1b[90mExit code: ${codeColor}${exitCodeStr}\x1b[90m (streamed)\x1b[0m`;
             }
             if (formattedResult) {
+              // Layer 13: Tool Result Header Injection.
+              // Prefix the result with the tool's icon and name to ensure the TUI
+              // recognizes it as a structured tool result. This enables specialized
+              // rendering (code blocks, language detection, ANSI preservation).
+              const toolInfo = formatToolUse(
+                { name: agentMessage.toolName, input: {} },
+                cwd
+              );
+              // Use a newline after the header to ensure the content starts on its own line
+              // and matches the regex expectation in ClaudePanelAgent.tsx.
+              formattedResult = `${toolInfo.icon} ${toolInfo.name}:\n${formattedResult}`;
+
               setMessages((prev) => {
                 // Clean up any remaining streaming markers from the active tool_progress message.
                 // We search backwards to find it robustly.
