@@ -435,6 +435,8 @@ export class MarkdownRenderer {
                   clean.startsWith('On branch ') ||
                   clean.startsWith('Changes to be committed:') ||
                   clean.startsWith('Changes not staged for commit:') ||
+                  clean.includes('git commit') ||
+                  clean.startsWith('git ') ||
                   /^[0-9a-f]{7,40}(?: \(.*\))?$/.test(clean) || // git log --oneline
                   /^[0-9a-f]{7,40}\s/.test(clean) || // Hash followed by space
                   /^\[\S+ [0-9a-f]{7,40}\]/.test(clean) // git commit summary [branch hash]
@@ -442,6 +444,9 @@ export class MarkdownRenderer {
               });
 
               if (looksLikeGitOutput && !hasStrongIndicator) return false;
+
+              // For bash scripts, only treat as diff if strong indicators are present
+              if (c.lang === 'bash' && !hasStrongIndicator) return false;
 
               // Check for simple +/- markers at the start of lines even without headers
               // We are more strict here: lines must start with +/- (not indented)
@@ -461,8 +466,9 @@ export class MarkdownRenderer {
               )
                 return true;
 
-              // If only one type, require more evidence
-              if (plusCount >= 5 || minusCount >= 5) return true;
+              // If only one type, require more evidence and ensure it's NOT bash/text
+              // where it's likely a list or command flag
+              if (plusCount >= 10 || minusCount >= 10) return true;
 
               return false;
             })());
