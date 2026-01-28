@@ -5,7 +5,7 @@
  * Provides reactive state updates when tasks change.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { systemLog } from '../../utils/debug-logger.js';
 import {
   BackgroundTaskManager,
@@ -141,13 +141,17 @@ export function useBackgroundTaskManager(
   }, [projectRoot, workbenchUrl, workbenchApiKey, debug]);
 
   // Compute summary
-  const summary = managerRef.current?.getSummary() ?? {
-    total: 0,
-    active: 0,
-    completed: 0,
-    failed: 0,
-    cancelled: 0,
-  };
+  const summary = useMemo(
+    () =>
+      managerRef.current?.getSummary() ?? {
+        total: 0,
+        active: 0,
+        completed: 0,
+        failed: 0,
+        cancelled: 0,
+      },
+    [tasks] // Update summary whenever tasks state changes
+  );
 
   // Action: Start genesis
   const startGenesis = useCallback(
@@ -201,15 +205,28 @@ export function useBackgroundTaskManager(
   // Getter for manager (for MCP tool)
   const getManager = useCallback(() => managerRef.current, []);
 
-  return {
-    tasks,
-    activeTask,
-    summary,
-    startGenesis,
-    startGenesisDocs,
-    startOverlay,
-    cancelTask,
-    clearHistory,
-    getManager,
-  };
+  return useMemo(
+    () => ({
+      tasks,
+      activeTask,
+      summary,
+      startGenesis,
+      startGenesisDocs,
+      startOverlay,
+      cancelTask,
+      clearHistory,
+      getManager,
+    }),
+    [
+      tasks,
+      activeTask,
+      summary,
+      startGenesis,
+      startGenesisDocs,
+      startOverlay,
+      cancelTask,
+      clearHistory,
+      getManager,
+    ]
+  );
 }

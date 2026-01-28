@@ -53,7 +53,7 @@ export interface CognitionTUILayoutProps {
   isDropdownVisible: boolean;
 }
 
-export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
+const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
   sigmaStats,
   activeTask,
   pendingMessageCount,
@@ -111,11 +111,9 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
   }, [stdout]);
 
   // Ensure cursor is hidden (InputBox uses its own manual cursor)
-  // Re-apply whenever thinking status, focus, messages or dimensions change
-  // to prevent terminal-intensive tools from showing the cursor.
   useEffect(() => {
     terminal.setCursorVisibility(false);
-  }, [isThinking, focused, messages, dimensions]);
+  }, [isThinking, focused, dimensions]);
 
   // Memoize filtered messages to prevent unnecessary re-renders of ClaudePanelAgent
   const filteredMessages = useMemo(() => {
@@ -228,3 +226,5 @@ export const CognitionTUILayout: React.FC<CognitionTUILayoutProps> = ({
     </Box>
   );
 };
+
+export const CognitionTUILayout = React.memo(CognitionTUILayoutComponent);

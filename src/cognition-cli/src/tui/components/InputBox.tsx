@@ -54,6 +54,26 @@ export interface InputBoxProps {
 }
 
 /**
+ * Dedicated sub-component for the cursor.
+ * Static (no blinking) to preserve terminal selection persistence.
+ */
+const Cursor: React.FC<{ focused: boolean; char?: string }> = ({
+  focused,
+  char = ' ',
+}) => {
+  if (!focused) return <Text>{char}</Text>;
+
+  return (
+    <Text
+      backgroundColor={TUITheme.text.primary}
+      color={TUITheme.text.inverse}
+    >
+      {char}
+    </Text>
+  );
+};
+
+/**
  * Input Box Component for TUI Message Entry.
  *
  * Interactive text input with slash command autocomplete, paste detection,
@@ -102,7 +122,7 @@ export interface InputBoxProps {
  *   confirmationState={toolConfirmation}
  * />
  */
-export const InputBox: React.FC<InputBoxProps> = ({
+const InputBoxComponent: React.FC<InputBoxProps> = ({
   onSubmit,
   focused,
   disabled = false,
@@ -129,7 +149,6 @@ export const InputBox: React.FC<InputBoxProps> = ({
   const [draftValue, setDraftValue] = useState('');
   const [cursorPosition, setCursorPosition] = useState(0);
   const cursorPositionRef = useRef(0);
-  const [cursorVisible, setCursorVisible] = useState(true); // For blinking cursor
   const [renderKey, setRenderKey] = useState(0); // Force re-render workaround
 
   /**
@@ -146,14 +165,11 @@ export const InputBox: React.FC<InputBoxProps> = ({
   }, []);
 
   useEffect(() => {
-    const blinkInterval = setInterval(() => {
-      setCursorVisible((prev) => !prev);
-      // Aggressively re-hide terminal cursor because some tools/events might show it
-      // This handles cases where child processes or stray escape sequences show it.
+    // Ensure terminal cursor is hidden when this box is active
+    if (focused) {
       terminal.setCursorVisibility(false);
-    }, 500);
-    return () => clearInterval(blinkInterval);
-  }, []);
+    }
+  }, [focused]);
 
   // Debug: Track when disabled prop changes
   useEffect(() => {
@@ -862,23 +878,15 @@ export const InputBox: React.FC<InputBoxProps> = ({
                           <>
                             {line.substring(0, cursorIndex)}
                             {focused && !confirmationPending && !disabled ? (
-                              <Text
-                                backgroundColor={
-                                  cursorVisible
-                                    ? TUITheme.text.primary
-                                    : undefined
+                              <Cursor
+                                focused={true}
+                                char={
+                                  line.substring(
+                                    cursorIndex + 1,
+                                    cursorIndex + 2
+                                  ) || ' '
                                 }
-                                color={
-                                  cursorVisible
-                                    ? TUITheme.text.inverse
-                                    : TUITheme.roles.user
-                                }
-                              >
-                                {line.substring(
-                                  cursorIndex + 1,
-                                  cursorIndex + 2
-                                ) || ' '}
-                              </Text>
+                              />
                             ) : (
                               line.substring(
                                 cursorIndex + 1,
@@ -923,3 +931,4 @@ export const InputBox: React.FC<InputBoxProps> = ({
     </Box>
   );
 };
+export const InputBox = React.memo(InputBoxComponent);

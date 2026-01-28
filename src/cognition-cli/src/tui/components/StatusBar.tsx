@@ -89,7 +89,7 @@ const MODEL_DISPLAY_NAMES: Record<string, string> = {
  *   providerName="claude"
  * />
  */
-export const StatusBar: React.FC<StatusBarProps> = ({
+const StatusBarComponent: React.FC<StatusBarProps> = ({
   sessionId,
   focused,
   tokenCount,
@@ -97,11 +97,10 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   providerName = 'claude',
   modelId,
 }) => {
-  // Layer 7: Aggressively ensure cursor is hidden when rendering the bottom bar
-  // This handles any stray escape sequences from the panels above it.
+  // Ensure terminal cursor is hidden when rendering the bottom bar.
   useEffect(() => {
     terminal.setCursorVisibility(false);
-  }); // Run on every render
+  }, []); // Run only on mount
 
   // Format token count with K suffix for readability
   const formatTokens = (count: number) => {
@@ -181,3 +180,5 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     </Box>
   );
 };
+
+export const StatusBar = React.memo(StatusBarComponent);

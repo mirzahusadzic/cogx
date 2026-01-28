@@ -11,7 +11,6 @@ import { Spinner } from '@inkjs/ui';
 import stripAnsi from 'strip-ansi';
 import { systemLog } from '../../utils/debug-logger.js';
 import { useTUI } from '../context/TUIContext.js';
-import { terminal } from '../services/TerminalService.js';
 import { stripCursorSequences } from '../utils/ansi-utils.js';
 import {
   markdownToLines,
@@ -611,9 +610,6 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
   // Use measureElement to get the actual height allocated by Yoga
   useEffect(() => {
-    // Layer 8: Ensure cursor is hidden while message panel is rendering/scrolling
-    terminal.setCursorVisibility(false);
-
     if (containerRef.current) {
       const dimensions = measureElement(containerRef.current);
       // Dimensions minus borders (2) and footer (1)

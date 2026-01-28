@@ -825,19 +825,17 @@ This will trigger a semantic compression event, flushing implementation noise wh
       }
     },
     [
-      state,
-      options,
-      sessionManager,
-      tokenCounter,
-      turnAnalysis,
-      compression,
-      debug,
-      setIsThinking,
-      setError,
+      /* state */
       setMessages,
+      setIsThinking,
+      setRetryCount,
+      setError,
       setInjectedRecap,
       setPendingMessageNotification,
       setShouldAutoRespond,
+      state.commandsCache,
+      state.injectedRecap,
+      state.pendingMessageNotification,
       embedderRef,
       userMessageEmbeddingCache,
       currentAdapterRef,
@@ -850,10 +848,12 @@ This will trigger a semantic compression event, flushing implementation noise wh
       sigmaTaskUpdateMcpServerRef,
       compressionInProgressRef,
       currentSessionIdRef,
-      anchorId,
+
+      /* options */
+      cwd,
       providerName,
       modelName,
-      cwd,
+      sessionIdProp,
       maxThinkingTokens,
       displayThinking,
       getTaskManager,
@@ -861,6 +861,15 @@ This will trigger a semantic compression event, flushing implementation noise wh
       getMessageQueue,
       onRequestToolConfirmation,
       debugFlag,
+      semanticThreshold,
+
+      /* hooks & utils */
+      sessionManager,
+      tokenCounter,
+      turnAnalysis,
+      compression,
+      debug,
+      anchorId,
       processAgentMessage,
     ]
   );

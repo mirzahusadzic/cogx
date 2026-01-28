@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import fs from 'fs';
 import path from 'path';
 import { getSigmaDirectory } from '../../ipc/sigma-directory.js';
@@ -435,5 +435,5 @@ export function useSlashCommands({
     ]
   );
 
-  return { handleSlashCommand };
+  return useMemo(() => ({ handleSlashCommand }), [handleSlashCommand]);
 }

@@ -269,21 +269,40 @@ export function useAgent(options: UseAgentOptions) {
     [turnAnalysis.stats]
   );
 
-  return {
-    messages,
-    sendMessage,
-    addSystemMessage,
-    isThinking,
-    retryCount: state.retryCount,
-    activeModel: state.activeModel,
-    error: state.error,
-    overlayScores,
-    tokenCount: tokenCounter.count,
-    workbenchHealth,
-    currentSessionId,
-    anchorId,
-    interrupt,
-    sigmaStats,
-    avgOverlays: overlayScores,
-  };
+  // 10. Memoize return object to prevent re-renders in consumers
+  return useMemo(
+    () => ({
+      messages,
+      sendMessage,
+      addSystemMessage,
+      isThinking,
+      retryCount: state.retryCount,
+      activeModel: state.activeModel,
+      error: state.error,
+      overlayScores,
+      tokenCount: tokenCounter.count,
+      workbenchHealth,
+      currentSessionId,
+      anchorId,
+      interrupt,
+      sigmaStats,
+      avgOverlays: overlayScores,
+    }),
+    [
+      messages,
+      sendMessage,
+      addSystemMessage,
+      isThinking,
+      state.retryCount,
+      state.activeModel,
+      state.error,
+      overlayScores,
+      tokenCounter.count,
+      workbenchHealth,
+      currentSessionId,
+      anchorId,
+      interrupt,
+      sigmaStats,
+    ]
+  );
 }

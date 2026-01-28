@@ -7,7 +7,7 @@
  * Flow: detect → confirm-genesis → genesis → confirm-O1 → O1 → ... → complete
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import fs from 'fs-extra';
 import path from 'path';
 import type { UseBackgroundTaskManagerResult } from './useBackgroundTaskManager.js';
@@ -1101,17 +1101,30 @@ export function useOnboardingWizard(
     }
   }, [autoStart, state.step, startWizard]);
 
-  return {
-    state,
-    confirmationState,
-    startWizard,
-    confirm,
-    skip,
-    cancel,
-    moveUp,
-    moveDown,
-    toggleSelection,
-    isActive: state.step !== 'idle' && state.step !== 'complete',
-    isComplete: state.step === 'complete',
-  };
+  return useMemo(
+    () => ({
+      state,
+      confirmationState,
+      startWizard,
+      confirm,
+      skip,
+      cancel,
+      moveUp,
+      moveDown,
+      toggleSelection,
+      isActive: state.step !== 'idle' && state.step !== 'complete',
+      isComplete: state.step === 'complete',
+    }),
+    [
+      state,
+      confirmationState,
+      startWizard,
+      confirm,
+      skip,
+      cancel,
+      moveUp,
+      moveDown,
+      toggleSelection,
+    ]
+  );
 }

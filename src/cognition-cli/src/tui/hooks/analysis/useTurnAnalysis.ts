@@ -358,19 +358,34 @@ export function useTurnAnalysis(
     [analyses]
   );
 
-  return {
-    analyses,
-    queueStatus,
-    enqueueAnalysis,
-    setAnalyses,
-    hasAnalyzed,
-    clear,
-    // ✅ NEW: Compression coordination methods
-    waitForCompressionReady,
-    getUnanalyzedMessages,
-    isReadyForCompression,
-    stats,
-  };
+  // Memoize return object to prevent re-renders in consumers
+  return useMemo(
+    () => ({
+      analyses,
+      queueStatus,
+      enqueueAnalysis,
+      setAnalyses,
+      hasAnalyzed,
+      clear,
+      // ✅ NEW: Compression coordination methods
+      waitForCompressionReady,
+      getUnanalyzedMessages,
+      isReadyForCompression,
+      stats,
+    }),
+    [
+      analyses,
+      queueStatus,
+      enqueueAnalysis,
+      setAnalyses,
+      hasAnalyzed,
+      clear,
+      waitForCompressionReady,
+      getUnanalyzedMessages,
+      isReadyForCompression,
+      stats,
+    ]
+  );
 }
 
 /**

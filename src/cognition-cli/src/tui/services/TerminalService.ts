@@ -142,6 +142,7 @@ export class TerminalService {
 
   /**
    * Show/hide the terminal cursor
+   * @param visible - Whether the cursor should be visible
    */
   public setCursorVisibility(visible: boolean): void {
     const hidden = !visible;

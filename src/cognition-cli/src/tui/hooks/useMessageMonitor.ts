@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { MessageQueueMonitor } from '../../ipc/MessageQueueMonitor.js';
 import { MessageQueue } from '../../ipc/MessageQueue.js';
 import { MessagePublisher } from '../../ipc/MessagePublisher.js';
@@ -140,5 +140,8 @@ export function useMessageMonitor({
     messageQueueRef,
   ]);
 
-  return { pendingMessageCount, monitorError };
+  return useMemo(
+    () => ({ pendingMessageCount, monitorError }),
+    [pendingMessageCount, monitorError]
+  );
 }
