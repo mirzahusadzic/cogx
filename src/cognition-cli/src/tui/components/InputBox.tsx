@@ -654,7 +654,7 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
         } else if (!showDropdown) {
           // Regular Enter for submission, if dropdown not active
           if (currentValue.trim()) {
-            const submittedValue = currentValue.trim();
+            const submittedValue = currentValue.trimEnd();
             onSubmit(submittedValue);
 
             // Add to history
