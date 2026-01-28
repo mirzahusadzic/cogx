@@ -520,11 +520,11 @@ export class MarkdownRenderer {
               isAdd =
                 trimmedLine.startsWith('+') ||
                 /^\+\s*\d+\s*[│|]/.test(trimmedLine) ||
-                /^\s*\d+\s*[│|]\s*\+/.test(trimmedLine);
+                /^\s*\d+\s*[│|]\s*\+([ \t]|$|[^0-9])/.test(trimmedLine);
               isRemove =
                 trimmedLine.startsWith('-') ||
                 /^-\s*\d+\s*[│|]/.test(trimmedLine) ||
-                /^\s*\d+\s*[│|]\s*-/.test(trimmedLine);
+                /^\s*\d+\s*[│|]\s*-([ \t]|$|[^0-9])/.test(trimmedLine);
               isHeader =
                 trimmedLine.startsWith('@') ||
                 /^\s*\d+\s*[│|]\s*@/.test(trimmedLine);

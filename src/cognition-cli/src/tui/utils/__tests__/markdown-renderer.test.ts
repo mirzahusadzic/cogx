@@ -404,4 +404,76 @@ describe('MarkdownRenderer', () => {
       expect(lines[1].chunks[0].text).toContain('- Task 1');
     });
   });
+
+  describe('Edit Tool Negative Values', () => {
+    const width = 80;
+
+    it('does NOT mark negative values as removals when baseline matches (Fixed)', () => {
+      // If the diff block starts with an indented change, baselineIndent might match unchanged lines
+      const editOutput = '```diff\n  - 10│ old\n  11│ -10\n```';
+      const lines = markdownToLines(editOutput, width);
+
+      const dataLine = lines.find((l) =>
+        l.chunks.some((c) => stripAnsi(c.text).includes('-10'))
+      );
+      expect(dataLine).toBeDefined();
+
+      const chunks = dataLine!.chunks;
+      const minusTenChunk = chunks.find((c) =>
+        stripAnsi(c.text).includes('-10')
+      );
+
+      // It should now have the normal code block color, not the diff remove color
+      expect(minusTenChunk?.color).not.toBe(TUITheme.syntax.diff.remove);
+      expect(minusTenChunk?.bg).not.toBe(TUITheme.syntax.diff.removeBg);
+    });
+
+    it('still marks real removals as red', () => {
+      // Note the space after the '-' marker in '  10│ - removed'
+      const editOutput = '```diff\n  - 10│ old\n  10│ - removed\n```';
+      const lines = markdownToLines(editOutput, width);
+
+      const dataLine = lines.find((l) =>
+        l.chunks.some((c) => stripAnsi(c.text).includes('removed'))
+      );
+      expect(dataLine).toBeDefined();
+
+      const removedChunk = dataLine!.chunks.find((c) =>
+        stripAnsi(c.text).includes('removed')
+      );
+      expect(removedChunk?.color).toBe(TUITheme.syntax.diff.remove);
+      expect(removedChunk?.bg).toBe(TUITheme.syntax.diff.removeBg);
+    });
+
+    it('correctly handles Edit tool native format', () => {
+      // Edit tool format: +/- is at the very start of the line, before the line number
+      const editOutput = '```diff\n- 10│ old\n+ 10│ new\n  11│ -10\n```';
+      const lines = markdownToLines(editOutput, width);
+
+      const oldLine = lines.find((l) =>
+        l.chunks.some((c) => stripAnsi(c.text).includes('old'))
+      );
+      const newLine = lines.find((l) =>
+        l.chunks.some((c) => stripAnsi(c.text).includes('new'))
+      );
+      const contextLine = lines.find((l) =>
+        l.chunks.some((c) => stripAnsi(c.text).includes('-10'))
+      );
+
+      expect(oldLine).toBeDefined();
+      expect(newLine).toBeDefined();
+      expect(contextLine).toBeDefined();
+
+      expect(
+        oldLine?.chunks.some((c) => c.color === TUITheme.syntax.diff.remove)
+      ).toBe(true);
+      expect(
+        newLine?.chunks.some((c) => c.color === TUITheme.syntax.diff.add)
+      ).toBe(true);
+      // Context line with -10 should NOT be red
+      expect(
+        contextLine?.chunks.some((c) => c.color === TUITheme.syntax.diff.remove)
+      ).toBe(false);
+    });
+  });
 });
