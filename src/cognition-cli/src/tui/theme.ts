@@ -20,11 +20,11 @@ export const TUITheme = {
 
   // Role-based colors - MONOLITH SCHEME
   roles: {
-    user: '#80deea', // Light Cyan for input distinction
-    assistant: '#4dd0e1', // Cyan
+    user: '#62cbdc', // Dimmed Cyan for running tasks and input distinction
+    assistant: '#46b8c8', // Dimmed Cyan for assistant role
     system: '#94a3b8', // Slate Gray
     thinking: '#94a3b8', // Slate Gray
-    thinkingInlineCode: '#4dd0e1', // Cyan
+    thinkingInlineCode: '#46b8c8', // Dimmed Cyan for thinking code blocks
     tool: '#94a3b8', // Slate Gray
     toolResult: '#94a3b8', // Slate Gray
   },
@@ -70,7 +70,7 @@ export const TUITheme = {
     },
     code: {
       block: '#a0b0c0',
-      inline: '#80deea', // Brighter Cyan for better contrast against normal text
+      inline: '#62cbdc', // Slightly dimmed Cyan while preserving hue/saturation and AAA contrast
       inlineBg: '#151c28', // Subtler background for inline code (halfway to primary bg)
       background: '#090e14',
     },

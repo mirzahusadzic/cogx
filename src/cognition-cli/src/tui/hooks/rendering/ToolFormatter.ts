@@ -677,10 +677,10 @@ function formatSigmaTaskUpdate(
   }
 
   // AIEcho Theme Mapping:
-  // User = Amber (Active/Focus)
+  // User = Dimmed Cyan (Active/Focus)
   // Tool = Green (Success/Operational)
   const successColor = hexToAnsi(TUITheme.roles.tool); // Green
-  const activeColor = hexToAnsi(TUITheme.roles.user); // Amber
+  const activeColor = hexToAnsi(TUITheme.roles.user); // Dimmed Cyan
   const gray = hexToAnsi(TUITheme.text.secondary); // Gray
   const cyan = hexToAnsi(TUITheme.overlays.o7_strategic); // Cyan
   const red = hexToAnsi(TUITheme.text.error); // Red
