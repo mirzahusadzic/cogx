@@ -31,12 +31,12 @@ describe('ContextReconstructor', () => {
     it('should classify as quest for high tool use and code blocks', () => {
       const lattice: ConversationLattice = {
         nodes: [
-          { ...baseNode, content: '🔧 Use tool bash', id: '1' },
-          { ...baseNode, content: '🔧 Use tool write', id: '2' },
-          { ...baseNode, content: '🔧 Use tool edit', id: '3' },
-          { ...baseNode, content: '🔧 Use tool read', id: '4' },
-          { ...baseNode, content: '🔧 Use tool grep', id: '5' },
-          { ...baseNode, content: '🔧 Use tool glob', id: '6' },
+          { ...baseNode, content: '> Use tool bash', id: '1' },
+          { ...baseNode, content: '> Use tool write', id: '2' },
+          { ...baseNode, content: '> Use tool edit', id: '3' },
+          { ...baseNode, content: '> Use tool read', id: '4' },
+          { ...baseNode, content: '> Use tool grep', id: '5' },
+          { ...baseNode, content: '> Use tool glob', id: '6' },
           { ...baseNode, content: '```typescript\nconst x = 1;\n```', id: '7' },
           { ...baseNode, content: '```typescript\nconst y = 2;\n```', id: '8' },
           { ...baseNode, content: '```typescript\nconst z = 3;\n```', id: '9' },

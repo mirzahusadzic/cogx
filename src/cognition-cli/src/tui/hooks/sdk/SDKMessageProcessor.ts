@@ -60,7 +60,7 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { SDKMessage, ContentBlock } from './types.js';
 import stripAnsi from 'strip-ansi';
-import { formatToolUse } from '../rendering/ToolFormatter.js';
+import { formatToolUseMessage } from '../rendering/ToolFormatter.js';
 
 /**
  * Processed message for TUI display
@@ -212,10 +212,9 @@ export function processAssistantMessage(
 
   if (toolUses.length > 0) {
     toolUses.forEach((tool) => {
-      const formatted = formatToolUse(tool, cwd);
       messages.push({
         type: 'tool_progress',
-        content: `${formatted.icon} ${formatted.name}: ${formatted.description}`,
+        content: formatToolUseMessage(tool, cwd),
         timestamp: new Date(),
       });
     });
@@ -399,7 +398,7 @@ export function processResult(sdkMessage: SDKMessage): {
     return {
       message: {
         type: 'system',
-        content: `✓ Complete (${numTurns} turns, $${totalCostUsd.toFixed(4)})`,
+        content: `✓ Complete (${numTurns} turns, ${totalCostUsd.toFixed(4)})`,
         timestamp: new Date(),
       },
       tokenUpdate: {
@@ -528,7 +527,7 @@ export function processSDKMessage(
       } else if (streamData.type === 'tool_start' && streamData.toolName) {
         result.messages.push({
           type: 'tool_progress',
-          content: `🔧 ${streamData.toolName}...`,
+          content: `> ${streamData.toolName}...`,
           timestamp: new Date(),
         });
       } else if (streamData.type === 'text_delta' && streamData.textDelta) {

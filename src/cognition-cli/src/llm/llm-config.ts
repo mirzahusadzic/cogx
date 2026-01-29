@@ -103,16 +103,10 @@ export const GEMINI_MODELS = {
   flashPreview: 'gemini-3-flash-preview',
 
   /** Most capable Pro model */
-  powerful: 'gemini-2.5-pro',
+  powerful: 'gemini-3.0-pro-preview',
 
   /** Balanced performance and cost (2.5 generation) */
   balanced: 'gemini-2.5-flash',
-
-  /** Fast and efficient (2.0 generation) */
-  fast: 'gemini-2.0-flash',
-
-  /** Experimental thinking mode */
-  thinking: 'gemini-2.0-flash-thinking-exp-01-21',
 } as const;
 
 /**

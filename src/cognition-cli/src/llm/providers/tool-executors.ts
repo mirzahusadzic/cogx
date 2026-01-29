@@ -60,8 +60,11 @@ async function relativizeGitPaths(
     return output;
   }
 
-  const lines = output.split('\n');
+  const lines = output.split(/\r?\n/);
   const processed = lines.map((line) => {
+    // Preserve leading indentation for structured output like git status (if it were ever intercepted)
+    const indentMatch = line.match(/^(\s*)/);
+    const indent = indentMatch ? indentMatch[1] : '';
     const trimmed = line.trim();
     if (!trimmed) return line;
 
@@ -74,7 +77,7 @@ async function relativizeGitPaths(
     // Relativize to CWD
     const relPath = path.relative(cwd, absPath);
 
-    return relPath;
+    return indent + relPath;
   });
 
   return processed.join('\n');
@@ -116,7 +119,7 @@ async function relativizeDiffOutput(
   // The first regex handles the start of line. The second path is harder to target safely with global regex.
   // We'll iterate lines for safety.
 
-  const lines = output.split('\n');
+  const lines = output.split(/\r?\n/);
   const processed = lines.map((line) => {
     // Target: diff --git a/path b/path
     if (line.startsWith('diff --git ')) {
@@ -178,7 +181,7 @@ export async function executeReadFile(
     }
 
     const content = await fs.readFile(file_path, 'utf-8');
-    const lines = content.split('\n');
+    const lines = content.split(/\r?\n/);
 
     const start = offset || 0;
     const end = limit ? start + limit : lines.length;
@@ -305,7 +308,7 @@ export async function executeGrep(
       clearTimeout(timeoutId);
 
       // Final safety check: cap extremely long lines which can crash TUIs
-      const lines = output.split('\n');
+      const lines = output.split(/\r?\n/);
       const cappedLines = lines.map((line) => {
         if (line.length > 2000) {
           return (
@@ -369,7 +372,7 @@ export async function executeBash(
       } else {
         stdout += chunk;
       }
-      if (onChunk) onChunk(chunk);
+      if (onChunk) onChunk(stripAnsi(chunk));
     });
     proc.stderr.on('data', (data) => {
       const chunk = data.toString();
@@ -379,7 +382,7 @@ export async function executeBash(
       } else {
         stderr += chunk;
       }
-      if (onChunk) onChunk(chunk);
+      if (onChunk) onChunk(stripAnsi(chunk));
     });
     proc.on('close', async (code) => {
       clearTimeout(timeoutId);
@@ -422,7 +425,8 @@ export async function executeBash(
         resolve(`Timeout after ${effectiveTimeout}ms\n${compressed}`);
       } else {
         const color = code === 0 ? '\x1b[32m' : '\x1b[31m'; // Green for 0, Red otherwise
-        resolve(`${compressed}\nExit code: ${color}${code}\x1b[0m`);
+        const exitLine = `Exit code: ${color}${code}\x1b[0m`;
+        resolve(compressed ? `${compressed.trimEnd()}\n${exitLine}` : exitLine);
       }
     });
     proc.on('error', (err) => {

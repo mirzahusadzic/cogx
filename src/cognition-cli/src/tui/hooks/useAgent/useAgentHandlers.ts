@@ -11,9 +11,13 @@ import {
 import { McpServerBuilder } from '../../services/McpServerBuilder.js';
 import { formatPendingMessages } from '../../../ipc/agent-messaging-formatters.js';
 import stripAnsi from 'strip-ansi';
-import { formatToolUse, formatToolResult } from '../rendering/ToolFormatter.js';
+import {
+  formatToolUse,
+  formatToolResult,
+  formatToolUseMessage,
+} from '../rendering/ToolFormatter.js';
 import { terminal } from '../../services/TerminalService.js';
-import { stripCursorSequences } from '../../utils/ansi-utils.js';
+import { stripCursorSequences, ANSI_RESET } from '../../utils/ansi-utils.js';
 import type { AgentState } from './useAgentState.js';
 import type { UseAgentOptions } from './types.js';
 import type { UseSessionManagerResult } from '../session/useSessionManager.js';
@@ -208,14 +212,13 @@ export function useAgentHandlers({
                       await compression.triggerCompression(true);
                     }
 
-                    const formatted = formatToolUse(
+                    const content = formatToolUseMessage(
                       {
                         name: tool.name,
                         input: tool.input as Record<string, unknown>,
                       },
                       cwd
                     );
-                    const content = `${formatted.icon} ${formatted.name}: ${formatted.description}`;
                     activeToolContentRef.current = content;
 
                     setMessages((prev) => [
@@ -260,14 +263,13 @@ export function useAgentHandlers({
 
         case 'tool_use': {
           if (agentMessage.toolName && agentMessage.toolInput) {
-            const formatted = formatToolUse(
+            const content = formatToolUseMessage(
               {
                 name: agentMessage.toolName,
                 input: agentMessage.toolInput as Record<string, unknown>,
               },
               cwd
             );
-            const content = `${formatted.icon} ${formatted.name}: ${formatted.description}`;
             activeToolContentRef.current = content;
 
             setMessages((prev) => [
@@ -279,7 +281,7 @@ export function useAgentHandlers({
               },
             ]);
           } else if (typeof content === 'string') {
-            const contentStr = `🔧 ${content}`;
+            const contentStr = `> ${content}`;
             activeToolContentRef.current = contentStr;
 
             setMessages((prev) => [
@@ -293,14 +295,13 @@ export function useAgentHandlers({
           } else if (Array.isArray(content)) {
             content.forEach((tool) => {
               if (tool.name && tool.input) {
-                const formatted = formatToolUse(
+                const contentStr = formatToolUseMessage(
                   {
                     name: tool.name,
                     input: tool.input as Record<string, unknown>,
                   },
                   cwd
                 );
-                const contentStr = `${formatted.icon} ${formatted.name}: ${formatted.description}`;
                 activeToolContentRef.current = contentStr;
 
                 setMessages((prev) => [
@@ -345,36 +346,68 @@ export function useAgentHandlers({
               cwd
             );
 
-            if (
-              isStreamingToolOutputRef.current &&
-              (agentMessage.toolName === 'bash' ||
-                agentMessage.toolName === 'shell')
-            ) {
+            const isBash =
+              agentMessage.toolName === 'bash' ||
+              agentMessage.toolName === 'shell';
+            const strippedData =
+              typeof resultData === 'string'
+                ? stripAnsi(resultData).trim()
+                : '';
+            const isOnlyExitCode =
+              isBash && /^Exit code: -?\d+$/.test(strippedData);
+
+            if (isStreamingToolOutputRef.current && isBash) {
               // For streamed bash output, provide a concise summary in the TUI
               // The agent still receives the full output from tool-executors.ts
-              const exitCodeStr = (resultData as string).includes('Exit code:')
-                ? (resultData as string)
-                    .split('Exit code:')[1]
-                    .split('\n')[0]
-                    .trim()
-                : 'unknown';
+              const exitCodeMatch = strippedData.match(
+                /Exit code: (-?\d+)\s*$/
+              );
+              const exitCodeStr = exitCodeMatch ? exitCodeMatch[1] : 'unknown';
 
               const codeColor = exitCodeStr === '0' ? '\x1b[32m' : '\x1b[31m'; // Green for 0, Red otherwise
 
-              formattedResult = `\x1b[90mExit code: ${codeColor}${exitCodeStr}\x1b[90m (streamed)\x1b[0m`;
+              formattedResult = `Exit code: ${codeColor}${exitCodeStr}${ANSI_RESET}`;
+            } else if (isOnlyExitCode) {
+              // If not streaming but we only have an exit code (e.g. fast command with no output)
+              // format it consistently (colored, no indentation)
+              const exitCodeStr = strippedData.split('Exit code:')[1].trim();
+              const codeColor = exitCodeStr === '0' ? '\x1b[32m' : '\x1b[31m';
+              formattedResult = `Exit code: ${codeColor}${exitCodeStr}${ANSI_RESET}`;
             }
             if (formattedResult) {
               // Layer 13: Tool Result Header Injection.
-              // Prefix the result with the tool's icon and name to ensure the TUI
-              // recognizes it as a structured tool result. This enables specialized
-              // rendering (code blocks, language detection, ANSI preservation).
+              // Prefix the result with a distinct result icon (↪) and label to differentiate
+              // it from the tool call (>). This ensures the TUI recognizes it as a structured
+              // tool result while reducing visual redundancy.
               const toolInfo = formatToolUse(
                 { name: agentMessage.toolName, input: {} },
                 cwd
               );
-              // Use a newline after the header to ensure the content starts on its own line
-              // and matches the regex expectation in ClaudePanelAgent.tsx.
-              formattedResult = `${toolInfo.icon} ${toolInfo.name}:\n${formattedResult}`;
+
+              const resultIcon = '↪';
+              const isOutput = [
+                'bash',
+                'shell',
+                'read',
+                'read_file',
+                'grep',
+                'glob',
+                'fetch_url',
+                'webfetch',
+                'fetchurl',
+                'websearch',
+                'search',
+                'query',
+                'list',
+                'ls',
+              ].includes(
+                agentMessage.toolName.toLowerCase().replace(/^mcp__.*?__/, '')
+              );
+              const suffix = isOutput ? ' Output' : ' Result';
+
+              // Layer 13: Tool Result Header Injection.
+              // Use a newline after the header to ensure the content starts on its own line.
+              formattedResult = `${resultIcon} ${toolInfo.name}${suffix}:\n${formattedResult}`;
 
               setMessages((prev) => {
                 // Clean up any remaining streaming markers from the active tool_progress message.
@@ -457,7 +490,7 @@ export function useAgentHandlers({
                 ...prev,
                 {
                   type: 'system',
-                  content: `🔧 Expanding command: ${commandName} (${expanded.length} chars)`,
+                  content: `> Expanding command: ${commandName} (${expanded.length} chars)`,
                   timestamp: new Date(),
                 },
               ]);
@@ -576,8 +609,9 @@ This will trigger a semantic compression event, flushing implementation noise wh
             // Layer 10: Aggressively hide terminal cursor while streaming tool output
             terminal.setCursorVisibility(false);
 
-            // Pre-strip cursor control sequences from output chunks before storing
-            const cleanChunk = stripCursorSequences(chunk);
+            // Pre-strip cursor control sequences and ANSI from output chunks before storing
+            // This ensures clean processing and prevents rendering artifacts like extra newlines
+            const cleanChunk = stripAnsi(stripCursorSequences(chunk));
 
             setMessages((prev) => {
               // Robustly find the active tool_progress message by searching backwards.
@@ -597,25 +631,37 @@ This will trigger a semantic compression event, flushing implementation noise wh
 
                 // Strip existing streaming marker if present from previous chunk
                 // Use a non-capturing group for the optional newline to avoid issues
+                // Robustly strip the streaming marker AND any trailing newlines from content
+                // to prepare for clean appending.
                 let content = target.content.replace(
                   // eslint-disable-next-line no-control-regex
-                  /(?:\n)?\x1b\[90m\(streaming\)\x1b\[0m$/,
+                  /(?:\r?\n)*\x1b\[90m\(streaming\)\x1b\[0m$/,
                   ''
                 );
 
-                // Simply append the new chunk. If there are newlines in the chunk,
-                // they will be preserved. No need to add extra ones.
-                content = content + cleanChunk;
+                // Ensure clean chunk doesn't have leading newlines if we already have content
+                // This prevents double-newlines when joining chunks.
+                // We handle both \n and \r\n explicitly.
+                let effectiveChunk = cleanChunk;
+                if (content.length > 0) {
+                  effectiveChunk = effectiveChunk.replace(/^(\r?\n)+/, '');
+                }
+
+                // Append with exactly one newline separator if needed
+                if (content.length > 0 && !content.endsWith('\n')) {
+                  content += '\n';
+                }
+                content += effectiveChunk;
 
                 // FLOATING WINDOW LOGIC:
                 // If output becomes too long, truncate it to keep only the last 30 lines
-                // to prevent the "active" message from growing indefinitely.
+                // (25 lines + 5 lines buffer).
                 const header = activeToolContentRef.current;
                 if (header && content.startsWith(header)) {
                   // Split header from output
                   const outputPart = content.slice(header.length);
-                  const lines = outputPart.split('\n');
-                  const MAX_STREAM_LINES = 25;
+                  const lines = outputPart.split(/\r?\n/);
+                  const MAX_STREAM_LINES = 10; // Matches ClaudePanelAgent STABILIZED_HEIGHT
 
                   if (lines.length > MAX_STREAM_LINES) {
                     // Keep the header and the last N lines

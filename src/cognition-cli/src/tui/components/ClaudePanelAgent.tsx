@@ -146,7 +146,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       // For performance, we cache rendered lines for all messages EXCEPT the last one
       // (which might still be streaming).
       const isLast = idx === messages.length - 1;
-      const cacheKey = `${msg.type}-${msg.timestamp.getTime()}-${msg.content.length}-${width}`;
+      const cacheKey = `${idx}-${msg.type}-${msg.timestamp.getTime()}-${msg.content.length}-${width}`;
 
       if (!isLast && messageCache.current.has(cacheKey)) {
         lines.push(...messageCache.current.get(cacheKey)!);
@@ -204,19 +204,20 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
           bg = TUITheme.messages.assistant.bg;
 
           if (
-            processedContent.includes('📋 Tasks:') ||
-            processedContent.includes('🔧 Tasks:')
+            stripAnsi(processedContent).includes('📋 Tasks:') ||
+            stripAnsi(processedContent).includes('> Tasks:')
           ) {
             baseColor = TUITheme.roles.tool; // Consistent green for Tasks
           } else if (
-            processedContent.match(/[🔧📋📄🧠🔍🌐🛑📊🤖📨📢📬✅✨🚀]/u)
+            processedContent.match(/[>📋📄🧠🔍🌐🛑📊🤖📨📢📬✅✨🚀]/u)
           ) {
             baseColor = TUITheme.roles.tool; // Same for all tools
           }
 
           // Use [\s\S]* to capture multi-line content (dot (.) doesn't match newlines)
+          /* eslint-disable no-control-regex */
           const toolMatch = processedContent.match(
-            /^([🔧📋📄🔍🌐🛑📊🤖📨📢📬✅✨🚀]\s+[^:]+:)[ \t]?([\s\S]*)$/u
+            /^([>📋📄🔍🌐🛑📊🤖📨📢📬✅✨🚀↪]\s+[^:]+:)[ \t]?([\s\S]*)$/u
           );
           if (toolMatch) {
             const toolName = toolMatch[1];
@@ -224,7 +225,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
             // Normalize tool name for robust detection (remove icon, colons, and spaces)
             const cleanToolName = stripAnsi(toolName)
-              .replace(/[🔧📋📄🧠🔍🌐🛑📊🤖📨📢📬✅✨🚀:\s]/gu, '')
+              .replace(/[>📋📄🧠🔍🌐🛑📊🤖📨📢📬✅✨🚀↪:\s]/gu, '')
               .toLowerCase();
 
             let finalDetails = details;
@@ -233,17 +234,23 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
             const isEdit = cleanToolName === 'edit';
             const isTasks = cleanToolName === 'tasks';
-            const isRead = cleanToolName === 'read';
-            const isGrep = cleanToolName === 'grep';
-            const isBash = cleanToolName === 'bash';
-
-            // Strip ANSI codes for cleaner detection and rendering
-            // EXCEPT for Edit, Tasks, Read, Grep, and Bash where we want to keep ANSI.
-            if (!(isEdit || isTasks || isRead || isGrep || isBash)) {
-              finalDetails = cleanDetails;
-              // Strip 4-space indentation that might be present in tool output
-              finalDetails = finalDetails.replace(/^ {4}/gm, '');
-            }
+            const isRead = cleanToolName.startsWith('read');
+            const isGrep = cleanToolName.startsWith('grep');
+            const isBash =
+              cleanToolName.startsWith('bash') ||
+              cleanToolName.startsWith('shell');
+            const isGlob = cleanToolName.startsWith('glob');
+            const isWrite = cleanToolName.startsWith('write');
+            const isFetch =
+              cleanToolName.startsWith('fetch') ||
+              cleanToolName.startsWith('webfetch');
+            const isSearch =
+              cleanToolName.startsWith('search') ||
+              cleanToolName.startsWith('websearch');
+            const isQuery = cleanToolName.startsWith('query');
+            const isList =
+              cleanToolName.startsWith('list') ||
+              cleanToolName.startsWith('ls');
 
             // Determine if we should treat this as a diff
             let lang = 'text';
@@ -266,6 +273,38 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                 cleanToolName.includes('diff'))
             ) {
               lang = 'diff';
+            }
+
+            // Strip ANSI codes for cleaner detection and rendering
+            // EXCEPT for Edit, Tasks, Read, Grep, and Diffs where we want to keep ANSI
+            // for syntax highlighting.
+            if (
+              !(
+                isEdit ||
+                isTasks ||
+                isRead ||
+                isGrep ||
+                isBash ||
+                lang === 'diff'
+              )
+            ) {
+              finalDetails = cleanDetails;
+            }
+
+            // Strip 4-space indentation that might be present in tool output from the LLM.
+            // ONLY for non-raw tools to avoid affecting significant indentation in bash/code.
+            if (
+              !isEdit &&
+              !isRead &&
+              !isWrite &&
+              !isBash &&
+              !isGrep &&
+              lang !== 'diff'
+            ) {
+              finalDetails = finalDetails.replace(/^ {4}/gm, '');
+            }
+
+            if (lang === 'diff') {
               // Keep ANSI codes for syntax highlighting (e.g. green/red exit codes),
               // but we must strip line numbers which might contain ANSI sequences themselves.
 
@@ -276,14 +315,14 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                 'gm'
               );
               finalDetails = finalDetails.replace(lineNumRegex, '');
-            } else if (cleanToolName === 'read' || cleanToolName === 'write') {
+            } else if (isRead || isWrite) {
               // Try to detect extension from the "file: path" header
               const pathMatch = cleanDetails.match(/file:\s+([^\s\n()]+)/);
               if (pathMatch) {
                 const ext = pathMatch[1].split('.').pop();
                 if (ext && ext.length < 5) lang = ext;
               }
-            } else if (cleanToolName === 'bash') {
+            } else if (isBash) {
               lang = 'bash';
             }
 
@@ -292,11 +331,15 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
             const shouldWrapInCode =
               finalDetails.includes('\n') ||
               isTasks ||
-              cleanToolName === 'bash' ||
-              cleanToolName === 'read' ||
-              cleanToolName === 'write' ||
-              cleanToolName === 'grep' ||
-              cleanToolName === 'glob' ||
+              isBash ||
+              isRead ||
+              isWrite ||
+              isGrep ||
+              isGlob ||
+              isFetch ||
+              isSearch ||
+              isQuery ||
+              isList ||
               isEdit ||
               lang === 'diff';
 
@@ -309,25 +352,57 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
             // Layer 12: Floating Window Stabilization.
             // If we are streaming tool output (e.g. bash), we want to prevent the header
             // from jumping up and down as lines wrap or as the tail-truncation kicks in.
-            // We do this by ensuring the output block has a stable height (e.g. 30 lines)
+            // We do this by ensuring the output block has a stable height (e.g. 15 lines)
             // during the streaming process.
-            const STABILIZED_HEIGHT = 25; // Matches useAgentHandlers MAX_STREAM_LINES
+            const STABILIZED_HEIGHT = 10; // Matches useAgentHandlers MAX_STREAM_LINES
 
-            // For streaming output, force a leading newline.
+            // For streaming output or file-related output, force a leading newline.
             // This ensures the "ToolName:" header is always on its own line,
             // separating it from the scrolling content and allowing full-width rendering.
-            let effectiveDetails = trimmedDetails;
+            let effectiveDetails = trimmedDetails
+              .trimEnd()
+              .replace(/\t/g, '  '); // Use 2 spaces for tabs to save width
             if (
-              (isStreaming || isTasks) &&
-              !effectiveDetails.startsWith('\n')
+              (isStreaming ||
+                isTasks ||
+                isBash ||
+                isRead ||
+                isWrite ||
+                isGrep ||
+                isGlob ||
+                isFetch ||
+                isSearch ||
+                isQuery ||
+                isList ||
+                isEdit) &&
+              !stripAnsi(effectiveDetails).startsWith('\n') &&
+              effectiveDetails.length > 0
             ) {
               effectiveDetails = '\n' + effectiveDetails;
             }
 
-            const startsWithNewline = effectiveDetails.startsWith('\n');
+            // Layer 12: Stabilization - Truncate to visual window (Pre-Render)
+            // We must do this BEFORE markdown rendering to ensure that:
+            // 1. The height is strictly bounded (fixing overlay push-out)
+            // 2. The code block fence wraps the truncated content, not the full content
+            if (isStreaming) {
+              const lines = effectiveDetails.split(/\r?\n/);
+              if (lines.length > STABILIZED_HEIGHT) {
+                // Keep the last STABILIZED_HEIGHT lines of content
+                const lastLines = lines.slice(-STABILIZED_HEIGHT);
+                // Preserve leading newline if it was there
+                effectiveDetails =
+                  (effectiveDetails.startsWith('\n') ? '\n' : '') +
+                  lastLines.join('\n');
+              }
+            }
+
+            // If we have multiple leading newlines, collapse them to one
+            effectiveDetails = effectiveDetails.replace(/^(\n)+/, '\n');
+
+            const startsWithNewline =
+              stripAnsi(effectiveDetails).startsWith('\n');
             // Layer 13: Dynamic Code Block Wrapping (The "Markdown Escape" Fix)
-            // If the content itself contains backticks (e.g. reading a markdown file or source code with template strings),
-            // we must use N+1 backticks to wrap it, otherwise the renderer will prematurely close the block.
             const maxBackticks = (effectiveDetails.match(/`+/g) || []).reduce(
               (max, match) => Math.max(max, match.length),
               0
@@ -350,10 +425,13 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
               ? 0
               : stripAnsi(toolName).length + 1;
 
+            // Regression Fix: Use a tighter safety margin (-4) to allow more content
+            // to fit on narrow terminals (e.g. when sidebar is open), preventing
+            // unexpected wrapping of file paths in git status.
             const targetWidth =
-              width - prefix.length - detailsWidthReduction - 2;
+              width - prefix.length - detailsWidthReduction - 4;
 
-            let detailLines = markdownToLines(
+            const detailLines = markdownToLines(
               processDetails,
               Math.max(10, targetWidth),
               {
@@ -368,32 +446,35 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
               }
             );
 
-            // Layer 12: Stabilization - Truncate to visual window
-            if (isStreaming && detailLines.length > STABILIZED_HEIGHT) {
-              // Keep the first line (header anchor) and the last (H-1) lines of content
-              detailLines = [
-                detailLines[0],
-                ...detailLines.slice(-(STABILIZED_HEIGHT - 1)),
-              ];
-            }
-
             if (detailLines.length > 0) {
               let iStart = 1;
               if (startsWithNewline) {
                 // If the details started with a newline, the header gets its own line
                 messageLines.push({
                   chunks: [
-                    { text: prefix, color: baseColor, bg },
-                    { text: toolName, color: baseColor, bg, bold: true },
+                    { text: prefix, color: baseColor, bg, dim: true },
+                    {
+                      text: toolName,
+                      color: baseColor,
+                      bg,
+                      bold: true,
+                      dim: true,
+                    },
                   ],
                 });
                 iStart = 0;
               } else {
                 const firstLine = detailLines[0];
                 const firstLineChunks = [
-                  { text: prefix, color: baseColor, bg },
-                  { text: toolName, color: baseColor, bg, bold: true },
-                  { text: ' ', color: baseColor, bg },
+                  { text: prefix, color: baseColor, bg, dim: true },
+                  {
+                    text: toolName,
+                    color: baseColor,
+                    bg,
+                    bold: true,
+                    dim: true,
+                  },
+                  { text: ' ', color: baseColor, bg, dim: true },
                   ...firstLine.chunks.map((chunk) => ({
                     ...chunk,
                     // If the chunk is using the default tool result color, upgrade it to baseColor (Green)
@@ -402,6 +483,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                       chunk.color === TUITheme.roles.toolResult
                         ? baseColor
                         : chunk.color,
+                    dim: true,
                   })),
                 ];
                 messageLines.push({ chunks: firstLineChunks });
@@ -410,23 +492,31 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
               for (let i = iStart; i < detailLines.length; i++) {
                 // If the details started with a newline, we want subsequent lines to be indented
-                // less (just aligned with the prefix) to create a list-like appearance.
+                // to align with the start of the tool header (prefix length).
                 const indentSize = startsWithNewline
                   ? prefix.length
                   : prefix.length + stripAnsi(toolName).length + 1;
-                const indent = ' '.repeat(indentSize + 2);
+                const indent = ' '.repeat(indentSize);
 
                 // Clone the line and chunks to prevent mutation bugs during re-renders
+                // Regression Fix: Don't add indentation to completely empty lines to avoid
+                // trailing whitespace and visual artifacts.
+                const hasContent = detailLines[i].chunks.some(
+                  (c) => stripAnsi(c.text).trim().length > 0
+                );
                 const newLine = {
                   ...detailLines[i],
-                  chunks: [
-                    {
-                      text: indent,
-                      color: TUITheme.roles.toolResult,
-                      bg,
-                    },
-                    ...detailLines[i].chunks,
-                  ],
+                  chunks: hasContent
+                    ? [
+                        {
+                          text: indent,
+                          color: TUITheme.roles.toolResult,
+                          bg,
+                          dim: true,
+                        },
+                        ...detailLines[i].chunks,
+                      ]
+                    : detailLines[i].chunks,
                 };
                 messageLines.push(newLine);
               }
@@ -436,7 +526,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                 const indentSize = startsWithNewline
                   ? prefix.length
                   : prefix.length + stripAnsi(toolName).length + 1;
-                const indent = ' '.repeat(indentSize + 2);
+                const indent = ' '.repeat(indentSize);
 
                 for (let i = detailLines.length; i < STABILIZED_HEIGHT; i++) {
                   messageLines.push({
@@ -445,6 +535,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                         text: indent,
                         color: TUITheme.roles.toolResult,
                         bg,
+                        dim: true,
                       },
                     ],
                   });
@@ -453,15 +544,19 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
             } else {
               messageLines.push({
                 chunks: [
-                  { text: prefix, color: baseColor, bg },
-                  { text: toolName, color: baseColor, bg, bold: true },
+                  { text: prefix, color: baseColor, bg, dim: true },
+                  {
+                    text: toolName,
+                    color: baseColor,
+                    bg,
+                    bold: true,
+                    dim: true,
+                  },
                 ],
               });
             }
 
-            // Only add a trailing gap if there's actual content to separate from
             messageLines.push({ chunks: [] });
-
             lines.push(...messageLines);
             if (!isLast) messageCache.current.set(cacheKey, messageLines);
             return;
@@ -487,15 +582,15 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
 
       // Universal Markdown Renderer for all message types
       const renderedLines = markdownToLines(
-        processedContent,
+        processedContent.replace(/\t/g, '  '), // Replace tabs with 2 spaces
         Math.max(
           10,
-          width - prefix.length - (msg.type === 'tool_progress' ? 2 : 0)
+          width - prefix.length - (msg.type === 'tool_progress' ? 4 : 0)
         ),
         {
           baseColor: color,
           baseBg: bg,
-          baseDim: msg.type === 'thinking',
+          baseDim: msg.type === 'thinking' || msg.type === 'system',
           wrapIndent: msg.type === 'tool_progress' ? 2 : undefined,
           bulletColor: msg.type === 'thinking' ? color : undefined,
           // For thinking blocks, force code to match the vibrant role color
@@ -505,7 +600,10 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
               ? TUITheme.roles.thinkingInlineCode
               : undefined,
           inlineCodeDim: msg.type === 'thinking' ? false : undefined,
-          codeBlockColor: msg.type === 'thinking' ? color : undefined,
+          codeBlockColor:
+            msg.type === 'thinking' || msg.type === 'tool_progress'
+              ? color
+              : undefined,
           codeBlockDim: msg.type === 'thinking' ? false : undefined,
           headingColor:
             msg.type === 'thinking'
@@ -522,7 +620,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       if (renderedLines.length > 0) {
         // Prepend prefix to the first line
         renderedLines[0].chunks.unshift({
-          text: prefix + (msg.type === 'tool_progress' ? '    ' : ''),
+          text: prefix,
           color,
           bg,
           bold: msg.type === 'user',
@@ -533,9 +631,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
         if (prefix.length > 0 || msg.type === 'tool_progress') {
           for (let i = 1; i < renderedLines.length; i++) {
             renderedLines[i].chunks.unshift({
-              text:
-                ' '.repeat(prefix.length) +
-                (msg.type === 'tool_progress' ? '    ' : ''),
+              text: ' '.repeat(prefix.length),
               color,
               bg,
               dim: msg.type === 'thinking',
@@ -564,7 +660,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
     if (!streamingPaste) return renderedMessages;
 
     const lines = [...renderedMessages];
-    const pasteLines = streamingPaste.split('\n');
+    const pasteLines = streamingPaste.split(/\r?\n/);
 
     lines.push({
       chunks: [
@@ -626,7 +722,12 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
     if (containerRef.current) {
       const dimensions = measureElement(containerRef.current);
       // Dimensions minus borders (2) and footer (1)
-      const newHeight = Math.max(1, dimensions.height - 3);
+      // Cap at terminal rows to prevent content from pushing out the OverlaysBar
+      const maxPossible = (stdout?.rows || 24) - 8; // Leave room for header/footer/thinking/input
+      const newHeight = Math.max(
+        1,
+        Math.min(maxPossible, dimensions.height - 3)
+      );
 
       if (newHeight !== availableHeight) {
         systemLog('tui', '[ClaudePanelAgent] New dimensions measured', {

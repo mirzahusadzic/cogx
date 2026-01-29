@@ -48,7 +48,6 @@ const MODEL_DISPLAY_NAMES: Record<string, string> = {
   'gemini-3-pro-preview': 'Gemini 3p',
   'gemini-2.5-flash': 'Gemini 2.5f',
   'gemini-2.5-pro': 'Gemini 2.5p',
-  'gemini-2.0-flash': 'Gemini 2.0f',
 };
 
 /**

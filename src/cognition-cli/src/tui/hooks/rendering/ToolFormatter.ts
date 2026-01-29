@@ -46,10 +46,10 @@
  *    - 🔍 MCP Search: selecting <tool_name> (for direct selection)
  *    - 🔍 MCP Search: "<query>" (for keyword search)
  *
- * 9. Default: Generic tool icon (🔧) with JSON input
+ * 9. Default: Generic tool icon (>) with JSON input
  *
  * ALGORITHM (formatToolUse):
- * 1. Initialize default icon (🔧)
+ * 1. Initialize default icon (>)
  * 2. Check tool name and apply specific formatting:
  *    a. Memory recall: Brain icon + query text
  *    b. Bash: Command text from input.command
@@ -124,7 +124,7 @@ export interface ToolUse {
  */
 export interface FormattedTool {
   /**
-   * Icon representing the tool type (e.g., 🔧, 🧠, etc.)
+   * Icon representing the tool type (e.g., >, 🧠, etc.)
    */
   icon: string;
 
@@ -176,7 +176,7 @@ function relativizePath(p: string, basePath: string = process.cwd()): string {
  * to create a human-readable representation of the tool invocation.
  *
  * ALGORITHM:
- * 1. Initialize default icon (🔧)
+ * 1. Initialize default icon (>)
  * 2. Check tool name against known patterns:
  *    a. Memory recall: Extract query, use brain icon
  *    b. Bash: Extract command from input.command
@@ -196,7 +196,7 @@ function relativizePath(p: string, basePath: string = process.cwd()): string {
  *   name: 'Bash',
  *   input: { command: 'npm test', description: 'Run tests' }
  * });
- * // Returns: { icon: '🔧', name: 'Bash', description: 'npm test' }
+ * // Returns: { icon: '>', name: 'Bash', description: 'npm test' }
  *
  * @example
  * const formatted = formatToolUse({
@@ -207,11 +207,11 @@ function relativizePath(p: string, basePath: string = process.cwd()): string {
  *     new_string: 'world'
  *   }
  * });
- * // Returns: { icon: '🔧', name: 'Edit', description: 'app.ts\n...(diff)...' }
+ * // Returns: { icon: '>', name: 'Edit', description: 'app.ts\n...(diff)...' }
  */
 export function formatToolUse(tool: ToolUse, cwd?: string): FormattedTool {
   let inputDesc = '';
-  let toolIcon = '🔧';
+  let toolIcon = '>';
   const effectiveCwd = cwd || process.cwd();
 
   // Normalize name for comparison (remove underscores, lowercase)
@@ -312,8 +312,7 @@ export function formatToolUse(tool: ToolUse, cwd?: string): FormattedTool {
     }
   } else if (input.command) {
     // For Bash, show the actual command (not the description).
-    // Use a single space after the colon for same-line display.
-    inputDesc = `\n${input.command as string}\n`;
+    inputDesc = input.command as string;
   } else if (input.description && !input.todos) {
     // Show description if it's not a task update (which has its own formatting)
     inputDesc = input.description as string;
@@ -330,7 +329,10 @@ export function formatToolUse(tool: ToolUse, cwd?: string): FormattedTool {
         input.new_string as string
       );
     } else {
-      let filePathDesc = `file: ${relativizePath(input.file_path as string, effectiveCwd)}`;
+      let filePathDesc = relativizePath(
+        input.file_path as string,
+        effectiveCwd
+      );
       if (typeof input.offset === 'number' && typeof input.limit === 'number') {
         filePathDesc += ` (offset: ${input.offset}, limit: ${input.limit})`;
       } else if (typeof input.offset === 'number') {
@@ -765,7 +767,7 @@ function formatSigmaTaskUpdate(
  *   name: 'Read',
  *   input: { file_path: '/src/config.ts' }
  * });
- * // Returns: "🔧 Read: file: /src/config.ts"
+ * // Returns: "> **Read**:  file: /src/config.ts" (with ANSI bold)
  */
 export function formatToolUseMessage(tool: ToolUse, cwd?: string): string {
   const formatted = formatToolUse(tool, cwd);
@@ -892,7 +894,7 @@ export function formatToolResult(
           // Line numbers in custom color, content in muted gray
           formattedLine = `${lineNumColor}${lineNum}${ANSI_RESET} ${gray}${content}${ANSI_RESET}`;
         } else {
-          formattedLine = `${gray}${line}${ANSI_RESET}`;
+          formattedLine = line ? `${gray}${line}${ANSI_RESET}` : '';
         }
       } else if (isGrep) {
         // Handle "line:content" (single file/context) - align line numbers
@@ -911,14 +913,24 @@ export function formatToolResult(
           // Path in cyan, line number in gray, pipe separator
           formattedLine = `${cyan}${displayPath}:${lineNumColor}${lineNum}│${ANSI_RESET} ${gray}${content}${ANSI_RESET}`;
         } else {
-          formattedLine = `${gray}${line}${ANSI_RESET}`;
+          formattedLine = line ? `${gray}${line}${ANSI_RESET}` : '';
         }
       } else if (isGlob) {
         // Glob output is paths - use cyan to match file prefixes in other tools
         formattedLine = `${cyan}${relativizePath(line, effectiveCwd)}${ANSI_RESET}`;
       } else {
         // Mute other output (bash, fetch, search) but keep it readable
-        formattedLine = `${gray}${line}${ANSI_RESET}`;
+        const exitCodeMatch = line
+          .trim()
+          // eslint-disable-next-line no-control-regex
+          .match(/^Exit code: (?:\x1b\[\d+m)?(-?\d+)(?:\x1b\[0m)?$/);
+        if (exitCodeMatch) {
+          const code = exitCodeMatch[1];
+          const codeColor = code === '0' ? '\x1b[32m' : '\x1b[31m';
+          formattedLine = `${gray}Exit code: ${codeColor}${code}${ANSI_RESET}`;
+        } else {
+          formattedLine = line ? `${gray}${line}${ANSI_RESET}` : '';
+        }
       }
 
       return formattedLine;

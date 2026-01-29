@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import stripAnsi from 'strip-ansi';
 import {
   formatToolUse,
   formatToolUseMessage,
@@ -24,7 +25,7 @@ describe('ToolFormatter', () => {
 
       const result = formatToolUse(tool);
 
-      expect(result.icon).toBe('🧠');
+      expect(stripAnsi(result.icon)).toBe('🧠');
       expect(result.name).toBe('Recall');
       expect(result.description).toBe('"previous discussion about testing"');
     });
@@ -37,7 +38,7 @@ describe('ToolFormatter', () => {
 
       const result = formatToolUse(tool);
 
-      expect(result.icon).toBe('🔧');
+      expect(stripAnsi(result.icon)).toBe('>');
       expect(result.name).toBe('Read');
       expect(result.description).toBe('Read src/index.ts');
     });
@@ -50,7 +51,7 @@ describe('ToolFormatter', () => {
 
       const result = formatToolUse(tool);
 
-      expect(result.description).toBe('file: src/test.ts');
+      expect(result.description).toBe('src/test.ts');
     });
 
     it('formats Edit tool with diff', () => {
@@ -82,7 +83,7 @@ describe('ToolFormatter', () => {
 
       const result = formatToolUse(tool);
 
-      expect(result.description).toBe('\nnpm test\n');
+      expect(result.description).toBe('npm test');
     });
 
     it('formats Grep tool with pattern', () => {
@@ -190,7 +191,7 @@ describe('ToolFormatter', () => {
 
       const result = formatToolUse(tool);
 
-      expect(result.icon).toBe('🔍');
+      expect(stripAnsi(result.icon)).toBe('🔍');
       expect(result.name).toBe('MCP Search');
       expect(result.description).toBe(
         'selecting mcp__sigma-task-update__SigmaTaskUpdate'
@@ -205,7 +206,7 @@ describe('ToolFormatter', () => {
 
       const result = formatToolUse(tool);
 
-      expect(result.icon).toBe('🔍');
+      expect(stripAnsi(result.icon)).toBe('🔍');
       expect(result.name).toBe('MCP Search');
       expect(result.description).toBe('"slack message"');
     });
@@ -220,7 +221,7 @@ describe('ToolFormatter', () => {
 
       const message = formatToolUseMessage(tool);
 
-      expect(message).toBe('🔧 Read: Read src/index.ts');
+      expect(stripAnsi(message)).toBe('> Read: Read src/index.ts');
     });
 
     it('formats recall tool message', () => {
@@ -231,7 +232,7 @@ describe('ToolFormatter', () => {
 
       const message = formatToolUseMessage(tool);
 
-      expect(message).toBe('🧠 Recall: "test"');
+      expect(stripAnsi(message)).toBe('🧠 Recall: "test"');
     });
   });
 
@@ -267,7 +268,7 @@ describe('ToolFormatter', () => {
       const result = formatToolUse(tool);
 
       // Empty old_string is falsy, so it falls back to file path display
-      expect(result.description).toBe('file: test.ts');
+      expect(result.description).toBe('test.ts');
     });
   });
 
@@ -301,7 +302,7 @@ describe('ToolFormatter', () => {
 
       const result = formatToolUse(tool);
 
-      expect(result.icon).toBe('📋');
+      expect(stripAnsi(result.icon)).toBe('📋');
       expect(result.description).toContain('Single task');
       expect(result.description).toContain('○');
     });

@@ -7,10 +7,15 @@
 
 /**
  * Regex to match terminal cursor control sequences
- * Matches: \x1b[?25h (show cursor), \x1b[?25l (hide cursor), and variations
+ * Matches:
+ * - \x1b[?25h (show cursor), \x1b[?25l (hide cursor)
+ * - \x1b[K (erase line), \x1b[2K (erase line)
+ * - \x1b[A, \x1b[B, etc (cursor movement)
+ * - \x1b[H (home), \x1b[f (force cursor)
+ * But preserves SGR (colors/bold) which end in 'm'
  */
 // eslint-disable-next-line no-control-regex
-export const CURSOR_CONTROL_RE = /\x1b\[\?\d*[hl]/g;
+export const CURSOR_CONTROL_RE = /\x1b\[(?:\?[\d;]*[hl]|[\d;]*[A-LN-Za-ln-z])/g;
 
 /**
  * Strip terminal cursor control sequences from a string

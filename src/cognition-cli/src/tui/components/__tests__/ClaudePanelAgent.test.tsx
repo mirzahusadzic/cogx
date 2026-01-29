@@ -124,7 +124,7 @@ describe('ClaudePanelAgent', () => {
 
     it('displays tool_progress messages with various icons', () => {
       const messages: TUIMessage[] = [
-        createMessage('tool_progress', '🔧 Bash: npm install'),
+        createMessage('tool_progress', '> Bash: npm install'),
         createMessage('tool_progress', '📋 Tasks: Update tests'),
       ];
       const { lastFrame } = render(
@@ -135,7 +135,7 @@ describe('ClaudePanelAgent', () => {
         />
       );
       const output = stripAnsi(lastFrame() ?? '');
-      expect(output).toContain('🔧');
+      expect(output).toContain('>');
       expect(output).toContain('Bash');
       expect(output).toContain('📋');
       expect(output).toContain('Tasks');
@@ -174,7 +174,7 @@ describe('ClaudePanelAgent', () => {
       const toolOutput =
         '    \x1b[36m   914│\x1b[0m \x1b[90mline content\x1b[0m';
       const messages: TUIMessage[] = [
-        createMessage('tool_progress', '🔧 Read: file.ts\n' + toolOutput),
+        createMessage('tool_progress', '> Read: file.ts\n' + toolOutput),
       ];
       const { lastFrame } = render(
         <ClaudePanelAgent
@@ -185,7 +185,7 @@ describe('ClaudePanelAgent', () => {
       );
       const output = stripAnsi(lastFrame() ?? '');
       // The output should contain the tool name and the cleaned content.
-      expect(output).toContain('🔧 Read:');
+      expect(output).toContain('> Read:');
       expect(output).toContain('file.ts');
       expect(output).toContain('914│ line content');
     });
@@ -196,7 +196,7 @@ describe('ClaudePanelAgent', () => {
       const toolOutput =
         '    \x1b[36m    99│\x1b[0m \x1b[32m+\x1b[0m \x1b[42m\x1b[37mconst lines = markdownToLines(`\\n` + longCode);\x1b[0m';
       const messages: TUIMessage[] = [
-        createMessage('tool_progress', '🔧 Edit: file.ts\n' + toolOutput),
+        createMessage('tool_progress', '> Edit: file.ts\n' + toolOutput),
       ];
       const { lastFrame } = render(
         <ClaudePanelAgent
@@ -206,7 +206,7 @@ describe('ClaudePanelAgent', () => {
         />
       );
       const output = stripAnsi(lastFrame() ?? '');
-      expect(output).toContain('🔧 Edit:');
+      expect(output).toContain('> Edit:');
       expect(output).toContain('file.ts');
       expect(output).toContain(
         '99│ + const lines = markdownToLines(`\\n` + longCode);'

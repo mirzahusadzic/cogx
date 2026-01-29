@@ -298,7 +298,7 @@ function getSessionContext(
  *
  * ALGORITHM:
  * 1. Count quest indicators:
- *    - Tool usage markers (🔧, tool_use, Edit:, Write:, Bash:)
+ *    - Tool usage markers (>, tool_use, Edit:, Write:, Bash:)
  *    - Code blocks (```, typescript, python, javascript)
  *    - File references (.ts, .tsx, .js, .jsx, .py, .md, .json)
  * 2. Calculate average overlay scores:
@@ -345,7 +345,7 @@ function getSessionContext(
  * const mode = classifyConversationMode(lattice);
  * const nodes = lattice.nodes;
  *
- * const toolUses = nodes.filter(n => n.content.includes('🔧')).length;
+ * const toolUses = nodes.filter(n => n.content.includes('>')).length;
  * const avgO1 = nodes.reduce((s, n) => s + n.overlay_scores.O1_structural, 0) / nodes.length;
  *
  * console.log(`Mode: ${mode}`);
@@ -362,7 +362,7 @@ export function classifyConversationMode(
   // Count indicators
   const toolUseTurns = nodes.filter(
     (n) =>
-      n.content.includes('🔧') || // Tool progress markers
+      n.content.includes('>') || // Tool progress markers
       n.content.includes('tool_use') ||
       n.content.includes('Edit:') ||
       n.content.includes('Write:') ||
@@ -772,7 +772,7 @@ Use these to retrieve specific context from the lattice:
  * 2. Examine the very last turn
  * 3. If last turn is from assistant, check for pending task indicators:
  *    - Has SigmaTaskUpdate (explicit task list)
- *    - Has tool usage markers (🔧, "Let me")
+ *    - Has tool usage markers (>, "Let me")
  *    - Has action words ("I'll", "I will", "Let me", "Going to", "Next I'll")
  * 4. If indicators found, extract first 200 chars as pending task description
  * 5. Return turns array + pending task (or null)
@@ -835,7 +835,7 @@ function getLastConversationTurns(
     if (!isCompletionSummary) {
       const hasTodoList =
         content.includes('SigmaTaskUpdate') || /\d+\.\s/.test(content);
-      const hasToolUse = content.includes('🔧') || content.includes('Let me');
+      const hasToolUse = content.includes('>') || content.includes('Let me');
       const hasActionWords =
         /I'll|I will|Next I'll|Next, I will|Going to/i.test(content);
 
@@ -1323,7 +1323,7 @@ export async function reconstructSessionContext(
   const nodes = lattice.nodes;
   const paradigmShifts = nodes.filter((n) => n.is_paradigm_shift).length;
   const toolUses = nodes.filter(
-    (n) => n.content.includes('🔧') || n.content.includes('tool_use')
+    (n) => n.content.includes('>') || n.content.includes('tool_use')
   ).length;
   const codeBlocks = nodes.filter((n) => n.content.includes('```')).length;
 

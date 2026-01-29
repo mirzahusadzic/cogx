@@ -146,6 +146,7 @@ export class MarkdownRenderer {
     if (this.currentLine.chunks.length > 0) {
       this.flushLine();
     }
+
     if (
       this.lines.length > 0 &&
       this.lines[this.lines.length - 1].chunks.length > 0
@@ -217,9 +218,82 @@ export class MarkdownRenderer {
       let currentChunkText = '';
 
       for (const word of words) {
+        const wordWidth = stringWidth(word);
+
+        // If the word itself is wider than the entire available width, we must break it
+        if (wordWidth > effectiveWidth) {
+          // Break the long word into smaller pieces
+          let remainingWord = word;
+          while (remainingWord.length > 0) {
+            const lineLen = this.getLineLength(this.currentLine);
+            const currentChunkWidth = stringWidth(currentChunkText);
+            const availableInLine =
+              effectiveWidth - lineLen - currentChunkWidth;
+
+            if (
+              availableInLine <= 2 &&
+              (lineLen > 0 || currentChunkWidth > 0)
+            ) {
+              // Too little space, flush first
+              if (currentChunkText) {
+                this.currentLine.chunks.push({
+                  ...chunk,
+                  text: currentChunkText,
+                });
+                currentChunkText = '';
+              }
+              this.flushLine();
+              if (safeIndent > 0) {
+                this.currentLine.chunks.push({
+                  text: ' '.repeat(safeIndent),
+                  color: state.color,
+                  bg: state.bg,
+                  dim: state.dim,
+                });
+              }
+              continue;
+            }
+
+            // Find how many characters of the word fit in the current line
+            // This is a simple approximation; it might be off for multi-byte chars but safe for paths
+            let fitLen = 0;
+            for (let i = 1; i <= remainingWord.length; i++) {
+              const sub = remainingWord.slice(0, i);
+              const subWidth = stringWidth(sub);
+              if (subWidth > Math.max(2, availableInLine)) break;
+              fitLen = i;
+            }
+
+            if (fitLen === 0) {
+              // Emergency: even one char doesn't fit? Should not happen with Math.max(2, ...)
+              fitLen = 1;
+            }
+
+            currentChunkText += remainingWord.slice(0, fitLen);
+            remainingWord = remainingWord.slice(fitLen);
+
+            if (remainingWord.length > 0) {
+              this.currentLine.chunks.push({
+                ...chunk,
+                text: currentChunkText,
+              });
+              currentChunkText = '';
+              this.flushLine();
+              if (safeIndent > 0) {
+                this.currentLine.chunks.push({
+                  text: ' '.repeat(safeIndent),
+                  color: state.color,
+                  bg: state.bg,
+                  dim: state.dim,
+                });
+              }
+            }
+          }
+          continue;
+        }
+
         const lineLen = this.getLineLength(this.currentLine);
         const currentChunkWidth = stringWidth(currentChunkText);
-        const wordWidth = stringWidth(word);
 
         if (lineLen + currentChunkWidth + wordWidth > effectiveWidth) {
           // Flush current accumulated text in this chunk
@@ -398,8 +472,8 @@ export class MarkdownRenderer {
               const hasStrongIndicator = samples.some((l) => {
                 const clean = stripAnsi(l).trimStart();
                 return (
-                  clean.startsWith('--- ') ||
-                  clean.startsWith('+++ ') ||
+                  (clean.startsWith('--- ') && !clean.endsWith(' ---')) ||
+                  (clean.startsWith('+++ ') && !clean.endsWith(' +++')) ||
                   clean.startsWith('diff --git') ||
                   clean.startsWith('@@ -')
                 );
@@ -451,12 +525,22 @@ export class MarkdownRenderer {
               // Check for simple +/- markers at the start of lines even without headers
               // We are more strict here: lines must start with +/- (not indented)
               // to avoid false positives with commit messages or lists.
-              const plusCount = samples.filter((l) =>
-                stripAnsi(l).startsWith('+')
-              ).length;
-              const minusCount = samples.filter((l) =>
-                stripAnsi(l).startsWith('-')
-              ).length;
+              const plusCount = samples.filter((l) => {
+                const clean = stripAnsi(l).trim();
+                return (
+                  clean.startsWith('+') &&
+                  !/^\+{3,}.*\+{3,}$/.test(clean) &&
+                  !/^\+{3,}$/.test(clean)
+                );
+              }).length;
+              const minusCount = samples.filter((l) => {
+                const clean = stripAnsi(l).trim();
+                return (
+                  clean.startsWith('-') &&
+                  !/^-{3,}.*-{3,}$/.test(clean) &&
+                  !/^-{3,}$/.test(clean)
+                );
+              }).length;
 
               // If we have both, it's very likely a diff
               if (
@@ -523,14 +607,19 @@ export class MarkdownRenderer {
             const isAtBaseline = lineIndent === baselineIndent;
 
             if (isAtBaseline) {
+              const isSeparator =
+                /^[+-=⎯_]{3,}.*[+-=⎯_]{3,}$/.test(trimmedLine) ||
+                /^[+-=⎯_]{3,}$/.test(trimmedLine);
               isAdd =
-                trimmedLine.startsWith('+') ||
-                /^\+\s*\d+\s*[│|]/.test(trimmedLine) ||
-                /^\s*\d+\s*[│|]\s*\+([ \t]|$|[^0-9])/.test(trimmedLine);
+                !isSeparator &&
+                (trimmedLine.startsWith('+') ||
+                  /^\+\s*\d+\s*[│|]/.test(trimmedLine) ||
+                  /^\s*\d+\s*[│|]\s*\+([ \t]|$|[^0-9])/.test(trimmedLine));
               isRemove =
-                trimmedLine.startsWith('-') ||
-                /^-\s*\d+\s*[│|]/.test(trimmedLine) ||
-                /^\s*\d+\s*[│|]\s*-([ \t]|$|[^0-9])/.test(trimmedLine);
+                !isSeparator &&
+                (trimmedLine.startsWith('-') ||
+                  /^-\s*\d+\s*[│|]/.test(trimmedLine) ||
+                  /^\s*\d+\s*[│|]\s*-([ \t]|$|[^0-9])/.test(trimmedLine));
               isHeader =
                 trimmedLine.startsWith('@') ||
                 /^\s*\d+\s*[│|]\s*@/.test(trimmedLine);

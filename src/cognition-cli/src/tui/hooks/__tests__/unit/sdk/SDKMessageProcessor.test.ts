@@ -88,7 +88,7 @@ describe('SDKMessageProcessor', () => {
       expect(result).toHaveLength(1);
       expect(result[0].type).toBe('tool_progress');
       expect(result[0].content).toContain('Read');
-      expect(result[0].content).toContain('file: /test/file.ts');
+      expect(result[0].content).toContain('/test/file.ts');
     });
 
     it('processes multiple tool uses', () => {
@@ -279,7 +279,7 @@ describe('SDKMessageProcessor', () => {
       expect(result!.message.type).toBe('system');
       expect(result!.message.content).toContain('Complete');
       expect(result!.message.content).toContain('3 turns');
-      expect(result!.message.content).toContain('$0.0456');
+      expect(result!.message.content).toContain('0.0456');
       expect(result!.tokenUpdate).toEqual({
         input: 1000,
         output: 500,

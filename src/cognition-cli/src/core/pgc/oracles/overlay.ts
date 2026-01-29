@@ -273,7 +273,7 @@ export class OverlayOracle {
         );
         messages.push(
           chalk.yellow(
-            `   🔧 Fix: Run 'cognition-cli overlay generate structural_patterns --force'`
+            `   > Fix: Run 'cognition-cli overlay generate structural_patterns --force'`
           )
         );
         success = false;
