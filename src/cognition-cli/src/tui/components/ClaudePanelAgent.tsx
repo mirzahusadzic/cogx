@@ -165,6 +165,16 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
         .replace(/\r\n/g, '\n')
         .replace(/\r(?!\n)/g, '\n');
 
+      if (msg.type === 'user') {
+        // Preserve leading whitespace and newlines for user messages by "protecting" them from markdown parsing.
+        // We use \u200D (zero-width joiner) to prevent markdown from trimming leading spaces in paragraphs,
+        // and add two trailing spaces to each line to force markdown line breaks.
+        processedContent = processedContent
+          .split('\n')
+          .map((line) => (line.startsWith(' ') ? '\u200D' + line : line))
+          .join('  \n');
+      }
+
       const isStreaming =
         processedContent.includes('(streaming)') ||
         processedContent.includes('(tail of stream)');
