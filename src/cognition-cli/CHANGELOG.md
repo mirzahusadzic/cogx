@@ -5,6 +5,41 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.7] - 2026-01-29
+
+### Summary
+
+**TUI Visual Balance & Gemini 3 Reasoning Robustness.** This release focuses on refining the terminal experience with "Dim Cyan" theme balancing, improved diff rendering, and stabilized streaming. It also hardens the Gemini integration with thought signature support to resolve reasoning loops and implements robust retry and failover infrastructure for increased reliability.
+
+### 🚀 New Features
+
+#### TUI & User Experience
+
+- **Visual Theme Refinement:** Dimmed cyan tones in roles and text themes for better visual balance and reduced eye strain.
+- **Enhanced Diff Highlighting:** Improved diff auto-detection and rendering accuracy, including better highlighting and handling of negative values.
+- **InputBox Improvements:** Preserves leading whitespace in InputBox submissions for better formatting control.
+- **Tool UI Extensions:** Extended tool labels in ToolFormatter and escaped raw tool output to prevent accidental markdown parsing of backticks.
+
+#### LLM & Gemini Integration
+
+- **Gemini 3 Thought Signatures:** Implemented support for thought signatures to persist reasoning and resolve potential loops in Gemini 3 models.
+- **Robust Retry Infrastructure:** Introduced a provider refactor with robust retry logic, backoff strategies, and model failover infrastructure.
+- **Streaming Stabilization:** Unified streaming stabilization constants and improved terminal height safety for smoother output.
+
+### 🐛 Bug Fixes
+
+- **Diff Rendering:** Resolved false positives in diff auto-detection for git commands and handled negative values correctly.
+- **Output Normalization:** Resolved extra newlines and improved tool output normalization for cleaner display.
+- **Markdown Robustness:** Improved markdown rendering visual accuracy and robustness against malformed input.
+- **Token Management:** Prevented double compression by removing an incorrect token reset and fixed tool-executor test issues.
+- **Gemini Reliability:** Fixed retry counter reset and backoff logic on successful stream events.
+
+### ⚡ Performance & Infrastructure
+
+- **TUI Optimization:** Disabled cursor blinking and optimized component memoization to reduce CPU usage.
+- **Safety Hardening:** Strengthened tool executor safety and improved test reliability.
+- **Layout Logic:** Reverted to aggressive multi-render layout update logic to resolve rendering artifacts and accessibility issues.
+
 ## [2.6.6] - 2026-01-21
 
 ### Summary

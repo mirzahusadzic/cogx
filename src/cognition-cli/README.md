@@ -370,6 +370,13 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 
 ## 🎉 Latest Release
 
+**v2.6.7 - January 29, 2026** — [TUI Visual Balance & Gemini 3 Reasoning Robustness](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.7):
+
+- **Visual Theme Refinement:** Dimmed cyan tones in roles and text themes for better visual balance.
+- **Gemini 3 Thought Signatures:** Persist reasoning and resolve potential loops in Gemini 3.
+- **Robust Retry Infrastructure:** Provider refactor with robust retry logic and failover infrastructure.
+- **Enhanced Diff Rendering:** Improved diff auto-detection, highlighting, and negative value handling.
+
 **v2.6.6 - January 21, 2026** — [TUI Theme Overhaul & Vertex AI Robustness](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.6):
 
 - 🎨 **TUI Theme Overhaul** — Introduced the "Monolith Cyan" theme with AST-based markdown rendering for a more vibrant and stable experience.
@@ -466,7 +473,7 @@ If you use this work in research, please cite:
   author = {Husadžić, Mirza},
   title = {Cognition Σ CLI: Seven-Overlay Knowledge Graph with Infinite Context},
   year = {2026},
-  version = {2.6.6},
+  version = {2.6.7},
   doi = {10.5281/zenodo.18012832},
   url = {https://github.com/mirzahusadzic/cogx/tree/main/src/cognition-cli}
 }

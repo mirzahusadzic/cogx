@@ -61,16 +61,16 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 ## 🎯 Latest Release
 
-**January 21, 2026** — [v2.6.6: TUI Theme Overhaul & Vertex AI Robustness](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.6):
+**January 29, 2026** — [v2.6.7: TUI Visual Balance & Gemini 3 Reasoning Robustness](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.7):
 
-- 🎨 **TUI Theme Overhaul** — Introduced the "Monolith Cyan" theme with AST-based markdown rendering for a more vibrant and stable experience.
-- ☁️ **Vertex AI Support** — Enabled Vertex AI support without requiring a `GEMINI_API_KEY`, streamlining enterprise and cloud deployments.
-- 🔇 **Noise Suppression** — Implemented aggressive global stdout suppression to eliminate SDK/gRPC logging noise and TUI flicker.
-- 🐛 **Key Bug Fixes** — Resolved hangs on narrow terminals, stabilized streaming tool output, and improved token tracking accuracy.
+- 🎨 **TUI Visual Balance** — Refined theme with dimmed cyan tones for better visual balance and reduced eye strain.
+- 🧠 **Gemini 3 Thought Signatures** — Implemented thought signatures to persist reasoning and resolve potential loops in Gemini 3 models.
+- 🛡️ **Robust Retry Infrastructure** — Introduced robust retry logic, backoff strategies, and model failover infrastructure for increased reliability.
+- 📊 **Enhanced Diff Rendering** — Improved diff auto-detection, highlighting, and handling of negative values for more accurate visual feedback.
 
-**Impact:** Dramatically improves visual stability and integration robustness, especially for Vertex AI users, while providing a more modern and readable TUI theme.
+**Impact:** Focuses on terminal experience refinement and LLM reasoning robustness, ensuring stable multi-turn interactions and professional visual aesthetics.
 
-**Previous Releases**: [v2.6.5 - TUI Responsiveness & LLM Context Improvements](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.5) | [v2.6.4 - PGC Grounding & Multi-Provider Token Optimization](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.4) | [v2.6.3 - Cross-Project Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.3) | [v2.6.2 - Manager/Worker Delegation](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2) | [v2.6.0 - Multi-Agent Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1 - Gemini Integration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0 - Multi-Provider LLM](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2 - Documentation & Stability](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1 - Cross-Overlay Workflows](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0 - Production Excellence](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ (Sigma) Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
+**Previous Releases**: [v2.6.6 - TUI Theme Overhaul & Vertex AI Robustness](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.6) | [v2.6.5 - TUI Responsiveness & LLM Context Improvements](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.5) | [v2.6.4 - PGC Grounding & Multi-Provider Token Optimization](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.4) | [v2.6.3 - Cross-Project Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.3) | [v2.6.2 - Manager/Worker Delegation](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2) | [v2.6.0 - Multi-Agent Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1 - Gemini Integration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0 - Multi-Provider LLM](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2 - Documentation & Stability](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1 - Cross-Overlay Workflows](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0 - Production Excellence](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ (Sigma) Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
 
 📜 **[See full release history](src/cognition-cli/CHANGELOG.md)**
 
@@ -144,7 +144,7 @@ The production-ready implementation of verifiable AI-human symbiosis. Combines t
 
 **Breakthrough Achievement (Oct 24, 2025):** First grounded architecture analysis performed **on itself**, proving structured PGC metadata is sufficient for deep architectural understanding without reading source code.
 
-**Latest Release:** [v2.6.5: TUI Responsiveness & LLM Context Improvements](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.5)
+**Latest Release:** [v2.6.7: TUI Visual Balance & Gemini 3 Reasoning Robustness](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.7)
 
 ### eGemma – [The Deterministic Workbench](https://github.com/mirzahusadzic/egemma)
 
@@ -242,7 +242,7 @@ This repository constitutes a **formal defensive publication** establishing prio
 </details>
 
 <details>
-<summary><strong>Post-Publication Additions (Innovations #25-49)</strong> — Published: October 27, 2025 - January 16, 2026</summary>
+<summary><strong>Post-Publication Additions (Innovations #25-49)</strong> — Published: October 27, 2025 - January 18, 2026</summary>
 
 25. **Context Sampling Function (Σ)** — Efficient lattice traversal for relevant knowledge extraction
 26. **Monument 4.7: The Shadow** — Dual embedding system for structural and semantic signatures
@@ -304,6 +304,7 @@ This repository constitutes a **formal defensive publication** establishing prio
   - November 19, 2025 (v2.4.1: Cross-Overlay Workflows) — [Zenodo: 10.5281/zenodo.17635623](https://doi.org/10.5281/zenodo.17635623)
   - November 20, 2025 (v2.4.2: Documentation & Stability)
   - December 3, 2025 (Innovation #47: Multi-Agent Collaborative System) — v2.6.0
+  - January 18, 2026 (Innovations #48-49: Task Protocol v2.0, Tri-Modal Compression) — v2.6.5
 - **Public Repository**: https://github.com/mirzahusadzic/cogx
 - **Permanent Archive**: Zenodo DOI [10.5281/zenodo.18012832](https://doi.org/10.5281/zenodo.18012832) (latest)
 - **License**: AGPLv3 (entire repository — code, documentation, blueprints)
@@ -363,7 +364,7 @@ If you use this work in research, please cite:
   author = {Husadžić, Mirza},
   title = {CogX: A Blueprint for Verifiable, Agentic AI},
   year = {2026},
-  version = {2.6.5},
+  version = {2.6.7},
   doi = {10.5281/zenodo.18012832},
   url = {https://github.com/mirzahusadzic/cogx}
 }
