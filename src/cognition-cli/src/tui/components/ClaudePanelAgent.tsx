@@ -18,6 +18,10 @@ import {
 } from '../utils/markdown-renderer.js';
 import type { TUIMessage } from '../hooks/useAgent.js';
 import { TUITheme } from '../theme.js';
+import {
+  MAX_STREAM_STABILIZATION_LINES,
+  TUI_LAYOUT_OVERHEAD,
+} from '../hooks/useAgent/constants.js';
 
 /**
  * Ensures each line has a stable key for efficient TUI rendering.
@@ -352,9 +356,14 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
             // Layer 12: Floating Window Stabilization.
             // If we are streaming tool output (e.g. bash), we want to prevent the header
             // from jumping up and down as lines wrap or as the tail-truncation kicks in.
-            // We do this by ensuring the output block has a stable height (e.g. 15 lines)
+            // We do this by ensuring the output block has a stable height (e.g. 25 lines)
             // during the streaming process.
-            const STABILIZED_HEIGHT = 10; // Matches useAgentHandlers MAX_STREAM_LINES
+            // Ensure the stabilized height doesn't exceed the available vertical space
+            // to prevent pushing out the OverlaysBar or other UI elements.
+            const STABILIZED_HEIGHT = Math.min(
+              MAX_STREAM_STABILIZATION_LINES,
+              availableHeight - 2 // Leave a small safety buffer for tool header
+            );
 
             // For streaming output or file-related output, force a leading newline.
             // This ensures the "ToolName:" header is always on its own line,
@@ -379,22 +388,6 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
               effectiveDetails.length > 0
             ) {
               effectiveDetails = '\n' + effectiveDetails;
-            }
-
-            // Layer 12: Stabilization - Truncate to visual window (Pre-Render)
-            // We must do this BEFORE markdown rendering to ensure that:
-            // 1. The height is strictly bounded (fixing overlay push-out)
-            // 2. The code block fence wraps the truncated content, not the full content
-            if (isStreaming) {
-              const lines = effectiveDetails.split(/\r?\n/);
-              if (lines.length > STABILIZED_HEIGHT) {
-                // Keep the last STABILIZED_HEIGHT lines of content
-                const lastLines = lines.slice(-STABILIZED_HEIGHT);
-                // Preserve leading newline if it was there
-                effectiveDetails =
-                  (effectiveDetails.startsWith('\n') ? '\n' : '') +
-                  lastLines.join('\n');
-              }
             }
 
             // If we have multiple leading newlines, collapse them to one
@@ -723,7 +716,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       const dimensions = measureElement(containerRef.current);
       // Dimensions minus borders (2) and footer (1)
       // Cap at terminal rows to prevent content from pushing out the OverlaysBar
-      const maxPossible = (stdout?.rows || 24) - 8; // Leave room for header/footer/thinking/input
+      const maxPossible = (stdout?.rows || 24) - TUI_LAYOUT_OVERHEAD;
       const newHeight = Math.max(
         1,
         Math.min(maxPossible, dimensions.height - 3)

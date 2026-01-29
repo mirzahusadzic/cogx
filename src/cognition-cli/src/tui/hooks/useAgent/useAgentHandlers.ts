@@ -28,6 +28,7 @@ import {
   AUTO_RESPONSE_TRIGGER,
   COMPRESSION_RECOVERY_PROMPT,
   isProviderContextSensitive,
+  MAX_STREAM_STABILIZATION_LINES,
 } from './constants.js';
 
 interface UseAgentHandlersOptions {
@@ -661,7 +662,7 @@ This will trigger a semantic compression event, flushing implementation noise wh
                   // Split header from output
                   const outputPart = content.slice(header.length);
                   const lines = outputPart.split(/\r?\n/);
-                  const MAX_STREAM_LINES = 10; // Matches ClaudePanelAgent STABILIZED_HEIGHT
+                  const MAX_STREAM_LINES = MAX_STREAM_STABILIZATION_LINES; // Use shared stabilization constant
 
                   if (lines.length > MAX_STREAM_LINES) {
                     // Keep the header and the last N lines

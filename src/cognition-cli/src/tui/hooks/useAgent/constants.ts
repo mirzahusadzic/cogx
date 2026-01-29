@@ -14,6 +14,18 @@ The conversation history has been compressed to save tokens.
 export const CONTEXT_SENSITIVE_PROVIDERS = ['gemini', 'openai'];
 
 /**
+ * The maximum number of lines to show in the streaming tool output block.
+ * This is used to maintain visual stability in the TUI while content is streaming.
+ */
+export const MAX_STREAM_STABILIZATION_LINES = 20;
+
+/**
+ * Total height reserved for fixed UI elements (header, footer, thinking indicator, input prompt, etc.)
+ * This is used to calculate the available space for the main scrollable message area.
+ */
+export const TUI_LAYOUT_OVERHEAD = 8;
+
+/**
  * Check if a provider/model combination is context-sensitive.
  */
 export function isProviderContextSensitive(
