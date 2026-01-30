@@ -509,10 +509,20 @@ export async function executeFetchUrl(url: string): Promise<string> {
       // Remove script/style tags
       text = text.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gim, '');
       text = text.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gim, '');
-      // Remove HTML tags
+      // Replace block tags with newlines to preserve structure
+      text = text.replace(
+        /<(p|br|div|li|h[1-6]|blockquote|tr|table|section|article|nav|aside|header|footer)[^>]*>/gim,
+        '\n'
+      );
+      // Remove all other HTML tags
       text = text.replace(/<[^>]+>/g, ' ');
-      // Collapse whitespace
-      text = text.replace(/\s+/g, ' ').trim();
+      // Collapse horizontal whitespace
+      text = text.replace(/[ \t]+/g, ' ');
+      // Remove leading/trailing whitespace from each line and collapse all multiple newlines to single
+      text = text
+        .replace(/^[ \t]+|[ \t]+$/gm, '')
+        .replace(/\n+/g, '\n')
+        .trim();
     }
 
     // Truncate if too large (200K chars for context)

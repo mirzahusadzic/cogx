@@ -882,25 +882,32 @@ export function formatToolResult(
     const cyan = hexToAnsi(TUITheme.syntax.code.block); // Keep cyan for glob/paths
     const gray = hexToAnsi(TUITheme.text.secondary);
 
-    // Indent and format content for better visual separation
     const resultLines = truncatedLines.map((line) => {
-      let formattedLine = line;
+      const MAX_LINE_LENGTH = 1000;
+      let displayLine = line;
+      if (line.length > MAX_LINE_LENGTH) {
+        displayLine = line.substring(0, MAX_LINE_LENGTH) + '...';
+      }
+
+      let formattedLine = displayLine;
 
       if (isRead) {
         // executeReadFile adds line numbers like "      1│line content"
-        const match = line.match(/^(\s*\d+│)(.*)$/);
+        const match = displayLine.match(/^(\s*\d+│)(.*)$/);
         if (match) {
           const [, lineNum, content] = match;
           // Line numbers in custom color, content in muted gray
           formattedLine = `${lineNumColor}${lineNum}${ANSI_RESET} ${gray}${content}${ANSI_RESET}`;
         } else {
-          formattedLine = line ? `${gray}${line}${ANSI_RESET}` : '';
+          formattedLine = displayLine
+            ? `${gray}${displayLine}${ANSI_RESET}`
+            : '';
         }
       } else if (isGrep) {
         // Handle "line:content" (single file/context) - align line numbers
-        const lineMatch = line.match(/^(\d+):(.*)$/);
+        const lineMatch = displayLine.match(/^(\d+):(.*)$/);
         // Handle "path:line:content" (multi file) - distinct colors
-        const pathMatch = line.match(/^(.+?):(\d+):(.*)$/);
+        const pathMatch = displayLine.match(/^(.+?):(\d+):(.*)$/);
 
         if (lineMatch) {
           const [, lineNum, content] = lineMatch;
@@ -913,14 +920,29 @@ export function formatToolResult(
           // Path in cyan, line number in gray, pipe separator
           formattedLine = `${cyan}${displayPath}:${lineNumColor}${lineNum}│${ANSI_RESET} ${gray}${content}${ANSI_RESET}`;
         } else {
-          formattedLine = line ? `${gray}${line}${ANSI_RESET}` : '';
+          formattedLine = displayLine
+            ? `${gray}${displayLine}${ANSI_RESET}`
+            : '';
         }
       } else if (isGlob) {
         // Glob output is paths - use cyan to match file prefixes in other tools
-        formattedLine = `${cyan}${relativizePath(line, effectiveCwd)}${ANSI_RESET}`;
+        formattedLine = `${cyan}${relativizePath(displayLine, effectiveCwd)}${ANSI_RESET}`;
+      } else if (normalizedName === 'websearch') {
+        // Special formatting for search results: highlight titles and URLs
+        if (displayLine.match(/^\d+\. \*\*.+\*\*$/)) {
+          // Result title: highlight in cyan and bold
+          formattedLine = `\x1b[1m${cyan}${displayLine}${ANSI_RESET}`;
+        } else if (displayLine.match(/^\s+https?:\/\/.+$/)) {
+          // URL: highlight in gray (already grayed by default later, but keep structure)
+          formattedLine = `${gray}${displayLine}${ANSI_RESET}`;
+        } else {
+          formattedLine = displayLine
+            ? `${gray}${displayLine}${ANSI_RESET}`
+            : '';
+        }
       } else {
-        // Mute other output (bash, fetch, search) but keep it readable
-        const exitCodeMatch = line
+        // Mute other output (bash, fetch) but keep it readable
+        const exitCodeMatch = displayLine
           .trim()
           // eslint-disable-next-line no-control-regex
           .match(/^Exit code: (?:\x1b\[\d+m)?(-?\d+)(?:\x1b\[0m)?$/);
@@ -929,7 +951,9 @@ export function formatToolResult(
           const codeColor = code === '0' ? '\x1b[32m' : '\x1b[31m';
           formattedLine = `${gray}Exit code: ${codeColor}${code}${ANSI_RESET}`;
         } else {
-          formattedLine = line ? `${gray}${line}${ANSI_RESET}` : '';
+          formattedLine = displayLine
+            ? `${gray}${displayLine}${ANSI_RESET}`
+            : '';
         }
       }
 
