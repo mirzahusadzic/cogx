@@ -7,6 +7,7 @@ import { logEmitter, LogEvent, systemLog } from '../utils/debug-logger.js';
 
 // Toggle mouse tracking - disable to restore native terminal text selection
 const ENABLE_MOUSE_TRACKING = false;
+import stripAnsi from 'strip-ansi';
 import { CognitionTUILayout } from './components/CognitionTUILayout.js';
 import { useAgent } from './hooks/useAgent.js';
 import { useOverlays } from './hooks/useOverlays.js';
@@ -393,7 +394,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           const timestamp = msg.timestamp.toISOString();
           const type = msg.type.toUpperCase().padEnd(9);
           const separator = '='.repeat(80);
-          return `${separator}\n[${timestamp}] ${type}\n${separator}\n${msg.content}\n`;
+          return `${separator}\n[${timestamp}] ${type}\n${separator}\n${stripAnsi(msg.content)}\n`;
         })
         .join('\n');
 
