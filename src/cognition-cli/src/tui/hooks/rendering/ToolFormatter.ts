@@ -91,14 +91,20 @@
 import * as Diff from 'diff';
 import * as fs from 'fs';
 import * as path from 'path';
-import stripAnsi from 'strip-ansi';
 import {
   stripCursorSequences,
   hexToAnsi,
   hexToAnsiBg,
   ANSI_RESET,
 } from '../../utils/ansi-utils.js';
+import { cleanAnsi } from '../../../utils/string-utils.js';
 import { TUITheme } from '../../theme.js';
+
+/**
+ * Constants for tool output formatting and safety limits.
+ */
+const MAX_LINES = 30;
+const MAX_LINE_LENGTH = 1000;
 
 /**
  * Tool use input from SDK
@@ -850,10 +856,9 @@ export function formatToolResult(
     // Layer 9: Aggressively strip cursor control sequences and ANSI from tool result content
     // to prevent terminal-intensive tools (like npm test) from showing the cursor
     // and to ensure that internal resets don't "brighten" muted output.
-    content = stripAnsi(stripCursorSequences(content));
+    content = cleanAnsi(stripCursorSequences(content));
 
     const lines = content.split('\n');
-    const MAX_LINES = 30;
     // Remove empty trailing lines
     while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
       lines.pop();
@@ -883,7 +888,6 @@ export function formatToolResult(
     const gray = hexToAnsi(TUITheme.text.secondary);
 
     const resultLines = truncatedLines.map((line) => {
-      const MAX_LINE_LENGTH = 1000;
       let displayLine = line;
       if (line.length > MAX_LINE_LENGTH) {
         displayLine = line.substring(0, MAX_LINE_LENGTH) + '...';

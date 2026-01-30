@@ -10,7 +10,7 @@ import {
 } from '../sdk/index.js';
 import { McpServerBuilder } from '../../services/McpServerBuilder.js';
 import { formatPendingMessages } from '../../../ipc/agent-messaging-formatters.js';
-import stripAnsi from 'strip-ansi';
+import { cleanAnsi as stripAnsi } from '../../../utils/string-utils.js';
 import {
   formatToolUse,
   formatToolResult,

@@ -1,6 +1,6 @@
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
-import stripAnsi from 'strip-ansi';
+import { cleanAnsi as stripAnsi } from '../../utils/string-utils.js';
 import stringWidth from 'string-width';
 import type {
   Root,

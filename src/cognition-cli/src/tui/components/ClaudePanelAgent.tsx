@@ -8,7 +8,7 @@ import {
   DOMElement,
 } from 'ink';
 import { Spinner } from '@inkjs/ui';
-import stripAnsi from 'strip-ansi';
+import { cleanAnsi as stripAnsi } from '../../utils/string-utils.js';
 import { systemLog } from '../../utils/debug-logger.js';
 import { useTUI } from '../context/TUIContext.js';
 import { stripCursorSequences } from '../utils/ansi-utils.js';

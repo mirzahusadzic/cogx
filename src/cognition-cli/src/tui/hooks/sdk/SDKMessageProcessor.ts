@@ -59,7 +59,7 @@
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { SDKMessage, ContentBlock } from './types.js';
-import stripAnsi from 'strip-ansi';
+import { cleanAnsi as stripAnsi } from '../../../utils/string-utils.js';
 import { formatToolUseMessage } from '../rendering/ToolFormatter.js';
 
 /**

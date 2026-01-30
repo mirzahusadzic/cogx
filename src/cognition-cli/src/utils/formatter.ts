@@ -53,7 +53,7 @@
  */
 
 import chalk from 'chalk';
-import stripAnsi from 'strip-ansi';
+import { cleanAnsi as stripAnsi } from './string-utils.js';
 import { useColor, getBoxChars, isPlainMode } from './terminal-capabilities.js';
 
 // ========================================

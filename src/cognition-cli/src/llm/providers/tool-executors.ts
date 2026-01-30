@@ -7,7 +7,7 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import stripAnsi from 'strip-ansi';
+import { cleanAnsi as stripAnsi } from '../../utils/string-utils.js';
 import { SessionState } from '../../sigma/session-state.js';
 import { spawn, exec } from 'child_process';
 import { glob as globLib } from 'glob';
@@ -506,19 +506,49 @@ export async function executeFetchUrl(url: string): Promise<string> {
     }
     // Basic HTML stripping
     else if (contentType.includes('text/html')) {
+      if (typeof text !== 'string') {
+        return `Unexpected non-string content for HTML: ${typeof text}`;
+      }
+
       // Remove script/style tags
       text = text.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gim, '');
       text = text.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gim, '');
-      // Replace block tags with newlines to preserve structure
+
+      /**
+       * Preserve link URLs by converting <a> tags: <a href="url">text</a> -> text [url]
+       * This handles double quotes, single quotes, and unquoted URLs, as well as
+       * other attributes appearing before or after the href.
+       */
+      text = text.replace(
+        /<a\b[^>]*href\s*=\s*(?:"([^"]*)"|'([^']*)'|([^>\s]+))[^>]*>([\s\S]*?)<\/a>/gim,
+        (match, hrefDouble, hrefSingle, hrefUnquoted, content) => {
+          const href = hrefDouble || hrefSingle || hrefUnquoted || '';
+          const cleanContent = content.replace(/<[^>]+>/g, '').trim();
+          return cleanContent ? `${cleanContent} [${href}]` : `[${href}]`;
+        }
+      );
+
+      /**
+       * Preserve document structure by converting block-level HTML tags to newlines.
+       * This prevents "text walls" and maintains readability for the model.
+       */
       text = text.replace(
         /<(p|br|div|li|h[1-6]|blockquote|tr|table|section|article|nav|aside|header|footer)[^>]*>/gim,
         '\n'
       );
+
       // Remove all other HTML tags
       text = text.replace(/<[^>]+>/g, ' ');
-      // Collapse horizontal whitespace
+
+      // Collapse horizontal whitespace (tabs and spaces)
       text = text.replace(/[ \t]+/g, ' ');
-      // Remove leading/trailing whitespace from each line and collapse all multiple newlines to single
+
+      /**
+       * Final cleanup:
+       * 1. Remove leading/trailing space from each line
+       * 2. Collapse multiple newlines into a single one
+       * 3. Trim overall output
+       */
       text = text
         .replace(/^[ \t]+|[ \t]+$/gm, '')
         .replace(/\n+/g, '\n')

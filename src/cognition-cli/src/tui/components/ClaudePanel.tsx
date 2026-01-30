@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, Text } from 'ink';
 import { IPty } from 'node-pty';
-import stripAnsi from 'strip-ansi';
+import { cleanAnsi as stripAnsi } from '../../utils/string-utils.js';
 
 /**
  * Props for ClaudePanel component

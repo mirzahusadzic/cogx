@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import stripAnsi from 'strip-ansi';
+import { cleanAnsi as stripAnsi } from '../../../../../utils/string-utils.js';
 import {
   formatToolUse,
   formatToolUseMessage,
@@ -392,6 +392,27 @@ describe('ToolFormatter', () => {
     it('handles empty content', () => {
       const result = formatToolResult('read_file', '');
       expect(result).toContain('(empty)');
+    });
+
+    it('truncates very long lines', () => {
+      const longLine = 'a'.repeat(2000);
+      const result = formatToolResult('read_file', longLine);
+      expect(result.length).toBeLessThan(1100);
+      expect(result).toContain('...');
+    });
+
+    it('highlights websearch titles and URLs', () => {
+      const searchOutput =
+        '1. **Search Title**\n   https://example.com\n   Result snippet';
+      const result = formatToolResult('websearch', searchOutput);
+
+      // Title should be bold and cyan
+      expect(result).toContain('\x1b[1m');
+      expect(result).toContain(hexToAnsi(TUITheme.syntax.code.block));
+
+      // URL and snippet should be gray
+      expect(result).toContain('https://example.com');
+      expect(result).toContain(hexToAnsi(TUITheme.text.secondary));
     });
   });
 });

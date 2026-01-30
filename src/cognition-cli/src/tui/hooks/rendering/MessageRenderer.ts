@@ -38,7 +38,7 @@
  * Extracted from useClaudeAgent.ts as part of Week 2 Day 9-10 refactor.
  */
 
-import stripAnsi from 'strip-ansi';
+import { cleanAnsi as stripAnsi } from '../../../utils/string-utils.js';
 
 /**
  * Format a system message for display

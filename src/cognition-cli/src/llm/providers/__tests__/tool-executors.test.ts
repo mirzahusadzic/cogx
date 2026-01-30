@@ -292,18 +292,77 @@ describe('Tool Executors', () => {
       expect(result).toBe('content');
     });
 
-    test('should strip HTML', async () => {
+    test('should strip HTML and preserve structure with newlines', async () => {
+      const htmlContent =
+        '<div><h1>Title</h1><p>First paragraph.</p><ul><li>Item 1</li><li>Item 2</li></ul></div>';
       const mockResponse = {
         ok: true,
         headers: { get: () => 'text/html' },
-        text: () => Promise.resolve('<html><body><h1>Hello</h1></body></html>'),
+        text: () => Promise.resolve(htmlContent),
       };
       // @ts-expect-error - mock fetch response structure
       global.fetch.mockResolvedValue(mockResponse);
 
       const result = await executeFetchUrl('https://example.com');
 
-      expect(result).toBe('Hello');
+      // Should have newlines from block tags and no HTML tags
+      expect(result).toContain('Title\nFirst paragraph.\nItem 1\nItem 2');
+      expect(result).not.toContain('<p>');
+      expect(result).not.toContain('</h1>');
+    });
+
+    test('should collapse whitespace and trim output', async () => {
+      const htmlContent = '  <div>   Spaced    Content  </div>  ';
+      const mockResponse = {
+        ok: true,
+        headers: { get: () => 'text/html' },
+        text: () => Promise.resolve(htmlContent),
+      };
+      // @ts-expect-error - mock fetch response structure
+      global.fetch.mockResolvedValue(mockResponse);
+
+      const result = await executeFetchUrl('https://example.com');
+
+      expect(result).toBe('Spaced Content');
+    });
+
+    test('should preserve link URLs in brackets', async () => {
+      const htmlContent =
+        '<div>Read our <a href="https://docs.com">documentation</a> here.</div>';
+      const mockResponse = {
+        ok: true,
+        headers: { get: () => 'text/html' },
+        text: () => Promise.resolve(htmlContent),
+      };
+      // @ts-expect-error - mock fetch response structure
+      global.fetch.mockResolvedValue(mockResponse);
+
+      const result = await executeFetchUrl('https://example.com');
+
+      expect(result).toBe('Read our documentation [https://docs.com] here.');
+    });
+
+    test('should handle various link formats (single quotes, other attributes)', async () => {
+      const htmlContent = `
+        <div>
+          <a class='btn' href='https://single.com'>Single Quote</a>
+          <a target="_blank" href="https://double.com" id="link2">Double Quote</a>
+          <a href=https://unquoted.com>Unquoted</a>
+        </div>
+      `;
+      const mockResponse = {
+        ok: true,
+        headers: { get: () => 'text/html' },
+        text: () => Promise.resolve(htmlContent),
+      };
+      // @ts-expect-error - mock fetch response structure
+      global.fetch.mockResolvedValue(mockResponse);
+
+      const result = await executeFetchUrl('https://example.com');
+
+      expect(result).toContain('Single Quote [https://single.com]');
+      expect(result).toContain('Double Quote [https://double.com]');
+      expect(result).toContain('Unquoted [https://unquoted.com]');
     });
   });
 
