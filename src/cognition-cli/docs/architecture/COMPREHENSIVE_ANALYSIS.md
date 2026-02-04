@@ -6,9 +6,9 @@
 
 **At a Glance:**
 
-- **Current Version:** 2.6.4 (January 16, 2026)
-- **Production Lines:** ~92,899 TypeScript (excl. tests), ~136,200 total
-- **Test Coverage:** ~92% across 153 test files
+- **Current Version:** 2.6.7 (January 29, 2026)
+- **Production Lines:** ~100,135 TypeScript (excl. tests), ~147,145 total
+- **Test Coverage:** ~92% across 165 test files
 - **Architecture:** 7 cognitive overlays (O₁-O₇), dual-lattice Σ system, ZeroMQ agent messaging
 - **License:** AGPL-3.0-or-later
 
@@ -891,24 +891,24 @@ The same architecture that understands code can preserve human identity through 
 
 | Metric                     | Value                      |
 | -------------------------- | -------------------------- |
-| **Total TypeScript Lines** | **~136,200** (incl. tests) |
-| Production Code Lines      | ~92,899 (excl. tests)      |
-| Test Code Lines            | ~43,301 (153 test files)   |
-| Total Source Files         | 390 (237 prod + 153 test)  |
+| **Total TypeScript Lines** | **~147,145** (incl. tests) |
+| Production Code Lines      | ~100,135 (excl. tests)     |
+| Test Code Lines            | ~47,010 (165 test files)   |
+| Total Source Files         | 419 (254 prod + 165 test)  |
 
 ### Lines of Code by Module
 
-| Module        | LOC        | Files   | % of Prod | Description                   |
-| ------------- | ---------- | ------- | --------- | ----------------------------- |
-| **core/**     | 35,368     | 84      | 38.1%     | PGC, overlays, orchestrators  |
-| **tui/**      | 13,528     | 50      | 14.6%     | React Ink terminal interface  |
-| **commands/** | 15,236     | 31      | 16.4%     | CLI command implementations   |
-| **sigma/**    | 10,711     | 31      | 11.5%     | Infinite context dual-lattice |
-| **llm/**      | 8,325      | 14      | 9.0%      | LLM provider abstraction      |
-| **ipc/**      | 4,369      | 12      | 4.7%      | ZeroMQ agent messaging        |
-| **utils/**    | 3,699      | 13      | 4.0%      | Errors, formatting, helpers   |
-| **root**      | 1,663      | 2       | 1.8%      | cli.ts, config.ts             |
-| **Total**     | **92,899** | **237** | **100%**  |                               |
+| Module        | LOC         | Files   | % of Prod | Description                   |
+| ------------- | ----------- | ------- | --------- | ----------------------------- |
+| **core/**     | 35,368      | 84      | 35.3%     | PGC, overlays, orchestrators  |
+| **tui/**      | 19,839      | 66      | 19.8%     | React Ink terminal interface  |
+| **commands/** | 15,265      | 31      | 15.2%     | CLI command implementations   |
+| **sigma/**    | 10,714      | 31      | 10.7%     | Infinite context dual-lattice |
+| **llm/**      | 9,212       | 14      | 9.2%      | LLM provider abstraction      |
+| **ipc/**      | 4,369       | 12      | 4.4%      | ZeroMQ agent messaging        |
+| **utils/**    | 3,696       | 14      | 3.7%      | Errors, formatting, helpers   |
+| **root**      | 1,672       | 2       | 1.7%      | cli.ts, config.ts             |
+| **Total**     | **100,135** | **254** | **100%**  |                               |
 
 ### Core Module Breakdown
 
@@ -924,7 +924,7 @@ The same architecture that understands code can preserve human identity through 
 | graph/         | 1,239 | Dependency graph types              |
 | transforms/    | 940   | Genesis document transforms         |
 | quest/         | 775   | Operations log                      |
-| watcher/       | 653   | File system monitoring              |
+| watcher/       | 680   | File system monitoring              |
 | query/         | 531   | Query engine                        |
 | parsers/       | 518   | Markdown parser                     |
 | services/      | 327   | Embedding service                   |
@@ -935,10 +935,13 @@ The same architecture that understands code can preserve human identity through 
 
 | Submodule   | LOC    | Description                            |
 | ----------- | ------ | -------------------------------------- |
-| hooks/      | 10,924 | Modular React hooks (agent, task, etc) |
-| components/ | 2,642  | UI components (Ink/React)              |
-| services/   | 716    | Background services and diagnostics    |
+| hooks/      | 11,608 | Modular React hooks (agent, task, etc) |
+| components/ | 3,592  | UI components (Ink/React)              |
+| services/   | 805    | Background services and diagnostics    |
 | commands/   | 433    | TUI command loader                     |
+| tools/      | 1,091  | Custom TUI tools                       |
+| utils/      | 1,145  | TUI-specific utilities                 |
+| context/    | 183    | TUI React context providers            |
 
 ### Other Metrics
 
@@ -950,9 +953,9 @@ The same architecture that understands code can preserve human identity through 
 | Cognitive Overlays    | 7 (O₁-O₇)                          |
 | Supported Languages   | 3 (TS/JS/Python)                   |
 | Core Commands         | 40+ (with tab completion)          |
-| Test Files            | 153 (comprehensive coverage)       |
+| Test Files            | 165 (comprehensive coverage)       |
 | Test Coverage         | ~92% (security, compression, UX)   |
-| Current Version       | 2.6.4 (January 16, 2026)           |
+| Current Version       | 2.6.7 (January 29, 2026)           |
 | License               | AGPL-3.0-or-later                  |
 | Zenodo DOI            | 10.5281/zenodo.18012832            |
 | Innovations Published | 49 (defensive patent publication)  |
@@ -961,7 +964,40 @@ The same architecture that understands code can preserve human identity through 
 
 ## Version History & Changelog
 
-### Version 2.6.4 (Current - PGC Grounding & Multi-Provider Token Optimization)
+### Version 2.6.7 (Current - TUI Visual Balance & Gemini 3 Reasoning)
+
+**Summary:** Refines the terminal experience with "Dim Cyan" theme balancing and hardens Gemini integration with thought signature support and robust retry infrastructure.
+
+**New Features:**
+
+- **TUI Visual Theme Refinement** — Dimmed cyan tones for better visual balance and reduced eye strain.
+- **Gemini 3 Thought Signatures** — Support for persisting reasoning to resolve potential loops in Gemini 3 models.
+- **Robust Retry Infrastructure** — Introduced a provider refactor with robust retry logic and failover infrastructure.
+- **Enhanced Diff Highlighting** — Improved diff auto-detection and rendering accuracy in the TUI.
+
+### Version 2.6.6 (TUI Theme Overhaul & Vertex AI Robustness)
+
+**Summary:** Introduces the "Monolith Cyan" theme and significantly improves Gemini/Vertex AI integration with global noise suppression.
+
+**New Features:**
+
+- **Monolith Cyan Theme** — A vibrant TUI theme with refined thinking blocks and improved contrast.
+- **AST-based Markdown Rendering** — Replaced regex-based rendering with a robust AST engine.
+- **Vertex AI Support** — Streamlined enterprise deployments without requiring a legacy API key.
+- **Smart Auto-scroll** — Prevents scroll jumps when the user has manually scrolled up.
+
+### Version 2.6.5 (TUI Responsiveness & LLM Context)
+
+**Summary:** Major layout and responsiveness upgrades for the TUI and improved LLM context awareness via path relativization.
+
+**New Features:**
+
+- **Refactored Layout Engine** — Dynamic measurement and flexbox-based TUI layout.
+- **Global Scrolling** — Page Up/Down support for the chat window.
+- **Auto-Relativized Git Paths** — Automatically converts git output paths to be relative to the CWD for better LLM context.
+- **Command History** — Up/down arrow navigation for input history in the TUI.
+
+### Version 2.6.4 (PGC Grounding & Multi-Provider Token Optimization)
 
 **Summary:** Implements Sigma Task Protocol v2.0 with structured grounding and unified Tri-Modal Compression Strategy for Gemini, OpenAI, and eGemma.
 
@@ -1146,7 +1182,7 @@ _For previous release history, see [CHANGELOG.md](https://github.com/mirzahusadz
 
 ## Conclusion
 
-Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.6.4** extends production excellence with **Sigma Task Protocol v2.0** and **Tri-Modal Compression**, ensuring verifiable multi-agent collaboration and session survival through proactive token optimization. This transforms Cognition CLI from a single-project tool into a multi-project-scale distributed nervous system for code.
+Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.6.7** extends production excellence with **TUI visual refinements**, **Gemini 3 reasoning robustness**, and **robust retry infrastructure**, ensuring a stable and professional experience for AI-human symbiosis. This transforms Cognition CLI from a research prototype into a high-reliability distributed nervous system for code.
 
 It combines:
 
