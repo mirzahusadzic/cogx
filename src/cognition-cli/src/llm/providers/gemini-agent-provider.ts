@@ -160,6 +160,7 @@ export class GeminiAgentProvider implements AgentProvider {
   private sessionService = new InMemorySessionService();
   private abortController: AbortController | null = null;
   private currentGenerator: AsyncGenerator<unknown> | null = null;
+  private sessionSignatures = new Map<string, string>();
 
   /**
    * Create Gemini Agent Provider
@@ -197,6 +198,48 @@ export class GeminiAgentProvider implements AgentProvider {
     if (!process.env.GOOGLE_SDK_LOG_LEVEL) {
       process.env.GOOGLE_SDK_LOG_LEVEL = 'error';
     }
+
+    // Persistence Hack: Monkey-patch session service once at initialization.
+    // Gemini 3 requires thought_signature to resume reasoning, but ADK 0.2.4 doesn't store it.
+    // We use a shared map of sessionSignatures to ensure concurrent safety.
+    const originalAppendEvent = this.sessionService.appendEvent.bind(
+      this.sessionService
+    );
+    this.sessionService.appendEvent = async (args: {
+      session: Session;
+      event: Event;
+    }) => {
+      // Access sessionId via index to satisfy ADK 0.2.4 types without 'any'
+      const sessionId = (args.session as unknown as Record<string, string>)
+        .sessionId;
+      const lastSignature = this.sessionSignatures.get(sessionId);
+
+      if (
+        args.event.author === 'cognition_agent' &&
+        args.event.content?.parts &&
+        lastSignature
+      ) {
+        // Ensure all parts in the assistant turn have the captured signature.
+        // Gemini 3 requires thought_signature for ALL parts (text, thought, functionCall)
+        // to maintain reasoning state across turns.
+        let injectedCount = 0;
+        for (const part of args.event.content.parts) {
+          const p = part as { thoughtSignature?: string };
+          if (!p.thoughtSignature) {
+            p.thoughtSignature = lastSignature;
+            injectedCount++;
+          }
+        }
+
+        if (injectedCount > 0 && process.env.DEBUG_GEMINI_STREAM) {
+          systemLog(
+            'gemini',
+            `[Gemini] Injected signature into ${injectedCount} parts for session ${sessionId}`
+          );
+        }
+      }
+      return originalAppendEvent(args);
+    };
   }
 
   /**
@@ -233,7 +276,6 @@ export class GeminiAgentProvider implements AgentProvider {
     let cumulativeCompletionTokens = 0;
     let currentPromptTokens = 0;
     let currentCompletionTokens = 0;
-    let lastCapturedSignature: string | undefined = undefined; // Track for ADK persistence
     const accumulatedThinkingBlocks = new Map<string, string>();
     let accumulatedAssistant = '';
     const sessionId =
@@ -443,38 +485,6 @@ export class GeminiAgentProvider implements AgentProvider {
 
           this.currentRunner = runnerInstance;
 
-          // Persistence Hack: Monkey-patch session service to ensure thoughtSignature is preserved.
-          // Gemini 3 requires thought_signature to resume reasoning, but ADK 0.2.4 doesn't store it.
-          const originalAppendEvent = this.sessionService.appendEvent.bind(
-            this.sessionService
-          );
-          this.sessionService.appendEvent = async (args: {
-            session: Session;
-            event: Event;
-          }) => {
-            if (
-              args.event.author === 'cognition_agent' &&
-              args.event.content?.parts &&
-              lastCapturedSignature
-            ) {
-              // Ensure the last captured signature is in the event being persisted
-              const parts = args.event.content.parts;
-              const lastPart = parts[parts.length - 1] as {
-                thoughtSignature?: string;
-              };
-              if (lastPart && !lastPart.thoughtSignature) {
-                lastPart.thoughtSignature = lastCapturedSignature;
-                if (process.env.DEBUG_GEMINI_STREAM) {
-                  systemLog(
-                    'gemini',
-                    '[Gemini] Injected signature into ADK event persistence'
-                  );
-                }
-              }
-            }
-            return originalAppendEvent(args);
-          };
-
           const userId = 'cognition-user';
 
           // Get or create session
@@ -650,6 +660,13 @@ export class GeminiAgentProvider implements AgentProvider {
             // Handle assistant/model responses
             if (evt.author === 'cognition_agent' && evt.content?.parts) {
               for (const part of evt.content.parts) {
+                // Capture thought signature into ADK session history to prevent looping
+                // Gemini 3 requires the thought_signature to be present in subsequent turns
+                // to resume reasoning state. ADK 0.2.4 doesn't handle this automatically.
+                if (part.thoughtSignature) {
+                  this.sessionSignatures.set(sessionId, part.thoughtSignature);
+                }
+
                 // Handle function calls (tool use)
                 if (part.functionCall) {
                   if (process.env.DEBUG_GEMINI_STREAM) {
@@ -787,13 +804,6 @@ export class GeminiAgentProvider implements AgentProvider {
                   accumulatedThinkingBlocks.clear();
                   currentTurnOutputEstimate = 0;
                 } else if (part.text || part.thoughtSignature) {
-                  // Capture thought signature into ADK session history to prevent looping
-                  // Gemini 3 requires the thought_signature to be present in subsequent turns
-                  // to resume reasoning state. ADK 0.2.4 doesn't handle this automatically.
-                  if (part.thoughtSignature) {
-                    lastCapturedSignature = part.thoughtSignature;
-                  }
-
                   // Check if this is thinking content
                   const isThinking = part.thought === true;
                   const messageType = isThinking ? 'thinking' : 'assistant';
@@ -1236,6 +1246,9 @@ export class GeminiAgentProvider implements AgentProvider {
         }
       }
     } finally {
+      // Clean up session signature to avoid memory leaks
+      this.sessionSignatures.delete(sessionId);
+
       // Restore original console and streams
       console.log = originalConsoleLog;
       console.error = originalConsoleError;
