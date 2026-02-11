@@ -375,7 +375,7 @@ describe('AgentMessage', () => {
       it('should create an agent registered message', () => {
         const payload: AgentRegisteredPayload = {
           agentId: 'gemini-flash-1',
-          model: 'gemini-2.0-flash',
+          model: 'gemini-3-flash-preview',
           type: 'interactive',
           capabilities: ['code_review', 'testing', 'documentation'],
         };

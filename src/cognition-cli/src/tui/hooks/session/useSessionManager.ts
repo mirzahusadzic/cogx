@@ -111,10 +111,28 @@ export function getModelShortName(model?: string): string | undefined {
     !lower.includes('flash')
   )
     return 'gemini3p';
-  if (lower.includes('gemini-2.5-flash') || lower.includes('gemini-2-5-flash'))
+  if (
+    lower.includes('gemini-2.5-flash') ||
+    (lower.includes('gemini-2.5') && lower.includes('flash'))
+  )
     return 'gemini25f';
-  if (lower.includes('gemini-2.5-pro') || lower.includes('gemini-2-5-pro'))
+  if (
+    lower.includes('gemini-2.5') &&
+    lower.includes('pro') &&
+    !lower.includes('flash')
+  )
     return 'gemini25p';
+  if (
+    lower.includes('gemini-2.0-flash') ||
+    (lower.includes('gemini-2.0') && lower.includes('flash'))
+  )
+    return 'gemini2f';
+  if (
+    lower.includes('gemini-2.0') &&
+    lower.includes('pro') &&
+    !lower.includes('flash')
+  )
+    return 'gemini2p';
 
   // OpenAI models
   if (lower === 'gpt-4o') return 'gpt4o';

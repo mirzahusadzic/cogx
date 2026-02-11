@@ -98,8 +98,8 @@ describe('GeminiAgentProvider', () => {
 
       expect(provider.models).toContain('gemini-3-flash-preview');
       expect(provider.models).toContain('gemini-3-pro-preview');
-      expect(provider.models).toContain('gemini-2.5-pro');
-      expect(provider.models).toContain('gemini-2.5-flash');
+      expect(provider.models).toContain('gemini-3-pro-preview');
+      expect(provider.models).toContain('gemini-3-flash-preview');
     });
   });
 
@@ -114,7 +114,7 @@ describe('GeminiAgentProvider', () => {
     it('should throw error as not supported', async () => {
       const provider = new GeminiAgentProvider('test-key');
       await expect(
-        provider.complete({ prompt: 'test', model: 'gemini-2.5-flash' })
+        provider.complete({ prompt: 'test', model: 'gemini-3-flash-preview' })
       ).rejects.toThrow('designed for agent workflows');
     });
   });
@@ -127,7 +127,7 @@ describe('GeminiAgentProvider', () => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         for await (const _chunk of provider.stream({
           prompt: 'test',
-          model: 'gemini-2.5-flash',
+          model: 'gemini-3-flash-preview',
         })) {
           // consume
         }
@@ -914,7 +914,7 @@ describe('GeminiAgentProvider', () => {
 
       const generator = provider.executeAgent({
         prompt: 'Hello',
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.5-pro',
         cwd: '/test',
         maxThinkingTokens: 5000,
       });
@@ -947,7 +947,7 @@ describe('GeminiAgentProvider', () => {
 
       const generator = provider.executeAgent({
         prompt: 'Hello',
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.5-pro',
         cwd: '/test',
         maxThinkingTokens: 50000, // Exceeds cap
       });
@@ -1264,7 +1264,7 @@ describe('GeminiAgentProvider', () => {
       const fourthCallConfig = calls[4][0]; // Index 4 (Retry 3, where failover should happen)
 
       expect(initialCallConfig.model).toBe('gemini-3-flash-preview');
-      expect(fourthCallConfig.model).toBe('gemini-2.5-flash');
+      expect(fourthCallConfig.model).toBe('gemini-3-flash-preview');
     });
 
     it('should give up after maxRetries', async () => {

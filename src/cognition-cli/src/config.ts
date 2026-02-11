@@ -51,28 +51,28 @@ export const DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 /**
  * Default small language model for fast operations (parsing, extraction)
- * Uses Gemini Flash for speed and cost efficiency
+ * Uses Gemini 3 Flash for speed and cost efficiency as 2.x models reach EOL
  */
-export const DEFAULT_SLM_MODEL_NAME = 'gemini-2.5-flash';
+export const DEFAULT_SLM_MODEL_NAME = 'gemini-3-flash-preview';
 
 /**
  * Model for tool output summarization (eGemma compression)
- * Uses Gemini 2.0 Flash for separate quota pool (4M TPM, unlimited RPD)
+ * Uses Gemini 3 Flash for efficiency and unified quota
  * This offloads summarization from the main agent's quota
  */
-export const DEFAULT_SUMMARIZER_MODEL_NAME = 'gemini-2.0-flash';
+export const DEFAULT_SUMMARIZER_MODEL_NAME = 'gemini-3-flash-preview';
 
 /**
  * Max tokens for tool output summarization
- * Generous limit since gemini-2.0-flash has 4M TPM headroom
+ * Generous limit to handle large tool outputs efficiently
  */
 export const DEFAULT_SUMMARIZER_MAX_TOKENS = 8192;
 
 /**
  * Model for security validation (mission document analysis)
- * Uses Gemini Thinking model for deeper reasoning and threat detection
+ * Uses Gemini 3 Pro for deeper reasoning and threat detection
  */
-export const DEFAULT_OPSEC_MODEL_NAME = 'gemini-2.0-flash-thinking-exp-01-21';
+export const DEFAULT_OPSEC_MODEL_NAME = 'gemini-3-pro-preview';
 
 /**
  * Enable LLM-based security filtering by default

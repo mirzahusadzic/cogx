@@ -54,7 +54,7 @@ describe.skipIf(!hasApiKey)('GeminiAgentProvider Integration', () => {
 
     for await (const response of provider.executeAgent({
       prompt: 'What is 2+2? Reply with just the number.',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       cwd: tempDir,
       anchorId,
     })) {
@@ -77,7 +77,7 @@ describe.skipIf(!hasApiKey)('GeminiAgentProvider Integration', () => {
     for await (const response of provider.executeAgent({
       prompt:
         'Use the glob tool to find all .ts files in the current directory',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       cwd: tempDir,
       anchorId,
     })) {
@@ -108,7 +108,7 @@ describe.skipIf(!hasApiKey)('GeminiAgentProvider Integration', () => {
     // First turn
     for await (const response of provider.executeAgent({
       prompt: 'Say exactly: "I will remember 42"',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       cwd: tempDir,
       anchorId,
     })) {
@@ -123,7 +123,7 @@ describe.skipIf(!hasApiKey)('GeminiAgentProvider Integration', () => {
     let secondTurnMessageCount = 0;
     for await (const response of provider.executeAgent({
       prompt: 'Repeat what you said you would remember',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       cwd: tempDir,
       anchorId,
       resumeSessionId: sessionId,
@@ -146,7 +146,7 @@ describe.skipIf(!hasApiKey)('GeminiAgentProvider Integration', () => {
     let sessionA: string | undefined;
     for await (const response of provider.executeAgent({
       prompt: 'Remember: Project Alpha started in 2023',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       cwd: tempDir,
       anchorId,
     })) {
@@ -158,7 +158,7 @@ describe.skipIf(!hasApiKey)('GeminiAgentProvider Integration', () => {
     // Continue Session A
     for await (const response of provider.executeAgent({
       prompt: 'What project did we discuss?',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       cwd: tempDir,
       anchorId,
       resumeSessionId: sessionA,
@@ -173,7 +173,7 @@ describe.skipIf(!hasApiKey)('GeminiAgentProvider Integration', () => {
     let sessionB: string | undefined;
     for await (const response of provider.executeAgent({
       prompt: 'What is 5+5? Reply with just the number.',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       cwd: tempDir,
       anchorId,
       // resumeSessionId intentionally omitted - simulates compression boundary

@@ -178,7 +178,7 @@ export const ALL_ENV_VARS = {
     },
     {
       name: 'COGNITION_GEMINI_MODEL',
-      desc: 'Default Gemini model (e.g., gemini-2.5-flash)',
+      desc: 'Default Gemini model (e.g., gemini-3-flash-preview)',
     },
   ],
   workbench: [

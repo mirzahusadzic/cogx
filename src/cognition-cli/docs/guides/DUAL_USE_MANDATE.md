@@ -149,7 +149,7 @@ Instead, it delegates ethical review to a trust layer you control:
 
 1. **You Control the Ethics Layer**
    - Choose which workbench to use (`WORKBENCH_URL` env variable)
-   - Choose which models to use (defaults: gemini-2.5-flash, gemini-2.0-flash-thinking)
+   - Choose which models to use (defaults: gemini-3-flash-preview, gemini-3.0-pro-preview)
    - Choose which personas to trust (if any - personas are provisional, user-controlled)
 
 2. **cognition-cli Stays Neutral**
@@ -328,8 +328,8 @@ cognition-cli connects to a workbench via `WORKBENCH_URL` environment variable.
 
 **Defaults in cognition-cli**:
 
-- Summarization: gemini-2.5-flash
-- Security validation: gemini-2.0-flash-thinking-exp-01-21
+- Summarization: gemini-3-flash-preview
+- Security validation: gemini-3-pro-preview
 - Embeddings: google/embeddinggemma-300m
 
 **Why**: Ethical review is YOUR responsibility, not cognition-cli's.

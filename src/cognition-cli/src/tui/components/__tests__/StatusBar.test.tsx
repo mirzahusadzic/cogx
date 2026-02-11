@@ -78,7 +78,18 @@ describe('StatusBar', () => {
       expect(lastFrame()).toContain('Sonnet 4.5');
     });
 
-    it('displays Gemini 2.5f for gemini-2.5-flash', () => {
+    it('displays Gemini 3f for gemini-3-flash-preview', () => {
+      const { lastFrame } = render(
+        <StatusBar
+          focused={false}
+          providerName="gemini"
+          modelId="gemini-3-flash-preview"
+        />
+      );
+      expect(lastFrame()).toContain('Gemini 3f');
+    });
+
+    it('displays Gemini 2.5f (EOL) for gemini-2.5-flash', () => {
       const { lastFrame } = render(
         <StatusBar
           focused={false}
@@ -86,7 +97,7 @@ describe('StatusBar', () => {
           modelId="gemini-2.5-flash"
         />
       );
-      expect(lastFrame()).toContain('Gemini 2.5f');
+      expect(lastFrame()).toContain('Gemini 2.5f (EOL)');
     });
 
     it('displays raw model ID for unknown models', () => {

@@ -38,12 +38,12 @@ describe('getModelShortName', () => {
 
   it('returns gemini25f for Gemini 2.5 Flash model', () => {
     expect(getModelShortName('gemini-2.5-flash-preview')).toBe('gemini25f');
-    expect(getModelShortName('gemini-2-5-flash')).toBe('gemini25f');
+    expect(getModelShortName('gemini-2.5-flash')).toBe('gemini25f');
   });
 
   it('returns gemini25p for Gemini 2.5 Pro model', () => {
+    expect(getModelShortName('gemini-2.5-pro-preview')).toBe('gemini25p');
     expect(getModelShortName('gemini-2.5-pro')).toBe('gemini25p');
-    expect(getModelShortName('gemini-2-5-pro')).toBe('gemini25p');
   });
 
   it('maps OpenAI GPT-4o models', () => {

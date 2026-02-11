@@ -31,7 +31,7 @@ describe('Google ADK', () => {
 
       const agent = new LlmAgent({
         name: 'test_agent',
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash-preview',
         instruction: 'You are a helpful assistant for testing.',
         tools: [],
       });

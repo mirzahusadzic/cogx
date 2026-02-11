@@ -91,12 +91,12 @@ describe('LLM Configuration', () => {
     });
 
     it('should load Gemini default model from COGNITION_GEMINI_MODEL', () => {
-      process.env.COGNITION_GEMINI_MODEL = 'gemini-2.0-flash-exp';
+      process.env.COGNITION_GEMINI_MODEL = 'gemini-3-flash-preview';
 
       const config = loadLLMConfig();
 
       expect(config.providers.gemini?.defaultModel).toBe(
-        'gemini-2.0-flash-exp'
+        'gemini-3-flash-preview'
       );
     });
 
@@ -218,12 +218,12 @@ describe('LLM Configuration', () => {
 
     it('should return custom model when configured', () => {
       process.env.COGNITION_CLAUDE_MODEL = 'claude-sonnet-4-5-20250929';
-      process.env.COGNITION_GEMINI_MODEL = 'gemini-2.0-flash-exp';
+      process.env.COGNITION_GEMINI_MODEL = 'gemini-3-flash-preview';
 
       expect(getProviderDefaultModel('claude')).toBe(
         'claude-sonnet-4-5-20250929'
       );
-      expect(getProviderDefaultModel('gemini')).toBe('gemini-2.0-flash-exp');
+      expect(getProviderDefaultModel('gemini')).toBe('gemini-3-flash-preview');
     });
   });
 
@@ -235,7 +235,7 @@ describe('LLM Configuration', () => {
 
     it('should have Gemini model presets', () => {
       expect(GEMINI_MODELS.latest).toBe('gemini-3-flash-preview');
-      expect(GEMINI_MODELS.balanced).toBe('gemini-2.5-flash');
+      expect(GEMINI_MODELS.balanced).toBe('gemini-3-flash-preview');
       expect(GEMINI_MODELS.powerful).toBe('gemini-3.0-pro-preview');
     });
   });

@@ -96,7 +96,7 @@ export const CLAUDE_MODELS = {
  * Default Gemini models by use case
  */
 export const GEMINI_MODELS = {
-  /** Latest and most capable model - Gemini 3.0 Flash Preview */
+  /** Latest and most capable model - Gemini 3.0 Flash Preview (Primary Economical) */
   latest: 'gemini-3-flash-preview',
 
   /** Gemini 3.0 Flash Preview with advanced reasoning */
@@ -105,8 +105,8 @@ export const GEMINI_MODELS = {
   /** Most capable Pro model */
   powerful: 'gemini-3.0-pro-preview',
 
-  /** Balanced performance and cost (2.5 generation) */
-  balanced: 'gemini-2.5-flash',
+  /** Balanced performance and cost - Defaulting to Gemini 3 Flash as 2.x reaches EOL */
+  balanced: 'gemini-3-flash-preview',
 } as const;
 
 /**

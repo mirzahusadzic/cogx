@@ -221,7 +221,7 @@ cognition-cli does NOT make ethical judgments. It provides measurements.
 
 YOU control:
   • Which workbench to use (WORKBENCH_URL env variable)
-  • Which models to use (defaults: gemini-2.5-flash, gemini-2.0-flash-thinking)
+  • Which models to use (defaults: gemini-3-flash-preview, gemini-3.0-pro-preview)
   • Which personas to trust (if any)
 
 Note: Defaults use Google models. EmbeddingGemma-300M supports 100+ languages.

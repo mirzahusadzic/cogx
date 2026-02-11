@@ -23,7 +23,7 @@ export interface SessionState {
   /** LLM provider used for this session (e.g., 'claude', 'gemini') */
   provider?: string;
 
-  /** Model used for this session (e.g., 'claude-sonnet-4-5-20250514', 'gemini-2.5-pro') */
+  /** Model used for this session (e.g., 'claude-sonnet-4-5-20250514', 'gemini-3-pro-preview') */
   model?: string;
 
   /** When this anchor was created */

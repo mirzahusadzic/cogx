@@ -87,7 +87,7 @@ Centralizes settings from environment variables and `settings.json`.
 
 - **Defaults**:
   - Claude: `claude-opus-4-5-20251101`
-  - Gemini: `gemini-2.5-flash`
+  - Gemini: `gemini-3-flash-preview`
   - OpenAI: `gpt-4o` (or auto-detected from workbench)
 
 #### 4. OpenAI Agent Provider (`providers/openai-agent-provider.ts`)

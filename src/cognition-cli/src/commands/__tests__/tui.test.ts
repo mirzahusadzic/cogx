@@ -47,7 +47,7 @@ describe('tuiCommand', () => {
       defaultProvider: 'claude',
       providers: {
         claude: { defaultModel: 'claude-3-5-sonnet' },
-        gemini: { defaultModel: 'gemini-1.5-pro' },
+        gemini: { defaultModel: 'gemini-3-pro-preview' },
       },
     } as any);
 
@@ -156,7 +156,7 @@ describe('tuiCommand', () => {
     vi.spyOn(fs, 'existsSync').mockReturnValue(true);
     vi.spyOn(fs, 'readdirSync').mockReturnValue(['manifest.json'] as any);
     vi.spyOn(fs, 'readFileSync').mockReturnValue(
-      JSON.stringify({ provider: 'gemini', model: 'gemini-1.5-flash' })
+      JSON.stringify({ provider: 'gemini', model: 'gemini-3-flash-preview' })
     );
 
     await tuiCommand({
@@ -168,7 +168,7 @@ describe('tuiCommand', () => {
       expect.objectContaining({
         sessionId: 'tui-123456',
         provider: 'gemini',
-        model: 'gemini-1.5-flash',
+        model: 'gemini-3-flash-preview',
       })
     );
   });

@@ -104,7 +104,7 @@ Recommendation: APPROVE / REVIEW / REJECT
 **Enable in `src/config.ts`:**
 
 ```typescript
-export const DEFAULT_OPSEC_MODEL_NAME = 'gemini-2.0-flash-exp'; // Or 'gemini-2.5-flash'
+export const DEFAULT_OPSEC_MODEL_NAME = 'gemini-3.0-pro-preview'; // Or 'gemini-3-flash-preview'
 export const DEFAULT_OPSEC_ENABLED = true; // Enable by default
 ```
 
@@ -554,7 +554,7 @@ export default {
       // LLM-based filtering (Gemini via eGemma)
       llmFilter: {
         enabled: true, // Controlled by DEFAULT_OPSEC_ENABLED in config.ts
-        model: 'gemini-2.0-flash-exp', // Controlled by DEFAULT_OPSEC_MODEL_NAME
+        model: 'gemini-3-flash-preview', // Controlled by DEFAULT_OPSEC_MODEL_NAME
         provider: 'workbench', // Uses eGemma Workbench
       },
 
@@ -626,14 +626,14 @@ export const DEFAULT_OPSEC_ENABLED = false; // Disable LLM filtering
 **To change the Gemini model:**
 
 ```typescript
-export const DEFAULT_OPSEC_MODEL_NAME = 'gemini-2.5-flash'; // Use different model
+export const DEFAULT_OPSEC_MODEL_NAME = 'gemini-3.0-pro-preview'; // Use different model
 ```
 
 **Available models:**
 
-- `gemini-2.0-flash-exp` - Fast, experimental (recommended)
-- `gemini-2.5-flash` - Latest stable
-- `gemini-1.5-flash` - Previous generation
+- `gemini-3-flash-preview` - Fast, efficient (recommended)
+- `gemini-3-flash-preview` - Latest stable economical model
+- `gemini-2.5-flash` - Previous generation (EOL 2026)
 
 ### Strict Mode for Production
 

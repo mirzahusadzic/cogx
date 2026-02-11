@@ -15,7 +15,7 @@
  *
  * for await (const response of provider.executeAgent({
  *   prompt: 'Analyze this codebase',
- *   model: 'gemini-2.5-flash',
+ *   model: 'gemini-3-flash-preview',
  *   cwd: process.cwd()
  * })) {
  *   console.log(response.messages);
@@ -151,8 +151,6 @@ export class GeminiAgentProvider implements AgentProvider {
   models = [
     'gemini-3-flash-preview', // Gemini 3.0 Flash with high-level thinking (default)
     'gemini-3-pro-preview', // Gemini 3.0 Pro with advanced reasoning
-    'gemini-2.5-pro', // Gemini 2.5 Pro - most capable 2.x
-    'gemini-2.5-flash', // Gemini 2.5 Flash - fast and efficient
   ];
 
   private apiKey: string;
@@ -386,7 +384,7 @@ export class GeminiAgentProvider implements AgentProvider {
         name: 'WebSearch',
         description:
           'Search the web for current information, news, facts, and real-time data using Google Search',
-        model: request.model || 'gemini-2.5-flash',
+        model: request.model || 'gemini-3-flash-preview',
         instruction:
           'You are a web search specialist. When called, search Google for the requested information and return concise, accurate results with sources.',
         tools: [GOOGLE_SEARCH],
@@ -1195,7 +1193,7 @@ export class GeminiAgentProvider implements AgentProvider {
 
             // FALLOVER PATTERN: Switch to more stable model if preview fails repeatedly
             if (attempt >= 3 && activeModel.includes('preview')) {
-              const fallback = 'gemini-2.5-flash';
+              const fallback = 'gemini-3-flash-preview';
               systemLog(
                 'gemini',
                 `[Gemini] Falling back to stable model: ${fallback} after ${attempt} failures`,

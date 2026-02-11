@@ -21,7 +21,7 @@
  * // Custom provider/model
  * const text = await complete('Explain quantum computing', {
  *   provider: 'gemini',
- *   model: 'gemini-2.5-flash',
+ *   model: 'gemini-3-flash-preview',
  *   maxTokens: 1000
  * });
  *
@@ -314,7 +314,7 @@ export interface CompletionOptions {
  * // With custom provider and model
  * const text = await complete('Explain quantum computing', {
  *   provider: 'gemini',
- *   model: 'gemini-2.5-pro',
+ *   model: 'gemini-3-flash-preview',
  *   maxTokens: 1000,
  *   temperature: 0.7
  * });
