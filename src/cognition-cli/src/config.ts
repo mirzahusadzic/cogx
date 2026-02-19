@@ -72,7 +72,7 @@ export const DEFAULT_SUMMARIZER_MAX_TOKENS = 8192;
  * Model for security validation (mission document analysis)
  * Uses Gemini 3 Pro for deeper reasoning and threat detection
  */
-export const DEFAULT_OPSEC_MODEL_NAME = 'gemini-3-pro-preview';
+export const DEFAULT_OPSEC_MODEL_NAME = 'gemini-3.1-pro-preview';
 
 /**
  * Enable LLM-based security filtering by default

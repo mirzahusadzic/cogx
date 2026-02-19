@@ -106,7 +106,7 @@ export const GEMINI_MODELS = {
   flashPreview: 'gemini-3-flash-preview',
 
   /** Most capable Pro model */
-  powerful: 'gemini-3.0-pro-preview',
+  powerful: 'gemini-3.1-pro-preview',
 
   /** Balanced performance and cost - Defaulting to Gemini 3 Flash as 2.x reaches EOL */
   balanced: 'gemini-3-flash-preview',

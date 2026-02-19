@@ -150,6 +150,8 @@ export class GeminiAgentProvider implements AgentProvider {
   // Only models that support extended thinking (ordered newest first)
   models = [
     'gemini-3-flash-preview', // Gemini 3.0 Flash with high-level thinking (default)
+    'gemini-3.1-pro-preview', // Gemini 3.1 Pro preview
+    'gemini-3.1-pro-preview-customtools', // Gemini 3.1 Pro with custom tools
     'gemini-3-pro-preview', // Gemini 3.0 Pro with advanced reasoning
   ];
 
