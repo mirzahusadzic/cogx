@@ -407,8 +407,11 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
       stateModel ||
       (resolvedProvider === 'openai'
         ? process.env.COGNITION_OPENAI_MODEL
-        : llmConfig.providers[resolvedProvider as 'claude' | 'gemini']
-            ?.defaultModel);
+        : resolvedProvider === 'minimax'
+          ? process.env.COGNITION_MINIMAX_MODEL
+          : llmConfig.providers[
+              resolvedProvider as 'claude' | 'gemini' | 'minimax'
+            ]?.defaultModel);
 
     if (!registry.has(resolvedProvider)) {
       const availableProviders = registry.list();
@@ -478,8 +481,11 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
       resolvedModel =
         validatedProvider === 'openai'
           ? process.env.COGNITION_OPENAI_MODEL
-          : llmConfig.providers[validatedProvider as 'claude' | 'gemini']
-              ?.defaultModel;
+          : validatedProvider === 'minimax'
+            ? process.env.COGNITION_MINIMAX_MODEL
+            : llmConfig.providers[
+                validatedProvider as 'claude' | 'gemini' | 'minimax'
+              ]?.defaultModel;
     }
   } catch (error) {
     console.error(
@@ -489,11 +495,11 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
   }
 
   // Set default sessionTokens based on provider
-  // Gemini has huge context but we compress early at 200K for "Fire and Execute" snappiness
+  // Gemini/Minimax have huge context but we compress early at 200K
   // Claude has 200K token context (Sonnet/Opus) - compress at 120K to leave buffer
   // OpenAI/local models use COGNITION_OPENAI_MAX_TOKENS (auto-configured from workbench health)
   let defaultSessionTokens: number;
-  if (validatedProvider === 'gemini') {
+  if (validatedProvider === 'gemini' || validatedProvider === 'minimax') {
     defaultSessionTokens = 200000;
   } else if (validatedProvider === 'openai') {
     // Use auto-configured token limit from workbench

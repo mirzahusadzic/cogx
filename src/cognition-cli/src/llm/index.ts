@@ -33,6 +33,7 @@
 import { registry } from './provider-registry.js';
 import { GeminiAgentProvider } from './providers/gemini-agent-provider.js';
 import { OpenAIAgentProvider } from './providers/openai-agent-provider.js';
+import { MinimaxAgentProvider } from './providers/minimax-agent-provider.js';
 import { systemLog } from '../utils/debug-logger.js';
 
 // Re-export core types and classes
@@ -47,6 +48,7 @@ export type { AgentProvider } from './agent-provider-interface.js';
 export { isAgentProvider } from './agent-provider-interface.js';
 export { GeminiAgentProvider } from './providers/gemini-agent-provider.js';
 export { OpenAIAgentProvider } from './providers/openai-agent-provider.js';
+export { MinimaxAgentProvider } from './providers/minimax-agent-provider.js';
 
 // Claude provider is dynamically imported to make it optional
 export type { ClaudeProvider } from './providers/claude-agent-provider.js';
@@ -74,6 +76,11 @@ export interface InitializeOptions {
    * OpenAI base URL for custom endpoints like eGemma (optional, defaults to OPENAI_BASE_URL env var)
    */
   openaiBaseUrl?: string;
+
+  /**
+   * Minimax API key (optional, defaults to MINIMAX_API_KEY env var)
+   */
+  minimaxApiKey?: string;
 
   /**
    * Default provider to use
@@ -128,6 +135,7 @@ export async function initializeProviders(
     googleApiKey,
     openaiApiKey,
     openaiBaseUrl,
+    minimaxApiKey,
     defaultProvider = 'gemini',
     skipMissingProviders = true, // Changed default to true
   } = options;
@@ -238,6 +246,31 @@ export async function initializeProviders(
     }
   } else if (registry.has('openai')) {
     registered.push('openai');
+  }
+
+  // Register Minimax (Anthropic-compatible API)
+  const minimaxKey = minimaxApiKey || process.env.MINIMAX_API_KEY;
+  if (minimaxKey && !registry.has('minimax')) {
+    try {
+      const minimax = new MinimaxAgentProvider({
+        apiKey: minimaxKey,
+      });
+      registry.register(minimax);
+      registered.push('minimax');
+    } catch (error) {
+      if (skipMissingProviders) {
+        systemLog(
+          'llm',
+          'Skipping Minimax provider',
+          { error: error instanceof Error ? error.message : String(error) },
+          'warn'
+        );
+      } else {
+        throw error;
+      }
+    }
+  } else if (registry.has('minimax')) {
+    registered.push('minimax');
   }
 
   // Set default provider if it was successfully registered

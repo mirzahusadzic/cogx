@@ -119,5 +119,6 @@ export const TUITheme = {
     anthropic: '#d97757', // Claude Orange
     google: '#4285f4', // Google Blue
     openai: '#ffffff', // OpenAI White
+    minimax: '#00D4AA', // Minimax Green
   },
 };

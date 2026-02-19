@@ -78,6 +78,9 @@ export interface LLMConfig {
 
     /** OpenAI configuration (also works with OpenAI-compatible endpoints like eGemma) */
     openai?: OpenAIProviderConfig;
+
+    /** Minimax configuration (via Anthropic-compatible API) */
+    minimax?: ProviderConfig;
   };
 }
 
@@ -138,6 +141,26 @@ export const LOCAL_MODELS = {
 } as const;
 
 /**
+ * Default Minimax models via Anthropic-compatible API
+ */
+export const MINIMAX_MODELS = {
+  /** M2.5 - Peak Performance, Ultimate Value */
+  latest: 'MiniMax-M2.5',
+
+  /** M2.5 highspeed - Same performance, faster output (~100 tps) */
+  highspeed: 'MiniMax-M2.5-highspeed',
+
+  /** M2.1 - Powerful Multi-Language Programming */
+  balanced: 'MiniMax-M2.1',
+
+  /** M2.1 highspeed - Faster and More Agile */
+  fast: 'MiniMax-M2.1-highspeed',
+
+  /** M2 - Agentic capabilities, Advanced reasoning */
+  reasoning: 'MiniMax-M2',
+} as const;
+
+/**
  * Load LLM configuration
  *
  * Reads configuration from environment variables and settings file.
@@ -195,6 +218,13 @@ export function loadLLMConfig(): LLMConfig {
         defaultModel:
           process.env.COGNITION_OPENAI_MODEL || OPENAI_MODELS.latest,
       },
+
+      // Minimax configuration (via Anthropic-compatible API)
+      minimax: {
+        apiKey: process.env.MINIMAX_API_KEY,
+        defaultModel:
+          process.env.COGNITION_MINIMAX_MODEL || MINIMAX_MODELS.latest,
+      },
     },
   };
 }
@@ -247,6 +277,7 @@ export function validateLLMConfig(config: LLMConfig): string[] {
       claude: 'ANTHROPIC_API_KEY',
       gemini: 'GEMINI_API_KEY',
       openai: 'OPENAI_API_KEY',
+      minimax: 'MINIMAX_API_KEY',
     };
     const envVarName = envVarMap[defaultProvider] || 'API_KEY';
     errors.push(
@@ -280,7 +311,7 @@ export function validateLLMConfig(config: LLMConfig): string[] {
  * }
  */
 export function getProviderApiKey(
-  provider: 'claude' | 'gemini' | 'openai'
+  provider: 'claude' | 'gemini' | 'openai' | 'minimax'
 ): string | undefined {
   const config = loadLLMConfig();
   return config.providers[provider]?.apiKey;
@@ -299,7 +330,7 @@ export function getProviderApiKey(
  * console.log(`Using Claude model: ${claudeModel}`);
  */
 export function getProviderDefaultModel(
-  provider: 'claude' | 'gemini' | 'openai'
+  provider: 'claude' | 'gemini' | 'openai' | 'minimax'
 ): string | undefined {
   const config = loadLLMConfig();
   return config.providers[provider]?.defaultModel;
@@ -321,7 +352,7 @@ export function getProviderDefaultModel(
  * }
  */
 export function isProviderConfigured(
-  provider: 'claude' | 'gemini' | 'openai'
+  provider: 'claude' | 'gemini' | 'openai' | 'minimax'
 ): boolean {
   const config = loadLLMConfig();
   const providerConfig = config.providers[provider];
@@ -336,6 +367,11 @@ export function isProviderConfigured(
   if (provider === 'gemini') {
     const isVertex = process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true';
     return !!(providerConfig?.apiKey || isVertex);
+  }
+
+  // Minimax is considered configured if it has an API key
+  if (provider === 'minimax') {
+    return !!providerConfig?.apiKey;
   }
 
   return !!providerConfig?.apiKey;
@@ -365,6 +401,10 @@ export function getConfiguredProviders(): string[] {
 
   if (isProviderConfigured('openai')) {
     providers.push('openai');
+  }
+
+  if (isProviderConfigured('minimax')) {
+    providers.push('minimax');
   }
 
   return providers;

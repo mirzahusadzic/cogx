@@ -35,6 +35,7 @@ const PROVIDER_STYLES: Record<string, { color: string; emoji: string }> = {
   gemini: { color: TUITheme.providers.google, emoji: '🔵' },
   'gemini-agent': { color: TUITheme.providers.google, emoji: '🤖' },
   openai: { color: TUITheme.providers.openai, emoji: '⚪️' },
+  minimax: { color: '#00D4AA', emoji: '🟢' },
 };
 
 // Model ID to display name mapping
@@ -48,6 +49,12 @@ const MODEL_DISPLAY_NAMES: Record<string, string> = {
   'gemini-3-pro-preview': 'Gemini 3p',
   'gemini-2.5-flash': 'Gemini 2.5f (EOL)',
   'gemini-2.5-pro': 'Gemini 2.5p (EOL)',
+  // Minimax models
+  'MiniMax-M2.5': 'Minimax M2.5',
+  'MiniMax-M2.5-highspeed': 'M2.5 Fast',
+  'MiniMax-M2.1': 'Minimax M2.1',
+  'MiniMax-M2.1-highspeed': 'M2.1 Fast',
+  'MiniMax-M2': 'Minimax M2',
 };
 
 /**
