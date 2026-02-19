@@ -140,5 +140,8 @@ export interface LLMProvider {
    * @param model - Model identifier
    * @returns Estimated cost in USD
    */
-  estimateCost?(tokens: number, model: string): number;
+  estimateCost?(
+    tokens: { prompt: number; completion: number; total: number },
+    model: string
+  ): number;
 }

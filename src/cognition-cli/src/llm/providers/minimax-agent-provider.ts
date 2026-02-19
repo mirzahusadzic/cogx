@@ -75,10 +75,12 @@ export class MinimaxAgentProvider implements AgentProvider {
   async isAvailable(): Promise<boolean> {
     return !!process.env.MINIMAX_API_KEY;
   }
-  estimateCost(tokens: number, model?: string): number {
-    const mtokens = tokens / 1000000;
-    const inputMtokens = mtokens * 0.4;
-    const outputMtokens = mtokens * 0.6;
+  estimateCost(
+    tokens: { prompt: number; completion: number; total: number },
+    model?: string
+  ): number {
+    const inputMtokens = tokens.prompt / 1000000;
+    const outputMtokens = tokens.completion / 1000000;
 
     if (model?.includes('highspeed')) {
       return inputMtokens * 0.6 + outputMtokens * 2.4;
@@ -232,7 +234,7 @@ export class MinimaxAgentProvider implements AgentProvider {
           { signal: abortSignal }
         );
 
-        let currentAssistantContent: Anthropic.ContentBlockParam[] = [];
+        const currentAssistantContent: Anthropic.ContentBlockParam[] = [];
 
         for await (const ev of stream) {
           if (abortSignal.aborted) break;
@@ -333,7 +335,7 @@ export class MinimaxAgentProvider implements AgentProvider {
           }
         }
 
-        const finalMsg = await stream.finalMessage();
+        await stream.finalMessage();
 
         // Use manually accumulated content to preserve 'thinking' blocks
         // which might be stripped by the SDK's finalMessage()

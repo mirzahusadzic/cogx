@@ -1353,17 +1353,17 @@ export class GeminiAgentProvider implements AgentProvider {
    * - Gemini 3.0 Pro Preview: $2/$12 per MTok (<200k tokens), $4/$18 per MTok (>200k tokens)
    * - Context: 1M tokens, Output: 64k tokens
    */
-  estimateCost(tokens: number, model: string): number {
-    const mtokens = tokens / 1000000;
-
-    // Estimate 40% input, 60% output (typical conversation ratio)
-    const inputMtokens = mtokens * 0.4;
-    const outputMtokens = mtokens * 0.6;
+  estimateCost(
+    tokens: { prompt: number; completion: number; total: number },
+    model: string
+  ): number {
+    const inputMtokens = tokens.prompt / 1000000;
+    const outputMtokens = tokens.completion / 1000000;
 
     // Gemini 3.0 Pro Preview - tiered pricing
     if (model.includes('3-pro')) {
       // >200k tokens = higher tier
-      if (tokens > 200000) {
+      if (tokens.total > 200000) {
         return inputMtokens * 4.0 + outputMtokens * 18.0;
       }
       // <200k tokens = lower tier

@@ -256,7 +256,7 @@ describe('ClaudeProvider', () => {
 
         // 1 million tokens
         const cost = provider.estimateCost(
-          1000000,
+          { prompt: 400000, completion: 600000, total: 1000000 },
           'claude-sonnet-4-5-20250929'
         );
 
@@ -268,7 +268,10 @@ describe('ClaudeProvider', () => {
 
       it('should handle small token counts', () => {
         const provider = new ClaudeProvider('test-key');
-        const cost = provider.estimateCost(1000, 'claude-sonnet-4-5-20250929');
+        const cost = provider.estimateCost(
+          { prompt: 400, completion: 600, total: 1000 },
+          'claude-sonnet-4-5-20250929'
+        );
         expect(cost).toBeGreaterThan(0);
         expect(cost).toBeLessThan(0.1);
       });

@@ -223,7 +223,10 @@ describe('OpenAIAgentProvider', () => {
       const provider = new OpenAIAgentProvider();
 
       // 1 million tokens
-      const cost = provider.estimateCost(1000000, 'gpt-4o');
+      const cost = provider.estimateCost(
+        { prompt: 400000, completion: 600000, total: 1000000 },
+        'gpt-4o'
+      );
 
       // 40% input = 0.4 MTok * $2.5 = $1.0
       // 60% output = 0.6 MTok * $10 = $6.0
@@ -235,7 +238,10 @@ describe('OpenAIAgentProvider', () => {
       const provider = new OpenAIAgentProvider();
 
       // 1 million tokens
-      const cost = provider.estimateCost(1000000, 'gpt-4o-mini');
+      const cost = provider.estimateCost(
+        { prompt: 400000, completion: 600000, total: 1000000 },
+        'gpt-4o-mini'
+      );
 
       // 40% input = 0.4 MTok * $0.15 = $0.06
       // 60% output = 0.6 MTok * $0.60 = $0.36
@@ -245,7 +251,10 @@ describe('OpenAIAgentProvider', () => {
 
     it('should handle small token counts', () => {
       const provider = new OpenAIAgentProvider();
-      const cost = provider.estimateCost(1000, 'gpt-4o');
+      const cost = provider.estimateCost(
+        { prompt: 400, completion: 600, total: 1000 },
+        'gpt-4o'
+      );
       expect(cost).toBeGreaterThan(0);
       expect(cost).toBeLessThan(0.01);
     });

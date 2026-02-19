@@ -154,7 +154,10 @@ describe('GeminiAgentProvider', () => {
       const provider = new GeminiAgentProvider('test-key');
 
       // 1 million tokens
-      const cost = provider.estimateCost(1000000, 'gemini-3-flash-preview');
+      const cost = provider.estimateCost(
+        { prompt: 400000, completion: 600000, total: 1000000 },
+        'gemini-3-flash-preview'
+      );
 
       // 40% input = 0.4 MTok * $0.50 = $0.20
       // 60% output = 0.6 MTok * $3.00 = $1.80
@@ -166,7 +169,10 @@ describe('GeminiAgentProvider', () => {
       const provider = new GeminiAgentProvider('test-key');
 
       // 100k tokens (below 200k tier)
-      const cost = provider.estimateCost(100000, 'gemini-3-pro-preview');
+      const cost = provider.estimateCost(
+        { prompt: 40000, completion: 60000, total: 100000 },
+        'gemini-3-pro-preview'
+      );
 
       // 40% input = 0.04 MTok * $2.00 = $0.08
       // 60% output = 0.06 MTok * $12.00 = $0.72
@@ -178,7 +184,10 @@ describe('GeminiAgentProvider', () => {
       const provider = new GeminiAgentProvider('test-key');
 
       // 500k tokens (above 200k tier)
-      const cost = provider.estimateCost(500000, 'gemini-3-pro-preview');
+      const cost = provider.estimateCost(
+        { prompt: 200000, completion: 300000, total: 500000 },
+        'gemini-3-pro-preview'
+      );
 
       // 40% input = 0.2 MTok * $4.00 = $0.80
       // 60% output = 0.3 MTok * $18.00 = $5.40
@@ -188,7 +197,10 @@ describe('GeminiAgentProvider', () => {
 
     it('should handle small token counts', () => {
       const provider = new GeminiAgentProvider('test-key');
-      const cost = provider.estimateCost(1000, 'gemini-3-flash-preview');
+      const cost = provider.estimateCost(
+        { prompt: 400, completion: 600, total: 1000 },
+        'gemini-3-flash-preview'
+      );
       expect(cost).toBeGreaterThan(0);
       expect(cost).toBeLessThan(0.01);
     });

@@ -236,7 +236,7 @@ describe('LLM Configuration', () => {
     it('should have Gemini model presets', () => {
       expect(GEMINI_MODELS.latest).toBe('gemini-3-flash-preview');
       expect(GEMINI_MODELS.balanced).toBe('gemini-3-flash-preview');
-      expect(GEMINI_MODELS.powerful).toBe('gemini-3.0-pro-preview');
+      expect(GEMINI_MODELS.powerful).toBe('gemini-3.1-pro-preview');
     });
   });
 });

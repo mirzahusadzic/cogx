@@ -1578,12 +1578,12 @@ IMPORTANT: Always use the SigmaTaskUpdate tool to plan and track tasks throughou
    * - GPT-4o: $2.50/$10 per MTok (input/output)
    * - GPT-4o-mini: $0.15/$0.60 per MTok
    */
-  estimateCost(tokens: number, model: string): number {
-    const mtokens = tokens / 1000000;
-
-    // Estimate 40% input, 60% output
-    const inputMtokens = mtokens * 0.4;
-    const outputMtokens = mtokens * 0.6;
+  estimateCost(
+    tokens: { prompt: number; completion: number; total: number },
+    model: string
+  ): number {
+    const inputMtokens = tokens.prompt / 1000000;
+    const outputMtokens = tokens.completion / 1000000;
 
     if (model.includes('mini')) {
       return inputMtokens * 0.15 + outputMtokens * 0.6;

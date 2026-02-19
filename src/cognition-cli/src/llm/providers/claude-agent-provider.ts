@@ -233,13 +233,12 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
    * Based on Anthropic pricing as of Nov 2025:
    * - Sonnet 4.5: $3/$15 per MTok (input/output)
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  estimateCost(tokens: number, _model: string): number {
-    const mtokens = tokens / 1000000;
-
-    // Estimate 40% input, 60% output (typical conversation ratio)
-    const inputMtokens = mtokens * 0.4;
-    const outputMtokens = mtokens * 0.6;
+  estimateCost(
+    tokens: { prompt: number; completion: number; total: number },
+    model?: string // eslint-disable-line @typescript-eslint/no-unused-vars
+  ): number {
+    const inputMtokens = tokens.prompt / 1000000;
+    const outputMtokens = tokens.completion / 1000000;
 
     // Sonnet 4.5 pricing
     return inputMtokens * 3 + outputMtokens * 15;
