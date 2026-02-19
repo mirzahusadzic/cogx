@@ -357,12 +357,12 @@ _cognition_cli_completions() {
       ;;
     --provider)
       # Suggest provider names
-      COMPREPLY=( $(compgen -W "claude gemini openai" -- \${cur}) )
+      COMPREPLY=( $(compgen -W "claude gemini openai minimax" -- \${cur}) )
       return 0
       ;;
     --model)
       # Suggest model names (provider-specific)
-      COMPREPLY=( $(compgen -W "claude-opus-4-5-20251101 claude-sonnet-4-5-20250929 gemini-3-flash-preview gemini-3-pro-preview gpt-oss-20b" -- \${cur}) )
+      COMPREPLY=( $(compgen -W "claude-opus-4-5-20251101 claude-sonnet-4-5-20250929 gemini-3-flash-preview gemini-3-pro-preview gpt-oss-20b MiniMax-M2.5 MiniMax-M2.5-highspeed MiniMax-M2.1 MiniMax-M2.1-highspeed MiniMax-M2" -- \${cur}) )
       return 0
       ;;
     overlay)
@@ -433,14 +433,14 @@ _cognition_cli_completions() {
     test|set-default)
       # After test or set-default, suggest provider names
       if [[ "\${COMP_WORDS[1]}" == "tui" ]] && [[ "\${COMP_WORDS[2]}" == "provider" ]]; then
-        COMPREPLY=( $(compgen -W "claude gemini openai" -- \${cur}) )
+        COMPREPLY=( $(compgen -W "claude gemini openai minimax" -- \${cur}) )
         return 0
       fi
       ;;
     models)
       # After models, optionally suggest provider names
       if [[ "\${COMP_WORDS[1]}" == "tui" ]] && [[ "\${COMP_WORDS[2]}" == "provider" ]]; then
-        COMPREPLY=( $(compgen -W "claude gemini openai" -- \${cur}) )
+        COMPREPLY=( $(compgen -W "claude gemini openai minimax" -- \${cur}) )
         return 0
       fi
       ;;
@@ -673,8 +673,8 @@ _cognition_cli() {
             {-w,--workbench}'[Workbench URL]:url:' \
             '--session-tokens[Token threshold]:number:' \
             '--max-thinking-tokens[Max thinking tokens]:number:' \
-            '--provider[LLM provider]:provider:(claude gemini openai)' \
-            '--model[Model to use]:model:(claude-opus-4-5-20251101 claude-sonnet-4-5-20250929 gemini-3-flash-preview gemini-3-pro-preview gpt-oss-20b)' \
+            '--provider[LLM provider]:provider:(claude gemini openai minimax)' \
+            '--model[Model to use]:model:(claude-opus-4-5-20251101 claude-sonnet-4-5-20250929 gemini-3-flash-preview gemini-3-pro-preview gpt-oss-20b MiniMax-M2.5 MiniMax-M2.5-highspeed MiniMax-M2.1 MiniMax-M2.1-highspeed MiniMax-M2)' \
             '--no-show-thinking[Hide thinking blocks in TUI]' \
             '--no-onboarding[Skip onboarding wizard]' \
             '--no-auto-response[Disable automatic response to agent messages]' \
@@ -694,7 +694,7 @@ _cognition_cli() {
                 provider)
                   _arguments \
                     '1:provider-subcommand:(list test set-default config models)' \
-                    '2:provider-name:(claude gemini openai)'
+                    '2:provider-name:(claude gemini openai minimax)'
                   ;;
               esac
               ;;
@@ -1001,8 +1001,8 @@ complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -s f -l file -d "
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -s w -l workbench -d "Workbench URL"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l session-tokens -d "Token threshold"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l max-thinking-tokens -d "Max thinking tokens"
-complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l provider -d "LLM provider" -xa "claude gemini openai"
-complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l model -d "Model to use" -xa "claude-opus-4-5-20251101 claude-sonnet-4-5-20250929 gemini-3-flash-preview gemini-3-pro-preview gpt-oss-20b"
+complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l provider -d "LLM provider" -xa "claude gemini openai minimax"
+complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l model -d "Model to use" -xa "claude-opus-4-5-20251101 claude-sonnet-4-5-20250929 gemini-3-flash-preview gemini-3-pro-preview gpt-oss-20b MiniMax-M2.5 MiniMax-M2.5-highspeed MiniMax-M2.1 MiniMax-M2.1-highspeed MiniMax-M2"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l no-show-thinking -d "Hide thinking blocks"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l no-onboarding -d "Skip onboarding wizard"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l no-auto-response -d "Disable auto-response"
@@ -1022,6 +1022,7 @@ complete -c cognition-cli -f -n "__fish_seen_subcommand_from tui; and __fish_see
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from tui; and __fish_seen_subcommand_from provider; and __fish_seen_subcommand_from test set-default models" -a "claude" -d "Anthropic Claude"
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from tui; and __fish_seen_subcommand_from provider; and __fish_seen_subcommand_from test set-default models" -a "gemini" -d "Google Gemini"
 complete -c cognition-cli -f -n "__fish_seen_subcommand_from tui; and __fish_seen_subcommand_from provider; and __fish_seen_subcommand_from test set-default models" -a "openai" -d "OpenAI / OpenAI-compatible"
+complete -c cognition-cli -f -n "__fish_seen_subcommand_from tui; and __fish_seen_subcommand_from provider; and __fish_seen_subcommand_from test set-default models" -a "minimax" -d "Minimax"
 
 # Ask options
 complete -c cognition-cli -n "__fish_seen_subcommand_from ask" -s p -l project-root -d "Project root directory" -xa "(__fish_complete_directories)"
