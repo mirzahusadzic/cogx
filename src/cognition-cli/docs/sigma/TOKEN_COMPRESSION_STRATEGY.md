@@ -19,7 +19,14 @@ To solve this, Cognition Σ implements a **Tri-Modal Compression Strategy**. Thi
 - **Min Turns:** **1**.
 - **Logic:**
   > "I just finished a task. My short-term memory is full of implementation details (logs, diffs, file reads) that are no longer needed. Since I am at a clean break point, I will compress my history now to free up space for the next task."
-- **Benefit:** Prevents "context drift" and ensures the next task starts with a high-signal, low-noise prompt.
+- **Surgical Log Eviction (New in v2.6):**
+  When a task is marked as `completed`, the provider performs a surgical strike on the session history:
+  - **Tool Tagging:** All outputs from `bash`, `read_file`, `grep`, `glob`, and `fetch_url` are automatically tagged with a hidden `<!-- sigma-task: <id> -->` marker.
+  - **History Pruning:** The provider scans the session history for any message parts containing this tag.
+  - **Archiving:** Evicted logs are not just deleted; they are moved to `.sigma/archives/<session_id>/<task_id>.log` for future reference (auditable via `grep`).
+  - **Tombstone Replacement:** Each evicted message is replaced by a concise "Tombstone" (e.g., `[Task <id> completed: output evicted to archive]`). This preserves the conversational structure while reclaiming up to 95% of the task's token footprint.
+- **Agent Best Practice:** To maximize efficiency, agents are instructed to mark a task as `in_progress` **before** performing research or running tools. This ensures all implementation and research noise is tagged with the task ID and can be surgically pruned upon completion.
+- **Benefit:** Prevents "context drift" and ensures the next task starts with a high-signal, low-noise prompt without losing the ability to audit past work.
 
 ### 2. Standard Mode (The "Safety Net")
 

@@ -256,7 +256,7 @@ Use this tool proactively in these scenarios:
 3. User explicitly requests task list - When the user directly asks you to use the task list
 4. User provides multiple tasks - When users provide a list of things to be done (numbered or comma-separated)
 5. After receiving new instructions - Immediately capture user requirements as tasks
-6. When you start working on a task - Mark it as in_progress BEFORE beginning work. Ideally you should only have one task as in_progress at a time
+6. When you start working on a task - Mark it as in_progress BEFORE beginning tool work (e.g., research, read_file, bash). This ensures tool outputs are tagged with the active task ID for surgical context eviction upon completion.
 7. After completing a task - Mark it as completed and add any new follow-up tasks discovered during implementation
 
 ## When NOT to Use This Tool
@@ -271,6 +271,12 @@ Skip using this tool when:
 - in_progress: Currently working on (limit to ONE task at a time)
 - completed: Task finished successfully
 - delegated: Task assigned to another agent via IPC (Manager/Worker pattern)
+
+## Best Practices for Token Health (Surgical Eviction)
+Cognition Σ uses task IDs to tag tool outputs for context pruning:
+1. **Always Start First**: Mark a task as 'in_progress' BEFORE running tools. This ensures research/implementation logs are tagged and can be surgically evicted later to reclaim tokens.
+2. **Research Continuity**: If you complete a "Research" task, its detailed tool logs will be evicted. Ensure you have summarized all key findings into your internal thought process or subsequent task descriptions before marking the research task 'completed'.
+3. **Don't Batch Completions**: Mark a task 'completed' as soon as it's finished. This triggers immediate log eviction, freeing context for the next task and preventing "context drift".
 
 ## Delegation (Manager/Worker Pattern)
 When delegating a task to another agent:
