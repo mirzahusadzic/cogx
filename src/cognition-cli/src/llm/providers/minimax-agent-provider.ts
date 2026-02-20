@@ -354,7 +354,7 @@ export class MinimaxAgentProvider implements AgentProvider {
           if (abortSignal.aborted) break;
 
           if (ev.type === 'message_start') {
-            pt += ev.message.usage.input_tokens;
+            pt = ev.message.usage.input_tokens;
           } else if (ev.type === 'content_block_start') {
             const index = ev.index;
             if (ev.content_block.type === 'text') {

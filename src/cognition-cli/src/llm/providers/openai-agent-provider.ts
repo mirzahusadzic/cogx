@@ -1287,7 +1287,9 @@ export class OpenAIAgentProvider implements AgentProvider {
         totalCompletionTokens = 0;
         for (const response of streamedResult.state._modelResponses) {
           if (response.usage) {
+            // Prompt tokens represents the current context size (from the latest turn)
             totalPromptTokens += response.usage.inputTokens || 0;
+            // Completion tokens are cumulative for all turns in the request
             totalCompletionTokens += response.usage.outputTokens || 0;
           }
         }

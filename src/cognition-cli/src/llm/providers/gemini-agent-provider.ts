@@ -833,23 +833,16 @@ export class GeminiAgentProvider implements AgentProvider {
                     messages: [...messages],
                     sessionId,
                     tokens: {
-                      prompt: Math.max(
-                        cumulativePromptTokens,
-                        Math.ceil(request.prompt.length / 4)
-                      ),
-                      completion: Math.max(
-                        cumulativeCompletionTokens,
-                        currentTurnOutputEstimate
-                      ),
+                      prompt:
+                        cumulativePromptTokens ||
+                        Math.ceil(request.prompt.length / 4),
+                      completion:
+                        cumulativeCompletionTokens || currentTurnOutputEstimate,
                       total:
-                        Math.max(
-                          cumulativePromptTokens,
-                          Math.ceil(request.prompt.length / 4)
-                        ) +
-                        Math.max(
-                          cumulativeCompletionTokens,
-                          currentTurnOutputEstimate
-                        ),
+                        (cumulativePromptTokens ||
+                          Math.ceil(request.prompt.length / 4)) +
+                        (cumulativeCompletionTokens ||
+                          currentTurnOutputEstimate),
                     },
                     finishReason: 'tool_use',
                     numTurns,
@@ -911,17 +904,14 @@ export class GeminiAgentProvider implements AgentProvider {
                         cumulativePromptTokens ||
                         Math.ceil(request.prompt.length / 4),
                       completion:
-                        Math.max(
-                          cumulativeCompletionTokens,
-                          currentTurnOutputEstimate
-                        ) || 0,
+                        cumulativeCompletionTokens ||
+                        currentTurnOutputEstimate ||
+                        0,
                       total:
                         (cumulativePromptTokens ||
                           Math.ceil(request.prompt.length / 4)) +
-                        Math.max(
-                          cumulativeCompletionTokens,
-                          currentTurnOutputEstimate
-                        ),
+                        (cumulativeCompletionTokens ||
+                          currentTurnOutputEstimate),
                     },
                     finishReason: 'tool_use', // Tool result, not stop - agent continues
                     numTurns,
@@ -1169,17 +1159,15 @@ export class GeminiAgentProvider implements AgentProvider {
                       prompt:
                         cumulativePromptTokens ||
                         Math.ceil(request.prompt.length / 4),
-                      completion: Math.max(
-                        cumulativeCompletionTokens,
-                        currentTurnOutputEstimate
-                      ),
+                      completion:
+                        cumulativeCompletionTokens ||
+                        currentTurnOutputEstimate ||
+                        0,
                       total:
                         (cumulativePromptTokens ||
                           Math.ceil(request.prompt.length / 4)) +
-                        Math.max(
-                          cumulativeCompletionTokens,
-                          currentTurnOutputEstimate
-                        ),
+                        (cumulativeCompletionTokens ||
+                          currentTurnOutputEstimate),
                     },
                     finishReason: 'stop',
                     numTurns,
@@ -1203,20 +1191,14 @@ export class GeminiAgentProvider implements AgentProvider {
             messages: [...messages],
             sessionId,
             tokens: {
-              prompt: Math.max(
-                cumulativePromptTokens,
-                Math.ceil(request.prompt.length / 4)
-              ),
-              completion: Math.max(
-                cumulativeCompletionTokens,
-                currentTurnOutputEstimate
-              ),
+              prompt:
+                cumulativePromptTokens || Math.ceil(request.prompt.length / 4),
+              completion:
+                cumulativeCompletionTokens || currentTurnOutputEstimate,
               total:
-                Math.max(
-                  cumulativePromptTokens,
-                  Math.ceil(request.prompt.length / 4)
-                ) +
-                Math.max(cumulativeCompletionTokens, currentTurnOutputEstimate),
+                (cumulativePromptTokens ||
+                  Math.ceil(request.prompt.length / 4)) +
+                (cumulativeCompletionTokens || currentTurnOutputEstimate),
             },
             finishReason: 'stop',
             numTurns,
@@ -1302,23 +1284,15 @@ export class GeminiAgentProvider implements AgentProvider {
               messages: [...messages],
               sessionId,
               tokens: {
-                prompt: Math.max(
-                  cumulativePromptTokens,
-                  Math.ceil(request.prompt.length / 4)
-                ),
-                completion: Math.max(
-                  cumulativeCompletionTokens,
-                  currentTurnOutputEstimate
-                ),
+                prompt:
+                  cumulativePromptTokens ||
+                  Math.ceil(request.prompt.length / 4),
+                completion:
+                  cumulativeCompletionTokens || currentTurnOutputEstimate,
                 total:
-                  Math.max(
-                    cumulativePromptTokens,
-                    Math.ceil(request.prompt.length / 4)
-                  ) +
-                  Math.max(
-                    cumulativeCompletionTokens,
-                    currentTurnOutputEstimate
-                  ),
+                  (cumulativePromptTokens ||
+                    Math.ceil(request.prompt.length / 4)) +
+                  (cumulativeCompletionTokens || currentTurnOutputEstimate),
               },
               finishReason: 'stop', // Keep as stop so TUI continues to show "Thinking"
               numTurns,
@@ -1363,20 +1337,14 @@ export class GeminiAgentProvider implements AgentProvider {
             messages: [...messages],
             sessionId,
             tokens: {
-              prompt: Math.max(
-                cumulativePromptTokens,
-                Math.ceil(request.prompt.length / 4)
-              ),
-              completion: Math.max(
-                cumulativeCompletionTokens,
-                currentTurnOutputEstimate
-              ),
+              prompt:
+                cumulativePromptTokens || Math.ceil(request.prompt.length / 4),
+              completion:
+                cumulativeCompletionTokens || currentTurnOutputEstimate,
               total:
-                Math.max(
-                  cumulativePromptTokens,
-                  Math.ceil(request.prompt.length / 4)
-                ) +
-                Math.max(cumulativeCompletionTokens, currentTurnOutputEstimate),
+                (cumulativePromptTokens ||
+                  Math.ceil(request.prompt.length / 4)) +
+                (cumulativeCompletionTokens || currentTurnOutputEstimate),
             },
             finishReason: 'error',
             numTurns,
