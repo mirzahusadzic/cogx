@@ -273,9 +273,10 @@ Skip using this tool when:
 - delegated: Task assigned to another agent via IPC (Manager/Worker pattern)
 
 ## Token Health (Surgical Eviction)
-Cognition Σ uses task IDs to tag tool outputs for context pruning. To maximize context efficiency, follow these two rules:
+Cognition Σ uses task IDs to tag tool outputs for context pruning. To maximize context efficiency, follow these three rules:
 1. **Always Start First**: Mark a task as 'in_progress' BEFORE running tools. This ensures logs are tagged and can be surgically evicted upon task completion.
-2. **Immediate completion**: Mark a task 'completed' as soon as it's finished to trigger log eviction and reclaim tokens for the next turn.
+2. **Research Continuity**: If you complete a "Research" task, its detailed tool logs will be evicted. Ensure you have summarized all key findings into your internal thought process or subsequent task descriptions before marking the research task 'completed'.
+3. **Immediate completion**: Mark a task 'completed' as soon as it's finished to trigger log eviction and reclaim tokens for the next turn.
 
 ## Delegation (Manager/Worker Pattern)
 When delegating a task to another agent:

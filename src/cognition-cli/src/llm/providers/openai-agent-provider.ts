@@ -1573,17 +1573,21 @@ When delegating via send_agent_message, use this structured format:
     const taskStateRules = isSolo
       ? `### Task State Rules
 1. **Task States**: pending (not started), in_progress (currently working), completed (finished)
-2. **One at a time**: Exactly ONE task should be in_progress at any time
-3. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing
-4. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker
-5. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")`
+2. **Task-First (Token Health)**: ALWAYS mark a task as \`in_progress\` BEFORE running tools (research, read_file, bash, etc.). This ensures tool outputs are tagged with the active task ID for surgical context eviction upon completion.
+3. **One at a time**: Exactly ONE task should be in_progress at any time
+4. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing to trigger log eviction and reclaim tokens.
+5. **Research Continuity**: Summarize findings in your thoughts before completing a task, as logs will be evicted.
+6. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker.
+7. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")`
       : `### Task State Rules
 1. **Task States**: pending (not started), in_progress (currently working), completed (finished), delegated (assigned to another agent)
-2. **One at a time**: Exactly ONE task should be in_progress at any time
-3. **Delegation**: When delegating, set status to 'delegated' AND send IPC message. Do not mark completed until worker reports back.
-4. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing
-5. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker
-6. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")`;
+2. **Task-First (Token Health)**: ALWAYS mark a task as \`in_progress\` BEFORE running tools (research, read_file, bash, etc.). This ensures tool outputs are tagged with the active task ID for surgical context eviction upon completion.
+3. **One at a time**: Exactly ONE task should be in_progress at any time
+4. **Delegation**: When delegating, set status to 'delegated' AND send IPC message. Do not mark completed until worker reports back.
+5. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing to trigger log eviction and reclaim tokens.
+6. **Research Continuity**: Summarize findings in your thoughts before completing a task, as logs will be evicted.
+7. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker.
+8. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")`;
 
     return (
       `You are **${modelName}** (OpenAI Agents SDK) running inside **Cognition Σ (Sigma) CLI** - a verifiable AI-human symbiosis architecture with dual-lattice knowledge representation.
