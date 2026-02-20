@@ -337,10 +337,14 @@ export function useAgentHandlers({
           }
           if (agentMessage.toolName) {
             // content for tool_result might be in agentMessage.content (string or block array)
+            // Layer 14: Sigma Task Surgical Eviction (Strip hidden tags for display)
             const resultData =
               typeof agentMessage.content === 'string'
-                ? agentMessage.content
-                : agentMessage.content; // Use as is, formatToolResult handles it
+                ? agentMessage.content.replace(
+                    /\n\n<!-- sigma-task: [^>]+ -->\s*$/,
+                    ''
+                  )
+                : agentMessage.content;
 
             let formattedResult = formatToolResult(
               agentMessage.toolName,

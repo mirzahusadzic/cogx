@@ -100,9 +100,14 @@ function isStdoutNoise(str: string): boolean {
  * Note: history is an internal field in some ADK implementations used for turn tracking.
  */
 interface AdkSession {
-  history?: Array<{
-    role: string;
-    parts?: Array<{ text?: string }>;
+  events?: Array<{
+    author?: string;
+    content?: {
+      parts?: Array<{
+        text?: string;
+        functionResponse?: { name: string; response?: unknown };
+      }>;
+    };
   }>;
 }
 
@@ -268,24 +273,20 @@ export class GeminiAgentProvider implements AgentProvider {
 
       if (!session) return;
 
-      const history = (session as unknown as AdkSession).history;
-      if (!history || history.length === 0) return;
+      const events = (session as unknown as AdkSession).events;
+      if (!events || events.length === 0) return;
 
       const tag = `<!-- sigma-task: ${taskId} -->`;
       const evictedLogs: string[] = [];
-      const newHistory: NonNullable<AdkSession['history']> = [];
+      const newEvents: NonNullable<AdkSession['events']> = [];
       let evictedCount = 0;
 
-      for (const event of history) {
-        const parts = event.parts || [];
+      for (const event of events) {
+        const parts = event.content?.parts || [];
         const hasTag = parts.some((p) => {
-          const anyP = p as {
-            text?: string;
-            functionResponse?: { response?: unknown };
-          };
-          if (anyP.text?.includes(tag)) return true;
-          if (anyP.functionResponse?.response) {
-            return JSON.stringify(anyP.functionResponse.response).includes(tag);
+          if (p.text?.includes(tag)) return true;
+          if (p.functionResponse?.response) {
+            return JSON.stringify(p.functionResponse.response).includes(tag);
           }
           return false;
         });
@@ -295,12 +296,11 @@ export class GeminiAgentProvider implements AgentProvider {
           evictedCount++;
           // Replace with tombstone
           const tombstoneParts = parts.map((p) => {
-            const anyP = p as { functionResponse?: { name?: string } };
-            if (anyP.functionResponse) {
+            if (p.functionResponse) {
               return {
-                ...anyP,
+                ...p,
                 functionResponse: {
-                  name: anyP.functionResponse.name,
+                  name: p.functionResponse.name,
                   response: {
                     result: `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`,
                   },
@@ -312,14 +312,15 @@ export class GeminiAgentProvider implements AgentProvider {
             };
           });
 
-          newHistory.push({
-            role: event.role,
-            parts: tombstoneParts as unknown as NonNullable<
-              AdkSession['history']
-            >[0]['parts'],
+          newEvents.push({
+            ...event,
+            content: {
+              ...event.content,
+              parts: tombstoneParts,
+            },
           });
         } else {
-          newHistory.push(event);
+          newEvents.push(event);
         }
       }
 
@@ -341,8 +342,7 @@ export class GeminiAgentProvider implements AgentProvider {
         );
 
         // Update session history in memory
-        // ADK Session history is internal, we use cast to modify it
-        (session as unknown as AdkSession).history = newHistory;
+        (session as unknown as AdkSession).events = newEvents;
 
         systemLog(
           'sigma',
@@ -654,16 +654,16 @@ export class GeminiAgentProvider implements AgentProvider {
           // This prevents duplication on retries while ensuring the runner has input
           // if the session was not persisted (e.g. failure during first turn).
           let shouldInjectMessage = true;
-          const history = (session as unknown as AdkSession).history || [];
-          if (history.length > 0) {
+          const events = (session as unknown as AdkSession).events || [];
+          if (events.length > 0) {
             // Scan last few messages to see if this prompt is already active
             // (Handle cases like autonomous turns or retries where persistence succeeded)
-            const lookback = Math.min(history.length, 5);
+            const lookback = Math.min(events.length, 5);
             for (let i = 1; i <= lookback; i++) {
-              const msg = history[history.length - i];
+              const msg = events[events.length - i];
               if (
-                msg.role === 'user' &&
-                msg.parts?.[0]?.text === request.prompt
+                msg.author === 'user' &&
+                msg.content?.parts?.[0]?.text === request.prompt
               ) {
                 shouldInjectMessage = false;
                 break;
