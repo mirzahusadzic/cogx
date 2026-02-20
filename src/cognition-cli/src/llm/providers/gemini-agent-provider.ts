@@ -258,18 +258,22 @@ export class GeminiAgentProvider implements AgentProvider {
    * @param taskId - The ID of the completed task
    * @param sessionId - ADK session ID
    * @param projectRoot - Project root directory
+   * @param activeSession - Optional active session object from tool context
    */
   private async pruneTaskLogs(
     taskId: string,
     sessionId: string,
-    projectRoot: string
+    projectRoot: string,
+    activeSession?: Session
   ) {
     try {
-      const session = await this.sessionService.getSession({
-        appName: 'cognition-cli',
-        userId: 'cognition-user',
-        sessionId: sessionId,
-      });
+      const session =
+        activeSession ||
+        (await this.sessionService.getSession({
+          appName: 'cognition-cli',
+          userId: 'cognition-user',
+          sessionId: sessionId,
+        }));
 
       if (!session) return;
 
@@ -495,12 +499,13 @@ export class GeminiAgentProvider implements AgentProvider {
           provider: 'gemini', // Enable external SigmaTaskUpdate for Gemini
           anchorId: request.anchorId, // Session anchor for SigmaTaskUpdate state persistence
           onToolOutput: request.onToolOutput, // Pass streaming callback for tools like bash
-          onTaskCompleted: async (taskId: string) => {
+          onTaskCompleted: async (taskId: string, activeSession?: Session) => {
             // Surgical log eviction on task completion
             await this.pruneTaskLogs(
               taskId,
               sessionId,
-              request.cwd || request.projectRoot || process.cwd()
+              request.cwd || request.projectRoot || process.cwd(),
+              activeSession
             );
           },
           mode: request.mode,

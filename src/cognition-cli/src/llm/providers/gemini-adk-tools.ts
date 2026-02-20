@@ -5,7 +5,7 @@
  * Uses shared tool executors from tool-executors.ts and tool-helpers.ts.
  */
 
-import { FunctionTool } from '@google/adk';
+import { FunctionTool, ToolContext, type Session } from '@google/adk';
 import { Type, type Schema } from '@google/genai';
 import { z } from 'zod';
 import { systemLog } from '../../utils/debug-logger.js';
@@ -624,7 +624,7 @@ export interface CognitionToolsOptions {
   /** Callback for streaming tool output */
   onToolOutput?: (output: string) => void;
   /** Callback when a task is completed (for log eviction) */
-  onTaskCompleted?: (taskId: string) => Promise<void>;
+  onTaskCompleted?: (taskId: string, session?: Session) => Promise<void>;
   /** Operation mode (solo = skip IPC/PGC tools) */
   mode?: 'solo' | 'full';
   /** Current prompt tokens for dynamic optimization */
@@ -998,7 +998,7 @@ export function getCognitionTools(
         },
         required: ['todos'],
       } as Schema,
-      execute: async (rawInput: unknown) => {
+      execute: async (rawInput: unknown, toolContext?: ToolContext) => {
         if (process.env.DEBUG_GEMINI_TOOLS) {
           systemLog(
             'gemini-tools',
@@ -1226,7 +1226,8 @@ export function getCognitionTools(
           );
           for (const task of completedTasks) {
             try {
-              await options.onTaskCompleted(task.id);
+              const activeSession = toolContext?.invocationContext?.session;
+              await options.onTaskCompleted(task.id, activeSession);
             } catch (err) {
               systemLog(
                 'sigma',
