@@ -57,7 +57,7 @@
  * systemLog('tui', `Tokens: ${tokenCounter.count.total}`); // 200 (not 95000!)
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 
 /**
  * Token count breakdown by type
@@ -79,16 +79,20 @@ export interface TokenCount {
  * Provides update() and reset() functions that handle the edge case
  * of resetting counts to 0 during context compression.
  *
- * The key insight is using a ref-based flag (justReset) that bypasses
- * the Math.max protection for exactly ONE update after reset().
+ * The key insight is using ref-based flags (justReset, expectDrop) that bypass
+ * the Math.max protection for specific scenarios.
  *
- * @returns Object with count state and update/reset functions
+ * @returns Object with count state and update/reset/allowDrop functions
  *
  * @example
- * const { count, update, reset } = useTokenCount();
+ * const { count, update, reset, allowDrop } = useTokenCount();
  *
  * // Track tokens
  * update({ input: 1000, output: 500, total: 1500 });
+ *
+ * // Allow a drop (e.g. after surgical eviction)
+ * allowDrop();
+ * update({ input: 800, output: 500, total: 1300 }); // Accepted
  *
  * // Reset for new session
  * reset();
@@ -101,6 +105,7 @@ export function useTokenCount() {
     total: 0,
   });
   const justReset = useRef(false);
+  const expectDrop = useRef(false);
 
   /**
    * Reset token count to zero.
@@ -115,6 +120,7 @@ export function useTokenCount() {
   const reset = useCallback(() => {
     setCount({ input: 0, output: 0, total: 0 });
     justReset.current = true;
+    expectDrop.current = false;
   }, []);
 
   /**
@@ -131,9 +137,26 @@ export function useTokenCount() {
   const update = useCallback((newCount: TokenCount) => {
     setCount((prev) => {
       // After reset, accept any value (don't use Math.max)
+      // This is used during session compression/restart.
       if (justReset.current) {
         justReset.current = false;
         return newCount;
+      }
+
+      // If we are waiting for a drop (e.g. after surgical eviction)
+      if (expectDrop.current) {
+        if (newCount.total < prev.total) {
+          // Found the drop!
+          expectDrop.current = false;
+          return newCount;
+        } else if (newCount.total > prev.total) {
+          // Count grew instead of dropping (e.g. overhead increased)
+          // Still clear the flag as we've seen a change.
+          expectDrop.current = false;
+          return newCount;
+        }
+        // If equal, keep waiting for the drop from the provider
+        return prev;
       }
 
       // Normal updates: use Math.max to prevent drops
@@ -161,12 +184,27 @@ export function useTokenCount() {
     // resumed and reconstructed, as the new context size is likely smaller
     // than the persisted one.
     justReset.current = true;
+    expectDrop.current = false;
   }, []);
 
-  return {
-    count,
-    reset,
-    update,
-    initialize,
-  };
+  /**
+   * Allow the next token update to decrease the count.
+   *
+   * Sets expectDrop flag. The next update that differs from current total
+   * will be accepted even if it's lower. Useful for surgical eviction.
+   */
+  const allowDrop = useCallback(() => {
+    expectDrop.current = true;
+  }, []);
+
+  return useMemo(
+    () => ({
+      count,
+      reset,
+      update,
+      initialize,
+      allowDrop,
+    }),
+    [count, reset, update, initialize, allowDrop]
+  );
 }

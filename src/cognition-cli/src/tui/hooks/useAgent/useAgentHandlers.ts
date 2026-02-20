@@ -797,6 +797,8 @@ This will trigger a semantic compression event, flushing implementation noise wh
                 'mcp__sigma-task-update__SigmaTaskUpdate')
           ) {
             turnWasSemantic = true;
+            // Unlock token counter to allow lower values (surgical eviction savings)
+            tokenCounter.allowDrop();
           }
 
           for (const agentMessage of newMessages) {
