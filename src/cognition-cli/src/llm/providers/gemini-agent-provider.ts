@@ -36,9 +36,13 @@ import {
 } from '@google/adk';
 
 import { ThinkingLevel } from '@google/genai';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 import { getGroundingContext } from './grounding-utils.js';
 import { getDynamicThinkingBudget } from './thinking-utils.js';
+import { getActiveTaskId } from '../../sigma/session-state.js';
+
 import { getCognitionTools } from './gemini-adk-tools.js';
 import { systemLog } from '../../utils/debug-logger.js';
 import type {
@@ -243,6 +247,119 @@ export class GeminiAgentProvider implements AgentProvider {
   }
 
   /**
+   * Prune tool logs for a completed task and archive them.
+   * This surgical eviction keeps the context clean of "implementation noise".
+   *
+   * @param taskId - The ID of the completed task
+   * @param sessionId - ADK session ID
+   * @param projectRoot - Project root directory
+   */
+  private async pruneTaskLogs(
+    taskId: string,
+    sessionId: string,
+    projectRoot: string
+  ) {
+    try {
+      const session = await this.sessionService.getSession({
+        appName: 'cognition-cli',
+        userId: 'cognition-user',
+        sessionId: sessionId,
+      });
+
+      if (!session) return;
+
+      const history = (session as unknown as AdkSession).history;
+      if (!history || history.length === 0) return;
+
+      const tag = `<!-- sigma-task: ${taskId} -->`;
+      const evictedLogs: string[] = [];
+      const newHistory: NonNullable<AdkSession['history']> = [];
+      let evictedCount = 0;
+
+      for (const event of history) {
+        const parts = event.parts || [];
+        const hasTag = parts.some((p) => {
+          const anyP = p as {
+            text?: string;
+            functionResponse?: { response?: unknown };
+          };
+          if (anyP.text?.includes(tag)) return true;
+          if (anyP.functionResponse?.response) {
+            return JSON.stringify(anyP.functionResponse.response).includes(tag);
+          }
+          return false;
+        });
+
+        if (hasTag) {
+          evictedLogs.push(JSON.stringify(event, null, 2));
+          evictedCount++;
+          // Replace with tombstone
+          const tombstoneParts = parts.map((p) => {
+            const anyP = p as { functionResponse?: { name?: string } };
+            if (anyP.functionResponse) {
+              return {
+                ...anyP,
+                functionResponse: {
+                  name: anyP.functionResponse.name,
+                  response: {
+                    result: `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`,
+                  },
+                },
+              };
+            }
+            return {
+              text: `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`,
+            };
+          });
+
+          newHistory.push({
+            role: event.role,
+            parts: tombstoneParts as unknown as NonNullable<
+              AdkSession['history']
+            >[0]['parts'],
+          });
+        } else {
+          newHistory.push(event);
+        }
+      }
+
+      if (evictedCount > 0) {
+        // Archive logs to disk
+        const archiveDir = path.join(
+          projectRoot,
+          '.sigma',
+          'archives',
+          sessionId
+        );
+        await fs.mkdir(archiveDir, { recursive: true });
+        const archivePath = path.join(archiveDir, `${taskId}.log`);
+
+        await fs.appendFile(
+          archivePath,
+          `\n--- ARCHIVED AT ${new Date().toISOString()} ---\n` +
+            evictedLogs.join('\n---\n')
+        );
+
+        // Update session history in memory
+        // ADK Session history is internal, we use cast to modify it
+        (session as unknown as AdkSession).history = newHistory;
+
+        systemLog(
+          'sigma',
+          `Surgically evicted ${evictedCount} log messages for task ${taskId}. Archived to ${archivePath}`
+        );
+      }
+    } catch (err) {
+      systemLog(
+        'sigma',
+        `Failed to prune task logs for ${taskId}`,
+        { error: err instanceof Error ? err.message : String(err) },
+        'error'
+      );
+    }
+  }
+
+  /**
    * Check if provider supports agent mode
    */
   supportsAgentMode(): boolean {
@@ -378,7 +495,22 @@ export class GeminiAgentProvider implements AgentProvider {
           provider: 'gemini', // Enable external SigmaTaskUpdate for Gemini
           anchorId: request.anchorId, // Session anchor for SigmaTaskUpdate state persistence
           onToolOutput: request.onToolOutput, // Pass streaming callback for tools like bash
-          mode: request.mode, // Pass operation mode (solo/full)
+          onTaskCompleted: async (taskId: string) => {
+            // Surgical log eviction on task completion
+            await this.pruneTaskLogs(
+              taskId,
+              sessionId,
+              request.cwd || request.projectRoot || process.cwd()
+            );
+          },
+          mode: request.mode,
+          getActiveTaskId: () =>
+            request.anchorId
+              ? getActiveTaskId(
+                  request.anchorId,
+                  request.cwd || request.projectRoot || process.cwd()
+                )
+              : null,
           currentPromptTokens, // Pass current prompt tokens for dynamic optimization
         }
       );

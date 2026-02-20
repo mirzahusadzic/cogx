@@ -18,6 +18,33 @@ import { promisify } from 'util';
 const execAsync = promisify(exec);
 
 /**
+ * Helper to tag tool output with the currently active Sigma task ID.
+ * This enables surgical token eviction and log archiving.
+ *
+ * @param output - The raw tool output
+ * @param anchorId - Session anchor ID
+ * @param projectRoot - Project root directory
+ * @returns Tagged output
+ */
+export function tagOutputWithActiveTask(
+  output: string,
+  getActiveTaskId?: () => string | null
+): string {
+  if (!getActiveTaskId) return output;
+
+  try {
+    const activeTaskId = getActiveTaskId();
+    if (!activeTaskId) return output;
+
+    // Append hidden task tag for eviction tracking
+    // Using HTML comment format which Gemini/OpenAI tolerate well
+    return `${output}\n\n<!-- sigma-task: ${activeTaskId} -->`;
+  } catch {
+    return output;
+  }
+}
+
+/**
  * Helper to get the repository root
  */
 async function getRepoRoot(cwd: string): Promise<string | null> {
@@ -167,7 +194,8 @@ export async function executeReadFile(
   limit?: number,
   offset?: number,
   workbenchUrl?: string,
-  currentPromptTokens?: number
+  currentPromptTokens?: number,
+  getActiveTaskId?: () => string | null
 ): Promise<string> {
   try {
     const stats = await fs.stat(file_path);
@@ -200,13 +228,15 @@ export async function executeReadFile(
       })
       .join('\n');
 
-    return await smartCompressOutput(
+    const compressed = await smartCompressOutput(
       result,
       'read_file',
       1024 * 1024, // 1MB cap for tool output
       workbenchUrl,
       currentPromptTokens
     );
+
+    return tagOutputWithActiveTask(compressed, getActiveTaskId);
   } catch (error) {
     return `Error reading file: ${error instanceof Error ? error.message : String(error)}`;
   }
@@ -233,7 +263,8 @@ export async function executeWriteFile(
  */
 export async function executeGlob(
   pattern: string,
-  cwd: string
+  cwd: string,
+  getActiveTaskId?: () => string | null
 ): Promise<string> {
   try {
     const files = await globLib(pattern, {
@@ -241,7 +272,8 @@ export async function executeGlob(
       nodir: true,
       absolute: false,
     });
-    return files.slice(0, 100).join('\n') || 'No matches found';
+    const result = files.slice(0, 100).join('\n') || 'No matches found';
+    return tagOutputWithActiveTask(result, getActiveTaskId);
   } catch (error) {
     return `Error: ${error instanceof Error ? error.message : String(error)}`;
   }
@@ -256,7 +288,8 @@ export async function executeGrep(
   glob_filter: string | undefined,
   cwd: string,
   workbenchUrl?: string,
-  currentPromptTokens?: number
+  currentPromptTokens?: number,
+  getActiveTaskId?: () => string | null
 ): Promise<string> {
   return new Promise((resolve) => {
     const args = [
@@ -330,7 +363,10 @@ export async function executeGrep(
         workbenchUrl,
         currentPromptTokens
       );
-      resolve(compressed || 'No matches');
+
+      resolve(
+        tagOutputWithActiveTask(compressed || 'No matches', getActiveTaskId)
+      );
     });
     proc.on('error', () => {
       clearTimeout(timeoutId);
@@ -348,7 +384,8 @@ export async function executeBash(
   cwd: string,
   onChunk?: (chunk: string) => void,
   workbenchUrl?: string,
-  currentPromptTokens?: number
+  currentPromptTokens?: number,
+  getActiveTaskId?: () => string | null
 ): Promise<string> {
   const effectiveTimeout = timeout || 120000;
 
@@ -428,11 +465,19 @@ export async function executeBash(
         currentPromptTokens
       );
       if (killed) {
-        resolve(`Timeout after ${effectiveTimeout}ms\n${compressed}`);
+        resolve(
+          tagOutputWithActiveTask(
+            `Timeout after ${effectiveTimeout}ms\n${compressed}`,
+            getActiveTaskId
+          )
+        );
       } else {
         const color = code === 0 ? '\x1b[32m' : '\x1b[31m'; // Green for 0, Red otherwise
         const exitLine = `Exit code: ${color}${code}\x1b[0m`;
-        resolve(compressed ? `${compressed.trimEnd()}\n${exitLine}` : exitLine);
+        const finalResult = compressed
+          ? `${compressed.trimEnd()}\n${exitLine}`
+          : exitLine;
+        resolve(tagOutputWithActiveTask(finalResult, getActiveTaskId));
       }
     });
     proc.on('error', (err) => {
@@ -477,7 +522,10 @@ export async function executeEditFile(
 /**
  * Fetch URL executor
  */
-export async function executeFetchUrl(url: string): Promise<string> {
+export async function executeFetchUrl(
+  url: string,
+  getActiveTaskId?: () => string | null
+): Promise<string> {
   try {
     // Basic URL validation
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
@@ -577,7 +625,7 @@ export async function executeFetchUrl(url: string): Promise<string> {
         `\n\n[Truncated - total length: ${text.length} chars]`;
     }
 
-    return text;
+    return tagOutputWithActiveTask(text, getActiveTaskId);
   } catch (error) {
     return `Error fetching URL: ${error instanceof Error ? error.message : String(error)}`;
   }

@@ -623,10 +623,14 @@ export interface CognitionToolsOptions {
   anchorId?: string;
   /** Callback for streaming tool output */
   onToolOutput?: (output: string) => void;
+  /** Callback when a task is completed (for log eviction) */
+  onTaskCompleted?: (taskId: string) => Promise<void>;
   /** Operation mode (solo = skip IPC/PGC tools) */
   mode?: 'solo' | 'full';
   /** Current prompt tokens for dynamic optimization */
   currentPromptTokens?: number;
+  /** Fetch active task ID from memory to avoid disk I/O */
+  getActiveTaskId?: () => string | null;
 }
 
 /**
@@ -686,7 +690,8 @@ export function getCognitionTools(
         process.cwd(),
         options?.onToolOutput,
         undefined, // workbenchUrl
-        options?.currentPromptTokens
+        options?.currentPromptTokens,
+        options?.getActiveTaskId
       ),
     onCanUseTool
   );
@@ -735,7 +740,8 @@ export function getCognitionTools(
           coerceNumber(limit),
           coerceNumber(offset),
           undefined, // workbenchUrl
-          options?.currentPromptTokens
+          options?.currentPromptTokens,
+          options?.getActiveTaskId
         ),
       onCanUseTool
     ),
@@ -751,7 +757,7 @@ export function getCognitionTools(
         if (process.env.DEBUG_GEMINI_TOOLS) {
           systemLog('gemini-tools', 'fetch_url input', { url }, 'debug');
         }
-        return executeFetchUrl(url);
+        return executeFetchUrl(url, options?.getActiveTaskId);
       },
     }),
     new FunctionTool({
@@ -773,7 +779,11 @@ export function getCognitionTools(
             'debug'
           );
         }
-        return executeGlob(pattern, globCwd || process.cwd());
+        return executeGlob(
+          pattern,
+          globCwd || process.cwd(),
+          options?.getActiveTaskId
+        );
       },
     }),
     wrapToolWithPermission(
@@ -794,7 +804,8 @@ export function getCognitionTools(
           glob_filter,
           process.cwd(),
           undefined, // workbenchUrl
-          options?.currentPromptTokens
+          options?.currentPromptTokens,
+          options?.getActiveTaskId
         ),
       onCanUseTool
     ),
@@ -1202,7 +1213,32 @@ export function getCognitionTools(
             .join('\n');
           return `Task list updated (${processedTodos.length} items) [NOT PERSISTED]:\n${summary}`;
         }
-        return executeSigmaTaskUpdate(processedTodos, cwd, anchorId);
+        const result = await executeSigmaTaskUpdate(
+          processedTodos,
+          cwd,
+          anchorId
+        );
+
+        // Notify provider of completed tasks for surgical token eviction
+        if (options?.onTaskCompleted) {
+          const completedTasks = processedTodos.filter(
+            (t) => t.status === 'completed'
+          );
+          for (const task of completedTasks) {
+            try {
+              await options.onTaskCompleted(task.id);
+            } catch (err) {
+              systemLog(
+                'sigma',
+                `Failed to trigger eviction for task ${task.id}`,
+                { error: err instanceof Error ? err.message : String(err) },
+                'error'
+              );
+            }
+          }
+        }
+
+        return result;
       },
     });
     baseTools.push(boundSigmaTaskUpdateTool);

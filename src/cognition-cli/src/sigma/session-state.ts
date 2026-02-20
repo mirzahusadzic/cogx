@@ -470,6 +470,24 @@ export function updateTasksByAnchorId(
 }
 
 /**
+ * Get the currently active Sigma task ID for a session
+ *
+ * @param anchorId - Session anchor ID
+ * @param projectRoot - Project root directory
+ * @returns Active task ID or null
+ */
+export function getActiveTaskId(
+  anchorId: string,
+  projectRoot: string
+): string | null {
+  const state = loadSessionState(anchorId, projectRoot);
+  if (!state || !state.todos) return null;
+
+  const activeTask = state.todos.find((t) => t.status === 'in_progress');
+  return activeTask ? activeTask.id : null;
+}
+
+/**
  * List all sessions
  *
  * @param projectRoot - Project root directory
