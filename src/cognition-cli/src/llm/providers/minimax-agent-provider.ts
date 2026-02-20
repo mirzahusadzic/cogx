@@ -6,6 +6,9 @@
 
 import { getGroundingContext } from './grounding-utils.js';
 import { systemLog } from '../../utils/debug-logger.js';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import { getActiveTaskId } from '../../sigma/session-state.js';
 import Anthropic from '@anthropic-ai/sdk';
 import type { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
 import type { BackgroundTaskManager } from '../../tui/services/BackgroundTaskManager.js';
@@ -154,6 +157,99 @@ export class MinimaxAgentProvider implements AgentProvider {
     }
   }
 
+  /**
+   * Prune tool logs for a completed task and archive them.
+   */
+  private async pruneTaskLogs(
+    taskId: string,
+    sessionId: string,
+    projectRoot: string,
+    history: Anthropic.MessageParam[]
+  ) {
+    try {
+      const tag = `<!-- sigma-task: ${taskId} -->`;
+      const evictedLogs: string[] = [];
+      let evictedCount = 0;
+
+      for (let i = 0; i < history.length; i++) {
+        const message = history[i];
+        if (typeof message.content === 'string') {
+          if (message.content.includes(tag)) {
+            evictedLogs.push(JSON.stringify(message, null, 2));
+            history[i] = {
+              ...message,
+              content: `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`,
+            };
+            evictedCount++;
+          }
+        } else if (Array.isArray(message.content)) {
+          let hasTag = false;
+          const newContent = message.content.map((part) => {
+            if (part.type === 'text' && part.text.includes(tag)) {
+              hasTag = true;
+              return {
+                ...part,
+                text: `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`,
+              };
+            }
+            if (part.type === 'tool_result') {
+              const result =
+                typeof part.content === 'string'
+                  ? part.content
+                  : JSON.stringify(part.content);
+              if (result.includes(tag)) {
+                hasTag = true;
+                return {
+                  ...part,
+                  content: `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`,
+                };
+              }
+            }
+            return part;
+          });
+
+          if (hasTag) {
+            evictedLogs.push(JSON.stringify(message, null, 2));
+            history[i] = {
+              ...message,
+              content: newContent as Anthropic.MessageParam['content'],
+            };
+            evictedCount++;
+          }
+        }
+      }
+
+      if (evictedCount > 0) {
+        const archiveDir = path.join(
+          projectRoot,
+          '.sigma',
+          'archives',
+          sessionId
+        );
+        await fs.mkdir(archiveDir, { recursive: true });
+        const archivePath = path.join(archiveDir, `${taskId}.log`);
+
+        await fs.appendFile(
+          archivePath,
+          `\n--- ARCHIVED AT ${new Date().toISOString()} ---\n` +
+            evictedLogs.join('\n---\n')
+        );
+
+        systemLog(
+          'sigma',
+          `Surgically evicted ${evictedCount} log messages for task ${taskId} (Minimax). Archived to ${archivePath}`
+        );
+      }
+    } catch (err) {
+      systemLog(
+        'sigma',
+        `Failed to prune task logs for ${taskId} (Minimax)`,
+        { error: err instanceof Error ? err.message : String(err) },
+        'error'
+      );
+    }
+  }
+
   async *executeAgent(
     req: AgentRequest
   ): AsyncGenerator<AgentResponse, void, undefined> {
@@ -170,6 +266,7 @@ export class MinimaxAgentProvider implements AgentProvider {
 
     const messages: AgentMessage[] = [];
     const history: Anthropic.MessageParam[] = [];
+    const sessionId = req.resumeSessionId || `mm-${Date.now()}`;
     let pt = 0,
       ct = 0;
     let turns = 0;
@@ -186,7 +283,7 @@ export class MinimaxAgentProvider implements AgentProvider {
     history.push({ role: 'user', content: req.prompt });
     yield {
       messages: [...messages],
-      sessionId: req.resumeSessionId || `mm-${Date.now()}`,
+      sessionId,
       tokens: { prompt: 0, completion: 0, total: 0 },
       finishReason: 'stop',
       numTurns: 0,
@@ -213,6 +310,21 @@ export class MinimaxAgentProvider implements AgentProvider {
       agentId: req.agentId,
       anchorId: req.anchorId,
       onToolOutput: req.onToolOutput,
+      onTaskCompleted: async (taskId: string) => {
+        await this.pruneTaskLogs(
+          taskId,
+          sessionId,
+          req.cwd || req.projectRoot || process.cwd(),
+          history
+        );
+      },
+      getActiveTaskId: () =>
+        req.anchorId
+          ? getActiveTaskId(
+              req.anchorId,
+              req.cwd || req.projectRoot || process.cwd()
+            )
+          : null,
       mode: req.mode,
       currentPromptTokens: pt,
     };

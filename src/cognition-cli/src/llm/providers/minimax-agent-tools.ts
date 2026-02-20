@@ -49,6 +49,10 @@ export interface MinimaxToolsContext {
   agentId?: string;
   anchorId?: string;
   onToolOutput?: (output: string) => void;
+  /** Callback for when a task is completed (triggers surgical eviction) */
+  onTaskCompleted?: (taskId: string) => Promise<void>;
+  /** Callback to get the currently active task ID */
+  getActiveTaskId?: () => string | null;
   /** Operation mode (solo = skip IPC/PGC tools) */
   mode?: 'solo' | 'full';
   /** Current prompt tokens for dynamic optimization */
@@ -604,7 +608,8 @@ export async function executeMinimaxTool(
         coerceNumber(inputObj.limit as number | string),
         coerceNumber(inputObj.offset as number | string),
         workbenchUrl,
-        context.currentPromptTokens
+        context.currentPromptTokens,
+        context.getActiveTaskId
       );
     }
     case 'write_file': {
@@ -625,7 +630,8 @@ export async function executeMinimaxTool(
     case 'glob': {
       return executeGlob(
         inputObj.pattern as string,
-        (inputObj.path as string) || cwd || process.cwd()
+        (inputObj.path as string) || cwd || process.cwd(),
+        context.getActiveTaskId
       );
     }
     case 'grep': {
@@ -635,7 +641,8 @@ export async function executeMinimaxTool(
         inputObj.glob_filter as string | undefined,
         cwd || process.cwd(),
         workbenchUrl,
-        context.currentPromptTokens
+        context.currentPromptTokens,
+        context.getActiveTaskId
       );
     }
     case 'bash': {
@@ -651,7 +658,8 @@ export async function executeMinimaxTool(
             cwd || process.cwd(),
             context.onToolOutput,
             workbenchUrl,
-            context.currentPromptTokens
+            context.currentPromptTokens,
+            context.getActiveTaskId
           ),
         onCanUseTool
       );
@@ -695,14 +703,25 @@ export async function executeMinimaxTool(
         return cleanTodo;
       });
 
-      return executeSigmaTaskUpdate(
+      const result = await executeSigmaTaskUpdate(
         todos as Parameters<typeof executeSigmaTaskUpdate>[0],
         cwd || process.cwd(),
         anchorId || 'default'
       );
+
+      // Trigger surgical eviction if a task was completed
+      if (context.onTaskCompleted) {
+        for (const todo of inputTodos) {
+          if (todo.status === 'completed') {
+            await context.onTaskCompleted(todo.id);
+          }
+        }
+      }
+
+      return result;
     }
     case 'fetch_url': {
-      return executeFetchUrl(inputObj.url as string);
+      return executeFetchUrl(inputObj.url as string, context.getActiveTaskId);
     }
     case 'WebSearch': {
       return executeWebSearch(inputObj.query as string, workbenchUrl);

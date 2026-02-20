@@ -55,6 +55,9 @@ process.env.DEBUG = ''; // Disable debug package output
 
 import { getGroundingContext } from './grounding-utils.js';
 import { systemLog } from '../../utils/debug-logger.js';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import { getActiveTaskId } from '../../sigma/session-state.js';
 import OpenAI from 'openai';
 import { Agent, run, setDefaultOpenAIClient } from '@openai/agents';
 import {
@@ -581,6 +584,118 @@ export class OpenAIAgentProvider implements AgentProvider {
     return data.data;
   }
 
+  /**
+   * Delete an item (message) from a conversation
+   * @param conversationId Conversation ID
+   * @param itemId Item ID to delete
+   */
+  private async deleteConversationItem(
+    conversationId: string,
+    itemId: string
+  ): Promise<void> {
+    const url = `${this.getConversationsBaseUrl()}/conversations/${conversationId}/items/${itemId}`;
+
+    systemLog(
+      'openai',
+      'Deleting conversation item',
+      { conversationId, itemId },
+      'debug'
+    );
+
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: this.getConversationHeaders(),
+    });
+
+    if (!response.ok) {
+      systemLog(
+        'openai',
+        'Failed to delete conversation item',
+        { conversationId, itemId, status: response.status },
+        'error'
+      );
+      throw new Error(`Failed to delete conversation item: ${response.status}`);
+    }
+
+    systemLog(
+      'openai',
+      'Deleted conversation item',
+      { conversationId, itemId },
+      'debug'
+    );
+  }
+
+  /**
+   * Prune tool logs for a completed task and archive them.
+   */
+  private async pruneTaskLogs(
+    taskId: string,
+    conversationId: string,
+    projectRoot: string
+  ) {
+    try {
+      const items = await this.getConversationItems(conversationId);
+      if (!items || items.length === 0) return;
+
+      const tag = `<!-- sigma-task: ${taskId} -->`;
+      const evictedLogs: string[] = [];
+      let evictedCount = 0;
+
+      for (const item of items) {
+        if (item.content && item.content.includes(tag)) {
+          evictedLogs.push(JSON.stringify(item, null, 2));
+          evictedCount++;
+
+          // Delete from server-side session
+          try {
+            await this.deleteConversationItem(conversationId, item.id);
+          } catch (err) {
+            systemLog(
+              'openai',
+              'Failed to delete item from server session',
+              { itemId: item.id, error: String(err) },
+              'warn'
+            );
+          }
+        }
+      }
+
+      if (evictedCount > 0) {
+        // Archive logs to disk
+        const archiveDir = path.join(
+          projectRoot,
+          '.sigma',
+          'archives',
+          conversationId
+        );
+        await fs.mkdir(archiveDir, { recursive: true });
+        const archivePath = path.join(archiveDir, `${taskId}.log`);
+
+        await fs.appendFile(
+          archivePath,
+          `\n--- ARCHIVED AT ${new Date().toISOString()} ---\n` +
+            evictedLogs.join('\n---\n')
+        );
+
+        // Note: We don't add a tombstone to the server-side session because
+        // addConversationItems appends to the end, which would break conversation order.
+        // Token reclamation via deletion is the priority.
+
+        systemLog(
+          'sigma',
+          `Surgically evicted ${evictedCount} log messages for task ${taskId} (OpenAI). Archived to ${archivePath}`
+        );
+      }
+    } catch (err) {
+      systemLog(
+        'sigma',
+        `Failed to prune task logs for ${taskId} (OpenAI)`,
+        { error: err instanceof Error ? err.message : String(err) },
+        'error'
+      );
+    }
+  }
+
   // =========================================================================
   // AgentProvider Interface
   // =========================================================================
@@ -601,6 +716,9 @@ export class OpenAIAgentProvider implements AgentProvider {
    * - resumeSessionId undefined → create new conversation
    * - TUI handles compression and recap injection
    */
+  // =========================================================================
+  // AgentProvider Interface
+  // =========================================================================
   async *executeAgent(
     request: AgentRequest
   ): AsyncGenerator<AgentResponse, void, undefined> {
@@ -679,7 +797,13 @@ export class OpenAIAgentProvider implements AgentProvider {
       }
 
       // Build tools array
-      const tools = this.buildTools(request);
+      const tools = this.buildTools(request, async (taskId: string) => {
+        await this.pruneTaskLogs(
+          taskId,
+          conversationId,
+          request.cwd || request.projectRoot || process.cwd()
+        );
+      });
       systemLog('openai', 'Built tools', { count: tools.length }, 'debug');
 
       // Use Responses API for all endpoints (primary API for Agents SDK)
@@ -1280,7 +1404,10 @@ export class OpenAIAgentProvider implements AgentProvider {
    * - IPC: list_agents, send_agent_message, broadcast_agent_message,
    *        list_pending_messages, mark_message_read
    */
-  private buildTools(request: AgentRequest) {
+  private buildTools(
+    request: AgentRequest,
+    onTaskCompleted?: (taskId: string) => Promise<void>
+  ) {
     return getOpenAITools({
       cwd: request.cwd || process.cwd(),
       workbenchUrl: request.workbenchUrl,
@@ -1300,6 +1427,15 @@ export class OpenAIAgentProvider implements AgentProvider {
       projectRoot: request.projectRoot,
       agentId: request.agentId,
       anchorId: request.anchorId,
+      onToolOutput: request.onToolOutput,
+      onTaskCompleted,
+      getActiveTaskId: () =>
+        request.anchorId
+          ? getActiveTaskId(
+              request.anchorId,
+              request.cwd || request.projectRoot || process.cwd()
+            )
+          : null,
       mode: request.mode,
     });
   }

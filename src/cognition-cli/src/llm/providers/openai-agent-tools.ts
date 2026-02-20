@@ -111,7 +111,8 @@ function withPermissionCheck<T>(
 function createReadFileTool(
   cwd: string,
   workbenchUrl?: string,
-  currentPromptTokens?: number
+  currentPromptTokens?: number,
+  getActiveTaskId?: () => string | null
 ): OpenAITool {
   return tool({
     name: 'read_file',
@@ -134,7 +135,8 @@ function createReadFileTool(
         coerceNumber(limit),
         coerceNumber(offset),
         workbenchUrl,
-        currentPromptTokens
+        currentPromptTokens,
+        getActiveTaskId
       ),
   });
 }
@@ -165,7 +167,10 @@ function createWriteFileTool(onCanUseTool?: OnCanUseTool): OpenAITool {
 /**
  * Create glob tool
  */
-function createGlobTool(cwd: string): OpenAITool {
+function createGlobTool(
+  cwd: string,
+  getActiveTaskId?: () => string | null
+): OpenAITool {
   return tool({
     name: 'glob',
     description:
@@ -175,7 +180,7 @@ function createGlobTool(cwd: string): OpenAITool {
       search_cwd: z.string().optional().describe('Working directory'),
     }),
     execute: ({ pattern, search_cwd }) =>
-      executeGlob(pattern, search_cwd || cwd),
+      executeGlob(pattern, search_cwd || cwd, getActiveTaskId),
   });
 }
 
@@ -185,7 +190,8 @@ function createGlobTool(cwd: string): OpenAITool {
 function createGrepTool(
   cwd: string,
   workbenchUrl?: string,
-  currentPromptTokens?: number
+  currentPromptTokens?: number,
+  getActiveTaskId?: () => string | null
 ): OpenAITool {
   return tool({
     name: 'grep',
@@ -203,7 +209,8 @@ function createGrepTool(
         glob_filter,
         cwd,
         workbenchUrl,
-        currentPromptTokens
+        currentPromptTokens,
+        getActiveTaskId
       ),
   });
 }
@@ -216,7 +223,8 @@ function createBashTool(
   workbenchUrl?: string,
   onCanUseTool?: OnCanUseTool,
   onToolOutput?: (output: string) => void,
-  currentPromptTokens?: number
+  currentPromptTokens?: number,
+  getActiveTaskId?: () => string | null
 ): OpenAITool {
   const execute = ({
     command,
@@ -231,7 +239,8 @@ function createBashTool(
       cwd,
       onToolOutput,
       workbenchUrl,
-      currentPromptTokens
+      currentPromptTokens,
+      getActiveTaskId
     );
 
   return tool({
@@ -298,7 +307,8 @@ function createEditFileTool(onCanUseTool?: OnCanUseTool): OpenAITool {
 function createSigmaTaskUpdateTool(
   cwd: string,
   anchorId: string | undefined,
-  mode?: 'solo' | 'full'
+  mode?: 'solo' | 'full',
+  onTaskCompleted?: (taskId: string) => Promise<void>
 ): OpenAITool {
   const isSolo = mode === 'solo';
 
@@ -337,7 +347,7 @@ function createSigmaTaskUpdateTool(
     }> | null;
   }
 
-  const execute = (input: unknown) => {
+  const execute = async (input: unknown) => {
     const {
       todos: rawTodos,
       grounding: rawGroundings,
@@ -488,7 +498,19 @@ function createSigmaTaskUpdateTool(
         .join('\n');
       return `Task list updated (${(processedTodos || []).length} items) [NOT PERSISTED]:\n${summary}`;
     }
-    return executeSigmaTaskUpdate(processedTodos, cwd, anchorId);
+
+    const result = await executeSigmaTaskUpdate(processedTodos, cwd, anchorId);
+
+    // Trigger surgical eviction if a task was completed
+    if (onTaskCompleted) {
+      for (const todo of rawTodos || []) {
+        if (todo.status === 'completed') {
+          await onTaskCompleted(todo.id);
+        }
+      }
+    }
+
+    return result;
   };
 
   const todoSchema = z.object({
@@ -624,7 +646,7 @@ function createSigmaTaskUpdateTool(
 /**
  * Create fetch_url tool
  */
-function createFetchUrlTool(): OpenAITool {
+function createFetchUrlTool(getActiveTaskId?: () => string | null): OpenAITool {
   return tool({
     name: 'fetch_url',
     description:
@@ -632,7 +654,7 @@ function createFetchUrlTool(): OpenAITool {
     parameters: z.object({
       url: z.string().url().describe('The URL to fetch content from'),
     }),
-    execute: ({ url }) => executeFetchUrl(url),
+    execute: ({ url }) => executeFetchUrl(url, getActiveTaskId),
   });
 }
 
@@ -1144,6 +1166,10 @@ export interface OpenAIToolsContext {
   agentId?: string;
   /** Session anchor ID for SigmaTaskUpdate state persistence */
   anchorId?: string;
+  /** Callback for when a task is completed (triggers surgical eviction) */
+  onTaskCompleted?: (taskId: string) => Promise<void>;
+  /** Callback to get the currently active task ID */
+  getActiveTaskId?: () => string | null;
   /** Callback for streaming tool output */
   onToolOutput?: (output: string) => void;
   /** Operation mode (solo = skip IPC/PGC tools) */
@@ -1171,6 +1197,8 @@ export function getOpenAITools(context: OpenAIToolsContext): OpenAITool[] {
     agentId,
     anchorId,
     onToolOutput,
+    onTaskCompleted,
+    getActiveTaskId,
     mode,
     currentPromptTokens,
   } = context;
@@ -1178,9 +1206,13 @@ export function getOpenAITools(context: OpenAIToolsContext): OpenAITool[] {
   const tools: OpenAITool[] = [];
 
   // Core file tools (read-only - no permission check needed)
-  tools.push(createReadFileTool(cwd, workbenchUrl, currentPromptTokens));
-  tools.push(createGlobTool(cwd));
-  tools.push(createGrepTool(cwd, workbenchUrl, currentPromptTokens));
+  tools.push(
+    createReadFileTool(cwd, workbenchUrl, currentPromptTokens, getActiveTaskId)
+  );
+  tools.push(createGlobTool(cwd, getActiveTaskId));
+  tools.push(
+    createGrepTool(cwd, workbenchUrl, currentPromptTokens, getActiveTaskId)
+  );
 
   // Mutating tools (with permission check built-in)
   tools.push(createWriteFileTool(onCanUseTool));
@@ -1190,7 +1222,8 @@ export function getOpenAITools(context: OpenAIToolsContext): OpenAITool[] {
       workbenchUrl,
       onCanUseTool,
       onToolOutput,
-      currentPromptTokens
+      currentPromptTokens,
+      getActiveTaskId
     )
   );
   tools.push(createEditFileTool(onCanUseTool));
@@ -1206,10 +1239,10 @@ export function getOpenAITools(context: OpenAIToolsContext): OpenAITool[] {
   }
   // Note: createSigmaTaskUpdateTool would need to accept `mode` to correctly strip properties.
   // However, this requires changing the builder logic above. We will do this next.
-  tools.push(createSigmaTaskUpdateTool(cwd, anchorId, mode));
+  tools.push(createSigmaTaskUpdateTool(cwd, anchorId, mode, onTaskCompleted));
 
   // Web tools (read-only)
-  tools.push(createFetchUrlTool());
+  tools.push(createFetchUrlTool(getActiveTaskId));
   tools.push(createWebSearchTool(workbenchUrl));
 
   // Add recall tool if conversation registry is available
