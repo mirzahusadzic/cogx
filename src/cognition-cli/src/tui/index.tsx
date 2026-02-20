@@ -50,6 +50,7 @@ interface CognitionTUIProps {
   debug?: boolean;
   provider?: string;
   model?: string;
+  solo?: boolean;
   displayThinking?: boolean;
   /** If true, show onboarding wizard instead of normal TUI */
   onboardingMode?: boolean;
@@ -69,6 +70,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   debug,
   provider,
   model,
+  solo,
   displayThinking = true,
   onboardingMode = false,
   autoResponse = true,
@@ -146,6 +148,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     debug, // Pass debug flag
     provider, // Pass LLM provider
     model, // Pass model name
+    solo, // Pass solo mode flag
     onRequestToolConfirmation: requestConfirmation, // Guardrail callback
     getTaskManager: taskManager.getManager, // Pass task manager getter (returns BackgroundTaskManager instance)
     getMessagePublisher, // Pass message publisher getter (for agent-to-agent messaging tool)
@@ -651,6 +654,8 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           setInputLineCount={setInputLineCount}
           inputLineCount={inputLineCount}
           isDropdownVisible={isDropdownVisible}
+          cwd={process.cwd()}
+          solo={solo}
         />
       </ThemeProvider>
     );

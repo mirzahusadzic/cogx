@@ -51,6 +51,9 @@ export interface InputBoxProps {
 
   /** Current working directory for path relativization */
   cwd?: string;
+
+  /** Solo mode flag (disables IPC features) */
+  solo?: boolean;
 }
 
 /**
@@ -131,6 +134,7 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
   confirmationState = null,
   wizardConfirmationState = null,
   cwd,
+  solo = false,
 }) => {
   const { sendScrollSignal } = useTUI();
   const { stdout } = useStdout();
@@ -324,7 +328,7 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
   // Load commands on mount
   useEffect(() => {
     setCommandsLoading(true);
-    loadCommands(process.cwd())
+    loadCommands(process.cwd(), solo)
       .then((result) => {
         setAllCommands(result.commands);
         setCommandsLoading(false);

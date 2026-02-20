@@ -129,7 +129,8 @@ export interface LoadCommandsResult {
  * }
  */
 export async function loadCommands(
-  projectRoot: string
+  projectRoot: string,
+  solo: boolean = false
 ): Promise<LoadCommandsResult> {
   const commands = new Map<string, Command>();
   const errors: Array<{ file: string; error: string }> = [];
@@ -137,15 +138,17 @@ export async function loadCommands(
 
   const commandsDir = path.join(projectRoot, '.claude', 'commands');
 
-  // Add built-in IPC commands first (always available, handled directly in TUI)
-  const builtInCommands: Array<{ name: string; description: string }> = [
-    { name: 'send', description: 'Send message to another agent' },
-    { name: 'agents', description: 'List active agents' },
-    { name: 'pending', description: 'View pending messages' },
-    { name: 'inject', description: 'Inject message into conversation' },
-    { name: 'inject-all', description: 'Inject all pending messages' },
-    { name: 'dismiss', description: 'Dismiss a message' },
-  ];
+  // Add built-in IPC commands first (always available unless in solo mode)
+  const builtInCommands: Array<{ name: string; description: string }> = solo
+    ? []
+    : [
+        { name: 'send', description: 'Send message to another agent' },
+        { name: 'agents', description: 'List active agents' },
+        { name: 'pending', description: 'View pending messages' },
+        { name: 'inject', description: 'Inject message into conversation' },
+        { name: 'inject-all', description: 'Inject all pending messages' },
+        { name: 'dismiss', description: 'Dismiss a message' },
+      ];
 
   for (const builtIn of builtInCommands) {
     commands.set(builtIn.name, {

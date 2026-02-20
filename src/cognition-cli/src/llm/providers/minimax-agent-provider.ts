@@ -213,6 +213,8 @@ export class MinimaxAgentProvider implements AgentProvider {
       agentId: req.agentId,
       anchorId: req.anchorId,
       onToolOutput: req.onToolOutput,
+      mode: req.mode,
+      currentPromptTokens: pt,
     };
     const tools = getMinimaxTools(ctx);
     const system = this.buildSystemPrompt(req, await getGroundingContext(req));
@@ -461,7 +463,7 @@ export class MinimaxAgentProvider implements AgentProvider {
 - **get_background_tasks**: Query status of background operations`);
     }
 
-    if (req.getMessagePublisher && req.getMessageQueue) {
+    if (req.mode !== 'solo' && req.getMessagePublisher && req.getMessageQueue) {
       toolSections.push(`### Agent Messaging (IPC)
 - **list_agents**: Discover other active agents
 - **send_agent_message**: Send a message to a specific agent
@@ -475,6 +477,8 @@ export class MinimaxAgentProvider implements AgentProvider {
       req.systemPrompt?.type === 'preset' && req.systemPrompt.append
         ? req.systemPrompt.append
         : '';
+
+    const isSolo = req.mode === 'solo';
 
     const base = `You are **${modelName}** running inside **Cognition Σ (Sigma) CLI** - a verifiable AI-human symbiosis architecture with dual-lattice knowledge representation.
 
@@ -495,10 +499,14 @@ ${toolSections.join('\n\n')}
   {
     "todos": [
       { "id": "task-1", "content": "Task description", "activeForm": "Doing task", "status": "in_progress" }
-    ],
+    ]${
+      isSolo
+        ? ''
+        : `,
     "grounding": [
       { "id": "task-1", "strategy": "pgc_first" }
-    ]
+    ]`
+    }
   }
   \`\`\`
 - Use tools proactively to gather context before answering
@@ -530,7 +538,10 @@ You should:
 5. Work on the first item, then mark it as completed
 6. Continue until all items are done
 
-**Example 2: Feature implementation**
+${
+  isSolo
+    ? ''
+    : `**Example 2: Feature implementation**
 User: "Help me write a new feature that allows users to track their usage metrics and export them to various formats"
 You should:
 1. Use SigmaTaskUpdate to plan: Research existing metrics, Design system, Implement core tracking, Create export functionality
@@ -589,12 +600,18 @@ When delegating via send_agent_message, use this structured format:
   "requested_action": "Please provide DB_HOST and DB_PASSWORD for staging"
 }
 \`\`\`
-
+`
+}
 ### Task State Rules
-1. **Task States**: pending (not started), in_progress (currently working), completed (finished), delegated (assigned to another agent)
+1. **Task States**: pending (not started), in_progress (currently working), completed (finished)${
+      isSolo ? '' : ', delegated (assigned to another agent)'
+    }
 2. **One at a time**: Exactly ONE task should be in_progress at any time
-3. **Delegation**: When delegating, set status to 'delegated' AND send IPC message. Do not mark completed until worker reports back.
-4. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing
+${
+  isSolo
+    ? ''
+    : "3. **Delegation**: When delegating, set status to 'delegated' AND send IPC message. Do not mark completed until worker reports back.\n"
+}4. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing
 5. **Honest completion**: ONLY mark completed when FULLY accomplished
 6. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")
 

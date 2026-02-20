@@ -81,6 +81,8 @@ interface TUIOptions {
   provider?: string;
   /** Model to use (provider-specific) */
   model?: string;
+  /** Operation mode for token optimization */
+  solo?: boolean;
   /** Display thinking blocks in TUI (default: true) */
   displayThinking?: boolean;
   /** Skip onboarding wizard even if workspace is incomplete (default: false) */
@@ -528,6 +530,7 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     debug: options.debug,
     provider: validatedProvider,
     model: resolvedModel,
+    solo: options.solo,
     displayThinking: options.displayThinking ?? true,
     onboardingMode, // NEW: Pass onboarding mode to TUI
     autoResponse: options.autoResponse ?? true, // Auto-respond to agent messages

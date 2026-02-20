@@ -596,6 +596,10 @@ const tuiCmd = program
   )
   .option('--provider <name>', 'LLM provider to use (claude, gemini)')
   .option('--model <name>', 'Model to use (provider-specific)')
+  .option(
+    '--solo',
+    'Enable solo mode (disables IPC and PGC tools to save tokens)'
+  )
   .option('--no-show-thinking', 'Hide thinking blocks in TUI')
   .option(
     '--no-onboarding',
@@ -653,6 +657,7 @@ const tuiCmd = program
         command.optsWithGlobals().debug || process.env.COGNITION_DEBUG === '1',
       provider: options.provider,
       model: options.model,
+      solo: options.solo,
       displayThinking: options.showThinking !== false,
       noOnboarding: options.onboarding === false, // --no-onboarding flag
       autoResponse: options.autoResponse !== false, // --no-auto-response flag

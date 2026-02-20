@@ -92,6 +92,7 @@ export function useAgentHandlers({
     cwd,
     provider: providerName = 'claude',
     model: modelName,
+    solo,
     sessionId: sessionIdProp,
     maxThinkingTokens,
     displayThinking,
@@ -592,6 +593,7 @@ This will trigger a semantic compression event, flushing implementation noise wh
         const adapter = new AgentProviderAdapter({
           provider: providerName,
           model: modelName,
+          mode: solo ? 'solo' : 'full',
           cwd: cwd,
           resumeSessionId: currentResumeId,
           maxThinkingTokens,
@@ -912,6 +914,7 @@ This will trigger a semantic compression event, flushing implementation noise wh
       cwd,
       providerName,
       modelName,
+      solo,
       sessionIdProp,
       maxThinkingTokens,
       displayThinking,

@@ -37,7 +37,7 @@ import type { OnCanUseTool } from './tool-helpers.js';
 import {
   formatTaskType,
   formatDuration,
-  SIGMA_TASK_UPDATE_DESCRIPTION,
+  getSigmaTaskUpdateDescription,
 } from './tool-helpers.js';
 import {
   executeReadFile,
@@ -108,7 +108,11 @@ function withPermissionCheck<T>(
 /**
  * Create read_file tool
  */
-function createReadFileTool(cwd: string, workbenchUrl?: string): OpenAITool {
+function createReadFileTool(
+  cwd: string,
+  workbenchUrl?: string,
+  currentPromptTokens?: number
+): OpenAITool {
   return tool({
     name: 'read_file',
     description:
@@ -129,7 +133,8 @@ function createReadFileTool(cwd: string, workbenchUrl?: string): OpenAITool {
         file_path,
         coerceNumber(limit),
         coerceNumber(offset),
-        workbenchUrl
+        workbenchUrl,
+        currentPromptTokens
       ),
   });
 }
@@ -177,7 +182,11 @@ function createGlobTool(cwd: string): OpenAITool {
 /**
  * Create grep tool
  */
-function createGrepTool(cwd: string, workbenchUrl?: string): OpenAITool {
+function createGrepTool(
+  cwd: string,
+  workbenchUrl?: string,
+  currentPromptTokens?: number
+): OpenAITool {
   return tool({
     name: 'grep',
     description:
@@ -188,7 +197,14 @@ function createGrepTool(cwd: string, workbenchUrl?: string): OpenAITool {
       glob_filter: z.string().optional().describe('File glob filter'),
     }),
     execute: ({ pattern, search_path, glob_filter }) =>
-      executeGrep(pattern, search_path, glob_filter, cwd, workbenchUrl),
+      executeGrep(
+        pattern,
+        search_path,
+        glob_filter,
+        cwd,
+        workbenchUrl,
+        currentPromptTokens
+      ),
   });
 }
 
@@ -199,7 +215,8 @@ function createBashTool(
   cwd: string,
   workbenchUrl?: string,
   onCanUseTool?: OnCanUseTool,
-  onToolOutput?: (output: string) => void
+  onToolOutput?: (output: string) => void,
+  currentPromptTokens?: number
 ): OpenAITool {
   const execute = ({
     command,
@@ -213,7 +230,8 @@ function createBashTool(
       coerceNumber(timeout),
       cwd,
       onToolOutput,
-      workbenchUrl
+      workbenchUrl,
+      currentPromptTokens
     );
 
   return tool({
@@ -279,8 +297,11 @@ function createEditFileTool(onCanUseTool?: OnCanUseTool): OpenAITool {
  */
 function createSigmaTaskUpdateTool(
   cwd: string,
-  anchorId: string | undefined
+  anchorId: string | undefined,
+  mode?: 'solo' | 'full'
 ): OpenAITool {
+  const isSolo = mode === 'solo';
+
   interface TodoInput {
     todos: Array<{
       id: string;
@@ -316,11 +337,12 @@ function createSigmaTaskUpdateTool(
     }> | null;
   }
 
-  const execute = ({
-    todos: rawTodos,
-    grounding: rawGroundings,
-    grounding_evidence: rawEvidences,
-  }: TodoInput) => {
+  const execute = (input: unknown) => {
+    const {
+      todos: rawTodos,
+      grounding: rawGroundings,
+      grounding_evidence: rawEvidences,
+    } = input as TodoInput;
     // Define target type for processed todos to satisfy linter and executor
     interface ProcessedGrounding {
       strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
@@ -469,113 +491,128 @@ function createSigmaTaskUpdateTool(
     return executeSigmaTaskUpdate(processedTodos, cwd, anchorId);
   };
 
+  const todoSchema = z.object({
+    id: z
+      .string()
+      .min(1)
+      .describe(
+        'Unique stable identifier for this task (use nanoid, UUID, or semantic slug like "fix-ruff-api")'
+      ),
+    content: z
+      .string()
+      .min(1)
+      .describe(
+        'The imperative form describing what needs to be done (e.g., "Run tests", "Build the project")'
+      ),
+    activeForm: z
+      .string()
+      .min(1)
+      .describe(
+        'The present continuous form shown during execution (e.g., "Running tests", "Building the project")'
+      ),
+    status: z
+      .enum(
+        isSolo
+          ? ['pending', 'in_progress', 'completed']
+          : ['pending', 'in_progress', 'completed', 'delegated']
+      )
+      .describe(
+        isSolo
+          ? 'Task status.'
+          : 'Task status. Use "delegated" when assigning task to another agent via IPC'
+      ),
+  });
+
+  const finalTodoSchema = isSolo
+    ? todoSchema
+    : todoSchema.extend({
+        // Delegation fields (Manager/Worker paradigm)
+        acceptance_criteria: z
+          .array(z.string())
+          .nullable()
+          .describe(
+            'Success criteria for task completion (e.g., ["Must pass \'npm test\'", "No breaking changes"]). Required when delegating.'
+          ),
+        delegated_to: z
+          .string()
+          .nullable()
+          .describe(
+            'Agent ID this task was delegated to (e.g., "flash1"). Set when status is "delegated".'
+          ),
+        context: z
+          .string()
+          .nullable()
+          .describe(
+            'Additional context for delegated worker (e.g., "Refactoring auth system - keep OAuth flow intact")'
+          ),
+        delegate_session_id: z
+          .string()
+          .nullable()
+          .describe("Worker's session ID (for audit trail)"),
+        result_summary: z
+          .string()
+          .nullable()
+          .describe("Worker's completion report"),
+      });
+
+  const parameters: Record<string, z.ZodTypeAny> = {
+    todos: z.array(finalTodoSchema),
+  };
+
+  if (!isSolo) {
+    parameters.grounding = z
+      .array(
+        z.object({
+          id: z.string(),
+          strategy: z
+            .enum(['pgc_first', 'pgc_verify', 'pgc_cite', 'none'])
+            .nullable()
+            .describe('Grounding strategy to use'),
+          overlay_hints: z
+            .array(z.enum(['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7']))
+            .nullable()
+            .describe('Hints for overlay selection'),
+          query_hints: z
+            .array(z.string())
+            .nullable()
+            .describe('Hints for semantic search queries'),
+          evidence_required: z
+            .union([z.boolean(), z.string()])
+            .nullable()
+            .describe('Whether evidence (citations) is required'),
+        })
+      )
+      .nullable()
+      .describe('Grounding strategy and hints for tasks (correlate via id)');
+
+    parameters.grounding_evidence = z
+      .array(
+        z.object({
+          id: z.string(),
+          queries_executed: z.array(z.string()),
+          overlays_consulted: z.array(
+            z.enum(['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'])
+          ),
+          citations: z.array(
+            z.object({
+              overlay: z.string(),
+              content: z.string(),
+              relevance: z.string(),
+              file_path: z.string().optional(),
+            })
+          ),
+          grounding_confidence: z.enum(['high', 'medium', 'low']),
+          overlay_warnings: z.array(z.string()).nullable(),
+        })
+      )
+      .nullable()
+      .describe('Structured evidence returned by worker (correlate via id)');
+  }
+
   return tool({
     name: 'SigmaTaskUpdate',
-    description: SIGMA_TASK_UPDATE_DESCRIPTION,
-    parameters: z.object({
-      todos: z
-        .array(
-          z.object({
-            id: z
-              .string()
-              .min(1)
-              .describe(
-                'Unique stable identifier for this task (use nanoid, UUID, or semantic slug like "fix-ruff-api")'
-              ),
-            content: z
-              .string()
-              .min(1)
-              .describe(
-                'The imperative form describing what needs to be done (e.g., "Run tests", "Build the project")'
-              ),
-            activeForm: z
-              .string()
-              .min(1)
-              .describe(
-                'The present continuous form shown during execution (e.g., "Running tests", "Building the project")'
-              ),
-            status: z
-              .enum(['pending', 'in_progress', 'completed', 'delegated'])
-              .describe(
-                'Task status. Use "delegated" when assigning task to another agent via IPC'
-              ),
-            // Delegation fields (Manager/Worker paradigm)
-            acceptance_criteria: z
-              .array(z.string())
-              .nullable()
-              .describe(
-                'Success criteria for task completion (e.g., ["Must pass \'npm test\'", "No breaking changes"]). Required when delegating.'
-              ),
-            delegated_to: z
-              .string()
-              .nullable()
-              .describe(
-                'Agent ID this task was delegated to (e.g., "flash1"). Set when status is "delegated".'
-              ),
-            context: z
-              .string()
-              .nullable()
-              .describe(
-                'Additional context for delegated worker (e.g., "Refactoring auth system - keep OAuth flow intact")'
-              ),
-            delegate_session_id: z
-              .string()
-              .nullable()
-              .describe("Worker's session ID (for audit trail)"),
-            result_summary: z
-              .string()
-              .nullable()
-              .describe("Worker's completion report"),
-          })
-        )
-        .describe('The updated task list'),
-      grounding: z
-        .array(
-          z.object({
-            id: z.string(),
-            strategy: z
-              .enum(['pgc_first', 'pgc_verify', 'pgc_cite', 'none'])
-              .nullable()
-              .describe('Grounding strategy to use'),
-            overlay_hints: z
-              .array(z.enum(['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7']))
-              .nullable()
-              .describe('Hints for overlay selection'),
-            query_hints: z
-              .array(z.string())
-              .nullable()
-              .describe('Hints for semantic search queries'),
-            evidence_required: z
-              .union([z.boolean(), z.string()])
-              .nullable()
-              .describe('Whether evidence (citations) is required'),
-          })
-        )
-        .nullable()
-        .describe('Grounding strategy and hints for tasks (correlate via id)'),
-      grounding_evidence: z
-        .array(
-          z.object({
-            id: z.string(),
-            queries_executed: z.array(z.string()),
-            overlays_consulted: z.array(
-              z.enum(['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'])
-            ),
-            citations: z.array(
-              z.object({
-                overlay: z.string(),
-                content: z.string(),
-                relevance: z.string(),
-                file_path: z.string().optional(),
-              })
-            ),
-            grounding_confidence: z.enum(['high', 'medium', 'low']),
-            overlay_warnings: z.array(z.string()).nullable(),
-          })
-        )
-        .nullable()
-        .describe('Structured evidence returned by worker (correlate via id)'),
-    }),
+    description: getSigmaTaskUpdateDescription(mode),
+    parameters: z.object(parameters),
     execute,
   });
 }
@@ -1109,6 +1146,10 @@ export interface OpenAIToolsContext {
   anchorId?: string;
   /** Callback for streaming tool output */
   onToolOutput?: (output: string) => void;
+  /** Operation mode (solo = skip IPC/PGC tools) */
+  mode?: 'solo' | 'full';
+  /** Current prompt tokens for dynamic optimization */
+  currentPromptTokens?: number;
 }
 
 /**
@@ -1130,18 +1171,28 @@ export function getOpenAITools(context: OpenAIToolsContext): OpenAITool[] {
     agentId,
     anchorId,
     onToolOutput,
+    mode,
+    currentPromptTokens,
   } = context;
 
   const tools: OpenAITool[] = [];
 
   // Core file tools (read-only - no permission check needed)
-  tools.push(createReadFileTool(cwd, workbenchUrl));
+  tools.push(createReadFileTool(cwd, workbenchUrl, currentPromptTokens));
   tools.push(createGlobTool(cwd));
-  tools.push(createGrepTool(cwd, workbenchUrl));
+  tools.push(createGrepTool(cwd, workbenchUrl, currentPromptTokens));
 
   // Mutating tools (with permission check built-in)
   tools.push(createWriteFileTool(onCanUseTool));
-  tools.push(createBashTool(cwd, workbenchUrl, onCanUseTool, onToolOutput));
+  tools.push(
+    createBashTool(
+      cwd,
+      workbenchUrl,
+      onCanUseTool,
+      onToolOutput,
+      currentPromptTokens
+    )
+  );
   tools.push(createEditFileTool(onCanUseTool));
 
   // SigmaTaskUpdate tool (state management) - optional anchorId with fallback
@@ -1153,7 +1204,9 @@ export function getOpenAITools(context: OpenAIToolsContext): OpenAITool[] {
       'warn'
     );
   }
-  tools.push(createSigmaTaskUpdateTool(cwd, anchorId));
+  // Note: createSigmaTaskUpdateTool would need to accept `mode` to correctly strip properties.
+  // However, this requires changing the builder logic above. We will do this next.
+  tools.push(createSigmaTaskUpdateTool(cwd, anchorId, mode));
 
   // Web tools (read-only)
   tools.push(createFetchUrlTool());
@@ -1169,8 +1222,14 @@ export function getOpenAITools(context: OpenAIToolsContext): OpenAITool[] {
     tools.push(createBackgroundTasksTool(getTaskManager));
   }
 
-  // Add agent messaging tools if IPC context is available
-  if (getMessagePublisher && getMessageQueue && projectRoot && agentId) {
+  // Add agent messaging tools if IPC context is available and NOT in solo mode
+  if (
+    mode !== 'solo' &&
+    getMessagePublisher &&
+    getMessageQueue &&
+    projectRoot &&
+    agentId
+  ) {
     // Read-only tools (no permission check)
     tools.push(createListAgentsTool(projectRoot, agentId));
     tools.push(createListPendingMessagesTool(getMessageQueue));

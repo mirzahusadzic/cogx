@@ -59,6 +59,11 @@ export interface UseAgentOptions {
   model?: string;
 
   /**
+   * Solo mode (disables IPC and PGC tools to save tokens)
+   */
+  solo?: boolean;
+
+  /**
    * Tool confirmation callback (for guardrails)
    * Called before executing each tool to request user permission
    * @returns Promise resolving to 'allow' or 'deny'

@@ -30,7 +30,7 @@ import type { OnCanUseTool } from './tool-helpers.js';
 import {
   formatTaskType,
   formatDuration,
-  SIGMA_TASK_UPDATE_DESCRIPTION,
+  getSigmaTaskUpdateDescription,
 } from './tool-helpers.js';
 import {
   executeReadFile,
@@ -63,187 +63,6 @@ const coerceBoolean = (
   if (typeof val === 'boolean') return val;
   return val === 'true';
 };
-
-/**
- * Read file tool - reads file contents
- */
-export const readFileTool = new FunctionTool({
-  name: 'read_file',
-  description:
-    'Reads a file, prioritizing partial reads. STANDARD WORKFLOW: 1. Use `grep` to find relevant line numbers. 2. Use this tool with `offset` and `limit` to read that specific section. Avoid reading whole files.',
-  parameters: z.object({
-    file_path: z.string().describe('Absolute path to the file to read'),
-    limit: z
-      .union([z.number(), z.string()])
-      .optional()
-      .describe('Max lines to read (use for large files!)'),
-    offset: z
-      .union([z.number(), z.string()])
-      .optional()
-      .describe('Line offset to start from'),
-  }),
-  execute: ({ file_path, limit, offset }) => {
-    if (process.env.DEBUG_GEMINI_TOOLS) {
-      systemLog(
-        'gemini-tools',
-        'read_file input',
-        { file_path, limit, offset },
-        'debug'
-      );
-    }
-    return executeReadFile(
-      file_path,
-      coerceNumber(limit),
-      coerceNumber(offset)
-    );
-  },
-});
-
-/**
- * Write file tool - writes content to a file
- */
-export const writeFileTool = new FunctionTool({
-  name: 'write_file',
-  description: 'Write content to a file at the given path',
-  parameters: z.object({
-    file_path: z.string().describe('Absolute path to write to'),
-    content: z.string().describe('Content to write'),
-  }),
-  execute: ({ file_path, content }) => {
-    if (process.env.DEBUG_GEMINI_TOOLS) {
-      systemLog(
-        'gemini-tools',
-        'write_file input',
-        { file_path, content },
-        'debug'
-      );
-    }
-    return executeWriteFile(file_path, content);
-  },
-});
-
-/**
- * Fetch URL tool - retrieves content from a URL
- */
-export const fetchUrlTool = new FunctionTool({
-  name: 'fetch_url',
-  description:
-    'Fetch content from a URL to read documentation, APIs, or external resources. Returns text content with basic HTML stripping.',
-  parameters: z.object({
-    url: z.string().url().describe('The URL to fetch content from'),
-  }),
-  execute: async ({ url }) => {
-    if (process.env.DEBUG_GEMINI_TOOLS) {
-      systemLog('gemini-tools', 'fetch_url input', { url }, 'debug');
-    }
-    return executeFetchUrl(url);
-  },
-});
-
-/**
- * Glob tool - find files matching a pattern
- */
-export const globTool = new FunctionTool({
-  name: 'glob',
-  description:
-    'Find files matching pattern. EFFICIENCY TIP: Use this BEFORE read_file to find the right files first.',
-  parameters: z.object({
-    pattern: z
-      .string()
-      .describe('Glob pattern (e.g., "**/*.ts", "src/**/*.py")'),
-    cwd: z.string().optional().describe('Working directory'),
-  }),
-  execute: ({ pattern, cwd }) => {
-    if (process.env.DEBUG_GEMINI_TOOLS) {
-      systemLog('gemini-tools', 'glob input', { pattern, cwd }, 'debug');
-    }
-    return executeGlob(pattern, cwd || process.cwd());
-  },
-});
-
-/**
- * Grep tool - search file contents
- */
-export const grepTool = new FunctionTool({
-  name: 'grep',
-  description:
-    'Search for pattern in files using ripgrep. EFFICIENCY TIP: Use this BEFORE read_file to find exactly what you need.',
-  parameters: z.object({
-    pattern: z.string().describe('Regex pattern to search'),
-    path: z.string().optional().describe('Path to search in'),
-    glob_filter: z
-      .string()
-      .optional()
-      .describe('File glob filter (e.g., "*.ts")'),
-  }),
-  execute: ({ pattern, path: searchPath, glob_filter }) => {
-    if (process.env.DEBUG_GEMINI_TOOLS) {
-      systemLog(
-        'gemini-tools',
-        'grep input',
-        { pattern, path: searchPath, glob_filter },
-        'debug'
-      );
-    }
-    return executeGrep(pattern, searchPath, glob_filter, process.cwd());
-  },
-});
-
-/**
- * Bash tool - execute shell commands
- */
-export const bashTool = new FunctionTool({
-  name: 'bash',
-  description:
-    'Execute bash command (git, npm, etc.). EFFICIENCY TIP: Pipe to head/tail for large outputs. Avoid verbose flags.',
-  parameters: z.object({
-    command: z.string().describe('The command to execute'),
-    timeout: z
-      .union([z.number(), z.string()])
-      .optional()
-      .describe('Timeout in ms (default 120000)'),
-  }),
-  execute: ({ command, timeout }) => {
-    if (process.env.DEBUG_GEMINI_TOOLS) {
-      systemLog('gemini-tools', 'bash input', { command, timeout }, 'debug');
-    }
-    // Top-level constant tool (used when getCognitionTools is not used)
-    return executeBash(command, coerceNumber(timeout), process.cwd());
-  },
-});
-
-/**
- * Edit tool - replace text in a file
- */
-export const editFileTool = new FunctionTool({
-  name: 'edit_file',
-  description: 'Replace text in a file (old_string must be unique)',
-  parameters: z.object({
-    file_path: z.string().describe('Absolute path to the file'),
-    old_string: z.string().describe('Text to replace'),
-    new_string: z.string().describe('Replacement text'),
-    replace_all: z
-      .union([z.boolean(), z.string()])
-      .optional()
-      .describe('Replace all occurrences'),
-  }),
-  execute: ({ file_path, old_string, new_string, replace_all }) => {
-    if (process.env.DEBUG_GEMINI_TOOLS) {
-      systemLog(
-        'gemini-tools',
-        'edit_file input',
-        { file_path, old_string, new_string, replace_all },
-        'debug'
-      );
-    }
-    return executeEditFile(
-      file_path,
-      old_string,
-      new_string,
-      coerceBoolean(replace_all)
-    );
-  },
-});
 
 /**
  * Create recall conversation tool for Gemini
@@ -804,6 +623,10 @@ export interface CognitionToolsOptions {
   anchorId?: string;
   /** Callback for streaming tool output */
   onToolOutput?: (output: string) => void;
+  /** Operation mode (solo = skip IPC/PGC tools) */
+  mode?: 'solo' | 'full';
+  /** Current prompt tokens for dynamic optimization */
+  currentPromptTokens?: number;
 }
 
 /**
@@ -861,7 +684,9 @@ export function getCognitionTools(
         command,
         coerceNumber(timeout),
         process.cwd(),
-        options?.onToolOutput
+        options?.onToolOutput,
+        undefined, // workbenchUrl
+        options?.currentPromptTokens
       ),
     onCanUseTool
   );
@@ -890,11 +715,89 @@ export function getCognitionTools(
   );
 
   const baseTools: FunctionTool[] = [
-    readFileTool, // Read-only, no wrapping needed
+    wrapToolWithPermission(
+      'read_file',
+      'Reads a file, prioritizing partial reads. STANDARD WORKFLOW: 1. Use `grep` to find relevant line numbers. 2. Use this tool with `offset` and `limit` to read that specific section. Avoid reading whole files.',
+      z.object({
+        file_path: z.string().describe('Absolute path to the file to read'),
+        limit: z
+          .union([z.number(), z.string()])
+          .optional()
+          .describe('Max lines to read (use for large files!)'),
+        offset: z
+          .union([z.number(), z.string()])
+          .optional()
+          .describe('Line offset to start from'),
+      }),
+      ({ file_path, limit, offset }) =>
+        executeReadFile(
+          file_path,
+          coerceNumber(limit),
+          coerceNumber(offset),
+          undefined, // workbenchUrl
+          options?.currentPromptTokens
+        ),
+      onCanUseTool
+    ),
     safeWriteFile,
-    fetchUrlTool, // Read-only, no wrapping needed
-    globTool, // Read-only, no wrapping needed
-    grepTool, // Read-only, no wrapping needed
+    new FunctionTool({
+      name: 'fetch_url',
+      description:
+        'Fetch content from a URL to read documentation, APIs, or external resources. Returns text content with basic HTML stripping.',
+      parameters: z.object({
+        url: z.string().url().describe('The URL to fetch content from'),
+      }),
+      execute: async ({ url }) => {
+        if (process.env.DEBUG_GEMINI_TOOLS) {
+          systemLog('gemini-tools', 'fetch_url input', { url }, 'debug');
+        }
+        return executeFetchUrl(url);
+      },
+    }),
+    new FunctionTool({
+      name: 'glob',
+      description:
+        'Find files matching pattern. EFFICIENCY TIP: Use this BEFORE read_file to find the right files first.',
+      parameters: z.object({
+        pattern: z
+          .string()
+          .describe('Glob pattern (e.g., "**/*.ts", "src/**/*.py")'),
+        cwd: z.string().optional().describe('Working directory'),
+      }),
+      execute: ({ pattern, cwd: globCwd }) => {
+        if (process.env.DEBUG_GEMINI_TOOLS) {
+          systemLog(
+            'gemini-tools',
+            'glob input',
+            { pattern, cwd: globCwd },
+            'debug'
+          );
+        }
+        return executeGlob(pattern, globCwd || process.cwd());
+      },
+    }),
+    wrapToolWithPermission(
+      'grep',
+      'Search for pattern in files using ripgrep. EFFICIENCY TIP: Use this BEFORE read_file to find exactly what you need.',
+      z.object({
+        pattern: z.string().describe('Regex pattern to search'),
+        path: z.string().optional().describe('Path to search in'),
+        glob_filter: z
+          .string()
+          .optional()
+          .describe('File glob filter (e.g., "*.ts")'),
+      }),
+      ({ pattern, path: searchPath, glob_filter }) =>
+        executeGrep(
+          pattern,
+          searchPath,
+          glob_filter,
+          process.cwd(),
+          undefined, // workbenchUrl
+          options?.currentPromptTokens
+        ),
+      onCanUseTool
+    ),
     safeBash,
     safeEditFile,
   ];
@@ -921,7 +824,7 @@ export function getCognitionTools(
     // Create SigmaTaskUpdate tool with anchorId bound for state file persistence
     const boundSigmaTaskUpdateTool = new FunctionTool({
       name: 'SigmaTaskUpdate',
-      description: SIGMA_TASK_UPDATE_DESCRIPTION,
+      description: getSigmaTaskUpdateDescription(options?.mode),
       parameters: {
         type: Type.OBJECT,
         properties: {
@@ -948,128 +851,139 @@ export function getCognitionTools(
                 },
                 status: {
                   type: Type.STRING,
-                  enum: ['pending', 'in_progress', 'completed', 'delegated'],
+                  enum:
+                    options?.mode === 'solo'
+                      ? ['pending', 'in_progress', 'completed']
+                      : ['pending', 'in_progress', 'completed', 'delegated'],
                   description:
                     'Task status. Use "delegated" when assigning task to another agent via IPC',
                 },
                 // Delegation fields (Manager/Worker paradigm)
-                acceptance_criteria: {
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING },
-                  nullable: true,
-                  description:
-                    'Success criteria for task completion (e.g., ["Must pass \'npm test\'", "No breaking changes"]). Required when delegating.',
-                },
-                delegated_to: {
-                  type: Type.STRING,
-                  nullable: true,
-                  description:
-                    'Agent ID this task was delegated to (e.g., "flash1"). Set when status is "delegated".',
-                },
-                context: {
-                  type: Type.STRING,
-                  nullable: true,
-                  description:
-                    'Additional context for delegated worker (e.g., "Refactoring auth system - keep OAuth flow intact")',
-                },
-                delegate_session_id: {
-                  type: Type.STRING,
-                  nullable: true,
-                  description: "Worker's session ID (for audit trail)",
-                },
-                result_summary: {
-                  type: Type.STRING,
-                  nullable: true,
-                  description: "Worker's completion report",
-                },
+                ...(options?.mode !== 'solo'
+                  ? {
+                      acceptance_criteria: {
+                        type: Type.ARRAY,
+                        items: { type: Type.STRING },
+                        nullable: true,
+                        description:
+                          'Success criteria for task completion (e.g., ["Must pass \'npm test\'", "No breaking changes"]). Required when delegating.',
+                      },
+                      delegated_to: {
+                        type: Type.STRING,
+                        nullable: true,
+                        description:
+                          'Agent ID this task was delegated to (e.g., "flash1"). Set when status is "delegated".',
+                      },
+                      context: {
+                        type: Type.STRING,
+                        nullable: true,
+                        description:
+                          'Additional context for delegated worker (e.g., "Refactoring auth system - keep OAuth flow intact")',
+                      },
+                      delegate_session_id: {
+                        type: Type.STRING,
+                        nullable: true,
+                        description: "Worker's session ID (for audit trail)",
+                      },
+                      result_summary: {
+                        type: Type.STRING,
+                        nullable: true,
+                        description: "Worker's completion report",
+                      },
+                    }
+                  : {}),
               },
               required: ['id', 'content', 'activeForm', 'status'],
             },
           },
-          grounding: {
-            type: Type.ARRAY,
-            nullable: true,
-            description:
-              'Grounding strategy and hints for tasks (correlate via id)',
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING },
-                strategy: {
-                  type: Type.STRING,
-                  enum: ['pgc_first', 'pgc_verify', 'pgc_cite', 'none'],
+          ...(options?.mode !== 'solo'
+            ? {
+                grounding: {
+                  type: Type.ARRAY,
                   nullable: true,
-                  description: 'Grounding strategy to use',
-                },
-                overlay_hints: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.STRING,
-                    enum: ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'],
-                  },
-                  nullable: true,
-                  description: 'Hints for overlay selection',
-                },
-                query_hints: {
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING },
-                  nullable: true,
-                  description: 'Hints for semantic search queries',
-                },
-                evidence_required: {
-                  anyOf: [{ type: Type.BOOLEAN }, { type: Type.STRING }],
-                  nullable: true,
-                  description: 'Whether evidence (citations) is required',
-                },
-              },
-              required: ['id'],
-            },
-          },
-          grounding_evidence: {
-            type: Type.ARRAY,
-            nullable: true,
-            description:
-              'Structured evidence returned by worker (correlate via id)',
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING },
-                queries_executed: {
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING },
-                },
-                overlays_consulted: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.STRING,
-                    enum: ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'],
-                  },
-                },
-                citations: {
-                  type: Type.ARRAY,
+                  description:
+                    'Grounding strategy and hints for tasks (correlate via id)',
                   items: {
                     type: Type.OBJECT,
                     properties: {
-                      overlay: { type: Type.STRING },
-                      content: { type: Type.STRING },
-                      relevance: { type: Type.STRING },
-                      file_path: { type: Type.STRING, nullable: true },
+                      id: { type: Type.STRING },
+                      strategy: {
+                        type: Type.STRING,
+                        enum: ['pgc_first', 'pgc_verify', 'pgc_cite', 'none'],
+                        nullable: true,
+                        description: 'Grounding strategy to use',
+                      },
+                      overlay_hints: {
+                        type: Type.ARRAY,
+                        items: {
+                          type: Type.STRING,
+                          enum: ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'],
+                        },
+                        nullable: true,
+                        description: 'Hints for overlay selection',
+                      },
+                      query_hints: {
+                        type: Type.ARRAY,
+                        items: { type: Type.STRING },
+                        nullable: true,
+                        description: 'Hints for semantic search queries',
+                      },
+                      evidence_required: {
+                        anyOf: [{ type: Type.BOOLEAN }, { type: Type.STRING }],
+                        nullable: true,
+                        description: 'Whether evidence (citations) is required',
+                      },
                     },
+                    required: ['id'],
                   },
                 },
-                grounding_confidence: {
-                  type: Type.STRING,
-                  enum: ['high', 'medium', 'low'],
-                },
-                overlay_warnings: {
+                grounding_evidence: {
                   type: Type.ARRAY,
-                  items: { type: Type.STRING },
                   nullable: true,
+                  description:
+                    'Structured evidence returned by worker (correlate via id)',
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      id: { type: Type.STRING },
+                      queries_executed: {
+                        type: Type.ARRAY,
+                        items: { type: Type.STRING },
+                      },
+                      overlays_consulted: {
+                        type: Type.ARRAY,
+                        items: {
+                          type: Type.STRING,
+                          enum: ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'],
+                        },
+                      },
+                      citations: {
+                        type: Type.ARRAY,
+                        items: {
+                          type: Type.OBJECT,
+                          properties: {
+                            overlay: { type: Type.STRING },
+                            content: { type: Type.STRING },
+                            relevance: { type: Type.STRING },
+                            file_path: { type: Type.STRING, nullable: true },
+                          },
+                        },
+                      },
+                      grounding_confidence: {
+                        type: Type.STRING,
+                        enum: ['high', 'medium', 'low'],
+                      },
+                      overlay_warnings: {
+                        type: Type.ARRAY,
+                        items: { type: Type.STRING },
+                        nullable: true,
+                      },
+                    },
+                    required: ['id'],
+                  },
                 },
-              },
-              required: ['id'],
-            },
-          },
+              }
+            : {}),
         },
         required: ['todos'],
       } as Schema,
@@ -1309,8 +1223,14 @@ export function getCognitionTools(
     tools.push(backgroundTasksTool);
   }
 
-  // Add agent messaging tools if publisher/queue are available
-  if (getMessagePublisher && getMessageQueue && projectRoot && currentAgentId) {
+  // Add agent messaging tools if publisher/queue are available AND not in solo mode
+  if (
+    options?.mode !== 'solo' &&
+    getMessagePublisher &&
+    getMessageQueue &&
+    projectRoot &&
+    currentAgentId
+  ) {
     const agentMessagingTools = createAgentMessagingTools(
       getMessagePublisher,
       getMessageQueue,

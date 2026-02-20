@@ -22,6 +22,7 @@ import {
   executeWebSearch,
   executeSigmaTaskUpdate,
 } from './tool-executors.js';
+import { getSigmaTaskUpdateDescription } from './tool-helpers.js';
 import { queryConversationLattice } from '../../sigma/query-conversation.js';
 import { getActiveAgents, resolveAgentId } from '../../ipc/agent-discovery.js';
 import {
@@ -48,6 +49,10 @@ export interface MinimaxToolsContext {
   agentId?: string;
   anchorId?: string;
   onToolOutput?: (output: string) => void;
+  /** Operation mode (solo = skip IPC/PGC tools) */
+  mode?: 'solo' | 'full';
+  /** Current prompt tokens for dynamic optimization */
+  currentPromptTokens?: number;
 }
 
 export interface MinimaxTool {
@@ -228,106 +233,125 @@ function createEditFileTool(): MinimaxTool {
   };
 }
 
-function createSigmaTaskUpdateTool(): MinimaxTool {
+function createSigmaTaskUpdateTool(mode?: 'solo' | 'full'): MinimaxTool {
+  const isSolo = mode === 'solo';
+
+  const todoProperties: Record<string, unknown> = {
+    id: { type: 'string', description: 'Unique stable identifier' },
+    content: { type: 'string', description: 'Task description' },
+    activeForm: {
+      type: 'string',
+      description: 'Present continuous form',
+    },
+    status: {
+      type: 'string',
+      enum: isSolo
+        ? ['pending', 'in_progress', 'completed']
+        : ['pending', 'in_progress', 'completed', 'delegated'],
+      description: 'Task status',
+    },
+  };
+
+  if (!isSolo) {
+    todoProperties.acceptance_criteria = {
+      type: 'array',
+      items: { type: 'string' },
+      description: 'Success criteria for delegation',
+    };
+    todoProperties.delegated_to = {
+      type: 'string',
+      description: 'Target agent ID',
+    };
+    todoProperties.context = {
+      type: 'string',
+      description: 'Delegation context',
+    };
+    todoProperties.result_summary = {
+      type: 'string',
+      description: 'Completion report',
+    };
+  }
+
+  const properties: Record<string, unknown> = {
+    todos: {
+      type: 'array',
+      description: 'The updated task list',
+      items: {
+        type: 'object',
+        properties: todoProperties,
+        required: ['id', 'content', 'activeForm', 'status'],
+      },
+    },
+  };
+
+  if (!isSolo) {
+    properties.grounding = {
+      type: 'array',
+      description: 'Grounding strategy and hints for tasks',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          strategy: {
+            type: 'string',
+            enum: ['pgc_first', 'pgc_verify', 'pgc_cite', 'none'],
+          },
+          overlay_hints: {
+            type: 'array',
+            items: {
+              type: 'string',
+              enum: ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'],
+            },
+          },
+          query_hints: { type: 'array', items: { type: 'string' } },
+          evidence_required: { type: 'boolean' },
+        },
+        required: ['id'],
+      },
+    };
+    properties.grounding_evidence = {
+      type: 'array',
+      description: 'Structured evidence returned by worker',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          queries_executed: { type: 'array', items: { type: 'string' } },
+          overlays_consulted: {
+            type: 'array',
+            items: {
+              type: 'string',
+              enum: ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'],
+            },
+          },
+          citations: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                overlay: { type: 'string' },
+                content: { type: 'string' },
+                relevance: { type: 'string' },
+                file_path: { type: 'string' },
+              },
+            },
+          },
+          grounding_confidence: {
+            type: 'string',
+            enum: ['high', 'medium', 'low'],
+          },
+        },
+        required: ['id'],
+      },
+    };
+  }
+
   return {
     name: 'SigmaTaskUpdate',
-    description:
-      'Update task list to track progress and maintain state across the session. Use this tool VERY frequently to ensure that you are tracking your tasks.',
+    description: getSigmaTaskUpdateDescription(mode),
     input_schema: {
       type: 'object',
-      properties: {
-        todos: {
-          type: 'array',
-          description: 'The updated task list',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'string', description: 'Unique stable identifier' },
-              content: { type: 'string', description: 'Task description' },
-              activeForm: {
-                type: 'string',
-                description: 'Present continuous form',
-              },
-              status: {
-                type: 'string',
-                enum: ['pending', 'in_progress', 'completed', 'delegated'],
-                description: 'Task status',
-              },
-              acceptance_criteria: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Success criteria for delegation',
-              },
-              delegated_to: { type: 'string', description: 'Target agent ID' },
-              context: { type: 'string', description: 'Delegation context' },
-              result_summary: {
-                type: 'string',
-                description: 'Completion report',
-              },
-            },
-            required: ['id', 'content', 'activeForm', 'status'],
-          },
-        },
-        grounding: {
-          type: 'array',
-          description: 'Grounding strategy and hints for tasks',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'string' },
-              strategy: {
-                type: 'string',
-                enum: ['pgc_first', 'pgc_verify', 'pgc_cite', 'none'],
-              },
-              overlay_hints: {
-                type: 'array',
-                items: {
-                  type: 'string',
-                  enum: ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'],
-                },
-              },
-              query_hints: { type: 'array', items: { type: 'string' } },
-              evidence_required: { type: 'boolean' },
-            },
-            required: ['id'],
-          },
-        },
-        grounding_evidence: {
-          type: 'array',
-          description: 'Structured evidence returned by worker',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'string' },
-              queries_executed: { type: 'array', items: { type: 'string' } },
-              overlays_consulted: {
-                type: 'array',
-                items: {
-                  type: 'string',
-                  enum: ['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'],
-                },
-              },
-              citations: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    overlay: { type: 'string' },
-                    content: { type: 'string' },
-                    relevance: { type: 'string' },
-                    file_path: { type: 'string' },
-                  },
-                },
-              },
-              grounding_confidence: {
-                type: 'string',
-                enum: ['high', 'medium', 'low'],
-              },
-            },
-            required: ['id'],
-          },
-        },
-      },
+      properties,
       required: ['todos'],
     },
   };
@@ -504,6 +528,7 @@ export function getMinimaxTools(context: MinimaxToolsContext): MinimaxTool[] {
     getMessageQueue,
     projectRoot,
     agentId,
+    mode,
   } = context;
   const tools: MinimaxTool[] = [];
 
@@ -518,7 +543,7 @@ export function getMinimaxTools(context: MinimaxToolsContext): MinimaxTool[] {
   tools.push(createEditFileTool());
 
   // SigmaTaskUpdate tool
-  tools.push(createSigmaTaskUpdateTool());
+  tools.push(createSigmaTaskUpdateTool(mode));
 
   // Web tools
   tools.push(createFetchUrlTool());
@@ -534,8 +559,14 @@ export function getMinimaxTools(context: MinimaxToolsContext): MinimaxTool[] {
     tools.push(createBackgroundTasksTool());
   }
 
-  // Agent messaging tools (IPC)
-  if (getMessagePublisher && getMessageQueue && projectRoot && agentId) {
+  // Agent messaging tools (IPC) - Skip if in solo mode
+  if (
+    mode !== 'solo' &&
+    getMessagePublisher &&
+    getMessageQueue &&
+    projectRoot &&
+    agentId
+  ) {
     tools.push(createListAgentsTool());
     tools.push(createSendMessageTool());
     tools.push(createBroadcastTool());
@@ -572,7 +603,8 @@ export async function executeMinimaxTool(
         inputObj.file_path as string,
         coerceNumber(inputObj.limit as number | string),
         coerceNumber(inputObj.offset as number | string),
-        workbenchUrl
+        workbenchUrl,
+        context.currentPromptTokens
       );
     }
     case 'write_file': {
@@ -602,7 +634,8 @@ export async function executeMinimaxTool(
         inputObj.path as string | undefined,
         inputObj.glob_filter as string | undefined,
         cwd || process.cwd(),
-        workbenchUrl
+        workbenchUrl,
+        context.currentPromptTokens
       );
     }
     case 'bash': {
@@ -617,7 +650,8 @@ export async function executeMinimaxTool(
             timeout,
             cwd || process.cwd(),
             context.onToolOutput,
-            workbenchUrl
+            workbenchUrl,
+            context.currentPromptTokens
           ),
         onCanUseTool
       );

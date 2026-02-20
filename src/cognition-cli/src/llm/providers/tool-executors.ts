@@ -166,7 +166,8 @@ export async function executeReadFile(
   file_path: string,
   limit?: number,
   offset?: number,
-  workbenchUrl?: string
+  workbenchUrl?: string,
+  currentPromptTokens?: number
 ): Promise<string> {
   try {
     const stats = await fs.stat(file_path);
@@ -203,7 +204,8 @@ export async function executeReadFile(
       result,
       'read_file',
       1024 * 1024, // 1MB cap for tool output
-      workbenchUrl
+      workbenchUrl,
+      currentPromptTokens
     );
   } catch (error) {
     return `Error reading file: ${error instanceof Error ? error.message : String(error)}`;
@@ -253,7 +255,8 @@ export async function executeGrep(
   search_path: string | undefined,
   glob_filter: string | undefined,
   cwd: string,
-  workbenchUrl?: string
+  workbenchUrl?: string,
+  currentPromptTokens?: number
 ): Promise<string> {
   return new Promise((resolve) => {
     const args = [
@@ -324,7 +327,8 @@ export async function executeGrep(
         finalOutput,
         'grep',
         15000,
-        workbenchUrl
+        workbenchUrl,
+        currentPromptTokens
       );
       resolve(compressed || 'No matches');
     });
@@ -343,7 +347,8 @@ export async function executeBash(
   timeout: number | undefined,
   cwd: string,
   onChunk?: (chunk: string) => void,
-  workbenchUrl?: string
+  workbenchUrl?: string,
+  currentPromptTokens?: number
 ): Promise<string> {
   const effectiveTimeout = timeout || 120000;
 
@@ -419,7 +424,8 @@ export async function executeBash(
         output,
         'bash',
         maxChars,
-        workbenchUrl
+        workbenchUrl,
+        currentPromptTokens
       );
       if (killed) {
         resolve(`Timeout after ${effectiveTimeout}ms\n${compressed}`);
@@ -508,6 +514,14 @@ export async function executeFetchUrl(url: string): Promise<string> {
     else if (contentType.includes('text/html')) {
       if (typeof text !== 'string') {
         return `Unexpected non-string content for HTML: ${typeof text}`;
+      }
+
+      // Try to extract main content if present to reduce noise
+      const mainContentMatch = text.match(
+        /<(main|article)\b[^>]*>([\s\S]*?)<\/\1>/i
+      );
+      if (mainContentMatch) {
+        text = mainContentMatch[2];
       }
 
       // Remove script/style tags

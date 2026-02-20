@@ -1300,6 +1300,7 @@ export class OpenAIAgentProvider implements AgentProvider {
       projectRoot: request.projectRoot,
       agentId: request.agentId,
       anchorId: request.anchorId,
+      mode: request.mode,
     });
   }
 
@@ -1352,8 +1353,12 @@ export class OpenAIAgentProvider implements AgentProvider {
 - **get_background_tasks**: Query status of genesis, overlay generation, and other background operations`);
     }
 
-    // IPC messaging (if publisher/queue are available)
-    if (request.getMessagePublisher && request.getMessageQueue) {
+    // IPC messaging (if publisher/queue are available AND NOT in solo mode)
+    if (
+      request.mode !== 'solo' &&
+      request.getMessagePublisher &&
+      request.getMessageQueue
+    ) {
       toolSections.push(`### Agent Messaging (IPC)
 - **list_agents**: Discover other active agents in the IPC bus
 - **send_agent_message**: Send a message to a specific agent
@@ -1367,6 +1372,8 @@ export class OpenAIAgentProvider implements AgentProvider {
       request.systemPrompt?.type === 'preset' && request.systemPrompt.append
         ? request.systemPrompt.append
         : '';
+
+    const isSolo = request.mode === 'solo';
 
     return (
       `You are **${modelName}** (OpenAI Agents SDK) running inside **Cognition Σ (Sigma) CLI** - a verifiable AI-human symbiosis architecture with dual-lattice knowledge representation.
@@ -1388,10 +1395,14 @@ ${toolSections.join('\n\n')}
   {
     "todos": [
       { "id": "task-1", "content": "Task description", "activeForm": "Doing task", "status": "in_progress" }
-    ],
+    ]${
+      isSolo
+        ? ''
+        : `,
     "grounding": [
       { "id": "task-1", "strategy": "pgc_first" }
-    ]
+    ]`
+    }
   }
   \`\`\`
 - Use tools proactively to gather context before answering
@@ -1408,10 +1419,18 @@ This tool is also EXTREMELY helpful for planning tasks, and for breaking down la
 It is critical that you mark tasks as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.
 
 ### Semantic Checkpointing (TPM Optimization)
-OpenAI endpoints (especially via Cognition Σ) benefit from proactive context management.
+${
+  isSolo
+    ? 'OpenAI endpoints benefit from proactive context management.'
+    : 'OpenAI endpoints (especially via Cognition Σ) benefit from proactive context management.'
+}
 - **Trigger Compression**: Use \`SigmaTaskUpdate\` to mark a task as \`completed\` to trigger "Semantic Compression". This flushes implementation noise (logs, previous file reads) while keeping your high-level plan in context.
 - **Proactive Management**: If you see a \`<token-pressure-warning>\`, it means your context is getting large (~50k+ tokens). You should aim to finish your current sub-task and mark it completed to clear the air before starting the next phase.
-- **Granularity**: Prefer smaller, focused tasks over one giant task. Every time you mark a task completed, the system has an opportunity to optimize your "Mental Map".
+${
+  isSolo
+    ? ''
+    : '- **Granularity**: Prefer smaller, focused tasks over one giant task. Every time you mark a task completed, the system has an opportunity to optimize your "Mental Map".'
+}
 
 ### Examples of Task Management
 
@@ -1425,7 +1444,10 @@ You should:
 5. Work on the first item, then mark it as completed
 6. Continue until all items are done
 
-**Example 2: Feature implementation**
+${
+  isSolo
+    ? ''
+    : `**Example 2: Feature implementation**
 User: "Help me write a new feature that allows users to track their usage metrics and export them to various formats"
 You should:
 1. Use SigmaTaskUpdate to plan: Research existing metrics, Design system, Implement core tracking, Create export functionality
@@ -1484,7 +1506,8 @@ When delegating via send_agent_message, use this structured format:
   "requested_action": "Please provide DB_HOST and DB_PASSWORD for staging"
 }
 \`\`\`
-
+`
+}
 **Example 4: When NOT to use SigmaTaskUpdate**
 User: "How do I print 'Hello World' in Python?"
 Do NOT use SigmaTaskUpdate - this is a simple, trivial task with no multi-step implementation.
@@ -1493,10 +1516,9 @@ User: "Add a comment to the calculateTotal function"
 Do NOT use SigmaTaskUpdate - this is a single, straightforward task.
 
 ### Task State Rules
-1. **Task States**: pending (not started), in_progress (currently working), completed (finished), delegated (assigned to another agent)
+1. **Task States**: pending (not started), in_progress (currently working), completed (finished)${isSolo ? '' : ', delegated (assigned to another agent)'}
 2. **One at a time**: Exactly ONE task should be in_progress at any time
-3. **Delegation**: When delegating, set status to 'delegated' AND send IPC message. Do not mark completed until worker reports back.
-4. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing
+${isSolo ? '' : "3. **Delegation**: When delegating, set status to 'delegated' AND send IPC message. Do not mark completed until worker reports back.\n"}4. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing
 5. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker
 6. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")
 

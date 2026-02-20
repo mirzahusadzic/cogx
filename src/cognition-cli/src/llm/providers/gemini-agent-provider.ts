@@ -378,6 +378,8 @@ export class GeminiAgentProvider implements AgentProvider {
           provider: 'gemini', // Enable external SigmaTaskUpdate for Gemini
           anchorId: request.anchorId, // Session anchor for SigmaTaskUpdate state persistence
           onToolOutput: request.onToolOutput, // Pass streaming callback for tools like bash
+          mode: request.mode, // Pass operation mode (solo/full)
+          currentPromptTokens, // Pass current prompt tokens for dynamic optimization
         }
       );
 
@@ -1407,24 +1409,7 @@ export class GeminiAgentProvider implements AgentProvider {
 A portable cognitive layer that can be initialized in **any repository**. Creates \`.sigma/\` (conversation memory) and \`.open_cognition/\` (PGC project knowledge store) in the current working directory.
 
 ## Your Capabilities
-You have access to tools for:
-- **read_file**: Read file contents at a given path
-- **write_file**: Write content to files
-- **glob**: Find files matching patterns (e.g., "**/*.ts")
-- **grep**: Search code with ripgrep
-- **bash**: Execute shell commands (git, npm, etc.)
-- **edit_file**: Make targeted text replacements
-- **SigmaTaskUpdate**: Update the task list to track progress and maintain state across the session
-- **WebSearch**: Search the web for current information, news, facts, and real-time data using Google Search
-- **fetch_url**: Fetch and read content from any URL (returns markdown-formatted text with basic HTML stripping)
-- **recall_past_conversation**: Search conversation history for past context (if available)
-- **get_background_tasks**: Query status of background operations (genesis, overlay generation) - check progress, see completed/failed tasks
-- **list_agents**: List all active agents in the IPC bus
-- **send_agent_message**: Send a message to another agent by alias or ID
-- **broadcast_agent_message**: Broadcast a message to all active agents
-- **list_pending_messages**: List all pending messages from other agents (DO NOT poll - system auto-notifies on arrival)
-- **mark_message_read**: Mark a pending message as read/processed
-- **query_agent**: Ask semantic questions to agents in other repositories and get grounded answers based on their Grounded Context Pool
+You have access to environment tools defined in your schema. Prioritize using them proactively.
 
 ## Guidelines
 - Be concise and helpful

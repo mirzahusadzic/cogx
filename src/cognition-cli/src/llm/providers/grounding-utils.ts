@@ -4,6 +4,11 @@ import type { AgentRequest } from '../agent-provider-interface.js';
 export async function getGroundingContext(
   request: AgentRequest
 ): Promise<string> {
+  // Skip grounding entirely in solo mode to save tokens
+  if (request.mode === 'solo') {
+    return '';
+  }
+
   let groundingContext = '';
   const grounding = await request.grounding;
   if (grounding && grounding.strategy !== 'none') {

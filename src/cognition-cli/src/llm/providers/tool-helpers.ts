@@ -91,11 +91,30 @@ export async function smartCompressOutput(
   output: string,
   toolType: 'bash' | 'grep' | 'read_file' | 'glob',
   maxChars?: number,
-  workbenchUrl?: string
+  workbenchUrl?: string,
+  currentPromptTokens?: number
 ): Promise<string> {
-  // Use tool-specific defaults if maxChars not provided
+  // Tier 0: Dynamic Truncation based on token pressure
+  // If we don't have currentPromptTokens, we use static defaults.
+  // If we are nearing 200k tokens, we aggressively truncate to save the session.
+  let dynamicLimit = maxChars;
+  if (currentPromptTokens) {
+    if (currentPromptTokens > 150000) {
+      // High pressure: Aggressive 10k limit
+      dynamicLimit = Math.min(maxChars || 10000, 10000);
+    } else if (currentPromptTokens > 50000) {
+      // Medium pressure: 20k limit
+      dynamicLimit = Math.min(maxChars || 20000, 20000);
+    } else {
+      // Low pressure: Standard 30k limit for bash
+      dynamicLimit =
+        maxChars || (toolType === 'bash' ? 30000 : MAX_TOOL_OUTPUT_CHARS);
+    }
+  }
+
+  // Use tool-specific defaults if dynamicLimit still not settled
   const limit =
-    maxChars ||
+    dynamicLimit ||
     (toolType === 'read_file' ? MAX_READ_FILE_CHARS : MAX_TOOL_OUTPUT_CHARS);
 
   // Tier 1: Small outputs pass through untouched.
@@ -190,6 +209,40 @@ export type OnCanUseTool = (
   toolName: string,
   input: unknown
 ) => Promise<{ behavior: 'allow' | 'deny'; updatedInput?: unknown }>;
+
+/**
+ * Get dynamic SigmaTaskUpdate description based on mode
+ */
+export function getSigmaTaskUpdateDescription(
+  mode: 'solo' | 'full' = 'full'
+): string {
+  if (mode === 'solo') {
+    // Strip IPC and PGC sections for solo mode to save ~500 tokens
+    return SIGMA_TASK_UPDATE_DESCRIPTION.replace(
+      /## Delegation \(Manager\/Worker Pattern\)[\s\S]*?## PGC Grounding/m,
+      '## PGC Grounding'
+    )
+      .replace(
+        /## PGC Grounding \(v2\.0 Protocol\)[\s\S]*?Benefits of delegation:/m,
+        'Benefits of task tracking:'
+      )
+      .replace(
+        /Benefits of delegation:[\s\S]*?Worker agents handle implementation details/m,
+        ''
+      )
+      .replace(
+        /### IPC Message Format for Delegation[\s\S]*?\*\*Example 4:/m,
+        '**Example 4:'
+      )
+      .replace(/- Use 'grounding' and 'grounding_evidence'[\s\S]*?\n/m, '')
+      .replace(
+        /- delegated: Task assigned to another agent via IPC \(Manager\/Worker pattern\)\n/m,
+        ''
+      )
+      .replace(/, or IPC delegation/g, '');
+  }
+  return SIGMA_TASK_UPDATE_DESCRIPTION;
+}
 
 /**
  * SigmaTaskUpdate tool description - shared between standalone and bound versions

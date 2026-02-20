@@ -115,6 +115,13 @@ export interface AgentRequest {
   /** Additional options */
   maxTokens?: number;
   temperature?: number;
+
+  /**
+   * Operation mode for token optimization.
+   * - 'full': Enable all tools (including IPC and PGC)
+   * - 'solo': Disable IPC/PGC tools and simplify task descriptions to save tokens
+   */
+  mode?: 'solo' | 'full';
 }
 
 /**

@@ -112,7 +112,7 @@ export function useAgentServices({
         // Task manager not needed
       }
 
-      if (getMessagePublisher) {
+      if (options.solo !== true && getMessagePublisher) {
         agentMessagingMcpServerRef.current = createAgentMessagingMcpServer(
           getMessagePublisher,
           getMessageQueue,
@@ -135,7 +135,8 @@ export function useAgentServices({
       sigmaTaskUpdateMcpServerRef.current = createSigmaTaskUpdateMcpServer(
         cwd,
         anchorId,
-        claudeAgentSdkModule
+        claudeAgentSdkModule,
+        options.solo
       );
 
       const pgcPath = path.join(cwd, '.open_cognition');

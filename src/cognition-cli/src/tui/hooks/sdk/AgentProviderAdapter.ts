@@ -50,6 +50,9 @@ export interface AgentAdapterOptions {
   /** Model to use (provider-specific) */
   model?: string;
 
+  /** Operation mode for token optimization */
+  mode?: 'solo' | 'full';
+
   /** Working directory for tool execution */
   cwd: string;
 
@@ -162,6 +165,7 @@ export class AgentProviderAdapter {
     const request: AgentRequest = {
       prompt,
       model: this.model,
+      mode: this.options.mode,
       cwd: this.options.cwd,
       resumeSessionId: this.options.resumeSessionId,
       maxThinkingTokens: this.options.maxThinkingTokens,
