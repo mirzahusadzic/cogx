@@ -624,7 +624,11 @@ export interface CognitionToolsOptions {
   /** Callback for streaming tool output */
   onToolOutput?: (output: string) => void;
   /** Callback when a task is completed (for log eviction) */
-  onTaskCompleted?: (taskId: string, session?: Session) => Promise<void>;
+  onTaskCompleted?: (
+    taskId: string,
+    result_summary?: string,
+    session?: Session
+  ) => Promise<void>;
   /** Operation mode (solo = skip IPC/PGC tools) */
   mode?: 'solo' | 'full';
   /** Current prompt tokens for dynamic optimization */
@@ -901,7 +905,8 @@ export function getCognitionTools(
                       result_summary: {
                         type: Type.STRING,
                         nullable: true,
-                        description: "Worker's completion report",
+                        description:
+                          "REQUIRED when status is 'completed'. A concise summary of the essential findings, code changes, or decisions made during this task. This summary will survive log eviction.",
                       },
                     }
                   : {}),
@@ -1115,6 +1120,16 @@ export function getCognitionTools(
           if (todo.result_summary)
             cleanTodo.result_summary = todo.result_summary;
 
+          if (
+            cleanTodo.status === 'completed' &&
+            (!cleanTodo.result_summary || cleanTodo.result_summary.length < 15)
+          ) {
+            throw new Error(
+              "Validation Error: You cannot mark a task as 'completed' without providing a detailed 'result_summary' (min 15 chars). " +
+                "Raw tool logs for this task will be evicted. Please summarize your findings so you don't lose context."
+            );
+          }
+
           // Merge grounding from separate array if present
           const groundingData = rawGroundings.find((g) => g.id === todo.id);
           if (groundingData) {
@@ -1229,7 +1244,11 @@ export function getCognitionTools(
           for (const task of completedTasks) {
             try {
               const activeSession = toolContext?.invocationContext?.session;
-              await options.onTaskCompleted(task.id, activeSession);
+              await options.onTaskCompleted(
+                task.id,
+                task.result_summary,
+                activeSession
+              );
             } catch (err) {
               systemLog(
                 'sigma',

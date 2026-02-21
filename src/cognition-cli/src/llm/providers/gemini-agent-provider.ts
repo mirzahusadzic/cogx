@@ -262,6 +262,7 @@ export class GeminiAgentProvider implements AgentProvider {
    */
   private async pruneTaskLogs(
     taskId: string,
+    result_summary: string | undefined,
     sessionId: string,
     projectRoot: string,
     activeSession?: Session
@@ -299,6 +300,10 @@ export class GeminiAgentProvider implements AgentProvider {
           evictedLogs.push(JSON.stringify(event, null, 2));
           evictedCount++;
           // Replace with tombstone
+          const tombstoneText = result_summary
+            ? `[Task ${taskId} completed. Raw logs evicted to archive. \nSUMMARY: ${result_summary}]`
+            : `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`;
+
           const tombstoneParts = parts.map((p) => {
             if (p.functionResponse) {
               return {
@@ -306,13 +311,13 @@ export class GeminiAgentProvider implements AgentProvider {
                 functionResponse: {
                   name: p.functionResponse.name,
                   response: {
-                    result: `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`,
+                    result: tombstoneText,
                   },
                 },
               };
             }
             return {
-              text: `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`,
+              text: tombstoneText,
             };
           });
 
@@ -499,10 +504,15 @@ export class GeminiAgentProvider implements AgentProvider {
           provider: 'gemini', // Enable external SigmaTaskUpdate for Gemini
           anchorId: request.anchorId, // Session anchor for SigmaTaskUpdate state persistence
           onToolOutput: request.onToolOutput, // Pass streaming callback for tools like bash
-          onTaskCompleted: async (taskId: string, activeSession?: Session) => {
+          onTaskCompleted: async (
+            taskId: string,
+            result_summary?: string,
+            activeSession?: Session
+          ) => {
             // Surgical log eviction on task completion
             await this.pruneTaskLogs(
               taskId,
+              result_summary,
               sessionId,
               request.cwd || request.projectRoot || process.cwd(),
               activeSession
@@ -586,12 +596,29 @@ export class GeminiAgentProvider implements AgentProvider {
             request.remainingTPM
           );
 
+          // Load active context if it exists
+          let activeContext = '';
+          try {
+            const contextPath = path.join(
+              request.cwd || request.projectRoot || process.cwd(),
+              '.sigma',
+              'archives',
+              sessionId,
+              'active_context.md'
+            );
+            activeContext = await fs.readFile(contextPath, 'utf-8');
+            activeContext = `\n\n## Long Term Working Memory (.sigma/archives/${sessionId}/active_context.md)\n${activeContext}\n`;
+          } catch {
+            // Ignore error if file doesn't exist or is unreadable
+          }
+
           // Initialize Agent & Runner (No runSilently needed, we are already silent)
           const agentInstance = new LlmAgent({
             name: 'cognition_agent',
             model: activeModel,
             instruction:
-              this.buildSystemPrompt(request) +
+              this.buildSystemPrompt(request, sessionId) +
+              activeContext +
               (groundingContext
                 ? `\n\n## Automated Grounding Context\n${groundingContext}`
                 : ''),
@@ -1492,7 +1519,7 @@ export class GeminiAgentProvider implements AgentProvider {
   /**
    * Build system prompt from request
    */
-  private buildSystemPrompt(request: AgentRequest): string {
+  private buildSystemPrompt(request: AgentRequest, sessionId?: string): string {
     if (
       request.systemPrompt?.type === 'custom' &&
       request.systemPrompt.custom
@@ -1508,12 +1535,8 @@ export class GeminiAgentProvider implements AgentProvider {
       day: 'numeric',
     });
 
-    const appendInfo =
-      request.systemPrompt?.type === 'preset' && request.systemPrompt.append
-        ? request.systemPrompt.append
-        : '';
-
     const isSolo = request.mode === 'solo';
+    const currentSessionId = sessionId || 'current_session';
 
     const delegationExample = isSolo
       ? ''
@@ -1576,20 +1599,40 @@ When delegating via send_agent_message, use this structured format:
       ? `### Task State Rules
 1. **Task States**: pending (not started), in_progress (currently working), completed (finished)
 2. **Task-First (Token Health)**: ALWAYS mark a task as \`in_progress\` BEFORE running tools (research, read_file, bash, etc.). This ensures tool outputs are tagged with the active task ID for surgical context eviction upon completion.
+   - **CRITICAL**: You are FORBIDDEN from using \`read_file\`, \`grep\`, or \`bash\` unless a task is explicitly in the \`in_progress\` state. If you need to explore, create a task "Explore codebase" and mark it \`in_progress\` FIRST.
 3. **One at a time**: Exactly ONE task should be in_progress at any time
 4. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing to trigger log eviction and reclaim tokens.
-5. **Research Continuity**: Summarize findings in your thoughts before completing a task, as logs will be evicted.
-6. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker.
-7. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")`
+5. **Micro-Tasking for Research**: Before executing heavy tools like \`grep\` or \`read_file\`, create a highly specific task (e.g., "Research auth module line 40-100"). Mark it completed IMMEDIATELY after extracting the insight to quickly flush the heavy logs.
+6. **Persistence via Summary**: The raw logs of a completed task (file contents, grep results) WILL BE DELETED immediately.
+   - You MUST distill all critical findings into the \`result_summary\` field of SigmaTaskUpdate.
+   - Do not write "Done" or "Found it". Write "Found API key in config.ts line 45" or "UserController.ts handles auth logic".
+   - If the \`result_summary\` is empty or vague, you will lose the knowledge required for subsequent tasks.
+7. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker.
+8. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")`
       : `### Task State Rules
 1. **Task States**: pending (not started), in_progress (currently working), completed (finished), delegated (assigned to another agent)
 2. **Task-First (Token Health)**: ALWAYS mark a task as \`in_progress\` BEFORE running tools (research, read_file, bash, etc.). This ensures tool outputs are tagged with the active task ID for surgical context eviction upon completion.
+   - **CRITICAL**: You are FORBIDDEN from using \`read_file\`, \`grep\`, or \`bash\` unless a task is explicitly in the \`in_progress\` state. If you need to explore, create a task "Explore codebase" and mark it \`in_progress\` FIRST.
 3. **One at a time**: Exactly ONE task should be in_progress at any time
 4. **Delegation**: When delegating, set status to 'delegated' AND send IPC message. Do not mark completed until worker reports back.
 5. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing to trigger log eviction and reclaim tokens.
-6. **Research Continuity**: Summarize findings in your thoughts before completing a task, as logs will be evicted.
-7. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker.
-8. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")`;
+6. **Micro-Tasking for Research**: Before executing heavy tools like \`grep\` or \`read_file\`, create a highly specific task (e.g., "Research auth module line 40-100"). Mark it completed IMMEDIATELY after extracting the insight to quickly flush the heavy logs.
+7. **Persistence via Summary**: The raw logs of a completed task (file contents, grep results) WILL BE DELETED immediately.
+   - You MUST distill all critical findings into the \`result_summary\` field of SigmaTaskUpdate.
+   - Do not write "Done" or "Found it". Write "Found API key in config.ts line 45" or "UserController.ts handles auth logic".
+   - If the \`result_summary\` is empty or vague, you will lose the knowledge required for subsequent tasks.
+8. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker.
+9. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")`;
+
+    const memoryRules = `
+### 🧠 MEMORY & EVICTION RULES (CRITICAL)
+1. **The "Amnesia" Warning**: When you mark a task as \`completed\`, the system IMMEDIATELY deletes all tool outputs (file reads, grep results, bash logs) associated with that task.
+2. **Distill Before Dying**: You are FORBIDDEN from completing a task until you have saved the *essential findings*.
+   - **Simple Findings**: Write them into the \`result_summary\` field of \`SigmaTaskUpdate\`.
+   - **Complex Findings (Code/Diffs)**: Write them to \`.sigma/archives/${currentSessionId}/active_context.md\` using \`write_file\` or \`edit_file\` before completing the task.
+3. **Context Grooming**: Treat \`active_context.md\` as a volatile scratchpad. When a sub-project is finished, proactively delete obsolete notes from it using \`edit_file\` to keep your baseline context lean.
+4. **Verification**: Before calling \`SigmaTaskUpdate(status='completed')\`, ask yourself: "If I lose all my previous logs right now, do I have enough info in the summary/scratchpad to continue?"
+`;
 
     return (
       `You are **${modelName}** (Google ADK) running inside **Cognition Σ (Sigma) CLI** - a verifiable AI-human symbiosis architecture with dual-lattice knowledge representation.
@@ -1598,7 +1641,7 @@ When delegating via send_agent_message, use this structured format:
 
 ## What is Cognition Σ?
 A portable cognitive layer that can be initialized in **any repository**. Creates \`.sigma/\` (conversation memory) and \`.open_cognition/\` (PGC project knowledge store) in the current working directory.
-
+${memoryRules}
 ## Your Capabilities
 You have access to environment tools defined in your schema. Prioritize using them proactively.
 
@@ -1668,12 +1711,12 @@ IMPORTANT: Always use the SigmaTaskUpdate tool to plan and track tasks throughou
 ## Token Economy (IMPORTANT - Each tool call costs tokens!)
 - **NEVER re-read files you just edited** - you already have the content in context
 - **Use glob/grep BEFORE read_file** - find specific content instead of reading entire files
+- **Surgical Reads ONLY**: NEVER use \`read_file\` without \`offset\` and \`limit\` unless the file is under 100 lines. Always use \`grep\` with \`-n\` to find exact line numbers first. 
 - **Batch operations** - if you need multiple files, plan which ones first, then read them efficiently
 - **Use limit/offset for large files** - read only the sections you need
-- **Prefer git diff or reading specific line ranges; avoid \`cat\` or \`read_file\` on full files unless the file is small (<50 lines) or strictly necessary.**
 - **Avoid redundant reads** - if you read a file earlier in this conversation, don't read it again unless it changed
 - **Summarize don't quote** - explain findings concisely rather than quoting entire file contents` +
-      (appendInfo ? `\n\n${appendInfo}` : '')
+      (request.systemPrompt?.append ? `\n\n${request.systemPrompt.append}` : '')
     );
   }
 }
