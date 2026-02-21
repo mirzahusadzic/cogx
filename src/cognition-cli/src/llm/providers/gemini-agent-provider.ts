@@ -567,7 +567,11 @@ export class GeminiAgentProvider implements AgentProvider {
         activeModel,
         messages: [...messages],
         sessionId,
-        tokens: { prompt: 0, completion: 0, total: 0 },
+        tokens: {
+          prompt: currentPromptTokens || 0,
+          completion: currentCompletionTokens || 0,
+          total: (currentPromptTokens || 0) + (currentCompletionTokens || 0),
+        },
         finishReason: 'stop',
         numTurns: 0,
         retryCount: 0,
@@ -762,20 +766,32 @@ export class GeminiAgentProvider implements AgentProvider {
             // Capture actual token usage from Gemini API
             if (evt.usageMetadata) {
               if (evt.usageMetadata.promptTokenCount !== undefined) {
-                cumulativePromptTokens = evt.usageMetadata.promptTokenCount;
+                // If token count drops significantly (e.g., due to eviction), accept it.
+                // Otherwise, use it if it's the first turn or if it increases.
+                // We should ALWAYS trust the API's reported promptTokenCount.
+                cumulativePromptTokens = Math.max(
+                  cumulativePromptTokens,
+                  evt.usageMetadata.promptTokenCount
+                );
                 currentPromptTokens = evt.usageMetadata.promptTokenCount;
               }
               if (
                 evt.usageMetadata.totalTokenCount !== undefined &&
                 evt.usageMetadata.promptTokenCount !== undefined
               ) {
-                cumulativeCompletionTokens =
+                cumulativeCompletionTokens +=
+                  evt.usageMetadata.totalTokenCount -
+                  evt.usageMetadata.promptTokenCount -
+                  currentCompletionTokens;
+
+                currentCompletionTokens =
                   evt.usageMetadata.totalTokenCount -
                   evt.usageMetadata.promptTokenCount;
               } else if (evt.usageMetadata.candidatesTokenCount !== undefined) {
                 // Fallback if totalTokenCount is missing
                 cumulativeCompletionTokens +=
-                  evt.usageMetadata.candidatesTokenCount;
+                  evt.usageMetadata.candidatesTokenCount -
+                  currentCompletionTokens;
                 currentCompletionTokens =
                   evt.usageMetadata.candidatesTokenCount;
               }
@@ -834,15 +850,14 @@ export class GeminiAgentProvider implements AgentProvider {
                     sessionId,
                     tokens: {
                       prompt:
-                        cumulativePromptTokens ||
+                        currentPromptTokens ||
                         Math.ceil(request.prompt.length / 4),
                       completion:
-                        cumulativeCompletionTokens || currentTurnOutputEstimate,
+                        currentCompletionTokens || currentTurnOutputEstimate,
                       total:
-                        (cumulativePromptTokens ||
+                        (currentPromptTokens ||
                           Math.ceil(request.prompt.length / 4)) +
-                        (cumulativeCompletionTokens ||
-                          currentTurnOutputEstimate),
+                        (currentCompletionTokens || currentTurnOutputEstimate),
                     },
                     finishReason: 'tool_use',
                     numTurns,
@@ -901,17 +916,16 @@ export class GeminiAgentProvider implements AgentProvider {
                     sessionId,
                     tokens: {
                       prompt:
-                        cumulativePromptTokens ||
+                        currentPromptTokens ||
                         Math.ceil(request.prompt.length / 4),
                       completion:
-                        cumulativeCompletionTokens ||
+                        currentCompletionTokens ||
                         currentTurnOutputEstimate ||
                         0,
                       total:
-                        (cumulativePromptTokens ||
+                        (currentPromptTokens ||
                           Math.ceil(request.prompt.length / 4)) +
-                        (cumulativeCompletionTokens ||
-                          currentTurnOutputEstimate),
+                        (currentCompletionTokens || currentTurnOutputEstimate),
                     },
                     finishReason: 'tool_use', // Tool result, not stop - agent continues
                     numTurns,
@@ -1157,17 +1171,16 @@ export class GeminiAgentProvider implements AgentProvider {
                     sessionId,
                     tokens: {
                       prompt:
-                        cumulativePromptTokens ||
+                        currentPromptTokens ||
                         Math.ceil(request.prompt.length / 4),
                       completion:
-                        cumulativeCompletionTokens ||
+                        currentCompletionTokens ||
                         currentTurnOutputEstimate ||
                         0,
                       total:
-                        (cumulativePromptTokens ||
+                        (currentPromptTokens ||
                           Math.ceil(request.prompt.length / 4)) +
-                        (cumulativeCompletionTokens ||
-                          currentTurnOutputEstimate),
+                        (currentCompletionTokens || currentTurnOutputEstimate),
                     },
                     finishReason: 'stop',
                     numTurns,
@@ -1192,13 +1205,11 @@ export class GeminiAgentProvider implements AgentProvider {
             sessionId,
             tokens: {
               prompt:
-                cumulativePromptTokens || Math.ceil(request.prompt.length / 4),
-              completion:
-                cumulativeCompletionTokens || currentTurnOutputEstimate,
+                currentPromptTokens || Math.ceil(request.prompt.length / 4),
+              completion: currentCompletionTokens || currentTurnOutputEstimate,
               total:
-                (cumulativePromptTokens ||
-                  Math.ceil(request.prompt.length / 4)) +
-                (cumulativeCompletionTokens || currentTurnOutputEstimate),
+                (currentPromptTokens || Math.ceil(request.prompt.length / 4)) +
+                (currentCompletionTokens || currentTurnOutputEstimate),
             },
             finishReason: 'stop',
             numTurns,
@@ -1285,14 +1296,13 @@ export class GeminiAgentProvider implements AgentProvider {
               sessionId,
               tokens: {
                 prompt:
-                  cumulativePromptTokens ||
-                  Math.ceil(request.prompt.length / 4),
+                  currentPromptTokens || Math.ceil(request.prompt.length / 4),
                 completion:
-                  cumulativeCompletionTokens || currentTurnOutputEstimate,
+                  currentCompletionTokens || currentTurnOutputEstimate,
                 total:
-                  (cumulativePromptTokens ||
+                  (currentPromptTokens ||
                     Math.ceil(request.prompt.length / 4)) +
-                  (cumulativeCompletionTokens || currentTurnOutputEstimate),
+                  (currentCompletionTokens || currentTurnOutputEstimate),
               },
               finishReason: 'stop', // Keep as stop so TUI continues to show "Thinking"
               numTurns,
@@ -1338,13 +1348,11 @@ export class GeminiAgentProvider implements AgentProvider {
             sessionId,
             tokens: {
               prompt:
-                cumulativePromptTokens || Math.ceil(request.prompt.length / 4),
-              completion:
-                cumulativeCompletionTokens || currentTurnOutputEstimate,
+                currentPromptTokens || Math.ceil(request.prompt.length / 4),
+              completion: currentCompletionTokens || currentTurnOutputEstimate,
               total:
-                (cumulativePromptTokens ||
-                  Math.ceil(request.prompt.length / 4)) +
-                (cumulativeCompletionTokens || currentTurnOutputEstimate),
+                (currentPromptTokens || Math.ceil(request.prompt.length / 4)) +
+                (currentCompletionTokens || currentTurnOutputEstimate),
             },
             finishReason: 'error',
             numTurns,
