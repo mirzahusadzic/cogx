@@ -144,14 +144,17 @@ function createReadFileTool(
 /**
  * Create write_file tool
  */
-function createWriteFileTool(onCanUseTool?: OnCanUseTool): OpenAITool {
+function createWriteFileTool(
+  onCanUseTool?: OnCanUseTool,
+  getActiveTaskId?: () => string | null
+): OpenAITool {
   const execute = ({
     file_path,
     content,
   }: {
     file_path: string;
     content: string;
-  }) => executeWriteFile(file_path, content);
+  }) => executeWriteFile(file_path, content, getActiveTaskId);
 
   return tool({
     name: 'write_file',
@@ -261,7 +264,10 @@ function createBashTool(
 /**
  * Create edit_file tool
  */
-function createEditFileTool(onCanUseTool?: OnCanUseTool): OpenAITool {
+function createEditFileTool(
+  onCanUseTool?: OnCanUseTool,
+  getActiveTaskId?: () => string | null
+): OpenAITool {
   interface EditInput {
     file_path: string;
     old_string: string;
@@ -279,7 +285,8 @@ function createEditFileTool(onCanUseTool?: OnCanUseTool): OpenAITool {
       file_path,
       old_string,
       new_string,
-      coerceBoolean(replace_all)
+      coerceBoolean(replace_all),
+      getActiveTaskId
     );
 
   return tool({
@@ -1215,7 +1222,7 @@ export function getOpenAITools(context: OpenAIToolsContext): OpenAITool[] {
   );
 
   // Mutating tools (with permission check built-in)
-  tools.push(createWriteFileTool(onCanUseTool));
+  tools.push(createWriteFileTool(onCanUseTool, getActiveTaskId));
   tools.push(
     createBashTool(
       cwd,
@@ -1226,7 +1233,7 @@ export function getOpenAITools(context: OpenAIToolsContext): OpenAITool[] {
       getActiveTaskId
     )
   );
-  tools.push(createEditFileTool(onCanUseTool));
+  tools.push(createEditFileTool(onCanUseTool, getActiveTaskId));
 
   // SigmaTaskUpdate tool (state management) - optional anchorId with fallback
   if (!anchorId) {

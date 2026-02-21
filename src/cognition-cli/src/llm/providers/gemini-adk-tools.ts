@@ -668,7 +668,8 @@ export function getCognitionTools(
       file_path: z.string().describe('Absolute path to write to'),
       content: z.string().describe('Content to write'),
     }),
-    ({ file_path, content }) => executeWriteFile(file_path, content),
+    ({ file_path, content }) =>
+      executeWriteFile(file_path, content, options?.getActiveTaskId),
     onCanUseTool
   );
 
@@ -714,7 +715,8 @@ export function getCognitionTools(
         file_path,
         old_string,
         new_string,
-        coerceBoolean(replace_all)
+        coerceBoolean(replace_all),
+        options?.getActiveTaskId
       ),
     onCanUseTool
   );

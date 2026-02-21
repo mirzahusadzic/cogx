@@ -618,7 +618,8 @@ export async function executeMinimaxTool(
         () =>
           executeWriteFile(
             inputObj.file_path as string,
-            inputObj.content as string
+            inputObj.content as string,
+            context.getActiveTaskId
           ),
         onCanUseTool
       );
@@ -676,7 +677,8 @@ export async function executeMinimaxTool(
             inputObj.file_path as string,
             inputObj.old_string as string,
             inputObj.new_string as string,
-            replaceAll
+            replaceAll,
+            context.getActiveTaskId
           ),
         onCanUseTool
       );

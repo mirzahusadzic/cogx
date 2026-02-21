@@ -247,12 +247,14 @@ export async function executeReadFile(
  */
 export async function executeWriteFile(
   file_path: string,
-  content: string
+  content: string,
+  getActiveTaskId?: () => string | null
 ): Promise<string> {
   try {
     await fs.mkdir(path.dirname(file_path), { recursive: true });
     await fs.writeFile(file_path, content, 'utf-8');
-    return `Successfully wrote ${content.length} bytes to ${file_path}`;
+    const result = `Successfully wrote ${content.length} bytes to ${file_path}`;
+    return tagOutputWithActiveTask(result, getActiveTaskId);
   } catch (error) {
     return `Error writing file: ${error instanceof Error ? error.message : String(error)}`;
   }
@@ -494,18 +496,23 @@ export async function executeEditFile(
   file_path: string,
   old_string: string,
   new_string: string,
-  replace_all?: boolean
+  replace_all?: boolean,
+  getActiveTaskId?: () => string | null
 ): Promise<string> {
   try {
     const content = await fs.readFile(file_path, 'utf-8');
-    const escapedPattern = old_string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const count = (content.match(new RegExp(escapedPattern, 'g')) || []).length;
 
-    if (count === 0) {
+    // Check if old_string exists
+    if (!content.includes(old_string)) {
       return 'Error: old_string not found in file';
     }
-    if (count > 1 && !replace_all) {
-      return `Error: old_string found ${count} times. Use replace_all=true or make it unique.`;
+
+    // Check for uniqueness if not replace_all
+    if (!replace_all) {
+      const occurrences = content.split(old_string).length - 1;
+      if (occurrences > 1) {
+        return `Error: old_string found ${occurrences} times. Use replace_all=true or make it unique.`;
+      }
     }
 
     const newContent = replace_all
@@ -513,7 +520,8 @@ export async function executeEditFile(
       : content.replace(old_string, new_string);
 
     await fs.writeFile(file_path, newContent, 'utf-8');
-    return `Successfully edited ${file_path}`;
+    const result = `Successfully edited ${file_path}`;
+    return tagOutputWithActiveTask(result, getActiveTaskId);
   } catch (error) {
     return `Error: ${error instanceof Error ? error.message : String(error)}`;
   }
