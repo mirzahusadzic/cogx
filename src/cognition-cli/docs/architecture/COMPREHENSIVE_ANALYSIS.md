@@ -6,9 +6,9 @@
 
 **At a Glance:**
 
-- **Current Version:** 2.6.7 (January 29, 2026)
-- **Production Lines:** ~100,135 TypeScript (excl. tests), ~147,145 total
-- **Test Coverage:** ~92% across 165 test files
+- **Current Version:** 2.6.8 (February 22, 2026)
+- **Production Lines:** ~102,811 TypeScript (excl. tests), ~150,491 total
+- **Test Coverage:** ~92% across 167 test files
 - **Architecture:** 7 cognitive overlays (O₁-O₇), dual-lattice Σ system, ZeroMQ agent messaging
 - **License:** AGPL-3.0-or-later
 
@@ -964,7 +964,15 @@ The same architecture that understands code can preserve human identity through 
 
 ## Version History & Changelog
 
-### Version 2.6.7 (Current - TUI Visual Balance & Gemini 3 Reasoning)
+### Version 2.6.8 (Current - Surgical Context Eviction & Provider Expansion)
+
+- **Surgical Tool Log Eviction:** Implementation of task-aware tool log eviction (`edit_file`, `write_file`, etc.) across Gemini, OpenAI, and Minimax, ensuring that completed task implementation logs are surgically pruned from the context while retaining the task's high-level summary and state.
+- **Provider Refactoring & Expansion:** Added the experimental Minimax provider via Anthropic SDK, migrated to Gemini 3.0/3.1 models as default, and completely purged legacy 2.x EOL models.
+- **CLI & Execution Modularity:** Introduced the `--solo` flag for running isolated agent instances completely detached from the multi-agent `IPC_SIGMA_BUS` or global lattice context.
+- **Token Consistency & Accounting:** Resolved token "bounce" and "high-water mark" constraints by physically stripping logs from ADK's `activeSession`, allowing true token reductions to reflect accurately in the TUI after task completion.
+- **Legacy Cleanup:** Fully deprecated the outdated `active_context.md` system, unifying all execution contexts into the structured memory architecture.
+
+### Version 2.6.7 (TUI Visual Balance & Gemini 3 Reasoning)
 
 **Summary:** Refines the terminal experience with "Dim Cyan" theme balancing and hardens Gemini integration with thought signature support and robust retry infrastructure.
 
@@ -1182,7 +1190,7 @@ _For previous release history, see [CHANGELOG.md](https://github.com/mirzahusadz
 
 ## Conclusion
 
-Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.6.7** extends production excellence with **TUI visual refinements**, **Gemini 3 reasoning robustness**, and **robust retry infrastructure**, ensuring a stable and professional experience for AI-human symbiosis. This transforms Cognition CLI from a research prototype into a high-reliability distributed nervous system for code.
+Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.6.8** extends production excellence with **surgical context eviction**, **multi-provider expansion (Minimax/Gemini 3.1)**, and **token optimization**, ensuring infinite multi-turn execution without context bloat for AI-human symbiosis. This transforms Cognition CLI from a research prototype into a high-reliability distributed nervous system for code.
 
 It combines:
 
@@ -1199,5 +1207,6 @@ It combines:
 - **Multi-agent collaboration** (ZeroMQ pub/sub, persistent queues, auto-response)
 - **Structured Delegation** (Manager/Worker pattern with Sigma Task Protocol v2.0)
 - **Fractal Mesh Architecture** (Cross-project context sharding and negotiation)
+- **Surgical Context Eviction** (Token-optimized tool log pruning)
 
 Rather than treating LLMs as magical oracles, it grounds them in verifiable fact, enabling a new generation of AI-powered developer tools that are trustworthy, auditable, and aligned with human values and principles. With its fractal mesh and delegation capabilities, it now enables complex workflows where multiple AI agents collaborate asynchronously across massive, distributed codebases.

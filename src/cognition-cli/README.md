@@ -370,6 +370,13 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 
 ## 🎉 Latest Release
 
+**v2.6.8 - February 22, 2026** — [Surgical Context Eviction & Provider Expansion](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.8):
+
+- ✂️ **Surgical Eviction** — Task-aware tool log eviction across Gemini, OpenAI, and Minimax to significantly reduce context bloat and token usage.
+- 🚀 **Provider Expansions** — Added experimental Minimax support, migrated to Gemini 3.0/3.1 defaults, and purged legacy 2.x EOL models.
+- 📟 **CLI & Token Accuracy** — Introduced `--solo` mode for isolated execution and fixed TUI token counters to accurately track surgical drops.
+- 🧹 **Infrastructure & Cleanup** — Bumped `@google/adk` to 0.3.0, preserved thought signatures during eviction.
+
 **v2.6.7 - January 29, 2026** — [TUI Visual Balance & Gemini 3 Reasoning Robustness](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.7):
 
 - **Visual Theme Refinement:** Dimmed cyan tones in roles and text themes for better visual balance.
@@ -377,16 +384,9 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 - **Robust Retry Infrastructure:** Provider refactor with robust retry logic and failover infrastructure.
 - **Enhanced Diff Rendering:** Improved diff auto-detection, highlighting, and negative value handling.
 
-**v2.6.6 - January 21, 2026** — [TUI Theme Overhaul & Vertex AI Robustness](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.6):
+**Impact:** Dramatically improves context persistence, visual stability, and model flexibility, cementing the architecture for long-running workflows without token explosions.
 
-- 🎨 **TUI Theme Overhaul** — Introduced the "Monolith Cyan" theme with AST-based markdown rendering for a more vibrant and stable experience.
-- ☁️ **Vertex AI Support** — Enabled Vertex AI support without requiring a `GEMINI_API_KEY`, streamlining enterprise and cloud deployments.
-- 🔇 **Noise Suppression** — Implemented aggressive global stdout suppression to eliminate SDK/gRPC logging noise and TUI flicker.
-- 🐛 **Key Bug Fixes** — Resolved hangs on narrow terminals, stabilized streaming tool output, and improved token tracking accuracy.
-
-**Impact:** Dramatically improves visual stability and integration robustness, especially for Vertex AI users, while providing a more modern and readable TUI theme.
-
-**Previous releases:** [v2.6.5](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.5) | [v2.6.4](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.4) | [v2.6.3](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.3) | [v2.6.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2) | [v2.6.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.0.0 - Σ Launch](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
+**Previous releases:** [v2.6.6](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.6) | [v2.6.5](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.5) | [v2.6.4](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.4) | [v2.6.3](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.3) | [v2.6.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2) | [v2.6.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.0.0 - Σ Launch](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
 
 **Full changelog:** [CHANGELOG.md](./CHANGELOG.md)
 
@@ -473,7 +473,7 @@ If you use this work in research, please cite:
   author = {Husadžić, Mirza},
   title = {Cognition Σ CLI: Seven-Overlay Knowledge Graph with Infinite Context},
   year = {2026},
-  version = {2.6.7},
+  version = {2.6.8},
   doi = {10.5281/zenodo.18012832},
   url = {https://github.com/mirzahusadzic/cogx/tree/main/src/cognition-cli}
 }

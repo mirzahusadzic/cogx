@@ -5,6 +5,43 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.8] - 2026-02-22
+
+### Summary
+
+**Surgical Context Eviction & Model Provider Expansion.** This release introduces comprehensive "Surgical Eviction" for tool logs across all LLM providers, significantly reducing token usage and context bloat by pruning task history upon completion. It also expands provider support by introducing the Minimax provider, migrating to Gemini 3.0/3.1 defaults while purging legacy models.
+
+### 🚀 New Features
+
+#### LLM Providers & Models
+
+- **Gemini 3.x Migration:** Migrated to Gemini 3.0 defaults, added support for `gemini-3.1-pro` models, and purged legacy 2.x EOL models.
+- **Minimax Provider (Experimental):** Implemented the Minimax provider via the Anthropic SDK and added support for Minimax models to shell completions (Note: currently experimental and untested yet).
+
+#### CLI Operations & Execution
+
+- **Solo Mode (`--solo`):** Introduced a new `--solo` CLI flag to run the agent in isolation without connecting to the broader `IPC_SIGMA_BUS` or loading the full lattice context. The default remains "full" mode (as before).
+- **Provider Consistency:** Implemented token optimization and system prompt improvements across all providers.
+
+#### Context Management & Surgical Eviction
+
+- **Surgical Tool Log Eviction:** Implemented task-aware history eviction that surgically removes `edit_file`, `write_file`, and other tool logs upon task completion across Gemini, OpenAI, and Minimax providers.
+- **Turn-Range Eviction:** Introduced Turn-Range Eviction for Gemini 3.x models to ensure robust memory pruning without losing system instructions.
+- **Temporal Gating Mechanism:** Added a Temporal Gating Mechanism to prevent memory re-hydration loops after eviction.
+- **Token Counter Accuracy:** Refined TUI token counting to accurately reflect token drops after surgical eviction, removing outdated "high-water mark" and "token bounce" artificial drop prevention logic.
+- **Context Grooming:** Implemented persistent memory and context grooming rules, elevating surgical eviction rules to system prompts and ensuring `SigmaTaskUpdate`'s `result_summary` is enforced.
+
+### 🐛 Bug Fixes
+
+- **ADK Integration:** Bumped `@google/adk` to 0.3.0, resolving type errors and aligning with ADK session events.
+- **Token Bounce:** Fixed issues where token counts would bounce back or explode (`numTurns` explosion) after log eviction by correctly persisting pruned logs in ADK session storage and modifying the active session.
+- **Thought Signatures:** Preserved thought flags and signatures during task log eviction for Gemini.
+
+### ⚡ Performance & Infrastructure
+
+- **Test Robustness:** Added E2E and persistence tests for context eviction, and fixed flaky timer/retry tests.
+- **Cost Estimation:** Refactored `estimateCost` signature to use exact token usage for more accurate reporting.
+
 ## [2.6.7] - 2026-01-29
 
 ### Summary
