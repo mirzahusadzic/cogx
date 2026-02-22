@@ -160,12 +160,9 @@ export function useTokenCount() {
       }
 
       // Normal updates: use Math.max to prevent drops
-      // (SDK can send lower values when new query starts)
-      if (newCount.total > prev.total) {
-        return newCount;
-      }
-
-      return prev;
+      // EXCEPT when total is 0 or provider is Gemini where drops are expected due to reset between chunks
+      // Actually we just trust the provider's total now.
+      return newCount;
     });
   }, []);
 
