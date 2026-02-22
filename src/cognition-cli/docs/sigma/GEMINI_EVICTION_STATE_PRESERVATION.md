@@ -4,22 +4,14 @@ To maintain high performance while using a constrained context window (baseline 
 
 ## 🚀 Implemented Features
 
-### 1. Architectural: The "Active Context" Scratchpad
-
-The agent uses a persistent markdown file to store long-term working memory that survives tool log eviction.
-
-- **File:** `.sigma/archives/<session_id>/active_context.md`
-- **Purpose:** Stores complex findings, code snippets, and architectural notes.
-- **Workflow:** Before marking a task as `completed`, the agent writes essential insights here using `write_file` or `edit_file`.
-
-### 2. Dual-Pass Eviction Mechanism (Turn-Range & Surgical)
+### 1. Dual-Pass Eviction Mechanism (Turn-Range & Surgical)
 
 The system identifies exactly what to delete using a two-pronged approach when a task moves from `in_progress` to `completed`:
 
 - **Surgical Tagging (Tool Outputs):** While a task is `in_progress`, the `tool-executors.ts` wrapper silently injects a hidden HTML comment (`<!-- sigma-task: <task_id> -->`) into all tool results (e.g., `read_file`, `bash`). The CLI's TUI strips this tag so it remains invisible to the user, but the agent provider uses it to locate and evict only the tool outputs associated with the completed task.
 - **Turn-Range Eviction (Assistant Reasoning):** The provider scans the conversation history to find the exact turn where the task was marked `in_progress`. It then prunes all intermediate assistant turns (both `thought` blocks and `text` responses) that occurred between `in_progress` and `completed`.
 
-### 3. Gemini-Specific: Thought & Signature Preservation
+### 2. Gemini-Specific: Thought & Signature Preservation
 
 For "thinking" models like `gemini-3.1-pro-preview`, preserving the internal reasoning state is critical for stability across turns.
 
@@ -29,7 +21,7 @@ For "thinking" models like `gemini-3.1-pro-preview`, preserving the internal rea
   2. Re-apply `thought: true` to the "tombstone" part so it formats correctly in the API and UI.
   3. Attach the `collectedSignature` to the tombstone, ensuring the API accepts the history as valid and continuous.
 
-### 4. Smart Tombstones (Semantic Compression)
+### 3. Smart Tombstones (Semantic Compression)
 
 Instead of a generic `[Logs evicted]` message, the system injects the task's `result_summary` directly into the conversation history.
 
@@ -38,7 +30,7 @@ Instead of a generic `[Logs evicted]` message, the system injects the task's `re
   - **Assistant Tombstones:** `[Assistant thinking/text for task <task_id> evicted to save tokens. \nSUMMARY: <result_summary>]`
 - **Outcome:** The _linear flow_ of the conversation remains understandable to the LLM, even after massive tool outputs or reasoning blocks are permanently deleted.
 
-### 5. Validation & Annotation: "Distill or Die"
+### 4. Validation & Annotation: "Distill or Die"
 
 The `SigmaTaskUpdate` tool enforces quality summaries via the `ValidationService` and embeds the results permanently into the tombstones.
 
@@ -48,7 +40,7 @@ The `SigmaTaskUpdate` tool enforces quality summaries via the `ValidationService
   - Success: `✅ [Sigma Validation] All criteria met (Score: X.XX)`
 - **Model Instruction:** The system prompt explicitly instructs the model to provide a `result_summary` with a minimum of 15 characters to ensure meaningful insights are captured.
 
-### 6. Raw Log Archiving (The "Audit Trail")
+### 5. Raw Log Archiving (The "Audit Trail")
 
 Evicted logs are not permanently deleted; they are moved to a local archive for manual inspection if needed.
 
@@ -60,11 +52,32 @@ Evicted logs are not permanently deleted; they are moved to a local archive for 
 ## 🧠 Memory & Eviction Rules for Agents
 
 1. **Task-First (Token Health)**: ALWAYS mark a task as `in_progress` BEFORE running tools. This ensures tool outputs are tagged for surgical eviction.
-2. **Distill Before Dying**: You are FORBIDDEN from completing a task until you have saved the _essential findings_.
-   - **Simple Findings**: Write to `result_summary`.
-   - **Complex Findings**: Write to `active_context.md`.
-3. **Context Grooming**: Treat `active_context.md` as a volatile scratchpad. Delete obsolete notes once a sub-project is finished.
-4. **Verification**: Before completing, ask: _"If I lose all my previous logs right now, do I have enough info in the summary/scratchpad to continue?"_
+2. **Distill Before Dying**: You are FORBIDDEN from completing a task until you have saved the _essential findings_ into your `result_summary`.
+3. **Verification**: Before completing, ask: _"If I lose all my previous logs right now, do I have enough info in the summary to continue?"_
+
+---
+
+## 🔮 Future Improvements & Hardening
+
+While the current system effectively handles context bloat and state amnesia, there are a few areas for future enhancement:
+
+### 1. The "Parallel Task" Vulnerability (Turn-Range Overlap)
+
+- **Current State:** The Turn-Range eviction finds the index where a task was marked `in_progress` and deletes intermediate assistant turns up to `completed`.
+- **The Risk:** If an agent ever marks _two_ tasks as `in_progress` concurrently, completing Task A might accidentally prune the thinking/reasoning turns that belonged to Task B.
+- **Improvement:** Either strictly reject `SigmaTaskUpdate` calls that attempt to set multiple tasks to `in_progress`, or have the eviction logic inspect the `<!-- sigma-task: ... -->` tags _inside_ the assistant's thinking blocks (if achievable) to ensure it only prunes reasoning strictly tied to the completed task.
+
+### 2. Tombstone "Rollup" (Meta-Compression)
+
+- **Current State:** Tombstones keep the context lean, but if a session runs for 500 tasks, you will eventually have 500 tombstones. At ~100 tokens per tombstone, that's 50k tokens of just summaries.
+- **Improvement:** Implement a "Tombstone Rollup" threshold. When the context exceeds X tokens, take the oldest N tombstones, feed them to a background LLM call, and compress them into a single "Historical Session Summary" tombstone.
+
+### 3. First-Class "Rehydration" Tool
+
+- **Current State:** The tombstone tells the agent: _"Use 'grep' on .sigma/archives/... if previous logs are needed."_ This relies on the model writing bash commands to parse a raw text file.
+- **Improvement:** Create a dedicated `restore_task_logs(taskId)` tool. If the agent realizes its `result_summary` missed a crucial variable, it can call this tool to seamlessly read the structured JSON/text back from the archive directory, rather than fighting with `grep` and file paths.
+
+---
 
 ## 🛠 Technical Details (Implementation Reference)
 
