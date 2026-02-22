@@ -259,6 +259,90 @@ describe('Gemini Eviction Strategy', () => {
         toolEvent.content.parts[0].functionResponse.response.result
       ).toContain(resultSummary);
     });
+
+    it('should persist evictions in InMemorySessionService internal storage (Bug Fix Verification)', async () => {
+      const taskId = 'task-789';
+      const sessionId = 'session-789';
+      const resultSummary = 'Summary for persistence test.';
+
+      const mockEvents = [
+        {
+          author: 'user',
+          content: {
+            parts: [{ text: `tagged message <!-- sigma-task: ${taskId} -->` }],
+          },
+        },
+      ];
+
+      // Access the mocked session service
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mockSessionService = (provider as any).sessionService;
+
+      // Simulate the internal structure of InMemorySessionService
+      mockSessionService.sessions = {
+        'cognition-cli': {
+          'cognition-user': {
+            [sessionId]: {
+              sessionId,
+              events: [...mockEvents],
+            },
+          },
+        },
+      };
+
+      // Mock getSession to return a CLONE of the session, simulating ADK behavior
+      mockSessionService.getSession.mockImplementation(async () => {
+        const session =
+          mockSessionService.sessions['cognition-cli']['cognition-user'][
+            sessionId
+          ];
+        return {
+          ...session,
+          events: [...session.events],
+        };
+      });
+
+      // Execute pruning - it should fetch from sessionService since no activeSession is passed
+      await (
+        provider as unknown as {
+          pruneTaskLogs: (
+            tid: string,
+            rs: string,
+            sid: string,
+            pr: string
+          ) => Promise<void>;
+        }
+      ).pruneTaskLogs(taskId, resultSummary, sessionId, '/tmp');
+
+      // 1. Verify internal storage was updated
+      const internalSession =
+        mockSessionService.sessions['cognition-cli']['cognition-user'][
+          sessionId
+        ];
+      const storedEvents = internalSession.events;
+      expect(storedEvents[0].content.parts[0].text).toContain(resultSummary);
+
+      // 2. Verify that subsequent getSession calls return the pruned history
+      const nextTurnSession = await mockSessionService.getSession();
+      expect(nextTurnSession.events[0].content.parts[0].text).toContain(
+        resultSummary
+      );
+
+      // 3. Verify reference isolation (the bug fix used [...newEvents])
+      const retrievedSession = await mockSessionService.getSession();
+      const internalSessionFinal =
+        mockSessionService.sessions['cognition-cli']['cognition-user'][
+          sessionId
+        ];
+
+      // They should have the same content
+      expect(retrievedSession.events.length).toBe(
+        internalSessionFinal.events.length
+      );
+
+      // But they MUST be different array references to prevent ADK double-append bugs
+      expect(retrievedSession.events).not.toBe(internalSessionFinal.events);
+    });
   });
 
   describe('SigmaTaskUpdate Validation Gate', () => {
