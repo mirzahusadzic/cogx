@@ -105,7 +105,6 @@ export function useTokenCount() {
     total: 0,
   });
   const justReset = useRef(false);
-  const expectDrop = useRef(false);
 
   /**
    * Reset token count to zero.
@@ -120,7 +119,6 @@ export function useTokenCount() {
   const reset = useCallback(() => {
     setCount({ input: 0, output: 0, total: 0 });
     justReset.current = true;
-    expectDrop.current = false;
   }, []);
 
   /**
@@ -135,35 +133,16 @@ export function useTokenCount() {
    * update({ input: 1500, output: 800, total: 2300 });
    */
   const update = useCallback((newCount: TokenCount) => {
-    setCount((prev) => {
-      // After reset, accept any value (don't use Math.max)
-      // This is used during session compression/restart.
-      if (justReset.current) {
-        justReset.current = false;
-        return newCount;
-      }
+    // After reset, accept any value (don't use Math.max)
+    // This is used during session compression/restart.
+    if (justReset.current) {
+      justReset.current = false;
+    }
 
-      // If we are waiting for a drop (e.g. after surgical eviction)
-      if (expectDrop.current) {
-        if (newCount.total < prev.total) {
-          // Found the drop!
-          expectDrop.current = false;
-          return newCount;
-        } else if (newCount.total > prev.total) {
-          // Count grew instead of dropping (e.g. overhead increased)
-          // Still clear the flag as we've seen a change.
-          expectDrop.current = false;
-          return newCount;
-        }
-        // If equal, keep waiting for the drop from the provider
-        return prev;
-      }
-
-      // Normal updates: use Math.max to prevent drops
-      // EXCEPT when total is 0 or provider is Gemini where drops are expected due to reset between chunks
-      // Actually we just trust the provider's total now.
-      return newCount;
-    });
+    // Normal updates: use Math.max to prevent drops
+    // EXCEPT when total is 0 or provider is Gemini where drops are expected due to reset between chunks
+    // Actually we just trust the provider's total now.
+    setCount(newCount);
   }, []);
 
   /**
@@ -181,17 +160,6 @@ export function useTokenCount() {
     // resumed and reconstructed, as the new context size is likely smaller
     // than the persisted one.
     justReset.current = true;
-    expectDrop.current = false;
-  }, []);
-
-  /**
-   * Allow the next token update to decrease the count.
-   *
-   * Sets expectDrop flag. The next update that differs from current total
-   * will be accepted even if it's lower. Useful for surgical eviction.
-   */
-  const allowDrop = useCallback(() => {
-    expectDrop.current = true;
   }, []);
 
   return useMemo(
@@ -200,8 +168,7 @@ export function useTokenCount() {
       reset,
       update,
       initialize,
-      allowDrop,
     }),
-    [count, reset, update, initialize, allowDrop]
+    [count, reset, update, initialize]
   );
 }
