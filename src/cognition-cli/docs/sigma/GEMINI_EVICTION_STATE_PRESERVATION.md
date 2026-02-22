@@ -10,6 +10,7 @@ The system identifies exactly what to delete using a two-pronged approach when a
 
 - **Surgical Tagging (Tool Outputs):** While a task is `in_progress`, the `tool-executors.ts` wrapper silently injects a hidden HTML comment (`<!-- sigma-task: <task_id> -->`) into all tool results (e.g., `read_file`, `bash`). The CLI's TUI strips this tag so it remains invisible to the user, but the agent provider uses it to locate and evict only the tool outputs associated with the completed task.
 - **Turn-Range Eviction (Assistant Reasoning):** The provider scans the conversation history to find the exact turn where the task was marked `in_progress`. It then prunes all intermediate assistant turns (both `thought` blocks and `text` responses) that occurred between `in_progress` and `completed`.
+  - _Fallback Behavior:_ If the `in_progress` tag for the task isn't found in the history, the `startIndex` defaults to 0. This means the code falls back to deleting ALL assistant turns from the beginning of the context window. This aggressive fallback ensures token safety but can accidentally delete historical reasoning if tasks are not tracked and completed correctly sequentially.
 
 ### 2. Gemini-Specific: Thought & Signature Preservation
 

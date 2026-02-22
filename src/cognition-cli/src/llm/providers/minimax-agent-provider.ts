@@ -172,14 +172,38 @@ export class MinimaxAgentProvider implements AgentProvider {
       const evictedLogs: string[] = [];
       let evictedCount = 0;
 
+      // Pass 1: Find last evicted index to inject summary
+      let lastEvictedIndex = -1;
       for (let i = 0; i < history.length; i++) {
         const message = history[i];
+        if (typeof message.content === 'string') {
+          if (message.content.includes(tag)) lastEvictedIndex = i;
+        } else if (Array.isArray(message.content)) {
+          const hasTag = message.content.some((part) => {
+            if (part.type === 'text' && part.text.includes(tag)) return true;
+            if (part.type === 'tool_result') {
+              const result =
+                typeof part.content === 'string'
+                  ? part.content
+                  : JSON.stringify(part.content);
+              return result.includes(tag);
+            }
+            return false;
+          });
+          if (hasTag) lastEvictedIndex = i;
+        }
+      }
+
+      for (let i = 0; i < history.length; i++) {
+        const message = history[i];
+        const shouldInjectSummary = i === lastEvictedIndex && result_summary;
+
         if (typeof message.content === 'string') {
           if (message.content.includes(tag)) {
             evictedLogs.push(JSON.stringify(message, null, 2));
             history[i] = {
               ...message,
-              content: result_summary
+              content: shouldInjectSummary
                 ? `[Task ${taskId} completed. Raw logs evicted to archive. \nSUMMARY: ${result_summary}]`
                 : `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`,
             };
@@ -192,7 +216,7 @@ export class MinimaxAgentProvider implements AgentProvider {
               hasTag = true;
               return {
                 ...part,
-                text: result_summary
+                text: shouldInjectSummary
                   ? `[Task ${taskId} completed. Raw logs evicted to archive. \nSUMMARY: ${result_summary}]`
                   : `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`,
               };
@@ -206,7 +230,7 @@ export class MinimaxAgentProvider implements AgentProvider {
                 hasTag = true;
                 return {
                   ...part,
-                  content: result_summary
+                  content: shouldInjectSummary
                     ? `[Task ${taskId} completed. Raw logs evicted to archive. \nSUMMARY: ${result_summary}]`
                     : `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`,
                 };

@@ -1254,15 +1254,25 @@ export function getCognitionTools(
 
         // Notify provider of completed tasks for surgical token eviction
         if (options?.onTaskCompleted) {
+          const { loadSessionState } =
+            await import('../../sigma/session-state.js');
+          const finalState = loadSessionState(anchorId, cwd);
+
           const completedTasks = processedTodos.filter(
             (t) => t.status === 'completed'
           );
           for (const task of completedTasks) {
             try {
+              const validatedTask = finalState?.todos?.find(
+                (t) => t.id === task.id
+              );
+              const summaryToPass =
+                validatedTask?.result_summary || task.result_summary;
+
               const activeSession = toolContext?.invocationContext?.session;
               await options.onTaskCompleted(
                 task.id,
-                task.result_summary,
+                summaryToPass,
                 activeSession
               );
             } catch (err) {

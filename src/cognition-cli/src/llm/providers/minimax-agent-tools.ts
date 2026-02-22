@@ -725,9 +725,21 @@ export async function executeMinimaxTool(
 
       // Trigger surgical eviction if a task was completed
       if (context.onTaskCompleted) {
+        const { loadSessionState } =
+          await import('../../sigma/session-state.js');
+        const finalState = loadSessionState(
+          anchorId || 'default',
+          cwd || process.cwd()
+        );
+
         for (const todo of inputTodos) {
           if (todo.status === 'completed') {
-            await context.onTaskCompleted(todo.id, todo.result_summary);
+            const validatedTask = finalState?.todos?.find(
+              (t) => t.id === todo.id
+            );
+            const summaryToPass =
+              validatedTask?.result_summary || todo.result_summary;
+            await context.onTaskCompleted(todo.id, summaryToPass);
           }
         }
       }

@@ -685,6 +685,15 @@ export async function executeSigmaTaskUpdate(
   anchorId: string
 ): Promise<string> {
   try {
+    const inProgressCount = todos.filter(
+      (t) => t.status === 'in_progress'
+    ).length;
+    if (inProgressCount > 1) {
+      throw new Error(
+        `Only ONE task can be in_progress at a time. You attempted to set ${inProgressCount} tasks to in_progress. Please fix your tool call to track one task sequentially.`
+      );
+    }
+
     // Log delegation events for debugging (controlled by DEBUG_DELEGATION env var)
     if (process.env.DEBUG_DELEGATION) {
       const delegatedTasks = todos.filter((t) => t.status === 'delegated');

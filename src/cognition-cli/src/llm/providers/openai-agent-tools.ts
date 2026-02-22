@@ -520,9 +520,17 @@ function createSigmaTaskUpdateTool(
 
     // Trigger surgical eviction if a task was completed
     if (onTaskCompleted) {
+      const { loadSessionState } = await import('../../sigma/session-state.js');
+      const finalState = loadSessionState(anchorId, cwd);
+
       for (const todo of processedTodos) {
         if (todo.status === 'completed') {
-          await onTaskCompleted(todo.id, todo.result_summary);
+          const validatedTask = finalState?.todos?.find(
+            (t) => t.id === todo.id
+          );
+          const summaryToPass =
+            validatedTask?.result_summary || todo.result_summary;
+          await onTaskCompleted(todo.id, summaryToPass);
         }
       }
     }

@@ -313,6 +313,27 @@ export class GeminiAgentProvider implements AgentProvider {
         }
       }
 
+      // Pass 2: Find last evicted index to inject summary
+      let lastEvictedIndex = -1;
+      for (let i = 0; i < events.length; i++) {
+        const event = events[i];
+        const parts = event.content?.parts || [];
+        const hasTag = parts.some((p) => {
+          if (p.text?.includes(tag)) return true;
+          if (p.functionResponse?.response) {
+            return JSON.stringify(p.functionResponse.response).includes(tag);
+          }
+          return false;
+        });
+        const isAssistantTurnInRange =
+          startIndex !== -1 &&
+          i >= startIndex &&
+          event.author === 'cognition_agent';
+        if (hasTag || isAssistantTurnInRange) {
+          lastEvictedIndex = i;
+        }
+      }
+
       for (let i = 0; i < events.length; i++) {
         const event = events[i];
         const parts = event.content?.parts || [];
@@ -334,12 +355,15 @@ export class GeminiAgentProvider implements AgentProvider {
           evictedLogs.push(JSON.stringify(event, null, 2));
           evictedCount++;
 
+          // Only inject summary into the last evicted turn to avoid token bloat
+          const shouldInjectSummary = i === lastEvictedIndex && result_summary;
+
           // Replace with tombstone
-          const toolTombstone = result_summary
+          const toolTombstone = shouldInjectSummary
             ? `[Task ${taskId} completed. Raw logs evicted to archive. \nSUMMARY: ${result_summary}]`
             : `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`;
 
-          const assistantTombstone = result_summary
+          const assistantTombstone = shouldInjectSummary
             ? `[Assistant thinking/text for task ${taskId} evicted to save tokens. \nSUMMARY: ${result_summary}]`
             : `[Assistant thinking/text for task ${taskId} evicted to save tokens.]`;
 
