@@ -53,10 +53,8 @@ process.env.OPENAI_AGENTS_DONT_LOG_MODEL_DATA = '1';
 process.env.OPENAI_AGENTS_DONT_LOG_TOOL_DATA = '1';
 process.env.DEBUG = ''; // Disable debug package output
 
-import { getGroundingContext } from './grounding-utils.js';
 import { systemLog } from '../../utils/debug-logger.js';
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import { getGroundingContext } from './grounding-utils.js';
 import { getActiveTaskId } from '../../sigma/session-state.js';
 import OpenAI from 'openai';
 import { Agent, run, setDefaultOpenAIClient } from '@openai/agents';
@@ -65,6 +63,7 @@ import {
   OpenAIConversationsSession,
 } from '@openai/agents-openai';
 import { getOpenAITools } from './openai-agent-tools.js';
+import { archiveTaskLogs } from './eviction-utils.js';
 import { getDynamicThinkingBudget } from './thinking-utils.js';
 import type { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
 import type { BackgroundTaskManager } from '../../tui/services/BackgroundTaskManager.js';
@@ -154,6 +153,15 @@ interface ConversationResponse {
   metadata?: Record<string, unknown>;
 }
 
+interface ConversationItemToolCall {
+  id?: string;
+  type?: string;
+  function?: {
+    name?: string;
+    arguments?: string;
+  };
+}
+
 /**
  * Conversation item from API
  */
@@ -164,7 +172,7 @@ interface ConversationItemResponse {
   role: 'user' | 'assistant' | 'system';
   content: string;
   created_at: number;
-  tool_calls?: unknown[];
+  tool_calls?: ConversationItemToolCall[];
   tool_call_id?: string;
 }
 
@@ -540,7 +548,7 @@ export class OpenAIAgentProvider implements AgentProvider {
     items: Array<{
       role: 'user' | 'assistant' | 'system';
       content: string;
-      tool_calls?: unknown[];
+      tool_calls?: ConversationItemToolCall[];
       tool_call_id?: string;
     }>
   ): Promise<ConversationItemResponse[]> {
@@ -642,8 +650,64 @@ export class OpenAIAgentProvider implements AgentProvider {
       const evictedLogs: string[] = [];
       let evictedCount = 0;
 
-      for (const item of items) {
-        if (item.content && item.content.includes(tag)) {
+      // Pass 0: Identify task range (from 'in_progress' to 'completed')
+      let startIndex = -1;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.role === 'assistant' && Array.isArray(item.tool_calls)) {
+          const hasInProgress = item.tool_calls.some(
+            (tool: { function?: { name?: string; arguments?: string } }) => {
+              if (tool.function?.name === 'SigmaTaskUpdate') {
+                try {
+                  const input = JSON.parse(tool.function.arguments || '{}') as {
+                    todos?: Array<{ id: string; status: string }>;
+                  };
+                  return input.todos?.some(
+                    (t) => t.id === taskId && t.status === 'in_progress'
+                  );
+                } catch {
+                  return false;
+                }
+              }
+              return false;
+            }
+          );
+          if (hasInProgress) {
+            startIndex = i;
+          }
+        }
+      }
+
+      const isTurnInRange = (index: number) => {
+        if (startIndex === -1 || index <= startIndex) return false;
+        const item = items[index];
+        if (item.role === 'user') return false;
+        if (item.role === 'assistant' && Array.isArray(item.tool_calls)) {
+          const hasTaskCompleted = item.tool_calls.some(
+            (tool: { function?: { name?: string; arguments?: string } }) => {
+              if (tool.function?.name === 'SigmaTaskUpdate') {
+                try {
+                  const input = JSON.parse(tool.function.arguments || '{}') as {
+                    todos?: Array<{ id: string; status: string }>;
+                  };
+                  return input.todos?.some(
+                    (t) => t.id === taskId && t.status === 'completed'
+                  );
+                } catch {
+                  return false;
+                }
+              }
+              return false;
+            }
+          );
+          if (hasTaskCompleted) return false;
+        }
+        return true;
+      };
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.content?.includes(tag) || isTurnInRange(i)) {
           evictedLogs.push(JSON.stringify(item, null, 2));
           evictedCount++;
 
@@ -662,35 +726,24 @@ export class OpenAIAgentProvider implements AgentProvider {
       }
 
       if (evictedCount > 0) {
-        if (process.env.DEBUG_ARCHIVE) {
-          // Archive logs to disk
-          const archiveDir = path.join(
-            projectRoot,
-            '.sigma',
-            'archives',
-            conversationId
-          );
-          await fs.mkdir(archiveDir, { recursive: true });
-          const archivePath = path.join(archiveDir, `${taskId}.log`);
-
-          const summaryHeader = result_summary
-            ? `\nSUMMARY: ${result_summary}\n`
-            : '';
-
-          await fs.appendFile(
-            archivePath,
-            `\n--- ARCHIVED AT ${new Date().toISOString()} ---${summaryHeader}\n` +
-              evictedLogs.join('\n---\n')
-          );
-        }
-
-        // Note: We don't add a tombstone to the server-side session because
-        // addConversationItems appends to the end, which would break conversation order.
-        // Token reclamation via deletion is the priority.
+        await archiveTaskLogs({
+          projectRoot,
+          sessionId: conversationId,
+          taskId,
+          evictedLogs,
+          result_summary,
+        });
 
         systemLog(
           'sigma',
-          `Surgically evicted ${evictedCount} log messages for task ${taskId} (OpenAI). ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
+          `Evicted ${evictedCount} log messages (Turn-Range + Surgical) for task ${taskId} (OpenAI). ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
+        );
+      } else {
+        systemLog(
+          'sigma',
+          `No logs found for eviction for task ${taskId} (OpenAI). (items=${items.length}, startIndex=${startIndex})`,
+          { taskId, conversationId, startIndex },
+          'warn'
         );
       }
     } catch (err) {

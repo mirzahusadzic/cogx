@@ -6,8 +6,6 @@
 
 import { getGroundingContext } from './grounding-utils.js';
 import { systemLog } from '../../utils/debug-logger.js';
-import * as fs from 'fs/promises';
-import * as path from 'path';
 import { getActiveTaskId } from '../../sigma/session-state.js';
 import Anthropic from '@anthropic-ai/sdk';
 import type { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
@@ -30,6 +28,7 @@ import {
   executeMinimaxTool,
   type MinimaxToolsContext,
 } from './minimax-agent-tools.js';
+import { archiveTaskLogs } from './eviction-utils.js';
 
 interface ThinkingBlock {
   type: 'thinking';
@@ -172,6 +171,29 @@ export class MinimaxAgentProvider implements AgentProvider {
       const evictedLogs: string[] = [];
       let evictedCount = 0;
 
+      // Pass 0: Identify task range (from 'in_progress' to 'completed')
+      let startIndex = -1;
+      for (let i = 0; i < history.length; i++) {
+        const msg = history[i];
+        if (msg.role === 'assistant' && Array.isArray(msg.content)) {
+          const hasInProgress = msg.content.some((part) => {
+            if (part.type === 'tool_use' && part.name === 'SigmaTaskUpdate') {
+              const input = part.input as {
+                todos?: Array<{ id: string; status: string }>;
+              };
+              return input.todos?.some(
+                (t) => t.id === taskId && t.status === 'in_progress'
+              );
+            }
+            return false;
+          });
+          if (hasInProgress) {
+            startIndex = i;
+            // Don't break; we want the *latest* in_progress for this task (if it was paused/resumed)
+          }
+        }
+      }
+
       // Pass 1: Find last evicted index to inject summary
       let lastEvictedIndex = -1;
       for (let i = 0; i < history.length; i++) {
@@ -194,12 +216,35 @@ export class MinimaxAgentProvider implements AgentProvider {
         }
       }
 
+      const isTurnInRange = (index: number) => {
+        if (startIndex === -1 || index <= startIndex) return false;
+        const msg = history[index];
+        // Don't evict user turns
+        if (msg.role === 'user') return false;
+        // Don't evict the turn that marks it completed
+        if (msg.role === 'assistant' && Array.isArray(msg.content)) {
+          const hasTaskCompleted = msg.content.some((part) => {
+            if (part.type === 'tool_use' && part.name === 'SigmaTaskUpdate') {
+              const input = part.input as {
+                todos?: Array<{ id: string; status: string }>;
+              };
+              return input.todos?.some(
+                (t) => t.id === taskId && t.status === 'completed'
+              );
+            }
+            return false;
+          });
+          if (hasTaskCompleted) return false;
+        }
+        return true;
+      };
+
       for (let i = 0; i < history.length; i++) {
         const message = history[i];
         const shouldInjectSummary = i === lastEvictedIndex && result_summary;
 
         if (typeof message.content === 'string') {
-          if (message.content.includes(tag)) {
+          if (message.content.includes(tag) || isTurnInRange(i)) {
             evictedLogs.push(JSON.stringify(message, null, 2));
             history[i] = {
               ...message,
@@ -212,7 +257,10 @@ export class MinimaxAgentProvider implements AgentProvider {
         } else if (Array.isArray(message.content)) {
           let hasTag = false;
           const newContent = message.content.map((part) => {
-            if (part.type === 'text' && part.text.includes(tag)) {
+            if (
+              part.type === 'text' &&
+              (part.text.includes(tag) || isTurnInRange(i))
+            ) {
               hasTag = true;
               return {
                 ...part,
@@ -226,7 +274,7 @@ export class MinimaxAgentProvider implements AgentProvider {
                 typeof part.content === 'string'
                   ? part.content
                   : JSON.stringify(part.content);
-              if (result.includes(tag)) {
+              if (result.includes(tag) || isTurnInRange(i)) {
                 hasTag = true;
                 return {
                   ...part,
@@ -239,7 +287,7 @@ export class MinimaxAgentProvider implements AgentProvider {
             return part;
           });
 
-          if (hasTag) {
+          if (hasTag || isTurnInRange(i)) {
             evictedLogs.push(JSON.stringify(message, null, 2));
             history[i] = {
               ...message,
@@ -251,30 +299,24 @@ export class MinimaxAgentProvider implements AgentProvider {
       }
 
       if (evictedCount > 0) {
-        if (process.env.DEBUG_ARCHIVE) {
-          const archiveDir = path.join(
-            projectRoot,
-            '.sigma',
-            'archives',
-            sessionId
-          );
-          await fs.mkdir(archiveDir, { recursive: true });
-          const archivePath = path.join(archiveDir, `${taskId}.log`);
-
-          const summaryHeader = result_summary
-            ? `\nSUMMARY: ${result_summary}\n`
-            : '';
-
-          await fs.appendFile(
-            archivePath,
-            `\n--- ARCHIVED AT ${new Date().toISOString()} ---${summaryHeader}\n` +
-              evictedLogs.join('\n---\n')
-          );
-        }
+        await archiveTaskLogs({
+          projectRoot,
+          sessionId,
+          taskId,
+          evictedLogs,
+          result_summary,
+        });
 
         systemLog(
           'sigma',
           `Surgically evicted ${evictedCount} log messages for task ${taskId} (Minimax). ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
+        );
+      } else {
+        systemLog(
+          'sigma',
+          `No logs found for eviction for task ${taskId} (Minimax). (history=${history.length}, lastEvictedIndex=${lastEvictedIndex})`,
+          { taskId, sessionId, lastEvictedIndex },
+          'warn'
         );
       }
     } catch (err) {

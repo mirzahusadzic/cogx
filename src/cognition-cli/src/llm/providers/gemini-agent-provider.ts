@@ -36,8 +36,6 @@ import {
 } from '@google/adk';
 
 import { ThinkingLevel } from '@google/genai';
-import * as fs from 'fs/promises';
-import * as path from 'path';
 
 import { getGroundingContext } from './grounding-utils.js';
 import { getDynamicThinkingBudget } from './thinking-utils.js';
@@ -45,6 +43,7 @@ import { getActiveTaskId } from '../../sigma/session-state.js';
 
 import { getCognitionTools } from './gemini-adk-tools.js';
 import { systemLog } from '../../utils/debug-logger.js';
+import { archiveTaskLogs } from './eviction-utils.js';
 import type {
   AgentProvider,
   AgentRequest,
@@ -430,23 +429,13 @@ export class GeminiAgentProvider implements AgentProvider {
       }
 
       if (evictedCount > 0) {
-        if (process.env.DEBUG_ARCHIVE) {
-          // Archive logs to disk
-          const archiveDir = path.join(
-            projectRoot,
-            '.sigma',
-            'archives',
-            sessionId
-          );
-          await fs.mkdir(archiveDir, { recursive: true });
-          const archivePath = path.join(archiveDir, `${taskId}.log`);
-
-          await fs.appendFile(
-            archivePath,
-            `\n--- ARCHIVED AT ${new Date().toISOString()} ---\n` +
-              evictedLogs.join('\n---\n')
-          );
-        }
+        await archiveTaskLogs({
+          projectRoot,
+          sessionId,
+          taskId,
+          evictedLogs,
+          result_summary,
+        });
 
         // Update session history in memory
         (session as unknown as AdkSession).events = newEvents;
@@ -465,6 +454,14 @@ export class GeminiAgentProvider implements AgentProvider {
         systemLog(
           'sigma',
           `Evicted ${evictedCount} log messages (Turn-Range + Surgical) for task ${taskId}. ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
+        );
+      } else {
+        // Fallback logging: Why did we not evict anything?
+        systemLog(
+          'sigma',
+          `No logs found for eviction for task ${taskId}. (startIndex=${startIndex}, events=${events.length})`,
+          { taskId, sessionId, startIndex },
+          'warn'
         );
       }
     } catch (err) {
