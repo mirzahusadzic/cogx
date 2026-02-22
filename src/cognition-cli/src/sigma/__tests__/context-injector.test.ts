@@ -13,23 +13,26 @@ import type { EmbeddingService } from '../../core/services/embedding.js';
 // Helper to create mock TurnAnalysis
 function createMockTurn(overrides: Partial<TurnAnalysis> = {}): TurnAnalysis {
   return {
-    turn_number: 1,
+    turn_id: 'test-turn-' + Math.random().toString(36).substring(7),
     role: 'assistant',
     content: 'Test content for this turn',
-    timestamp: new Date().toISOString(),
+    timestamp: Date.now(),
     embedding: [0.5, 0.5, 0.5], // Simple 3D embedding for testing
-    concepts: [],
+    novelty: 0.5,
     importance_score: 5,
     is_paradigm_shift: false,
+    is_routine: false,
     overlay_scores: {
       O1_structural: 5,
-      O2_coherence: 5,
+      O2_security: 5,
       O3_lineage: 5,
       O4_mission: 5,
       O5_operational: 5,
-      O6_security: 5,
-      O7_mathematical: 5,
+      O6_mathematical: 5,
+      O7_strategic: 5,
     },
+    references: [],
+    semantic_tags: [],
     ...overrides,
   };
 }
@@ -167,18 +170,17 @@ describe('Context Injector', () => {
         // Create turns with high similarity to query
         const turns = [
           createMockTurn({
-            turn_number: 1,
             content: 'Important implementation details about the feature',
             embedding: [0.5, 0.5, 0.5], // Same as query embedding
             importance_score: 8,
             overlay_scores: {
               O1_structural: 8,
-              O2_coherence: 5,
+              O2_security: 5,
               O3_lineage: 5,
               O4_mission: 8,
               O5_operational: 8,
-              O6_security: 5,
-              O7_mathematical: 5,
+              O6_mathematical: 5,
+              O7_strategic: 5,
             },
           }),
         ];
@@ -203,12 +205,12 @@ describe('Context Injector', () => {
             importance_score: 1,
             overlay_scores: {
               O1_structural: 0,
-              O2_coherence: 0,
+              O2_security: 0,
               O3_lineage: 0,
               O4_mission: 0,
               O5_operational: 0,
-              O6_security: 0,
-              O7_mathematical: 0,
+              O6_mathematical: 0,
+              O7_strategic: 0,
             },
           }),
         ];
@@ -283,7 +285,6 @@ describe('Context Injector', () => {
       it('should always consider paradigm shifts', async () => {
         // Create a paradigm shift turn outside the window
         const oldParadigmShift = createMockTurn({
-          turn_number: 1,
           content: 'Critical paradigm shift information',
           embedding: [0.5, 0.5, 0.5],
           importance_score: 10,
@@ -293,7 +294,6 @@ describe('Context Injector', () => {
         // Create many recent turns to push paradigm shift out of window
         const recentTurns = Array.from({ length: 60 }, (_, i) =>
           createMockTurn({
-            turn_number: i + 2,
             content: `Recent turn ${i}`,
             embedding: [0.1, 0.1, 0.1], // Low similarity
             importance_score: 3,
@@ -318,7 +318,6 @@ describe('Context Injector', () => {
       it('should respect maxContextTurns option', async () => {
         const turns = Array.from({ length: 10 }, (_, i) =>
           createMockTurn({
-            turn_number: i + 1,
             content: `Important turn ${i + 1}`,
             embedding: [0.5, 0.5, 0.5],
             importance_score: 9,
@@ -360,14 +359,12 @@ describe('Context Injector', () => {
     describe('Relevance Calculation', () => {
       it('should rank higher importance turns higher', async () => {
         const lowImportance = createMockTurn({
-          turn_number: 1,
           content: 'Low importance content',
           embedding: [0.5, 0.5, 0.5],
           importance_score: 2,
         });
 
         const highImportance = createMockTurn({
-          turn_number: 2,
           content: 'High importance content',
           embedding: [0.5, 0.5, 0.5],
           importance_score: 9,
@@ -389,34 +386,32 @@ describe('Context Injector', () => {
 
       it('should boost turns with high overlay scores', async () => {
         const lowOverlay = createMockTurn({
-          turn_number: 1,
           content: 'Low overlay content',
           embedding: [0.5, 0.5, 0.5],
           importance_score: 5,
           overlay_scores: {
             O1_structural: 1,
-            O2_coherence: 1,
+            O2_security: 1,
             O3_lineage: 1,
             O4_mission: 1,
             O5_operational: 1,
-            O6_security: 1,
-            O7_mathematical: 1,
+            O6_mathematical: 1,
+            O7_strategic: 1,
           },
         });
 
         const highOverlay = createMockTurn({
-          turn_number: 2,
           content: 'High overlay content',
           embedding: [0.5, 0.5, 0.5],
           importance_score: 5,
           overlay_scores: {
             O1_structural: 10,
-            O2_coherence: 5,
+            O2_security: 5,
             O3_lineage: 5,
             O4_mission: 10,
             O5_operational: 10,
-            O6_security: 5,
-            O7_mathematical: 5,
+            O6_mathematical: 5,
+            O7_strategic: 5,
           },
         });
 
@@ -442,12 +437,12 @@ describe('Context Injector', () => {
         importance_score: 10,
         overlay_scores: {
           O1_structural: 10,
-          O2_coherence: 10,
+          O2_security: 10,
           O3_lineage: 10,
           O4_mission: 10,
           O5_operational: 10,
-          O6_security: 10,
-          O7_mathematical: 10,
+          O6_mathematical: 10,
+          O7_strategic: 10,
         },
       });
 

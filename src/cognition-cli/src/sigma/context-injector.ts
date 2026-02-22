@@ -199,7 +199,7 @@ export async function injectRelevantContext(
           beforeTimestamp,
         });
       }
-      return { message: userMessage, embedding: null };
+      return { message: userMessage, embedding: userEmbed };
     }
 
     // Get recent turns from candidates (sliding window)

@@ -75,7 +75,8 @@ export interface AgentState {
 
 export function useAgentState(
   _options: UseAgentOptions,
-  currentSessionId: string
+  currentSessionId: string,
+  initialLastCompressionTimestamp: number = 0
 ): AgentState {
   // State
   const [messages, setMessages] = useState<TUIMessage[]>([
@@ -111,7 +112,17 @@ export function useAgentState(
     string | null
   >(null);
   const [shouldAutoRespond, setShouldAutoRespond] = useState(false);
-  const [lastCompressionTimestamp, setLastCompressionTimestamp] = useState(0);
+  const [lastCompressionTimestamp, setLastCompressionTimestamp] = useState(
+    initialLastCompressionTimestamp
+  );
+
+  // Update when the prop changes (e.g., loaded from session manager)
+  useEffect(() => {
+    if (initialLastCompressionTimestamp > 0) {
+      setLastCompressionTimestamp(initialLastCompressionTimestamp);
+    }
+  }, [initialLastCompressionTimestamp]);
+
   const [workbenchHealth, setWorkbenchHealth] =
     useState<AgentState['workbenchHealth']>(null);
 

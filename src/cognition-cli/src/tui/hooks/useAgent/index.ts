@@ -86,9 +86,15 @@ export function useAgent(options: UseAgentOptions) {
 
   const anchorId = sessionManager.state.anchorId;
   const currentSessionId = sessionManager.state.currentSessionId;
+  const initialLastCompressionTimestamp =
+    sessionManager.state.lastCompressionTimestamp;
 
   // 3. State management (needs currentSessionId for currentSessionIdRef initialization)
-  const state = useAgentState(options, currentSessionId);
+  const state = useAgentState(
+    options,
+    currentSessionId,
+    initialLastCompressionTimestamp
+  );
   const {
     messages,
     setMessages,

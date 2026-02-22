@@ -1592,8 +1592,9 @@ When delegating via send_agent_message, use this structured format:
       ? `### Task State Rules
 1. **Task States**: pending (not started), in_progress (currently working), completed (finished)
 2. **Task-First (Token Health)**: ALWAYS mark a task as \`in_progress\` BEFORE running tools (research, read_file, bash, etc.). This ensures tool outputs are tagged with the active task ID for surgical context eviction upon completion.
+   - **CRITICAL**: You are FORBIDDEN from using \`read_file\`, \`grep\`, or \`bash\` unless a task is explicitly in the \`in_progress\` state. If you need to explore, create a task "Explore codebase" and mark it \`in_progress\` FIRST.
 3. **One at a time**: Exactly ONE task should be in_progress at any time
-4. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing to trigger log eviction and reclaim tokens.
+4. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing to trigger log eviction and reclaim tokens. **CRITICAL: You must update the status of the specific task 'id' to 'completed'. Replacing the whole task list will NOT trigger eviction.**
 5. **Persistence via Summary**: The raw logs of a completed task (file contents, grep results) WILL BE DELETED immediately.
    - You MUST distill all critical findings into the \`result_summary\` field of SigmaTaskUpdate.
    - Do not write "Done" or "Found it". Write "Found API key in config.ts line 45" or "UserController.ts handles auth logic".
@@ -1603,9 +1604,10 @@ When delegating via send_agent_message, use this structured format:
       : `### Task State Rules
 1. **Task States**: pending (not started), in_progress (currently working), completed (finished), delegated (assigned to another agent)
 2. **Task-First (Token Health)**: ALWAYS mark a task as \`in_progress\` BEFORE running tools (research, read_file, bash, etc.). This ensures tool outputs are tagged with the active task ID for surgical context eviction upon completion.
+   - **CRITICAL**: You are FORBIDDEN from using \`read_file\`, \`grep\`, or \`bash\` unless a task is explicitly in the \`in_progress\` state. If you need to explore, create a task "Explore codebase" and mark it \`in_progress\` FIRST.
 3. **One at a time**: Exactly ONE task should be in_progress at any time
 4. **Delegation**: When delegating, set status to 'delegated' AND send IPC message. Do not mark completed until worker reports back.
-5. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing to trigger log eviction and reclaim tokens.
+5. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing to trigger log eviction and reclaim tokens. **CRITICAL: You must update the status of the specific task 'id' to 'completed'. Replacing the whole task list will NOT trigger eviction.**
 6. **Persistence via Summary**: The raw logs of a completed task (file contents, grep results) WILL BE DELETED immediately.
    - You MUST distill all critical findings into the \`result_summary\` field of SigmaTaskUpdate.
    - Do not write "Done" or "Found it". Write "Found API key in config.ts line 45" or "UserController.ts handles auth logic".

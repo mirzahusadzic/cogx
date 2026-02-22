@@ -276,7 +276,7 @@ Skip using this tool when:
 Cognition Σ uses task IDs to tag tool outputs for context pruning. To maximize context efficiency, follow these three rules:
 1. **Always Start First**: Mark a task as 'in_progress' BEFORE running tools. This ensures logs are tagged and can be surgically evicted upon task completion.
 2. **Distill Before Dying**: You are FORBIDDEN from completing a task until you have saved the *essential findings* into the result_summary field. If you complete a "Research" task, its detailed tool logs (grep, read_file) will be evicted.
-3. **Immediate completion**: Mark a task 'completed' as soon as it's finished to trigger log eviction and reclaim tokens for the next turn.
+3. **Immediate completion**: Mark a task 'completed' as soon as it's finished to trigger log eviction and reclaim tokens for the next turn. **CRITICAL: You must update the status of the specific task 'id' to 'completed'. Replacing the whole task list will NOT trigger eviction.**
 
 ### Persistence via Summary
 The raw logs of a completed task (file contents, grep results) WILL BE DELETED immediately.
@@ -314,6 +314,7 @@ Benefits of delegation:
 - You MUST provide a 'result_summary' (at least 15 chars) when setting status to 'completed'. This summary must capture all key insights and findings so they survive the subsequent log eviction.
 - Mark tasks complete IMMEDIATELY after finishing (don't batch completions)
 - ONLY mark a task as completed when you have FULLY accomplished it
+- CRITICAL: To clear context pressure, you MUST set the status of the specific 'id' that was in_progress to 'completed'. Do not overwrite or replace the entire task list - modify the status of existing tasks.
 - If you encounter errors or blockers, keep the task as in_progress and create a new task describing what needs to be resolved
 - **Reasoning First**: You MUST engage your internal reasoning/thinking process first to plan the action and validate parameters. **CRITICAL: NEVER include the JSON for SigmaTaskUpdate in your assistant response text. ONLY use it as the direct input to the SigmaTaskUpdate tool call. If you include JSON in your response text, the TUI will not update and the user will see raw data.**
 

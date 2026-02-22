@@ -40,7 +40,7 @@ function canonicalizeSymbol(symbol: string): string {
  *
  * Maps source file paths to their structural metadata, content hashes, and processing status.
  * Supports parallel deep-search across structural data using worker threads for large codebases.
- * This is the primary lookup system for the Project Grounded Context (PGC).
+ * This is the primary lookup system for the Grounded Context Pool (PGC).
  *
  * **Architecture**:
  * - File-based storage in `.open_cognition/index/` directory
