@@ -194,6 +194,7 @@ describe('Gemini Eviction Strategy', () => {
             parts: [
               {
                 thought: true,
+                thoughtSignature: 'sig-123',
                 text: 'I am thinking very hard about this task...',
               },
               { text: 'I will read the file now.' },
@@ -248,6 +249,8 @@ describe('Gemini Eviction Strategy', () => {
       expect(assistantEvent.content.parts[0].text).toContain(
         'evicted to save tokens'
       );
+      expect(assistantEvent.content.parts[0].thought).toBe(true);
+      expect(assistantEvent.content.parts[0].thoughtSignature).toBe('sig-123');
       expect(assistantEvent.content.parts[1].functionCall.name).toBe(
         'read_file'
       );

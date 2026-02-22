@@ -342,6 +342,18 @@ export class GeminiAgentProvider implements AgentProvider {
           const assistantTombstone = `[Assistant thinking/text for task ${taskId} evicted to save tokens.]`;
 
           let hasAssistantTombstonePart = false;
+          let collectedSignature: string | undefined = undefined;
+
+          // Pre-scan for thought signature in assistant turns being evicted
+          if (isAssistantTurnInRange) {
+            for (const p of parts) {
+              if (p.thoughtSignature) {
+                collectedSignature = p.thoughtSignature;
+                break;
+              }
+            }
+          }
+
           const tombstoneParts = parts
             .map((p) => {
               if (p.functionResponse) {
@@ -361,7 +373,11 @@ export class GeminiAgentProvider implements AgentProvider {
                 // Turn-Range Assistant Eviction (Prune thinking/text)
                 if (!hasAssistantTombstonePart) {
                   hasAssistantTombstonePart = true;
-                  return { text: assistantTombstone };
+                  return {
+                    text: assistantTombstone,
+                    thought: true, // Use thinking mode for tombstone to format correctly in TUI
+                    thoughtSignature: collectedSignature, // Preserve reasoning state for Gemini 3
+                  };
                 }
                 return null; // Remove extra parts (multiple thinking/text parts)
               }
