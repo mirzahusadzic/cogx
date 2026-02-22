@@ -269,14 +269,20 @@ Skip using this tool when:
 ## Task States
 - pending: Task not yet started
 - in_progress: Currently working on (limit to ONE task at a time)
-- completed: Task finished successfully
+- completed: Task finished successfully (REQUIRES result_summary)
 - delegated: Task assigned to another agent via IPC (Manager/Worker pattern)
 
 ## Token Health (Surgical Eviction)
 Cognition Σ uses task IDs to tag tool outputs for context pruning. To maximize context efficiency, follow these three rules:
 1. **Always Start First**: Mark a task as 'in_progress' BEFORE running tools. This ensures logs are tagged and can be surgically evicted upon task completion.
-2. **Research Continuity**: If you complete a "Research" task, its detailed tool logs will be evicted. Ensure you have summarized all key findings into your internal thought process or subsequent task descriptions before marking the research task 'completed'.
+2. **Distill Before Dying**: You are FORBIDDEN from completing a task until you have saved the *essential findings* into the result_summary field. If you complete a "Research" task, its detailed tool logs (grep, read_file) will be evicted.
 3. **Immediate completion**: Mark a task 'completed' as soon as it's finished to trigger log eviction and reclaim tokens for the next turn.
+
+### Persistence via Summary
+The raw logs of a completed task (file contents, grep results) WILL BE DELETED immediately.
+- You MUST distill all critical findings into the \`result_summary\` field of SigmaTaskUpdate.
+- Do not write "Done" or "Found it". Write "Found API key in config.ts line 45" or "UserController.ts handles auth logic".
+- If the \`result_summary\` is empty or vague, you will lose the knowledge required for subsequent tasks.
 
 ## Delegation (Manager/Worker Pattern)
 When delegating a task to another agent:
@@ -305,6 +311,7 @@ Benefits of delegation:
 - Each task MUST have a unique 'id' field (use nanoid, UUID, or semantic slug)
 - Use 'grounding' and 'grounding_evidence' top-level arrays for PGC data (correlate via 'id')
 - Task descriptions must have two forms: content (imperative, e.g., "Run tests") and activeForm (present continuous, e.g., "Running tests")
+- You MUST provide a 'result_summary' (at least 15 chars) when setting status to 'completed'. This summary must capture all key insights and findings so they survive the subsequent log eviction.
 - Mark tasks complete IMMEDIATELY after finishing (don't batch completions)
 - ONLY mark a task as completed when you have FULLY accomplished it
 - If you encounter errors or blockers, keep the task as in_progress and create a new task describing what needs to be resolved
@@ -314,7 +321,7 @@ Benefits of delegation:
 \`\`\`json
 {
   "todos": [
-    { "id": "task-1", "content": "Update tests", "activeForm": "Updating tests", "status": "in_progress" }
+    { "id": "task-1", "content": "Update tests", "activeForm": "Updating tests", "status": "completed", "result_summary": "Fixed the flaky tests in AuthController.ts" }
   ],
   "grounding": [
     { "id": "task-1", "strategy": "pgc_first" }

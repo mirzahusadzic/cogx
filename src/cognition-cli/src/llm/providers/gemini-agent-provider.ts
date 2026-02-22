@@ -1652,7 +1652,7 @@ You have access to environment tools defined in your schema. Prioritize using th
   \`\`\`json
   {
     "todos": [
-      { "id": "task-1", "content": "Task description", "activeForm": "Doing task", "status": "in_progress" }
+      { "id": "task-1", "content": "Task description", "activeForm": "Doing task", "status": "completed", "result_summary": "Summary of findings (min 15 chars)" }
     ],
     "grounding": [
       { "id": "task-1", "strategy": "pgc_first" }

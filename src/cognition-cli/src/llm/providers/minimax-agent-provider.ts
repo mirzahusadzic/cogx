@@ -686,7 +686,7 @@ ${toolSections.join('\n\n')}
   \`\`\`json
   {
     "todos": [
-      { "id": "task-1", "content": "Task description", "activeForm": "Doing task", "status": "in_progress" }
+      { "id": "task-1", "content": "Task description", "activeForm": "Doing task", "status": "completed", "result_summary": "Summary of findings (min 15 chars)" }
     ]${
       isSolo
         ? ''

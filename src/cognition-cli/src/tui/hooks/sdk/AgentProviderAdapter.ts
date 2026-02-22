@@ -195,6 +195,7 @@ export class AgentProviderAdapter {
               `- Stable task IDs (required)\n` +
               `- Manager/Worker delegation pattern\n` +
               `- Task delegation with acceptance_criteria and delegated_to fields\n` +
+              `- REQUIRED result_summary (min 15 chars) when status is 'completed'\n` +
               `- Full state persistence across compressions\n\n` +
               `Use SigmaTaskUpdate exactly as you would use TodoWrite, but with the new schema.`
             : '') +
