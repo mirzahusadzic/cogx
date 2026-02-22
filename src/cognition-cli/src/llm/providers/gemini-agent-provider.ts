@@ -334,28 +334,30 @@ export class GeminiAgentProvider implements AgentProvider {
       }
 
       if (evictedCount > 0) {
-        // Archive logs to disk
-        const archiveDir = path.join(
-          projectRoot,
-          '.sigma',
-          'archives',
-          sessionId
-        );
-        await fs.mkdir(archiveDir, { recursive: true });
-        const archivePath = path.join(archiveDir, `${taskId}.log`);
+        if (process.env.DEBUG_ARCHIVE) {
+          // Archive logs to disk
+          const archiveDir = path.join(
+            projectRoot,
+            '.sigma',
+            'archives',
+            sessionId
+          );
+          await fs.mkdir(archiveDir, { recursive: true });
+          const archivePath = path.join(archiveDir, `${taskId}.log`);
 
-        await fs.appendFile(
-          archivePath,
-          `\n--- ARCHIVED AT ${new Date().toISOString()} ---\n` +
-            evictedLogs.join('\n---\n')
-        );
+          await fs.appendFile(
+            archivePath,
+            `\n--- ARCHIVED AT ${new Date().toISOString()} ---\n` +
+              evictedLogs.join('\n---\n')
+          );
+        }
 
         // Update session history in memory
         (session as unknown as AdkSession).events = newEvents;
 
         systemLog(
           'sigma',
-          `Surgically evicted ${evictedCount} log messages for task ${taskId}. Archived to ${archivePath}`
+          `Surgically evicted ${evictedCount} log messages for task ${taskId}. ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
         );
       }
     } catch (err) {

@@ -90,6 +90,8 @@ describe('SigmaTaskUpdate Gemini Tool', () => {
           content: 'Null grounding',
           activeForm: 'Null grounding',
           status: 'completed',
+          result_summary:
+            'I have successfully completed this very important task for grounding',
         },
       ],
       grounding: [
@@ -113,6 +115,8 @@ describe('SigmaTaskUpdate Gemini Tool', () => {
           content: 'Null grounding',
           activeForm: 'Null grounding',
           status: 'completed',
+          result_summary:
+            'I have successfully completed this very important task for grounding',
         },
       ],
       process.cwd(),
@@ -149,6 +153,8 @@ describe('SigmaTaskUpdate Gemini Tool', () => {
           content: 'Review evidence',
           activeForm: 'Reviewing evidence',
           status: 'completed',
+          result_summary:
+            'I have successfully completed this very important task for grounding',
         },
       ],
       grounding: [
@@ -200,6 +206,8 @@ describe('SigmaTaskUpdate Gemini Tool', () => {
           content: 'Review evidence',
           activeForm: 'Reviewing evidence',
           status: 'completed',
+          result_summary:
+            'I have successfully completed this very important task for grounding',
           grounding_evidence: {
             queries_executed: ['search for old auth flow'],
             overlays_consulted: ['O1', 'O2'],

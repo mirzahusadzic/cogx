@@ -1201,8 +1201,10 @@ describe('GeminiAgentProvider', () => {
         return responses;
       })();
 
-      // Advance timers for backoff (1s, 2s)
-      await vi.advanceTimersByTimeAsync(10000);
+      // Advance timers in small chunks to ensure generator can process between timeouts
+      for (let i = 0; i < 20; i++) {
+        await vi.advanceTimersByTimeAsync(1000);
+      }
 
       const responses = await iterationPromise;
       vi.useRealTimers();
@@ -1256,8 +1258,10 @@ describe('GeminiAgentProvider', () => {
         return responses;
       })();
 
-      // Advance timers enough for 4 retries
-      await vi.advanceTimersByTimeAsync(30000);
+      // Advance timers in chunks
+      for (let i = 0; i < 60; i++) {
+        await vi.advanceTimersByTimeAsync(1000);
+      }
 
       await iterationPromise;
       vi.useRealTimers();
@@ -1280,6 +1284,8 @@ describe('GeminiAgentProvider', () => {
     });
 
     it('should give up after maxRetries', async () => {
+      // Mock timers to skip delays
+      vi.useFakeTimers();
       const provider = new GeminiAgentProvider('test-key');
 
       mockRunAsync.mockReturnValue({
@@ -1288,8 +1294,6 @@ describe('GeminiAgentProvider', () => {
           throw new Error('429 Resource Exhausted');
         },
       });
-
-      vi.useFakeTimers();
 
       const generator = provider.executeAgent({
         prompt: 'Fail completely',
@@ -1305,8 +1309,10 @@ describe('GeminiAgentProvider', () => {
         return responses;
       })();
 
-      // Advance lots of time
-      await vi.advanceTimersByTimeAsync(100000);
+      // Advance lots of time in chunks
+      for (let i = 0; i < 100; i++) {
+        await vi.advanceTimersByTimeAsync(1000);
+      }
 
       const responses = await iterationPromise;
       vi.useRealTimers();

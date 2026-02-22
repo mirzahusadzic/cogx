@@ -662,25 +662,27 @@ export class OpenAIAgentProvider implements AgentProvider {
       }
 
       if (evictedCount > 0) {
-        // Archive logs to disk
-        const archiveDir = path.join(
-          projectRoot,
-          '.sigma',
-          'archives',
-          conversationId
-        );
-        await fs.mkdir(archiveDir, { recursive: true });
-        const archivePath = path.join(archiveDir, `${taskId}.log`);
+        if (process.env.DEBUG_ARCHIVE) {
+          // Archive logs to disk
+          const archiveDir = path.join(
+            projectRoot,
+            '.sigma',
+            'archives',
+            conversationId
+          );
+          await fs.mkdir(archiveDir, { recursive: true });
+          const archivePath = path.join(archiveDir, `${taskId}.log`);
 
-        const summaryHeader = result_summary
-          ? `\nSUMMARY: ${result_summary}\n`
-          : '';
+          const summaryHeader = result_summary
+            ? `\nSUMMARY: ${result_summary}\n`
+            : '';
 
-        await fs.appendFile(
-          archivePath,
-          `\n--- ARCHIVED AT ${new Date().toISOString()} ---${summaryHeader}\n` +
-            evictedLogs.join('\n---\n')
-        );
+          await fs.appendFile(
+            archivePath,
+            `\n--- ARCHIVED AT ${new Date().toISOString()} ---${summaryHeader}\n` +
+              evictedLogs.join('\n---\n')
+          );
+        }
 
         // Note: We don't add a tombstone to the server-side session because
         // addConversationItems appends to the end, which would break conversation order.
@@ -688,7 +690,7 @@ export class OpenAIAgentProvider implements AgentProvider {
 
         systemLog(
           'sigma',
-          `Surgically evicted ${evictedCount} log messages for task ${taskId} (OpenAI). Archived to ${archivePath}`
+          `Surgically evicted ${evictedCount} log messages for task ${taskId} (OpenAI). ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
         );
       }
     } catch (err) {

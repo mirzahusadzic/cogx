@@ -227,28 +227,30 @@ export class MinimaxAgentProvider implements AgentProvider {
       }
 
       if (evictedCount > 0) {
-        const archiveDir = path.join(
-          projectRoot,
-          '.sigma',
-          'archives',
-          sessionId
-        );
-        await fs.mkdir(archiveDir, { recursive: true });
-        const archivePath = path.join(archiveDir, `${taskId}.log`);
+        if (process.env.DEBUG_ARCHIVE) {
+          const archiveDir = path.join(
+            projectRoot,
+            '.sigma',
+            'archives',
+            sessionId
+          );
+          await fs.mkdir(archiveDir, { recursive: true });
+          const archivePath = path.join(archiveDir, `${taskId}.log`);
 
-        const summaryHeader = result_summary
-          ? `\nSUMMARY: ${result_summary}\n`
-          : '';
+          const summaryHeader = result_summary
+            ? `\nSUMMARY: ${result_summary}\n`
+            : '';
 
-        await fs.appendFile(
-          archivePath,
-          `\n--- ARCHIVED AT ${new Date().toISOString()} ---${summaryHeader}\n` +
-            evictedLogs.join('\n---\n')
-        );
+          await fs.appendFile(
+            archivePath,
+            `\n--- ARCHIVED AT ${new Date().toISOString()} ---${summaryHeader}\n` +
+              evictedLogs.join('\n---\n')
+          );
+        }
 
         systemLog(
           'sigma',
-          `Surgically evicted ${evictedCount} log messages for task ${taskId} (Minimax). Archived to ${archivePath}`
+          `Surgically evicted ${evictedCount} log messages for task ${taskId} (Minimax). ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
         );
       }
     } catch (err) {

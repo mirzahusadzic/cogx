@@ -25,7 +25,7 @@ describe('useTokenCount', () => {
     expect(result.current.count.output).toBe(500);
   });
 
-  it('uses Math.max for subsequent updates (prevents drops)', () => {
+  it('trusts provider updates (does not use Math.max)', () => {
     const { result } = renderHook(() => useTokenCount());
 
     // First update
@@ -33,12 +33,12 @@ describe('useTokenCount', () => {
       result.current.update({ input: 1000, output: 500, total: 1500 });
     });
 
-    // Try to update with lower value - should be ignored
+    // Update with lower value - should be accepted since we trust provider
     act(() => {
       result.current.update({ input: 500, output: 200, total: 700 });
     });
 
-    expect(result.current.count.total).toBe(1500); // Stayed at higher value
+    expect(result.current.count.total).toBe(700);
   });
 
   it('accepts higher values after initial update', () => {
@@ -124,7 +124,7 @@ describe('useTokenCount', () => {
     expect(result.current.count.total).toBe(300);
   });
 
-  it('only bypasses Math.max on first update after reset', () => {
+  it('accepts any value after reset', () => {
     const { result } = renderHook(() => useTokenCount());
 
     // Set initial value
@@ -137,17 +137,17 @@ describe('useTokenCount', () => {
       result.current.reset();
     });
 
-    // First update after reset - accepts any value
+    // First update after reset
     act(() => {
       result.current.update({ input: 100, output: 50, total: 150 });
     });
     expect(result.current.count.total).toBe(150);
 
-    // Second update - should use Math.max again
+    // Second update - accepts lower value too (trusts provider)
     act(() => {
       result.current.update({ input: 50, output: 25, total: 75 });
     });
-    expect(result.current.count.total).toBe(150); // Stayed at 150 (Math.max)
+    expect(result.current.count.total).toBe(75);
   });
 
   it('handles reset without subsequent update', () => {

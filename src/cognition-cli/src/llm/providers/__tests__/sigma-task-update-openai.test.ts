@@ -51,11 +51,12 @@ describe('SigmaTaskUpdate OpenAI Tool', () => {
           content: 'Review evidence',
           activeForm: 'Reviewing evidence',
           status: 'completed',
+          result_summary:
+            'I have successfully completed this very important task for grounding',
           acceptance_criteria: null,
           delegated_to: null,
           context: null,
           delegate_session_id: null,
-          result_summary: null,
         },
       ],
       grounding: [
@@ -111,6 +112,8 @@ describe('SigmaTaskUpdate OpenAI Tool', () => {
           content: 'Review evidence',
           activeForm: 'Reviewing evidence',
           status: 'completed',
+          result_summary:
+            'I have successfully completed this very important task for grounding',
           grounding_evidence: {
             queries_executed: ['search for old auth flow'],
             overlays_consulted: ['O1', 'O2'],
