@@ -5,7 +5,13 @@
  * Uses shared tool executors from tool-executors.ts and tool-helpers.ts.
  */
 
-import { FunctionTool, ToolContext, type Session } from '@google/adk';
+import {
+  FunctionTool,
+  ToolContext,
+  type Session,
+  type ToolInputParameters,
+  type ToolExecuteFunction,
+} from '@google/adk';
 import { Type, type Schema } from '@google/genai';
 import { z } from 'zod';
 import { systemLog } from '../../utils/debug-logger.js';
@@ -84,8 +90,9 @@ export function createRecallTool(
         .describe(
           'What to search for in past conversation (e.g., "What did we discuss about TUI scrolling?" or "What were the goals mentioned?")'
         ),
-    }),
-    execute: async ({ query }) => {
+    }) as unknown as ToolInputParameters,
+    execute: async (input: unknown) => {
+      const { query } = input as { query: string };
       if (process.env.DEBUG_GEMINI_TOOLS) {
         systemLog(
           'gemini-tools',
@@ -132,15 +139,16 @@ function wrapToolWithPermission<T extends z.ZodRawShape>(
     return new FunctionTool({
       name,
       description,
-      parameters,
-      execute: originalExecute as (input: unknown) => Promise<unknown>,
+      parameters: parameters as unknown as ToolInputParameters,
+      execute:
+        originalExecute as unknown as ToolExecuteFunction<ToolInputParameters>,
     });
   }
 
   return new FunctionTool({
     name,
     description,
-    parameters,
+    parameters: parameters as unknown as ToolInputParameters,
     execute: async (input: unknown) => {
       // Call permission callback
       const decision = await onCanUseTool(name, input);
@@ -176,8 +184,11 @@ function createBackgroundTasksTool(
         .describe(
           'Filter tasks by status: "all" (default) for everything, "active" for running/pending, "completed" for finished, "failed" for errors'
         ),
-    }),
-    execute: async ({ filter: filterArg }) => {
+    }) as unknown as ToolInputParameters,
+    execute: async (input: unknown) => {
+      const { filter: filterArg } = (input || {}) as {
+        filter?: 'all' | 'active' | 'completed' | 'failed';
+      };
       if (process.env.DEBUG_GEMINI_TOOLS) {
         systemLog(
           'gemini-tools',
@@ -758,8 +769,9 @@ export function getCognitionTools(
         'Fetch content from a URL to read documentation, APIs, or external resources. Returns text content with basic HTML stripping.',
       parameters: z.object({
         url: z.string().url().describe('The URL to fetch content from'),
-      }),
-      execute: async ({ url }) => {
+      }) as unknown as ToolInputParameters,
+      execute: async (input: unknown) => {
+        const { url } = input as { url: string };
         if (process.env.DEBUG_GEMINI_TOOLS) {
           systemLog('gemini-tools', 'fetch_url input', { url }, 'debug');
         }
@@ -775,8 +787,12 @@ export function getCognitionTools(
           .string()
           .describe('Glob pattern (e.g., "**/*.ts", "src/**/*.py")'),
         cwd: z.string().optional().describe('Working directory'),
-      }),
-      execute: ({ pattern, cwd: globCwd }) => {
+      }) as unknown as ToolInputParameters,
+      execute: (input: unknown) => {
+        const { pattern, cwd: globCwd } = input as {
+          pattern: string;
+          cwd?: string;
+        };
         if (process.env.DEBUG_GEMINI_TOOLS) {
           systemLog(
             'gemini-tools',
