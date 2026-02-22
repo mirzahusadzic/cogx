@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import type { TUIMessage, UseAgentOptions } from './types.js';
+import type { TUIMessage, UseAgentOptions, SigmaTasks } from './types.js';
 import { EmbeddingService } from '../../../core/services/embedding.js';
 import { OverlayRegistry } from '../../../core/algebra/overlay-registry.js';
 import { ConversationOverlayRegistry } from '../../../sigma/conversation-registry.js';
@@ -50,6 +50,8 @@ export interface AgentState {
   setWorkbenchHealth: React.Dispatch<
     React.SetStateAction<AgentState['workbenchHealth']>
   >;
+  sigmaTasks: SigmaTasks;
+  setSigmaTasks: React.Dispatch<React.SetStateAction<SigmaTasks>>;
 
   currentAdapterRef: React.RefObject<AgentProviderAdapter | null>;
   abortedRef: React.RefObject<boolean>;
@@ -125,6 +127,7 @@ export function useAgentState(
 
   const [workbenchHealth, setWorkbenchHealth] =
     useState<AgentState['workbenchHealth']>(null);
+  const [sigmaTasks, setSigmaTasks] = useState<SigmaTasks>({ todos: [] });
 
   // Refs
   const currentAdapterRef = useRef<AgentProviderAdapter | null>(null);
@@ -187,6 +190,8 @@ export function useAgentState(
     setShouldAutoRespond,
     workbenchHealth,
     setWorkbenchHealth,
+    sigmaTasks,
+    setSigmaTasks,
 
     currentAdapterRef,
     abortedRef,

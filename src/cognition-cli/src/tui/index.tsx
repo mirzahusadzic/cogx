@@ -139,6 +139,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     currentSessionId,
     anchorId,
     workbenchHealth,
+    sigmaTasks,
   } = useAgent({
     sessionId,
     cwd: projectRoot, // Use project root, not .open_cognition dir
@@ -642,6 +643,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           saveMessage={saveMessage}
           currentSessionId={currentSessionId}
           tokenCount={tokenCount}
+          sigmaTasks={sigmaTasks}
           sessionTokens={sessionTokens}
           provider={provider}
           displayThinking={displayThinking}

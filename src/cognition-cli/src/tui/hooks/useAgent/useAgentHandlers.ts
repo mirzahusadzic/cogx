@@ -19,7 +19,7 @@ import {
 import { terminal } from '../../services/TerminalService.js';
 import { stripCursorSequences, ANSI_RESET } from '../../utils/ansi-utils.js';
 import type { AgentState } from './useAgentState.js';
-import type { UseAgentOptions } from './types.js';
+import type { UseAgentOptions, SigmaTasks } from './types.js';
 import type { UseSessionManagerResult } from '../session/useSessionManager.js';
 import type { useTokenCount } from '../tokens/useTokenCount.js';
 import type { UseTurnAnalysisReturn } from '../analysis/useTurnAnalysis.js';
@@ -56,6 +56,53 @@ interface AgentMessage {
   toolInput?: unknown;
 }
 
+function updateSigmaTasksWithTokens(
+  prev: SigmaTasks,
+  input: SigmaTasks,
+  effectiveTokens: number
+): SigmaTasks {
+  const newTodos = input.todos.map((newTodo) => {
+    const oldTodo = prev.todos.find((t) => t.id === newTodo.id);
+
+    // Preserve existing tracking data
+    let tokensAtStart =
+      oldTodo?.tokensAtStart ??
+      (newTodo.status === 'in_progress' ? effectiveTokens : undefined);
+
+    // Detect eviction: If current context size is significantly smaller than start,
+    // we must have evicted tokens. Reset tokensAtStart to avoid negative counts.
+    if (
+      newTodo.status === 'in_progress' &&
+      tokensAtStart !== undefined &&
+      effectiveTokens < tokensAtStart
+    ) {
+      tokensAtStart = effectiveTokens;
+    }
+
+    let tokensUsed = oldTodo?.tokensUsed;
+
+    // Calculate tokensUsed when task completes
+    if (
+      newTodo.status === 'completed' &&
+      oldTodo?.status === 'in_progress' &&
+      tokensAtStart !== undefined
+    ) {
+      tokensUsed = Math.max(0, effectiveTokens - tokensAtStart);
+    }
+
+    return {
+      ...newTodo,
+      tokensAtStart,
+      tokensUsed,
+    };
+  });
+
+  return {
+    ...input,
+    todos: newTodos,
+  };
+}
+
 export function useAgentHandlers({
   options,
   state,
@@ -75,6 +122,7 @@ export function useAgentHandlers({
     lastCompressionTimestamp,
     setPendingMessageNotification,
     setShouldAutoRespond,
+    setSigmaTasks,
     userMessageEmbeddingCache,
     currentAdapterRef,
     abortedRef,
@@ -116,6 +164,10 @@ export function useAgentHandlers({
   const processAgentMessage = useCallback(
     (agentMessage: AgentMessage, currentTokens?: number) => {
       const { type, content } = agentMessage;
+      // Use explicitly passed tokens if available, otherwise fall back to state
+      // This ensures we use the most up-to-date count from the streaming response
+      // rather than waiting for the React state update cycle
+      const effectiveTokens = currentTokens ?? tokenCounter.count.total;
 
       switch (type) {
         case 'assistant': {
@@ -195,11 +247,21 @@ export function useAgentHandlers({
               (async () => {
                 for (const tool of toolUses) {
                   if (tool.name && tool.input) {
-                    // Use explicitly passed tokens if available, otherwise fall back to state
-                    // This ensures we use the most up-to-date count from the streaming response
-                    // rather than waiting for the React state update cycle
-                    const effectiveTokens =
-                      currentTokens ?? tokenCounter.count.total;
+                    if (
+                      tool.name === 'SigmaTaskUpdate' ||
+                      tool.name === 'mcp__sigma-task-update__SigmaTaskUpdate'
+                    ) {
+                      const input = tool.input as SigmaTasks;
+                      if (input && Array.isArray(input.todos)) {
+                        setSigmaTasks((prev) =>
+                          updateSigmaTasksWithTokens(
+                            prev,
+                            input,
+                            effectiveTokens
+                          )
+                        );
+                      }
+                    }
 
                     if (
                       providerName === 'gemini' &&
@@ -266,6 +328,18 @@ export function useAgentHandlers({
 
         case 'tool_use': {
           if (agentMessage.toolName && agentMessage.toolInput) {
+            if (
+              agentMessage.toolName === 'SigmaTaskUpdate' ||
+              agentMessage.toolName ===
+                'mcp__sigma-task-update__SigmaTaskUpdate'
+            ) {
+              const input = agentMessage.toolInput as SigmaTasks;
+              if (input && Array.isArray(input.todos)) {
+                setSigmaTasks((prev) =>
+                  updateSigmaTasksWithTokens(prev, input, effectiveTokens)
+                );
+              }
+            }
             const content = formatToolUseMessage(
               {
                 name: agentMessage.toolName,
@@ -464,11 +538,14 @@ export function useAgentHandlers({
     },
     [
       providerName,
-      tokenCounter.count.total,
+      setMessages,
+      setSigmaTasks,
+      terminal,
+      cwd,
+      semanticThreshold,
       compressionInProgressRef,
       compression,
       debug,
-      setMessages,
     ]
   );
 

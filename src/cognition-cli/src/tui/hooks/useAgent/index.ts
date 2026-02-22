@@ -292,6 +292,7 @@ export function useAgent(options: UseAgentOptions) {
       anchorId,
       interrupt,
       sigmaStats,
+      sigmaTasks: state.sigmaTasks,
       avgOverlays: overlayScores,
     }),
     [
@@ -309,6 +310,7 @@ export function useAgent(options: UseAgentOptions) {
       anchorId,
       interrupt,
       sigmaStats,
+      state.sigmaTasks,
     ]
   );
 }

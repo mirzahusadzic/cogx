@@ -118,3 +118,59 @@ export interface TUIMessage {
   /** When message was created */
   timestamp: Date;
 }
+
+/**
+ * Task from SigmaTaskUpdate tool
+ */
+export interface SigmaTask {
+  id: string;
+  content: string;
+  activeForm: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'delegated';
+  acceptance_criteria?: string[];
+  delegated_to?: string;
+  context?: string;
+  delegate_session_id?: string;
+  result_summary?: string;
+  /** Tokens at start of task */
+  tokensAtStart?: number;
+  /** Total tokens used for this task (calculated on completion) */
+  tokensUsed?: number;
+}
+
+/**
+ * Grounding configuration for a task
+ */
+export interface SigmaGrounding {
+  id: string;
+  strategy: 'none' | 'pgc_first' | 'pgc_verify' | 'pgc_cite';
+  overlay_hints?: ('O2' | 'O4' | 'O5' | 'O6' | 'O1' | 'O3' | 'O7')[];
+  query_hints?: string[];
+  evidence_required?: boolean;
+}
+
+/**
+ * Structured grounding evidence returned by the worker
+ */
+export interface SigmaGroundingEvidence {
+  id: string;
+  queries_executed?: string[];
+  overlays_consulted?: ('O2' | 'O4' | 'O5' | 'O6' | 'O1' | 'O3' | 'O7')[];
+  citations?: {
+    overlay: string;
+    content: string;
+    relevance: 'low' | 'medium' | 'high';
+    file_path?: string;
+  }[];
+  grounding_confidence?: 'low' | 'medium' | 'high';
+  overlay_warnings?: string[] | null;
+}
+
+/**
+ * Full task state for the TUI
+ */
+export interface SigmaTasks {
+  todos: SigmaTask[];
+  grounding?: SigmaGrounding[];
+  grounding_evidence?: SigmaGroundingEvidence[];
+}

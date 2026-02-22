@@ -5,9 +5,10 @@ import { ClaudePanelAgent } from './ClaudePanelAgent.js';
 import { InputBox } from './InputBox.js';
 import { StatusBar } from './StatusBar.js';
 import { SigmaInfoPanel } from './SigmaInfoPanel.js';
+import { SigmaTaskPanel } from './SigmaTaskPanel.js';
 import { ComponentErrorBoundary } from './ErrorBoundaries/ComponentErrorBoundary.js';
 import { terminal } from '../services/TerminalService.js';
-import type { TUIMessage } from '../hooks/useAgent/types.js';
+import type { TUIMessage, SigmaTasks } from '../hooks/useAgent/types.js';
 import type { BackgroundTask } from '../services/BackgroundTaskManager.js';
 import type { ToolConfirmationState } from '../hooks/useToolConfirmation.js';
 import type { WizardConfirmationState } from '../hooks/useOnboardingWizard.js';
@@ -34,6 +35,7 @@ export interface CognitionTUILayoutProps {
   streamingPaste: string;
   showInfoPanel: boolean;
   avgOverlays: OverlayScores;
+  sigmaTasks: SigmaTasks;
   saveMessage: string | null;
   currentSessionId: string | undefined;
   tokenCount: TokenCount;
@@ -67,6 +69,7 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
   streamingPaste,
   showInfoPanel,
   avgOverlays,
+  sigmaTasks,
   saveMessage,
   currentSessionId,
   tokenCount,
@@ -176,11 +179,23 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
             layoutVersion={`${inputLineCount}-${isDropdownVisible}-${dimensions.rows}-${dimensions.columns}`}
           />
         </ComponentErrorBoundary>
-        {showInfoPanel && sigmaStats && (
+        {dimensions.columns > 100 && (
           <Box marginLeft={1} flexShrink={0} width={40}>
-            <ComponentErrorBoundary componentName="SigmaInfoPanel">
-              <SigmaInfoPanel sigmaStats={sigmaStats} overlays={avgOverlays} />
-            </ComponentErrorBoundary>
+            {showInfoPanel && sigmaStats ? (
+              <ComponentErrorBoundary componentName="SigmaInfoPanel">
+                <SigmaInfoPanel
+                  sigmaStats={sigmaStats}
+                  overlays={avgOverlays}
+                />
+              </ComponentErrorBoundary>
+            ) : (
+              <ComponentErrorBoundary componentName="SigmaTaskPanel">
+                <SigmaTaskPanel
+                  sigmaTasks={sigmaTasks}
+                  tokenCount={tokenCount}
+                />
+              </ComponentErrorBoundary>
+            )}
           </Box>
         )}
       </Box>
