@@ -427,6 +427,17 @@ export class GeminiAgentProvider implements AgentProvider {
         // Update session history in memory
         (session as unknown as AdkSession).events = newEvents;
 
+        // CRITICAL: InMemorySessionService.getSession() returns a deep clone!
+        // We must also update the internal storage so the eviction persists across turns.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const internalStorage = (this.sessionService as any).sessions;
+        if (
+          internalStorage?.['cognition-cli']?.['cognition-user']?.[sessionId]
+        ) {
+          internalStorage['cognition-cli']['cognition-user'][sessionId].events =
+            [...newEvents];
+        }
+
         systemLog(
           'sigma',
           `Evicted ${evictedCount} log messages (Turn-Range + Surgical) for task ${taskId}. ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
