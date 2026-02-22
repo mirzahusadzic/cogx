@@ -11,7 +11,11 @@ import { Spinner } from '@inkjs/ui';
 import { cleanAnsi as stripAnsi } from '../../utils/string-utils.js';
 import { systemLog } from '../../utils/debug-logger.js';
 import { useTUI } from '../context/TUIContext.js';
-import { stripCursorSequences } from '../utils/ansi-utils.js';
+import {
+  stripCursorSequences,
+  getStyleAnsi,
+  ANSI_RESET,
+} from '../utils/ansi-utils.js';
 import {
   markdownToLines,
   type StyledLine,
@@ -143,8 +147,13 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   // This memo only re-runs when messages change, terminal width changes or layout changes
   const renderedMessages = useMemo(() => {
     const lines: StyledLine[] = [];
-    const infoPanelWidth = showInfoPanel ? 41 : 0; // 40 (width) + 1 (marginLeft)
-    const width = Math.max(20, (stdout?.columns || 100) - 2 - infoPanelWidth); // Account for padding and sidebar
+    // Sidebar is visible if columns > 100, regardless of showInfoPanel (it shows SigmaTaskPanel instead)
+    const sidebarVisible = (stdout?.columns || 0) > 100;
+    const infoPanelWidth = sidebarVisible ? 41 : 0; // 40 (width) + 1 (marginLeft)
+    const width = Math.max(
+      20,
+      (stdout?.columns || 100) - 3 - infoPanelWidth
+    ); // Account for padding, borders, and sidebar
 
     messages.forEach((msg, idx) => {
       // For performance, we cache rendered lines for all messages EXCEPT the last one
@@ -886,6 +895,27 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                 ? ' '
                 : line.chunks.map((chunk, cIdx) => {
                     const hasAnsi = stripAnsi(chunk.text) !== chunk.text;
+                    const styleAnsi = getStyleAnsi({
+                      color: chunk.color,
+                      bg: chunk.bg,
+                      bold: chunk.bold,
+                      italic: chunk.italic,
+                      dim: chunk.dim,
+                      inverse: chunk.inverse,
+                    });
+
+                    // If text has ANSI, ensure reset codes don't bleed into parent style
+                    // by replacing \x1b[0m with \x1b[0m + parent's style codes.
+                    // We also append the style at the end to ensure it persists if Ink wraps.
+                    const content = hasAnsi
+                      ? stripCursorSequences(chunk.text).replace(
+                          /\x1b\[0m/g,
+                          ANSI_RESET + styleAnsi
+                        ) +
+                        ANSI_RESET +
+                        styleAnsi
+                      : chunk.text;
+
                     return (
                       <Text
                         key={cIdx}
@@ -896,9 +926,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                         dimColor={chunk.dim}
                         inverse={chunk.inverse}
                       >
-                        {hasAnsi
-                          ? stripCursorSequences(chunk.text) + '\x1b[0m'
-                          : chunk.text}
+                        {content}
                       </Text>
                     );
                   })}

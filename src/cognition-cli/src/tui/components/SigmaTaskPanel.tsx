@@ -3,6 +3,7 @@ import { Box, Text } from 'ink';
 import { TUITheme } from '../theme.js';
 import type { SigmaTasks } from '../hooks/useAgent/types.js';
 import type { TokenCount } from '../hooks/tokens/useTokenCount.js';
+import { cleanAnsi as stripAnsi } from '../../utils/string-utils.js';
 
 /**
  * Props for SigmaTaskPanel component
@@ -90,9 +91,11 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
               <Box>
                 <Text color={getStatusColor(task.status)}>
                   [{getStatusIcon(task.status)}]{' '}
-                  {task.status === 'in_progress'
-                    ? task.activeForm
-                    : task.content}
+                  {stripAnsi(
+                    task.status === 'in_progress'
+                      ? task.activeForm
+                      : task.content
+                  )}
                   {(task.status === 'completed' ||
                     task.status === 'in_progress') &&
                     task.tokensUsed !== undefined && (
@@ -106,7 +109,7 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
               {task.status === 'completed' && task.result_summary && (
                 <Box marginLeft={4}>
                   <Text dimColor italic wrap="wrap">
-                    ↳ {task.result_summary}
+                    ↳ {stripAnsi(task.result_summary)}
                   </Text>
                 </Box>
               )}

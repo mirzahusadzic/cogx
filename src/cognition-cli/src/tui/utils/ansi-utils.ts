@@ -52,12 +52,61 @@ export function hexToAnsiBg(hex: string): string {
 export const ANSI_RESET = '\x1b[0m';
 
 /**
+ * ANSI Dim Code
+ */
+export const ANSI_DIM = '\x1b[2m';
+
+/**
+ * ANSI Italic Code
+ */
+export const ANSI_ITALIC = '\x1b[3m';
+
+/**
+ * ANSI Bold Code
+ */
+export const ANSI_BOLD = '\x1b[1m';
+
+/**
+ * ANSI Inverse Code
+ */
+export const ANSI_INVERSE = '\x1b[7m';
+
+/**
+ * Get the ANSI escape sequence for a set of styles
+ */
+export function getStyleAnsi(styles: {
+  color?: string;
+  bg?: string;
+  bold?: boolean;
+  italic?: boolean;
+  dim?: boolean;
+  inverse?: boolean;
+}): string {
+  let ansi = '';
+  if (styles.color) ansi += hexToAnsi(styles.color);
+  if (styles.bg) ansi += hexToAnsiBg(styles.bg);
+  if (styles.bold) ansi += ANSI_BOLD;
+  if (styles.italic) ansi += ANSI_ITALIC;
+  if (styles.dim) ansi += ANSI_DIM;
+  if (styles.inverse) ansi += ANSI_INVERSE;
+  return ansi;
+}
+
+/**
  * Helper to parse hex to RGB
  */
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const cleanHex = hex.replace('#', '');
-  const r = parseInt(cleanHex.substring(0, 2), 16);
-  const g = parseInt(cleanHex.substring(2, 4), 16);
-  const b = parseInt(cleanHex.substring(4, 6), 16);
-  return { r, g, b };
+  if (cleanHex.length === 3) {
+    return {
+      r: parseInt(cleanHex[0] + cleanHex[0], 16) || 0,
+      g: parseInt(cleanHex[1] + cleanHex[1], 16) || 0,
+      b: parseInt(cleanHex[2] + cleanHex[2], 16) || 0,
+    };
+  }
+  return {
+    r: parseInt(cleanHex.substring(0, 2), 16) || 0,
+    g: parseInt(cleanHex.substring(2, 4), 16) || 0,
+    b: parseInt(cleanHex.substring(4, 6), 16) || 0,
+  };
 }
