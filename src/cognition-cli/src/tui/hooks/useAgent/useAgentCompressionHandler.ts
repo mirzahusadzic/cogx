@@ -61,6 +61,7 @@ export function useAgentCompressionHandler({
     setShouldAutoRespond,
     compressionInProgressRef,
     conversationRegistryRef,
+    setLastCompressionTimestamp,
   } = state;
 
   const updateProgress = useCallback(
@@ -296,6 +297,7 @@ export function useAgentCompressionHandler({
           }
 
           setInjectedRecap(recap);
+          setLastCompressionTimestamp(Date.now());
           tokenCounter.reset();
 
           if (pendingTurn) {

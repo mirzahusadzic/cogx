@@ -72,6 +72,7 @@ export function useAgentHandlers({
     setActiveModel,
     setError,
     setInjectedRecap,
+    lastCompressionTimestamp,
     setPendingMessageNotification,
     setShouldAutoRespond,
     userMessageEmbeddingCache,
@@ -565,7 +566,8 @@ This will trigger a semantic compression event, flushing implementation noise wh
         if (
           !state.injectedRecap &&
           embedderRef.current &&
-          turnAnalysis.analyses.length > 0
+          turnAnalysis.analyses.length > 0 &&
+          lastCompressionTimestamp > 0 // Only inject if at least one compression has happened
         ) {
           try {
             const searchPrompt = prompt.startsWith('/') ? prompt : finalPrompt;
@@ -573,7 +575,10 @@ This will trigger a semantic compression event, flushing implementation noise wh
               searchPrompt,
               turnAnalysis.analyses,
               embedderRef.current,
-              { debug: debugFlag }
+              {
+                debug: debugFlag,
+                beforeTimestamp: lastCompressionTimestamp, // Only inject from archived history
+              }
             );
 
             if (prompt.startsWith('/') && finalPrompt !== prompt) {

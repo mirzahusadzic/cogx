@@ -69,6 +69,8 @@ export interface AgentState {
   lastPersistedTokensRef: React.RefObject<number>;
   autoResponseTimestamps: React.RefObject<number[]>;
   currentSessionIdRef: React.RefObject<string>;
+  lastCompressionTimestamp: number;
+  setLastCompressionTimestamp: React.Dispatch<React.SetStateAction<number>>;
 }
 
 export function useAgentState(
@@ -109,6 +111,7 @@ export function useAgentState(
     string | null
   >(null);
   const [shouldAutoRespond, setShouldAutoRespond] = useState(false);
+  const [lastCompressionTimestamp, setLastCompressionTimestamp] = useState(0);
   const [workbenchHealth, setWorkbenchHealth] =
     useState<AgentState['workbenchHealth']>(null);
 
@@ -192,5 +195,7 @@ export function useAgentState(
     lastPersistedTokensRef,
     autoResponseTimestamps,
     currentSessionIdRef,
+    lastCompressionTimestamp,
+    setLastCompressionTimestamp,
   };
 }

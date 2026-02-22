@@ -134,6 +134,8 @@ export async function injectRelevantContext(
     maxContextTurns?: number;
     /** Maximum characters per context snippet */
     maxSnippetLength?: number;
+    /** Only consider turns BEFORE this timestamp (ms) */
+    beforeTimestamp?: number;
   } = {}
 ): Promise<{ message: string; embedding: number[] | null }> {
   const {
@@ -142,6 +144,7 @@ export async function injectRelevantContext(
     windowSize = 50, // Increased from 20 to scan more history
     maxContextTurns = 5, // Increased from 3 to inject more context
     maxSnippetLength = 500, // Increased from 400 for more detail
+    beforeTimestamp = Infinity,
   } = options;
 
   // Skip if no history
@@ -184,10 +187,25 @@ export async function injectRelevantContext(
       return { message: userMessage, embedding: null };
     }
 
-    // Get recent turns (sliding window)
+    // Get turns BEFORE the timestamp (only archived turns)
+    const candidates = turnAnalyses.filter(
+      (t) => t.timestamp < beforeTimestamp
+    );
+
+    // Skip if no candidates match gating criteria
+    if (candidates.length === 0) {
+      if (debug) {
+        systemLog('sigma', 'No archived turns found before timestamp', {
+          beforeTimestamp,
+        });
+      }
+      return { message: userMessage, embedding: null };
+    }
+
+    // Get recent turns from candidates (sliding window)
     // Also include ALL paradigm shifts regardless of recency
-    const recentTurns = turnAnalyses.slice(-windowSize);
-    const paradigmShifts = turnAnalyses.filter(
+    const recentTurns = candidates.slice(-windowSize);
+    const paradigmShifts = candidates.filter(
       (t) => t.is_paradigm_shift && !recentTurns.includes(t)
     );
 

@@ -329,6 +329,7 @@ export function useSessionManager(
     forceNewSession: false,
     injectedRecap: null,
     hasReceivedSDKSessionId: false,
+    lastCompressionTimestamp: 0,
   });
 
   // Load session on mount
@@ -341,6 +342,7 @@ export function useSessionManager(
         ...prev,
         currentSessionId: result.currentSessionId,
         resumeSessionId: result.resumeSessionId,
+        lastCompressionTimestamp: result.lastCompressionTimestamp || 0,
       }));
 
       if (result.message) {

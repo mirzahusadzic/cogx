@@ -128,6 +128,13 @@ export interface SessionState {
    * Restored on session resume to enable accurate compression triggering
    */
   lastTotalTokens?: SessionTokens;
+
+  /**
+   * Timestamp of the last compression event (ms)
+   * Used to gate context injection (only inject turns from BEFORE this timestamp)
+   * undefined or 0 means no compression has occurred in this session.
+   */
+  lastCompressionTimestamp?: number;
 }
 
 /**
@@ -191,6 +198,12 @@ export interface SessionLoadResult {
     delegate_session_id?: string;
     result_summary?: string;
   }>;
+
+  /**
+   * Timestamp of the last compression event (ms)
+   * Used to determine which turns are already in the verbatim history.
+   */
+  lastCompressionTimestamp?: number;
 }
 
 /**

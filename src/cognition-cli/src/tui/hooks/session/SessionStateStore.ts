@@ -397,6 +397,18 @@ export class SessionStateStore {
         }
       : undefined;
 
+    // Find timestamp of the last compression event
+    // This is used to gate context injection (only inject turns from BEFORE compression)
+    let lastCompressionTimestamp = 0;
+    const compressionEntries = state.compression_history.filter(
+      (h) => h.reason === 'compression'
+    );
+    if (compressionEntries.length > 0) {
+      lastCompressionTimestamp = new Date(
+        compressionEntries[compressionEntries.length - 1].timestamp
+      ).getTime();
+    }
+
     return {
       resumeSessionId: state.current_session,
       currentSessionId: this.anchorId,
@@ -407,6 +419,7 @@ export class SessionStateStore {
       model: state.model,
       // Include todos for providers without native SigmaTaskUpdate (Gemini, OpenAI)
       todos: state.todos,
+      lastCompressionTimestamp,
     };
   }
 
