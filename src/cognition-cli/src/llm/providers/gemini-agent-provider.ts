@@ -105,6 +105,9 @@ interface AdkSession {
     content?: {
       parts?: Array<{
         text?: string;
+        thought?: boolean;
+        thoughtSignature?: string;
+        functionCall?: { name: string; args?: Record<string, unknown> };
         functionResponse?: { name: string; response?: unknown };
       }>;
     };
@@ -286,7 +289,32 @@ export class GeminiAgentProvider implements AgentProvider {
       const newEvents: NonNullable<AdkSession['events']> = [];
       let evictedCount = 0;
 
-      for (const event of events) {
+      // Pass 1: Identify task range (from 'in_progress' to 'completed')
+      let startIndex = -1;
+      for (let i = 0; i < events.length; i++) {
+        const parts = events[i].content?.parts || [];
+        const taskInProgress = parts.some(
+          (p) =>
+            p.functionCall?.name === 'SigmaTaskUpdate' &&
+            (p.functionCall.args as Record<string, unknown>)?.todos &&
+            Array.isArray(
+              (p.functionCall.args as Record<string, unknown>).todos
+            ) &&
+            (
+              (p.functionCall.args as Record<string, unknown>).todos as Array<{
+                id: string;
+                status: string;
+              }>
+            ).some((t) => t.id === taskId && t.status === 'in_progress')
+        );
+        if (taskInProgress) {
+          startIndex = i;
+          break;
+        }
+      }
+
+      for (let i = 0; i < events.length; i++) {
+        const event = events[i];
         const parts = event.content?.parts || [];
         const hasTag = parts.some((p) => {
           if (p.text?.includes(tag)) return true;
@@ -296,30 +324,56 @@ export class GeminiAgentProvider implements AgentProvider {
           return false;
         });
 
-        if (hasTag) {
+        // Turn-Range Eviction: Prune assistant turns (thinking/text) within the task window.
+        const isAssistantTurnInRange =
+          startIndex !== -1 &&
+          i >= startIndex &&
+          event.author === 'cognition_agent';
+
+        if (hasTag || isAssistantTurnInRange) {
           evictedLogs.push(JSON.stringify(event, null, 2));
           evictedCount++;
+
           // Replace with tombstone
-          const tombstoneText = result_summary
+          const toolTombstone = result_summary
             ? `[Task ${taskId} completed. Raw logs evicted to archive. \nSUMMARY: ${result_summary}]`
             : `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`;
 
-          const tombstoneParts = parts.map((p) => {
-            if (p.functionResponse) {
-              return {
-                ...p,
-                functionResponse: {
-                  name: p.functionResponse.name,
-                  response: {
-                    result: tombstoneText,
+          const assistantTombstone = `[Assistant thinking/text for task ${taskId} evicted to save tokens.]`;
+
+          let hasAssistantTombstonePart = false;
+          const tombstoneParts = parts
+            .map((p) => {
+              if (p.functionResponse) {
+                // Surgical Tool Eviction
+                return {
+                  ...p,
+                  functionResponse: {
+                    name: p.functionResponse.name,
+                    response: {
+                      result: toolTombstone,
+                    },
                   },
-                },
-              };
-            }
-            return {
-              text: tombstoneText,
-            };
-          });
+                };
+              }
+
+              if (isAssistantTurnInRange && (p.thought || p.text)) {
+                // Turn-Range Assistant Eviction (Prune thinking/text)
+                if (!hasAssistantTombstonePart) {
+                  hasAssistantTombstonePart = true;
+                  return { text: assistantTombstone };
+                }
+                return null; // Remove extra parts (multiple thinking/text parts)
+              }
+
+              // Surgical Tag Eviction for non-assistant turns or non-range turns
+              if (hasTag && p.text?.includes(tag)) {
+                return { text: toolTombstone };
+              }
+
+              return p; // Keep tool calls and other parts
+            })
+            .filter((p): p is NonNullable<typeof p> => p !== null);
 
           newEvents.push({
             ...event,
@@ -357,7 +411,7 @@ export class GeminiAgentProvider implements AgentProvider {
 
         systemLog(
           'sigma',
-          `Surgically evicted ${evictedCount} log messages for task ${taskId}. ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
+          `Evicted ${evictedCount} log messages (Turn-Range + Surgical) for task ${taskId}. ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
         );
       }
     } catch (err) {
