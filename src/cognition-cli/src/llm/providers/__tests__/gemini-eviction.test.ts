@@ -64,6 +64,7 @@ vi.mock('@google/adk', () => {
 
 vi.mock('../../../sigma/session-state.js', () => ({
   getActiveTaskId: vi.fn(),
+  loadSessionState: vi.fn().mockReturnValue({ todos: [] }),
 }));
 
 describe('Gemini Eviction Strategy', () => {
@@ -258,6 +259,164 @@ describe('Gemini Eviction Strategy', () => {
       expect(
         toolEvent.content.parts[0].functionResponse.response.result
       ).toContain(resultSummary);
+    });
+
+    it('should gracefully handle missing in_progress tag (Fallback Behavior)', async () => {
+      const taskId = 'task-missing-start';
+      const resultSummary = 'Final outcome.';
+
+      const mockEvents = [
+        {
+          // Older event, not marked as in_progress
+          author: 'cognition_agent',
+          content: {
+            parts: [
+              {
+                thought: true,
+                thoughtSignature: 'sig-old',
+                text: 'Old thinking...',
+              },
+              { text: 'Old text.' },
+              {
+                functionCall: { name: 'other_tool', args: {} },
+              },
+            ],
+          },
+        },
+        {
+          author: 'cognition_agent',
+          content: {
+            parts: [
+              {
+                functionResponse: {
+                  name: 'other_tool',
+                  response: {
+                    result: `content\n<!-- sigma-task: ${taskId} -->`,
+                  },
+                },
+              },
+            ],
+          },
+        },
+      ];
+
+      const mockSession = {
+        events: [...mockEvents],
+      };
+
+      await (
+        provider as unknown as {
+          pruneTaskLogs: (
+            tid: string,
+            rs: string,
+            sid: string,
+            pr: string,
+            as: unknown
+          ) => Promise<void>;
+        }
+      ).pruneTaskLogs(taskId, resultSummary, 'session-fb', '/tmp', mockSession);
+
+      // Event 0: Assistant turn should NOT be touched because start index is -1
+      const assistantEvent = mockSession.events[0];
+      expect(assistantEvent.content.parts.length).toBe(3); // Thought, text, functionCall
+      expect(assistantEvent.content.parts[0].text).toBe('Old thinking...');
+
+      // Event 1: Tool response with task tag should still be pruned
+      const toolEvent = mockSession.events[1];
+      expect(
+        toolEvent.content.parts[0].functionResponse.response.result
+      ).toContain(resultSummary);
+      expect(
+        toolEvent.content.parts[0].functionResponse.response.result
+      ).toContain('evicted to archive');
+    });
+
+    it('should inject result_summary ONLY in the final tombstone (No Duplication)', async () => {
+      const taskId = 'task-dup';
+      const resultSummary = 'Unique injected summary.';
+
+      const mockEvents = [
+        {
+          author: 'cognition_agent',
+          content: {
+            parts: [
+              {
+                functionResponse: {
+                  name: 'tool_one',
+                  response: {
+                    result: `output 1\n<!-- sigma-task: ${taskId} -->`,
+                  },
+                },
+              },
+            ],
+          },
+        },
+        {
+          author: 'cognition_agent',
+          content: {
+            parts: [
+              {
+                functionResponse: {
+                  name: 'tool_two',
+                  response: {
+                    result: `output 2\n<!-- sigma-task: ${taskId} -->`,
+                  },
+                },
+              },
+            ],
+          },
+        },
+        {
+          author: 'cognition_agent',
+          content: {
+            parts: [
+              {
+                functionResponse: {
+                  name: 'tool_three', // Unrelated tool
+                  response: { result: `output 3\n<!-- sigma-task: other -->` },
+                },
+              },
+            ],
+          },
+        },
+      ];
+
+      const mockSession = { events: [...mockEvents] };
+
+      await (
+        provider as unknown as {
+          pruneTaskLogs: (
+            tid: string,
+            rs: string,
+            sid: string,
+            pr: string,
+            as: unknown
+          ) => Promise<void>;
+        }
+      ).pruneTaskLogs(
+        taskId,
+        resultSummary,
+        'session-dup',
+        '/tmp',
+        mockSession
+      );
+
+      // Event 0: Evicted but NO summary (it is not the last evicted index)
+      const toolOneEviction =
+        mockSession.events[0].content.parts[0].functionResponse.response.result;
+      expect(toolOneEviction).toContain('evicted to archive');
+      expect(toolOneEviction).not.toContain(resultSummary);
+
+      // Event 1: Evicted AND contains the summary (last evicted index)
+      const toolTwoEviction =
+        mockSession.events[1].content.parts[0].functionResponse.response.result;
+      expect(toolTwoEviction).toContain('evicted to archive');
+      expect(toolTwoEviction).toContain(resultSummary);
+
+      // Event 2: Unrelated tool, untouched
+      expect(
+        mockSession.events[2].content.parts[0].functionResponse.response.result
+      ).toContain('output 3');
     });
 
     it('should persist evictions in InMemorySessionService internal storage (Bug Fix Verification)', async () => {

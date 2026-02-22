@@ -476,6 +476,33 @@ describe('Tool Executors', () => {
       expect(result).toContain('Session state not found');
     });
 
+    test('should enforce single active task rule (Error on Multiple in_progress)', async () => {
+      const { executeSigmaTaskUpdate: executeSigmaTaskUpdateTest } =
+        await import('../tool-executors.js');
+
+      const todos = [
+        {
+          id: '1',
+          status: 'in_progress',
+          content: 'Task 1',
+          activeForm: 'Doing 1',
+        },
+        {
+          id: '2',
+          status: 'in_progress',
+          content: 'Task 2',
+          activeForm: 'Doing 2',
+        },
+      ];
+
+      const result = await executeSigmaTaskUpdateTest(
+        todos,
+        '/test/cwd',
+        'tui-test-anchor'
+      );
+      expect(result).toContain('Only ONE task can be in_progress at a time');
+    });
+
     test('should pass anchorId as required parameter', async () => {
       const mockUpdateTodosByAnchorId = vi.fn().mockReturnValue('Success');
 
