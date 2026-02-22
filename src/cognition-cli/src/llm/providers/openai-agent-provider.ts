@@ -831,7 +831,7 @@ export class OpenAIAgentProvider implements AgentProvider {
         name: 'cognition_agent',
         model: modelImpl,
         instructions:
-          this.buildSystemPrompt(request, conversationId) +
+          this.buildSystemPrompt(request) +
           (groundingContext
             ? `\n\n## Automated Grounding Context\n${groundingContext}`
             : ''),
@@ -1456,10 +1456,7 @@ export class OpenAIAgentProvider implements AgentProvider {
   /**
    * Build system prompt for the agent
    */
-  private buildSystemPrompt(
-    request: AgentRequest,
-    conversationId: string
-  ): string {
+  private buildSystemPrompt(request: AgentRequest): string {
     if (
       request.systemPrompt?.type === 'custom' &&
       request.systemPrompt.custom
@@ -1587,11 +1584,8 @@ When delegating via send_agent_message, use this structured format:
     const memoryRules = `
 ### 🧠 MEMORY & EVICTION RULES (CRITICAL)
 1. **The "Amnesia" Warning**: When you mark a task as \`completed\`, the system IMMEDIATELY deletes all tool outputs (file reads, grep results, bash logs) associated with that task.
-2. **Distill Before Dying**: You are FORBIDDEN from completing a task until you have saved the *essential findings*.
-   - **Simple Findings**: Write them into the \`result_summary\` field of \`SigmaTaskUpdate\`.
-   - **Complex Findings (Code/Diffs)**: Write them to \`.sigma/archives/${conversationId}/active_context.md\` using \`write_file\` or \`edit_file\` before completing the task.
-3. **Context Grooming**: Treat \`active_context.md\` as a volatile scratchpad. When a sub-project is finished, proactively delete obsolete notes from it using \`edit_file\` to keep your baseline context lean.
-4. **Verification**: Before calling \`SigmaTaskUpdate(status='completed')\`, ask yourself: "If I lose all my previous logs right now, do I have enough info in the summary/scratchpad to continue?"
+2. **Distill Before Dying**: You are FORBIDDEN from completing a task until you have saved the *essential findings* into the \`result_summary\` field of \`SigmaTaskUpdate\`.
+3. **Verification**: Before calling \`SigmaTaskUpdate(status='completed')\`, ask yourself: "If I lose all my previous logs right now, do I have enough info in the summary to continue?"
 `;
 
     const taskStateRules = isSolo

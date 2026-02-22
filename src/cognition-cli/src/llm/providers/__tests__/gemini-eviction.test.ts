@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GeminiAgentProvider } from '../gemini-agent-provider.js';
 import { getCognitionTools } from '../gemini-adk-tools.js';
-import * as fs from 'fs/promises';
 
 // Mock fs/promises
 vi.mock('fs/promises', () => ({
@@ -93,7 +92,6 @@ describe('Gemini Eviction Strategy', () => {
       expect(systemPrompt).toContain('MEMORY & EVICTION RULES (CRITICAL)');
       expect(systemPrompt).toContain('The "Amnesia" Warning');
       expect(systemPrompt).toContain('Distill Before Dying');
-      expect(systemPrompt).toContain('Context Grooming');
     });
   });
 
@@ -363,45 +361,6 @@ describe('Gemini Eviction Strategy', () => {
       expect(lastResponse.tokens.prompt).toBe(100);
       expect(lastResponse.tokens.completion).toBe(100);
       expect(lastResponse.tokens.total).toBe(200);
-    });
-  });
-
-  describe('Active Context Loading', () => {
-    it('should load active_context.md into the instruction when it exists', async () => {
-      const { LlmAgent } = await import('@google/adk');
-      const activeContextContent =
-        'Existing critical finding: API key is in config.ts';
-      vi.mocked(fs.readFile).mockResolvedValue(activeContextContent);
-
-      const generator = provider.executeAgent({
-        prompt: 'test prompt',
-        model: 'gemini-3-flash-preview',
-        cwd: '/tmp/project',
-        resumeSessionId: 'session-123',
-      });
-
-      // Consume until cognition_agent is created
-      for await (const response of generator) {
-        if (
-          vi
-            .mocked(LlmAgent)
-            .mock.calls.some((c) => c[0].name === 'cognition_agent')
-        ) {
-          expect(response).toBeDefined();
-          break;
-        }
-      }
-
-      const cognitionAgentCall = vi
-        .mocked(LlmAgent)
-        .mock.calls.find((c) => c[0].name === 'cognition_agent');
-      expect(cognitionAgentCall).toBeDefined();
-      expect(cognitionAgentCall![0].instruction).toContain(
-        'Long Term Working Memory'
-      );
-      expect(cognitionAgentCall![0].instruction).toContain(
-        activeContextContent
-      );
     });
   });
 });
