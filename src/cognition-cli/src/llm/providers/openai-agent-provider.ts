@@ -630,6 +630,7 @@ export class OpenAIAgentProvider implements AgentProvider {
    */
   private async pruneTaskLogs(
     taskId: string,
+    result_summary: string | undefined,
     conversationId: string,
     projectRoot: string
   ) {
@@ -671,9 +672,13 @@ export class OpenAIAgentProvider implements AgentProvider {
         await fs.mkdir(archiveDir, { recursive: true });
         const archivePath = path.join(archiveDir, `${taskId}.log`);
 
+        const summaryHeader = result_summary
+          ? `\nSUMMARY: ${result_summary}\n`
+          : '';
+
         await fs.appendFile(
           archivePath,
-          `\n--- ARCHIVED AT ${new Date().toISOString()} ---\n` +
+          `\n--- ARCHIVED AT ${new Date().toISOString()} ---${summaryHeader}\n` +
             evictedLogs.join('\n---\n')
         );
 
@@ -797,13 +802,17 @@ export class OpenAIAgentProvider implements AgentProvider {
       }
 
       // Build tools array
-      const tools = this.buildTools(request, async (taskId: string) => {
-        await this.pruneTaskLogs(
-          taskId,
-          conversationId,
-          request.cwd || request.projectRoot || process.cwd()
-        );
-      });
+      const tools = this.buildTools(
+        request,
+        async (taskId: string, result_summary?: string) => {
+          await this.pruneTaskLogs(
+            taskId,
+            result_summary,
+            conversationId,
+            request.cwd || request.projectRoot || process.cwd()
+          );
+        }
+      );
       systemLog('openai', 'Built tools', { count: tools.length }, 'debug');
 
       // Use Responses API for all endpoints (primary API for Agents SDK)
@@ -820,7 +829,7 @@ export class OpenAIAgentProvider implements AgentProvider {
         name: 'cognition_agent',
         model: modelImpl,
         instructions:
-          this.buildSystemPrompt(request) +
+          this.buildSystemPrompt(request, conversationId) +
           (groundingContext
             ? `\n\n## Automated Grounding Context\n${groundingContext}`
             : ''),
@@ -1408,7 +1417,7 @@ export class OpenAIAgentProvider implements AgentProvider {
    */
   private buildTools(
     request: AgentRequest,
-    onTaskCompleted?: (taskId: string) => Promise<void>
+    onTaskCompleted?: (taskId: string, result_summary?: string) => Promise<void>
   ) {
     return getOpenAITools({
       cwd: request.cwd || process.cwd(),
@@ -1445,7 +1454,10 @@ export class OpenAIAgentProvider implements AgentProvider {
   /**
    * Build system prompt for the agent
    */
-  private buildSystemPrompt(request: AgentRequest): string {
+  private buildSystemPrompt(
+    request: AgentRequest,
+    conversationId: string
+  ): string {
     if (
       request.systemPrompt?.type === 'custom' &&
       request.systemPrompt.custom
@@ -1570,13 +1582,26 @@ When delegating via send_agent_message, use this structured format:
 \`\`\`
 `;
 
+    const memoryRules = `
+### 🧠 MEMORY & EVICTION RULES (CRITICAL)
+1. **The "Amnesia" Warning**: When you mark a task as \`completed\`, the system IMMEDIATELY deletes all tool outputs (file reads, grep results, bash logs) associated with that task.
+2. **Distill Before Dying**: You are FORBIDDEN from completing a task until you have saved the *essential findings*.
+   - **Simple Findings**: Write them into the \`result_summary\` field of \`SigmaTaskUpdate\`.
+   - **Complex Findings (Code/Diffs)**: Write them to \`.sigma/archives/${conversationId}/active_context.md\` using \`write_file\` or \`edit_file\` before completing the task.
+3. **Context Grooming**: Treat \`active_context.md\` as a volatile scratchpad. When a sub-project is finished, proactively delete obsolete notes from it using \`edit_file\` to keep your baseline context lean.
+4. **Verification**: Before calling \`SigmaTaskUpdate(status='completed')\`, ask yourself: "If I lose all my previous logs right now, do I have enough info in the summary/scratchpad to continue?"
+`;
+
     const taskStateRules = isSolo
       ? `### Task State Rules
 1. **Task States**: pending (not started), in_progress (currently working), completed (finished)
 2. **Task-First (Token Health)**: ALWAYS mark a task as \`in_progress\` BEFORE running tools (research, read_file, bash, etc.). This ensures tool outputs are tagged with the active task ID for surgical context eviction upon completion.
 3. **One at a time**: Exactly ONE task should be in_progress at any time
 4. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing to trigger log eviction and reclaim tokens.
-5. **Research Continuity**: Summarize findings in your thoughts before completing a task, as logs will be evicted.
+5. **Persistence via Summary**: The raw logs of a completed task (file contents, grep results) WILL BE DELETED immediately.
+   - You MUST distill all critical findings into the \`result_summary\` field of SigmaTaskUpdate.
+   - Do not write "Done" or "Found it". Write "Found API key in config.ts line 45" or "UserController.ts handles auth logic".
+   - If the \`result_summary\` is empty or vague, you will lose the knowledge required for subsequent tasks.
 6. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker.
 7. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")`
       : `### Task State Rules
@@ -1585,7 +1610,10 @@ When delegating via send_agent_message, use this structured format:
 3. **One at a time**: Exactly ONE task should be in_progress at any time
 4. **Delegation**: When delegating, set status to 'delegated' AND send IPC message. Do not mark completed until worker reports back.
 5. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing to trigger log eviction and reclaim tokens.
-6. **Research Continuity**: Summarize findings in your thoughts before completing a task, as logs will be evicted.
+6. **Persistence via Summary**: The raw logs of a completed task (file contents, grep results) WILL BE DELETED immediately.
+   - You MUST distill all critical findings into the \`result_summary\` field of SigmaTaskUpdate.
+   - Do not write "Done" or "Found it". Write "Found API key in config.ts line 45" or "UserController.ts handles auth logic".
+   - If the \`result_summary\` is empty or vague, you will lose the knowledge required for subsequent tasks.
 7. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker.
 8. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")`;
 
@@ -1596,6 +1624,8 @@ When delegating via send_agent_message, use this structured format:
 
 ## What is Cognition Σ?
 A portable cognitive layer that can be initialized in **any repository**. Creates \`.sigma/\` (conversation memory) and \`.open_cognition/\` (PGC project knowledge store) in the current working directory.
+
+${memoryRules}
 
 ## Your Capabilities
 

@@ -50,7 +50,7 @@ export interface MinimaxToolsContext {
   anchorId?: string;
   onToolOutput?: (output: string) => void;
   /** Callback for when a task is completed (triggers surgical eviction) */
-  onTaskCompleted?: (taskId: string) => Promise<void>;
+  onTaskCompleted?: (taskId: string, result_summary?: string) => Promise<void>;
   /** Callback to get the currently active task ID */
   getActiveTaskId?: () => string | null;
   /** Operation mode (solo = skip IPC/PGC tools) */
@@ -77,6 +77,7 @@ interface MinimaxTodo {
   acceptance_criteria?: string[];
   delegated_to?: string;
   context?: string;
+  result_summary?: string;
   grounding?: unknown;
   grounding_evidence?: unknown;
 }
@@ -698,6 +699,17 @@ export async function executeMinimaxTool(
 
       const todos = inputTodos.map((todo) => {
         const cleanTodo = { ...todo };
+
+        if (
+          cleanTodo.status === 'completed' &&
+          (!cleanTodo.result_summary || cleanTodo.result_summary.length < 15)
+        ) {
+          throw new Error(
+            "Validation Error: You cannot mark a task as 'completed' without providing a detailed 'result_summary' (min 15 chars). " +
+              "Raw tool logs for this task will be evicted. Please summarize your findings so you don't lose context."
+          );
+        }
+
         const grounding = inputGrounding.find((g) => g.id === todo.id);
         if (grounding) cleanTodo.grounding = grounding;
         const evidence = inputEvidence.find((e) => e.id === todo.id);
@@ -715,7 +727,7 @@ export async function executeMinimaxTool(
       if (context.onTaskCompleted) {
         for (const todo of inputTodos) {
           if (todo.status === 'completed') {
-            await context.onTaskCompleted(todo.id);
+            await context.onTaskCompleted(todo.id, todo.result_summary);
           }
         }
       }

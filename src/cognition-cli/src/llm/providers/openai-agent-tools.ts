@@ -315,7 +315,7 @@ function createSigmaTaskUpdateTool(
   cwd: string,
   anchorId: string | undefined,
   mode?: 'solo' | 'full',
-  onTaskCompleted?: (taskId: string) => Promise<void>
+  onTaskCompleted?: (taskId: string, result_summary?: string) => Promise<void>
 ): OpenAITool {
   const isSolo = mode === 'solo';
 
@@ -411,6 +411,16 @@ function createSigmaTaskUpdateTool(
       if (todo.delegate_session_id)
         cleanTodo.delegate_session_id = todo.delegate_session_id;
       if (todo.result_summary) cleanTodo.result_summary = todo.result_summary;
+
+      if (
+        cleanTodo.status === 'completed' &&
+        (!cleanTodo.result_summary || cleanTodo.result_summary.length < 15)
+      ) {
+        throw new Error(
+          "Validation Error: You cannot mark a task as 'completed' without providing a detailed 'result_summary' (min 15 chars). " +
+            "Raw tool logs for this task will be evicted. Please summarize your findings so you don't lose context."
+        );
+      }
 
       // Merge grounding from separate array if present
       const groundingData = (rawGroundings || []).find((g) => g.id === todo.id);
@@ -510,9 +520,9 @@ function createSigmaTaskUpdateTool(
 
     // Trigger surgical eviction if a task was completed
     if (onTaskCompleted) {
-      for (const todo of rawTodos || []) {
+      for (const todo of processedTodos) {
         if (todo.status === 'completed') {
-          await onTaskCompleted(todo.id);
+          await onTaskCompleted(todo.id, todo.result_summary);
         }
       }
     }
