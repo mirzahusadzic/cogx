@@ -56,6 +56,13 @@ export interface SessionState {
     total: number;
   };
 
+  /** Cumulative session token usage (persists across restarts) */
+  cumulative_tokens?: {
+    input: number;
+    output: number;
+    total: number;
+  };
+
   /** Active task list for this session (for providers without native SigmaTaskUpdate) */
   todos?: Array<{
     /** Unique stable identifier for this task (e.g., nanoid or semantic slug) */
@@ -78,6 +85,14 @@ export interface SessionState {
     delegate_session_id?: string;
     /** Worker's completion report */
     result_summary?: string;
+
+    /** Tokens at start of task (TUI-internal) */
+    tokensAtStart?: number;
+    /** Total tokens used for this task across context windows (TUI-internal) */
+    tokensUsed?: number;
+    /** Tokens accumulated from previous context windows (TUI-internal) */
+    tokensAccumulated?: number;
+
     /** Grounding requirements for the task */
     grounding?: {
       /**
@@ -145,6 +160,9 @@ function migrateTasks(
     context?: string;
     delegate_session_id?: string;
     result_summary?: string;
+    tokensAtStart?: number;
+    tokensUsed?: number;
+    tokensAccumulated?: number;
     grounding?: {
       strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
       overlay_hints?: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;

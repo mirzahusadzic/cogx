@@ -6,9 +6,13 @@ import type { AgentState } from './useAgentState.js';
 import type { UseSessionManagerResult } from '../session/useSessionManager.js';
 import type { UseTurnAnalysisReturn } from '../analysis/useTurnAnalysis.js';
 import type { useTokenCount } from '../tokens/useTokenCount.js';
+import type { useSessionTokenCount } from '../tokens/useSessionTokenCount.js';
 
 export function useAgentSync(
-  state: AgentState & { tokenCounter: ReturnType<typeof useTokenCount> },
+  state: AgentState & {
+    tokenCounter: ReturnType<typeof useTokenCount>;
+    sessionTokenCounter: ReturnType<typeof useSessionTokenCount>;
+  },
   sessionManager: UseSessionManagerResult,
   turnAnalysis: UseTurnAnalysisReturn,
   cwd: string,
@@ -24,6 +28,8 @@ export function useAgentSync(
     setOverlayScores,
     currentSessionIdRef,
     tokenCounter,
+    sessionTokenCounter,
+    sigmaTasks,
   } = state;
 
   const currentSessionIdValue = currentSessionIdRef.current;
@@ -108,13 +114,26 @@ export function useAgentSync(
     };
   }, [currentSessionIdValue, conversationRegistryRef]);
 
-  // Persist token count
+  // Persist token count and tasks
   useEffect(() => {
-    if (tokenCounter.count.total === lastPersistedTokensRef.current) return;
+    if (
+      tokenCounter.count.total === lastPersistedTokensRef.current &&
+      sigmaTasks.todos.length === 0
+    ) {
+      return;
+    }
 
     sessionManager.updateTokens(tokenCounter.count);
+    sessionManager.updateSessionTokens(sessionTokenCounter.count);
+    sessionManager.updateTasks(sigmaTasks.todos);
     lastPersistedTokensRef.current = tokenCounter.count.total;
-  }, [tokenCounter.count, sessionManager, lastPersistedTokensRef]);
+  }, [
+    tokenCounter.count,
+    sessionTokenCounter.count,
+    sigmaTasks.todos,
+    sessionManager,
+    lastPersistedTokensRef,
+  ]);
 
   // Compute overlay scores
   useEffect(() => {

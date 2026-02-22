@@ -290,6 +290,37 @@ export class SessionStateStore {
   }
 
   /**
+   * Update cumulative session token counts.
+   *
+   * Persists the total tokens consumed throughout the entire session
+   * across multiple restarts and context evictions.
+   *
+   * @param tokens - Cumulative session token counts
+   * @returns True if update succeeded, false on error
+   */
+  updateSessionTokens(tokens: SessionTokens): boolean {
+    const state = this.load();
+    if (!state) {
+      if (this.debug) {
+        systemLog(
+          'tui',
+          '[SessionStateStore] No state to update session tokens'
+        );
+      }
+      return false;
+    }
+
+    state.cumulative_tokens = {
+      input: tokens.input,
+      output: tokens.output,
+      total: tokens.total,
+    };
+    state.last_updated = new Date().toISOString();
+
+    return this.save(state);
+  }
+
+  /**
    * Update last known token counts.
    *
    * Persists current token usage for restoration on TUI restart.
@@ -312,6 +343,30 @@ export class SessionStateStore {
       output: tokens.output,
       total: tokens.total,
     };
+    state.last_updated = new Date().toISOString();
+
+    return this.save(state);
+  }
+
+  /**
+   * Update session tasks.
+   *
+   * Overwrites todos section of state file with new task list.
+   * Used by providers without native SigmaTaskUpdate (Gemini, OpenAI).
+   *
+   * @param todos - New task list to save
+   * @returns True if update succeeded, false on error
+   */
+  updateTasks(todos: SessionState['todos']): boolean {
+    const state = this.load();
+    if (!state) {
+      if (this.debug) {
+        systemLog('tui', '[SessionStateStore] No state to update tasks');
+      }
+      return false;
+    }
+
+    state.todos = todos;
     state.last_updated = new Date().toISOString();
 
     return this.save(state);
@@ -397,6 +452,15 @@ export class SessionStateStore {
         }
       : undefined;
 
+    // Restore cumulative session token counts
+    const restoredSessionTokens = state.cumulative_tokens
+      ? {
+          input: state.cumulative_tokens.input,
+          output: state.cumulative_tokens.output,
+          total: state.cumulative_tokens.total,
+        }
+      : undefined;
+
     // Find timestamp of the last compression event
     // This is used to gate context injection (only inject turns from BEFORE compression)
     let lastCompressionTimestamp = 0;
@@ -414,6 +478,7 @@ export class SessionStateStore {
       currentSessionId: this.anchorId,
       message,
       restoredTokens,
+      restoredSessionTokens,
       // Include provider/model for backward-compatible resume
       provider: state.provider,
       model: state.model,

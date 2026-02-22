@@ -84,6 +84,8 @@ export function useAgent(options: UseAgentOptions) {
     onSessionLoaded: handleSessionLoaded,
     onSDKSessionChanged: handleSDKSessionChanged,
     onTokensRestored: tokenCounter.initialize,
+    onSessionTokensRestored: sessionTokenCounter.initialize,
+    onTasksRestored: (tasks) => state.setSigmaTasks({ todos: tasks }),
   });
 
   const anchorId = sessionManager.state.anchorId;
@@ -170,7 +172,7 @@ export function useAgent(options: UseAgentOptions) {
   useAgentServices({ options, state, anchorId, addSystemMessage });
   useAgentMessaging({ options, state });
   useAgentSync(
-    { ...state, tokenCounter },
+    { ...state, tokenCounter, sessionTokenCounter },
     sessionManager,
     turnAnalysis,
     cwd,

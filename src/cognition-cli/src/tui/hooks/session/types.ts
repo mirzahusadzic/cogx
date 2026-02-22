@@ -45,6 +45,8 @@
  * resumeSessionId: 'sdk-uuid-2' (resume from last session)
  */
 
+import type { SigmaTask } from '../useAgent/types.js';
+
 /**
  * Options for configuring session management
  */
@@ -184,20 +186,14 @@ export interface SessionLoadResult {
   model?: string;
 
   /**
+   * Restored cumulative session token counts
+   */
+  restoredSessionTokens?: SessionTokens;
+
+  /**
    * Restored tasks from session state (for providers without native SigmaTaskUpdate)
    */
-  todos?: Array<{
-    id: string;
-    content: string;
-    status: 'pending' | 'in_progress' | 'completed' | 'delegated';
-    activeForm: string;
-    // Delegation fields (Manager/Worker paradigm)
-    acceptance_criteria?: string[];
-    delegated_to?: string;
-    context?: string;
-    delegate_session_id?: string;
-    result_summary?: string;
-  }>;
+  todos?: SigmaTask[];
 
   /**
    * Timestamp of the last compression event (ms)

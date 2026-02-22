@@ -32,6 +32,28 @@ describe('useSessionTokenCount', () => {
     expect(result.current.count.total).toBe(350);
   });
 
+  it('should ignore 0-token reports to avoid data loss', () => {
+    const { result } = renderHook(() => useSessionTokenCount());
+
+    // Turn 1
+    act(() => {
+      result.current.update({ input: 100, output: 50, total: 150 });
+    });
+    expect(result.current.count.total).toBe(150);
+
+    // Turn 2 starts with 0 (should be ignored)
+    act(() => {
+      result.current.update({ input: 0, output: 0, total: 0 });
+    });
+    expect(result.current.count.total).toBe(150);
+
+    // Turn 2 reports context size
+    act(() => {
+      result.current.update({ input: 160, output: 40, total: 200 });
+    });
+    expect(result.current.count.total).toBe(200);
+  });
+
   it('should detect turn reset automatically during streaming', () => {
     const { result } = renderHook(() => useSessionTokenCount());
 
@@ -46,7 +68,7 @@ describe('useSessionTokenCount', () => {
     // 160 is > 150, so it won't detect reset unless we see a drop.
     // Actually, if Turn 2's total starts LOWER than Turn 1's total, it detects it.
     // But if Turn 2 is higher (due to context), we need a manual commit or a drop.
-    
+
     // Let's test the drop case (eviction)
     act(() => {
       result.current.update({ input: 50, output: 30, total: 80 });

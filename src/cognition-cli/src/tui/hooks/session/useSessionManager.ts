@@ -64,6 +64,7 @@ import type {
   SessionTokens,
 } from './types.js';
 import type { TurnAnalysis } from '../../../sigma/types.js';
+import type { SigmaTask } from '../useAgent/types.js';
 
 /**
  * Convert a full model ID to a short name for use in anchor IDs.
@@ -166,6 +167,17 @@ export interface UseSessionManagerOptions extends SessionOptions {
    * Called during session resume to initialize token counter
    */
   onTokensRestored?: (tokens: SessionTokens) => void;
+
+  /**
+   * Callback when cumulative session tokens are restored from persisted state
+   */
+  onSessionTokensRestored?: (tokens: SessionTokens) => void;
+
+  /**
+   * Callback when tasks are restored from persisted state
+   * Called during session resume for providers without native SigmaTaskUpdate
+   */
+  onTasksRestored?: (tasks: SigmaTask[]) => void;
 }
 
 export interface UseSessionManagerResult {
@@ -210,6 +222,16 @@ export interface UseSessionManagerResult {
    * Persist current token counts for compression threshold continuity
    */
   updateTokens: (tokens: SessionTokens) => void;
+
+  /**
+   * Persist cumulative session token counts across restarts
+   */
+  updateSessionTokens: (tokens: SessionTokens) => void;
+
+  /**
+   * Persist current task list for session continuity (for providers without native SigmaTaskUpdate)
+   */
+  updateTasks: (tasks: SigmaTask[]) => void;
 }
 
 /**
@@ -296,6 +318,8 @@ export function useSessionManager(
     onSessionLoaded,
     onSDKSessionChanged,
     onTokensRestored,
+    onSessionTokensRestored,
+    onTasksRestored,
   } = options;
 
   // Generate stable anchor ID (only computed once)
@@ -349,13 +373,33 @@ export function useSessionManager(
         onSessionLoaded?.(result.message);
       }
 
-      // Restore token counts for compression threshold continuity
+      // Restore tokens and tasks for session continuity
       if (result.restoredTokens) {
         onTokensRestored?.(result.restoredTokens);
         if (debug) {
           systemLog(
             'tui',
             `[useSessionManager] Restored tokens: ${result.restoredTokens.total}`
+          );
+        }
+      }
+
+      if (result.restoredSessionTokens) {
+        onSessionTokensRestored?.(result.restoredSessionTokens);
+        if (debug) {
+          systemLog(
+            'tui',
+            `[useSessionManager] Restored cumulative tokens: ${result.restoredSessionTokens.total}`
+          );
+        }
+      }
+
+      if (result.todos && result.todos.length > 0) {
+        onTasksRestored?.(result.todos);
+        if (debug) {
+          systemLog(
+            'tui',
+            `[useSessionManager] Restored ${result.todos.length} tasks`
           );
         }
       }
@@ -369,7 +413,15 @@ export function useSessionManager(
     };
 
     loadSession();
-  }, [anchorId, cwd, debug, onSessionLoaded, onTokensRestored]);
+  }, [
+    anchorId,
+    cwd,
+    debug,
+    onSessionLoaded,
+    onTokensRestored,
+    onSessionTokensRestored,
+    onTasksRestored,
+  ]);
 
   // Update SDK session ID
   const updateSDKSession = useCallback(
@@ -575,6 +627,31 @@ export function useSessionManager(
     [debug]
   );
 
+  // Persist cumulative session token counts
+  const updateSessionTokens = useCallback(
+    (tokens: SessionTokens) => {
+      storeRef.current.updateSessionTokens(tokens);
+      if (debug) {
+        systemLog(
+          'tui',
+          `[useSessionManager] Saved cumulative tokens: ${tokens.total}`
+        );
+      }
+    },
+    [debug]
+  );
+
+  // Persist current task list for session continuity (for providers without native SigmaTaskUpdate)
+  const updateTasks = useCallback(
+    (tasks: SigmaTask[]) => {
+      storeRef.current.updateTasks(tasks);
+      if (debug) {
+        systemLog('tui', `[useSessionManager] Saved ${tasks.length} tasks`);
+      }
+    },
+    [debug]
+  );
+
   return {
     state,
     store: storeRef.current,
@@ -583,5 +660,7 @@ export function useSessionManager(
     resetResumeSession,
     getResumeSessionId,
     updateTokens,
+    updateSessionTokens,
+    updateTasks,
   };
 }

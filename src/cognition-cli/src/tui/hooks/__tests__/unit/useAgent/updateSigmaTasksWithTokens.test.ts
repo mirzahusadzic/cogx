@@ -103,4 +103,46 @@ describe('updateSigmaTasksWithTokens', () => {
     expect(result.todos[0].tokensUsed).toBe(500);
     expect(result.todos[0].status).toBe('completed');
   });
+
+  it('should preserve tokensUsed for already completed tasks', () => {
+    const prev: SigmaTasks = {
+      todos: [
+        {
+          id: '1',
+          content: 'Task 1',
+          activeForm: 'Working on 1',
+          status: 'completed',
+          tokensAtStart: 100,
+          tokensUsed: 500,
+          tokensAccumulated: 0,
+        },
+      ],
+    };
+
+    const result = updateSigmaTasksWithTokens(prev, prev, 1000);
+
+    expect(result.todos[0].tokensUsed).toBe(500);
+    expect(result.todos[0].status).toBe('completed');
+  });
+
+  it('should ignore 0 effectiveTokens', () => {
+    const prev: SigmaTasks = {
+      todos: [
+        {
+          id: '1',
+          content: 'Task 1',
+          activeForm: 'Working on 1',
+          status: 'in_progress',
+          tokensAtStart: 100,
+          tokensUsed: 400,
+          tokensAccumulated: 0,
+        },
+      ],
+    };
+
+    const result = updateSigmaTasksWithTokens(prev, prev, 0);
+
+    expect(result.todos[0].tokensUsed).toBe(400);
+    expect(result.todos[0].tokensAtStart).toBe(100);
+  });
 });

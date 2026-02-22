@@ -63,8 +63,21 @@ export function updateSigmaTasksWithTokens(
   input: SigmaTasks,
   effectiveTokens: number
 ): SigmaTasks {
+  // Ignore 0 tokens to prevent double counting on turn starts or temporary reporting drops
+  if (effectiveTokens === 0) return input;
+
   const newTodos = input.todos.map((newTodo) => {
     const oldTodo = prev.todos.find((t) => t.id === newTodo.id);
+
+    // If task was already completed in prev, freeze its token count
+    if (oldTodo?.status === 'completed') {
+      return {
+        ...newTodo,
+        tokensAtStart: oldTodo.tokensAtStart,
+        tokensAccumulated: oldTodo.tokensAccumulated,
+        tokensUsed: oldTodo.tokensUsed,
+      };
+    }
 
     // Preserve existing tracking data
     let tokensAtStart = oldTodo?.tokensAtStart;
@@ -81,7 +94,7 @@ export function updateSigmaTasksWithTokens(
     // Detect eviction: If current context size is significantly smaller than start,
     // we must have evicted tokens. Add current delta to accumulated and reset start.
     if (
-      newTodo.status === 'in_progress' &&
+      (newTodo.status === 'in_progress' || newTodo.status === 'completed') &&
       tokensAtStart !== undefined &&
       effectiveTokens < tokensAtStart
     ) {
@@ -89,7 +102,7 @@ export function updateSigmaTasksWithTokens(
       tokensAtStart = effectiveTokens;
     }
 
-    // Calculate tokensUsed for in_progress or completed tasks
+    // Calculate tokensUsed for in_progress or JUST completed tasks
     if (
       (newTodo.status === 'in_progress' || newTodo.status === 'completed') &&
       tokensAtStart !== undefined
@@ -978,7 +991,6 @@ This will trigger a semantic compression event, flushing implementation noise wh
         }
 
         setIsThinking(false);
-        sessionTokenCounter.commit();
       } catch (err) {
         const originalError = (err as Error).message;
         const errorMsg = isAuthenticationError([originalError])
@@ -991,6 +1003,7 @@ This will trigger a semantic compression event, flushing implementation noise wh
         ]);
         setIsThinking(false);
       } finally {
+        sessionTokenCounter.commit();
         currentAdapterRef.current = null;
       }
     },

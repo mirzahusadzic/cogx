@@ -29,24 +29,24 @@ export function useSessionTokenCount() {
 
   /**
    * Update current turn tokens.
-   * If the new count is lower than the last seen count (and not 0), 
+   * If the new count is lower than the last seen count (and not 0),
    * it indicates a new turn has started, so we commit the previous turn.
    */
   const update = useCallback((currentTurn: TokenCount) => {
+    // Ignore 0-token reports (common at the start of provider streams) to prevent
+    // premature turn completion or data loss.
+    if (currentTurn.total === 0) return;
+
     // Detect new turn or context eviction: if current turn total drops below last seen
-    // total (but is not 0, which occurs at start of streams), it signifies a context 
-    // reset/eviction, and we commit the previous turn's tokens to the session total.
-    if (currentTurn.total < lastTurnTokens.current.total && currentTurn.total > 0) {
+    // total, it signifies a context reset/eviction, and we commit the previous
+    // turn's tokens to the session total.
+    if (currentTurn.total < lastTurnTokens.current.total) {
       accumulated.current = {
         input: accumulated.current.input + lastTurnTokens.current.input,
         output: accumulated.current.output + lastTurnTokens.current.output,
         total: accumulated.current.total + lastTurnTokens.current.total,
       };
     }
-    
-    // If it's 0, it might be the start of a new turn or a transient state.
-    // If it's 0 and the last turn had tokens, we should probably commit then too?
-    // Actually, if it's 0, we just wait for the first non-zero update of the new turn.
 
     lastTurnTokens.current = currentTurn;
 
@@ -68,7 +68,9 @@ export function useSessionTokenCount() {
       total: accumulated.current.total + lastTurnTokens.current.total,
     };
     lastTurnTokens.current = { input: 0, output: 0, total: 0 };
-    // sessionCount is already correct because it's accumulated + current (which is now 0)
+
+    // Update state to reflect the committed accumulation
+    setSessionCount(accumulated.current);
   }, []);
 
   const reset = useCallback(() => {
@@ -77,13 +79,24 @@ export function useSessionTokenCount() {
     setSessionCount({ input: 0, output: 0, total: 0 });
   }, []);
 
+  const initialize = useCallback((initialCount: TokenCount) => {
+    accumulated.current = {
+      input: initialCount.input,
+      output: initialCount.output,
+      total: initialCount.total,
+    };
+    lastTurnTokens.current = { input: 0, output: 0, total: 0 };
+    setSessionCount(initialCount);
+  }, []);
+
   return useMemo(
     () => ({
       count: sessionCount,
       update,
       commit,
       reset,
+      initialize,
     }),
-    [sessionCount, update, commit, reset]
+    [sessionCount, update, commit, reset, initialize]
   );
 }
