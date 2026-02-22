@@ -39,6 +39,7 @@ export interface CognitionTUILayoutProps {
   saveMessage: string | null;
   currentSessionId: string | undefined;
   tokenCount: TokenCount;
+  sessionTokenCount: TokenCount;
   sessionTokens: number | undefined;
   provider: string | undefined;
   model: string | undefined;
@@ -73,6 +74,7 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
   saveMessage,
   currentSessionId,
   tokenCount,
+  sessionTokenCount,
   sessionTokens,
   provider,
   model,
@@ -193,6 +195,7 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
                 <SigmaTaskPanel
                   sigmaTasks={sigmaTasks}
                   tokenCount={tokenCount}
+                  sessionTokenCount={sessionTokenCount}
                 />
               </ComponentErrorBoundary>
             )}

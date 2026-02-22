@@ -14,6 +14,9 @@ export interface SigmaTaskPanelProps {
   /** Current token count */
   tokenCount: TokenCount;
 
+  /** Overall session token usage */
+  sessionTokenCount: TokenCount;
+
   /** Optional width of the panel (default: 40) */
   width?: number;
 }
@@ -27,6 +30,7 @@ export interface SigmaTaskPanelProps {
 export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
   sigmaTasks,
   tokenCount,
+  sessionTokenCount,
   width = 40,
 }) => {
   const { todos } = sigmaTasks;
@@ -89,7 +93,8 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
                   {task.status === 'in_progress'
                     ? task.activeForm
                     : task.content}
-                  {task.status === 'completed' &&
+                  {(task.status === 'completed' ||
+                    task.status === 'in_progress') &&
                     task.tokensUsed !== undefined && (
                       <Text dimColor>
                         {' '}
@@ -126,6 +131,27 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
         <Box>
           <Text dimColor>In: {tokenCount.input.toLocaleString()} | </Text>
           <Text dimColor>Out: {tokenCount.output.toLocaleString()}</Text>
+        </Box>
+      </Box>
+
+      <Box marginBottom={1}>
+        <Text bold color={TUITheme.overlays.o7_strategic}>
+          ━━━━━━━━━━ Σ SESSION TOKENS ━━━━━━━━━━
+        </Text>
+      </Box>
+
+      <Box flexDirection="column" marginLeft={1} marginBottom={1}>
+        <Box>
+          <Text color={TUITheme.text.primary}>Total: </Text>
+          <Text color={TUITheme.text.success}>
+            {sessionTokenCount.total.toLocaleString()}
+          </Text>
+        </Box>
+        <Box>
+          <Text dimColor>
+            In: {sessionTokenCount.input.toLocaleString()} |{' '}
+          </Text>
+          <Text dimColor>Out: {sessionTokenCount.output.toLocaleString()}</Text>
         </Box>
       </Box>
     </Box>

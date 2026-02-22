@@ -14,8 +14,17 @@ describe('SigmaTaskPanel', () => {
     tokensUsed: 50,
   };
 
+  const mockInProgressTask: SigmaTask = {
+    id: '2',
+    content: 'In progress task',
+    activeForm: 'Working on it',
+    status: 'in_progress',
+    tokensAtStart: 200,
+    tokensUsed: 75,
+  };
+
   const mockTasks: SigmaTasks = {
-    todos: [mockTask],
+    todos: [mockTask, mockInProgressTask],
   };
 
   const mockTokenCount = {
@@ -26,28 +35,44 @@ describe('SigmaTaskPanel', () => {
 
   it('renders task list header', () => {
     const { lastFrame } = render(
-      <SigmaTaskPanel sigmaTasks={mockTasks} tokenCount={mockTokenCount} />
+      <SigmaTaskPanel
+        sigmaTasks={mockTasks}
+        tokenCount={mockTokenCount}
+        sessionTokenCount={mockTokenCount}
+      />
     );
     expect(lastFrame()).toContain('Σ TASK LIST');
   });
 
   it('renders task content', () => {
     const { lastFrame } = render(
-      <SigmaTaskPanel sigmaTasks={mockTasks} tokenCount={mockTokenCount} />
+      <SigmaTaskPanel
+        sigmaTasks={mockTasks}
+        tokenCount={mockTokenCount}
+        sessionTokenCount={mockTokenCount}
+      />
     );
     expect(lastFrame()).toContain('Test task');
   });
 
   it('renders task summary', () => {
     const { lastFrame } = render(
-      <SigmaTaskPanel sigmaTasks={mockTasks} tokenCount={mockTokenCount} />
+      <SigmaTaskPanel
+        sigmaTasks={mockTasks}
+        tokenCount={mockTokenCount}
+        sessionTokenCount={mockTokenCount}
+      />
     );
     expect(lastFrame()).toContain('Task summary');
   });
 
   it('renders token counts', () => {
     const { lastFrame } = render(
-      <SigmaTaskPanel sigmaTasks={mockTasks} tokenCount={mockTokenCount} />
+      <SigmaTaskPanel
+        sigmaTasks={mockTasks}
+        tokenCount={mockTokenCount}
+        sessionTokenCount={mockTokenCount}
+      />
     );
     // 1500 should be formatted as 1,500
     expect(lastFrame()).toContain('1,500');
@@ -55,9 +80,36 @@ describe('SigmaTaskPanel', () => {
 
   it('renders individual task token usage', () => {
     const { lastFrame } = render(
-      <SigmaTaskPanel sigmaTasks={mockTasks} tokenCount={mockTokenCount} />
+      <SigmaTaskPanel
+        sigmaTasks={mockTasks}
+        tokenCount={mockTokenCount}
+        sessionTokenCount={mockTokenCount}
+      />
     );
     // 50 tokens
     expect(lastFrame()).toContain('50');
+  });
+
+  it('renders in-progress task token usage', () => {
+    const { lastFrame } = render(
+      <SigmaTaskPanel
+        sigmaTasks={mockTasks}
+        tokenCount={mockTokenCount}
+        sessionTokenCount={mockTokenCount}
+      />
+    );
+    // 75 tokens
+    expect(lastFrame()).toContain('75');
+  });
+
+  it('renders session token header', () => {
+    const { lastFrame } = render(
+      <SigmaTaskPanel
+        sigmaTasks={mockTasks}
+        tokenCount={mockTokenCount}
+        sessionTokenCount={mockTokenCount}
+      />
+    );
+    expect(lastFrame()).toContain('Σ SESSION TOKENS');
   });
 });

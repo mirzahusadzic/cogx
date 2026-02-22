@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { systemLog } from '../../../utils/debug-logger.js';
 import { useTokenCount } from '../tokens/useTokenCount.js';
+import { useSessionTokenCount } from '../tokens/useSessionTokenCount.js';
 import { useSessionManager } from '../session/useSessionManager.js';
 import { useTurnAnalysis } from '../analysis/index.js';
 import { useCompression } from '../compression/useCompression.js';
@@ -46,6 +47,7 @@ export function useAgent(options: UseAgentOptions) {
   );
 
   const tokenCounter = useTokenCount();
+  const sessionTokenCounter = useSessionTokenCount();
 
   // 2. Session management
   const handleSessionLoaded = useCallback((message?: string) => {
@@ -182,6 +184,7 @@ export function useAgent(options: UseAgentOptions) {
     state,
     sessionManager,
     tokenCounter,
+    sessionTokenCounter,
     turnAnalysis,
     compression,
     debug,
@@ -287,6 +290,7 @@ export function useAgent(options: UseAgentOptions) {
       error: state.error,
       overlayScores,
       tokenCount: tokenCounter.count,
+      sessionTokenCount: sessionTokenCounter.count,
       workbenchHealth,
       currentSessionId,
       anchorId,
@@ -305,6 +309,7 @@ export function useAgent(options: UseAgentOptions) {
       state.error,
       overlayScores,
       tokenCounter.count,
+      sessionTokenCounter.count,
       workbenchHealth,
       currentSessionId,
       anchorId,

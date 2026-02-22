@@ -22,6 +22,7 @@ import type { AgentState } from './useAgentState.js';
 import type { UseAgentOptions, SigmaTasks } from './types.js';
 import type { UseSessionManagerResult } from '../session/useSessionManager.js';
 import type { useTokenCount } from '../tokens/useTokenCount.js';
+import type { useSessionTokenCount } from '../tokens/useSessionTokenCount.js';
 import type { UseTurnAnalysisReturn } from '../analysis/useTurnAnalysis.js';
 import type { UseCompressionResult } from '../compression/useCompression.js';
 import {
@@ -36,6 +37,7 @@ interface UseAgentHandlersOptions {
   state: AgentState;
   sessionManager: UseSessionManagerResult;
   tokenCounter: ReturnType<typeof useTokenCount>;
+  sessionTokenCounter: ReturnType<typeof useSessionTokenCount>;
   turnAnalysis: UseTurnAnalysisReturn;
   compression: UseCompressionResult;
   debug: (message: string, ...args: unknown[]) => void;
@@ -56,7 +58,7 @@ interface AgentMessage {
   toolInput?: unknown;
 }
 
-function updateSigmaTasksWithTokens(
+export function updateSigmaTasksWithTokens(
   prev: SigmaTasks,
   input: SigmaTasks,
   effectiveTokens: number
@@ -65,34 +67,41 @@ function updateSigmaTasksWithTokens(
     const oldTodo = prev.todos.find((t) => t.id === newTodo.id);
 
     // Preserve existing tracking data
-    let tokensAtStart =
-      oldTodo?.tokensAtStart ??
-      (newTodo.status === 'in_progress' ? effectiveTokens : undefined);
+    let tokensAtStart = oldTodo?.tokensAtStart;
+    let tokensAccumulated = oldTodo?.tokensAccumulated ?? 0;
+    let tokensUsed = oldTodo?.tokensUsed ?? 0;
+
+    // Initialize tracking if task just became in_progress
+    if (newTodo.status === 'in_progress' && oldTodo?.status !== 'in_progress') {
+      if (tokensAtStart === undefined) {
+        tokensAtStart = effectiveTokens;
+      }
+    }
 
     // Detect eviction: If current context size is significantly smaller than start,
-    // we must have evicted tokens. Reset tokensAtStart to avoid negative counts.
+    // we must have evicted tokens. Add current delta to accumulated and reset start.
     if (
       newTodo.status === 'in_progress' &&
       tokensAtStart !== undefined &&
       effectiveTokens < tokensAtStart
     ) {
+      tokensAccumulated = tokensUsed;
       tokensAtStart = effectiveTokens;
     }
 
-    let tokensUsed = oldTodo?.tokensUsed;
-
-    // Calculate tokensUsed when task completes
+    // Calculate tokensUsed for in_progress or completed tasks
     if (
-      newTodo.status === 'completed' &&
-      oldTodo?.status === 'in_progress' &&
+      (newTodo.status === 'in_progress' || newTodo.status === 'completed') &&
       tokensAtStart !== undefined
     ) {
-      tokensUsed = Math.max(0, effectiveTokens - tokensAtStart);
+      const currentDelta = Math.max(0, effectiveTokens - tokensAtStart);
+      tokensUsed = tokensAccumulated + currentDelta;
     }
 
     return {
       ...newTodo,
       tokensAtStart,
+      tokensAccumulated,
       tokensUsed,
     };
   });
@@ -108,6 +117,7 @@ export function useAgentHandlers({
   state,
   sessionManager,
   tokenCounter,
+  sessionTokenCounter,
   turnAnalysis,
   compression,
   debug,
@@ -871,6 +881,18 @@ This will trigger a semantic compression event, flushing implementation noise wh
             output: response.tokens.completion,
             total: response.tokens.total,
           });
+          sessionTokenCounter.update({
+            input: response.tokens.prompt,
+            output: response.tokens.completion,
+            total: response.tokens.total,
+          });
+
+          // Layer 15: Dynamic Task Token Tracking.
+          // Synchronize in-progress task token usage on every turn, even if SigmaTaskUpdate wasn't called.
+          // This ensures the sidebar displays real-time cost for the ongoing operation.
+          setSigmaTasks((prev) =>
+            updateSigmaTasksWithTokens(prev, prev, response.tokens.total)
+          );
 
           if (
             response.toolResult &&
@@ -956,6 +978,7 @@ This will trigger a semantic compression event, flushing implementation noise wh
         }
 
         setIsThinking(false);
+        sessionTokenCounter.commit();
       } catch (err) {
         const originalError = (err as Error).message;
         const errorMsg = isAuthenticationError([originalError])
@@ -1014,6 +1037,7 @@ This will trigger a semantic compression event, flushing implementation noise wh
       /* hooks & utils */
       sessionManager,
       tokenCounter,
+      sessionTokenCounter,
       turnAnalysis,
       compression,
       debug,

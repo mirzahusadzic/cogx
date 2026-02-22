@@ -133,6 +133,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     activeModel,
     error,
     tokenCount,
+    sessionTokenCount,
     interrupt,
     sigmaStats,
     avgOverlays,
@@ -643,6 +644,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           saveMessage={saveMessage}
           currentSessionId={currentSessionId}
           tokenCount={tokenCount}
+          sessionTokenCount={sessionTokenCount}
           sigmaTasks={sigmaTasks}
           sessionTokens={sessionTokens}
           provider={provider}

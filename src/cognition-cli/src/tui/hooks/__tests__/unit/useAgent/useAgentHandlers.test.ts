@@ -41,6 +41,7 @@ describe('useAgentHandlers', () => {
   let mockOptions: UseAgentOptions;
   let mockSessionManager: UseSessionManagerResult;
   let mockTokenCounter: ReturnType<typeof useTokenCount>;
+  let mockSessionTokenCounter: ReturnType<typeof useTokenCount>;
   let mockTurnAnalysis: UseTurnAnalysisReturn;
   let mockCompression: UseCompressionResult;
   const mockDebug = vi.fn();
@@ -95,8 +96,15 @@ describe('useAgentHandlers', () => {
     };
 
     mockTokenCounter = {
-      count: { total: 0 },
+      count: { total: 0, input: 0, output: 0 },
       update: vi.fn(),
+      reset: vi.fn(),
+    };
+
+    mockSessionTokenCounter = {
+      count: { total: 0, input: 0, output: 0 },
+      update: vi.fn(),
+      commit: vi.fn(),
       reset: vi.fn(),
     };
 
@@ -119,6 +127,7 @@ describe('useAgentHandlers', () => {
         state: mockState,
         sessionManager: mockSessionManager,
         tokenCounter: mockTokenCounter,
+        sessionTokenCounter: mockSessionTokenCounter,
         turnAnalysis: mockTurnAnalysis,
         compression: mockCompression,
         debug: mockDebug,
@@ -142,6 +151,7 @@ describe('useAgentHandlers', () => {
         state: mockState,
         sessionManager: mockSessionManager,
         tokenCounter: mockTokenCounter,
+        sessionTokenCounter: mockSessionTokenCounter,
         turnAnalysis: mockTurnAnalysis,
         compression: mockCompression,
         debug: mockDebug,
@@ -212,6 +222,7 @@ describe('useAgentHandlers', () => {
         state: mockState,
         sessionManager: mockSessionManager,
         tokenCounter: mockTokenCounter,
+        sessionTokenCounter: mockSessionTokenCounter,
         turnAnalysis: mockTurnAnalysis,
         compression: mockCompression,
         debug: mockDebug,
@@ -244,6 +255,7 @@ describe('useAgentHandlers', () => {
         state: mockState,
         sessionManager: mockSessionManager,
         tokenCounter: mockTokenCounter,
+        sessionTokenCounter: mockSessionTokenCounter,
         turnAnalysis: mockTurnAnalysis,
         compression: mockCompression,
         debug: mockDebug,
