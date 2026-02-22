@@ -339,7 +339,9 @@ export class GeminiAgentProvider implements AgentProvider {
             ? `[Task ${taskId} completed. Raw logs evicted to archive. \nSUMMARY: ${result_summary}]`
             : `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`;
 
-          const assistantTombstone = `[Assistant thinking/text for task ${taskId} evicted to save tokens.]`;
+          const assistantTombstone = result_summary
+            ? `[Assistant thinking/text for task ${taskId} evicted to save tokens. \nSUMMARY: ${result_summary}]`
+            : `[Assistant thinking/text for task ${taskId} evicted to save tokens.]`;
 
           let hasAssistantTombstonePart = false;
           let collectedSignature: string | undefined = undefined;
