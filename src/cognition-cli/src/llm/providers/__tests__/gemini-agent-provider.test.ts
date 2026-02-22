@@ -1366,10 +1366,10 @@ describe('GeminiAgentProvider', () => {
         }
       })();
 
-      // Initial failure + Retry 1 start
-      await vi.advanceTimersByTimeAsync(2000);
-      // Retry 1 failure + Retry 2 start
-      await vi.advanceTimersByTimeAsync(5000);
+      // Advance timers in chunks to allow all async transitions to complete
+      for (let i = 0; i < 20; i++) {
+        await vi.advanceTimersByTimeAsync(1000);
+      }
 
       await iterationPromise;
       vi.useRealTimers();
