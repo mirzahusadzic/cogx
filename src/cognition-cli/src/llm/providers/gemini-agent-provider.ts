@@ -398,7 +398,6 @@ export class GeminiAgentProvider implements AgentProvider {
     const messages: AgentMessage[] = [];
     let numTurns = 0;
     let currentTurnOutputEstimate = 0;
-    let cumulativePromptTokens = 0;
     let cumulativeCompletionTokens = 0;
     let currentPromptTokens = 0;
     let currentCompletionTokens = 0;
@@ -774,9 +773,8 @@ export class GeminiAgentProvider implements AgentProvider {
               };
             };
 
-            numTurns++;
-
-            // Reset retry attempt counter and delay on any successful event processing.
+            // Increment turn counter for message indexing and TUI display.
+            // We use this to ensure unique IDs for messages within a session.
             // This ensures that we only count CONSECUTIVE failures towards the failover limit.
             // If we receive even one valid event from the model, we consider the connection "working".
             if (attempt > 0) {
@@ -793,13 +791,7 @@ export class GeminiAgentProvider implements AgentProvider {
             // Capture actual token usage from Gemini API
             if (evt.usageMetadata) {
               if (evt.usageMetadata.promptTokenCount !== undefined) {
-                // If token count drops significantly (e.g., due to eviction), accept it.
-                // Otherwise, use it if it's the first turn or if it increases.
-                // We should ALWAYS trust the API's reported promptTokenCount.
-                cumulativePromptTokens = Math.max(
-                  cumulativePromptTokens,
-                  evt.usageMetadata.promptTokenCount
-                );
+                // Trust the API's reported promptTokenCount for current context size.
                 currentPromptTokens = evt.usageMetadata.promptTokenCount;
               }
               if (
@@ -859,6 +851,7 @@ export class GeminiAgentProvider implements AgentProvider {
                   }
 
                   // Don't pre-format - let TUI handle formatting via toolName/toolInput
+                  numTurns++;
                   const toolMessage: AgentMessage = {
                     id: `msg-${Date.now()}-tool-${numTurns}`,
                     type: 'tool_use',
@@ -913,6 +906,7 @@ export class GeminiAgentProvider implements AgentProvider {
                     );
                   }
 
+                  numTurns++;
                   const resultMessage: AgentMessage = {
                     id: `msg-${Date.now()}-result-${numTurns}`,
                     type: 'tool_result',
@@ -1171,6 +1165,12 @@ export class GeminiAgentProvider implements AgentProvider {
                     );
                   }
 
+                  // Increment turn counter for message indexing and TUI display.
+                  // Only increment for the FIRST chunk of a new assistant response.
+                  if (!accumulated) {
+                    numTurns++;
+                  }
+
                   // Create new message with delta text
                   // The TUI will accumulate these deltas via processAgentMessage
                   const message: AgentMessage = {
@@ -1223,7 +1223,7 @@ export class GeminiAgentProvider implements AgentProvider {
           if (process.env.DEBUG_GEMINI_STREAM) {
             systemLog(
               'gemini',
-              `\n[Gemini] === STREAM LOOP EXITED ===\n[Gemini] Total turns: ${numTurns}\n[Gemini] Cumulative tokens: ${cumulativePromptTokens} prompt, ${cumulativeCompletionTokens} completion\n[Gemini] Current context: ${currentPromptTokens} prompt, ${currentCompletionTokens} completion\n[Gemini] Last message type: ${messages[messages.length - 1]?.type || 'none'}\n[Gemini] Yielding final response with finishReason='stop'`
+              `\n[Gemini] === STREAM LOOP EXITED ===\n[Gemini] Total turns: ${numTurns}\n[Gemini] Total tokens billed (estimated): ${currentPromptTokens + cumulativeCompletionTokens}\n[Gemini] Current context: ${currentPromptTokens} prompt, ${currentCompletionTokens} completion\n[Gemini] Last message type: ${messages[messages.length - 1]?.type || 'none'}\n[Gemini] Yielding final response with finishReason='stop'`
             );
           }
           yield {
