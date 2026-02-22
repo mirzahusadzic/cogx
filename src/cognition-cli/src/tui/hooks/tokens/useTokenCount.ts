@@ -133,16 +133,20 @@ export function useTokenCount() {
    * update({ input: 1500, output: 800, total: 2300 });
    */
   const update = useCallback((newCount: TokenCount) => {
-    // After reset, accept any value (don't use Math.max)
-    // This is used during session compression/restart.
     if (justReset.current) {
       justReset.current = false;
+      setCount(newCount);
+      return;
     }
 
-    // Normal updates: use Math.max to prevent drops
-    // EXCEPT when total is 0 or provider is Gemini where drops are expected due to reset between chunks
-    // Actually we just trust the provider's total now.
-    setCount(newCount);
+    // Allow the count to drop (to reflect eviction), but ignore temporary '0'
+    // reports that happen at the start of some provider streams.
+    setCount((prev) => {
+      if (newCount.total === 0 && prev.total > 0) {
+        return prev;
+      }
+      return newCount;
+    });
   }, []);
 
   /**
