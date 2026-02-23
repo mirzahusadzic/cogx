@@ -8,7 +8,7 @@
  * - Streaming responses
  * - Automatic thought signature handling (Gemini 3) via ADK Runner
  *
- * EXPERIMENTAL: Google ADK TypeScript SDK is pre-release (v0.1.x)
+ * EXPERIMENTAL: Google ADK TypeScript SDK is pre-release (v0.3.x)
  *
  * @example
  * const provider = new GeminiAgentProvider(process.env.GEMINI_API_KEY);

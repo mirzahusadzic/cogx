@@ -108,7 +108,7 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
     >
       <Box marginBottom={1} marginTop={1}>
         <Text bold color={TUITheme.overlays.o7_strategic}>
-          ━━━━━━━━━━━━ Σ TASK LIST ━━━━━━━━━━━━
+          ━━━━━━━━━━━━ Σ TASK LIST ━━━━━━━━━━━━━
         </Text>
       </Box>
 

@@ -996,7 +996,6 @@ This will trigger a semantic compression event, flushing implementation noise wh
           const errorMsg = isAuthenticationError(stderrLines)
             ? formatAuthError()
             : formatSDKError(stderrLines, hasAssistantMessage);
-          setError(errorMsg);
           setMessages((prev) => [
             ...prev,
             {
@@ -1013,7 +1012,6 @@ This will trigger a semantic compression event, flushing implementation noise wh
         const errorMsg = isAuthenticationError([originalError])
           ? formatAuthError()
           : originalError;
-        setError(errorMsg);
         setMessages((prev) => [
           ...prev,
           { type: 'system', content: `❌ ${errorMsg}`, timestamp: new Date() },
