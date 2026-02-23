@@ -314,6 +314,7 @@ export class SessionStateStore {
       input: tokens.input,
       output: tokens.output,
       total: tokens.total,
+      cost_usd: tokens.costUsd || 0,
     };
     state.last_updated = new Date().toISOString();
 
@@ -458,6 +459,7 @@ export class SessionStateStore {
           input: state.cumulative_tokens.input,
           output: state.cumulative_tokens.output,
           total: state.cumulative_tokens.total,
+          costUsd: state.cumulative_tokens.cost_usd || 0,
         }
       : undefined;
 

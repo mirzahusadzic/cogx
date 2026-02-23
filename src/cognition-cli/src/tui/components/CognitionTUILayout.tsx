@@ -15,6 +15,7 @@ import type { WizardConfirmationState } from '../hooks/useOnboardingWizard.js';
 import type { WorkbenchHealthStatus } from './OverlaysBar.js';
 import type { SigmaStats, OverlayScores } from './SigmaInfoPanel.js';
 import type { TokenCount } from '../hooks/tokens/useTokenCount.js';
+import type { SessionTokenCount } from '../hooks/tokens/useSessionTokenCount.js';
 import { TUITheme } from '../theme.js';
 
 export interface CognitionTUILayoutProps {
@@ -40,7 +41,7 @@ export interface CognitionTUILayoutProps {
   saveMessage: string | null;
   currentSessionId: string | undefined;
   tokenCount: TokenCount;
-  sessionTokenCount: TokenCount;
+  sessionTokenCount: SessionTokenCount;
   sessionTokens: number | undefined;
   provider: string | undefined;
   model: string | undefined;

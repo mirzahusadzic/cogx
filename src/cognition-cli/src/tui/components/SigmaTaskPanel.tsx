@@ -3,7 +3,11 @@ import { Box, Text } from 'ink';
 import { TUITheme } from '../theme.js';
 import type { SigmaTasks } from '../hooks/useAgent/types.js';
 import type { TokenCount } from '../hooks/tokens/useTokenCount.js';
-import { cleanAnsi as stripAnsi } from '../../utils/string-utils.js';
+import { SessionTokenCount } from '../hooks/tokens/useSessionTokenCount.js';
+import {
+  cleanAnsi as stripAnsi,
+  formatCompactNumber,
+} from '../../utils/string-utils.js';
 
 const MAX_SUMMARY_LENGTH = 140;
 const MAX_TASKS_FOR_ALL_SUMMARIES = 3;
@@ -24,7 +28,7 @@ export interface SigmaTaskPanelProps {
   tokenCount: TokenCount;
 
   /** Overall session token usage */
-  sessionTokenCount: TokenCount;
+  sessionTokenCount: SessionTokenCount;
 
   /** Optional width of the panel (default: 40) */
   width?: number;
@@ -131,9 +135,9 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
                   {(task.status === 'completed' ||
                     task.status === 'in_progress') &&
                     task.tokensUsed !== undefined && (
-                      <Text dimColor>
+                      <Text color={TUITheme.text.tertiary}>
                         {' '}
-                        ({task.tokensUsed.toLocaleString()} tokens)
+                        ({formatCompactNumber(task.tokensUsed)})
                       </Text>
                     )}
                 </Text>
@@ -142,7 +146,7 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
                 task.result_summary &&
                 (showAllSummaries || task.id === lastCompletedTaskId) && (
                   <Box marginLeft={4}>
-                    <Text dimColor italic wrap="wrap">
+                    <Text color={TUITheme.text.tertiary} italic wrap="wrap">
                       ↳{' '}
                       {truncate(
                         stripAnsi(task.result_summary),
@@ -170,8 +174,12 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
           </Text>
         </Box>
         <Box>
-          <Text dimColor>In: {tokenCount.input.toLocaleString()} | </Text>
-          <Text dimColor>Out: {tokenCount.output.toLocaleString()}</Text>
+          <Text color={TUITheme.text.tertiary}>
+            In: {formatCompactNumber(tokenCount.input)} |{' '}
+          </Text>
+          <Text color={TUITheme.text.tertiary}>
+            Out: {formatCompactNumber(tokenCount.output)}
+          </Text>
         </Box>
       </Box>
 
@@ -187,12 +195,20 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
           <Text color={TUITheme.text.success}>
             {sessionTokenCount.total.toLocaleString()}
           </Text>
+          {sessionTokenCount.costUsd > 0 && (
+            <Text color={TUITheme.text.warning} bold>
+              {' '}
+              (${sessionTokenCount.costUsd.toFixed(2)})
+            </Text>
+          )}
         </Box>
         <Box>
-          <Text dimColor>
-            In: {sessionTokenCount.input.toLocaleString()} |{' '}
+          <Text color={TUITheme.text.tertiary}>
+            In: {formatCompactNumber(sessionTokenCount.input)} |{' '}
           </Text>
-          <Text dimColor>Out: {sessionTokenCount.output.toLocaleString()}</Text>
+          <Text color={TUITheme.text.tertiary}>
+            Out: {formatCompactNumber(sessionTokenCount.output)}
+          </Text>
         </Box>
       </Box>
     </Box>

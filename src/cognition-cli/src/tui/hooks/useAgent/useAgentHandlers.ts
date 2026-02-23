@@ -898,11 +898,20 @@ This will trigger a semantic compression event, flushing implementation noise wh
             output: response.tokens.completion,
             total: response.tokens.total,
           });
-          sessionTokenCounter.update({
+          const turnCostUsd = adapter.estimateCost({
             input: response.tokens.prompt,
             output: response.tokens.completion,
             total: response.tokens.total,
           });
+
+          sessionTokenCounter.update(
+            {
+              input: response.tokens.prompt,
+              output: response.tokens.completion,
+              total: response.tokens.total,
+            },
+            turnCostUsd
+          );
 
           if (response.finishReason) {
             sessionTokenCounter.commit();
@@ -938,14 +947,11 @@ This will trigger a semantic compression event, flushing implementation noise wh
         }
 
         if (lastResponse && hasAssistantMessage) {
-          const cost = adapter.estimateCost(
-            sessionTokenCounter.getLatestCount()
-          );
           setMessages((prev) => [
             ...prev,
             {
               type: 'system',
-              content: `✓ Complete (${lastResponse.numTurns} turns, ${lastResponse.messages.length} messages, ~$${cost.toFixed(4)})`,
+              content: `✓ Complete (${lastResponse.numTurns} turns, ${lastResponse.messages.length} messages)`,
               timestamp: new Date(),
             },
           ]);

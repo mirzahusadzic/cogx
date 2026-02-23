@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { terminal } from '../services/TerminalService.js';
 import { TUITheme } from '../theme.js';
+import { formatCompactNumber } from '../../utils/string-utils.js';
 
 // Extra space needed after certain emojis on macOS (terminal width calculation differs)
 const EMOJI_SPACER = process.platform === 'darwin' ? ' ' : '';
@@ -110,18 +111,17 @@ const StatusBarComponent: React.FC<StatusBarProps> = ({
     terminal.setCursorVisibility(false);
   }, []); // Run only on mount
 
-  // Format token count with K suffix for readability
-  const formatTokens = (count: number) => {
-    if (count >= 1000) {
-      return `${(count / 1000).toFixed(1)}K`;
-    }
-    return count.toString();
-  };
-
   // Calculate percentage of compression threshold
-  const tokenPercentage = tokenCount
-    ? ((tokenCount.total / compressionThreshold) * 100).toFixed(1)
-    : '0.0';
+  const totalTokens = tokenCount?.total || 0;
+  const tokenPercentageValue = (totalTokens / compressionThreshold) * 100;
+  const tokenPercentage = tokenPercentageValue.toFixed(1);
+
+  // Determine percentage color based on threshold
+  const getPercentageColor = () => {
+    if (tokenPercentageValue >= 80) return TUITheme.text.error;
+    if (tokenPercentageValue >= 50) return TUITheme.text.warning;
+    return TUITheme.text.success;
+  };
 
   // Get provider style
   const providerStyle = PROVIDER_STYLES[providerName] || {
@@ -164,12 +164,15 @@ const StatusBarComponent: React.FC<StatusBarProps> = ({
         {tokenCount && tokenCount.total > 0 && (
           <>
             <Text color={TUITheme.ui.border.dim}> | </Text>
+            <Text color={TUITheme.text.secondary}>📊 </Text>
             <Text color={TUITheme.text.secondary}>
-              📊 {formatTokens(tokenCount.total)} ({tokenPercentage}%)
+              {formatCompactNumber(tokenCount.total)} (
             </Text>
+            <Text color={getPercentageColor()}>{tokenPercentage}%</Text>
+            <Text color={TUITheme.text.secondary}>)</Text>
             <Text color={TUITheme.ui.border.dim}> | </Text>
             <Text color={TUITheme.text.secondary}>
-              🗜️{EMOJI_SPACER} {formatTokens(compressionThreshold)}
+              🗜️{EMOJI_SPACER} {formatCompactNumber(compressionThreshold)}
             </Text>
           </>
         )}

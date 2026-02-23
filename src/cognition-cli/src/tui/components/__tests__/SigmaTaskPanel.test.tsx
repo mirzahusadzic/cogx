@@ -32,6 +32,7 @@ describe('SigmaTaskPanel', () => {
     input: 1000,
     output: 500,
     total: 1500,
+    costUsd: 0,
   };
 
   it('renders task list header', () => {

@@ -149,6 +149,8 @@ export interface SessionTokens {
   output: number;
   /** Total tokens */
   total: number;
+  /** Estimated cost in USD */
+  costUsd?: number;
 }
 
 /**

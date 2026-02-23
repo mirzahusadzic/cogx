@@ -151,7 +151,7 @@ describe('StatusBar', () => {
         />
       );
       expect(lastFrame()).toContain('📊');
-      expect(lastFrame()).toContain('15.0K');
+      expect(lastFrame()).toContain('15k');
     });
 
     it('displays raw number for tokens under 1000', () => {
@@ -184,7 +184,7 @@ describe('StatusBar', () => {
         />
       );
       expect(lastFrame()).toContain('🗜️');
-      expect(lastFrame()).toContain('100.0K');
+      expect(lastFrame()).toContain('100k');
     });
 
     it('does not display token section when total is 0', () => {

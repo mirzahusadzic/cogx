@@ -61,6 +61,7 @@ export interface SessionState {
     input: number;
     output: number;
     total: number;
+    cost_usd?: number;
   };
 
   /** Active task list for this session (for providers without native SigmaTaskUpdate) */
