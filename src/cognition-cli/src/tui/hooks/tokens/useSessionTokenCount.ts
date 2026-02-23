@@ -40,7 +40,15 @@ export function useSessionTokenCount() {
     // Detect new turn or context eviction: if current turn total drops below last seen
     // total, it signifies a context reset/eviction, and we commit the previous
     // turn's tokens to the session total.
-    if (currentTurn.total < lastTurnTokens.current.total) {
+    // Detect new turn, context eviction, or new internal request in a generator loop:
+    // 1. total < last.total: context was evicted or compressed (prompt shrunk)
+    // 2. output < last.output: a new tool execution started (output reset to 0)
+    // 3. input < last.input: context was forcibly trimmed
+    if (
+      currentTurn.total < lastTurnTokens.current.total ||
+      currentTurn.output < lastTurnTokens.current.output ||
+      currentTurn.input < lastTurnTokens.current.input
+    ) {
       accumulated.current = {
         input: accumulated.current.input + lastTurnTokens.current.input,
         output: accumulated.current.output + lastTurnTokens.current.output,
