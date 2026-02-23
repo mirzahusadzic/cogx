@@ -11,6 +11,7 @@ export interface TUIState {
   focused: boolean;
   renderError: Error | null;
   showInfoPanel: boolean;
+  showTaskPanel: boolean;
   saveMessage: string | null;
   isDropdownVisible: boolean;
   streamingPaste: string;
@@ -27,6 +28,8 @@ type TUIAction =
   | { type: 'SET_RENDER_ERROR'; payload: Error | null }
   | { type: 'SET_SHOW_INFO_PANEL'; payload: boolean }
   | { type: 'TOGGLE_INFO_PANEL' }
+  | { type: 'SET_SHOW_TASK_PANEL'; payload: boolean }
+  | { type: 'TOGGLE_TASK_PANEL' }
   | { type: 'SET_SAVE_MESSAGE'; payload: string | null }
   | { type: 'SET_DROPDOWN_VISIBLE'; payload: boolean }
   | { type: 'SET_STREAMING_PASTE'; payload: string }
@@ -41,6 +44,7 @@ const initialState: TUIState = {
   focused: true,
   renderError: null,
   showInfoPanel: false,
+  showTaskPanel: true,
   saveMessage: null,
   isDropdownVisible: false,
   streamingPaste: '',
@@ -60,6 +64,10 @@ function tuiReducer(state: TUIState, action: TUIAction): TUIState {
       return { ...state, showInfoPanel: action.payload };
     case 'TOGGLE_INFO_PANEL':
       return { ...state, showInfoPanel: !state.showInfoPanel };
+    case 'SET_SHOW_TASK_PANEL':
+      return { ...state, showTaskPanel: action.payload };
+    case 'TOGGLE_TASK_PANEL':
+      return { ...state, showTaskPanel: !state.showTaskPanel };
     case 'SET_SAVE_MESSAGE':
       return { ...state, saveMessage: action.payload };
     case 'SET_DROPDOWN_VISIBLE':
@@ -90,6 +98,8 @@ interface TUIContextType {
   setRenderError: (error: Error | null) => void;
   setShowInfoPanel: (show: boolean) => void;
   toggleInfoPanel: () => void;
+  setShowTaskPanel: (show: boolean) => void;
+  toggleTaskPanel: () => void;
   setSaveMessage: (message: string | null) => void;
   setIsDropdownVisible: (visible: boolean) => void;
   setStreamingPaste: (paste: string) => void;
@@ -121,6 +131,14 @@ export function TUIProvider({ children }: { children: ReactNode }) {
   );
   const toggleInfoPanel = useCallback(
     () => dispatch({ type: 'TOGGLE_INFO_PANEL' }),
+    []
+  );
+  const setShowTaskPanel = useCallback(
+    (show: boolean) => dispatch({ type: 'SET_SHOW_TASK_PANEL', payload: show }),
+    []
+  );
+  const toggleTaskPanel = useCallback(
+    () => dispatch({ type: 'TOGGLE_TASK_PANEL' }),
     []
   );
   const setSaveMessage = useCallback(
@@ -161,6 +179,8 @@ export function TUIProvider({ children }: { children: ReactNode }) {
       setRenderError,
       setShowInfoPanel,
       toggleInfoPanel,
+      setShowTaskPanel,
+      toggleTaskPanel,
       setSaveMessage,
       setIsDropdownVisible,
       setStreamingPaste,
@@ -175,6 +195,8 @@ export function TUIProvider({ children }: { children: ReactNode }) {
       setRenderError,
       setShowInfoPanel,
       toggleInfoPanel,
+      setShowTaskPanel,
+      toggleTaskPanel,
       setSaveMessage,
       setIsDropdownVisible,
       setStreamingPaste,

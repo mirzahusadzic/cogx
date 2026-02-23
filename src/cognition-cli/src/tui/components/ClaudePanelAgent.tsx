@@ -64,6 +64,9 @@ export interface ClaudePanelAgentProps {
   /** Whether the Sigma Info Panel (sidebar) is currently visible */
   showInfoPanel?: boolean;
 
+  /** Whether the Sigma Task Panel (sidebar) is currently visible */
+  showTaskPanel?: boolean;
+
   /** Content being streamed during paste operation */
   streamingPaste?: string;
 
@@ -110,6 +113,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   isThinking,
   focused,
   showInfoPanel = false,
+  showTaskPanel = true,
   streamingPaste = '',
   layoutVersion, // Used implicitly by React.memo to trigger re-renders on layout changes
   retryCount = 0,
@@ -147,8 +151,9 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   // This memo only re-runs when messages change, terminal width changes or layout changes
   const renderedMessages = useMemo(() => {
     const lines: StyledLine[] = [];
-    // Sidebar is visible if columns > 100, regardless of showInfoPanel (it shows SigmaTaskPanel instead)
-    const sidebarVisible = (stdout?.columns || 0) > 100;
+    // Sidebar is visible if columns > 100 AND either info or task panel is shown
+    const sidebarVisible =
+      (stdout?.columns || 0) > 100 && (showInfoPanel || showTaskPanel);
     const infoPanelWidth = sidebarVisible ? 41 : 0; // 40 (width) + 1 (marginLeft)
     const width = Math.max(20, (stdout?.columns || 100) - 3 - infoPanelWidth); // Account for padding, borders, and sidebar
 
@@ -661,7 +666,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
     });
 
     return ensureLineKeys(lines, 'm');
-  }, [messages, stdout?.columns, showInfoPanel]);
+  }, [messages, stdout?.columns, showInfoPanel, showTaskPanel]);
 
   // Merge static messages with dynamic paste content
   // This is the HOT path during pastes, so we keep it very light

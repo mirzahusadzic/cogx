@@ -34,6 +34,7 @@ export interface CognitionTUILayoutProps {
   focused: boolean;
   streamingPaste: string;
   showInfoPanel: boolean;
+  showTaskPanel: boolean;
   avgOverlays: OverlayScores;
   sigmaTasks: SigmaTasks;
   saveMessage: string | null;
@@ -69,6 +70,7 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
   focused,
   streamingPaste,
   showInfoPanel,
+  showTaskPanel,
   avgOverlays,
   sigmaTasks,
   saveMessage,
@@ -184,11 +186,12 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
             retryCount={retryCount}
             focused={!focused}
             showInfoPanel={showInfoPanel}
+            showTaskPanel={showTaskPanel}
             streamingPaste={streamingPaste}
             layoutVersion={`${inputLineCount}-${isDropdownVisible}-${dimensions.rows}-${dimensions.columns}`}
           />
         </ComponentErrorBoundary>
-        {dimensions.columns > 100 && (
+        {dimensions.columns > 100 && (showInfoPanel || showTaskPanel) && (
           <Box marginLeft={1} flexShrink={0} width={40}>
             {showInfoPanel && sigmaStats ? (
               <ComponentErrorBoundary componentName="SigmaInfoPanel">
@@ -197,7 +200,7 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
                   overlays={avgOverlays}
                 />
               </ComponentErrorBoundary>
-            ) : (
+            ) : showTaskPanel ? (
               <ComponentErrorBoundary componentName="SigmaTaskPanel">
                 <SigmaTaskPanel
                   sigmaTasks={sigmaTasks}
@@ -205,7 +208,7 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
                   sessionTokenCount={sessionTokenCount}
                 />
               </ComponentErrorBoundary>
-            )}
+            ) : null}
           </Box>
         )}
       </Box>

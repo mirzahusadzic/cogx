@@ -81,6 +81,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     toggleFocus,
     setRenderError,
     toggleInfoPanel,
+    toggleTaskPanel,
     setSaveMessage,
     setIsDropdownVisible,
     setStreamingPaste,
@@ -90,6 +91,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     focused,
     renderError,
     showInfoPanel,
+    showTaskPanel,
     saveMessage,
     streamingPaste,
     inputLineCount,
@@ -597,6 +599,15 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       ) {
         // Toggle info panel with 'i' key (only when NOT in input box)
         toggleInfoPanel();
+      } else if (
+        input === 't' &&
+        !key.ctrl &&
+        !key.shift &&
+        !key.meta &&
+        !focused
+      ) {
+        // Toggle task panel with 't' key (only when NOT in input box)
+        toggleTaskPanel();
       }
       // Note: Arrow keys, etc. are handled by TextInput component
       // We just need to not interfere with them
@@ -661,6 +672,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           focused={focused}
           streamingPaste={streamingPaste}
           showInfoPanel={showInfoPanel}
+          showTaskPanel={showTaskPanel}
           avgOverlays={avgOverlays}
           saveMessage={saveMessage}
           currentSessionId={currentSessionId}
