@@ -47,11 +47,11 @@ describe('useSessionTokenCount', () => {
     });
     expect(result.current.count.total).toBe(150);
 
-    // Turn 2 reports context size
+    // Turn 2 reports context size (without triggering a commit)
     act(() => {
-      result.current.update({ input: 160, output: 40, total: 200 });
+      result.current.update({ input: 160, output: 60, total: 220 });
     });
-    expect(result.current.count.total).toBe(200);
+    expect(result.current.count.total).toBe(220);
   });
 
   it('should detect turn reset automatically during streaming', () => {
