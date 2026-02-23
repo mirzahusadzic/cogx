@@ -904,11 +904,19 @@ This will trigger a semantic compression event, flushing implementation noise wh
             total: response.tokens.total,
           });
 
+          if (response.finishReason) {
+            sessionTokenCounter.commit();
+          }
+
           // Layer 15: Dynamic Task Token Tracking.
           // Synchronize in-progress task token usage on every turn, even if SigmaTaskUpdate wasn't called.
           // This ensures the sidebar displays real-time cost for the ongoing operation.
           setSigmaTasks((prev) =>
-            updateSigmaTasksWithTokens(prev, prev, response.tokens.total)
+            updateSigmaTasksWithTokens(
+              prev,
+              prev,
+              sessionTokenCounter.getLatestCount().total
+            )
           );
 
           if (
@@ -922,12 +930,16 @@ This will trigger a semantic compression event, flushing implementation noise wh
 
           for (const agentMessage of newMessages) {
             if (agentMessage.type === 'assistant') hasAssistantMessage = true;
-            processAgentMessage(agentMessage, response.tokens.total);
+            processAgentMessage(
+              agentMessage,
+              sessionTokenCounter.getLatestCount().total
+            );
           }
         }
 
         if (lastResponse && hasAssistantMessage) {
-          const cost = (lastResponse.tokens.total / 1_000_000) * 3;
+          const cost =
+            (sessionTokenCounter.getLatestCount().total / 1_000_000) * 3;
           setMessages((prev) => [
             ...prev,
             {

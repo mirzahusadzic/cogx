@@ -87,6 +87,18 @@ export function useSessionTokenCount() {
     setSessionCount({ input: 0, output: 0, total: 0 });
   }, []);
 
+  /**
+   * Get the latest cumulative token count from internal refs.
+   * This provides the most up-to-date value, bypassing React state batching.
+   */
+  const getLatestCount = useCallback(() => {
+    return {
+      input: accumulated.current.input + lastTurnTokens.current.input,
+      output: accumulated.current.output + lastTurnTokens.current.output,
+      total: accumulated.current.total + lastTurnTokens.current.total,
+    };
+  }, []);
+
   const initialize = useCallback((initialCount: TokenCount) => {
     accumulated.current = {
       input: initialCount.input,
@@ -103,8 +115,9 @@ export function useSessionTokenCount() {
       update,
       commit,
       reset,
+      getLatestCount,
       initialize,
     }),
-    [sessionCount, update, commit, reset, initialize]
+    [sessionCount, update, commit, reset, getLatestCount, initialize]
   );
 }
