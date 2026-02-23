@@ -652,15 +652,27 @@ export function useSessionManager(
     [debug]
   );
 
-  return {
-    state,
-    store: storeRef.current,
-    updateSDKSession,
-    updateStats,
-    resetResumeSession,
-    getResumeSessionId,
-    updateTokens,
-    updateSessionTokens,
-    updateTasks,
-  };
+  return useMemo(
+    () => ({
+      state,
+      store: storeRef.current,
+      updateSDKSession,
+      updateStats,
+      resetResumeSession,
+      getResumeSessionId,
+      updateTokens,
+      updateSessionTokens,
+      updateTasks,
+    }),
+    [
+      state,
+      updateSDKSession,
+      updateStats,
+      resetResumeSession,
+      getResumeSessionId,
+      updateTokens,
+      updateSessionTokens,
+      updateTasks,
+    ]
+  );
 }

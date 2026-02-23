@@ -439,11 +439,14 @@ export function useCompression(
       .shouldTrigger;
   }, [tokenCount, analyzedTurns, triggeredState]);
 
-  return {
-    state: stateRef.current,
-    shouldTrigger,
-    triggerCompression,
-    reset,
-    getTriggerInfo,
-  };
+  return useMemo(
+    () => ({
+      state: stateRef.current,
+      shouldTrigger,
+      triggerCompression,
+      reset,
+      getTriggerInfo,
+    }),
+    [shouldTrigger, triggerCompression, reset, getTriggerInfo]
+  );
 }

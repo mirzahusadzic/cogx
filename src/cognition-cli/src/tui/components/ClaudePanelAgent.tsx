@@ -150,10 +150,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
     // Sidebar is visible if columns > 100, regardless of showInfoPanel (it shows SigmaTaskPanel instead)
     const sidebarVisible = (stdout?.columns || 0) > 100;
     const infoPanelWidth = sidebarVisible ? 41 : 0; // 40 (width) + 1 (marginLeft)
-    const width = Math.max(
-      20,
-      (stdout?.columns || 100) - 3 - infoPanelWidth
-    ); // Account for padding, borders, and sidebar
+    const width = Math.max(20, (stdout?.columns || 100) - 3 - infoPanelWidth); // Account for padding, borders, and sidebar
 
     messages.forEach((msg, idx) => {
       // For performance, we cache rendered lines for all messages EXCEPT the last one

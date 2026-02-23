@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { Box, Text, useStdout } from 'ink';
 import { OverlaysBar } from './OverlaysBar.js';
 import { ClaudePanelAgent } from './ClaudePanelAgent.js';
@@ -139,6 +139,13 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
       }
     : undefined;
 
+  const handleInputChange = useCallback(
+    (value: string) => {
+      setInputLineCount(value.split('\n').length);
+    },
+    [setInputLineCount]
+  );
+
   return (
     <Box
       flexDirection="column"
@@ -218,9 +225,7 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
             onInterrupt={interrupt}
             onDropdownVisibleChange={setIsDropdownVisible}
             onPasteContent={handlePasteContent}
-            onInputChange={(value: string) =>
-              setInputLineCount(value.split('\n').length)
-            }
+            onInputChange={handleInputChange}
             providerName={provider}
             confirmationState={confirmationState}
             wizardConfirmationState={wizardConfirmationState}

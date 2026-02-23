@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useCallback, useRef, useMemo } from 'react';
 import { render, Box, Text, useInput, type TextProps } from 'ink';
 import { ThemeProvider, extendTheme, defaultTheme } from '@inkjs/ui';
 import fs from 'fs';
@@ -124,6 +124,43 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
 
   const { loading } = useOverlays({ pgcRoot, workbenchUrl });
 
+  const agentOptions = useMemo(
+    () => ({
+      sessionId,
+      cwd: projectRoot, // Use project root, not .open_cognition dir
+      sessionTokens, // Pass custom token threshold
+      maxThinkingTokens, // Pass extended thinking token limit
+      displayThinking, // Control thinking block generation
+      debug, // Pass debug flag
+      provider, // Pass LLM provider
+      model, // Pass model name
+      solo, // Pass solo mode flag
+      onRequestToolConfirmation: requestConfirmation, // Guardrail callback
+      getTaskManager: taskManager.getManager, // Pass task manager getter (returns BackgroundTaskManager instance)
+      getMessagePublisher, // Pass message publisher getter (for agent-to-agent messaging tool)
+      getMessageQueue, // Pass message queue getter (for agent-to-agent messaging tool)
+      autoResponse, // Auto-respond to agent messages (--no-auto-response disables)
+      initialWorkbenchHealth, // Pre-computed health (avoids redundant /health call)
+    }),
+    [
+      sessionId,
+      projectRoot,
+      sessionTokens,
+      maxThinkingTokens,
+      displayThinking,
+      debug,
+      provider,
+      model,
+      solo,
+      requestConfirmation,
+      taskManager.getManager,
+      getMessagePublisher,
+      getMessageQueue,
+      autoResponse,
+      initialWorkbenchHealth,
+    ]
+  );
+
   const {
     messages,
     sendMessage: originalSendMessage,
@@ -141,23 +178,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     anchorId,
     workbenchHealth,
     sigmaTasks,
-  } = useAgent({
-    sessionId,
-    cwd: projectRoot, // Use project root, not .open_cognition dir
-    sessionTokens, // Pass custom token threshold
-    maxThinkingTokens, // Pass extended thinking token limit
-    displayThinking, // Control thinking block generation
-    debug, // Pass debug flag
-    provider, // Pass LLM provider
-    model, // Pass model name
-    solo, // Pass solo mode flag
-    onRequestToolConfirmation: requestConfirmation, // Guardrail callback
-    getTaskManager: taskManager.getManager, // Pass task manager getter (returns BackgroundTaskManager instance)
-    getMessagePublisher, // Pass message publisher getter (for agent-to-agent messaging tool)
-    getMessageQueue, // Pass message queue getter (for agent-to-agent messaging tool)
-    autoResponse, // Auto-respond to agent messages (--no-auto-response disables)
-    initialWorkbenchHealth, // Pre-computed health (avoids redundant /health call)
-  });
+  } = useAgent(agentOptions);
 
   const { pendingMessageCount, monitorError } = useMessageMonitor({
     anchorId,

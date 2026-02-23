@@ -40,11 +40,15 @@ describe('useAgentSync', () => {
       setOverlayScores: vi.fn(),
       currentSessionIdRef: { current: 'session-1' },
       tokenCounter: { count: { total: 0 } },
+      sessionTokenCounter: { count: { total: 0 } },
+      sigmaTasks: { todos: [] },
     };
 
     mockSessionManager = {
       getResumeSessionId: vi.fn().mockReturnValue(null),
       updateTokens: vi.fn(),
+      updateSessionTokens: vi.fn(),
+      updateTasks: vi.fn(),
     };
 
     mockTurnAnalysis = {

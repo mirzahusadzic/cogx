@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import path from 'path';
 import fs from 'fs';
 import { systemLog } from '../../../utils/debug-logger.js';
@@ -33,6 +33,7 @@ export function useAgentSync(
   } = state;
 
   const currentSessionIdValue = currentSessionIdRef.current;
+  const lastPersistedTasksCountRef = useRef(0);
 
   // Load existing conversation lattice
   useEffect(() => {
@@ -116,17 +117,21 @@ export function useAgentSync(
 
   // Persist token count and tasks
   useEffect(() => {
-    if (
-      tokenCounter.count.total === lastPersistedTokensRef.current &&
-      sigmaTasks.todos.length === 0
-    ) {
+    const tasksChanged =
+      sigmaTasks.todos.length !== lastPersistedTasksCountRef.current;
+    const tokensChanged =
+      tokenCounter.count.total !== lastPersistedTokensRef.current;
+
+    if (!tasksChanged && !tokensChanged) {
       return;
     }
 
     sessionManager.updateTokens(tokenCounter.count);
     sessionManager.updateSessionTokens(sessionTokenCounter.count);
     sessionManager.updateTasks(sigmaTasks.todos);
+
     lastPersistedTokensRef.current = tokenCounter.count.total;
+    lastPersistedTasksCountRef.current = sigmaTasks.todos.length;
   }, [
     tokenCounter.count,
     sessionTokenCounter.count,
@@ -176,7 +181,23 @@ export function useAgentSync(
         scores.O6_mathematical /= totalTurns;
         scores.O7_strategic /= totalTurns;
 
-        setOverlayScores(scores);
+        // Only update if scores have actually changed (structural comparison)
+        const currentScores = state.overlayScores;
+        const hasChanged =
+          Math.abs(currentScores.O1_structural - scores.O1_structural) >
+            0.001 ||
+          Math.abs(currentScores.O2_security - scores.O2_security) > 0.001 ||
+          Math.abs(currentScores.O3_lineage - scores.O3_lineage) > 0.001 ||
+          Math.abs(currentScores.O4_mission - scores.O4_mission) > 0.001 ||
+          Math.abs(currentScores.O5_operational - scores.O5_operational) >
+            0.001 ||
+          Math.abs(currentScores.O6_mathematical - scores.O6_mathematical) >
+            0.001 ||
+          Math.abs(currentScores.O7_strategic - scores.O7_strategic) > 0.001;
+
+        if (hasChanged) {
+          setOverlayScores(scores);
+        }
       } catch (err) {
         debug('Failed to compute overlay scores:', err);
       }
@@ -190,5 +211,6 @@ export function useAgentSync(
     turnAnalysis.analyses,
     debug,
     setOverlayScores,
+    state.overlayScores,
   ]);
 }

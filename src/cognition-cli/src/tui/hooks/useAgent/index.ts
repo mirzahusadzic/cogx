@@ -5,7 +5,7 @@ import { useSessionTokenCount } from '../tokens/useSessionTokenCount.js';
 import { useSessionManager } from '../session/useSessionManager.js';
 import { useTurnAnalysis } from '../analysis/index.js';
 import { useCompression } from '../compression/useCompression.js';
-import type { UseAgentOptions } from './types.js';
+import type { UseAgentOptions, SigmaTask } from './types.js';
 
 import { useAgentState } from './useAgentState.js';
 import { useAgentServices } from './useAgentServices.js';
@@ -49,15 +49,41 @@ export function useAgent(options: UseAgentOptions) {
   const tokenCounter = useTokenCount();
   const sessionTokenCounter = useSessionTokenCount();
 
-  // 2. Session management
-  const handleSessionLoaded = useCallback((message?: string) => {
-    if (message) {
-      setMessages((prev) => [
-        ...prev,
-        { type: 'system', content: message, timestamp: new Date() },
-      ]);
-    }
-  }, []);
+  // 2. Initial State (needed for currentSessionId and callbacks)
+  // We initialize with a temporary sessionId that will be updated by sessionManager
+  const state = useAgentState(options, sessionIdProp || 'initial');
+
+  const {
+    messages,
+    setMessages,
+    isThinking,
+    setIsThinking,
+    overlayScores,
+    shouldAutoRespond,
+    setShouldAutoRespond,
+    workbenchHealth,
+    currentAdapterRef,
+    abortedRef,
+    messagesRef,
+    userMessageEmbeddingCache,
+    embedderRef,
+    projectRegistryRef,
+    conversationRegistryRef,
+    setSigmaTasks,
+  } = state;
+
+  // 3. Callbacks (memoized for sessionManager and other hooks)
+  const handleSessionLoaded = useCallback(
+    (message?: string) => {
+      if (message) {
+        setMessages((prev) => [
+          ...prev,
+          { type: 'system', content: message, timestamp: new Date() },
+        ]);
+      }
+    },
+    [setMessages]
+  );
 
   const handleSDKSessionChanged = useCallback(
     (event: {
@@ -75,6 +101,14 @@ export function useAgent(options: UseAgentOptions) {
     [debugFlag]
   );
 
+  const handleTasksRestored = useCallback(
+    (tasks: SigmaTask[]) => {
+      setSigmaTasks({ todos: tasks });
+    },
+    [setSigmaTasks]
+  );
+
+  // 4. Session management
   const sessionManager = useSessionManager({
     sessionIdProp,
     cwd,
@@ -85,37 +119,18 @@ export function useAgent(options: UseAgentOptions) {
     onSDKSessionChanged: handleSDKSessionChanged,
     onTokensRestored: tokenCounter.initialize,
     onSessionTokensRestored: sessionTokenCounter.initialize,
-    onTasksRestored: (tasks) => state.setSigmaTasks({ todos: tasks }),
+    onTasksRestored: handleTasksRestored,
   });
 
   const anchorId = sessionManager.state.anchorId;
   const currentSessionId = sessionManager.state.currentSessionId;
-  const initialLastCompressionTimestamp =
-    sessionManager.state.lastCompressionTimestamp;
 
-  // 3. State management (needs currentSessionId for currentSessionIdRef initialization)
-  const state = useAgentState(
-    options,
-    currentSessionId,
-    initialLastCompressionTimestamp
-  );
-  const {
-    messages,
-    setMessages,
-    isThinking,
-    setIsThinking,
-    overlayScores,
-    shouldAutoRespond,
-    setShouldAutoRespond,
-    workbenchHealth,
-    currentAdapterRef,
-    abortedRef,
-    messagesRef,
-    userMessageEmbeddingCache,
-    embedderRef,
-    projectRegistryRef,
-    conversationRegistryRef,
-  } = state;
+  // Update state with actual sessionId from sessionManager
+  useEffect(() => {
+    if (currentSessionId && currentSessionId !== 'initial') {
+      state.currentSessionIdRef.current = currentSessionId;
+    }
+  }, [currentSessionId, state.currentSessionIdRef]);
 
   // 4. Turn analysis
   const turnAnalysis = useTurnAnalysis({
@@ -171,14 +186,12 @@ export function useAgent(options: UseAgentOptions) {
 
   useAgentServices({ options, state, anchorId, addSystemMessage });
   useAgentMessaging({ options, state });
-  useAgentSync(
-    { ...state, tokenCounter, sessionTokenCounter },
-    sessionManager,
-    turnAnalysis,
-    cwd,
-    anchorId,
-    debug
+  const syncState = useMemo(
+    () => ({ ...state, tokenCounter, sessionTokenCounter }),
+    [state, tokenCounter, sessionTokenCounter]
   );
+
+  useAgentSync(syncState, sessionManager, turnAnalysis, cwd, anchorId, debug);
 
   // 7. Handlers (SendMessage, ProcessAgentMessage)
   const { sendMessage } = useAgentHandlers({

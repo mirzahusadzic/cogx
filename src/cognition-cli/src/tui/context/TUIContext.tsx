@@ -3,6 +3,7 @@ import React, {
   useContext,
   useReducer,
   useCallback,
+  useMemo,
   ReactNode,
 } from 'react';
 
@@ -152,26 +153,38 @@ export function TUIProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  return (
-    <TUIContext.Provider
-      value={{
-        state,
-        setFocus,
-        toggleFocus,
-        setRenderError,
-        setShowInfoPanel,
-        toggleInfoPanel,
-        setSaveMessage,
-        setIsDropdownVisible,
-        setStreamingPaste,
-        setInputLineCount,
-        sendScrollSignal,
-        clearScrollSignal,
-      }}
-    >
-      {children}
-    </TUIContext.Provider>
+  const value = useMemo(
+    () => ({
+      state,
+      setFocus,
+      toggleFocus,
+      setRenderError,
+      setShowInfoPanel,
+      toggleInfoPanel,
+      setSaveMessage,
+      setIsDropdownVisible,
+      setStreamingPaste,
+      setInputLineCount,
+      sendScrollSignal,
+      clearScrollSignal,
+    }),
+    [
+      state,
+      setFocus,
+      toggleFocus,
+      setRenderError,
+      setShowInfoPanel,
+      toggleInfoPanel,
+      setSaveMessage,
+      setIsDropdownVisible,
+      setStreamingPaste,
+      setInputLineCount,
+      sendScrollSignal,
+      clearScrollSignal,
+    ]
   );
+
+  return <TUIContext.Provider value={value}>{children}</TUIContext.Provider>;
 }
 
 export function useTUI() {
