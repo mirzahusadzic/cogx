@@ -305,6 +305,33 @@ export class AgentProviderAdapter {
   }
 
   /**
+   * Estimate cost for token usage
+   *
+   * Delegates to the underlying provider's estimateCost method if available.
+   * Falls back to a conservative $15/M tokens if not supported.
+   *
+   * @param tokens - Token usage stats
+   * @returns Estimated cost in USD
+   */
+  estimateCost(tokens: {
+    input: number;
+    output: number;
+    total: number;
+  }): number {
+    const providerTokens = {
+      prompt: tokens.input,
+      completion: tokens.output,
+      total: tokens.total,
+    };
+    if (this.provider.estimateCost) {
+      return this.provider.estimateCost(providerTokens, this.model);
+    }
+
+    // Conservative fallback ($15/MTok is roughly Claude Opus pricing)
+    return (tokens.total / 1000000) * 15.0;
+  }
+
+  /**
    * Create adapter with different provider
    *
    * Factory method for switching providers.

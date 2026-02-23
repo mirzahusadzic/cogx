@@ -938,8 +938,9 @@ This will trigger a semantic compression event, flushing implementation noise wh
         }
 
         if (lastResponse && hasAssistantMessage) {
-          const cost =
-            (sessionTokenCounter.getLatestCount().total / 1_000_000) * 3;
+          const cost = adapter.estimateCost(
+            sessionTokenCounter.getLatestCount()
+          );
           setMessages((prev) => [
             ...prev,
             {
