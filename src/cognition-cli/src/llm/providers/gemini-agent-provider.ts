@@ -507,6 +507,7 @@ export class GeminiAgentProvider implements AgentProvider {
     let cumulativeCompletionTokens = 0;
     let currentPromptTokens = 0;
     let currentCompletionTokens = 0;
+    let currentCachedTokens = 0;
     const accumulatedThinkingBlocks = new Map<string, string>();
     let accumulatedAssistant = '';
     const sessionId =
@@ -686,6 +687,7 @@ export class GeminiAgentProvider implements AgentProvider {
           prompt: currentPromptTokens || 0,
           completion: currentCompletionTokens || 0,
           total: (currentPromptTokens || 0) + (currentCompletionTokens || 0),
+          cached: currentCachedTokens || 0,
         },
         finishReason: 'stop',
         numTurns: 0,
@@ -884,6 +886,9 @@ export class GeminiAgentProvider implements AgentProvider {
                 // Trust the API's reported promptTokenCount for current context size.
                 currentPromptTokens = evt.usageMetadata.promptTokenCount;
               }
+              if (evt.usageMetadata.cachedContentTokenCount !== undefined) {
+                currentCachedTokens = evt.usageMetadata.cachedContentTokenCount;
+              }
               if (
                 evt.usageMetadata.totalTokenCount !== undefined &&
                 evt.usageMetadata.promptTokenCount !== undefined
@@ -971,6 +976,7 @@ export class GeminiAgentProvider implements AgentProvider {
                         (currentPromptTokens ||
                           Math.ceil(request.prompt.length / 4)) +
                         (currentCompletionTokens || currentTurnOutputEstimate),
+                      cached: currentCachedTokens || 0,
                     },
                     finishReason: 'tool_use',
                     numTurns,
@@ -1040,6 +1046,7 @@ export class GeminiAgentProvider implements AgentProvider {
                         (currentPromptTokens ||
                           Math.ceil(request.prompt.length / 4)) +
                         (currentCompletionTokens || currentTurnOutputEstimate),
+                      cached: currentCachedTokens || 0,
                     },
                     finishReason: 'tool_use', // Tool result, not stop - agent continues
                     numTurns,
@@ -1301,6 +1308,7 @@ export class GeminiAgentProvider implements AgentProvider {
                         (currentPromptTokens ||
                           Math.ceil(request.prompt.length / 4)) +
                         (currentCompletionTokens || currentTurnOutputEstimate),
+                      cached: currentCachedTokens || 0,
                     },
                     finishReason: 'stop',
                     numTurns,
@@ -1330,6 +1338,7 @@ export class GeminiAgentProvider implements AgentProvider {
               total:
                 (currentPromptTokens || Math.ceil(request.prompt.length / 4)) +
                 (currentCompletionTokens || currentTurnOutputEstimate),
+              cached: currentCachedTokens || 0,
             },
             finishReason: 'stop',
             numTurns,
@@ -1423,6 +1432,7 @@ export class GeminiAgentProvider implements AgentProvider {
                   (currentPromptTokens ||
                     Math.ceil(request.prompt.length / 4)) +
                   (currentCompletionTokens || currentTurnOutputEstimate),
+                cached: currentCachedTokens || 0,
               },
               finishReason: 'stop', // Keep as stop so TUI continues to show "Thinking"
               numTurns,
@@ -1473,6 +1483,7 @@ export class GeminiAgentProvider implements AgentProvider {
               total:
                 (currentPromptTokens || Math.ceil(request.prompt.length / 4)) +
                 (currentCompletionTokens || currentTurnOutputEstimate),
+              cached: currentCachedTokens || 0,
             },
             finishReason: 'error',
             numTurns,
@@ -1589,24 +1600,52 @@ export class GeminiAgentProvider implements AgentProvider {
    * - Context: 1M tokens, Output: 64k tokens
    */
   estimateCost(
-    tokens: { prompt: number; completion: number; total: number },
+    tokens: {
+      prompt: number;
+      completion: number;
+      total: number;
+      cached?: number;
+    },
     model: string
   ): number {
-    const inputMtokens = tokens.prompt / 1000000;
+    // Validation for NaN - return 0 if invalid
+    if (
+      isNaN(tokens.prompt) ||
+      isNaN(tokens.completion) ||
+      (tokens.cached !== undefined && isNaN(tokens.cached))
+    ) {
+      return 0;
+    }
+
+    const cachedTokens = tokens.cached || 0;
+    const nonCachedInputMtokens = (tokens.prompt - cachedTokens) / 1000000;
+    const cachedInputMtokens = cachedTokens / 1000000;
     const outputMtokens = tokens.completion / 1000000;
 
     // Gemini 3.0/3.1 Pro models (including custom tools variants) - tiered pricing
     if (model.includes('3-pro')) {
       // >200k tokens prompt = higher tier
       if (tokens.prompt > 200000) {
-        return inputMtokens * 4.0 + outputMtokens * 18.0;
+        return (
+          nonCachedInputMtokens * 4.0 +
+          cachedInputMtokens * 1.0 + // 75% discount for cached (standard Gemini pricing)
+          outputMtokens * 18.0
+        );
       }
       // <=200k tokens prompt = lower tier
-      return inputMtokens * 2.0 + outputMtokens * 12.0;
+      return (
+        nonCachedInputMtokens * 2.0 +
+        cachedInputMtokens * 0.5 + // 75% discount for cached
+        outputMtokens * 12.0
+      );
     }
 
     // Gemini 3.0 Flash Preview (default)
-    return inputMtokens * 0.5 + outputMtokens * 3.0;
+    return (
+      nonCachedInputMtokens * 0.5 +
+      cachedInputMtokens * 0.125 + // 75% discount
+      outputMtokens * 3.0
+    );
   }
 
   /**

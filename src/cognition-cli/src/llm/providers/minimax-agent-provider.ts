@@ -78,9 +78,23 @@ export class MinimaxAgentProvider implements AgentProvider {
     return !!process.env.MINIMAX_API_KEY;
   }
   estimateCost(
-    tokens: { prompt: number; completion: number; total: number },
+    tokens: {
+      prompt: number;
+      completion: number;
+      total: number;
+      cached?: number;
+    },
     model?: string
   ): number {
+    // Validation for NaN - return 0 if invalid
+    if (
+      isNaN(tokens.prompt) ||
+      isNaN(tokens.completion) ||
+      (tokens.cached !== undefined && isNaN(tokens.cached))
+    ) {
+      return 0;
+    }
+
     const inputMtokens = tokens.prompt / 1000000;
     const outputMtokens = tokens.completion / 1000000;
 

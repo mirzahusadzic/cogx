@@ -71,6 +71,9 @@ export interface TokenCount {
 
   /** Total tokens (input + output) */
   total: number;
+
+  /** Cached tokens (discounted) */
+  cached?: number;
 }
 
 /**

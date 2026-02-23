@@ -234,9 +234,23 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
    * - Sonnet 4.5: $3/$15 per MTok (input/output)
    */
   estimateCost(
-    tokens: { prompt: number; completion: number; total: number },
+    tokens: {
+      prompt: number;
+      completion: number;
+      total: number;
+      cached?: number;
+    },
     model?: string // eslint-disable-line @typescript-eslint/no-unused-vars
   ): number {
+    // Validation for NaN - return 0 if invalid
+    if (
+      isNaN(tokens.prompt) ||
+      isNaN(tokens.completion) ||
+      (tokens.cached !== undefined && isNaN(tokens.cached))
+    ) {
+      return 0;
+    }
+
     const inputMtokens = tokens.prompt / 1000000;
     const outputMtokens = tokens.completion / 1000000;
 

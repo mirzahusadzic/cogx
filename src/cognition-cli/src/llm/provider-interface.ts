@@ -87,6 +87,7 @@ export interface StreamChunk {
     prompt: number;
     completion: number;
     total: number;
+    cached?: number;
   };
 }
 
@@ -141,7 +142,12 @@ export interface LLMProvider {
    * @returns Estimated cost in USD
    */
   estimateCost?(
-    tokens: { prompt: number; completion: number; total: number },
+    tokens: {
+      prompt: number;
+      completion: number;
+      total: number;
+      cached?: number;
+    },
     model: string
   ): number;
 }

@@ -173,6 +173,7 @@ export interface AgentResponse {
     prompt: number;
     completion: number;
     total: number;
+    cached?: number;
   };
 
   /** Finish reason */

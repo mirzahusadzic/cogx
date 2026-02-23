@@ -20,6 +20,7 @@ export function useSessionTokenCount() {
     output: 0,
     total: 0,
     costUsd: 0,
+    cached: 0,
   });
 
   // Tokens from previously completed turns
@@ -28,6 +29,7 @@ export function useSessionTokenCount() {
     output: 0,
     total: 0,
     costUsd: 0,
+    cached: 0,
   });
 
   // Last tokens seen in the current turn
@@ -36,6 +38,7 @@ export function useSessionTokenCount() {
     output: 0,
     total: 0,
     costUsd: 0,
+    cached: 0,
   });
 
   /**
@@ -65,6 +68,9 @@ export function useSessionTokenCount() {
         output: accumulated.current.output + lastTurnTokens.current.output,
         total: accumulated.current.total + lastTurnTokens.current.total,
         costUsd: accumulated.current.costUsd + lastTurnTokens.current.costUsd,
+        cached:
+          (accumulated.current.cached || 0) +
+          (lastTurnTokens.current.cached || 0),
       };
     }
 
@@ -75,6 +81,7 @@ export function useSessionTokenCount() {
       output: accumulated.current.output + currentTurn.output,
       total: accumulated.current.total + currentTurn.total,
       costUsd: accumulated.current.costUsd + costUsd,
+      cached: (accumulated.current.cached || 0) + (currentTurn.cached || 0),
     });
   }, []);
 
@@ -88,17 +95,38 @@ export function useSessionTokenCount() {
       output: accumulated.current.output + lastTurnTokens.current.output,
       total: accumulated.current.total + lastTurnTokens.current.total,
       costUsd: accumulated.current.costUsd + lastTurnTokens.current.costUsd,
+      cached:
+        (accumulated.current.cached || 0) +
+        (lastTurnTokens.current.cached || 0),
     };
-    lastTurnTokens.current = { input: 0, output: 0, total: 0, costUsd: 0 };
+    lastTurnTokens.current = {
+      input: 0,
+      output: 0,
+      total: 0,
+      costUsd: 0,
+      cached: 0,
+    };
 
     // Update state to reflect the committed accumulation
     setSessionCount(accumulated.current);
   }, []);
 
   const reset = useCallback(() => {
-    accumulated.current = { input: 0, output: 0, total: 0, costUsd: 0 };
-    lastTurnTokens.current = { input: 0, output: 0, total: 0, costUsd: 0 };
-    setSessionCount({ input: 0, output: 0, total: 0, costUsd: 0 });
+    accumulated.current = {
+      input: 0,
+      output: 0,
+      total: 0,
+      costUsd: 0,
+      cached: 0,
+    };
+    lastTurnTokens.current = {
+      input: 0,
+      output: 0,
+      total: 0,
+      costUsd: 0,
+      cached: 0,
+    };
+    setSessionCount({ input: 0, output: 0, total: 0, costUsd: 0, cached: 0 });
   }, []);
 
   /**
@@ -111,6 +139,9 @@ export function useSessionTokenCount() {
       output: accumulated.current.output + lastTurnTokens.current.output,
       total: accumulated.current.total + lastTurnTokens.current.total,
       costUsd: accumulated.current.costUsd + lastTurnTokens.current.costUsd,
+      cached:
+        (accumulated.current.cached || 0) +
+        (lastTurnTokens.current.cached || 0),
     };
   }, []);
 
@@ -121,9 +152,20 @@ export function useSessionTokenCount() {
         output: initialCount.output,
         total: initialCount.total,
         costUsd,
+        cached: initialCount.cached || 0,
       };
-      lastTurnTokens.current = { input: 0, output: 0, total: 0, costUsd: 0 };
-      setSessionCount({ ...initialCount, costUsd });
+      lastTurnTokens.current = {
+        input: 0,
+        output: 0,
+        total: 0,
+        costUsd: 0,
+        cached: 0,
+      };
+      setSessionCount({
+        ...initialCount,
+        costUsd,
+        cached: initialCount.cached || 0,
+      });
     },
     []
   );

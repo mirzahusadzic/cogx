@@ -183,9 +183,9 @@ describe('GeminiAgentProvider', () => {
     it('should calculate cost for Gemini 3.0 Pro Preview >200k tokens', () => {
       const provider = new GeminiAgentProvider('test-key');
 
-      // 500k tokens (above 200k tier)
+      // 500,001 tokens (above 200k tier)
       const cost = provider.estimateCost(
-        { prompt: 200000, completion: 300000, total: 500000 },
+        { prompt: 200001, completion: 300000, total: 500001 },
         'gemini-3-pro-preview'
       );
 

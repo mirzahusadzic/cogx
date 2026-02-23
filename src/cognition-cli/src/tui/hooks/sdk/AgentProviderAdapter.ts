@@ -317,11 +317,13 @@ export class AgentProviderAdapter {
     input: number;
     output: number;
     total: number;
+    cached?: number;
   }): number {
     const providerTokens = {
       prompt: tokens.input,
       completion: tokens.output,
       total: tokens.total,
+      cached: tokens.cached,
     };
     if (this.provider.estimateCost) {
       return this.provider.estimateCost(providerTokens, this.model);

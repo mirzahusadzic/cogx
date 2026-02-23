@@ -897,11 +897,13 @@ This will trigger a semantic compression event, flushing implementation noise wh
             input: response.tokens.prompt,
             output: response.tokens.completion,
             total: response.tokens.total,
+            cached: response.tokens.cached,
           });
           const turnCostUsd = adapter.estimateCost({
             input: response.tokens.prompt,
             output: response.tokens.completion,
             total: response.tokens.total,
+            cached: response.tokens.cached,
           });
 
           sessionTokenCounter.update(
@@ -909,6 +911,7 @@ This will trigger a semantic compression event, flushing implementation noise wh
               input: response.tokens.prompt,
               output: response.tokens.completion,
               total: response.tokens.total,
+              cached: response.tokens.cached,
             },
             turnCostUsd
           );
