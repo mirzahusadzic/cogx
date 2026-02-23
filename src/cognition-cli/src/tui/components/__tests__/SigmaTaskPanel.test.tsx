@@ -1,5 +1,6 @@
 import React from 'react';
 import { render } from 'ink-testing-library';
+import stripAnsi from 'strip-ansi';
 import { SigmaTaskPanel } from '../SigmaTaskPanel.js';
 import { SigmaTasks, SigmaTask } from '../../hooks/useAgent/types.js';
 
@@ -111,5 +112,79 @@ describe('SigmaTaskPanel', () => {
       />
     );
     expect(lastFrame()).toContain('Σ SESSION TOKENS');
+  });
+
+  it('truncates long task summaries', () => {
+    const longSummary = 'A'.repeat(200);
+    const tasksWithLongSummary: SigmaTasks = {
+      todos: [{ ...mockTask, result_summary: longSummary }],
+    };
+    const { lastFrame } = render(
+      <SigmaTaskPanel
+        sigmaTasks={tasksWithLongSummary}
+        tokenCount={mockTokenCount}
+        sessionTokenCount={mockTokenCount}
+      />
+    );
+    // Should be truncated
+    const frame = lastFrame() || '';
+    const cleanFrame = stripAnsi(frame).replace(/\s/g, '');
+    expect(cleanFrame).toContain('A'.repeat(140) + '...');
+    expect(cleanFrame).not.toContain('A'.repeat(200));
+  });
+
+  it('hides summaries when there are more than 3 tasks, except for the last completed one', () => {
+    const manyTasks: SigmaTasks = {
+      todos: [
+        { ...mockTask, id: '1', result_summary: 'Summary 1' },
+        { ...mockTask, id: '2', result_summary: 'Summary 2' },
+        { ...mockTask, id: '3', result_summary: 'Summary 3' },
+        { ...mockTask, id: '4', result_summary: 'Summary 4' },
+      ],
+    };
+    const { lastFrame } = render(
+      <SigmaTaskPanel
+        sigmaTasks={manyTasks}
+        tokenCount={mockTokenCount}
+        sessionTokenCount={mockTokenCount}
+      />
+    );
+    expect(lastFrame()).not.toContain('Summary 1');
+    expect(lastFrame()).not.toContain('Summary 2');
+    expect(lastFrame()).not.toContain('Summary 3');
+    expect(lastFrame()).toContain('Summary 4');
+  });
+
+  it('renders completed tasks before in_progress tasks', () => {
+    const unorderedTasks: SigmaTasks = {
+      todos: [
+        {
+          ...mockTask,
+          id: '1',
+          content: 'In Progress Task Content',
+          activeForm: 'In Progress Task Active',
+          status: 'in_progress',
+        },
+        {
+          ...mockTask,
+          id: '2',
+          content: 'Completed Task Content',
+          status: 'completed',
+        },
+      ],
+    };
+    const { lastFrame } = render(
+      <SigmaTaskPanel
+        sigmaTasks={unorderedTasks}
+        tokenCount={mockTokenCount}
+        sessionTokenCount={mockTokenCount}
+      />
+    );
+    const frame = lastFrame() || '';
+    expect(frame).toContain('Completed Task Content');
+    expect(frame).toContain('In Progress Task Active');
+    const completedIdx = frame.indexOf('Completed Task Content');
+    const inProgressIdx = frame.indexOf('In Progress Task Active');
+    expect(completedIdx).toBeLessThan(inProgressIdx);
   });
 });

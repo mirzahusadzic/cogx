@@ -5,6 +5,14 @@ import type { SigmaTasks } from '../hooks/useAgent/types.js';
 import type { TokenCount } from '../hooks/tokens/useTokenCount.js';
 import { cleanAnsi as stripAnsi } from '../../utils/string-utils.js';
 
+const MAX_SUMMARY_LENGTH = 140;
+const MAX_TASKS_FOR_ALL_SUMMARIES = 3;
+
+const truncate = (str: string, maxLength: number) => {
+  if (str.length <= maxLength) return str;
+  return str.slice(0, maxLength).trim() + '...';
+};
+
 /**
  * Props for SigmaTaskPanel component
  */
@@ -35,6 +43,30 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
   width = 40,
 }) => {
   const { todos } = sigmaTasks;
+
+  // Sort tasks: completed first (chronological), then in_progress, then others
+  const sortedTodos = [...todos].sort((a, b) => {
+    const statusPriority: Record<string, number> = {
+      completed: 1,
+      in_progress: 2,
+      delegated: 3,
+      pending: 4,
+    };
+    const priorityA = statusPriority[a.status] || 99;
+    const priorityB = statusPriority[b.status] || 99;
+
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB;
+    }
+
+    // Maintain relative order for tasks with same status (usually chronological)
+    return todos.indexOf(a) - todos.indexOf(b);
+  });
+
+  const lastCompletedTaskId = [...todos]
+    .reverse()
+    .find((t) => t.status === 'completed')?.id;
+  const showAllSummaries = todos.length <= MAX_TASKS_FOR_ALL_SUMMARIES;
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -81,12 +113,12 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
       </Box>
 
       <Box flexDirection="column" marginBottom={1}>
-        {todos.length === 0 ? (
+        {sortedTodos.length === 0 ? (
           <Text dimColor italic>
             {'  '}No active tasks
           </Text>
         ) : (
-          todos.map((task) => (
+          sortedTodos.map((task) => (
             <Box key={task.id} marginLeft={1} flexDirection="column">
               <Box>
                 <Text color={getStatusColor(task.status)}>
@@ -106,13 +138,19 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
                     )}
                 </Text>
               </Box>
-              {task.status === 'completed' && task.result_summary && (
-                <Box marginLeft={4}>
-                  <Text dimColor italic wrap="wrap">
-                    ↳ {stripAnsi(task.result_summary)}
-                  </Text>
-                </Box>
-              )}
+              {task.status === 'completed' &&
+                task.result_summary &&
+                (showAllSummaries || task.id === lastCompletedTaskId) && (
+                  <Box marginLeft={4}>
+                    <Text dimColor italic wrap="wrap">
+                      ↳{' '}
+                      {truncate(
+                        stripAnsi(task.result_summary),
+                        MAX_SUMMARY_LENGTH
+                      )}
+                    </Text>
+                  </Box>
+                )}
             </Box>
           ))
         )}
