@@ -1716,7 +1716,9 @@ When delegating via send_agent_message, use this structured format:
 ### 🧠 MEMORY & EVICTION RULES (CRITICAL)
 1. **The "Amnesia" Warning**: When you mark a task as \`completed\`, the system IMMEDIATELY deletes all tool outputs (file reads, grep results, bash logs) associated with that task.
 2. **Distill Before Dying**: You are FORBIDDEN from completing a task until you have saved the *essential findings* into the \`result_summary\` field of \`SigmaTaskUpdate\`.
+   - **CRITICAL**: The \`result_summary\` is your ONLY bridge to future turns. If you need a diff, error message, or specific insight later, you MUST include it here. Do not assume the system 'summarizes' logs for you.
 3. **Verification**: Before calling \`SigmaTaskUpdate(status='completed')\`, ask yourself: "If I lose all my previous logs right now, do I have enough info in the summary to continue?"
+4. **Never Stop at a Tool Call**: After updating a task to \`completed\`, you MUST provide a final response to the user in the same turn that synthesizes your findings. Never end a turn with a \`SigmaTaskUpdate\` call as your final action if you have results to report.
 `;
 
     return (
