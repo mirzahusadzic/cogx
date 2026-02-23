@@ -859,6 +859,7 @@ export class GeminiAgentProvider implements AgentProvider {
                 candidatesTokenCount?: number;
                 totalTokenCount?: number;
                 thoughtsTokenCount?: number; // thinking token usage
+                cachedContentTokenCount?: number; // cached input tokens
               };
             };
 
@@ -897,11 +898,14 @@ export class GeminiAgentProvider implements AgentProvider {
                   evt.usageMetadata.promptTokenCount;
               } else if (evt.usageMetadata.candidatesTokenCount !== undefined) {
                 // Fallback if totalTokenCount is missing
+                // Sum candidates and thinking tokens for total completion usage
+                const candidates = evt.usageMetadata.candidatesTokenCount;
+                const thoughts = evt.usageMetadata.thoughtsTokenCount || 0;
+                const totalCompletion = candidates + thoughts;
+
                 cumulativeCompletionTokens +=
-                  evt.usageMetadata.candidatesTokenCount -
-                  currentCompletionTokens;
-                currentCompletionTokens =
-                  evt.usageMetadata.candidatesTokenCount;
+                  totalCompletion - currentCompletionTokens;
+                currentCompletionTokens = totalCompletion;
               }
             }
 
@@ -1579,9 +1583,9 @@ export class GeminiAgentProvider implements AgentProvider {
   /**
    * Estimate cost for token usage
    *
-   * Based on Google Gemini pricing as of Dec 2025:
+   * Based on Google Gemini pricing as of Feb 2026:
    * - Gemini 3.0 Flash Preview: $0.50/$3.00 per MTok (input/output)
-   * - Gemini 3.0 Pro Preview: $2/$12 per MTok (<200k tokens), $4/$18 per MTok (>200k tokens)
+   * - Gemini 3.0/3.1 Pro Preview: $2/$12 per MTok (<=200k context), $4/$18 per MTok (>200k context)
    * - Context: 1M tokens, Output: 64k tokens
    */
   estimateCost(
@@ -1591,13 +1595,13 @@ export class GeminiAgentProvider implements AgentProvider {
     const inputMtokens = tokens.prompt / 1000000;
     const outputMtokens = tokens.completion / 1000000;
 
-    // Gemini 3.0 Pro Preview - tiered pricing
+    // Gemini 3.0/3.1 Pro models (including custom tools variants) - tiered pricing
     if (model.includes('3-pro')) {
-      // >200k tokens = higher tier
-      if (tokens.total > 200000) {
+      // >200k tokens prompt = higher tier
+      if (tokens.prompt > 200000) {
         return inputMtokens * 4.0 + outputMtokens * 18.0;
       }
-      // <200k tokens = lower tier
+      // <=200k tokens prompt = lower tier
       return inputMtokens * 2.0 + outputMtokens * 12.0;
     }
 
