@@ -91,24 +91,28 @@ export function updateSigmaTasksWithTokens(
       }
     }
 
-    // Detect eviction: If current context size is significantly smaller than start,
-    // we must have evicted tokens. Add current delta to accumulated and reset start.
-    if (
-      (newTodo.status === 'in_progress' || newTodo.status === 'completed') &&
-      tokensAtStart !== undefined &&
-      effectiveTokens < tokensAtStart
-    ) {
-      tokensAccumulated = tokensUsed;
-      tokensAtStart = effectiveTokens;
-    }
-
     // Calculate tokensUsed for in_progress or JUST completed tasks
     if (
       (newTodo.status === 'in_progress' || newTodo.status === 'completed') &&
       tokensAtStart !== undefined
     ) {
-      const currentDelta = Math.max(0, effectiveTokens - tokensAtStart);
-      tokensUsed = tokensAccumulated + currentDelta;
+      let currentDelta = Math.max(0, effectiveTokens - tokensAtStart);
+      let calculatedTokensUsed = tokensAccumulated + currentDelta;
+
+      // Detect eviction
+      // If effectiveTokens drops below the start threshold, or if the calculated usage
+      // drops below what we've already tracked (meaning context shrunk), we have evicted.
+      if (
+        effectiveTokens < tokensAtStart ||
+        calculatedTokensUsed < tokensUsed
+      ) {
+        tokensAccumulated = tokensUsed;
+        tokensAtStart = effectiveTokens;
+        currentDelta = 0;
+        calculatedTokensUsed = tokensAccumulated;
+      }
+
+      tokensUsed = calculatedTokensUsed;
     }
 
     return {
