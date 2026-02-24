@@ -83,6 +83,8 @@ interface TUIOptions {
   model?: string;
   /** Operation mode for token optimization */
   solo?: boolean;
+  /** Task log eviction threshold */
+  ctxTools: number;
   /** Display thinking blocks in TUI (default: true) */
   displayThinking?: boolean;
   /** Skip onboarding wizard even if workspace is incomplete (default: false) */
@@ -531,6 +533,7 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
     provider: validatedProvider,
     model: resolvedModel,
     solo: options.solo,
+    taskLogEvictionThreshold: options.ctxTools,
     displayThinking: options.displayThinking ?? true,
     onboardingMode, // NEW: Pass onboarding mode to TUI
     autoResponse: options.autoResponse ?? true, // Auto-respond to agent messages

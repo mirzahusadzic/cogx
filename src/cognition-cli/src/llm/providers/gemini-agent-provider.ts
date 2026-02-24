@@ -1172,7 +1172,7 @@ export class GeminiAgentProvider implements AgentProvider {
                       activeTaskId,
                       sessionId,
                       request.projectRoot || process.cwd(),
-                      20, // threshold
+                      request.taskLogEvictionThreshold,
                       session
                     );
                   }

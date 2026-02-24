@@ -62,6 +62,9 @@ export interface AgentAdapterOptions {
   /** Extended thinking token budget */
   maxThinkingTokens?: number;
 
+  /** Task log eviction threshold */
+  taskLogEvictionThreshold?: number;
+
   /** Display thinking blocks (default: true) */
   displayThinking?: boolean;
 
@@ -171,6 +174,7 @@ export class AgentProviderAdapter {
       cwd: this.options.cwd,
       resumeSessionId: this.options.resumeSessionId,
       maxThinkingTokens: this.options.maxThinkingTokens,
+      taskLogEvictionThreshold: this.options.taskLogEvictionThreshold,
       displayThinking: this.options.displayThinking,
       mcpServers: this.options.mcpServers,
       conversationRegistry: this.options.conversationRegistry,

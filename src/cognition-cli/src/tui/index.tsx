@@ -51,6 +51,7 @@ interface CognitionTUIProps {
   provider?: string;
   model?: string;
   solo?: boolean;
+  taskLogEvictionThreshold?: number;
   displayThinking?: boolean;
   /** If true, show onboarding wizard instead of normal TUI */
   onboardingMode?: boolean;
@@ -71,6 +72,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
   provider,
   model,
   solo,
+  taskLogEvictionThreshold,
   displayThinking = true,
   onboardingMode = false,
   autoResponse = true,
@@ -143,6 +145,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       getMessageQueue, // Pass message queue getter (for agent-to-agent messaging tool)
       autoResponse, // Auto-respond to agent messages (--no-auto-response disables)
       initialWorkbenchHealth, // Pre-computed health (avoids redundant /health call)
+      taskLogEvictionThreshold, // Threshold for task log context eviction
     }),
     [
       sessionId,
@@ -160,6 +163,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       getMessageQueue,
       autoResponse,
       initialWorkbenchHealth,
+      taskLogEvictionThreshold,
     ]
   );
 

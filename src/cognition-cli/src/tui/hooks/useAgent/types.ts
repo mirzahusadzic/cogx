@@ -62,6 +62,7 @@ export interface UseAgentOptions {
    * Solo mode (disables IPC and PGC tools to save tokens)
    */
   solo?: boolean;
+  taskLogEvictionThreshold?: number;
 
   /**
    * Tool confirmation callback (for guardrails)

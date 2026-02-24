@@ -600,6 +600,12 @@ const tuiCmd = program
     '--solo',
     'Enable solo mode (disables IPC and PGC tools to save tokens)'
   )
+  .option(
+    '--ctx-tools <number>',
+    'Number of tool logs to keep in context per task before eviction',
+    (val) => parseInt(val, 10),
+    20
+  )
   .option('--no-show-thinking', 'Hide thinking blocks in TUI')
   .option(
     '--no-onboarding',
@@ -661,6 +667,7 @@ const tuiCmd = program
       displayThinking: options.showThinking !== false,
       noOnboarding: options.onboarding === false, // --no-onboarding flag
       autoResponse: options.autoResponse !== false, // --no-auto-response flag
+      ctxTools: options.ctxTools,
     });
   });
 

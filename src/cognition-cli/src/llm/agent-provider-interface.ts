@@ -98,6 +98,13 @@ export interface AgentRequest {
   /** Remaining Tokens Per Minute (TPM) budget for dynamic adjustment */
   remainingTPM?: number;
 
+  /**
+   * Task log eviction threshold (rolling ring buffer size).
+   * Determines how many tool outputs per task are kept in context.
+   * @default 20
+   */
+  taskLogEvictionThreshold?: number;
+
   /** Error callback */
   onStderr?: (error: string) => void;
 

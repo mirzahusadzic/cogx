@@ -205,6 +205,7 @@ export function useAgentHandlers({
     onRequestToolConfirmation,
     debug: debugFlag,
     semanticThreshold = 50000,
+    taskLogEvictionThreshold,
   } = options;
 
   const anchorId = sessionManager.state.anchorId;
@@ -758,6 +759,7 @@ This will trigger a semantic compression event, flushing implementation noise wh
           projectRoot: cwd,
           agentId: sessionIdProp || 'unknown',
           anchorId,
+          taskLogEvictionThreshold,
           remainingTPM: 1000000 - tokenCounter.count.total,
           onStderr: (data: string) => stderrLines.push(data),
           onToolOutput: (chunk: string) => {
