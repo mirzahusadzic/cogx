@@ -16,8 +16,8 @@ Cognition Σ CLI is the working implementation of the **Grounded Context Pool (P
 
 | Metric             | Value                            |
 | ------------------ | -------------------------------- |
-| Production Code    | ~92,033 lines TypeScript         |
-| Test Coverage      | ~92% (129 test files)            |
+| Production Code    | ~104,188 lines TypeScript        |
+| Test Coverage      | ~92% (172 test files)            |
 | Core Commands      | 40+ with tab completion          |
 | Cognitive Overlays | 7 (O₁-O₇)                        |
 | LLM Providers      | 3 (Gemini, Claude, OpenAI/local) |
@@ -370,6 +370,13 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 
 ## 🎉 Latest Release
 
+**v2.6.9 - February 24, 2026** — [SigmaTask Context Eviction & TUI Analytics](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.9):
+
+- ✂️ **SigmaTask Context Eviction** — Introduced `--ctx-tools` and fine-grained surgical eviction to prune tool logs while retaining critical task summaries.
+- 📊 **TUI Analytics & Token Tracking** — Real-time session token tracking, cost analysis, and cached token visibility in the Status Bar.
+- 📟 **Rolling Ring Buffer** — Implemented efficient context management via rolling buffers for tool outputs across all providers.
+- 🛠️ **UI Enhancements** — New `SigmaTaskPanel` for persistent task tracking and refined agent heuristics for better context persistence.
+
 **v2.6.8 - February 22, 2026** — [Surgical Context Eviction & Provider Expansion](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.8):
 
 - ✂️ **Surgical Eviction** — Task-aware tool log eviction across Gemini, OpenAI, and Minimax to significantly reduce context bloat and token usage.
@@ -377,16 +384,9 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 - 📟 **CLI & Token Accuracy** — Introduced `--solo` mode for isolated execution and fixed TUI token counters to accurately track surgical drops.
 - 🧹 **Infrastructure & Cleanup** — Bumped `@google/adk` to 0.3.0, preserved thought signatures during eviction.
 
-**v2.6.7 - January 29, 2026** — [TUI Visual Balance & Gemini 3 Reasoning Robustness](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.7):
+**Impact:** Significantly reduces token waste and context bloat while optimizing for **implicit token caching** (achieving **30%+ hit rates** via surgical prefix stability). This ensures economic sustainability for agentic sessions by leveraging low-threshold (1,024 tokens) implicit caching.
 
-- **Visual Theme Refinement:** Dimmed cyan tones in roles and text themes for better visual balance.
-- **Gemini 3 Thought Signatures:** Persist reasoning and resolve potential loops in Gemini 3.
-- **Robust Retry Infrastructure:** Provider refactor with robust retry logic and failover infrastructure.
-- **Enhanced Diff Rendering:** Improved diff auto-detection, highlighting, and negative value handling.
-
-**Impact:** Dramatically improves context persistence, visual stability, and model flexibility, cementing the architecture for long-running workflows without token explosions.
-
-**Previous releases:** [v2.6.6](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.6) | [v2.6.5](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.5) | [v2.6.4](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.4) | [v2.6.3](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.3) | [v2.6.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2) | [v2.6.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.0.0 - Σ Launch](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
+**Previous releases:** [v2.6.7](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.7) | [v2.6.6](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.6) | [v2.6.5](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.5) | [v2.6.4](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.4) | [v2.6.3](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.3) | [v2.6.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2) | [v2.6.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.0.0 - Σ Launch](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
 
 **Full changelog:** [CHANGELOG.md](./CHANGELOG.md)
 

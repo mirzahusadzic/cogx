@@ -6,9 +6,9 @@
 
 **At a Glance:**
 
-- **Current Version:** 2.6.8 (February 22, 2026)
-- **Production Lines:** ~102,811 TypeScript (excl. tests), ~150,491 total
-- **Test Coverage:** ~92% across 167 test files
+- **Current Version:** 2.6.9 (February 24, 2026)
+- **Production Lines:** ~104,188 TypeScript (excl. tests), ~152,708 total
+- **Test Coverage:** ~92% across 171 test files
 - **Architecture:** 7 cognitive overlays (O₁-O₇), dual-lattice Σ system, ZeroMQ agent messaging
 - **License:** AGPL-3.0-or-later
 
@@ -955,7 +955,7 @@ The same architecture that understands code can preserve human identity through 
 | Core Commands         | 40+ (with tab completion)          |
 | Test Files            | 165 (comprehensive coverage)       |
 | Test Coverage         | ~92% (security, compression, UX)   |
-| Current Version       | 2.6.7 (January 29, 2026)           |
+| Current Version       | 2.6.9 (February 24, 2026)          |
 | License               | AGPL-3.0-or-later                  |
 | Zenodo DOI            | 10.5281/zenodo.18012832            |
 | Innovations Published | 49 (defensive patent publication)  |
@@ -964,7 +964,15 @@ The same architecture that understands code can preserve human identity through 
 
 ## Version History & Changelog
 
-### Version 2.6.8 (Current - Surgical Context Eviction & Provider Expansion)
+### Version 2.6.9 (Current - SigmaTask Context Eviction & TUI Token Tracking)
+
+- **SigmaTask Context Eviction:** Implemented fine-grained control over task log history with the `--ctx-tools` parameter, ensuring completed task logs are surgically pruned while retaining high-level summaries.
+- **Rolling Ring Buffer:** Introduced a rolling ring buffer for tool outputs across all providers to manage long-running context more efficiently.
+- **Token Analytics:** Added real-time cumulative cost and token tracking to the TUI status bar, including cached token tracking and per-task cost attribution.
+- **UI Enhancements:** Added `SigmaTaskPanel` for persistent task tracking and refined task sorting/display logic.
+- **Stability:** Hardened TUI message threading, session persistence, and optimized re-renders with memoization.
+
+### Version 2.6.8 (Surgical Context Eviction & Provider Expansion)
 
 - **Surgical Tool Log Eviction:** Implementation of task-aware tool log eviction (`edit_file`, `write_file`, etc.) across Gemini, OpenAI, and Minimax, ensuring that completed task implementation logs are surgically pruned from the context while retaining the task's high-level summary and state.
 - **Provider Refactoring & Expansion:** Added the experimental Minimax provider via Anthropic SDK, migrated to Gemini 3.0/3.1 models as default, and completely purged legacy 2.x EOL models.
@@ -1190,7 +1198,7 @@ _For previous release history, see [CHANGELOG.md](https://github.com/mirzahusadz
 
 ## Conclusion
 
-Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.6.8** extends production excellence with **surgical context eviction**, **multi-provider expansion (Minimax/Gemini 3.1)**, and **token optimization**, ensuring infinite multi-turn execution without context bloat for AI-human symbiosis. This transforms Cognition CLI from a research prototype into a high-reliability distributed nervous system for code.
+Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.6.9** extends production excellence with **SigmaTask context eviction**, **real-time token/cost tracking**, and **UI enhancements**, ensuring infinite multi-turn execution without context bloat for AI-human symbiosis. This transforms Cognition CLI from a research prototype into a high-reliability distributed nervous system for code.
 
 It combines:
 

@@ -5,7 +5,33 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.6.8] - 2026-02-22
+## [2.6.9] - 2026-02-24
+
+### Summary
+
+Introduces **SigmaTask Context Eviction** and advanced **TUI Analytics** to provide deeper visibility into execution costs and system state stability. This release specifically optimizes for **Implicit Token Caching** (kicking in at just 1,024 tokens) by maintaining prefix stability, drastically reducing token waste and TCO—achieving observed **cache hit rates of 30%+** in high-density agentic sessions.
+
+### 🚀 New Features
+
+- ✂️ **SigmaTask Context Eviction** — Introduced `--ctx-tools` and fine-grained surgical eviction to prune tool logs while retaining critical task summaries.
+- 📊 **TUI Analytics & Token Tracking** — Real-time session token tracking, cost analysis, and cached token visibility in the Status Bar.
+- 📟 **Rolling Ring Buffer** — Implemented efficient context management via rolling buffers for tool outputs across all providers.
+- 🛠️ **UI Enhancements** — New `SigmaTaskPanel` for persistent task tracking and refined agent heuristics for better context persistence.
+
+### 🧹 Infrastructure & Cleanup
+
+- **Agent Heuristics** — Improved logic for context persistence during surgical eviction to ensure better instruction following.
+- **Provider Refactoring** — Unified log archiving and refined surgical eviction logic for better consistency.
+- **TUI Stability** — Refined message threading, session state persistence, and optimized re-renders with memoization.
+- **Architecture Documentation** — Updated `COMPREHENSIVE_ANALYSIS.md` with latest system metrics and version history.
+
+### 🐛 Bug Fixes & Stability
+
+- **Token Counter Accuracy** — Fixed token 'double spend' bug and prevented stale token leakage in Gemini tool loops.
+- **SDK Security** — Prevented agent delegation prompt leak in solo mode.
+- **TUI Robustness** — Prevented TUI lockup on SDK errors and corrected cumulative token/cost tracking for multi-turn agent loops.
+
+## [2.6.8] - 2026-02-23
 
 ### Summary
 
