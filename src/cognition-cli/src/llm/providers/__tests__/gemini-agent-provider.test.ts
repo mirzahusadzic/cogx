@@ -603,6 +603,82 @@ describe('GeminiAgentProvider', () => {
       expect(lastTokens.prompt).toBeGreaterThan(0);
     });
 
+    it('should reset turn tokens between tool calls to prevent stale tracking', async () => {
+      const provider = new GeminiAgentProvider('test-key');
+
+      mockRunAsync.mockReturnValue({
+        [Symbol.asyncIterator]: async function* () {
+          // Turn 1: Tool Call
+          yield {
+            author: 'cognition_agent',
+            content: {
+              parts: [
+                {
+                  functionCall: {
+                    name: 'read_file',
+                    args: { path: 'test.txt' },
+                  },
+                },
+              ],
+            },
+            usageMetadata: {
+              promptTokenCount: 100,
+              candidatesTokenCount: 10,
+              totalTokenCount: 110,
+            },
+          };
+
+          // Tool Result
+          yield {
+            author: 'cognition_agent',
+            content: {
+              parts: [
+                {
+                  functionResponse: { name: 'read_file', response: 'content' },
+                },
+              ],
+            },
+          };
+
+          // Turn 2: Final Response (Start with a chunk without usageMetadata)
+          yield {
+            author: 'cognition_agent',
+            content: { parts: [{ text: 'I read the file.' }] },
+          };
+        },
+      });
+
+      const generator = provider.executeAgent({
+        prompt: 'Read file',
+        model: 'gemini-3-flash-preview',
+        cwd: '/test',
+      });
+
+      const responses: Array<{
+        tokens: { completion: number };
+        messages: Array<{ type: string }>;
+      }> = [];
+      for await (const response of generator) {
+        responses.push(
+          response as unknown as {
+            tokens: { completion: number };
+            messages: Array<{ type: string }>;
+          }
+        );
+      }
+
+      // Find the first response of the second turn (after tool_result)
+      const toolResultIdx = responses.findIndex((r) =>
+        r.messages.some((m: { type: string }) => m.type === 'tool_result')
+      );
+      const turn2StartResponse = responses[toolResultIdx + 1];
+
+      // It should NOT have leaked the 10 completion tokens from Turn 1
+      // It should have 4 tokens (estimation for "I read the file.")
+      expect(turn2StartResponse.tokens.completion).toBeLessThan(10);
+      expect(turn2StartResponse.tokens.completion).toBeGreaterThan(0);
+    });
+
     it('should fallback to estimation when no usageMetadata', async () => {
       const provider = new GeminiAgentProvider('test-key');
 

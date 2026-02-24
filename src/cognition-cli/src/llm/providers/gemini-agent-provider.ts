@@ -992,6 +992,8 @@ export class GeminiAgentProvider implements AgentProvider {
                   accumulatedAssistant = '';
                   accumulatedThinkingBlocks.clear();
                   currentTurnOutputEstimate = 0;
+                  currentCompletionTokens = 0;
+                  currentCachedTokens = 0;
                 } else if (part.functionResponse) {
                   if (process.env.DEBUG_GEMINI_STREAM) {
                     // Always log for now to debug bash
@@ -1067,6 +1069,8 @@ export class GeminiAgentProvider implements AgentProvider {
                   accumulatedAssistant = '';
                   accumulatedThinkingBlocks.clear();
                   currentTurnOutputEstimate = 0;
+                  currentCompletionTokens = 0;
+                  currentCachedTokens = 0;
                 } else if (part.text || part.thoughtSignature) {
                   // Check if this is thinking content
                   const isThinking = part.thought === true;
