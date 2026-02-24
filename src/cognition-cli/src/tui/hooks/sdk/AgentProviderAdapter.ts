@@ -162,6 +162,8 @@ export class AgentProviderAdapter {
         ? `\n\n## File Paths\nNote: You are working in a subdirectory. Tools have been patched to handle git paths automatically.`
         : '';
 
+    const isSolo = this.options.mode === 'solo';
+
     const request: AgentRequest = {
       prompt,
       model: this.model,
@@ -193,14 +195,16 @@ export class AgentProviderAdapter {
               `Instead, use the **SigmaTaskUpdate** tool for all task management.\n\n` +
               `SigmaTaskUpdate provides enhanced capabilities:\n` +
               `- Stable task IDs (required)\n` +
-              `- Manager/Worker delegation pattern\n` +
-              `- Task delegation with acceptance_criteria and delegated_to fields\n` +
+              (!isSolo ? `- Manager/Worker delegation pattern\n` : '') +
+              (!isSolo
+                ? `- Task delegation with acceptance_criteria and delegated_to fields\n`
+                : '') +
               `- REQUIRED result_summary (min 15 chars) when status is 'completed'\n` +
               `- Full state persistence across compressions\n\n` +
               `Use SigmaTaskUpdate exactly as you would use TodoWrite, but with the new schema.`
             : '') +
           `\n\n## Working Directory\n${cwd}${projectRootInfo}${filePathInfo}` +
-          `\n\n${DELEGATION_PROTOCOL_PROMPT}`,
+          (!isSolo ? `\n\n${DELEGATION_PROTOCOL_PROMPT}` : ''),
       },
       includePartialMessages: true,
       // Add grounding requirements from session state if available

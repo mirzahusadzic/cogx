@@ -481,6 +481,55 @@ describe('AgentProviderAdapter', () => {
         })
       );
     });
+
+    it('should NOT include DELEGATION_PROTOCOL_PROMPT in solo mode', async () => {
+      const adapter = new AgentProviderAdapter({
+        ...defaultOptions,
+        mode: 'solo',
+        provider: 'claude',
+      });
+
+      for await (const _ of adapter.query('Test')) {
+        // consume generator
+      }
+
+      expect(mockProvider.executeAgent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          systemPrompt: expect.objectContaining({
+            append: expect.not.stringContaining(
+              'Agent Network Awareness & Routing'
+            ),
+          }),
+        })
+      );
+
+      // Also check Claude-specific delegation mention
+      const append =
+        mockProvider.executeAgent.mock.calls[0][0].systemPrompt.append;
+      expect(append).not.toContain('Manager/Worker delegation pattern');
+      expect(append).not.toContain('Task delegation with acceptance_criteria');
+    });
+
+    it('should include DELEGATION_PROTOCOL_PROMPT in full mode (default)', async () => {
+      const adapter = new AgentProviderAdapter({
+        ...defaultOptions,
+        mode: 'full',
+      });
+
+      for await (const _ of adapter.query('Test')) {
+        // consume generator
+      }
+
+      expect(mockProvider.executeAgent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          systemPrompt: expect.objectContaining({
+            append: expect.stringContaining(
+              'Agent Network Awareness & Routing'
+            ),
+          }),
+        })
+      );
+    });
   });
 
   describe('debug mode', () => {
