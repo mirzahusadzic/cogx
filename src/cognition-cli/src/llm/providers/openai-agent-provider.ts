@@ -63,7 +63,10 @@ import {
   OpenAIConversationsSession,
 } from '@openai/agents-openai';
 import { getOpenAITools } from './openai-agent-tools.js';
-import { archiveTaskLogs } from './eviction-utils.js';
+import {
+  archiveTaskLogs,
+  TASK_LOG_EVICTION_THRESHOLD,
+} from './eviction-utils.js';
 import { getDynamicThinkingBudget } from './thinking-utils.js';
 import type { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
 import type { BackgroundTaskManager } from '../../tui/services/BackgroundTaskManager.js';
@@ -631,6 +634,70 @@ export class OpenAIAgentProvider implements AgentProvider {
       { conversationId, itemId },
       'debug'
     );
+  }
+
+  /**
+   * Rolling prune for in-progress tasks (OpenAI).
+   * Maintains a ring buffer of tool outputs in the conversation history.
+   */
+  private async rollingPruneTaskLogs(
+    taskId: string,
+    conversationId: string,
+    projectRoot: string,
+    threshold: number = TASK_LOG_EVICTION_THRESHOLD
+  ) {
+    try {
+      const items = await this.getConversationItems(conversationId);
+      if (!items || items.length === 0) return;
+
+      const tag = `<!-- sigma-task: ${taskId} -->`;
+      const taggedItems: ConversationItemResponse[] = [];
+
+      for (const item of items) {
+        if (item.content?.includes(tag)) {
+          taggedItems.push(item);
+        }
+      }
+
+      if (taggedItems.length <= threshold) return;
+
+      const toPruneCount = taggedItems.length - threshold;
+      const itemsToPrune = taggedItems.slice(0, toPruneCount);
+      const evictedLogs: string[] = [];
+
+      for (const item of itemsToPrune) {
+        evictedLogs.push(JSON.stringify(item, null, 2));
+        try {
+          await this.deleteConversationItem(conversationId, item.id);
+        } catch (err) {
+          systemLog(
+            'openai',
+            'Failed to delete item during rolling prune',
+            { itemId: item.id, error: String(err) },
+            'warn'
+          );
+        }
+      }
+
+      await archiveTaskLogs({
+        projectRoot,
+        sessionId: conversationId,
+        taskId,
+        evictedLogs,
+      });
+
+      systemLog(
+        'sigma',
+        `Rolling prune: Evicted ${toPruneCount} oldest tool logs for task ${taskId} (threshold: ${threshold}) (OpenAI).`
+      );
+    } catch (err) {
+      systemLog(
+        'sigma',
+        `Failed rolling prune for task ${taskId} (OpenAI)`,
+        { error: err instanceof Error ? err.message : String(err) },
+        'error'
+      );
+    }
   }
 
   /**

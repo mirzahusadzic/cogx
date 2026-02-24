@@ -254,6 +254,134 @@ export class GeminiAgentProvider implements AgentProvider {
   }
 
   /**
+   * Rolling prune for in-progress tasks.
+   * Maintains a ring buffer of tool outputs to prevent context bloat.
+   *
+   * @param taskId - The ID of the active task
+   * @param sessionId - ADK session ID
+   * @param projectRoot - Project root directory
+   * @param threshold - Maximum number of tool outputs to keep (default: 20)
+   * @param activeSession - Optional active session object
+   */
+  private async rollingPruneTaskLogs(
+    taskId: string,
+    sessionId: string,
+    projectRoot: string,
+    threshold: number = 20,
+    activeSession?: Session
+  ) {
+    try {
+      const session =
+        activeSession ||
+        (await this.sessionService.getSession({
+          appName: 'cognition-cli',
+          userId: 'cognition-user',
+          sessionId: sessionId,
+        }));
+
+      if (!session) return;
+
+      const events = (session as unknown as AdkSession).events;
+      if (!events || events.length === 0) return;
+
+      const tag = `<!-- sigma-task: ${taskId} -->`;
+
+      // Find all events that have this task tag in their parts
+      const taggedEventIndices: number[] = [];
+      for (let i = 0; i < events.length; i++) {
+        const event = events[i];
+        const parts = event.content?.parts || [];
+        const hasTag = parts.some((p) => {
+          if (p.text?.includes(tag)) return true;
+          if (p.functionResponse?.response) {
+            return JSON.stringify(p.functionResponse.response).includes(tag);
+          }
+          return false;
+        });
+        if (hasTag) {
+          taggedEventIndices.push(i);
+        }
+      }
+
+      if (taggedEventIndices.length <= threshold) return;
+
+      // We need to prune oldest events to reach the threshold
+      const toPruneCount = taggedEventIndices.length - threshold;
+      const indicesToPrune = taggedEventIndices.slice(0, toPruneCount);
+
+      const evictedLogs: string[] = [];
+      const newEvents = [...events];
+
+      for (const idx of indicesToPrune) {
+        const event = newEvents[idx];
+        evictedLogs.push(JSON.stringify(event, null, 2));
+
+        const toolTombstone = `[Tool output for task ${taskId} evicted (Rolling Prune) to keep context small. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`;
+
+        const newParts = event.content?.parts?.map((p) => {
+          if (p.functionResponse) {
+            return {
+              ...p,
+              functionResponse: {
+                name: p.functionResponse.name,
+                response: {
+                  result: toolTombstone,
+                },
+              },
+            };
+          }
+          if (p.text?.includes(tag)) {
+            return { text: toolTombstone };
+          }
+          return p;
+        });
+
+        newEvents[idx] = {
+          ...event,
+          content: {
+            ...event.content,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            parts: newParts as any,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any,
+        };
+      }
+
+      // Archive the pruned logs before deleting them from memory
+      await archiveTaskLogs({
+        projectRoot,
+        sessionId,
+        taskId,
+        evictedLogs,
+      });
+
+      // Update session history in memory
+      (session as unknown as AdkSession).events = newEvents;
+
+      // Update internal storage if using InMemorySessionService
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const internalStorage = (this.sessionService as any).sessions;
+      if (internalStorage?.['cognition-cli']?.['cognition-user']?.[sessionId]) {
+        internalStorage['cognition-cli']['cognition-user'][sessionId].events = [
+          ...newEvents,
+        ];
+      }
+
+      systemLog(
+        'sigma',
+        `Rolling prune: Evicted ${toPruneCount} oldest tool logs for task ${taskId} (threshold: ${threshold}). ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
+      );
+    } catch (err) {
+      systemLog(
+        'sigma',
+        `Failed rolling prune for task ${taskId}`,
+        { error: err instanceof Error ? err.message : String(err) },
+        'error'
+      );
+    }
+  }
+
+  /**
    * Prune tool logs for a completed task and archive them.
    * This surgical eviction keeps the context clean of "implementation noise".
    *
@@ -1031,6 +1159,24 @@ export class GeminiAgentProvider implements AgentProvider {
                   }
 
                   numTurns++;
+
+                  const activeTaskId = request.anchorId
+                    ? getActiveTaskId(
+                        request.anchorId,
+                        request.cwd || request.projectRoot || process.cwd()
+                      )
+                    : null;
+
+                  if (activeTaskId) {
+                    await this.rollingPruneTaskLogs(
+                      activeTaskId,
+                      sessionId,
+                      request.projectRoot || process.cwd(),
+                      20, // threshold
+                      session
+                    );
+                  }
+
                   const resultMessage: AgentMessage = {
                     id: `msg-${Date.now()}-result-${numTurns}`,
                     type: 'tool_result',

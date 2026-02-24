@@ -12,7 +12,16 @@ The system identifies exactly what to delete using a two-pronged approach when a
 - **Turn-Range Eviction (Assistant Reasoning):** The provider scans the conversation history to find the exact turn where the task was marked `in_progress`. It then prunes all intermediate assistant turns (both `thought` blocks and `text` responses) that occurred between `in_progress` and `completed`.
   - _Fallback Behavior:_ If the `in_progress` tag for the task isn't found in the history, `startIndex` evaluates to `-1` and `isAssistantTurnInRange` evaluates to `false`. The system gracefully falls back to _only_ evicting tagged Tool Outputs, leaving Assistant thoughts intact. This highly resilient behavior prevents catastrophic history deletion or crashes when tasks are completed out of sequence.
 
-### 2. Gemini-Specific: Thought & Signature Preservation
+### 2. Rolling Ring Buffer (In-Progress Tasks)
+
+To prevent context bloat during long-running tasks (e.g., complex research or debugging loops), the system employs a **FIFO Rolling Ring Buffer** for tool outputs.
+
+- **Mechanism:** As new tool results are generated for an `in_progress` task, the system tracks the total count of tool outputs associated with that task's ID.
+- **Threshold:** When the count of tool outputs for a single task exceeds **20**, the oldest tool output is automatically "tombstoned" and archived.
+- **Context Management:** This ensures that even if a task requires 100 tool calls, the model's active context only contains the most recent 20, keeping the prompt small and reducing latency/costs.
+- **Tombstone format:** `[Tool output for task <id> evicted (Rolling Prune) to keep context small. Use 'grep' on .sigma/archives/<session_id>/<task_id>.log if previous logs are needed.]`
+
+### 3. Gemini-Specific: Thought & Signature Preservation
 
 For "thinking" models like `gemini-3.1-pro-preview`, preserving the internal reasoning state is critical for stability across turns.
 

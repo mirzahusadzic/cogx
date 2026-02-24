@@ -28,7 +28,10 @@ import {
   executeMinimaxTool,
   type MinimaxToolsContext,
 } from './minimax-agent-tools.js';
-import { archiveTaskLogs } from './eviction-utils.js';
+import {
+  archiveTaskLogs,
+  TASK_LOG_EVICTION_THRESHOLD,
+} from './eviction-utils.js';
 
 interface ThinkingBlock {
   type: 'thinking';
@@ -167,6 +170,90 @@ export class MinimaxAgentProvider implements AgentProvider {
           done: true,
           tokens: { prompt: pt, completion: ct, total: pt + ct },
         };
+    }
+  }
+
+  /**
+   * Rolling prune for in-progress tasks (Minimax).
+   * Maintains a ring buffer of tool outputs in the local history array.
+   */
+  private async rollingPruneTaskLogs(
+    taskId: string,
+    sessionId: string,
+    projectRoot: string,
+    history: Anthropic.MessageParam[],
+    threshold: number = TASK_LOG_EVICTION_THRESHOLD
+  ) {
+    try {
+      const tag = `<!-- sigma-task: ${taskId} -->`;
+      const taggedIndices: number[] = [];
+
+      for (let i = 0; i < history.length; i++) {
+        const msg = history[i];
+        const contentStr =
+          typeof msg.content === 'string'
+            ? msg.content
+            : JSON.stringify(msg.content);
+        if (contentStr.includes(tag)) {
+          taggedIndices.push(i);
+        }
+      }
+
+      if (taggedIndices.length <= threshold) return;
+
+      const toPruneCount = taggedIndices.length - threshold;
+      const indicesToPrune = taggedIndices.slice(0, toPruneCount);
+      const evictedLogs: string[] = [];
+
+      for (const idx of indicesToPrune) {
+        const msg = history[idx];
+        evictedLogs.push(JSON.stringify(msg, null, 2));
+
+        const toolTombstone = `[Tool output for task ${taskId} evicted (Rolling Prune) to keep context small. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`;
+
+        if (typeof msg.content === 'string') {
+          history[idx] = { ...msg, content: toolTombstone };
+        } else if (Array.isArray(msg.content)) {
+          const newContent = msg.content.map((part) => {
+            if (part.type === 'text' && part.text.includes(tag)) {
+              return { ...part, text: toolTombstone };
+            }
+            if (part.type === 'tool_result') {
+              const result =
+                typeof part.content === 'string'
+                  ? part.content
+                  : JSON.stringify(part.content);
+              if (result.includes(tag)) {
+                return { ...part, content: toolTombstone };
+              }
+            }
+            return part;
+          });
+          history[idx] = {
+            ...msg,
+            content: newContent as Anthropic.MessageParam['content'],
+          };
+        }
+      }
+
+      await archiveTaskLogs({
+        projectRoot,
+        sessionId,
+        taskId,
+        evictedLogs,
+      });
+
+      systemLog(
+        'sigma',
+        `Rolling prune: Evicted ${toPruneCount} oldest tool logs for task ${taskId} (threshold: ${threshold}) (Minimax).`
+      );
+    } catch (err) {
+      systemLog(
+        'sigma',
+        `Failed rolling prune for task ${taskId} (Minimax)`,
+        { error: err instanceof Error ? err.message : String(err) },
+        'error'
+      );
     }
   }
 
