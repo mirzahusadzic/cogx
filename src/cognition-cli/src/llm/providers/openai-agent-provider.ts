@@ -841,7 +841,6 @@ export class OpenAIAgentProvider implements AgentProvider {
         messages: [...messages],
         sessionId: conversationId,
         tokens: { prompt: 0, completion: 0, total: 0 },
-        finishReason: 'stop',
         numTurns: 0,
       };
 
@@ -990,7 +989,6 @@ export class OpenAIAgentProvider implements AgentProvider {
                   totalCompletionTokens +
                   currentTurnOutputEstimate,
               },
-              finishReason: 'stop',
               numTurns,
             };
           }
@@ -1030,7 +1028,6 @@ export class OpenAIAgentProvider implements AgentProvider {
                   totalCompletionTokens +
                   currentTurnOutputEstimate,
               },
-              finishReason: 'stop',
               numTurns,
             };
           }
@@ -1225,7 +1222,6 @@ export class OpenAIAgentProvider implements AgentProvider {
                   totalCompletionTokens +
                   currentTurnOutputEstimate,
               },
-              finishReason: 'stop', // Still in progress, but 'stop' is closest match
               numTurns,
             };
           }
@@ -1274,7 +1270,6 @@ export class OpenAIAgentProvider implements AgentProvider {
                   totalCompletionTokens +
                   currentTurnOutputEstimate,
               },
-              finishReason: 'stop', // Still in progress, but 'stop' is closest match
               numTurns,
             };
           }

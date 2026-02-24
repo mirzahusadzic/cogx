@@ -378,7 +378,6 @@ export class MinimaxAgentProvider implements AgentProvider {
       messages: [...messages],
       sessionId,
       tokens: { prompt: 0, completion: 0, total: 0 },
-      finishReason: 'stop',
       numTurns: 0,
       activeModel: modelId,
     };
@@ -506,7 +505,6 @@ export class MinimaxAgentProvider implements AgentProvider {
                 messages: [...messages],
                 sessionId: req.resumeSessionId || `mm-${Date.now()}`,
                 tokens: { prompt: pt, completion: ct, total: pt + ct },
-                finishReason: 'stop',
                 numTurns: turns,
                 activeModel: modelId,
               };
@@ -528,7 +526,6 @@ export class MinimaxAgentProvider implements AgentProvider {
                 messages: [...messages],
                 sessionId: req.resumeSessionId || `mm-${Date.now()}`,
                 tokens: { prompt: pt, completion: ct, total: pt + ct },
-                finishReason: 'stop',
                 numTurns: turns,
                 activeModel: modelId,
               };

@@ -176,8 +176,8 @@ export interface AgentResponse {
     cached?: number;
   };
 
-  /** Finish reason */
-  finishReason: 'stop' | 'length' | 'tool_use' | 'error';
+  /** Finish reason (optional for partial/streaming responses) */
+  finishReason?: 'stop' | 'length' | 'tool_use' | 'error';
 
   /** Number of turns (agent reasoning cycles) */
   numTurns: number;

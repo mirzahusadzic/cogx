@@ -689,7 +689,6 @@ export class GeminiAgentProvider implements AgentProvider {
           total: (currentPromptTokens || 0) + (currentCompletionTokens || 0),
           cached: currentCachedTokens || 0,
         },
-        finishReason: 'stop',
         numTurns: 0,
         retryCount: 0,
       };
@@ -1314,7 +1313,6 @@ export class GeminiAgentProvider implements AgentProvider {
                         (currentCompletionTokens || currentTurnOutputEstimate),
                       cached: currentCachedTokens || 0,
                     },
-                    finishReason: 'stop',
                     numTurns,
                     retryCount: attempt,
                   };
@@ -1374,6 +1372,24 @@ export class GeminiAgentProvider implements AgentProvider {
                 error: errorMessage,
               });
             }
+            yield {
+              activeModel,
+              messages: [...messages],
+              sessionId,
+              tokens: {
+                prompt:
+                  currentPromptTokens || Math.ceil(request.prompt.length / 4),
+                completion:
+                  currentCompletionTokens || currentTurnOutputEstimate,
+                total:
+                  (currentPromptTokens ||
+                    Math.ceil(request.prompt.length / 4)) +
+                  (currentCompletionTokens || currentTurnOutputEstimate),
+                cached: currentCachedTokens || 0,
+              },
+              finishReason: 'stop',
+              numTurns,
+            };
             break; // Exit loop on abort
           }
 
@@ -1395,6 +1411,24 @@ export class GeminiAgentProvider implements AgentProvider {
                 { error: errorMessage }
               );
             }
+            yield {
+              activeModel,
+              messages: [...messages],
+              sessionId,
+              tokens: {
+                prompt:
+                  currentPromptTokens || Math.ceil(request.prompt.length / 4),
+                completion:
+                  currentCompletionTokens || currentTurnOutputEstimate,
+                total:
+                  (currentPromptTokens ||
+                    Math.ceil(request.prompt.length / 4)) +
+                  (currentCompletionTokens || currentTurnOutputEstimate),
+                cached: currentCachedTokens || 0,
+              },
+              finishReason: 'stop',
+              numTurns,
+            };
             break; // Exit loop on benign SDK error (treat as success)
           }
 
@@ -1438,7 +1472,6 @@ export class GeminiAgentProvider implements AgentProvider {
                   (currentCompletionTokens || currentTurnOutputEstimate),
                 cached: currentCachedTokens || 0,
               },
-              finishReason: 'stop', // Keep as stop so TUI continues to show "Thinking"
               numTurns,
               retryCount: attempt,
             };

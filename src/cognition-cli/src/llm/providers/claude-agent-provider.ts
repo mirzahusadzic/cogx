@@ -754,7 +754,7 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
       }
     }
 
-    return 'stop';
+    return undefined;
   }
 
   /**
