@@ -192,8 +192,8 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
             layoutVersion={`${inputLineCount}-${isDropdownVisible}-${dimensions.rows}-${dimensions.columns}`}
           />
         </ComponentErrorBoundary>
-        {dimensions.columns > 100 && (showInfoPanel || showTaskPanel) && (
-          <Box marginLeft={1} flexShrink={0} width={40}>
+        {dimensions.columns > 120 && (showInfoPanel || showTaskPanel) && (
+          <Box marginLeft={1} flexShrink={0} width={50}>
             {showInfoPanel && sigmaStats ? (
               <ComponentErrorBoundary componentName="SigmaInfoPanel">
                 <SigmaInfoPanel

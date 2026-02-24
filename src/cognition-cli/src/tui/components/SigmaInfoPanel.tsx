@@ -57,6 +57,9 @@ export interface SigmaInfoPanelProps {
 
   /** Overlay activation scores */
   overlays: OverlayScores;
+
+  /** Optional width of the panel (default: 50) */
+  width?: number;
 }
 
 const OVERLAY_INFO = {
@@ -153,7 +156,16 @@ const OVERLAY_INFO = {
 export const SigmaInfoPanel: React.FC<SigmaInfoPanelProps> = ({
   sigmaStats,
   overlays,
+  width = 50,
 }) => {
+  const renderHeader = (title: string) => {
+    const label = ` Σ ${title} `;
+    const padding = Math.max(0, width - 2 - label.length);
+    const leftPadding = Math.floor(padding / 2);
+    const rightPadding = padding - leftPadding;
+    return '━'.repeat(leftPadding) + label + '━'.repeat(rightPadding);
+  };
+
   const renderBar = (value: number, max: number = 10) => {
     const filled = Math.round((value / max) * 13);
     const empty = 13 - filled;
@@ -168,11 +180,11 @@ export const SigmaInfoPanel: React.FC<SigmaInfoPanelProps> = ({
       borderColor={TUITheme.overlays.o7_strategic} // Cyan-ish
       paddingX={1}
       paddingY={0}
-      width={40}
+      width={width}
     >
       <Box marginBottom={1} marginTop={1}>
         <Text bold color={TUITheme.overlays.o7_strategic}>
-          ━━━━━━━━━━━━ SIGMA STATS ━━━━━━━━━━━━
+          {renderHeader('SIGMA STATS')}
         </Text>
       </Box>
 

@@ -120,7 +120,7 @@ export function useTokenCount() {
    * update({ input: 100, output: 0, total: 100 }); // Accepted
    */
   const reset = useCallback(() => {
-    setCount({ input: 0, output: 0, total: 0 });
+    setCount({ input: 0, output: 0, total: 0, cached: 0 });
     justReset.current = true;
   }, []);
 

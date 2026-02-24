@@ -61,7 +61,8 @@ interface AgentMessage {
 export function updateSigmaTasksWithTokens(
   prev: SigmaTasks,
   input: SigmaTasks,
-  effectiveTokens: number
+  effectiveTokens: number,
+  cachedTokens: number = 0
 ): SigmaTasks {
   // Ignore 0 tokens to prevent double counting on turn starts or temporary reporting drops
   if (effectiveTokens === 0) return input;
@@ -76,6 +77,9 @@ export function updateSigmaTasksWithTokens(
         tokensAtStart: oldTodo.tokensAtStart,
         tokensAccumulated: oldTodo.tokensAccumulated,
         tokensUsed: oldTodo.tokensUsed,
+        tokensSaved: oldTodo.tokensSaved,
+        tokensSavedAccumulated: oldTodo.tokensSavedAccumulated,
+        tokensSavedAtStart: oldTodo.tokensSavedAtStart,
       };
     }
 
@@ -84,10 +88,17 @@ export function updateSigmaTasksWithTokens(
     let tokensAccumulated = oldTodo?.tokensAccumulated ?? 0;
     let tokensUsed = oldTodo?.tokensUsed ?? 0;
 
+    let tokensSavedAtStart = oldTodo?.tokensSavedAtStart;
+    let tokensSavedAccumulated = oldTodo?.tokensSavedAccumulated ?? 0;
+    let tokensSaved = oldTodo?.tokensSaved ?? 0;
+
     // Initialize tracking if task just became in_progress
     if (newTodo.status === 'in_progress' && oldTodo?.status !== 'in_progress') {
       if (tokensAtStart === undefined) {
         tokensAtStart = effectiveTokens;
+      }
+      if (tokensSavedAtStart === undefined) {
+        tokensSavedAtStart = cachedTokens;
       }
     }
 
@@ -98,6 +109,12 @@ export function updateSigmaTasksWithTokens(
     ) {
       let currentDelta = Math.max(0, effectiveTokens - tokensAtStart);
       let calculatedTokensUsed = tokensAccumulated + currentDelta;
+
+      let currentSavedDelta = 0;
+      if (tokensSavedAtStart !== undefined) {
+        currentSavedDelta = Math.max(0, cachedTokens - tokensSavedAtStart);
+      }
+      let calculatedTokensSaved = tokensSavedAccumulated + currentSavedDelta;
 
       // Detect eviction
       // If effectiveTokens drops below the start threshold, or if the calculated usage
@@ -110,9 +127,16 @@ export function updateSigmaTasksWithTokens(
         tokensAtStart = effectiveTokens;
         currentDelta = 0;
         calculatedTokensUsed = tokensAccumulated;
+
+        // Sync saved tokens on eviction
+        tokensSavedAccumulated = tokensSaved;
+        tokensSavedAtStart = cachedTokens;
+        currentSavedDelta = 0;
+        calculatedTokensSaved = tokensSavedAccumulated;
       }
 
       tokensUsed = calculatedTokensUsed;
+      tokensSaved = calculatedTokensSaved;
     }
 
     return {
@@ -120,6 +144,9 @@ export function updateSigmaTasksWithTokens(
       tokensAtStart,
       tokensAccumulated,
       tokensUsed,
+      tokensSaved,
+      tokensSavedAtStart,
+      tokensSavedAccumulated,
     };
   });
 
@@ -189,12 +216,18 @@ export function useAgentHandlers({
   const activeToolContentRef = useRef<string | null>(null);
 
   const processAgentMessage = useCallback(
-    (agentMessage: AgentMessage, currentTokens?: number) => {
+    (
+      agentMessage: AgentMessage,
+      currentTokens?: number,
+      cachedTokens?: number
+    ) => {
       const { type, content } = agentMessage;
       // Use explicitly passed tokens if available, otherwise fall back to state
       // This ensures we use the most up-to-date count from the streaming response
       // rather than waiting for the React state update cycle
       const effectiveTokens = currentTokens ?? tokenCounter.count.total;
+      const effectiveCachedTokens =
+        cachedTokens ?? tokenCounter.count.cached ?? 0;
 
       switch (type) {
         case 'assistant': {
@@ -284,7 +317,8 @@ export function useAgentHandlers({
                           updateSigmaTasksWithTokens(
                             prev,
                             input,
-                            effectiveTokens
+                            effectiveTokens,
+                            effectiveCachedTokens
                           )
                         );
                       }
@@ -363,7 +397,12 @@ export function useAgentHandlers({
               const input = agentMessage.toolInput as SigmaTasks;
               if (input && Array.isArray(input.todos)) {
                 setSigmaTasks((prev) =>
-                  updateSigmaTasksWithTokens(prev, input, effectiveTokens)
+                  updateSigmaTasksWithTokens(
+                    prev,
+                    input,
+                    effectiveTokens,
+                    effectiveCachedTokens
+                  )
                 );
               }
             }
@@ -906,6 +945,13 @@ This will trigger a semantic compression event, flushing implementation noise wh
             cached: response.tokens.cached,
           });
 
+          const turnSavedCostUsd = adapter.estimateCost({
+            input: response.tokens.cached || 0,
+            output: 0,
+            total: response.tokens.cached || 0,
+            cached: 0,
+          });
+
           sessionTokenCounter.update(
             {
               input: response.tokens.prompt,
@@ -913,7 +959,8 @@ This will trigger a semantic compression event, flushing implementation noise wh
               total: response.tokens.total,
               cached: response.tokens.cached,
             },
-            turnCostUsd
+            turnCostUsd,
+            turnSavedCostUsd
           );
 
           if (response.finishReason) {
@@ -927,7 +974,8 @@ This will trigger a semantic compression event, flushing implementation noise wh
             updateSigmaTasksWithTokens(
               prev,
               prev,
-              sessionTokenCounter.getLatestCount().total
+              sessionTokenCounter.getLatestCount().total,
+              sessionTokenCounter.getLatestCount().cached
             )
           );
 
@@ -944,7 +992,8 @@ This will trigger a semantic compression event, flushing implementation noise wh
             if (agentMessage.type === 'assistant') hasAssistantMessage = true;
             processAgentMessage(
               agentMessage,
-              sessionTokenCounter.getLatestCount().total
+              sessionTokenCounter.getLatestCount().total,
+              sessionTokenCounter.getLatestCount().cached
             );
           }
         }

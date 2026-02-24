@@ -151,10 +151,10 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   // This memo only re-runs when messages change, terminal width changes or layout changes
   const renderedMessages = useMemo(() => {
     const lines: StyledLine[] = [];
-    // Sidebar is visible if columns > 100 AND either info or task panel is shown
+    // Sidebar is visible if columns > 120 AND either info or task panel is shown
     const sidebarVisible =
-      (stdout?.columns || 0) > 100 && (showInfoPanel || showTaskPanel);
-    const infoPanelWidth = sidebarVisible ? 41 : 0; // 40 (width) + 1 (marginLeft)
+      (stdout?.columns || 0) > 120 && (showInfoPanel || showTaskPanel);
+    const infoPanelWidth = sidebarVisible ? 51 : 0; // 50 (width) + 1 (marginLeft)
     const width = Math.max(20, (stdout?.columns || 100) - 3 - infoPanelWidth); // Account for padding, borders, and sidebar
 
     messages.forEach((msg, idx) => {

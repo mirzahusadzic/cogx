@@ -7,6 +7,8 @@ import type { TokenCount } from './useTokenCount.js';
 export interface SessionTokenCount extends TokenCount {
   /** Estimated cumulative cost in USD */
   costUsd: number;
+  /** Estimated cumulative savings in USD from caching */
+  savedCostUsd: number;
 }
 
 /**
@@ -20,6 +22,7 @@ export function useSessionTokenCount() {
     output: 0,
     total: 0,
     costUsd: 0,
+    savedCostUsd: 0,
     cached: 0,
   });
 
@@ -29,6 +32,7 @@ export function useSessionTokenCount() {
     output: 0,
     total: 0,
     costUsd: 0,
+    savedCostUsd: 0,
     cached: 0,
   });
 
@@ -38,6 +42,7 @@ export function useSessionTokenCount() {
     output: 0,
     total: 0,
     costUsd: 0,
+    savedCostUsd: 0,
     cached: 0,
   });
 
@@ -46,44 +51,55 @@ export function useSessionTokenCount() {
    * If the new count is lower than the last seen count (and not 0),
    * it indicates a new turn has started, so we commit the previous turn.
    */
-  const update = useCallback((currentTurn: TokenCount, costUsd: number = 0) => {
-    // Ignore 0-token reports (common at the start of provider streams) to prevent
-    // premature turn completion or data loss.
-    if (currentTurn.total === 0) return;
+  const update = useCallback(
+    (
+      currentTurn: TokenCount,
+      costUsd: number = 0,
+      savedCostUsd: number = 0
+    ) => {
+      // Ignore 0-token reports (common at the start of provider streams) to prevent
+      // premature turn completion or data loss.
+      if (currentTurn.total === 0) return;
 
-    // Detect new turn or context eviction: if current turn total drops below last seen
-    // total, it signifies a context reset/eviction, and we commit the previous
-    // turn's tokens to the session total.
-    // Detect new turn, context eviction, or new internal request in a generator loop:
-    // 1. total < last.total: context was evicted or compressed (prompt shrunk)
-    // 2. output < last.output: a new tool execution started (output reset to 0)
-    // 3. input < last.input: context was forcibly trimmed
-    if (
-      currentTurn.total < lastTurnTokens.current.total ||
-      currentTurn.output < lastTurnTokens.current.output ||
-      currentTurn.input < lastTurnTokens.current.input
-    ) {
-      accumulated.current = {
-        input: accumulated.current.input + lastTurnTokens.current.input,
-        output: accumulated.current.output + lastTurnTokens.current.output,
-        total: accumulated.current.total + lastTurnTokens.current.total,
-        costUsd: accumulated.current.costUsd + lastTurnTokens.current.costUsd,
-        cached:
-          (accumulated.current.cached || 0) +
-          (lastTurnTokens.current.cached || 0),
-      };
-    }
+      // Detect new turn or context eviction: if current turn total drops below last seen
+      // total, it signifies a context reset/eviction, and we commit the previous
+      // turn's tokens to the session total.
+      // Detect new turn, context eviction, or new internal request in a generator loop:
+      // 1. total < last.total: context was evicted or compressed (prompt shrunk)
+      // 2. output < last.output: a new tool execution started (output reset to 0)
+      // 3. input < last.input: context was forcibly trimmed
+      if (
+        currentTurn.total < lastTurnTokens.current.total ||
+        currentTurn.output < lastTurnTokens.current.output ||
+        currentTurn.input < lastTurnTokens.current.input
+      ) {
+        accumulated.current = {
+          input: accumulated.current.input + lastTurnTokens.current.input,
+          output: accumulated.current.output + lastTurnTokens.current.output,
+          total: accumulated.current.total + lastTurnTokens.current.total,
+          costUsd: accumulated.current.costUsd + lastTurnTokens.current.costUsd,
+          savedCostUsd:
+            accumulated.current.savedCostUsd +
+            lastTurnTokens.current.savedCostUsd,
+          cached:
+            (accumulated.current.cached || 0) +
+            (lastTurnTokens.current.cached || 0),
+        };
+      }
 
-    lastTurnTokens.current = { ...currentTurn, costUsd };
+      lastTurnTokens.current = { ...currentTurn, costUsd, savedCostUsd };
 
-    setSessionCount({
-      input: accumulated.current.input + currentTurn.input,
-      output: accumulated.current.output + currentTurn.output,
-      total: accumulated.current.total + currentTurn.total,
-      costUsd: accumulated.current.costUsd + costUsd,
-      cached: (accumulated.current.cached || 0) + (currentTurn.cached || 0),
-    });
-  }, []);
+      setSessionCount({
+        input: accumulated.current.input + currentTurn.input,
+        output: accumulated.current.output + currentTurn.output,
+        total: accumulated.current.total + currentTurn.total,
+        costUsd: accumulated.current.costUsd + costUsd,
+        savedCostUsd: accumulated.current.savedCostUsd + savedCostUsd,
+        cached: (accumulated.current.cached || 0) + (currentTurn.cached || 0),
+      });
+    },
+    []
+  );
 
   /**
    * Manually commit the current turn's tokens.
@@ -95,6 +111,8 @@ export function useSessionTokenCount() {
       output: accumulated.current.output + lastTurnTokens.current.output,
       total: accumulated.current.total + lastTurnTokens.current.total,
       costUsd: accumulated.current.costUsd + lastTurnTokens.current.costUsd,
+      savedCostUsd:
+        accumulated.current.savedCostUsd + lastTurnTokens.current.savedCostUsd,
       cached:
         (accumulated.current.cached || 0) +
         (lastTurnTokens.current.cached || 0),
@@ -104,6 +122,7 @@ export function useSessionTokenCount() {
       output: 0,
       total: 0,
       costUsd: 0,
+      savedCostUsd: 0,
       cached: 0,
     };
 
@@ -117,6 +136,7 @@ export function useSessionTokenCount() {
       output: 0,
       total: 0,
       costUsd: 0,
+      savedCostUsd: 0,
       cached: 0,
     };
     lastTurnTokens.current = {
@@ -124,9 +144,17 @@ export function useSessionTokenCount() {
       output: 0,
       total: 0,
       costUsd: 0,
+      savedCostUsd: 0,
       cached: 0,
     };
-    setSessionCount({ input: 0, output: 0, total: 0, costUsd: 0, cached: 0 });
+    setSessionCount({
+      input: 0,
+      output: 0,
+      total: 0,
+      costUsd: 0,
+      savedCostUsd: 0,
+      cached: 0,
+    });
   }, []);
 
   /**
@@ -139,6 +167,8 @@ export function useSessionTokenCount() {
       output: accumulated.current.output + lastTurnTokens.current.output,
       total: accumulated.current.total + lastTurnTokens.current.total,
       costUsd: accumulated.current.costUsd + lastTurnTokens.current.costUsd,
+      savedCostUsd:
+        accumulated.current.savedCostUsd + lastTurnTokens.current.savedCostUsd,
       cached:
         (accumulated.current.cached || 0) +
         (lastTurnTokens.current.cached || 0),
@@ -146,12 +176,17 @@ export function useSessionTokenCount() {
   }, []);
 
   const initialize = useCallback(
-    (initialCount: TokenCount, costUsd: number = 0) => {
+    (
+      initialCount: TokenCount,
+      costUsd: number = 0,
+      savedCostUsd: number = 0
+    ) => {
       accumulated.current = {
         input: initialCount.input,
         output: initialCount.output,
         total: initialCount.total,
         costUsd,
+        savedCostUsd,
         cached: initialCount.cached || 0,
       };
       lastTurnTokens.current = {
@@ -159,11 +194,13 @@ export function useSessionTokenCount() {
         output: 0,
         total: 0,
         costUsd: 0,
+        savedCostUsd: 0,
         cached: 0,
       };
       setSessionCount({
         ...initialCount,
         costUsd,
+        savedCostUsd,
         cached: initialCount.cached || 0,
       });
     },

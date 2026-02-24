@@ -136,8 +136,14 @@ export interface SigmaTask {
   tokensAtStart?: number;
   /** Total tokens used for this task across context windows */
   tokensUsed?: number;
+  /** Tokens saved (cached) for this task */
+  tokensSaved?: number;
   /** Tokens accumulated from previous context windows */
   tokensAccumulated?: number;
+  /** Saved tokens accumulated from previous context windows */
+  tokensSavedAccumulated?: number;
+  /** Saved tokens at start of task */
+  tokensSavedAtStart?: number;
 }
 
 /**

@@ -30,7 +30,7 @@ export interface SigmaTaskPanelProps {
   /** Overall session token usage */
   sessionTokenCount: SessionTokenCount;
 
-  /** Optional width of the panel (default: 40) */
+  /** Optional width of the panel (default: 50) */
   width?: number;
 }
 
@@ -44,7 +44,7 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
   sigmaTasks,
   tokenCount,
   sessionTokenCount,
-  width = 40,
+  width = 50,
 }) => {
   const { todos } = sigmaTasks;
 
@@ -100,6 +100,14 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
     }
   };
 
+  const renderHeader = (title: string) => {
+    const label = ` Σ ${title} `;
+    const padding = Math.max(0, width - 2 - label.length);
+    const leftPadding = Math.floor(padding / 2);
+    const rightPadding = padding - leftPadding;
+    return '━'.repeat(leftPadding) + label + '━'.repeat(rightPadding);
+  };
+
   return (
     <Box
       flexDirection="column"
@@ -112,7 +120,7 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
     >
       <Box marginBottom={1} marginTop={1}>
         <Text bold color={TUITheme.overlays.o7_strategic}>
-          ━━━━━━━━━━━━ Σ TASK LIST ━━━━━━━━━━━━━
+          {renderHeader('TASK LIST')}
         </Text>
       </Box>
 
@@ -124,7 +132,7 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
         ) : (
           sortedTodos.map((task) => (
             <Box key={task.id} marginLeft={1} flexDirection="column">
-              <Box>
+              <Box flexDirection="column">
                 <Text color={getStatusColor(task.status)}>
                   [{getStatusIcon(task.status)}]{' '}
                   {stripAnsi(
@@ -132,15 +140,23 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
                       ? task.activeForm
                       : task.content
                   )}
-                  {(task.status === 'completed' ||
-                    task.status === 'in_progress') &&
-                    task.tokensUsed !== undefined && (
-                      <Text color={TUITheme.text.tertiary}>
-                        {' '}
-                        ({formatCompactNumber(task.tokensUsed)})
-                      </Text>
-                    )}
                 </Text>
+                {(task.status === 'completed' ||
+                  task.status === 'in_progress') &&
+                  task.tokensUsed !== undefined && (
+                    <Box marginLeft={4}>
+                      <Text color={TUITheme.text.tertiary}>
+                        ({formatCompactNumber(task.tokensUsed)}
+                        {task.tokensSaved && task.tokensSaved > 0 ? (
+                          <Text color={TUITheme.text.tertiary}>
+                            {' / '}
+                            {formatCompactNumber(task.tokensSaved)}
+                          </Text>
+                        ) : null}
+                        )
+                      </Text>
+                    </Box>
+                  )}
               </Box>
               {task.status === 'completed' &&
                 task.result_summary &&
@@ -162,7 +178,7 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
 
       <Box marginBottom={1}>
         <Text bold color={TUITheme.overlays.o7_strategic}>
-          ━━━━━━━━━━━━ Σ CTX TOKENS ━━━━━━━━━━━━
+          {renderHeader('CTX TOKENS')}
         </Text>
       </Box>
 
@@ -179,13 +195,19 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
           </Text>
           <Text color={TUITheme.text.tertiary}>
             Out: {formatCompactNumber(tokenCount.output)}
+            {tokenCount.cached && tokenCount.cached > 0 ? (
+              <Text color={TUITheme.text.tertiary}>
+                {' '}
+                | Cached: {formatCompactNumber(tokenCount.cached)}
+              </Text>
+            ) : null}
           </Text>
         </Box>
       </Box>
 
       <Box marginBottom={1}>
         <Text bold color={TUITheme.overlays.o7_strategic}>
-          ━━━━━━━━━━ Σ SESSION TOKENS ━━━━━━━━━━
+          {renderHeader('SESSION TOKENS')}
         </Text>
       </Box>
 
@@ -202,6 +224,20 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
             </Text>
           )}
         </Box>
+        {sessionTokenCount.cached && sessionTokenCount.cached > 0 ? (
+          <Box>
+            <Text color={TUITheme.text.primary}>Cached: </Text>
+            <Text color={TUITheme.text.tertiary}>
+              {formatCompactNumber(sessionTokenCount.cached)}
+            </Text>
+            {sessionTokenCount.savedCostUsd > 0 && (
+              <Text color={TUITheme.text.tertiary}>
+                {' '}
+                (${sessionTokenCount.savedCostUsd.toFixed(2)})
+              </Text>
+            )}
+          </Box>
+        ) : null}
         <Box>
           <Text color={TUITheme.text.tertiary}>
             In: {formatCompactNumber(sessionTokenCount.input)} |{' '}
