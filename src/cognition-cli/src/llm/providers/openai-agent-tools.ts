@@ -568,6 +568,12 @@ function createSigmaTaskUpdateTool(
           ? 'Task status.'
           : 'Task status. Use "delegated" when assigning task to another agent via IPC'
       ),
+    result_summary: z
+      .string()
+      .nullable()
+      .describe(
+        "REQUIRED when status is 'completed'. A concise summary of the essential findings, code changes, or decisions made during this task. This summary will survive log eviction."
+      ),
   });
 
   const finalTodoSchema = isSolo
@@ -596,10 +602,6 @@ function createSigmaTaskUpdateTool(
           .string()
           .nullable()
           .describe("Worker's session ID (for audit trail)"),
-        result_summary: z
-          .string()
-          .nullable()
-          .describe("Worker's completion report"),
       });
 
   const parameters: Record<string, z.ZodTypeAny> = {

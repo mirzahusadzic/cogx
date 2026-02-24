@@ -252,19 +252,19 @@ export const SIGMA_TASK_UPDATE_DESCRIPTION = `Use this tool to create and manage
 ## When to Use This Tool
 Use this tool proactively in these scenarios:
 1. Complex multi-step tasks - When a task requires 3 or more distinct steps or actions
-2. Non-trivial and complex tasks - Tasks that require careful planning or multiple operations
-3. User explicitly requests task list - When the user directly asks you to use the task list
-4. User provides multiple tasks - When users provide a list of things to be done (numbered or comma-separated)
-5. After receiving new instructions - Immediately capture user requirements as tasks
-6. When you start working on a task - Mark it as in_progress BEFORE beginning tool work (e.g., research, read_file, bash). This ensures tool outputs are tagged with the active task ID for surgical context eviction upon completion.
-7. After completing a task - Mark it as completed and add any new follow-up tasks discovered during implementation
+2. Feature Development - To sequence "Blueprint" (Research) phases separately from "Construction" (Coding) phases
+3. Non-trivial tasks - Tasks that require careful planning, debugging, or multiple file operations
+4. User explicitly requests task list - When the user directly asks you to use the task list
+5. User provides multiple tasks - When users provide a list of things to be done (numbered or comma-separated)
+6. After receiving new instructions - Immediately capture user requirements as tasks
+7. When you start working on a task - Mark it as in_progress BEFORE beginning tool work (e.g., research, read_file, bash).
+8. After completing a task - Mark it as completed and add any new follow-up tasks discovered during implementation
 
 ## When NOT to Use This Tool
 Skip using this tool when:
 1. There is only a single, straightforward task
-2. The task is trivial and tracking it provides no organizational benefit
-3. The task can be completed in less than 3 trivial steps
-4. The task is purely conversational or informational
+2. The task is purely conversational or informational
+3. The task is trivial and tracking it provides no organizational benefit
 
 ## Task States
 - pending: Task not yet started
@@ -275,8 +275,23 @@ Skip using this tool when:
 ## Token Health (Surgical Eviction)
 Cognition Σ uses task IDs to tag tool outputs for context pruning. To maximize context efficiency, follow these three rules:
 1. **Always Start First**: Mark a task as 'in_progress' BEFORE running tools. This ensures logs are tagged and can be surgically evicted upon task completion.
-2. **Distill Before Dying**: You are FORBIDDEN from completing a task until you have saved the *essential findings* into the result_summary field. If you complete a "Research" task, its detailed tool logs (grep, read_file) will be evicted.
+2. **Distill Before Dying**: You are FORBIDDEN from completing a task until you have saved the *essential findings* into the \`result_summary\` field. If you complete a "Research" task, its detailed tool logs (grep, read_file) will be evicted immediately.
 3. **Immediate completion**: Mark a task 'completed' as soon as it's finished to trigger log eviction and reclaim tokens for the next turn. **CRITICAL: You must update the status of the specific task 'id' to 'completed'. Replacing the whole task list will NOT trigger eviction.**
+
+## Task Scoping & Lifecycle Heuristics (CRITICAL)
+Your context is managed by evicting tool outputs when a task completes. Use these rules to decide if actions belong in the SAME task or NEW tasks:
+
+1. **The "Dependency" Rule (One Task)**: If Action B requires seeing the *raw output* of Action A, they MUST be in the same task.
+   - *Example (Git Review)*: You cannot split "Run git diff" and "Analyze code" into separate tasks. The diff will be deleted before you can analyze it. Keep them in one "Review" task.
+
+2. **The "Noise" Rule (Split Tasks)**: If Action A produces massive logs (e.g., \`grep -r\`, \`npm install\`) that are NOT needed for Action B, complete Action A immediately to flush the noise.
+   - *Example (Debugging)*: Use one task to "Locate the bug" (grep/search). Once found, complete that task with a summary of the location. Start a new task to "Fix the bug" using the clean context (surgical read/edit).
+
+3. **The "Blueprint" Rule (Feature Dev)**: When starting a complex feature, your FIRST task must ALWAYS be "Research & Plan".
+   - **Goal**: Read files to build a mental map.
+   - **Requirement**: You MUST distill the architectural plan, file locations, and key snippets into the \`result_summary\`.
+   - **Trigger**: Mark this task \`completed\` BEFORE writing a single line of code.
+   - **Why**: This forces the eviction of the massive "reading" logs (the noise) so your subsequent "implementation" tasks (the signal) start with a clean context window containing only the Plan (from your summary).
 
 ### Persistence via Summary
 The raw logs of a completed task (file contents, grep results) WILL BE DELETED immediately.

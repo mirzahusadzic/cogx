@@ -255,6 +255,11 @@ function createSigmaTaskUpdateTool(mode?: 'solo' | 'full'): MinimaxTool {
         : ['pending', 'in_progress', 'completed', 'delegated'],
       description: 'Task status',
     },
+    result_summary: {
+      type: 'string',
+      description:
+        "REQUIRED when status is 'completed'. A concise summary of the essential findings, code changes, or decisions made during this task. This summary will survive log eviction.",
+    },
   };
 
   if (!isSolo) {
@@ -270,10 +275,6 @@ function createSigmaTaskUpdateTool(mode?: 'solo' | 'full'): MinimaxTool {
     todoProperties.context = {
       type: 'string',
       description: 'Delegation context',
-    };
-    todoProperties.result_summary = {
-      type: 'string',
-      description: 'Completion report',
     };
   }
 

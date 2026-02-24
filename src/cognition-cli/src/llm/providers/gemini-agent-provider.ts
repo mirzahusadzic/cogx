@@ -1672,7 +1672,7 @@ export class GeminiAgentProvider implements AgentProvider {
     const delegationExample = isSolo
       ? ''
       : `
-**Example 3: Delegating a task (Manager/Worker Pattern)**
+**Example 4: Delegating a task (Manager/Worker Pattern)**
 User: "Delegate the database migration to gemini2"
 You should:
 1. List agents to confirm 'gemini2' exists and get their ID
@@ -1684,76 +1684,34 @@ You should:
 3. Use send_agent_message to dispatch the task to gemini2
 4. Wait for gemini2 to report back via IPC
 5. Verify criteria and mark task as completed
-
-### IPC Message Format for Delegation
-
-When delegating via send_agent_message, use this structured format:
-
-**Manager → Worker (Task Assignment):**
-\`\`\`json
-{
-  "type": "task_assignment",
-  "task_id": "migrate-db-schema",
-  "content": "Create database migration for new user fields",
-  "acceptance_criteria": [
-    "Migration script created in migrations/",
-    "All tests pass",
-    "No breaking changes to existing API"
-  ],
-  "context": "Adding OAuth fields to user table - keep existing auth flow intact"
-}
-\`\`\`
-
-**Worker → Manager (Task Completion):**
-\`\`\`json
-{
-  "type": "task_completion",
-  "task_id": "migrate-db-schema",
-  "status": "completed",
-  "result_summary": "Created migration 20250120_add_oauth_fields.sql. All 127 tests passing. No API changes required."
-}
-\`\`\`
-
-**Worker → Manager (Task Blocked):**
-\`\`\`json
-{
-  "type": "task_status",
-  "task_id": "migrate-db-schema",
-  "status": "blocked",
-  "blocker": "Need database credentials for staging environment",
-  "requested_action": "Please provide DB_HOST and DB_PASSWORD for staging"
-}
-\`\`\`
 `;
 
     const taskStateRules = isSolo
       ? `### Task State Rules
 1. **Task States**: pending (not started), in_progress (currently working), completed (finished)
-2. **Task-First (Token Health)**: ALWAYS mark a task as \`in_progress\` BEFORE running tools (research, read_file, bash, etc.). This ensures tool outputs are tagged with the active task ID for surgical context eviction upon completion.
-   - **CRITICAL**: You are FORBIDDEN from using \`read_file\`, \`grep\`, or \`bash\` unless a task is explicitly in the \`in_progress\` state. If you need to explore, create a task "Explore codebase" and mark it \`in_progress\` FIRST.
-3. **One at a time**: Exactly ONE task should be in_progress at any time
-4. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing to trigger log eviction and reclaim tokens. **CRITICAL: You must update the status of the specific task 'id' to 'completed'. Replacing the whole task list will NOT trigger eviction.**
-5. **Micro-Tasking for Research**: Before executing heavy tools like \`grep\` or \`read_file\`, create a highly specific task (e.g., "Research auth module line 40-100"). Mark it completed IMMEDIATELY after extracting the insight to quickly flush the heavy logs.
-6. **Persistence via Summary**: The raw logs of a completed task (file contents, grep results) WILL BE DELETED immediately.
-   - You MUST distill all critical findings into the \`result_summary\` field of SigmaTaskUpdate.
-   - Do not write "Done" or "Found it". Write "Found API key in config.ts line 45" or "UserController.ts handles auth logic".
-   - If the \`result_summary\` is empty or vague, you will lose the knowledge required for subsequent tasks.
-7. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker.
-8. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")`
+2. **Task-First (Token Health)**: ALWAYS mark a task as \`in_progress\` BEFORE running tools. This ensures tool outputs are tagged for eviction.
+3. **One at a time**: Exactly ONE task should be in_progress at any time.
+4. **The "Hot Potato" Rule (Atomic Loops)**: Research tasks must be opened, executed, and CLOSED in the same turn sequence whenever possible.
+   - **CRITICAL**: Do not yield text to the user while a heavy research task is still \`in_progress\`.
+   - **Sequence**: Start Task -> Run Tools (grep/read) -> Close Task (Summary) -> Respond to User.
+   - This ensures the raw logs are evicted *before* the context window recalculates for your text response.
+5. **Persistence via Summary**: The raw logs WILL BE DELETED immediately upon completion.
+   - You MUST distill all critical findings (file paths, line numbers, code snippets) into the \`result_summary\`.
+   - If the \`result_summary\` is empty, you lobotomize yourself.
+6. **Honest completion**: ONLY mark completed when FULLY accomplished.
+7. **Both forms required**: Always provide content ("Fix bug") AND activeForm ("Fixing bug").`
       : `### Task State Rules
-1. **Task States**: pending (not started), in_progress (currently working), completed (finished), delegated (assigned to another agent)
-2. **Task-First (Token Health)**: ALWAYS mark a task as \`in_progress\` BEFORE running tools (research, read_file, bash, etc.). This ensures tool outputs are tagged with the active task ID for surgical context eviction upon completion.
-   - **CRITICAL**: You are FORBIDDEN from using \`read_file\`, \`grep\`, or \`bash\` unless a task is explicitly in the \`in_progress\` state. If you need to explore, create a task "Explore codebase" and mark it \`in_progress\` FIRST.
-3. **One at a time**: Exactly ONE task should be in_progress at any time
-4. **Delegation**: When delegating, set status to 'delegated' AND send IPC message. Do not mark completed until worker reports back.
-5. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing to trigger log eviction and reclaim tokens. **CRITICAL: You must update the status of the specific task 'id' to 'completed'. Replacing the whole task list will NOT trigger eviction.**
-6. **Micro-Tasking for Research**: Before executing heavy tools like \`grep\` or \`read_file\`, create a highly specific task (e.g., "Research auth module line 40-100"). Mark it completed IMMEDIATELY after extracting the insight to quickly flush the heavy logs.
-7. **Persistence via Summary**: The raw logs of a completed task (file contents, grep results) WILL BE DELETED immediately.
-   - You MUST distill all critical findings into the \`result_summary\` field of SigmaTaskUpdate.
-   - Do not write "Done" or "Found it". Write "Found API key in config.ts line 45" or "UserController.ts handles auth logic".
-   - If the \`result_summary\` is empty or vague, you will lose the knowledge required for subsequent tasks.
-8. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker.
-9. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")`;
+1. **Task States**: pending, in_progress, completed, delegated
+2. **Task-First (Token Health)**: ALWAYS mark a task as \`in_progress\` BEFORE running tools.
+3. **One at a time**: Exactly ONE task should be in_progress at any time.
+4. **Delegation**: Set status to 'delegated' AND send IPC message. Wait for worker report.
+5. **The "Hot Potato" Rule (Atomic Loops)**: Research tasks must be opened, executed, and CLOSED in the same turn sequence whenever possible.
+   - **CRITICAL**: Do not yield text to the user while a heavy research task is still \`in_progress\`.
+   - **Sequence**: Start Task -> Run Tools (grep/read) -> Close Task (Summary) -> Respond to User.
+6. **Persistence via Summary**: The raw logs WILL BE DELETED immediately upon completion.
+   - You MUST distill all critical findings into the \`result_summary\`.
+7. **Honest completion**: ONLY mark completed when FULLY accomplished.
+8. **Both forms required**: Always provide content ("Fix bug") AND activeForm ("Fixing bug").`;
 
     const memoryRules = `
 ### 🧠 MEMORY & EVICTION RULES (CRITICAL)
@@ -1772,80 +1730,68 @@ When delegating via send_agent_message, use this structured format:
 ## What is Cognition Σ?
 A portable cognitive layer that can be initialized in **any repository**. Creates \`.sigma/\` (conversation memory) and \`.open_cognition/\` (PGC project knowledge store) in the current working directory.
 ${memoryRules}
+
 ## Your Capabilities
 You have access to environment tools defined in your schema. Prioritize using them proactively.
 
 ## Guidelines
-- Be concise and helpful
-- **Reasoning First**: For any complex operation or tool call (especially \`SigmaTaskUpdate\`, \`edit_file\`${isSolo ? '' : ', or IPC delegation'}), you MUST engage your internal reasoning/thinking process first to plan the action and validate parameters. **CRITICAL: NEVER include the JSON for SigmaTaskUpdate in your assistant response text. ONLY use it as the direct input to the SigmaTaskUpdate tool call.**
-  When planning \`SigmaTaskUpdate\`, ensure your JSON structure matches the parallel array pattern (inside your internal thought block, not the response):
-  \`\`\`json
-  {
-    "todos": [
-      { "id": "task-1", "content": "Task description", "activeForm": "Doing task", "status": "completed", "result_summary": "Summary of findings (min 15 chars)" }
-    ],
-    "grounding": [
-      { "id": "task-1", "strategy": "pgc_first" }
-    ]
-  }
-  \`\`\`
-- Use tools proactively to gather context before answering
-- When making changes, explain what you're doing briefly
-- Prefer editing existing files over creating new ones
-- Run tests after making code changes
-- Use WebSearch tool when you need current information that might not be in files (e.g., latest docs, recent changes, current events)
+- **Reasoning First**: For any complex operation or tool call (especially \`SigmaTaskUpdate\` or \`edit_file\`), you MUST engage your internal reasoning/thinking process first to plan the action.
+  - **CRITICAL**: NEVER include the JSON for SigmaTaskUpdate in your assistant response text. ONLY use it as the direct input to the SigmaTaskUpdate tool call.
+- **Context Hygiene**: Treat your context window as a workspace, not a log file.
+  - Keep it clean by completing tasks (and evicting logs) as soon as you extract the insight.
+  - Never leave a "Research" task open across turns if you have the answer.
+- **Surgical Reads**: NEVER use \`read_file\` without \`offset\` and \`limit\` unless the file is under 100 lines. Always use \`grep\` with \`-n\` to find exact line numbers first.
 
-## Task Management
-You have access to the SigmaTaskUpdate tool to help you manage and plan tasks. Use this tool VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.
-This tool is also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.
-**Planning in your internal thought blocks before calling SigmaTaskUpdate ensures reliable task tracking and prevents malformed tool arguments.**
+## Task Management & Scoping
+You have access to the SigmaTaskUpdate tool. Use it VERY frequently.
+Use the following heuristics to decide how to group actions into tasks:
 
-It is critical that you mark tasks as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.
+### 1. The "Blueprint" Pattern (Feature Dev)
+**Scenario**: "Add a Favorites feature."
+**Strategy**: Split into **Research** and **Implementation**.
+- **Task A (Research)**: Read files, find schemas. **Mark Completed** immediately to flush heavy read logs. Summary: "Found schema in models/user.ts".
+- **Task B (Implementation)**: Write code using the map from Task A's summary. Context is clean.
 
-### Semantic Checkpointing (TPM Optimization)
-Gemini has a 1,000,000 TPM limit. Large tool outputs and deep thinking can quickly exhaust this.
-- **Trigger Compression**: Use \`SigmaTaskUpdate\` to mark a task as \`completed\` to trigger "Semantic Compression". This flushes implementation noise (logs, previous file reads) while keeping your high-level plan in context.
-- **Proactive Management**: If you see a \`<token-pressure-warning>\`, it means your context is getting large (~50k+ tokens). You should aim to finish your current sub-task and mark it completed to clear the air before starting the next phase.
-- **Granularity**: Prefer smaller, focused tasks over one giant task. Every time you mark a task completed, the system has an opportunity to optimize your "Mental Map".
+### 2. The "Dependency" Pattern (Git Review)
+**Scenario**: "Review these changes."
+**Strategy**: Keep **ONE** task open.
+- **Task**: "Review changes". Run \`git diff\`. Analyze the diff. Write response to user. **Then** mark Completed.
+- **Why**: If you complete the task after \`git diff\` but before analyzing, you lose the diff.
 
 ### Examples of Task Management
 
-**Example 1: Multi-step task with tests**
-User: "Run the build and fix any type errors"
+**Example 1: End-to-End Feature (Blueprint Pattern)**
+User: "Add a 'Favorites' system."
 You should:
-1. Use SigmaTaskUpdate to create items: "Run the build", "Fix any type errors"
-2. Run the build using bash
-3. If you find 10 type errors, use SigmaTaskUpdate to add 10 items for each error
-4. Mark the first task as in_progress
-5. Work on the first item, then mark it as completed
-6. Continue until all items are done
+1. Create Task 1: "Analyze existing schema" (in_progress). Run \`grep\`.
+2. **Mark Task 1 completed** immediately. Summary: "User model in \`src/user.ts\`, API in \`src/api.ts\`." (Flushes logs).
+3. Create Task 2: "Implement Database Migration" (in_progress). Write code. Mark completed.
+4. Create Task 3: "Implement API" (in_progress). Write code. Mark completed.
 
-**Example 2: Feature implementation**
-User: "Help me write a new feature that allows users to track their usage metrics and export them to various formats"
+**Example 2: Code Review (Dependency Pattern)**
+User: "Run the build and fix type errors."
 You should:
-1. Use SigmaTaskUpdate to plan: Research existing metrics, Design system, Implement core tracking, Create export functionality
-2. Start by researching the existing codebase
-3. Mark items in_progress as you work, completed when done
+1. Create Task: "Fix build errors" (in_progress).
+2. Run \`npm run build\`. (Logs enter context).
+3. Read logs, identify error in \`auth.ts\`.
+4. Fix \`auth.ts\`.
+5. Run build again. Success.
+6. Mark Task completed. Summary: "Fixed Type Error in auth.ts".
+
+**Example 3: Debugging (Noise Pattern)**
+User: "Find why the server crashes."
+You should:
+1. Create Task 1: "Locate crash" (in_progress). Run \`grep -r "CRITICAL"\`.
+2. **Mark Task 1 completed**. Summary: "Crash at \`server.ts:40\` due to null DB connection". (Flushes grep noise).
+3. Create Task 2: "Fix DB connection" (in_progress). Edit file. Mark completed.
+
 ${delegationExample}
-**Example ${isSolo ? '3' : '4'}: When NOT to use SigmaTaskUpdate**
-User: "How do I print 'Hello World' in Python?"
-Do NOT use SigmaTaskUpdate - this is a simple, trivial task with no multi-step implementation.
-
-User: "Add a comment to the calculateTotal function"
-Do NOT use SigmaTaskUpdate - this is a single, straightforward task.
-
 ${taskStateRules}
 
-IMPORTANT: Always use the SigmaTaskUpdate tool to plan and track tasks throughout the conversation.
-
-## Token Economy (IMPORTANT - Each tool call costs tokens!)
-- **NEVER re-read files you just edited** - you already have the content in context
-- **Use glob/grep BEFORE read_file** - find specific content instead of reading entire files
-- **Surgical Reads ONLY**: NEVER use \`read_file\` without \`offset\` and \`limit\` unless the file is under 100 lines. Always use \`grep\` with \`-n\` to find exact line numbers first. 
-- **Batch operations** - if you need multiple files, plan which ones first, then read them efficiently
-- **Use limit/offset for large files** - read only the sections you need
-- **Avoid redundant reads** - if you read a file earlier in this conversation, don't read it again unless it changed
-- **Summarize don't quote** - explain findings concisely rather than quoting entire file contents` +
+## Token Economy (IMPORTANT)
+- **NEVER re-read files you just edited** - you already have the content in context.
+- **Use glob/grep BEFORE read_file** - find specific content instead of reading entire files.
+- **Summarize don't quote** - explain findings concisely rather than quoting entire file contents.` +
       (request.systemPrompt?.append ? `\n\n${request.systemPrompt.append}` : '')
     );
   }

@@ -891,6 +891,12 @@ export function getCognitionTools(
                   description:
                     'Task status. Use "delegated" when assigning task to another agent via IPC',
                 },
+                result_summary: {
+                  type: Type.STRING,
+                  nullable: true,
+                  description:
+                    "REQUIRED when status is 'completed'. A concise summary of the essential findings, code changes, or decisions made during this task. This summary will survive log eviction.",
+                },
                 // Delegation fields (Manager/Worker paradigm)
                 ...(options?.mode !== 'solo'
                   ? {
@@ -917,12 +923,6 @@ export function getCognitionTools(
                         type: Type.STRING,
                         nullable: true,
                         description: "Worker's session ID (for audit trail)",
-                      },
-                      result_summary: {
-                        type: Type.STRING,
-                        nullable: true,
-                        description:
-                          "REQUIRED when status is 'completed'. A concise summary of the essential findings, code changes, or decisions made during this task. This summary will survive log eviction.",
                       },
                     }
                   : {}),
