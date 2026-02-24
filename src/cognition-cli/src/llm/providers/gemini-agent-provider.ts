@@ -514,6 +514,30 @@ export class GeminiAgentProvider implements AgentProvider {
       request.resumeSessionId ||
       `gemini-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
+    // Helper to yield the final "stop" state to the TUI.
+    // This centralizes the logic for turn completion across success, abort, and benign errors.
+    const yieldFinalState = async function* (
+      activeModel: string,
+      retryCount: number = 0
+    ) {
+      yield {
+        activeModel,
+        messages: [...messages],
+        sessionId,
+        tokens: {
+          prompt: currentPromptTokens || Math.ceil(request.prompt.length / 4),
+          completion: currentCompletionTokens || currentTurnOutputEstimate,
+          total:
+            (currentPromptTokens || Math.ceil(request.prompt.length / 4)) +
+            (currentCompletionTokens || currentTurnOutputEstimate),
+          cached: currentCachedTokens || 0,
+        },
+        finishReason: 'stop' as const,
+        numTurns,
+        retryCount,
+      };
+    };
+
     // Create a null stream sink for stderr/warnings
     const noop = () => true;
 
@@ -1329,23 +1353,7 @@ export class GeminiAgentProvider implements AgentProvider {
               `\n[Gemini] === STREAM LOOP EXITED ===\n[Gemini] Total turns: ${numTurns}\n[Gemini] Total tokens billed (estimated): ${currentPromptTokens + cumulativeCompletionTokens}\n[Gemini] Current context: ${currentPromptTokens} prompt, ${currentCompletionTokens} completion\n[Gemini] Last message type: ${messages[messages.length - 1]?.type || 'none'}\n[Gemini] Yielding final response with finishReason='stop'`
             );
           }
-          yield {
-            activeModel,
-            messages: [...messages],
-            sessionId,
-            tokens: {
-              prompt:
-                currentPromptTokens || Math.ceil(request.prompt.length / 4),
-              completion: currentCompletionTokens || currentTurnOutputEstimate,
-              total:
-                (currentPromptTokens || Math.ceil(request.prompt.length / 4)) +
-                (currentCompletionTokens || currentTurnOutputEstimate),
-              cached: currentCachedTokens || 0,
-            },
-            finishReason: 'stop',
-            numTurns,
-            retryCount: 0, // Reset UI on success
-          };
+          yield* yieldFinalState(activeModel);
 
           // Reset retry attempt counter on success!
           // This ensures that transient errors don't accumulate across turns
@@ -1372,24 +1380,7 @@ export class GeminiAgentProvider implements AgentProvider {
                 error: errorMessage,
               });
             }
-            yield {
-              activeModel,
-              messages: [...messages],
-              sessionId,
-              tokens: {
-                prompt:
-                  currentPromptTokens || Math.ceil(request.prompt.length / 4),
-                completion:
-                  currentCompletionTokens || currentTurnOutputEstimate,
-                total:
-                  (currentPromptTokens ||
-                    Math.ceil(request.prompt.length / 4)) +
-                  (currentCompletionTokens || currentTurnOutputEstimate),
-                cached: currentCachedTokens || 0,
-              },
-              finishReason: 'stop',
-              numTurns,
-            };
+            yield* yieldFinalState(activeModel);
             break; // Exit loop on abort
           }
 
@@ -1411,24 +1402,7 @@ export class GeminiAgentProvider implements AgentProvider {
                 { error: errorMessage }
               );
             }
-            yield {
-              activeModel,
-              messages: [...messages],
-              sessionId,
-              tokens: {
-                prompt:
-                  currentPromptTokens || Math.ceil(request.prompt.length / 4),
-                completion:
-                  currentCompletionTokens || currentTurnOutputEstimate,
-                total:
-                  (currentPromptTokens ||
-                    Math.ceil(request.prompt.length / 4)) +
-                  (currentCompletionTokens || currentTurnOutputEstimate),
-                cached: currentCachedTokens || 0,
-              },
-              finishReason: 'stop',
-              numTurns,
-            };
+            yield* yieldFinalState(activeModel);
             break; // Exit loop on benign SDK error (treat as success)
           }
 
