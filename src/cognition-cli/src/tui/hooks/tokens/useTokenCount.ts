@@ -185,10 +185,15 @@ export function useTokenCount() {
       // We keep the previous value even across turns to prevent UI flickering,
       // as cached prefix tokens are usually stable or growing within a session.
       // Only reset() or initialize() (compression/eviction) should clear it.
-      const cached =
+      // Safety: We cap cached tokens by the final input context size to prevent
+      // displaying more cached tokens than total tokens when context shrinks.
+      const rawCached =
         newCount.cached !== undefined && newCount.cached > 0
           ? newCount.cached
           : prev.cached;
+
+      const cached =
+        rawCached !== undefined ? Math.min(rawCached, finalInput) : undefined;
 
       return {
         input: finalInput,

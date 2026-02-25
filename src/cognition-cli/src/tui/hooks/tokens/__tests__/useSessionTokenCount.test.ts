@@ -123,4 +123,54 @@ describe('useSessionTokenCount', () => {
     // We want it to be 2 (Turn 1 from Query 1 + Turn 1 from Query 2).
     expect(result.current.count.turns).toBe(2);
   });
+
+  it('should cap cached tokens by the current turn input context', () => {
+    const { result } = renderHook(() => useSessionTokenCount());
+
+    // 1. Initial update with cached tokens
+    act(() => {
+      result.current.update({
+        input: 15000,
+        output: 5000,
+        total: 20000,
+        cached: 10000,
+      });
+    });
+    expect(result.current.count.cached).toBe(10000);
+    expect(result.current.count.input).toBe(15000);
+
+    // 2. Context shrinks within same turn (e.g. forced trim or manual drop)
+    // and cached is not provided in update.
+    // Total is now 8000, output is 3000 -> input is 5000.
+    // Cached (10000) should be capped by input (5000).
+    // Note: This triggers isNewTurn since current.total < last.total (8000 < 20000).
+    // isNewTurn commits 20000 to accumulated, and starts new turn with 8000.
+    // We want to test that effectiveTurnCached is capped by currentTurn.input.
+    act(() => {
+      result.current.update({ input: 5000, output: 3000, total: 8000 });
+    });
+
+    // Turn 1 committed: cached=10k, input=15k, output=5k, total=20k
+    // Turn 2 started: cached=Math.min(0, 5000)=0 (since isNewTurn=true), input=5k, output=3k, total=8k
+    // Session total: cached=10k, input=20k, output=8k, total=28k
+    expect(result.current.count.cached).toBe(10000);
+
+    // To really test the capping of effectiveTurnCached, we need a case where it's NOT a new turn
+    // but cached tokens are reported as larger than input.
+    // This could happen if a provider sends a chunk with cached > input.
+    act(() => {
+      result.current.update({
+        input: 2000,
+        output: 1000,
+        total: 3000,
+        cached: 5000,
+      });
+    });
+    // Turn 1 committed: 10k cached
+    // Turn 2: isNewTurn (3k < 8k), commits Turn 2 (last seen values).
+    // Turn 2 last seen: input=5k, output=3k, total=8k, cached=0.
+    // Turn 3 started: input=2k, output=1k, total=3k, cached=Math.min(5000, 2000)=2000.
+    // Session: Turn 1 (10k) + Turn 2 (0) + Turn 3 (2k) = 12k.
+    expect(result.current.count.cached).toBe(12000);
+  });
 });

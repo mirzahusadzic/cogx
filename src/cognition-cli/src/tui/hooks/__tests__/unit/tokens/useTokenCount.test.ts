@@ -211,4 +211,31 @@ describe('useTokenCount', () => {
       result.current.count.total
     );
   });
+
+  it('caps cached tokens by the final input context size', () => {
+    const { result } = renderHook(() => useTokenCount());
+
+    // 1. Initial update with cached tokens
+    act(() => {
+      result.current.update({
+        input: 15000,
+        output: 5000,
+        total: 20000,
+        cached: 10000,
+      });
+    });
+    expect(result.current.count.cached).toBe(10000);
+    expect(result.current.count.input).toBe(15000);
+
+    // 2. Context shrinks (eviction) but cached is not provided in update
+    // Total is now 12000, output is 5000 -> input is 7000.
+    // Cached (10000) should be capped by input (7000).
+    act(() => {
+      result.current.update({ input: 7000, output: 5000, total: 12000 });
+    });
+
+    expect(result.current.count.total).toBe(12000);
+    expect(result.current.count.input).toBe(7000);
+    expect(result.current.count.cached).toBe(7000); // Capped!
+  });
 });

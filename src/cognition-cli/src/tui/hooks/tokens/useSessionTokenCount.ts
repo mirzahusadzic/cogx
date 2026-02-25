@@ -113,12 +113,16 @@ export function useSessionTokenCount() {
 
       // Preserve cached tokens and saved cost if not provided in this update chunk.
       // Many providers only report cached tokens in the first chunk or sporadically.
-      const effectiveTurnCached =
+      // Safety: We cap cached tokens by the current turn's input to prevent
+      // displaying more cached tokens than input tokens when context shrinks.
+      const rawTurnCached =
         currentTurn.cached !== undefined && currentTurn.cached > 0
           ? currentTurn.cached
           : isNewTurn
             ? 0
             : lastTurnTokens.current.cached || 0;
+
+      const effectiveTurnCached = Math.min(rawTurnCached, currentTurn.input);
 
       // If savedCostUsd is 0 but we have cached tokens, and it's not a new turn,
       // preserve the previous saved cost estimate for this turn.

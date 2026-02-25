@@ -45,7 +45,7 @@ describe('SigmaTaskPanel', () => {
         sessionTokenCount={mockTokenCount}
       />
     );
-    expect(lastFrame()).toContain('Σ TASK LIST');
+    expect(stripAnsi(lastFrame()!)).toContain('Σ TASK LIST');
   });
 
   it('renders task content', () => {
@@ -56,7 +56,7 @@ describe('SigmaTaskPanel', () => {
         sessionTokenCount={mockTokenCount}
       />
     );
-    expect(lastFrame()).toContain('Test task');
+    expect(stripAnsi(lastFrame()!)).toContain('Test task');
   });
 
   it('renders task summary', () => {
@@ -67,7 +67,7 @@ describe('SigmaTaskPanel', () => {
         sessionTokenCount={mockTokenCount}
       />
     );
-    expect(lastFrame()).toContain('Task summary');
+    expect(stripAnsi(lastFrame()!)).toContain('Task summary');
   });
 
   it('renders token counts', () => {
@@ -79,7 +79,7 @@ describe('SigmaTaskPanel', () => {
       />
     );
     // 1500 should be formatted as 1.5k
-    expect(lastFrame()).toContain('1.5k');
+    expect(stripAnsi(lastFrame()!)).toContain('1.5k');
   });
 
   it('renders individual task token usage', () => {
@@ -91,7 +91,7 @@ describe('SigmaTaskPanel', () => {
       />
     );
     // 50 tokens
-    expect(lastFrame()).toContain('50');
+    expect(stripAnsi(lastFrame()!)).toContain('50');
   });
 
   it('renders in-progress task token usage', () => {
@@ -103,7 +103,7 @@ describe('SigmaTaskPanel', () => {
       />
     );
     // 75 tokens
-    expect(lastFrame()).toContain('75');
+    expect(stripAnsi(lastFrame()!)).toContain('75');
   });
 
   it('renders session token header', () => {
@@ -114,7 +114,7 @@ describe('SigmaTaskPanel', () => {
         sessionTokenCount={mockTokenCount}
       />
     );
-    expect(lastFrame()).toContain('Σ SESSION TOKENS');
+    expect(stripAnsi(lastFrame()!)).toContain('Σ SESSION TOKENS');
   });
 
   it('renders turn counts in session tokens', () => {
@@ -125,7 +125,7 @@ describe('SigmaTaskPanel', () => {
         sessionTokenCount={{ ...mockTokenCount, turns: 5 }}
       />
     );
-    expect(lastFrame()).toContain('Reqs: 5');
+    expect(stripAnsi(lastFrame()!)).toContain('Reqs: 5');
   });
 
   it('limits the display to last 5 tasks', () => {
@@ -146,10 +146,11 @@ describe('SigmaTaskPanel', () => {
         sessionTokenCount={mockTokenCount}
       />
     );
-    expect(lastFrame()).not.toContain('Task 1');
-    expect(lastFrame()).toContain('Task 2');
-    expect(lastFrame()).toContain('Task 6');
-    expect(lastFrame()).toContain('... (1 older tasks)');
+    const frame = stripAnsi(lastFrame()!);
+    expect(frame).not.toContain('Task 1');
+    expect(frame).toContain('Task 2');
+    expect(frame).toContain('Task 6');
+    expect(frame).toContain('... (1 older tasks)');
   });
 
   it('shows in_progress tasks even if they are older than the last 5 tasks', () => {
@@ -171,7 +172,7 @@ describe('SigmaTaskPanel', () => {
         sessionTokenCount={mockTokenCount}
       />
     );
-    const frame = lastFrame() || '';
+    const frame = stripAnsi(lastFrame() || '');
     expect(frame).toContain('Old In Progress');
     expect(frame).toContain('Task 7');
     expect(frame).not.toContain('Task 2');
@@ -191,8 +192,8 @@ describe('SigmaTaskPanel', () => {
       />
     );
     // Should be truncated
-    const frame = lastFrame() || '';
-    const cleanFrame = stripAnsi(frame).replace(/\s/g, '');
+    const frame = stripAnsi(lastFrame() || '');
+    const cleanFrame = frame.replace(/\s/g, '');
     expect(cleanFrame).toContain('A'.repeat(140) + '...');
     expect(cleanFrame).not.toContain('A'.repeat(200));
   });
@@ -213,10 +214,11 @@ describe('SigmaTaskPanel', () => {
         sessionTokenCount={mockTokenCount}
       />
     );
-    expect(lastFrame()).not.toContain('Summary 1');
-    expect(lastFrame()).not.toContain('Summary 2');
-    expect(lastFrame()).not.toContain('Summary 3');
-    expect(lastFrame()).toContain('Summary 4');
+    const frame = stripAnsi(lastFrame()!);
+    expect(frame).not.toContain('Summary 1');
+    expect(frame).not.toContain('Summary 2');
+    expect(frame).not.toContain('Summary 3');
+    expect(frame).toContain('Summary 4');
   });
 
   it('renders completed tasks before in_progress tasks', () => {
@@ -244,7 +246,7 @@ describe('SigmaTaskPanel', () => {
         sessionTokenCount={mockTokenCount}
       />
     );
-    const frame = lastFrame() || '';
+    const frame = stripAnsi(lastFrame() || '');
     expect(frame).toContain('Completed Task Content');
     expect(frame).toContain('In Progress Task Active');
     const completedIdx = frame.indexOf('Completed Task Content');

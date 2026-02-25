@@ -22,12 +22,12 @@ describe('StatusBar', () => {
     it('shows Scroll text when not focused', () => {
       const { lastFrame } = renderStatusBar({ focused: false });
       expect(lastFrame()).toContain('Scroll');
-      expect(lastFrame()).not.toContain('[ESC] Clear');
+      expect(lastFrame()).not.toContain('[2xESC] Clear');
     });
 
     it('shows Clear text when focused', () => {
       const { lastFrame } = renderStatusBar({ focused: true });
-      expect(lastFrame()).toContain('Clear');
+      expect(lastFrame()).toContain('[2xESC] Clear');
       expect(lastFrame()).not.toContain('Scroll');
     });
   });

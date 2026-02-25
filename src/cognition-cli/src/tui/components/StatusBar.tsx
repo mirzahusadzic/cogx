@@ -187,7 +187,7 @@ const StatusBarComponent: React.FC<StatusBarProps> = ({
         {!focused ? (
           <Text color={TUITheme.text.secondary}>[↑↓] Scroll</Text>
         ) : (
-          <Text color={TUITheme.text.secondary}>[ESC] Clear</Text>
+          <Text color={TUITheme.text.secondary}>[2xESC] Clear</Text>
         )}
         <Text color={TUITheme.ui.border.dim}> | </Text>
         <Text color={TUITheme.text.secondary}>[^S] Save</Text>
