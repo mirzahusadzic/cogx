@@ -42,7 +42,7 @@ describe('Gemini Rolling Ring Buffer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    provider = new GeminiAgentProvider();
+    provider = new GeminiAgentProvider('dummy-api-key');
     // Access the private sessionService for mocking
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockSessionService = (provider as any).sessionService;
