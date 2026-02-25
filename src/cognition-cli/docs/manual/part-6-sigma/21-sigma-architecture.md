@@ -213,7 +213,7 @@ Tokens: 85.2K (71.0%) | Compress at: 120.0K
 
 ### Phase 2: Compression Trigger (Default: 120K tokens)
 
-**Threshold reached**: Token count ≥ configured threshold (default 120,000)
+**Threshold reached**: Token count ≥ configured threshold (default 200,000)
 
 **Compression sequence**:
 

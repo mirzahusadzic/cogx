@@ -186,6 +186,8 @@ export interface MessageProcessingCallbacks {
     input: number;
     output: number;
     total: number;
+    cacheCreation?: number;
+    cacheRead?: number;
   }) => void;
 
   /**
@@ -231,7 +233,13 @@ export interface MessageHandlerResult {
   /**
    * New token counts (if hasTokenUpdate is true)
    */
-  tokenUpdate?: { input: number; output: number; total: number };
+  tokenUpdate?: {
+    input: number;
+    output: number;
+    total: number;
+    cacheCreation?: number;
+    cacheRead?: number;
+  };
 }
 
 /**

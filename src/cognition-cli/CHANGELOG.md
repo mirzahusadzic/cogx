@@ -5,16 +5,18 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.6.9] - 2026-02-24
+## [2.6.9] - 2026-02-25
 
 ### Summary
 
-Introduces **SigmaTask Context Eviction** and advanced **TUI Analytics** to provide deeper visibility into execution costs and system state stability. This release specifically optimizes for **Implicit Token Caching** (kicking in at just 1,024 tokens) by maintaining prefix stability, drastically reducing token waste and TCO—achieving observed **cache hit rates of 30%+** in high-density agentic sessions.
+Introduces **SigmaTask Context Eviction** and advanced **TUI Analytics** to provide deeper visibility into execution costs and system state stability. This release specifically optimizes for **Implicit Token Caching** (kicking in at just 1,024 tokens) by maintaining prefix stability, drastically reducing token waste and TCO—achieving observed **cache hit rates of 80%+** in high-density agentic sessions.
 
 ### 🚀 New Features
 
 - ✂️ **SigmaTask Context Eviction** — Introduced `--ctx-tools` and fine-grained surgical eviction to prune tool logs while retaining critical task summaries.
-- 📊 **TUI Analytics & Token Tracking** — Real-time session token tracking, cost analysis, and cached token visibility in the Status Bar.
+- 📊 **TUI Status Bar Overhaul & Token Tracking** — Complete redesign of the TUI status bar featuring a visual proportional bar for cached (Google Blue) vs active (Green) tokens, session-wide cumulative tracking (achieving **80-90%+ cache hit rates**), and flicker prevention for stable token counts during streaming.
+- 📉 **Visual Context Usage** — Introduced a semantic compression marker 'Σ' on the usage bar (defaulting to 50k tokens) and increased the main compression threshold to 200k tokens.
+- ⌨️ **Compact UI** — Reclaimed horizontal space for token statistics by compacting keyboard shortcut labels (e.g., [^S] for Save, [^C] for Quit).
 - 📟 **Rolling Ring Buffer** — Implemented efficient context management via rolling buffers for tool outputs across all providers.
 - 🛠️ **UI Enhancements** — New `SigmaTaskPanel` for persistent task tracking and refined agent heuristics for better context persistence.
 

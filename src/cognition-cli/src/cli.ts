@@ -588,7 +588,7 @@ const tuiCmd = program
   )
   .option(
     '--session-tokens <number>',
-    'Token threshold for context compression (default: 120000 for Claude, 200000 for Gemini)'
+    'Token threshold for context compression (default: 200000)'
   )
   .option(
     '--max-thinking-tokens <number>',

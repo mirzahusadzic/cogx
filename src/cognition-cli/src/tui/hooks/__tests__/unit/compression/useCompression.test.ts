@@ -11,10 +11,10 @@ import { useCompression } from '../../../compression/useCompression.js';
 
 describe('useCompression', () => {
   const defaultOptions = {
-    tokenCount: 100000,
+    tokenCount: 150000,
     analyzedTurns: 10,
     isThinking: false,
-    tokenThreshold: 120000,
+    tokenThreshold: 200000,
     minTurns: 5,
     enabled: true,
   };
@@ -36,7 +36,7 @@ describe('useCompression', () => {
       const { result } = renderHook(() =>
         useCompression({
           ...defaultOptions,
-          tokenCount: 50000,
+          tokenCount: 100000,
         })
       );
 
@@ -52,7 +52,7 @@ describe('useCompression', () => {
         {
           initialProps: {
             ...defaultOptions,
-            tokenCount: 100000,
+            tokenCount: 150000,
             onCompressionTriggered: onTrigger,
           },
         }
@@ -65,7 +65,7 @@ describe('useCompression', () => {
       // Increase token count above threshold
       rerender({
         ...defaultOptions,
-        tokenCount: 130000,
+        tokenCount: 210000,
         onCompressionTriggered: onTrigger,
       });
 
@@ -78,7 +78,7 @@ describe('useCompression', () => {
         result.current.triggerCompression();
       });
 
-      expect(onTrigger).toHaveBeenCalledWith(130000, 10, false);
+      expect(onTrigger).toHaveBeenCalledWith(210000, 10, false);
       expect(result.current.state.triggered).toBe(true);
       expect(result.current.state.compressionCount).toBe(1);
     });
@@ -88,7 +88,7 @@ describe('useCompression', () => {
       const { result } = renderHook((props) => useCompression(props), {
         initialProps: {
           ...defaultOptions,
-          tokenCount: 130000,
+          tokenCount: 210000,
           isThinking: false,
           onCompressionTriggered: onTrigger,
         },
@@ -108,7 +108,7 @@ describe('useCompression', () => {
         result.current.triggerCompression();
       });
 
-      expect(onTrigger).toHaveBeenCalledWith(130000, 10, false);
+      expect(onTrigger).toHaveBeenCalledWith(210000, 10, false);
     });
 
     it('should calculate shouldTrigger=false after first manual trigger', async () => {
@@ -118,7 +118,7 @@ describe('useCompression', () => {
         {
           initialProps: {
             ...defaultOptions,
-            tokenCount: 130000,
+            tokenCount: 210000,
             onCompressionTriggered: onTrigger,
           },
         }
@@ -135,7 +135,7 @@ describe('useCompression', () => {
       // Increase tokens even more
       rerender({
         ...defaultOptions,
-        tokenCount: 200000,
+        tokenCount: 300000,
         onCompressionTriggered: onTrigger,
       });
 
@@ -156,7 +156,7 @@ describe('useCompression', () => {
       renderHook(() =>
         useCompression({
           ...defaultOptions,
-          tokenCount: 130000,
+          tokenCount: 210000,
           analyzedTurns: 3,
           onCompressionTriggered: onTrigger,
         })
@@ -182,7 +182,7 @@ describe('useCompression', () => {
         result.current.triggerCompression();
       });
 
-      expect(onTrigger).toHaveBeenCalledWith(100000, 10, false);
+      expect(onTrigger).toHaveBeenCalledWith(150000, 10, false);
       expect(result.current.state.triggered).toBe(true);
       expect(result.current.state.compressionCount).toBe(1);
     });
@@ -213,7 +213,7 @@ describe('useCompression', () => {
         {
           initialProps: {
             ...defaultOptions,
-            tokenCount: 130000,
+            tokenCount: 210000,
             onCompressionTriggered: onTrigger,
           },
         }
@@ -229,7 +229,7 @@ describe('useCompression', () => {
       // Force re-render to see updated shouldTrigger value
       rerender({
         ...defaultOptions,
-        tokenCount: 130000,
+        tokenCount: 210000,
         onCompressionTriggered: onTrigger,
       });
 
@@ -245,7 +245,7 @@ describe('useCompression', () => {
       // Force re-render to see updated shouldTrigger value
       rerender({
         ...defaultOptions,
-        tokenCount: 130000,
+        tokenCount: 210000,
         onCompressionTriggered: onTrigger,
       });
 
@@ -259,7 +259,7 @@ describe('useCompression', () => {
         {
           initialProps: {
             ...defaultOptions,
-            tokenCount: 130000,
+            tokenCount: 210000,
             onCompressionTriggered: onTrigger,
           },
         }
@@ -275,7 +275,7 @@ describe('useCompression', () => {
       // Force re-render to see updated shouldTrigger value
       rerender({
         ...defaultOptions,
-        tokenCount: 130000,
+        tokenCount: 210000,
         onCompressionTriggered: onTrigger,
       });
 
@@ -291,7 +291,7 @@ describe('useCompression', () => {
       // Trigger again manually with higher token count
       rerender({
         ...defaultOptions,
-        tokenCount: 200000,
+        tokenCount: 300000,
         onCompressionTriggered: onTrigger,
       });
 
@@ -311,14 +311,14 @@ describe('useCompression', () => {
       const { result } = renderHook(() =>
         useCompression({
           ...defaultOptions,
-          tokenCount: 100000,
+          tokenCount: 150000,
         })
       );
 
       const info = result.current.getTriggerInfo();
 
-      expect(info.currentTokens).toBe(100000);
-      expect(info.threshold).toBe(120000);
+      expect(info.currentTokens).toBe(150000);
+      expect(info.threshold).toBe(200000);
       expect(info.currentTurns).toBe(10);
       expect(info.minTurns).toBe(5);
       expect(info.reason).toBeDefined();
@@ -350,32 +350,32 @@ describe('useCompression', () => {
         {
           initialProps: {
             ...defaultOptions,
-            tokenCount: 130000,
-            tokenThreshold: 150000,
+            tokenCount: 150000,
+            tokenThreshold: 250000,
             onCompressionTriggered: onTrigger,
           },
         }
       );
 
-      // Verify getTriggerInfo reflects initial state (130k < 150k)
+      // Verify getTriggerInfo reflects initial state (150k < 250k)
       const initialInfo = result.current.getTriggerInfo();
-      expect(initialInfo.currentTokens).toBe(130000);
-      expect(initialInfo.threshold).toBe(150000);
-      expect(initialInfo.reason).toContain('130000 tokens');
+      expect(initialInfo.currentTokens).toBe(150000);
+      expect(initialInfo.threshold).toBe(250000);
+      expect(initialInfo.reason).toContain('150000 tokens');
 
-      // Lower threshold (130k > 120k)
+      // Lower threshold (150k > 120k)
       rerender({
         ...defaultOptions,
-        tokenCount: 130001,
+        tokenCount: 150001,
         tokenThreshold: 120000,
         onCompressionTriggered: onTrigger,
       });
 
       // Verify getTriggerInfo reflects updated state
       const updatedInfo = result.current.getTriggerInfo();
-      expect(updatedInfo.currentTokens).toBe(130001);
+      expect(updatedInfo.currentTokens).toBe(150001);
       expect(updatedInfo.threshold).toBe(120000);
-      expect(updatedInfo.reason).toContain('130001 tokens > 120000 threshold');
+      expect(updatedInfo.reason).toContain('150001 tokens > 120000 threshold');
 
       // But still no auto-trigger (automatic effect disabled)
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -386,7 +386,7 @@ describe('useCompression', () => {
         result.current.triggerCompression();
       });
 
-      expect(onTrigger).toHaveBeenCalledWith(130001, 10, false);
+      expect(onTrigger).toHaveBeenCalledWith(150001, 10, false);
     });
 
     it('should respect enabled flag', async () => {
@@ -396,7 +396,7 @@ describe('useCompression', () => {
         {
           initialProps: {
             ...defaultOptions,
-            tokenCount: 130000,
+            tokenCount: 210000,
             enabled: false,
             onCompressionTriggered: onTrigger,
           },
@@ -407,19 +407,19 @@ describe('useCompression', () => {
       const disabledInfo = result.current.getTriggerInfo();
       expect(disabledInfo.reason).toBe('Compression is disabled');
 
-      // Enable compression (130k > 120k threshold)
+      // Enable compression (210k > 200k threshold)
       rerender({
         ...defaultOptions,
-        tokenCount: 130001,
+        tokenCount: 210001,
         enabled: true,
         onCompressionTriggered: onTrigger,
       });
 
       // Verify getTriggerInfo reflects enabled state
       const enabledInfo = result.current.getTriggerInfo();
-      expect(enabledInfo.currentTokens).toBe(130001);
-      expect(enabledInfo.threshold).toBe(120000);
-      expect(enabledInfo.reason).toContain('130001 tokens > 120000 threshold');
+      expect(enabledInfo.currentTokens).toBe(210001);
+      expect(enabledInfo.threshold).toBe(200000);
+      expect(enabledInfo.reason).toContain('210001 tokens > 200000 threshold');
 
       // But still no auto-trigger (automatic effect disabled)
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -430,7 +430,7 @@ describe('useCompression', () => {
         result.current.triggerCompression();
       });
 
-      expect(onTrigger).toHaveBeenCalledWith(130001, 10, false);
+      expect(onTrigger).toHaveBeenCalledWith(210001, 10, false);
     });
   });
 
@@ -439,7 +439,7 @@ describe('useCompression', () => {
       const { result } = renderHook(() =>
         useCompression({
           ...defaultOptions,
-          tokenCount: 130000,
+          tokenCount: 210000,
         })
       );
 
@@ -456,7 +456,7 @@ describe('useCompression', () => {
       const { result } = renderHook(() =>
         useCompression({
           ...defaultOptions,
-          tokenCount: 135000,
+          tokenCount: 235000,
         })
       );
 
@@ -465,7 +465,7 @@ describe('useCompression', () => {
         result.current.triggerCompression();
       });
 
-      expect(result.current.state.lastCompressedTokens).toBe(135000);
+      expect(result.current.state.lastCompressedTokens).toBe(235000);
     });
   });
 
@@ -475,7 +475,7 @@ describe('useCompression', () => {
       const { result } = renderHook(() =>
         useCompression({
           ...defaultOptions,
-          tokenCount: 130000,
+          tokenCount: 210000,
           debug: true,
         })
       );

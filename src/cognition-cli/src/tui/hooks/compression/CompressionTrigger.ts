@@ -105,7 +105,7 @@ export class CompressionTrigger {
    * Create a new compression trigger with configuration
    *
    * Applies defaults for any missing options:
-   * - tokenThreshold: 120000 (120k tokens)
+   * - tokenThreshold: 200000 (200k tokens)
    * - minTurns: 5 (minimum conversation exchanges)
    * - enabled: true (compression active)
    *
@@ -113,13 +113,13 @@ export class CompressionTrigger {
    *
    * @example
    * const trigger = new CompressionTrigger({
-   *   tokenThreshold: 100000,
+   *   tokenThreshold: 200000,
    *   minTurns: 10
    * });
    */
   constructor(options: CompressionOptions = {}) {
     this.options = {
-      tokenThreshold: options.tokenThreshold ?? 120000,
+      tokenThreshold: options.tokenThreshold ?? 200000,
       semanticThreshold: options.semanticThreshold ?? 50000,
       tpmLimit: options.tpmLimit ?? 1000000,
       minTurns: options.minTurns ?? 1,

@@ -147,14 +147,11 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
                   task.tokensUsed > 0 && (
                     <Box marginLeft={4}>
                       <Text color={TUITheme.text.tertiary}>
-                        ({formatCompactNumber(task.tokensUsed)}
-                        {task.tokensSaved && task.tokensSaved > 0 ? (
-                          <Text color={TUITheme.text.tertiary}>
-                            {' / '}
-                            {formatCompactNumber(task.tokensSaved)}
-                          </Text>
-                        ) : null}
-                        )
+                        (
+                        {task.tokensSaved && task.tokensSaved > 0
+                          ? `${formatCompactNumber(task.tokensSaved)} / `
+                          : ''}
+                        {formatCompactNumber(task.tokensUsed)})
                       </Text>
                     </Box>
                   )}

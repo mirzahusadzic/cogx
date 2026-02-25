@@ -260,8 +260,8 @@ export class OpenAIAgentProvider implements AgentProvider {
       !!this.baseUrl && !this.baseUrl.includes('api.openai.com');
 
     // Use COGNITION_OPENAI_MAX_TOKENS from workbench auto-config
-    // Fallback: 120K for official OpenAI (GPT-4o has 128K), 4K for unknown local endpoints
-    const defaultFallback = this.isLocalEndpoint ? 4096 : 120000;
+    // Fallback: 200k for official OpenAI (GPT-4o has 128k, but o1 has much more), 4K for unknown local endpoints
+    const defaultFallback = this.isLocalEndpoint ? 4096 : 200000;
     this.defaultMaxTokens =
       options.maxTokens ||
       (process.env.COGNITION_OPENAI_MAX_TOKENS

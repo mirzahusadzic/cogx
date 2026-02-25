@@ -10,7 +10,7 @@
  * long-running conversations within Claude's context limits.
  *
  * Key Concepts:
- * 1. Token Threshold: Maximum tokens before compression triggers (default: 120k)
+ * 1. Token Threshold: Maximum tokens before compression triggers (default: 200k)
  * 2. Minimum Turns: Required conversation turns before compression (prevents premature compression)
  * 3. Compression State: Tracks compression history and prevents multiple compressions
  *
@@ -21,14 +21,14 @@
  * - Preserves important context via PGC semantic storage
  *
  * RATIONALE:
- * Claude has a finite context window (~200k tokens). As conversations grow,
+ * Gemini and Claude have large context windows (~200k-1M+ tokens). As conversations grow,
  * we must compress older context to make room for new interactions while
  * preserving semantic coherence through PGC.
  *
  * @example
  * // Configuring compression
  * const options: CompressionOptions = {
- *   tokenThreshold: 120000,  // Trigger at 120k tokens
+ *   tokenThreshold: 200000,  // Trigger at 200k tokens
  *   minTurns: 5,             // Require at least 5 turns
  *   enabled: true
  * };
@@ -37,9 +37,9 @@
  * // Checking compression trigger result
  * const result: CompressionTriggerResult = {
  *   shouldTrigger: true,
- *   reason: "125000 tokens > 120000 threshold with 8 turns",
- *   currentTokens: 125000,
- *   threshold: 120000,
+ *   reason: "205000 tokens > 200000 threshold with 8 turns",
+ *   currentTokens: 205000,
+ *   threshold: 200000,
  *   currentTurns: 8,
  *   minTurns: 5
  * };
@@ -63,10 +63,11 @@ export interface CompressionOptions {
    * Token threshold at which compression should trigger
    *
    * When token count exceeds this value, compression will be triggered
-   * (subject to minTurns requirement). Default is 120k tokens, which
-   * provides buffer room within Claude's ~200k context window.
+   * (subject to minTurns requirement). Default is 200k tokens, which
+   * provides buffer room within Claude's ~200k context window and
+   * Gemini's 1M+ window.
    *
-   * @default 120000
+   * @default 200000
    */
   tokenThreshold?: number;
 

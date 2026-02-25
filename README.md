@@ -61,16 +61,25 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 ## 🎯 Latest Release
 
-**February 24, 2026** — [v2.6.9: SigmaTask Context Eviction & TUI Analytics](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.9):
+**February 25, 2026** — [v2.6.9: SigmaTask Context Eviction & TUI Analytics](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.9):
 
 - ✂️ **SigmaTask Context Eviction** — Introduced `--ctx-tools` and fine-grained surgical eviction to prune tool logs while retaining critical task summaries.
-- 📊 **TUI Analytics & Token Tracking** — Real-time session token tracking, cost analysis, and cached token visibility in the Status Bar.
+- 📊 **TUI Status Bar Overhaul & Token Tracking** — Complete redesign of the TUI status bar featuring a visual proportional bar for cached (Google Blue) vs active (Green) tokens, session-wide cumulative tracking, and flicker prevention for stable token counts during streaming.
+- 📉 **Visual Context Usage** — Introduced a semantic compression marker 'Σ' on the usage bar (50k tokens) and increased the main compression threshold to 200k.
+- ⌨️ **Compact UI** — Reclaimed horizontal space for token statistics by compacting keyboard shortcut labels (e.g., [^S] for Save, [^C] for Quit).
 - 📟 **Rolling Ring Buffer** — Implemented efficient context management via rolling buffers for tool outputs across all providers.
 - 🛠️ **UI Enhancements** — New `SigmaTaskPanel` for persistent task tracking and refined agent heuristics for better context persistence.
 
-**Impact:** Significantly reduces token waste and context bloat while optimizing for **implicit token caching** (achieving **30%+ hit rates** via surgical prefix stability). This ensures economic sustainability for agentic sessions by leveraging low-threshold (1,024 tokens) implicit caching.
+**February 22, 2026** — [v2.6.8 - Surgical Context Eviction & Provider Expansion](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.8):
 
-**Previous Releases**: [v2.6.8 - Surgical Context Eviction & Provider Expansion](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.8) | [v2.6.7 - TUI Visual Balance & Gemini 3 Reasoning Robustness](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.7) | [v2.6.6 - TUI Theme Overhaul & Vertex AI Robustness](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.6) | [v2.6.5 - TUI Responsiveness & LLM Context Improvements](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.5) | [v2.6.4 - PGC Grounding & Multi-Provider Token Optimization](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.4) | [v2.6.3 - Cross-Project Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.3) | [v2.6.2 - Manager/Worker Delegation](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2) | [v2.6.0 - Multi-Agent Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1 - Gemini Integration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0 - Multi-Provider LLM](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2 - Documentation & Stability](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1 - Cross-Overlay Workflows](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0 - Production Excellence](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ (Sigma) Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
+- ✂️ **Surgical Eviction** — Task-aware tool log eviction across Gemini, OpenAI, and Minimax to significantly reduce context bloat and token usage.
+- 🚀 **Provider Expansions** — Added experimental Minimax support, migrated to Gemini 3.0/3.1 defaults, and purged legacy 2.x EOL models.
+- 📟 **CLI & Token Accuracy** — Introduced `--solo` mode for isolated execution and fixed TUI token counters to accurately track surgical drops.
+- 🧹 **Infrastructure & Cleanup** — Bumped `@google/adk` to 0.3.0, preserved thought signatures during eviction.
+
+**Impact:** Significantly reduces token waste and context bloat while optimizing for **implicit token caching** (achieving **80%+ hit rates** via surgical prefix stability). This ensures economic sustainability for agentic sessions by leveraging low-threshold (1,024 tokens) implicit caching.
+
+**Previous Releases**: [v2.6.7 - TUI Visual Balance & Gemini 3 Reasoning Robustness](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.7) | [v2.6.6 - TUI Theme Overhaul & Vertex AI Robustness](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.6) | [v2.6.5 - TUI Responsiveness & LLM Context Improvements](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.5) | [v2.6.4 - PGC Grounding & Multi-Provider Token Optimization](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.4) | [v2.6.3 - Cross-Project Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.3) | [v2.6.2 - Manager/Worker Delegation](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.2) | [v2.6.0 - Multi-Agent Collaboration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.0) | [v2.5.1 - Gemini Integration](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.1) | [v2.5.0 - Multi-Provider LLM](https://github.com/mirzahusadzic/cogx/releases/tag/v2.5.0) | [v2.4.2 - Documentation & Stability](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.2) | [v2.4.1 - Cross-Overlay Workflows](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.1) | [v2.4.0 - Production Excellence](https://github.com/mirzahusadzic/cogx/releases/tag/v2.4.0) | [v2.0.0 - Σ (Sigma) Infinite Context](https://github.com/mirzahusadzic/cogx/releases/tag/v2.0.0)
 
 📜 **[See full release history](src/cognition-cli/CHANGELOG.md)**
 
@@ -364,7 +373,7 @@ If you use this work in research, please cite:
   author = {Husadžić, Mirza},
   title = {CogX: A Blueprint for Verifiable, Agentic AI},
   year = {2026},
-  version = {2.6.8},
+  version = {2.6.9},
   doi = {10.5281/zenodo.18012832},
   url = {https://github.com/mirzahusadzic/cogx}
 }

@@ -97,7 +97,7 @@ const MODEL_DISPLAY_NAMES: Record<string, string> = {
  * - Shows proportional bar with cached, active, and remaining tokens
  * - Shows remaining context window capacity (⏳)
  * - Shows compression thresholds (🗜️)
- * - Example: "📊 45.2k/120k [###Σ...] ⏳ 80k | 🗜️ [Σ 50k/200k]"
+ * - Example: "📊 45.2k/200k [###Σ...] ⏳ 155k | 🗜️ [Σ 50k/200k]"
  *
  * @component
  * @param {StatusBarProps} props - Component props

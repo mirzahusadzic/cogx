@@ -968,8 +968,8 @@ The same architecture that understands code can preserve human identity through 
 
 - **SigmaTask Context Eviction:** Implemented fine-grained control over task log history with the `--ctx-tools` parameter, ensuring completed task logs are surgically pruned while retaining high-level summaries.
 - **Rolling Ring Buffer:** Introduced a rolling ring buffer for tool outputs across all providers to manage long-running context more efficiently.
-- **Token Analytics:** Added real-time cumulative cost and token tracking to the TUI status bar, including cached token tracking and per-task cost attribution.
-- **UI Enhancements:** Added `SigmaTaskPanel` for persistent task tracking and refined task sorting/display logic.
+- **TUI Status Bar Overhaul & Token Tracking:** Complete redesign of the TUI status bar featuring a visual proportional bar for cached (Google Blue) vs active (Green) tokens, session-wide cumulative tracking, and flicker prevention for stable token counts during streaming.
+- **UI & UX Enhancements:** Added `SigmaTaskPanel` for persistent task tracking, introduced a semantic compression marker 'Σ' (50k tokens) to the usage bar, and reclaimed horizontal space by compacting keyboard shortcut labels (e.g., [^S] for Save, [^C] for Quit).
 - **Stability:** Hardened TUI message threading, session persistence, and optimized re-renders with memoization.
 
 ### Version 2.6.8 (Surgical Context Eviction & Provider Expansion)

@@ -499,26 +499,29 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
   }
 
   // Set default sessionTokens based on provider
-  // Gemini/Minimax have huge context but we compress early at 200K
-  // Claude has 200K token context (Sonnet/Opus) - compress at 120K to leave buffer
+  // All cloud providers (Gemini, Claude, OpenAI, Minimax) now default to 200k
   // OpenAI/local models use COGNITION_OPENAI_MAX_TOKENS (auto-configured from workbench health)
   let defaultSessionTokens: number;
-  if (validatedProvider === 'gemini' || validatedProvider === 'minimax') {
+  if (
+    validatedProvider === 'gemini' ||
+    validatedProvider === 'minimax' ||
+    validatedProvider === 'claude'
+  ) {
     defaultSessionTokens = 200000;
   } else if (validatedProvider === 'openai') {
     // Use auto-configured token limit from workbench
-    // Fallback: 120K for official OpenAI (GPT-4o has 128K), 4K for unknown local endpoints
+    // Fallback: 200k for official OpenAI (GPT-4o has 128k, but o1 has much more), 4K for unknown local endpoints
     const isLocalEndpoint =
       process.env.OPENAI_BASE_URL &&
       !process.env.OPENAI_BASE_URL.includes('api.openai.com');
-    const defaultFallback = isLocalEndpoint ? 4096 : 120000;
+    const defaultFallback = isLocalEndpoint ? 4096 : 200000;
     const openaiMaxTokens = process.env.COGNITION_OPENAI_MAX_TOKENS
       ? parseInt(process.env.COGNITION_OPENAI_MAX_TOKENS, 10)
       : defaultFallback;
     defaultSessionTokens = openaiMaxTokens;
   } else {
-    // Claude default
-    defaultSessionTokens = 120000;
+    // Default fallback
+    defaultSessionTokens = 200000;
   }
 
   // Launch TUI

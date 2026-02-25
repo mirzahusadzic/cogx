@@ -13,7 +13,7 @@ describe('CompressionTrigger', () => {
 
   beforeEach(() => {
     trigger = new CompressionTrigger({
-      tokenThreshold: 120000,
+      tokenThreshold: 200000,
       minTurns: 5,
       enabled: true,
     });
@@ -21,17 +21,17 @@ describe('CompressionTrigger', () => {
 
   describe('shouldTrigger', () => {
     it('should not trigger when token count below threshold', () => {
-      const result = trigger.shouldTrigger(100000, 10);
+      const result = trigger.shouldTrigger(150000, 10);
 
       expect(result.shouldTrigger).toBe(false);
-      expect(result.reason).toContain('100000 tokens');
-      expect(result.reason).toContain('120000');
-      expect(result.currentTokens).toBe(100000);
-      expect(result.threshold).toBe(120000);
+      expect(result.reason).toContain('150000 tokens');
+      expect(result.reason).toContain('200000');
+      expect(result.currentTokens).toBe(150000);
+      expect(result.threshold).toBe(200000);
     });
 
     it('should not trigger when turn count below minimum', () => {
-      const result = trigger.shouldTrigger(130000, 3);
+      const result = trigger.shouldTrigger(210000, 3);
 
       expect(result.shouldTrigger).toBe(false);
       expect(result.reason).toContain('3 turns');
@@ -41,48 +41,48 @@ describe('CompressionTrigger', () => {
     });
 
     it('should trigger when both conditions met', () => {
-      const result = trigger.shouldTrigger(130000, 10);
+      const result = trigger.shouldTrigger(210000, 10);
 
       expect(result.shouldTrigger).toBe(true);
-      expect(result.reason).toContain('130000 tokens');
-      expect(result.reason).toContain('120000');
+      expect(result.reason).toContain('210000 tokens');
+      expect(result.reason).toContain('200000');
       expect(result.reason).toContain('10 turns');
     });
 
     it('should not trigger twice in same session', () => {
       // First trigger - should succeed
-      const result1 = trigger.shouldTrigger(130000, 10);
+      const result1 = trigger.shouldTrigger(210000, 10);
       expect(result1.shouldTrigger).toBe(true);
 
       // Mark as triggered
       trigger.markTriggered();
 
       // Second check - should not trigger
-      const result2 = trigger.shouldTrigger(150000, 15);
+      const result2 = trigger.shouldTrigger(250000, 15);
       expect(result2.shouldTrigger).toBe(false);
       expect(result2.reason).toContain('already triggered');
     });
 
     it('should trigger at exact threshold', () => {
-      const result = trigger.shouldTrigger(120001, 5);
+      const result = trigger.shouldTrigger(200001, 5);
 
       expect(result.shouldTrigger).toBe(true);
     });
 
     it('should not trigger at exact threshold (need to exceed)', () => {
-      const result = trigger.shouldTrigger(120000, 5);
+      const result = trigger.shouldTrigger(200000, 5);
 
       expect(result.shouldTrigger).toBe(false);
     });
 
     it('should not trigger when disabled', () => {
       const disabledTrigger = new CompressionTrigger({
-        tokenThreshold: 120000,
+        tokenThreshold: 200000,
         minTurns: 5,
         enabled: false,
       });
 
-      const result = disabledTrigger.shouldTrigger(130000, 10);
+      const result = disabledTrigger.shouldTrigger(210000, 10);
 
       expect(result.shouldTrigger).toBe(false);
       expect(result.reason).toContain('disabled');
@@ -99,12 +99,12 @@ describe('CompressionTrigger', () => {
     });
 
     it('should prevent subsequent triggers', () => {
-      const result1 = trigger.shouldTrigger(130000, 10);
+      const result1 = trigger.shouldTrigger(210000, 10);
       expect(result1.shouldTrigger).toBe(true);
 
       trigger.markTriggered();
 
-      const result2 = trigger.shouldTrigger(150000, 15);
+      const result2 = trigger.shouldTrigger(250000, 15);
       expect(result2.shouldTrigger).toBe(false);
     });
   });
@@ -122,14 +122,14 @@ describe('CompressionTrigger', () => {
     it('should allow compression to trigger again after reset', () => {
       // Trigger once
       trigger.markTriggered();
-      const result1 = trigger.shouldTrigger(130000, 10);
+      const result1 = trigger.shouldTrigger(210000, 10);
       expect(result1.shouldTrigger).toBe(false);
 
       // Reset
       trigger.reset();
 
       // Should trigger again
-      const result2 = trigger.shouldTrigger(130000, 10);
+      const result2 = trigger.shouldTrigger(210000, 10);
       expect(result2.shouldTrigger).toBe(true);
     });
   });
@@ -138,7 +138,7 @@ describe('CompressionTrigger', () => {
     it('should return current options', () => {
       const options = trigger.getOptions();
 
-      expect(options.tokenThreshold).toBe(120000);
+      expect(options.tokenThreshold).toBe(200000);
       expect(options.minTurns).toBe(5);
       expect(options.enabled).toBe(true);
     });
@@ -147,7 +147,7 @@ describe('CompressionTrigger', () => {
       const defaultTrigger = new CompressionTrigger();
       const options = defaultTrigger.getOptions();
 
-      expect(options.tokenThreshold).toBe(120000);
+      expect(options.tokenThreshold).toBe(200000);
       expect(options.minTurns).toBe(1);
       expect(options.enabled).toBe(true);
     });
@@ -155,36 +155,36 @@ describe('CompressionTrigger', () => {
 
   describe('updateOptions', () => {
     it('should update token threshold', () => {
-      trigger.updateOptions({ tokenThreshold: 150000 });
+      trigger.updateOptions({ tokenThreshold: 250000 });
 
-      const result = trigger.shouldTrigger(140000, 10);
+      const result = trigger.shouldTrigger(240000, 10);
       expect(result.shouldTrigger).toBe(false);
-      expect(result.threshold).toBe(150000);
+      expect(result.threshold).toBe(250000);
 
-      const result2 = trigger.shouldTrigger(160000, 10);
+      const result2 = trigger.shouldTrigger(260000, 10);
       expect(result2.shouldTrigger).toBe(true);
     });
 
     it('should update minimum turns', () => {
       trigger.updateOptions({ minTurns: 10 });
 
-      const result = trigger.shouldTrigger(130000, 8);
+      const result = trigger.shouldTrigger(210000, 8);
       expect(result.shouldTrigger).toBe(false);
       expect(result.minTurns).toBe(10);
 
-      const result2 = trigger.shouldTrigger(130000, 12);
+      const result2 = trigger.shouldTrigger(210000, 12);
       expect(result2.shouldTrigger).toBe(true);
     });
 
     it('should enable/disable compression', () => {
       trigger.updateOptions({ enabled: false });
 
-      const result = trigger.shouldTrigger(130000, 10);
+      const result = trigger.shouldTrigger(210000, 10);
       expect(result.shouldTrigger).toBe(false);
 
       trigger.updateOptions({ enabled: true });
 
-      const result2 = trigger.shouldTrigger(130000, 10);
+      const result2 = trigger.shouldTrigger(210000, 10);
       expect(result2.shouldTrigger).toBe(true);
     });
   });
@@ -197,7 +197,7 @@ describe('CompressionTrigger', () => {
     });
 
     it('should handle zero turns', () => {
-      const result = trigger.shouldTrigger(130000, 0);
+      const result = trigger.shouldTrigger(210000, 0);
 
       expect(result.shouldTrigger).toBe(false);
     });
@@ -209,7 +209,7 @@ describe('CompressionTrigger', () => {
     });
 
     it('should handle very large turn counts', () => {
-      const result = trigger.shouldTrigger(130000, 1000);
+      const result = trigger.shouldTrigger(210000, 1000);
 
       expect(result.shouldTrigger).toBe(true);
     });
@@ -228,14 +228,14 @@ describe('CompressionTrigger', () => {
 
     it('should respect custom minimum turns', () => {
       const customTrigger = new CompressionTrigger({
-        tokenThreshold: 120000,
+        tokenThreshold: 200000,
         minTurns: 10,
       });
 
-      const result = customTrigger.shouldTrigger(130000, 8);
+      const result = customTrigger.shouldTrigger(210000, 8);
       expect(result.shouldTrigger).toBe(false);
 
-      const result2 = customTrigger.shouldTrigger(130000, 12);
+      const result2 = customTrigger.shouldTrigger(210000, 12);
       expect(result2.shouldTrigger).toBe(true);
     });
   });

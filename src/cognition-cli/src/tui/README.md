@@ -13,7 +13,8 @@ Traditional AI chats forget. This TUI integrates with the **Cognition Σ** engin
 - **Project Lattice (`.open_cognition/`)**: Static knowledge of your codebase.
 - **Conversation Lattice (`.sigma/`)**: Dynamic memory of the session.
 - **Meet Operation (∧)**: Every turn is analyzed against 7 cognitive overlays (O1-O7) to preserve what matters and discard noise.
-- **Intelligent Compression**: At 120k tokens (configurable), the system compresses the conversation into a semantic recap, preserving project-aligned insights while resetting the token count.
+- **Intelligent Compression**: At 200k tokens (configurable), the system compresses the conversation into a semantic recap, preserving project-aligned insights while resetting the token count.
+- **Visual Token Tracking**: A redesigned status bar provides a real-time proportional view of cached (Blue) vs. active (Green) tokens, highlighting the **80%+ cache efficiency** achieved via surgical eviction. Includes a semantic 'Σ' marker at the 50k token threshold.
 
 ### 2. Multi-Agent Bus (IPC)
 
@@ -135,7 +136,7 @@ cognition-cli tui -f .sigma/<session-id>.state.json
 ### Configuration Options
 
 ```bash
-# Set compression threshold (default: 120k)
+# Set compression threshold (default: 200k)
 cognition-cli tui --session-tokens 200000
 
 # Enable debug logging (creates tui-debug.log)

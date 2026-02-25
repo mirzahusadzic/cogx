@@ -29,8 +29,8 @@ const MODEL_CONFIGS: Record<
   { compressionTarget: number; requiresReprompt: boolean }
 > = {
   gemini: { compressionTarget: 120000, requiresReprompt: true }, // Gemini 1.5/2.0+ large context
-  claude: { compressionTarget: 40000, requiresReprompt: false }, // Claude standard
-  gpt: { compressionTarget: 40000, requiresReprompt: false }, // GPT-4o+ (increased from 20k to preserve more context)
+  claude: { compressionTarget: 60000, requiresReprompt: false }, // Claude standard (increased from 40k)
+  gpt: { compressionTarget: 60000, requiresReprompt: false }, // GPT-4o+ (increased from 40k)
 };
 
 function getModelConfig(modelName?: string) {
