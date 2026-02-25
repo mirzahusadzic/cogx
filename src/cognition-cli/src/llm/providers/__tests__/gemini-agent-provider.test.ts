@@ -921,11 +921,11 @@ describe('GeminiAgentProvider', () => {
         // consume
       }
 
-      expect(LlmAgent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          instruction: 'You are a test assistant',
-        })
-      );
+      const cognitionCall = vi
+        .mocked(LlmAgent)
+        .mock.calls.find((c) => c[0].name === 'cognition_agent');
+      expect(cognitionCall).toBeDefined();
+      expect(cognitionCall![0].instruction()).toBe('You are a test assistant');
     });
 
     it('should build default system prompt with model name', async () => {
@@ -949,10 +949,12 @@ describe('GeminiAgentProvider', () => {
         // consume
       }
 
-      expect(LlmAgent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          instruction: expect.stringContaining('gemini-3-flash-preview'),
-        })
+      const cognitionCall = vi
+        .mocked(LlmAgent)
+        .mock.calls.find((c) => c[0].name === 'cognition_agent');
+      expect(cognitionCall).toBeDefined();
+      expect(cognitionCall![0].instruction()).toContain(
+        'gemini-3-flash-preview'
       );
     });
   });

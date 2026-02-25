@@ -220,7 +220,7 @@ const StatusBarComponent: React.FC<StatusBarProps> = ({
           <>
             <Text color={TUITheme.ui.border.dim}> | </Text>
             <Text color={TUITheme.text.secondary}>
-              📊{' '}
+              Σ{' '}
               <Text color={TUITheme.providers.google}>
                 {formatCompactNumber(cachedTokens)}
               </Text>

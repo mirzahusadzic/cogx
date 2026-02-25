@@ -159,7 +159,7 @@ describe('StatusBar', () => {
           cached: 4000,
         },
       });
-      expect(lastFrame()).toContain('📊');
+      expect(lastFrame()).toContain('Σ');
       // Look for Cached/Total parts
       expect(lastFrame()).toContain('4k');
       expect(lastFrame()).toContain('/');
@@ -213,7 +213,7 @@ describe('StatusBar', () => {
 
     it('does not display token section when total is 0 and no session count', () => {
       const { lastFrame } = renderStatusBar({ focused: false });
-      expect(lastFrame()).not.toContain('📊');
+      expect(lastFrame()).not.toContain('Σ');
     });
 
     it('shows session tokens next to session ID', () => {

@@ -391,11 +391,13 @@ describe('Tool Executors', () => {
 
       const todos = [
         {
+          id: 'task-1',
           content: 'Build feature',
           status: 'in_progress',
           activeForm: 'Building feature',
         },
         {
+          id: 'task-2',
           content: 'Write tests',
           status: 'pending',
           activeForm: 'Writing tests',
@@ -433,13 +435,24 @@ describe('Tool Executors', () => {
         await import('../tool-executors.js');
 
       const todos = [
-        { content: 'Task done', status: 'completed', activeForm: 'Done' },
         {
+          id: '1',
+          content: 'Task done',
+          status: 'completed',
+          activeForm: 'Done',
+        },
+        {
+          id: '2',
           content: 'Working task',
           status: 'in_progress',
           activeForm: 'Working on task',
         },
-        { content: 'Future task', status: 'pending', activeForm: 'Future' },
+        {
+          id: '3',
+          content: 'Future task',
+          status: 'pending',
+          activeForm: 'Future',
+        },
       ];
 
       const result = await executeSigmaTaskUpdateTest(
@@ -467,7 +480,14 @@ describe('Tool Executors', () => {
         await import('../tool-executors.js');
 
       const result = await executeSigmaTaskUpdateTest(
-        [{ content: 'Task', status: 'pending', activeForm: 'Working' }],
+        [
+          {
+            id: 'error-task',
+            content: 'Task',
+            status: 'pending',
+            activeForm: 'Working',
+          },
+        ],
         '/test/cwd',
         'non-existent'
       );
