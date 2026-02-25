@@ -251,4 +251,15 @@ describe('SigmaTaskPanel', () => {
     const inProgressIdx = frame.indexOf('In Progress Task Active');
     expect(completedIdx).toBeLessThan(inProgressIdx);
   });
+
+  it('renders close hint', () => {
+    const { lastFrame } = render(
+      <SigmaTaskPanel
+        sigmaTasks={mockTasks}
+        tokenCount={mockTokenCount}
+        sessionTokenCount={mockTokenCount}
+      />
+    );
+    expect(stripAnsi(lastFrame()!)).toContain("Press 't' to close");
+  });
 });

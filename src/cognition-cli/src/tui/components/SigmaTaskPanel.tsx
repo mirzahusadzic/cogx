@@ -306,6 +306,10 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
           </Box>
         </>
       )}
+
+      <Box marginTop={1} marginBottom={1}>
+        <Text dimColor>Press 't' to close</Text>
+      </Box>
     </Box>
   );
 };
