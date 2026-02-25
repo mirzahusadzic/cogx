@@ -39,7 +39,10 @@ import { ThinkingLevel } from '@google/genai';
 
 import { getGroundingContext } from './grounding-utils.js';
 import { getDynamicThinkingBudget } from './thinking-utils.js';
-import { getActiveTaskId } from '../../sigma/session-state.js';
+import {
+  getTaskContextForPrompt,
+  getActiveTaskId,
+} from '../../sigma/session-state.js';
 
 import { getCognitionTools } from './gemini-adk-tools.js';
 import { systemLog } from '../../utils/debug-logger.js';
@@ -1835,6 +1838,13 @@ export class GeminiAgentProvider implements AgentProvider {
       day: 'numeric',
     });
 
+    const taskContext = request.anchorId
+      ? getTaskContextForPrompt(
+          request.anchorId,
+          request.cwd || request.projectRoot || process.cwd()
+        )
+      : '[No active task]';
+
     const isSolo = request.mode === 'solo';
 
     const delegationExample = isSolo
@@ -1859,27 +1869,33 @@ You should:
 1. **Task States**: pending (not started), in_progress (currently working), completed (finished)
 2. **Task-First (Token Health)**: ALWAYS mark a task as \`in_progress\` BEFORE running tools. This ensures tool outputs are tagged for eviction.
 3. **One at a time**: Exactly ONE task should be in_progress at any time.
-4. **The "Hot Potato" Rule (Atomic Loops)**: Research tasks must be opened, executed, and CLOSED in the same turn sequence whenever possible.
+4. **Strict Sequential**: Do not create or start NEW tasks while another is \`in_progress\`. Finish the current task first.
+5. **The "Hot Potato" Rule (Atomic Loops)**: Research tasks must be opened, executed, and CLOSED in the same turn sequence whenever possible.
    - **CRITICAL**: Do not yield text to the user while a heavy research task is still \`in_progress\`.
+   - **Questions**: If you are in the middle of an \`in_progress\` task and need to ask the user a question, you should either:
+     a) Complete the task with a summary of what you found so far.
+     b) Keep it \`in_progress\` ONLY if you are strictly blocked and cannot proceed without an answer.
    - **Sequence**: Start Task -> Run Tools (grep/read) -> Close Task (Summary) -> Respond to User.
-   - This ensures the raw logs are evicted *before* the context window recalculates for your text response.
-5. **Persistence via Summary**: The raw logs WILL BE DELETED immediately upon completion.
+6. **Persistence via Summary**: The raw logs WILL BE DELETED immediately upon completion.
    - You MUST distill all critical findings (file paths, line numbers, code snippets) into the \`result_summary\`.
-   - If the \`result_summary\` is empty, you lobotomize yourself.
-6. **Honest completion**: ONLY mark completed when FULLY accomplished.
-7. **Both forms required**: Always provide content ("Fix bug") AND activeForm ("Fixing bug").`
+7. **Honest completion**: ONLY mark completed when FULLY accomplished.
+8. **Both forms required**: Always provide content ("Fix bug") AND activeForm ("Fixing bug").`
       : `### Task State Rules
 1. **Task States**: pending, in_progress, completed, delegated
 2. **Task-First (Token Health)**: ALWAYS mark a task as \`in_progress\` BEFORE running tools.
 3. **One at a time**: Exactly ONE task should be in_progress at any time.
-4. **Delegation**: Set status to 'delegated' AND send IPC message. Wait for worker report.
-5. **The "Hot Potato" Rule (Atomic Loops)**: Research tasks must be opened, executed, and CLOSED in the same turn sequence whenever possible.
+4. **Strict Sequential**: Do not create or start NEW tasks while another is \`in_progress\`. Finish the current task first.
+5. **Delegation**: Set status to 'delegated' AND send IPC message. Wait for worker report.
+6. **The "Hot Potato" Rule (Atomic Loops)**: Research tasks must be opened, executed, and CLOSED in the same turn sequence whenever possible.
    - **CRITICAL**: Do not yield text to the user while a heavy research task is still \`in_progress\`.
+   - **Questions**: If you are in the middle of an \`in_progress\` task and need to ask the user a question, you should either:
+     a) Complete the task with a summary of what you found so far.
+     b) Keep it \`in_progress\` ONLY if you are strictly blocked and cannot proceed without an answer.
    - **Sequence**: Start Task -> Run Tools (grep/read) -> Close Task (Summary) -> Respond to User.
-6. **Persistence via Summary**: The raw logs WILL BE DELETED immediately upon completion.
+7. **Persistence via Summary**: The raw logs WILL BE DELETED immediately upon completion.
    - You MUST distill all critical findings into the \`result_summary\`.
-7. **Honest completion**: ONLY mark completed when FULLY accomplished.
-8. **Both forms required**: Always provide content ("Fix bug") AND activeForm ("Fixing bug").`;
+8. **Honest completion**: ONLY mark completed when FULLY accomplished.
+9. **Both forms required**: Always provide content ("Fix bug") AND activeForm ("Fixing bug").`;
 
     const memoryRules = `
 ### 🧠 MEMORY & EVICTION RULES (CRITICAL)
@@ -1888,6 +1904,9 @@ You should:
    - **CRITICAL**: The \`result_summary\` is your ONLY bridge to future turns. If you need a diff, error message, or specific insight later, you MUST include it here. Do not assume the system 'summarizes' logs for you.
 3. **Verification**: Before calling \`SigmaTaskUpdate(status='completed')\`, ask yourself: "If I lose all my previous logs right now, do I have enough info in the summary to continue?"
 4. **Never Stop at a Tool Call**: After updating a task to \`completed\`, you MUST provide a final response to the user in the same turn that synthesizes your findings. Never end a turn with a \`SigmaTaskUpdate\` call as your final action if you have results to report.
+5. **AnchorId Pressure**: You are tracked via an active task ID. If you see a task in the "TASK STATUS" section, you are under pressure to complete it. Do not wander.
+6. **Task-Completion Lockdown**: You are FORBIDDEN from finishing your turn (responding to the user) while a task is \`in_progress\` unless you are strictly blocked by a question. If the work is done, you MUST mark it \`completed\` first.
+7. **The "Blueprint" Clean Slate**: After completing a "Research" task, do NOT start the next task in the same tool call. Finish your turn with the summary. This ensures the next turn starts with a clean context window and the summary injected into your system prompt.
 `;
 
     return (
@@ -1897,6 +1916,10 @@ You should:
 
 ## What is Cognition Σ?
 A portable cognitive layer that can be initialized in **any repository**. Creates \`.sigma/\` (conversation memory) and \`.open_cognition/\` (PGC project knowledge store) in the current working directory.
+
+## 📋 TASK STATUS & CONTEXT
+${taskContext}
+
 ${memoryRules}
 
 ## Your Capabilities

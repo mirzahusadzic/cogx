@@ -11,6 +11,84 @@ import path from 'path';
 import { systemLog } from '../utils/debug-logger.js';
 
 /**
+ * Sigma task item in session state
+ */
+export interface SigmaTask {
+  /** Unique stable identifier for this task (e.g., nanoid or semantic slug) */
+  id: string;
+  /** Imperative form: "Fix ruff errors in src/api.py" */
+  content: string;
+  /** Present continuous form: "Fixing ruff errors in src/api.py" */
+  activeForm: string;
+  /** Task status */
+  status: 'pending' | 'in_progress' | 'completed' | 'delegated';
+
+  // Delegation fields (for Manager/Worker paradigm)
+  /** Success criteria for task completion (e.g., ["Must pass 'npm test'"]) */
+  acceptance_criteria?: string[];
+  /** Agent ID this task was delegated to (e.g., "flash1") */
+  delegated_to?: string;
+  /** Additional context for delegated worker */
+  context?: string;
+  /** Worker's session ID (for audit trail) */
+  delegate_session_id?: string;
+  /** Worker's completion report */
+  result_summary?: string;
+
+  /** Tokens at start of task (TUI-internal) */
+  tokensAtStart?: number;
+  /** Total tokens used for this task across context windows (TUI-internal) */
+  tokensUsed?: number;
+  /** Tokens accumulated from previous context windows (TUI-internal) */
+  tokensAccumulated?: number;
+
+  /** Grounding requirements for the task */
+  grounding?: {
+    /**
+     * Strategy for how worker should approach the task
+     * - "pgc_first": Query PGC before any code changes
+     * - "pgc_verify": Use PGC to verify proposed changes
+     * - "pgc_cite": Must cite PGC sources in response
+     * - "none": Free-form (legacy behavior)
+     */
+    strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
+
+    /**
+     * Hints about which overlays are most relevant
+     * Helps worker focus lattice queries
+     */
+    overlay_hints?: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
+
+    /**
+     * Semantic query hints for the worker's PGC
+     * Worker should run these queries before acting
+     */
+    query_hints?: string[];
+
+    /**
+     * Whether response must include evidence citations
+     */
+    evidence_required?: boolean;
+  };
+  /**
+   * Structured grounding evidence returned by the worker
+   * Stores the actual citations and confidence scores
+   */
+  grounding_evidence?: {
+    queries_executed: string[];
+    overlays_consulted: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
+    citations: Array<{
+      overlay: string;
+      content: string;
+      relevance: string;
+      file_path?: string;
+    }>;
+    grounding_confidence: 'high' | 'medium' | 'low';
+    overlay_warnings?: string[];
+  };
+}
+
+/**
  * Session state file format
  */
 export interface SessionState {
@@ -65,80 +143,7 @@ export interface SessionState {
   };
 
   /** Active task list for this session (for providers without native SigmaTaskUpdate) */
-  todos?: Array<{
-    /** Unique stable identifier for this task (e.g., nanoid or semantic slug) */
-    id: string;
-    /** Imperative form: "Fix ruff errors in src/api.py" */
-    content: string;
-    /** Present continuous form: "Fixing ruff errors in src/api.py" */
-    activeForm: string;
-    /** Task status */
-    status: 'pending' | 'in_progress' | 'completed' | 'delegated';
-
-    // Delegation fields (for Manager/Worker paradigm)
-    /** Success criteria for task completion (e.g., ["Must pass 'npm test'"]) */
-    acceptance_criteria?: string[];
-    /** Agent ID this task was delegated to (e.g., "flash1") */
-    delegated_to?: string;
-    /** Additional context for delegated worker */
-    context?: string;
-    /** Worker's session ID (for audit trail) */
-    delegate_session_id?: string;
-    /** Worker's completion report */
-    result_summary?: string;
-
-    /** Tokens at start of task (TUI-internal) */
-    tokensAtStart?: number;
-    /** Total tokens used for this task across context windows (TUI-internal) */
-    tokensUsed?: number;
-    /** Tokens accumulated from previous context windows (TUI-internal) */
-    tokensAccumulated?: number;
-
-    /** Grounding requirements for the task */
-    grounding?: {
-      /**
-       * Strategy for how worker should approach the task
-       * - "pgc_first": Query PGC before any code changes
-       * - "pgc_verify": Use PGC to verify proposed changes
-       * - "pgc_cite": Must cite PGC sources in response
-       * - "none": Free-form (legacy behavior)
-       */
-      strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
-
-      /**
-       * Hints about which overlays are most relevant
-       * Helps worker focus lattice queries
-       */
-      overlay_hints?: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
-
-      /**
-       * Semantic query hints for the worker's PGC
-       * Worker should run these queries before acting
-       */
-      query_hints?: string[];
-
-      /**
-       * Whether response must include evidence citations
-       */
-      evidence_required?: boolean;
-    };
-    /**
-     * Structured grounding evidence returned by the worker
-     * Stores the actual citations and confidence scores
-     */
-    grounding_evidence?: {
-      queries_executed: string[];
-      overlays_consulted: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
-      citations: Array<{
-        overlay: string;
-        content: string;
-        relevance: string;
-        file_path?: string;
-      }>;
-      grounding_confidence: 'high' | 'medium' | 'low';
-      overlay_warnings?: string[];
-    };
-  }>;
+  todos?: SigmaTask[];
 }
 
 /**
@@ -486,6 +491,61 @@ export function updateTasksByAnchorId(
     .join('\n');
 
   return `Task list updated (${(todos || []).length} items):\n${summary}`;
+}
+
+/**
+ * Get the currently active Sigma task for a session
+ *
+ * @param anchorId - Session anchor ID
+ * @param projectRoot - Project root directory
+ * @returns Active task object or null
+ */
+/**
+ * Formats a concise context of the task list for the system prompt.
+ * This ensures the model sees the result_summary of completed tasks even after logs are evicted.
+ */
+export function getTaskContextForPrompt(
+  anchorId: string,
+  projectRoot: string
+): string {
+  const state = loadSessionState(anchorId, projectRoot);
+  if (!state || !state.todos || state.todos.length === 0) {
+    return '[No active task]';
+  }
+
+  const activeTask = state.todos.find((t) => t.status === 'in_progress');
+  const completedTasks = state.todos
+    .filter((t) => t.status === 'completed')
+    .slice(-3); // Get last 3 completed tasks
+
+  let prompt = '';
+
+  if (activeTask) {
+    prompt += `📋 CURRENT ACTIVE TASK\n[${activeTask.id}] ${activeTask.content}\nStatus: ${activeTask.activeForm}...\n\n`;
+  } else {
+    prompt += `📋 NO ACTIVE TASK (You must start one before using other tools)\n\n`;
+  }
+
+  if (completedTasks.length > 0) {
+    prompt += `✅ RECENTLY COMPLETED TASKS (Essential Findings):\n`;
+    completedTasks.forEach((t) => {
+      prompt += `- [${t.id}] ${t.content}\n  Summary: ${t.result_summary || 'No summary provided.'}\n`;
+    });
+    prompt += `\n(Use these summaries to recall details that were evicted from your context window)\n`;
+  }
+
+  return prompt.trim();
+}
+
+export function getActiveTask(
+  anchorId: string,
+  projectRoot: string
+): SigmaTask | null {
+  const state = loadSessionState(anchorId, projectRoot);
+  if (!state || !state.todos) return null;
+
+  const activeTask = state.todos.find((t) => t.status === 'in_progress');
+  return activeTask || null;
 }
 
 /**

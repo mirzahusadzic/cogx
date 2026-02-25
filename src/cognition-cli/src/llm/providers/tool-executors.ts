@@ -745,6 +745,48 @@ export async function executeSigmaTaskUpdate(
     const projectRoot = cwd;
     const currentState = loadSessionState(anchorId, projectRoot);
 
+    // Enforce Strict Sequential Task Management
+    if (currentState?.todos) {
+      const currentInProgress = currentState.todos.find(
+        (t) => t.status === 'in_progress'
+      );
+      if (currentInProgress) {
+        const matchingNewTodo = todos.find(
+          (t) => t.id === currentInProgress.id
+        );
+        const isCompletingCurrent = matchingNewTodo?.status === 'completed';
+
+        // 1. Prevent starting a NEW task before completing current one
+        const startingNew = todos.find(
+          (t) => t.id !== currentInProgress.id && t.status === 'in_progress'
+        );
+        if (startingNew && !isCompletingCurrent) {
+          throw new Error(
+            `Strict Sequential Workflow: You must complete task '${currentInProgress.id}' (set status to 'completed') before starting '${startingNew.id}'.`
+          );
+        }
+
+        // 2. Prevent adding NEW tasks to the list while one is in_progress
+        // EXCEPTION: Only allow adding pending tasks IF we are completing the current one,
+        // but strongly discourage starting the NEXT task in the same call.
+        if (!isCompletingCurrent && todos.length > currentState.todos.length) {
+          throw new Error(
+            `Strict Sequential Workflow: You cannot create NEW tasks while task '${currentInProgress.id}' is still in_progress. Complete the current task first to keep focus.`
+          );
+        }
+
+        if (isCompletingCurrent && startingNew) {
+          // This is allowed but discouraged by the prompt. We could enforce it here if needed.
+          // For now, let's just make sure they aren't adding PENDING tasks AND starting a NEW one.
+          if (todos.length > currentState.todos.length) {
+            throw new Error(
+              `Strict Sequential Workflow: Do not add new pending tasks and start a new in_progress task in the same call. Complete the current task first.`
+            );
+          }
+        }
+      }
+    }
+
     // Merge separate grounding arrays into tasks for processing
     const processedTodos = todos.map((todo) => {
       // NOTE: We don't have direct access to 'grounding' or 'grounding_evidence' arrays here

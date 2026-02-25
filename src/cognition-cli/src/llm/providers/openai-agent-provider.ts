@@ -55,7 +55,10 @@ process.env.DEBUG = ''; // Disable debug package output
 
 import { systemLog } from '../../utils/debug-logger.js';
 import { getGroundingContext } from './grounding-utils.js';
-import { getActiveTaskId } from '../../sigma/session-state.js';
+import {
+  getTaskContextForPrompt,
+  getActiveTaskId,
+} from '../../sigma/session-state.js';
 import OpenAI from 'openai';
 import { Agent, run, setDefaultOpenAIClient } from '@openai/agents';
 import {
@@ -1637,7 +1640,17 @@ export class OpenAIAgentProvider implements AgentProvider {
         ? request.systemPrompt.append
         : '';
 
+    const taskContext = request.anchorId
+      ? getTaskContextForPrompt(
+          request.anchorId,
+          request.cwd || request.projectRoot || process.cwd()
+        )
+      : '[No active task]';
+
     const isSolo = request.mode === 'solo';
+
+    const activeTaskDisplay = `## 📋 TASK STATUS & CONTEXT
+${taskContext}`;
 
     const delegationExample = isSolo
       ? ''
@@ -1700,35 +1713,46 @@ When delegating via send_agent_message, use this structured format:
 ### 🧠 MEMORY & EVICTION RULES (CRITICAL)
 1. **The "Amnesia" Warning**: When you mark a task as \`completed\`, the system IMMEDIATELY deletes all tool outputs (file reads, grep results, bash logs) associated with that task.
 2. **Distill Before Dying**: You are FORBIDDEN from completing a task until you have saved the *essential findings* into the \`result_summary\` field of \`SigmaTaskUpdate\`.
+   - **CRITICAL**: The \`result_summary\` is your ONLY bridge to future turns. If you need a diff, error message, or specific insight later, you MUST include it here. Do not assume the system 'summarizes' logs for you.
 3. **Verification**: Before calling \`SigmaTaskUpdate(status='completed')\`, ask yourself: "If I lose all my previous logs right now, do I have enough info in the summary to continue?"
+4. **Never Stop at a Tool Call**: After updating a task to \`completed\`, you MUST provide a final response to the user in the same turn that synthesizes your findings. Never end a turn with a \`SigmaTaskUpdate\` call as your final action if you have results to report.
+5. **AnchorId Pressure**: You are tracked via an active task ID. If you see a task in the "CURRENT ACTIVE TASK" section, you are under pressure to complete it. Do not wander.
+6. **Task-Completion Lockdown**: You are FORBIDDEN from finishing your turn (responding to the user) while a task is \`in_progress\` unless you are strictly blocked by a question. If the work is done, you MUST mark it \`completed\` first.
+7. **The "Blueprint" Clean Slate**: After completing a "Research" task, do NOT start the next task in the same tool call. Finish your turn with the summary. This ensures the next turn starts with a clean context window and the summary injected into your system prompt.
 `;
 
     const taskStateRules = isSolo
       ? `### Task State Rules
 1. **Task States**: pending (not started), in_progress (currently working), completed (finished)
-2. **Task-First (Token Health)**: ALWAYS mark a task as \`in_progress\` BEFORE running tools (research, read_file, bash, etc.). This ensures tool outputs are tagged with the active task ID for surgical context eviction upon completion.
-   - **CRITICAL**: You are FORBIDDEN from using \`read_file\`, \`grep\`, or \`bash\` unless a task is explicitly in the \`in_progress\` state. If you need to explore, create a task "Explore codebase" and mark it \`in_progress\` FIRST.
-3. **One at a time**: Exactly ONE task should be in_progress at any time
-4. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing to trigger log eviction and reclaim tokens. **CRITICAL: You must update the status of the specific task 'id' to 'completed'. Replacing the whole task list will NOT trigger eviction.**
-5. **Persistence via Summary**: The raw logs of a completed task (file contents, grep results) WILL BE DELETED immediately.
-   - You MUST distill all critical findings into the \`result_summary\` field of SigmaTaskUpdate.
-   - Do not write "Done" or "Found it". Write "Found API key in config.ts line 45" or "UserController.ts handles auth logic".
-   - If the \`result_summary\` is empty or vague, you will lose the knowledge required for subsequent tasks.
-6. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker.
-7. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")`
+2. **Task-First (Token Health)**: ALWAYS mark a task as \`in_progress\` BEFORE running tools. This ensures tool outputs are tagged for eviction.
+3. **One at a time**: Exactly ONE task should be in_progress at any time.
+4. **Strict Sequential**: Do not create or start NEW tasks while another is \`in_progress\`. Finish the current task first.
+5. **The "Hot Potato" Rule (Atomic Loops)**: Research tasks must be opened, executed, and CLOSED in the same turn sequence whenever possible.
+   - **CRITICAL**: Do not yield text to the user while a heavy research task is still \`in_progress\`.
+   - **Questions**: If you are in the middle of an \`in_progress\` task and need to ask the user a question, you should either:
+     a) Complete the task with a summary of what you found so far.
+     b) Keep it \`in_progress\` ONLY if you are strictly blocked and cannot proceed without an answer.
+   - **Sequence**: Start Task -> Run Tools (grep/read) -> Close Task (Summary) -> Respond to User.
+6. **Persistence via Summary**: The raw logs WILL BE DELETED immediately upon completion.
+   - You MUST distill all critical findings (file paths, line numbers, code snippets) into the \`result_summary\`.
+7. **Honest completion**: ONLY mark completed when FULLY accomplished.
+8. **Both forms required**: Always provide content ("Fix bug") AND activeForm ("Fixing bug").`
       : `### Task State Rules
-1. **Task States**: pending (not started), in_progress (currently working), completed (finished), delegated (assigned to another agent)
-2. **Task-First (Token Health)**: ALWAYS mark a task as \`in_progress\` BEFORE running tools (research, read_file, bash, etc.). This ensures tool outputs are tagged with the active task ID for surgical context eviction upon completion.
-   - **CRITICAL**: You are FORBIDDEN from using \`read_file\`, \`grep\`, or \`bash\` unless a task is explicitly in the \`in_progress\` state. If you need to explore, create a task "Explore codebase" and mark it \`in_progress\` FIRST.
-3. **One at a time**: Exactly ONE task should be in_progress at any time
-4. **Delegation**: When delegating, set status to 'delegated' AND send IPC message. Do not mark completed until worker reports back.
-5. **Immediate completion**: Mark tasks complete IMMEDIATELY after finishing to trigger log eviction and reclaim tokens. **CRITICAL: You must update the status of the specific task 'id' to 'completed'. Replacing the whole task list will NOT trigger eviction.**
-6. **Persistence via Summary**: The raw logs of a completed task (file contents, grep results) WILL BE DELETED immediately.
-   - You MUST distill all critical findings into the \`result_summary\` field of SigmaTaskUpdate.
-   - Do not write "Done" or "Found it". Write "Found API key in config.ts line 45" or "UserController.ts handles auth logic".
-   - If the \`result_summary\` is empty or vague, you will lose the knowledge required for subsequent tasks.
-7. **Honest completion**: ONLY mark completed when FULLY accomplished - if blocked, keep in_progress and add a new task for the blocker.
-8. **Both forms required**: Always provide content (imperative: "Fix bug") AND activeForm (continuous: "Fixing bug")`;
+1. **Task States**: pending, in_progress, completed, delegated
+2. **Task-First (Token Health)**: ALWAYS mark a task as \`in_progress\` BEFORE running tools.
+3. **One at a time**: Exactly ONE task should be in_progress at any time.
+4. **Strict Sequential**: Do not create or start NEW tasks while another is \`in_progress\`. Finish the current task first.
+5. **Delegation**: Set status to 'delegated' AND send IPC message. Wait for worker report.
+6. **The "Hot Potato" Rule (Atomic Loops)**: Research tasks must be opened, executed, and CLOSED in the same turn sequence whenever possible.
+   - **CRITICAL**: Do not yield text to the user while a heavy research task is still \`in_progress\`.
+   - **Questions**: If you are in the middle of an \`in_progress\` task and need to ask the user a question, you should either:
+     a) Complete the task with a summary of what you found so far.
+     b) Keep it \`in_progress\` ONLY if you are strictly blocked and cannot proceed without an answer.
+   - **Sequence**: Start Task -> Run Tools (grep/read) -> Close Task (Summary) -> Respond to User.
+7. **Persistence via Summary**: The raw logs WILL BE DELETED immediately upon completion.
+   - You MUST distill all critical findings into the \`result_summary\`.
+8. **Honest completion**: ONLY mark completed when FULLY accomplished.
+9. **Both forms required**: Always provide content ("Fix bug") AND activeForm ("Fixing bug").`;
 
     return (
       `You are **${modelName}** (OpenAI Agents SDK) running inside **Cognition Σ (Sigma) CLI** - a verifiable AI-human symbiosis architecture with dual-lattice knowledge representation.
@@ -1737,6 +1761,8 @@ When delegating via send_agent_message, use this structured format:
 
 ## What is Cognition Σ?
 A portable cognitive layer that can be initialized in **any repository**. Creates \`.sigma/\` (conversation memory) and \`.open_cognition/\` (PGC project knowledge store) in the current working directory.
+
+${activeTaskDisplay}
 
 ${memoryRules}
 
