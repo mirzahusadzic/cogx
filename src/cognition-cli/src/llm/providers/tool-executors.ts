@@ -762,7 +762,7 @@ export async function executeSigmaTaskUpdate(
         );
         if (startingNew && !isCompletingCurrent) {
           throw new Error(
-            `Strict Sequential Workflow: You must complete task '${currentInProgress.id}' (set status to 'completed') before starting '${startingNew.id}'.`
+            `Strict Sequential Workflow: You must complete task '${currentInProgress.id}' (set status to 'completed') before starting '${startingNew.id}'. This ensures tool logs from '${currentInProgress.id}' are cleaned and findings are distilled into your context via the result_summary.`
           );
         }
 
@@ -771,7 +771,7 @@ export async function executeSigmaTaskUpdate(
         // but strongly discourage starting the NEXT task in the same call.
         if (!isCompletingCurrent && todos.length > currentState.todos.length) {
           throw new Error(
-            `Strict Sequential Workflow: You cannot create NEW tasks while task '${currentInProgress.id}' is still in_progress. Complete the current task first to keep focus.`
+            `Strict Sequential Workflow: You cannot create NEW tasks while task '${currentInProgress.id}' is still in_progress. Complete the current task first to maintain focus and ensure a clean context for the next phase.`
           );
         }
 
@@ -780,7 +780,7 @@ export async function executeSigmaTaskUpdate(
           // For now, let's just make sure they aren't adding PENDING tasks AND starting a NEW one.
           if (todos.length > currentState.todos.length) {
             throw new Error(
-              `Strict Sequential Workflow: Do not add new pending tasks and start a new in_progress task in the same call. Complete the current task first.`
+              `Strict Sequential Workflow: Do not add new pending tasks and start a new in_progress task in the same call you are completing '${currentInProgress.id}'. Finish the current turn after completing a task to trigger context hygiene.`
             );
           }
         }
