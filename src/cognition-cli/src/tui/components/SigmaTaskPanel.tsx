@@ -242,13 +242,19 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
                 )}
               </Box>
             ) : null}
-            <Box>
+            <Box flexDirection="row">
               <Text color={TUITheme.text.tertiary}>
                 In: {formatCompactNumber(sessionTokenCount.input)} |{' '}
               </Text>
               <Text color={TUITheme.text.tertiary}>
                 Out: {formatCompactNumber(sessionTokenCount.output)}
               </Text>
+              {sessionTokenCount.turns > 0 && (
+                <Text color={TUITheme.text.tertiary}>
+                  {' '}
+                  | Turns: {sessionTokenCount.turns}
+                </Text>
+              )}
             </Box>
           </Box>
         </>

@@ -6,27 +6,30 @@
  *
  * DESIGN PROBLEM:
  * The Claude Agent SDK sends token counts in streaming message_delta events.
- * These counts are cumulative within a session. However, there are two edge cases:
+ * These counts are cumulative within a turn, but can drop when a new turn
+ * starts or when context is evicted/compressed.
  *
- * 1. NEW QUERY IN SAME SESSION:
- *    SDK may send lower token counts when a new query starts (before accumulating).
- *    Solution: Use Math.max() to prevent count from decreasing
+ * 1. NEW TURN:
+ *    When a new turn starts, the output tokens reset to 0 and the input tokens
+ *    may grow (due to previous turn's output becoming part of prompt).
+ *    Solution: Directly update state to reflect the current context window.
  *
- * 2. COMPRESSION (NEW SESSION):
- *    When context is compressed, we need to reset to 0 and accept the first value.
- *    Problem: Math.max() would keep the old high count!
- *    Solution: reset() sets a flag that bypasses Math.max on next update
+ * 2. COMPRESSION/EVICTION:
+ *    When context is compressed or surgically evicted, token counts drop.
+ *    Solution: Directly update state to reflect the new smaller window.
+ *
+ * 3. TRANSIENT 0:
+ *    Providers may report 0 tokens while thinking.
+ *    Solution: Allow 0 to be reported so the UI can show the reset state.
  *
  * ALGORITHM:
- * - update(): Normally uses Math.max to prevent decreasing counts
- * - reset(): Sets count to 0 AND sets justReset flag
- * - update() after reset(): Accepts ANY value (bypasses Math.max)
- * - justReset flag auto-clears after first update
+ * - update(): Updates the current token count state directly.
+ * - reset(): Sets count to 0.
  *
  * This ensures:
- * - Counts never decrease during normal conversation
- * - Counts properly reset to 0 after compression
- * - First update after reset accepts new session's token count
+ * - Counts accurately reflect the current context window reported by the SDK.
+ * - UI correctly shows 0 output tokens during the "thinking" phase of a new turn.
+ * - Context eviction is immediately visible in the UI.
  *
  * @example
  * // Normal usage - track tokens during conversation
@@ -109,6 +112,10 @@ export function useTokenCount() {
   });
   const justReset = useRef(false);
 
+  // Accumulation tracking for multi-turn context windows
+  const accumulatedOutput = useRef(0);
+  const lastTurnOutput = useRef(0);
+
   /**
    * Reset token count to zero.
    *
@@ -122,13 +129,15 @@ export function useTokenCount() {
   const reset = useCallback(() => {
     setCount({ input: 0, output: 0, total: 0, cached: 0 });
     justReset.current = true;
+    accumulatedOutput.current = 0;
+    lastTurnOutput.current = 0;
   }, []);
 
   /**
    * Update token count.
    *
-   * Normally uses Math.max to prevent count from decreasing.
-   * After reset(), accepts any value (bypasses Math.max once).
+   * Updates the state with the new count directly to reflect the
+   * current context window as reported by the provider.
    *
    * @param newCount - New token count from SDK
    *
@@ -136,18 +145,38 @@ export function useTokenCount() {
    * update({ input: 1500, output: 800, total: 2300 });
    */
   const update = useCallback((newCount: TokenCount) => {
+    // Detect new turn or tool use by seeing output tokens reset/drop
+    // We only do this if total > 0 to avoid false positives during transient provider states
+    if (newCount.total > 0 && newCount.output < lastTurnOutput.current) {
+      accumulatedOutput.current += lastTurnOutput.current;
+    }
+    lastTurnOutput.current = newCount.output;
+
+    // Safety: If context window shrunk (eviction/compression) without a reset,
+    // ensure accumulated output doesn't exceed the new total context.
+    if (accumulatedOutput.current > newCount.total) {
+      accumulatedOutput.current = newCount.total;
+    }
+
     if (justReset.current) {
       justReset.current = false;
+      accumulatedOutput.current = 0;
+      lastTurnOutput.current = newCount.output;
       setCount(newCount);
       return;
     }
 
-    // Allow the count to drop (to reflect eviction), but ignore temporary '0'
-    // reports that happen at the start of some provider streams.
     setCount((prev) => {
-      if (newCount.total === 0 && prev.total > 0) {
-        return prev;
-      }
+      // Calculate effective output by combining current generation with past turns' generation
+      // that are still within the context window.
+      const effectiveOutput = accumulatedOutput.current + newCount.output;
+
+      // Final output count cannot exceed total context window reported by provider
+      const finalOutput = Math.min(effectiveOutput, newCount.total);
+
+      // Input is whatever remains in the context window
+      const finalInput = newCount.total - finalOutput;
+
       // Preserve cached count if not provided (or 0) in this update.
       // We keep the previous value even across turns to prevent UI flickering,
       // as cached prefix tokens are usually stable or growing within a session.
@@ -158,7 +187,9 @@ export function useTokenCount() {
           : prev.cached;
 
       return {
-        ...newCount,
+        input: finalInput,
+        output: finalOutput,
+        total: newCount.total,
         cached,
       };
     });
@@ -179,6 +210,8 @@ export function useTokenCount() {
     // resumed and reconstructed, as the new context size is likely smaller
     // than the persisted one.
     justReset.current = true;
+    accumulatedOutput.current = 0;
+    lastTurnOutput.current = 0;
   }, []);
 
   return useMemo(

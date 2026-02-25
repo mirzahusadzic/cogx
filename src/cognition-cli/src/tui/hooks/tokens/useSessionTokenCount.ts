@@ -9,6 +9,8 @@ export interface SessionTokenCount extends TokenCount {
   costUsd: number;
   /** Estimated cumulative savings in USD from caching */
   savedCostUsd: number;
+  /** Cumulative number of LLM turns */
+  turns: number;
 }
 
 /**
@@ -24,6 +26,7 @@ export function useSessionTokenCount() {
     costUsd: 0,
     savedCostUsd: 0,
     cached: 0,
+    turns: 0,
   });
 
   // Tokens from previously completed turns
@@ -34,6 +37,7 @@ export function useSessionTokenCount() {
     costUsd: 0,
     savedCostUsd: 0,
     cached: 0,
+    turns: 0,
   });
 
   // Last tokens seen in the current turn
@@ -44,6 +48,7 @@ export function useSessionTokenCount() {
     costUsd: 0,
     savedCostUsd: 0,
     cached: 0,
+    turns: 0,
   });
 
   /**
@@ -55,20 +60,26 @@ export function useSessionTokenCount() {
     (
       currentTurn: TokenCount,
       costUsd: number = 0,
-      savedCostUsd: number = 0
+      savedCostUsd: number = 0,
+      overrideTurns?: number
     ) => {
       // Ignore 0-token reports (common at the start of provider streams) to prevent
-      // premature turn completion or data loss.
+      // premature turn completion or data loss in the session total.
+      // The current context window (Σ CTX TOKENS) is tracked by useTokenCount,
+      // which now accumulates output tokens across turns within the same context.
       if (currentTurn.total === 0) return;
 
       // Detect new turn, context eviction, or new internal request in a generator loop:
       // 1. total < last.total: context was evicted or compressed (prompt shrunk)
       // 2. output < last.output: a new tool execution started (output reset to 0)
       // 3. input < last.input: context was forcibly trimmed
+      // We ignore 0 reports for 'last' to avoid false positives at the very start of a session.
       const isNewTurn =
-        currentTurn.total < lastTurnTokens.current.total ||
-        currentTurn.output < lastTurnTokens.current.output ||
-        currentTurn.input < lastTurnTokens.current.input;
+        currentTurn.total > 0 &&
+        lastTurnTokens.current.total > 0 &&
+        (currentTurn.total < lastTurnTokens.current.total ||
+          currentTurn.output < lastTurnTokens.current.output ||
+          currentTurn.input < lastTurnTokens.current.input);
 
       if (isNewTurn) {
         accumulated.current = {
@@ -82,13 +93,23 @@ export function useSessionTokenCount() {
           cached:
             (accumulated.current.cached || 0) +
             (lastTurnTokens.current.cached || 0),
+          turns: (accumulated.current.turns || 0) + 1,
         };
+      }
+
+      // If the SDK reports its own turn count, use it as a baseline for accumulation.
+      // This ensures we stay in sync with the provider's view of history while still
+      // correctly tracking the current (possibly uncounted) turn.
+      // We do this AFTER turn detection to avoid double-counting if the SDK's turn
+      // count already incremented.
+      if (overrideTurns !== undefined && overrideTurns > 0) {
+        accumulated.current.turns = overrideTurns - 1;
       }
 
       // Preserve cached tokens and saved cost if not provided in this update chunk.
       // Many providers only report cached tokens in the first chunk or sporadically.
       const effectiveTurnCached =
-        currentTurn.cached !== undefined
+        currentTurn.cached !== undefined && currentTurn.cached > 0
           ? currentTurn.cached
           : isNewTurn
             ? 0
@@ -114,7 +135,11 @@ export function useSessionTokenCount() {
         cached: effectiveTurnCached,
         costUsd: effectiveTurnCost,
         savedCostUsd: effectiveTurnSavedCost,
+        turns: 0, // Not used in lastTurnTokens
       };
+
+      // Current turn count is 1 + accumulated turns
+      const currentTurns = (accumulated.current.turns || 0) + 1;
 
       setSessionCount({
         input: accumulated.current.input + currentTurn.input,
@@ -123,6 +148,7 @@ export function useSessionTokenCount() {
         costUsd: accumulated.current.costUsd + effectiveTurnCost,
         savedCostUsd: accumulated.current.savedCostUsd + effectiveTurnSavedCost,
         cached: (accumulated.current.cached || 0) + effectiveTurnCached,
+        turns: currentTurns,
       });
     },
     []
@@ -143,6 +169,7 @@ export function useSessionTokenCount() {
       cached:
         (accumulated.current.cached || 0) +
         (lastTurnTokens.current.cached || 0),
+      turns: (accumulated.current.turns || 0) + 1,
     };
     lastTurnTokens.current = {
       input: 0,
@@ -151,6 +178,7 @@ export function useSessionTokenCount() {
       costUsd: 0,
       savedCostUsd: 0,
       cached: 0,
+      turns: 0,
     };
 
     // Update state to reflect the committed accumulation
@@ -165,6 +193,7 @@ export function useSessionTokenCount() {
       costUsd: 0,
       savedCostUsd: 0,
       cached: 0,
+      turns: 0,
     };
     lastTurnTokens.current = {
       input: 0,
@@ -173,6 +202,7 @@ export function useSessionTokenCount() {
       costUsd: 0,
       savedCostUsd: 0,
       cached: 0,
+      turns: 0,
     };
     setSessionCount({
       input: 0,
@@ -181,6 +211,7 @@ export function useSessionTokenCount() {
       costUsd: 0,
       savedCostUsd: 0,
       cached: 0,
+      turns: 0,
     });
   }, []);
 
@@ -199,6 +230,9 @@ export function useSessionTokenCount() {
       cached:
         (accumulated.current.cached || 0) +
         (lastTurnTokens.current.cached || 0),
+      turns:
+        (accumulated.current.turns || 0) +
+        (lastTurnTokens.current.total > 0 ? 1 : 0),
     };
   }, []);
 
@@ -206,7 +240,8 @@ export function useSessionTokenCount() {
     (
       initialCount: TokenCount,
       costUsd: number = 0,
-      savedCostUsd: number = 0
+      savedCostUsd: number = 0,
+      turns: number = 0
     ) => {
       accumulated.current = {
         input: initialCount.input,
@@ -215,6 +250,7 @@ export function useSessionTokenCount() {
         costUsd,
         savedCostUsd,
         cached: initialCount.cached || 0,
+        turns,
       };
       lastTurnTokens.current = {
         input: 0,
@@ -223,12 +259,14 @@ export function useSessionTokenCount() {
         costUsd: 0,
         savedCostUsd: 0,
         cached: 0,
+        turns: 0,
       };
       setSessionCount({
         ...initialCount,
         costUsd,
         savedCostUsd,
         cached: initialCount.cached || 0,
+        turns,
       });
     },
     []

@@ -34,6 +34,7 @@ describe('SigmaTaskPanel', () => {
     total: 1500,
     costUsd: 0,
     savedCostUsd: 0,
+    turns: 1,
   };
 
   it('renders task list header', () => {
@@ -114,6 +115,17 @@ describe('SigmaTaskPanel', () => {
       />
     );
     expect(lastFrame()).toContain('Σ SESSION TOKENS');
+  });
+
+  it('renders turn counts in session tokens', () => {
+    const { lastFrame } = render(
+      <SigmaTaskPanel
+        sigmaTasks={mockTasks}
+        tokenCount={mockTokenCount}
+        sessionTokenCount={{ ...mockTokenCount, turns: 5 }}
+      />
+    );
+    expect(lastFrame()).toContain('Turns: 5');
   });
 
   it('truncates long task summaries', () => {

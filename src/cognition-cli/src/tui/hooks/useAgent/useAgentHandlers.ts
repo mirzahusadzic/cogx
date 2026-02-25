@@ -962,7 +962,8 @@ This will trigger a semantic compression event, flushing implementation noise wh
               cached: response.tokens.cached,
             },
             turnCostUsd,
-            turnSavedCostUsd
+            turnSavedCostUsd,
+            response.numTurns
           );
 
           if (response.finishReason) {

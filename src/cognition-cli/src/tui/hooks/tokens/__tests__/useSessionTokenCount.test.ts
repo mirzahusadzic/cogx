@@ -11,6 +11,7 @@ describe('useSessionTokenCount', () => {
       result.current.update({ input: 100, output: 50, total: 150 });
     });
     expect(result.current.count.total).toBe(150);
+    expect(result.current.count.turns).toBe(1);
 
     // Commit Turn 1 (simulated by a manual commit or turn detection)
     // Here we simulate the manual commit at the end of execution
@@ -18,6 +19,7 @@ describe('useSessionTokenCount', () => {
       result.current.commit();
     });
     expect(result.current.count.total).toBe(150);
+    expect(result.current.count.turns).toBe(1);
 
     // Turn 2
     act(() => {
@@ -25,11 +27,13 @@ describe('useSessionTokenCount', () => {
     });
     // Expected: 150 (Turn 1) + 200 (Turn 2) = 350
     expect(result.current.count.total).toBe(350);
+    expect(result.current.count.turns).toBe(2);
 
     act(() => {
       result.current.commit();
     });
     expect(result.current.count.total).toBe(350);
+    expect(result.current.count.turns).toBe(2);
   });
 
   it('should ignore 0-token reports to avoid data loss', () => {
@@ -76,5 +80,23 @@ describe('useSessionTokenCount', () => {
     // 80 < 150, so it commits 150.
     // Session total = 150 + 80 = 230.
     expect(result.current.count.total).toBe(230);
+  });
+
+  it('should not double count turns when overrideTurns is provided', () => {
+    const { result } = renderHook(() => useSessionTokenCount());
+
+    // Turn 1
+    act(() => {
+      result.current.update({ input: 100, output: 50, total: 150 }, 0, 0, 1);
+    });
+    expect(result.current.count.turns).toBe(1);
+
+    // Turn 2 starts, tokens drop, triggering isNewTurn
+    act(() => {
+      result.current.update({ input: 80, output: 10, total: 90 }, 0, 0, 2);
+    });
+
+    // If double counted, this would be 3
+    expect(result.current.count.turns).toBe(2);
   });
 });

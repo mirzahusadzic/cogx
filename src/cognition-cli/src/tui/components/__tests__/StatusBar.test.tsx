@@ -227,6 +227,7 @@ describe('StatusBar', () => {
           cached: 5,
           costUsd: 0,
           savedCostUsd: 0,
+          turns: 1,
         },
       });
       expect(lastFrame()).toContain('🪪');
