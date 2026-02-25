@@ -5,6 +5,31 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2026-02-26
+
+### Summary
+
+**Task Management Excellence & TUI Performance.** This release focuses on architectural stability and TUI responsiveness. It introduces strict sequential task management with surgical context hygiene, an overhauled `SigmaTaskPanel` for better session oversight, and expanded CLI support with new `--solo` and `--ctx-tools` flags accompanied by full shell completions.
+
+### 🚀 New Features
+
+- ⛓️ **Strict Sequential Task Management** — Implemented strict task sequencing and context hygiene, ensuring ID-based merging and protecting task metadata during partial updates.
+- 📋 **SigmaTaskPanel Overhaul** — Improved task visibility by dimming collapsed tasks and increasing visibility limits. Added cumulative session-wide request and turn tracking.
+- 🐚 **Shell Completion Expansion** — Added full support for Bash, Zsh, and Fish completions for the `tui` command, including support for `--solo` and `--ctx-tools` flags.
+- 🕹️ **Solo & Buffer Control Improvements** — Enhanced help text for `--solo` mode and clarified `--ctx-tools` rolling buffer behavior (defaulting to 20).
+- 📊 **Reactive TUI Feedback** — Real-time turn tracking and reactive token display updates for immediate cost visibility.
+
+### 🧹 Infrastructure & Cleanup
+
+- **UX Polish** — Added keyboard hints ('Press t to close'), fixed token display inconsistencies (removed Σ prefix for cleaner output), and improved task workflow error messages.
+- **Test Suite** — Improved reliability and coverage for `gemini-agent-provider` and tool executors.
+
+### 🐛 Bug Fixes & Stability
+
+- **Instruction Interpolation** — Resolved errors in Gemini instruction string interpolation.
+- **Token Accuracy** — Fixed token reporting bugs specifically relating to cached token caps relative to context size.
+- **State Integrity** — Prevented task metadata erasure during concurrent or partial updates.
+
 ## [2.6.9] - 2026-02-25
 
 ### Summary

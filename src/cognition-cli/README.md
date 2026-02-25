@@ -370,16 +370,14 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 
 ## 🎉 Latest Release
 
+**v2.7.0 - February 26, 2026** — [Task Management Excellence & TUI Performance](https://github.com/mirzahusadzic/cogx/releases/tag/v2.7.0):
+
+- ⛓️ **Task Management Excellence** — Implemented strict sequential task management and surgical context hygiene with ID-based merging.
+- 📋 **SigmaTaskPanel Overhaul** — Improved task visibility (dimmed collapsed tasks), higher visibility limits, and cumulative session tracking.
+- 🐚 **Shell Completion Expansion** — Full Bash, Zsh, and Fish completions for the `tui` command, including support for `--solo` and `--ctx-tools` flags.
+- 📊 **Reactive TUI Feedback** — Real-time turn tracking and reactive token display for immediate cost and state visibility.
+
 **v2.6.9 - February 25, 2026** — [SigmaTask Context Eviction & TUI Analytics](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.9):
-
-- ✂️ **SigmaTask Context Eviction** — Introduced `--ctx-tools` and fine-grained surgical eviction to prune tool logs while retaining critical task summaries.
-- 📊 **TUI Status Bar Overhaul & Token Tracking** — Complete redesign of the TUI status bar featuring a visual proportional bar for cached (Google Blue) vs active (Green) tokens, session-wide cumulative tracking, and flicker prevention for stable token counts during streaming.
-- 📉 **Visual Context Usage** — Introduced a semantic compression marker 'Σ' on the usage bar (50k tokens) and increased the main compression threshold to 200k.
-- ⌨️ **Compact UI** — Reclaimed horizontal space for token statistics by compacting keyboard shortcut labels (e.g., [^S] for Save, [^C] for Quit).
-- 📟 **Rolling Ring Buffer** — Implemented efficient context management via rolling buffers for tool outputs across all providers.
-- 🛠️ **UI Enhancements** — New `SigmaTaskPanel` for persistent task tracking and refined agent heuristics for better context persistence.
-
-**v2.6.8 - February 22, 2026** — [Surgical Context Eviction & Provider Expansion](https://github.com/mirzahusadzic/cogx/releases/tag/v2.6.8):
 
 - ✂️ **Surgical Eviction** — Task-aware tool log eviction across Gemini, OpenAI, and Minimax to significantly reduce context bloat and token usage.
 - 🚀 **Provider Expansions** — Added experimental Minimax support, migrated to Gemini 3.0/3.1 defaults, and purged legacy 2.x EOL models.
@@ -475,7 +473,7 @@ If you use this work in research, please cite:
   author = {Husadžić, Mirza},
   title = {Cognition Σ CLI: Seven-Overlay Knowledge Graph with Infinite Context},
   year = {2026},
-  version = {2.6.9},
+  version = {2.7.0},
   doi = {10.5281/zenodo.18012832},
   url = {https://github.com/mirzahusadzic/cogx/tree/main/src/cognition-cli}
 }

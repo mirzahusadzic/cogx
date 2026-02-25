@@ -6,7 +6,7 @@
 
 **At a Glance:**
 
-- **Current Version:** 2.6.9 (February 24, 2026)
+- **Current Version:** 2.7.0 (February 26, 2026)
 - **Production Lines:** ~104,188 TypeScript (excl. tests), ~152,708 total
 - **Test Coverage:** ~92% across 171 test files
 - **Architecture:** 7 cognitive overlays (O₁-O₇), dual-lattice Σ system, ZeroMQ agent messaging
@@ -955,7 +955,7 @@ The same architecture that understands code can preserve human identity through 
 | Core Commands         | 40+ (with tab completion)          |
 | Test Files            | 165 (comprehensive coverage)       |
 | Test Coverage         | ~92% (security, compression, UX)   |
-| Current Version       | 2.6.9 (February 24, 2026)          |
+| Current Version       | 2.7.0 (February 26, 2026)          |
 | License               | AGPL-3.0-or-later                  |
 | Zenodo DOI            | 10.5281/zenodo.18012832            |
 | Innovations Published | 49 (defensive patent publication)  |
@@ -964,7 +964,15 @@ The same architecture that understands code can preserve human identity through 
 
 ## Version History & Changelog
 
-### Version 2.6.9 (Current - SigmaTask Context Eviction & TUI Token Tracking)
+### Version 2.7.0 (Current - Task Management Excellence & TUI Performance)
+
+- **Strict Sequential Task Management:** Implemented strict task sequencing and context hygiene, ensuring ID-based merging and protecting task metadata during partial updates.
+- **SigmaTaskPanel Overhaul:** Improved task visibility by dimming collapsed tasks and increasing visibility limits. Added cumulative session-wide request and turn tracking.
+- **Shell Completion Expansion:** Full support for Bash, Zsh, and Fish completions for the `tui` command, including support for `--solo` and `--ctx-tools` flags.
+- **Solo & Buffer Control Improvements:** Enhanced help text for `--solo` mode and clarified `--ctx-tools` rolling buffer behavior (defaulting to 20).
+- **Reactive TUI Feedback:** Real-time turn tracking and reactive token display updates for immediate cost visibility.
+
+### Version 2.6.9 (SigmaTask Context Eviction & TUI Token Tracking)
 
 - **SigmaTask Context Eviction:** Implemented fine-grained control over task log history with the `--ctx-tools` parameter, ensuring completed task logs are surgically pruned while retaining high-level summaries.
 - **Rolling Ring Buffer:** Introduced a rolling ring buffer for tool outputs across all providers to manage long-running context more efficiently.
@@ -1198,7 +1206,7 @@ _For previous release history, see [CHANGELOG.md](https://github.com/mirzahusadz
 
 ## Conclusion
 
-Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.6.9** extends production excellence with **SigmaTask context eviction**, **real-time token/cost tracking**, and **UI enhancements**, ensuring infinite multi-turn execution without context bloat for AI-human symbiosis. This transforms Cognition CLI from a research prototype into a high-reliability distributed nervous system for code.
+Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.7.0** extends production excellence with **strict sequential task management**, **shell completion expansion**, and **reactive TUI feedback**, ensuring infinite multi-turn execution with zero context bloat and total state visibility. This transforms Cognition CLI from a research prototype into a high-reliability distributed nervous system for code.
 
 It combines:
 
