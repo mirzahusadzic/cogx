@@ -966,10 +966,6 @@ This will trigger a semantic compression event, flushing implementation noise wh
             response.numTurns
           );
 
-          if (response.finishReason) {
-            sessionTokenCounter.commit();
-          }
-
           // Layer 15: Dynamic Task Token Tracking.
           // Synchronize in-progress task token usage on every turn, even if SigmaTaskUpdate wasn't called.
           // This ensures the sidebar displays real-time cost for the ongoing operation.
