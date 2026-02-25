@@ -797,7 +797,7 @@ export class GeminiAgentProvider implements AgentProvider {
         description:
           'Search the web for current information, news, facts, and real-time data using Google Search',
         model: request.model || 'gemini-3-flash-preview',
-        instruction:
+        instruction: () =>
           'You are a web search specialist. When called, search Google for the requested information and return concise, accurate results with sources.',
         tools: [GOOGLE_SEARCH],
       });
@@ -861,7 +861,7 @@ export class GeminiAgentProvider implements AgentProvider {
           const agentInstance = new LlmAgent({
             name: 'cognition_agent',
             model: activeModel,
-            instruction:
+            instruction: () =>
               this.buildSystemPrompt(request) +
               (groundingContext
                 ? `\n\n## Automated Grounding Context\n${groundingContext}`
