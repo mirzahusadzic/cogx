@@ -227,4 +227,47 @@ describe('SigmaTaskUpdate Gemini Tool', () => {
       'session-1'
     );
   });
+
+  it('should allow partial updates (omitting content/activeForm) without adding undefined', async () => {
+    const tools = getCognitionTools(
+      undefined,
+      'http://localhost:3000',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      process.cwd(),
+      'agent-1',
+      { provider: 'gemini', anchorId: 'session-1' }
+    );
+
+    const sigmaTaskUpdate = tools.find((t) => t.name === 'SigmaTaskUpdate');
+    const { executeSigmaTaskUpdate } = await import('../tool-executors.js');
+
+    const rawInput = {
+      todos: [
+        {
+          id: 'task-partial',
+          status: 'completed',
+          result_summary: 'Partial update summary',
+        },
+      ],
+    };
+
+    await sigmaTaskUpdate!.runAsync({
+      args: rawInput as Record<string, unknown>,
+      toolContext: {},
+    });
+
+    const mockedExecute = vi.mocked(executeSigmaTaskUpdate);
+    const calledArgs = mockedExecute.mock.calls[0][0];
+    expect(calledArgs[0]).toEqual({
+      id: 'task-partial',
+      status: 'completed',
+      result_summary: 'Partial update summary',
+    });
+    // Ensure no undefined keys were added
+    expect(calledArgs[0]).not.toHaveProperty('content');
+    expect(calledArgs[0]).not.toHaveProperty('activeForm');
+  });
 });

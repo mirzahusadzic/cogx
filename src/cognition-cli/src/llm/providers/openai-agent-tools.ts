@@ -383,9 +383,9 @@ function createSigmaTaskUpdateTool(
 
     interface ProcessedTodo {
       id: string;
-      content: string;
-      status: 'pending' | 'in_progress' | 'completed' | 'delegated';
-      activeForm: string;
+      content?: string;
+      status?: 'pending' | 'in_progress' | 'completed' | 'delegated';
+      activeForm?: string;
       acceptance_criteria?: string[];
       delegated_to?: string;
       context?: string;
@@ -399,10 +399,14 @@ function createSigmaTaskUpdateTool(
     const processedTodos = (rawTodos || []).map((todo) => {
       const cleanTodo: ProcessedTodo = {
         id: todo.id,
-        content: todo.content,
-        status: todo.status,
-        activeForm: todo.activeForm,
       };
+
+      if (todo.content !== undefined && todo.content !== null)
+        cleanTodo.content = todo.content;
+      if (todo.status !== undefined && todo.status !== null)
+        cleanTodo.status = todo.status;
+      if (todo.activeForm !== undefined && todo.activeForm !== null)
+        cleanTodo.activeForm = todo.activeForm;
 
       if (todo.acceptance_criteria)
         cleanTodo.acceptance_criteria = todo.acceptance_criteria;

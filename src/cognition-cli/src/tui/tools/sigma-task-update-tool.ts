@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { executeSigmaTaskUpdate } from '../../llm/providers/tool-executors.js';
 import { getSigmaTaskUpdateDescription } from '../../llm/providers/tool-helpers.js';
 import { systemLog } from '../../utils/debug-logger.js';
+import type { SigmaTask } from '../../sigma/session-state.js';
 
 interface ToolArgs {
   todos?: {
@@ -236,14 +237,21 @@ export function createSigmaTaskUpdateMcpServer(
         const result = await executeSigmaTaskUpdate(
           // Merge top-level arrays back into todo items for the executor
           (typedArgs.todos || []).map((todo) => {
-            const cleanTodo: Parameters<
-              typeof executeSigmaTaskUpdate
-            >[0][number] = {
+            const cleanTodo: Partial<SigmaTask> & { id: string } = {
               id: todo.id,
-              content: todo.content,
-              status: todo.status,
-              activeForm: todo.activeForm,
             };
+
+            if (todo.content !== undefined && todo.content !== null)
+              cleanTodo.content = todo.content;
+            if (todo.status !== undefined && todo.status !== null)
+              cleanTodo.status = todo.status as SigmaTask['status'];
+            if (todo.activeForm !== undefined && todo.activeForm !== null)
+              cleanTodo.activeForm = todo.activeForm;
+            if (
+              todo.result_summary !== undefined &&
+              todo.result_summary !== null
+            )
+              cleanTodo.result_summary = todo.result_summary;
 
             if (todo.acceptance_criteria)
               cleanTodo.acceptance_criteria = todo.acceptance_criteria;
@@ -281,22 +289,23 @@ export function createSigmaTaskUpdateMcpServer(
             }
 
             if (evidence) {
-              const cleanEvidence = {} as NonNullable<
-                Parameters<
-                  typeof executeSigmaTaskUpdate
-                >[0][number]['grounding_evidence']
-              >;
-              if (evidence.queries_executed)
-                cleanEvidence.queries_executed = evidence.queries_executed;
-              if (evidence.overlays_consulted)
-                cleanEvidence.overlays_consulted = evidence.overlays_consulted;
-              if (evidence.citations)
-                cleanEvidence.citations = evidence.citations;
-              if (evidence.grounding_confidence)
-                cleanEvidence.grounding_confidence =
-                  evidence.grounding_confidence;
-              if (evidence.overlay_warnings !== undefined)
-                cleanEvidence.overlay_warnings = evidence.overlay_warnings;
+              const cleanEvidence: SigmaTask['grounding_evidence'] = {
+                queries_executed: evidence.queries_executed || [],
+                overlays_consulted: (evidence.overlays_consulted ||
+                  []) as Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>,
+                citations: (evidence.citations || []).map((c) => ({
+                  overlay: c.overlay,
+                  content: c.content,
+                  relevance: c.relevance,
+                  file_path: c.file_path,
+                })),
+                grounding_confidence: (evidence.grounding_confidence ||
+                  'medium') as 'high' | 'medium' | 'low',
+                overlay_warnings:
+                  evidence.overlay_warnings === null
+                    ? undefined
+                    : evidence.overlay_warnings,
+              };
               cleanTodo.grounding_evidence = cleanEvidence;
             }
 

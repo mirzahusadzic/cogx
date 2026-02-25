@@ -653,9 +653,9 @@ export async function executeFetchUrl(
 export async function executeSigmaTaskUpdate(
   todos: Array<{
     id: string;
-    content: string;
-    status: string;
-    activeForm: string;
+    content?: string;
+    status?: string;
+    activeForm?: string;
     // Delegation fields (Manager/Worker paradigm)
     acceptance_criteria?: string[];
     delegated_to?: string;
@@ -839,10 +839,15 @@ export async function executeSigmaTaskUpdate(
     for (const newTodo of processedTodos) {
       const existingIndex = finalTodos.findIndex((t) => t.id === newTodo.id);
       if (existingIndex !== -1) {
-        // Update existing task
+        // Update existing task: Only merge fields that are NOT undefined
+        // to support partial updates from the LLM while preserving existing data
+        const filteredUpdate = Object.fromEntries(
+          Object.entries(newTodo).filter(([, v]) => v !== undefined)
+        );
+
         finalTodos[existingIndex] = {
           ...finalTodos[existingIndex],
-          ...newTodo,
+          ...filteredUpdate,
         } as NonNullable<SessionState['todos']>[number];
       } else {
         // Add new task

@@ -11,6 +11,7 @@ import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
 import type { MessageQueue } from '../../ipc/MessageQueue.js';
 import type { OnCanUseTool } from './tool-helpers.js';
 import type { AgentRequest } from '../agent-provider-interface.js';
+import type { SigmaTask } from '../../sigma/session-state.js';
 import {
   executeReadFile,
   executeWriteFile,
@@ -699,11 +700,22 @@ export async function executeMinimaxTool(
         (inputObj.grounding_evidence as MinimaxGroundingEvidence[]) || [];
 
       const todos = inputTodos.map((todo) => {
-        const cleanTodo = { ...todo };
+        const cleanTodo: Partial<SigmaTask> = {
+          id: todo.id,
+        };
+
+        if (todo.content !== undefined && todo.content !== null)
+          cleanTodo.content = todo.content;
+        if (todo.status !== undefined && todo.status !== null)
+          cleanTodo.status = todo.status as SigmaTask['status'];
+        if (todo.activeForm !== undefined && todo.activeForm !== null)
+          cleanTodo.activeForm = todo.activeForm;
+        if (todo.result_summary !== undefined && todo.result_summary !== null)
+          cleanTodo.result_summary = todo.result_summary;
 
         if (
-          cleanTodo.status === 'completed' &&
-          (!cleanTodo.result_summary || cleanTodo.result_summary.length < 15)
+          todo.status === 'completed' &&
+          (!todo.result_summary || todo.result_summary.length < 15)
         ) {
           throw new Error(
             "Validation Error: You cannot mark a task as 'completed' without providing a detailed 'result_summary' (min 15 chars). " +
@@ -712,9 +724,12 @@ export async function executeMinimaxTool(
         }
 
         const grounding = inputGrounding.find((g) => g.id === todo.id);
-        if (grounding) cleanTodo.grounding = grounding;
+        if (grounding)
+          cleanTodo.grounding = grounding as SigmaTask['grounding'];
         const evidence = inputEvidence.find((e) => e.id === todo.id);
-        if (evidence) cleanTodo.grounding_evidence = evidence;
+        if (evidence)
+          cleanTodo.grounding_evidence =
+            evidence as SigmaTask['grounding_evidence'];
         return cleanTodo;
       });
 
