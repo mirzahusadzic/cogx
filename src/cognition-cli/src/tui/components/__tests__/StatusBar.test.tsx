@@ -159,7 +159,6 @@ describe('StatusBar', () => {
           cached: 4000,
         },
       });
-      expect(lastFrame()).toContain('Σ');
       // Look for Cached/Total parts
       expect(lastFrame()).toContain('4k');
       expect(lastFrame()).toContain('/');
@@ -207,8 +206,8 @@ describe('StatusBar', () => {
       expect(lastFrame()).toContain('🗜️');
       expect(lastFrame()).toContain('50k');
       expect(lastFrame()).toContain('100k');
-      // Verify Σ in the threshold part
-      expect(lastFrame()).toContain('Σ');
+      // Verify Σ prefix is gone from threshold
+      expect(lastFrame()).not.toContain('Σ 50k');
     });
 
     it('does not display token section when total is 0 and no session count', () => {
