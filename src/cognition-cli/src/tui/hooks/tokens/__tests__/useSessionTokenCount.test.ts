@@ -99,4 +99,28 @@ describe('useSessionTokenCount', () => {
     // If double counted, this would be 3
     expect(result.current.count.turns).toBe(2);
   });
+
+  it('should maintain cumulative turns across multiple queries/commits', () => {
+    const { result } = renderHook(() => useSessionTokenCount());
+
+    // Query 1, Turn 1
+    act(() => {
+      result.current.update({ input: 100, output: 50, total: 150 }, 0, 0, 1);
+    });
+    expect(result.current.count.turns).toBe(1);
+
+    act(() => {
+      result.current.commit();
+    });
+    expect(result.current.count.turns).toBe(1);
+
+    // Query 2 starts, overrideTurns resets to 1
+    act(() => {
+      result.current.update({ input: 200, output: 20, total: 220 }, 0, 0, 1);
+    });
+
+    // BUG: This will likely be 1 because overrideTurns=1 resets accumulated.turns to 0.
+    // We want it to be 2 (Turn 1 from Query 1 + Turn 1 from Query 2).
+    expect(result.current.count.turns).toBe(2);
+  });
 });

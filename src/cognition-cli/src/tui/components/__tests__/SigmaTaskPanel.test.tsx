@@ -125,7 +125,57 @@ describe('SigmaTaskPanel', () => {
         sessionTokenCount={{ ...mockTokenCount, turns: 5 }}
       />
     );
-    expect(lastFrame()).toContain('Turns: 5');
+    expect(lastFrame()).toContain('Requests: 5');
+  });
+
+  it('limits the display to last 5 tasks', () => {
+    const manyTasks: SigmaTasks = {
+      todos: [
+        { ...mockTask, id: '1', content: 'Task 1' },
+        { ...mockTask, id: '2', content: 'Task 2' },
+        { ...mockTask, id: '3', content: 'Task 3' },
+        { ...mockTask, id: '4', content: 'Task 4' },
+        { ...mockTask, id: '5', content: 'Task 5' },
+        { ...mockTask, id: '6', content: 'Task 6' },
+      ],
+    };
+    const { lastFrame } = render(
+      <SigmaTaskPanel
+        sigmaTasks={manyTasks}
+        tokenCount={mockTokenCount}
+        sessionTokenCount={mockTokenCount}
+      />
+    );
+    expect(lastFrame()).not.toContain('Task 1');
+    expect(lastFrame()).toContain('Task 2');
+    expect(lastFrame()).toContain('Task 6');
+    expect(lastFrame()).toContain('... (1 older tasks)');
+  });
+
+  it('shows in_progress tasks even if they are older than the last 5 tasks', () => {
+    const mixedTasks: SigmaTasks = {
+      todos: [
+        { ...mockInProgressTask, id: '1', activeForm: 'Old In Progress' },
+        { ...mockTask, id: '2', content: 'Task 2' },
+        { ...mockTask, id: '3', content: 'Task 3' },
+        { ...mockTask, id: '4', content: 'Task 4' },
+        { ...mockTask, id: '5', content: 'Task 5' },
+        { ...mockTask, id: '6', content: 'Task 6' },
+        { ...mockTask, id: '7', content: 'Task 7' },
+      ],
+    };
+    const { lastFrame } = render(
+      <SigmaTaskPanel
+        sigmaTasks={mixedTasks}
+        tokenCount={mockTokenCount}
+        sessionTokenCount={mockTokenCount}
+      />
+    );
+    const frame = lastFrame() || '';
+    expect(frame).toContain('Old In Progress');
+    expect(frame).toContain('Task 7');
+    expect(frame).not.toContain('Task 2');
+    expect(frame).toContain('... (1 older tasks)');
   });
 
   it('truncates long task summaries', () => {

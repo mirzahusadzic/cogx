@@ -51,6 +51,9 @@ export function useSessionTokenCount() {
     turns: 0,
   });
 
+  // Track turns from previously completed queries/commits
+  const turnsFromPreviousCommits = useRef(0);
+
   /**
    * Update current turn tokens.
    * If the new count is lower than the last seen count (and not 0),
@@ -103,7 +106,9 @@ export function useSessionTokenCount() {
       // We do this AFTER turn detection to avoid double-counting if the SDK's turn
       // count already incremented.
       if (overrideTurns !== undefined && overrideTurns > 0) {
-        accumulated.current.turns = overrideTurns - 1;
+        // overrideTurns is 1-indexed turn count for the current request
+        accumulated.current.turns =
+          turnsFromPreviousCommits.current + (overrideTurns - 1);
       }
 
       // Preserve cached tokens and saved cost if not provided in this update chunk.
@@ -183,6 +188,7 @@ export function useSessionTokenCount() {
 
     // Update state to reflect the committed accumulation
     setSessionCount(accumulated.current);
+    turnsFromPreviousCommits.current = accumulated.current.turns;
   }, []);
 
   const reset = useCallback(() => {
@@ -204,6 +210,7 @@ export function useSessionTokenCount() {
       cached: 0,
       turns: 0,
     };
+    turnsFromPreviousCommits.current = 0;
     setSessionCount({
       input: 0,
       output: 0,
@@ -268,6 +275,7 @@ export function useSessionTokenCount() {
         cached: initialCount.cached || 0,
         turns,
       });
+      turnsFromPreviousCommits.current = turns;
     },
     []
   );
