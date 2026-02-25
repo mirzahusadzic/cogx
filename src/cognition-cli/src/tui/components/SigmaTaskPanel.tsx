@@ -164,7 +164,7 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
                           📊{' '}
                           <Text color={TUITheme.providers.google}>
                             {task.tokensSaved && task.tokensSaved > 0
-                              ? `${formatCompactNumber(task.tokensSaved)} / `
+                              ? `${formatCompactNumber(task.tokensSaved)}/`
                               : ''}
                           </Text>
                           <Text color={TUITheme.text.success}>
