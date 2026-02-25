@@ -145,6 +145,10 @@ export function useTokenCount() {
    * update({ input: 1500, output: 800, total: 2300 });
    */
   const update = useCallback((newCount: TokenCount) => {
+    // Ignore 0-token reports (common at the start of provider streams) to prevent
+    // the UI from flickering or hiding the token count panel prematurely.
+    if (newCount.total === 0) return;
+
     // Detect new turn or tool use by seeing output tokens reset/drop
     // We only do this if total > 0 to avoid false positives during transient provider states
     if (newCount.total > 0 && newCount.output < lastTurnOutput.current) {

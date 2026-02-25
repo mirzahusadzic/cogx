@@ -172,7 +172,25 @@ describe('useTokenCount', () => {
     expect(result.current.count.total).toBe(0);
   });
 
-  it('handles zero update values', () => {
+  it('ignores zero-token updates to prevent UI flickering', () => {
+    const { result } = renderHook(() => useTokenCount());
+
+    // Set non-zero value
+    act(() => {
+      result.current.update({ input: 1000, output: 500, total: 1500 });
+    });
+    expect(result.current.count.total).toBe(1500);
+
+    // Send zero update (simulating turn start transient state)
+    act(() => {
+      result.current.update({ input: 0, output: 0, total: 0 });
+    });
+
+    // Should still be 1500!
+    expect(result.current.count.total).toBe(1500);
+  });
+
+  it('handles zero update values on first call', () => {
     const { result } = renderHook(() => useTokenCount());
 
     act(() => {
