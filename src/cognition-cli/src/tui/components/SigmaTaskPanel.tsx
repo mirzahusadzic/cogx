@@ -160,12 +160,16 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
                     task.tokensUsed !== undefined &&
                     task.tokensUsed > 0 && (
                       <Box marginLeft={4}>
-                        <Text color={TUITheme.text.tertiary}>
-                          (
-                          {task.tokensSaved && task.tokensSaved > 0
-                            ? `${formatCompactNumber(task.tokensSaved)} / `
-                            : ''}
-                          {formatCompactNumber(task.tokensUsed)})
+                        <Text color={TUITheme.text.secondary}>
+                          📊{' '}
+                          <Text color={TUITheme.providers.google}>
+                            {task.tokensSaved && task.tokensSaved > 0
+                              ? `${formatCompactNumber(task.tokensSaved)} / `
+                              : ''}
+                          </Text>
+                          <Text color={TUITheme.text.success}>
+                            {formatCompactNumber(task.tokensUsed)}
+                          </Text>
                         </Text>
                       </Box>
                     )}
@@ -199,23 +203,28 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
 
           <Box flexDirection="column" marginLeft={1} marginBottom={1}>
             <Box>
-              <Text color={TUITheme.text.primary}>Total: </Text>
-              <Text color={TUITheme.text.success}>
-                {tokenCount.total.toLocaleString()}
+              <Text color={TUITheme.text.secondary}>
+                📊{' '}
+                <Text color={TUITheme.providers.google}>
+                  {formatCompactNumber(tokenCount.cached || 0)}
+                </Text>
+                <Text color={TUITheme.text.secondary}>/</Text>
+                <Text color={TUITheme.text.success}>
+                  {formatCompactNumber(tokenCount.total)}
+                </Text>
               </Text>
             </Box>
             <Box>
-              <Text color={TUITheme.text.tertiary}>
-                In: {formatCompactNumber(tokenCount.input)} |{' '}
-              </Text>
-              <Text color={TUITheme.text.tertiary}>
-                Out: {formatCompactNumber(tokenCount.output)}
-                {tokenCount.cached && tokenCount.cached > 0 ? (
-                  <Text color={TUITheme.text.tertiary}>
-                    {' '}
-                    | Cached: {formatCompactNumber(tokenCount.cached)}
-                  </Text>
-                ) : null}
+              <Text color={TUITheme.text.secondary}>
+                In:{' '}
+                <Text color={TUITheme.text.primary}>
+                  {formatCompactNumber(tokenCount.input)}
+                </Text>
+                {' | '}
+                Out:{' '}
+                <Text color={TUITheme.text.primary}>
+                  {formatCompactNumber(tokenCount.output)}
+                </Text>
               </Text>
             </Box>
           </Box>
@@ -231,45 +240,48 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
           </Box>
 
           <Box flexDirection="column" marginLeft={1} marginBottom={1}>
-            <Box>
-              <Text color={TUITheme.text.primary}>Total: </Text>
-              <Text color={TUITheme.text.success}>
-                {sessionTokenCount.total.toLocaleString()}
+            <Box
+              flexDirection="row"
+              justifyContent="space-between"
+              width="100%"
+            >
+              <Text color={TUITheme.text.secondary}>
+                📊{' '}
+                <Text color={TUITheme.providers.google}>
+                  {formatCompactNumber(sessionTokenCount.cached || 0)}
+                </Text>
+                <Text color={TUITheme.text.secondary}>/</Text>
+                <Text color={TUITheme.text.success}>
+                  {formatCompactNumber(sessionTokenCount.total)}
+                </Text>
               </Text>
               {sessionTokenCount.costUsd > 0 && (
-                <Text color={TUITheme.text.warning} bold>
-                  {' '}
-                  (${sessionTokenCount.costUsd.toFixed(2)})
+                <Text color={TUITheme.text.success}>
+                  ${sessionTokenCount.costUsd.toFixed(2)}
                 </Text>
               )}
             </Box>
-            {sessionTokenCount.cached && sessionTokenCount.cached > 0 ? (
-              <Box>
-                <Text color={TUITheme.text.primary}>Cached: </Text>
-                <Text color={TUITheme.text.tertiary}>
-                  {formatCompactNumber(sessionTokenCount.cached)}
+            <Box>
+              <Text color={TUITheme.text.secondary}>
+                In:{' '}
+                <Text color={TUITheme.text.primary}>
+                  {formatCompactNumber(sessionTokenCount.input)}
                 </Text>
-                {sessionTokenCount.savedCostUsd > 0 && (
-                  <Text color={TUITheme.text.tertiary}>
-                    {' '}
-                    (${sessionTokenCount.savedCostUsd.toFixed(2)})
-                  </Text>
+                {' | '}
+                Out:{' '}
+                <Text color={TUITheme.text.primary}>
+                  {formatCompactNumber(sessionTokenCount.output)}
+                </Text>
+                {sessionTokenCount.turns > 0 && (
+                  <>
+                    {' | '}
+                    Reqs:{' '}
+                    <Text color={TUITheme.text.primary}>
+                      {sessionTokenCount.turns}
+                    </Text>
+                  </>
                 )}
-              </Box>
-            ) : null}
-            <Box flexDirection="row">
-              <Text color={TUITheme.text.tertiary}>
-                In: {formatCompactNumber(sessionTokenCount.input)} |{' '}
               </Text>
-              <Text color={TUITheme.text.tertiary}>
-                Out: {formatCompactNumber(sessionTokenCount.output)}
-              </Text>
-              {sessionTokenCount.turns > 0 && (
-                <Text color={TUITheme.text.tertiary}>
-                  {' '}
-                  | Requests: {sessionTokenCount.turns}
-                </Text>
-              )}
             </Box>
           </Box>
         </>

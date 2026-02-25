@@ -78,8 +78,8 @@ describe('SigmaTaskPanel', () => {
         sessionTokenCount={mockTokenCount}
       />
     );
-    // 1500 should be formatted as 1,500
-    expect(lastFrame()).toContain('1,500');
+    // 1500 should be formatted as 1.5k
+    expect(lastFrame()).toContain('1.5k');
   });
 
   it('renders individual task token usage', () => {
@@ -125,7 +125,7 @@ describe('SigmaTaskPanel', () => {
         sessionTokenCount={{ ...mockTokenCount, turns: 5 }}
       />
     );
-    expect(lastFrame()).toContain('Requests: 5');
+    expect(lastFrame()).toContain('Reqs: 5');
   });
 
   it('limits the display to last 5 tasks', () => {
