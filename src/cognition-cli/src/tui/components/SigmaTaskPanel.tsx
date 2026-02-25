@@ -11,7 +11,7 @@ import {
 
 const MAX_SUMMARY_LENGTH = 140;
 const MAX_TASKS_FOR_ALL_SUMMARIES = 3;
-const MAX_VISIBLE_TASKS = 5;
+const MAX_VISIBLE_TASKS = 10;
 
 const truncate = (str: string, maxLength: number) => {
   if (str.length <= maxLength) return str;
@@ -144,51 +144,71 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
                 </Text>
               </Box>
             )}
-            {sortedTodos.map((task) => (
-              <Box key={task.id} marginLeft={1} flexDirection="column">
-                <Box flexDirection="column">
-                  <Text color={getStatusColor(task.status)}>
-                    [{getStatusIcon(task.status)}]{' '}
-                    {stripAnsi(
-                      task.status === 'in_progress'
-                        ? task.activeForm
-                        : task.content
-                    )}
-                  </Text>
-                  {(task.status === 'completed' ||
-                    task.status === 'in_progress') &&
-                    task.tokensUsed !== undefined &&
-                    task.tokensUsed > 0 && (
+            {sortedTodos.map((task) => {
+              const isExpanded =
+                task.status === 'in_progress' ||
+                (task.status === 'completed' &&
+                  task.result_summary &&
+                  (showAllSummaries || task.id === lastCompletedTaskId));
+
+              return (
+                <Box key={task.id} marginLeft={1} flexDirection="column">
+                  <Box flexDirection="column">
+                    <Text
+                      color={getStatusColor(task.status)}
+                      dimColor={!isExpanded}
+                    >
+                      [{getStatusIcon(task.status)}]{' '}
+                      {stripAnsi(
+                        task.status === 'in_progress'
+                          ? task.activeForm
+                          : task.content
+                      )}
+                    </Text>
+                    {(task.status === 'completed' ||
+                      task.status === 'in_progress') &&
+                      task.tokensUsed !== undefined &&
+                      task.tokensUsed > 0 && (
+                        <Box marginLeft={4}>
+                          <Text
+                            color={TUITheme.text.secondary}
+                            dimColor={!isExpanded}
+                          >
+                            📊{' '}
+                            <Text
+                              color={TUITheme.providers.google}
+                              dimColor={!isExpanded}
+                            >
+                              {task.tokensSaved && task.tokensSaved > 0
+                                ? `${formatCompactNumber(task.tokensSaved)}/`
+                                : ''}
+                            </Text>
+                            <Text
+                              color={TUITheme.text.success}
+                              dimColor={!isExpanded}
+                            >
+                              {formatCompactNumber(task.tokensUsed)}
+                            </Text>
+                          </Text>
+                        </Box>
+                      )}
+                  </Box>
+                  {task.status === 'completed' &&
+                    task.result_summary &&
+                    (showAllSummaries || task.id === lastCompletedTaskId) && (
                       <Box marginLeft={4}>
-                        <Text color={TUITheme.text.secondary}>
-                          📊{' '}
-                          <Text color={TUITheme.providers.google}>
-                            {task.tokensSaved && task.tokensSaved > 0
-                              ? `${formatCompactNumber(task.tokensSaved)}/`
-                              : ''}
-                          </Text>
-                          <Text color={TUITheme.text.success}>
-                            {formatCompactNumber(task.tokensUsed)}
-                          </Text>
+                        <Text color={TUITheme.text.tertiary} italic wrap="wrap">
+                          ↳{' '}
+                          {truncate(
+                            stripAnsi(task.result_summary),
+                            MAX_SUMMARY_LENGTH
+                          )}
                         </Text>
                       </Box>
                     )}
                 </Box>
-                {task.status === 'completed' &&
-                  task.result_summary &&
-                  (showAllSummaries || task.id === lastCompletedTaskId) && (
-                    <Box marginLeft={4}>
-                      <Text color={TUITheme.text.tertiary} italic wrap="wrap">
-                        ↳{' '}
-                        {truncate(
-                          stripAnsi(task.result_summary),
-                          MAX_SUMMARY_LENGTH
-                        )}
-                      </Text>
-                    </Box>
-                  )}
-              </Box>
-            ))}
+              );
+            })}
           </>
         )}
       </Box>

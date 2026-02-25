@@ -128,16 +128,13 @@ describe('SigmaTaskPanel', () => {
     expect(stripAnsi(lastFrame()!)).toContain('Reqs: 5');
   });
 
-  it('limits the display to last 5 tasks', () => {
+  it('limits the display to last 10 tasks', () => {
     const manyTasks: SigmaTasks = {
-      todos: [
-        { ...mockTask, id: '1', content: 'Task 1' },
-        { ...mockTask, id: '2', content: 'Task 2' },
-        { ...mockTask, id: '3', content: 'Task 3' },
-        { ...mockTask, id: '4', content: 'Task 4' },
-        { ...mockTask, id: '5', content: 'Task 5' },
-        { ...mockTask, id: '6', content: 'Task 6' },
-      ],
+      todos: Array.from({ length: 11 }, (_, i) => ({
+        ...mockTask,
+        id: `${i + 1}`,
+        content: `TASK_NUMBER_${i + 1}`,
+      })),
     };
     const { lastFrame } = render(
       <SigmaTaskPanel
@@ -147,22 +144,22 @@ describe('SigmaTaskPanel', () => {
       />
     );
     const frame = stripAnsi(lastFrame()!);
-    expect(frame).not.toContain('Task 1');
-    expect(frame).toContain('Task 2');
-    expect(frame).toContain('Task 6');
+    expect(frame).not.toContain('TASK_NUMBER_1\n');
+    expect(frame).not.toContain('TASK_NUMBER_1 ');
+    expect(frame).toContain('TASK_NUMBER_2');
+    expect(frame).toContain('TASK_NUMBER_11');
     expect(frame).toContain('... (1 older tasks)');
   });
 
-  it('shows in_progress tasks even if they are older than the last 5 tasks', () => {
+  it('shows in_progress tasks even if they are older than the last 10 tasks', () => {
     const mixedTasks: SigmaTasks = {
       todos: [
         { ...mockInProgressTask, id: '1', activeForm: 'Old In Progress' },
-        { ...mockTask, id: '2', content: 'Task 2' },
-        { ...mockTask, id: '3', content: 'Task 3' },
-        { ...mockTask, id: '4', content: 'Task 4' },
-        { ...mockTask, id: '5', content: 'Task 5' },
-        { ...mockTask, id: '6', content: 'Task 6' },
-        { ...mockTask, id: '7', content: 'Task 7' },
+        ...Array.from({ length: 11 }, (_, i) => ({
+          ...mockTask,
+          id: `${i + 2}`,
+          content: `TASK_NUMBER_${i + 2}`,
+        })),
       ],
     };
     const { lastFrame } = render(
@@ -174,8 +171,9 @@ describe('SigmaTaskPanel', () => {
     );
     const frame = stripAnsi(lastFrame() || '');
     expect(frame).toContain('Old In Progress');
-    expect(frame).toContain('Task 7');
-    expect(frame).not.toContain('Task 2');
+    expect(frame).toContain('TASK_NUMBER_12');
+    expect(frame).not.toContain('TASK_NUMBER_2\n');
+    expect(frame).not.toContain('TASK_NUMBER_2 ');
     expect(frame).toContain('... (1 older tasks)');
   });
 
