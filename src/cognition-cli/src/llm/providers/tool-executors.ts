@@ -769,7 +769,10 @@ export async function executeSigmaTaskUpdate(
         // 2. Prevent adding NEW tasks to the list while one is in_progress
         // EXCEPTION: Only allow adding pending tasks IF we are completing the current one,
         // but strongly discourage starting the NEXT task in the same call.
-        if (!isCompletingCurrent && todos.length > currentState.todos.length) {
+        const newTasks = todos.filter(
+          (t) => !currentState.todos!.some((old) => old.id === t.id)
+        );
+        if (!isCompletingCurrent && newTasks.length > 0) {
           throw new Error(
             `Strict Sequential Workflow: You cannot create NEW tasks while task '${currentInProgress.id}' is still in_progress. Complete the current task first to maintain focus and ensure a clean context for the next phase.`
           );
@@ -778,7 +781,7 @@ export async function executeSigmaTaskUpdate(
         if (isCompletingCurrent && startingNew) {
           // This is allowed but discouraged by the prompt. We could enforce it here if needed.
           // For now, let's just make sure they aren't adding PENDING tasks AND starting a NEW one.
-          if (todos.length > currentState.todos.length) {
+          if (newTasks.length > 0) {
             throw new Error(
               `Strict Sequential Workflow: Do not add new pending tasks and start a new in_progress task in the same call you are completing '${currentInProgress.id}'. Finish the current turn after completing a task to trigger context hygiene.`
             );
@@ -830,11 +833,24 @@ export async function executeSigmaTaskUpdate(
       }
     }
 
-    return updateTasksByAnchorId(
-      anchorId,
-      cwd,
-      todos as NonNullable<SessionState['todos']>
-    );
+    // Implement ID-based merge to prevent accidental task deletion
+    const finalTodos = [...(currentState?.todos || [])];
+
+    for (const newTodo of processedTodos) {
+      const existingIndex = finalTodos.findIndex((t) => t.id === newTodo.id);
+      if (existingIndex !== -1) {
+        // Update existing task
+        finalTodos[existingIndex] = {
+          ...finalTodos[existingIndex],
+          ...newTodo,
+        } as NonNullable<SessionState['todos']>[number];
+      } else {
+        // Add new task
+        finalTodos.push(newTodo as NonNullable<SessionState['todos']>[number]);
+      }
+    }
+
+    return updateTasksByAnchorId(anchorId, cwd, finalTodos);
   } catch (error) {
     return `Error updating task: ${error instanceof Error ? error.message : String(error)}`;
   }
