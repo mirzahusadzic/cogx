@@ -352,7 +352,7 @@ _cognition_cli_completions() {
       ;;
     tui)
       # After tui command, suggest subcommands and flags
-      COMPREPLY=( $(compgen -W "provider -p --project-root --session-id -f --file -w --workbench --session-tokens --max-thinking-tokens --provider --model --no-show-thinking --no-onboarding --no-auto-response --debug -h --help" -- \${cur}) )
+      COMPREPLY=( $(compgen -W "provider -p --project-root --session-id -f --file -w --workbench --session-tokens --max-thinking-tokens --ctx-tools --provider --model --no-show-thinking --solo --no-onboarding --no-auto-response --debug -h --help" -- \${cur}) )
       return 0
       ;;
     --provider)
@@ -470,7 +470,7 @@ _cognition_cli_completions() {
   if [[ "\${cur}" == -* ]]; then
     case "\${main_cmd}" in
       tui)
-        local tui_flags="-p --project-root --session-id -f --file -w --workbench --session-tokens --max-thinking-tokens --provider --model --no-show-thinking --no-onboarding --no-auto-response --debug -h --help"
+        local tui_flags="-p --project-root --session-id -f --file -w --workbench --session-tokens --max-thinking-tokens --ctx-tools --provider --model --no-show-thinking --solo --no-onboarding --no-auto-response --debug -h --help"
         COMPREPLY=( $(compgen -W "\${tui_flags}" -- \${cur}) )
         return 0
         ;;
@@ -676,6 +676,8 @@ _cognition_cli() {
             '--provider[LLM provider]:provider:(claude gemini openai minimax)' \
             '--model[Model to use]:model:(claude-opus-4-5-20251101 claude-sonnet-4-5-20250929 gemini-3-flash-preview gemini-3-pro-preview gemini-3.1-pro-preview gemini-3.1-pro-preview-customtools gpt-oss-20b MiniMax-M2.5 MiniMax-M2.5-highspeed MiniMax-M2.1 MiniMax-M2.1-highspeed MiniMax-M2)' \
             '--no-show-thinking[Hide thinking blocks in TUI]' \
+            '--ctx-tools[Number of tool logs to keep in context (rolling buffer)]:number:' \
+            '--solo[Enable solo mode (disables IPC and PGC tools to save tokens)]' \
             '--no-onboarding[Skip onboarding wizard]' \
             '--no-auto-response[Disable automatic response to agent messages]' \
             '--debug[Enable debug logging]' \
@@ -1004,6 +1006,8 @@ complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l max-thinking-t
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l provider -d "LLM provider" -xa "claude gemini openai minimax"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l model -d "Model to use" -xa "claude-opus-4-5-20251101 claude-sonnet-4-5-20250929 gemini-3-flash-preview gemini-3-pro-preview gemini-3.1-pro-preview gemini-3.1-pro-preview-customtools gpt-oss-20b MiniMax-M2.5 MiniMax-M2.5-highspeed MiniMax-M2.1 MiniMax-M2.1-highspeed MiniMax-M2"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l no-show-thinking -d "Hide thinking blocks"
+complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l ctx-tools -d "Set rolling buffer size"
+complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l solo -d "Enable solo mode"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l no-onboarding -d "Skip onboarding wizard"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l no-auto-response -d "Disable auto-response"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l debug -d "Enable debug logging"

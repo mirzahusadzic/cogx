@@ -598,11 +598,11 @@ const tuiCmd = program
   .option('--model <name>', 'Model to use (provider-specific)')
   .option(
     '--solo',
-    'Enable solo mode (disables IPC and PGC tools to save tokens)'
+    'Enable solo mode: run the agent in isolation by disabling cross-project PGC tools and IPC messaging to save tokens'
   )
   .option(
     '--ctx-tools <number>',
-    'Number of tool logs to keep in context per task before eviction',
+    'Control the rolling buffer size: number of tool logs to keep in context per task before eviction (default: 20)',
     (val) => parseInt(val, 10),
     20
   )
