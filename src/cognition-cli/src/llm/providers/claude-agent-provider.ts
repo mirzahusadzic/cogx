@@ -689,8 +689,13 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
    */
   private updateTokens(
     sdkMessage: SDKMessage,
-    current: { prompt: number; completion: number; total: number }
-  ): { prompt: number; completion: number; total: number } {
+    current: {
+      prompt: number;
+      completion: number;
+      total: number;
+      cached?: number;
+    }
+  ): { prompt: number; completion: number; total: number; cached?: number } {
     // Extract token usage from different message types
     if (sdkMessage.type === 'stream_event') {
       const event = sdkMessage.event as {
@@ -705,14 +710,16 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
 
       if (event.type === 'message_delta' && event.usage) {
         // Include cache tokens in input count (matches old SDK behavior)
-        const totalInput =
-          event.usage.input_tokens +
+        const cached =
           (event.usage.cache_creation_input_tokens || 0) +
           (event.usage.cache_read_input_tokens || 0);
+        const totalInput = event.usage.input_tokens + cached;
+
         return {
           prompt: totalInput,
           completion: event.usage.output_tokens,
           total: totalInput + event.usage.output_tokens,
+          cached: cached || current.cached, // Preserve previous if 0 in this delta
         };
       }
     } else if (
@@ -721,10 +728,14 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
       sdkMessage.usage
     ) {
       const usage = sdkMessage.usage;
+      const cached =
+        (usage.cache_creation_input_tokens || 0) +
+        (usage.cache_read_input_tokens || 0);
       return {
         prompt: usage.input_tokens,
         completion: usage.output_tokens,
         total: usage.input_tokens + usage.output_tokens,
+        cached: cached,
       };
     }
 

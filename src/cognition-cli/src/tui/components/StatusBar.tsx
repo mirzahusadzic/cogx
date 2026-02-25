@@ -1,10 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Box, Text } from 'ink';
 import { terminal } from '../services/TerminalService.js';
 import { TUITheme } from '../theme.js';
 import { formatCompactNumber } from '../../utils/string-utils.js';
+import type { SessionTokenCount } from '../hooks/tokens/useSessionTokenCount.js';
 
-// Extra space needed after certain emojis on macOS (terminal width calculation differs)
+// Extra space needed after certain emojis on macOS/WSL2 (terminal width calculation differs)
 const EMOJI_SPACER = process.platform === 'darwin' ? ' ' : '';
 
 /**
@@ -18,10 +19,21 @@ export interface StatusBarProps {
   focused: boolean;
 
   /** Current token usage statistics */
-  tokenCount?: { input: number; output: number; total: number };
+  tokenCount?: {
+    input: number;
+    output: number;
+    total: number;
+    cached?: number;
+  };
+
+  /** Cumulative session token statistics */
+  sessionTokenCount?: SessionTokenCount;
 
   /** Token threshold for compression trigger */
   compressionThreshold?: number;
+
+  /** Semantic compression threshold */
+  semanticThreshold?: number;
 
   /** AI provider name (claude, gemini, gemini-agent) */
   providerName?: string;
@@ -82,9 +94,10 @@ const MODEL_DISPLAY_NAMES: Record<string, string> = {
  *
  * **Token Display**:
  * - Shows current total tokens (formatted with K suffix)
- * - Shows percentage of compression threshold
- * - Shows threshold value for reference
- * - Example: "📊 45.2K (37.7%) | 🗜️ 120K"
+ * - Shows proportional bar with cached, active, and remaining tokens
+ * - Shows remaining context window capacity (⏳)
+ * - Shows compression thresholds (🗜️)
+ * - Example: "📊 45.2k/120k [###Σ...] ⏳ 80k | 🗜️ [Σ 50k/200k]"
  *
  * @component
  * @param {StatusBarProps} props - Component props
@@ -102,7 +115,9 @@ const StatusBarComponent: React.FC<StatusBarProps> = ({
   sessionId,
   focused,
   tokenCount,
-  compressionThreshold = 120000,
+  sessionTokenCount,
+  compressionThreshold = 200000,
+  semanticThreshold = 50000,
   providerName = 'claude',
   modelId,
 }) => {
@@ -111,17 +126,41 @@ const StatusBarComponent: React.FC<StatusBarProps> = ({
     terminal.setCursorVisibility(false);
   }, []); // Run only on mount
 
-  // Calculate percentage of compression threshold
+  // Calculate token breakdown for the bar
   const totalTokens = tokenCount?.total || 0;
-  const tokenPercentageValue = (totalTokens / compressionThreshold) * 100;
-  const tokenPercentage = tokenPercentageValue.toFixed(1);
+  const cachedTokens = tokenCount?.cached || 0;
+  // Active tokens are what is currently in context and NOT cached
+  const activeTokens = Math.max(0, totalTokens - cachedTokens);
+  // Remaining tokens are calculated from the semantic threshold (50k)
+  const remainingTokens = Math.max(0, semanticThreshold - totalTokens);
 
-  // Determine percentage color based on threshold
-  const getPercentageColor = () => {
-    if (tokenPercentageValue >= 80) return TUITheme.text.error;
-    if (tokenPercentageValue >= 50) return TUITheme.text.warning;
-    return TUITheme.text.success;
-  };
+  // Calculate proportional bar widths (total 16 characters for better resolution)
+  const BAR_WIDTH = 16;
+  const markerPos = Math.floor(
+    (semanticThreshold / compressionThreshold) * BAR_WIDTH
+  );
+
+  // Widths are relative to the compressionThreshold (200k)
+  let aWidth = Math.floor((activeTokens / compressionThreshold) * BAR_WIDTH);
+  let cWidth = Math.floor((cachedTokens / compressionThreshold) * BAR_WIDTH);
+  // Ensure we don't exceed BAR_WIDTH
+  if (aWidth + cWidth > BAR_WIDTH) {
+    const ratio = BAR_WIDTH / (aWidth + cWidth);
+    aWidth = Math.floor(aWidth * ratio);
+    cWidth = Math.floor(cWidth * ratio);
+  }
+
+  // Ensure visibility for small but non-zero counts
+  if (activeTokens > 0 && aWidth === 0) aWidth = 1;
+  if (cachedTokens > 0 && cWidth === 0) cWidth = 1;
+
+  // Cap at BAR_WIDTH
+  if (aWidth + cWidth > BAR_WIDTH) {
+    if (aWidth > cWidth) aWidth = BAR_WIDTH - cWidth;
+    else cWidth = BAR_WIDTH - aWidth;
+  }
+
+  const rWidth = Math.max(0, BAR_WIDTH - aWidth - cWidth);
 
   // Get provider style
   const providerStyle = PROVIDER_STYLES[providerName] || {
@@ -129,10 +168,9 @@ const StatusBarComponent: React.FC<StatusBarProps> = ({
     emoji: '⚪',
   };
 
-  // Build status bar with dimmed pipe separators
-  const renderStatusText = () => {
+  // Memoize status text calculation to ensure stability during high-frequency updates
+  const statusContent = useMemo(() => {
     // Model/provider indicator at start
-    // Use model display name if available, otherwise capitalize provider name
     const displayName = modelId
       ? MODEL_DISPLAY_NAMES[modelId] || modelId
       : providerName.charAt(0).toUpperCase() + providerName.slice(1);
@@ -142,52 +180,123 @@ const StatusBarComponent: React.FC<StatusBarProps> = ({
         <Text color={providerStyle.color}>{providerStyle.emoji}</Text>
         <Text color={TUITheme.text.secondary}> {displayName}</Text>
         <Text color={TUITheme.ui.border.dim}> | </Text>
-        <Text color={TUITheme.text.secondary}>[Tab] Toggle Focus</Text>
+
+        {/* Compact help text when narrow? For now just keep it clean */}
+        <Text color={TUITheme.text.secondary}>[Tab] Focus</Text>
         <Text color={TUITheme.ui.border.dim}> | </Text>
         {!focused ? (
-          <Text color={TUITheme.text.secondary}>[↑↓/⌨️ ] Scroll</Text>
+          <Text color={TUITheme.text.secondary}>[↑↓] Scroll</Text>
         ) : (
-          <Text color={TUITheme.text.secondary}>[ESC ESC] Clear</Text>
+          <Text color={TUITheme.text.secondary}>[ESC] Clear</Text>
         )}
         <Text color={TUITheme.ui.border.dim}> | </Text>
-        <Text color={TUITheme.text.secondary}>[Ctrl+S] 💬 Save</Text>
+        <Text color={TUITheme.text.secondary}>[^S] Save</Text>
         <Text color={TUITheme.ui.border.dim}> | </Text>
-        <Text color={TUITheme.text.secondary}>[Ctrl+C] Quit</Text>
+        <Text color={TUITheme.text.secondary}>[^C] Quit</Text>
+
         {sessionId && (
           <>
             <Text color={TUITheme.ui.border.dim}> | </Text>
             <Text color={TUITheme.text.secondary}>
               🪪 {sessionId.replace(/^[a-z]+-/, '').slice(0, 8)}
             </Text>
+            {(sessionTokenCount?.total || 0) > 0 && (
+              <>
+                <Text color={TUITheme.text.secondary}> [</Text>
+                <Text color={TUITheme.providers.google}>
+                  {formatCompactNumber(sessionTokenCount?.cached || 0)}
+                </Text>
+                <Text color={TUITheme.text.secondary}>/</Text>
+                <Text color={TUITheme.text.success}>
+                  {formatCompactNumber(sessionTokenCount?.total || 0)}
+                </Text>
+                <Text color={TUITheme.text.secondary}>]</Text>
+              </>
+            )}
           </>
         )}
-        {tokenCount && tokenCount.total > 0 && (
+
+        {(tokenCount || (sessionTokenCount?.total || 0) > 0) && (
           <>
             <Text color={TUITheme.ui.border.dim}> | </Text>
-            <Text color={TUITheme.text.secondary}>📊 </Text>
             <Text color={TUITheme.text.secondary}>
-              {formatCompactNumber(tokenCount.total)} (
+              📊{' '}
+              <Text color={TUITheme.providers.google}>
+                {formatCompactNumber(cachedTokens)}
+              </Text>
+              <Text color={TUITheme.text.secondary}>/</Text>
+              <Text color={TUITheme.text.success}>
+                {formatCompactNumber(totalTokens)}
+              </Text>
             </Text>
-            <Text color={getPercentageColor()}>{tokenPercentage}%</Text>
-            <Text color={TUITheme.text.secondary}>)</Text>
-            <Text color={TUITheme.ui.border.dim}> | </Text>
+
+            {/* Visual Bar [active cached remaining] */}
+            <Text color={TUITheme.text.secondary}> [</Text>
+            {cWidth > 0 && (
+              <Text backgroundColor={TUITheme.providers.google}>
+                {' '.repeat(cWidth)}
+              </Text>
+            )}
+            {aWidth > 0 && (
+              <Text backgroundColor={TUITheme.text.success}>
+                {' '.repeat(aWidth)}
+              </Text>
+            )}
+            {rWidth > 0 && (
+              <Text color={TUITheme.ui.border.dim}>
+                {Array.from({ length: rWidth })
+                  .map((_, i) => {
+                    const absolutePos = cWidth + aWidth + i;
+                    // If marker is at this position, show Σ, else .
+                    return absolutePos === markerPos ? 'Σ' : '.';
+                  })
+                  .join('')}
+              </Text>
+            )}
+            <Text color={TUITheme.text.secondary}>] </Text>
+
+            {/* Remaining in Context */}
             <Text color={TUITheme.text.secondary}>
-              🗜️{EMOJI_SPACER} {formatCompactNumber(compressionThreshold)}
+              ⏳ {formatCompactNumber(remainingTokens)}
+            </Text>
+
+            <Text color={TUITheme.ui.border.dim}> | </Text>
+
+            {/* Threshold */}
+            <Text color={TUITheme.text.secondary}>
+              🗜️{EMOJI_SPACER} [Σ {formatCompactNumber(semanticThreshold)}/
+              {formatCompactNumber(compressionThreshold)}]
             </Text>
           </>
         )}
       </>
     );
-  };
+  }, [
+    providerStyle,
+    providerName,
+    modelId,
+    focused,
+    sessionId,
+    tokenCount,
+    sessionTokenCount,
+    totalTokens,
+    remainingTokens,
+    compressionThreshold,
+    semanticThreshold,
+    aWidth,
+    cWidth,
+    rWidth,
+  ]);
 
   return (
     <Box
       borderTop
+      flexDirection="row"
       borderColor={TUITheme.ui.border.default}
       paddingX={1}
       width="100%"
     >
-      {renderStatusText()}
+      {statusContent}
     </Box>
   );
 };

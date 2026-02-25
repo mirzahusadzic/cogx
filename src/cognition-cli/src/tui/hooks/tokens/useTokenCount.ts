@@ -148,7 +148,19 @@ export function useTokenCount() {
       if (newCount.total === 0 && prev.total > 0) {
         return prev;
       }
-      return newCount;
+      // Preserve cached count if not provided (or 0) in this update.
+      // We keep the previous value even across turns to prevent UI flickering,
+      // as cached prefix tokens are usually stable or growing within a session.
+      // Only reset() or initialize() (compression/eviction) should clear it.
+      const cached =
+        newCount.cached !== undefined && newCount.cached > 0
+          ? newCount.cached
+          : prev.cached;
+
+      return {
+        ...newCount,
+        cached,
+      };
     });
   }, []);
 

@@ -247,6 +247,7 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
             sessionId={currentSessionId}
             focused={focused}
             tokenCount={tokenCount}
+            sessionTokenCount={sessionTokenCount}
             compressionThreshold={sessionTokens}
             providerName={provider}
             modelId={model}

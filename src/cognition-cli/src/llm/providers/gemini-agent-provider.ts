@@ -658,7 +658,7 @@ export class GeminiAgentProvider implements AgentProvider {
           total:
             (currentPromptTokens || Math.ceil(request.prompt.length / 4)) +
             (currentCompletionTokens || currentTurnOutputEstimate),
-          cached: currentCachedTokens || 0,
+          cached: currentCachedTokens > 0 ? currentCachedTokens : undefined,
         },
         finishReason: 'stop' as const,
         numTurns,
@@ -839,7 +839,7 @@ export class GeminiAgentProvider implements AgentProvider {
           prompt: currentPromptTokens || 0,
           completion: currentCompletionTokens || 0,
           total: (currentPromptTokens || 0) + (currentCompletionTokens || 0),
-          cached: currentCachedTokens || 0,
+          cached: currentCachedTokens > 0 ? currentCachedTokens : undefined,
         },
         numTurns: 0,
         retryCount: 0,
@@ -1127,7 +1127,10 @@ export class GeminiAgentProvider implements AgentProvider {
                         (currentPromptTokens ||
                           Math.ceil(request.prompt.length / 4)) +
                         (currentCompletionTokens || currentTurnOutputEstimate),
-                      cached: currentCachedTokens || 0,
+                      cached:
+                        currentCachedTokens > 0
+                          ? currentCachedTokens
+                          : undefined,
                     },
                     finishReason: 'tool_use',
                     numTurns,
@@ -1144,7 +1147,8 @@ export class GeminiAgentProvider implements AgentProvider {
                   accumulatedThinkingBlocks.clear();
                   currentTurnOutputEstimate = 0;
                   currentCompletionTokens = 0;
-                  currentCachedTokens = 0;
+                  // Note: we don't reset currentCachedTokens here to prevent UI flickering between tool turns.
+                  // It will be updated when the next usageMetadata arrives.
                 } else if (part.functionResponse) {
                   if (process.env.DEBUG_GEMINI_STREAM) {
                     // Always log for now to debug bash
@@ -1217,7 +1221,10 @@ export class GeminiAgentProvider implements AgentProvider {
                         (currentPromptTokens ||
                           Math.ceil(request.prompt.length / 4)) +
                         (currentCompletionTokens || currentTurnOutputEstimate),
-                      cached: currentCachedTokens || 0,
+                      cached:
+                        currentCachedTokens > 0
+                          ? currentCachedTokens
+                          : undefined,
                     },
                     finishReason: 'tool_use', // Tool result, not stop - agent continues
                     numTurns,
@@ -1239,7 +1246,7 @@ export class GeminiAgentProvider implements AgentProvider {
                   accumulatedThinkingBlocks.clear();
                   currentTurnOutputEstimate = 0;
                   currentCompletionTokens = 0;
-                  currentCachedTokens = 0;
+                  // Note: we don't reset currentCachedTokens here to prevent UI flickering.
                 } else if (part.text || part.thoughtSignature) {
                   // Check if this is thinking content
                   const isThinking = part.thought === true;
@@ -1481,7 +1488,10 @@ export class GeminiAgentProvider implements AgentProvider {
                         (currentPromptTokens ||
                           Math.ceil(request.prompt.length / 4)) +
                         (currentCompletionTokens || currentTurnOutputEstimate),
-                      cached: currentCachedTokens || 0,
+                      cached:
+                        currentCachedTokens > 0
+                          ? currentCachedTokens
+                          : undefined,
                     },
                     numTurns,
                     retryCount: attempt,
@@ -1590,7 +1600,8 @@ export class GeminiAgentProvider implements AgentProvider {
                   (currentPromptTokens ||
                     Math.ceil(request.prompt.length / 4)) +
                   (currentCompletionTokens || currentTurnOutputEstimate),
-                cached: currentCachedTokens || 0,
+                cached:
+                  currentCachedTokens > 0 ? currentCachedTokens : undefined,
               },
               numTurns,
               retryCount: attempt,
@@ -1640,7 +1651,7 @@ export class GeminiAgentProvider implements AgentProvider {
               total:
                 (currentPromptTokens || Math.ceil(request.prompt.length / 4)) +
                 (currentCompletionTokens || currentTurnOutputEstimate),
-              cached: currentCachedTokens || 0,
+              cached: currentCachedTokens > 0 ? currentCachedTokens : undefined,
             },
             finishReason: 'error',
             numTurns,

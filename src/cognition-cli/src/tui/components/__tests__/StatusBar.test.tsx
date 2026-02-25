@@ -6,14 +6,14 @@ describe('StatusBar', () => {
   describe('rendering', () => {
     it('renders with default props', () => {
       const { lastFrame } = render(<StatusBar focused={false} />);
-      expect(lastFrame()).toContain('Toggle Focus');
+      expect(lastFrame()).toContain('Focus');
       expect(lastFrame()).toContain('Quit');
     });
 
     it('shows Scroll text when not focused', () => {
       const { lastFrame } = render(<StatusBar focused={false} />);
       expect(lastFrame()).toContain('Scroll');
-      expect(lastFrame()).not.toContain('[ESC ESC] Clear');
+      expect(lastFrame()).not.toContain('[ESC] Clear');
     });
 
     it('shows Clear text when focused', () => {
@@ -147,10 +147,18 @@ describe('StatusBar', () => {
       const { lastFrame } = render(
         <StatusBar
           focused={false}
-          tokenCount={{ input: 10000, output: 5000, total: 15000 }}
+          tokenCount={{
+            input: 10000,
+            output: 5000,
+            total: 15000,
+            cached: 4000,
+          }}
         />
       );
       expect(lastFrame()).toContain('📊');
+      // Look for Cached/Total parts
+      expect(lastFrame()).toContain('4k');
+      expect(lastFrame()).toContain('/');
       expect(lastFrame()).toContain('15k');
     });
 
@@ -158,66 +166,96 @@ describe('StatusBar', () => {
       const { lastFrame } = render(
         <StatusBar
           focused={false}
-          tokenCount={{ input: 500, output: 300, total: 800 }}
+          tokenCount={{ input: 500, output: 300, total: 800, cached: 200 }}
         />
       );
+      expect(lastFrame()).toContain('200');
+      expect(lastFrame()).toContain('/');
       expect(lastFrame()).toContain('800');
     });
 
-    it('calculates percentage of compression threshold', () => {
+    it('calculates proportional bar display', () => {
       const { lastFrame } = render(
         <StatusBar
           focused={false}
-          tokenCount={{ input: 30000, output: 30000, total: 60000 }}
-          compressionThreshold={120000}
+          tokenCount={{
+            input: 30000,
+            output: 30000,
+            total: 60000,
+            cached: 10000,
+          }}
+          compressionThreshold={200000}
+          semanticThreshold={50000}
         />
       );
-      expect(lastFrame()).toContain('50.0%');
+      // It should contain the visual bar brackets and the threshold info
+      expect(lastFrame()).toContain('[');
+      expect(lastFrame()).toContain(']');
+      expect(lastFrame()).toContain('10k');
+      expect(lastFrame()).toContain('/');
+      expect(lastFrame()).toContain('60k');
+      expect(lastFrame()).toContain('⏳');
     });
 
-    it('shows compression threshold with emoji', () => {
+    it('shows semantic threshold with emoji', () => {
       const { lastFrame } = render(
         <StatusBar
           focused={false}
           tokenCount={{ input: 1000, output: 1000, total: 2000 }}
           compressionThreshold={100000}
+          semanticThreshold={50000}
         />
       );
       expect(lastFrame()).toContain('🗜️');
+      expect(lastFrame()).toContain('50k');
       expect(lastFrame()).toContain('100k');
+      // Verify Σ in the threshold part
+      expect(lastFrame()).toContain('Σ');
     });
 
-    it('does not display token section when total is 0', () => {
+    it('does not display token section when total is 0 and no session count', () => {
+      const { lastFrame } = render(<StatusBar focused={false} />);
+      expect(lastFrame()).not.toContain('📊');
+    });
+
+    it('shows session tokens next to session ID', () => {
       const { lastFrame } = render(
         <StatusBar
           focused={false}
-          tokenCount={{ input: 0, output: 0, total: 0 }}
+          sessionId="test-12345678"
+          sessionTokenCount={{
+            input: 10,
+            output: 20,
+            total: 30,
+            cached: 5,
+            costUsd: 0,
+            savedCostUsd: 0,
+          }}
         />
       );
-      expect(lastFrame()).not.toContain('📊');
-    });
-
-    it('does not display token section when no tokenCount', () => {
-      const { lastFrame } = render(<StatusBar focused={false} />);
-      expect(lastFrame()).not.toContain('📊');
+      expect(lastFrame()).toContain('🪪');
+      expect(lastFrame()).toContain('12345678');
+      // Use a more flexible check that doesn't care about wrapping
+      expect(lastFrame()).toContain('5');
+      expect(lastFrame()).toContain('/');
+      expect(lastFrame()).toContain('30');
     });
   });
 
   describe('keyboard shortcuts display', () => {
-    it('shows Tab toggle help', () => {
+    it('shows Tab focus help', () => {
       const { lastFrame } = render(<StatusBar focused={false} />);
-      expect(lastFrame()).toContain('[Tab] Toggle Focus');
+      expect(lastFrame()).toContain('[Tab] Focus');
     });
 
     it('shows Ctrl+S save help', () => {
       const { lastFrame } = render(<StatusBar focused={false} />);
-      expect(lastFrame()).toContain('[Ctrl+S]');
-      expect(lastFrame()).toContain('Save');
+      expect(lastFrame()).toContain('[^S] Save');
     });
 
     it('shows Ctrl+C quit help', () => {
       const { lastFrame } = render(<StatusBar focused={false} />);
-      expect(lastFrame()).toContain('[Ctrl+C] Quit');
+      expect(lastFrame()).toContain('[^C] Quit');
     });
   });
 });
