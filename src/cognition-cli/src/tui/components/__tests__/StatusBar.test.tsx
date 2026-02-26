@@ -159,6 +159,7 @@ describe('StatusBar', () => {
           cached: 4000,
         },
       });
+      expect(lastFrame()).toContain('Σ');
       // Look for Cached/Total parts
       expect(lastFrame()).toContain('4k');
       expect(lastFrame()).toContain('/');

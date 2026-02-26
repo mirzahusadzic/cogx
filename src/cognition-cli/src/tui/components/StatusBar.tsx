@@ -97,7 +97,7 @@ const MODEL_DISPLAY_NAMES: Record<string, string> = {
  * - Shows proportional bar with cached, active, and remaining tokens
  * - Shows remaining context window capacity (⏳)
  * - Shows compression thresholds (🗜️)
- * - Example: "10k/45.2k [###Σ...] ⏳ 155k | 🗜️ [50k/200k]"
+ * - Example: "Σ 10k/45.2k [###Σ...] ⏳ 155k | 🗜️ [50k/200k]"
  *
  * @component
  * @param {StatusBarProps} props - Component props
@@ -220,6 +220,7 @@ const StatusBarComponent: React.FC<StatusBarProps> = ({
           <>
             <Text color={TUITheme.ui.border.dim}> | </Text>
             <Text color={TUITheme.text.secondary}>
+              Σ{' '}
               <Text color={TUITheme.providers.google}>
                 {formatCompactNumber(cachedTokens)}
               </Text>
