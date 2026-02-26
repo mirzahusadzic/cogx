@@ -27,13 +27,13 @@ vi.mock('@anthropic-ai/claude-agent-sdk', () => ({
 }));
 
 describe('ClaudeProvider', () => {
-  let ClaudeProvider: typeof import('../claude-agent-provider.js').ClaudeProvider;
+  let ClaudeProvider: typeof import('../agent-provider.js').ClaudeProvider;
 
   beforeEach(async () => {
     vi.clearAllMocks();
     // Re-import to get fresh instance with mocks
     vi.resetModules();
-    const module = await import('../claude-agent-provider.js');
+    const module = await import('../agent-provider.js');
     ClaudeProvider = module.ClaudeProvider;
   });
 
@@ -303,7 +303,7 @@ describe('ClaudeProvider', () => {
         });
 
         vi.resetModules();
-        const module = await import('../claude-agent-provider.js');
+        const module = await import('../agent-provider.js');
         const provider = new module.ClaudeProvider('test-key');
 
         // Wait for SDK loading to complete (it should fail)

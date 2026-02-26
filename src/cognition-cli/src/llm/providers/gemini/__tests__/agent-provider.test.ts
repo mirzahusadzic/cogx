@@ -35,16 +35,16 @@ vi.mock('@google/adk', () => ({
 }));
 
 // Mock the tools
-vi.mock('../gemini-adk-tools.js', () => ({
+vi.mock('../adk-tools.js', () => ({
   getCognitionTools: vi.fn().mockReturnValue([]),
 }));
 
-vi.mock('../gemini-fetch-url-tool.js', () => ({
+vi.mock('../fetch-url-tool.js', () => ({
   fetchUrlTool: {},
 }));
 
 describe('GeminiAgentProvider', () => {
-  let GeminiAgentProvider: typeof import('../gemini-agent-provider.js').GeminiAgentProvider;
+  let GeminiAgentProvider: typeof import('../agent-provider.js').GeminiAgentProvider;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -62,7 +62,7 @@ describe('GeminiAgentProvider', () => {
     mockCreateSession.mockResolvedValue({ sessionId: 'test-session' });
 
     // Re-import to get fresh instance with mocks
-    const module = await import('../gemini-agent-provider.js');
+    const module = await import('../agent-provider.js');
     GeminiAgentProvider = module.GeminiAgentProvider;
   });
 
@@ -86,7 +86,7 @@ describe('GeminiAgentProvider', () => {
     it('should throw error when no API key provided', async () => {
       delete process.env.GEMINI_API_KEY;
       vi.resetModules();
-      const module = await import('../gemini-agent-provider.js');
+      const module = await import('../agent-provider.js');
 
       expect(() => new module.GeminiAgentProvider()).toThrow(
         'Gemini provider requires an API key'
@@ -1128,7 +1128,7 @@ describe('GeminiAgentProvider', () => {
 
       // Re-import to pick up env change
       vi.resetModules();
-      const module = await import('../gemini-agent-provider.js');
+      const module = await import('../agent-provider.js');
       const { StreamingMode } = await import('@google/adk');
 
       const provider = new module.GeminiAgentProvider('test-key');

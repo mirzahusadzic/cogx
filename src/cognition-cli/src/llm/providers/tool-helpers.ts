@@ -1,7 +1,7 @@
 /**
  * Shared Tool Helpers
  *
- * Common utilities used by both OpenAI and Gemini tool implementations.
+ * Common utilities used by both OpenAI, Gemini and Minimax tool implementations.
  * Extracted to reduce code duplication.
  */
 

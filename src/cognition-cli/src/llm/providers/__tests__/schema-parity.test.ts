@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getCognitionTools as getGeminiTools } from '../gemini-adk-tools.js';
+import { getCognitionTools as getGeminiTools } from '../gemini/adk-tools.js';
 
 /**
  * This test ensures that tool schemas (parameters) remain synchronized across providers.

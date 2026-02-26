@@ -10,7 +10,7 @@ import { z } from 'zod';
 
 /**
  * This is the shared schema used by all providers for SigmaTaskUpdate
- * Extracted from gemini-adk-tools.ts, openai-agent-tools.ts, and sigma-task-update-tool.ts
+ * Extracted from adk-tools.ts, agent-tools.ts, and sigma-task-update-tool.ts
  */
 const createSigmaTaskUpdateSchema = () => {
   return z.object({

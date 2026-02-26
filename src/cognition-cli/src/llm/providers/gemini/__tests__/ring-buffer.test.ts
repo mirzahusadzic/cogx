@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { GeminiAgentProvider } from '../gemini-agent-provider.js';
+import { GeminiAgentProvider } from '../agent-provider.js';
 
 // Mock fs/promises
 vi.mock('fs/promises', () => ({
@@ -27,11 +27,11 @@ vi.mock('@google/adk', () => {
   };
 });
 
-vi.mock('../../../sigma/session-state.js', () => ({
+vi.mock('../../../../sigma/session-state.js', () => ({
   getActiveTaskId: vi.fn(),
 }));
 
-vi.mock('../eviction-utils.js', () => ({
+vi.mock('../../eviction-utils.js', () => ({
   archiveTaskLogs: vi.fn().mockResolvedValue(undefined),
 }));
 

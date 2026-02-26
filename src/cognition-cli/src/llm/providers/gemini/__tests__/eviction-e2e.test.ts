@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { GeminiAgentProvider } from '../gemini-agent-provider.js';
+import { GeminiAgentProvider } from '../agent-provider.js';
 
 // We mock the Runner but NOT the InMemorySessionService to test real persistence logic
 vi.mock('@google/adk', async () => {
@@ -19,7 +19,7 @@ vi.mock('@google/adk', async () => {
   };
 });
 
-vi.mock('../../../sigma/session-state.js', () => ({
+vi.mock('../../../../sigma/session-state.js', () => ({
   getActiveTaskId: vi.fn(),
 }));
 

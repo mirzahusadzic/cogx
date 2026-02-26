@@ -33,26 +33,26 @@
  * ```
  */
 
-import { getGroundingContext } from './grounding-utils.js';
-import { systemLog } from '../../utils/debug-logger.js';
+import { getGroundingContext } from '../grounding-utils.js';
+import { systemLog } from '../../../utils/debug-logger.js';
 import Anthropic from '@anthropic-ai/sdk';
 import type {
   LLMProvider,
   CompletionRequest,
   CompletionResponse,
   StreamChunk,
-} from '../provider-interface.js';
+} from '../../provider-interface.js';
 import type {
   AgentProvider,
   AgentRequest,
   AgentResponse,
   AgentMessage,
-} from '../agent-provider-interface.js';
+} from '../../agent-provider-interface.js';
 import type {
   Query,
   SDKMessage,
   ContentBlock,
-} from '../../tui/hooks/sdk/types.js';
+} from '../../../tui/hooks/sdk/types.js';
 
 /**
  * Claude Provider

@@ -37,27 +37,27 @@ import {
 
 import { ThinkingLevel } from '@google/genai';
 
-import { getGroundingContext } from './grounding-utils.js';
-import { getDynamicThinkingBudget } from './thinking-utils.js';
+import { getGroundingContext } from '../grounding-utils.js';
+import { getDynamicThinkingBudget } from '../thinking-utils.js';
 import {
   getTaskContextForPrompt,
   getActiveTaskId,
-} from '../../sigma/session-state.js';
+} from '../../../sigma/session-state.js';
 
-import { getCognitionTools } from './gemini-adk-tools.js';
-import { systemLog } from '../../utils/debug-logger.js';
-import { archiveTaskLogs } from './eviction-utils.js';
+import { getCognitionTools } from './adk-tools.js';
+import { systemLog } from '../../../utils/debug-logger.js';
+import { archiveTaskLogs } from '../eviction-utils.js';
 import type {
   AgentProvider,
   AgentRequest,
   AgentResponse,
   AgentMessage,
-} from '../agent-provider-interface.js';
+} from '../../agent-provider-interface.js';
 import type {
   CompletionRequest,
   CompletionResponse,
   StreamChunk,
-} from '../provider-interface.js';
+} from '../../provider-interface.js';
 
 /**
  * Patterns of SDK noise to suppress from stdout.
@@ -736,20 +736,20 @@ export class GeminiAgentProvider implements AgentProvider {
 
       // Get file tools (with optional recall tool if conversation registry provided)
       const conversationRegistry = request.conversationRegistry as
-        | import('../../sigma/conversation-registry.js').ConversationOverlayRegistry
+        | import('../../../sigma/conversation-registry.js').ConversationOverlayRegistry
         | undefined;
       const taskManager = request.getTaskManager as
         | (() =>
-            | import('../../tui/services/BackgroundTaskManager.js').BackgroundTaskManager
+            | import('../../../tui/services/BackgroundTaskManager.js').BackgroundTaskManager
             | null)
         | undefined;
       const messagePublisher = request.getMessagePublisher as
         | (() =>
-            | import('../../ipc/MessagePublisher.js').MessagePublisher
+            | import('../../../ipc/MessagePublisher.js').MessagePublisher
             | null)
         | undefined;
       const messageQueue = request.getMessageQueue as
-        | (() => import('../../ipc/MessageQueue.js').MessageQueue | null)
+        | (() => import('../../../ipc/MessageQueue.js').MessageQueue | null)
         | undefined;
 
       const cognitionTools = getCognitionTools(

@@ -13,11 +13,11 @@
  *        list_pending_messages, mark_message_read, query_agent
  */
 
-import { systemLog } from '../../utils/debug-logger.js';
+import { systemLog } from '../../../utils/debug-logger.js';
 import { tool } from '@openai/agents';
 import { z } from 'zod';
-import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
-import type { MessageQueue } from '../../ipc/MessageQueue.js';
+import type { MessagePublisher } from '../../../ipc/MessagePublisher.js';
+import type { MessageQueue } from '../../../ipc/MessageQueue.js';
 import {
   formatListAgents,
   formatMessageSent,
@@ -28,17 +28,20 @@ import {
   formatError,
   formatNotInitialized,
   formatNotFound,
-} from '../../ipc/agent-messaging-formatters.js';
-import { getActiveAgents, resolveAgentId } from '../../ipc/agent-discovery.js';
-import type { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
-import { queryConversationLattice } from '../../sigma/query-conversation.js';
-import type { BackgroundTaskManager } from '../../tui/services/BackgroundTaskManager.js';
-import type { OnCanUseTool } from './tool-helpers.js';
+} from '../../../ipc/agent-messaging-formatters.js';
+import {
+  getActiveAgents,
+  resolveAgentId,
+} from '../../../ipc/agent-discovery.js';
+import type { ConversationOverlayRegistry } from '../../../sigma/conversation-registry.js';
+import { queryConversationLattice } from '../../../sigma/query-conversation.js';
+import type { BackgroundTaskManager } from '../../../tui/services/BackgroundTaskManager.js';
+import type { OnCanUseTool } from '../tool-helpers.js';
 import {
   formatTaskType,
   formatDuration,
   getSigmaTaskUpdateDescription,
-} from './tool-helpers.js';
+} from '../tool-helpers.js';
 import {
   executeReadFile,
   executeWriteFile,
@@ -49,7 +52,7 @@ import {
   executeFetchUrl,
   executeWebSearch,
   executeSigmaTaskUpdate,
-} from './tool-executors.js';
+} from '../tool-executors.js';
 
 /**
  * Helper to coerce string | number to number
@@ -524,7 +527,8 @@ function createSigmaTaskUpdateTool(
 
     // Trigger surgical eviction if a task was completed
     if (onTaskCompleted) {
-      const { loadSessionState } = await import('../../sigma/session-state.js');
+      const { loadSessionState } =
+        await import('../../../sigma/session-state.js');
       const finalState = loadSessionState(anchorId, cwd);
 
       for (const todo of processedTodos) {

@@ -6,14 +6,14 @@
  */
 
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
-import { GeminiAgentProvider } from '../gemini-agent-provider.js';
+import { GeminiAgentProvider } from '../agent-provider.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import {
   createSessionState,
   saveSessionState,
-} from '../../../sigma/session-state.js';
+} from '../../../../sigma/session-state.js';
 
 const SKIP_REASON = 'Requires GEMINI_API_KEY - set env var to run';
 const hasApiKey = !!process.env.GEMINI_API_KEY;

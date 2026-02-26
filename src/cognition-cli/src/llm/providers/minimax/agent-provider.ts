@@ -4,37 +4,37 @@
  * Implements AgentProvider using Anthropic SDK with Minimax's Anthropic-compatible API.
  */
 
-import { getGroundingContext } from './grounding-utils.js';
-import { systemLog } from '../../utils/debug-logger.js';
+import { getGroundingContext } from '../grounding-utils.js';
+import { systemLog } from '../../../utils/debug-logger.js';
 import {
   getActiveTaskId,
   getTaskContextForPrompt,
-} from '../../sigma/session-state.js';
+} from '../../../sigma/session-state.js';
 import Anthropic from '@anthropic-ai/sdk';
-import type { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
-import type { BackgroundTaskManager } from '../../tui/services/BackgroundTaskManager.js';
-import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
-import type { MessageQueue } from '../../ipc/MessageQueue.js';
+import type { ConversationOverlayRegistry } from '../../../sigma/conversation-registry.js';
+import type { BackgroundTaskManager } from '../../../tui/services/BackgroundTaskManager.js';
+import type { MessagePublisher } from '../../../ipc/MessagePublisher.js';
+import type { MessageQueue } from '../../../ipc/MessageQueue.js';
 import type {
   AgentProvider,
   AgentRequest,
   AgentResponse,
   AgentMessage,
-} from '../agent-provider-interface.js';
+} from '../../agent-provider-interface.js';
 import type {
   CompletionRequest,
   CompletionResponse,
-} from '../provider-interface.js';
+} from '../../provider-interface.js';
 
 import {
   getMinimaxTools,
   executeMinimaxTool,
   type MinimaxToolsContext,
-} from './minimax-agent-tools.js';
+} from './agent-tools.js';
 import {
   archiveTaskLogs,
   TASK_LOG_EVICTION_THRESHOLD,
-} from './eviction-utils.js';
+} from '../eviction-utils.js';
 
 interface ThinkingBlock {
   type: 'thinking';

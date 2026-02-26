@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { GeminiAgentProvider } from '../gemini-agent-provider.js';
-import { getCognitionTools } from '../gemini-adk-tools.js';
+import { GeminiAgentProvider } from '../agent-provider.js';
+import { getCognitionTools } from '../adk-tools.js';
 
 // Mock fs/promises
 vi.mock('fs/promises', () => ({
@@ -11,7 +11,7 @@ vi.mock('fs/promises', () => ({
 }));
 
 // Mock tool executors
-vi.mock('../tool-executors.js', () => ({
+vi.mock('../../tool-executors.js', () => ({
   executeSigmaTaskUpdate: vi.fn(),
   executeReadFile: vi.fn(),
   executeWriteFile: vi.fn(),
@@ -62,7 +62,7 @@ vi.mock('@google/adk', () => {
   };
 });
 
-vi.mock('../../../sigma/session-state.js', () => ({
+vi.mock('../../../../sigma/session-state.js', () => ({
   getActiveTaskId: vi.fn(),
   loadSessionState: vi.fn().mockReturnValue({ todos: [] }),
 }));

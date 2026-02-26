@@ -90,7 +90,7 @@ Centralizes settings from environment variables and `settings.json`.
   - Gemini: `gemini-3-flash-preview`
   - OpenAI: `gpt-4o` (or auto-detected from workbench)
 
-#### 4. OpenAI Agent Provider (`providers/openai-agent-provider.ts`)
+#### 4. OpenAI Agent Provider (`providers/openai/agent-provider.ts`)
 
 Implements the `AgentProvider` interface using the **@openai/agents SDK**.
 
@@ -98,7 +98,7 @@ Implements the `AgentProvider` interface using the **@openai/agents SDK**.
 - Auto-configures from workbench when local chat models (gpt-oss-20b, etc.) are detected.
 - Full tool parity with other providers (file operations, bash, memory, IPC).
 
-#### 5. ADK Integration (`providers/gemini-adk-tools.ts`)
+#### 5. ADK Integration (`providers/gemini/adk-tools.ts`)
 
 Bridges Cognition's internal tool system with Google's **Agent Development Kit (ADK)**.
 

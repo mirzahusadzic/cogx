@@ -53,28 +53,28 @@ process.env.OPENAI_AGENTS_DONT_LOG_MODEL_DATA = '1';
 process.env.OPENAI_AGENTS_DONT_LOG_TOOL_DATA = '1';
 process.env.DEBUG = ''; // Disable debug package output
 
-import { systemLog } from '../../utils/debug-logger.js';
-import { getGroundingContext } from './grounding-utils.js';
+import { systemLog } from '../../../utils/debug-logger.js';
+import { getGroundingContext } from '../grounding-utils.js';
 import {
   getTaskContextForPrompt,
   getActiveTaskId,
-} from '../../sigma/session-state.js';
+} from '../../../sigma/session-state.js';
 import OpenAI from 'openai';
 import { Agent, run, setDefaultOpenAIClient } from '@openai/agents';
 import {
   OpenAIResponsesModel,
   OpenAIConversationsSession,
 } from '@openai/agents-openai';
-import { getOpenAITools } from './openai-agent-tools.js';
+import { getOpenAITools } from './agent-tools.js';
 import {
   archiveTaskLogs,
   TASK_LOG_EVICTION_THRESHOLD,
-} from './eviction-utils.js';
-import { getDynamicThinkingBudget } from './thinking-utils.js';
-import type { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
-import type { BackgroundTaskManager } from '../../tui/services/BackgroundTaskManager.js';
-import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
-import type { MessageQueue } from '../../ipc/MessageQueue.js';
+} from '../eviction-utils.js';
+import { getDynamicThinkingBudget } from '../thinking-utils.js';
+import type { ConversationOverlayRegistry } from '../../../sigma/conversation-registry.js';
+import type { BackgroundTaskManager } from '../../../tui/services/BackgroundTaskManager.js';
+import type { MessagePublisher } from '../../../ipc/MessagePublisher.js';
+import type { MessageQueue } from '../../../ipc/MessageQueue.js';
 
 /**
  * Extended event types from OpenAI Responses API
@@ -105,11 +105,11 @@ import type {
   AgentRequest,
   AgentResponse,
   AgentMessage,
-} from '../agent-provider-interface.js';
+} from '../../agent-provider-interface.js';
 import type {
   CompletionRequest,
   CompletionResponse,
-} from '../provider-interface.js';
+} from '../../provider-interface.js';
 
 /**
  * OpenAI Agent Provider configuration options
@@ -1528,7 +1528,7 @@ export class OpenAIAgentProvider implements AgentProvider {
   /**
    * Build tools for the agent
    *
-   * Uses the comprehensive tool set from openai-agent-tools.ts which includes:
+   * Uses the comprehensive tool set from agent-tools.ts which includes:
    * - Core: read_file, write_file, glob, grep, bash, edit_file
    * - Memory: recall_past_conversation
    * - Background: get_background_tasks

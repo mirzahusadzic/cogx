@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getCognitionTools } from '../gemini-adk-tools.js';
+import { getCognitionTools } from '../adk-tools.js';
 
 // Mock tool executors
-vi.mock('../tool-executors.js', () => ({
+vi.mock('../../tool-executors.js', () => ({
   executeReadFile: vi.fn(),
   executeWriteFile: vi.fn(),
   executeGlob: vi.fn(),
@@ -33,7 +33,7 @@ describe('SigmaTaskUpdate Gemini Tool', () => {
     const sigmaTaskUpdate = tools.find((t) => t.name === 'SigmaTaskUpdate');
     expect(sigmaTaskUpdate).toBeDefined();
 
-    const { executeSigmaTaskUpdate } = await import('../tool-executors.js');
+    const { executeSigmaTaskUpdate } = await import('../../tool-executors.js');
 
     const rawInput = {
       todos: [
@@ -81,7 +81,7 @@ describe('SigmaTaskUpdate Gemini Tool', () => {
     );
 
     const sigmaTaskUpdate = tools.find((t) => t.name === 'SigmaTaskUpdate');
-    const { executeSigmaTaskUpdate } = await import('../tool-executors.js');
+    const { executeSigmaTaskUpdate } = await import('../../tool-executors.js');
 
     const rawInput = {
       todos: [
@@ -138,7 +138,7 @@ describe('SigmaTaskUpdate Gemini Tool', () => {
     );
 
     const sigmaTaskUpdate = tools.find((t) => t.name === 'SigmaTaskUpdate');
-    const { executeSigmaTaskUpdate } = await import('../tool-executors.js');
+    const { executeSigmaTaskUpdate } = await import('../../tool-executors.js');
 
     const rawInput = {
       todos: [
@@ -242,7 +242,7 @@ describe('SigmaTaskUpdate Gemini Tool', () => {
     );
 
     const sigmaTaskUpdate = tools.find((t) => t.name === 'SigmaTaskUpdate');
-    const { executeSigmaTaskUpdate } = await import('../tool-executors.js');
+    const { executeSigmaTaskUpdate } = await import('../../tool-executors.js');
 
     const rawInput = {
       todos: [

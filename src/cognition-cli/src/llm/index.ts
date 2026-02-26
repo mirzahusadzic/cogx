@@ -31,9 +31,9 @@
  */
 
 import { registry } from './provider-registry.js';
-import { GeminiAgentProvider } from './providers/gemini-agent-provider.js';
-import { OpenAIAgentProvider } from './providers/openai-agent-provider.js';
-import { MinimaxAgentProvider } from './providers/minimax-agent-provider.js';
+import { GeminiAgentProvider } from './providers/gemini/agent-provider.js';
+import { OpenAIAgentProvider } from './providers/openai/agent-provider.js';
+import { MinimaxAgentProvider } from './providers/minimax/agent-provider.js';
 import { systemLog } from '../utils/debug-logger.js';
 
 // Re-export core types and classes
@@ -46,12 +46,12 @@ export type {
 } from './provider-interface.js';
 export type { AgentProvider } from './agent-provider-interface.js';
 export { isAgentProvider } from './agent-provider-interface.js';
-export { GeminiAgentProvider } from './providers/gemini-agent-provider.js';
-export { OpenAIAgentProvider } from './providers/openai-agent-provider.js';
-export { MinimaxAgentProvider } from './providers/minimax-agent-provider.js';
+export { GeminiAgentProvider } from './providers/gemini/agent-provider.js';
+export { OpenAIAgentProvider } from './providers/openai/agent-provider.js';
+export { MinimaxAgentProvider } from './providers/minimax/agent-provider.js';
 
 // Claude provider is dynamically imported to make it optional
-export type { ClaudeProvider } from './providers/claude-agent-provider.js';
+export type { ClaudeProvider } from './providers/claude/agent-provider.js';
 
 /**
  * Provider initialization options
@@ -156,7 +156,7 @@ export async function initializeProviders(
       if (apiKey) {
         // Dynamic import to make Claude SDK optional
         const { ClaudeProvider } =
-          await import('./providers/claude-agent-provider.js');
+          await import('./providers/claude/agent-provider.js');
 
         const claude = new ClaudeProvider(apiKey);
 

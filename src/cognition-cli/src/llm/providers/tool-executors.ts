@@ -1,7 +1,7 @@
 /**
  * Shared Tool Executors
  *
- * Core tool execution logic used by both OpenAI and Gemini providers.
+ * Core tool execution logic used by OpenAI, Gemini and Minimax providers.
  * Each provider wraps these executors in their SDK-specific tool format.
  */
 

@@ -42,7 +42,7 @@ vi.mock('@openai/agents-openai', () => ({
 }));
 
 // Mock the tools
-vi.mock('../openai-agent-tools.js', () => ({
+vi.mock('../agent-tools.js', () => ({
   getOpenAITools: vi.fn().mockReturnValue([]),
 }));
 
@@ -51,9 +51,9 @@ const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 describe('OpenAIAgentProvider', () => {
-  let OpenAIAgentProvider: typeof import('../openai-agent-provider.js').OpenAIAgentProvider;
-  let OPENAI_MODELS: typeof import('../openai-agent-provider.js').OPENAI_MODELS;
-  let LOCAL_MODELS: typeof import('../openai-agent-provider.js').LOCAL_MODELS;
+  let OpenAIAgentProvider: typeof import('../agent-provider.js').OpenAIAgentProvider;
+  let OPENAI_MODELS: typeof import('../agent-provider.js').OPENAI_MODELS;
+  let LOCAL_MODELS: typeof import('../agent-provider.js').LOCAL_MODELS;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -75,7 +75,7 @@ describe('OpenAIAgentProvider', () => {
     });
 
     // Re-import to get fresh instance with mocks
-    const module = await import('../openai-agent-provider.js');
+    const module = await import('../agent-provider.js');
     OpenAIAgentProvider = module.OpenAIAgentProvider;
     OPENAI_MODELS = module.OPENAI_MODELS;
     LOCAL_MODELS = module.LOCAL_MODELS;

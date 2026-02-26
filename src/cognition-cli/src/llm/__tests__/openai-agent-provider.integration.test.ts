@@ -14,7 +14,7 @@
  */
 
 import { describe, test, expect, beforeAll } from 'vitest';
-import { OpenAIAgentProvider } from '../providers/openai-agent-provider.js';
+import { OpenAIAgentProvider } from '../providers/openai/agent-provider.js';
 
 // Check if workbench is available
 const WORKBENCH_URL = process.env.WORKBENCH_URL;

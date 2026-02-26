@@ -65,12 +65,12 @@ describe('Google ADK', () => {
 
 describe('GeminiAgentProvider', () => {
   it('should import GeminiAgentProvider', async () => {
-    const { GeminiAgentProvider } = await import('../gemini-agent-provider.js');
+    const { GeminiAgentProvider } = await import('../agent-provider.js');
     expect(GeminiAgentProvider).toBeDefined();
   });
 
   it('should support agent mode', async () => {
-    const { GeminiAgentProvider } = await import('../gemini-agent-provider.js');
+    const { GeminiAgentProvider } = await import('../agent-provider.js');
 
     // Mock API key for testing
     process.env.GEMINI_API_KEY = 'test-key';
@@ -80,7 +80,7 @@ describe('GeminiAgentProvider', () => {
   });
 
   it('should implement executeAgent method', async () => {
-    const { GeminiAgentProvider } = await import('../gemini-agent-provider.js');
+    const { GeminiAgentProvider } = await import('../agent-provider.js');
 
     process.env.GEMINI_API_KEY = 'test-key';
 

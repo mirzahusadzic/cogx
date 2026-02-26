@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getOpenAITools } from '../openai-agent-tools.js';
+import { getOpenAITools } from '../agent-tools.js';
 
 // Mock tool executors
-vi.mock('../tool-executors.js', () => ({
+vi.mock('../../tool-executors.js', () => ({
   executeReadFile: vi.fn(),
   executeWriteFile: vi.fn(),
   executeGlob: vi.fn(),
@@ -31,7 +31,7 @@ describe('SigmaTaskUpdate OpenAI Tool', () => {
     const sigmaTaskUpdate = tools.find((t) => t.name === 'SigmaTaskUpdate');
     expect(sigmaTaskUpdate).toBeDefined();
 
-    const { executeSigmaTaskUpdate } = await import('../tool-executors.js');
+    const { executeSigmaTaskUpdate } = await import('../../tool-executors.js');
 
     const rawInput = {
       todos: [
@@ -137,7 +137,7 @@ describe('SigmaTaskUpdate OpenAI Tool', () => {
   it('should handle null values in todos by cleaning them', async () => {
     const tools = getOpenAITools(context);
     const sigmaTaskUpdate = tools.find((t) => t.name === 'SigmaTaskUpdate');
-    const { executeSigmaTaskUpdate } = await import('../tool-executors.js');
+    const { executeSigmaTaskUpdate } = await import('../../tool-executors.js');
 
     const rawInput = {
       todos: [

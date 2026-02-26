@@ -14,9 +14,9 @@ import {
 } from '@google/adk';
 import { Type, type Schema } from '@google/genai';
 import { z } from 'zod';
-import { systemLog } from '../../utils/debug-logger.js';
-import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
-import type { MessageQueue } from '../../ipc/MessageQueue.js';
+import { systemLog } from '../../../utils/debug-logger.js';
+import type { MessagePublisher } from '../../../ipc/MessagePublisher.js';
+import type { MessageQueue } from '../../../ipc/MessageQueue.js';
 import {
   formatListAgents,
   formatMessageSent,
@@ -27,17 +27,20 @@ import {
   formatError,
   formatNotInitialized,
   formatNotFound,
-} from '../../ipc/agent-messaging-formatters.js';
-import { getActiveAgents, resolveAgentId } from '../../ipc/agent-discovery.js';
-import type { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
-import { queryConversationLattice } from '../../sigma/query-conversation.js';
-import type { BackgroundTaskManager } from '../../tui/services/BackgroundTaskManager.js';
-import type { OnCanUseTool } from './tool-helpers.js';
+} from '../../../ipc/agent-messaging-formatters.js';
+import {
+  getActiveAgents,
+  resolveAgentId,
+} from '../../../ipc/agent-discovery.js';
+import type { ConversationOverlayRegistry } from '../../../sigma/conversation-registry.js';
+import { queryConversationLattice } from '../../../sigma/query-conversation.js';
+import type { BackgroundTaskManager } from '../../../tui/services/BackgroundTaskManager.js';
+import type { OnCanUseTool } from '../tool-helpers.js';
 import {
   formatTaskType,
   formatDuration,
   getSigmaTaskUpdateDescription,
-} from './tool-helpers.js';
+} from '../tool-helpers.js';
 import {
   executeReadFile,
   executeWriteFile,
@@ -47,7 +50,7 @@ import {
   executeEditFile,
   executeSigmaTaskUpdate,
   executeFetchUrl,
-} from './tool-executors.js';
+} from '../tool-executors.js';
 
 /**
  * Helper to coerce string | number to number
@@ -1259,7 +1262,7 @@ export function getCognitionTools(
         // Notify provider of completed tasks for surgical token eviction
         if (options?.onTaskCompleted) {
           const { loadSessionState } =
-            await import('../../sigma/session-state.js');
+            await import('../../../sigma/session-state.js');
           const finalState = loadSessionState(anchorId, cwd);
 
           const completedTasks = processedTodos.filter(

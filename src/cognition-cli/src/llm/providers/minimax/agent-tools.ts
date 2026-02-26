@@ -5,13 +5,13 @@
  * Uses shared tool executors from tool-executors.ts.
  */
 
-import type { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
-import type { BackgroundTaskManager } from '../../tui/services/BackgroundTaskManager.js';
-import type { MessagePublisher } from '../../ipc/MessagePublisher.js';
-import type { MessageQueue } from '../../ipc/MessageQueue.js';
-import type { OnCanUseTool } from './tool-helpers.js';
-import type { AgentRequest } from '../agent-provider-interface.js';
-import type { SigmaTask } from '../../sigma/session-state.js';
+import type { ConversationOverlayRegistry } from '../../../sigma/conversation-registry.js';
+import type { BackgroundTaskManager } from '../../../tui/services/BackgroundTaskManager.js';
+import type { MessagePublisher } from '../../../ipc/MessagePublisher.js';
+import type { MessageQueue } from '../../../ipc/MessageQueue.js';
+import type { OnCanUseTool } from '../tool-helpers.js';
+import type { AgentRequest } from '../../agent-provider-interface.js';
+import type { SigmaTask } from '../../../sigma/session-state.js';
 import {
   executeReadFile,
   executeWriteFile,
@@ -22,10 +22,13 @@ import {
   executeFetchUrl,
   executeWebSearch,
   executeSigmaTaskUpdate,
-} from './tool-executors.js';
-import { getSigmaTaskUpdateDescription } from './tool-helpers.js';
-import { queryConversationLattice } from '../../sigma/query-conversation.js';
-import { getActiveAgents, resolveAgentId } from '../../ipc/agent-discovery.js';
+} from '../tool-executors.js';
+import { getSigmaTaskUpdateDescription } from '../tool-helpers.js';
+import { queryConversationLattice } from '../../../sigma/query-conversation.js';
+import {
+  getActiveAgents,
+  resolveAgentId,
+} from '../../../ipc/agent-discovery.js';
 import {
   formatListAgents,
   formatMessageSent,
@@ -36,7 +39,7 @@ import {
   formatError,
   formatNotInitialized,
   formatNotFound,
-} from '../../ipc/agent-messaging-formatters.js';
+} from '../../../ipc/agent-messaging-formatters.js';
 
 export interface MinimaxToolsContext {
   cwd?: string;
@@ -742,7 +745,7 @@ export async function executeMinimaxTool(
       // Trigger surgical eviction if a task was completed
       if (context.onTaskCompleted) {
         const { loadSessionState } =
-          await import('../../sigma/session-state.js');
+          await import('../../../sigma/session-state.js');
         const finalState = loadSessionState(
           anchorId || 'default',
           cwd || process.cwd()
