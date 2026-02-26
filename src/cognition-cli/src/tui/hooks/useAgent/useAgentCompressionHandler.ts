@@ -19,6 +19,7 @@ interface UseAgentCompressionHandlerOptions {
   currentSessionId: string;
   anchorId: string;
   modelName?: string;
+  solo?: boolean;
   // Optional override for compression target size
   compressionTargetSize?: number;
 }
@@ -51,6 +52,7 @@ export function useAgentCompressionHandler({
   currentSessionId,
   anchorId,
   modelName,
+  solo = false,
   compressionTargetSize,
 }: UseAgentCompressionHandlerOptions) {
   const {
@@ -263,7 +265,8 @@ export function useAgentCompressionHandler({
             cwd,
             conversationRegistryRef.current || undefined,
             modelName,
-            sessionState?.todos || undefined
+            sessionState?.todos || undefined,
+            solo
           );
 
           const recap =
@@ -359,6 +362,7 @@ export function useAgentCompressionHandler({
       conversationRegistryRef,
       anchorId,
       modelName,
+      solo,
       compressionTargetSize,
       updateProgress,
       tokenCounter,

@@ -131,7 +131,8 @@ function getSystemFingerprint(
   cwd: string,
   mode: ConversationMode,
   isCompressed: boolean,
-  modelName?: string
+  modelName?: string,
+  isSolo: boolean = false
 ): string {
   // Derive provider name and SDK from model string
   let providerName = 'Claude Code';
@@ -152,6 +153,11 @@ function getSystemFingerprint(
     }
     // Gemini 2.0/3.0 models have cutoffs around late 2024 / early 2025
     temporalGrounding = `\n**Knowledge Cutoff**: January 2025\n**Current Date**: ${currentDate}`;
+  } else if (modelName?.includes('MiniMax')) {
+    providerName = 'MiniMax';
+    sdkName = 'MiniMax Anthropic SDK';
+    // MiniMax models generally have cutoffs in 2024/2025
+    temporalGrounding = `\n**Knowledge Cutoff**: January 2025\n**Current Date**: ${currentDate}`;
   } else if (
     modelName?.includes('gpt') ||
     modelName?.includes('o1') ||
@@ -167,12 +173,12 @@ function getSystemFingerprint(
   }
 
   return [
-    getIdentityHeader(providerName, sdkName, temporalGrounding),
+    getIdentityHeader(providerName, sdkName, temporalGrounding, isSolo),
     getArchitectureOverview(),
     getMemoryArchitecture(),
-    getToolInstructions(),
+    getToolInstructions(isSolo),
     getSlashCommandInstructions(),
-    getSessionContext(cwd, mode, isCompressed),
+    getSessionContext(cwd, mode, isCompressed, isSolo),
   ].join('\n');
 }
 
@@ -182,11 +188,16 @@ function getSystemFingerprint(
 function getIdentityHeader(
   providerName: string,
   sdkName: string,
-  temporalGrounding: string
+  temporalGrounding: string,
+  isSolo: boolean
 ): string {
+  const multiAgentInfo = isSolo
+    ? ''
+    : '\nYou are part of a multi-agent system. You can delegate tasks to other agents and communicate via IPC.';
+
   return `# SYSTEM IDENTITY
 
-You are **${providerName}** (${sdkName}) running inside **Cognition Σ (Sigma) CLI** - a verifiable AI-human symbiosis architecture with dual-lattice knowledge representation.
+You are **${providerName}** (${sdkName}) running inside **Cognition Σ (Sigma) CLI** - a verifiable AI-human symbiosis architecture with dual-lattice knowledge representation.${multiAgentInfo}
 ${temporalGrounding}
 
 ## What is Cognition Σ?
@@ -228,24 +239,34 @@ function getMemoryArchitecture(): string {
 /**
  * Get tool usage and grounding protocol instructions
  */
-function getToolInstructions(): string {
+function getToolInstructions(isSolo: boolean): string {
+  const taskStates = isSolo
+    ? 'pending, in_progress, completed'
+    : 'pending, in_progress, completed, delegated';
+
+  const groundingExample = isSolo
+    ? ''
+    : `,\n    "grounding": [\n      { "id": "task-1", "strategy": "pgc_first" }\n    ]`;
+
+  const groundingFields = isSolo ? '' : ', `grounding`, `grounding_evidence`';
+
   return `## Tool Protocols
 
-- **v2.0 Task Protocol**: Use parallel arrays (\`todos\`, \`grounding\`, \`grounding_evidence\`) in \`SigmaTaskUpdate\` to maintain shallow schema depth and prevent model fatigue.
+- **v2.0 Task Protocol**: Use parallel arrays (\`todos\`${groundingFields}) in \`SigmaTaskUpdate\` to maintain shallow schema depth and prevent model fatigue.
 - **Architectural Reasoning**: Query overlays for structural patterns, dependencies, mission alignment, and coherence drift.
 - **Background Operations**: Use \`get_background_tasks\` to check progress of genesis or overlay generation.
-- **Reasoning First**: For any complex operation or tool call (especially \`SigmaTaskUpdate\`, \`edit_file\`, or IPC delegation), you MUST engage your internal reasoning/thinking process first to plan the action and validate parameters.
+- **Reasoning First**: For any complex operation or tool call (especially \`SigmaTaskUpdate\`, \`edit_file\`${isSolo ? '' : ', or IPC delegation'}), you MUST engage your internal reasoning/thinking process first to plan the action and validate parameters.
   When planning \`SigmaTaskUpdate\`, ensure your JSON structure matches the parallel array pattern:
   \`\`\`json
   {
     "todos": [
       { "id": "task-1", "content": "Task description", "activeForm": "Doing task", "status": "completed", "result_summary": "Summary of findings (min 15 chars)" }
-    ],
-    "grounding": [
-      { "id": "task-1", "strategy": "pgc_first" }
-    ]
+    ]${groundingExample}
   }
   \`\`\`
+
+### Task State Rules
+1. **Task States**: ${taskStates}
 `;
 }
 
@@ -277,12 +298,13 @@ function getSlashCommandInstructions(): string {
 function getSessionContext(
   cwd: string,
   mode: ConversationMode,
-  isCompressed: boolean
+  isCompressed: boolean,
+  isSolo: boolean
 ): string {
   return `## Current Session
 - **Working Directory**: \`${cwd}\`
 - **Lattice Stores**: \`.sigma/\` (conversation), \`.open_cognition/\` (PGC)
-- **Session Type**: ${mode}
+- **Session Type**: ${mode}${isSolo ? ' (Solo Mode)' : ''}
 - **Post-Compression**: ${isCompressed ? 'Yes' : 'No'}
 
 ---
@@ -698,7 +720,8 @@ async function reconstructQuestContext(
   lattice: ConversationLattice,
   cwd: string,
   modelName?: string,
-  todos?: SigmaTask[]
+  todos?: SigmaTask[],
+  isSolo: boolean = false
 ): Promise<string> {
   const quest = detectCurrentQuest(lattice);
   const mentalMap = buildMentalMap(lattice);
@@ -711,7 +734,13 @@ async function reconstructQuestContext(
 
   const statusEmoji = quest.completed ? '✅' : '🔄';
 
-  const fingerprint = getSystemFingerprint(cwd, 'quest', true, modelName);
+  const fingerprint = getSystemFingerprint(
+    cwd,
+    'quest',
+    true,
+    modelName,
+    isSolo
+  );
 
   return (
     fingerprint +
@@ -940,7 +969,9 @@ function formatLastTurns(
             ? '✓'
             : t.status === 'in_progress'
               ? '→'
-              : '○';
+              : t.status === 'delegated'
+                ? '↷'
+                : '○';
         const text = t.status === 'in_progress' ? t.activeForm : t.content;
         return `- [${icon}] ${text}`;
       })
@@ -1101,14 +1132,21 @@ export async function reconstructChatContext(
   cwd: string,
   conversationRegistry?: ConversationOverlayRegistry,
   modelName?: string,
-  todos?: SigmaTask[]
+  todos?: SigmaTask[],
+  isSolo: boolean = false
 ): Promise<string> {
   const nodes = lattice.nodes;
 
   // Get last conversation turns with role attribution
   const { turns, pendingTask } = getLastConversationTurns(lattice);
 
-  const fingerprint = getSystemFingerprint(cwd, 'chat', true, modelName);
+  const fingerprint = getSystemFingerprint(
+    cwd,
+    'chat',
+    true,
+    modelName,
+    isSolo
+  );
 
   // Get paradigm shifts for "Key Breakthroughs" section
   const paradigmShifts = nodes
@@ -1314,7 +1352,8 @@ export async function reconstructSessionContext(
   cwd: string,
   conversationRegistry?: ConversationOverlayRegistry,
   modelName?: string,
-  todos?: SigmaTask[]
+  todos?: SigmaTask[],
+  isSolo: boolean = false
 ): Promise<ReconstructedSessionContext> {
   // 1. Classify conversation mode
   const mode = classifyConversationMode(lattice);
@@ -1338,13 +1377,14 @@ export async function reconstructSessionContext(
   // 3. Reconstruct based on mode (pass conversationRegistry and todos!)
   const recap =
     mode === 'quest'
-      ? await reconstructQuestContext(lattice, cwd, modelName, todos)
+      ? await reconstructQuestContext(lattice, cwd, modelName, todos, isSolo)
       : await reconstructChatContext(
           lattice,
           cwd,
           conversationRegistry,
           modelName,
-          todos
+          todos,
+          isSolo
         );
 
   return {

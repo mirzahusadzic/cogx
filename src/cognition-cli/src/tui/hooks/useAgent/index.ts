@@ -34,6 +34,7 @@ export function useAgent(options: UseAgentOptions) {
     model: modelName,
     autoResponse = true,
     semanticThreshold: semanticThresholdProp,
+    solo = false,
   } = options;
 
   // 1. Utilities (defined early for use in sessionManager and sub-hooks)
@@ -153,6 +154,7 @@ export function useAgent(options: UseAgentOptions) {
     currentSessionId,
     anchorId,
     modelName,
+    solo,
   });
 
   const isContextSensitive = isProviderContextSensitive(
