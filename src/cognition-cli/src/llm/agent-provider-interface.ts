@@ -105,6 +105,18 @@ export interface AgentRequest {
    */
   taskLogEvictionThreshold?: number;
 
+  /**
+   * Tool definitions (optional, used for system prompt building)
+   */
+  tools?: Array<{
+    type: string;
+    function: {
+      name: string;
+      description?: string;
+      parameters?: unknown;
+    };
+  }>;
+
   /** Error callback */
   onStderr?: (error: string) => void;
 

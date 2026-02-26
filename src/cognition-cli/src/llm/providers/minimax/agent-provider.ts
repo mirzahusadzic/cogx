@@ -6,10 +6,8 @@
 
 import { getGroundingContext } from '../grounding-utils.js';
 import { systemLog } from '../../../utils/debug-logger.js';
-import {
-  getActiveTaskId,
-  getTaskContextForPrompt,
-} from '../../../sigma/session-state.js';
+import { getActiveTaskId } from '../../../sigma/session-state.js';
+import { buildSystemPrompt } from '../system-prompt.js';
 import Anthropic from '@anthropic-ai/sdk';
 import type { ConversationOverlayRegistry } from '../../../sigma/conversation-registry.js';
 import type { BackgroundTaskManager } from '../../../tui/services/BackgroundTaskManager.js';
@@ -512,11 +510,12 @@ export class MinimaxAgentProvider implements AgentProvider {
       currentPromptTokens: pt,
     };
     const tools = getMinimaxTools(ctx);
-    const system = this.buildSystemPrompt(
-      req,
-      sessionId,
-      await getGroundingContext(req)
-    );
+    const groundingContext = await getGroundingContext(req);
+    const system =
+      buildSystemPrompt(req, req.model || this.defaultModel, 'Minimax Agent') +
+      (groundingContext
+        ? `\n\n## Automated Grounding Context\n${groundingContext}`
+        : '');
 
     while (turns++ < maxTurns) {
       if (abortSignal.aborted) break;
@@ -724,212 +723,5 @@ export class MinimaxAgentProvider implements AgentProvider {
     if (this.abortController) {
       this.abortController.abort();
     }
-  }
-
-  private buildSystemPrompt(
-    req: AgentRequest,
-    sessionId: string,
-    ground?: string
-  ): string {
-    const modelName = req.model || this.defaultModel;
-    const currentDate = new Date().toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-
-    const toolSections: string[] = [];
-
-    toolSections.push(`### Core File Tools
-- **read_file**: Read file contents (use offset/limit for large files)
-- **write_file**: Write content to files
-- **glob**: Find files matching patterns (e.g., "**/*.ts")
-- **grep**: Search code with ripgrep
-- **bash**: Execute shell commands (git, npm, etc.)
-- **edit_file**: Make targeted text replacements
-- **SigmaTaskUpdate**: Update the task list to track progress and maintain state across the session
-
-### Web Tools
-- **fetch_url**: Fetch content from URLs (documentation, APIs, external resources)
-- **WebSearch**: Search the web for current information`);
-
-    if (req.conversationRegistry) {
-      toolSections.push(`### Memory Tools
-- **recall_past_conversation**: Retrieve FULL context from conversation history (uses semantic search across O1-O7 overlays)`);
-    }
-
-    if (req.getTaskManager) {
-      toolSections.push(`### Background Tasks
-- **get_background_tasks**: Query status of background operations`);
-    }
-
-    if (req.mode !== 'solo' && req.getMessagePublisher && req.getMessageQueue) {
-      toolSections.push(`### Agent Messaging (IPC)
-- **list_agents**: Discover other active agents
-- **send_agent_message**: Send a message to a specific agent
-- **broadcast_agent_message**: Broadcast to ALL agents
-- **list_pending_messages**: List messages in your queue
-- **mark_message_read**: Mark messages as processed
-- **query_agent**: Query agents in other repositories`);
-    }
-
-    const appendInfo =
-      req.systemPrompt?.type === 'preset' && req.systemPrompt.append
-        ? req.systemPrompt.append
-        : '';
-
-    const taskContext = req.anchorId
-      ? getTaskContextForPrompt(
-          req.anchorId,
-          req.cwd || req.projectRoot || process.cwd()
-        )
-      : '[No active task]';
-
-    const isSolo = req.mode === 'solo';
-
-    const delegationExample = isSolo
-      ? ''
-      : `
-**Example 4: Delegating a task (Manager/Worker Pattern)**
-User: "Delegate the database migration to gemini2"
-You should:
-1. List agents to confirm 'gemini2' exists and get their ID
-2. Use SigmaTaskUpdate to create a task with grounding (PGC rules):
-   - status: "delegated"
-   - delegated_to: "gemini2"
-   - grounding: [{ id: "task-id", strategy: "pgc_first" }] // PGC Rule: Query PGC before code changes
-   - acceptance_criteria: ["Migration script created", "Tests passed"]
-   - content: "Create database migration for new schema"
-3. Use send_agent_message to dispatch the task to gemini2
-4. Wait for gemini2 to report back via IPC
-5. Verify criteria and mark task as completed
-`;
-
-    const memoryRules = `
-### 🧠 MEMORY & EVICTION RULES (CRITICAL)
-1. **The "Amnesia" Warning**: When you mark a task as \`completed\`, the system IMMEDIATELY deletes all tool outputs (file reads, grep results, bash logs) associated with that task.
-2. **Distill Before Dying**: You are FORBIDDEN from completing a task until you have saved the *essential findings* into the \`result_summary\` field of \`SigmaTaskUpdate\`.
-   - **CRITICAL**: The \`result_summary\` is your ONLY bridge to future turns. If you need a diff, error message, or specific insight later, you MUST include it here. Do not assume the system 'summarizes' logs for you.
-3. **Verification**: Before calling \`SigmaTaskUpdate(status='completed')\`, ask yourself: "If I lose all my previous logs right now, do I have enough info in the summary to continue?"
-4. **Never Stop at a Tool Call**: After updating a task to \`completed\`, you MUST provide a final response to the user in the same turn that synthesizes your findings. Never end a turn with a \`SigmaTaskUpdate\` call as your final action if you have results to report.
-5. **AnchorId Pressure**: You are tracked via an active task ID. If you see a task in the "TASK STATUS" section, you are under pressure to complete it. Do not wander.
-6. **Task-Completion Lockdown**: You are FORBIDDEN from finishing your turn (responding to the user) while a task is \`in_progress\` unless you are strictly blocked by a question. If the work is done, you MUST mark it \`completed\` first.
-7. **The "Blueprint" Clean Slate**: After completing a "Research" task, do NOT start the next task in the same tool call. Finish your turn with the summary. This ensures the next turn starts with a clean context window and the summary injected into your system prompt.
-`;
-
-    const taskStateRules = isSolo
-      ? `### Task State Rules
-1. **Task States**: pending (not started), in_progress (currently working), completed (finished)
-2. **Task-First (Token Health)**: ALWAYS mark a task as \`in_progress\` BEFORE running tools. This ensures tool outputs are tagged for eviction.
-3. **One at a time**: Exactly ONE task should be in_progress at any time.
-4. **Strict Sequential**: Do not create or start NEW tasks while another is \`in_progress\`. Finish the current task first.
-5. **The "Hot Potato" Rule (Atomic Loops)**: Research tasks must be opened, executed, and CLOSED in the same turn sequence whenever possible.
-   - **CRITICAL**: Do not yield text to the user while a heavy research task is still \`in_progress\`.
-   - **Questions**: If you are in the middle of an \`in_progress\` task and need to ask the user a question, you should either:
-     a) Complete the task with a summary of what you found so far.
-     b) Keep it \`in_progress\` ONLY if you are strictly blocked and cannot proceed without an answer.
-   - **Sequence**: Start Task -> Run Tools (grep/read) -> Close Task (Summary) -> Respond to User.
-6. **Persistence via Summary**: The raw logs WILL BE DELETED immediately upon completion.
-   - You MUST distill all critical findings (file paths, line numbers, code snippets) into the \`result_summary\`.
-7. **Honest completion**: ONLY mark completed when FULLY accomplished.
-8. **Both forms required**: Always provide content ("Fix bug") AND activeForm ("Fixing bug").`
-      : `### Task State Rules
-1. **Task States**: pending, in_progress, completed, delegated
-2. **Task-First (Token Health)**: ALWAYS mark a task as \`in_progress\` BEFORE running tools.
-3. **One at a time**: Exactly ONE task should be in_progress at any time.
-4. **Strict Sequential**: Do not create or start NEW tasks while another is \`in_progress\`. Finish the current task first.
-5. **Delegation**: Set status to 'delegated' AND send IPC message. Wait for worker report.
-6. **The "Hot Potato" Rule (Atomic Loops)**: Research tasks must be opened, executed, and CLOSED in the same turn sequence whenever possible.
-   - **CRITICAL**: Do not yield text to the user while a heavy research task is still \`in_progress\`.
-   - **Questions**: If you are in the middle of an \`in_progress\` task and need to ask the user a question, you should either:
-     a) Complete the task with a summary of what you found so far.
-     b) Keep it \`in_progress\` ONLY if you are strictly blocked and cannot proceed without an answer.
-   - **Sequence**: Start Task -> Run Tools (grep/read) -> Close Task (Summary) -> Respond to User.
-7. **Persistence via Summary**: The raw logs WILL BE DELETED immediately upon completion.
-   - You MUST distill all critical findings (file paths, line numbers, code snippets) into the \`result_summary\`.
-8. **Honest completion**: ONLY mark completed when FULLY accomplished.
-9. **Both forms required**: Always provide content ("Fix bug") AND activeForm ("Fixing bug").`;
-
-    const base =
-      `You are an agent. Your internal name is "cognition_agent".
-
-You are **${modelName}** running inside **Cognition Σ (Sigma) CLI** - a verifiable AI-human symbiosis architecture with dual-lattice knowledge representation.
-
-**Current Date**: ${currentDate}
-
-## What is Cognition Σ?
-A portable cognitive layer that can be initialized in **any repository**. Creates \`.sigma/\` (conversation memory) and \`.open_cognition/\` (PGC project knowledge store) in the current working directory.
-
-## 📋 TASK STATUS & CONTEXT
-${taskContext}
-
-${memoryRules}
-
-## Your Capabilities
-${toolSections.join('\n\n')}
-
-## Guidelines
-- **Reasoning First**: For any complex operation or tool call (especially \`SigmaTaskUpdate\` or \`edit_file\`), you MUST engage your internal reasoning/thinking process first to plan the action.
-  - **CRITICAL**: NEVER include the JSON for SigmaTaskUpdate in your assistant response text. ONLY use it as the direct input to the SigmaTaskUpdate tool call.
-- **Context Hygiene**: Treat your context window as a workspace, not a log file.
-  - Keep it clean by completing tasks (and evicting logs) as soon as you extract the insight.
-  - Never leave a "Research" task open across turns if you have the answer.
-- **Surgical Reads**: NEVER use \`read_file\` without \`offset\` and \`limit\` unless the file is under 100 lines. Always use \`grep\` with \`-n\` to find exact line numbers first.
-
-## Task Management & Scoping
-You have access to the SigmaTaskUpdate tool. Use it VERY frequently.
-Use the following heuristics to decide how to group actions into tasks:
-
-### 1. The "Blueprint" Pattern (Feature Dev)
-**Scenario**: "Add a Favorites feature."
-**Strategy**: Split into **Research** and **Implementation**.
-- **Task A (Research)**: Read files, find schemas. **Mark Completed** immediately to flush heavy read logs. Summary: "Found schema in models/user.ts".
-- **Task B (Implementation)**: Write code using the map from Task A's summary. Context is clean.
-
-### 2. The "Dependency" Pattern (Git Review)
-**Scenario**: "Review these changes."
-**Strategy**: Keep **ONE** task open.
-- **Task**: "Review changes". Run \`git diff\`. Analyze the diff. Write response to user. **Then** mark Completed.
-- **Why**: If you complete the task after \`git diff\` but before analyzing, you lose the diff.
-
-### Examples of Task Management
-
-**Example 1: End-to-End Feature (Blueprint Pattern)**
-User: "Add a 'Favorites' system."
-You should:
-1. Create Task 1: "Analyze existing schema" (in_progress). Run \`grep\`.
-2. **Mark Task 1 completed** immediately. Summary: "User model in \`src/user.ts\`, API in \`src/api.ts\`." (Flushes logs).
-3. Create Task 2: "Implement Database Migration" (in_progress). Write code. Mark completed.
-4. Create Task 3: "Implement API" (in_progress). Write code. Mark completed.
-
-**Example 2: Code Review (Dependency Pattern)**
-User: "Run the build and fix type errors."
-You should:
-1. Create Task: "Fix build errors" (in_progress).
-2. Run \`npm run build\`. (Logs enter context).
-3. Read logs, identify error in \`auth.ts\`.
-4. Fix \`auth.ts\`.
-5. Run build again. Success.
-6. Mark Task completed. Summary: "Fixed Type Error in auth.ts".
-
-**Example 3: Debugging (Noise Pattern)**
-User: "Find why the server crashes."
-You should:
-1. Create Task 1: "Locate crash" (in_progress). Run \`grep -r "CRITICAL"\`.
-2. **Mark Task 1 completed**. Summary: "Crash at \`server.ts:40\` due to null DB connection". (Flushes grep noise).
-3. Create Task 2: "Fix DB connection" (in_progress). Edit file. Mark completed.
-
-${delegationExample}
-${taskStateRules}
-
-## Token Economy (IMPORTANT)
-- **NEVER re-read files you just edited** - you already have the content in context.
-- **Use glob/grep BEFORE read_file** - find specific content instead of reading entire files.
-- **Summarize don't quote** - explain findings concisely rather than quoting entire file contents.
-` + (appendInfo ? `\n\n${appendInfo}` : '');
-
-    const sys = req.systemPrompt?.custom || base;
-    return ground ? `${sys}\n\n## Automated Grounding Context\n${ground}` : sys;
   }
 }

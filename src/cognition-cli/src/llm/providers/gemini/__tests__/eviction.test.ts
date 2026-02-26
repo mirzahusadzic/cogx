@@ -1,6 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GeminiAgentProvider } from '../agent-provider.js';
 import { getCognitionTools } from '../adk-tools.js';
+import { buildSystemPrompt } from '../../system-prompt.js';
+import { AgentRequest } from '../../../agent-provider-interface.js';
+
+// Mock system prompt
+vi.mock('../../system-prompt.js', () => ({
+  buildSystemPrompt: vi.fn().mockImplementation(() => {
+    return `
+      MEMORY & EVICTION RULES (CRITICAL)
+      1. The "Amnesia" Warning
+      2. Distill Before Dying
+    `;
+  }),
+}));
 
 // Mock fs/promises
 vi.mock('fs/promises', () => ({
@@ -78,16 +91,13 @@ describe('Gemini Eviction Strategy', () => {
 
   describe('System Prompt', () => {
     it('should include Memory & Eviction Rules in system prompt', () => {
-      const systemPrompt = (
-        provider as unknown as {
-          buildSystemPrompt: (req: unknown, sid: string) => string;
-        }
-      ).buildSystemPrompt(
+      const systemPrompt = buildSystemPrompt(
         {
           prompt: 'test',
           model: 'gemini-3-flash-preview',
-        },
-        'test-session'
+        } as unknown as AgentRequest,
+        'gemini-3-flash-preview',
+        'Google ADK'
       );
 
       expect(systemPrompt).toContain('MEMORY & EVICTION RULES (CRITICAL)');
