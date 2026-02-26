@@ -9,6 +9,7 @@
 import fs from 'fs';
 import path from 'path';
 import { systemLog } from '../utils/debug-logger.js';
+import { SYSTEM_PROMPT_MAX_COMPLETED_TASKS } from '../config.js';
 
 /**
  * Sigma task item in session state
@@ -516,7 +517,7 @@ export function getTaskContextForPrompt(
   const activeTask = state.todos.find((t) => t.status === 'in_progress');
   const completedTasks = state.todos
     .filter((t) => t.status === 'completed')
-    .slice(-3); // Get last 3 completed tasks
+    .slice(-SYSTEM_PROMPT_MAX_COMPLETED_TASKS); // Get last N completed tasks
 
   let prompt = '';
 

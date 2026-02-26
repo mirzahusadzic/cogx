@@ -103,6 +103,12 @@ export const DEFAULT_MAX_OUTPUT_TOKENS = 8192;
  */
 export const MEMORY_RECALL_MAX_TOKENS = 32768;
 
+/**
+ * Maximum number of completed tasks to include in the system prompt
+ * Ensures the model has context of recent achievements without bloating prompt
+ */
+export const SYSTEM_PROMPT_MAX_COMPLETED_TASKS = 10;
+
 // ========================================
 // PERSONA MAPPINGS
 // ========================================
