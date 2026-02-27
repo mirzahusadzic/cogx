@@ -522,7 +522,8 @@ export class LineagePatternsManager implements PatternManager {
       return [];
     }
 
-    const filePath = manifest[symbol];
+    const entry = this.pgc.overlays.parseManifestEntry(manifest[symbol]);
+    const filePath = entry.filePath;
 
     if (!filePath) {
       console.log(
@@ -597,7 +598,8 @@ export class LineagePatternsManager implements PatternManager {
       return undefined;
     }
 
-    const filePath = manifest[symbol];
+    const entry = this.pgc.overlays.parseManifestEntry(manifest[symbol]);
+    const filePath = entry.filePath;
     if (!filePath) {
       return undefined;
     }

@@ -199,12 +199,9 @@ export function addPatternsCommands(program: Command) {
       );
 
       for (const [symbol, manifestEntry] of Object.entries(manifest)) {
-        // Parse manifest entry (handles both old string and new object formats)
-        const parsed =
-          typeof manifestEntry === 'string'
-            ? { filePath: manifestEntry }
-            : manifestEntry;
-        const filePath = parsed.filePath || '';
+        // Parse manifest entry using utility
+        const parsed = pgc.overlays.parseManifestEntry(manifestEntry);
+        const filePath = parsed.filePath;
 
         // Check if vector exists for this symbol
         const vector = vectorsBySymbol.get(symbol);
@@ -421,10 +418,11 @@ export function addPatternsCommands(program: Command) {
       }
 
       // Check structural patterns
-      const structuralManifest = await pgc.overlays.getManifest(
-        'structural_patterns'
+      const structuralEntry = await pgc.overlays.getManifestEntry(
+        'structural_patterns',
+        symbol
       );
-      const structuralFilePath = structuralManifest?.[symbol];
+      const structuralFilePath = structuralEntry?.filePath;
 
       if (!structuralFilePath) {
         if (!useJson) {
@@ -481,9 +479,11 @@ export function addPatternsCommands(program: Command) {
       }
 
       // Load lineage pattern metadata
-      const lineageManifest =
-        await pgc.overlays.getManifest('lineage_patterns');
-      const lineageFilePath = lineageManifest?.[symbol];
+      const lineageEntry = await pgc.overlays.getManifestEntry(
+        'lineage_patterns',
+        symbol
+      );
+      const lineageFilePath = lineageEntry?.filePath;
 
       if (lineageFilePath) {
         const lineageOverlayKey = `${lineageFilePath}#${symbol}`;
@@ -594,9 +594,11 @@ export function addPatternsCommands(program: Command) {
       }
 
       // Check if symbol exists in lineage patterns
-      const lineageManifest =
-        await pgc.overlays.getManifest('lineage_patterns');
-      const filePath = lineageManifest?.[symbol];
+      const entry = await pgc.overlays.getManifestEntry(
+        'lineage_patterns',
+        symbol
+      );
+      const filePath = entry?.filePath;
 
       if (!filePath) {
         if (!useJson) {
