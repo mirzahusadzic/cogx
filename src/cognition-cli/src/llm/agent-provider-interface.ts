@@ -89,6 +89,9 @@ export interface AgentRequest {
   /** Project root directory (for agent discovery) */
   projectRoot?: string;
 
+  /** Project-specific instructions from .sigma/instructions.md or grounding */
+  projectInstructions?: string;
+
   /** Current agent ID (for excluding self from listings) */
   agentId?: string;
 

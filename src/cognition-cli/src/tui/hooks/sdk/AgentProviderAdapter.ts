@@ -27,6 +27,7 @@
  */
 
 import path from 'path';
+import fs from 'fs/promises';
 import { registry } from '../../../llm/index.js';
 import { DELEGATION_PROTOCOL_PROMPT } from '../../../sigma/prompts/delegation-protocol.js';
 import { systemLog } from '../../../utils/debug-logger.js';
@@ -155,6 +156,16 @@ export class AgentProviderAdapter {
   async *query(prompt: string): AsyncGenerator<AgentResponse> {
     const cwd = this.options.cwd || process.cwd();
     const projectRoot = this.options.projectRoot || cwd;
+
+    // Load SIGMA.md for grounding if it exists
+    let projectInstructions = '';
+    try {
+      const sigmaPath = path.join(projectRoot, 'SIGMA.md');
+      projectInstructions = await fs.readFile(sigmaPath, 'utf-8');
+    } catch {
+      // Ignore if SIGMA.md doesn't exist
+    }
+
     const projectRootInfo =
       projectRoot !== cwd
         ? `\n\n## Project Root\n${projectRoot}\n(CWD is ${path.relative(projectRoot, cwd)} relative to root)`
@@ -183,6 +194,7 @@ export class AgentProviderAdapter {
       getMessagePublisher: this.options.getMessagePublisher,
       getMessageQueue: this.options.getMessageQueue,
       projectRoot: this.options.projectRoot || this.options.cwd,
+      projectInstructions,
       agentId: this.options.agentId,
       anchorId: this.options.anchorId,
       remainingTPM: this.options.remainingTPM,
