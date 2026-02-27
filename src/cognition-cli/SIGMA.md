@@ -33,6 +33,7 @@ Agents are expected to verify their own work autonomously. Before concluding a t
 ## Commit Message Instructions
 
 Generate commit messages by strictly following the template below. Omit categories for small diffs.
+**CRITICAL: Pass the entire message as a single `-m` chunk to git (using newline escapes if necessary) to ensure correct formatting and whitespace preservation.**
 
 ```text
 type(scope): imperative short description (max 72 chars)
