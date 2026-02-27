@@ -47,7 +47,7 @@ describe('tuiCommand', () => {
       defaultProvider: 'claude',
       providers: {
         claude: { defaultModel: 'claude-3-5-sonnet' },
-        gemini: { defaultModel: 'gemini-3-pro-preview' },
+        gemini: { defaultModel: 'gemini-3.1-pro-preview' },
       },
     } as any);
 

@@ -59,7 +59,6 @@ const MODEL_DISPLAY_NAMES: Record<string, string> = {
   'claude-sonnet-4-20250514': 'Sonnet 4',
   // Gemini models
   'gemini-3-flash-preview': 'Gemini 3f',
-  'gemini-3-pro-preview': 'Gemini 3p',
   'gemini-3.1-pro-preview': 'Gemini 3.1p',
   'gemini-3.1-pro-preview-customtools': 'Gemini 3.1p CustomTools',
   'gemini-2.5-flash': 'Gemini 2.5f (EOL)',

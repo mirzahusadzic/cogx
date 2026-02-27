@@ -31,9 +31,9 @@ describe('getModelShortName', () => {
     expect(getModelShortName('gemini-3.0-flash')).toBe('gemini3f');
   });
 
-  it('returns gemini3p for Gemini 3.0 Pro model', () => {
-    expect(getModelShortName('gemini-3.0-pro')).toBe('gemini3p');
-    expect(getModelShortName('models/gemini-3-pro-001')).toBe('gemini3p');
+  it('returns gemini3p for Gemini 3.1 Pro model', () => {
+    expect(getModelShortName('gemini-3.1-pro')).toBe('gemini3p');
+    expect(getModelShortName('models/gemini-3.1-pro-001')).toBe('gemini3p');
   });
 
   it('returns gemini25f for Gemini 2.5 Flash model', () => {

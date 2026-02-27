@@ -104,7 +104,7 @@ Recommendation: APPROVE / REVIEW / REJECT
 **Enable in `src/config.ts`:**
 
 ```typescript
-export const DEFAULT_OPSEC_MODEL_NAME = 'gemini-3.0-pro-preview'; // Or 'gemini-3-flash-preview'
+export const DEFAULT_OPSEC_MODEL_NAME = 'gemini-3.1-pro-preview'; // Or 'gemini-3-flash-preview'
 export const DEFAULT_OPSEC_ENABLED = true; // Enable by default
 ```
 
@@ -626,7 +626,7 @@ export const DEFAULT_OPSEC_ENABLED = false; // Disable LLM filtering
 **To change the Gemini model:**
 
 ```typescript
-export const DEFAULT_OPSEC_MODEL_NAME = 'gemini-3.0-pro-preview'; // Use different model
+export const DEFAULT_OPSEC_MODEL_NAME = 'gemini-3.1-pro-preview'; // Use different model
 ```
 
 **Available models:**

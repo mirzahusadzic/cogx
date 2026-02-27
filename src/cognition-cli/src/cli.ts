@@ -625,7 +625,7 @@ const tuiCmd = program
           desc: 'Use Claude as LLM provider',
         },
         {
-          cmd: 'cognition-cli tui --provider gemini --model gemini-3-pro-preview',
+          cmd: 'cognition-cli tui --provider gemini --model gemini-3.1-pro-preview',
           desc: 'Use Gemini with a specific model',
         },
         {

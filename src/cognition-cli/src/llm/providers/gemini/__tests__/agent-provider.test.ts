@@ -97,8 +97,8 @@ describe('GeminiAgentProvider', () => {
       const provider = new GeminiAgentProvider('test-key');
 
       expect(provider.models).toContain('gemini-3-flash-preview');
-      expect(provider.models).toContain('gemini-3-pro-preview');
-      expect(provider.models).toContain('gemini-3-pro-preview');
+      expect(provider.models).toContain('gemini-3.1-pro-preview');
+      expect(provider.models).toContain('gemini-3.1-pro-preview-customtools');
       expect(provider.models).toContain('gemini-3-flash-preview');
     });
   });
@@ -171,7 +171,7 @@ describe('GeminiAgentProvider', () => {
       // 100k tokens (below 200k tier)
       const cost = provider.estimateCost(
         { prompt: 40000, completion: 60000, total: 100000 },
-        'gemini-3-pro-preview'
+        'gemini-3.1-pro-preview'
       );
 
       // 40% input = 0.04 MTok * $2.00 = $0.08
@@ -186,7 +186,7 @@ describe('GeminiAgentProvider', () => {
       // 500,001 tokens (above 200k tier)
       const cost = provider.estimateCost(
         { prompt: 200001, completion: 300000, total: 500001 },
-        'gemini-3-pro-preview'
+        'gemini-3.1-pro-preview'
       );
 
       // 40% input = 0.2 MTok * $4.00 = $0.80

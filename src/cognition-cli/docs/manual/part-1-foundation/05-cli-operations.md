@@ -2161,7 +2161,7 @@ cognition-cli tui provider models gemini
   - Features: Extended thinking blocks, tool execution, streaming responses
 
 - **Gemini (Google)**: Requires `GEMINI_API_KEY` environment variable
-  - Models: gemini-3-flash-preview, gemini-3-pro-preview, gemini-2.5-pro (EOL)
+  - Models: gemini-3.1-pro-preview, gemini-3-flash-preview, gemini-2.5-pro (EOL)
   - Features: BIDI streaming, continuous multi-turn conversations, tool execution
 
 **Provider Configuration:**

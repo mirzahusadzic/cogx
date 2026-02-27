@@ -21,6 +21,7 @@ Explore the project to understand its core modules and automation.
 Construct the `SIGMA.md` file using the following template.
 
 ---
+
 # [Project Name]
 
 [A 1-2 sentence description of what this project does and its core value proposition.]

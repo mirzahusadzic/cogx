@@ -362,7 +362,7 @@ _cognition_cli_completions() {
       ;;
     --model)
       # Suggest model names (provider-specific)
-      COMPREPLY=( $(compgen -W "claude-opus-4-5-20251101 claude-sonnet-4-5-20250929 gemini-3-flash-preview gemini-3-pro-preview gemini-3.1-pro-preview gemini-3.1-pro-preview-customtools gpt-oss-20b MiniMax-M2.5 MiniMax-M2.5-highspeed MiniMax-M2.1 MiniMax-M2.1-highspeed MiniMax-M2" -- \${cur}) )
+      COMPREPLY=( $(compgen -W "claude-opus-4-5-20251101 claude-sonnet-4-5-20250929 gemini-3-flash-preview gemini-3.1-pro-preview gemini-3.1-pro-preview-customtools gpt-oss-20b MiniMax-M2.5 MiniMax-M2.5-highspeed MiniMax-M2.1 MiniMax-M2.1-highspeed MiniMax-M2" -- \${cur}) )
       return 0
       ;;
     overlay)
@@ -674,7 +674,7 @@ _cognition_cli() {
             '--session-tokens[Token threshold]:number:' \
             '--max-thinking-tokens[Max thinking tokens]:number:' \
             '--provider[LLM provider]:provider:(claude gemini openai minimax)' \
-            '--model[Model to use]:model:(claude-opus-4-5-20251101 claude-sonnet-4-5-20250929 gemini-3-flash-preview gemini-3-pro-preview gemini-3.1-pro-preview gemini-3.1-pro-preview-customtools gpt-oss-20b MiniMax-M2.5 MiniMax-M2.5-highspeed MiniMax-M2.1 MiniMax-M2.1-highspeed MiniMax-M2)' \
+            '--model[Model to use]:model:(claude-opus-4-5-20251101 claude-sonnet-4-5-20250929 gemini-3-flash-preview gemini-3.1-pro-preview gemini-3.1-pro-preview-customtools gpt-oss-20b MiniMax-M2.5 MiniMax-M2.5-highspeed MiniMax-M2.1 MiniMax-M2.1-highspeed MiniMax-M2)' \
             '--no-show-thinking[Hide thinking blocks in TUI]' \
             '--ctx-tools[Number of tool logs to keep in context (rolling buffer)]:number:' \
             '--solo[Enable solo mode (disables IPC and PGC tools to save tokens)]' \
@@ -1004,7 +1004,7 @@ complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -s w -l workbench
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l session-tokens -d "Token threshold"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l max-thinking-tokens -d "Max thinking tokens"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l provider -d "LLM provider" -xa "claude gemini openai minimax"
-complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l model -d "Model to use" -xa "claude-opus-4-5-20251101 claude-sonnet-4-5-20250929 gemini-3-flash-preview gemini-3-pro-preview gemini-3.1-pro-preview gemini-3.1-pro-preview-customtools gpt-oss-20b MiniMax-M2.5 MiniMax-M2.5-highspeed MiniMax-M2.1 MiniMax-M2.1-highspeed MiniMax-M2"
+complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l model -d "Model to use" -xa "claude-opus-4-5-20251101 claude-sonnet-4-5-20250929 gemini-3-flash-preview gemini-3.1-pro-preview gemini-3.1-pro-preview-customtools gpt-oss-20b MiniMax-M2.5 MiniMax-M2.5-highspeed MiniMax-M2.1 MiniMax-M2.1-highspeed MiniMax-M2"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l no-show-thinking -d "Hide thinking blocks"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l ctx-tools -d "Set rolling buffer size"
 complete -c cognition-cli -n "__fish_seen_subcommand_from tui" -l solo -d "Enable solo mode"

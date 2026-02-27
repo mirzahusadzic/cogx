@@ -190,7 +190,7 @@ Why This Architecture?
 
 1. You Control the Ethics Layer
    - Choose which workbench to use (WORKBENCH_URL env variable)
-   - Choose which models to use (defaults: gemini-3-flash-preview, gemini-3.0-pro-preview)
+   - Choose which models to use (defaults: gemini-3.1-pro-preview)
    - Choose which personas to trust (if any - personas are provisional, user-controlled)
 
 2. cognition-cli Stays Neutral
@@ -231,7 +231,7 @@ cognition-cli implements transparency and accountability, not prevention:
 4. Workbench Configuration (User's Choice)
    - cognition-cli connects via WORKBENCH_URL env variable
    - You choose which workbench, models, personas to trust
-   - Defaults: gemini-3-flash-preview, gemini-3.0-pro-preview, embeddinggemma-300m
+   - Defaults: gemini-3.1-pro-preview, embeddinggemma-300m
    - Ethical review is YOUR responsibility, not cognition-cli's
 
 What We Explicitly Do NOT Implement:

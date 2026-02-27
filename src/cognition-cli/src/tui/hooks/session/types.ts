@@ -72,7 +72,7 @@ export interface SessionOptions {
    * Model being used (provider-specific model ID)
    * Used to include model short name in auto-generated anchor IDs
    * Persisted in state file for backward-compatible session resume
-   * @example 'claude-opus-4-5-20251101', 'gemini-3-pro-preview'
+   * @example 'claude-opus-4-5-20251101', 'gemini-3.1-pro-preview'
    */
   model?: string;
 

@@ -74,7 +74,7 @@ import type { SigmaTask } from '../useAgent/types.js';
  * - opus45: Claude Opus 4.5 (claude-opus-4-5-*)
  * - gemini3f: Gemini 3.0 Flash (gemini-3-flash-preview, gemini-3.0-flash-*)
  * - gemini31p: Gemini 3.1 Pro (gemini-3.1-pro-preview, gemini-3.1-pro-preview-customtools)
- * - gemini3p: Gemini 3.0 Pro (gemini-3-pro-preview, gemini-3.0-pro-*)
+ * - gemini3p: Gemini 3.1 Pro (gemini-3.1-pro-preview, gemini-3.1-pro-*)
  * - gemini25f: Gemini 2.5 Flash (gemini-2.5-flash-*)
  * - gemini25p: Gemini 2.5 Pro (gemini-2.5-pro-*)
  * - gpt4o: GPT-4o (gpt-4o)
@@ -104,10 +104,16 @@ export function getModelShortName(model?: string): string | undefined {
   // Gemini models - check specific versions before generic
   if (
     lower.includes('gemini-3-flash') ||
+    lower.includes('gemini-3.0-flash') ||
+    lower.includes('gemini-3.1-flash') ||
     (lower.includes('gemini-3') && lower.includes('flash'))
   )
     return 'gemini3f';
-  if (lower.includes('gemini-3.1') && lower.includes('pro')) return 'gemini31p';
+  if (
+    (lower.includes('gemini-3.1') || lower.includes('gemini-3.0')) &&
+    lower.includes('pro')
+  )
+    return 'gemini3p';
   if (
     lower.includes('gemini-3') &&
     lower.includes('pro') &&

@@ -165,7 +165,6 @@ export class GeminiAgentProvider implements AgentProvider {
     'gemini-3-flash-preview', // Gemini 3.0 Flash with high-level thinking (default)
     'gemini-3.1-pro-preview', // Gemini 3.1 Pro preview
     'gemini-3.1-pro-preview-customtools', // Gemini 3.1 Pro with custom tools
-    'gemini-3-pro-preview', // Gemini 3.0 Pro with advanced reasoning
   ];
 
   private apiKey: string;
@@ -1792,8 +1791,13 @@ export class GeminiAgentProvider implements AgentProvider {
     const cachedInputMtokens = cachedTokens / 1000000;
     const outputMtokens = tokens.completion / 1000000;
 
-    // Gemini 3.0/3.1 Pro models (including custom tools variants) - tiered pricing
-    if (model.includes('3-pro')) {
+    // Gemini 3.x Pro models (including custom tools variants) - tiered pricing
+    if (
+      model.includes('-pro') &&
+      (model.includes('3.0') ||
+        model.includes('3.1') ||
+        model.includes('3-pro'))
+    ) {
       // >200k tokens prompt = higher tier
       if (tokens.prompt > 200000) {
         return (
