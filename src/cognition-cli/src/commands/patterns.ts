@@ -201,7 +201,7 @@ export function addPatternsCommands(program: Command) {
       for (const [symbol, manifestEntry] of Object.entries(manifest)) {
         // Parse manifest entry using utility
         const parsed = pgc.overlays.parseManifestEntry(manifestEntry);
-        const filePath = parsed.filePath;
+        const filePath = parsed.filePath || '';
 
         // Check if vector exists for this symbol
         const vector = vectorsBySymbol.get(symbol);
