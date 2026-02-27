@@ -161,7 +161,14 @@ export class AgentProviderAdapter {
     let projectInstructions = '';
     try {
       const sigmaPath = path.join(projectRoot, 'SIGMA.md');
-      projectInstructions = await fs.readFile(sigmaPath, 'utf-8');
+      const content = await fs.readFile(sigmaPath, 'utf-8');
+      // Limit to 4000 characters to prevent context bloat
+      if (content.length > 4000) {
+        projectInstructions =
+          content.substring(0, 4000) + '\n...[TRUNCATED BY SYSTEM]';
+      } else {
+        projectInstructions = content;
+      }
     } catch {
       // Ignore if SIGMA.md doesn't exist
     }
