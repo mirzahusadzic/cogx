@@ -26,7 +26,9 @@
  * ```
  */
 
+import { MAX_SIGMA_MD_CHARS } from '../../../config.js';
 import path from 'path';
+
 import fs from 'fs/promises';
 import { registry } from '../../../llm/index.js';
 import { DELEGATION_PROTOCOL_PROMPT } from '../../../sigma/prompts/delegation-protocol.js';
@@ -162,10 +164,11 @@ export class AgentProviderAdapter {
     try {
       const sigmaPath = path.join(projectRoot, 'SIGMA.md');
       const content = await fs.readFile(sigmaPath, 'utf-8');
-      // Limit to 4000 characters to prevent context bloat
-      if (content.length > 4000) {
+      // Limit to prevent context bloat
+      if (content.length > MAX_SIGMA_MD_CHARS) {
         projectInstructions =
-          content.substring(0, 4000) + '\n...[TRUNCATED BY SYSTEM]';
+          content.substring(0, MAX_SIGMA_MD_CHARS) +
+          '\n...[TRUNCATED BY SYSTEM]';
       } else {
         projectInstructions = content;
       }

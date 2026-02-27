@@ -109,6 +109,12 @@ export const MEMORY_RECALL_MAX_TOKENS = 32768;
  */
 export const SYSTEM_PROMPT_MAX_COMPLETED_TASKS = 10;
 
+/**
+ * Maximum character limit for SIGMA.md content to prevent context bloat.
+ * Approximately 1000 tokens.
+ */
+export const MAX_SIGMA_MD_CHARS = 4000;
+
 // ========================================
 // PERSONA MAPPINGS
 // ========================================
