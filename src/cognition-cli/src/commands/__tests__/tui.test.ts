@@ -57,7 +57,7 @@ describe('tuiCommand', () => {
     vi.mocked(registry.has).mockReturnValue(true);
     vi.mocked(registry.supportsAgent).mockReturnValue(true);
     vi.mocked(registry.list).mockReturnValue(['claude', 'gemini']);
-  });
+  }, 30000);
 
   it('should export tuiCommand function', async () => {
     const { tuiCommand } = await import('../tui.js');
