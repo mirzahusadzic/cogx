@@ -103,8 +103,8 @@ import { TUITheme } from '../../theme.js';
 /**
  * Constants for tool output formatting and safety limits.
  */
-const MAX_LINES = 30;
-const MAX_LINE_LENGTH = 1000;
+const MAX_LINES = 20;
+const MAX_LINE_LENGTH = 150;
 
 /**
  * Tool use input from SDK
@@ -869,7 +869,7 @@ export function formatToolResult(
 
     if (lines.length > MAX_LINES) {
       wasTruncated = true;
-      // Show first 5 lines and last 25 lines
+      // Show first 5 lines and last (MAX_LINES - 5) lines
       const head = lines.slice(0, 5);
       const tail = lines.slice(-(MAX_LINES - 5));
       truncatedLines = [...head, '... (truncated) ...', ...tail];
