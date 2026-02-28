@@ -58,7 +58,12 @@ import { getGroundingContext } from '../grounding-utils.js';
 import { getActiveTaskId } from '../../../sigma/session-state.js';
 import { buildSystemPrompt } from '../system-prompt.js';
 import OpenAI from 'openai';
-import { Agent, run, setDefaultOpenAIClient } from '@openai/agents';
+import {
+  Agent,
+  run,
+  setDefaultOpenAIClient,
+  tool as openAiTool,
+} from '@openai/agents';
 import {
   OpenAIResponsesModel,
   OpenAIConversationsSession,
@@ -1569,7 +1574,7 @@ export class OpenAIAgentProvider implements AgentProvider {
             )
           : null,
       mode: request.mode,
-    });
+    }) as ReturnType<typeof openAiTool>[];
   }
 
   /**

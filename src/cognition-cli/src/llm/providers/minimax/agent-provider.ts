@@ -263,7 +263,7 @@ export class MinimaxAgentProvider implements AgentProvider {
    */
   private async pruneTaskLogs(
     taskId: string,
-    result_summary: string | undefined,
+    result_summary: string | null | undefined,
     sessionId: string,
     projectRoot: string,
     history: Anthropic.MessageParam[]
@@ -490,7 +490,10 @@ export class MinimaxAgentProvider implements AgentProvider {
       agentId: req.agentId,
       anchorId: req.anchorId,
       onToolOutput: req.onToolOutput,
-      onTaskCompleted: async (taskId: string, result_summary?: string) => {
+      onTaskCompleted: async (
+        taskId: string,
+        result_summary?: string | null
+      ) => {
         await this.pruneTaskLogs(
           taskId,
           result_summary,

@@ -58,8 +58,12 @@ describe('Minimax Tool Execution - SigmaTaskUpdate', () => {
     };
 
     // The validation happens in processSigmaTaskUpdateInput which is called by executeMinimaxTool
-    await expect(
-      executeMinimaxTool('SigmaTaskUpdate', input, mockContext as never)
-    ).rejects.toThrow();
+    const result = await executeMinimaxTool(
+      'SigmaTaskUpdate',
+      input,
+      mockContext as never
+    );
+    expect(result).toContain('Error');
+    expect(result).toContain('result_summary');
   });
 });
