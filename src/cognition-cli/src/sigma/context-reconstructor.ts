@@ -267,6 +267,13 @@ function getToolInstructions(isSolo: boolean): string {
 
 ### Task State Rules
 1. **Task States**: ${taskStates}
+2. **One at a Time**: Exactly ONE task can be \`in_progress\` at any time.
+
+### Task State Recovery (CRITICAL)
+If a \`SigmaTaskUpdate\` call fails (e.g., "Only one task can be in_progress"):
+1. **Summarize Current Work**: Immediately mark the *existing* \`in_progress\` task as \`completed\` with a \`result_summary\`.
+2. **Start New Task**: In your *next* tool call, start your new task.
+3. **Emergency Yield**: If truly stuck, you are permitted to "Yield" (respond to the user) ONLY to ask for a task list reset.
 `;
 }
 

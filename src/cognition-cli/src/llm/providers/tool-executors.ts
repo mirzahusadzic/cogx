@@ -734,7 +734,7 @@ export async function executeSigmaTaskUpdate(
     ).length;
     if (inProgressCount > 1) {
       throw new Error(
-        `Only ONE task can be in_progress at a time. You attempted to set ${inProgressCount} tasks to in_progress. Please fix your tool call to track one task sequentially.`
+        `Only ONE task can be in_progress at a time. You attempted to set ${inProgressCount} tasks to in_progress. RECOVERY: You MUST first mark the current active task as 'completed' (with a result_summary) before starting a new task.`
       );
     }
 
