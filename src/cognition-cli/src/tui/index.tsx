@@ -70,7 +70,7 @@ import { type UseBackgroundTaskManagerResult } from './hooks/useBackgroundTaskMa
 import { type ToolConfirmationState } from './hooks/useToolConfirmation.js';
 
 // ...
-const CognitionTUIController: React.FC<{
+export const CognitionTUIController: React.FC<{
   projectRoot: string;
   onboardingMode: boolean;
   model?: string;
@@ -318,6 +318,22 @@ const CognitionTUIController: React.FC<{
       } else if (key.ctrl && input === 'p') {
         toggleInfoPanel();
       } else if (key.ctrl && input === 't') {
+        toggleTaskPanel();
+      } else if (
+        input === 'i' &&
+        !key.ctrl &&
+        !key.shift &&
+        !key.meta &&
+        !focused
+      ) {
+        toggleInfoPanel();
+      } else if (
+        input === 't' &&
+        !key.ctrl &&
+        !key.shift &&
+        !key.meta &&
+        !focused
+      ) {
         toggleTaskPanel();
       }
     },
