@@ -301,4 +301,59 @@ describe('SigmaTaskPanel', () => {
     expect(output).not.toContain('[✓] Task 1\n');
     expect(output).toContain('... (5 older tasks)');
   });
+
+  it('only expands the most recent completed task and collapses older ones when many tasks exist', () => {
+    const tasks: SigmaTask[] = [
+      {
+        id: '1',
+        content: 'Completed 1',
+        activeForm: 'A1',
+        status: 'completed',
+        result_summary: 'Summary 1',
+      },
+      {
+        id: '2',
+        content: 'Completed 2',
+        activeForm: 'A2',
+        status: 'completed',
+        result_summary: 'Summary 2',
+      },
+      {
+        id: '3',
+        content: 'Completed 3',
+        activeForm: 'A3',
+        status: 'completed',
+        result_summary: 'Summary 3',
+      },
+      {
+        id: '4',
+        content: 'Completed 4',
+        activeForm: 'A4',
+        status: 'completed',
+        result_summary: 'Summary 4',
+      },
+    ];
+
+    const { lastFrame } = render(
+      <SigmaTaskPanel
+        sigmaTasks={{ todos: tasks }}
+        tokenCount={mockTokenCount}
+        sessionTokenCount={mockTokenCount}
+      />
+    );
+
+    const output = stripAnsi(lastFrame()!);
+
+    // Newest task should be expanded (id: '4')
+    expect(output).toContain('Completed 4');
+    expect(output).toContain('Summary 4');
+
+    // Older tasks should be visible but their summaries should be hidden (since tasks.length > 3)
+    expect(output).toContain('Completed 1');
+    expect(output).not.toContain('Summary 1');
+    expect(output).toContain('Completed 2');
+    expect(output).not.toContain('Summary 2');
+    expect(output).toContain('Completed 3');
+    expect(output).not.toContain('Summary 3');
+  });
 });
