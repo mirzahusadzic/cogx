@@ -18,30 +18,13 @@ import {
 } from '../rendering/ToolFormatter.js';
 import { terminal } from '../../services/TerminalService.js';
 import { stripCursorSequences, ANSI_RESET } from '../../utils/ansi-utils.js';
-import type { AgentState } from './useAgentState.js';
-import type { UseAgentOptions, SigmaTasks } from './types.js';
-import type { UseSessionManagerResult } from '../session/useSessionManager.js';
-import type { useTokenCount } from '../tokens/useTokenCount.js';
-import type { useSessionTokenCount } from '../tokens/useSessionTokenCount.js';
-import type { UseTurnAnalysisReturn } from '../analysis/useTurnAnalysis.js';
-import type { UseCompressionResult } from '../compression/useCompression.js';
+import type { SigmaTasks } from './types.js';
 import {
   AUTO_RESPONSE_TRIGGER,
   COMPRESSION_RECOVERY_PROMPT,
   isProviderContextSensitive,
   MAX_STREAM_STABILIZATION_LINES,
 } from './constants.js';
-
-interface UseAgentHandlersOptions {
-  options: UseAgentOptions;
-  state: AgentState;
-  sessionManager: UseSessionManagerResult;
-  tokenCounter: ReturnType<typeof useTokenCount>;
-  sessionTokenCounter: ReturnType<typeof useSessionTokenCount>;
-  turnAnalysis: UseTurnAnalysisReturn;
-  compression: UseCompressionResult;
-  debug: (message: string, ...args: unknown[]) => void;
-}
 
 interface MessageBlock {
   type: string;
@@ -211,16 +194,19 @@ export function updateSigmaTasksWithTokens(
   };
 }
 
-export function useAgentHandlers({
-  options,
-  state,
-  sessionManager,
-  tokenCounter,
-  sessionTokenCounter,
-  turnAnalysis,
-  compression,
-  debug,
-}: UseAgentHandlersOptions) {
+import { useAgentBaseContext } from '../../contexts/AgentContext.js';
+
+export function useAgentHandlers() {
+  const {
+    options,
+    state,
+    sessionManager,
+    tokenCounter,
+    sessionTokenCounter,
+    turnAnalysis,
+    compression,
+    debug,
+  } = useAgentBaseContext();
   const {
     setMessages,
     setIsThinking,
@@ -272,7 +258,7 @@ export function useAgentHandlers({
   const activeToolContentRef = useRef<string | null>(null);
 
   const processAgentMessage = useCallback(
-    (
+    async (
       agentMessage: AgentMessage,
       currentTokens?: number,
       cachedTokens?: number
@@ -360,60 +346,59 @@ export function useAgentHandlers({
             }
 
             if (toolUses.length > 0) {
-              (async () => {
-                for (const tool of toolUses) {
-                  if (tool.name && tool.input) {
-                    if (
-                      tool.name === 'SigmaTaskUpdate' ||
-                      tool.name === 'mcp__sigma-task-update__SigmaTaskUpdate'
-                    ) {
-                      const input = tool.input as SigmaTasks;
-                      if (input && Array.isArray(input.todos)) {
-                        setSigmaTasks((prev) =>
-                          updateSigmaTasksWithTokens(
-                            prev,
-                            input,
-                            effectiveTokens,
-                            effectiveCachedTokens
-                          )
-                        );
-                      }
-                    }
-
-                    if (
-                      providerName === 'gemini' &&
-                      (tool.name === 'SigmaTaskUpdate' ||
-                        tool.name ===
-                          'mcp__sigma-task-update__SigmaTaskUpdate') &&
-                      effectiveTokens > semanticThreshold &&
-                      !compressionInProgressRef.current
-                    ) {
-                      debug(
-                        `Preemptive semantic compression for ${tool.name} (> ${semanticThreshold} tokens)...`
+              for (const tool of toolUses) {
+                if (tool.name && tool.input) {
+                  if (
+                    tool.name === 'SigmaTaskUpdate' ||
+                    tool.name === 'mcp__sigma-task-update__SigmaTaskUpdate'
+                  ) {
+                    const input = tool.input as SigmaTasks;
+                    if (input && Array.isArray(input.todos)) {
+                      setSigmaTasks((prev) =>
+                        updateSigmaTasksWithTokens(
+                          prev,
+                          input,
+                          effectiveTokens,
+                          effectiveCachedTokens
+                        )
                       );
-                      await compression.triggerCompression(true);
                     }
-
-                    const content = formatToolUseMessage(
-                      {
-                        name: tool.name,
-                        input: tool.input as Record<string, unknown>,
-                      },
-                      cwd
-                    );
-                    activeToolContentRef.current = content;
-
-                    setMessages((prev) => [
-                      ...prev,
-                      {
-                        type: 'tool_progress',
-                        content,
-                        timestamp: new Date(),
-                      },
-                    ]);
                   }
+
+                  if (
+                    providerName === 'gemini' &&
+                    (tool.name === 'SigmaTaskUpdate' ||
+                      tool.name ===
+                        'mcp__sigma-task-update__SigmaTaskUpdate') &&
+                    effectiveTokens > semanticThreshold &&
+                    !compressionInProgressRef.current
+                  ) {
+                    systemLog(
+                      'sigma',
+                      `Preemptive semantic compression for ${tool.name} (> ${semanticThreshold} tokens)...`
+                    );
+                    await compression.triggerCompression(true);
+                  }
+
+                  const content = formatToolUseMessage(
+                    {
+                      name: tool.name,
+                      input: tool.input as Record<string, unknown>,
+                    },
+                    cwd
+                  );
+                  activeToolContentRef.current = content;
+
+                  setMessages((prev) => [
+                    ...prev,
+                    {
+                      type: 'tool_progress',
+                      content,
+                      timestamp: new Date(),
+                    },
+                  ]);
                 }
-              })();
+              }
             }
           }
           break;
@@ -1044,7 +1029,7 @@ This will trigger a semantic compression event, flushing implementation noise wh
 
           for (const agentMessage of newMessages) {
             if (agentMessage.type === 'assistant') hasAssistantMessage = true;
-            processAgentMessage(
+            await processAgentMessage(
               agentMessage,
               sessionTokenCounter.getLatestCount().total,
               sessionTokenCounter.getLatestCount().cached

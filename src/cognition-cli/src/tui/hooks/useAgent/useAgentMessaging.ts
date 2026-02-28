@@ -1,17 +1,9 @@
 import { useEffect } from 'react';
 import { formatPendingMessages } from '../../../ipc/agent-messaging-formatters.js';
-import type { UseAgentOptions } from './types.js';
-import type { AgentState } from './useAgentState.js';
+import { useAgentBaseContext } from '../../contexts/AgentContext.js';
 
-interface UseAgentMessagingOptions {
-  options: UseAgentOptions;
-  state: AgentState;
-}
-
-export function useAgentMessaging({
-  options,
-  state,
-}: UseAgentMessagingOptions) {
+export function useAgentMessaging() {
+  const { options, state } = useAgentBaseContext();
   const { getMessageQueue, autoResponse } = options;
   const {
     setPendingMessageNotification,

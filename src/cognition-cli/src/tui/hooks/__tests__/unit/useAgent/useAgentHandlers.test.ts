@@ -1,14 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useAgentHandlers } from '../../../useAgent/useAgentHandlers.js';
+import { createAgentTestWrapper } from '../../helpers/TestWrapper.js';
 import type { AgentState } from '../../../useAgent/useAgentState.js';
 import type { UseAgentOptions } from '../../../useAgent/types.js';
 import type { UseSessionManagerResult } from '../../../session/useSessionManager.js';
 import type { useTokenCount } from '../../../tokens/useTokenCount.js';
+import type { useSessionTokenCount } from '../../../tokens/useSessionTokenCount.js';
 import type { UseTurnAnalysisReturn } from '../../../analysis/useTurnAnalysis.js';
 import type { UseCompressionResult } from '../../../compression/useCompression.js';
 
+import { systemLog } from '../../../../../utils/debug-logger.js';
+
 // Mock dependencies
+vi.mock('../../../../../utils/debug-logger.js', () => ({
+  systemLog: vi.fn(),
+}));
 vi.mock('../../../../../sigma/context-injector.js', () => ({
   injectRelevantContext: vi
     .fn()
@@ -17,6 +24,7 @@ vi.mock('../../../../../sigma/context-injector.js', () => ({
 
 vi.mock('../../../../commands/loader.js', () => ({
   expandCommand: vi.fn(),
+  loadCommands: vi.fn().mockResolvedValue({ commands: new Map() }),
 }));
 
 const mockQuery = vi.fn().mockImplementation(async function* () {
@@ -50,38 +58,58 @@ describe('useAgentHandlers', () => {
     vi.clearAllMocks();
 
     mockState = {
+      messages: [],
       setMessages: vi.fn(),
+      isThinking: false,
       setIsThinking: vi.fn(),
+      retryCount: 0,
       setRetryCount: vi.fn(),
+      activeModel: undefined,
       setActiveModel: vi.fn(),
+      error: null,
       setError: vi.fn(),
-      setInjectedRecap: vi.fn(),
-      setPendingMessageNotification: vi.fn(),
-      setShouldAutoRespond: vi.fn(),
-      setSigmaTasks: vi.fn(),
+      overlayScores: {
+        O1_structural: 0,
+        O2_security: 0,
+        O3_lineage: 0,
+        O4_mission: 0,
+        O5_operational: 0,
+        O6_mathematical: 0,
+        O7_strategic: 0,
+      },
       setOverlayScores: vi.fn(),
+      commandsCache: new Map(),
+      setCommandsCache: vi.fn(),
+      injectedRecap: null,
+      setInjectedRecap: vi.fn(),
+      pendingMessageNotification: null,
+      setPendingMessageNotification: vi.fn(),
+      shouldAutoRespond: false,
+      setShouldAutoRespond: vi.fn(),
+      workbenchHealth: null,
       setWorkbenchHealth: vi.fn(),
-      setLastCompressionTimestamp: vi.fn(),
-      lastCompressionTimestamp: 0,
-      userMessageEmbeddingCache: { current: new Map() },
+      sigmaTasks: { todos: [] },
+      setSigmaTasks: vi.fn(),
       currentAdapterRef: { current: null },
       abortedRef: { current: false },
-      embedderRef: { current: {} },
+      embedderRef: { current: null },
+      projectRegistryRef: { current: null },
       conversationRegistryRef: { current: null },
       recallMcpServerRef: { current: null },
       backgroundTasksMcpServerRef: { current: null },
       agentMessagingMcpServerRef: { current: null },
       crossProjectQueryMcpServerRef: { current: null },
       sigmaTaskUpdateMcpServerRef: { current: null },
-      compressionInProgressRef: { current: false },
-      currentSessionIdRef: { current: 'session-1' },
-      projectRegistryRef: { current: null },
       backgroundTaskManagerRef: { current: null },
       messagesRef: { current: [] },
-      latticeLoadedRef: { current: false },
+      userMessageEmbeddingCache: { current: new Map() },
+      latticeLoadedRef: { current: new Set() },
+      compressionInProgressRef: { current: false },
       lastPersistedTokensRef: { current: 0 },
       autoResponseTimestamps: { current: [] },
-      commandsCache: new Map(),
+      currentSessionIdRef: { current: 'session-1' },
+      lastCompressionTimestamp: 0,
+      setLastCompressionTimestamp: vi.fn(),
     };
 
     mockOptions = {
@@ -99,18 +127,30 @@ describe('useAgentHandlers', () => {
       count: { total: 0, input: 0, output: 0 },
       update: vi.fn(),
       reset: vi.fn(),
-    };
+      initialize: vi.fn(),
+    } as unknown as ReturnType<typeof useTokenCount>;
 
     mockSessionTokenCounter = {
       count: { total: 0, input: 0, output: 0 },
       update: vi.fn(),
       commit: vi.fn(),
       reset: vi.fn(),
-    };
+      initialize: vi.fn(),
+      getLatestCount: vi
+        .fn()
+        .mockReturnValue({ total: 0, input: 0, output: 0 }),
+    } as unknown as ReturnType<typeof useSessionTokenCount>;
 
     mockTurnAnalysis = {
       analyses: [],
-    };
+      stats: {
+        totalAnalyzed: 0,
+        paradigmShifts: 0,
+        routineTurns: 0,
+        avgNovelty: 0,
+        avgImportance: 0,
+      },
+    } as unknown as UseTurnAnalysisReturn;
 
     mockCompression = {
       shouldTrigger: false,
@@ -120,22 +160,21 @@ describe('useAgentHandlers', () => {
     };
   });
 
-  it('should process assistant messages correctly', () => {
-    const { result } = renderHook(() =>
-      useAgentHandlers({
-        options: mockOptions,
-        state: mockState,
+  it('should process assistant messages correctly', async () => {
+    const { result } = renderHook(() => useAgentHandlers(), {
+      wrapper: createAgentTestWrapper(mockOptions, {
+        ...mockState,
         sessionManager: mockSessionManager,
         tokenCounter: mockTokenCounter,
         sessionTokenCounter: mockSessionTokenCounter,
         turnAnalysis: mockTurnAnalysis,
         compression: mockCompression,
         debug: mockDebug,
-      })
-    );
+      } as unknown as AgentState),
+    });
 
-    act(() => {
-      result.current.processAgentMessage({
+    await act(async () => {
+      await result.current.processAgentMessage({
         type: 'assistant',
         content: 'Hello world',
       });
@@ -144,22 +183,21 @@ describe('useAgentHandlers', () => {
     expect(mockState.setMessages).toHaveBeenCalled();
   });
 
-  it('should process tool_result messages correctly', () => {
-    const { result } = renderHook(() =>
-      useAgentHandlers({
-        options: mockOptions,
-        state: mockState,
+  it('should process tool_result messages correctly', async () => {
+    const { result } = renderHook(() => useAgentHandlers(), {
+      wrapper: createAgentTestWrapper(mockOptions, {
+        ...mockState,
         sessionManager: mockSessionManager,
         tokenCounter: mockTokenCounter,
         sessionTokenCounter: mockSessionTokenCounter,
         turnAnalysis: mockTurnAnalysis,
         compression: mockCompression,
         debug: mockDebug,
-      })
-    );
+      } as unknown as AgentState),
+    });
 
-    act(() => {
-      result.current.processAgentMessage({
+    await act(async () => {
+      await result.current.processAgentMessage({
         type: 'tool_result',
         toolName: 'read_file',
         content: 'file content',
@@ -175,24 +213,29 @@ describe('useAgentHandlers', () => {
 
   it('should trigger preemptive compression for Gemini with SigmaTaskUpdate when token count > 50k', async () => {
     // Setup Gemini provider and high token count
-    const geminiOptions = { ...mockOptions, provider: 'gemini' };
+    const geminiOptions = {
+      ...mockOptions,
+      provider: 'gemini',
+      semanticThreshold: 50000,
+    };
+
+    const debugSpy = vi.fn();
 
     // We want to test that it uses the PASSED token count (60k), not the state token count (0)
-    const { result } = renderHook(() =>
-      useAgentHandlers({
-        options: geminiOptions,
-        state: mockState,
-        sessionManager: mockSessionManager,
-        tokenCounter: mockTokenCounter, // count.total is 0
+    const { result } = renderHook(() => useAgentHandlers(), {
+      wrapper: createAgentTestWrapper(geminiOptions, {
+        ...mockState,
+        tokenCounter: mockTokenCounter,
+        sessionTokenCounter: mockSessionTokenCounter,
         turnAnalysis: mockTurnAnalysis,
         compression: mockCompression,
-        debug: mockDebug,
-      })
-    );
+        debug: debugSpy,
+      } as unknown as AgentState),
+    });
 
     await act(async () => {
       // Pass 60000 tokens explicitly
-      result.current.processAgentMessage(
+      await result.current.processAgentMessage(
         {
           type: 'assistant',
           content: [
@@ -207,30 +250,30 @@ describe('useAgentHandlers', () => {
       );
     });
 
-    expect(mockDebug).toHaveBeenCalledWith(
+    expect(systemLog).toHaveBeenCalledWith(
+      'sigma',
       expect.stringContaining('Preemptive semantic compression')
     );
+
     expect(mockCompression.triggerCompression).toHaveBeenCalledWith(true);
   });
 
   it('should NOT trigger preemptive compression if token count <= 50k', async () => {
     const geminiOptions = { ...mockOptions, provider: 'gemini' };
 
-    const { result } = renderHook(() =>
-      useAgentHandlers({
-        options: geminiOptions,
-        state: mockState,
-        sessionManager: mockSessionManager,
+    const { result } = renderHook(() => useAgentHandlers(), {
+      wrapper: createAgentTestWrapper(geminiOptions, {
+        ...mockState,
         tokenCounter: mockTokenCounter,
         sessionTokenCounter: mockSessionTokenCounter,
         turnAnalysis: mockTurnAnalysis,
         compression: mockCompression,
         debug: mockDebug,
-      })
-    );
+      } as unknown as AgentState),
+    });
 
     await act(async () => {
-      result.current.processAgentMessage(
+      await result.current.processAgentMessage(
         {
           type: 'assistant',
           content: [
@@ -249,18 +292,17 @@ describe('useAgentHandlers', () => {
   });
 
   it('should send a message and handle the flow', async () => {
-    const { result } = renderHook(() =>
-      useAgentHandlers({
-        options: mockOptions,
-        state: mockState,
+    const { result } = renderHook(() => useAgentHandlers(), {
+      wrapper: createAgentTestWrapper(mockOptions, {
+        ...mockState,
         sessionManager: mockSessionManager,
         tokenCounter: mockTokenCounter,
         sessionTokenCounter: mockSessionTokenCounter,
         turnAnalysis: mockTurnAnalysis,
         compression: mockCompression,
         debug: mockDebug,
-      })
-    );
+      } as unknown as AgentState),
+    });
 
     await act(async () => {
       await result.current.sendMessage('Hello');

@@ -1,8 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useAgentServices } from '../../../useAgent/useAgentServices.js';
+import {
+  createAgentTestWrapper,
+  createMockAgentState,
+} from '../../helpers/TestWrapper.js';
 import type { AgentState } from '../../../useAgent/useAgentState.js';
 import type { UseAgentOptions } from '../../../useAgent/types.js';
+import { ConversationOverlayRegistry } from '../../../../../sigma/conversation-registry.js';
 
 // Mock dependencies
 vi.mock('../../../../../llm/index.js', () => ({
@@ -15,7 +20,10 @@ vi.mock('../../../../../core/services/embedding.js', () => ({
 }));
 
 vi.mock('../../../../../sigma/conversation-registry.js', () => ({
-  ConversationOverlayRegistry: vi.fn().mockImplementation(() => ({})),
+  ConversationOverlayRegistry: vi.fn().mockImplementation(() => ({
+    setCurrentSession: vi.fn(),
+    flushAll: vi.fn().mockResolvedValue(undefined),
+  })),
 }));
 
 vi.mock('../../../../../sigma/recall-tool.js', () => ({
@@ -63,19 +71,14 @@ describe('useAgentServices', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    mockState = {
-      embedderRef: { current: null },
-      conversationRegistryRef: { current: null },
-      recallMcpServerRef: { current: null },
-      backgroundTaskManagerRef: { current: null },
-      backgroundTasksMcpServerRef: { current: null },
-      agentMessagingMcpServerRef: { current: null },
-      crossProjectQueryMcpServerRef: { current: null },
-      sigmaTaskUpdateMcpServerRef: { current: null },
-      projectRegistryRef: { current: null },
-      setWorkbenchHealth: vi.fn(),
-      setCommandsCache: vi.fn(),
-    };
+    mockState = createMockAgentState({
+      conversationRegistryRef: {
+        current: {
+          setCurrentSession: vi.fn(),
+          flushAll: vi.fn().mockResolvedValue(undefined),
+        } as unknown as ConversationOverlayRegistry,
+      },
+    });
 
     mockOptions = {
       cwd: '/test',
@@ -84,14 +87,10 @@ describe('useAgentServices', () => {
   });
 
   it('should initialize services on mount', async () => {
-    renderHook(() =>
-      useAgentServices({
-        options: mockOptions,
-        state: mockState,
-        anchorId: 'anchor-1',
-        addSystemMessage: vi.fn(),
-      })
-    );
+    // console.log('Mock State Conversation Registry:', mockState.conversationRegistryRef.current);
+    renderHook(() => useAgentServices(), {
+      wrapper: createAgentTestWrapper(mockOptions, mockState),
+    });
 
     await waitFor(() => {
       expect(mockState.embedderRef.current).toBeDefined();

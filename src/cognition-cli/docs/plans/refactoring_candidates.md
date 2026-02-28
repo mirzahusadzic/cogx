@@ -4,8 +4,9 @@ This document identifies code patterns in the Cognition Σ repository that share
 
 ## 🔍 Refactoring Candidates Found
 
-### 1. Agent Management Hooks (0.91 similarity)
+### 1. Agent Management Hooks (0.91 similarity) [COMPLETED]
 
+- **Status:** COMPLETED
 - **Symbols:**
   - `useAgentHandlers` (`src/tui/hooks/useAgent/use-agent-handlers.ts`)
   - `useAgent` (`src/tui/hooks/useAgent/index.ts`)
@@ -19,8 +20,8 @@ This document identifies code patterns in the Cognition Σ repository that share
   - Repetitive return patterns for common handlers and side effects.
 
 - **💡 Refactoring Suggestion:**
-  - **Extract Context:** Create `AgentContext` to provide options and state to all sub-hooks.
-  - **Implement Context Hook:** Replace property drilling with a simple `useAgentContext()` call within sub-hooks.
+  - **Extract Context:** Create `AgentContext` to provide options and state to all sub-hooks. [DONE]
+  - **Implement Context Hook:** Replace property drilling with a simple `useAgentContext()` call within sub-hooks. [DONE]
   - **Potential code reduction:** ~120 lines (~25% of hook logic).
   - **Effort:** Medium (2-3 hours).
 
@@ -69,4 +70,5 @@ This document identifies code patterns in the Cognition Σ repository that share
 - **Primary benefit:** Improved DRY compliance, reduced boilerplate for new providers, and cleaner state management in TUI hooks.
 
 ---
-*Analysis generated on 2026-02-28 using Cognition Σ Pattern Similarity Engine.*
+
+_Analysis generated on 2026-02-28 using Cognition Σ Pattern Similarity Engine._

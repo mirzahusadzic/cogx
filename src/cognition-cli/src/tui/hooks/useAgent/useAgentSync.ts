@@ -2,23 +2,21 @@ import { useEffect, useRef } from 'react';
 import path from 'path';
 import fs from 'fs';
 import { systemLog } from '../../../utils/debug-logger.js';
-import type { AgentState } from './useAgentState.js';
-import type { UseSessionManagerResult } from '../session/useSessionManager.js';
-import type { UseTurnAnalysisReturn } from '../analysis/useTurnAnalysis.js';
-import type { useTokenCount } from '../tokens/useTokenCount.js';
-import type { useSessionTokenCount } from '../tokens/useSessionTokenCount.js';
+import { useAgentBaseContext } from '../../contexts/AgentContext.js';
 
-export function useAgentSync(
-  state: AgentState & {
-    tokenCounter: ReturnType<typeof useTokenCount>;
-    sessionTokenCounter: ReturnType<typeof useSessionTokenCount>;
-  },
-  sessionManager: UseSessionManagerResult,
-  turnAnalysis: UseTurnAnalysisReturn,
-  cwd: string,
-  anchorId: string,
-  debug: (message: string, ...args: unknown[]) => void
-) {
+export function useAgentSync() {
+  const {
+    state,
+    sessionManager,
+    turnAnalysis,
+    options,
+    anchorId,
+    debug,
+    tokenCounter,
+    sessionTokenCounter,
+  } = useAgentBaseContext();
+
+  const { cwd } = options;
   const {
     latticeLoadedRef,
     setInjectedRecap,
@@ -27,8 +25,6 @@ export function useAgentSync(
     lastPersistedTokensRef,
     setOverlayScores,
     currentSessionIdRef,
-    tokenCounter,
-    sessionTokenCounter,
     sigmaTasks,
   } = state;
 
@@ -39,7 +35,7 @@ export function useAgentSync(
   useEffect(() => {
     const loadLattice = async () => {
       const currentResumeId = sessionManager.getResumeSessionId();
-      const sessionId = currentResumeId || anchorId;
+      const sessionId = currentResumeId || anchorId || 'initial';
 
       if (latticeLoadedRef.current.has(sessionId)) return;
       latticeLoadedRef.current.add(sessionId);

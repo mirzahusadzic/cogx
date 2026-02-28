@@ -17,6 +17,7 @@ import { useOnboardingWizard } from './hooks/useOnboardingWizard.js';
 import { useSlashCommands } from './hooks/useSlashCommands.js';
 import { useMessageMonitor } from './hooks/useMessageMonitor.js';
 import { TUIProvider, useTUI } from './context/TUIContext.js';
+import { AgentProvider, useAgentContext } from './contexts/AgentContext.js';
 import { terminal } from './services/index.js';
 import { isAuthenticationError } from './hooks/sdk/index.js';
 import type { TUIMessage } from './hooks/useAgent.js';
@@ -61,27 +62,50 @@ interface CognitionTUIProps {
   workbenchHealth?: WorkbenchHealthResult | null;
 }
 
-const CognitionTUI: React.FC<CognitionTUIProps> = ({
-  pgcRoot,
+/**
+ * Controller component for the TUI that handles interactions and integration.
+ * This component runs inside the AgentProvider and can consume AgentContext.
+ */
+import { type UseBackgroundTaskManagerResult } from './hooks/useBackgroundTaskManager.js';
+import { type ToolConfirmationState } from './hooks/useToolConfirmation.js';
+
+// ...
+const CognitionTUIController: React.FC<{
+  projectRoot: string;
+  onboardingMode: boolean;
+  model?: string;
+  provider?: string;
+  displayThinking: boolean;
+  solo: boolean;
+  sessionTokens?: number;
+  taskManager: UseBackgroundTaskManagerResult;
+  confirmationState: ToolConfirmationState | null;
+  allow: () => void;
+  deny: () => void;
+  alwaysAllow: () => void;
+  messageQueueRef: React.RefObject<MessageQueue | null>;
+  messagePublisherRef: React.RefObject<MessagePublisher | null>;
+  messageQueueMonitorRef: React.RefObject<MessageQueueMonitor | null>;
+}> = ({
   projectRoot,
-  sessionId,
-  workbenchUrl,
-  sessionTokens,
-  maxThinkingTokens,
-  debug,
-  provider,
+  onboardingMode,
   model,
+  provider,
+  displayThinking,
   solo,
-  taskLogEvictionThreshold,
-  displayThinking = true,
-  onboardingMode = false,
-  autoResponse = true,
-  workbenchHealth: initialWorkbenchHealth,
+  sessionTokens,
+  taskManager,
+  confirmationState,
+  allow,
+  deny,
+  alwaysAllow,
+  messageQueueRef,
+  messagePublisherRef,
+  messageQueueMonitorRef,
 }) => {
   const {
-    state,
+    state: tuiState,
     toggleFocus,
-    setRenderError,
     toggleInfoPanel,
     toggleTaskPanel,
     setSaveMessage,
@@ -89,84 +113,18 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     setStreamingPaste,
     setInputLineCount,
   } = useTUI();
+
   const {
     focused,
-    renderError,
     showInfoPanel,
     showTaskPanel,
     saveMessage,
     streamingPaste,
     inputLineCount,
     isDropdownVisible,
-  } = state;
+  } = tuiState;
 
-  const messageQueueMonitorRef = useRef<MessageQueueMonitor | null>(null);
-  const messageQueueRef = useRef<MessageQueue | null>(null);
-  const messagePublisherRef = useRef<MessagePublisher | null>(null);
-
-  // Getter for message publisher (used by agent messaging tool)
-  const getMessagePublisher = useCallback(
-    () => messagePublisherRef.current,
-    []
-  );
-
-  // Getter for message queue (used by agent messaging tool)
-  const getMessageQueue = useCallback(() => messageQueueRef.current, []);
-
-  // Tool confirmation hook (guardrails) for managing interactive tool approvals
-  const { confirmationState, requestConfirmation, allow, deny, alwaysAllow } =
-    useToolConfirmation();
-
-  // Background task manager for async operations
-  const taskManager = useBackgroundTaskManager({
-    projectRoot,
-    workbenchUrl:
-      workbenchUrl || process.env.WORKBENCH_URL || 'http://localhost:8000',
-    workbenchApiKey: process.env.WORKBENCH_API_KEY,
-    debug,
-  });
-
-  const { loading } = useOverlays({ pgcRoot, workbenchUrl });
-
-  const agentOptions = useMemo(
-    () => ({
-      sessionId,
-      cwd: projectRoot, // Use project root, not .open_cognition dir
-      sessionTokens, // Pass custom token threshold
-      maxThinkingTokens, // Pass extended thinking token limit
-      displayThinking, // Control thinking block generation
-      debug, // Pass debug flag
-      provider, // Pass LLM provider
-      model, // Pass model name
-      solo, // Pass solo mode flag
-      onRequestToolConfirmation: requestConfirmation, // Guardrail callback
-      getTaskManager: taskManager.getManager, // Pass task manager getter (returns BackgroundTaskManager instance)
-      getMessagePublisher, // Pass message publisher getter (for agent-to-agent messaging tool)
-      getMessageQueue, // Pass message queue getter (for agent-to-agent messaging tool)
-      autoResponse, // Auto-respond to agent messages (--no-auto-response disables)
-      initialWorkbenchHealth, // Pre-computed health (avoids redundant /health call)
-      taskLogEvictionThreshold, // Threshold for task log context eviction
-    }),
-    [
-      sessionId,
-      projectRoot,
-      sessionTokens,
-      maxThinkingTokens,
-      displayThinking,
-      debug,
-      provider,
-      model,
-      solo,
-      requestConfirmation,
-      taskManager.getManager,
-      getMessagePublisher,
-      getMessageQueue,
-      autoResponse,
-      initialWorkbenchHealth,
-      taskLogEvictionThreshold,
-    ]
-  );
-
+  const agent = useAgentContext();
   const {
     messages,
     sendMessage: originalSendMessage,
@@ -184,10 +142,11 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     anchorId,
     workbenchHealth,
     sigmaTasks,
-  } = useAgent(agentOptions);
+    options: { debug, sessionId },
+  } = agent;
 
   const { pendingMessageCount, monitorError } = useMessageMonitor({
-    anchorId,
+    anchorId: anchorId || null,
     projectRoot,
     debug,
     model,
@@ -199,7 +158,7 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
 
   const { handleSlashCommand } = useSlashCommands({
     projectRoot,
-    anchorId,
+    anchorId: anchorId || null,
     addSystemMessage,
     originalSendMessage,
     messageQueueRef,
@@ -227,166 +186,9 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
     onSendMessage: sendMessage, // Allow wizard to execute slash commands
   });
 
-  // Add Ctrl+C handler and optionally enable mouse tracking
-  useEffect(() => {
-    // Add direct SIGINT handler for Ctrl+C - use 'once' to ensure it only fires once
-    const sigintHandler = () => {
-      terminal.forceKill();
-    };
-
-    // Use 'once' instead of 'on' to prevent multiple firings
-    process.once('SIGINT', sigintHandler);
-
-    if (process.stdin.isTTY && typeof process.stdin.setRawMode === 'function') {
-      // Enable bracketed paste mode (always on)
-      terminal.setBracketedPaste(true);
-
-      // Hide cursor since we use a custom manual cursor in InputBox
-      terminal.setCursorVisibility(false);
-
-      if (ENABLE_MOUSE_TRACKING) {
-        terminal.setMouseTracking(true);
-      }
-
-      return () => {
-        terminal.cleanup();
-      };
-    }
-
-    return () => {
-      terminal.resetColors();
-    };
-  }, []);
-
-  // Error boundary - catch render errors
-  useEffect(() => {
-    // Skip in Node.js environment (Ink runs in Node, not browser)
-    if (typeof window === 'undefined') {
-      return;
-    }
-    const errorHandler = (err: ErrorEvent) => {
-      setRenderError(err.error);
-    };
-    window.addEventListener('error', errorHandler);
-    return () => window.removeEventListener('error', errorHandler);
-  }, []);
-
-  // Graceful exit on OAuth token expiration
-  useEffect(() => {
-    if (error) {
-      // Debug: log the actual error to help diagnose OAuth detection issues
-      if (debug) {
-        systemLog(
-          'tui',
-          '[TUI Debug] Error detected',
-          { error: String(error) },
-          'error'
-        );
-        systemLog(
-          'tui',
-          '[TUI Debug] Is auth error?',
-          { isAuthError: isAuthenticationError([error]) },
-          'error'
-        );
-      }
-
-      if (isAuthenticationError([error])) {
-        const sessionStateFile = sessionId
-          ? path.join(projectRoot, '.sigma', `${sessionId}.state.json`)
-          : 'session state file';
-
-        // Display error message
-        const authErrorMessage = [
-          '\n\n╔════════════════════════════════════════════════════════════════════════════╗',
-          '║                     Authentication Failed                                  ║',
-          '╚════════════════════════════════════════════════════════════════════════════╝\n',
-          '  Your API key is invalid or has expired and the TUI must exit.\n',
-          '  📝 Your session has been saved automatically.\n',
-          '  To continue:\n',
-          '  1. Check your API key environment variable (e.g. ANTHROPIC_API_KEY)',
-          '  2. Restart with: cognition tui --file ' + sessionStateFile + '\n',
-          '  Press any key to exit...\n',
-        ].join('\n');
-
-        systemLog('tui', authErrorMessage, {}, 'error');
-
-        // Clean up and exit after user presses a key or 5 seconds
-        let exited = false;
-        const cleanup = () => {
-          if (exited) return;
-          exited = true;
-          try {
-            terminal.cleanup();
-          } catch (e) {
-            // Ignore cleanup errors
-            systemLog(
-              'tui',
-              `Cleanup error: ${e instanceof Error ? e.message : String(e)}`,
-              {},
-              'error'
-            );
-          }
-          process.exit(1);
-        };
-
-        // Exit on any key press
-        const keyHandler = () => cleanup();
-        process.stdin.once('data', keyHandler);
-
-        // Auto-exit after 5 seconds
-        const timeout = setTimeout(cleanup, 5000);
-
-        return () => {
-          clearTimeout(timeout);
-          process.stdin.removeListener('data', keyHandler);
-        };
-      }
-    }
-  }, [error, sessionId, projectRoot]);
-
-  // Subscribe to system logs for TUI display
-  useEffect(() => {
-    const logHandler = (event: LogEvent) => {
-      // Only show ERROR logs in the main chat window
-      // Info/Debug/Warn logs are still written to file but kept out of the UI to avoid clutter
-      if (event.level !== 'error') {
-        return;
-      }
-
-      // Format the log event into a TUIMessage
-      let content = `[${event.level.toUpperCase()}]`;
-      if (event.source) {
-        content += ` [${event.source}]`;
-      }
-      content += ` ${event.message}`;
-      if (event.data) {
-        try {
-          // Only show first 2 lines of data to avoid clutter
-          const dataString = JSON.stringify(event.data, null, 2);
-          content += `\n${dataString.split('\n').slice(0, 3).join('\n')}`;
-          if (dataString.split('\n').length > 3) {
-            content += '...';
-          }
-        } catch {
-          content += ' [Unserializable data]';
-        }
-      }
-
-      // Add to TUI messages as a system message
-      addSystemMessage(content);
-    };
-
-    logEmitter.on('log', logHandler);
-
-    return () => {
-      logEmitter.off('log', logHandler);
-    };
-  }, [addSystemMessage]); // Dependency: addSystemMessage from useAgent
-
   // Handle pasted content - stream it line by line
   const handlePasteContent = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    (content: string, filepath: string) => {
+    (content: string) => {
       const lines = content.split('\n');
       let currentLine = 0;
 
@@ -400,21 +202,21 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           // Streaming complete
           clearInterval(streamInterval);
           setStreamingPaste('');
-          // Send the actual content (it's already in memory, no need to reference file)
+          // Send the actual content
           sendMessage(content);
         }
-      }, 5); // 5ms per line = very fast streaming
+      }, 5);
     },
-    [sendMessage]
+    [sendMessage, setStreamingPaste]
   );
 
   // Save conversation log to file
-  const saveConversationLog = () => {
+  const saveConversationLog = useCallback(() => {
     try {
       const sigmaDir = getSigmaDirectory(projectRoot);
       fs.mkdirSync(sigmaDir, { recursive: true });
 
-      const providerName = provider || 'gemini'; // Default to 'gemini'
+      const providerName = provider || 'gemini';
       const logFileName = sessionId
         ? `${sessionId}-${providerName}-magic.log`
         : `session-${Date.now()}-${providerName}-magic.log`;
@@ -440,43 +242,11 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
       setSaveMessage(`❌ Save failed: ${(err as Error).message}`);
       setTimeout(() => setSaveMessage(null), 3000);
     }
-  };
+  }, [projectRoot, messages, sessionId, provider, setSaveMessage]);
 
-  // Handle input - make sure this is always active for Ctrl+C
+  // Handle input
   useInput(
     (input, key) => {
-      // Debug: Log all ESC key presses
-      if (key.escape && process.env.DEBUG_ESC_INPUT) {
-        systemLog(
-          'tui',
-          '[TUI.useInput] ESC pressed',
-          {
-            confirmationPending: confirmationState?.pending,
-            isThinking: isThinking,
-          },
-          'error'
-        );
-      }
-
-      // Debug: Log PageUp/PageDown key presses
-      const isPageUpAction =
-        key.pageUp || (key.ctrl && input === 'u') || input === '\x1b[5~';
-      const isPageDownAction =
-        key.pageDown || (key.ctrl && input === 'd') || input === '\x1b[6~';
-
-      if (isPageUpAction || isPageDownAction) {
-        systemLog(
-          'tui',
-          `[TUI.useInput] ${isPageUpAction ? 'PageUp' : 'PageDown'} pressed`,
-          {
-            focused,
-            confirmationPending: confirmationState?.pending,
-            isThinking: isThinking,
-            method: key.pageUp || key.pageDown ? 'key' : 'manual',
-          }
-        );
-      }
-
       // PRIORITY 1: Handle tool confirmation modal keyboard input FIRST
       if (confirmationState?.pending) {
         if (input === 'y' || input === 'Y') {
@@ -492,32 +262,13 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
           deny();
           return;
         }
-        // Ignore all other input when modal is active
         return;
       }
 
       // PRIORITY 1.5: Handle wizard modal keyboard input
       if (wizard.confirmationState?.pending) {
         const isSelectMode = wizard.confirmationState.mode === 'select';
-
-        if (process.env.DEBUG_WIZARD || process.env.DEBUG_ESC_INPUT) {
-          systemLog(
-            'tui',
-            '[TUI] Wizard modal active',
-            {
-              mode: wizard.confirmationState.mode,
-              input: input,
-              inputLength: input?.length,
-              key: Object.keys(key).filter(
-                (k) => k && key[k as keyof typeof key]
-              ),
-            },
-            'error'
-          );
-        }
-
         if (isSelectMode) {
-          // Selection mode: arrow/space/enter
           if (key.upArrow) {
             wizard.moveUp();
             return;
@@ -525,33 +276,16 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
             wizard.moveDown();
             return;
           } else if (input === ' ') {
-            if (process.env.DEBUG_WIZARD) {
-              systemLog(
-                'tui',
-                '[TUI] Space pressed, toggling selection',
-                {},
-                'error'
-              );
-            }
             wizard.toggleSelection();
             return;
           } else if (key.return) {
             wizard.confirm();
             return;
           } else if (key.escape) {
-            if (process.env.DEBUG_WIZARD || process.env.DEBUG_ESC_INPUT) {
-              systemLog(
-                'tui',
-                '[TUI] ESC pressed, calling wizard.cancel()',
-                {},
-                'error'
-              );
-            }
             wizard.cancel();
             return;
           }
         } else {
-          // Confirm mode: Y/N
           if (input === 'y' || input === 'Y') {
             wizard.confirm();
             return;
@@ -563,164 +297,278 @@ const CognitionTUI: React.FC<CognitionTUIProps> = ({
             return;
           }
         }
-        // Ignore all other input when wizard modal is active
         return;
       }
 
       // PRIORITY 2: ESC to abort agent (only when thinking)
       if (key.escape && isThinking) {
-        if (process.env.DEBUG_ESC_INPUT) {
-          systemLog(
-            'tui',
-            '[TUI.useInput] Calling interrupt()',
-            { isThinking: isThinking },
-            'error'
-          );
-        }
         interrupt();
         return;
       }
 
-      // PRIORITY 3: Global keyboard shortcuts (only when modal NOT active)
+      // PRIORITY 3: Global keyboard shortcuts
       if (key.ctrl && input === 'c') {
-        // Force immediate exit - kill entire process group including workers
         terminal.forceKill();
       } else if (key.ctrl && input === 's') {
-        // Save conversation log with Ctrl+S
         saveConversationLog();
       } else if (key.ctrl && input === 'w') {
-        // Restart/resume onboarding wizard with Ctrl+W
         wizard.startWizard();
       } else if (key.tab) {
-        // Toggle focus between input and panel
         toggleFocus();
-      } else if (
-        input === 'i' &&
-        !key.ctrl &&
-        !key.shift &&
-        !key.meta &&
-        !focused
-      ) {
-        // Toggle info panel with 'i' key (only when NOT in input box)
+      } else if (key.ctrl && input === 'p') {
         toggleInfoPanel();
-      } else if (
-        input === 't' &&
-        !key.ctrl &&
-        !key.shift &&
-        !key.meta &&
-        !focused
-      ) {
-        // Toggle task panel with 't' key (only when NOT in input box)
+      } else if (key.ctrl && input === 't') {
         toggleTaskPanel();
       }
-      // Note: Arrow keys, etc. are handled by TextInput component
-      // We just need to not interfere with them
     },
     { isActive: true }
   );
 
-  if (renderError) {
-    return (
-      <Box flexDirection="column" padding={1}>
-        <Box borderColor={TUITheme.text.error} borderStyle="single" padding={1}>
-          <Text color={TUITheme.text.error}>
-            💥 Render Error (Hot reload will fix this):
-          </Text>
-        </Box>
-        <Box paddingTop={1}>
-          <Text>{renderError.message}</Text>
-        </Box>
-        <Box paddingTop={1}>
-          <Text dimColor>
-            {renderError.stack?.split('\n').slice(0, 5).join('\n')}
-          </Text>
-        </Box>
-      </Box>
-    );
-  }
+  // Subscribe to system logs for TUI display
+  useEffect(() => {
+    const logHandler = (event: LogEvent) => {
+      if (event.level !== 'error') return;
 
-  // Old synchronous wizard removed - now using async wizard with useOnboardingWizard hook
-  // The wizard runs inside the live TUI via wizard.confirmationState and WizardConfirmationModal
+      let content = `[${event.level.toUpperCase()}]`;
+      if (event.source) content += ` [${event.source}]`;
+      content += ` ${event.message}`;
+      if (event.data) {
+        try {
+          const dataString = JSON.stringify(event.data, null, 2);
+          content += `\n${dataString.split('\n').slice(0, 3).join('\n')}`;
+          if (dataString.split('\n').length > 3) content += '...';
+        } catch {
+          content += ' [Unserializable data]';
+        }
+      }
+      addSystemMessage(content);
+    };
+
+    logEmitter.on('log', logHandler);
+    return () => {
+      logEmitter.off('log', logHandler);
+    };
+  }, [addSystemMessage]);
+
+  // Graceful exit on OAuth token expiration
+  useEffect(() => {
+    if (error && isAuthenticationError([error])) {
+      const sessionStateFile = sessionId
+        ? path.join(projectRoot, '.sigma', `${sessionId}.state.json`)
+        : 'session state file';
+
+      const authErrorMessage = [
+        '\n\n╔════════════════════════════════════════════════════════════════════════════╗',
+        '║                     Authentication Failed                                  ║',
+        '╚════════════════════════════════════════════════════════════════════════════╝\n',
+        '  Your API key is invalid or has expired and the TUI must exit.\n',
+        '  📝 Your session has been saved automatically.\n',
+        '  To continue:\n',
+        '  1. Check your API key environment variable (e.g. ANTHROPIC_API_KEY)',
+        '  2. Restart with: cognition tui --file ' + sessionStateFile + '\n',
+        '  Press any key to exit...\n',
+      ].join('\n');
+
+      systemLog('tui', authErrorMessage, {}, 'error');
+
+      let exited = false;
+      const cleanup = () => {
+        if (exited) return;
+        exited = true;
+        try {
+          terminal.cleanup();
+        } catch {
+          // Ignore cleanup errors
+        }
+        process.exit(1);
+      };
+
+      process.stdin.once('data', cleanup);
+      const timeout = setTimeout(cleanup, 5000);
+
+      return () => {
+        clearTimeout(timeout);
+        process.stdin.removeListener('data', cleanup);
+      };
+    }
+  }, [error, sessionId, projectRoot]);
+
+  return (
+    <CognitionTUILayout
+      sigmaStats={sigmaStats}
+      activeTask={taskManager.activeTask}
+      pendingMessageCount={pendingMessageCount}
+      monitorError={monitorError}
+      workbenchHealth={workbenchHealth}
+      messages={messages}
+      isThinking={isThinking}
+      retryCount={retryCount}
+      model={activeModel || model}
+      focused={focused}
+      streamingPaste={streamingPaste}
+      showInfoPanel={showInfoPanel}
+      showTaskPanel={showTaskPanel}
+      avgOverlays={avgOverlays}
+      saveMessage={saveMessage}
+      currentSessionId={currentSessionId}
+      tokenCount={tokenCount}
+      sessionTokenCount={sessionTokenCount}
+      sigmaTasks={sigmaTasks}
+      sessionTokens={sessionTokens}
+      provider={provider}
+      displayThinking={displayThinking}
+      confirmationState={confirmationState}
+      wizardConfirmationState={wizard.confirmationState}
+      sendMessage={sendMessage}
+      interrupt={interrupt}
+      setIsDropdownVisible={setIsDropdownVisible}
+      handlePasteContent={handlePasteContent}
+      setInputLineCount={setInputLineCount}
+      inputLineCount={inputLineCount}
+      isDropdownVisible={isDropdownVisible}
+      cwd={process.cwd()}
+      solo={solo}
+    />
+  );
+};
+
+export const CognitionTUI: React.FC<CognitionTUIProps> = ({
+  pgcRoot,
+  projectRoot,
+  sessionId,
+  workbenchUrl,
+  sessionTokens,
+  maxThinkingTokens,
+  debug,
+  provider,
+  model,
+  solo,
+  taskLogEvictionThreshold,
+  displayThinking = true,
+  onboardingMode = false,
+  autoResponse = true,
+  workbenchHealth: initialWorkbenchHealth,
+}) => {
+  const { setRenderError } = useTUI();
+
+  const messageQueueMonitorRef = useRef<MessageQueueMonitor | null>(null);
+  const messageQueueRef = useRef<MessageQueue | null>(null);
+  const messagePublisherRef = useRef<MessagePublisher | null>(null);
+
+  const getMessagePublisher = useCallback(
+    () => messagePublisherRef.current,
+    []
+  );
+  const getMessageQueue = useCallback(() => messageQueueRef.current, []);
+
+  const { confirmationState, requestConfirmation, allow, deny, alwaysAllow } =
+    useToolConfirmation();
+
+  const taskManager = useBackgroundTaskManager({
+    projectRoot,
+    workbenchUrl:
+      workbenchUrl || process.env.WORKBENCH_URL || 'http://localhost:8000',
+    workbenchApiKey: process.env.WORKBENCH_API_KEY,
+    debug,
+  });
+
+  const { loading } = useOverlays({ pgcRoot, workbenchUrl });
+
+  const agentOptions = useMemo(
+    () => ({
+      sessionId,
+      cwd: projectRoot,
+      sessionTokens,
+      maxThinkingTokens,
+      displayThinking,
+      debug,
+      provider,
+      model,
+      solo: solo || false,
+      onRequestToolConfirmation: requestConfirmation,
+      getTaskManager: taskManager.getManager,
+      getMessagePublisher,
+      getMessageQueue,
+      autoResponse,
+      initialWorkbenchHealth,
+      taskLogEvictionThreshold,
+    }),
+    [
+      sessionId,
+      projectRoot,
+      sessionTokens,
+      maxThinkingTokens,
+      displayThinking,
+      debug,
+      provider,
+      model,
+      solo,
+      requestConfirmation,
+      taskManager.getManager,
+      getMessagePublisher,
+      getMessageQueue,
+      autoResponse,
+      initialWorkbenchHealth,
+      taskLogEvictionThreshold,
+    ]
+  );
+
+  const agent = useAgent(agentOptions);
+
+  useEffect(() => {
+    const sigintHandler = () => terminal.forceKill();
+    process.once('SIGINT', sigintHandler);
+
+    if (process.stdin.isTTY && typeof process.stdin.setRawMode === 'function') {
+      terminal.setBracketedPaste(true);
+      terminal.setCursorVisibility(false);
+      if (ENABLE_MOUSE_TRACKING) terminal.setMouseTracking(true);
+      return () => terminal.cleanup();
+    }
+    return () => terminal.resetColors();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const errorHandler = (err: ErrorEvent) => setRenderError(err.error);
+    window.addEventListener('error', errorHandler);
+    return () => window.removeEventListener('error', errorHandler);
+  }, [setRenderError]);
 
   if (loading) {
     return (
-      <Box>
+      <Box height="100%" alignItems="center" justifyContent="center">
         <Text>Loading overlays...</Text>
       </Box>
     );
   }
 
-  if (error) {
-    return (
-      <Box flexDirection="column">
-        <Box borderStyle="single" borderColor={TUITheme.text.error} padding={1}>
-          <Text>Error: {error}</Text>
-        </Box>
-      </Box>
-    );
-  }
-
-  try {
-    return (
-      <ThemeProvider theme={customTheme}>
-        <CognitionTUILayout
-          sigmaStats={sigmaStats}
-          activeTask={taskManager.activeTask}
-          pendingMessageCount={pendingMessageCount}
-          monitorError={monitorError}
-          workbenchHealth={workbenchHealth}
-          messages={messages}
-          isThinking={isThinking}
-          retryCount={retryCount}
-          model={activeModel || model}
-          focused={focused}
-          streamingPaste={streamingPaste}
-          showInfoPanel={showInfoPanel}
-          showTaskPanel={showTaskPanel}
-          avgOverlays={avgOverlays}
-          saveMessage={saveMessage}
-          currentSessionId={currentSessionId}
-          tokenCount={tokenCount}
-          sessionTokenCount={sessionTokenCount}
-          sigmaTasks={sigmaTasks}
-          sessionTokens={sessionTokens}
+  return (
+    <ThemeProvider theme={customTheme}>
+      <AgentProvider options={agent.options} state={agent.state}>
+        <CognitionTUIController
+          projectRoot={projectRoot}
+          onboardingMode={onboardingMode}
+          model={model}
           provider={provider}
           displayThinking={displayThinking}
+          solo={solo || false}
+          sessionTokens={sessionTokens}
+          taskManager={taskManager}
           confirmationState={confirmationState}
-          wizardConfirmationState={wizard.confirmationState}
-          sendMessage={sendMessage}
-          interrupt={interrupt}
-          setIsDropdownVisible={setIsDropdownVisible}
-          handlePasteContent={handlePasteContent}
-          setInputLineCount={setInputLineCount}
-          inputLineCount={inputLineCount}
-          isDropdownVisible={isDropdownVisible}
-          cwd={process.cwd()}
-          solo={solo}
+          allow={allow}
+          deny={deny}
+          alwaysAllow={alwaysAllow}
+          messageQueueRef={messageQueueRef}
+          messagePublisherRef={messagePublisherRef}
+          messageQueueMonitorRef={messageQueueMonitorRef}
         />
-      </ThemeProvider>
-    );
-  } catch (err) {
-    return (
-      <Box flexDirection="column" padding={1}>
-        <Box borderColor={TUITheme.text.error} borderStyle="single" padding={1}>
-          <Text color={TUITheme.text.error}>
-            💥 Caught Error (Hot reload will fix this):
-          </Text>
-        </Box>
-        <Box paddingTop={1}>
-          <Text>{(err as Error).message}</Text>
-        </Box>
-      </Box>
-    );
-  }
+      </AgentProvider>
+    </ThemeProvider>
+  );
 };
 
-/**
- * Start the TUI
- */
 export function startTUI(options: CognitionTUIProps) {
-  // Set up global error handlers for uncaught errors
   const handleUncaughtError = (error: Error) => {
     systemLog(
       'tui',
@@ -728,11 +576,9 @@ export function startTUI(options: CognitionTUIProps) {
       { message: error.message },
       'error'
     );
-    if (options.debug) {
+    if (options.debug)
       systemLog('tui', '[TUI] Stack trace', { stack: error.stack }, 'error');
-    }
 
-    // Check if it's an auth error
     if (isAuthenticationError([error.message])) {
       systemLog(
         'tui',
@@ -752,31 +598,16 @@ export function startTUI(options: CognitionTUIProps) {
         {},
         'error'
       );
-      systemLog(
-        'tui',
-        '  Your API key is invalid or has expired.\n',
-        {},
-        'error'
-      );
-      systemLog(
-        'tui',
-        '  Please check your environment variables.\n',
-        {},
-        'error'
-      );
     }
-
     terminal.cleanup();
     process.exit(1);
   };
 
-  // Catch unhandled promise rejections
   process.on('unhandledRejection', (reason) => {
-    const error = reason instanceof Error ? reason : new Error(String(reason));
-    handleUncaughtError(error);
+    handleUncaughtError(
+      reason instanceof Error ? reason : new Error(String(reason))
+    );
   });
-
-  // Catch uncaught exceptions
   process.on('uncaughtException', handleUncaughtError);
 
   terminal.enterAlternateScreen();
@@ -787,19 +618,9 @@ export function startTUI(options: CognitionTUIProps) {
     <TUIProvider>
       <CognitionTUI {...options} />
     </TUIProvider>,
-    {
-      debug: false,
-      maxFps: 120, // Higher FPS for smoother rendering and less visible flicker
-    }
+    { debug: false, maxFps: 120 }
   );
 
-  // Only handle SIGTERM gracefully (kill command)
-  // SIGINT (Ctrl+C) is handled inside the component with immediate kill
-  const cleanup = () => {
-    unmount();
-  };
-
-  process.on('SIGTERM', cleanup);
-
+  process.on('SIGTERM', () => unmount());
   return waitUntilExit();
 }

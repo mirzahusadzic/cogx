@@ -14,22 +14,10 @@ import { OverlayRegistry } from '../../../core/algebra/overlay-registry.js';
 import { checkWorkbenchHealthDetailed } from '../../../utils/workbench-detect.js';
 import { loadCommands } from '../../commands/loader.js';
 import { systemLog } from '../../../utils/debug-logger.js';
-import type { UseAgentOptions } from './types.js';
-import type { AgentState } from './useAgentState.js';
+import { useAgentBaseContext } from '../../contexts/AgentContext.js';
 
-interface UseAgentServicesOptions {
-  options: UseAgentOptions;
-  state: AgentState;
-  anchorId: string;
-  addSystemMessage: (content: string) => void;
-}
-
-export function useAgentServices({
-  options,
-  state,
-  anchorId,
-  addSystemMessage,
-}: UseAgentServicesOptions) {
+export function useAgentServices() {
+  const { options, state, anchorId, addSystemMessage } = useAgentBaseContext();
   const {
     cwd,
     debug: debugFlag,

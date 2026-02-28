@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useAgentMessaging } from '../../../useAgent/useAgentMessaging.js';
+import {
+  createAgentTestWrapper,
+  createMockAgentState,
+} from '../../helpers/TestWrapper.js';
 import type { AgentState } from '../../../useAgent/useAgentState.js';
 import type { UseAgentOptions } from '../../../useAgent/types.js';
 import type { MessageQueue } from '../../../../ipc/MessageQueue.js';
@@ -23,28 +27,26 @@ describe('useAgentMessaging', () => {
       off: vi.fn(),
       getPendingCount: vi.fn().mockResolvedValue(0),
       getMessages: vi.fn().mockResolvedValue([]),
-    };
+    } as unknown as MessageQueue;
 
-    mockState = {
+    mockState = createMockAgentState({
       setPendingMessageNotification: vi.fn(),
       setShouldAutoRespond: vi.fn(),
       setMessages: vi.fn(),
       autoResponseTimestamps: { current: [] },
-    };
+    });
 
     mockOptions = {
       getMessageQueue: vi.fn().mockReturnValue(mockQueue),
       autoResponse: true,
+      cwd: '/test',
     };
   });
 
   it('should set up a listener on the message queue', () => {
-    renderHook(() =>
-      useAgentMessaging({
-        options: mockOptions,
-        state: mockState,
-      })
-    );
+    renderHook(() => useAgentMessaging(), {
+      wrapper: createAgentTestWrapper(mockOptions, mockState),
+    });
 
     expect(mockQueue.on).toHaveBeenCalledWith(
       'countChanged',
@@ -53,12 +55,9 @@ describe('useAgentMessaging', () => {
   });
 
   it('should clean up the listener on unmount', () => {
-    const { unmount } = renderHook(() =>
-      useAgentMessaging({
-        options: mockOptions,
-        state: mockState,
-      })
-    );
+    const { unmount } = renderHook(() => useAgentMessaging(), {
+      wrapper: createAgentTestWrapper(mockOptions, mockState),
+    });
 
     unmount();
 
@@ -69,19 +68,24 @@ describe('useAgentMessaging', () => {
   });
 
   it('should handle new messages when count increases', async () => {
-    renderHook(() =>
-      useAgentMessaging({
-        options: mockOptions,
-        state: mockState,
-      })
-    );
+    renderHook(() => useAgentMessaging(), {
+      wrapper: createAgentTestWrapper(mockOptions, mockState),
+    });
 
     // Find the handler passed to queue.on
-    const handler = mockQueue.on.mock.calls.find(
-      (call) => call[0] === 'countChanged'
-    )[1];
+    const calls = vi.mocked(mockQueue.on).mock.calls;
+    const handlerCall = calls.find((call) => call[0] === 'countChanged');
+    const handler = handlerCall
+      ? (handlerCall[1] as (count: number) => void)
+      : null;
 
-    mockQueue.getMessages.mockResolvedValue([{ id: '1', content: 'hello' }]);
+    if (!handler) {
+      throw new Error('Handler not found');
+    }
+
+    vi.mocked(mockQueue.getMessages).mockResolvedValue([
+      { id: '1', content: 'hello' },
+    ]);
 
     await handler(1); // Trigger count changed from 0 to 1
 
