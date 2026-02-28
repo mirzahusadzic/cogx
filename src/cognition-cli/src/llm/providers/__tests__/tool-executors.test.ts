@@ -286,6 +286,42 @@ describe('Tool Executors', () => {
 
       expect(result).toContain('Error: old_string not found');
     });
+
+    test('should edit file content with regex', async () => {
+      vi.mocked(fs.readFile).mockResolvedValue('hello world 123');
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+
+      const result = await executeEditFile(
+        '/file.txt',
+        '\\d+',
+        'digits',
+        '/cwd',
+        false,
+        true
+      );
+
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        '/file.txt',
+        'hello world digits',
+        'utf-8'
+      );
+      expect(result).toContain('Successfully edited');
+    });
+
+    test('should fail with invalid regex pattern', async () => {
+      vi.mocked(fs.readFile).mockResolvedValue('hello world');
+
+      const result = await executeEditFile(
+        '/file.txt',
+        '(',
+        'replacement',
+        '/cwd',
+        false,
+        true
+      );
+
+      expect(result).toContain('Error: Invalid regex pattern provided');
+    });
   });
 
   describe('executeFetchUrl', () => {

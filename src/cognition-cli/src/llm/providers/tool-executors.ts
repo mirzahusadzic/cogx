@@ -529,7 +529,13 @@ export async function executeEditFile(
 
     let newContent: string;
     if (is_regex) {
-      const regex = new RegExp(old_string, replace_all ? 'g' : '');
+      let regex: RegExp;
+      try {
+        regex = new RegExp(old_string, replace_all ? 'g' : '');
+      } catch (e) {
+        return `Error: Invalid regex pattern provided: ${e instanceof Error ? e.message : String(e)}`;
+      }
+
       if (!regex.test(content)) {
         return 'Error: regex pattern not found in file';
       }
