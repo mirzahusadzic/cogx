@@ -24,7 +24,7 @@ export abstract class AbstractLanceStore<T extends Record<string, unknown>> {
   /**
    * Initializes the database connection and opens/creates the table.
    * Uses a promise-based locking mechanism to prevent multiple simultaneous initializations.
-   * 
+   *
    * @param tableName Name of the table to initialize.
    */
   public async initialize(tableName: string): Promise<void> {
@@ -64,7 +64,7 @@ export abstract class AbstractLanceStore<T extends Record<string, unknown>> {
       if (!tableNames.includes(tableName)) {
         const dummyRecord = this.createDummyRecord(tableName);
         // Ensure dummy record has the dummy ID
-        (dummyRecord as any).id = LANCE_DUMMY_ID;
+        (dummyRecord as Record<string, unknown>).id = LANCE_DUMMY_ID;
 
         this.table = await this.db.createTable(tableName, [dummyRecord], {
           schema: this.getSchema(tableName),
@@ -118,8 +118,7 @@ export abstract class AbstractLanceStore<T extends Record<string, unknown>> {
   public async mergeInsert(records: T[], on: string = 'id'): Promise<void> {
     await this.ensureInitialized();
     await withDbRetry(async () => {
-      await this.table!
-        .mergeInsert(on)
+      await this.table!.mergeInsert(on)
         .whenNotMatchedInsertAll()
         .whenMatchedUpdateAll()
         .execute(records);
@@ -128,7 +127,7 @@ export abstract class AbstractLanceStore<T extends Record<string, unknown>> {
 
   /**
    * Performs a similarity search on the table.
-   * 
+   *
    * @param queryEmbedding Vector to search for.
    * @param limit Maximum number of results to return.
    * @param filter Optional filter.
@@ -137,13 +136,12 @@ export abstract class AbstractLanceStore<T extends Record<string, unknown>> {
   public async similaritySearch(
     queryEmbedding: number[],
     limit: number = 5,
-    filter?: any,
-    ..._args: any[]
-  ): Promise<any[]> {
+    filter?: unknown
+  ): Promise<unknown[]> {
     await this.ensureInitialized();
 
     return withDbRetry(async () => {
-      let query = (this.table!.search as any)(queryEmbedding).limit(limit);
+      let query = this.table!.search(queryEmbedding).limit(limit);
 
       if (filter && typeof filter === 'string') {
         query = query.where(filter);
