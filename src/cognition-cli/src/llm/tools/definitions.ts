@@ -92,6 +92,10 @@ export const GrepSchema = z.object({
     .string()
     .optional()
     .describe('File glob filter (e.g., "*.ts")'),
+  is_literal: z
+    .boolean()
+    .optional()
+    .describe('Search for literal string instead of regex'),
 });
 
 export const grepTool: ToolDefinition<typeof GrepSchema> = {

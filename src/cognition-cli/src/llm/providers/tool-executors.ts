@@ -289,6 +289,7 @@ export async function executeGrep(
   search_path: string | undefined,
   glob_filter: string | undefined,
   cwd: string,
+  is_literal?: boolean,
   workbenchUrl?: string,
   currentPromptTokens?: number,
   getActiveTaskId?: () => string | null
@@ -301,8 +302,11 @@ export async function executeGrep(
       '--no-heading',
       '--glob',
       '!*.map',
-      pattern,
     ];
+    if (is_literal) {
+      args.push('-F');
+    }
+    args.push(pattern);
     if (glob_filter) args.push('--glob', glob_filter);
 
     const searchPathArg = search_path || cwd;

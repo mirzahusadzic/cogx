@@ -183,6 +183,7 @@ export function getUnifiedTools(
         args.path || context.cwd,
         args.glob_filter,
         context.cwd,
+        args.is_literal,
         context.workbenchUrl,
         context.currentPromptTokens,
         context.getActiveTaskId
