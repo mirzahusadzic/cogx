@@ -262,4 +262,43 @@ describe('SigmaTaskPanel', () => {
     );
     expect(stripAnsi(lastFrame()!)).toContain("Press 't' to close");
   });
+
+  it('limits visible tasks to 10 but always shows in-progress tasks', () => {
+    const tasks: SigmaTask[] = [];
+    for (let i = 1; i <= 15; i++) {
+      tasks.push({
+        id: `${i}`,
+        content: `Task ${i}`,
+        activeForm: `Working on ${i}`,
+        status: 'completed',
+        tokensAtStart: 10,
+        tokensUsed: 5,
+      });
+    }
+
+    // Add one in-progress task at the beginning that would be hidden by the 10-task limit
+    const inProgressTask: SigmaTask = {
+      id: 'in-progress-1',
+      content: 'Important in-progress task',
+      activeForm: 'Working on important task',
+      status: 'in_progress',
+      tokensAtStart: 10,
+      tokensUsed: 5,
+    };
+    tasks.unshift(inProgressTask);
+
+    const { lastFrame } = render(
+      <SigmaTaskPanel
+        sigmaTasks={{ todos: tasks }}
+        tokenCount={mockTokenCount}
+        sessionTokenCount={mockTokenCount}
+      />
+    );
+
+    const output = stripAnsi(lastFrame()!);
+    expect(output).toContain('Working on important task');
+    expect(output).toContain('Task 15');
+    expect(output).not.toContain('[✓] Task 1\n');
+    expect(output).toContain('... (5 older tasks)');
+  });
 });

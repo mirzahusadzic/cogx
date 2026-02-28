@@ -64,24 +64,12 @@ export function updateSigmaTasksWithTokens(
   effectiveTokens: number,
   cachedTokens: number = 0
 ): SigmaTasks {
-  // Ignore 0 tokens to prevent double counting on turn starts or temporary reporting drops
-  if (effectiveTokens === 0) return input;
+  const mergedTodos = [...(prev?.todos || [])];
 
-  const newTodos = input.todos.map((newTodo) => {
-    const oldTodo = prev.todos.find((t) => t.id === newTodo.id);
-
-    // If task was already completed in prev, freeze its token count
-    if (oldTodo?.status === 'completed') {
-      return {
-        ...newTodo,
-        tokensAtStart: oldTodo.tokensAtStart,
-        tokensAccumulated: oldTodo.tokensAccumulated,
-        tokensUsed: oldTodo.tokensUsed,
-        tokensSaved: oldTodo.tokensSaved,
-        tokensSavedAccumulated: oldTodo.tokensSavedAccumulated,
-        tokensSavedAtStart: oldTodo.tokensSavedAtStart,
-      };
-    }
+  for (const newTodo of input.todos) {
+    const existingIndex = mergedTodos.findIndex((t) => t.id === newTodo.id);
+    const oldTodo =
+      existingIndex !== -1 ? mergedTodos[existingIndex] : undefined;
 
     // Preserve existing tracking data
     let tokensAtStart = oldTodo?.tokensAtStart;
@@ -92,54 +80,72 @@ export function updateSigmaTasksWithTokens(
     let tokensSavedAccumulated = oldTodo?.tokensSavedAccumulated ?? 0;
     let tokensSaved = oldTodo?.tokensSaved ?? 0;
 
-    // Initialize tracking if task just became in_progress
-    if (newTodo.status === 'in_progress' && oldTodo?.status !== 'in_progress') {
-      if (tokensAtStart === undefined) {
-        tokensAtStart = effectiveTokens;
-      }
-      if (tokensSavedAtStart === undefined) {
-        tokensSavedAtStart = cachedTokens;
+    // Only update tokens if effectiveTokens > 0
+    if (effectiveTokens > 0) {
+      // If task was already completed in prev, freeze its token count
+      if (oldTodo?.status === 'completed') {
+        tokensAtStart = oldTodo.tokensAtStart;
+        tokensAccumulated = oldTodo.tokensAccumulated ?? 0;
+        tokensUsed = oldTodo.tokensUsed ?? 0;
+        tokensSaved = oldTodo.tokensSaved ?? 0;
+        tokensSavedAccumulated = oldTodo.tokensSavedAccumulated ?? 0;
+        tokensSavedAtStart = oldTodo.tokensSavedAtStart;
+      } else {
+        // Initialize tracking if task just became in_progress
+        if (
+          newTodo.status === 'in_progress' &&
+          oldTodo?.status !== 'in_progress'
+        ) {
+          if (tokensAtStart === undefined) {
+            tokensAtStart = effectiveTokens;
+          }
+          if (tokensSavedAtStart === undefined) {
+            tokensSavedAtStart = cachedTokens;
+          }
+        }
+
+        // Calculate tokensUsed for in_progress or JUST completed tasks
+        if (
+          (newTodo.status === 'in_progress' ||
+            newTodo.status === 'completed') &&
+          tokensAtStart !== undefined
+        ) {
+          let currentDelta = Math.max(0, effectiveTokens - tokensAtStart);
+          let calculatedTokensUsed = tokensAccumulated + currentDelta;
+
+          let currentSavedDelta = 0;
+          if (tokensSavedAtStart !== undefined) {
+            currentSavedDelta = Math.max(0, cachedTokens - tokensSavedAtStart);
+          }
+          let calculatedTokensSaved =
+            tokensSavedAccumulated + currentSavedDelta;
+
+          // Detect eviction
+          // If effectiveTokens drops below the start threshold, or if the calculated usage
+          // drops below what we've already tracked (meaning context shrunk), we have evicted.
+          if (
+            effectiveTokens < tokensAtStart ||
+            calculatedTokensUsed < tokensUsed
+          ) {
+            tokensAccumulated = tokensUsed;
+            tokensAtStart = effectiveTokens;
+            currentDelta = 0;
+            calculatedTokensUsed = tokensAccumulated;
+
+            // Sync saved tokens on eviction
+            tokensSavedAccumulated = tokensSaved;
+            tokensSavedAtStart = cachedTokens;
+            currentSavedDelta = 0;
+            calculatedTokensSaved = tokensSavedAccumulated;
+          }
+
+          tokensUsed = calculatedTokensUsed;
+          tokensSaved = calculatedTokensSaved;
+        }
       }
     }
 
-    // Calculate tokensUsed for in_progress or JUST completed tasks
-    if (
-      (newTodo.status === 'in_progress' || newTodo.status === 'completed') &&
-      tokensAtStart !== undefined
-    ) {
-      let currentDelta = Math.max(0, effectiveTokens - tokensAtStart);
-      let calculatedTokensUsed = tokensAccumulated + currentDelta;
-
-      let currentSavedDelta = 0;
-      if (tokensSavedAtStart !== undefined) {
-        currentSavedDelta = Math.max(0, cachedTokens - tokensSavedAtStart);
-      }
-      let calculatedTokensSaved = tokensSavedAccumulated + currentSavedDelta;
-
-      // Detect eviction
-      // If effectiveTokens drops below the start threshold, or if the calculated usage
-      // drops below what we've already tracked (meaning context shrunk), we have evicted.
-      if (
-        effectiveTokens < tokensAtStart ||
-        calculatedTokensUsed < tokensUsed
-      ) {
-        tokensAccumulated = tokensUsed;
-        tokensAtStart = effectiveTokens;
-        currentDelta = 0;
-        calculatedTokensUsed = tokensAccumulated;
-
-        // Sync saved tokens on eviction
-        tokensSavedAccumulated = tokensSaved;
-        tokensSavedAtStart = cachedTokens;
-        currentSavedDelta = 0;
-        calculatedTokensSaved = tokensSavedAccumulated;
-      }
-
-      tokensUsed = calculatedTokensUsed;
-      tokensSaved = calculatedTokensSaved;
-    }
-
-    return {
+    const updatedTodo = {
       ...newTodo,
       tokensAtStart,
       tokensAccumulated,
@@ -148,11 +154,37 @@ export function updateSigmaTasksWithTokens(
       tokensSavedAtStart,
       tokensSavedAccumulated,
     };
-  });
+
+    if (existingIndex !== -1) {
+      mergedTodos[existingIndex] = updatedTodo;
+    } else {
+      mergedTodos.push(updatedTodo);
+    }
+  }
+
+  const mergedGrounding = [...(prev?.grounding || [])];
+  if (input.grounding) {
+    for (const newG of input.grounding) {
+      const idx = mergedGrounding.findIndex((g) => g.id === newG.id);
+      if (idx !== -1) mergedGrounding[idx] = newG;
+      else mergedGrounding.push(newG);
+    }
+  }
+
+  const mergedEvidence = [...(prev?.grounding_evidence || [])];
+  if (input.grounding_evidence) {
+    for (const newE of input.grounding_evidence) {
+      const idx = mergedEvidence.findIndex((e) => e.id === newE.id);
+      if (idx !== -1) mergedEvidence[idx] = newE;
+      else mergedEvidence.push(newE);
+    }
+  }
 
   return {
     ...input,
-    todos: newTodos,
+    todos: mergedTodos,
+    grounding: mergedGrounding,
+    grounding_evidence: mergedEvidence,
   };
 }
 
