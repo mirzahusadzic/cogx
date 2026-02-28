@@ -148,6 +148,7 @@ export function getUnifiedTools(
     createTool(readFileTool, (args) =>
       executeReadFile(
         args.file_path,
+        context.cwd,
         args.limit,
         args.offset,
         context.workbenchUrl,
@@ -161,7 +162,12 @@ export function getUnifiedTools(
     createTool(
       writeFileTool,
       (args) =>
-        executeWriteFile(args.file_path, args.content, context.getActiveTaskId),
+        executeWriteFile(
+          args.file_path,
+          args.content,
+          context.cwd,
+          context.getActiveTaskId
+        ),
       context.onCanUseTool
     )
   );
@@ -171,6 +177,7 @@ export function getUnifiedTools(
       executeGlob(
         args.pattern,
         args.path || context.cwd,
+        args.exclude,
         context.getActiveTaskId
       )
     )
@@ -199,6 +206,7 @@ export function getUnifiedTools(
           args.command,
           args.timeout,
           context.cwd,
+          args.cwd,
           context.onToolOutput,
           context.workbenchUrl,
           context.currentPromptTokens,
@@ -216,7 +224,9 @@ export function getUnifiedTools(
           args.file_path,
           args.old_string,
           args.new_string,
+          context.cwd,
           args.replace_all,
+          args.is_regex,
           context.getActiveTaskId
         ),
       context.onCanUseTool
@@ -236,7 +246,7 @@ export function getUnifiedTools(
   if (provider !== 'gemini') {
     tools.push(
       createTool(webSearchTool, (args) =>
-        executeWebSearch(args.request, context.workbenchUrl)
+        executeWebSearch(args.request, args.max_results, context.workbenchUrl)
       )
     );
   }

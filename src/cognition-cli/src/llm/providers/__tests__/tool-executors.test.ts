@@ -69,7 +69,7 @@ describe('Tool Executors', () => {
     test('should read file content successfully', async () => {
       vi.mocked(fs.readFile).mockResolvedValue('line1\nline2\nline3');
 
-      const result = await executeReadFile('/path/to/file.txt');
+      const result = await executeReadFile('/path/to/file.txt', '/cwd');
 
       expect(fs.readFile).toHaveBeenCalledWith('/path/to/file.txt', 'utf-8');
       expect(result).toBeTruthy();
@@ -82,7 +82,7 @@ describe('Tool Executors', () => {
     test('should respect limit and offset', async () => {
       vi.mocked(fs.readFile).mockResolvedValue('line1\nline2\nline3\nline4');
 
-      const result = await executeReadFile('/path/to/file.txt', 2, 1);
+      const result = await executeReadFile('/path/to/file.txt', '/cwd', 2, 1);
 
       expect(result).toBeTruthy();
       expect(result).not.toContain('line1');
@@ -94,7 +94,7 @@ describe('Tool Executors', () => {
     test('should handle errors gracefully', async () => {
       vi.mocked(fs.readFile).mockRejectedValue(new Error('File not found'));
 
-      const result = await executeReadFile('/nonexistent.txt');
+      const result = await executeReadFile('/nonexistent.txt', '/cwd');
 
       expect(result).toContain('Error reading file');
       expect(result).toContain('File not found');
@@ -106,7 +106,11 @@ describe('Tool Executors', () => {
       vi.mocked(fs.mkdir).mockResolvedValue(undefined);
       vi.mocked(fs.writeFile).mockResolvedValue(undefined);
 
-      const result = await executeWriteFile('/path/to/file.txt', 'content');
+      const result = await executeWriteFile(
+        '/path/to/file.txt',
+        'content',
+        '/cwd'
+      );
 
       expect(fs.mkdir).toHaveBeenCalledWith('/path/to', { recursive: true });
       expect(fs.writeFile).toHaveBeenCalledWith(
@@ -120,7 +124,11 @@ describe('Tool Executors', () => {
     test('should handle errors gracefully', async () => {
       vi.mocked(fs.mkdir).mockRejectedValue(new Error('Permission denied'));
 
-      const result = await executeWriteFile('/protected/file.txt', 'content');
+      const result = await executeWriteFile(
+        '/protected/file.txt',
+        'content',
+        '/cwd'
+      );
 
       expect(result).toContain('Error writing file');
       expect(result).toContain('Permission denied');
@@ -251,7 +259,12 @@ describe('Tool Executors', () => {
       vi.mocked(fs.readFile).mockResolvedValue('hello world');
       vi.mocked(fs.writeFile).mockResolvedValue(undefined);
 
-      const result = await executeEditFile('/file.txt', 'world', 'universe');
+      const result = await executeEditFile(
+        '/file.txt',
+        'world',
+        'universe',
+        '/cwd'
+      );
 
       expect(fs.writeFile).toHaveBeenCalledWith(
         '/file.txt',
@@ -264,7 +277,12 @@ describe('Tool Executors', () => {
     test('should fail if string not found', async () => {
       vi.mocked(fs.readFile).mockResolvedValue('hello world');
 
-      const result = await executeEditFile('/file.txt', 'foobar', 'barfoo');
+      const result = await executeEditFile(
+        '/file.txt',
+        'foobar',
+        'barfoo',
+        '/cwd'
+      );
 
       expect(result).toContain('Error: old_string not found');
     });

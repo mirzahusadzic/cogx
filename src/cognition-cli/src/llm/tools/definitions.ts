@@ -54,6 +54,10 @@ export const writeFileTool: ToolDefinition<typeof WriteFileSchema> = {
  */
 export const BashSchema = z.object({
   command: z.string().describe('The command to execute'),
+  cwd: z
+    .string()
+    .optional()
+    .describe('Working directory to run the command in'),
   timeout: z.coerce
     .number()
     .optional()
@@ -73,6 +77,10 @@ export const bashTool: ToolDefinition<typeof BashSchema> = {
 export const GlobSchema = z.object({
   pattern: z.string().describe('Glob pattern (e.g., "**/*.ts")'),
   path: z.string().optional().describe('Directory to search in'),
+  exclude: z
+    .string()
+    .optional()
+    .describe('Glob pattern to exclude (e.g., "**/node_modules/**")'),
 });
 
 export const globTool: ToolDefinition<typeof GlobSchema> = {
@@ -112,6 +120,10 @@ export const EditFileSchema = z.object({
   file_path: z.string().describe('Absolute path to the file'),
   old_string: z.string().describe('Text to replace'),
   new_string: z.string().describe('Replacement text'),
+  is_regex: z
+    .boolean()
+    .optional()
+    .describe('Whether old_string should be treated as a regex'),
   replace_all: z.coerce
     .boolean()
     .optional()
@@ -143,6 +155,10 @@ export const fetchUrlTool: ToolDefinition<typeof FetchUrlSchema> = {
  */
 export const WebSearchSchema = z.object({
   request: z.string().describe('The search query or request'),
+  max_results: z.coerce
+    .number()
+    .optional()
+    .describe('Maximum number of results to return (default: 10)'),
 });
 
 export const webSearchTool: ToolDefinition<typeof WebSearchSchema> = {

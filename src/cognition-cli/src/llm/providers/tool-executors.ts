@@ -191,6 +191,7 @@ async function relativizeDiffOutput(
  */
 export async function executeReadFile(
   file_path: string,
+  cwd: string,
   limit?: number,
   offset?: number,
   workbenchUrl?: string,
@@ -198,7 +199,10 @@ export async function executeReadFile(
   getActiveTaskId?: () => string | null
 ): Promise<string> {
   try {
-    const stats = await fs.stat(file_path);
+    const absolutePath = path.isAbsolute(file_path)
+      ? file_path
+      : path.resolve(cwd, file_path);
+    const stats = await fs.stat(absolutePath);
     // 1MB safety cap for total file read without limits
     if (stats.size > 1024 * 1024 && !limit) {
       return `Error: File is too large (${(stats.size / 1024 / 1024).toFixed(2)} MB). Please use 'limit' and 'offset' to read specific parts of the file.`;
@@ -209,7 +213,7 @@ export async function executeReadFile(
       return `Error: File is too large (${(stats.size / 1024 / 1024).toFixed(2)} MB). Maximum supported file size is 50MB.`;
     }
 
-    const content = await fs.readFile(file_path, 'utf-8');
+    const content = await fs.readFile(absolutePath, 'utf-8');
     const lines = content.split(/\r?\n/);
 
     const start = offset || 0;
@@ -248,11 +252,15 @@ export async function executeReadFile(
 export async function executeWriteFile(
   file_path: string,
   content: string,
+  cwd: string,
   getActiveTaskId?: () => string | null
 ): Promise<string> {
   try {
-    await fs.mkdir(path.dirname(file_path), { recursive: true });
-    await fs.writeFile(file_path, content, 'utf-8');
+    const absolutePath = path.isAbsolute(file_path)
+      ? file_path
+      : path.resolve(cwd, file_path);
+    await fs.mkdir(path.dirname(absolutePath), { recursive: true });
+    await fs.writeFile(absolutePath, content, 'utf-8');
     const result = `Successfully wrote ${content.length} bytes to ${file_path}`;
     return tagOutputWithActiveTask(result, getActiveTaskId);
   } catch (error) {
@@ -266,6 +274,7 @@ export async function executeWriteFile(
 export async function executeGlob(
   pattern: string,
   cwd: string,
+  exclude?: string,
   getActiveTaskId?: () => string | null
 ): Promise<string> {
   try {
@@ -273,6 +282,7 @@ export async function executeGlob(
       cwd,
       nodir: true,
       absolute: false,
+      ignore: exclude,
     });
     const result = files.slice(0, 100).join('\n') || 'No matches found';
     return tagOutputWithActiveTask(result, getActiveTaskId);
@@ -388,17 +398,23 @@ export async function executeBash(
   command: string,
   timeout: number | undefined,
   cwd: string,
+  bashCwd?: string,
   onChunk?: (chunk: string) => void,
   workbenchUrl?: string,
   currentPromptTokens?: number,
   getActiveTaskId?: () => string | null
 ): Promise<string> {
   const effectiveTimeout = timeout || 120000;
+  const effectiveCwd = bashCwd
+    ? path.isAbsolute(bashCwd)
+      ? bashCwd
+      : path.resolve(cwd, bashCwd)
+    : cwd;
 
   return new Promise<string>((resolve) => {
     const MAX_BUFFER_SIZE = 1024 * 1024; // 1MB
     const proc = spawn('bash', ['-c', command], {
-      cwd,
+      cwd: effectiveCwd,
       env: { ...process.env, NO_COLOR: undefined },
     });
 
@@ -445,12 +461,12 @@ export async function executeBash(
           (command.includes('git diff') && command.includes('--name-only')) ||
           command.includes('git ls-files')
         ) {
-          finalStdout = await relativizeGitPaths(cleanStdout, cwd);
+          finalStdout = await relativizeGitPaths(cleanStdout, effectiveCwd);
         } else if (
           command.includes('git diff') &&
           !command.includes('--name-only')
         ) {
-          finalStdout = await relativizeDiffOutput(cleanStdout, cwd);
+          finalStdout = await relativizeDiffOutput(cleanStdout, effectiveCwd);
         }
       }
 
@@ -500,30 +516,44 @@ export async function executeEditFile(
   file_path: string,
   old_string: string,
   new_string: string,
+  cwd: string,
   replace_all?: boolean,
+  is_regex?: boolean,
   getActiveTaskId?: () => string | null
 ): Promise<string> {
   try {
-    const content = await fs.readFile(file_path, 'utf-8');
+    const absolutePath = path.isAbsolute(file_path)
+      ? file_path
+      : path.resolve(cwd, file_path);
+    const content = await fs.readFile(absolutePath, 'utf-8');
 
-    // Check if old_string exists
-    if (!content.includes(old_string)) {
-      return 'Error: old_string not found in file';
-    }
-
-    // Check for uniqueness if not replace_all
-    if (!replace_all) {
-      const occurrences = content.split(old_string).length - 1;
-      if (occurrences > 1) {
-        return `Error: old_string found ${occurrences} times. Use replace_all=true or make it unique.`;
+    let newContent: string;
+    if (is_regex) {
+      const regex = new RegExp(old_string, replace_all ? 'g' : '');
+      if (!regex.test(content)) {
+        return 'Error: regex pattern not found in file';
       }
+      newContent = content.replace(regex, new_string);
+    } else {
+      // Check if old_string exists
+      if (!content.includes(old_string)) {
+        return 'Error: old_string not found in file';
+      }
+
+      // Check for uniqueness if not replace_all
+      if (!replace_all) {
+        const occurrences = content.split(old_string).length - 1;
+        if (occurrences > 1) {
+          return `Error: old_string found ${occurrences} times. Use replace_all=true or make it unique.`;
+        }
+      }
+
+      newContent = replace_all
+        ? content.split(old_string).join(new_string)
+        : content.replace(old_string, new_string);
     }
 
-    const newContent = replace_all
-      ? content.split(old_string).join(new_string)
-      : content.replace(old_string, new_string);
-
-    await fs.writeFile(file_path, newContent, 'utf-8');
+    await fs.writeFile(absolutePath, newContent, 'utf-8');
     const result = `Successfully edited ${file_path}`;
     return tagOutputWithActiveTask(result, getActiveTaskId);
   } catch (error) {
@@ -874,6 +904,7 @@ export async function executeSigmaTaskUpdate(
  */
 export async function executeWebSearch(
   query: string,
+  max_results?: number,
   workbenchUrl?: string
 ): Promise<string> {
   try {
@@ -887,7 +918,7 @@ export async function executeWebSearch(
         'Content-Type': 'application/json',
         Authorization: `Bearer ${process.env.OPENAI_API_KEY || 'dummy'}`,
       },
-      body: JSON.stringify({ query, max_results: 5 }),
+      body: JSON.stringify({ query, max_results: max_results || 10 }),
       signal: AbortSignal.timeout(15000), // 15s timeout
     });
 
