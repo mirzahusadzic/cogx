@@ -795,7 +795,7 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
 
   useInput(handleInput, { isActive: isInputActive });
 
-  if (!focused) {
+  if (!focused && !confirmationPending && !disabled) {
     return (
       <Box
         borderTop
