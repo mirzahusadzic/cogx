@@ -11,7 +11,7 @@ import {
 
 const MAX_SUMMARY_LENGTH = 140;
 const MAX_TASKS_FOR_ALL_SUMMARIES = 3;
-const MAX_VISIBLE_TASKS = 10;
+const MAX_VISIBLE_TASKS = 7;
 
 const truncate = (str: string, maxLength: number) => {
   if (str.length <= maxLength) return str;

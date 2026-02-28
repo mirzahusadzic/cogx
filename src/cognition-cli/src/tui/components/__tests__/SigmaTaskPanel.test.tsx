@@ -128,7 +128,7 @@ describe('SigmaTaskPanel', () => {
     expect(stripAnsi(lastFrame()!)).toContain('Reqs: 5');
   });
 
-  it('limits the display to last 10 tasks', () => {
+  it('limits the display to last 7 tasks', () => {
     const manyTasks: SigmaTasks = {
       todos: Array.from({ length: 11 }, (_, i) => ({
         ...mockTask,
@@ -146,12 +146,12 @@ describe('SigmaTaskPanel', () => {
     const frame = stripAnsi(lastFrame()!);
     expect(frame).not.toContain('TASK_NUMBER_1\n');
     expect(frame).not.toContain('TASK_NUMBER_1 ');
-    expect(frame).toContain('TASK_NUMBER_2');
+    expect(frame).toContain('TASK_NUMBER_5');
     expect(frame).toContain('TASK_NUMBER_11');
-    expect(frame).toContain('... (1 older tasks)');
+    expect(frame).toContain('... (4 older tasks)');
   });
 
-  it('shows in_progress tasks even if they are older than the last 10 tasks', () => {
+  it('shows in_progress tasks even if they are older than the last 7 tasks', () => {
     const mixedTasks: SigmaTasks = {
       todos: [
         { ...mockInProgressTask, id: '1', activeForm: 'Old In Progress' },
@@ -174,7 +174,7 @@ describe('SigmaTaskPanel', () => {
     expect(frame).toContain('TASK_NUMBER_12');
     expect(frame).not.toContain('TASK_NUMBER_2\n');
     expect(frame).not.toContain('TASK_NUMBER_2 ');
-    expect(frame).toContain('... (1 older tasks)');
+    expect(frame).toContain('... (4 older tasks)');
   });
 
   it('truncates long task summaries', () => {
@@ -263,7 +263,7 @@ describe('SigmaTaskPanel', () => {
     expect(stripAnsi(lastFrame()!)).toContain("Press 't' to close");
   });
 
-  it('limits visible tasks to 10 but always shows in-progress tasks', () => {
+  it('limits visible tasks to 7 but always shows in-progress tasks', () => {
     const tasks: SigmaTask[] = [];
     for (let i = 1; i <= 15; i++) {
       tasks.push({
@@ -276,7 +276,7 @@ describe('SigmaTaskPanel', () => {
       });
     }
 
-    // Add one in-progress task at the beginning that would be hidden by the 10-task limit
+    // Add one in-progress task at the beginning that would be hidden by the 7-task limit
     const inProgressTask: SigmaTask = {
       id: 'in-progress-1',
       content: 'Important in-progress task',
@@ -299,7 +299,7 @@ describe('SigmaTaskPanel', () => {
     expect(output).toContain('Working on important task');
     expect(output).toContain('Task 15');
     expect(output).not.toContain('[✓] Task 1\n');
-    expect(output).toContain('... (5 older tasks)');
+    expect(output).toContain('... (8 older tasks)');
   });
 
   it('only expands the most recent completed task and collapses older ones when many tasks exist', () => {
