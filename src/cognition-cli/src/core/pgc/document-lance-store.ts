@@ -1,6 +1,4 @@
-import { connect, Connection, Table } from '@lancedb/lancedb';
 import path from 'path';
-import fs from 'fs-extra';
 import crypto from 'crypto';
 import {
   Field,
@@ -12,8 +10,10 @@ import {
   Int64,
 } from 'apache-arrow';
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../config.js';
-import { withDbRetry } from '../utils/retry.js';
-import { DatabaseError } from '../errors/index.js';
+import {
+  AbstractLanceStore,
+  LANCE_DUMMY_ID,
+} from '../overlays/vector-db/abstract-lance-store.js';
 
 /**
  * Compute hash of embedding vector for content-based ID generation.
@@ -21,14 +21,8 @@ import { DatabaseError } from '../errors/index.js';
  * Uses the same SHA-256 approach as structural patterns to enable
  * automatic deduplication of identical embeddings.
  *
- * DESIGN:
- * - Content-addressable: same embedding → same hash
- * - Deduplication: prevents storing duplicate embeddings
- * - 12-char prefix: readability while maintaining uniqueness
- *
  * @param embedding - 768-dimensional vector from eGemma
  * @returns First 12 characters of SHA-256 hash
- *
  * @private
  */
 function computeEmbeddingHash(embedding: number[]): string {
@@ -36,7 +30,7 @@ function computeEmbeddingHash(embedding: number[]): string {
     .createHash('sha256')
     .update(JSON.stringify(embedding))
     .digest('hex')
-    .substring(0, 12); // First 12 chars for readability
+    .substring(0, 12);
 }
 
 /**
@@ -134,7 +128,7 @@ function createDocumentConceptSchema(): Schema {
  * Filter options for document concept queries.
  */
 export interface DocumentQueryFilter {
-  overlay_type?: 'O2' | 'O4' | 'O5' | 'O6' | string; // Allow any overlay
+  overlay_type?: 'O2' | 'O4' | 'O5' | 'O6' | string;
   document_hash?: string;
   document_path?: string;
   concept_type?: string;
@@ -150,202 +144,55 @@ export interface DocumentQueryFilter {
  * Manages document concept storage and semantic search using LanceDB.
  * Unified store for all document-based overlays: O₂ (Security), O₄ (Mission),
  * O₅ (Operational), O₆ (Mathematical).
- *
- * ARCHITECTURE:
- * - Single LanceDB table for all document embeddings
- * - Overlay type stored as metadata field for filtering
- * - YAML files retained for git-trackable provenance
- * - LanceDB provides fast vector similarity search (native GPU acceleration)
- *
- * UNIFIED SCHEMA:
- * All overlay types share the same schema with polymorphic metadata:
- * - id: <overlay>:<doc_hash>:<embedding_hash> (content-addressable)
- * - overlay_type: 'O2' | 'O4' | 'O5' | 'O6'
- * - document_hash: Source document hash (provenance)
- * - text: Concept/guideline/pattern text
- * - section: Source section heading
- * - concept_type: Type varies by overlay (guideline, concept, pattern, theorem)
- * - weight: Importance score (0-1)
- * - embedding: 768D vector from eGemma
- *
- * MIGRATION (v1 → v2):
- * - v1: Embeddings in YAML files (.open_cognition/overlays/<type>/<hash>.yaml)
- * - v2: Embeddings in LanceDB (.open_cognition/lance/documents.lancedb)
- * - Both formats coexist during transition
- * - EmbeddingLoader provides unified access
- * - LanceDB used for queries, YAML for provenance tracking
- *
- * DEDUPLICATION:
- * - Uses embedding hash for content-addressable IDs
- * - Same embedding → same ID → automatic deduplication
- * - mergeInsert for efficient upserts without version bloat
- *
- * PERFORMANCE:
- * - LanceDB's native vector search (much faster than in-memory cosine)
- * - GPU acceleration for large-scale similarity search
- * - Efficient filtering with SQL-like WHERE clauses
- *
- * @example
- * // Initialize store
- * const store = new DocumentLanceStore('/path/to/.open_cognition');
- * await store.initialize();
- *
- * // Store mission concepts
- * await store.storeConceptsBatch(
- *   'O4',
- *   documentHash,
- *   'VISION.md',
- *   transformId,
- *   missionConcepts
- * );
- *
- * // Semantic search across all overlays
- * const results = await store.similaritySearch(queryEmbedding, 10);
- *
- * @example
- * // Filter by overlay type
- * const securityResults = await store.similaritySearch(
- *   queryEmbedding,
- *   10,
- *   { overlay_type: 'O2' }
- * );
  */
-export class DocumentLanceStore {
-  private db: Connection | undefined;
-  private table: Table | undefined;
-  private isInitialized = false;
-  private initializationPromise: Promise<void> | null = null;
-
-  constructor(private pgcRoot: string) {}
+export class DocumentLanceStore extends AbstractLanceStore<DocumentConceptRecord> {
+  constructor(private pgcRoot: string) {
+    super(path.join(pgcRoot, 'lance', 'documents.lancedb'));
+  }
 
   /**
    * Initialize the document LanceDB store.
    * Creates or opens the documents.lancedb database.
    */
-  async initialize(tableName: string = 'document_concepts'): Promise<void> {
-    // Prevent multiple simultaneous initializations
-    if (this.initializationPromise) {
-      return this.initializationPromise;
-    }
-
-    this.initializationPromise = this.doInitialize(tableName);
-    return this.initializationPromise;
+  public override async initialize(
+    tableName: string = 'document_concepts'
+  ): Promise<void> {
+    return super.initialize(tableName);
   }
 
-  private async doInitialize(tableName: string): Promise<void> {
-    try {
-      const dbPath = path.join(this.pgcRoot, 'lance', 'documents.lancedb');
-      await fs.ensureDir(path.dirname(dbPath));
+  protected getSchema(): Schema {
+    return createDocumentConceptSchema();
+  }
 
-      this.db = await connect(dbPath);
-
-      // Check if table exists, if not, create it
-      const tableNames = await this.db.tableNames();
-      if (tableNames.includes(tableName)) {
-        this.table = await this.db.openTable(tableName);
-      } else {
-        try {
-          // Create the table with a complete dummy record
-          const schema = createDocumentConceptSchema();
-          const dummyEmbedding = new Array(DEFAULT_EMBEDDING_DIMENSIONS).fill(
-            0.1
-          );
-          const dummyRecord: DocumentConceptRecord = {
-            id: 'schema_test_record',
-            overlay_type: 'O4',
-            embedding_hash: computeEmbeddingHash(dummyEmbedding),
-            document_hash: 'test_hash',
-            document_path: 'test/path.md',
-            transform_id: 'test_transform',
-            text: 'Schema initialization record',
-            section: 'Test Section',
-            section_hash: 'test_section_hash',
-            concept_type: 'concept',
-            weight: 1.0,
-            occurrences: 1,
-            embedding: dummyEmbedding,
-            generated_at: Date.now(),
-          };
-
-          this.table = await this.db.createTable(tableName, [dummyRecord], {
-            schema,
-          });
-
-          // Clean up test record
-          await this.table.delete(`id = 'schema_test_record'`);
-        } catch (createError: unknown) {
-          // If table already exists (race condition), open it
-          if (
-            createError instanceof Error &&
-            createError.message.includes('already exists')
-          ) {
-            this.table = await this.db.openTable(tableName);
-          } else {
-            throw createError;
-          }
-        }
-      }
-      this.isInitialized = true;
-    } catch (error: unknown) {
-      this.initializationPromise = null;
-      throw new DatabaseError(
-        'initialize',
-        {
-          tableName,
-          dbPath: path.join(this.pgcRoot, 'lance', 'documents.lancedb'),
-        },
-        error as Error
-      );
-    }
+  protected createDummyRecord(): DocumentConceptRecord {
+    const dummyEmbedding = new Array(DEFAULT_EMBEDDING_DIMENSIONS).fill(0.1);
+    return {
+      id: LANCE_DUMMY_ID,
+      overlay_type: 'O4',
+      embedding_hash: computeEmbeddingHash(dummyEmbedding),
+      document_hash: 'test_hash',
+      document_path: 'test/path.md',
+      transform_id: 'test_transform',
+      text: 'Schema initialization record',
+      section: 'Test Section',
+      section_hash: 'test_section_hash',
+      concept_type: 'concept',
+      weight: 1.0,
+      occurrences: 1,
+      embedding: dummyEmbedding,
+      generated_at: Date.now(),
+    };
   }
 
   /**
    * Store a single document concept with embeddings.
-   *
-   * Uses LanceDB's mergeInsert for efficient upsert without version bloat:
-   * - If concept exists (matched by id): updates in-place
-   * - If concept doesn't exist: inserts new record
-   * - No delete operation = no extra versions
-   *
-   * ALGORITHM:
-   * 1. Validate embedding dimensions (must be 768)
-   * 2. Generate content-addressable ID (overlay:doc:embedding_hash)
-   * 3. Build complete concept record
-   * 4. Execute mergeInsert (upsert operation)
-   *
-   * @param overlayType - Overlay type ('O2' | 'O4' | 'O5' | 'O6')
-   * @param documentHash - Content hash of source document
-   * @param documentPath - Relative path to source markdown
-   * @param transformId - Transform that generated this overlay
-   * @param conceptIndex - Index of concept in batch (for ordering)
-   * @param concept - Concept data with embedding
-   * @returns Content-addressable ID of stored concept
-   * @throws {Error} If embedding dimensions don't match (not 768D)
-   *
-   * @example
-   * await store.storeConcept(
-   *   'O4',
-   *   '7f3a9b2c...',
-   *   'docs/VISION.md',
-   *   'transform_123',
-   *   0,
-   *   {
-   *     text: 'Verifiable AI systems',
-   *     section: 'Mission',
-   *     sectionHash: 'abc123',
-   *     type: 'concept',
-   *     weight: 0.95,
-   *     occurrences: 3,
-   *     embedding: [0.1, 0.2, ...] // 768 dims
-   *   }
-   * );
    */
   async storeConcept(
     overlayType: string,
     documentHash: string,
     documentPath: string,
     transformId: string,
-    conceptIndex: number,
+    _conceptIndex: number,
     concept: {
       text: string;
       section: string;
@@ -356,54 +203,18 @@ export class DocumentLanceStore {
       embedding: number[];
     }
   ): Promise<string> {
-    if (!this.isInitialized) await this.initialize();
-
-    // Validate embedding dimensions
-    if (concept.embedding.length !== DEFAULT_EMBEDDING_DIMENSIONS) {
-      throw new Error(
-        `Embedding dimension mismatch: expected ${DEFAULT_EMBEDDING_DIMENSIONS}, got ${concept.embedding.length}`
-      );
-    }
-
-    // Generate content-based ID using embedding hash (like structural patterns)
-    const embeddingHash = computeEmbeddingHash(concept.embedding);
-    const id = `${overlayType}:${documentHash}:${embeddingHash}`;
-
-    const record: DocumentConceptRecord = {
-      id,
-      overlay_type: overlayType,
-      embedding_hash: embeddingHash,
-      document_hash: documentHash,
-      document_path: documentPath,
-      transform_id: transformId,
-      text: concept.text,
-      section: concept.section,
-      section_hash: concept.sectionHash,
-      concept_type: concept.type,
-      weight: concept.weight,
-      occurrences: concept.occurrences,
-      embedding: concept.embedding,
-      generated_at: Date.now(),
-    };
-
-    // Use mergeInsert for efficient upsert (no version bloat)
-    // - If concept exists (matched by id): updates in-place
-    // - If concept doesn't exist: inserts new record
-    // - No delete operation = no extra versions
-    // - Wrapped with retry for transient database errors (SQLITE_BUSY, etc.)
-    await withDbRetry(() =>
-      this.table!.mergeInsert('id')
-        .whenMatchedUpdateAll()
-        .whenNotMatchedInsertAll()
-        .execute([record])
+    const results = await this.storeConceptsBatch(
+      overlayType,
+      documentHash,
+      documentPath,
+      transformId,
+      [concept]
     );
-
-    return id;
+    return results[0];
   }
 
   /**
    * Store multiple concepts in batch (more efficient).
-   * Uses LanceDB's mergeInsert for efficient batch upsert without version bloat.
    */
   async storeConceptsBatch(
     overlayType: string,
@@ -430,7 +241,6 @@ export class DocumentLanceStore {
         );
       }
 
-      // Generate content-based ID using embedding hash (like structural patterns)
       const embeddingHash = computeEmbeddingHash(concept.embedding);
       const id = `${overlayType}:${documentHash}:${embeddingHash}`;
 
@@ -448,23 +258,12 @@ export class DocumentLanceStore {
         weight: concept.weight,
         occurrences: concept.occurrences,
         embedding: concept.embedding,
-        // Add index as millisecond offset to preserve batch order
         generated_at: baseTimestamp + index,
       };
     });
 
     if (records.length > 0) {
-      // Use mergeInsert for batch upsert (no version bloat)
-      // - Updates existing records in-place
-      // - Inserts new records
-      // - No delete operation = no extra versions
-      // - Wrapped with retry for transient database errors (SQLITE_BUSY, etc.)
-      await withDbRetry(() =>
-        this.table!.mergeInsert('id')
-          .whenMatchedUpdateAll()
-          .whenNotMatchedInsertAll()
-          .execute(records)
-      );
+      await this.mergeInsert(records);
     }
 
     return records.map((r) => r.id);
@@ -472,50 +271,6 @@ export class DocumentLanceStore {
 
   /**
    * Semantic similarity search across document concepts.
-   *
-   * Uses LanceDB's native vector operations for maximum performance.
-   * Supports filtering by overlay type, document, concept type, etc.
-   *
-   * ALGORITHM:
-   * 1. Validate query embedding dimensions (must be 768)
-   * 2. Build LanceDB similarity search query
-   * 3. Set distance metric (cosine, l2, or dot product)
-   * 4. Apply filters via SQL WHERE clauses
-   * 5. Execute native vector search (GPU-accelerated)
-   * 6. Convert distances to similarity scores
-   * 7. Sort by similarity descending
-   *
-   * PERFORMANCE:
-   * - LanceDB's native search is ~100x faster than in-memory cosine
-   * - GPU acceleration for large-scale searches
-   * - WHERE clause filtering happens in-database (efficient)
-   *
-   * @param queryEmbedding - 768D query vector
-   * @param topK - Number of top results to return
-   * @param filter - Optional filters for overlay type, document, etc.
-   * @param distanceType - Distance metric ('cosine', 'l2', or 'dot')
-   * @returns Array of matching concepts with similarity scores
-   * @throws {Error} If query embedding dimensions don't match (not 768D)
-   *
-   * @example
-   * // Search across all overlays
-   * const results = await store.similaritySearch(queryEmbedding, 10);
-   *
-   * @example
-   * // Search only security guidelines
-   * const securityResults = await store.similaritySearch(
-   *   queryEmbedding,
-   *   10,
-   *   { overlay_type: 'O2', min_weight: 0.7 }
-   * );
-   *
-   * @example
-   * // Search specific document
-   * const docResults = await store.similaritySearch(
-   *   queryEmbedding,
-   *   5,
-   *   { document_hash: '7f3a9b2c...' }
-   * );
    */
   async similaritySearch(
     queryEmbedding: number[],
@@ -541,23 +296,6 @@ export class DocumentLanceStore {
       };
     }>
   > {
-    type Result = {
-      id: string;
-      overlay_type: string;
-      document_hash: string;
-      document_path: string;
-      text: string;
-      section: string;
-      similarity: number;
-      metadata: {
-        concept_type: string;
-        weight: number;
-        occurrences: number;
-        section_hash: string;
-        transform_id: string;
-        generated_at: number;
-      };
-    };
     if (!this.isInitialized) await this.initialize();
 
     if (queryEmbedding.length !== DEFAULT_EMBEDDING_DIMENSIONS) {
@@ -569,14 +307,12 @@ export class DocumentLanceStore {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let query = this.table!.search(queryEmbedding) as any;
 
-    // Set distance type
     if (typeof query.distanceType === 'function') {
       query = query.distanceType(distanceType);
     }
 
     query = query.limit(topK);
 
-    // Apply filters using LanceDB's native WHERE clause
     const whereClauses: string[] = [];
 
     if (filter?.overlay_type) {
@@ -584,42 +320,34 @@ export class DocumentLanceStore {
         `overlay_type = '${this.escapeSqlString(filter.overlay_type)}'`
       );
     }
-
     if (filter?.document_hash) {
       whereClauses.push(
         `document_hash = '${this.escapeSqlString(filter.document_hash)}'`
       );
     }
-
     if (filter?.document_path) {
       whereClauses.push(
         `document_path = '${this.escapeSqlString(filter.document_path)}'`
       );
     }
-
     if (filter?.concept_type) {
       whereClauses.push(
         `concept_type = '${this.escapeSqlString(filter.concept_type)}'`
       );
     }
-
     if (filter?.min_weight !== undefined) {
       whereClauses.push(`weight >= ${filter.min_weight}`);
     }
-
     if (filter?.max_weight !== undefined) {
       whereClauses.push(`weight <= ${filter.max_weight}`);
     }
-
     if (filter?.min_occurrences !== undefined) {
       whereClauses.push(`occurrences >= ${filter.min_occurrences}`);
     }
-
     if (filter?.section) {
       whereClauses.push(`section = '${this.escapeSqlString(filter.section)}'`);
     }
 
-    // Combine all filters with AND
     if (whereClauses.length > 0) {
       query = query.where(whereClauses.join(' AND '));
     }
@@ -653,7 +381,10 @@ export class DocumentLanceStore {
               : result.generated_at,
         },
       }))
-      .sort((a: Result, b: Result) => b.similarity - a.similarity);
+      .sort(
+        (a: { similarity: number }, b: { similarity: number }) =>
+          b.similarity - a.similarity
+      );
   }
 
   /**
@@ -672,8 +403,7 @@ export class DocumentLanceStore {
 
     if (records.length === 0) return undefined;
 
-    const record = records[0];
-    return this.toPlainRecord(record);
+    return this.toPlainRecord(records[0]);
   }
 
   /**
@@ -696,7 +426,10 @@ export class DocumentLanceStore {
     return records
       .map((record) => this.toPlainRecord(record))
       .filter((record): record is DocumentConceptRecord => record !== undefined)
-      .sort((a, b) => a.generated_at - b.generated_at);
+      .sort(
+        (a: DocumentConceptRecord, b: DocumentConceptRecord) =>
+          a.generated_at - b.generated_at
+      );
   }
 
   /**
@@ -723,10 +456,7 @@ export class DocumentLanceStore {
    * Delete a specific concept.
    */
   async deleteConcept(conceptId: string): Promise<boolean> {
-    if (!this.isInitialized) await this.initialize();
-
-    const escapedId = this.escapeSqlString(conceptId);
-    await this.table!.delete(`id = '${escapedId}'`);
+    await this.delete(`id = '${this.escapeSqlString(conceptId)}'`);
     return true;
   }
 
@@ -737,11 +467,9 @@ export class DocumentLanceStore {
     overlayType: string,
     documentHash: string
   ): Promise<boolean> {
-    if (!this.isInitialized) await this.initialize();
-
     const escapedOverlay = this.escapeSqlString(overlayType);
     const escapedHash = this.escapeSqlString(documentHash);
-    await this.table!.delete(
+    await this.delete(
       `overlay_type = '${escapedOverlay}' AND document_hash = '${escapedHash}'`
     );
     return true;
@@ -792,25 +520,6 @@ export class DocumentLanceStore {
     }
   }
 
-  // Private helper methods
-
-  private escapeSqlString(value: string): string {
-    return value.replace(/'/g, "''");
-  }
-
-  private calculateSimilarity(
-    distance: number,
-    distanceType: 'l2' | 'cosine' | 'dot' = 'cosine'
-  ): number {
-    if (distanceType === 'cosine') {
-      return Math.max(0, 1 - distance);
-    } else if (distanceType === 'dot') {
-      return distance;
-    } else {
-      return 1 / (1 + Math.max(0, distance));
-    }
-  }
-
   private toPlainRecord(
     record: Record<string, unknown>
   ): DocumentConceptRecord | undefined {
@@ -842,9 +551,6 @@ export class DocumentLanceStore {
       };
 
       if (!this.isValidConceptRecord(plainRecord)) {
-        console.warn(
-          `Invalid document concept record found for id: ${record.id}`
-        );
         return undefined;
       }
 
@@ -859,7 +565,6 @@ export class DocumentLanceStore {
     record: unknown
   ): record is DocumentConceptRecord {
     const r = record as DocumentConceptRecord;
-
     if (!r) return false;
     if (typeof r.id !== 'string') return false;
     if (typeof r.overlay_type !== 'string') return false;
@@ -867,20 +572,14 @@ export class DocumentLanceStore {
     if (typeof r.text !== 'string') return false;
     if (!Array.isArray(r.embedding)) return false;
     if (r.embedding.length !== DEFAULT_EMBEDDING_DIMENSIONS) return false;
-
     return true;
   }
 
   private isValidSearchResult(result: unknown): result is DocumentSearchResult {
     const r = result as DocumentSearchResult;
-
     if (!r) return false;
     if (typeof r.id !== 'string') return false;
-    if (typeof r.overlay_type !== 'string') return false;
-    if (typeof r.document_hash !== 'string') return false;
-    if (typeof r.text !== 'string') return false;
     if (typeof r._distance !== 'number') return false;
-
     return true;
   }
 }

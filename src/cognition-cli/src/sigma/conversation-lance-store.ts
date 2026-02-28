@@ -1,6 +1,4 @@
-import { connect, Connection, Table } from '@lancedb/lancedb';
 import path from 'path';
-import fs from 'fs-extra';
 import {
   Field,
   Schema,
@@ -12,9 +10,11 @@ import {
   Bool,
 } from 'apache-arrow';
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../config.js';
-import { withDbRetry } from '../core/utils/retry.js';
-import { DatabaseError } from '../core/errors/index.js';
 import { systemLog } from '../utils/debug-logger.js';
+import {
+  AbstractLanceStore,
+  LANCE_DUMMY_ID,
+} from '../core/overlays/vector-db/abstract-lance-store.js';
 
 /**
  * Represents a conversation turn record stored in LanceDB.
@@ -78,19 +78,6 @@ interface ConversationSearchResult extends Record<string, unknown> {
 
 /**
  * Apache Arrow schema for conversation turn records
- *
- * Designed for Sigma's infinite context with dual-lattice architecture.
- * Stores full conversation metadata including embeddings and alignment scores.
- *
- * SCHEMA FIELDS:
- * - Identity: id, session_id
- * - Content: role, content, timestamp
- * - Embeddings: 768D vector from eGemma
- * - Sigma Metrics: novelty, importance, is_paradigm_shift
- * - Project Alignment: alignment_O1 through alignment_O7 (0-10 scale)
- * - Metadata: semantic_tags (JSON), references (JSON)
- *
- * @returns Apache Arrow schema for conversation turn table
  */
 export function createConversationTurnSchema(): Schema {
   return new Schema([
@@ -153,137 +140,51 @@ export interface ConversationQueryFilter {
  * Manages conversational lattice storage and semantic search using LanceDB.
  * Optimized for Sigma's infinite context with full vector operations.
  */
-export class ConversationLanceStore {
-  private db: Connection | undefined;
-  private table: Table | undefined;
-  private isInitialized = false;
-  private initializationPromise: Promise<void> | null = null;
-
-  constructor(private sigmaRoot: string) {}
+export class ConversationLanceStore extends AbstractLanceStore<ConversationTurnRecord> {
+  constructor(private sigmaRoot: string) {
+    super(path.join(sigmaRoot, 'conversations.lancedb'));
+  }
 
   /**
    * Initialize the conversation LanceDB store
    *
-   * Creates or opens the conversations.lancedb database at .sigma/conversations.lancedb.
-   * Safe for concurrent initialization (uses initialization promise guard).
-   *
    * @param tableName - Name of the table to create/open (default: 'conversation_turns')
-   *
-   * @example
-   * const store = new ConversationLanceStore(sigmaRoot);
-   * await store.initialize();
    */
-  async initialize(tableName: string = 'conversation_turns'): Promise<void> {
-    // Prevent multiple simultaneous initializations
-    if (this.initializationPromise) {
-      return this.initializationPromise;
-    }
-
-    this.initializationPromise = this.doInitialize(tableName);
-    return this.initializationPromise;
+  public override async initialize(
+    tableName: string = 'conversation_turns'
+  ): Promise<void> {
+    return super.initialize(tableName);
   }
 
-  private async doInitialize(tableName: string): Promise<void> {
-    try {
-      const dbPath = path.join(this.sigmaRoot, 'conversations.lancedb');
-      await fs.ensureDir(path.dirname(dbPath));
+  protected getSchema(): Schema {
+    return createConversationTurnSchema();
+  }
 
-      this.db = await connect(dbPath);
-
-      // Check if table exists, if not, create it
-      const tableNames = await this.db.tableNames();
-      if (tableNames.includes(tableName)) {
-        this.table = await this.db.openTable(tableName);
-      } else {
-        try {
-          // Create the table with a complete dummy record
-          const schema = createConversationTurnSchema();
-          const dummyRecord: ConversationTurnRecord = {
-            id: 'schema_test_record',
-            session_id: 'test_session',
-            role: 'system',
-            content: 'Schema initialization record',
-            timestamp: Date.now(),
-            embedding: new Array(DEFAULT_EMBEDDING_DIMENSIONS).fill(0.1),
-            novelty: 0.0,
-            importance: 0.0,
-            is_paradigm_shift: false,
-            alignment_O1: 0.0,
-            alignment_O2: 0.0,
-            alignment_O3: 0.0,
-            alignment_O4: 0.0,
-            alignment_O5: 0.0,
-            alignment_O6: 0.0,
-            alignment_O7: 0.0,
-            semantic_tags: '[]',
-            references: '[]',
-          };
-
-          this.table = await this.db.createTable(tableName, [dummyRecord], {
-            schema,
-          });
-
-          // Clean up test record
-          await this.table.delete(`id = 'schema_test_record'`);
-        } catch (createError: unknown) {
-          // If table already exists (race condition), open it
-          if (
-            createError instanceof Error &&
-            createError.message.includes('already exists')
-          ) {
-            this.table = await this.db.openTable(tableName);
-          } else {
-            throw createError;
-          }
-        }
-      }
-      this.isInitialized = true;
-    } catch (error: unknown) {
-      this.initializationPromise = null;
-      throw new DatabaseError(
-        'initialize',
-        { tableName, sigmaRoot: this.sigmaRoot },
-        error as Error
-      );
-    }
+  protected createDummyRecord(): ConversationTurnRecord {
+    return {
+      id: LANCE_DUMMY_ID,
+      session_id: 'test_session',
+      role: 'system',
+      content: 'Schema initialization record',
+      timestamp: Date.now(),
+      embedding: new Array(DEFAULT_EMBEDDING_DIMENSIONS).fill(0.1),
+      novelty: 0.0,
+      importance: 0.0,
+      is_paradigm_shift: false,
+      alignment_O1: 0.0,
+      alignment_O2: 0.0,
+      alignment_O3: 0.0,
+      alignment_O4: 0.0,
+      alignment_O5: 0.0,
+      alignment_O6: 0.0,
+      alignment_O7: 0.0,
+      semantic_tags: '[]',
+      references: '[]',
+    };
   }
 
   /**
    * Store a conversation turn with full Sigma metadata
-   *
-   * Uses LanceDB's mergeInsert for efficient upsert without version bloat.
-   *
-   * OPTIMIZATION: mergeInsert updates existing records in-place instead of
-   * delete+add, preventing the version explosion that caused 22K versions
-   * for 241 turns (700MB bloat).
-   *
-   * @param sessionId - Session UUID
-   * @param turnId - Turn identifier (e.g., "turn_1", "turn_2")
-   * @param role - Role of the turn ('user' | 'assistant' | 'system')
-   * @param content - Full text of the turn
-   * @param embedding - 768D embedding vector from eGemma
-   * @param metadata - Sigma metrics and alignment scores
-   * @returns The turn ID that was stored
-   *
-   * @throws Error if embedding dimension doesn't match DEFAULT_EMBEDDING_DIMENSIONS (768)
-   *
-   * @example
-   * await store.storeTurn(
-   *   sessionId,
-   *   'turn_1',
-   *   'user',
-   *   "Can you help me with TUI scrolling?",
-   *   embedding,
-   *   {
-   *     novelty: 0.85,
-   *     importance: 7,
-   *     is_paradigm_shift: false,
-   *     alignment_O1: 8, alignment_O2: 3, alignment_O3: 2,
-   *     alignment_O4: 5, alignment_O5: 9, alignment_O6: 4, alignment_O7: 6,
-   *     semantic_tags: ['TUI', 'scrolling'],
-   *     references: []
-   *   }
-   * );
    */
   async storeTurn(
     sessionId: string,
@@ -336,43 +237,12 @@ export class ConversationLanceStore {
       references: JSON.stringify(metadata.references || []),
     };
 
-    // Use mergeInsert for efficient upsert (no version bloat)
-    // - If turn exists (matched by id): updates in-place
-    // - If turn doesn't exist: inserts new record
-    // - No delete operation = no extra versions
-    // - Wrapped with retry for transient database errors (SQLITE_BUSY, etc.)
-    await withDbRetry(() =>
-      this.table!.mergeInsert('id')
-        .whenMatchedUpdateAll()
-        .whenNotMatchedInsertAll()
-        .execute([record])
-    );
-
+    await this.mergeInsert([record]);
     return turnId;
   }
 
   /**
    * Semantic similarity search across conversation history
-   *
-   * Uses LanceDB's native vector operations for maximum performance.
-   * Supports advanced filtering by session, role, importance, novelty, and overlay alignment.
-   *
-   * @param queryEmbedding - Query vector (768D)
-   * @param topK - Maximum number of results to return
-   * @param filter - Optional filters (session, role, importance range, paradigm shifts, etc.)
-   * @param distanceType - Distance metric ('l2' | 'cosine' | 'dot'), default: 'cosine'
-   * @returns Array of matching turns with similarity scores and full metadata
-   *
-   * @throws Error if query embedding dimension doesn't match expected dimensions
-   *
-   * @example
-   * const results = await store.similaritySearch(
-   *   queryEmbedding,
-   *   10,
-   *   { min_importance: 6, is_paradigm_shift: true },
-   *   'cosine'
-   * );
-   * results.forEach(r => console.log(`[${r.similarity.toFixed(2)}] ${r.content.slice(0, 50)}...`));
    */
   async similaritySearch(
     queryEmbedding: number[],
@@ -414,14 +284,12 @@ export class ConversationLanceStore {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let query = this.table!.search(queryEmbedding) as any;
 
-    // Set distance type
     if (typeof query.distanceType === 'function') {
       query = query.distanceType(distanceType);
     }
 
     query = query.limit(topK);
 
-    // Apply filters using LanceDB's native WHERE clause
     const whereClauses: string[] = [];
 
     if (filter?.session_id) {
@@ -462,13 +330,11 @@ export class ConversationLanceStore {
       whereClauses.push(`timestamp <= ${filter.max_timestamp}`);
     }
 
-    // Overlay-specific filtering
     if (filter?.overlay && filter?.min_overlay_alignment !== undefined) {
       const overlayField = `alignment_${filter.overlay}`;
       whereClauses.push(`${overlayField} >= ${filter.min_overlay_alignment}`);
     }
 
-    // Combine all filters with AND
     if (whereClauses.length > 0) {
       query = query.where(whereClauses.join(' AND '));
     }
@@ -508,13 +374,6 @@ export class ConversationLanceStore {
 
   /**
    * Get a specific turn by ID
-   *
-   * @param turnId - Turn identifier to retrieve
-   * @returns Turn record if found, undefined otherwise
-   *
-   * @example
-   * const turn = await store.getTurn('turn_42');
-   * if (turn) console.log(turn.content);
    */
   async getTurn(turnId: string): Promise<ConversationTurnRecord | undefined> {
     if (!this.isInitialized) await this.initialize();
@@ -529,7 +388,6 @@ export class ConversationLanceStore {
 
     const record = records[0];
 
-    // Create a plain JS object copy to avoid Apache Arrow proxy issues
     const plainRecord: ConversationTurnRecord = {
       id: record.id,
       session_id: record.session_id,
@@ -541,8 +399,8 @@ export class ConversationLanceStore {
           : record.timestamp,
       embedding:
         record.embedding && typeof record.embedding === 'object'
-          ? Array.from(record.embedding)
-          : record.embedding,
+          ? Array.from(record.embedding as ArrayLike<number>)
+          : (record.embedding as number[]),
       novelty: record.novelty,
       importance: record.importance,
       is_paradigm_shift: record.is_paradigm_shift,
@@ -572,14 +430,6 @@ export class ConversationLanceStore {
 
   /**
    * Get all turns for a specific session, ordered by timestamp
-   *
-   * @param sessionId - Session UUID to retrieve turns for
-   * @param orderBy - Sort order: 'asc' (chronological) or 'desc' (reverse chronological)
-   * @returns Array of conversation turns for the session
-   *
-   * @example
-   * const turns = await store.getSessionTurns(sessionId, 'asc');
-   * console.log(`Session has ${turns.length} turns`);
    */
   async getSessionTurns(
     sessionId: string,
@@ -594,7 +444,6 @@ export class ConversationLanceStore {
 
     const validRecords = records
       .map((record) => {
-        // Create plain JS object copy
         const plainRecord: ConversationTurnRecord = {
           id: record.id,
           session_id: record.session_id,
@@ -606,8 +455,8 @@ export class ConversationLanceStore {
               : record.timestamp,
           embedding:
             record.embedding && typeof record.embedding === 'object'
-              ? Array.from(record.embedding)
-              : record.embedding,
+              ? Array.from(record.embedding as ArrayLike<number>)
+              : (record.embedding as number[]),
           novelty: record.novelty,
           importance: record.importance,
           is_paradigm_shift: record.is_paradigm_shift,
@@ -625,7 +474,6 @@ export class ConversationLanceStore {
       })
       .filter((record) => this.isValidTurnRecord(record));
 
-    // Sort by timestamp
     validRecords.sort((a, b) => {
       return orderBy === 'asc'
         ? a.timestamp - b.timestamp
@@ -637,16 +485,6 @@ export class ConversationLanceStore {
 
   /**
    * Get turns marked as paradigm shifts
-   *
-   * Paradigm shifts are high-novelty moments (importance >= 7, novelty > 0.7)
-   * that represent significant topic changes or breakthroughs.
-   *
-   * @param sessionId - Optional session UUID to filter by (omit for all sessions)
-   * @returns Array of paradigm shift turns
-   *
-   * @example
-   * const shifts = await store.getParadigmShifts(sessionId);
-   * console.log(`Found ${shifts.length} paradigm shifts`);
    */
   async getParadigmShifts(
     sessionId?: string
@@ -662,7 +500,6 @@ export class ConversationLanceStore {
 
     return records
       .map((record) => {
-        // Create plain JS object copy
         const plainRecord: ConversationTurnRecord = {
           id: record.id,
           session_id: record.session_id,
@@ -674,8 +511,8 @@ export class ConversationLanceStore {
               : record.timestamp,
           embedding:
             record.embedding && typeof record.embedding === 'object'
-              ? Array.from(record.embedding)
-              : record.embedding,
+              ? Array.from(record.embedding as ArrayLike<number>)
+              : (record.embedding as number[]),
           novelty: record.novelty,
           importance: record.importance,
           is_paradigm_shift: record.is_paradigm_shift,
@@ -696,41 +533,22 @@ export class ConversationLanceStore {
 
   /**
    * Delete a specific turn
-   *
-   * @param turnId - Turn identifier to delete
-   * @returns true if deletion succeeded
    */
   async deleteTurn(turnId: string): Promise<boolean> {
-    if (!this.isInitialized) await this.initialize();
-
-    const escapedId = this.escapeSqlString(turnId);
-    await this.table!.delete(`id = '${escapedId}'`);
+    await this.delete(`id = '${this.escapeSqlString(turnId)}'`);
     return true;
   }
 
   /**
    * Delete all turns for a specific session
-   *
-   * @param sessionId - Session UUID to delete all turns for
-   * @returns true if deletion succeeded
    */
   async deleteSession(sessionId: string): Promise<boolean> {
-    if (!this.isInitialized) await this.initialize();
-
-    const escapedSessionId = this.escapeSqlString(sessionId);
-    await this.table!.delete(`session_id = '${escapedSessionId}'`);
+    await this.delete(`session_id = '${this.escapeSqlString(sessionId)}'`);
     return true;
   }
 
   /**
    * Get statistics about stored conversations
-   *
-   * @returns Statistics object with counts and averages
-   *
-   * @example
-   * const stats = await store.getStats();
-   * console.log(`${stats.total_turns} turns across ${stats.total_sessions} sessions`);
-   * console.log(`${stats.paradigm_shifts} paradigm shifts detected`);
    */
   async getStats(): Promise<{
     total_turns: number;
@@ -767,11 +585,6 @@ export class ConversationLanceStore {
 
   /**
    * Close the database connection
-   *
-   * Cleans up resources and resets initialization state.
-   *
-   * @example
-   * await store.close();
    */
   async close(): Promise<void> {
     if (this.db) {
@@ -783,28 +596,6 @@ export class ConversationLanceStore {
     }
   }
 
-  // Private helper methods
-
-  /**
-   * Escape SQL string for WHERE clause injection protection
-   *
-   * @param value - String to escape
-   * @returns Escaped string safe for SQL WHERE clause
-   *
-   * @private
-   */
-  private escapeSqlString(value: string): string {
-    return value.replace(/'/g, "''");
-  }
-
-  /**
-   * Parse JSON field from string
-   *
-   * @param value - JSON string to parse
-   * @returns Parsed array, or empty array if invalid JSON
-   *
-   * @private
-   */
   private parseJsonField(value: string): string[] {
     try {
       const parsed = JSON.parse(value);
@@ -814,41 +605,6 @@ export class ConversationLanceStore {
     }
   }
 
-  /**
-   * Calculate similarity score from distance metric
-   *
-   * Converts distance to similarity (0-1 scale, higher = more similar):
-   * - cosine: similarity = 1 - distance
-   * - dot: similarity = distance (already a similarity)
-   * - l2: similarity = 1 / (1 + distance)
-   *
-   * @param distance - Raw distance from LanceDB
-   * @param distanceType - Distance metric used
-   * @returns Similarity score (0-1)
-   *
-   * @private
-   */
-  private calculateSimilarity(
-    distance: number,
-    distanceType: 'l2' | 'cosine' | 'dot' = 'cosine'
-  ): number {
-    if (distanceType === 'cosine') {
-      return Math.max(0, 1 - distance);
-    } else if (distanceType === 'dot') {
-      return distance;
-    } else {
-      return 1 / (1 + Math.max(0, distance));
-    }
-  }
-
-  /**
-   * Type guard to validate conversation turn record
-   *
-   * @param record - Record to validate
-   * @returns true if record is a valid ConversationTurnRecord
-   *
-   * @private
-   */
   private isValidTurnRecord(record: unknown): record is ConversationTurnRecord {
     const r = record as ConversationTurnRecord;
 
@@ -864,14 +620,6 @@ export class ConversationLanceStore {
     return true;
   }
 
-  /**
-   * Type guard to validate search result
-   *
-   * @param result - Result to validate
-   * @returns true if result is a valid ConversationSearchResult
-   *
-   * @private
-   */
   private isValidSearchResult(
     result: unknown
   ): result is ConversationSearchResult {

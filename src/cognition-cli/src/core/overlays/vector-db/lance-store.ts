@@ -1,6 +1,4 @@
-import { connect, Connection, Table } from '@lancedb/lancedb';
 import path from 'path';
-import fs from 'fs-extra';
 import {
   Field,
   Schema,
@@ -11,8 +9,8 @@ import {
 } from 'apache-arrow';
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../../config.js';
 
-import { withDbRetry } from '../../../core/utils/retry.js';
-import { DatabaseError } from '../../../core/errors/index.js';
+import { AbstractLanceStore, LANCE_DUMMY_ID } from './abstract-lance-store.js';
+
 /**
  * Creates Apache Arrow schema for lineage pattern records.
  * Updated for The Shadow architecture (Monument 4.7) with dual embeddings.
@@ -101,141 +99,56 @@ export const VECTOR_RECORD_SCHEMA = new Schema([
  * Provides a high-level interface for storing and querying vector embeddings
  * with associated metadata. Supports the Shadow architecture (Monument 4.7)
  * with dual embeddings (structural and semantic).
- *
- * Features:
- * - Efficient upsert using mergeInsert (no version bloat)
- * - Automatic deduplication by symbol
- * - Multiple distance metrics (cosine, L2, dot product)
- * - SQL injection protection
- * - Concurrent initialization safety
  */
-export class LanceVectorStore {
-  private db: Connection | undefined;
-  private table: Table | undefined;
-  private isInitialized = false;
-  private initializationPromise: Promise<void> | null = null;
-
+export class LanceVectorStore extends AbstractLanceStore<VectorRecord> {
   /**
    * Create a new LanceDB vector store
    *
    * @param pgcRoot - Root directory of the PGC (Grounded Context Pool)
    */
-  constructor(private pgcRoot: string) {}
+  constructor(private pgcRoot: string) {
+    super(path.join(pgcRoot, 'patterns.lancedb'));
+  }
 
   /**
    * Initialize the vector store connection and table
    *
-   * Creates or opens a LanceDB table with the appropriate schema.
-   * Safe for concurrent calls - will return the same initialization promise.
-   *
    * @param tableName - Name of the table to initialize (default: 'structural_patterns')
    * @returns Promise that resolves when initialization is complete
    */
-  async initialize(tableName: string = 'structural_patterns'): Promise<void> {
-    // Prevent multiple simultaneous initializations
-    if (this.initializationPromise) {
-      return this.initializationPromise;
-    }
-
-    let schemaToUse: Schema;
-    if (tableName === 'lineage_patterns') {
-      schemaToUse = createLineagePatternSchema();
-    } else {
-      schemaToUse = VECTOR_RECORD_SCHEMA;
-    }
-
-    this.initializationPromise = this.doInitialize(tableName, schemaToUse);
-    return this.initializationPromise;
+  public override async initialize(
+    tableName: string = 'structural_patterns'
+  ): Promise<void> {
+    return super.initialize(tableName);
   }
 
-  /**
-   * Internal initialization implementation
-   *
-   * @param tableName - Table name to create/open
-   * @param schema - Apache Arrow schema to use
-   * @returns Promise that resolves when initialization is complete
-   * @throws Error if initialization fails
-   * @private
-   */
-  private async doInitialize(tableName: string, schema: Schema): Promise<void> {
-    try {
-      const dbPath = path.join(this.pgcRoot, 'patterns.lancedb');
-      await fs.ensureDir(path.dirname(dbPath));
-
-      this.db = await connect(dbPath);
-
-      // Check if table exists, if not, create it
-      const tableNames = await this.db.tableNames();
-      if (tableNames.includes(tableName)) {
-        this.table = await this.db.openTable(tableName);
-      } else {
-        try {
-          // Create the table with the EXACT schema we want (Shadow architecture)
-          const completeDummyRecord = {
-            id: 'schema_test_record',
-            symbol: 'test',
-            embedding: new Array(DEFAULT_EMBEDDING_DIMENSIONS).fill(0.1),
-            structural_signature: 'test',
-            semantic_signature: 'test',
-            type: 'structural',
-            architectural_role: 'test_role',
-            computed_at: new Date().toISOString(),
-            lineage_hash: 'test_hash',
-            filePath: 'test/path.ts',
-            structuralHash: 'test_structural_hash',
-            document_hash: 'test_document_hash', // For --force cleanup tracking
-          };
-
-          this.table = await this.db.createTable(
-            tableName,
-            [completeDummyRecord],
-            {
-              schema,
-            }
-          );
-
-          // Clean up test record
-          await this.table.delete(`id = 'schema_test_record'`);
-        } catch (createError: unknown) {
-          // If table already exists (e.g., due to a race condition), open it instead
-          if (
-            createError instanceof Error &&
-            createError.message.includes('already exists')
-          ) {
-            this.table = await this.db.openTable(tableName);
-          } else {
-            throw createError; // Re-throw other errors
-          }
-        }
-      }
-      this.isInitialized = true;
-    } catch (error: unknown) {
-      this.initializationPromise = null;
-      throw new DatabaseError(
-        'initialize',
-        { tableName, pgcRoot: this.pgcRoot },
-        error as Error
-      );
+  protected getSchema(tableName: string): Schema {
+    if (tableName === 'lineage_patterns') {
+      return createLineagePatternSchema();
     }
+    return VECTOR_RECORD_SCHEMA;
+  }
+
+  protected createDummyRecord(): VectorRecord {
+    return {
+      id: LANCE_DUMMY_ID,
+      symbol: 'test',
+      embedding: new Array(DEFAULT_EMBEDDING_DIMENSIONS).fill(0.1),
+      structural_signature: 'test',
+      semantic_signature: 'test',
+      type: 'structural',
+      architectural_role: 'test_role',
+      computed_at: new Date().toISOString(),
+      lineage_hash: 'test_hash',
+      filePath: 'test/path.ts',
+      structuralHash: 'test_structural_hash',
+      document_hash: 'test_document_hash',
+    };
   }
 
   /**
    * Store a vector with metadata.
    * Uses LanceDB's mergeInsert for efficient upsert without version bloat.
-   *
-   * @param id - Unique identifier for the vector
-   * @param embedding - Vector embedding (must match DEFAULT_EMBEDDING_DIMENSIONS)
-   * @param metadata - Associated metadata (architectural_role, lineage_hash required)
-   * @returns Promise resolving to the stored vector's ID
-   * @throws Error if required fields are missing or embedding dimensions mismatch
-   *
-   * @example
-   * await store.storeVector('my-symbol', embedding, {
-   *   symbol: 'myFunction',
-   *   architectural_role: 'service',
-   *   lineage_hash: 'abc123',
-   *   computed_at: new Date().toISOString()
-   * });
    */
   async storeVector(
     id: string,
@@ -276,37 +189,12 @@ export class LanceVectorStore {
       document_hash: (metadata.document_hash as string) || '',
     };
 
-    // Use mergeInsert for efficient upsert (no version bloat)
-    // - If vector exists (matched by id): updates in-place
-    // - If vector doesn't exist: inserts new record
-    // - No delete operation = no extra versions
-    // - Wrapped with retry for transient database errors (SQLITE_BUSY, etc.)
-    await withDbRetry(() =>
-      this.table!.mergeInsert('id')
-        .whenMatchedUpdateAll()
-        .whenNotMatchedInsertAll()
-        .execute([record])
-    );
-
+    await this.mergeInsert([record]);
     return id;
   }
 
   /**
    * OPTIMIZATION: Batch store multiple vectors for 3-5x faster overlay builds
-   *
-   * Stores multiple vectors in a single transaction instead of one-by-one.
-   * This significantly reduces database overhead and improves throughput.
-   *
-   * @param vectors - Array of vector data with embeddings and metadata
-   * @returns Promise resolving to array of stored vector IDs
-   * @throws Error if any vector has invalid dimensions or missing fields
-   *
-   * @example
-   * const vectors = [
-   *   { id: 'vec1', embedding: [0.1, ...], metadata: {...} },
-   *   { id: 'vec2', embedding: [0.2, ...], metadata: {...} }
-   * ];
-   * const ids = await store.batchStoreVectors(vectors);
    */
   async batchStoreVectors(
     vectors: Array<{
@@ -317,12 +205,10 @@ export class LanceVectorStore {
   ): Promise<string[]> {
     if (!this.isInitialized) await this.initialize();
 
-    // Validate all vectors before storing any
     const records: VectorRecord[] = [];
     const requiredFields = ['architectural_role', 'lineage_hash'];
 
     for (const { id, embedding, metadata } of vectors) {
-      // Check for missing required fields
       const missingFields = requiredFields.filter(
         (field) => !(field in metadata)
       );
@@ -333,7 +219,6 @@ export class LanceVectorStore {
         );
       }
 
-      // Validate embedding dimensions
       if (embedding.length !== DEFAULT_EMBEDDING_DIMENSIONS) {
         throw new Error(
           `Vector ${id}: Embedding dimension mismatch: expected ${DEFAULT_EMBEDDING_DIMENSIONS}, got ${embedding.length}`
@@ -356,37 +241,12 @@ export class LanceVectorStore {
       });
     }
 
-    // Batch upsert: All records in a single transaction
-    // Wrapped with retry for transient database errors (SQLITE_BUSY, etc.)
-    await withDbRetry(() =>
-      this.table!.mergeInsert('id')
-        .whenMatchedUpdateAll()
-        .whenNotMatchedInsertAll()
-        .execute(records)
-    );
-
+    await this.mergeInsert(records);
     return records.map((r) => r.id);
   }
 
   /**
    * Perform similarity search to find nearest neighbors
-   *
-   * Searches for vectors similar to the query embedding using the specified
-   * distance metric. Results are automatically deduplicated by symbol and
-   * sorted by similarity (highest first).
-   *
-   * @param queryEmbedding - Query vector for similarity search
-   * @param topK - Number of top results to return
-   * @param filter - Optional filters for symbol or architectural_role
-   * @param distanceType - Distance metric: 'cosine' | 'l2' | 'dot' (default: 'cosine')
-   * @returns Promise resolving to array of search results with similarity scores
-   * @throws Error if query embedding dimensions mismatch
-   *
-   * @example
-   * const results = await store.similaritySearch(queryVector, 5, {
-   *   architectural_role: 'service'
-   * }, 'cosine');
-   * console.log(`Found ${results.length} similar vectors`);
    */
   async similaritySearch(
     queryEmbedding: number[],
@@ -411,39 +271,34 @@ export class LanceVectorStore {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let query = this.table!.search(queryEmbedding) as any;
 
-    // Set distance type if the method exists (LanceDB v0.22+)
     if (typeof query.distanceType === 'function') {
       query = query.distanceType(distanceType);
     }
 
-    query = query.limit(topK * 2); // Get extra for deduplication
+    query = query.limit(topK * 2);
 
-    // Apply filters if provided
     if (filter?.symbol) {
-      query = query.where(`symbol = '${filter.symbol}'`);
+      query = query.where(`symbol = '${this.escapeSqlString(filter.symbol)}'`);
     }
     if (filter?.architectural_role) {
       query = query.where(
-        `architectural_role = '${filter.architectural_role}'`
+        `architectural_role = '${this.escapeSqlString(filter.architectural_role)}'`
       );
     }
 
     const records = await query.toArray();
 
-    // ✅ DEDUPLICATE RESULTS BY SYMBOL
     const uniqueResults = new Map<string, LanceDBSearchResult>();
     records
       .filter((result: unknown): result is LanceDBSearchResult =>
         this.isValidSearchResult(result)
       )
       .forEach((result: LanceDBSearchResult) => {
-        // Keep only the first occurrence of each symbol (highest similarity due to sorting)
         if (!uniqueResults.has(result.symbol)) {
           uniqueResults.set(result.symbol, result);
         }
       });
 
-    // Convert back to array and take topK
     return Array.from(uniqueResults.values())
       .map((result) => ({
         id: result.id,
@@ -456,24 +311,11 @@ export class LanceVectorStore {
           lineage_hash: result.lineage_hash,
         },
       }))
-      .slice(0, topK); // Ensure we respect the topK limit
-  }
-
-  /**
-   * Escape special characters in SQL string literals
-   *
-   * SECURITY: Prevents SQL injection by escaping single quotes
-   * SQL standard: single quote is escaped by doubling it ('').
-   */
-  private escapeSqlString(value: string): string {
-    return value.replace(/'/g, "''");
+      .slice(0, topK);
   }
 
   /**
    * Retrieve a vector by its ID
-   *
-   * @param id - Vector ID to retrieve
-   * @returns Promise resolving to vector record or undefined if not found
    */
   async getVector(id: string): Promise<VectorRecord | undefined> {
     if (!this.isInitialized) await this.initialize();
@@ -488,7 +330,6 @@ export class LanceVectorStore {
 
     const record = records[0];
 
-    // Convert LanceDB Vector object to native JavaScript array
     if (
       record.embedding &&
       typeof record.embedding === 'object' &&
@@ -499,7 +340,6 @@ export class LanceVectorStore {
 
     if (!this.isValidVectorRecord(record)) {
       console.warn(`Invalid vector record found for id: ${id}`);
-
       return undefined;
     }
 
@@ -508,44 +348,25 @@ export class LanceVectorStore {
 
   /**
    * Delete a vector by its ID
-   *
-   * @param id - Vector ID to delete
-   * @returns Promise resolving to true if deletion was successful
    */
   async deleteVector(id: string): Promise<boolean> {
-    if (!this.isInitialized) await this.initialize();
-
-    const escapedId = this.escapeSqlString(id);
-    await this.table!.delete(`id = '${escapedId}'`);
-
+    await this.delete(`id = '${this.escapeSqlString(id)}'`);
     return true;
   }
 
   /**
    * Delete all vectors for a specific document (used by --force flag)
-   *
-   * Deletes only vectors that have a document_hash field matching the provided hash.
-   * Preserves vectors without document_hash (legacy embeddings, drift test data).
-   *
-   * @param documentHash - SHA-256 hash of the source document
-   * @returns Promise resolving to the number of vectors deleted
-   *
-   * @example
-   * // Delete all vectors from SECURITY.md when regenerating with --force
-   * await store.deleteByDocumentHash('abc123...');
    */
   async deleteByDocumentHash(documentHash: string): Promise<number> {
     if (!this.isInitialized) await this.initialize();
 
-    // Get count before deletion
     const beforeCount = await this.table!.query().toArray();
     const matchingBefore = beforeCount.filter(
       (v) => v.document_hash === documentHash
     ).length;
 
-    // Delete only vectors with this document_hash (preserves legacy embeddings)
     const escapedHash = this.escapeSqlString(documentHash);
-    await this.table!.delete(
+    await this.delete(
       `document_hash IS NOT NULL AND document_hash = '${escapedHash}'`
     );
 
@@ -554,8 +375,6 @@ export class LanceVectorStore {
 
   /**
    * Retrieve all vectors from the store
-   *
-   * @returns Promise resolving to array of all valid vector records (excludes dummy records)
    */
   async getAllVectors(): Promise<VectorRecord[]> {
     if (!this.isInitialized) await this.initialize();
@@ -563,7 +382,6 @@ export class LanceVectorStore {
     const records = await this.table!.query().toArray();
 
     return records.filter((record) => {
-      // Apply Vector to Array conversion for each record
       if (
         record.embedding &&
         typeof record.embedding === 'object' &&
@@ -572,38 +390,12 @@ export class LanceVectorStore {
         record.embedding = Array.from(record.embedding);
       }
       const isValid = this.isValidVectorRecord(record);
-      if (!isValid) {
-        console.warn(
-          `[LanceVectorStore] Invalid vector record found in getAllVectors:`,
-          {
-            id: record.id,
-            symbol: record.symbol,
-            embedding_length: record.embedding?.length,
-            embedding_type: typeof record.embedding,
-            has_architectural_role: !!record.architectural_role,
-            has_lineage_hash: !!record.lineage_hash,
-          }
-        );
-      }
-      return isValid && record.id !== 'dummy_record';
+      return isValid && record.id !== LANCE_DUMMY_ID;
     }) as VectorRecord[];
   }
 
   /**
-   * OPTIMIZATION: Paginated vector retrieval to avoid loading all vectors at once
-   *
-   * Returns vectors in pages to reduce memory usage for large datasets.
-   * Uses async generator for memory-efficient iteration over large vector stores.
-   *
-   * @param pageSize - Number of vectors per page (default: 1000)
-   * @yields Pages of valid vector records
-   *
-   * @example
-   * // Process vectors in batches without loading all into memory
-   * for await (const page of store.getAllVectorsPaginated(500)) {
-   *   console.log(`Processing ${page.length} vectors`);
-   *   await processBatch(page);
-   * }
+   * OPTIMIZATION: Paginated vector retrieval
    */
   async *getAllVectorsPaginated(
     pageSize: number = 1000
@@ -620,7 +412,6 @@ export class LanceVectorStore {
 
       if (records.length === 0) break;
 
-      // Apply Vector to Array conversion and validation
       const validRecords = records.filter((record) => {
         if (
           record.embedding &&
@@ -629,7 +420,7 @@ export class LanceVectorStore {
         ) {
           record.embedding = Array.from(record.embedding);
         }
-        return this.isValidVectorRecord(record) && record.id !== 'dummy_record';
+        return this.isValidVectorRecord(record) && record.id !== LANCE_DUMMY_ID;
       }) as VectorRecord[];
 
       if (validRecords.length > 0) {
@@ -642,45 +433,34 @@ export class LanceVectorStore {
 
   /**
    * Remove duplicate vectors, keeping the most recent one for each symbol
-   *
-   * @returns Promise resolving to the number of duplicate vectors removed
    */
   async removeDuplicateVectors(): Promise<number> {
     if (!this.isInitialized) await this.initialize();
 
     const allVectors = await this.getAllVectors();
 
-    // Group by symbol + document_hash (content-aware deduplication)
-    // This ensures same symbol in different files are kept separate
     const vectorMap = new Map();
     const duplicatesToDelete: string[] = [];
 
     allVectors.forEach((vec) => {
-      // Create composite key: symbol + document_hash
-      // This identifies unique symbol per document/code content
       const key = `${vec.symbol}::${vec.document_hash || vec.structuralHash}`;
 
       if (!vectorMap.has(key)) {
-        // First time seeing this symbol+document combo - keep it
         vectorMap.set(key, vec);
       } else {
-        // Duplicate found - keep the most recent one
         const existing = vectorMap.get(key);
         const existingTime = new Date(existing.computed_at as string).getTime();
         const currentTime = new Date(vec.computed_at as string).getTime();
 
         if (currentTime > existingTime) {
-          // Current vector is newer, delete the existing one
           duplicatesToDelete.push(existing.id);
           vectorMap.set(key, vec);
         } else {
-          // Existing vector is newer, delete the current one
           duplicatesToDelete.push(vec.id);
         }
       }
     });
 
-    // Delete all duplicates in parallel for better performance
     await Promise.all(duplicatesToDelete.map((id) => this.deleteVector(id)));
 
     return duplicatesToDelete.length;
@@ -688,8 +468,6 @@ export class LanceVectorStore {
 
   /**
    * Close the database connection and reset state
-   *
-   * @returns Promise that resolves when the connection is closed
    */
   async close(): Promise<void> {
     if (this.db) {
@@ -702,173 +480,41 @@ export class LanceVectorStore {
   }
 
   /**
-   * Drop a table from the database (useful for cleaning up temp tables)
-   *
-   * @param tableName - Name of the table to drop
-   * @returns Promise that resolves when the table is dropped
+   * Drop a table from the database
    */
   async dropTable(tableName: string): Promise<void> {
-    // Ensure we have a connection
     if (!this.db) {
-      const dbPath = path.join(this.pgcRoot, 'patterns.lancedb');
-      await fs.ensureDir(path.dirname(dbPath));
-      this.db = await connect(dbPath);
+      await this.initialize(tableName);
     }
 
     try {
-      await this.db.dropTable(tableName);
+      await this.db!.dropTable(tableName);
     } catch (error) {
-      // Ignore errors if table doesn't exist
       if (!(error as Error).message?.includes('not found')) {
         throw error;
       }
     }
   }
 
-  // Type guards for safety
-
-  /**
-   * Type guard to validate vector record structure
-   *
-   * @param record - Unknown record to validate
-   * @returns True if record is a valid VectorRecord
-   * @private
-   */
   private isValidVectorRecord(record: unknown): record is VectorRecord {
     const r = record as VectorRecord;
-
     if (!r) return false;
-
-    if (typeof r.id !== 'string') {
-      return false;
-    }
-
-    if (!Array.isArray(r.embedding)) {
-      return false;
-    }
-
-    if (r.embedding.length !== DEFAULT_EMBEDDING_DIMENSIONS) {
-      return false;
-    }
-
-    if (typeof r.symbol !== 'string') {
-      return false;
-    }
-
-    // Optional fields
-    if (r.structural_signature && typeof r.structural_signature !== 'string') {
-      return false;
-    }
-
-    if (r.architectural_role && typeof r.architectural_role !== 'string') {
-      return false;
-    }
-
-    if (r.computed_at && typeof r.computed_at !== 'string') {
-      return false;
-    }
-
-    if (r.lineage_hash && typeof r.lineage_hash !== 'string') {
-      return false;
-    }
-
-    if (r.lineage_hash && typeof r.lineage_hash !== 'string') {
-      return false;
-    }
-
+    if (typeof r.id !== 'string') return false;
+    if (!Array.isArray(r.embedding)) return false;
+    if (r.embedding.length !== DEFAULT_EMBEDDING_DIMENSIONS) return false;
+    if (typeof r.symbol !== 'string') return false;
     return true;
   }
 
-  /**
-   * Type guard to validate search result structure
-   *
-   * @param result - Unknown result to validate
-   * @returns True if result is a valid LanceDBSearchResult
-   * @private
-   */
   private isValidSearchResult(result: unknown): result is LanceDBSearchResult {
     const r = result as LanceDBSearchResult;
-
     if (!r) return false;
-
-    if (typeof r.id !== 'string') {
-      return false;
-    }
-
-    if (typeof r._distance !== 'number') {
-      return false;
-    }
-
-    if (typeof r.symbol !== 'string') {
-      return false;
-    }
-
-    // Optional fields
-    if (r.structural_signature && typeof r.structural_signature !== 'string') {
-      return false;
-    }
-
-    if (r.architectural_role && typeof r.architectural_role !== 'string') {
-      return false;
-    }
-
-    if (r.computed_at && typeof r.computed_at !== 'string') {
-      return false;
-    }
-
-    if (r.lineage_hash && typeof r.lineage_hash !== 'string') {
-      return false;
-    }
-
-    if (r.lineage_hash && typeof r.lineage_hash !== 'string') {
-      return false;
-    }
-
+    if (typeof r.id !== 'string') return false;
+    if (typeof r._distance !== 'number') return false;
+    if (typeof r.symbol !== 'string') return false;
     return true;
   }
 
-  /**
-   * Convert distance metric to similarity score
-   *
-   * Converts LanceDB distance values to normalized similarity scores (0-1).
-   * - Cosine: distance is [0,2], similarity = 1 - distance
-   * - Dot: distance is already similarity (higher = more similar)
-   * - L2: distance is converted using 1/(1+distance)
-   *
-   * @param distance - Distance value from LanceDB
-   * @param distanceType - Type of distance metric used
-   * @returns Normalized similarity score (0-1, higher is more similar)
-   */
-  public calculateSimilarity(
-    distance: number,
-    distanceType: 'l2' | 'cosine' | 'dot' = 'cosine'
-  ): number {
-    if (distanceType === 'cosine') {
-      // Cosine distance is 1 - cosine_similarity
-      // So cosine_similarity = 1 - distance
-      // LanceDB returns cosine distance in range [0, 2]
-      return Math.max(0, 1 - distance);
-    } else if (distanceType === 'dot') {
-      // For dot product, higher values are more similar
-      // Already in similarity form (not a distance)
-      return distance;
-    } else {
-      // L2 distance - smaller is more similar
-      return 1 / (1 + Math.max(0, distance));
-    }
-  }
-
-  /**
-   * Calculate cosine similarity between two vectors
-   *
-   * Computes the cosine of the angle between two vectors, normalized to [0,1].
-   * Formula: (A·B) / (||A|| ||B||), then normalized: (similarity + 1) / 2
-   *
-   * @param vecA - First vector
-   * @param vecB - Second vector
-   * @returns Normalized cosine similarity (0-1, higher is more similar)
-   * @throws Error if vectors have different dimensions
-   */
   public cosineSimilarity(vecA: number[], vecB: number[]): number {
     if (vecA.length !== vecB.length) {
       throw new Error('Vectors must have the same dimensions');
@@ -885,12 +531,10 @@ export class LanceVectorStore {
     }
 
     if (normA === 0 || normB === 0) {
-      return 0; // Avoid division by zero
+      return 0;
     }
 
     const similarity = dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
-    // Cosine similarity can be negative, but for embeddings it's usually [0, 1].
-    // We clamp it here to be safe and consistent with the other similarity score.
     return (similarity + 1) / 2;
   }
 }
