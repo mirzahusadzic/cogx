@@ -231,4 +231,91 @@ describe('updateSigmaTasksWithTokens', () => {
       result.grounding_evidence?.find((e) => e.id === '2')?.queries_executed
     ).toEqual(['q2']);
   });
+
+  it('should keep pending tasks from previous list if not in the new list', () => {
+    const prev: SigmaTasks = {
+      todos: [
+        {
+          id: 'task-1',
+          content: 'Task 1',
+          status: 'pending',
+          activeForm: 'A1',
+        },
+      ],
+    };
+
+    const next: SigmaTasks = {
+      todos: [
+        {
+          id: 'task-2',
+          content: 'Task 2',
+          status: 'in_progress',
+          activeForm: 'Working on 2',
+        },
+      ],
+    };
+
+    const result = updateSigmaTasksWithTokens(prev, next, 1000);
+
+    expect(result.todos).toHaveLength(2);
+    expect(result.todos.find((t) => t.id === 'task-1')).toBeDefined();
+    expect(result.todos.find((t) => t.id === 'task-2')).toBeDefined();
+  });
+
+  it('should deduplicate tasks by content if ID changes', () => {
+    const prev: SigmaTasks = {
+      todos: [
+        {
+          id: 'old-id',
+          content: 'Identical Content',
+          status: 'pending',
+          activeForm: 'A1',
+          tokensAtStart: 500,
+        },
+      ],
+    };
+
+    const next: SigmaTasks = {
+      todos: [
+        {
+          id: 'new-id',
+          content: 'Identical Content',
+          status: 'in_progress',
+          activeForm: 'A2',
+        },
+      ],
+    };
+
+    const result = updateSigmaTasksWithTokens(prev, next, 1000);
+
+    expect(result.todos).toHaveLength(1);
+    expect(result.todos[0].id).toBe('new-id');
+    expect(result.todos[0].content).toBe('Identical Content');
+    expect(result.todos[0].status).toBe('in_progress');
+    expect(result.todos[0].tokensAtStart).toBe(500); // Should preserve tokens from old task
+  });
+
+  it('should keep grounding only for existing tasks', () => {
+    const prev: SigmaTasks = {
+      todos: [
+        { id: '2', content: 'T2', status: 'completed', activeForm: 'A2' },
+      ],
+      grounding: [
+        { id: '1', strategy: 'pgc_first' },
+        { id: '2', strategy: 'pgc_cite' },
+      ],
+    };
+
+    const next: SigmaTasks = {
+      todos: [
+        { id: '2', content: 'T2', status: 'completed', activeForm: 'A2' },
+      ],
+    };
+
+    const result = updateSigmaTasksWithTokens(prev, next, 1000);
+
+    expect(result.todos).toHaveLength(1);
+    expect(result.grounding).toHaveLength(1);
+    expect(result.grounding?.[0].id).toBe('2');
+  });
 });

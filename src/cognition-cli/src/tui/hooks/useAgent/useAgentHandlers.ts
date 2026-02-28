@@ -65,9 +65,26 @@ export function updateSigmaTasksWithTokens(
   cachedTokens: number = 0
 ): SigmaTasks {
   const mergedTodos = [...(prev?.todos || [])];
+  const usedIndices = new Set<number>();
 
   for (const newTodo of input.todos) {
-    const existingIndex = mergedTodos.findIndex((t) => t.id === newTodo.id);
+    // 1. Find by ID
+    let existingIndex = mergedTodos.findIndex((t) => t.id === newTodo.id);
+
+    // 2. Fallback to Content match for pending/in_progress tasks if no ID match
+    if (
+      existingIndex === -1 &&
+      (newTodo.status === 'pending' || newTodo.status === 'in_progress')
+    ) {
+      existingIndex = mergedTodos.findIndex(
+        (t, idx) =>
+          !usedIndices.has(idx) &&
+          (t.status === 'pending' || t.status === 'in_progress') &&
+          t.content.trim().toLowerCase() ===
+            newTodo.content.trim().toLowerCase()
+      );
+    }
+
     const oldTodo =
       existingIndex !== -1 ? mergedTodos[existingIndex] : undefined;
 
@@ -157,8 +174,10 @@ export function updateSigmaTasksWithTokens(
 
     if (existingIndex !== -1) {
       mergedTodos[existingIndex] = updatedTodo;
+      usedIndices.add(existingIndex);
     } else {
       mergedTodos.push(updatedTodo);
+      usedIndices.add(mergedTodos.length - 1);
     }
   }
 
@@ -183,8 +202,12 @@ export function updateSigmaTasksWithTokens(
   return {
     ...input,
     todos: mergedTodos,
-    grounding: mergedGrounding,
-    grounding_evidence: mergedEvidence,
+    grounding: mergedGrounding.filter((g) =>
+      mergedTodos.some((t) => t.id === g.id)
+    ),
+    grounding_evidence: mergedEvidence.filter((e) =>
+      mergedTodos.some((t) => t.id === e.id)
+    ),
   };
 }
 
