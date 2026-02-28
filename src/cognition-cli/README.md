@@ -370,6 +370,13 @@ The PGC is built on four foundational pillars in `.open_cognition/`:
 
 ## 🎉 Latest Release
 
+**v2.7.1 - March 1, 2026** — [Architectural Consolidation & Tool Robustness](https://github.com/mirzahusadzic/cogx/releases/tag/v2.7.1):
+
+- 🔄 **Task State Recovery Protocol** — Implemented a critical self-correction mechanism to prevent agents from hanging on state violations.
+- 📜 **SIGMA.md Grounding** — Introduced repository-level grounding for project-specific instructions (build/test loops, standards).
+- 🛠️ **Enhanced File Tools** — Added `cwd` support for relative paths, `exclude` for globbing, and an `is_literal` flag for `grep`.
+- 🧬 **Unified LLM Abstraction** — Major refactoring of LLM tools, database stores, and orchestrators removed boilerplate and improved consistency.
+
 **v2.7.0 - February 26, 2026** — [Task Management Excellence & TUI Performance](https://github.com/mirzahusadzic/cogx/releases/tag/v2.7.0):
 
 - ⛓️ **Task Management Excellence** — Implemented strict sequential task management and surgical context hygiene with ID-based merging.
@@ -473,7 +480,7 @@ If you use this work in research, please cite:
   author = {Husadžić, Mirza},
   title = {Cognition Σ CLI: Seven-Overlay Knowledge Graph with Infinite Context},
   year = {2026},
-  version = {2.7.0},
+  version = {2.7.1},
   doi = {10.5281/zenodo.18012832},
   url = {https://github.com/mirzahusadzic/cogx/tree/main/src/cognition-cli}
 }

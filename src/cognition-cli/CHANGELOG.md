@@ -5,6 +5,26 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.1] - 2026-03-01
+
+### Summary
+
+**Architectural Consolidation & Tool Robustness.** This release focuses on the unification of the agentic core and the modernization of the TUI's state management. It introduces a formal **Task State Recovery** protocol, enhances the file-system toolset with `cwd` and `literal` search support, and implements repository-level grounding via `SIGMA.md`.
+
+### 🚀 New Features
+
+- 🔄 **Task State Recovery Protocol** — Implemented a critical self-correction mechanism to prevent agents from hanging on state violations (e.g., trying to start multiple tasks).
+- 📜 **SIGMA.md Grounding** — Introduced a repository-level grounding mechanism where agents can now discover and follow project-specific instructions (build/test loops, standards) defined in a local `SIGMA.md` file.
+- 🛠️ **Enhanced File Tools** — Added `cwd` support for relative paths to all file-based tools, `exclude` for globbing, and an `is_literal` flag for `grep` (using ripgrep's `-F` flag).
+- 🧠 **TUI Modernization (AgentContext)** — Implemented `AgentContext` in the TUI, eliminating deep prop-drilling and simplifying agent state management and UI reactivity.
+- 🧬 **Unified LLM Abstraction** — Major refactoring of LLM tools (`unified-tools.ts`), database stores (`AbstractLanceStore`), and orchestrators (`BaseOrchestrator`) removed ~4000 lines of boilerplate and improved cross-provider consistency.
+
+### 🐛 Bug Fixes & Improvements
+
+- 🩹 **Edit-File Robustness** — Added error handling for invalid regex patterns in `edit_file`, allowing agent self-correction during multi-turn editing.
+- 📦 **PGC Manifest Fixes** — Resolved critical bugs in the Project Knowledge Store (PGC) related to new object-based manifest formats and improved patterns analysis commands.
+- ⚡ **Multi-Provider Schema Parity** — Refined and unified tool execution across Gemini, OpenAI, and Minimax, ensuring schema parity and consistent behavior.
+
 ## [2.7.0] - 2026-02-26
 
 ### Summary

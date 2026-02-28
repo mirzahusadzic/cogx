@@ -131,7 +131,7 @@ program
   .name('cognition-cli')
   .usage(USAGE_SYNOPSIS)
   .description('A meta-interpreter for verifiable, stateful AI cognition')
-  .version('2.7.0')
+  .version('2.7.1')
   .addHelpText('after', formatGroupedCommands(COMMAND_GROUPS))
   .addHelpText('after', addAllEnvVars())
   .addHelpText('after', addGlobalExamples())

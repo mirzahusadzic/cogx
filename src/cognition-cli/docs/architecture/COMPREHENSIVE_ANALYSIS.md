@@ -6,7 +6,7 @@
 
 **At a Glance:**
 
-- **Current Version:** 2.7.0 (February 26, 2026)
+- **Current Version:** 2.7.1 (March 1, 2026)
 - **Production Lines:** ~104,188 TypeScript (excl. tests), ~152,708 total
 - **Test Coverage:** ~92% across 171 test files
 - **Architecture:** 7 cognitive overlays (O₁-O₇), dual-lattice Σ system, ZeroMQ agent messaging
@@ -891,24 +891,24 @@ The same architecture that understands code can preserve human identity through 
 
 | Metric                     | Value                      |
 | -------------------------- | -------------------------- |
-| **Total TypeScript Lines** | **~147,145** (incl. tests) |
-| Production Code Lines      | ~100,135 (excl. tests)     |
-| Test Code Lines            | ~47,010 (165 test files)   |
-| Total Source Files         | 419 (254 prod + 165 test)  |
+| **Total TypeScript Lines** | **~152,168** (incl. tests) |
+| Production Code Lines      | ~102,350 (excl. tests)     |
+| Test Code Lines            | ~49,818 (175 test files)   |
+| Total Source Files         | 448 (273 prod + 175 test)  |
 
 ### Lines of Code by Module
 
 | Module        | LOC         | Files   | % of Prod | Description                   |
 | ------------- | ----------- | ------- | --------- | ----------------------------- |
-| **core/**     | 35,368      | 84      | 35.3%     | PGC, overlays, orchestrators  |
-| **tui/**      | 19,839      | 66      | 19.8%     | React Ink terminal interface  |
-| **commands/** | 15,265      | 31      | 15.2%     | CLI command implementations   |
-| **sigma/**    | 10,714      | 31      | 10.7%     | Infinite context dual-lattice |
-| **llm/**      | 9,212       | 14      | 9.2%      | LLM provider abstraction      |
-| **ipc/**      | 4,369       | 12      | 4.4%      | ZeroMQ agent messaging        |
-| **utils/**    | 3,696       | 14      | 3.7%      | Errors, formatting, helpers   |
-| **root**      | 1,672       | 2       | 1.7%      | cli.ts, config.ts             |
-| **Total**     | **100,135** | **254** | **100%**  |                               |
+| **core/**     | 34,949      | 87      | 34.1%     | PGC, overlays, orchestrators  |
+| **tui/**      | 21,561      | 70      | 21.1%     | React Ink terminal interface  |
+| **commands/** | 15,287      | 32      | 14.9%     | CLI command implementations   |
+| **sigma/**    | 10,625      | 32      | 10.4%     | Infinite context dual-lattice |
+| **llm/**      | 10,148      | 22      | 9.9%      | LLM provider abstraction      |
+| **ipc/**      | 4,369       | 13      | 4.3%      | ZeroMQ agent messaging        |
+| **utils/**    | 3,715       | 15      | 3.6%      | Errors, formatting, helpers   |
+| **root**      | 1,696       | 2       | 1.7%      | cli.ts, config.ts             |
+| **Total**     | **102,350** | **273** | **100%**  |                               |
 
 ### Core Module Breakdown
 
@@ -955,7 +955,7 @@ The same architecture that understands code can preserve human identity through 
 | Core Commands         | 40+ (with tab completion)          |
 | Test Files            | 165 (comprehensive coverage)       |
 | Test Coverage         | ~92% (security, compression, UX)   |
-| Current Version       | 2.7.0 (February 26, 2026)          |
+| Current Version       | 2.7.1 (March 1, 2026)              |
 | License               | AGPL-3.0-or-later                  |
 | Zenodo DOI            | 10.5281/zenodo.18012832            |
 | Innovations Published | 49 (defensive patent publication)  |
@@ -964,7 +964,15 @@ The same architecture that understands code can preserve human identity through 
 
 ## Version History & Changelog
 
-### Version 2.7.0 (Current - Task Management Excellence & TUI Performance)
+### Version 2.7.1 (Current - Architectural Consolidation & Tool Robustness)
+
+- **Task State Recovery Protocol:** Implemented a critical self-correction mechanism to prevent agents from hanging on state violations.
+- **SIGMA.md Grounding:** Introduced repository-level grounding for project-specific instructions (build/test loops, standards).
+- **Enhanced File Tools:** Added `cwd` support for relative paths, `exclude` for globbing, and an `is_literal` flag for `grep`.
+- **Unified LLM Abstraction:** Major refactoring of LLM tools, database stores, and orchestrators removed boilerplate and improved consistency.
+- **TUI Modernization (AgentContext):** Implemented `AgentContext` in the TUI, eliminating deep prop-drilling and simplifying agent state management.
+
+### Version 2.7.0 (Task Management Excellence & TUI Performance)
 
 - **Strict Sequential Task Management:** Implemented strict task sequencing and context hygiene, ensuring ID-based merging and protecting task metadata during partial updates.
 - **SigmaTaskPanel Overhaul:** Improved task visibility by dimming collapsed tasks and increasing visibility limits. Added cumulative session-wide request and turn tracking.
@@ -1206,7 +1214,7 @@ _For previous release history, see [CHANGELOG.md](https://github.com/mirzahusadz
 
 ## Conclusion
 
-Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.7.0** extends production excellence with **strict sequential task management**, **shell completion expansion**, and **reactive TUI feedback**, ensuring infinite multi-turn execution with zero context bloat and total state visibility. This transforms Cognition CLI from a research prototype into a high-reliability distributed nervous system for code.
+Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.7.1** focuses on **architectural consolidation** of the agentic core and the **modernization of the TUI's state management**, while introducing a formal **Task State Recovery** protocol and repository-level grounding via **SIGMA.md**. This release marks a significant step towards a more unified and resilient cognitive architecture.
 
 It combines:
 
