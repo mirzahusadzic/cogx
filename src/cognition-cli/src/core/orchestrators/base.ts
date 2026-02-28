@@ -56,8 +56,13 @@ export abstract class BaseOrchestrator implements IOrchestrator {
    */
   protected async checkWorkbenchHealth(): Promise<boolean> {
     try {
-      const health = (await this.workbench.health()) as { status: string };
-      return health.status === 'ready';
+      const health = (await this.workbench.health()) as unknown;
+      if (typeof health === 'boolean') return health;
+      if (health && typeof health === 'object' && 'status' in health) {
+        const h = health as { status: string };
+        return h.status === 'ok' || h.status === 'ready';
+      }
+      return false;
     } catch {
       return false;
     }
