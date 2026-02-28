@@ -1,6 +1,5 @@
 import fs from 'fs-extra';
 import path from 'path';
-import { log, spinner } from '@clack/prompts';
 import chalk from 'chalk';
 
 import type { PGCManager } from '../pgc/manager.js';
@@ -9,6 +8,7 @@ import type { WorkbenchClient } from '../executors/workbench-client.js';
 import { GenesisOracle } from '../pgc/oracles/genesis.js';
 import { DirtyStateManager } from '../watcher/dirty-state.js';
 import type { DirtyFile } from '../types/watcher.js';
+import { BaseOrchestrator, type ProgressCallback } from './base.js';
 
 import {
   DEFAULT_MAX_FILE_SIZE,
@@ -46,7 +46,7 @@ import {
  *
  * @example
  * const orchestrator = new UpdateOrchestrator(pgc, miner, workbench, oracle, '.');
- * await orchestrator.executeIncrementalUpdate();
+ * await orchestrator.run();
  * // → Reads dirty_state.json written by file watcher
  * // → Re-processes 3 changed files, processes 2 new files
  * // → Invalidates 15 dependent overlay entries
@@ -61,16 +61,18 @@ import {
  * @see DirtyStateManager - Reads dirty_state.json from file watcher
  * @see reverseDeps - Used for surgical invalidation propagation
  */
-export class UpdateOrchestrator {
+export class UpdateOrchestrator extends BaseOrchestrator {
   private maxFileSize = DEFAULT_MAX_FILE_SIZE;
 
   constructor(
-    private pgc: PGCManager,
-    private miner: StructuralMiner,
-    private workbench: WorkbenchClient,
-    private genesisOracle: GenesisOracle,
-    private projectRoot: string
-  ) {}
+    pgc: PGCManager,
+    miner: StructuralMiner,
+    workbench: WorkbenchClient,
+    genesisOracle: GenesisOracle,
+    projectRoot: string
+  ) {
+    super(pgc, miner, workbench, genesisOracle, projectRoot);
+  }
 
   /**
    * Execute incremental update based on dirty_state.json
@@ -98,39 +100,31 @@ export class UpdateOrchestrator {
    *
    * @example
    * const orchestrator = new UpdateOrchestrator(pgc, miner, workbench, oracle, '.');
-   * await orchestrator.executeIncrementalUpdate();
+   * await orchestrator.run();
    * // → Processes 3 dirty files + 2 new files
    * // → Invalidates dependent overlays
    * // → Verifies PGC structural coherence
    *
    * @public
    */
-  async executeIncrementalUpdate(): Promise<void> {
-    const s = spinner();
+  async run(onProgress?: ProgressCallback): Promise<void> {
+    this.setProgressHandler(onProgress);
     const pgcRoot = path.join(this.projectRoot, '.open_cognition');
     const dirtyStateManager = new DirtyStateManager(pgcRoot);
 
     // Check workbench health
-    let isWorkbenchHealthy = false;
-    try {
-      await this.workbench.health();
-      isWorkbenchHealthy = true;
-    } catch (error) {
-      log.warn(
-        chalk.yellow(
-          `Workbench (eGemma) is not reachable at ${this.workbench.getBaseUrl()}. ` +
-            `Structural mining will be skipped. Please ensure eGemma is running.`
-        )
-      );
-      console.error(
-        `Workbench health check error: ${error instanceof Error ? error.message : String(error)}`
+    const isWorkbenchHealthy = await this.checkWorkbenchHealth();
+    if (!isWorkbenchHealthy) {
+      this.logWarn(
+        `Workbench (eGemma) is not reachable at ${this.workbench.getBaseUrl()}. ` +
+          `Structural mining will be skipped. Please ensure eGemma is running.`
       );
     }
 
     // Read dirty state
-    s.start('Reading dirty state');
+    this.startSpinner('Reading dirty state');
     const dirtyState = await dirtyStateManager.read();
-    s.stop(
+    this.stopSpinner(
       `Found ${dirtyState.dirty_files.length} dirty files, ${dirtyState.untracked_files.length} untracked files`
     );
 
@@ -138,62 +132,68 @@ export class UpdateOrchestrator {
       dirtyState.dirty_files.length === 0 &&
       dirtyState.untracked_files.length === 0
     ) {
-      log.info(chalk.green('✓ PGC is coherent - nothing to update'));
+      this.logSuccess('✓ PGC is coherent - nothing to update');
       return;
     }
 
     // Process dirty files (modified files that are already tracked)
-    log.info(chalk.cyan('Updating modified files...'));
+    this.logInfo(chalk.cyan('Updating modified files...'));
     let filesProcessed = 0;
+    const totalDirty = dirtyState.dirty_files.length;
+    const totalUntracked = dirtyState.untracked_files.length;
+    const grandTotal = totalDirty + totalUntracked;
+
     for (const dirtyFile of dirtyState.dirty_files) {
       const processed = await this.processDirtyFile(
         dirtyFile,
-        s,
-        isWorkbenchHealthy
+        isWorkbenchHealthy,
+        filesProcessed + 1,
+        grandTotal
       );
       if (processed) filesProcessed++;
     }
 
     // Process untracked files (new files not yet in PGC)
     if (dirtyState.untracked_files.length > 0) {
-      log.info(chalk.cyan('Processing new untracked files...'));
+      this.logInfo(chalk.cyan('Processing new untracked files...'));
       for (const untrackedFile of dirtyState.untracked_files) {
         await this.processUntrackedFile(
           untrackedFile.path,
-          s,
-          isWorkbenchHealthy
+          isWorkbenchHealthy,
+          filesProcessed + 1,
+          grandTotal
         );
         filesProcessed++;
       }
     }
 
     // Clear dirty state
-    s.start('Clearing dirty state');
+    this.startSpinner('Clearing dirty state');
     await dirtyStateManager.clear();
-    s.stop('Dirty state cleared');
+    this.stopSpinner('Dirty state cleared');
 
     // Run PGC verification only if files were actually processed
     if (filesProcessed > 0) {
-      s.start('Running PGC Maintenance and Verification');
-      log.info(
+      this.startSpinner('Running PGC Maintenance and Verification');
+      this.logInfo(
         'Goal: Achieve a structurally coherent PGC after incremental update.'
       );
 
       const verificationResult = await this.genesisOracle.verify();
 
       if (verificationResult.success) {
-        s.stop('Oracle: Verification complete. PGC is structurally coherent.');
-      } else {
-        s.stop('Oracle: Verification failed.');
-        log.error(chalk.red('✗ PGC verification failed:'));
-        verificationResult.messages.forEach((msg) =>
-          log.error(chalk.red(`  ${msg}`))
+        this.stopSpinner(
+          'Oracle: Verification complete. PGC is structurally coherent.'
         );
+      } else {
+        this.stopSpinner('Oracle: Verification failed.');
+        this.logError('✗ PGC verification failed:');
+        verificationResult.messages.forEach((msg) => this.logError(`  ${msg}`));
         throw new Error('PGC verification failed after update');
       }
     } else {
       // No files were actually processed - dirty_state had false positives
-      log.info(
+      this.logInfo(
         chalk.gray(
           'No files required processing (false positives in dirty_state)'
         )
@@ -209,17 +209,30 @@ export class UpdateOrchestrator {
    */
   private async processDirtyFile(
     dirtyFile: DirtyFile,
-    s: ReturnType<typeof spinner>,
-    isWorkbenchHealthy: boolean
+    isWorkbenchHealthy: boolean,
+    current: number,
+    total: number
   ): Promise<boolean> {
-    s.start(`Updating ${chalk.cyan(dirtyFile.path)}`);
+    this.startSpinner(
+      `Updating ${chalk.cyan(dirtyFile.path)} (${current}/${total})`
+    );
+
+    // Report progress via callback
+    this.onProgress?.(
+      current,
+      total,
+      `Updating ${dirtyFile.path}`,
+      dirtyFile.path
+    );
 
     try {
       const fullPath = path.join(this.projectRoot, dirtyFile.path);
 
       // Check if file still exists (might have been deleted)
       if (!(await fs.pathExists(fullPath))) {
-        s.stop(chalk.yellow(`⸬ ${dirtyFile.path} (file was deleted)`));
+        this.stopSpinner(
+          chalk.yellow(`⸬ ${dirtyFile.path} (file was deleted)`)
+        );
         // TODO: Handle file deletion (remove from index, propagate invalidation)
         return false;
       }
@@ -230,7 +243,9 @@ export class UpdateOrchestrator {
 
       // Verify it's actually different (paranoid check)
       if (contentHash === dirtyFile.tracked_hash) {
-        s.stop(chalk.gray(`- ${dirtyFile.path} (no change detected)`));
+        this.stopSpinner(
+          chalk.gray(`- ${dirtyFile.path} (no change detected)`)
+        );
         return false;
       }
 
@@ -258,7 +273,7 @@ export class UpdateOrchestrator {
         );
 
       if (!isWorkbenchHealthy && isWorkbenchDependentExtraction) {
-        s.stop(
+        this.stopSpinner(
           chalk.yellow(
             `⸬ ${dirtyFile.path} (skipped workbench processing - workbench not healthy)`
           )
@@ -309,10 +324,12 @@ export class UpdateOrchestrator {
         await this.propagateInvalidation(oldStructuralHash);
       }
 
-      s.stop(chalk.green(`✓ ${dirtyFile.path}`));
+      this.stopSpinner(chalk.green(`✓ ${dirtyFile.path}`));
       return true;
     } catch (error) {
-      s.stop(chalk.red(`✗ ${dirtyFile.path}: ${(error as Error).message}`));
+      this.stopSpinner(
+        chalk.red(`✗ ${dirtyFile.path}: ${(error as Error).message}`)
+      );
       throw error;
     }
   }
@@ -322,10 +339,21 @@ export class UpdateOrchestrator {
    */
   private async processUntrackedFile(
     relativePath: string,
-    s: ReturnType<typeof spinner>,
-    isWorkbenchHealthy: boolean
+    isWorkbenchHealthy: boolean,
+    current: number,
+    total: number
   ): Promise<void> {
-    s.start(`Processing new file ${chalk.cyan(relativePath)}`);
+    this.startSpinner(
+      `Processing new file ${chalk.cyan(relativePath)} (${current}/${total})`
+    );
+
+    // Report progress via callback
+    this.onProgress?.(
+      current,
+      total,
+      `Processing new file ${relativePath}`,
+      relativePath
+    );
 
     try {
       const fullPath = path.join(this.projectRoot, relativePath);
@@ -356,7 +384,7 @@ export class UpdateOrchestrator {
         );
 
       if (!isWorkbenchHealthy && isWorkbenchDependentExtraction) {
-        s.stop(
+        this.stopSpinner(
           chalk.yellow(
             `⸬ ${relativePath} (skipped workbench processing - workbench not healthy)`
           )
@@ -396,9 +424,11 @@ export class UpdateOrchestrator {
       await this.pgc.reverseDeps.add(structuralHash, transformId);
       // No propagation needed for new files - nothing depended on them before
 
-      s.stop(chalk.green(`✓ ${relativePath} (new)`));
+      this.stopSpinner(chalk.green(`✓ ${relativePath} (new)`));
     } catch (error) {
-      s.stop(chalk.red(`✗ ${relativePath}: ${(error as Error).message}`));
+      this.stopSpinner(
+        chalk.red(`✗ ${relativePath}: ${(error as Error).message}`)
+      );
       throw error;
     }
   }
@@ -512,10 +542,8 @@ export class UpdateOrchestrator {
         }
       } catch (error) {
         // If overlay invalidation fails, log but don't block the update
-        log.warn(
-          chalk.yellow(
-            `Warning: Failed to invalidate ${overlayType} overlays: ${(error as Error).message}`
-          )
+        this.logWarn(
+          `Warning: Failed to invalidate ${overlayType} overlays: ${(error as Error).message}`
         );
       }
     }
@@ -570,10 +598,8 @@ export class UpdateOrchestrator {
       }
     } catch (error) {
       // If manifest update fails, log but don't block
-      log.warn(
-        chalk.yellow(
-          `Warning: Failed to update ${overlayType} manifest: ${(error as Error).message}`
-        )
+      this.logWarn(
+        `Warning: Failed to update ${overlayType} manifest: ${(error as Error).message}`
       );
     }
   }
@@ -650,7 +676,7 @@ export class UpdateOrchestrator {
             if (lineageJson.lineage && Array.isArray(lineageJson.lineage)) {
               const dependsOnChangedFile = lineageJson.lineage.some(
                 (dep: { type?: string }) =>
-                  dep.type && dep.type.includes(changedFilePath)
+                  dep.type && dep.type.includes(changedFilePath!)
               );
 
               if (dependsOnChangedFile) {
@@ -690,7 +716,7 @@ export class UpdateOrchestrator {
       }
 
       if (toInvalidate.length > 0) {
-        log.info(
+        this.logInfo(
           chalk.blue(
             `Monument 4.9: Invalidated ${toInvalidate.length} lineage pattern(s) depending on ${changedFilePath}`
           )
@@ -698,10 +724,8 @@ export class UpdateOrchestrator {
       }
     } catch (error) {
       // If reverse dependency invalidation fails, log but don't block the update
-      log.warn(
-        chalk.yellow(
-          `Warning: Failed to invalidate reverse dependencies: ${(error as Error).message}`
-        )
+      this.logWarn(
+        `Warning: Failed to invalidate reverse dependencies: ${(error as Error).message}`
       );
     }
   }

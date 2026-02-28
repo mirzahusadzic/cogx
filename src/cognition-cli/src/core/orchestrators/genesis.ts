@@ -2,11 +2,11 @@ import fs from 'fs-extra';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { glob } from 'glob';
-import { log, spinner } from '@clack/prompts';
 import chalk from 'chalk';
 import * as workerpool from 'workerpool';
 import os from 'os';
 import YAML from 'yaml';
+import { BaseOrchestrator, type ProgressCallback } from './base.js';
 
 import type { PGCManager } from '../pgc/manager.js';
 import type { StructuralMiner } from './miners/structural.js';
@@ -100,7 +100,7 @@ function calculateOptimalWorkersForParsing(fileCount: number): number {
  * - Perform garbage collection to remove stale entries while preserving overlay references
  * - Verify PGC structural coherence via GenesisOracle
  */
-export class GenesisOrchestrator {
+export class GenesisOrchestrator extends BaseOrchestrator {
   private maxFileSize = DEFAULT_MAX_FILE_SIZE;
   // NOTE: Structural patterns manifest is now managed by overlay generator
   // private structuralPatternsManifest: Record<string, string> = {};
@@ -108,13 +108,22 @@ export class GenesisOrchestrator {
   private docsOracle: DocsOracle;
 
   constructor(
-    private pgc: PGCManager,
-    private miner: StructuralMiner,
-    private workbench: WorkbenchClient,
-    private genesisOracle: GenesisOracle,
-    private projectRoot: string
+    pgc: PGCManager,
+    miner: StructuralMiner,
+    workbench: WorkbenchClient,
+    genesisOracle: GenesisOracle,
+    projectRoot: string
   ) {
+    super(pgc, miner, workbench, genesisOracle, projectRoot);
     this.docsOracle = new DocsOracle(pgc);
+  }
+
+  /**
+   * Required by IOrchestrator interface.
+   * For Genesis, this defaults to processing 'src' if no specific options are provided.
+   */
+  async run(onProgress?: ProgressCallback): Promise<void> {
+    await this.executeBottomUpAggregation(['src'], onProgress);
   }
 
   /**
@@ -150,62 +159,28 @@ export class GenesisOrchestrator {
    *
    * @public
    */
-  /**
-   * Progress callback type for reporting progress to callers (e.g., TUI)
-   */
-  private onProgress?: (
-    current: number,
-    total: number,
-    message: string,
-    file?: string
-  ) => void;
-
-  /**
-   * Whether to use spinner/log output (true) or progress callback (false)
-   */
-  private useSpinner = true;
-
   async executeBottomUpAggregation(
     sourcePaths: string[],
-    onProgress?: (
-      current: number,
-      total: number,
-      message: string,
-      file?: string
-    ) => void
+    onProgress?: ProgressCallback
   ) {
-    this.onProgress = onProgress;
-    this.useSpinner = !onProgress; // Use spinner only when no callback provided
-    const s = this.useSpinner ? spinner() : null;
+    this.setProgressHandler(onProgress);
     const errors: { file: string; message: string }[] = [];
 
-    let isWorkbenchHealthy = false;
-
-    try {
-      await this.workbench.health();
-      isWorkbenchHealthy = true;
-    } catch (error) {
-      if (this.useSpinner) {
-        log.warn(
-          chalk.yellow(
-            `Workbench (eGemma) is not reachable at ${this.workbench.getBaseUrl()}. ` +
-              `Structural mining will be skipped. Please ensure eGemma is running.`
-          )
-        );
-        console.error(
-          `Workbench health check error: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
+    const isWorkbenchHealthy = await this.checkWorkbenchHealth();
+    if (!isWorkbenchHealthy) {
+      this.logWarn(
+        `Workbench (eGemma) is not reachable at ${this.workbench.getBaseUrl()}. ` +
+          `Structural mining will be skipped. Please ensure eGemma is running.`
+      );
     }
 
-    if (s) s.start('Discovering source files');
+    this.startSpinner('Discovering source files');
 
     // Discover files from all source paths
     const allFiles: SourceFile[] = [];
     for (const sourcePath of sourcePaths) {
       const actualSourcePath = path.join(this.projectRoot, sourcePath);
-      if (this.useSpinner)
-        log.info(`Scanning for files in: ${actualSourcePath}`);
+      this.logInfo(`Scanning for files in: ${actualSourcePath}`);
       const files = await this.discoverFiles(actualSourcePath);
       allFiles.push(...files);
     }
@@ -220,7 +195,7 @@ export class GenesisOrchestrator {
       return true;
     });
 
-    if (s) s.stop(`Found ${files.length} files`);
+    this.stopSpinner(`Found ${files.length} files`);
     this.onProgress?.(0, files.length, `Found ${files.length} files`);
 
     // Separate files into native (TS/JS) and remote (Python) for optimal processing
@@ -235,13 +210,11 @@ export class GenesisOrchestrator {
       }
     }
 
-    if (this.useSpinner) {
-      log.info(
-        chalk.cyan(
-          `Processing: ${nativeFiles.length} native (TS/JS), ${remoteFiles.length} remote (Python)`
-        )
-      );
-    }
+    this.logInfo(
+      chalk.cyan(
+        `Processing: ${nativeFiles.length} native (TS/JS), ${remoteFiles.length} remote (Python)`
+      )
+    );
 
     // Phase 1: Parse native files in parallel with workers
     const nativeResults = new Map<string, StructuralData>();
@@ -249,10 +222,7 @@ export class GenesisOrchestrator {
     if (nativeFiles.length > 0) {
       try {
         await this.initializeWorkers(nativeFiles.length);
-        const parsedResults = await this.parseNativeFilesParallel(
-          nativeFiles,
-          s
-        );
+        const parsedResults = await this.parseNativeFilesParallel(nativeFiles);
 
         for (const result of parsedResults) {
           if (result.status === 'success' && result.structuralData) {
@@ -291,8 +261,8 @@ export class GenesisOrchestrator {
     const changedFileChecks = changeChecks.filter((check) => check.isChanged);
     const unchangedCount = files.length - changedFileChecks.length;
 
-    if (unchangedCount > 0 && this.useSpinner) {
-      log.info(chalk.dim(`Skipping ${unchangedCount} unchanged file(s)`));
+    if (unchangedCount > 0) {
+      this.logInfo(chalk.dim(`Skipping ${unchangedCount} unchanged file(s)`));
     }
 
     // Process changed files serially (to maintain spinner state)
@@ -301,11 +271,10 @@ export class GenesisOrchestrator {
 
     for (const { file, existingIndex, contentHash } of changedFileChecks) {
       processed++;
-      if (s) {
-        s.start(
-          `Processing ${chalk.cyan(file.relativePath)} (${processed}/${totalToProcess})`
-        );
-      }
+      this.startSpinner(
+        `Processing ${chalk.cyan(file.relativePath)} (${processed}/${totalToProcess})`
+      );
+
       // Report progress via callback
       this.onProgress?.(
         processed,
@@ -317,22 +286,19 @@ export class GenesisOrchestrator {
         const preParsedStructural = nativeResults.get(file.relativePath);
         await this.processFile(
           file,
-          s,
           isWorkbenchHealthy,
           preParsedStructural,
           existingIndex,
           contentHash
         );
       } catch (error) {
-        // processFile already called s.stop() before throwing, don't double-stop
+        // processFile already called this.stopSpinner() before throwing, don't double-stop
         errors.push({
           file: file.relativePath,
           message: (error as Error).message,
         });
       }
     }
-
-    // s.stop(`Found ${files.length} files`); // This stop is for the initial discovery, keep it.
 
     await this.aggregateDirectories();
 
@@ -342,11 +308,11 @@ export class GenesisOrchestrator {
     await this.runPGCMaintenance(files.map((f) => f.relativePath));
 
     if (errors.length > 0) {
-      log.error(chalk.red('\n--- Errors during file processing ---'));
+      this.logError('\n--- Errors during file processing ---');
       errors.forEach((err) => {
-        log.error(chalk.red(`✗ ${err.file}: ${err.message}`));
+        this.logError(`✗ ${err.file}: ${err.message}`);
       });
-      log.error(chalk.red('-------------------------------------'));
+      this.logError('-------------------------------------');
     }
   }
 
@@ -375,13 +341,11 @@ export class GenesisOrchestrator {
     const __dirname = dirname(__filename);
     const workerCount = calculateOptimalWorkersForParsing(fileCount);
 
-    if (this.useSpinner) {
-      log.info(
-        chalk.blue(
-          `[Genesis] Initializing ${workerCount} workers for parallel AST parsing (${os.cpus().length} CPUs available)`
-        )
-      );
-    }
+    this.logInfo(
+      chalk.blue(
+        `[Genesis] Initializing ${workerCount} workers for parallel AST parsing (${os.cpus().length} CPUs available)`
+      )
+    );
 
     this.workerPool = workerpool.pool(
       path.resolve(__dirname, '../../../dist/genesis-worker.cjs'),
@@ -418,10 +382,8 @@ export class GenesisOrchestrator {
         ]);
       } catch (error) {
         // Log but don't fail - workers will be killed by OS anyway
-        log.warn(
-          chalk.yellow(
-            `[Genesis] Worker pool shutdown warning: ${(error as Error).message}`
-          )
+        this.logWarn(
+          `[Genesis] Worker pool shutdown warning: ${(error as Error).message}`
         );
       } finally {
         this.workerPool = undefined;
@@ -455,20 +417,17 @@ export class GenesisOrchestrator {
    * @private
    */
   private async parseNativeFilesParallel(
-    files: SourceFile[],
-    s: ReturnType<typeof spinner> | null
+    files: SourceFile[]
   ): Promise<GenesisJobResult[]> {
     if (!this.workerPool) {
       throw new Error('Worker pool not initialized');
     }
 
-    if (s) {
-      s.start(
-        chalk.blue(
-          `[Genesis] Parsing ${files.length} native files in parallel...`
-        )
-      );
-    }
+    this.startSpinner(
+      chalk.blue(
+        `[Genesis] Parsing ${files.length} native files in parallel...`
+      )
+    );
 
     const jobs = files.map((file) => ({
       file,
@@ -485,26 +444,24 @@ export class GenesisOrchestrator {
       const succeeded = results.filter((r) => r.status === 'success').length;
       const failed = results.filter((r) => r.status === 'error').length;
 
-      if (s) {
-        s.stop(
-          chalk.green(
-            `[Genesis] Native parsing complete: ${succeeded} succeeded, ${failed} failed`
-          )
-        );
-      }
+      this.stopSpinner(
+        chalk.green(
+          `[Genesis] Native parsing complete: ${succeeded} succeeded, ${failed} failed`
+        )
+      );
 
       return results;
     } catch (error) {
-      if (s) s.stop(chalk.red('[Genesis] Worker parsing error'));
+      this.stopSpinner(chalk.red('[Genesis] Worker parsing error'));
       throw error;
     }
   }
 
   private async runPGCMaintenance(processedFiles: string[]) {
-    log.step('Running PGC Maintenance and Verification');
+    this.logStep('Running PGC Maintenance and Verification');
 
     // The Goal
-    log.info(
+    this.logInfo(
       'Goal: Achieve a structurally coherent PGC by removing stale entries.'
     );
 
@@ -512,22 +469,22 @@ export class GenesisOrchestrator {
     const gcSummary = await this.garbageCollect(processedFiles);
 
     if (gcSummary.staleEntries > 0) {
-      log.success(
+      this.logSuccess(
         `Transform: Removed ${gcSummary.staleEntries} stale index entries.`
       );
     }
     if (gcSummary.cleanedReverseDeps > 0) {
-      log.success(
+      this.logSuccess(
         `Transform: Cleaned ${gcSummary.cleanedReverseDeps} stale reverse dependency entries.`
       );
     }
     if (gcSummary.cleanedTransformLogEntries > 0) {
-      log.success(
+      this.logSuccess(
         `Transform: Removed ${gcSummary.cleanedTransformLogEntries} stale transform log entries.`
       );
     }
     if (gcSummary.cleanedOverlayEntries > 0) {
-      log.success(
+      this.logSuccess(
         `Transform: Removed ${gcSummary.cleanedOverlayEntries} orphaned structural overlay entries.`
       );
     }
@@ -537,7 +494,7 @@ export class GenesisOrchestrator {
       gcSummary.cleanedTransformLogEntries === 0 &&
       gcSummary.cleanedOverlayEntries === 0
     ) {
-      log.info('Transform: No stale entries found. PGC is clean.');
+      this.logInfo('Transform: No stale entries found. PGC is clean.');
     }
 
     // Document GC: Remove stale document index entries
@@ -545,7 +502,7 @@ export class GenesisOrchestrator {
     const removedDocs = await this.garbageCollectDocs(overlayReferencedHashes);
 
     if (removedDocs > 0) {
-      log.success(
+      this.logSuccess(
         `Transform: Removed ${removedDocs} stale document index entries.`
       );
     }
@@ -554,32 +511,33 @@ export class GenesisOrchestrator {
     // (objects in store but not indexed - leftovers from previous GC bugs)
     const removedOrphans = await this.docsOracle.cleanupOrphanedObjects();
     if (removedOrphans > 0) {
-      log.success(
+      this.logSuccess(
         `Transform: Cleaned ${removedOrphans} orphaned document object(s).`
       );
     }
 
     // The Oracle
-    log.info('Oracle: Verifying PGC structural coherence after maintenance.');
+    this.logInfo(
+      'Oracle: Verifying PGC structural coherence after maintenance.'
+    );
     const verificationResult = await this.genesisOracle.verify();
 
     if (verificationResult.success) {
-      log.success(
+      this.logSuccess(
         'Oracle: Verification complete. PGC is structurally coherent.'
       );
     } else {
-      log.error(
+      this.logError(
         'Oracle: Verification failed. PGC has structural inconsistencies:'
       );
       verificationResult.messages.forEach((msg: string) =>
-        log.error(chalk.red(`- ${msg}`))
+        this.logError(`- ${msg}`)
       );
     }
   }
 
   private async processFile(
     file: SourceFile,
-    s: ReturnType<typeof spinner> | null,
     isWorkbenchHealthy: boolean,
     preParsedStructural: StructuralData | undefined,
     existingIndex: Awaited<ReturnType<PGCManager['index']['get']>> | undefined,
@@ -610,13 +568,11 @@ export class GenesisOrchestrator {
         );
 
       if (!isWorkbenchHealthy && isWorkbenchDependentExtraction) {
-        if (s) {
-          s.stop(
-            chalk.yellow(
-              `⸬ ${file.relativePath} (skipped workbench processing - workbench not healthy)`
-            )
-          );
-        }
+        this.stopSpinner(
+          chalk.yellow(
+            `⸬ ${file.relativePath} (skipped workbench processing - workbench not healthy)`
+          )
+        );
 
         // Still update the index with structural data, but mark as partially processed
 
@@ -673,12 +629,11 @@ export class GenesisOrchestrator {
       await this.pgc.reverseDeps.add(contentHash, recordedTransformId);
       await this.pgc.reverseDeps.add(structuralHash, recordedTransformId);
 
-      if (s) s.stop(chalk.green(`✓ ${file.relativePath}`));
+      this.stopSpinner(chalk.green(`✓ ${file.relativePath}`));
     } catch (error) {
-      if (s)
-        s.stop(
-          chalk.red(`✗ ${file.relativePath}: ${(error as Error).message}`)
-        );
+      this.stopSpinner(
+        chalk.red(`✗ ${file.relativePath}: ${(error as Error).message}`)
+      );
       await this.rollback(storedHashes, recordedTransformId);
       throw error; // Re-throw the error so it can be caught by the caller
     }
@@ -689,12 +644,12 @@ export class GenesisOrchestrator {
     const extensions = DEFAULT_FILE_EXTENSIONS;
 
     if (!(await fs.pathExists(rootPath))) {
-      log.warn(chalk.yellow(`Source path does not exist: ${rootPath}`));
+      this.logWarn(`Source path does not exist: ${rootPath}`);
       return [];
     }
 
     if (!(await fs.lstat(rootPath)).isDirectory()) {
-      log.warn(chalk.yellow(`Source path is not a directory: ${rootPath}`));
+      this.logWarn(`Source path is not a directory: ${rootPath}`);
       return [];
     }
 
@@ -736,7 +691,7 @@ export class GenesisOrchestrator {
       const stats = await fs.stat(fullPath);
       if (stats.size > this.maxFileSize) {
         const relativePath = path.relative(this.projectRoot, fullPath);
-        log.warn(
+        this.logWarn(
           `Skipping large file: ${relativePath} (${(stats.size / (1024 * 1024)).toFixed(2)} MB)`
         );
         continue;
@@ -763,7 +718,7 @@ export class GenesisOrchestrator {
   }
 
   private async aggregateDirectories() {
-    log.info('Aggregating directory summaries (bottom-up)');
+    this.logInfo('Aggregating directory summaries (bottom-up)');
   }
 
   /**

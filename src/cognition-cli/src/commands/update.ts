@@ -218,7 +218,7 @@ async function runUpdate(options: UpdateOptions) {
 
     // Execute incremental update
     log.info('Executing incremental update based on dirty_state.json...');
-    await orchestrator.executeIncrementalUpdate();
+    await orchestrator.run();
 
     outro(chalk.green('✓ Update complete - PGC is coherent'));
   } catch (error) {
