@@ -653,33 +653,37 @@ export async function executeFetchUrl(
 export async function executeSigmaTaskUpdate(
   todos: Array<{
     id: string;
-    content?: string;
-    status?: string;
-    activeForm?: string;
+    content?: string | null;
+    status?: string | null;
+    activeForm?: string | null;
     // Delegation fields (Manager/Worker paradigm)
-    acceptance_criteria?: string[];
-    delegated_to?: string;
-    context?: string;
-    delegate_session_id?: string;
+    acceptance_criteria?: string[] | null;
+    delegated_to?: string | null;
+    context?: string | null;
+    delegate_session_id?: string | null;
     grounding?: {
-      strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
-      overlay_hints?: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
-      query_hints?: string[];
-      evidence_required?: boolean | string;
-    };
+      strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none' | null;
+      overlay_hints?: Array<
+        'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'
+      > | null;
+      query_hints?: string[] | null;
+      evidence_required?: boolean | string | null;
+    } | null;
     grounding_evidence?: {
-      queries_executed: string[];
-      overlays_consulted: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
+      queries_executed: string[] | null;
+      overlays_consulted: Array<
+        'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'
+      > | null;
       citations: Array<{
         overlay: string;
         content: string;
         relevance: string;
-        file_path?: string;
-      }>;
-      grounding_confidence: 'high' | 'medium' | 'low';
+        file_path?: string | null;
+      }> | null;
+      grounding_confidence: 'high' | 'medium' | 'low' | null;
       overlay_warnings?: string[] | null;
-    };
-    result_summary?: string;
+    } | null;
+    result_summary?: string | null;
   }>,
   cwd: string,
   anchorId: string

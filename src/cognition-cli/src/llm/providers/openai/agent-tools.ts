@@ -1,21 +1,34 @@
 /**
  * OpenAI Agent SDK Tool Definitions for Cognition
  *
- * Maps Cognition tools to @openai/agents tool() format.
- * Uses shared tool executors from tool-executors.ts and tool-helpers.ts.
- *
- * TOOL PARITY:
- * - Core: read_file, write_file, glob, grep, bash, edit_file
- * - Web: fetch_url, WebSearch
- * - Memory: recall_past_conversation
- * - Background: get_background_tasks
- * - IPC: list_agents, send_agent_message, broadcast_agent_message,
- *        list_pending_messages, mark_message_read, query_agent
+ * Maps Cognition tools to @openai/agents tool() format using the unified factory.
  */
 
+import type { ConversationOverlayRegistry } from '../../../sigma/conversation-registry.js';
+import type { BackgroundTaskManager } from '../../../tui/services/BackgroundTaskManager.js';
+import { z } from 'zod';
 import { systemLog } from '../../../utils/debug-logger.js';
 import { tool } from '@openai/agents';
-import { z } from 'zod';
+import { providerToolFactory } from '../../tools/factory.js';
+import {
+  readFileTool,
+  writeFileTool,
+  globTool,
+  grepTool,
+  bashTool,
+  editFileTool,
+  fetchUrlTool,
+  webSearchTool,
+  recallPastConversationTool,
+  getBackgroundTasksTool,
+  sigmaTaskUpdateTool,
+  listAgentsTool,
+  listPendingMessagesTool,
+  sendAgentMessageTool,
+  broadcastAgentMessageTool,
+  markMessageReadTool,
+  queryAgentTool,
+} from '../../tools/definitions.js';
 import type { MessagePublisher } from '../../../ipc/MessagePublisher.js';
 import type { MessageQueue } from '../../../ipc/MessageQueue.js';
 import {
@@ -33,14 +46,11 @@ import {
   getActiveAgents,
   resolveAgentId,
 } from '../../../ipc/agent-discovery.js';
-import type { ConversationOverlayRegistry } from '../../../sigma/conversation-registry.js';
 import { queryConversationLattice } from '../../../sigma/query-conversation.js';
-import type { BackgroundTaskManager } from '../../../tui/services/BackgroundTaskManager.js';
-import type { OnCanUseTool } from '../tool-helpers.js';
 import {
   formatTaskType,
   formatDuration,
-  getSigmaTaskUpdateDescription,
+  processSigmaTaskUpdateInput,
 } from '../tool-helpers.js';
 import {
   executeReadFile,
@@ -53,177 +63,167 @@ import {
   executeWebSearch,
   executeSigmaTaskUpdate,
 } from '../tool-executors.js';
-
-/**
- * Helper to coerce string | number to number
- */
-const coerceNumber = (val: string | number | undefined): number | undefined => {
-  if (val === undefined) return undefined;
-  if (typeof val === 'number') return val;
-  const parsed = Number(val);
-  return isNaN(parsed) ? undefined : parsed;
-};
-
-/**
- * Helper to coerce string | boolean to boolean
- */
-const coerceBoolean = (
-  val: string | boolean | undefined
-): boolean | undefined => {
-  if (val === undefined) return undefined;
-  if (typeof val === 'boolean') return val;
-  return val === 'true';
-};
+import type { OnCanUseTool } from '../tool-helpers.js';
 
 /**
  * OpenAI tool type (return type of tool())
  */
 type OpenAITool = ReturnType<typeof tool>;
 
-/**
- * Create a tool executor wrapped with permission check
- */
-function withPermissionCheck<T>(
-  toolName: string,
-  originalExecute: (input: T) => Promise<string>,
-  onCanUseTool?: OnCanUseTool
-): (input: T) => Promise<string> {
-  if (!onCanUseTool) {
-    return originalExecute;
-  }
-
-  return async (input: T) => {
-    const decision = await onCanUseTool(toolName, input);
-
-    if (decision.behavior === 'deny') {
-      return 'User declined this action. Please continue with alternative approaches without asking why.';
-    }
-
-    const finalInput = (decision.updatedInput ?? input) as T;
-    return originalExecute(finalInput);
-  };
+export interface OpenAIToolsContext {
+  cwd: string;
+  workbenchUrl?: string;
+  onCanUseTool?: OnCanUseTool;
+  onToolOutput?: (output: string) => void;
+  currentPromptTokens?: number;
+  conversationRegistry?: ConversationOverlayRegistry;
+  getTaskManager?: () => BackgroundTaskManager | null;
+  getActiveTaskId?: () => string | null;
+  publisher?: MessagePublisher;
+  mode?: 'solo' | 'full';
+  projectRoot?: string;
+  agentId?: string;
+  anchorId?: string;
+  onTaskCompleted?: (
+    taskId: string,
+    result_summary?: string | null
+  ) => Promise<void>;
+  getMessagePublisher?: () => MessagePublisher | null;
+  getMessageQueue?: () => MessageQueue | null;
 }
 
 // ============================================================
-// Core File Tools
+// Tool Creators
 // ============================================================
 
-/**
- * Create read_file tool
- */
-function createReadFileTool(
+function createSigmaTaskUpdateTool(
   cwd: string,
+  anchorId: string | undefined,
+  onTaskCompleted?: (
+    taskId: string,
+    result_summary?: string | null
+  ) => Promise<void>
+): OpenAITool {
+  return providerToolFactory.createOpenAITool(
+    sigmaTaskUpdateTool,
+    async (input: z.infer<typeof sigmaTaskUpdateTool.parameters>) => {
+      // Process input to merge grounding/evidence and clean nulls
+      const processedTodos = processSigmaTaskUpdateInput(input);
+
+      if (!anchorId) {
+        // Fallback summary for non-persistent mode
+        const summary = processedTodos
+          .map((t) => {
+            const icon =
+              t.status === 'completed'
+                ? '✓'
+                : t.status === 'in_progress'
+                  ? '→'
+                  : t.status === 'delegated'
+                    ? '⇨'
+                    : '○';
+            const text = t.status === 'in_progress' ? t.activeForm : t.content;
+            const suffix =
+              t.status === 'delegated' && t.delegated_to
+                ? ` (→ ${t.delegated_to})`
+                : '';
+            return `[${icon}] ${text}${suffix}`;
+          })
+          .join('\n');
+        return `Task list updated (${processedTodos.length} items) [NOT PERSISTED]:\n${summary}`;
+      }
+
+      const result = await executeSigmaTaskUpdate(
+        processedTodos,
+        cwd,
+        anchorId
+      );
+
+      if (onTaskCompleted) {
+        const { loadSessionState } =
+          await import('../../../sigma/session-state.js');
+        const finalState = loadSessionState(anchorId, cwd);
+
+        for (const todo of processedTodos) {
+          if (todo.status === 'completed') {
+            const validatedTask = finalState?.todos?.find(
+              (t) => t.id === todo.id
+            );
+            const summaryToPass =
+              validatedTask?.result_summary || todo.result_summary;
+            await onTaskCompleted(todo.id, summaryToPass);
+          }
+        }
+      }
+
+      return result;
+    }
+  );
+}
+
+function createReadFileTool(
   workbenchUrl?: string,
   currentPromptTokens?: number,
   getActiveTaskId?: () => string | null
 ): OpenAITool {
-  return tool({
-    name: 'read_file',
-    description:
-      'Reads a file, prioritizing partial reads. STANDARD WORKFLOW: 1. Use `grep` to find relevant line numbers. 2. Use this tool with `offset` and `limit` to read that specific section.',
-    parameters: z.object({
-      file_path: z.string().describe('Absolute path to the file to read'),
-      limit: z
-        .union([z.number(), z.string()])
-        .optional()
-        .describe('Max lines to read'),
-      offset: z
-        .union([z.number(), z.string()])
-        .optional()
-        .describe('Line offset to start from'),
-    }),
-    execute: ({ file_path, limit, offset }) =>
+  return providerToolFactory.createOpenAITool(
+    readFileTool,
+    (input: z.infer<typeof readFileTool.parameters>) =>
       executeReadFile(
-        file_path,
-        coerceNumber(limit),
-        coerceNumber(offset),
+        input.file_path,
+        input.limit,
+        input.offset,
         workbenchUrl,
         currentPromptTokens,
         getActiveTaskId
-      ),
-  });
+      )
+  );
 }
 
-/**
- * Create write_file tool
- */
-function createWriteFileTool(
-  onCanUseTool?: OnCanUseTool,
-  getActiveTaskId?: () => string | null
-): OpenAITool {
-  const execute = ({
-    file_path,
-    content,
-  }: {
-    file_path: string;
-    content: string;
-  }) => executeWriteFile(file_path, content, getActiveTaskId);
-
-  return tool({
-    name: 'write_file',
-    description: 'Write content to a file at the given path',
-    parameters: z.object({
-      file_path: z.string().describe('Absolute path to write to'),
-      content: z.string().describe('Content to write'),
-    }),
-    execute: withPermissionCheck('write_file', execute, onCanUseTool),
-  });
-}
-
-/**
- * Create glob tool
- */
 function createGlobTool(
   cwd: string,
   getActiveTaskId?: () => string | null
 ): OpenAITool {
-  return tool({
-    name: 'glob',
-    description:
-      'Find files matching pattern. EFFICIENCY TIP: Use this BEFORE read_file to find the right files first.',
-    parameters: z.object({
-      pattern: z.string().describe('Glob pattern (e.g., "**/*.ts")'),
-      search_cwd: z.string().optional().describe('Working directory'),
-    }),
-    execute: ({ pattern, search_cwd }) =>
-      executeGlob(pattern, search_cwd || cwd, getActiveTaskId),
-  });
+  return providerToolFactory.createOpenAITool(
+    globTool,
+    (input: z.infer<typeof globTool.parameters>) =>
+      executeGlob(input.pattern, input.path || cwd, getActiveTaskId)
+  );
 }
 
-/**
- * Create grep tool
- */
 function createGrepTool(
   cwd: string,
   workbenchUrl?: string,
   currentPromptTokens?: number,
   getActiveTaskId?: () => string | null
 ): OpenAITool {
-  return tool({
-    name: 'grep',
-    description:
-      'Search for pattern in files using ripgrep. EFFICIENCY TIP: Use this BEFORE read_file.',
-    parameters: z.object({
-      pattern: z.string().describe('Regex pattern to search'),
-      search_path: z.string().optional().describe('Path to search in'),
-      glob_filter: z.string().optional().describe('File glob filter'),
-    }),
-    execute: ({ pattern, search_path, glob_filter }) =>
+  return providerToolFactory.createOpenAITool(
+    grepTool,
+    (input: z.infer<typeof grepTool.parameters>) =>
       executeGrep(
-        pattern,
-        search_path,
-        glob_filter,
+        input.pattern,
+        input.path || cwd,
+        input.glob_filter,
         cwd,
         workbenchUrl,
         currentPromptTokens,
         getActiveTaskId
-      ),
-  });
+      )
+  );
 }
 
-/**
- * Create bash tool
- */
+function createWriteFileTool(
+  onCanUseTool?: OnCanUseTool,
+  getActiveTaskId?: () => string | null
+): OpenAITool {
+  return providerToolFactory.createOpenAITool(
+    writeFileTool,
+    (input: z.infer<typeof writeFileTool.parameters>) =>
+      executeWriteFile(input.file_path, input.content, getActiveTaskId),
+    onCanUseTool
+  );
+}
+
 function createBashTool(
   cwd: string,
   workbenchUrl?: string,
@@ -232,504 +232,66 @@ function createBashTool(
   currentPromptTokens?: number,
   getActiveTaskId?: () => string | null
 ): OpenAITool {
-  const execute = ({
-    command,
-    timeout,
-  }: {
-    command: string;
-    timeout?: number | string;
-  }) =>
-    executeBash(
-      command,
-      coerceNumber(timeout),
-      cwd,
-      onToolOutput,
-      workbenchUrl,
-      currentPromptTokens,
-      getActiveTaskId
-    );
-
-  return tool({
-    name: 'bash',
-    description:
-      'Execute shell commands in bash. REQUIRED for: git (status/diff/add/commit/push), npm/yarn (install/build/test), system commands (grep/ls/cd/mkdir/mv/cp), package managers, build tools. IMPORTANT: Always use this tool for ANY terminal/shell command - do not attempt to execute commands without it. EFFICIENCY TIP: Pipe to head/tail for large outputs.',
-    parameters: z.object({
-      command: z.string().describe('The command to execute'),
-      timeout: z
-        .union([z.number(), z.string()])
-        .optional()
-        .describe('Timeout in ms (default 120000)'),
-    }),
-    execute: withPermissionCheck('bash', execute, onCanUseTool),
-  });
+  return providerToolFactory.createOpenAITool(
+    bashTool,
+    (input: z.infer<typeof bashTool.parameters>) =>
+      executeBash(
+        input.command,
+        input.timeout,
+        cwd,
+        onToolOutput,
+        workbenchUrl,
+        currentPromptTokens,
+        getActiveTaskId
+      ),
+    onCanUseTool
+  );
 }
 
-/**
- * Create edit_file tool
- */
 function createEditFileTool(
   onCanUseTool?: OnCanUseTool,
   getActiveTaskId?: () => string | null
 ): OpenAITool {
-  interface EditInput {
-    file_path: string;
-    old_string: string;
-    new_string: string;
-    replace_all?: boolean | string;
-  }
-
-  const execute = ({
-    file_path,
-    old_string,
-    new_string,
-    replace_all,
-  }: EditInput) =>
-    executeEditFile(
-      file_path,
-      old_string,
-      new_string,
-      coerceBoolean(replace_all),
-      getActiveTaskId
-    );
-
-  return tool({
-    name: 'edit_file',
-    description: 'Replace text in a file (old_string must be unique)',
-    parameters: z.object({
-      file_path: z.string().describe('Absolute path to the file'),
-      old_string: z.string().describe('Text to replace'),
-      new_string: z.string().describe('Replacement text'),
-      replace_all: z
-        .union([z.boolean(), z.string()])
-        .optional()
-        .describe('Replace all occurrences'),
-    }),
-    execute: withPermissionCheck('edit_file', execute, onCanUseTool),
-  });
+  return providerToolFactory.createOpenAITool(
+    editFileTool,
+    (input: z.infer<typeof editFileTool.parameters>) =>
+      executeEditFile(
+        input.file_path,
+        input.old_string,
+        input.new_string,
+        input.replace_all,
+        getActiveTaskId
+      ),
+    onCanUseTool
+  );
 }
 
-/**
- * Create SigmaTaskUpdate tool
- *
- * Manages a task list for tracking progress during multi-step operations.
- * Embeds tasks in session state file via anchorId.
- */
-function createSigmaTaskUpdateTool(
-  cwd: string,
-  anchorId: string | undefined,
-  mode?: 'solo' | 'full',
-  onTaskCompleted?: (taskId: string, result_summary?: string) => Promise<void>
-): OpenAITool {
-  const isSolo = mode === 'solo';
-
-  interface TodoInput {
-    todos: Array<{
-      id: string;
-      content: string;
-      status: 'pending' | 'in_progress' | 'completed' | 'delegated';
-      activeForm: string;
-      // Delegation fields (Manager/Worker paradigm)
-      acceptance_criteria?: string[] | null;
-      delegated_to?: string | null;
-      context?: string | null;
-      delegate_session_id?: string | null;
-      result_summary?: string | null;
-    }>;
-    grounding?: Array<{
-      id: string;
-      strategy?: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none' | null;
-      overlay_hints?: string[] | null;
-      query_hints?: string[] | null;
-      evidence_required?: boolean | string | null;
-    }> | null;
-    grounding_evidence?: Array<{
-      id: string;
-      queries_executed: string[];
-      overlays_consulted: string[];
-      citations: Array<{
-        overlay: string;
-        content: string;
-        relevance: string;
-        file_path?: string;
-      }>;
-      grounding_confidence: 'high' | 'medium' | 'low';
-      overlay_warnings?: string[] | null;
-    }> | null;
-  }
-
-  const execute = async (input: unknown) => {
-    const {
-      todos: rawTodos,
-      grounding: rawGroundings,
-      grounding_evidence: rawEvidences,
-    } = input as TodoInput;
-    // Define target type for processed todos to satisfy linter and executor
-    interface ProcessedGrounding {
-      strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
-      overlay_hints?: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
-      query_hints?: string[];
-      evidence_required?: boolean;
-    }
-
-    interface ProcessedEvidence {
-      queries_executed: string[];
-      overlays_consulted: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
-      citations: Array<{
-        overlay: string;
-        content: string;
-        relevance: string;
-        file_path?: string;
-      }>;
-      grounding_confidence: 'high' | 'medium' | 'low';
-      overlay_warnings?: string[] | null;
-    }
-
-    interface ProcessedTodo {
-      id: string;
-      content?: string;
-      status?: 'pending' | 'in_progress' | 'completed' | 'delegated';
-      activeForm?: string;
-      acceptance_criteria?: string[];
-      delegated_to?: string;
-      context?: string;
-      delegate_session_id?: string;
-      result_summary?: string;
-      grounding?: ProcessedGrounding;
-      grounding_evidence?: ProcessedEvidence;
-    }
-
-    // [Safety Handling] Process todos to handle nulls and coercion
-    const processedTodos = (rawTodos || []).map((todo) => {
-      const cleanTodo: ProcessedTodo = {
-        id: todo.id,
-      };
-
-      if (todo.content !== undefined && todo.content !== null)
-        cleanTodo.content = todo.content;
-      if (todo.status !== undefined && todo.status !== null)
-        cleanTodo.status = todo.status;
-      if (todo.activeForm !== undefined && todo.activeForm !== null)
-        cleanTodo.activeForm = todo.activeForm;
-
-      if (todo.acceptance_criteria)
-        cleanTodo.acceptance_criteria = todo.acceptance_criteria;
-      if (todo.delegated_to) cleanTodo.delegated_to = todo.delegated_to;
-      if (todo.context) cleanTodo.context = todo.context;
-      if (todo.delegate_session_id)
-        cleanTodo.delegate_session_id = todo.delegate_session_id;
-      if (todo.result_summary) cleanTodo.result_summary = todo.result_summary;
-
-      if (
-        cleanTodo.status === 'completed' &&
-        (!cleanTodo.result_summary || cleanTodo.result_summary.length < 15)
-      ) {
-        throw new Error(
-          "Validation Error: You cannot mark a task as 'completed' without providing a detailed 'result_summary' (min 15 chars). " +
-            "Raw tool logs for this task will be evicted. Please summarize your findings so you don't lose context."
-        );
-      }
-
-      // Merge grounding from separate array if present
-      const groundingData = (rawGroundings || []).find((g) => g.id === todo.id);
-      if (groundingData) {
-        const grounding: ProcessedGrounding = {
-          strategy: groundingData.strategy || 'none',
-        };
-
-        if (groundingData.overlay_hints)
-          grounding.overlay_hints = groundingData.overlay_hints as Array<
-            'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'
-          >;
-        if (groundingData.query_hints)
-          grounding.query_hints = groundingData.query_hints;
-
-        // Coerce evidence_required if it's a string
-        if (
-          groundingData.evidence_required !== undefined &&
-          groundingData.evidence_required !== null
-        ) {
-          grounding.evidence_required = coerceBoolean(
-            groundingData.evidence_required as string | boolean
-          );
-        }
-
-        cleanTodo.grounding = grounding;
-      }
-
-      // Merge grounding_evidence from separate array if present
-      const evidenceData = (rawEvidences || []).find((e) => e.id === todo.id);
-      if (evidenceData) {
-        const evidence: ProcessedEvidence = {
-          queries_executed: evidenceData.queries_executed,
-          overlays_consulted: evidenceData.overlays_consulted as Array<
-            'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'
-          >,
-          citations: evidenceData.citations.map((c) => ({
-            ...c,
-            file_path: c.file_path === null ? undefined : c.file_path,
-          })),
-          grounding_confidence: evidenceData.grounding_confidence,
-        };
-
-        if (evidenceData.overlay_warnings) {
-          evidence.overlay_warnings = evidenceData.overlay_warnings;
-        }
-
-        cleanTodo.grounding_evidence = evidence;
-      }
-
-      return cleanTodo;
-    });
-
-    // Validate delegation requirements (moved from .refine() for cross-provider compatibility)
-    for (const task of processedTodos) {
-      if (task.status === 'delegated') {
-        if (
-          !task.acceptance_criteria ||
-          task.acceptance_criteria.length === 0
-        ) {
-          throw new Error(
-            `Task "${task.id}" has status 'delegated' but missing 'acceptance_criteria'`
-          );
-        }
-        if (!task.delegated_to || task.delegated_to.length === 0) {
-          throw new Error(
-            `Task "${task.id}" has status 'delegated' but missing 'delegated_to'`
-          );
-        }
-      }
-    }
-
-    if (!anchorId) {
-      // Fallback summary for non-persistent mode
-      const summary = (processedTodos || [])
-        .map((t) => {
-          const icon =
-            t.status === 'completed'
-              ? '✓'
-              : t.status === 'in_progress'
-                ? '→'
-                : t.status === 'delegated'
-                  ? '⇨'
-                  : '○';
-          const text = t.status === 'in_progress' ? t.activeForm : t.content;
-          const suffix =
-            t.status === 'delegated' && t.delegated_to
-              ? ` (→ ${t.delegated_to})`
-              : '';
-          return `[${icon}] ${text}${suffix}`;
-        })
-        .join('\n');
-      return `Task list updated (${(processedTodos || []).length} items) [NOT PERSISTED]:\n${summary}`;
-    }
-
-    const result = await executeSigmaTaskUpdate(processedTodos, cwd, anchorId);
-
-    // Trigger surgical eviction if a task was completed
-    if (onTaskCompleted) {
-      const { loadSessionState } =
-        await import('../../../sigma/session-state.js');
-      const finalState = loadSessionState(anchorId, cwd);
-
-      for (const todo of processedTodos) {
-        if (todo.status === 'completed') {
-          const validatedTask = finalState?.todos?.find(
-            (t) => t.id === todo.id
-          );
-          const summaryToPass =
-            validatedTask?.result_summary || todo.result_summary;
-          await onTaskCompleted(todo.id, summaryToPass);
-        }
-      }
-    }
-
-    return result;
-  };
-
-  const todoSchema = z.object({
-    id: z
-      .string()
-      .min(1)
-      .describe(
-        'Unique stable identifier for this task (use nanoid, UUID, or semantic slug like "fix-ruff-api")'
-      ),
-    content: z
-      .string()
-      .min(1)
-      .describe(
-        'The imperative form describing what needs to be done (e.g., "Run tests", "Build the project")'
-      ),
-    activeForm: z
-      .string()
-      .min(1)
-      .describe(
-        'The present continuous form shown during execution (e.g., "Running tests", "Building the project")'
-      ),
-    status: z
-      .enum(
-        isSolo
-          ? ['pending', 'in_progress', 'completed']
-          : ['pending', 'in_progress', 'completed', 'delegated']
-      )
-      .describe(
-        isSolo
-          ? 'Task status.'
-          : 'Task status. Use "delegated" when assigning task to another agent via IPC'
-      ),
-    result_summary: z
-      .string()
-      .nullable()
-      .describe(
-        "REQUIRED when status is 'completed'. A concise summary of the essential findings, code changes, or decisions made during this task. This summary will survive log eviction."
-      ),
-  });
-
-  const finalTodoSchema = isSolo
-    ? todoSchema
-    : todoSchema.extend({
-        // Delegation fields (Manager/Worker paradigm)
-        acceptance_criteria: z
-          .array(z.string())
-          .nullable()
-          .describe(
-            'Success criteria for task completion (e.g., ["Must pass \'npm test\'", "No breaking changes"]). Required when delegating.'
-          ),
-        delegated_to: z
-          .string()
-          .nullable()
-          .describe(
-            'Agent ID this task was delegated to (e.g., "flash1"). Set when status is "delegated".'
-          ),
-        context: z
-          .string()
-          .nullable()
-          .describe(
-            'Additional context for delegated worker (e.g., "Refactoring auth system - keep OAuth flow intact")'
-          ),
-        delegate_session_id: z
-          .string()
-          .nullable()
-          .describe("Worker's session ID (for audit trail)"),
-      });
-
-  const parameters: Record<string, z.ZodTypeAny> = {
-    todos: z.array(finalTodoSchema),
-  };
-
-  if (!isSolo) {
-    parameters.grounding = z
-      .array(
-        z.object({
-          id: z.string(),
-          strategy: z
-            .enum(['pgc_first', 'pgc_verify', 'pgc_cite', 'none'])
-            .nullable()
-            .describe('Grounding strategy to use'),
-          overlay_hints: z
-            .array(z.enum(['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7']))
-            .nullable()
-            .describe('Hints for overlay selection'),
-          query_hints: z
-            .array(z.string())
-            .nullable()
-            .describe('Hints for semantic search queries'),
-          evidence_required: z
-            .union([z.boolean(), z.string()])
-            .nullable()
-            .describe('Whether evidence (citations) is required'),
-        })
-      )
-      .nullable()
-      .describe('Grounding strategy and hints for tasks (correlate via id)');
-
-    parameters.grounding_evidence = z
-      .array(
-        z.object({
-          id: z.string(),
-          queries_executed: z.array(z.string()),
-          overlays_consulted: z.array(
-            z.enum(['O1', 'O2', 'O3', 'O4', 'O5', 'O6', 'O7'])
-          ),
-          citations: z.array(
-            z.object({
-              overlay: z.string(),
-              content: z.string(),
-              relevance: z.string(),
-              file_path: z.string().optional(),
-            })
-          ),
-          grounding_confidence: z.enum(['high', 'medium', 'low']),
-          overlay_warnings: z.array(z.string()).nullable(),
-        })
-      )
-      .nullable()
-      .describe('Structured evidence returned by worker (correlate via id)');
-  }
-
-  return tool({
-    name: 'SigmaTaskUpdate',
-    description: getSigmaTaskUpdateDescription(mode),
-    parameters: z.object(parameters),
-    execute,
-  });
-}
-
-// ============================================================
-// Web Tools (fetch_url, web_search)
-// ============================================================
-
-/**
- * Create fetch_url tool
- */
 function createFetchUrlTool(getActiveTaskId?: () => string | null): OpenAITool {
-  return tool({
-    name: 'fetch_url',
-    description:
-      'Fetch content from a URL to read documentation, APIs, or external resources. Returns text content with basic HTML stripping.',
-    parameters: z.object({
-      url: z.string().url().describe('The URL to fetch content from'),
-    }),
-    execute: ({ url }) => executeFetchUrl(url, getActiveTaskId),
-  });
+  return providerToolFactory.createOpenAITool(
+    fetchUrlTool,
+    (input: z.infer<typeof fetchUrlTool.parameters>) =>
+      executeFetchUrl(input.url, getActiveTaskId)
+  );
 }
 
-/**
- * Create web_search tool
- */
 function createWebSearchTool(workbenchUrl?: string): OpenAITool {
-  return tool({
-    name: 'WebSearch',
-    description:
-      'Search the web for information. Use this for current events, documentation, or any information beyond your knowledge cutoff. Returns search results with titles, URLs, and snippets.',
-    parameters: z.object({
-      query: z.string().describe('The search query'),
-    }),
-    execute: ({ query }) => executeWebSearch(query, workbenchUrl),
-  });
+  return providerToolFactory.createOpenAITool(
+    webSearchTool,
+    (input: z.infer<typeof webSearchTool.parameters>) =>
+      executeWebSearch(input.request, workbenchUrl)
+  );
 }
 
-// ============================================================
-// Memory Tool (recall_past_conversation)
-// ============================================================
-
-/**
- * Create recall_past_conversation tool
- */
 function createRecallTool(
   conversationRegistry: ConversationOverlayRegistry,
   workbenchUrl?: string
 ): OpenAITool {
-  return tool({
-    name: 'recall_past_conversation',
-    description:
-      'Retrieve FULL untruncated messages from conversation history. The recap you see is truncated - when you see "..." it means more content is available. Use this tool to get complete details. Searches all 7 overlays (O1-O7) in LanceDB with semantic search.',
-    parameters: z.object({
-      query: z.string().describe('What to search for in past conversation'),
-    }),
-    execute: async ({ query }) => {
+  return providerToolFactory.createOpenAITool(
+    recallPastConversationTool,
+    async (input: z.infer<typeof recallPastConversationTool.parameters>) => {
       try {
         const answer = await queryConversationLattice(
-          query,
+          input.query,
           conversationRegistry,
           {
             workbenchUrl,
@@ -737,46 +299,27 @@ function createRecallTool(
             verbose: false,
           }
         );
-
         return `Found relevant context:\n\n${answer}`;
       } catch (err) {
         return `Failed to recall conversation: ${(err as Error).message}`;
       }
-    },
-  });
+    }
+  );
 }
 
-// ============================================================
-// Background Tasks Tool
-// ============================================================
-
-/**
- * Create get_background_tasks tool
- */
 function createBackgroundTasksTool(
   getTaskManager: () => BackgroundTaskManager | null
 ): OpenAITool {
-  return tool({
-    name: 'get_background_tasks',
-    description:
-      'Query status of background operations (genesis, overlay generation). Use this to check if work is in progress, view progress percentage, or see completed/failed tasks.',
-    parameters: z.object({
-      filter: z
-        .enum(['all', 'active', 'completed', 'failed'])
-        .optional()
-        .describe('Filter tasks by status'),
-    }),
-    execute: async ({ filter: filterArg }) => {
-      const filter = filterArg || 'all';
+  return providerToolFactory.createOpenAITool(
+    getBackgroundTasksTool,
+    async (input: z.infer<typeof getBackgroundTasksTool.parameters>) => {
+      const filter = input.filter || 'all';
       try {
         const taskManager = getTaskManager();
-
         if (!taskManager) {
           return 'Background task manager not initialized. No background operations are running.';
         }
-
         const allTasks = taskManager.getAllTasks();
-
         let filteredTasks;
         switch (filter) {
           case 'active':
@@ -800,7 +343,6 @@ function createBackgroundTasksTool(
         const activeTask = taskManager.getActiveTask();
 
         let text = '';
-
         if (activeTask) {
           const progress =
             activeTask.progress !== undefined
@@ -837,419 +379,234 @@ function createBackgroundTasksTool(
             }
           }
         }
-
         return text;
       } catch (err) {
         return `Failed to get background tasks: ${(err as Error).message}`;
       }
-    },
-  });
+    }
+  );
 }
 
-// ============================================================
-// Agent Messaging Tools (IPC)
-// ============================================================
-
-/**
- * Create list_agents tool
- */
 function createListAgentsTool(
   projectRoot: string,
   currentAgentId: string
 ): OpenAITool {
-  return tool({
-    name: 'list_agents',
-    description:
-      'List all active agents in the IPC bus. Returns agent aliases, models, and status. Use this to discover other agents before sending messages.',
-    parameters: z.object({}),
-    execute: async () => {
-      try {
-        const agents = getActiveAgents(projectRoot, currentAgentId);
-        return formatListAgents(agents);
-      } catch (err) {
-        return formatError('list agents', (err as Error).message);
-      }
-    },
+  return providerToolFactory.createOpenAITool(listAgentsTool, async () => {
+    try {
+      const agents = getActiveAgents(projectRoot, currentAgentId);
+      return formatListAgents(agents);
+    } catch (err) {
+      return formatError('list agents', (err as Error).message);
+    }
   });
 }
 
-/**
- * Create send_agent_message tool
- */
 function createSendMessageTool(
   getMessagePublisher: () => MessagePublisher | null,
   projectRoot: string,
   onCanUseTool?: OnCanUseTool
 ): OpenAITool {
-  const execute = async ({ to, message }: { to: string; message: string }) => {
-    try {
-      const publisher = getMessagePublisher();
-
-      if (!publisher) {
-        return formatNotInitialized('Message publisher');
+  return providerToolFactory.createOpenAITool(
+    sendAgentMessageTool,
+    async (input: z.infer<typeof sendAgentMessageTool.parameters>) => {
+      try {
+        const publisher = getMessagePublisher();
+        if (!publisher) return formatNotInitialized('Message publisher');
+        const targetAgentId = resolveAgentId(projectRoot, input.to);
+        if (!targetAgentId) return formatNotFound('agent', input.to);
+        await publisher.sendMessage(targetAgentId, input.message);
+        return formatMessageSent(input.to, targetAgentId, input.message);
+      } catch (err) {
+        return formatError('send message', (err as Error).message);
       }
-
-      const targetAgentId = resolveAgentId(projectRoot, to);
-
-      if (!targetAgentId) {
-        return formatNotFound('agent', to);
-      }
-
-      await publisher.sendMessage(targetAgentId, message);
-
-      return formatMessageSent(to, targetAgentId, message);
-    } catch (err) {
-      return formatError('send message', (err as Error).message);
-    }
-  };
-
-  return tool({
-    name: 'send_agent_message',
-    description:
-      'Send a message to another agent. The recipient will see it in their pending messages. Use list_agents first to discover available agents.',
-    parameters: z.object({
-      to: z.string().describe('Target agent alias or full agent ID'),
-      message: z.string().describe('The message content to send'),
-    }),
-    execute: withPermissionCheck('send_agent_message', execute, onCanUseTool),
-  });
+    },
+    onCanUseTool
+  );
 }
 
-/**
- * Create broadcast_agent_message tool
- */
 function createBroadcastTool(
   getMessagePublisher: () => MessagePublisher | null,
   projectRoot: string,
   currentAgentId: string,
   onCanUseTool?: OnCanUseTool
 ): OpenAITool {
-  const execute = async ({ message }: { message: string }) => {
-    try {
-      const publisher = getMessagePublisher();
-
-      if (!publisher) {
-        return formatNotInitialized('Message publisher');
+  return providerToolFactory.createOpenAITool(
+    broadcastAgentMessageTool,
+    async (input: z.infer<typeof broadcastAgentMessageTool.parameters>) => {
+      try {
+        const publisher = getMessagePublisher();
+        if (!publisher) return formatNotInitialized('Message publisher');
+        await publisher.broadcast('agent.message', {
+          type: 'text',
+          message: input.message,
+        });
+        const agents = getActiveAgents(projectRoot, currentAgentId);
+        return formatBroadcastSent(agents.length, input.message);
+      } catch (err) {
+        return formatError('broadcast message', (err as Error).message);
       }
-
-      await publisher.broadcast('agent.message', {
-        type: 'text',
-        message,
-      });
-
-      const agents = getActiveAgents(projectRoot, currentAgentId);
-
-      return formatBroadcastSent(agents.length, message);
-    } catch (err) {
-      return formatError('broadcast message', (err as Error).message);
-    }
-  };
-
-  return tool({
-    name: 'broadcast_agent_message',
-    description:
-      'Broadcast a message to ALL active agents. Use sparingly - prefer send_agent_message for targeted communication.',
-    parameters: z.object({
-      message: z.string().describe('The message content to broadcast'),
-    }),
-    execute: withPermissionCheck(
-      'broadcast_agent_message',
-      execute,
-      onCanUseTool
-    ),
-  });
+    },
+    onCanUseTool
+  );
 }
 
-/**
- * Create list_pending_messages tool
- */
 function createListPendingMessagesTool(
   getMessageQueue: () => MessageQueue | null
 ): OpenAITool {
-  return tool({
-    name: 'list_pending_messages',
-    description:
-      'List all pending messages in your message queue. These are messages from other agents that you have not yet processed. DO NOT poll this tool - the system will notify you automatically when a new message arrives.',
-    parameters: z.object({}),
-    execute: async () => {
+  return providerToolFactory.createOpenAITool(
+    listPendingMessagesTool,
+    async () => {
       try {
         const queue = getMessageQueue();
-
-        if (!queue) {
-          return formatNotInitialized('Message queue');
-        }
-
+        if (!queue) return formatNotInitialized('Message queue');
         const messages = await queue.getMessages('pending');
-
         return formatPendingMessages(messages);
       } catch (err) {
-        return formatError('list pending messages', (err as Error).message);
+        return formatError('list messages', (err as Error).message);
       }
-    },
-  });
+    }
+  );
 }
 
-/**
- * Create mark_message_read tool
- */
 function createMarkMessageReadTool(
   getMessageQueue: () => MessageQueue | null,
   onCanUseTool?: OnCanUseTool
 ): OpenAITool {
-  interface MarkInput {
-    messageId: string;
-    status?: 'read' | 'injected' | 'dismissed';
-  }
-
-  const execute = async ({ messageId, status }: MarkInput) => {
-    try {
-      const queue = getMessageQueue();
-
-      if (!queue) {
-        return formatNotInitialized('Message queue');
+  return providerToolFactory.createOpenAITool(
+    markMessageReadTool,
+    async (input: z.infer<typeof markMessageReadTool.parameters>) => {
+      try {
+        const queue = getMessageQueue();
+        if (!queue) return formatNotInitialized('Message queue');
+        const message = await queue.getMessage(input.messageId);
+        if (!message) return formatNotFound('Message', input.messageId);
+        const newStatus = input.status || 'injected';
+        await queue.updateStatus(input.messageId, newStatus);
+        return formatMessageMarked(
+          input.messageId,
+          newStatus,
+          message.from,
+          formatMessageContent(message)
+        );
+      } catch (err) {
+        return formatError('mark message read', (err as Error).message);
       }
-
-      const message = await queue.getMessage(messageId);
-
-      if (!message) {
-        return formatNotFound('Message', messageId);
-      }
-
-      const newStatus = status || 'injected';
-      await queue.updateStatus(messageId, newStatus);
-
-      return formatMessageMarked(
-        messageId,
-        newStatus,
-        message.from,
-        formatMessageContent(message)
-      );
-    } catch (err) {
-      return formatError('mark message', (err as Error).message);
-    }
-  };
-
-  return tool({
-    name: 'mark_message_read',
-    description:
-      'Mark a pending message as read/processed. Use this after you have handled a message from another agent.',
-    parameters: z.object({
-      messageId: z.string().describe('The message ID to mark as read'),
-      status: z
-        .enum(['read', 'injected', 'dismissed'])
-        .optional()
-        .describe('New status (default: injected)'),
-    }),
-    execute: withPermissionCheck('mark_message_read', execute, onCanUseTool),
-  });
+    },
+    onCanUseTool
+  );
 }
 
-/**
- * Create query_agent tool (cross-project semantic query)
- */
 function createQueryAgentTool(
   getMessagePublisher: () => MessagePublisher | null,
   getMessageQueue: () => MessageQueue | null,
   projectRoot: string,
   onCanUseTool?: OnCanUseTool
 ): OpenAITool {
-  const execute = async ({
-    target_alias,
-    question,
-  }: {
-    target_alias: string;
-    question: string;
-  }) => {
-    try {
-      const publisher = getMessagePublisher();
-      const queue = getMessageQueue();
-
-      if (!publisher || !queue) {
-        return formatNotInitialized('Message publisher or queue');
-      }
-
-      // Resolve alias to agent ID
-      const targetAgentId = resolveAgentId(projectRoot, target_alias);
-
-      if (!targetAgentId) {
-        return formatNotFound('agent', target_alias);
-      }
-
-      // Generate unique query ID for request/response correlation
-      const queryId = crypto.randomUUID();
-
-      // Send the query to the target agent
-      await publisher.sendMessage(
-        targetAgentId,
-        JSON.stringify({
-          type: 'query_request',
-          queryId,
-          question,
-        })
-      );
-
-      // Wait for response (60s timeout)
-      const TIMEOUT_MS = 60000;
-      const startTime = Date.now();
-
-      while (Date.now() - startTime < TIMEOUT_MS) {
-        const messages = await queue.getMessages('pending');
-
-        for (const msg of messages) {
-          let responseData: { queryId: string; answer: string } | null = null;
-
-          // Check if it's a direct query_response object
-          if (
-            msg.content &&
-            typeof msg.content === 'object' &&
-            'type' in msg.content &&
-            msg.content.type === 'query_response' &&
-            'queryId' in msg.content &&
-            msg.content.queryId === queryId &&
-            'answer' in msg.content
-          ) {
-            responseData = msg.content as { queryId: string; answer: string };
-          }
-          // Check if it's a text message with JSON-encoded query_response
-          else if (
-            msg.content &&
-            typeof msg.content === 'object' &&
-            'type' in msg.content &&
-            msg.content.type === 'text' &&
-            'message' in msg.content &&
-            typeof msg.content.message === 'string'
-          ) {
-            try {
-              const parsed = JSON.parse(msg.content.message);
-              if (
-                parsed.type === 'query_response' &&
-                parsed.queryId === queryId &&
-                parsed.answer
-              ) {
-                responseData = parsed;
+  return providerToolFactory.createOpenAITool(
+    queryAgentTool,
+    async (input: z.infer<typeof queryAgentTool.parameters>) => {
+      try {
+        const publisher = getMessagePublisher();
+        const queue = getMessageQueue();
+        if (!publisher || !queue)
+          return formatNotInitialized('Message publisher or queue');
+        const targetAgentId = resolveAgentId(projectRoot, input.agentId);
+        if (!targetAgentId) return formatNotFound('agent', input.agentId);
+        const queryId = crypto.randomUUID();
+        await publisher.sendMessage(
+          targetAgentId,
+          JSON.stringify({
+            type: 'query_request',
+            queryId,
+            question: input.query,
+          })
+        );
+        const TIMEOUT_MS = 60000;
+        const startTime = Date.now();
+        while (Date.now() - startTime < TIMEOUT_MS) {
+          const messages = await queue.getMessages('pending');
+          for (const msg of messages) {
+            let responseData: { queryId: string; answer: string } | null = null;
+            if (
+              msg.content &&
+              typeof msg.content === 'object' &&
+              'type' in msg.content &&
+              msg.content.type === 'query_response' &&
+              'queryId' in msg.content &&
+              msg.content.queryId === queryId &&
+              'answer' in msg.content
+            ) {
+              responseData = msg.content as { queryId: string; answer: string };
+            } else if (
+              msg.content &&
+              typeof msg.content === 'object' &&
+              'type' in msg.content &&
+              msg.content.type === 'text' &&
+              'message' in msg.content &&
+              typeof msg.content.message === 'string'
+            ) {
+              try {
+                const parsed = JSON.parse(msg.content.message);
+                if (
+                  parsed.type === 'query_response' &&
+                  parsed.queryId === queryId &&
+                  parsed.answer
+                ) {
+                  responseData = parsed;
+                }
+              } catch {
+                // Ignore malformed JSON
               }
-            } catch {
-              // Not JSON, continue
+            }
+            if (responseData) {
+              await queue.updateStatus(msg.id, 'injected');
+              return `Query: "${input.query}"\n\nAnswer from ${input.agentId}:\n\n${responseData.answer}`;
             }
           }
-
-          if (responseData) {
-            // Found our response!
-            const answer = responseData.answer;
-
-            // Mark message as processed
-            await queue.updateStatus(msg.id, 'injected');
-
-            return `Query: "${question}"\n\nAnswer from ${target_alias}:\n\n${answer}`;
-          }
+          await new Promise((resolve) => setTimeout(resolve, 500));
         }
-
-        // Poll every 500ms
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        return `⏱️ Timeout: No response from ${input.agentId} after ${TIMEOUT_MS / 1000}s. The agent may be offline or busy.`;
+      } catch (err) {
+        return formatError('query agent', (err as Error).message);
       }
-
-      // Timeout - no response received
-      return `⏱️ Timeout: No response from ${target_alias} after ${TIMEOUT_MS / 1000}s. The agent may be offline or busy.`;
-    } catch (err) {
-      return formatError('query agent', (err as Error).message);
-    }
-  };
-
-  return tool({
-    name: 'query_agent',
-    description:
-      'Ask a semantic question to another agent and get a grounded answer based on their Grounded Context Pool (PGC). Use this to query agents working in different repositories. Example: query_agent("egemma_agent", "How does the lattice merger handle conflicts?")',
-    parameters: z.object({
-      target_alias: z
-        .string()
-        .describe(
-          'Target agent alias (e.g., "opus1", "sonnet2") or full agent ID'
-        ),
-      question: z
-        .string()
-        .describe('The semantic question to ask about their codebase'),
-    }),
-    execute: withPermissionCheck('query_agent', execute, onCanUseTool),
-  });
+    },
+    onCanUseTool
+  );
 }
 
 // ============================================================
-// Main Export: Build All Tools
+// Main Export
 // ============================================================
 
-/**
- * Context for building OpenAI agent tools
- */
-export interface OpenAIToolsContext {
-  /** Working directory */
-  cwd: string;
-  /** Workbench URL for eGemma API */
-  workbenchUrl?: string;
-  /** Tool permission callback */
-  onCanUseTool?: OnCanUseTool;
-  /** Conversation registry for recall tool */
-  conversationRegistry?: ConversationOverlayRegistry;
-  /** Background task manager getter */
-  getTaskManager?: () => BackgroundTaskManager | null;
-  /** Message publisher getter */
-  getMessagePublisher?: () => MessagePublisher | null;
-  /** Message queue getter */
-  getMessageQueue?: () => MessageQueue | null;
-  /** Project root for agent discovery */
-  projectRoot?: string;
-  /** Current agent ID */
-  agentId?: string;
-  /** Session anchor ID for SigmaTaskUpdate state persistence */
-  anchorId?: string;
-  /** Callback for when a task is completed (triggers surgical eviction) */
-  onTaskCompleted?: (taskId: string) => Promise<void>;
-  /** Callback to get the currently active task ID */
-  getActiveTaskId?: () => string | null;
-  /** Callback for streaming tool output */
-  onToolOutput?: (output: string) => void;
-  /** Operation mode (solo = skip IPC/PGC tools) */
-  mode?: 'solo' | 'full';
-  /** Current prompt tokens for dynamic optimization */
-  currentPromptTokens?: number;
-}
-
-/**
- * Get all OpenAI tools for Cognition
- *
- * Returns array of tools compatible with @openai/agents SDK.
- * Tool safety is handled via onCanUseTool callback.
- */
-export function getOpenAITools(context: OpenAIToolsContext): OpenAITool[] {
-  const {
-    cwd,
-    workbenchUrl,
-    onCanUseTool,
-    conversationRegistry,
-    getTaskManager,
-    getMessagePublisher,
-    getMessageQueue,
-    projectRoot,
-    agentId,
-    anchorId,
-    onToolOutput,
-    onTaskCompleted,
-    getActiveTaskId,
-    mode,
-    currentPromptTokens,
-  } = context;
-
+export function getOpenAITools({
+  cwd,
+  workbenchUrl,
+  onCanUseTool,
+  onToolOutput,
+  currentPromptTokens,
+  conversationRegistry,
+  getTaskManager,
+  getActiveTaskId,
+  mode,
+  projectRoot,
+  agentId,
+  anchorId,
+  onTaskCompleted,
+  getMessagePublisher,
+  getMessageQueue,
+}: OpenAIToolsContext): OpenAITool[] {
   const tools: OpenAITool[] = [];
 
-  // Core file tools (read-only - no permission check needed)
+  // Core file tools
   tools.push(
-    createReadFileTool(cwd, workbenchUrl, currentPromptTokens, getActiveTaskId)
+    createReadFileTool(workbenchUrl, currentPromptTokens, getActiveTaskId)
   );
   tools.push(createGlobTool(cwd, getActiveTaskId));
   tools.push(
     createGrepTool(cwd, workbenchUrl, currentPromptTokens, getActiveTaskId)
   );
 
-  // Mutating tools (with permission check built-in)
+  // Mutating tools
   tools.push(createWriteFileTool(onCanUseTool, getActiveTaskId));
   tools.push(
     createBashTool(
@@ -1263,34 +620,32 @@ export function getOpenAITools(context: OpenAIToolsContext): OpenAITool[] {
   );
   tools.push(createEditFileTool(onCanUseTool, getActiveTaskId));
 
-  // SigmaTaskUpdate tool (state management) - optional anchorId with fallback
+  // SigmaTaskUpdate
   if (!anchorId) {
     systemLog(
       'sigma',
-      'SigmaTaskUpdate initialized without anchorId. Tasks will NOT be persisted across sessions.',
+      'SigmaTaskUpdate initialized without anchorId. Tasks will NOT be persisted.',
       undefined,
       'warn'
     );
   }
-  // Note: createSigmaTaskUpdateTool would need to accept `mode` to correctly strip properties.
-  // However, this requires changing the builder logic above. We will do this next.
-  tools.push(createSigmaTaskUpdateTool(cwd, anchorId, mode, onTaskCompleted));
+  tools.push(createSigmaTaskUpdateTool(cwd, anchorId, onTaskCompleted));
 
-  // Web tools (read-only)
+  // Web tools
   tools.push(createFetchUrlTool(getActiveTaskId));
   tools.push(createWebSearchTool(workbenchUrl));
 
-  // Add recall tool if conversation registry is available
+  // Memory tools
   if (conversationRegistry) {
     tools.push(createRecallTool(conversationRegistry, workbenchUrl));
   }
 
-  // Add background tasks tool if task manager is available
+  // Background tools
   if (getTaskManager) {
     tools.push(createBackgroundTasksTool(getTaskManager));
   }
 
-  // Add agent messaging tools if IPC context is available and NOT in solo mode
+  // IPC tools
   if (
     mode !== 'solo' &&
     getMessagePublisher &&
@@ -1298,11 +653,8 @@ export function getOpenAITools(context: OpenAIToolsContext): OpenAITool[] {
     projectRoot &&
     agentId
   ) {
-    // Read-only tools (no permission check)
     tools.push(createListAgentsTool(projectRoot, agentId));
     tools.push(createListPendingMessagesTool(getMessageQueue));
-
-    // Mutating tools (with permission check)
     tools.push(
       createSendMessageTool(getMessagePublisher, projectRoot, onCanUseTool)
     );
@@ -1315,8 +667,6 @@ export function getOpenAITools(context: OpenAIToolsContext): OpenAITool[] {
       )
     );
     tools.push(createMarkMessageReadTool(getMessageQueue, onCanUseTool));
-
-    // Cross-project query tool (synchronous peer-to-peer queries)
     tools.push(
       createQueryAgentTool(
         getMessagePublisher,

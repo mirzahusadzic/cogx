@@ -19,7 +19,7 @@ export async function archiveTaskLogs({
   sessionId: string;
   taskId: string;
   evictedLogs: string[];
-  result_summary?: string;
+  result_summary?: string | null;
 }) {
   if (!process.env.DEBUG_ARCHIVE || evictedLogs.length === 0) return;
 

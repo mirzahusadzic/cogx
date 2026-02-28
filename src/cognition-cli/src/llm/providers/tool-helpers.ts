@@ -244,6 +244,186 @@ export function getSigmaTaskUpdateDescription(
   return SIGMA_TASK_UPDATE_DESCRIPTION;
 }
 
+export type OverlayName = 'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7';
+
+export interface SigmaTaskUpdateTodo {
+  id: string;
+  content?: string | null;
+  status?: 'pending' | 'in_progress' | 'completed' | 'delegated' | null;
+  activeForm?: string | null;
+  acceptance_criteria?: string[] | null;
+  delegated_to?: string | null;
+  context?: string | null;
+  delegate_session_id?: string | null;
+  result_summary?: string | null;
+  grounding?: {
+    strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none' | null;
+    overlay_hints?: OverlayName[] | null;
+    query_hints?: string[] | null;
+    evidence_required?: boolean | string | null;
+  } | null;
+  grounding_evidence?: {
+    queries_executed: string[] | null;
+    overlays_consulted: OverlayName[] | null;
+    citations: Array<{
+      overlay: string;
+      content: string;
+      relevance: string;
+      file_path?: string | null;
+    }> | null;
+    grounding_confidence: 'high' | 'medium' | 'low' | null;
+    overlay_warnings?: string[] | null;
+  } | null;
+}
+
+export interface SigmaTaskUpdateInput {
+  todos?: SigmaTaskUpdateTodo[];
+  grounding?: Array<{
+    id: string;
+    strategy?: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none' | null;
+    overlay_hints?: string[] | null;
+    query_hints?: string[] | null;
+    evidence_required?: boolean | string | null;
+  }> | null;
+  grounding_evidence?: Array<{
+    id: string;
+    queries_executed?: string[] | null;
+    overlays_consulted?: string[] | null;
+    citations?: Array<{
+      overlay: string;
+      content: string;
+      relevance: string;
+      file_path?: string | null;
+    }> | null;
+    grounding_confidence?: 'high' | 'medium' | 'low' | null;
+    overlay_warnings?: string[] | null;
+  }> | null;
+}
+
+/**
+ * Process SigmaTaskUpdate input by merging grounding/evidence and cleaning nulls.
+ * This ensures consistency across providers and handles model-specific quirks
+ * (like Gemini sending explicit nulls for optional fields).
+ */
+export function processSigmaTaskUpdateInput(
+  rawInput: unknown
+): SigmaTaskUpdateTodo[] {
+  const input = rawInput as SigmaTaskUpdateInput;
+  const rawTodos = input.todos;
+  const rawGroundings = input.grounding || [];
+  const rawEvidences = input.grounding_evidence || [];
+
+  if (!rawTodos || !Array.isArray(rawTodos)) {
+    throw new Error('No tasks provided');
+  }
+
+  const processedTodos = rawTodos.map((todo) => {
+    const cleanTodo: SigmaTaskUpdateTodo = {
+      id: todo.id,
+    };
+
+    // Copy basic fields if they exist and are not null
+    const basicFields: Array<keyof SigmaTaskUpdateTodo> = [
+      'content',
+      'status',
+      'activeForm',
+      'acceptance_criteria',
+      'delegated_to',
+      'context',
+      'delegate_session_id',
+      'result_summary',
+    ];
+
+    for (const field of basicFields) {
+      const value = todo[field];
+      if (value !== undefined && value !== null) {
+        // @ts-expect-error - dynamic assignment to fixed keys
+        cleanTodo[field] = value;
+      }
+    }
+
+    // Validation for completed tasks
+    if (
+      cleanTodo.status === 'completed' &&
+      (!cleanTodo.result_summary || cleanTodo.result_summary.length < 15)
+    ) {
+      throw new Error(
+        "Validation Error: You cannot mark a task as 'completed' without providing a detailed 'result_summary' (min 15 chars). " +
+          "Raw tool logs for this task will be evicted. Please summarize your findings so you don't lose context."
+      );
+    }
+
+    // Merge grounding from separate array if present
+    const groundingData = rawGroundings.find((g) => g.id === todo.id);
+    if (groundingData) {
+      const grounding: NonNullable<SigmaTaskUpdateTodo['grounding']> = {
+        strategy: groundingData.strategy || 'none',
+      };
+
+      if (groundingData.overlay_hints) {
+        grounding.overlay_hints = groundingData.overlay_hints as OverlayName[];
+      }
+      if (groundingData.query_hints) {
+        grounding.query_hints = groundingData.query_hints;
+      }
+
+      if (
+        groundingData.evidence_required !== undefined &&
+        groundingData.evidence_required !== null
+      ) {
+        grounding.evidence_required =
+          groundingData.evidence_required === true ||
+          groundingData.evidence_required === 'true';
+      }
+
+      cleanTodo.grounding = grounding;
+    }
+
+    // Merge grounding_evidence from separate array if present
+    const evidenceData = rawEvidences.find((e) => e.id === todo.id);
+    if (evidenceData) {
+      const evidence: NonNullable<SigmaTaskUpdateTodo['grounding_evidence']> = {
+        queries_executed: evidenceData.queries_executed || [],
+        overlays_consulted: (evidenceData.overlays_consulted ||
+          []) as OverlayName[],
+        citations: (evidenceData.citations || []).map((c) => ({
+          overlay: c.overlay,
+          content: c.content,
+          relevance: c.relevance,
+          file_path: c.file_path,
+        })),
+        grounding_confidence: evidenceData.grounding_confidence || 'low',
+      };
+
+      if (evidenceData.overlay_warnings) {
+        evidence.overlay_warnings = evidenceData.overlay_warnings;
+      }
+
+      cleanTodo.grounding_evidence = evidence;
+    }
+
+    return cleanTodo;
+  });
+
+  // Validate delegation requirements
+  for (const task of processedTodos) {
+    if (task.status === 'delegated') {
+      if (!task.acceptance_criteria || task.acceptance_criteria.length === 0) {
+        throw new Error(
+          `[DEBUG SigmaTaskUpdate] Delegation validation failed: Task "${task.id}" has status 'delegated' but missing 'acceptance_criteria'`
+        );
+      }
+      if (!task.delegated_to || task.delegated_to.length === 0) {
+        throw new Error(
+          `[DEBUG SigmaTaskUpdate] Delegation validation failed: Task "${task.id}" has status 'delegated' but missing 'delegated_to'`
+        );
+      }
+    }
+  }
+
+  return processedTodos;
+}
+
 /**
  * SigmaTaskUpdate tool description - shared between standalone and bound versions
  */

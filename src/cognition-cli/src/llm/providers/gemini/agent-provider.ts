@@ -393,7 +393,7 @@ export class GeminiAgentProvider implements AgentProvider {
    */
   private async pruneTaskLogs(
     taskId: string,
-    result_summary: string | undefined,
+    result_summary: string | null | undefined,
     sessionId: string,
     projectRoot: string,
     activeSession?: Session
@@ -765,7 +765,7 @@ export class GeminiAgentProvider implements AgentProvider {
           onToolOutput: request.onToolOutput, // Pass streaming callback for tools like bash
           onTaskCompleted: async (
             taskId: string,
-            result_summary?: string,
+            result_summary?: string | null,
             activeSession?: Session
           ) => {
             // Surgical log eviction on task completion

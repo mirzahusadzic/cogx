@@ -5,6 +5,7 @@
  * Uses shared tool executors from tool-executors.ts and tool-helpers.ts.
  */
 
+import { z } from 'zod';
 import { FunctionTool, type ToolContext, type Session } from '@google/adk';
 import { systemLog } from '../../../utils/debug-logger.js';
 import { providerToolFactory } from '../../tools/factory.js';
@@ -51,6 +52,7 @@ import {
   formatTaskType,
   formatDuration,
   getSigmaTaskUpdateDescription,
+  processSigmaTaskUpdateInput,
 } from '../tool-helpers.js';
 import {
   executeReadFile,
@@ -392,7 +394,7 @@ function createAgentMessagingTools(
   tools.push(
     providerToolFactory.createGeminiTool(
       queryAgentTool,
-      async (args) => {
+      async (args: z.infer<typeof queryAgentTool.parameters>) => {
         if (process.env.DEBUG_GEMINI_TOOLS) {
           systemLog('gemini-tools', 'query_agent input', { args }, 'debug');
         }
@@ -405,10 +407,10 @@ function createAgentMessagingTools(
           }
 
           // Resolve alias to agent ID
-          const targetAgentId = resolveAgentId(projectRoot, args.target_alias);
+          const targetAgentId = resolveAgentId(projectRoot, args.agentId);
 
           if (!targetAgentId) {
-            return formatNotFound('agent', args.target_alias);
+            return formatNotFound('agent', args.agentId);
           }
 
           // Generate unique query ID for request/response correlation
@@ -420,7 +422,7 @@ function createAgentMessagingTools(
             JSON.stringify({
               type: 'query_request',
               queryId,
-              question: args.question,
+              question: args.query,
             })
           );
 
@@ -480,7 +482,7 @@ function createAgentMessagingTools(
                 // Mark message as processed
                 await queue.updateStatus(msg.id, 'injected');
 
-                return `Query: "${args.question}"\n\nAnswer from ${args.target_alias}:\n\n${answer}`;
+                return `Query: "${args.query}"\n\nAnswer from ${args.agentId}:\n\n${answer}`;
               }
             }
 
@@ -489,12 +491,11 @@ function createAgentMessagingTools(
           }
 
           // Timeout - no response received
-          return `⏱️ Timeout: No response from ${args.target_alias} after ${TIMEOUT_MS / 1000}s. The agent may be offline or busy.`;
+          return `⏱️ Timeout: No response from ${args.agentId} after ${TIMEOUT_MS / 1000}s. The agent may be offline or busy.`;
         } catch (err) {
           return formatError('query agent', (err as Error).message);
         }
-      },
-      onCanUseTool
+      }
     )
   );
 
@@ -529,7 +530,7 @@ export interface CognitionToolsOptions {
   /** Callback when a task is completed (for log eviction) */
   onTaskCompleted?: (
     taskId: string,
-    result_summary?: string,
+    result_summary?: string | null,
     session?: Session
   ) => Promise<void>;
   /** Operation mode (solo = skip IPC/PGC tools) */
@@ -691,188 +692,17 @@ export function getCognitionTools(
     const boundSigmaTaskUpdateTool = providerToolFactory.createGeminiTool(
       sigmaTaskUpdateTool,
       async (inputData, toolContext?: ToolContext) => {
-        const rawInput = inputData;
-        // [Safety Handling] Gemini 2.5 Flash sometimes sends explicit nulls for optional fields
-        // which Zod's .optional() (undefined | string) rejects.
-        // We use a raw schema with nullable: true in definitions.ts to allow this at the API level,
-        // and then preprocess the input to remove any null values from the todo items.
         if (process.env.DEBUG_GEMINI_TOOLS) {
           systemLog(
             'gemini-tools',
             'SigmaTaskUpdate input',
-            { rawInput },
+            { inputData },
             'debug'
           );
         }
-        // [Safety Handling] Gemini 2.5 Flash sometimes sends explicit nulls for optional fields
-        // which Zod's .optional() (undefined | string) rejects.
-        // We use a raw schema with nullable: true to allow this at the API level,
-        // and then preprocess the input to remove any null values from the todo items.
 
-        interface RawTodo {
-          id: string;
-          content: string;
-          status: 'pending' | 'in_progress' | 'completed' | 'delegated';
-          activeForm: string;
-          acceptance_criteria?: string[] | null;
-          delegated_to?: string | null;
-          context?: string | null;
-          delegate_session_id?: string | null;
-          result_summary?: string | null;
-        }
-
-        interface RawGrounding {
-          id: string;
-          strategy?: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none' | null;
-          overlay_hints?: string[] | null;
-          query_hints?: string[] | null;
-          evidence_required?: boolean | string | null;
-        }
-
-        interface RawEvidence {
-          id: string;
-          queries_executed: string[];
-          overlays_consulted: string[];
-          citations: Array<{
-            overlay: string;
-            content: string;
-            relevance: string;
-            file_path?: string;
-          }>;
-          grounding_confidence: 'high' | 'medium' | 'low';
-          overlay_warnings?: string[];
-        }
-
-        const input = rawInput as {
-          todos?: RawTodo[];
-          grounding?: RawGrounding[];
-          grounding_evidence?: RawEvidence[];
-        };
-        const rawTodos = input.todos;
-        const rawGroundings = input.grounding || [];
-        const rawEvidences = input.grounding_evidence || [];
-
-        if (!rawTodos || !Array.isArray(rawTodos)) {
-          return 'No tasks provided';
-        }
-
-        // Define target types for processed todos to satisfy linter and executor
-        interface ProcessedEvidence {
-          queries_executed: string[];
-          overlays_consulted: Array<
-            'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'
-          >;
-          citations: Array<{
-            overlay: string;
-            content: string;
-            relevance: string;
-            file_path?: string;
-          }>;
-          grounding_confidence: 'high' | 'medium' | 'low';
-          overlay_warnings?: string[];
-        }
-
-        interface ProcessedGrounding {
-          strategy: 'pgc_first' | 'pgc_verify' | 'pgc_cite' | 'none';
-          overlay_hints?: Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>;
-          query_hints?: string[];
-          evidence_required?: boolean;
-        }
-
-        interface ProcessedTodo {
-          id: string;
-          content?: string;
-          status?: 'pending' | 'in_progress' | 'completed' | 'delegated';
-          activeForm?: string;
-          acceptance_criteria?: string[];
-          delegated_to?: string;
-          context?: string;
-          delegate_session_id?: string;
-          result_summary?: string;
-          grounding?: ProcessedGrounding;
-          grounding_evidence?: ProcessedEvidence;
-        }
-
-        const processedTodos = rawTodos.map((todo) => {
-          const cleanTodo: ProcessedTodo = {
-            id: todo.id,
-          };
-
-          if (todo.content !== undefined && todo.content !== null)
-            cleanTodo.content = todo.content;
-          if (todo.status !== undefined && todo.status !== null)
-            cleanTodo.status = todo.status;
-          if (todo.activeForm !== undefined && todo.activeForm !== null)
-            cleanTodo.activeForm = todo.activeForm;
-
-          if (todo.acceptance_criteria)
-            cleanTodo.acceptance_criteria =
-              todo.acceptance_criteria as string[];
-          if (todo.delegated_to)
-            cleanTodo.delegated_to = todo.delegated_to as string;
-          if (todo.context) cleanTodo.context = todo.context as string;
-          if (todo.delegate_session_id)
-            cleanTodo.delegate_session_id = todo.delegate_session_id as string;
-          if (todo.result_summary)
-            cleanTodo.result_summary = todo.result_summary as string;
-
-          if (
-            cleanTodo.status === 'completed' &&
-            (!cleanTodo.result_summary || cleanTodo.result_summary.length < 15)
-          ) {
-            throw new Error(
-              "Validation Error: You cannot mark a task as 'completed' without providing a detailed 'result_summary' (min 15 chars). " +
-                "Raw tool logs for this task will be evicted. Please summarize your findings so you don't lose context."
-            );
-          }
-
-          // Merge grounding from separate array if present
-          const groundingData = rawGroundings.find((g) => g.id === todo.id);
-          if (groundingData) {
-            const grounding: ProcessedGrounding = {
-              strategy: groundingData.strategy || 'none',
-            };
-
-            if (groundingData.overlay_hints)
-              grounding.overlay_hints = groundingData.overlay_hints as Array<
-                'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'
-              >;
-            if (groundingData.query_hints)
-              grounding.query_hints = groundingData.query_hints;
-
-            // Merge evidence_required if present
-            if (
-              groundingData.evidence_required !== undefined &&
-              groundingData.evidence_required !== null
-            ) {
-              grounding.evidence_required =
-                groundingData.evidence_required === true ||
-                groundingData.evidence_required === 'true';
-            }
-
-            cleanTodo.grounding = grounding;
-          }
-
-          // Merge grounding_evidence from separate array if present
-          const evidenceData = rawEvidences.find((e) => e.id === todo.id);
-          if (evidenceData) {
-            const evidence: ProcessedEvidence = {
-              queries_executed: evidenceData.queries_executed || [],
-              overlays_consulted: (evidenceData.overlays_consulted ||
-                []) as Array<'O1' | 'O2' | 'O3' | 'O4' | 'O5' | 'O6' | 'O7'>,
-              citations: evidenceData.citations || [],
-              grounding_confidence: evidenceData.grounding_confidence || 'low',
-            };
-
-            if (evidenceData.overlay_warnings) {
-              evidence.overlay_warnings = evidenceData.overlay_warnings;
-            }
-
-            cleanTodo.grounding_evidence = evidence;
-          }
-
-          return cleanTodo as ProcessedTodo;
-        });
+        // Process input to merge grounding/evidence and clean nulls
+        const processedTodos = processSigmaTaskUpdateInput(inputData);
 
         if (process.env.DEBUG_GEMINI_TOOLS) {
           systemLog(
@@ -881,25 +711,6 @@ export function getCognitionTools(
             { processedTodos },
             'debug'
           );
-        }
-
-        // Validate delegation requirements (moved from .refine() to support Gemini)
-        for (const task of processedTodos) {
-          if (task.status === 'delegated') {
-            if (
-              !task.acceptance_criteria ||
-              task.acceptance_criteria.length === 0
-            ) {
-              throw new Error(
-                `[DEBUG SigmaTaskUpdate] Delegation validation failed: Task "${task.id}" has status 'delegated' but missing 'acceptance_criteria'`
-              );
-            }
-            if (!task.delegated_to || task.delegated_to.length === 0) {
-              throw new Error(
-                `[DEBUG SigmaTaskUpdate] Delegation validation failed: Task "${task.id}" has status 'delegated' but missing 'delegated_to'`
-              );
-            }
-          }
         }
 
         if (!anchorId) {

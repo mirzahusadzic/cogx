@@ -407,10 +407,10 @@ export const markMessageReadTool: ToolDefinition<typeof MarkMessageReadSchema> =
  * query_agent tool definition
  */
 export const QueryAgentSchema = z.object({
-  target_alias: z
+  agentId: z
     .string()
     .describe('Target agent alias (e.g., "opus1", "sonnet2") or full agent ID'),
-  question: z.string().describe('The question or task to ask the target agent'),
+  query: z.string().describe('The question or task to ask the target agent'),
 });
 
 export const queryAgentTool: ToolDefinition<typeof QueryAgentSchema> = {

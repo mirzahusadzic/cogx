@@ -706,7 +706,7 @@ export class OpenAIAgentProvider implements AgentProvider {
    */
   private async pruneTaskLogs(
     taskId: string,
-    result_summary: string | undefined,
+    result_summary: string | null | undefined,
     conversationId: string,
     projectRoot: string
   ) {
@@ -926,7 +926,7 @@ export class OpenAIAgentProvider implements AgentProvider {
       // Build tools array
       const tools = this.buildTools(
         request,
-        async (taskId: string, result_summary?: string) => {
+        async (taskId: string, result_summary?: string | null) => {
           await this.pruneTaskLogs(
             taskId,
             result_summary,
@@ -1535,7 +1535,10 @@ export class OpenAIAgentProvider implements AgentProvider {
    */
   private buildTools(
     request: AgentRequest,
-    onTaskCompleted?: (taskId: string, result_summary?: string) => Promise<void>
+    onTaskCompleted?: (
+      taskId: string,
+      result_summary?: string | null
+    ) => Promise<void>
   ) {
     return getOpenAITools({
       cwd: request.cwd || process.cwd(),
