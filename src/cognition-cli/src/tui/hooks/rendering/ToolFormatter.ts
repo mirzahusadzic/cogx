@@ -97,7 +97,7 @@ import {
   hexToAnsiBg,
   ANSI_RESET,
 } from '../../utils/ansi-utils.js';
-import { cleanAnsi } from '../../../utils/string-utils.js';
+import { cleanAnsi, stripSigmaMarkers } from '../../../utils/string-utils.js';
 import { TUITheme } from '../../theme.js';
 
 /**
@@ -806,6 +806,9 @@ export function formatToolResult(
     normalizedName === 'grep' ||
     normalizedName === 'bash' ||
     normalizedName === 'shell' ||
+    normalizedName === 'executebash' ||
+    normalizedName === 'bashoutput' ||
+    normalizedName === 'checkoutput' ||
     normalizedName === 'glob' ||
     normalizedName === 'fetchurl' ||
     normalizedName === 'webfetch' ||
@@ -831,32 +834,83 @@ export function formatToolResult(
       content = processedResult;
     } else if (processedResult && typeof processedResult === 'object') {
       const resObj = processedResult as Record<string, unknown>;
+
       // Handle MCP standard: { content: [{ type: 'text', text: '...' }] }
+      // Support multiple content blocks by joining them
+      if (Array.isArray(resObj.content) && resObj.content.length > 0) {
+        content = resObj.content
+          .map((block: unknown) => {
+            if (typeof block === 'string') return block;
+            if (block && typeof block === 'object') {
+              const b = block as Record<string, unknown>;
+              if (b.type === 'text') return String(b.text || b.content || '');
+              if (b.content && typeof b.content === 'string') return b.content;
+            }
+            return '';
+          })
+          .filter(Boolean)
+          .join('\n');
+      } else if (typeof resObj.content === 'string') {
+        content = resObj.content;
+      }
+
+      // If we have an explicit exit code in the object, ensure it's displayed if it's not already in the content.
       if (
-        Array.isArray(resObj.content) &&
-        resObj.content.length > 0 &&
-        resObj.content[0] &&
-        typeof resObj.content[0] === 'object' &&
-        (resObj.content[0] as Record<string, unknown>).type === 'text'
+        resObj.exitCode !== undefined &&
+        resObj.exitCode !== null &&
+        !content.includes('Exit code:')
       ) {
-        content = String(
-          (resObj.content[0] as Record<string, unknown>).text || ''
-        );
-      } else if ('content' in resObj) {
-        content = String(resObj.content);
-      } else if ('result' in resObj) {
+        const exitCodeStr = String(resObj.exitCode);
+        const codeColor = exitCodeStr === '0' ? '\x1b[32m' : '\x1b[31m';
+        const exitLine = `Exit code: ${codeColor}${exitCodeStr}\x1b[0m`;
+        content = content ? `${content.trimEnd()}\n${exitLine}` : exitLine;
+      }
+
+      // If we have an explicit exit code in the object, ensure it's displayed if it's not already in the content.
+      if (
+        resObj.exitCode !== undefined &&
+        resObj.exitCode !== null &&
+        !content.includes('Exit code:')
+      ) {
+        const exitCodeStr = String(resObj.exitCode);
+        const codeColor = exitCodeStr === '0' ? '\x1b[32m' : '\x1b[31m';
+        const exitLine = `Exit code: ${codeColor}${exitCodeStr}\x1b[0m`;
+        content = content ? `${content.trimEnd()}\n${exitLine}` : exitLine;
+      }
+
+      // If we have stdout/stderr/exitCode, and NO content yet, format them.
+      // If we HAVE content (e.g. from ToolResult.content), we use it as is.
+      if (
+        !content &&
+        ('stdout' in resObj || 'stderr' in resObj || 'exitCode' in resObj)
+      ) {
+        const stdout = String(resObj.stdout || '');
+        const stderr = String(resObj.stderr || '');
+        const exitCode =
+          resObj.exitCode !== undefined && resObj.exitCode !== null
+            ? String(resObj.exitCode)
+            : 'unknown';
+
+        const outputParts = [];
+        if (stdout) outputParts.push(stdout);
+        if (stderr) outputParts.push(stderr);
+        outputParts.push(`Exit code: ${exitCode}`);
+
+        content = outputParts.join('\n').trim();
+      } else if (!content && 'result' in resObj) {
         content = String(resObj.result);
-      } else {
+      } else if (!content) {
         content = JSON.stringify(processedResult, null, 2);
       }
     } else {
       content = JSON.stringify(processedResult, null, 2);
     }
 
+    // Layer 14: Sigma Task Surgical Eviction (Strip hidden tags for display)
     // Layer 9: Aggressively strip cursor control sequences and ANSI from tool result content
     // to prevent terminal-intensive tools (like npm test) from showing the cursor
     // and to ensure that internal resets don't "brighten" muted output.
-    content = cleanAnsi(stripCursorSequences(content));
+    content = stripSigmaMarkers(cleanAnsi(stripCursorSequences(content)));
 
     const lines = content.split('\n');
     // Remove empty trailing lines
@@ -894,6 +948,26 @@ export function formatToolResult(
       }
 
       let formattedLine = displayLine;
+
+      // Check for exit code first, regardless of the tool, to ensure consistent status reporting.
+      // We use a robust regex that handles optional ANSI and potential trailing markers.
+      const exitCodeMatch = displayLine.trim().match(
+        // eslint-disable-next-line no-control-regex
+        /^Exit code:\s*(?:(?:\x1b\[[0-9;]*m)|\[[0-9;]*m)*\s*(-?\d+|null|unknown)(?:\x1b\[0m|\[0m)?(?:\s+<!-- sigma-task: [^>]+ -->)?\s*$/
+      );
+
+      if (exitCodeMatch) {
+        let code = exitCodeMatch[1];
+        if (code === 'null') code = '0';
+        const isZero = code === '0';
+        const isUnknown = code === 'unknown';
+        const codeColor = isZero
+          ? '\x1b[32m'
+          : isUnknown
+            ? '\x1b[90m'
+            : '\x1b[31m';
+        return `${gray}Exit code: ${codeColor}${code}${ANSI_RESET}`;
+      }
 
       if (isRead) {
         // executeReadFile adds line numbers like "      1│line content"
@@ -945,20 +1019,9 @@ export function formatToolResult(
             : '';
         }
       } else {
-        // Mute other output (bash, fetch) but keep it readable
-        const exitCodeMatch = displayLine
-          .trim()
-          // eslint-disable-next-line no-control-regex
-          .match(/^Exit code: (?:\x1b\[\d+m)?(-?\d+)(?:\x1b\[0m)?$/);
-        if (exitCodeMatch) {
-          const code = exitCodeMatch[1];
-          const codeColor = code === '0' ? '\x1b[32m' : '\x1b[31m';
-          formattedLine = `${gray}Exit code: ${codeColor}${code}${ANSI_RESET}`;
-        } else {
-          formattedLine = displayLine
-            ? `${gray}${displayLine}${ANSI_RESET}`
-            : '';
-        }
+        // Mute other output (bash, fetch, grep) but keep it readable.
+        // The Exit code check is now done at the top of this map for all tools.
+        formattedLine = displayLine ? `${gray}${displayLine}${ANSI_RESET}` : '';
       }
 
       return formattedLine;

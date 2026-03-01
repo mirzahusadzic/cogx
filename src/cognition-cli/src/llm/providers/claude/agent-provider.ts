@@ -33,26 +33,19 @@
  * ```
  */
 
-import { getGroundingContext } from '../grounding-utils.js';
-import { systemLog } from '../../../utils/debug-logger.js';
 import Anthropic from '@anthropic-ai/sdk';
 import type {
-  LLMProvider,
   CompletionRequest,
   CompletionResponse,
   StreamChunk,
 } from '../../provider-interface.js';
-import type {
-  AgentProvider,
-  AgentRequest,
-  AgentResponse,
-  AgentMessage,
-} from '../../agent-provider-interface.js';
-import type {
-  Query,
-  SDKMessage,
-  ContentBlock,
-} from '../../../tui/hooks/sdk/types.js';
+import type { AgentRequest } from '../../agent-provider-interface.js';
+import type { Query, SDKMessage } from '../../../tui/hooks/sdk/types.js';
+
+import { BaseAgentProvider } from '../base-agent-provider.js';
+import { UnifiedStreamingChunk } from '../../types.js';
+import { ThinkingBudget } from '../thinking-utils.js';
+import { systemLog } from '../../../utils/debug-logger.js';
 
 /**
  * Claude Provider
@@ -60,18 +53,18 @@ import type {
  * Implements both LLMProvider (basic completions) and AgentProvider (agent workflows)
  * using the Anthropic SDK and Claude Agent SDK.
  */
-export class ClaudeProvider implements LLMProvider, AgentProvider {
+export class ClaudeProvider extends BaseAgentProvider {
   name = 'claude';
   // Current Claude models (Opus 4.5 and Sonnet 4.5)
   models = ['claude-opus-4-5-20251101', 'claude-sonnet-4-5-20250929'];
 
   private client: Anthropic;
   private currentQuery: Query | null = null;
-  private abortController: AbortController | null = null;
-  private claudeAgentSdk: unknown | undefined;
+  private claudeAgentSdk: { query: (options: unknown) => Query } | undefined;
   private agentSdkLoadingPromise: Promise<void> | undefined; // Promise to track SDK loading
 
   constructor(apiKey?: string) {
+    super();
     this.client = new Anthropic({
       apiKey: apiKey || process.env.ANTHROPIC_API_KEY,
     });
@@ -82,11 +75,12 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
   }
 
   private async initAgentSdk(): Promise<void> {
-    const claudeAgentSdkName = '@anthropic-ai/claude-agent-sdk';
     try {
-      this.claudeAgentSdk = await import(claudeAgentSdkName);
-    } catch {
+      // @ts-expect-error - Dynamic import to avoid build-time dependency requirement
+      this.claudeAgentSdk = await import('@anthropic-ai/claude-agent-sdk');
+    } catch (err) {
       // SDK not installed - this is OK, agent mode will be disabled
+      systemLog('claude', `Failed to load Claude Agent SDK: ${err}`);
       this.claudeAgentSdk = undefined;
     }
   }
@@ -269,20 +263,15 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
     return !!this.claudeAgentSdk;
   }
 
-  /**
-   * Execute agent query with full SDK features
-   *
-   * Wraps the Claude Agent SDK to enable:
-   * - Multi-turn sessions
-   * - Tool calling
-   * - MCP server integration
-   * - Extended thinking
-   *
-   * Streams conversation snapshots as the agent works.
-   */
-  async *executeAgent(
-    request: AgentRequest
-  ): AsyncGenerator<AgentResponse, void, undefined> {
+  protected async *internalStream(
+    request: AgentRequest,
+    context: {
+      sessionId: string;
+      groundingContext: string;
+      thinkingBudget: ThinkingBudget;
+      systemPrompt: string;
+    }
+  ): AsyncGenerator<UnifiedStreamingChunk, void, undefined> {
     // Ensure Claude Agent SDK is loaded before executing agent query
     await this.ensureAgentSdkLoaded();
 
@@ -292,16 +281,11 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
       );
     }
 
-    // Handle automated grounding queries if requested
-    const groundingContext = await getGroundingContext(request);
-
-    // Create AbortController for cancellation support
-    this.abortController = new AbortController();
+    const { sessionId, groundingContext, systemPrompt, thinkingBudget } =
+      context;
 
     // Create SDK query with agent features
-    this.currentQuery = (
-      this.claudeAgentSdk as { query: (options: unknown) => Query }
-    ).query({
+    this.currentQuery = this.claudeAgentSdk.query({
       prompt: groundingContext
         ? `${groundingContext}\n\nTask: ${request.prompt}`
         : request.prompt,
@@ -309,19 +293,10 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
         abortController: this.abortController,
         cwd: request.cwd,
         model: request.model, // Pass model to Claude Agent SDK
-        resume: request.resumeSessionId,
-        systemPrompt:
-          request.systemPrompt?.type === 'preset' && request.systemPrompt.preset
-            ? ({
-                type: 'preset',
-                preset: 'claude_code',
-                append: request.systemPrompt.append,
-              } as const)
-            : request.systemPrompt?.custom
-              ? (request.systemPrompt.custom as string)
-              : ({ type: 'preset', preset: 'claude_code' } as const),
+        resume: sessionId,
+        systemPrompt: systemPrompt,
         includePartialMessages: request.includePartialMessages ?? true,
-        maxThinkingTokens: request.maxThinkingTokens,
+        maxThinkingTokens: thinkingBudget.thinkingBudget,
         stderr: request.onStderr,
         ...(request.onCanUseTool
           ? { canUseTool: request.onCanUseTool as never }
@@ -330,376 +305,128 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
       },
     });
 
-    // Stream messages from SDK
-    const messages: AgentMessage[] = [];
-    let currentSessionId = request.resumeSessionId || '';
-    let totalTokens = { prompt: 0, completion: 0, total: 0 };
-    let currentFinishReason: AgentResponse['finishReason'] = 'stop';
-    let numTurns = 0;
-
     if (!this.currentQuery) {
       throw new Error('Claude Agent SDK query failed to initialize.');
     }
 
-    try {
-      for await (const sdkMessage of this.currentQuery) {
-        // Check if abort was requested
-        if (this.abortController?.signal.aborted) {
-          if (process.env.DEBUG_ESC_INPUT) {
-            systemLog('claude', 'Loop aborted - exiting', undefined, 'debug');
+    for await (const sdkMessage of this.currentQuery) {
+      if (this.abortController?.signal.aborted) break;
+
+      // Extract session ID
+      if ('session_id' in sdkMessage && sdkMessage.session_id) {
+        this.sessionId = sdkMessage.session_id;
+      }
+
+      // Extract usage and turn count
+      const result = this.extractUsageAndTurns(sdkMessage);
+      if (result) {
+        yield {
+          type: 'usage',
+          usage: result.usage,
+          numTurns: result.numTurns,
+        };
+      }
+
+      // Handle different SDK message types
+      switch (sdkMessage.type) {
+        case 'result': {
+          if (sdkMessage.subtype === 'error') {
+            const error =
+              (sdkMessage as { error?: string }).error || 'Unknown error';
+            if (error.includes('authentication_error')) {
+              throw new Error(`Authentication failed: ${error}`);
+            } else if (error.includes('rate_limit')) {
+              throw new Error(`Rate limit exceeded: ${error}`);
+            } else if (error.includes('process exited with code 1')) {
+              throw new Error(`Claude Code exited unexpectedly: ${error}`);
+            }
+            throw new Error(error);
+          }
+          break;
+        }
+        case 'stream_event': {
+          const event = sdkMessage.event as {
+            type?: string;
+            text?: string;
+            thinking?: string;
+            delta?: {
+              type?: string;
+              text?: string;
+              thinking?: string;
+            };
+          };
+          if (!event) break;
+
+          if (event.type === 'text_delta') {
+            yield {
+              type: 'text',
+              delta: event.text || '',
+            };
+          } else if (event.type === 'thinking_delta') {
+            yield {
+              type: 'thinking',
+              thought: event.thinking || '',
+            };
+          } else if (event.type === 'content_block_delta' && event.delta) {
+            if (event.delta.type === 'text_delta') {
+              yield {
+                type: 'text',
+                delta: event.delta.text || '',
+              };
+            } else if (event.delta.type === 'thinking_delta') {
+              yield {
+                type: 'thinking',
+                thought: event.delta.thinking || '',
+              };
+            }
           }
           break;
         }
 
-        // Extract session ID
-        if ('session_id' in sdkMessage && sdkMessage.session_id) {
-          currentSessionId = sdkMessage.session_id;
+        case 'tool_progress': {
+          yield {
+            type: 'tool_call',
+            toolCall: {
+              name: sdkMessage.tool_name || 'unknown',
+              args: {},
+            },
+          };
+          break;
         }
 
-        // Extract turn count from final result message
-        if (sdkMessage.type === 'result' && 'num_turns' in sdkMessage) {
-          numTurns = sdkMessage.num_turns as number;
+        case 'assistant': {
+          if (!sdkMessage.message) break;
+          const content = sdkMessage.message.content;
+          for (const block of content) {
+            if (block.type === 'tool_use') {
+              yield {
+                type: 'tool_call',
+                toolCall: {
+                  name: block.name || 'unknown',
+                  args: block.input || {},
+                },
+              };
+            } else if (block.type === 'text' && block.text) {
+              yield {
+                type: 'text',
+                delta: block.text,
+              };
+            } else if (block.type === 'thinking' && block.thinking) {
+              yield {
+                type: 'thinking',
+                thought: block.thinking,
+              };
+            }
+          }
+          break;
         }
-
-        // Convert SDK message to AgentMessage
-        const agentMessage = this.convertSDKMessage(sdkMessage);
-        if (agentMessage) {
-          messages.push(agentMessage);
-        }
-
-        // Update token counts
-        totalTokens = this.updateTokens(sdkMessage, totalTokens);
-
-        // Determine finish reason
-        currentFinishReason = this.determineFinishReason(sdkMessage);
-
-        // Yield current state
-        yield {
-          messages: [...messages], // Clone to avoid mutation
-          sessionId: currentSessionId,
-          tokens: totalTokens,
-          finishReason: currentFinishReason,
-          numTurns,
-        };
       }
-    } catch (error) {
-      // Handle SDK errors gracefully to prevent TUI crashes
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      const errorName = error instanceof Error ? error.name : '';
-
-      // 1. AbortError is expected when user interrupts - don't crash
-      if (
-        errorName === 'AbortError' ||
-        errorMessage.includes('aborted by user') ||
-        errorMessage.includes('Operation aborted')
-      ) {
-        if (process.env.DEBUG_ESC_INPUT) {
-          systemLog(
-            'claude',
-            'Query aborted by user - exiting gracefully',
-            undefined,
-            'debug'
-          );
-        }
-        // Return gracefully with stop status (user-initiated)
-        yield {
-          messages: [...messages],
-          sessionId: currentSessionId,
-          tokens: totalTokens,
-          finishReason: 'stop',
-          numTurns,
-        };
-        return;
-      }
-
-      // 3. General authentication errors
-      if (
-        errorMessage.includes('authentication_error') ||
-        errorMessage.includes('invalid_api_key') ||
-        errorMessage.includes('unauthorized') ||
-        errorMessage.includes('401')
-      ) {
-        throw new Error(
-          `Authentication failed: Please check your ANTHROPIC_API_KEY`
-        );
-      }
-
-      // 4. Rate limiting (don't crash, let caller handle retry)
-      if (errorMessage.includes('rate_limit') || errorMessage.includes('429')) {
-        throw new Error(
-          `Rate limit exceeded. Please wait a moment and try again.`
-        );
-      }
-
-      // 5. Claude Code subprocess exit with code 1
-      if (
-        errorMessage.includes('process exited with code 1') ||
-        errorMessage.includes('exited with code 1')
-      ) {
-        throw new Error(
-          `Claude Code exited unexpectedly. This is often an authentication issue.\n` +
-            `Please check your ANTHROPIC_API_KEY.`
-        );
-      }
-
-      // 6. For all other errors, provide context but don't crash with raw error
-      systemLog(
-        'claude',
-        'Error during query',
-        { error: errorMessage },
-        'error'
-      );
-      throw new Error(
-        `Claude API error: ${errorMessage.substring(0, 200)}${errorMessage.length > 200 ? '...' : ''}`
-      );
-    } finally {
-      // Always clear query and abort controller references to prevent memory leaks
-      this.currentQuery = null;
-      this.abortController = null;
     }
   }
 
-  /**
-   * Interrupt the current agent execution
-   *
-   * Sends interrupt signal to Claude Agent SDK to stop execution.
-   * Used for ESC ESC keyboard shortcut in TUI.
-   */
-  async interrupt(): Promise<void> {
-    if (process.env.DEBUG_ESC_INPUT) {
-      systemLog(
-        'claude',
-        'interrupt() called',
-        {
-          currentQuery: !!this.currentQuery,
-          abortController: !!this.abortController,
-        },
-        'debug'
-      );
-    }
-
-    // Abort the query using AbortController (recommended pattern from GitHub #7181)
-    if (this.abortController) {
-      if (process.env.DEBUG_ESC_INPUT) {
-        systemLog(
-          'claude',
-          'Calling abortController.abort()',
-          undefined,
-          'debug'
-        );
-      }
-      this.abortController.abort();
-    }
-
-    // Also try the SDK's interrupt method as a backup
-    if (this.currentQuery && this.claudeAgentSdk) {
-      try {
-        if (process.env.DEBUG_ESC_INPUT) {
-          systemLog(
-            'claude',
-            'Calling currentQuery.interrupt()',
-            undefined,
-            'debug'
-          );
-        }
-        await this.currentQuery.interrupt();
-        if (process.env.DEBUG_ESC_INPUT) {
-          systemLog(
-            'claude',
-            'currentQuery.interrupt() completed',
-            undefined,
-            'debug'
-          );
-        }
-      } catch (err) {
-        // AbortError is expected when interrupting, don't log as error
-        const isAbortError = err instanceof Error && err.name === 'AbortError';
-        if (process.env.DEBUG_ESC_INPUT && !isAbortError) {
-          systemLog(
-            'claude',
-            'currentQuery.interrupt() error',
-            { error: String(err) },
-            'error'
-          );
-        } else if (process.env.DEBUG_ESC_INPUT && isAbortError) {
-          systemLog(
-            'claude',
-            'Request successfully aborted',
-            undefined,
-            'debug'
-          );
-        }
-      }
-    }
-
-    // Dispose of the query (following GitHub #7181 pattern)
-    this.currentQuery = null;
-    this.abortController = null;
-
-    if (process.env.DEBUG_ESC_INPUT) {
-      systemLog('claude', 'interrupt() completed', undefined, 'debug');
-    }
-  }
-
-  // ========================================
-  // Private Helper Methods
-  // ========================================
-
-  /**
-   * Convert Claude Agent SDK message to AgentMessage format
-   */
-  private convertSDKMessage(sdkMessage: SDKMessage): AgentMessage | null {
-    const baseMessage: Partial<AgentMessage> = {
-      id: this.generateMessageId(),
-      timestamp: new Date(),
-    };
-
-    // Handle different SDK message types
-    switch (sdkMessage.type) {
-      case 'assistant': {
-        // Assistant message with possible tool calls
-        // NOTE: Streaming text comes via stream_event deltas to avoid duplication.
-        // But we still need to handle text that accompanies tool_use (e.g., "Let me check that")
-
-        if (!sdkMessage.message) {
-          return null;
-        }
-        const content = sdkMessage.message.content as ContentBlock[];
-
-        const textBlocks = content.filter(
-          (c): c is ContentBlock & { text: string } => c.type === 'text'
-        );
-        const thinkingBlocks = content.filter(
-          (c): c is ContentBlock & { thinking: string } => c.type === 'thinking'
-        );
-        const toolBlocks = content.filter(
-          (
-            c
-          ): c is ContentBlock & {
-            id: string;
-            name: string;
-            input: Record<string, unknown>;
-          } => c.type === 'tool_use'
-        );
-
-        // Return thinking blocks immediately (they come in separate messages before tool calls)
-        if (thinkingBlocks.length > 0) {
-          return {
-            ...baseMessage,
-            type: 'assistant',
-            role: 'assistant',
-            content: thinkingBlocks.map((t) => ({
-              type: 'thinking' as const,
-              thinking: t.thinking,
-            })),
-          } as AgentMessage;
-        }
-
-        // Only return text from assistant messages when there are also tool calls
-        // (pure text responses come via stream_event deltas to avoid duplication)
-        if (toolBlocks.length > 0) {
-          // Build content array with thinking, text, and tool_use blocks
-          const contentArray: Array<
-            | { type: 'thinking'; thinking: string }
-            | { type: 'text'; text: string }
-            | {
-                type: 'tool_use';
-                id: string;
-                name: string;
-                input: Record<string, unknown>;
-              }
-          > = [];
-
-          // Add thinking blocks first (reasoning before tool call)
-          thinkingBlocks.forEach((t) => {
-            contentArray.push({ type: 'thinking', thinking: t.thinking });
-          });
-
-          // Add text blocks (if any)
-          textBlocks.forEach((t) => {
-            contentArray.push({ type: 'text', text: t.text });
-          });
-
-          // Add tool_use blocks
-          toolBlocks.forEach((t) => {
-            contentArray.push({
-              type: 'tool_use',
-              id: t.id,
-              name: t.name,
-              input: t.input,
-            });
-          });
-
-          return {
-            ...baseMessage,
-            type: 'assistant',
-            role: 'assistant',
-            content: contentArray,
-          } as AgentMessage;
-        }
-        break;
-      }
-
-      case 'stream_event': {
-        const event = sdkMessage.event as {
-          type: string;
-          delta?: { type: string; text?: string };
-        };
-
-        if (
-          event.type === 'content_block_delta' &&
-          event.delta?.type === 'text_delta' &&
-          event.delta.text
-        ) {
-          return {
-            ...baseMessage,
-            type: 'assistant',
-            role: 'assistant',
-            content: event.delta.text,
-          } as AgentMessage;
-        }
-        break;
-      }
-
-      case 'tool_progress': {
-        return {
-          ...baseMessage,
-          type: 'tool_use',
-          content: `Tool: ${sdkMessage.tool_name} (${sdkMessage.elapsed_time_seconds}s)`,
-        } as AgentMessage;
-      }
-
-      case 'system': {
-        // System initialization messages - we don't need to convert these
-        return null;
-      }
-
-      case 'result': {
-        // Query result - we don't need to convert this to a message
-        return null;
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Update token counts from SDK message
-   */
-  private updateTokens(
-    sdkMessage: SDKMessage,
-    current: {
-      prompt: number;
-      completion: number;
-      total: number;
-      cached?: number;
-    }
-  ): { prompt: number; completion: number; total: number; cached?: number } {
-    // Extract token usage from different message types
+  private extractUsageAndTurns(sdkMessage: SDKMessage) {
     if (sdkMessage.type === 'stream_event') {
       const event = sdkMessage.event as {
-        type: string;
         usage?: {
           input_tokens: number;
           output_tokens: number;
@@ -707,71 +434,46 @@ export class ClaudeProvider implements LLMProvider, AgentProvider {
           cache_read_input_tokens?: number;
         };
       };
-
-      if (event.type === 'message_delta' && event.usage) {
-        // Include cache tokens in input count (matches old SDK behavior)
-        const cached =
-          (event.usage.cache_creation_input_tokens || 0) +
-          (event.usage.cache_read_input_tokens || 0);
-        const totalInput = event.usage.input_tokens + cached;
-
+      if (event?.usage) {
         return {
-          prompt: totalInput,
-          completion: event.usage.output_tokens,
-          total: totalInput + event.usage.output_tokens,
-          cached: cached || current.cached, // Preserve previous if 0 in this delta
+          usage: {
+            prompt: event.usage.input_tokens,
+            completion: event.usage.output_tokens,
+            total: event.usage.input_tokens + event.usage.output_tokens,
+            cached:
+              (event.usage.cache_creation_input_tokens || 0) +
+              (event.usage.cache_read_input_tokens || 0),
+          },
+          numTurns: undefined,
         };
       }
     } else if (
       sdkMessage.type === 'result' &&
-      sdkMessage.subtype === 'success' &&
-      sdkMessage.usage
+      sdkMessage.subtype === 'success'
     ) {
       const usage = sdkMessage.usage;
-      const cached =
-        (usage.cache_creation_input_tokens || 0) +
-        (usage.cache_read_input_tokens || 0);
-      return {
-        prompt: usage.input_tokens,
-        completion: usage.output_tokens,
-        total: usage.input_tokens + usage.output_tokens,
-        cached: cached,
-      };
-    }
+      const numTurns = sdkMessage.num_turns;
 
-    return current;
-  }
-
-  /**
-   * Determine finish reason from SDK message
-   */
-  private determineFinishReason(
-    sdkMessage: SDKMessage
-  ): AgentResponse['finishReason'] {
-    if (sdkMessage.type === 'result') {
-      if (sdkMessage.subtype === 'success') {
-        return 'stop';
-      } else {
-        return 'error';
+      if (usage) {
+        const cached =
+          (usage.cache_creation_input_tokens || 0) +
+          (usage.cache_read_input_tokens || 0);
+        return {
+          usage: {
+            prompt: usage.input_tokens,
+            completion: usage.output_tokens,
+            total: usage.input_tokens + usage.output_tokens,
+            cached: cached,
+          },
+          numTurns,
+        };
+      } else if (numTurns !== undefined) {
+        return {
+          usage: undefined,
+          numTurns,
+        };
       }
     }
-
-    if (sdkMessage.type === 'assistant' && sdkMessage.message) {
-      const toolUses = sdkMessage.message.content.filter(
-        (c: { type: string }) => c.type === 'tool_use'
-      );
-      if (toolUses.length > 0) {
-        return 'tool_use';
-      }
-    }
-
-    return undefined;
-  }
-
-  /**
-   * Generate unique message ID
-   */
-  private generateMessageId(): string {
-    return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return null;
   }
 }

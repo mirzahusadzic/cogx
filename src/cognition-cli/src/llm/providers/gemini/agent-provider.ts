@@ -37,64 +37,16 @@ import {
 
 import { ThinkingLevel } from '@google/genai';
 
-import { getGroundingContext } from '../grounding-utils.js';
-import { getDynamicThinkingBudget } from '../thinking-utils.js';
 import { getActiveTaskId } from '../../../sigma/session-state.js';
 
-import { buildSystemPrompt } from '../system-prompt.js';
-
-import { getCognitionTools } from './adk-tools.js';
 import { systemLog } from '../../../utils/debug-logger.js';
 import { archiveTaskLogs } from '../eviction-utils.js';
-import type {
-  AgentProvider,
-  AgentRequest,
-  AgentResponse,
-  AgentMessage,
-} from '../../agent-provider-interface.js';
+import type { AgentRequest } from '../../agent-provider-interface.js';
 import type {
   CompletionRequest,
   CompletionResponse,
   StreamChunk,
 } from '../../provider-interface.js';
-
-/**
- * Patterns of SDK noise to suppress from stdout.
- * These are typically printed by Google Cloud/Vertex AI SDKs directly to stdout
- * bypassing console.log, or via C++ bindings.
- */
-const STDOUT_NOISE_PATTERNS = [
-  'Pub/Sub',
-  'google-cloud',
-  'google-auth',
-  'transport',
-  'gRPC',
-  'ALTS',
-  'metadata',
-  'credential',
-  'Default Credentials',
-  '[GoogleAuth]',
-  'The user provided Google Cloud credentials',
-  'Requesting active client',
-  'Sending request',
-  'precedence',
-  'Vertex AI SDK',
-];
-
-/**
- * Check if a string looks like SDK noise that should be suppressed.
- * Heuristic: TUI output usually starts with ANSI escape codes (\x1b).
- * SDK noise usually starts with plain text.
- */
-function isStdoutNoise(str: string): boolean {
-  // If it starts with ANSI escape code, it's likely TUI/Ink - keep it!
-  if (str.startsWith('\x1b')) {
-    return false;
-  }
-
-  // Check for known noise patterns
-  return STDOUT_NOISE_PATTERNS.some((p) => str.includes(p));
-}
 
 /**
  * Internal ADK Session interface for history inspection.
@@ -146,19 +98,17 @@ interface GeminiGenerateContentConfig {
 
 // runSilently removed - logic moved to executeAgent for global scope suppression
 
+import { BaseAgentProvider } from '../base-agent-provider.js';
+import { UnifiedStreamingChunk } from '../../types.js';
+import type { ThinkingBudget } from '../thinking-utils.js';
+
 /**
  * Gemini Agent Provider
  *
  * Implements AgentProvider using Google ADK for agent workflows.
- *
- * DESIGN:
- * - Pure ADK implementation (no parent class inheritance)
- * - Uses Google ADK LlmAgent for agent orchestration
- * - Full tool execution support via ADK
- * - Handles streaming via ADK Runner
- * - Session management via InMemorySessionService
+ * Extends BaseAgentProvider for shared orchestration logic.
  */
-export class GeminiAgentProvider implements AgentProvider {
+export class GeminiAgentProvider extends BaseAgentProvider {
   name = 'gemini';
   // Only models that support extended thinking (ordered newest first)
   models = [
@@ -170,7 +120,6 @@ export class GeminiAgentProvider implements AgentProvider {
   private apiKey: string;
   private currentRunner: Runner | null = null;
   private sessionService = new InMemorySessionService();
-  private abortController: AbortController | null = null;
   private currentGenerator: AsyncGenerator<unknown> | null = null;
   private sessionSignatures = new Map<string, string>();
 
@@ -181,6 +130,7 @@ export class GeminiAgentProvider implements AgentProvider {
    * @throws Error if no API key provided
    */
   constructor(apiKey?: string) {
+    super();
     const key = apiKey || process.env.GEMINI_API_KEY;
     const isVertex = process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true';
 
@@ -202,8 +152,7 @@ export class GeminiAgentProvider implements AgentProvider {
       process.env.ADK_LOG_LEVEL = 'ERROR';
     }
 
-    // Suppress gRPC and Google SDK logging which can leak to stdout/stderr and mess up the TUI.
-    // This is especially common when using Vertex AI auth (ALTS warnings, etc.)
+    // Suppress gRPC and Google SDK logging
     if (!process.env.GRPC_VERBOSITY) {
       process.env.GRPC_VERBOSITY = 'NONE';
     }
@@ -212,8 +161,6 @@ export class GeminiAgentProvider implements AgentProvider {
     }
 
     // Persistence Hack: Monkey-patch session service once at initialization.
-    // Gemini 3 requires thought_signature to resume reasoning, but ADK 0.2.4 doesn't store it.
-    // We use a shared map of sessionSignatures to ensure concurrent safety.
     const originalAppendEvent = this.sessionService.appendEvent.bind(
       this.sessionService
     );
@@ -221,7 +168,6 @@ export class GeminiAgentProvider implements AgentProvider {
       session: Session;
       event: Event;
     }) => {
-      // Access sessionId via index to satisfy ADK 0.2.4 types without 'any'
       const sessionId = (args.session as unknown as Record<string, string>)
         .sessionId;
       const lastSignature = this.sessionSignatures.get(sessionId);
@@ -231,23 +177,11 @@ export class GeminiAgentProvider implements AgentProvider {
         args.event.content?.parts &&
         lastSignature
       ) {
-        // Ensure all parts in the assistant turn have the captured signature.
-        // Gemini 3 requires thought_signature for ALL parts (text, thought, functionCall)
-        // to maintain reasoning state across turns.
-        let injectedCount = 0;
         for (const part of args.event.content.parts) {
           const p = part as { thoughtSignature?: string };
           if (!p.thoughtSignature) {
             p.thoughtSignature = lastSignature;
-            injectedCount++;
           }
-        }
-
-        if (injectedCount > 0 && process.env.DEBUG_GEMINI_STREAM) {
-          systemLog(
-            'gemini',
-            `[Gemini] Injected signature into ${injectedCount} parts for session ${sessionId}`
-          );
         }
       }
       return originalAppendEvent(args);
@@ -603,1138 +537,417 @@ export class GeminiAgentProvider implements AgentProvider {
     }
   }
 
-  /**
-   * Check if provider supports agent mode
-   */
-  supportsAgentMode(): boolean {
-    return true;
+  protected getAdditionalTools(request: AgentRequest): unknown[] {
+    const webSearchAgent = new LlmAgent({
+      name: 'WebSearch',
+      description: 'Search the web using Google Search',
+      model: request.model || 'gemini-3-flash-preview',
+      instruction: () =>
+        'You are a web search specialist. Search Google and return concise results.',
+      tools: [GOOGLE_SEARCH],
+    });
+
+    return [
+      new AgentTool({
+        agent: webSearchAgent,
+        skipSummarization: false,
+      }),
+    ];
   }
 
   /**
-   * Execute agent query with ADK
-   *
-   * Creates an LlmAgent and runs it via ADK Runner.
-   * Yields AgentResponse snapshots as the conversation progresses.
+   * Internal streaming implementation for Gemini using ADK.
+   * Normalizes ADK events into UnifiedStreamingChunks.
    */
-  async *executeAgent(
-    request: AgentRequest
-  ): AsyncGenerator<AgentResponse, void, undefined> {
-    // CAPTURE ORIGINALS IMMEDIATELY to prevent any leakage during setup
-    const originalConsoleLog = console.log;
-    const originalConsoleError = console.error;
-    const originalConsoleWarn = console.warn;
-    const originalConsoleInfo = console.info;
-    const originalStderrWrite = process.stderr.write;
-    const originalStdoutWrite = process.stdout.write;
-    const originalEmitWarning = process.emitWarning;
+  protected async *internalStream(
+    request: AgentRequest,
+    context: {
+      sessionId: string;
+      groundingContext: string;
+      thinkingBudget: ThinkingBudget;
+      systemPrompt: string;
+    }
+  ): AsyncGenerator<UnifiedStreamingChunk, void, undefined> {
+    const { sessionId, thinkingBudget, systemPrompt } = context;
 
-    // State variables for tracking conversation and tokens
-    // Declared outside try/catch to be available for error handling
-    const messages: AgentMessage[] = [];
-    let numTurns = 0;
-    let currentTurnOutputEstimate = 0;
-    let cumulativeCompletionTokens = 0;
-    let currentPromptTokens = 0;
-    let currentCompletionTokens = 0;
-    let currentCachedTokens = 0;
+    // 1. Setup Tools
+    const tools = [
+      ...this.buildTools(
+        request,
+        'gemini',
+        async (
+          taskId: string,
+          result_summary?: string | null,
+          activeSession?: Session
+        ) => {
+          await this.pruneTaskLogs(
+            taskId,
+            result_summary,
+            sessionId,
+            request.cwd || request.projectRoot || process.cwd(),
+            activeSession
+          );
+        }
+      ),
+      ...this.getAdditionalTools(request),
+    ] as any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+    let activeModel = request.model || 'gemini-3-flash-preview';
+    let attempt = 0;
+    const maxRetries = 5;
+    let retryDelay = 1000;
+
     const accumulatedThinkingBlocks = new Map<string, string>();
     let accumulatedAssistant = '';
-    const sessionId =
-      request.resumeSessionId ||
-      `gemini-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-    // Helper to yield the final "stop" state to the TUI.
-    // This centralizes the logic for turn completion across success, abort, and benign errors.
-    const yieldFinalState = async function* (
-      activeModel: string,
-      retryCount: number = 0
-    ) {
-      yield {
-        activeModel,
-        messages: [...messages],
-        sessionId,
-        tokens: {
-          prompt: currentPromptTokens || Math.ceil(request.prompt.length / 4),
-          completion: currentCompletionTokens || currentTurnOutputEstimate,
-          total:
-            (currentPromptTokens || Math.ceil(request.prompt.length / 4)) +
-            (currentCompletionTokens || currentTurnOutputEstimate),
-          cached: currentCachedTokens > 0 ? currentCachedTokens : undefined,
-        },
-        finishReason: 'stop' as const,
-        numTurns,
-        retryCount,
-      };
-    };
+    while (true) {
+      try {
+        const isGemini3 = activeModel.includes('gemini-3');
+        const { thinkingLevel, thinkingBudget: budget } = thinkingBudget;
 
-    // Create a null stream sink for stderr/warnings
-    const noop = () => true;
+        const agentInstance = new LlmAgent({
+          name: 'cognition_agent',
+          model: activeModel,
+          instruction: () => systemPrompt,
+          tools,
+          generateContentConfig: {
+            abortSignal: this.abortController?.signal,
+            ...(isGemini3
+              ? {
+                  thinkingConfig: {
+                    thinkingLevel,
+                    includeThoughts: request.displayThinking !== false,
+                  },
+                }
+              : {
+                  thinkingConfig: {
+                    thinkingBudget:
+                      request.maxThinkingTokens !== undefined
+                        ? Math.min(request.maxThinkingTokens, budget)
+                        : budget,
+                    includeThoughts: request.displayThinking !== false,
+                  },
+                }),
+          } as GeminiGenerateContentConfig,
+        });
 
-    try {
-      // 1. SUPPRESS STDERR & WARNINGS COMPLETELY (where gRPC logs go)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      process.stderr.write = noop as any;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      process.emitWarning = noop as any;
+        const runnerInstance = new Runner({
+          agent: agentInstance,
+          appName: 'cognition-cli',
+          sessionService: this.sessionService,
+        });
 
-      // 2. FILTER STDOUT: Intercept to block SDK noise but allow TUI/Ink
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      process.stdout.write = ((...args: any[]) => {
-        const [chunk] = args;
-        const str = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk);
+        this.currentRunner = runnerInstance;
+        const userId = 'cognition-user';
 
-        if (isStdoutNoise(str)) {
-          if (process.env.DEBUG_GEMINI_STREAM) {
-            systemLog(
-              'gemini',
-              'Suppressed stdout noise',
-              { text: str },
-              'debug'
-            );
-          }
-          // Invoke callback if provided
-          const cb = args[args.length - 1];
-          if (typeof cb === 'function') cb();
-          return true;
+        let session = await this.sessionService.getSession({
+          appName: 'cognition-cli',
+          userId,
+          sessionId,
+        });
+
+        if (!session) {
+          session = await this.sessionService.createSession({
+            appName: 'cognition-cli',
+            userId,
+            sessionId,
+          });
         }
 
-        return (originalStdoutWrite as (...args: unknown[]) => boolean).apply(
-          process.stdout,
-          args
-        );
-      }) as typeof process.stdout.write;
-
-      // 3. WRAP CONSOLE METHODS: Catch direct console.log/info/warn usage
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const createSafeLogger = (originalLogger: (...args: any[]) => void) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return (...args: any[]) => {
-          const str = args.map((a) => String(a)).join(' ');
-          if (isStdoutNoise(str)) {
-            if (process.env.DEBUG_GEMINI_STREAM) {
-              systemLog(
-                'gemini',
-                'Suppressed console noise',
-                { text: str },
-                'debug'
-              );
-            }
-            return;
-          }
-          originalLogger.apply(console, args);
-        };
-      };
-
-      console.log = createSafeLogger(originalConsoleLog);
-      console.info = createSafeLogger(originalConsoleInfo);
-      console.warn = createSafeLogger(originalConsoleWarn);
-      console.error = createSafeLogger(originalConsoleError);
-
-      // --- START AGENT SETUP (Now running in silenced environment) ---
-
-      // Get file tools (with optional recall tool if conversation registry provided)
-      const conversationRegistry = request.conversationRegistry as
-        | import('../../../sigma/conversation-registry.js').ConversationOverlayRegistry
-        | undefined;
-      const taskManager = request.getTaskManager as
-        | (() =>
-            | import('../../../tui/services/BackgroundTaskManager.js').BackgroundTaskManager
-            | null)
-        | undefined;
-      const messagePublisher = request.getMessagePublisher as
-        | (() =>
-            | import('../../../ipc/MessagePublisher.js').MessagePublisher
-            | null)
-        | undefined;
-      const messageQueue = request.getMessageQueue as
-        | (() => import('../../../ipc/MessageQueue.js').MessageQueue | null)
-        | undefined;
-
-      const cognitionTools = getCognitionTools(
-        conversationRegistry,
-        request.workbenchUrl,
-        request.onCanUseTool, // Pass permission callback for tool confirmations
-        taskManager, // Pass task manager getter for background tasks tool
-        messagePublisher, // Pass message publisher getter for agent messaging tools
-        messageQueue, // Pass message queue getter for agent messaging tools
-        request.cwd || request.projectRoot, // Pass project root for agent discovery
-        request.agentId, // Pass current agent ID for excluding self from listings
-        {
-          provider: 'gemini', // Enable external SigmaTaskUpdate for Gemini
-          anchorId: request.anchorId, // Session anchor for SigmaTaskUpdate state persistence
-          onToolOutput: request.onToolOutput, // Pass streaming callback for tools like bash
-          onTaskCompleted: async (
-            taskId: string,
-            result_summary?: string | null,
-            activeSession?: Session
-          ) => {
-            // Surgical log eviction on task completion
-            await this.pruneTaskLogs(
-              taskId,
-              result_summary,
-              sessionId,
-              request.cwd || request.projectRoot || process.cwd(),
-              activeSession
-            );
+        const useBidiMode = process.env.GEMINI_USE_BIDI === '1';
+        const runOptions: AdkRunOptions = {
+          userId,
+          sessionId,
+          runConfig: {
+            streamingMode: useBidiMode ? StreamingMode.BIDI : StreamingMode.SSE,
           },
-          mode: request.mode,
-          getActiveTaskId: () =>
-            request.anchorId
-              ? getActiveTaskId(
-                  request.anchorId,
-                  request.cwd || request.projectRoot || process.cwd()
-                )
-              : null,
-          currentPromptTokens, // Pass current prompt tokens for dynamic optimization
-        }
-      );
+        };
 
-      // Create a specialized web search agent
-      const webSearchAgent = new LlmAgent({
-        name: 'WebSearch',
-        description:
-          'Search the web for current information, news, facts, and real-time data using Google Search',
-        model: request.model || 'gemini-3-flash-preview',
-        instruction: () =>
-          'You are a web search specialist. When called, search Google for the requested information and return concise, accurate results with sources.',
-        tools: [GOOGLE_SEARCH],
-      });
-
-      // Wrap the web search agent as a tool
-      const webSearchTool = new AgentTool({
-        agent: webSearchAgent,
-        skipSummarization: false,
-      });
-
-      // Combine cognition tools + web search tool (always enabled)
-      const tools = [...cognitionTools, webSearchTool];
-
-      // Handle automated grounding queries if requested
-      const groundingContext = await getGroundingContext(request);
-
-      // Create abort controller for cancellation support
-      this.abortController = new AbortController();
-      const abortSignal = this.abortController.signal;
-
-      let activeModel = request.model || 'gemini-3-flash-preview';
-      let attempt = 0;
-      const maxRetries = 5;
-      let retryDelay = 1000;
-
-      // Add user message to local state once
-      const userMessage: AgentMessage = {
-        id: `msg-${Date.now()}`,
-        type: 'user',
-        role: 'user',
-        content: request.prompt,
-        timestamp: new Date(),
-      };
-      messages.push(userMessage);
-
-      // Yield initial state
-      yield {
-        activeModel,
-        messages: [...messages],
-        sessionId,
-        tokens: {
-          prompt: currentPromptTokens || 0,
-          completion: currentCompletionTokens || 0,
-          total: (currentPromptTokens || 0) + (currentCompletionTokens || 0),
-          cached: currentCachedTokens > 0 ? currentCachedTokens : undefined,
-        },
-        numTurns: 0,
-        retryCount: 0,
-      };
-
-      while (true) {
-        try {
-          const isGemini3 = activeModel.includes('gemini-3');
-
-          // Dynamic Thinking Budgeting:
-          const { thinkingLevel, thinkingBudget } = getDynamicThinkingBudget(
-            request.remainingTPM
-          );
-
-          // Initialize Agent & Runner (No runSilently needed, we are already silent)
-          const agentInstance = new LlmAgent({
-            name: 'cognition_agent',
-            model: activeModel,
-            instruction: () =>
-              buildSystemPrompt(request, activeModel, 'Google ADK') +
-              (groundingContext
-                ? `\n\n## Automated Grounding Context\n${groundingContext}`
-                : ''),
-            tools,
-            generateContentConfig: {
-              abortSignal,
-              ...(isGemini3
-                ? {
-                    // GEMINI 3.0 CONFIG (Requires SDK bypass currently)
-                    thinkingConfig: {
-                      thinkingLevel,
-                      includeThoughts: request.displayThinking !== false,
-                    },
-                  }
-                : {
-                    // GEMINI 2.5 / LEGACY CONFIG
-                    thinkingConfig: {
-                      thinkingBudget:
-                        request.maxThinkingTokens !== undefined
-                          ? Math.min(request.maxThinkingTokens, thinkingBudget)
-                          : thinkingBudget,
-                      includeThoughts: request.displayThinking !== false,
-                    },
-                  }),
-              // Use custom interface to support experimental thinkingConfig
-            } as GeminiGenerateContentConfig,
-          });
-
-          const runnerInstance = new Runner({
-            agent: agentInstance,
-            appName: 'cognition-cli',
-            sessionService: this.sessionService,
-          });
-
-          this.currentRunner = runnerInstance;
-
-          const userId = 'cognition-user';
-
-          // Get or create session
-          let session = await this.sessionService.getSession({
-            appName: 'cognition-cli',
-            userId,
-            sessionId,
-          });
-
-          if (!session) {
-            session = await this.sessionService.createSession({
-              appName: 'cognition-cli',
-              userId,
-              sessionId,
-            });
-          }
-
-          // BIDI vs SSE
-          const useBidiMode = process.env.GEMINI_USE_BIDI === '1';
-
-          // Run agent - runAsync returns an async generator
-          const runOptions: AdkRunOptions = {
-            userId,
-            sessionId,
-            runConfig: {
-              streamingMode: useBidiMode
-                ? StreamingMode.BIDI
-                : StreamingMode.SSE,
-            },
-          };
-
-          // Only add newMessage if it's not already in the session history
-          // This prevents duplication on retries while ensuring the runner has input
-          // if the session was not persisted (e.g. failure during first turn).
-          let shouldInjectMessage = true;
-          const events = (session as unknown as AdkSession).events || [];
-          if (events.length > 0) {
-            // Scan last few messages to see if this prompt is already active
-            // (Handle cases like autonomous turns or retries where persistence succeeded)
-            const lookback = Math.min(events.length, 5);
-            for (let i = 1; i <= lookback; i++) {
-              const msg = events[events.length - i];
-              if (
-                msg.author === 'user' &&
-                msg.content?.parts?.[0]?.text === request.prompt
-              ) {
-                shouldInjectMessage = false;
-                break;
-              }
-            }
-          }
-
-          if (shouldInjectMessage) {
-            runOptions.newMessage = {
-              role: 'user',
-              parts: [{ text: request.prompt }],
-            };
-          }
-
-          // Use AdkRunOptions cast to satisfy required newMessage in SDK type definition
-          // while allowing its absence for session resumption.
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const runGenerator = this.currentRunner.runAsync(runOptions as any);
-
-          // Store generator reference for interrupt support
-          this.currentGenerator = runGenerator as AsyncGenerator<unknown>;
-
-          // Process events from the generator
-          for await (const event of runGenerator) {
-            // ... (rest of the processing logic)
-            // Check if abort was requested (ESC key pressed)
-            if (this.abortController?.signal.aborted) {
-              if (process.env.DEBUG_ESC_INPUT) {
-                systemLog(
-                  'gemini',
-                  'Abort signal detected, exiting loop',
-                  undefined,
-                  'debug'
-                );
-              }
-              // Exit cleanly - don't throw, just break
+        let shouldInjectMessage = true;
+        const events = (session as unknown as AdkSession).events || [];
+        if (events.length > 0) {
+          const lookback = Math.min(events.length, 5);
+          for (let i = 1; i <= lookback; i++) {
+            const msg = events[events.length - i];
+            if (
+              msg.author === 'user' &&
+              msg.content?.parts?.[0]?.text === request.prompt
+            ) {
+              shouldInjectMessage = false;
               break;
             }
+          }
+        }
 
-            if (process.env.DEBUG_GEMINI_STREAM) {
-              systemLog(
-                'gemini',
-                `Processing event (turn ${numTurns + 1})`,
-                undefined,
-                'debug'
-              );
-            }
+        if (shouldInjectMessage) {
+          runOptions.newMessage = {
+            role: 'user',
+            parts: [{ text: request.prompt }],
+          };
+        }
 
-            // Cast event to access properties (ADK types are not well defined yet)
-            const evt = event as unknown as {
-              author?: string;
-              errorCode?: string;
-              errorMessage?: string;
-              content?: {
-                role?: string;
-                parts?: Array<{
-                  text?: string;
-                  thought?: boolean; // true if this part contains thinking/reasoning
-                  thoughtSignature?: string; // encrypted reasoning state for Gemini 3
-                  functionCall?: {
-                    name: string;
-                    args: Record<string, unknown>;
-                  };
-                  functionResponse?: { name: string; response: unknown };
-                }>;
-              };
-              usageMetadata?: {
-                promptTokenCount?: number;
-                candidatesTokenCount?: number;
-                totalTokenCount?: number;
-                thoughtsTokenCount?: number; // thinking token usage
-                cachedContentTokenCount?: number; // cached input tokens
-              };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const runGenerator = this.currentRunner.runAsync(runOptions as any);
+        this.currentGenerator = runGenerator as AsyncGenerator<unknown>;
+
+        for await (const event of runGenerator) {
+          if (this.abortController?.signal.aborted) break;
+
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const evt = event as any;
+          if (attempt > 0) {
+            attempt = 0;
+            retryDelay = 1000;
+          }
+
+          // Initial estimation if no metadata yet
+          if (!evt.usageMetadata && this.usage.prompt === 0) {
+            yield {
+              type: 'usage',
+              usage: {
+                prompt: Math.ceil(request.prompt.length / 4),
+                completion: 0,
+                total: Math.ceil(request.prompt.length / 4),
+              },
+              retryCount: attempt,
             };
+          }
 
-            // Increment turn counter for message indexing and TUI display.
-            // We use this to ensure unique IDs for messages within a session.
-            // This ensures that we only count CONSECUTIVE failures towards the failover limit.
-            // If we receive even one valid event from the model, we consider the connection "working".
-            if (attempt > 0) {
-              if (process.env.DEBUG_GEMINI_STREAM) {
-                systemLog(
-                  'gemini',
-                  `[Gemini] Resetting retry counter (was ${attempt}) after successful event`
-                );
+          if (evt.usageMetadata) {
+            yield {
+              type: 'usage',
+              usage: {
+                prompt: evt.usageMetadata.promptTokenCount || 0,
+                completion:
+                  (evt.usageMetadata.candidatesTokenCount || 0) +
+                  (evt.usageMetadata.thoughtsTokenCount || 0),
+                total: evt.usageMetadata.totalTokenCount || 0,
+                cached: evt.usageMetadata.cachedContentTokenCount,
+              },
+              retryCount: attempt,
+            };
+          }
+
+          if ((evt.errorCode && evt.errorCode !== 'STOP') || evt.errorMessage) {
+            throw new Error(
+              `Gemini API Error: ${evt.errorMessage || evt.errorCode}`
+            );
+          }
+
+          if (evt.author === 'user') continue;
+
+          if (evt.author === 'cognition_agent' && evt.content?.parts) {
+            for (const part of evt.content.parts) {
+              if (part.thoughtSignature) {
+                this.sessionSignatures.set(sessionId, part.thoughtSignature);
               }
-              attempt = 0;
-              retryDelay = 1000;
-            }
 
-            // Capture actual token usage from Gemini API
-            if (evt.usageMetadata) {
-              if (evt.usageMetadata.promptTokenCount !== undefined) {
-                // Trust the API's reported promptTokenCount for current context size.
-                currentPromptTokens = evt.usageMetadata.promptTokenCount;
-              }
-              if (evt.usageMetadata.cachedContentTokenCount !== undefined) {
-                currentCachedTokens = evt.usageMetadata.cachedContentTokenCount;
-              }
-              if (
-                evt.usageMetadata.totalTokenCount !== undefined &&
-                evt.usageMetadata.promptTokenCount !== undefined
-              ) {
-                cumulativeCompletionTokens +=
-                  evt.usageMetadata.totalTokenCount -
-                  evt.usageMetadata.promptTokenCount -
-                  currentCompletionTokens;
+              if (part.functionCall) {
+                yield {
+                  type: 'tool_call',
+                  toolCall: {
+                    name: part.functionCall.name,
+                    args: part.functionCall.args,
+                  },
+                  retryCount: attempt,
+                };
+              } else if (part.functionResponse) {
+                const activeTaskId = request.anchorId
+                  ? getActiveTaskId(
+                      request.anchorId,
+                      request.cwd || request.projectRoot || process.cwd()
+                    )
+                  : null;
 
-                currentCompletionTokens =
-                  evt.usageMetadata.totalTokenCount -
-                  evt.usageMetadata.promptTokenCount;
-              } else if (evt.usageMetadata.candidatesTokenCount !== undefined) {
-                // Fallback if totalTokenCount is missing
-                // Sum candidates and thinking tokens for total completion usage
-                const candidates = evt.usageMetadata.candidatesTokenCount;
-                const thoughts = evt.usageMetadata.thoughtsTokenCount || 0;
-                const totalCompletion = candidates + thoughts;
-
-                cumulativeCompletionTokens +=
-                  totalCompletion - currentCompletionTokens;
-                currentCompletionTokens = totalCompletion;
-              }
-            }
-
-            // Handle error events (but skip "STOP" which is a normal finish reason, not an error)
-            if (
-              (evt.errorCode && evt.errorCode !== 'STOP') ||
-              evt.errorMessage
-            ) {
-              const errorMsg =
-                evt.errorMessage || `Error code: ${evt.errorCode}`;
-              throw new Error(`Gemini API Error: ${errorMsg}`);
-            }
-
-            // Skip user echo events
-            if (evt.author === 'user') {
-              continue;
-            }
-
-            // Handle assistant/model responses
-            if (evt.author === 'cognition_agent' && evt.content?.parts) {
-              for (const part of evt.content.parts) {
-                // Capture thought signature into ADK session history to prevent looping
-                // Gemini 3 requires the thought_signature to be present in subsequent turns
-                // to resume reasoning state. ADK 0.2.4 doesn't handle this automatically.
-                if (part.thoughtSignature) {
-                  this.sessionSignatures.set(sessionId, part.thoughtSignature);
+                if (activeTaskId) {
+                  await this.rollingPruneTaskLogs(
+                    activeTaskId,
+                    sessionId,
+                    request.projectRoot || process.cwd(),
+                    request.taskLogEvictionThreshold,
+                    session!
+                  );
                 }
 
-                // Handle function calls (tool use)
-                if (part.functionCall) {
-                  if (process.env.DEBUG_GEMINI_STREAM) {
-                    systemLog(
-                      'gemini',
-                      `\n[Gemini] === TOOL CALL: ${part.functionCall.name} ===`
-                    );
+                yield {
+                  type: 'tool_response',
+                  toolResponse: {
+                    name: part.functionResponse.name,
+                    response: part.functionResponse.response,
+                  },
+                  retryCount: attempt,
+                };
+              } else if (part.text || part.thoughtSignature) {
+                const isThinking = part.thought === true;
+                const isBidi = process.env.GEMINI_USE_BIDI === '1';
+
+                let blockId = 'default';
+                let accumulated = '';
+                if (isThinking) {
+                  const match = part.text?.match(/^\*\*([^*]+)\*\*/);
+                  blockId = match ? match[1] : 'default';
+                  accumulated = accumulatedThinkingBlocks.get(blockId) || '';
+                } else {
+                  accumulated = accumulatedAssistant;
+                }
+
+                if (
+                  !isBidi &&
+                  part.text &&
+                  accumulated &&
+                  (part.text.length <= accumulated.length ||
+                    !part.text.startsWith(accumulated))
+                ) {
+                  continue;
+                }
+
+                let deltaText = isBidi
+                  ? part.text || ''
+                  : (part.text || '').substring(accumulated.length);
+
+                if (isThinking && accumulated && part.text) {
+                  const fullHeaderMatch = part.text.match(/^(\*\*([^*]+)\*\*)/);
+                  if (fullHeaderMatch && accumulated === fullHeaderMatch[1]) {
+                    deltaText = deltaText.replace(/^([\n\r]|\\n)+/, '\n\n');
                   }
+                }
 
-                  // Don't pre-format - let TUI handle formatting via toolName/toolInput
-                  numTurns++;
-                  const toolMessage: AgentMessage = {
-                    id: `msg-${Date.now()}-tool-${numTurns}`,
-                    type: 'tool_use',
-                    role: 'assistant',
-                    content: '', // TUI will format using toolName and toolInput
-                    timestamp: new Date(),
-                    toolName: part.functionCall.name,
-                    toolInput: part.functionCall.args,
-                    thoughtSignature: part.thoughtSignature,
-                  };
-                  messages.push(toolMessage);
-
-                  yield {
-                    activeModel,
-                    messages: [...messages],
-                    sessionId,
-                    tokens: {
-                      prompt:
-                        currentPromptTokens ||
-                        Math.ceil(request.prompt.length / 4),
-                      completion:
-                        currentCompletionTokens || currentTurnOutputEstimate,
-                      total:
-                        (currentPromptTokens ||
-                          Math.ceil(request.prompt.length / 4)) +
-                        (currentCompletionTokens || currentTurnOutputEstimate),
-                      cached:
-                        currentCachedTokens > 0
-                          ? currentCachedTokens
-                          : undefined,
-                    },
-                    finishReason: 'tool_use',
-                    numTurns,
-                  };
-
-                  // Reset turn-specific accumulators after tool use - next assistant message will be a new response
-                  if (process.env.DEBUG_GEMINI_STREAM) {
-                    systemLog(
-                      'gemini',
-                      '[Gemini] Resetting turn accumulators (post-tool-use)'
-                    );
-                  }
-                  accumulatedAssistant = '';
-                  accumulatedThinkingBlocks.clear();
-                  currentTurnOutputEstimate = 0;
-                  currentCompletionTokens = 0;
-                  // Note: we don't reset currentCachedTokens here to prevent UI flickering between tool turns.
-                  // It will be updated when the next usageMetadata arrives.
-                } else if (part.functionResponse) {
-                  if (process.env.DEBUG_GEMINI_STREAM) {
-                    // Always log for now to debug bash
-                    systemLog(
-                      'gemini',
-                      `\n[Gemini] === TOOL RESULT: ${part.functionResponse.name} ===`
-                    );
-                    systemLog(
-                      'gemini',
-                      `[Gemini] Result type: ${typeof part.functionResponse.response}`
-                    );
-                  }
-
-                  numTurns++;
-
-                  const activeTaskId = request.anchorId
-                    ? getActiveTaskId(
-                        request.anchorId,
-                        request.cwd || request.projectRoot || process.cwd()
-                      )
-                    : null;
-
-                  if (activeTaskId) {
-                    await this.rollingPruneTaskLogs(
-                      activeTaskId,
-                      sessionId,
-                      request.projectRoot || process.cwd(),
-                      request.taskLogEvictionThreshold,
-                      session
-                    );
-                  }
-
-                  const resultMessage: AgentMessage = {
-                    id: `msg-${Date.now()}-result-${numTurns}`,
-                    type: 'tool_result',
-                    role: 'user',
-                    content: (function () {
-                      const resp = part.functionResponse.response;
-                      if (typeof resp === 'string') return resp;
-                      if (
-                        resp &&
-                        typeof resp === 'object' &&
-                        'result' in resp &&
-                        typeof (resp as Record<string, unknown>).result ===
-                          'string'
-                      ) {
-                        return (resp as Record<string, unknown>)
-                          .result as string;
-                      }
-                      return JSON.stringify(resp);
-                    })(),
-                    timestamp: new Date(),
-                    toolName: part.functionResponse.name,
-                  };
-                  messages.push(resultMessage);
-
-                  yield {
-                    activeModel,
-                    messages: [...messages],
-                    sessionId,
-                    tokens: {
-                      prompt:
-                        currentPromptTokens ||
-                        Math.ceil(request.prompt.length / 4),
-                      completion:
-                        currentCompletionTokens ||
-                        currentTurnOutputEstimate ||
-                        0,
-                      total:
-                        (currentPromptTokens ||
-                          Math.ceil(request.prompt.length / 4)) +
-                        (currentCompletionTokens || currentTurnOutputEstimate),
-                      cached:
-                        currentCachedTokens > 0
-                          ? currentCachedTokens
-                          : undefined,
-                    },
-                    finishReason: 'tool_use', // Tool result, not stop - agent continues
-                    numTurns,
-                    // Pass back the tool result information for compression triggers
-                    toolResult: {
-                      name: part.functionResponse.name,
-                      response: part.functionResponse.response,
-                    },
-                  };
-
-                  // Reset turn-specific accumulators after tool result - next assistant message will be a new response
-                  if (process.env.DEBUG_GEMINI_STREAM) {
-                    systemLog(
-                      'gemini',
-                      '[Gemini] Resetting turn accumulators (post-tool-result)'
-                    );
-                  }
-                  accumulatedAssistant = '';
-                  accumulatedThinkingBlocks.clear();
-                  currentTurnOutputEstimate = 0;
-                  currentCompletionTokens = 0;
-                  // Note: we don't reset currentCachedTokens here to prevent UI flickering.
-                } else if (part.text || part.thoughtSignature) {
-                  // Check if this is thinking content
-                  const isThinking = part.thought === true;
-                  const messageType = isThinking ? 'thinking' : 'assistant';
-
-                  if (process.env.DEBUG_GEMINI_STREAM) {
-                    systemLog(
-                      'gemini',
-                      `\n[Gemini] === NEW EVENT: ${messageType} (${part.text?.length || 0} chars) ===`
-                    );
-                    if (part.text) {
-                      systemLog(
-                        'gemini',
-                        `[Gemini] Text preview: "${part.text.substring(0, 256)}..."`
-                      );
-                    }
-                    if (part.thoughtSignature) {
-                      systemLog(
-                        'gemini',
-                        `[Gemini] Thought Signature present: ${part.thoughtSignature.substring(0, 20)}...`
-                      );
-                    }
-                  }
-
-                  // SSE mode sends FULL accumulated text each time, not deltas
-                  // For thinking blocks, extract block ID from header (e.g., "**Analyzing Code**")
-                  let blockId = '';
-                  let accumulated = '';
-
+                if (!accumulated && part.text) {
+                  deltaText = deltaText.replace(/^([\n\r]|\\n)+/, '');
                   if (isThinking) {
-                    // Extract thinking block header (first line, usually bold)
-                    const match = part.text?.match(/^\*\*([^*]+)\*\*/);
-                    blockId = match ? match[1] : 'default';
-                    accumulated = accumulatedThinkingBlocks.get(blockId) || '';
-                  } else {
-                    accumulated = accumulatedAssistant;
-                  }
-
-                  if (process.env.DEBUG_GEMINI_STREAM) {
-                    systemLog(
-                      'gemini',
-                      `[Gemini] Accumulated: ${accumulated.length} chars: "${accumulated.substring(0, 100)}..."`
-                    );
-                  }
-
-                  // Skip if no new content (shorter than current accumulated = stale event)
-                  // Only applicable for SSE (cumulative) mode. BIDI sends deltas.
-                  const isBidi = process.env.GEMINI_USE_BIDI === '1';
-
-                  if (
-                    !isBidi &&
-                    part.text &&
-                    accumulated &&
-                    part.text.length <= accumulated.length
-                  ) {
-                    if (process.env.DEBUG_GEMINI_STREAM) {
-                      systemLog(
-                        'gemini',
-                        `[Gemini] SKIP: No new content (${part.text.length} <= ${accumulated.length})`
+                    const headerMatch = deltaText.match(/^(\*\*([^*]+)\*\*)/);
+                    if (headerMatch) {
+                      const headerPart = headerMatch[1];
+                      const contentPart = deltaText.substring(
+                        headerPart.length
                       );
-                    }
-                    continue;
-                  }
-
-                  // Verify this is a legitimate continuation (not a restructured/combined event)
-                  // Both thinking AND assistant messages can get restructured by Gemini
-                  // Only applicable for SSE (cumulative) mode.
-                  if (
-                    !isBidi &&
-                    part.text &&
-                    accumulated &&
-                    !part.text.startsWith(accumulated)
-                  ) {
-                    if (process.env.DEBUG_GEMINI_STREAM) {
-                      systemLog(
-                        'gemini',
-                        `[Gemini] SKIP: ${messageType} doesn't start with accumulated (restructured event)`
-                      );
-                    }
-                    // This is likely a restructured event with different text
-                    continue;
-                  }
-
-                  // Extract delta text (only the new portion)
-                  // In BIDI mode, part.text IS the delta.
-                  // In SSE mode, part.text IS the full text.
-                  let deltaText = isBidi
-                    ? part.text || ''
-                    : (part.text || '').substring(accumulated.length);
-
-                  // Special handling for thinking block headers to ensure clean spacing
-                  // This handles cases where the header and content are in different chunks
-                  if (isThinking && accumulated && part.text) {
-                    const fullHeaderMatch =
-                      part.text.match(/^(\*\*([^*]+)\*\*)/);
-                    if (fullHeaderMatch && accumulated === fullHeaderMatch[1]) {
-                      // We just finished the header and are starting the content in this chunk
-                      deltaText = deltaText.replace(/^([\n\r]|\\n)+/, '\n\n');
+                      deltaText =
+                        headerPart +
+                        contentPart.replace(/^([\n\r]|\\n)+/, '\n\n');
                     }
                   }
+                }
 
-                  // Trim leading newlines from the first chunk of any message
-                  if (!accumulated && part.text) {
-                    deltaText = deltaText.replace(/^([\n\r]|\\n)+/, '');
+                if (!deltaText && !part.thoughtSignature) continue;
 
-                    if (isThinking) {
-                      // For thinking blocks, ensure a double newline after the header
-                      // Header is usually **Thinking** or similar
-                      const headerMatch = deltaText.match(/^(\*\*([^*]+)\*\*)/);
-                      if (headerMatch) {
-                        const headerPart = headerMatch[1];
-                        const contentPart = deltaText.substring(
-                          headerPart.length
-                        );
-                        deltaText =
-                          headerPart +
-                          contentPart.replace(/^([\n\r]|\\n)+/, '\n\n');
-                      }
-                    }
-                  }
-
-                  if (process.env.DEBUG_GEMINI_STREAM) {
-                    systemLog(
-                      'gemini',
-                      `[Gemini] Delta (${deltaText.length} chars): "${deltaText.substring(0, 100)}..."`
-                    );
-                  }
-
-                  // Skip if delta is empty (final event or just a signature update)
-                  // We capture the signature in the last message to preserve state without
-                  // pushing empty messages that break the TUI's streaming tool output logic.
-                  if (!deltaText || deltaText.trim().length === 0) {
-                    if (process.env.DEBUG_GEMINI_STREAM) {
-                      systemLog(
-                        'gemini',
-                        `[Gemini] SKIP: Empty delta (signature: ${!!part.thoughtSignature})`
-                      );
-                    }
-
-                    if (part.thoughtSignature && messages.length > 0) {
-                      // Only update assistant or thinking messages, never tool results
-                      for (let i = messages.length - 1; i >= 0; i--) {
-                        if (
-                          messages[i].role === 'assistant' ||
-                          messages[i].type === 'thinking'
-                        ) {
-                          messages[i].thoughtSignature = part.thoughtSignature;
-                          break;
-                        }
-                      }
-                    }
-
-                    // Update accumulated tracker even though we're skipping
-                    if (isThinking) {
-                      const current =
-                        accumulatedThinkingBlocks.get(blockId) || '';
-                      accumulatedThinkingBlocks.set(
-                        blockId,
-                        isBidi
-                          ? current + (part.text || '')
-                          : part.text || current
-                      );
-                    } else {
-                      if (isBidi) {
-                        accumulatedAssistant += part.text || '';
-                      } else {
-                        accumulatedAssistant =
-                          part.text || accumulatedAssistant;
-                      }
-                    }
-                    continue;
-                  }
-
-                  // Update accumulated trackers
-                  if (isThinking) {
-                    const current =
-                      accumulatedThinkingBlocks.get(blockId) || '';
-                    accumulatedThinkingBlocks.set(
-                      blockId,
-                      isBidi
-                        ? current + (part.text || '')
-                        : part.text || current
-                    );
-                  } else {
-                    if (isBidi) {
-                      accumulatedAssistant += part.text || '';
-                    } else {
-                      accumulatedAssistant = part.text || accumulatedAssistant;
-                    }
-                  }
-
-                  if (process.env.DEBUG_GEMINI_STREAM && deltaText) {
-                    systemLog(
-                      'gemini',
-                      `[Gemini] ✓ YIELDING delta, new total: ${part.text?.length || 0} chars`
-                    );
-                  }
-
-                  // Increment turn counter for message indexing and TUI display.
-                  // Only increment for the FIRST chunk of a new assistant response.
-                  if (!accumulated) {
-                    numTurns++;
-                  }
-
-                  // Create new message with delta text
-                  // The TUI will accumulate these deltas via processAgentMessage
-                  const message: AgentMessage = {
-                    id: `msg-${Date.now()}-${numTurns}-${messageType}`,
-                    type: messageType,
-                    role: 'assistant',
-                    content: deltaText, // Send only the delta
-                    timestamp: new Date(),
-                    thoughtSignature: part.thoughtSignature,
-                  };
-
-                  if (isThinking) {
-                    message.thinking = deltaText;
-                  }
-
-                  messages.push(message);
-
-                  currentTurnOutputEstimate += Math.ceil(
-                    (part.text?.length || 0) / 4
+                if (isThinking) {
+                  accumulatedThinkingBlocks.set(
+                    blockId,
+                    isBidi
+                      ? (accumulatedThinkingBlocks.get(blockId) || '') +
+                          (part.text || '')
+                      : part.text || ''
                   );
-
                   yield {
-                    activeModel,
-                    messages: [...messages],
-                    sessionId,
-                    tokens: {
-                      prompt:
-                        currentPromptTokens ||
-                        Math.ceil(request.prompt.length / 4),
-                      completion:
-                        currentCompletionTokens ||
-                        currentTurnOutputEstimate ||
-                        0,
-                      total:
-                        (currentPromptTokens ||
-                          Math.ceil(request.prompt.length / 4)) +
-                        (currentCompletionTokens || currentTurnOutputEstimate),
-                      cached:
-                        currentCachedTokens > 0
-                          ? currentCachedTokens
-                          : undefined,
-                    },
-                    numTurns,
+                    type: 'thinking',
+                    thought: deltaText,
+                    thoughtSignature: part.thoughtSignature,
+                    retryCount: attempt,
+                  };
+                } else {
+                  accumulatedAssistant = isBidi
+                    ? accumulatedAssistant + (part.text || '')
+                    : part.text || accumulatedAssistant;
+                  yield {
+                    type: 'text',
+                    delta: deltaText,
+                    thoughtSignature: part.thoughtSignature,
                     retryCount: attempt,
                   };
                 }
               }
             }
           }
-
-          // Final response with actual token counts from Gemini API
-          // Always yield final response to signal completion (even if we've yielded before)
-          if (process.env.DEBUG_GEMINI_STREAM) {
-            systemLog(
-              'gemini',
-              `\n[Gemini] === STREAM LOOP EXITED ===\n[Gemini] Total turns: ${numTurns}\n[Gemini] Total tokens billed (estimated): ${currentPromptTokens + cumulativeCompletionTokens}\n[Gemini] Current context: ${currentPromptTokens} prompt, ${currentCompletionTokens} completion\n[Gemini] Last message type: ${messages[messages.length - 1]?.type || 'none'}\n[Gemini] Yielding final response with finishReason='stop'`
-            );
-          }
-          yield* yieldFinalState(activeModel);
-
-          // Reset retry attempt counter on success!
-          // This ensures that transient errors don't accumulate across turns
-          // and only consecutive failures lead to failover.
-          attempt = 0;
-
-          break; // SUCCESS: Exit retry loop
-        } catch (error) {
-          // Check if this is a user-initiated abort (not an actual error)
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-          const isAbort =
-            errorMessage === 'Operation aborted by user' ||
-            errorMessage.includes('aborted') ||
-            errorMessage.includes('abort') ||
-            errorMessage.includes('signal') ||
-            // SDK might throw JSON parsing errors when aborted
-            (errorMessage.includes('JSON') &&
-              this.abortController?.signal.aborted);
-
-          if (isAbort) {
-            if (process.env.DEBUG_ESC_INPUT) {
-              systemLog('gemini', '[Gemini] Caught abort-related error:', {
-                error: errorMessage,
-              });
-            }
-            yield* yieldFinalState(activeModel);
-            break; // Exit loop on abort
-          }
-
-          // ADK SDK (experimental v0.1.x) can throw JSON parsing errors in both SSE and BIDI modes
-          // These are typically benign SDK bugs when the stream ends, not real errors
-          const hasAssistantMessages = messages.some(
-            (m) => m.type === 'assistant' || m.type === 'thinking'
-          );
-          const isBenignSdkError =
-            errorMessage.includes('JSON') &&
-            errorMessage.includes('Unexpected token') &&
-            hasAssistantMessages;
-
-          if (isBenignSdkError) {
-            if (process.env.DEBUG_GEMINI_STREAM) {
-              systemLog(
-                'gemini',
-                '[Gemini] Ignoring benign ADK SDK JSON parsing error:',
-                { error: errorMessage }
-              );
-            }
-            yield* yieldFinalState(activeModel);
-            break; // Exit loop on benign SDK error (treat as success)
-          }
-
-          // CHECK FOR RETRYABLE ERRORS (429, 503, etc.)
-          const isRetryable =
-            errorMessage.includes('429') ||
-            errorMessage.includes('503') ||
-            errorMessage.includes('Resource exhausted') ||
-            errorMessage.includes('Service Unavailable') ||
-            errorMessage.includes('Deadline exceeded') ||
-            errorMessage.includes('Unknown error') ||
-            errorMessage.includes('Internal error') ||
-            errorMessage.includes('Internal Server Error') ||
-            errorMessage.includes('ECONNRESET') ||
-            errorMessage.includes('ETIMEDOUT');
-
-          if (isRetryable && attempt < maxRetries) {
-            attempt++;
-
-            // Log retry attempt
-            systemLog(
-              'gemini',
-              `[Gemini] Hit retryable error (${errorMessage}). Retrying in ${retryDelay}ms... (Attempt ${attempt}/${maxRetries})`,
-              undefined,
-              'warn'
-            );
-
-            // Yield state to TUI with retryCount to trigger UI feedback
-            yield {
-              activeModel,
-              messages: [...messages],
-              sessionId,
-              tokens: {
-                prompt:
-                  currentPromptTokens || Math.ceil(request.prompt.length / 4),
-                completion:
-                  currentCompletionTokens || currentTurnOutputEstimate,
-                total:
-                  (currentPromptTokens ||
-                    Math.ceil(request.prompt.length / 4)) +
-                  (currentCompletionTokens || currentTurnOutputEstimate),
-                cached:
-                  currentCachedTokens > 0 ? currentCachedTokens : undefined,
-              },
-              numTurns,
-              retryCount: attempt,
-            };
-
-            // Wait with exponential backoff + jitter
-            const jitter = Math.random() * 1000;
-            await new Promise((resolve) =>
-              setTimeout(resolve, retryDelay + jitter)
-            );
-            retryDelay *= 2;
-
-            // FALLOVER PATTERN: Switch to more stable model if preview fails repeatedly
-            if (attempt >= 3 && activeModel.includes('preview')) {
-              const fallback = 'gemini-3-flash-preview';
-              systemLog(
-                'gemini',
-                `[Gemini] Falling back to stable model: ${fallback} after ${attempt} failures`,
-                undefined,
-                'warn'
-              );
-              activeModel = fallback;
-            }
-
-            continue; // RETRY
-          }
-
-          // NOT RETRYABLE or MAX RETRIES REACHED
-          // Only show error message if it's not an abort or benign SDK error
-          const errorMsg: AgentMessage = {
-            id: `msg-${Date.now()}-error`,
-            type: 'assistant',
-            role: 'assistant',
-            content: `Error: ${errorMessage}`,
-            timestamp: new Date(),
-          };
-          messages.push(errorMsg);
-
-          yield {
-            activeModel,
-            messages: [...messages],
-            sessionId,
-            tokens: {
-              prompt:
-                currentPromptTokens || Math.ceil(request.prompt.length / 4),
-              completion: currentCompletionTokens || currentTurnOutputEstimate,
-              total:
-                (currentPromptTokens || Math.ceil(request.prompt.length / 4)) +
-                (currentCompletionTokens || currentTurnOutputEstimate),
-              cached: currentCachedTokens > 0 ? currentCachedTokens : undefined,
-            },
-            finishReason: 'error',
-            numTurns,
-          };
-          break; // Exit loop after yielding error
         }
+
+        this.sessionSignatures.delete(sessionId);
+        return; // Success
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        const isAbort =
+          errorMessage.includes('aborted') ||
+          errorMessage.includes('abort') ||
+          (errorMessage.includes('JSON') &&
+            this.abortController?.signal.aborted);
+
+        if (isAbort) return;
+
+        const isBenignSdkError =
+          errorMessage.includes('JSON') &&
+          errorMessage.includes('Unexpected token') &&
+          (accumulatedAssistant.length > 0 ||
+            accumulatedThinkingBlocks.size > 0);
+
+        if (isBenignSdkError) return;
+
+        const isRetryable =
+          errorMessage.includes('429') ||
+          errorMessage.includes('503') ||
+          errorMessage.includes('Resource exhausted') ||
+          errorMessage.includes('Service Unavailable') ||
+          errorMessage.includes('Deadline exceeded') ||
+          errorMessage.includes('ECONNRESET') ||
+          errorMessage.includes('ETIMEDOUT');
+
+        if (isRetryable && attempt < maxRetries) {
+          attempt++;
+
+          // Yield current retry count before sleeping
+          yield {
+            type: 'usage',
+            usage: { ...this.usage },
+            retryCount: attempt,
+          };
+
+          const jitter = Math.random() * 1000;
+          await new Promise((resolve) =>
+            setTimeout(resolve, retryDelay + jitter)
+          );
+          retryDelay *= 2;
+
+          if (attempt >= 3 && activeModel.includes('preview')) {
+            activeModel = 'gemini-3-flash-preview';
+          }
+          continue;
+        }
+
+        throw error;
       }
-    } finally {
-      // Clean up session signature to avoid memory leaks
-      this.sessionSignatures.delete(sessionId);
-
-      // Restore original console and streams
-      console.log = originalConsoleLog;
-      console.error = originalConsoleError;
-      console.warn = originalConsoleWarn;
-      console.info = originalConsoleInfo;
-      process.stderr.write = originalStderrWrite;
-      process.stdout.write = originalStdoutWrite;
-      process.emitWarning = originalEmitWarning;
-
-      this.currentRunner = null;
-      this.abortController = null;
-      this.currentGenerator = null;
     }
   }
 
   /**
    * Interrupt current agent execution
-   *
-   * Forces the generator to exit by calling return() on it.
-   * Google ADK doesn't support native cancellation, so we forcefully
-   * close the async generator to stop event processing.
    */
   async interrupt(): Promise<void> {
-    if (process.env.DEBUG_ESC_INPUT) {
-      systemLog('gemini', '[Gemini] interrupt() called');
-    }
+    await super.interrupt();
 
-    // Signal abort for the loop check
-    if (this.abortController) {
-      if (process.env.DEBUG_ESC_INPUT) {
-        systemLog('gemini', '[Gemini] Aborting controller');
-      }
-      this.abortController.abort();
-    }
-
-    // Force the generator to exit (since ADK doesn't support native cancellation)
     if (this.currentGenerator) {
       try {
-        if (process.env.DEBUG_ESC_INPUT) {
-          systemLog('gemini', '[Gemini] Calling generator.return()');
-        }
         await this.currentGenerator.return(undefined);
-        if (process.env.DEBUG_ESC_INPUT) {
-          systemLog('gemini', '[Gemini] generator.return() completed');
-        }
-      } catch (err) {
-        if (process.env.DEBUG_ESC_INPUT) {
-          systemLog('gemini', '[Gemini] generator.return() error:', {
-            error: err,
-          });
-        }
+      } catch {
+        // Ignore generator return errors
       }
     }
 
     this.currentRunner = null;
     this.currentGenerator = null;
-    if (process.env.DEBUG_ESC_INPUT) {
-      systemLog('gemini', '[Gemini] interrupt() completed');
-    }
+  }
+
+  /**
+   * Check if provider is available
+   */
+  async isAvailable(): Promise<boolean> {
+    return !!this.apiKey;
   }
 
   /**
    * Generate completion (stub - agent mode is primary interface)
-   *
-   * Note: This provider is optimized for agent workflows via executeAgent().
-   * Basic completions are not the primary use case.
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async complete(request: CompletionRequest): Promise<CompletionResponse> {
     throw new Error(
-      'GeminiAgentProvider is designed for agent workflows. Use executeAgent() instead of complete().'
+      `GeminiAgentProvider is designed for agent workflows. Use executeAgent() instead. (Request for model: ${request.model})`
     );
   }
 
@@ -1742,23 +955,23 @@ export class GeminiAgentProvider implements AgentProvider {
    * Stream completion (stub - agent mode is primary interface)
    */
   async *stream(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     request: CompletionRequest
   ): AsyncGenerator<StreamChunk, void, undefined> {
     throw new Error(
-      'GeminiAgentProvider is designed for agent workflows. Use executeAgent() instead of stream().'
+      `GeminiAgentProvider is designed for agent workflows. Use executeAgent() instead. (Request for model: ${request.model})`
     );
-    // Unreachable yield to satisfy generator signature
     yield { delta: '', text: '', done: true };
   }
 
   /**
-   * Check if provider is available
+   * Supports agent mode
    */
-  async isAvailable(): Promise<boolean> {
-    // Simple API key check - ADK will validate on first use
-    return !!this.apiKey;
+  supportsAgentMode(): boolean {
+    return true;
   }
+
+  /**
+   * Estimate cost for token usage
 
   /**
    * Estimate cost for token usage

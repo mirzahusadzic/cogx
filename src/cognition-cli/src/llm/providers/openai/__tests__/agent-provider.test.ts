@@ -33,6 +33,7 @@ vi.mock('@openai/agents', () => ({
   Agent: vi.fn().mockImplementation(() => ({})),
   run: mockRun,
   setDefaultOpenAIClient: mockSetDefaultOpenAIClient,
+  tool: vi.fn().mockImplementation(() => ({})),
 }));
 
 // Mock @openai/agents-openai

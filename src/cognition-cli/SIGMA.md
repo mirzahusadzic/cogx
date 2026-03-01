@@ -27,6 +27,7 @@ Agents are expected to verify their own work autonomously. Before concluding a t
 - **Implementation Verification**: Every implementation task MUST end with the execution of the relevant self-sufficient loop commands (build, lint, test) before being marked as completed.
 - **Strong Typing**: Insist on strong typing and avoid using `any`. Follow the project's ESLint configuration (e.g., `@typescript-eslint/no-explicit-any`). Use `unknown` or more specific types/interfaces instead.
 - **Context Hygiene**: Always distill findings into a summary before completing a task to trigger context pruning.
+- **Atomic Task Breakdown (TPM Health)**: Proactively break complex goals into small, atomic sub-tasks. Because completing a task flushes tool logs, completing _frequent, small tasks_ is CRITICAL to keep your context lean, maintain high-fidelity reasoning, and prevent token limit errors. Never use long-running, monolithic tasks.
 - **Surgical Actions**: Use `grep` and targeted `read_file` (with offset/limit) to minimize token usage. Do not read entire large files if avoidable.
 - **Verification**: Never assume a fix works; always run the relevant build/test command before marking a task as completed.
 - **No Interactive Tools**: NEVER use `npx vitest` as it enters an interactive mode that blocks the workflow. ALWAYS use `npm test <file>` which is configured to run in CI mode (non-interactive).

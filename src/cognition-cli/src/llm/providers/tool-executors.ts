@@ -186,6 +186,8 @@ async function relativizeDiffOutput(
   return processed.join('\n');
 }
 
+import type { ToolResult } from '../types.js';
+
 /**
  * Read file executor
  */
@@ -356,7 +358,7 @@ export async function executeGrep(
       }
     });
 
-    proc.on('close', async () => {
+    proc.on('close', async (code) => {
       clearTimeout(timeoutId);
 
       // Final safety check: cap extremely long lines which can crash TUIs
@@ -380,9 +382,17 @@ export async function executeGrep(
         currentPromptTokens
       );
 
-      resolve(
-        tagOutputWithActiveTask(compressed || 'No matches', getActiveTaskId)
-      );
+      const finalCode = code ?? 0;
+      const color = finalCode === 0 ? '\x1b[32m' : '\x1b[31m'; // Green for 0, Red otherwise
+      const exitLine = `Exit code: ${color}${finalCode}\x1b[0m`;
+
+      const resultWithExit = compressed
+        ? `${compressed.trimEnd()}\n${exitLine}`
+        : finalCode === 1
+          ? `No matches found\n${exitLine}`
+          : exitLine;
+
+      resolve(tagOutputWithActiveTask(resultWithExit, getActiveTaskId));
     });
     proc.on('error', () => {
       clearTimeout(timeoutId);
@@ -403,7 +413,7 @@ export async function executeBash(
   workbenchUrl?: string,
   currentPromptTokens?: number,
   getActiveTaskId?: () => string | null
-): Promise<string> {
+): Promise<ToolResult> {
   const effectiveTimeout = timeout || 120000;
   const effectiveCwd = bashCwd
     ? path.isAbsolute(bashCwd)
@@ -411,7 +421,7 @@ export async function executeBash(
       : path.resolve(cwd, bashCwd)
     : cwd;
 
-  return new Promise<string>((resolve) => {
+  return new Promise<ToolResult>((resolve) => {
     const MAX_BUFFER_SIZE = 1024 * 1024; // 1MB
     const proc = spawn('bash', ['-c', command], {
       cwd: effectiveCwd,
@@ -487,24 +497,33 @@ export async function executeBash(
         currentPromptTokens
       );
       if (killed) {
-        resolve(
-          tagOutputWithActiveTask(
+        resolve({
+          stdout: '',
+          stderr: `Timeout after ${effectiveTimeout}ms\n${compressed}`,
+          exitCode: null,
+          content: tagOutputWithActiveTask(
             `Timeout after ${effectiveTimeout}ms\n${compressed}`,
             getActiveTaskId
-          )
-        );
+          ),
+        });
       } else {
-        const color = code === 0 ? '\x1b[32m' : '\x1b[31m'; // Green for 0, Red otherwise
-        const exitLine = `Exit code: ${color}${code}\x1b[0m`;
-        const finalResult = compressed
-          ? `${compressed.trimEnd()}\n${exitLine}`
-          : exitLine;
-        resolve(tagOutputWithActiveTask(finalResult, getActiveTaskId));
+        const finalCode = code ?? 0;
+        resolve({
+          stdout: finalStdout,
+          stderr: cleanStderr,
+          exitCode: finalCode,
+          content: tagOutputWithActiveTask(compressed || '', getActiveTaskId),
+        });
       }
     });
     proc.on('error', (err) => {
       clearTimeout(timeoutId);
-      resolve(`Error: ${err.message}`);
+      resolve({
+        stdout: '',
+        stderr: err.message,
+        exitCode: 1,
+        content: `Error: ${err.message}`,
+      });
     });
   });
 }

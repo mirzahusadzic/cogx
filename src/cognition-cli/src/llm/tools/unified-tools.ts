@@ -1,7 +1,13 @@
 import { z } from 'zod';
 import { tool } from '@openai/agents';
-import { FunctionTool, type ToolContext, type Session } from '@google/adk';
+import {
+  FunctionTool,
+  AgentTool,
+  type ToolContext,
+  type Session,
+} from '@google/adk';
 import { providerToolFactory } from './factory.js';
+import type { ToolResult } from '../types.js';
 import {
   readFileTool,
   writeFileTool,
@@ -62,6 +68,7 @@ import {
  */
 export type UnifiedTool =
   | FunctionTool
+  | AgentTool
   | ReturnType<typeof tool>
   | {
       name: string;
@@ -70,7 +77,7 @@ export type UnifiedTool =
       execute?: (
         args: Record<string, unknown>,
         toolContext?: ToolContext
-      ) => Promise<string>;
+      ) => Promise<string | ToolResult>;
     };
 
 /**
@@ -110,7 +117,7 @@ export interface UnifiedToolsContext {
 /**
  * Provider types supported by the unified tool factory.
  */
-export type ProviderType = 'gemini' | 'openai' | 'minimax';
+export type ProviderType = 'gemini' | 'openai' | 'minimax' | 'claude';
 
 /**
  * Get the full list of tools for a specific provider using unified logic.
@@ -125,7 +132,10 @@ export function getUnifiedTools(
   // Helper to create tool based on provider type
   const createTool = <T extends z.ZodObject<z.ZodRawShape>>(
     definition: ToolDefinition<T>,
-    executor: (args: z.infer<T>, toolContext?: ToolContext) => Promise<string>,
+    executor: (
+      args: z.infer<T>,
+      toolContext?: ToolContext
+    ) => Promise<string | ToolResult>,
     onCanUseTool?: OnCanUseTool
   ): UnifiedTool => {
     switch (provider) {

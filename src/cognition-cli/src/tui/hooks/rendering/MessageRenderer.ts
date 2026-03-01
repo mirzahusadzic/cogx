@@ -38,7 +38,10 @@
  * Extracted from useClaudeAgent.ts as part of Week 2 Day 9-10 refactor.
  */
 
-import { cleanAnsi as stripAnsi } from '../../../utils/string-utils.js';
+import {
+  cleanAnsi as stripAnsi,
+  stripSigmaMarkers,
+} from '../../../utils/string-utils.js';
 
 /**
  * Format a system message for display
@@ -88,7 +91,7 @@ export function formatUserMessage(content: string): string {
  * // Returns: "Analysis complete"
  */
 export function formatAssistantMessage(content: string): string {
-  return stripAnsi(content);
+  return stripSigmaMarkers(stripAnsi(content));
 }
 
 /**

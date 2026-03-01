@@ -26,6 +26,7 @@ vi.mock('@google/adk', () => ({
   })),
   GOOGLE_SEARCH: {},
   AgentTool: vi.fn().mockImplementation(() => ({})),
+  FunctionTool: vi.fn().mockImplementation(() => ({})),
   setLogLevel: vi.fn(),
   LogLevel: { ERROR: 3 },
   StreamingMode: { SSE: 'SSE', BIDI: 'BIDI' },

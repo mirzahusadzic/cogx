@@ -46,6 +46,8 @@ export type {
 } from './provider-interface.js';
 export type { AgentProvider } from './agent-provider-interface.js';
 export { isAgentProvider } from './agent-provider-interface.js';
+export { BaseAgentProvider } from './providers/base-agent-provider.js';
+export type { UnifiedStreamingChunk } from './types.js';
 export { GeminiAgentProvider } from './providers/gemini/agent-provider.js';
 export { OpenAIAgentProvider } from './providers/openai/agent-provider.js';
 export { MinimaxAgentProvider } from './providers/minimax/agent-provider.js';

@@ -10,7 +10,10 @@ import {
 } from '../sdk/index.js';
 import { McpServerBuilder } from '../../services/McpServerBuilder.js';
 import { formatPendingMessages } from '../../../ipc/agent-messaging-formatters.js';
-import { cleanAnsi as stripAnsi } from '../../../utils/string-utils.js';
+import {
+  cleanAnsi as stripAnsi,
+  stripSigmaMarkers,
+} from '../../../utils/string-utils.js';
 import {
   formatToolUse,
   formatToolResult,
@@ -32,6 +35,7 @@ interface MessageBlock {
   thinking?: string;
   name?: string;
   input?: unknown;
+  content?: unknown; // Added for tool_result support
 }
 
 interface AgentMessage {
@@ -300,7 +304,7 @@ export function useAgentHandlers() {
 
             if (thinkingBlocks.length > 0) {
               const thinking = thinkingBlocks
-                .map((b) => b.thinking || '')
+                .map((b) => stripSigmaMarkers(b.thinking || ''))
                 .join('\n');
               setMessages((prev) => {
                 const last = prev[prev.length - 1];
@@ -323,7 +327,9 @@ export function useAgentHandlers() {
             }
 
             if (textBlocks.length > 0) {
-              const text = textBlocks.map((b) => b.text || '').join('\n');
+              const text = textBlocks
+                .map((b) => stripSigmaMarkers(b.text || ''))
+                .join('\n');
               const colorReplacedText = stripAnsi(text);
               setMessages((prev) => {
                 const last = prev[prev.length - 1];
@@ -522,45 +528,167 @@ export function useAgentHandlers() {
             // Layer 14: Sigma Task Surgical Eviction (Strip hidden tags for display)
             const resultData =
               typeof agentMessage.content === 'string'
-                ? agentMessage.content.replace(
-                    /\n\n<!-- sigma-task: [^>]+ -->\s*$/,
-                    ''
-                  )
-                : agentMessage.content;
+                ? stripSigmaMarkers(agentMessage.content)
+                : Array.isArray(agentMessage.content)
+                  ? agentMessage.content.map((block) => {
+                      if (
+                        block.type === 'text' &&
+                        typeof block.text === 'string'
+                      ) {
+                        return {
+                          ...block,
+                          text: stripSigmaMarkers(block.text),
+                        };
+                      }
+                      if (
+                        block.type === 'tool_result' &&
+                        typeof block.content === 'string'
+                      ) {
+                        return {
+                          ...block,
+                          content: stripSigmaMarkers(block.content),
+                        };
+                      }
+                      return block;
+                    })
+                  : agentMessage.content;
+
+            // Robust handling for JSON-encoded tool results (e.g. from Gemini ADK wrapping)
+            let effectiveResultData = resultData;
+            if (
+              typeof resultData === 'string' &&
+              resultData.trim().startsWith('{')
+            ) {
+              try {
+                const parsed = JSON.parse(resultData);
+                if (parsed && typeof parsed === 'object') {
+                  effectiveResultData = parsed;
+                }
+              } catch {
+                // Not valid JSON or parsing failed, use original
+              }
+            }
 
             let formattedResult = formatToolResult(
               agentMessage.toolName,
-              resultData,
+              effectiveResultData,
               cwd
             );
 
+            const baseToolName = agentMessage.toolName
+              ?.toLowerCase()
+              .replace(/^mcp__.*?__/, '');
             const isBash =
-              agentMessage.toolName === 'bash' ||
-              agentMessage.toolName === 'shell';
-            const strippedData =
-              typeof resultData === 'string'
-                ? stripAnsi(resultData).trim()
-                : '';
+              baseToolName === 'bash' ||
+              baseToolName === 'shell' ||
+              baseToolName === 'bashoutput' ||
+              baseToolName === 'check_output' ||
+              baseToolName === 'get_bash_output' ||
+              baseToolName === 'grep';
+
+            // Layer 13: Standardize Sigma Marker Stripping
+            // Apply stripSigmaMarkers BEFORE extraction to ensure exit codes are found
+            // even if hidden markers are present at the end of the string.
+            // Support both string and array of blocks for tool results.
+            const rawResultText =
+              typeof effectiveResultData === 'string'
+                ? effectiveResultData
+                : Array.isArray(effectiveResultData)
+                  ? (effectiveResultData as unknown[])
+                      .map((block) => {
+                        const b = block as Record<string, unknown>;
+                        if (b.type === 'text') return (b.text as string) || '';
+                        if (b.content && typeof b.content === 'string')
+                          return b.content;
+                        return '';
+                      })
+                      .join('\n')
+                  : typeof effectiveResultData === 'object' &&
+                      effectiveResultData !== null
+                    ? 'content' in effectiveResultData &&
+                      typeof (effectiveResultData as Record<string, unknown>)
+                        .content === 'string'
+                      ? ((effectiveResultData as Record<string, unknown>)
+                          .content as string)
+                      : 'stdout' in effectiveResultData ||
+                          'stderr' in effectiveResultData ||
+                          'exitCode' in effectiveResultData
+                        ? `${(effectiveResultData as Record<string, unknown>).stdout || ''}${(effectiveResultData as Record<string, unknown>).stderr ? `\nSTDERR:\n${(effectiveResultData as Record<string, unknown>).stderr}` : ''}\nExit code: ${(effectiveResultData as Record<string, unknown>).exitCode ?? 'unknown'}`
+                        : JSON.stringify(effectiveResultData, null, 2)
+                    : '';
+
+            // For bash tools, we extract the exit code for the concise display
+            let exitCode: string | number | undefined;
+
+            if (isBash) {
+              // Try to extract from structured data first
+              if (
+                typeof effectiveResultData === 'object' &&
+                effectiveResultData !== null &&
+                'exitCode' in effectiveResultData
+              ) {
+                exitCode = (effectiveResultData as Record<string, unknown>)
+                  .exitCode as string | number | undefined;
+              }
+
+              if (exitCode === undefined && rawResultText) {
+                // Fallback to regex extraction from the formatted text
+                const match = rawResultText.match(
+                  // eslint-disable-next-line no-control-regex
+                  /Exit code:\s*(?:(?:\x1b\[[0-9;]*m)|\[[0-9;]*m)*\s*(-?\d+|null|unknown)(?:\x1b\[0m|\[0m)?/
+                );
+                if (match) {
+                  exitCode = match[1];
+                }
+              }
+            }
+
+            const strippedData = stripAnsi(
+              stripSigmaMarkers(rawResultText)
+            ).trim();
+
+            // Use a more robust check for "only exit code" that handles potential trailing markers
+            // that might have survived or whitespace issues.
+            /* eslint-disable no-control-regex */
             const isOnlyExitCode =
-              isBash && /^Exit code: -?\d+$/.test(strippedData);
+              isBash &&
+              /^Exit code:\s*(?:(?:\x1b\[[0-9;]*m)|\[[0-9;]*m)*\s*(-?\d+|null|unknown)(?:\x1b\[0m|\[0m)?(?:\s+<!-- sigma-task: [^>]+ -->)?\s*$/.test(
+                strippedData
+              );
 
             if (isStreamingToolOutputRef.current && isBash) {
               // For streamed bash output, provide a concise summary in the TUI
-              // The agent still receives the full output from tool-executors.ts
-              const exitCodeMatch = strippedData.match(
-                /Exit code: (-?\d+)\s*$/
-              );
-              const exitCodeStr = exitCodeMatch ? exitCodeMatch[1] : 'unknown';
+              let exitCodeStr =
+                exitCode !== undefined ? String(exitCode) : 'unknown';
+              if (exitCodeStr === 'null') {
+                exitCodeStr = '0';
+              }
 
-              const codeColor = exitCodeStr === '0' ? '\x1b[32m' : '\x1b[31m'; // Green for 0, Red otherwise
+              const isZero = exitCodeStr === '0';
+              const isUnknown = exitCodeStr === 'unknown';
+              const codeColor = isZero
+                ? '\x1b[32m'
+                : isUnknown
+                  ? '\x1b[90m'
+                  : '\x1b[31m'; // Green for 0, Gray for unknown, Red otherwise
 
-              formattedResult = `Exit code: ${codeColor}${exitCodeStr}${ANSI_RESET}`;
+              const gray = '\x1b[90m';
+              formattedResult = `${gray}Exit code: ${codeColor}${exitCodeStr}${ANSI_RESET}`;
             } else if (isOnlyExitCode) {
               // If not streaming but we only have an exit code (e.g. fast command with no output)
               // format it consistently (colored, no indentation)
-              const exitCodeStr = strippedData.split('Exit code:')[1].trim();
-              const codeColor = exitCodeStr === '0' ? '\x1b[32m' : '\x1b[31m';
-              formattedResult = `Exit code: ${codeColor}${exitCodeStr}${ANSI_RESET}`;
+              let exitCodeStr =
+                exitCode !== undefined ? String(exitCode) : 'unknown';
+              if (exitCodeStr === 'null') exitCodeStr = '0';
+              const isZero = exitCodeStr === '0';
+              const isUnknown = exitCodeStr === 'unknown';
+              const codeColor = isZero
+                ? '\x1b[32m'
+                : isUnknown
+                  ? '\x1b[90m'
+                  : '\x1b[31m';
+              const gray = '\x1b[90m';
+              formattedResult = `${gray}Exit code: ${codeColor}${exitCodeStr}${ANSI_RESET}`;
             }
             if (formattedResult) {
               // Layer 13: Tool Result Header Injection.
@@ -576,6 +704,10 @@ export function useAgentHandlers() {
               const isOutput = [
                 'bash',
                 'shell',
+                'executebash',
+                'bashoutput',
+                'check_output',
+                'get_bash_output',
                 'read',
                 'read_file',
                 'grep',

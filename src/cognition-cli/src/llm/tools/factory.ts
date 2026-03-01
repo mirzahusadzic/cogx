@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { ToolDefinition } from './definitions.js';
 import type { OnCanUseTool } from '../providers/tool-helpers.js';
+import type { ToolResult } from '../types.js';
 
 // We need to use 'as unknown' and specific target types to satisfy both
 // the linter and the provider-specific constructors without resorting to 'any'.
@@ -16,7 +17,7 @@ type GeminiToolOptions = ConstructorParameters<typeof FunctionTool>[0];
 export interface ProviderToolFactory {
   createOpenAITool<T extends z.ZodObject<z.ZodRawShape>>(
     definition: ToolDefinition<T>,
-    execute: (args: z.infer<T>) => Promise<string>,
+    execute: (args: z.infer<T>) => Promise<string | ToolResult>,
     onCanUseTool?: OnCanUseTool,
     overrides?: { name?: string; description?: string }
   ): ReturnType<typeof tool>;
@@ -29,7 +30,10 @@ export interface ProviderToolFactory {
 
   createGeminiTool<T extends z.ZodObject<z.ZodRawShape>>(
     definition: ToolDefinition<T>,
-    execute: (args: z.infer<T>, context?: ToolContext) => Promise<string>,
+    execute: (
+      args: z.infer<T>,
+      context?: ToolContext
+    ) => Promise<string | ToolResult>,
     onCanUseTool?: OnCanUseTool,
     overrides?: { name?: string; description?: string }
   ): FunctionTool;
@@ -40,9 +44,9 @@ export interface ProviderToolFactory {
  */
 function withPermission<T>(
   name: string,
-  execute: (input: T) => Promise<string>,
+  execute: (input: T) => Promise<string | ToolResult>,
   onCanUseTool?: OnCanUseTool
-): (input: T) => Promise<string> {
+): (input: T) => Promise<string | ToolResult> {
   if (!onCanUseTool) {
     return execute;
   }
@@ -71,7 +75,7 @@ export const providerToolFactory: ProviderToolFactory = {
    */
   createOpenAITool<T extends z.ZodObject<z.ZodRawShape>>(
     definition: ToolDefinition<T>,
-    execute: (args: z.infer<T>) => Promise<string>,
+    execute: (args: z.infer<T>) => Promise<string | ToolResult>,
     onCanUseTool?: OnCanUseTool,
     overrides?: { name?: string; description?: string }
   ) {
@@ -88,7 +92,8 @@ export const providerToolFactory: ProviderToolFactory = {
       execute: async (args: unknown) => {
         // Use Zod to parse and potentially coerce arguments
         const parsedArgs = definition.parameters.parse(args);
-        return safeExecute(parsedArgs as z.infer<T>);
+        const result = await safeExecute(parsedArgs as z.infer<T>);
+        return typeof result === 'string' ? result : result.content;
       },
     } as unknown as OpenAIToolOptions);
   },
@@ -116,11 +121,17 @@ export const providerToolFactory: ProviderToolFactory = {
    */
   createGeminiTool<T extends z.ZodObject<z.ZodRawShape>>(
     definition: ToolDefinition<T>,
-    execute: (args: z.infer<T>, context?: ToolContext) => Promise<string>,
+    execute: (
+      args: z.infer<T>,
+      context?: ToolContext
+    ) => Promise<string | ToolResult>,
     onCanUseTool?: OnCanUseTool,
     overrides?: { name?: string; description?: string }
   ) {
-    const safeExecute = async (args: z.infer<T>, context?: ToolContext) => {
+    const safeExecute = async (
+      args: z.infer<T>,
+      context?: ToolContext
+    ): Promise<string | ToolResult> => {
       if (!onCanUseTool) {
         return execute(args, context);
       }
@@ -145,7 +156,8 @@ export const providerToolFactory: ProviderToolFactory = {
       execute: async (args: unknown, context?: ToolContext) => {
         // Use Zod to parse and potentially coerce arguments
         const parsedArgs = definition.parameters.parse(args);
-        return safeExecute(parsedArgs as z.infer<T>, context);
+        const result = await safeExecute(parsedArgs as z.infer<T>, context);
+        return result;
       },
     } as unknown as GeminiToolOptions);
   },
