@@ -42,12 +42,7 @@ vi.mock('@openai/agents-openai', () => ({
   OpenAIConversationsSession: vi.fn().mockImplementation(() => ({})),
 }));
 
-// Mock the tools
-vi.mock('../agent-tools.js', () => ({
-  getOpenAITools: vi.fn().mockReturnValue([]),
-}));
-
-// Mock global fetch for conversation API calls
+// Mockglobal fetch for conversation API calls
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 

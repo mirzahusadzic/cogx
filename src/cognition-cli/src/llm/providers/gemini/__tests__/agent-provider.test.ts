@@ -35,11 +35,6 @@ vi.mock('@google/adk', () => ({
   },
 }));
 
-// Mock the tools
-vi.mock('../adk-tools.js', () => ({
-  getCognitionTools: vi.fn().mockReturnValue([]),
-}));
-
 vi.mock('../fetch-url-tool.js', () => ({
   fetchUrlTool: {},
 }));

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getOpenAITools } from '../agent-tools.js';
+import { getUnifiedTools } from '../../../tools/unified-tools.js';
 
 // Mock tool executors
 vi.mock('../../tool-executors.js', () => ({
@@ -26,9 +26,13 @@ describe('SigmaTaskUpdate OpenAI Tool', () => {
   };
 
   it('should correctly merge top-level grounding and grounding_evidence into todos', async () => {
-    const tools = getOpenAITools(context);
+    const tools = getUnifiedTools(context, 'openai');
 
-    const sigmaTaskUpdate = tools.find((t) => t.name === 'SigmaTaskUpdate');
+    const sigmaTaskUpdate = tools.find(
+      (t) => (t as { name: string }).name === 'SigmaTaskUpdate'
+    ) as unknown as {
+      invoke: (ctx: unknown, input: string) => Promise<unknown>;
+    };
     expect(sigmaTaskUpdate).toBeDefined();
 
     const { executeSigmaTaskUpdate } = await import('../../tool-executors.js');
@@ -135,8 +139,12 @@ describe('SigmaTaskUpdate OpenAI Tool', () => {
   });
 
   it('should handle null values in todos by cleaning them', async () => {
-    const tools = getOpenAITools(context);
-    const sigmaTaskUpdate = tools.find((t) => t.name === 'SigmaTaskUpdate');
+    const tools = getUnifiedTools(context, 'openai');
+    const sigmaTaskUpdate = tools.find(
+      (t) => (t as { name: string }).name === 'SigmaTaskUpdate'
+    ) as unknown as {
+      invoke: (ctx: unknown, input: string) => Promise<unknown>;
+    };
     const { executeSigmaTaskUpdate } = await import('../../tool-executors.js');
 
     const rawInput = {

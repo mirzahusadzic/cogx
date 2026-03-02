@@ -4,31 +4,16 @@
  * Implements AgentProvider using Anthropic SDK with Minimax's Anthropic-compatible API.
  */
 
-import { getGroundingContext } from '../grounding-utils.js';
+import { AgentRequest, AgentMessage } from '../../agent-provider-interface.js';
+import { UnifiedStreamingChunk } from '../../types.js';
 import { systemLog } from '../../../utils/debug-logger.js';
-import { getActiveTaskId } from '../../../sigma/session-state.js';
-import { buildSystemPrompt } from '../system-prompt.js';
-import Anthropic from '@anthropic-ai/sdk';
-import type { ConversationOverlayRegistry } from '../../../sigma/conversation-registry.js';
-import type { BackgroundTaskManager } from '../../../tui/services/BackgroundTaskManager.js';
-import type { MessagePublisher } from '../../../ipc/MessagePublisher.js';
-import type { MessageQueue } from '../../../ipc/MessageQueue.js';
-import type {
-  AgentProvider,
-  AgentRequest,
-  AgentResponse,
-  AgentMessage,
-} from '../../agent-provider-interface.js';
-import type {
+import {
   CompletionRequest,
   CompletionResponse,
 } from '../../provider-interface.js';
-
-import {
-  getMinimaxTools,
-  executeMinimaxTool,
-  type MinimaxToolsContext,
-} from './agent-tools.js';
+import Anthropic from '@anthropic-ai/sdk';
+import { BaseAgentProvider } from '../base-agent-provider.js';
+import { ThinkingBudget } from '../thinking-utils.js';
 import {
   archiveTaskLogs,
   TASK_LOG_EVICTION_THRESHOLD,
@@ -44,13 +29,16 @@ interface ThinkingDelta {
   thinking: string;
 }
 
-type MinimaxContentBlock =
-  | Anthropic.ContentBlock
-  | ThinkingBlock
-  | Anthropic.ToolUseBlock;
 type MinimaxContentBlockDelta = Anthropic.RawContentBlockDelta | ThinkingDelta;
+type MinimaxContentBlock = Anthropic.ContentBlockParam | ThinkingBlock;
 
-export class MinimaxAgentProvider implements AgentProvider {
+/**
+ * Minimax Agent Provider Implementation
+ *
+ * Implements AgentProvider by extending BaseAgentProvider.
+ * Uses Anthropic SDK with Minimax's Anthropic-compatible API.
+ */
+export class MinimaxAgentProvider extends BaseAgentProvider {
   name = 'minimax';
   models = [
     'MiniMax-M2.5',
@@ -59,11 +47,12 @@ export class MinimaxAgentProvider implements AgentProvider {
     'MiniMax-M2.1-highspeed',
     'MiniMax-M2',
   ];
+
   private client: Anthropic;
   private defaultModel: string;
-  private abortController: AbortController | null = null;
 
   constructor(options: { apiKey?: string; model?: string } = {}) {
+    super();
     const apiKey = options.apiKey || process.env.MINIMAX_API_KEY;
     if (!apiKey) throw new Error('MINIMAX_API_KEY is required');
     this.client = new Anthropic({
@@ -78,9 +67,11 @@ export class MinimaxAgentProvider implements AgentProvider {
   supportsAgentMode(): boolean {
     return true;
   }
+
   async isAvailable(): Promise<boolean> {
     return !!process.env.MINIMAX_API_KEY;
   }
+
   estimateCost(
     tokens: {
       prompt: number;
@@ -90,7 +81,6 @@ export class MinimaxAgentProvider implements AgentProvider {
     },
     model?: string
   ): number {
-    // Validation for NaN - return 0 if invalid
     if (
       isNaN(tokens.prompt) ||
       isNaN(tokens.completion) ||
@@ -174,23 +164,263 @@ export class MinimaxAgentProvider implements AgentProvider {
     }
   }
 
-  /**
-   * Rolling prune for in-progress tasks (Minimax).
-   * Maintains a ring buffer of tool outputs in the local history array.
-   */
+  protected async *internalStream(
+    request: AgentRequest,
+    context: {
+      sessionId: string;
+      groundingContext: string;
+      thinkingBudget: ThinkingBudget;
+      systemPrompt: string;
+    }
+  ): AsyncGenerator<UnifiedStreamingChunk, void, undefined> {
+    const { sessionId, systemPrompt } = context;
+    const modelId = request.model || this.defaultModel;
+
+    // 1. Build Tools
+    const tools = this.buildTools(
+      request,
+      'minimax',
+      async (taskId: string, result_summary?: string | null) => {
+        await this.pruneTaskLogs(
+          taskId,
+          result_summary,
+          sessionId,
+          request.cwd || request.projectRoot || process.cwd()
+        );
+      }
+    ) as Anthropic.Tool[];
+
+    let turns = 0;
+    const maxTurns = 50;
+
+    while (turns < maxTurns) {
+      if (this.abortController?.signal.aborted) break;
+
+      // Map this.messages to Anthropic history
+      const history = this.mapMessagesToAnthropic(this.messages);
+
+      try {
+        const stream = await this.client.messages.stream(
+          {
+            model: modelId,
+            max_tokens: request.maxTokens || 4096,
+            temperature: Math.min(
+              Math.max(request.temperature || 1, 0.01),
+              1.0
+            ),
+            system: systemPrompt,
+            messages: history,
+            tools,
+          },
+          { signal: this.abortController?.signal }
+        );
+
+        let pt = 0;
+        let ct = 0;
+
+        for await (const ev of stream) {
+          if (this.abortController?.signal.aborted) break;
+
+          if (ev.type === 'message_start') {
+            pt = ev.message.usage.input_tokens;
+            yield {
+              type: 'usage',
+              usage: { prompt: pt, completion: 0, total: pt },
+            };
+          } else if (ev.type === 'content_block_delta') {
+            if (ev.delta.type === 'text_delta') {
+              yield {
+                type: 'text',
+                delta: ev.delta.text,
+              };
+            } else if (
+              (ev.delta as MinimaxContentBlockDelta).type === 'thinking_delta'
+            ) {
+              yield {
+                type: 'thinking',
+                thought: (ev.delta as ThinkingDelta).thinking,
+              };
+            }
+          } else if (ev.type === 'message_delta') {
+            ct = ev.usage.output_tokens;
+            yield {
+              type: 'usage',
+              usage: { prompt: pt, completion: ct, total: pt + ct },
+            };
+          }
+        }
+
+        const finalMsg = await stream.finalMessage();
+
+        const toolCalls = finalMsg.content.filter(
+          (c) => c.type === 'tool_use'
+        ) as Anthropic.ToolUseBlock[];
+
+        if (toolCalls.length > 0) {
+          for (const tc of toolCalls) {
+            yield {
+              type: 'tool_call',
+              toolCall: {
+                name: tc.name,
+                args: tc.input as Record<string, unknown>,
+              },
+            };
+
+            // Execute tool
+            const result = await this.executeTool(
+              tc.name,
+              tc.input as Record<string, unknown>,
+              tools
+            );
+
+            yield {
+              type: 'tool_response',
+              toolResponse: {
+                name: tc.name,
+                response: result,
+              },
+            };
+
+            // rolling prune after tool execution
+            const taskId = this.getSigmaTaskId(tc.input);
+            if (taskId) {
+              await this.rollingPruneTaskLogs(
+                taskId,
+                sessionId,
+                request.cwd || request.projectRoot || process.cwd()
+              );
+            }
+          }
+          turns++;
+        } else {
+          // No more tools, we're done
+          break;
+        }
+      } catch (err) {
+        if (this.abortController?.signal.aborted) break;
+        throw err;
+      }
+    }
+  }
+
+  private mapMessagesToAnthropic(
+    messages: AgentMessage[]
+  ): Anthropic.MessageParam[] {
+    const history: Anthropic.MessageParam[] = [];
+
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+
+      if (msg.type === 'user') {
+        history.push({ role: 'user', content: msg.content as string });
+      } else if (msg.type === 'assistant' || msg.type === 'thinking') {
+        // Find existing assistant message to append to, or start a new one
+        let last = history[history.length - 1];
+        if (!last || last.role !== 'assistant') {
+          last = { role: 'assistant', content: [] };
+          history.push(last);
+        }
+
+        const content = last.content as MinimaxContentBlock[];
+        const lastBlock = content[content.length - 1];
+
+        if (msg.type === 'thinking') {
+          if (lastBlock && lastBlock.type === 'thinking') {
+            lastBlock.thinking += msg.content;
+          } else {
+            content.push({
+              type: 'thinking',
+              thinking: msg.content as string,
+            } as ThinkingBlock);
+          }
+        } else {
+          if (lastBlock && lastBlock.type === 'text') {
+            lastBlock.text += msg.content;
+          } else {
+            content.push({ type: 'text', text: msg.content as string });
+          }
+        }
+      } else if (msg.type === 'tool_use') {
+        let last = history[history.length - 1];
+        if (!last || last.role !== 'assistant') {
+          last = { role: 'assistant', content: [] };
+          history.push(last);
+        }
+        const content = last.content as Anthropic.ToolUseBlock[];
+        content.push({
+          type: 'tool_use',
+          id: msg.id,
+          name: msg.toolName!,
+          input: msg.toolInput as Record<string, unknown>,
+        });
+      } else if (msg.type === 'tool_result') {
+        history.push({
+          role: 'user',
+          content: [
+            {
+              type: 'tool_result',
+              tool_use_id: msg.id.startsWith('r-')
+                ? msg.id.substring(2)
+                : msg.id,
+              content: msg.content as string,
+            },
+          ],
+        });
+      }
+    }
+
+    // Filter out empty assistant messages
+    return history.filter((h) => {
+      if (h.role === 'assistant' && Array.isArray(h.content)) {
+        return h.content.length > 0;
+      }
+      return true;
+    });
+  }
+
+  private async executeTool(
+    toolName: string,
+    args: Record<string, unknown>,
+    tools: Anthropic.Tool[]
+  ): Promise<string> {
+    const tool = tools.find((t) => t.name === toolName) as unknown as {
+      execute?: (args: Record<string, unknown>) => Promise<string>;
+    };
+    if (!tool || !tool.execute) {
+      return `Tool ${toolName} not found or not executable.`;
+    }
+
+    try {
+      return await tool.execute(args);
+    } catch (error) {
+      return `Error executing tool ${toolName}: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  }
+
+  private getSigmaTaskId(input: unknown): string | null {
+    if (typeof input === 'object' && input !== null) {
+      const inp = input as { todos?: Array<{ id: string }> };
+      if (inp.todos && Array.isArray(inp.todos) && inp.todos.length > 0) {
+        return inp.todos[0].id;
+      }
+    }
+    return null;
+  }
+
   private async rollingPruneTaskLogs(
     taskId: string,
     sessionId: string,
     projectRoot: string,
-    history: Anthropic.MessageParam[],
     threshold: number = TASK_LOG_EVICTION_THRESHOLD
   ) {
+    // Note: Rolling prune for Minimax now works by modifying this.messages directly
+    // since BaseAgentProvider manages history in memory.
     try {
       const tag = `<!-- sigma-task: ${taskId} -->`;
       const taggedIndices: number[] = [];
 
-      for (let i = 0; i < history.length; i++) {
-        const msg = history[i];
+      for (let i = 0; i < this.messages.length; i++) {
+        const msg = this.messages[i];
         const contentStr =
           typeof msg.content === 'string'
             ? msg.content
@@ -207,34 +437,15 @@ export class MinimaxAgentProvider implements AgentProvider {
       const evictedLogs: string[] = [];
 
       for (const idx of indicesToPrune) {
-        const msg = history[idx];
+        const msg = this.messages[idx];
         evictedLogs.push(JSON.stringify(msg, null, 2));
 
         const toolTombstone = `[Tool output for task ${taskId} evicted (Rolling Prune) to keep context small. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`;
 
         if (typeof msg.content === 'string') {
-          history[idx] = { ...msg, content: toolTombstone };
-        } else if (Array.isArray(msg.content)) {
-          const newContent = msg.content.map((part) => {
-            if (part.type === 'text' && part.text.includes(tag)) {
-              return { ...part, text: toolTombstone };
-            }
-            if (part.type === 'tool_result') {
-              const result =
-                typeof part.content === 'string'
-                  ? part.content
-                  : JSON.stringify(part.content);
-              if (result.includes(tag)) {
-                return { ...part, content: toolTombstone };
-              }
-            }
-            return part;
-          });
-          history[idx] = {
-            ...msg,
-            content: newContent as Anthropic.MessageParam['content'],
-          };
+          this.messages[idx] = { ...msg, content: toolTombstone };
         }
+        // Minimax doesn't currently use complex content blocks for tool results in AgentMessage
       }
 
       await archiveTaskLogs({
@@ -258,145 +469,70 @@ export class MinimaxAgentProvider implements AgentProvider {
     }
   }
 
-  /**
-   * Prune tool logs for a completed task and archive them.
-   */
   private async pruneTaskLogs(
     taskId: string,
     result_summary: string | null | undefined,
     sessionId: string,
-    projectRoot: string,
-    history: Anthropic.MessageParam[]
+    projectRoot: string
   ) {
     try {
       const tag = `<!-- sigma-task: ${taskId} -->`;
       const evictedLogs: string[] = [];
       let evictedCount = 0;
 
-      // Pass 0: Identify task range (from 'in_progress' to 'completed')
+      // Pass 0: Identify task range
       let startIndex = -1;
-      for (let i = 0; i < history.length; i++) {
-        const msg = history[i];
-        if (msg.role === 'assistant' && Array.isArray(msg.content)) {
-          const hasInProgress = msg.content.some((part) => {
-            if (part.type === 'tool_use' && part.name === 'SigmaTaskUpdate') {
-              const input = part.input as {
-                todos?: Array<{ id: string; status: string }>;
-              };
-              return input.todos?.some(
-                (t) => t.id === taskId && t.status === 'in_progress'
-              );
-            }
-            return false;
-          });
-          if (hasInProgress) {
+      for (let i = 0; i < this.messages.length; i++) {
+        const msg = this.messages[i];
+        if (msg.type === 'tool_use' && msg.toolName === 'SigmaTaskUpdate') {
+          const input = msg.toolInput as {
+            todos?: Array<{ id: string; status: string }>;
+          };
+          if (
+            input.todos?.some(
+              (t) => t.id === taskId && t.status === 'in_progress'
+            )
+          ) {
             startIndex = i;
-            // Don't break; we want the *latest* in_progress for this task (if it was paused/resumed)
           }
-        }
-      }
-
-      // Pass 1: Find last evicted index to inject summary
-      let lastEvictedIndex = -1;
-      for (let i = 0; i < history.length; i++) {
-        const message = history[i];
-        if (typeof message.content === 'string') {
-          if (message.content.includes(tag)) lastEvictedIndex = i;
-        } else if (Array.isArray(message.content)) {
-          const hasTag = message.content.some((part) => {
-            if (part.type === 'text' && part.text.includes(tag)) return true;
-            if (part.type === 'tool_result') {
-              const result =
-                typeof part.content === 'string'
-                  ? part.content
-                  : JSON.stringify(part.content);
-              return result.includes(tag);
-            }
-            return false;
-          });
-          if (hasTag) lastEvictedIndex = i;
         }
       }
 
       const isTurnInRange = (index: number) => {
         if (startIndex === -1 || index <= startIndex) return false;
-        const msg = history[index];
-        // Don't evict user turns
+        const msg = this.messages[index];
         if (msg.role === 'user') return false;
-        // Don't evict the turn that marks it completed
-        if (msg.role === 'assistant' && Array.isArray(msg.content)) {
-          const hasTaskCompleted = msg.content.some((part) => {
-            if (part.type === 'tool_use' && part.name === 'SigmaTaskUpdate') {
-              const input = part.input as {
-                todos?: Array<{ id: string; status: string }>;
-              };
-              return input.todos?.some(
-                (t) => t.id === taskId && t.status === 'completed'
-              );
-            }
+        if (msg.type === 'tool_use' && msg.toolName === 'SigmaTaskUpdate') {
+          const input = msg.toolInput as {
+            todos?: Array<{ id: string; status: string }>;
+          };
+          if (
+            input.todos?.some(
+              (t) => t.id === taskId && t.status === 'completed'
+            )
+          ) {
             return false;
-          });
-          if (hasTaskCompleted) return false;
+          }
         }
         return true;
       };
 
-      for (let i = 0; i < history.length; i++) {
-        const message = history[i];
-        const shouldInjectSummary = i === lastEvictedIndex && result_summary;
+      for (let i = 0; i < this.messages.length; i++) {
+        const msg = this.messages[i];
+        const contentStr =
+          typeof msg.content === 'string'
+            ? msg.content
+            : JSON.stringify(msg.content);
 
-        if (typeof message.content === 'string') {
-          if (message.content.includes(tag) || isTurnInRange(i)) {
-            evictedLogs.push(JSON.stringify(message, null, 2));
-            history[i] = {
-              ...message,
-              content: shouldInjectSummary
-                ? `[Task ${taskId} completed. Raw logs evicted to archive. \nSUMMARY: ${result_summary}]`
-                : `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`,
-            };
-            evictedCount++;
-          }
-        } else if (Array.isArray(message.content)) {
-          let hasTag = false;
-          const newContent = message.content.map((part) => {
-            if (
-              part.type === 'text' &&
-              (part.text.includes(tag) || isTurnInRange(i))
-            ) {
-              hasTag = true;
-              return {
-                ...part,
-                text: shouldInjectSummary
-                  ? `[Task ${taskId} completed. Raw logs evicted to archive. \nSUMMARY: ${result_summary}]`
-                  : `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`,
-              };
-            }
-            if (part.type === 'tool_result') {
-              const result =
-                typeof part.content === 'string'
-                  ? part.content
-                  : JSON.stringify(part.content);
-              if (result.includes(tag) || isTurnInRange(i)) {
-                hasTag = true;
-                return {
-                  ...part,
-                  content: shouldInjectSummary
-                    ? `[Task ${taskId} completed. Raw logs evicted to archive. \nSUMMARY: ${result_summary}]`
-                    : `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`,
-                };
-              }
-            }
-            return part;
-          });
-
-          if (hasTag || isTurnInRange(i)) {
-            evictedLogs.push(JSON.stringify(message, null, 2));
-            history[i] = {
-              ...message,
-              content: newContent as Anthropic.MessageParam['content'],
-            };
-            evictedCount++;
-          }
+        if (contentStr.includes(tag) || isTurnInRange(i)) {
+          evictedLogs.push(JSON.stringify(msg, null, 2));
+          this.messages[i] = {
+            ...msg,
+            content: result_summary
+              ? `[Task ${taskId} completed. Raw logs evicted to archive. \nSUMMARY: ${result_summary}]`
+              : `[Task ${taskId} completed: output evicted to archive. Use 'grep' on .sigma/archives/${sessionId}/${taskId}.log if previous logs are needed.]`,
+          };
+          evictedCount++;
         }
       }
 
@@ -411,14 +547,7 @@ export class MinimaxAgentProvider implements AgentProvider {
 
         systemLog(
           'sigma',
-          `Surgically evicted ${evictedCount} log messages for task ${taskId} (Minimax). ${process.env.DEBUG_ARCHIVE ? 'Archived to disk.' : ''}`
-        );
-      } else {
-        systemLog(
-          'sigma',
-          `No logs found for eviction for task ${taskId} (Minimax). (history=${history.length}, lastEvictedIndex=${lastEvictedIndex})`,
-          { taskId, sessionId, lastEvictedIndex },
-          'warn'
+          `Surgically evicted ${evictedCount} log messages for task ${taskId} (Minimax).`
         );
       }
     } catch (err) {
@@ -428,303 +557,6 @@ export class MinimaxAgentProvider implements AgentProvider {
         { error: err instanceof Error ? err.message : String(err) },
         'error'
       );
-    }
-  }
-
-  async *executeAgent(
-    req: AgentRequest
-  ): AsyncGenerator<AgentResponse, void, undefined> {
-    const modelId = req.model || this.defaultModel;
-    systemLog(
-      'minimax',
-      'Execute',
-      { model: modelId, prompt: req.prompt.length },
-      'debug'
-    );
-
-    this.abortController = new AbortController();
-    const abortSignal = this.abortController.signal;
-
-    const messages: AgentMessage[] = [];
-    const history: Anthropic.MessageParam[] = [];
-    const sessionId = req.resumeSessionId || `mm-${Date.now()}`;
-    let pt = 0,
-      ct = 0;
-    let turns = 0;
-    const maxTurns = 50;
-
-    const userMsg: AgentMessage = {
-      id: `u-${Date.now()}`,
-      type: 'user',
-      role: 'user',
-      content: req.prompt,
-      timestamp: new Date(),
-    };
-    messages.push(userMsg);
-    history.push({ role: 'user', content: req.prompt });
-    yield {
-      messages: [...messages],
-      sessionId,
-      tokens: { prompt: 0, completion: 0, total: 0 },
-      numTurns: 0,
-      activeModel: modelId,
-    };
-
-    const ctx: MinimaxToolsContext = {
-      cwd: req.cwd,
-      conversationRegistry: req.conversationRegistry as
-        | ConversationOverlayRegistry
-        | undefined,
-      workbenchUrl: req.workbenchUrl,
-      onCanUseTool: req.onCanUseTool,
-      getTaskManager: req.getTaskManager as
-        | (() => BackgroundTaskManager | null)
-        | undefined,
-      getMessagePublisher: req.getMessagePublisher as
-        | (() => MessagePublisher | null)
-        | undefined,
-      getMessageQueue: req.getMessageQueue as
-        | (() => MessageQueue | null)
-        | undefined,
-      projectRoot: req.projectRoot,
-      agentId: req.agentId,
-      anchorId: req.anchorId,
-      onToolOutput: req.onToolOutput,
-      onTaskCompleted: async (
-        taskId: string,
-        result_summary?: string | null
-      ) => {
-        await this.pruneTaskLogs(
-          taskId,
-          result_summary,
-          sessionId,
-          req.cwd || req.projectRoot || process.cwd(),
-          history
-        );
-      },
-      getActiveTaskId: () =>
-        req.anchorId
-          ? getActiveTaskId(
-              req.anchorId,
-              req.cwd || req.projectRoot || process.cwd()
-            )
-          : null,
-      mode: req.mode,
-      currentPromptTokens: pt,
-    };
-    const tools = getMinimaxTools(ctx);
-    const groundingContext = await getGroundingContext(req);
-    const system =
-      buildSystemPrompt(req, req.model || this.defaultModel, 'Minimax Agent') +
-      (groundingContext
-        ? `\n\n## Automated Grounding Context\n${groundingContext}`
-        : '');
-
-    while (turns++ < maxTurns) {
-      if (abortSignal.aborted) break;
-
-      try {
-        const stream = await this.client.messages.stream(
-          {
-            model: modelId,
-            max_tokens: req.maxTokens || 4096,
-            temperature: Math.min(Math.max(req.temperature || 1, 0.01), 1.0),
-            system,
-            messages: history,
-            tools:
-              tools as unknown as Anthropic.MessageCreateParamsNonStreaming['tools'],
-          },
-          { signal: abortSignal }
-        );
-
-        const currentAssistantContent: Anthropic.ContentBlockParam[] = [];
-
-        for await (const ev of stream) {
-          if (abortSignal.aborted) break;
-
-          if (ev.type === 'message_start') {
-            pt = ev.message.usage.input_tokens;
-          } else if (ev.type === 'content_block_start') {
-            const index = ev.index;
-            if (ev.content_block.type === 'text') {
-              currentAssistantContent[index] = { type: 'text', text: '' };
-            } else if (
-              (ev.content_block as MinimaxContentBlock).type === 'thinking'
-            ) {
-              currentAssistantContent[index] = {
-                type: 'thinking',
-                thinking: '',
-              } as ThinkingBlock as Anthropic.ContentBlockParam;
-            } else if (ev.content_block.type === 'tool_use') {
-              currentAssistantContent[index] = {
-                type: 'tool_use',
-                id: ev.content_block.id,
-                name: ev.content_block.name,
-                input: {},
-              };
-              messages.push({
-                id: ev.content_block.id,
-                type: 'tool_use',
-                role: 'assistant',
-                content: '',
-                timestamp: new Date(),
-                toolName: ev.content_block.name,
-                toolInput: {},
-              });
-              yield {
-                messages: [...messages],
-                sessionId: req.resumeSessionId || `mm-${Date.now()}`,
-                tokens: { prompt: pt, completion: ct, total: pt + ct },
-                finishReason: 'tool_use',
-                numTurns: turns,
-                activeModel: modelId,
-              };
-            }
-          } else if (ev.type === 'content_block_delta') {
-            const index = ev.index;
-            if (ev.delta.type === 'text_delta') {
-              (
-                currentAssistantContent[index] as Anthropic.TextBlockParam
-              ).text += ev.delta.text;
-              messages.push({
-                id: `a-${Date.now()}-delta`,
-                type: 'assistant',
-                role: 'assistant',
-                content: ev.delta.text,
-                timestamp: new Date(),
-              });
-              yield {
-                messages: [...messages],
-                sessionId: req.resumeSessionId || `mm-${Date.now()}`,
-                tokens: { prompt: pt, completion: ct, total: pt + ct },
-                numTurns: turns,
-                activeModel: modelId,
-              };
-            } else if (
-              (ev.delta as MinimaxContentBlockDelta).type === 'thinking_delta'
-            ) {
-              const thinking = (ev.delta as ThinkingDelta).thinking;
-              (currentAssistantContent[index] as ThinkingBlock).thinking +=
-                thinking;
-              messages.push({
-                id: `t-${Date.now()}-delta`,
-                type: 'thinking',
-                role: 'assistant',
-                content: thinking,
-                thinking: thinking,
-                timestamp: new Date(),
-              });
-              yield {
-                messages: [...messages],
-                sessionId: req.resumeSessionId || `mm-${Date.now()}`,
-                tokens: { prompt: pt, completion: ct, total: pt + ct },
-                numTurns: turns,
-                activeModel: modelId,
-              };
-            } else if (ev.delta.type === 'input_json_delta') {
-              const block = currentAssistantContent[index];
-              if (block.type === 'tool_use') {
-                const b = block as Anthropic.ToolUseBlockParam & {
-                  input_accumulator?: string;
-                };
-                b.input_accumulator =
-                  (b.input_accumulator || '') + ev.delta.partial_json;
-              }
-            }
-          } else if (ev.type === 'message_delta') {
-            ct += ev.usage.output_tokens;
-          }
-        }
-
-        await stream.finalMessage();
-
-        // Use manually accumulated content to preserve 'thinking' blocks
-        // which might be stripped by the SDK's finalMessage()
-        history.push({
-          role: 'assistant',
-          content: currentAssistantContent.filter((block) => {
-            if (block.type === 'text' && !block.text) return false;
-            return true;
-          }),
-        });
-
-        const toolCalls = currentAssistantContent.filter(
-          (b) => b.type === 'tool_use'
-        ) as Anthropic.ToolUseBlock[];
-
-        if (toolCalls.length > 0) {
-          for (const blk of toolCalls) {
-            const toolMsg = messages.find((m) => m.id === blk.id);
-            if (toolMsg) toolMsg.toolInput = blk.input;
-
-            const result = await executeMinimaxTool(blk.name, blk.input, ctx);
-            messages.push({
-              id: `r-${blk.id}`,
-              type: 'tool_result',
-              role: 'user',
-              content: result,
-              timestamp: new Date(),
-              toolName: blk.name,
-            });
-            history.push({
-              role: 'user',
-              content: [
-                {
-                  type: 'tool_result' as const,
-                  tool_use_id: blk.id,
-                  content: result,
-                },
-              ],
-            });
-            yield {
-              messages: [...messages],
-              sessionId: req.resumeSessionId || `mm-${Date.now()}`,
-              tokens: { prompt: pt, completion: ct, total: pt + ct },
-              finishReason: 'tool_use',
-              numTurns: turns,
-              activeModel: modelId,
-              toolResult: { name: blk.name, response: result },
-            };
-          }
-        } else {
-          break;
-        }
-      } catch (e) {
-        if (abortSignal.aborted) break;
-        const em = e instanceof Error ? e.message : String(e);
-        systemLog('minimax', 'Error', { error: em }, 'error');
-        messages.push({
-          id: `e-${Date.now()}`,
-          type: 'assistant',
-          role: 'assistant',
-          content: `Error: ${em}`,
-          timestamp: new Date(),
-        });
-        yield {
-          messages: [...messages],
-          sessionId: req.resumeSessionId || `mm-${Date.now()}`,
-          tokens: { prompt: pt, completion: ct, total: pt + ct },
-          finishReason: 'error',
-          numTurns: turns,
-          activeModel: modelId,
-        };
-        return;
-      }
-    }
-
-    yield {
-      messages: [...messages],
-      sessionId: req.resumeSessionId || `mm-${Date.now()}`,
-      tokens: { prompt: pt, completion: ct, total: pt + ct },
-      finishReason: 'stop',
-      numTurns: turns,
-      activeModel: modelId,
-    };
-  }
-
-  async interrupt(): Promise<void> {
-    if (this.abortController) {
-      this.abortController.abort();
     }
   }
 }

@@ -14,20 +14,20 @@ Consolidate redundant logic from `GeminiAgentProvider`, `OpenAIAgentProvider`, a
 
 To maintain high context fidelity and prevent token limit issues, the refactor is broken into 12 atomic tasks. Each "Complex" task is further subdivided into setup/implementation/verification phases.
 
-| Task ID | Component | Complexity | Description |
-| :--- | :--- | :--- | :--- |
-| **L-01** | `BaseLLMProvider` | Low | Define abstract class with basic state (usage, messages). |
-| **L-02** | Noise Suppression | Low | Extract `suppressNoise` / `restoreNoise` to base class/utility. |
-| **L-03** | Interface Sync | Med | Define `UnifiedStreamingChunk` interface in `src/llm/types.ts`. |
-| **L-04** | Context Helpers | Low | Move `getGroundingContext` and `getDynamicThinkingBudget` to base. |
-| **L-05** | Gemini: Adapter | High | Refactor `GeminiAgentProvider` to extend base. Implement `internalStream`. |
-| **L-06** | Gemini: Verify | Med | Run `npm test` and verify Gemini TUI streaming/thinking. |
-| **L-07** | OpenAI: Adapter | High | Refactor `OpenAIAgentProvider` to extend base. Normalize generators. |
-| **L-08** | OpenAI: Verify | Med | Run `npm test` and verify OpenAI TUI tool calls. |
-| **L-09** | Claude: Adapter | Med | Refactor `ClaudeProvider` to extend base. |
-| **L-10** | Claude: Verify | Low | Run `npm test` for Claude. |
-| **L-11** | Tool Mapping | Med | Centralize Sigma-to-Provider tool translation utilities. |
-| **L-12** | Cleanup | Low | Remove redundant code from individual provider files. Build check. |
+| Task ID  | Component         | Complexity | Description                                                                |
+| :------- | :---------------- | :--------- | :------------------------------------------------------------------------- |
+| **L-01** | `BaseLLMProvider` | Low        | Define abstract class with basic state (usage, messages).                  |
+| **L-02** | Noise Suppression | Low        | Extract `suppressNoise` / `restoreNoise` to base class/utility.            |
+| **L-03** | Interface Sync    | Med        | Define `UnifiedStreamingChunk` interface in `src/llm/types.ts`.            |
+| **L-04** | Context Helpers   | Low        | Move `getGroundingContext` and `getDynamicThinkingBudget` to base.         |
+| **L-05** | Gemini: Adapter   | High       | Refactor `GeminiAgentProvider` to extend base. Implement `internalStream`. |
+| **L-06** | Gemini: Verify    | Med        | Run `npm test` and verify Gemini TUI streaming/thinking.                   |
+| **L-07** | OpenAI: Adapter   | High       | Refactor `OpenAIAgentProvider` to extend base. Normalize generators.       |
+| **L-08** | OpenAI: Verify    | Med        | Run `npm test` and verify OpenAI TUI tool calls.                           |
+| **L-09** | Claude: Adapter   | Med        | Refactor `ClaudeProvider` to extend base.                                  |
+| **L-10** | Claude: Verify    | Low        | Run `npm test` for Claude.                                                 |
+| **L-11** | Tool Mapping      | Med        | Centralize Sigma-to-Provider tool translation utilities.                   |
+| **L-12** | Cleanup           | Low        | Remove redundant code from individual provider files. Build check.         |
 
 ## 4. Implementation Details
 

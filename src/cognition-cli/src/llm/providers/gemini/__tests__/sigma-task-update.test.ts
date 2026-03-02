@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getCognitionTools } from '../adk-tools.js';
+import { getUnifiedTools } from '../../../tools/unified-tools.js';
 
 // Mock tool executors
 vi.mock('../../tool-executors.js', () => ({
@@ -17,20 +17,25 @@ describe('SigmaTaskUpdate Gemini Tool', () => {
     vi.clearAllMocks();
   });
 
-  it('should clean null values from todos before execution', async () => {
-    const tools = getCognitionTools(
-      undefined, // conversationRegistry
-      'http://localhost:3000', // workbenchUrl
-      undefined, // onCanUseTool
-      undefined, // getTaskManager
-      undefined, // getMessagePublisher
-      undefined, // getMessageQueue
-      process.cwd(), // projectRoot
-      'agent-1', // currentAgentId
-      { provider: 'gemini', anchorId: 'session-1' }
-    );
+  const context = {
+    cwd: process.cwd(),
+    projectRoot: process.cwd(),
+    agentId: 'agent-1',
+    anchorId: 'session-1',
+    workbenchUrl: 'http://localhost:3000',
+  };
 
-    const sigmaTaskUpdate = tools.find((t) => t.name === 'SigmaTaskUpdate');
+  it('should clean null values from todos before execution', async () => {
+    const tools = getUnifiedTools(context, 'gemini');
+
+    const sigmaTaskUpdate = tools.find(
+      (t) => (t as { name: string }).name === 'SigmaTaskUpdate'
+    ) as unknown as {
+      runAsync: (opts: {
+        args: Record<string, unknown>;
+        toolContext: unknown;
+      }) => Promise<void>;
+    };
     expect(sigmaTaskUpdate).toBeDefined();
 
     const { executeSigmaTaskUpdate } = await import('../../tool-executors.js');
@@ -48,7 +53,7 @@ describe('SigmaTaskUpdate Gemini Tool', () => {
       ],
     };
 
-    await sigmaTaskUpdate!.runAsync({
+    await sigmaTaskUpdate.runAsync({
       args: rawInput as Record<string, unknown>,
       toolContext: {},
     });
@@ -68,19 +73,16 @@ describe('SigmaTaskUpdate Gemini Tool', () => {
   });
 
   it('should handle top-level null grounding by not adding grounding property if no match found', async () => {
-    const tools = getCognitionTools(
-      undefined,
-      'http://localhost:3000',
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      process.cwd(),
-      'agent-1',
-      { provider: 'gemini', anchorId: 'session-1' }
-    );
+    const tools = getUnifiedTools(context, 'gemini');
 
-    const sigmaTaskUpdate = tools.find((t) => t.name === 'SigmaTaskUpdate');
+    const sigmaTaskUpdate = tools.find(
+      (t) => (t as { name: string }).name === 'SigmaTaskUpdate'
+    ) as unknown as {
+      runAsync: (opts: {
+        args: Record<string, unknown>;
+        toolContext: unknown;
+      }) => Promise<void>;
+    };
     const { executeSigmaTaskUpdate } = await import('../../tool-executors.js');
 
     const rawInput = {
@@ -103,7 +105,7 @@ describe('SigmaTaskUpdate Gemini Tool', () => {
       ],
     };
 
-    await sigmaTaskUpdate!.runAsync({
+    await sigmaTaskUpdate.runAsync({
       args: rawInput as Record<string, unknown>,
       toolContext: {},
     });
@@ -125,19 +127,16 @@ describe('SigmaTaskUpdate Gemini Tool', () => {
   });
 
   it('should correctly merge top-level grounding and grounding_evidence into todos', async () => {
-    const tools = getCognitionTools(
-      undefined,
-      'http://localhost:3000',
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      process.cwd(),
-      'agent-1',
-      { provider: 'gemini', anchorId: 'session-1' }
-    );
+    const tools = getUnifiedTools(context, 'gemini');
 
-    const sigmaTaskUpdate = tools.find((t) => t.name === 'SigmaTaskUpdate');
+    const sigmaTaskUpdate = tools.find(
+      (t) => (t as { name: string }).name === 'SigmaTaskUpdate'
+    ) as unknown as {
+      runAsync: (opts: {
+        args: Record<string, unknown>;
+        toolContext: unknown;
+      }) => Promise<void>;
+    };
     const { executeSigmaTaskUpdate } = await import('../../tool-executors.js');
 
     const rawInput = {
@@ -183,7 +182,7 @@ describe('SigmaTaskUpdate Gemini Tool', () => {
       ],
     };
 
-    await sigmaTaskUpdate!.runAsync({
+    await sigmaTaskUpdate.runAsync({
       args: rawInput as Record<string, unknown>,
       toolContext: {},
     });
@@ -229,19 +228,16 @@ describe('SigmaTaskUpdate Gemini Tool', () => {
   });
 
   it('should allow partial updates (omitting content/activeForm) without adding undefined', async () => {
-    const tools = getCognitionTools(
-      undefined,
-      'http://localhost:3000',
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      process.cwd(),
-      'agent-1',
-      { provider: 'gemini', anchorId: 'session-1' }
-    );
+    const tools = getUnifiedTools(context, 'gemini');
 
-    const sigmaTaskUpdate = tools.find((t) => t.name === 'SigmaTaskUpdate');
+    const sigmaTaskUpdate = tools.find(
+      (t) => (t as { name: string }).name === 'SigmaTaskUpdate'
+    ) as unknown as {
+      runAsync: (opts: {
+        args: Record<string, unknown>;
+        toolContext: unknown;
+      }) => Promise<void>;
+    };
     const { executeSigmaTaskUpdate } = await import('../../tool-executors.js');
 
     const rawInput = {
@@ -254,7 +250,7 @@ describe('SigmaTaskUpdate Gemini Tool', () => {
       ],
     };
 
-    await sigmaTaskUpdate!.runAsync({
+    await sigmaTaskUpdate.runAsync({
       args: rawInput as Record<string, unknown>,
       toolContext: {},
     });

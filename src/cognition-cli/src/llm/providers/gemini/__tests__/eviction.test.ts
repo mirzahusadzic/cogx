@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GeminiAgentProvider } from '../agent-provider.js';
-import { getCognitionTools } from '../adk-tools.js';
+import { getUnifiedTools } from '../../../tools/unified-tools.js';
 import { buildSystemPrompt } from '../../system-prompt.js';
 import { AgentRequest } from '../../../agent-provider-interface.js';
 
@@ -516,10 +516,10 @@ describe('Gemini Eviction Strategy', () => {
 
   describe('SigmaTaskUpdate Validation Gate', () => {
     it('should throw error when task completed without summary', async () => {
-      const tools = getCognitionTools();
+      const tools = getUnifiedTools({ cwd: process.cwd() }, 'gemini');
       const sigmaTool = tools.find(
-        (t: { name: string }) => t.name === 'SigmaTaskUpdate'
-      );
+        (t) => (t as { name: string }).name === 'SigmaTaskUpdate'
+      ) as unknown as { execute: (input: unknown) => Promise<void> };
       const input = {
         todos: [
           {
@@ -536,20 +536,17 @@ describe('Gemini Eviction Strategy', () => {
 
     it('should call onTaskCompleted when task is marked completed', async () => {
       const onTaskCompleted = vi.fn().mockResolvedValue(undefined);
-      const tools = getCognitionTools(
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        { onTaskCompleted, anchorId: 'test', provider: 'gemini' }
+      const tools = getUnifiedTools(
+        {
+          cwd: process.cwd(),
+          onTaskCompleted,
+          anchorId: 'test',
+        },
+        'gemini'
       );
       const sigmaTool = tools.find(
-        (t: { name: string }) => t.name === 'SigmaTaskUpdate'
-      );
+        (t) => (t as { name: string }).name === 'SigmaTaskUpdate'
+      ) as unknown as { execute: (input: unknown) => Promise<void> };
       const resultSummary =
         'This is a long enough summary for the task completion.';
       if (!sigmaTool) throw new Error('SigmaTaskUpdate tool not found');

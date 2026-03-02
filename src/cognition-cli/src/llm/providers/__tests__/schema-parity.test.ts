@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { sigmaTaskUpdateTool } from '../../tools/definitions.js';
-import { getCognitionTools as getGeminiTools } from '../gemini/adk-tools.js';
-import { getOpenAITools } from '../openai/agent-tools.js';
-import { getMinimaxTools } from '../minimax/agent-tools.js';
+import { getUnifiedTools } from '../../tools/unified-tools.js';
 
 /**
  * This test ensures that tool schemas (parameters) remain synchronized across providers.
@@ -18,36 +16,39 @@ describe('Provider Tool Parity', () => {
     expect(statusEnum).toContain('completed');
     expect(statusEnum).toContain('delegated');
 
-    const geminiTools = getGeminiTools(
-      undefined,
-      '',
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      process.cwd(),
-      'agent-1',
-      { provider: 'gemini', anchorId: 'session-1' }
+    const geminiTools = getUnifiedTools(
+      {
+        cwd: process.cwd(),
+        agentId: 'agent-1',
+        anchorId: 'session-1',
+      },
+      'gemini'
     );
 
     const geminiTaskUpdate = geminiTools.find(
-      (t) => t.name === 'SigmaTaskUpdate'
+      (t) => (t as { name: string }).name === 'SigmaTaskUpdate'
     );
 
-    const openaiTools = getOpenAITools({
-      cwd: process.cwd(),
-      anchorId: 'session-1',
-    });
+    const openaiTools = getUnifiedTools(
+      {
+        cwd: process.cwd(),
+        anchorId: 'session-1',
+      },
+      'openai'
+    );
     const openaiTaskUpdate = openaiTools.find(
-      (t) => t.name === 'SigmaTaskUpdate'
+      (t) => (t as { name: string }).name === 'SigmaTaskUpdate'
     );
 
-    const minimaxTools = getMinimaxTools({
-      cwd: process.cwd(),
-      agentId: 'agent-1',
-    } as never);
+    const minimaxTools = getUnifiedTools(
+      {
+        cwd: process.cwd(),
+        agentId: 'agent-1',
+      },
+      'minimax'
+    );
     const minimaxTaskUpdate = minimaxTools.find(
-      (t) => t.name === 'SigmaTaskUpdate'
+      (t) => (t as { name: string }).name === 'SigmaTaskUpdate'
     );
 
     expect(geminiTaskUpdate).toBeDefined();
