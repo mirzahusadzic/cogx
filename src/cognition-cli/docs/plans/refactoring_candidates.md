@@ -74,3 +74,87 @@ This document identifies code patterns in the Cognition Σ repository that share
 ---
 
 _Analysis generated on 2026-02-28 using Cognition Σ Pattern Similarity Engine._
+
+---
+
+## Phase 2: Structural Pattern Discovery (March 2, 2026)
+
+Analyzing structural patterns for additional refactoring opportunities using `cognition-cli patterns`...
+
+🔍 **Refactoring Candidates Found:**
+
+1. **Conversation Overlay Managers** (0.86 - 0.90 similarity) [COMPLETED]:
+   - `ConversationOperationalManager` (src/sigma/overlays/conversation-operational/manager.ts) - DELETED
+   - `ConversationMissionManager` (src/sigma/overlays/conversation-mission/manager.ts) - DELETED
+   - `ConversationLineageManager` (src/sigma/overlays/conversation-lineage/manager.ts) - DELETED
+   - `ConversationSecurityManager` (src/sigma/overlays/conversation-security/manager.ts) - DELETED
+   - `ConversationStructuralManager` (src/sigma/overlays/conversation-structural/manager.ts) - DELETED
+   - `ConversationCoherenceManager` (src/sigma/overlays/conversation-coherence/manager.ts) - DELETED
+   - `ConversationMathematicalManager` (src/sigma/overlays/conversation-mathematical/manager.ts) - DELETED
+
+   Shared Patterns:
+   - All extend `BaseConversationManager`.
+   - All implement identical `getOverlayId()`, `getOverlayName()`, and `extractAlignmentScores()` logic.
+   - The primary differences are static configuration values (ID, Name, Keywords).
+   - High structural similarity indicates significant boilerplate.
+
+   💡 Refactoring Result:
+   - **Generic Manager Factory**: Replaced individual classes with a single parameterized `ConversationOverlayManager` that accepts a configuration object.
+   - **Data-Driven Approach**: Defined specific attributes (keywords, names, scoring logic) in `src/sigma/overlays/types.ts`.
+   - Code reduction: ~800 lines (~70%)
+   - Effort: Low-Medium (2-3 hours)
+   - Status: Completed (March 2, 2026)
+
+2. **Project Lattice (PGC) Pattern Managers** (0.75 - 0.83 similarity):
+   - `StructuralPatternsManager` (src/core/overlays/structural/patterns/manager.ts)
+   - `OperationalPatternsManager` (src/core/overlays/operational/patterns/manager.ts)
+   - `MissionConceptsManager` (src/core/overlays/mission/concepts/manager.ts)
+   - `LineagePatternsManager` (src/core/overlays/lineage/patterns/manager.ts)
+   - `SecurityGuidelinesManager` (src/core/overlays/security/guidelines/manager.ts)
+
+   Shared Patterns:
+   - Parallel structure to the Conversation Managers but for the project-level knowledge store.
+   - Common patterns for querying the lattice and mapping results to domain-specific types.
+
+   💡 Refactoring Suggestion:
+   - **Strategy Pattern**: Implement a generic `LatticePatternManager` and use strategy objects to handle domain-specific extraction and scoring.
+   - Potential code reduction: ~600 lines (~50%)
+   - Effort: Medium (3-4 hours)
+
+3. **Lance DB Stores** (0.81 - 0.85 similarity):
+   - `DocumentLanceStore` (src/core/pgc/document/lance/store.ts)
+   - `ConversationLanceStore` (src/sigma/conversation/lance/store.ts)
+   - `LanceVectorStore` (src/core/services/embedding.ts - internal symbol)
+   - `AbstractLanceStore` (src/core/pgc/store.ts)
+
+   Shared Patterns:
+   - Shared methods for initialization, vector search, and schema management.
+   - All interact with `lancedb` using similar patterns for table creation and query execution.
+
+   💡 Refactoring Suggestion:
+   - **Enhance Abstract Base Class**: Pull more common logic (search, deletion, schema migration) into `AbstractLanceStore`.
+   - **Generic LanceStore<T>**: Implement a fully generic store that handles the boilerplate of LanceDB interaction for any serializable type.
+   - Potential code reduction: ~300 lines (~30%)
+   - Effort: Medium (4-5 hours)
+
+4. **Registries** (0.73 - 0.86 similarity):
+   - `OverlayRegistry` (src/core/algebra/overlay/registry.ts)
+   - `ConversationOverlayRegistry` (src/sigma/conversation/registry.ts)
+   - `AgentRegistry` (src/llm/agents/registry.ts)
+   - `ProviderRegistry` (src/llm/providers/registry.ts)
+
+   Shared Patterns:
+   - Standard `register()`, `get()`, `getAll()`, and `find()` method signatures.
+   - Map-based storage with basic existence checks and error handling.
+
+   💡 Refactoring Suggestion:
+   - **Generic Registry Utility**: Create a `GenericRegistry<T>` class in `src/utils` or `src/core` to handle standard registration patterns.
+   - Potential code reduction: ~150 lines (~40%)
+   - Effort: Low (1 hour)
+
+📊 Summary:
+
+- Total opportunities found: 4 groups (22+ symbols)
+- Estimated total code reduction: ~1,850 lines
+- Total estimated effort: 10-13 hours
+- Primary benefit: Drastic reduction in maintenance surface area and improved consistency across conversation and project analysis subsystems.

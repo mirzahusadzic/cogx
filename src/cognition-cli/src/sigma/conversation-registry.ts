@@ -24,13 +24,8 @@
  */
 
 import { OverlayAlgebra } from '../core/algebra/overlay-algebra.js';
-import { ConversationStructuralManager } from './overlays/conversation-structural/manager.js';
-import { ConversationSecurityManager } from './overlays/conversation-security/manager.js';
-import { ConversationLineageManager } from './overlays/conversation-lineage/manager.js';
-import { ConversationMissionManager } from './overlays/conversation-mission/manager.js';
-import { ConversationOperationalManager } from './overlays/conversation-operational/manager.js';
-import { ConversationMathematicalManager } from './overlays/conversation-mathematical/manager.js';
-import { ConversationCoherenceManager } from './overlays/conversation-coherence/manager.js';
+import { ConversationOverlayManager } from './overlays/conversation-overlay-manager.js';
+import { CONVERSATION_OVERLAY_CONFIGS } from './overlays/types.js';
 import { AsyncMutex } from './utils/AsyncMutex.js';
 import { systemLog } from '../utils/debug-logger.js';
 
@@ -161,43 +156,11 @@ export class ConversationOverlayRegistry {
    * @returns Array of metadata for all 7 conversation overlays
    */
   getOverlayInfo(): ConversationOverlayInfo[] {
-    return [
-      {
-        id: 'O1',
-        name: 'Structural',
-        description: 'Architecture/design discussions',
-      },
-      {
-        id: 'O2',
-        name: 'Security',
-        description: 'Security concerns raised',
-      },
-      {
-        id: 'O3',
-        name: 'Lineage',
-        description: 'Knowledge evolution ("earlier we...")',
-      },
-      {
-        id: 'O4',
-        name: 'Mission',
-        description: 'Goals/objectives for session',
-      },
-      {
-        id: 'O5',
-        name: 'Operational',
-        description: 'Commands/actions executed',
-      },
-      {
-        id: 'O6',
-        name: 'Mathematical',
-        description: 'Algorithms/logic discussed',
-      },
-      {
-        id: 'O7',
-        name: 'Coherence',
-        description: 'Topic drift and conversation flow',
-      },
-    ];
+    return Object.values(CONVERSATION_OVERLAY_CONFIGS).map((config) => ({
+      id: config.id as OverlayId,
+      name: config.name,
+      description: config.description,
+    }));
   }
 
   /**
@@ -211,55 +174,17 @@ export class ConversationOverlayRegistry {
    * @private
    */
   private createManager(overlayId: OverlayId): OverlayAlgebra {
-    const workbenchUrl = this.workbenchUrl;
-    const debug = this.debug;
-
-    switch (overlayId) {
-      case 'O1':
-        return new ConversationStructuralManager(
-          this.sigmaRoot,
-          workbenchUrl,
-          debug
-        );
-      case 'O2':
-        return new ConversationSecurityManager(
-          this.sigmaRoot,
-          workbenchUrl,
-          debug
-        );
-      case 'O3':
-        return new ConversationLineageManager(
-          this.sigmaRoot,
-          workbenchUrl,
-          debug
-        );
-      case 'O4':
-        return new ConversationMissionManager(
-          this.sigmaRoot,
-          workbenchUrl,
-          debug
-        );
-      case 'O5':
-        return new ConversationOperationalManager(
-          this.sigmaRoot,
-          workbenchUrl,
-          debug
-        );
-      case 'O6':
-        return new ConversationMathematicalManager(
-          this.sigmaRoot,
-          workbenchUrl,
-          debug
-        );
-      case 'O7':
-        return new ConversationCoherenceManager(
-          this.sigmaRoot,
-          workbenchUrl,
-          debug
-        );
-      default:
-        throw new Error(`Unknown conversation overlay: ${overlayId}`);
+    const config = CONVERSATION_OVERLAY_CONFIGS[overlayId];
+    if (!config) {
+      throw new Error(`Unknown conversation overlay: ${overlayId}`);
     }
+
+    return new ConversationOverlayManager(
+      this.sigmaRoot,
+      config,
+      this.workbenchUrl,
+      this.debug
+    );
   }
 
   /**

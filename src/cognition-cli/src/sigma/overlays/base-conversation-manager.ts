@@ -18,6 +18,8 @@ import {
 import { ConversationLanceStore } from '../conversation-lance-store.js';
 import { systemLog } from '../../utils/debug-logger.js';
 
+import { AlignmentScores } from './types.js';
+
 /**
  * Metadata for conversation turn items
  */
@@ -793,15 +795,9 @@ export abstract class BaseConversationManager<
    * extractAlignmentScores(5.0)
    * // → { alignment_O1: 0, alignment_O2: 5, alignment_O3: 0, ... }
    */
-  protected extractAlignmentScores(projectAlignmentScore: number): {
-    alignment_O1: number;
-    alignment_O2: number;
-    alignment_O3: number;
-    alignment_O4: number;
-    alignment_O5: number;
-    alignment_O6: number;
-    alignment_O7: number;
-  } {
+  protected extractAlignmentScores(
+    projectAlignmentScore: number
+  ): AlignmentScores {
     // Default: use project alignment score for all overlays
     // Subclasses should override to set their specific overlay higher
     return {

@@ -14,32 +14,8 @@ const { mockManager } = vi.hoisted(() => ({
   }),
 }));
 
-vi.mock('../overlays/conversation-structural/manager.js', () => ({
-  ConversationStructuralManager: vi.fn().mockImplementation(mockManager),
-}));
-
-vi.mock('../overlays/conversation-security/manager.js', () => ({
-  ConversationSecurityManager: vi.fn().mockImplementation(mockManager),
-}));
-
-vi.mock('../overlays/conversation-lineage/manager.js', () => ({
-  ConversationLineageManager: vi.fn().mockImplementation(mockManager),
-}));
-
-vi.mock('../overlays/conversation-mission/manager.js', () => ({
-  ConversationMissionManager: vi.fn().mockImplementation(mockManager),
-}));
-
-vi.mock('../overlays/conversation-operational/manager.js', () => ({
-  ConversationOperationalManager: vi.fn().mockImplementation(mockManager),
-}));
-
-vi.mock('../overlays/conversation-mathematical/manager.js', () => ({
-  ConversationMathematicalManager: vi.fn().mockImplementation(mockManager),
-}));
-
-vi.mock('../overlays/conversation-coherence/manager.js', () => ({
-  ConversationCoherenceManager: vi.fn().mockImplementation(mockManager),
+vi.mock('../overlays/conversation-overlay-manager.js', () => ({
+  ConversationOverlayManager: vi.fn().mockImplementation(mockManager),
 }));
 
 describe('ConversationOverlayRegistry', () => {
