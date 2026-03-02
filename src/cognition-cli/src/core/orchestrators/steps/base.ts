@@ -8,8 +8,16 @@ export abstract class BaseStep implements IPipelineStep {
   abstract name: string;
   abstract execute(context: PipelineContext): Promise<StepResult>;
 
-  protected log(message: string) {
+  protected log(
+    message: string,
+    context?: PipelineContext,
+    level: 'info' | 'warn' | 'error' | 'success' = 'info'
+  ) {
     systemLog('orchestrator', `[${this.name}] ${message}`);
+
+    if (context?.log) {
+      context.log(message, level);
+    }
   }
 
   protected success(message?: string): StepResult {

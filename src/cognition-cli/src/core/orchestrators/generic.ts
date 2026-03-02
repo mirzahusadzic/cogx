@@ -48,6 +48,21 @@ export class GenericOrchestrator extends BaseOrchestrator {
       processedFiles: [],
       failedFiles: [],
       onProgress,
+      log: (message, level) => {
+        switch (level) {
+          case 'error':
+            this.logError(message);
+            break;
+          case 'warn':
+            this.logWarn(message);
+            break;
+          case 'success':
+            this.logSuccess(message);
+            break;
+          default:
+            this.logInfo(message);
+        }
+      },
     };
 
     try {

@@ -41,6 +41,14 @@ export interface PipelineContext {
   isWorkbenchHealthy?: boolean;
   sourceFiles?: SourceFile[];
 
+  /**
+   * Log a message to the UI (e.g., CLI console or TUI log view).
+   */
+  log?: (
+    message: string,
+    level?: 'info' | 'warn' | 'error' | 'success'
+  ) => void;
+
   [key: string]: unknown;
 }
 

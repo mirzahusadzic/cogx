@@ -104,15 +104,187 @@ export class MaintenanceStep extends BaseStep {
         `Removed ${removedOverlays} orphaned structural overlay entries.`
       );
 
-    // Phase 4: Clean up orphans
+    // Phase 4: Prune overlay manifests
+    const prunedManifestEntries = await this.pruneOverlayManifests(context);
+    if (prunedManifestEntries > 0)
+      this.log(
+        `Pruned ${prunedManifestEntries} stale entries from overlay manifests.`
+      );
+
+    // Phase 5: Prune vector DB
+    const prunedVectorEntries = await this.pruneVectorDB(context);
+    if (prunedVectorEntries > 0)
+      this.log(
+        `Pruned ${prunedVectorEntries} stale entries from vector databases.`
+      );
+
+    // Phase 6: Clean up orphans
     const removedOrphans = await context.docsOracle.cleanupOrphanedObjects();
     if (removedOrphans > 0)
       this.log(`Removed ${removedOrphans} orphaned document objects.`);
 
-    // Phase 5: Clean up empty directories
+    // Phase 6: Clean up stale ReverseDeps entries
+    let cleanedReverseDeps = 0;
+    const allReverseDepHashes =
+      await context.pgc.reverseDeps.getAllReverseDepHashes();
+
+    for (const objectHash of allReverseDepHashes) {
+      if (!(await context.pgc.objectStore.exists(objectHash))) {
+        await context.pgc.reverseDeps.deleteReverseDepFile(objectHash);
+        cleanedReverseDeps++;
+        continue;
+      }
+
+      const transformIdsInReverseDep =
+        await context.pgc.reverseDeps.getTransformIds(objectHash);
+      for (const transformId of transformIdsInReverseDep) {
+        if (!(await context.pgc.transformLog.exists(transformId))) {
+          await context.pgc.reverseDeps.delete(objectHash, transformId);
+          cleanedReverseDeps++;
+        }
+      }
+    }
+    if (cleanedReverseDeps > 0)
+      this.log(
+        `Cleaned ${cleanedReverseDeps} stale reverse dependency entries.`
+      );
+
+    // Phase 7: Validate TransformLog entries
+    let cleanedTransformLogEntries = 0;
+    const allTransformIds = await context.pgc.transformLog.getAllTransformIds();
+
+    for (const transformId of allTransformIds) {
+      const transformData =
+        await context.pgc.transformLog.getTransformData(transformId);
+      if (!transformData) {
+        await context.pgc.transformLog.delete(transformId);
+        cleanedTransformLogEntries++;
+        continue;
+      }
+
+      let isValid = true;
+      for (const inputHash of transformData.inputs) {
+        if (!(await context.pgc.objectStore.exists(inputHash.hash))) {
+          isValid = false;
+          break;
+        }
+      }
+
+      if (isValid) {
+        for (const outputHash of transformData.outputs) {
+          if (!(await context.pgc.objectStore.exists(outputHash.hash))) {
+            isValid = false;
+            break;
+          }
+        }
+      }
+
+      if (!isValid) {
+        await context.pgc.transformLog.delete(transformId);
+        cleanedTransformLogEntries++;
+      }
+    }
+    if (cleanedTransformLogEntries > 0)
+      this.log(
+        `Removed ${cleanedTransformLogEntries} stale transform log entries.`
+      );
+
+    // Phase 8: Clean up empty directories
     await context.pgc.objectStore.removeEmptyShardedDirectories();
     await context.pgc.reverseDeps.removeEmptyShardedDirectories();
     this.log('Cleaned up empty sharded directories.');
+  }
+
+  private async pruneVectorDB(context: PipelineContext): Promise<number> {
+    const vectorOverlays = ['structural_patterns', 'lineage_patterns'];
+    let totalPruned = 0;
+
+    const { LanceVectorStore } =
+      await import('../../overlays/vector-db/lance-store.js');
+
+    for (const overlayType of vectorOverlays) {
+      try {
+        const manifest = await context.pgc.overlays.getManifest(overlayType);
+        const manifestSymbols = new Set(Object.keys(manifest || {}));
+
+        const vectorDB = new LanceVectorStore(context.pgc.pgcRoot);
+        await vectorDB.initialize(overlayType);
+        const allVectors = (await vectorDB.getAllVectors()) as Array<{
+          symbol: string;
+        }>;
+
+        for (const vector of allVectors) {
+          if (!manifestSymbols.has(vector.symbol)) {
+            await vectorDB.delete(
+              `symbol = '${vector.symbol.replace(/'/g, "''")}'`
+            );
+            totalPruned++;
+          }
+        }
+      } catch (error) {
+        this.log(
+          `Warning: Failed to prune vector DB for ${overlayType}: ${error}`
+        );
+      }
+    }
+
+    return totalPruned;
+  }
+
+  private async pruneOverlayManifests(
+    context: PipelineContext
+  ): Promise<number> {
+    const manifestOverlays = [
+      'structural_patterns',
+      'lineage_patterns',
+      'mission_concepts',
+      'strategic_coherence',
+    ];
+    let totalPruned = 0;
+
+    for (const overlayType of manifestOverlays) {
+      const manifest = await context.pgc.overlays.getManifest(overlayType);
+      const staleSymbols: string[] = [];
+
+      for (const [symbol, entryRaw] of Object.entries(manifest)) {
+        const entry = context.pgc.overlays.parseManifestEntry(entryRaw);
+
+        let isStale = false;
+        if (entry.filePath) {
+          const fullPath = path.join(context.projectRoot, entry.filePath);
+          if (!(await fs.pathExists(fullPath))) {
+            isStale = true;
+          }
+        } else if (entry.sourceFile) {
+          const fullPath = path.join(context.projectRoot, entry.sourceFile);
+          if (!(await fs.pathExists(fullPath))) {
+            isStale = true;
+          }
+        }
+
+        // Also check if its content hash exists in object store if it's not a local file check
+        if (!isStale && (entry.sourceHash || entry.documentHash)) {
+          const hashToCheck = entry.sourceHash || entry.documentHash;
+          if (
+            hashToCheck &&
+            !(await context.pgc.objectStore.exists(hashToCheck))
+          ) {
+            isStale = true;
+          }
+        }
+
+        if (isStale) {
+          staleSymbols.push(symbol);
+        }
+      }
+
+      for (const symbol of staleSymbols) {
+        await context.pgc.overlays.deleteManifestEntry(overlayType, symbol);
+        totalPruned++;
+      }
+    }
+
+    return totalPruned;
   }
 
   private async getOverlayReferencedHashes(

@@ -16,22 +16,43 @@ export class DirtyStateDiscoveryStep extends BaseStep {
     const pgcRoot = path.join(context.projectRoot, '.open_cognition');
     const dirtyStateManager = new DirtyStateManager(pgcRoot);
 
-    this.log('Reading dirty state');
+    this.log(`Reading dirty state`, context);
     const dirtyState = await dirtyStateManager.read();
 
     if (
       dirtyState.dirty_files.length === 0 &&
       dirtyState.untracked_files.length === 0
     ) {
-      this.log('PGC is coherent - nothing to update');
+      this.log('PGC is coherent - nothing to update', context);
       context.filesToProcess = [];
       context.sourceFiles = [];
       return this.success('Nothing to update');
     }
 
     this.log(
-      `Found ${dirtyState.dirty_files.length} dirty files and ${dirtyState.untracked_files.length} untracked files`
+      `Found ${dirtyState.dirty_files.length} dirty files and ${dirtyState.untracked_files.length} untracked files`,
+      context
     );
+
+    const changedFilesCount =
+      dirtyState.dirty_files.length + dirtyState.untracked_files.length;
+    if (changedFilesCount > 0) {
+      this.log(`Detected ${changedFilesCount} changed files:`, context);
+      const allChangedPaths = [
+        ...dirtyState.dirty_files.map((f) => f.path),
+        ...dirtyState.untracked_files.map((f) => f.path),
+      ];
+      const displayLimit = 10;
+      allChangedPaths
+        .slice(0, displayLimit)
+        .forEach((f) => this.log(`  - ${f}`, context));
+      if (allChangedPaths.length > displayLimit) {
+        this.log(
+          `  ... and ${allChangedPaths.length - displayLimit} more.`,
+          context
+        );
+      }
+    }
 
     const allFiles: SourceFile[] = [];
 

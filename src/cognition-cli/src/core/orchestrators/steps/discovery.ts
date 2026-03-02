@@ -51,7 +51,33 @@ export class DiscoveryStep extends BaseStep {
     context.filesToProcess = allFiles.map((f) => f.relativePath);
     context.sourceFiles = allFiles;
 
-    this.log(`Discovered ${allFiles.length} files.`);
+    // Identify changed files by comparing with index
+    const changedFiles: string[] = [];
+    for (const file of allFiles) {
+      const existing = await context.pgc.index.get(file.relativePath);
+      const currentHash = context.pgc.objectStore.computeHash(file.content);
+      if (!existing || existing.content_hash !== currentHash) {
+        changedFiles.push(file.relativePath);
+      }
+    }
+
+    this.log(`Discovered ${allFiles.length} files.`, context);
+    if (changedFiles.length > 0) {
+      this.log(`Detected ${changedFiles.length} changed files:`, context);
+      const displayLimit = 10;
+      changedFiles
+        .slice(0, displayLimit)
+        .forEach((f) => this.log(`  - ${f}`, context));
+      if (changedFiles.length > displayLimit) {
+        this.log(
+          `  ... and ${changedFiles.length - displayLimit} more.`,
+          context
+        );
+      }
+    } else {
+      this.log('No changed files detected.', context);
+    }
+
     if (context.onProgress) {
       context.onProgress(0, allFiles.length, `Found ${allFiles.length} files`);
     }
