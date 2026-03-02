@@ -386,13 +386,13 @@ export async function executeGrep(
       const color = finalCode === 0 ? '\x1b[32m' : '\x1b[31m'; // Green for 0, Red otherwise
       const exitLine = `Exit code: ${color}${finalCode}\x1b[0m`;
 
-      const resultWithExit = compressed
-        ? `${compressed.trimEnd()}\n${exitLine}`
+      const result = compressed
+        ? compressed.trimEnd()
         : finalCode === 1
-          ? `No matches found\n${exitLine}`
+          ? 'No matches found'
           : exitLine;
 
-      resolve(tagOutputWithActiveTask(resultWithExit, getActiveTaskId));
+      resolve(tagOutputWithActiveTask(result, getActiveTaskId));
     });
     proc.on('error', () => {
       clearTimeout(timeoutId);
