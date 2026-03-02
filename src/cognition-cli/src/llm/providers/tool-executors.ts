@@ -481,9 +481,12 @@ export async function executeBash(
       }
 
       const cleanStderr = stripAnsi(stderr);
+      const finalCode = code ?? 0;
 
       const output =
-        finalStdout + (cleanStderr ? `\nSTDERR:\n${cleanStderr}` : '');
+        finalStdout +
+        (cleanStderr ? `\nSTDERR:\n${cleanStderr}` : '') +
+        `\nExit code: ${finalCode}`;
       // Determine max output size based on command importance
       // git diffs are critical for context and should be preserved
       const isGitDiff = command.includes('git diff');
@@ -507,7 +510,6 @@ export async function executeBash(
           ),
         });
       } else {
-        const finalCode = code ?? 0;
         resolve({
           stdout: finalStdout,
           stderr: cleanStderr,

@@ -230,8 +230,9 @@ describe('Tool Executors', () => {
         ['-c', 'echo hello'],
         expect.any(Object)
       );
-      expect(result).toMatch(/Exit code: .*0/);
-      expect(result).toContain('hello');
+      expect(result.exitCode).toBe(0);
+      expect(result.content).toMatch(/Exit code: 0/);
+      expect(result.content).toContain('hello');
     });
 
     test('should handle timeout', async () => {
@@ -248,7 +249,7 @@ describe('Tool Executors', () => {
       const result = await promise;
 
       expect(mockProc.kill).toHaveBeenCalledWith('SIGTERM');
-      expect(result).toContain('Timeout after 100ms');
+      expect(result.content).toContain('Timeout after 100ms');
 
       vi.useRealTimers();
     });

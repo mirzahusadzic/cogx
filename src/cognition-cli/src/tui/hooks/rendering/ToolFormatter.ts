@@ -835,8 +835,7 @@ export function formatToolResult(
     } else if (processedResult && typeof processedResult === 'object') {
       const resObj = processedResult as Record<string, unknown>;
 
-      // Handle MCP standard: { content: [{ type: 'text', text: '...' }] }
-      // Support multiple content blocks by joining them
+      // 1. Try to get content from standard 'content' field (MCP or simple object)
       if (Array.isArray(resObj.content) && resObj.content.length > 0) {
         content = resObj.content
           .map((block: unknown) => {
@@ -854,32 +853,7 @@ export function formatToolResult(
         content = resObj.content;
       }
 
-      // If we have an explicit exit code in the object, ensure it's displayed if it's not already in the content.
-      if (
-        resObj.exitCode !== undefined &&
-        resObj.exitCode !== null &&
-        !content.includes('Exit code:')
-      ) {
-        const exitCodeStr = String(resObj.exitCode);
-        const codeColor = exitCodeStr === '0' ? '\x1b[32m' : '\x1b[31m';
-        const exitLine = `Exit code: ${codeColor}${exitCodeStr}\x1b[0m`;
-        content = content ? `${content.trimEnd()}\n${exitLine}` : exitLine;
-      }
-
-      // If we have an explicit exit code in the object, ensure it's displayed if it's not already in the content.
-      if (
-        resObj.exitCode !== undefined &&
-        resObj.exitCode !== null &&
-        !content.includes('Exit code:')
-      ) {
-        const exitCodeStr = String(resObj.exitCode);
-        const codeColor = exitCodeStr === '0' ? '\x1b[32m' : '\x1b[31m';
-        const exitLine = `Exit code: ${codeColor}${exitCodeStr}\x1b[0m`;
-        content = content ? `${content.trimEnd()}\n${exitLine}` : exitLine;
-      }
-
-      // If we have stdout/stderr/exitCode, and NO content yet, format them.
-      // If we HAVE content (e.g. from ToolResult.content), we use it as is.
+      // 2. If NO content yet, try to build it from stdout/stderr/exitCode
       if (
         !content &&
         ('stdout' in resObj || 'stderr' in resObj || 'exitCode' in resObj)
@@ -897,10 +871,27 @@ export function formatToolResult(
         outputParts.push(`Exit code: ${exitCode}`);
 
         content = outputParts.join('\n').trim();
-      } else if (!content && 'result' in resObj) {
+      }
+
+      // 3. Fallback to 'result' or stringified object
+      if (!content && 'result' in resObj) {
         content = String(resObj.result);
-      } else if (!content) {
+      }
+
+      if (!content) {
         content = JSON.stringify(processedResult, null, 2);
+      }
+
+      // 4. Ensure exitCode is present if it exists in the object but not in content
+      if (
+        resObj.exitCode !== undefined &&
+        resObj.exitCode !== null &&
+        !content.includes('Exit code:')
+      ) {
+        const exitCodeStr = String(resObj.exitCode);
+        const codeColor = exitCodeStr === '0' ? '\x1b[32m' : '\x1b[31m';
+        const exitLine = `Exit code: ${codeColor}${exitCodeStr}\x1b[0m`;
+        content = content ? `${content.trimEnd()}\n${exitLine}` : exitLine;
       }
     } else {
       content = JSON.stringify(processedResult, null, 2);
