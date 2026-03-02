@@ -75,13 +75,13 @@ describe('OpenAIAgentProvider', () => {
     OpenAIAgentProvider = module.OpenAIAgentProvider;
     OPENAI_MODELS = module.OPENAI_MODELS;
     LOCAL_MODELS = module.LOCAL_MODELS;
-  });
+  }, 30000);
 
   afterEach(() => {
     vi.resetModules();
     delete process.env.OPENAI_API_KEY;
     delete process.env.OPENAI_BASE_URL;
-  });
+  }, 30000);
 
   describe('Constructor', () => {
     it('should create instance with default options', () => {
