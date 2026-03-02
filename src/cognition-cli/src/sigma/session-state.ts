@@ -9,7 +9,10 @@
 import fs from 'fs';
 import path from 'path';
 import { systemLog } from '../utils/debug-logger.js';
-import { SYSTEM_PROMPT_MAX_COMPLETED_TASKS } from '../config.js';
+import {
+  SYSTEM_PROMPT_MAX_COMPLETED_TASKS,
+  SYSTEM_PROMPT_MAX_PENDING_TASKS,
+} from '../config.js';
 
 /**
  * Sigma task item in session state
@@ -518,6 +521,10 @@ export function getTaskContextForPrompt(
   const completedTasks = state.todos
     .filter((t) => t.status === 'completed')
     .slice(-SYSTEM_PROMPT_MAX_COMPLETED_TASKS); // Get last N completed tasks
+  const pendingTasks = state.todos
+    .filter((t) => t.status === 'pending')
+    .slice(0, SYSTEM_PROMPT_MAX_PENDING_TASKS); // Get next N pending tasks
+  const delegatedTasks = state.todos.filter((t) => t.status === 'delegated'); // Usually keep all delegated tasks
 
   let prompt = '';
 
@@ -527,11 +534,39 @@ export function getTaskContextForPrompt(
     prompt += `📋 NO ACTIVE TASK (You must start one before using other tools)\n\n`;
   }
 
+  if (pendingTasks.length > 0) {
+    prompt += `⏳ UPCOMING PENDING TASKS (Next in plan):\n`;
+    pendingTasks.forEach((t) => {
+      prompt += `- [${t.id}] ${t.content}\n`;
+    });
+    if (
+      state.todos.filter((t) => t.status === 'pending').length >
+      pendingTasks.length
+    ) {
+      prompt += `  ... (${state.todos.filter((t) => t.status === 'pending').length - pendingTasks.length} more pending tasks hidden)\n`;
+    }
+    prompt += `\n`;
+  }
+
+  if (delegatedTasks.length > 0) {
+    prompt += `🤖 DELEGATED TASKS (Waiting for worker reports):\n`;
+    delegatedTasks.forEach((t) => {
+      prompt += `- [${t.id}] ${t.content} (Owner: ${t.delegated_to || 'unknown'})\n`;
+    });
+    prompt += `\n`;
+  }
+
   if (completedTasks.length > 0) {
     prompt += `✅ RECENTLY COMPLETED TASKS (Essential Findings):\n`;
     completedTasks.forEach((t) => {
       prompt += `- [${t.id}] ${t.content}\n  Summary: ${t.result_summary || 'No summary provided.'}\n`;
     });
+    if (
+      state.todos.filter((t) => t.status === 'completed').length >
+      completedTasks.length
+    ) {
+      prompt += `  ... (${state.todos.filter((t) => t.status === 'completed').length - completedTasks.length} older completed tasks hidden)\n`;
+    }
     prompt += `\n(Use these summaries to recall details that were evicted from your context window)\n`;
   }
 

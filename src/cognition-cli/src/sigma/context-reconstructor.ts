@@ -50,6 +50,10 @@
  * @see getLastConversationTurns - Extracts recent turns and detects pending tasks
  */
 
+import {
+  SYSTEM_PROMPT_MAX_COMPLETED_TASKS,
+  SYSTEM_PROMPT_MAX_PENDING_TASKS,
+} from '../config.js';
 import type { ConversationLattice, ConversationNode } from './types.js';
 import type { ConversationOverlayRegistry } from './conversation-registry.js';
 
@@ -969,28 +973,65 @@ function formatLastTurns(
 
   // Add task list if present (takes precedence over heuristic)
   if ((todos?.length || 0) > 0) {
-    const taskLines = (todos || [])
-      .map((t) => {
-        const icon =
-          t.status === 'completed'
-            ? '✓'
-            : t.status === 'in_progress'
-              ? '→'
-              : t.status === 'delegated'
-                ? '↷'
-                : '○';
-        const text = t.status === 'in_progress' ? t.activeForm : t.content;
-        return `- [${icon}] ${text}`;
-      })
-      .join('\n');
+    const allTodos = todos || [];
+    const activeTask = allTodos.find((t) => t.status === 'in_progress');
+    const completedTasks = allTodos
+      .filter((t) => t.status === 'completed')
+      .slice(-SYSTEM_PROMPT_MAX_COMPLETED_TASKS);
+    const pendingTasks = allTodos
+      .filter((t) => t.status === 'pending')
+      .slice(0, SYSTEM_PROMPT_MAX_PENDING_TASKS);
+    const delegatedTasks = allTodos.filter((t) => t.status === 'delegated');
 
-    const inProgressTask = todos?.find((t) => t.status === 'in_progress');
+    const formatTask = (t: SigmaTask) => {
+      const icon =
+        t.status === 'completed'
+          ? '✓'
+          : t.status === 'in_progress'
+            ? '→'
+            : t.status === 'delegated'
+              ? '↷'
+              : '○';
+      const text = t.status === 'in_progress' ? t.activeForm : t.content;
+      return `- [${icon}] ${text}`;
+    };
+
+    let taskSection = '## 📋 Task List Summary\n\n';
+
+    if (activeTask) {
+      taskSection += `**Active**: ${formatTask(activeTask).slice(2)}\n`;
+    }
+
+    if (pendingTasks.length > 0) {
+      taskSection += `**Pending** (next ${pendingTasks.length}):\n${pendingTasks.map(formatTask).join('\n')}\n`;
+      if (
+        allTodos.filter((t) => t.status === 'pending').length >
+        pendingTasks.length
+      ) {
+        taskSection += `  ... (${allTodos.filter((t) => t.status === 'pending').length - pendingTasks.length} more hidden)\n`;
+      }
+    }
+
+    if (delegatedTasks.length > 0) {
+      taskSection += `**Delegated**:\n${delegatedTasks.map(formatTask).join('\n')}\n`;
+    }
+
+    if (completedTasks.length > 0) {
+      taskSection += `**Recent Achievements**:\n${completedTasks.map(formatTask).join('\n')}\n`;
+      if (
+        allTodos.filter((t) => t.status === 'completed').length >
+        completedTasks.length
+      ) {
+        taskSection += `  ... (${allTodos.filter((t) => t.status === 'completed').length - completedTasks.length} older hidden)\n`;
+      }
+    }
+
     const incompleteTasks =
-      todos?.filter((t) => t.status !== 'completed') || [];
+      allTodos.filter((t) => t.status !== 'completed') || [];
 
     let continueInstruction = '';
-    if (inProgressTask) {
-      continueInstruction = `\n\n**Continue with: "${inProgressTask.activeForm}"**`;
+    if (activeTask) {
+      continueInstruction = `\n\n**Continue with: "${activeTask.activeForm}"**`;
     } else if (incompleteTasks.length > 0) {
       continueInstruction = '\n\n**Continue with the next pending task.**';
     } else {
@@ -998,7 +1039,7 @@ function formatLastTurns(
         '\n\n**All tasks in the current list are completed.**';
     }
 
-    result += `\n\n## 📋 Task List\n\n${taskLines}${continueInstruction}`;
+    result += `\n\n${taskSection}${continueInstruction}`;
   }
   // Fallback: Add pending task warning if present (heuristic detection)
   else if (pendingTask) {

@@ -110,6 +110,12 @@ export const MEMORY_RECALL_MAX_TOKENS = 32768;
 export const SYSTEM_PROMPT_MAX_COMPLETED_TASKS = 10;
 
 /**
+ * Maximum number of pending tasks to include in the system prompt
+ * Ensures the model knows its future plan without bloating prompt
+ */
+export const SYSTEM_PROMPT_MAX_PENDING_TASKS = 5;
+
+/**
  * Maximum character limit for SIGMA.md content to prevent context bloat.
  * Approximately 1000 tokens.
  */
