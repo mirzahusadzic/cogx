@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { updateSigmaTasksWithTokens } from '../../../useAgent/useAgentHandlers.js';
-import type { SigmaTasks } from '../../../useAgent/types.js';
+import type { SigmaTasks, SigmaTask } from '../../../useAgent/types.js';
 
 describe('updateSigmaTasksWithTokens', () => {
   it('should calculate tokensUsed for in_progress tasks', () => {
@@ -317,5 +317,67 @@ describe('updateSigmaTasksWithTokens', () => {
     expect(result.todos).toHaveLength(1);
     expect(result.grounding).toHaveLength(1);
     expect(result.grounding?.[0].id).toBe('2');
+  });
+
+  it('should not destroy content/activeForm if not provided in update', () => {
+    const prev: SigmaTasks = {
+      todos: [
+        {
+          id: '1',
+          content: 'Task 1',
+          activeForm: 'Working on 1',
+          status: 'in_progress',
+          tokensAtStart: 100,
+        },
+      ],
+    };
+
+    const next: SigmaTasks = {
+      todos: [
+        {
+          id: '1',
+          status: 'completed',
+          result_summary: 'Done with long enough summary for validation',
+        } as unknown as SigmaTask,
+      ],
+    };
+
+    const result = updateSigmaTasksWithTokens(prev, next, 500);
+
+    expect(result.todos[0].content).toBe('Task 1');
+    expect(result.todos[0].activeForm).toBe('Working on 1');
+    expect(result.todos[0].status).toBe('completed');
+  });
+
+  it('should not destroy content/activeForm if provided as null in update (Gemini style)', () => {
+    const prev: SigmaTasks = {
+      todos: [
+        {
+          id: '1',
+          content: 'Task 1',
+          activeForm: 'Working on 1',
+          status: 'in_progress',
+          tokensAtStart: 100,
+        },
+      ],
+    };
+
+    const next: SigmaTasks = {
+      todos: [
+        {
+          id: '1',
+          status: 'completed',
+          content: null as unknown as string,
+          activeForm: null as unknown as string,
+          result_summary: 'Done with long enough summary for validation',
+        } as unknown as SigmaTask,
+      ],
+    };
+
+    const result = updateSigmaTasksWithTokens(prev, next, 500);
+
+    expect(result.todos[0].content).toBe('Task 1');
+    expect(result.todos[0].activeForm).toBe('Working on 1');
+    expect(result.todos[0].status).toBe('completed');
   });
 });

@@ -21,7 +21,8 @@ import {
 } from '../rendering/ToolFormatter.js';
 import { terminal } from '../../services/TerminalService.js';
 import { stripCursorSequences, ANSI_RESET } from '../../utils/ansi-utils.js';
-import type { SigmaTasks } from './types.js';
+import type { SigmaTasks, SigmaTask } from './types.js';
+import { processSigmaTaskUpdateInput } from '../../../llm/providers/tool-helpers.js';
 import {
   AUTO_RESPONSE_TRIGGER,
   COMPRESSION_RECOVERY_PROMPT,
@@ -149,15 +150,21 @@ export function updateSigmaTasksWithTokens(
       }
     }
 
-    const updatedTodo = {
-      ...newTodo,
+    // Filter out null/undefined from newTodo to avoid overwriting existing fields
+    const cleanNewTodo = Object.fromEntries(
+      Object.entries(newTodo).filter(([, v]) => v !== null && v !== undefined)
+    );
+
+    const updatedTodo: SigmaTask = {
+      ...(oldTodo || {}),
+      ...cleanNewTodo,
       tokensAtStart,
       tokensAccumulated,
       tokensUsed,
       tokensSaved,
       tokensSavedAtStart,
       tokensSavedAccumulated,
-    };
+    } as SigmaTask;
 
     if (existingIndex !== -1) {
       mergedTodos[existingIndex] = updatedTodo;
@@ -358,16 +365,30 @@ export function useAgentHandlers() {
                     tool.name === 'SigmaTaskUpdate' ||
                     tool.name === 'mcp__sigma-task-update__SigmaTaskUpdate'
                   ) {
-                    const input = tool.input as SigmaTasks;
-                    if (input && Array.isArray(input.todos)) {
-                      setSigmaTasks((prev) =>
-                        updateSigmaTasksWithTokens(
-                          prev,
-                          input,
-                          effectiveTokens,
-                          effectiveCachedTokens
-                        )
-                      );
+                    if (tool.input && typeof tool.input === 'object') {
+                      try {
+                        const processedTodos = processSigmaTaskUpdateInput(
+                          tool.input
+                        );
+                        const input: SigmaTasks = {
+                          ...((tool.input as unknown as SigmaTasks) || {}),
+                          todos: processedTodos as SigmaTask[],
+                        };
+                        setSigmaTasks((prev) =>
+                          updateSigmaTasksWithTokens(
+                            prev,
+                            input,
+                            effectiveTokens,
+                            effectiveCachedTokens
+                          )
+                        );
+                      } catch (err) {
+                        // Ignore validation errors during streaming
+                        systemLog(
+                          'sigma',
+                          `Skipping intermediate SigmaTaskUpdate during stream: ${err}`
+                        );
+                      }
                     }
                   }
 
@@ -441,16 +462,33 @@ export function useAgentHandlers() {
               agentMessage.toolName ===
                 'mcp__sigma-task-update__SigmaTaskUpdate'
             ) {
-              const input = agentMessage.toolInput as SigmaTasks;
-              if (input && Array.isArray(input.todos)) {
-                setSigmaTasks((prev) =>
-                  updateSigmaTasksWithTokens(
-                    prev,
-                    input,
-                    effectiveTokens,
-                    effectiveCachedTokens
-                  )
-                );
+              if (
+                agentMessage.toolInput &&
+                typeof agentMessage.toolInput === 'object'
+              ) {
+                try {
+                  const processedTodos = processSigmaTaskUpdateInput(
+                    agentMessage.toolInput
+                  );
+                  const input: SigmaTasks = {
+                    ...((agentMessage.toolInput as unknown as SigmaTasks) ||
+                      {}),
+                    todos: processedTodos as SigmaTask[],
+                  };
+                  setSigmaTasks((prev) =>
+                    updateSigmaTasksWithTokens(
+                      prev,
+                      input,
+                      effectiveTokens,
+                      effectiveCachedTokens
+                    )
+                  );
+                } catch (err) {
+                  systemLog(
+                    'sigma',
+                    `Failed to process SigmaTaskUpdate: ${err}`
+                  );
+                }
               }
             }
             const content = formatToolUseMessage(
