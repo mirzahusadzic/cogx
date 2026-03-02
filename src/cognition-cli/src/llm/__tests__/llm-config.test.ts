@@ -14,7 +14,7 @@ import {
   getProviderDefaultModel,
   CLAUDE_MODELS,
   GEMINI_MODELS,
-} from '../llm-config.js';
+} from '../core/llm-config.js';
 
 // Mock settings loader to prevent reading user's local settings.json
 vi.mock('../../core/security/security-bootstrap.js', () => ({

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getUnifiedTools } from '../../../tools/unified-tools.js';
 
 // Mock tool executors
-vi.mock('../../tool-executors.js', () => ({
+vi.mock('../../../core/utils/tool-executors.js', () => ({
   executeReadFile: vi.fn(),
   executeWriteFile: vi.fn(),
   executeGlob: vi.fn(),
@@ -35,7 +35,8 @@ describe('SigmaTaskUpdate OpenAI Tool', () => {
     };
     expect(sigmaTaskUpdate).toBeDefined();
 
-    const { executeSigmaTaskUpdate } = await import('../../tool-executors.js');
+    const { executeSigmaTaskUpdate } =
+      await import('../../../core/utils/tool-executors.js');
 
     const rawInput = {
       todos: [
@@ -145,7 +146,8 @@ describe('SigmaTaskUpdate OpenAI Tool', () => {
     ) as unknown as {
       invoke: (ctx: unknown, input: string) => Promise<unknown>;
     };
-    const { executeSigmaTaskUpdate } = await import('../../tool-executors.js');
+    const { executeSigmaTaskUpdate } =
+      await import('../../../core/utils/tool-executors.js');
 
     const rawInput = {
       todos: [

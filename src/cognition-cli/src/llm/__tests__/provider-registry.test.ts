@@ -6,8 +6,11 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ProviderRegistry } from '../provider-registry.js';
-import type { LLMProvider, CompletionResponse } from '../provider-interface.js';
+import { ProviderRegistry } from '../core/provider-registry.js';
+import type {
+  LLMProvider,
+  CompletionResponse,
+} from '../core/interfaces/provider.js';
 
 /**
  * Mock provider for testing

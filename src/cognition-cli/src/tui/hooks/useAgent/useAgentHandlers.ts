@@ -22,7 +22,7 @@ import {
 import { terminal } from '../../services/TerminalService.js';
 import { stripCursorSequences, ANSI_RESET } from '../../utils/ansi-utils.js';
 import type { SigmaTasks, SigmaTask } from './types.js';
-import { processSigmaTaskUpdateInput } from '../../../llm/providers/tool-helpers.js';
+import { processSigmaTaskUpdateInput } from '../../../llm/core/utils/tool-helpers.js';
 import {
   AUTO_RESPONSE_TRIGGER,
   COMPRESSION_RECOVERY_PROMPT,

@@ -25,8 +25,8 @@
  * ```
  */
 
-import type { LLMProvider } from './provider-interface.js';
-import type { GroundingInstructions } from '../ipc/DelegationProtocol.js';
+import type { LLMProvider } from './provider.js';
+import type { GroundingInstructions } from '../../../ipc/DelegationProtocol.js';
 type McpSdkServerConfigWithInstance = unknown; // Placeholder for optional Claude SDK
 
 /**

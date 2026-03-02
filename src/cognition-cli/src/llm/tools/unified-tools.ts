@@ -7,7 +7,7 @@ import {
   type Session,
 } from '@google/adk';
 import { providerToolFactory } from './factory.js';
-import type { ToolResult } from '../types.js';
+import type { ToolResult } from '../core/types.js';
 import {
   readFileTool,
   writeFileTool,
@@ -38,7 +38,7 @@ import {
   executeFetchUrl,
   executeWebSearch,
   executeSigmaTaskUpdate,
-} from '../providers/tool-executors.js';
+} from '../core/utils/tool-executors.js';
 import type { ConversationOverlayRegistry } from '../../sigma/conversation-registry.js';
 import { queryConversationLattice } from '../../sigma/query-conversation.js';
 import type { BackgroundTaskManager } from '../../tui/services/BackgroundTaskManager.js';
@@ -61,7 +61,7 @@ import {
   formatDuration,
   processSigmaTaskUpdateInput,
   type OnCanUseTool,
-} from '../providers/tool-helpers.js';
+} from '../core/utils/tool-helpers.js';
 
 /**
  * Type representing any of the supported tool formats.

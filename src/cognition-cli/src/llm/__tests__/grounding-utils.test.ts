@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getGroundingContext } from '../providers/grounding-utils';
-import type { AgentRequest } from '../agent-provider-interface';
+import { getGroundingContext } from '../core/utils/grounding-utils.js';
+import type { AgentRequest } from '../core/interfaces/agent-provider.js';
 
 // Mock dependencies
 vi.mock('../../core/workspace-manager.js', () => ({

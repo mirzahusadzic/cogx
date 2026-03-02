@@ -6,8 +6,8 @@
  */
 
 import { z } from 'zod';
-import { executeSigmaTaskUpdate } from '../../llm/providers/tool-executors.js';
-import { getSigmaTaskUpdateDescription } from '../../llm/providers/tool-helpers.js';
+import { executeSigmaTaskUpdate } from '../../llm/core/utils/tool-executors.js';
+import { getSigmaTaskUpdateDescription } from '../../llm/core/utils/tool-helpers.js';
 import { systemLog } from '../../utils/debug-logger.js';
 import type { SigmaTask } from '../../sigma/session-state.js';
 

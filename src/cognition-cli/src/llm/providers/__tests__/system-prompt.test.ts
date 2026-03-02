@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSystemPrompt } from '../system-prompt';
+import { buildSystemPrompt } from '../../core/utils/system-prompt.js';
 
 describe('buildSystemPrompt', () => {
   const baseRequest = {

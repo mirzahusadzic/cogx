@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getDynamicThinkingBudget } from '../thinking-utils.js';
+import { getDynamicThinkingBudget } from '../../core/utils/thinking-utils.js';
 
 describe('thinking-utils', () => {
   describe('getDynamicThinkingBudget', () => {

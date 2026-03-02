@@ -38,13 +38,13 @@ import type {
   CompletionRequest,
   CompletionResponse,
   StreamChunk,
-} from '../../provider-interface.js';
-import type { AgentRequest } from '../../agent-provider-interface.js';
+} from '../../core/interfaces/provider.js';
+import type { AgentRequest } from '../../core/interfaces/agent-provider.js';
 import type { Query, SDKMessage } from '../../../tui/hooks/sdk/types.js';
 
-import { BaseAgentProvider } from '../base-agent-provider.js';
-import { UnifiedStreamingChunk } from '../../types.js';
-import { ThinkingBudget } from '../thinking-utils.js';
+import { BaseAgentProvider } from '../../core/base-agent-provider.js';
+import { UnifiedStreamingChunk } from '../../core/types.js';
+import { ThinkingBudget } from '../../core/utils/thinking-utils.js';
 import { systemLog } from '../../../utils/debug-logger.js';
 
 /**

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MinimaxAgentProvider } from '../agent-provider.js';
-import { LLMConfig } from '../../../../llm/llm-config.js';
+import { LLMConfig } from '../../../core/llm-config.js';
 
 vi.mock('@anthropic-ai/sdk', () => {
   return {

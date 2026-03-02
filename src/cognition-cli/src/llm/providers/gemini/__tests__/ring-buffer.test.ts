@@ -31,7 +31,7 @@ vi.mock('../../../../sigma/session-state.js', () => ({
   getActiveTaskId: vi.fn(),
 }));
 
-vi.mock('../../eviction-utils.js', () => ({
+vi.mock('../../../core/utils/eviction-utils.js', () => ({
   archiveTaskLogs: vi.fn().mockResolvedValue(undefined),
 }));
 

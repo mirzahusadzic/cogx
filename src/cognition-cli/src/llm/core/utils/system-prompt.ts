@@ -1,5 +1,5 @@
-import { AgentRequest } from '../agent-provider-interface.js';
-import { getTaskContextForPrompt } from '../../sigma/session-state.js';
+import { AgentRequest } from '../interfaces/agent-provider.js';
+import { getTaskContextForPrompt } from '../../../sigma/session-state.js';
 
 /**
  * Builds the standard system prompt for all providers.

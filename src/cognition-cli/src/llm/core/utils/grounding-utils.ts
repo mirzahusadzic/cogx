@@ -1,5 +1,5 @@
 import * as path from 'path';
-import type { AgentRequest } from '../agent-provider-interface.js';
+import type { AgentRequest } from '../interfaces/agent-provider.js';
 
 export async function getGroundingContext(
   request: AgentRequest
@@ -18,14 +18,14 @@ export async function getGroundingContext(
         groundingContext += `\n\n### Grounding Evidence: ${hint}\n`;
         try {
           const { WorkspaceManager } =
-            await import('../../core/workspace-manager.js');
+            await import('../../../core/workspace-manager.js');
           const workspaceManager = new WorkspaceManager();
           const projectRoot = workspaceManager.resolvePgcRoot(
             request.cwd || request.projectRoot
           );
 
           if (projectRoot) {
-            const { askCommand } = await import('../../commands/ask.js');
+            const { askCommand } = await import('../../../commands/ask.js');
             const result = await askCommand(hint, {
               projectRoot,
               workbench: request.workbenchUrl,
@@ -58,7 +58,7 @@ export async function getGroundingContext(
       groundingContext += `\n\n### Cross-Session Sigma Context\n`;
       try {
         const { findSimilarConversations } =
-          await import('../../sigma/cross-session-query.js');
+          await import('../../../sigma/cross-session-query.js');
         const sigmaRoot = path.join(
           request.cwd || request.projectRoot || process.cwd(),
           '.sigma'

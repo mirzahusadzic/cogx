@@ -65,7 +65,7 @@ classDiagram
 
 ### Core Components
 
-#### 1. Interfaces (`provider-interface.ts` & `agent-provider-interface.ts`)
+#### 1. Core and Interfaces (`core/`, `core/interfaces/`)
 
 - **`LLMProvider`**: The base contract. Every provider must support text completion and availability checks.
 - **`AgentProvider`**: Extends the base contract for "Smart" agents. Adds `executeAgent()` which supports:
@@ -73,7 +73,7 @@ classDiagram
   - **Session Management**: Resume previous conversations.
   - **Thinking**: Extended reasoning capabilities (Claude Thinking / Gemini Thinking).
 
-#### 2. Provider Registry (`provider-registry.ts`)
+#### 2. Provider Registry (`core/provider-registry.ts`)
 
 The singleton `registry` manages the lifecycle of all providers.
 
@@ -81,7 +81,7 @@ The singleton `registry` manages the lifecycle of all providers.
 - **Dynamic Defaults**: `getDefault()` returns the configured primary provider. If the default provider is unregistered, the registry automatically falls back to the next available provider.
 - **Health Checks**: `healthCheckAll()` verifies connectivity and API key validity.
 
-#### 3. Configuration (`llm-config.ts`)
+#### 3. Configuration (`core/llm-config.ts`)
 
 Centralizes settings from environment variables and `settings.json`.
 
@@ -90,7 +90,22 @@ Centralizes settings from environment variables and `settings.json`.
   - Gemini: `gemini-3-flash-preview`
   - OpenAI: `gpt-4o` (or auto-detected from workbench)
 
-#### 4. OpenAI Agent Provider (`providers/openai/agent-provider.ts`)
+#### 4. Shared Machinery (`core/base-agent-provider.ts`)
+
+Provides a common foundation for all agent-capable LLM providers (Gemini, OpenAI, Claude).
+Implements the orchestration logic for agent execution, context gathering, and streaming.
+
+#### 5. Utilities (`core/utils/`)
+
+Extracted shared logic to reduce code duplication:
+
+- **`tool-executors.ts`**: Core execution logic for file operations, bash, etc.
+- **`tool-helpers.ts`**: Compression, truncation, and permission helpers.
+- **`grounding-utils.ts`**: PGC and cross-session grounding integration.
+- **`thinking-utils.ts`**: Dynamic thinking/reasoning budgeting.
+- **`eviction-utils.ts`**: Rolling prune and log archiving.
+
+#### 6. OpenAI Agent Provider (`providers/openai/agent-provider.ts`)
 
 Implements the `AgentProvider` interface using the **@openai/agents SDK**.
 

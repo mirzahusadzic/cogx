@@ -3,18 +3,18 @@ import {
   AgentRequest,
   AgentResponse,
   AgentMessage,
-} from '../agent-provider-interface.js';
-import { UnifiedStreamingChunk } from '../types.js';
-import { suppressNoise, restoreNoise } from './noise-utils.js';
+} from './interfaces/agent-provider.js';
+import { UnifiedStreamingChunk } from './types.js';
+import { suppressNoise, restoreNoise } from './utils/noise-utils.js';
 import { systemLog } from '../../utils/debug-logger.js';
 import {
   CompletionRequest,
   CompletionResponse,
   StreamChunk,
-} from '../provider-interface.js';
-import { getGroundingContext } from './grounding-utils.js';
-import { getDynamicThinkingBudget, ThinkingBudget } from './thinking-utils.js';
-import { buildSystemPrompt } from './system-prompt.js';
+} from './interfaces/provider.js';
+import { getGroundingContext } from './utils/grounding-utils.js';
+import { getDynamicThinkingBudget, ThinkingBudget } from './utils/thinking-utils.js';
+import { buildSystemPrompt } from './utils/system-prompt.js';
 import {
   getUnifiedTools,
   type UnifiedToolsContext,

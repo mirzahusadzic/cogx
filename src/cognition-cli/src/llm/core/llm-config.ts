@@ -27,7 +27,7 @@
  * console.log(`Claude model: ${config.providers.claude?.defaultModel}`);
  */
 
-import { loadSettings } from '../core/security/security-bootstrap.js';
+import { loadSettings } from '../../core/security/security-bootstrap.js';
 
 /**
  * Provider-specific configuration

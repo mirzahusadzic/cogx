@@ -1,7 +1,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { AdkSession } from './adk-types.js';
-import { systemLog } from '../../utils/debug-logger.js';
+import { systemLog } from '../../../utils/debug-logger.js';
 
 export const TASK_LOG_EVICTION_THRESHOLD = 20;
 

@@ -368,7 +368,7 @@ export async function tuiCommand(options: TUIOptions): Promise<void> {
   // Resolve provider and model defaults
   // When resuming from state file, state provider takes precedence (can't switch providers mid-session)
   // For new sessions: CLI flags > config defaults
-  const { loadLLMConfig } = await import('../llm/llm-config.js');
+  const { loadLLMConfig } = await import('../llm/core/llm-config.js');
   const llmConfig = loadLLMConfig();
 
   let resolvedProvider: string;

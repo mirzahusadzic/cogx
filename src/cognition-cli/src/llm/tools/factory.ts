@@ -3,8 +3,8 @@ import { FunctionTool, type ToolContext } from '@google/adk';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { ToolDefinition } from './definitions.js';
-import type { OnCanUseTool } from '../providers/tool-helpers.js';
-import type { ToolResult } from '../types.js';
+import type { OnCanUseTool } from '../core/utils/tool-helpers.js';
+import type { ToolResult } from '../core/types.js';
 
 // We need to use 'as unknown' and specific target types to satisfy both
 // the linter and the provider-specific constructors without resorting to 'any'.

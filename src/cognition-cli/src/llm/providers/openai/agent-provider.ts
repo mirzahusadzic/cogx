@@ -63,7 +63,7 @@ import {
 import {
   archiveTaskLogs,
   TASK_LOG_EVICTION_THRESHOLD,
-} from '../eviction-utils.js';
+} from '../../core/utils/eviction-utils.js';
 
 /**
  * Extended event types from OpenAI Responses API
@@ -120,12 +120,12 @@ function isResponseDeltaEvent(event: unknown): event is ResponseDeltaEvent {
   );
 }
 
-import type { AgentRequest } from '../../agent-provider-interface.js';
+import type { AgentRequest } from '../../core/interfaces/agent-provider.js';
 import type {
   CompletionRequest,
   CompletionResponse,
   StreamChunk,
-} from '../../provider-interface.js';
+} from '../../core/interfaces/provider.js';
 
 /**
  * OpenAI Agent Provider configuration options
@@ -198,9 +198,9 @@ interface ConversationItemResponse {
   tool_call_id?: string;
 }
 
-import { BaseAgentProvider } from '../base-agent-provider.js';
-import { UnifiedStreamingChunk } from '../../types.js';
-import { ThinkingBudget } from '../thinking-utils.js';
+import { BaseAgentProvider } from '../../core/base-agent-provider.js';
+import { UnifiedStreamingChunk } from '../../core/types.js';
+import { ThinkingBudget } from '../../core/utils/thinking-utils.js';
 
 /**
  * OpenAI Agent Provider

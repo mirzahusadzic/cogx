@@ -36,7 +36,7 @@ import { systemLog } from '../../../utils/debug-logger.js';
 import type {
   AgentRequest,
   AgentResponse,
-} from '../../../llm/agent-provider-interface.js';
+} from '../../../llm/core/interfaces/agent-provider.js';
 
 type McpSdkServerConfigWithInstance = unknown;
 
@@ -127,7 +127,7 @@ export class AgentProviderAdapter {
   private providerName: string;
   private model: string;
   private options: AgentAdapterOptions;
-  private provider: import('../../../llm/agent-provider-interface.js').AgentProvider;
+  private provider: import('../../../llm/core/interfaces/agent-provider.js').AgentProvider;
 
   constructor(options: AgentAdapterOptions) {
     this.options = options;

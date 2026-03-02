@@ -33,7 +33,7 @@ import {
   getConfiguredProviders,
   CLAUDE_MODELS,
   GEMINI_MODELS,
-} from '../llm/llm-config.js';
+} from '../llm/core/llm-config.js';
 import {
   loadSettings,
   saveSettings,

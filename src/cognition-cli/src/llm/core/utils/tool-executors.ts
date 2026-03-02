@@ -7,12 +7,12 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { cleanAnsi as stripAnsi } from '../../utils/string-utils.js';
-import { SessionState } from '../../sigma/session-state.js';
+import { cleanAnsi as stripAnsi } from '../../../utils/string-utils.js';
+import { SessionState } from '../../../sigma/session-state.js';
 import { spawn, exec } from 'child_process';
 import { glob as globLib } from 'glob';
 import { smartCompressOutput } from './tool-helpers.js';
-import { systemLog } from '../../utils/debug-logger.js';
+import { systemLog } from '../../../utils/debug-logger.js';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);
@@ -803,9 +803,9 @@ export async function executeSigmaTaskUpdate(
 
     // Dynamic import to avoid circular dependencies
     const { updateTasksByAnchorId, loadSessionState } =
-      await import('../../sigma/session-state.js');
+      await import('../../../sigma/session-state.js');
     const { validateTaskCompletion } =
-      await import('../../sigma/validation-service.js');
+      await import('../../../sigma/validation-service.js');
 
     const projectRoot = cwd;
     const currentState = loadSessionState(anchorId, projectRoot);

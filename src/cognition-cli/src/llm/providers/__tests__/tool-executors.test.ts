@@ -11,7 +11,7 @@ vi.mock('child_process');
 vi.mock('glob');
 
 // Mock tool-helpers
-vi.mock('../tool-helpers.js', () => {
+vi.mock('../../core/utils/tool-helpers.js', () => {
   return {
     smartCompressOutput: (output) => Promise.resolve(output || ''),
     getWorkbenchClient: () => {},
@@ -31,7 +31,7 @@ import {
   executeBash,
   executeEditFile,
   executeFetchUrl,
-} from '../tool-executors.js';
+} from '../../core/utils/tool-executors.js';
 // Note: executeSigmaTaskUpdate tests use dynamic imports to properly mock session-state module
 
 describe('Tool Executors', () => {
@@ -442,7 +442,7 @@ describe('Tool Executors', () => {
 
       // Re-import after mocking
       const { executeSigmaTaskUpdate: executeSigmaTaskUpdateTest } =
-        await import('../tool-executors.js');
+        await import('../../core/utils/tool-executors.js');
 
       const todos = [
         {
@@ -487,7 +487,7 @@ describe('Tool Executors', () => {
       }));
 
       const { executeSigmaTaskUpdate: executeSigmaTaskUpdateTest } =
-        await import('../tool-executors.js');
+        await import('../../core/utils/tool-executors.js');
 
       const todos = [
         {
@@ -532,7 +532,7 @@ describe('Tool Executors', () => {
       }));
 
       const { executeSigmaTaskUpdate: executeSigmaTaskUpdateTest } =
-        await import('../tool-executors.js');
+        await import('../../core/utils/tool-executors.js');
 
       const result = await executeSigmaTaskUpdateTest(
         [
@@ -553,7 +553,7 @@ describe('Tool Executors', () => {
 
     test('should enforce single active task rule (Error on Multiple in_progress)', async () => {
       const { executeSigmaTaskUpdate: executeSigmaTaskUpdateTest } =
-        await import('../tool-executors.js');
+        await import('../../core/utils/tool-executors.js');
 
       const todos = [
         {
@@ -587,7 +587,7 @@ describe('Tool Executors', () => {
       }));
 
       const { executeSigmaTaskUpdate: executeSigmaTaskUpdateTest } =
-        await import('../tool-executors.js');
+        await import('../../core/utils/tool-executors.js');
 
       const anchorId = 'required-anchor-id';
       await executeSigmaTaskUpdateTest(
@@ -615,7 +615,7 @@ describe('Tool Executors', () => {
       }));
 
       const { executeSigmaTaskUpdate: executeSigmaTaskUpdateTest } =
-        await import('../tool-executors.js');
+        await import('../../core/utils/tool-executors.js');
 
       const result = await executeSigmaTaskUpdateTest(
         [],

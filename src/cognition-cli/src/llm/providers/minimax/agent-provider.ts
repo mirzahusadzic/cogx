@@ -4,20 +4,23 @@
  * Implements AgentProvider using Anthropic SDK with Minimax's Anthropic-compatible API.
  */
 
-import { AgentRequest, AgentMessage } from '../../agent-provider-interface.js';
-import { UnifiedStreamingChunk } from '../../types.js';
+import {
+  AgentRequest,
+  AgentMessage,
+} from '../../core/interfaces/agent-provider.js';
+import { UnifiedStreamingChunk } from '../../core/types.js';
 import { systemLog } from '../../../utils/debug-logger.js';
 import {
   CompletionRequest,
   CompletionResponse,
-} from '../../provider-interface.js';
+} from '../../core/interfaces/provider.js';
 import Anthropic from '@anthropic-ai/sdk';
-import { BaseAgentProvider } from '../base-agent-provider.js';
-import { ThinkingBudget } from '../thinking-utils.js';
+import { BaseAgentProvider } from '../../core/base-agent-provider.js';
+import { ThinkingBudget } from '../../core/utils/thinking-utils.js';
 import {
   archiveTaskLogs,
   TASK_LOG_EVICTION_THRESHOLD,
-} from '../eviction-utils.js';
+} from '../../core/utils/eviction-utils.js';
 
 interface ThinkingBlock {
   type: 'thinking';

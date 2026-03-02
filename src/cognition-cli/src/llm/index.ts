@@ -30,24 +30,24 @@
  * const response = await claude.complete({ prompt: '...', model: '...' });
  */
 
-import { registry } from './provider-registry.js';
+import { registry } from './core/provider-registry.js';
 import { GeminiAgentProvider } from './providers/gemini/agent-provider.js';
 import { OpenAIAgentProvider } from './providers/openai/agent-provider.js';
 import { MinimaxAgentProvider } from './providers/minimax/agent-provider.js';
 import { systemLog } from '../utils/debug-logger.js';
 
 // Re-export core types and classes
-export { registry } from './provider-registry.js';
+export { registry } from './core/provider-registry.js';
 export type {
   LLMProvider,
   CompletionRequest,
   CompletionResponse,
   StreamChunk,
-} from './provider-interface.js';
-export type { AgentProvider } from './agent-provider-interface.js';
-export { isAgentProvider } from './agent-provider-interface.js';
-export { BaseAgentProvider } from './providers/base-agent-provider.js';
-export type { UnifiedStreamingChunk } from './types.js';
+} from './core/interfaces/provider.js';
+export type { AgentProvider } from './core/interfaces/agent-provider.js';
+export { isAgentProvider } from './core/interfaces/agent-provider.js';
+export { BaseAgentProvider } from './core/base-agent-provider.js';
+export type { UnifiedStreamingChunk } from './core/types.js';
 export { GeminiAgentProvider } from './providers/gemini/agent-provider.js';
 export { OpenAIAgentProvider } from './providers/openai/agent-provider.js';
 export { MinimaxAgentProvider } from './providers/minimax/agent-provider.js';

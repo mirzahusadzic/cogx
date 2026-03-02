@@ -35,20 +35,24 @@ import {
   Event,
 } from '@google/adk';
 
-import { AdkEvent, AdkSession, AdkSessionService } from '../adk-types';
+import {
+  AdkEvent,
+  AdkSession,
+  AdkSessionService,
+} from '../../core/utils/adk-types.js';
 
 import { ThinkingLevel } from '@google/genai';
 
 import { getActiveTaskId } from '../../../sigma/session-state.js';
 
 import { systemLog } from '../../../utils/debug-logger.js';
-import { archiveTaskLogs } from '../eviction-utils.js';
-import type { AgentRequest } from '../../agent-provider-interface.js';
+import { archiveTaskLogs } from '../../core/utils/eviction-utils.js';
+import type { AgentRequest } from '../../core/interfaces/agent-provider.js';
 import type {
   CompletionRequest,
   CompletionResponse,
   StreamChunk,
-} from '../../provider-interface.js';
+} from '../../core/interfaces/provider.js';
 
 /**
  * ADK Run Options with support for optional newMessage injection.
@@ -81,9 +85,9 @@ interface GeminiGenerateContentConfig {
 
 // runSilently removed - logic moved to executeAgent for global scope suppression
 
-import { BaseAgentProvider } from '../base-agent-provider.js';
-import { UnifiedStreamingChunk } from '../../types.js';
-import type { ThinkingBudget } from '../thinking-utils.js';
+import { BaseAgentProvider } from '../../core/base-agent-provider.js';
+import { UnifiedStreamingChunk } from '../../core/types.js';
+import type { ThinkingBudget } from '../../core/utils/thinking-utils.js';
 
 /**
  * Gemini Agent Provider

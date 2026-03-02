@@ -5,12 +5,12 @@
  * Extracted to reduce code duplication.
  */
 
-import { WorkbenchClient } from '../../core/executors/workbench-client.js';
+import { WorkbenchClient } from '../../../core/executors/workbench-client.js';
 import {
   PERSONA_TOOL_OUTPUT_SUMMARIZER,
   DEFAULT_SUMMARIZER_MODEL_NAME,
   DEFAULT_SUMMARIZER_MAX_TOKENS,
-} from '../../config.js';
+} from '../../../config.js';
 
 /**
  * Maximum characters for tool output before truncation.

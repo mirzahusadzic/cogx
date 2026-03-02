@@ -21,10 +21,10 @@
  * ```
  */
 
-import type { LLMProvider } from './provider-interface.js';
-import type { AgentProvider } from './agent-provider-interface.js';
-import { isAgentProvider } from './agent-provider-interface.js';
-import { systemLog } from '../utils/debug-logger.js';
+import type { LLMProvider } from './interfaces/provider.js';
+import type { AgentProvider } from './interfaces/agent-provider.js';
+import { isAgentProvider } from './interfaces/agent-provider.js';
+import { systemLog } from '../../utils/debug-logger.js';
 
 /**
  * Provider Registry

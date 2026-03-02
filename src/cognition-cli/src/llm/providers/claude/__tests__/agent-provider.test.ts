@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Anthropic from '@anthropic-ai/sdk';
-import type { AgentResponse } from '../../../agent-provider-interface.js';
-import type { StreamChunk } from '../../../provider-interface.js';
+import type { AgentResponse } from '../../../core/interfaces/agent-provider.js';
+import type { StreamChunk } from '../../../core/interfaces/provider.js';
 
 // Use vi.hoisted for variables that need to be accessed in vi.mock factories
 const { sdkControl } = vi.hoisted(() => ({

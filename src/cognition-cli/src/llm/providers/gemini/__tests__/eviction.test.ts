@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GeminiAgentProvider } from '../agent-provider.js';
 import { getUnifiedTools } from '../../../tools/unified-tools.js';
-import { buildSystemPrompt } from '../../system-prompt.js';
-import { AgentRequest } from '../../../agent-provider-interface.js';
+import { buildSystemPrompt } from '../../../core/utils/system-prompt.js';
+import { AgentRequest } from '../../../core/interfaces/agent-provider.js';
 
 // Mock system prompt
-vi.mock('../../system-prompt.js', () => ({
+vi.mock('../../../core/utils/system-prompt.js', () => ({
   buildSystemPrompt: vi.fn().mockImplementation(() => {
     return `
       MEMORY & EVICTION RULES (CRITICAL)
@@ -24,7 +24,7 @@ vi.mock('fs/promises', () => ({
 }));
 
 // Mock tool executors
-vi.mock('../../tool-executors.js', () => ({
+vi.mock('../../../core/utils/tool-executors.js', () => ({
   executeSigmaTaskUpdate: vi.fn(),
   executeReadFile: vi.fn(),
   executeWriteFile: vi.fn(),
