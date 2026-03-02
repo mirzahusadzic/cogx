@@ -754,8 +754,13 @@ export async function executeSigmaTaskUpdate(
       (t) => t.status === 'in_progress'
     ).length;
     if (inProgressCount > 1) {
+      const inProgressIds = todos
+        .filter((t) => t.status === 'in_progress')
+        .map((t) => t.id)
+        .join("', '");
       throw new Error(
-        `Only ONE task can be in_progress at a time. You attempted to set ${inProgressCount} tasks to in_progress. RECOVERY: You MUST first mark the current active task as 'completed' (with a result_summary) before starting a new task.`
+        `Only ONE task can be in_progress at a time. You attempted to set ${inProgressCount} tasks to in_progress ('${inProgressIds}').\n\n` +
+          `RECOVERY: Mark exactly one task as 'in_progress'. If you are switching, mark the current one as 'completed' (with a result_summary) in the same call.`
       );
     }
 
@@ -827,7 +832,14 @@ export async function executeSigmaTaskUpdate(
         );
         if (startingNew && !isCompletingCurrent) {
           throw new Error(
-            `Strict Sequential Workflow: You must complete task '${currentInProgress.id}' (set status to 'completed') before starting '${startingNew.id}'. This ensures tool logs from '${currentInProgress.id}' are cleaned and findings are distilled into your context via the result_summary.`
+            `Strict Sequential Workflow: You must complete task '${currentInProgress.id}' (set status to 'completed') before starting '${startingNew.id}'.\n\n` +
+              `RECOVERY: To switch tasks, include both in your update:\n` +
+              `{\n` +
+              `  "todos": [\n` +
+              `    { "id": "${currentInProgress.id}", "status": "completed", "result_summary": "Summary of work done..." },\n` +
+              `    { "id": "${startingNew.id}", "status": "in_progress" }\n` +
+              `  ]\n` +
+              `}`
           );
         }
 
@@ -839,7 +851,14 @@ export async function executeSigmaTaskUpdate(
         );
         if (!isCompletingCurrent && newTasks.length > 0) {
           throw new Error(
-            `Strict Sequential Workflow: You cannot create NEW tasks while task '${currentInProgress.id}' is still in_progress. Complete the current task first to maintain focus and ensure a clean context for the next phase.`
+            `Strict Sequential Workflow: You cannot create NEW tasks while task '${currentInProgress.id}' is still in_progress.\n\n` +
+              `RECOVERY: Complete '${currentInProgress.id}' first, or include its completion in this call:\n` +
+              `{\n` +
+              `  "todos": [\n` +
+              `    { "id": "${currentInProgress.id}", "status": "completed", "result_summary": "Summary..." },\n` +
+              `    { "id": "new-task-id", "content": "Task description" }\n` +
+              `  ]\n` +
+              `}`
           );
         }
 
@@ -848,7 +867,8 @@ export async function executeSigmaTaskUpdate(
           // For now, let's just make sure they aren't adding PENDING tasks AND starting a NEW one.
           if (newTasks.length > 0) {
             throw new Error(
-              `Strict Sequential Workflow: Do not add new pending tasks and start a new in_progress task in the same call you are completing '${currentInProgress.id}'. Finish the current turn after completing a task to trigger context hygiene.`
+              `Strict Sequential Workflow: Do not add new pending tasks and start a new in_progress task in the same call you are completing '${currentInProgress.id}'.\n\n` +
+                `RECOVERY: Complete the current task first, then add/start new tasks in the NEXT turn to trigger context hygiene.`
             );
           }
         }

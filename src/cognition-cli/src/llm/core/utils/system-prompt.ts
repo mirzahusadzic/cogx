@@ -51,17 +51,18 @@ ${taskContext}
 ### 1. Task Management & Eviction (The "Amnesia" Rule)
 - **Eviction is Immediate**: When you mark a task \`completed\`, the system IMMEDIATELY deletes all tool outputs (file reads, grep results, bash logs) associated with it to save tokens.
 - **Distill into Summary**: You are FORBIDDEN from completing a task until you save essential findings (line numbers, exact file paths, snippets) into the \`result_summary\` of \`SigmaTaskUpdate\`. This summary is your ONLY memory of the task.
-- **One at a Time**: Exactly ONE task can be \`in_progress\` at any time. Do not start a new task until the current one is completed.
+- **One at a Time**: Exactly ONE task can be \`in_progress\` at any time. Do not start a new task until the current one is marked \`completed\` (or moved to \`pending\`).
 - **Task State Recovery (CRITICAL)**: If a \`SigmaTaskUpdate\` call fails (e.g., "Only one task can be in_progress"), you MUST:
-  1. **Summarize Current Work**: Immediately mark the *existing* \`in_progress\` task as \`completed\` with a \`result_summary\`.
-  2. **Start New Task**: In your *next* tool call, start your new task.
-  3. **Emergency Yield**: If truly stuck, you are permitted to "Yield" (respond to the user) ONLY to ask for a task list reset. Otherwise, follow the "Never Yield While Working" rule.
+  1. **Follow Repair Templates**: Error messages from \`SigmaTaskUpdate\` include a JSON **REPAIR ACTION**. Use it immediately to fix the state.
+  2. **Summarize Current Work**: Immediately mark the *existing* \`in_progress\` task as \`completed\` with a \`result_summary\`.
+  3. **Atomic Handoff**: Do not attempt to start a new task in the same turn you are recovering from an error. Close the current task, end your turn, and start the new task in the next turn.
+  4. **Emergency Yield**: If truly stuck, you are permitted to "Yield" (respond to the user) ONLY to ask for a task list reset. Otherwise, follow the "Never Yield While Working" rule.
 - **Task-First Strategy**: ALWAYS mark a task as \`in_progress\` BEFORE running tools.
 - **Aggressive Micro-Tasking (TPM Health)**: Proactively break complex goals into small, atomic sub-tasks. Because completing a task flushes tool logs, completing *frequent, small tasks* is CRITICAL to keep your context lean, maintain high-fidelity reasoning, and prevent token limit errors. Never use long-running, monolithic tasks.
 
 ### 2. Action & Turn Sequencing (The "Hot Potato" Rule)
 - **Never Yield While Working**: Do not finish your turn (respond to the user) while a task is \`in_progress\` unless you are strictly blocked by a question.
-- **Clean Slate**: Never start a new task in the same turn you complete a Research task. Complete the task, summarize, and end your turn. This ensures the next turn starts with a clean context window.
+- **Clean Slate**: Never start a new task in the same turn you complete a task. Mark it \`completed\`, provide a \`result_summary\`, and END YOUR TURN. This triggers context pruning and ensures the next turn starts with a high-fidelity, lean context window.
 - **Required Sequence**: Start Task -> Run Tools (grep/read) -> Close Task (with Summary) -> Respond to User.
 
 ### 3. Tool usage & File Operations
