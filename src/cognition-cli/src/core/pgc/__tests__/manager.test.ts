@@ -3,10 +3,8 @@ import { vol } from 'memfs';
 import path from 'path';
 import { PGCManager } from '../manager.ts';
 import { ObjectStore } from '../object-store.ts';
-import { GenesisOrchestrator } from '../../orchestrators/genesis.ts';
-import { StructuralMiner } from '../../orchestrators/miners/structural.ts';
-import { WorkbenchClient } from '../../executors/workbench-client.ts';
-import { StructuralOracle } from '../oracles/overlay.ts';
+import { MaintenanceStep } from '../../orchestrators/steps/maintenance.ts';
+import { PipelineContext } from '../../orchestrators/types.ts';
 
 // Mock workerpool to prevent real worker creation in tests
 vi.mock('workerpool', () => ({
@@ -73,7 +71,6 @@ vi.mock('fs-extra', async () => {
 describe('GenesisOrchestrator Garbage Collection', () => {
   let pgcManager: PGCManager;
   let objectStore: ObjectStore;
-  let genesisOrchestrator: GenesisOrchestrator;
 
   const projectRoot = '/project';
   const pgcRoot = '/project/.open_cognition';
@@ -84,24 +81,6 @@ describe('GenesisOrchestrator Garbage Collection', () => {
 
     pgcManager = new PGCManager(projectRoot);
     objectStore = pgcManager.objectStore;
-
-    // Mock dependencies for GenesisOrchestrator
-    const mockMiner = {} as StructuralMiner;
-    const mockWorkbench = {
-      health: vi.fn().mockResolvedValue(true),
-      getBaseUrl: vi.fn().mockReturnValue('http://localhost:8000'),
-    } as unknown as WorkbenchClient;
-    const mockStructuralOracle = {
-      verify: vi.fn().mockResolvedValue({ success: true, messages: [] }),
-    } as unknown as StructuralOracle;
-
-    genesisOrchestrator = new GenesisOrchestrator(
-      pgcManager,
-      mockMiner,
-      mockWorkbench,
-      mockStructuralOracle,
-      projectRoot
-    );
   });
 
   it('should remove empty sharded directories during garbage collection', async () => {
@@ -120,14 +99,32 @@ describe('GenesisOrchestrator Garbage Collection', () => {
     expect(vol.existsSync(emptyObjectDir2)).toBe(true);
     expect(vol.existsSync(emptyReverseDepDir)).toBe(true);
 
-    // Run garbage collection
-    const summary = await genesisOrchestrator['garbageCollect']([]); // Pass empty array as no processed files
+    // Run garbage collection via MaintenanceStep
+    const maintenanceStep = new MaintenanceStep({ gc: true, verify: false });
+    const mockContext = {
+      pgc: pgcManager,
+      projectRoot,
+      processedFiles: [],
+      docsOracle: {
+        cleanupOrphanedObjects: vi.fn().mockResolvedValue(0),
+        listDocuments: vi.fn().mockResolvedValue([]),
+        removeStaleEntries: vi.fn().mockResolvedValue(0),
+      },
+    } as unknown as PipelineContext;
+
+    await (
+      maintenanceStep as unknown as {
+        runGarbageCollection: (
+          context: PipelineContext,
+          processedFiles: string[]
+        ) => Promise<void>;
+      }
+    ).runGarbageCollection(mockContext, []);
 
     // Verify empty directories are removed
     expect(vol.existsSync(emptyObjectDir)).toBe(false);
     expect(vol.existsSync(emptyObjectDir2)).toBe(false);
     expect(vol.existsSync(emptyReverseDepDir)).toBe(false);
-    expect(summary.staleEntries).toBe(0);
   });
 
   it('should not remove sharded directories that contain files', async () => {
@@ -144,8 +141,27 @@ describe('GenesisOrchestrator Garbage Collection', () => {
     expect(vol.existsSync(shardedDir)).toBe(true);
     expect(vol.existsSync(objectPath)).toBe(true);
 
-    // Run garbage collection
-    await genesisOrchestrator['garbageCollect']([]);
+    // Run garbage collection via MaintenanceStep
+    const maintenanceStep = new MaintenanceStep({ gc: true, verify: false });
+    const mockContext = {
+      pgc: pgcManager,
+      projectRoot,
+      processedFiles: [],
+      docsOracle: {
+        cleanupOrphanedObjects: vi.fn().mockResolvedValue(0),
+        listDocuments: vi.fn().mockResolvedValue([]),
+        removeStaleEntries: vi.fn().mockResolvedValue(0),
+      },
+    } as unknown as PipelineContext;
+
+    await (
+      maintenanceStep as unknown as {
+        runGarbageCollection: (
+          context: PipelineContext,
+          processedFiles: string[]
+        ) => Promise<void>;
+      }
+    ).runGarbageCollection(mockContext, []);
 
     // Verify the directory and file still exist
     expect(vol.existsSync(shardedDir)).toBe(true);
@@ -176,12 +192,30 @@ describe('GenesisOrchestrator Garbage Collection', () => {
     expect(await pgcManager.index.get(filePath1)).toBeDefined();
     expect(await pgcManager.index.get(filePath2)).toBeDefined();
 
-    // Simulate garbage collection with only filePath1 being processed
-    const summary = await genesisOrchestrator['garbageCollect']([filePath1]);
+    // Run garbage collection via MaintenanceStep with only filePath1 being processed
+    const maintenanceStep = new MaintenanceStep({ gc: true, verify: false });
+    const mockContext = {
+      pgc: pgcManager,
+      projectRoot,
+      processedFiles: [filePath1],
+      docsOracle: {
+        cleanupOrphanedObjects: vi.fn().mockResolvedValue(0),
+        listDocuments: vi.fn().mockResolvedValue([]),
+        removeStaleEntries: vi.fn().mockResolvedValue(0),
+      },
+    } as unknown as PipelineContext;
+
+    await (
+      maintenanceStep as unknown as {
+        runGarbageCollection: (
+          context: PipelineContext,
+          processedFiles: string[]
+        ) => Promise<void>;
+      }
+    ).runGarbageCollection(mockContext, [filePath1]);
 
     // Verify filePath1 still exists and filePath2 is removed
     expect(await pgcManager.index.get(filePath1)).toBeDefined();
     expect(await pgcManager.index.get(filePath2)).toBeNull();
-    expect(summary.staleEntries).toBe(1);
   });
 });

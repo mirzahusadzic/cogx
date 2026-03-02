@@ -25,8 +25,9 @@ This document identifies code patterns in the Cognition Σ repository that share
   - **Potential code reduction:** ~120 lines (~25% of hook logic).
   - **Effort:** Medium (2-3 hours).
 
-### 2. LLM Agent Providers (0.83 similarity)
+### 2. LLM Agent Providers (0.83 similarity) [COMPLETED]
 
+- **Status:** COMPLETED
 - **Symbols:**
   - `GeminiAgentProvider` (`src/llm/providers/gemini/agent-provider.ts`)
   - `MinimaxAgentProvider` (`src/llm/providers/minimax/agent-provider.ts`)
@@ -39,13 +40,14 @@ This document identifies code patterns in the Cognition Σ repository that share
   - Similar error handling and retry mechanisms.
 
 - **💡 Refactoring Suggestion:**
-  - **Create Base Class:** Develop `BaseLLMProvider` to encapsulate tool handling and state management.
-  - **Template Method Pattern:** Define abstract methods for provider-specific API interactions (e.g., `_generateContent`).
+  - **Create Base Class:** Develop `BaseLLMProvider` to encapsulate tool handling and state management. [DONE]
+  - **Template Method Pattern:** Define abstract methods for provider-specific API interactions (e.g., `_generateContent`). [DONE]
   - **Potential code reduction:** ~250 lines (~30% of provider logic).
   - **Effort:** Medium-High (4-5 hours).
 
-### 3. Orchestrators (0.81 similarity)
+### 3. Orchestrators (0.81 similarity) [COMPLETED]
 
+- **Status:** COMPLETED
 - **Symbols:**
   - `GenesisOrchestrator` (`src/core/orchestrators/genesis.ts`)
   - `OverlayOrchestrator` (`src/core/orchestrators/overlay.ts`)
@@ -57,8 +59,8 @@ This document identifies code patterns in the Cognition Σ repository that share
   - Identical logging and error propagation patterns.
 
 - **💡 Refactoring Suggestion:**
-  - **Composition over Inheritance:** Shift towards a "Pipeline" architecture for data extraction.
-  - **Generic Pipeline:** Implement a `GenericOrchestrator` that accepts interchangeable `DataFetcher` and `ResultProcessor` strategies.
+  - **Composition over Inheritance:** Shift towards a "Pipeline" architecture for data extraction. [DONE]
+  - **Generic Pipeline:** Implement a `GenericOrchestrator` that accepts interchangeable `DataFetcher` and `ResultProcessor` strategies. [DONE]
   - **Potential code reduction:** ~150 lines (~20% of orchestrator logic).
   - **Effort:** Medium (3-4 hours).
 

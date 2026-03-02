@@ -4,23 +4,10 @@ import type { PGCManager } from '../pgc/manager.js';
 import type { StructuralMiner } from './miners/structural.js';
 import type { WorkbenchClient } from '../executors/workbench-client.js';
 import type { GenesisOracle } from '../pgc/oracles/genesis.js';
+import { DocsOracle } from '../pgc/oracles/docs.js';
+import type { ProgressCallback, IOrchestrator } from './types.js';
 
-/**
- * Progress callback type for reporting progress to callers (e.g., TUI)
- */
-export type ProgressCallback = (
-  current: number,
-  total: number,
-  message: string,
-  file?: string
-) => void;
-
-/**
- * Interface for all Sigma Orchestrators
- */
-export interface IOrchestrator {
-  run(onProgress?: ProgressCallback): Promise<void>;
-}
+export { ProgressCallback, IOrchestrator };
 
 /**
  * Base Orchestrator class providing shared infrastructure and lifecycle utilities.
@@ -29,6 +16,7 @@ export abstract class BaseOrchestrator implements IOrchestrator {
   protected s = spinner();
   protected useSpinner = true;
   protected onProgress?: ProgressCallback;
+  protected docsOracle: DocsOracle;
 
   constructor(
     protected pgc: PGCManager,
@@ -36,7 +24,9 @@ export abstract class BaseOrchestrator implements IOrchestrator {
     protected workbench: WorkbenchClient,
     protected genesisOracle: GenesisOracle,
     protected projectRoot: string
-  ) {}
+  ) {
+    this.docsOracle = new DocsOracle(pgc);
+  }
 
   /**
    * Abstract run method to be implemented by subclasses

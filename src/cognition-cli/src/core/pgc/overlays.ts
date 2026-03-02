@@ -184,6 +184,46 @@ export class Overlays {
   }
 
   /**
+   * Remove an entry from the manifest
+   * @param overlayType - The type of overlay
+   * @param symbolName - The symbol/entry name to remove
+   */
+  async deleteManifestEntry(
+    overlayType: string,
+    symbolName: string
+  ): Promise<void> {
+    const manifestPath = path.join(
+      this.getOverlayPath(overlayType),
+      'manifest.json'
+    );
+
+    if (!(await fs.pathExists(manifestPath))) {
+      return;
+    }
+
+    let release;
+    try {
+      release = await lock(manifestPath, {
+        retries: 5,
+        stale: 5000,
+        realpath: false,
+      });
+
+      let manifest: Record<string, ManifestEntryRaw> = {};
+      manifest = await fs.readJSON(manifestPath);
+
+      if (manifest[symbolName]) {
+        delete manifest[symbolName];
+        await fs.writeJSON(manifestPath, manifest, { spaces: 2 });
+      }
+    } finally {
+      if (release) {
+        await release();
+      }
+    }
+  }
+
+  /**
    * Get manifest with backward compatibility
    * Returns raw manifest data (supports both old string and new object formats)
    */
