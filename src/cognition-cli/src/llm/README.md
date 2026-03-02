@@ -1,12 +1,12 @@
 # LLM Module - Multi-Provider Abstraction Layer
 
-The **LLM (Large Language Model)** module provides a unified interface for interacting with different AI model providers (Claude, Gemini, OpenAI/local) within the Cognition system.
+The **LLM (Large Language Model)** module provides a unified interface for interacting with different AI model providers (Claude, Gemini, Minimax, OpenAI/local) within the Cognition system.
 
 It abstracts away the differences between providers, enabling the TUI and other agents to switch models dynamically while maintaining support for advanced features like tool use, streaming, and multi-turn conversations.
 
 ## 🚀 Key Features
 
-- **Multi-Provider Support**: Seamlessly switch between Anthropic Claude, Google Gemini, and OpenAI/local models.
+- **Multi-Provider Support**: Seamlessly switch between Anthropic Claude, Google Gemini, Minimax, and OpenAI/local models.
 - **Unified Interfaces**:
   - `LLMProvider`: Basic completions and streaming.
   - `AgentProvider`: Advanced agent workflows (tools, memory, sessions).
@@ -49,6 +49,10 @@ classDiagram
         +executeAgent()
     }
 
+    class MinimaxAgentProvider {
+        +executeAgent()
+    }
+
     class OpenAIAgentProvider {
         +executeAgent()
     }
@@ -56,9 +60,11 @@ classDiagram
     LLMProvider <|-- AgentProvider
     LLMProvider <|.. ClaudeProvider
     LLMProvider <|.. GeminiAgentProvider
+    LLMProvider <|.. MinimaxAgentProvider
     LLMProvider <|.. OpenAIAgentProvider
     AgentProvider <|.. ClaudeProvider
     AgentProvider <|.. GeminiAgentProvider
+    AgentProvider <|.. MinimaxAgentProvider
     AgentProvider <|.. OpenAIAgentProvider
     ProviderRegistry --> LLMProvider
 ```
@@ -88,6 +94,7 @@ Centralizes settings from environment variables and `settings.json`.
 - **Defaults**:
   - Claude: `claude-opus-4-5-20251101`
   - Gemini: `gemini-3-flash-preview`
+  - Minimax: `abab7-chat`
   - OpenAI: `gpt-4o` (or auto-detected from workbench)
 
 #### 4. Shared Machinery (`core/base-agent-provider.ts`)
@@ -198,16 +205,18 @@ The module implements several layers of protection against common AI workflow fa
 
 The module automatically loads configuration from environment variables.
 
-| Provider    | Env Variable             | Description                                            |
-| ----------- | ------------------------ | ------------------------------------------------------ |
-| **Claude**  | `ANTHROPIC_API_KEY`      | Required for Claude provider                           |
-|             | `COGNITION_CLAUDE_MODEL` | Override default model                                 |
-| **Gemini**  | `GEMINI_API_KEY`         | Required for Gemini provider                           |
-|             | `COGNITION_GEMINI_MODEL` | Override default model                                 |
-| **OpenAI**  | `OPENAI_API_KEY`         | Required for official OpenAI API                       |
-|             | `OPENAI_BASE_URL`        | Custom endpoint (e.g., local workbench)                |
-|             | `COGNITION_OPENAI_MODEL` | Override default model                                 |
-| **General** | `COGNITION_LLM_PROVIDER` | Set default provider (`claude`, `gemini`, or `openai`) |
+| Provider    | Env Variable              | Description                                                      |
+| ----------- | ------------------------- | ---------------------------------------------------------------- |
+| **Claude**  | `ANTHROPIC_API_KEY`       | Required for Claude provider                                     |
+|             | `COGNITION_CLAUDE_MODEL`  | Override default model                                           |
+| **Gemini**  | `GEMINI_API_KEY`          | Required for Gemini provider                                     |
+|             | `COGNITION_GEMINI_MODEL`  | Override default model                                           |
+| **Minimax** | `MINIMAX_API_KEY`         | Required for Minimax provider                                    |
+|             | `COGNITION_MINIMAX_MODEL` | Override default model                                           |
+| **OpenAI**  | `OPENAI_API_KEY`          | Required for official OpenAI API                                 |
+|             | `OPENAI_BASE_URL`         | Custom endpoint (e.g., local workbench)                          |
+|             | `COGNITION_OPENAI_MODEL`  | Override default model                                           |
+| **General** | `COGNITION_LLM_PROVIDER`  | Set default provider (`claude`, `gemini`, `minimax` or `openai`) |
 
 ---
 
