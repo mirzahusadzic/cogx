@@ -12,7 +12,7 @@ import fs from 'fs';
 vi.mock('../../core/workspace-manager.js');
 vi.mock('../../tui/index.js');
 vi.mock('../../utils/workbench-detect.js');
-vi.mock('../../llm/llm-config.js');
+vi.mock('../../llm/core/llm-config.js');
 vi.mock('../../llm/index.js');
 
 describe('tuiCommand', () => {
@@ -42,7 +42,7 @@ describe('tuiCommand', () => {
       configured: false,
     } as any);
 
-    const { loadLLMConfig } = await import('../../llm/llm-config.js');
+    const { loadLLMConfig } = await import('../../llm/core/llm-config.js');
     vi.mocked(loadLLMConfig).mockReturnValue({
       defaultProvider: 'claude',
       providers: {
