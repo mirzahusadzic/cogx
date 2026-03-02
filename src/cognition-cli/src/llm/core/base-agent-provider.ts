@@ -13,7 +13,10 @@ import {
   StreamChunk,
 } from './interfaces/provider.js';
 import { getGroundingContext } from './utils/grounding-utils.js';
-import { getDynamicThinkingBudget, ThinkingBudget } from './utils/thinking-utils.js';
+import {
+  getDynamicThinkingBudget,
+  ThinkingBudget,
+} from './utils/thinking-utils.js';
 import { buildSystemPrompt } from './utils/system-prompt.js';
 import {
   getUnifiedTools,
