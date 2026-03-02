@@ -1,6 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { Session } from '@google/adk';
+import { AdkSession } from './adk-types.js';
 import { systemLog } from '../../utils/debug-logger.js';
 
 export const TASK_LOG_EVICTION_THRESHOLD = 20;
@@ -49,12 +49,11 @@ export async function performRollingPrune({
   taskId: string;
   sessionId: string;
   projectRoot: string;
-  session: Session;
+  session: AdkSession;
   threshold?: number;
 }) {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const events = (session as any).events;
+    const events = session.events;
     if (!events || events.length === 0) return;
 
     const tag = `<!-- sigma-task: ${taskId} -->`;
@@ -64,8 +63,7 @@ export async function performRollingPrune({
     for (let i = 0; i < events.length; i++) {
       const event = events[i];
       const parts = event.content?.parts || [];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const hasTag = parts.some((p: any) => {
+      const hasTag = parts.some((p) => {
         if (p.text?.includes(tag)) return true;
         if (p.functionResponse?.response) {
           return JSON.stringify(p.functionResponse.response).includes(tag);

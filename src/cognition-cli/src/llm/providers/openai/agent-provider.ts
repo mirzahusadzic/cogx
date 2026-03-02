@@ -55,7 +55,7 @@ process.env.DEBUG = ''; // Disable debug package output
 
 import { systemLog } from '../../../utils/debug-logger.js';
 import OpenAI from 'openai';
-import { Agent, run, setDefaultOpenAIClient } from '@openai/agents';
+import { Agent, run, setDefaultOpenAIClient, tool } from '@openai/agents';
 import {
   OpenAIResponsesModel,
   OpenAIConversationsSession,
@@ -900,7 +900,7 @@ export class OpenAIAgentProvider extends BaseAgentProvider {
           request.cwd || request.projectRoot || process.cwd()
         );
       }
-    ) as any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+    ) as ReturnType<typeof tool>[];
 
     // Use Responses API for all endpoints
     const modelImpl = new OpenAIResponsesModel(this.client, modelId);

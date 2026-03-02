@@ -35,6 +35,8 @@ import {
   Event,
 } from '@google/adk';
 
+import { AdkEvent, AdkSession, AdkSessionService } from '../adk-types';
+
 import { ThinkingLevel } from '@google/genai';
 
 import { getActiveTaskId } from '../../../sigma/session-state.js';
@@ -47,25 +49,6 @@ import type {
   CompletionResponse,
   StreamChunk,
 } from '../../provider-interface.js';
-
-/**
- * Internal ADK Session interface for history inspection.
- * Note: history is an internal field in some ADK implementations used for turn tracking.
- */
-interface AdkSession {
-  events?: Array<{
-    author?: string;
-    content?: {
-      parts?: Array<{
-        text?: string;
-        thought?: boolean;
-        thoughtSignature?: string;
-        functionCall?: { name: string; args?: Record<string, unknown> };
-        functionResponse?: { name: string; response?: unknown };
-      }>;
-    };
-  }>;
-}
 
 /**
  * ADK Run Options with support for optional newMessage injection.
@@ -168,8 +151,7 @@ export class GeminiAgentProvider extends BaseAgentProvider {
       session: Session;
       event: Event;
     }) => {
-      const sessionId = (args.session as unknown as Record<string, string>)
-        .sessionId;
+      const sessionId = (args.session as AdkSession).sessionId;
       const lastSignature = this.sessionSignatures.get(sessionId);
 
       if (
@@ -216,7 +198,7 @@ export class GeminiAgentProvider extends BaseAgentProvider {
 
       if (!session) return;
 
-      const events = (session as unknown as AdkSession).events;
+      const events = (session as AdkSession).events;
       if (!events || events.length === 0) return;
 
       const tag = `<!-- sigma-task: ${taskId} -->`;
@@ -275,10 +257,8 @@ export class GeminiAgentProvider extends BaseAgentProvider {
           ...event,
           content: {
             ...event.content,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            parts: newParts as any,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any,
+            parts: newParts,
+          },
         };
       }
 
@@ -294,8 +274,9 @@ export class GeminiAgentProvider extends BaseAgentProvider {
       (session as unknown as AdkSession).events = newEvents;
 
       // Update internal storage if using InMemorySessionService
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const internalStorage = (this.sessionService as any).sessions;
+      const internalStorage = (
+        this.sessionService as unknown as AdkSessionService
+      ).sessions;
       if (internalStorage?.['cognition-cli']?.['cognition-user']?.[sessionId]) {
         internalStorage['cognition-cli']['cognition-user'][sessionId].events = [
           ...newEvents,
@@ -343,7 +324,7 @@ export class GeminiAgentProvider extends BaseAgentProvider {
 
       if (!session) return;
 
-      const events = (session as unknown as AdkSession).events;
+      const events = (session as AdkSession).events;
       if (!events || events.length === 0) return;
 
       const tag = `<!-- sigma-task: ${taskId} -->`;
@@ -505,8 +486,9 @@ export class GeminiAgentProvider extends BaseAgentProvider {
 
         // CRITICAL: InMemorySessionService.getSession() returns a deep clone!
         // We must also update the internal storage so the eviction persists across turns.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const internalStorage = (this.sessionService as any).sessions;
+        const internalStorage = (
+          this.sessionService as unknown as AdkSessionService
+        ).sessions;
         if (
           internalStorage?.['cognition-cli']?.['cognition-user']?.[sessionId]
         ) {
@@ -590,7 +572,7 @@ export class GeminiAgentProvider extends BaseAgentProvider {
         }
       ),
       ...this.getAdditionalTools(request),
-    ] as any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+    ] as AgentTool[];
 
     let activeModel = request.model || 'gemini-3-flash-preview';
     let attempt = 0;
@@ -686,15 +668,13 @@ export class GeminiAgentProvider extends BaseAgentProvider {
           };
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const runGenerator = this.currentRunner.runAsync(runOptions as any);
+        const runGenerator = this.currentRunner.runAsync(
+          runOptions as unknown as Parameters<Runner['runAsync']>[0]
+        ) as AsyncGenerator<AdkEvent>;
         this.currentGenerator = runGenerator as AsyncGenerator<unknown>;
 
-        for await (const event of runGenerator) {
+        for await (const evt of runGenerator) {
           if (this.abortController?.signal.aborted) break;
-
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const evt = event as any;
           if (attempt > 0) {
             attempt = 0;
             retryDelay = 1000;
