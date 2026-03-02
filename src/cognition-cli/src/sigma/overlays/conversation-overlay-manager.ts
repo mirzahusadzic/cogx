@@ -7,8 +7,19 @@ import { AlignmentScores, ConversationOverlayConfig } from './types.js';
 /**
  * Generic Conversation Overlay Manager
  *
- * Replaces redundant subclass implementations by using configuration objects
- * for O1-O7 overlays.
+ * Replaces redundant subclass implementations (O1-O7) by using configuration
+ * objects from src/sigma/overlays/types.ts.
+ *
+ * This manager handles:
+ * 1. Metadata management for conversation turns
+ * 2. Semantic alignment scoring using keywords from config
+ * 3. Relevance filtering (O1 stores all, others filter by score)
+ * 4. Persistence to YAML and LanceDB (via BaseConversationManager)
+ *
+ * @example
+ * const config = CONVERSATION_OVERLAY_CONFIGS['O1'];
+ * const manager = new ConversationOverlayManager(sigmaRoot, config);
+ * await manager.initializeLanceStore();
  */
 export class ConversationOverlayManager extends BaseConversationManager<ConversationTurnMetadata> {
   constructor(
