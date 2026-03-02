@@ -11,7 +11,7 @@ The conversation history has been compressed to save tokens.
  * Providers that require aggressive context management and proactive token pressure warnings.
  * These typically have lower TPM (Tokens Per Minute) quotas or benefit from early semantic cleanup.
  */
-export const CONTEXT_SENSITIVE_PROVIDERS = ['gemini', 'openai'];
+export const CONTEXT_SENSITIVE_PROVIDERS = ['gemini', 'openai', 'minimax'];
 
 /**
  * The maximum number of lines to show in the streaming tool output block.

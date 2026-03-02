@@ -985,10 +985,17 @@ export function useAgentHandlers() {
           tokenCounter.count.total > semanticThreshold &&
           !isAutoResponse
         ) {
+          const activeTask = state.sigmaTasks?.todos?.find(
+            (t) => t.status === 'in_progress'
+          );
+          const taskId = activeTask ? activeTask.id : 'none';
+
           const warning = `<token-pressure-warning>
-Current context is at ${tokenCounter.count.total.toLocaleString()} tokens. 
-To maintain performance and stay within TPM limits, please consider marking your current task as "completed" using SigmaTaskUpdate as soon as you reach a logical stopping point. 
-This will trigger a semantic compression event, flushing implementation noise while preserving your high-level plan.
+CRITICAL: Current context is at ${tokenCounter.count.total.toLocaleString()} tokens. 
+Active Task: ${taskId}
+
+To maintain high-fidelity reasoning and stay within TPM limits, follow the "Aggressive Micro-Tasking" rule: mark your current task as "completed" via SigmaTaskUpdate as soon as you reach a logical stopping point. 
+This triggers a semantic compression event, flushing implementation noise while preserving your high-level plan.
 </token-pressure-warning>`;
           finalPrompt = `${warning}\n\n${finalPrompt}`;
         }
