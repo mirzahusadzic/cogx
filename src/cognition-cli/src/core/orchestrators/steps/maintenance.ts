@@ -44,7 +44,8 @@ export class MaintenanceStep extends BaseStep {
     return this.success();
   }
 
-  private async runGarbageCollection(
+  /** @internal */
+  public async runGarbageCollection(
     context: PipelineContext,
     processedFiles: string[]
   ) {

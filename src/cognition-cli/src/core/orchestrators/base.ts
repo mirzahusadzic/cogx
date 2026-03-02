@@ -10,6 +10,14 @@ import type { ProgressCallback, IOrchestrator } from './types.js';
 export { ProgressCallback, IOrchestrator };
 
 /**
+ * Internal interface for Orchestrator state, used primarily for testing.
+ * @internal
+ */
+export interface IOrchestratorInternal {
+  workbench: WorkbenchClient;
+}
+
+/**
  * Base Orchestrator class providing shared infrastructure and lifecycle utilities.
  */
 export abstract class BaseOrchestrator implements IOrchestrator {

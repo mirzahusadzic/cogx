@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { OverlayOrchestrator } from '../overlay.js';
+import { type IOrchestratorInternal } from '../base.js';
+import { WorkbenchClient } from '../../executors/workbench-client.js';
 
 // Mock workerpool to prevent Vite worker parsing errors
 vi.mock('workerpool', () => ({
@@ -59,8 +61,8 @@ describe('OverlayOrchestrator - Workbench Pre-flight Check', () => {
     const orchestrator = await OverlayOrchestrator.create(process.cwd());
 
     // Replace the workbench with our mock
-    (orchestrator as unknown as { workbench: typeof mockWorkbench }).workbench =
-      mockWorkbench;
+    (orchestrator as unknown as IOrchestratorInternal).workbench =
+      mockWorkbench as unknown as WorkbenchClient;
 
     // Attempt to run overlay generation
     await expect(orchestrator.run('structural_patterns')).rejects.toThrow(
@@ -78,8 +80,8 @@ describe('OverlayOrchestrator - Workbench Pre-flight Check', () => {
     };
 
     const orchestrator = await OverlayOrchestrator.create(process.cwd());
-    (orchestrator as unknown as { workbench: typeof mockWorkbench }).workbench =
-      mockWorkbench;
+    (orchestrator as unknown as IOrchestratorInternal).workbench =
+      mockWorkbench as unknown as WorkbenchClient;
 
     try {
       await orchestrator.run('structural_patterns');
@@ -103,16 +105,12 @@ describe('OverlayOrchestrator - Workbench Pre-flight Check', () => {
     };
 
     const orchestrator = await OverlayOrchestrator.create(process.cwd());
-    (orchestrator as unknown as { workbench: typeof mockWorkbench }).workbench =
-      mockWorkbench;
+    (orchestrator as unknown as IOrchestratorInternal).workbench =
+      mockWorkbench as unknown as WorkbenchClient;
 
     // Mock loadFilesFromPGCIndex to throw after health check succeeds
     // This proves health check happens first
-    (
-      orchestrator as unknown as {
-        loadFilesFromPGCIndex: () => Promise<never>;
-      }
-    ).loadFilesFromPGCIndex = vi
+    orchestrator.loadFilesFromPGCIndex = vi
       .fn()
       .mockRejectedValue(new Error('Test intentional failure'));
 
@@ -132,8 +130,8 @@ describe('OverlayOrchestrator - Workbench Pre-flight Check', () => {
     };
 
     const orchestrator = await OverlayOrchestrator.create(process.cwd());
-    (orchestrator as unknown as { workbench: typeof mockWorkbench }).workbench =
-      mockWorkbench;
+    (orchestrator as unknown as IOrchestratorInternal).workbench =
+      mockWorkbench as unknown as WorkbenchClient;
 
     // Both overlay types should check workbench health
     await expect(orchestrator.run('lineage_patterns')).rejects.toThrow(

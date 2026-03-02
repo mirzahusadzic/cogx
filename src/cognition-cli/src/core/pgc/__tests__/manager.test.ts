@@ -116,14 +116,7 @@ describe('GenesisOrchestrator Garbage Collection', () => {
       },
     } as unknown as PipelineContext;
 
-    await (
-      maintenanceStep as unknown as {
-        runGarbageCollection: (
-          context: PipelineContext,
-          processedFiles: string[]
-        ) => Promise<void>;
-      }
-    ).runGarbageCollection(mockContext, []);
+    await maintenanceStep.runGarbageCollection(mockContext, []);
 
     // Verify empty directories are removed
     expect(vol.existsSync(emptyObjectDir)).toBe(false);
@@ -158,14 +151,7 @@ describe('GenesisOrchestrator Garbage Collection', () => {
       },
     } as unknown as PipelineContext;
 
-    await (
-      maintenanceStep as unknown as {
-        runGarbageCollection: (
-          context: PipelineContext,
-          processedFiles: string[]
-        ) => Promise<void>;
-      }
-    ).runGarbageCollection(mockContext, []);
+    await maintenanceStep.runGarbageCollection(mockContext, []);
 
     // Verify the directory and file still exist
     expect(vol.existsSync(shardedDir)).toBe(true);
@@ -209,14 +195,7 @@ describe('GenesisOrchestrator Garbage Collection', () => {
       },
     } as unknown as PipelineContext;
 
-    await (
-      maintenanceStep as unknown as {
-        runGarbageCollection: (
-          context: PipelineContext,
-          processedFiles: string[]
-        ) => Promise<void>;
-      }
-    ).runGarbageCollection(mockContext, [filePath1]);
+    await maintenanceStep.runGarbageCollection(mockContext, [filePath1]);
 
     // Verify filePath1 still exists and filePath2 is removed
     expect(await pgcManager.index.get(filePath1)).toBeDefined();
@@ -273,14 +252,7 @@ describe('GenesisOrchestrator Garbage Collection', () => {
       },
     } as unknown as PipelineContext;
 
-    await (
-      maintenanceStep as unknown as {
-        runGarbageCollection: (
-          context: PipelineContext,
-          processedFiles: string[]
-        ) => Promise<void>;
-      }
-    ).runGarbageCollection(mockContext, []);
+    await maintenanceStep.runGarbageCollection(mockContext, []);
 
     // Verify orphan/stale entries are removed
     // orphanTransformId should be removed because its manifest says inputs/outputs are [], wait...
@@ -325,14 +297,7 @@ describe('GenesisOrchestrator Garbage Collection', () => {
     } as unknown as PipelineContext;
 
     // Use private method via cast
-    await (
-      maintenanceStep as unknown as {
-        runGarbageCollection: (
-          context: PipelineContext,
-          processedFiles: string[]
-        ) => Promise<void>;
-      }
-    ).runGarbageCollection(mockContext, []);
+    await maintenanceStep.runGarbageCollection(mockContext, []);
 
     // 3. Verify it's gone from manifest
     manifest = await pgcManager.overlays.getManifest(overlayType);

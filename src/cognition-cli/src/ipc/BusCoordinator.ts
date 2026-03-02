@@ -41,6 +41,16 @@ import { systemLog } from '../utils/debug-logger.js';
  *   await coordinator.cleanup();
  * }
  */
+/**
+ * Internal interface for BusCoordinator state, used primarily for testing.
+ * @internal
+ */
+export interface IBusCoordinatorInternal {
+  readonly socketPath: string;
+  readonly pidPath: string;
+  readonly lockPath: string;
+}
+
 export class BusCoordinator {
   private lockPath: string;
   private pidPath: string;

@@ -10,17 +10,16 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { BusCoordinator } from '../BusCoordinator';
+import {
+  BusCoordinator,
+  type IBusCoordinatorInternal,
+} from '../BusCoordinator';
 import * as path from 'path';
 import * as os from 'os';
 import fs from 'fs-extra';
 
 // Helper type to access private fields for testing
-type BusCoordinatorPrivate = {
-  socketPath: string;
-  pidPath: string;
-  lockPath: string;
-};
+type BusCoordinatorPrivate = IBusCoordinatorInternal;
 
 describe('BusCoordinator', () => {
   let originalEnv: NodeJS.ProcessEnv;

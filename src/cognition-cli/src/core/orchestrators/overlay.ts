@@ -917,7 +917,8 @@ export class OverlayOrchestrator extends BaseOrchestrator {
    *
    * @returns Array of source files with content loaded from PGC object store
    */
-  private async loadFilesFromPGCIndex(
+  /** @internal */
+  public async loadFilesFromPGCIndex(
     useJson: boolean = false
   ): Promise<SourceFile[]> {
     const allIndexData = await this.pgc.index.getAllData();
