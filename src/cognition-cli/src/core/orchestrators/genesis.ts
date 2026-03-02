@@ -11,10 +11,30 @@ import type { WorkbenchClient } from '../executors/workbench-client.js';
 import type { GenesisOracle } from '../pgc/oracles/genesis.js';
 
 /**
- * Orchestrator responsible for the initial PGC generation (Genesis).
+ * Genesis Orchestrator: Main entry point for structural data extraction and PGC initialization
  *
- * Performs a full scan of the project, extracts structural metadata from all supported files,
- * and builds the initial Project Knowledge Store.
+ * Implements the bottom-up aggregation phase of the Genesis process:
+ * 1. Discover and parse source files (native TS/JS in parallel, remote Python sequentially)
+ * 2. Extract structural metadata (classes, functions, interfaces, dependencies)
+ * 3. Store in Grounded Context Pool (PGC) with content & structural hashing
+ * 4. Record transformation lineage in transformLog and reverseDeps
+ * 5. Run garbage collection to maintain PGC coherence
+ * 6. Verify structural consistency via GenesisOracle
+ *
+ * DESIGN PATTERNS:
+ * - Two-phase processing: Parallel native parsing → Sequential remote parsing
+ * - PGC anchoring: All structural data stored as immutable objects via content hashing
+ * - Lineage tracking: Every transformation recorded for audit trail and invalidation
+ * - Incremental: Skips unchanged files (content hash comparison)
+ * - Optimized GC: Preserves hashes referenced by overlays
+ *
+ * @example
+ * const pgc = new PGCManager(projectRoot);
+ * const orchestrator = new GenesisOrchestrator(pgc, miner, workbench, genesisOracle, projectRoot);
+ * await orchestrator.run();
+ * // → Extracts all TypeScript/JavaScript/Python files from src/
+ * // → Stores in .open_cognition/index/, .open_cognition/objects/
+ * // → PGC is now ready for overlay generation
  */
 export class GenesisOrchestrator extends BaseOrchestrator {
   constructor(
@@ -29,6 +49,21 @@ export class GenesisOrchestrator extends BaseOrchestrator {
 
   /**
    * Run the Genesis orchestration pipeline.
+   *
+   * This is the main entry point that orchestrates the entire structural extraction pipeline:
+   * 1. Verify workbench (eGemma) is available for semantic analysis
+   * 2. Discover all source files (TS/JS/Python/Java/Rust/Go)
+   * 3. Parse native files in parallel (TS/JS with tree-sitter)
+   * 4. Process files sequentially with structural extraction & storage
+   * 5. Aggregate directory-level summaries (bottom-up)
+   * 6. Perform garbage collection to maintain PGC coherence
+   * 7. Verify structural integrity via GenesisOracle
+   *
+   * LINEAGE TRACKING:
+   * - Stores content hash in object store for each file
+   * - Stores structural data hash for extracted metadata
+   * - Records transformation ID linking inputs → outputs
+   * - Maintains reverse deps for invalidation during updates
    *
    * @param onProgress - Optional callback for reporting progress to the UI
    */
@@ -67,6 +102,12 @@ export class GenesisOrchestrator extends BaseOrchestrator {
 
   /**
    * Entry point for bottom-up aggregation (legacy support).
+   *
+   * This is a specialized entry point that allows processing specific source paths
+   * while following the full Genesis pipeline.
+   *
+   * @param sourcePaths - Relative paths to source directories (e.g., ['src', 'lib'])
+   * @param onProgress - Optional callback for reporting progress to the UI
    */
   async executeBottomUpAggregation(
     sourcePaths: string[],
