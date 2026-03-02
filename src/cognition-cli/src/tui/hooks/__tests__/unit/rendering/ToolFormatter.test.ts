@@ -306,6 +306,57 @@ describe('ToolFormatter', () => {
       expect(result.description).toContain('Single task');
       expect(result.description).toContain('○');
     });
+
+    it('formats SigmaTaskUpdate with missing content using sigmaTasks state', () => {
+      const tool: ToolUse = {
+        name: 'SigmaTaskUpdate',
+        input: {
+          todos: [
+            {
+              id: '1',
+              status: 'completed',
+            },
+          ],
+        },
+      };
+
+      const sigmaTasks: SigmaTasks = {
+        todos: [
+          {
+            id: '1',
+            content: 'Persistent Task Name',
+            activeForm: 'Persistent Task Form',
+            status: 'in_progress',
+          },
+        ],
+      };
+
+      const result = formatToolUse(tool, undefined, sigmaTasks);
+
+      expect(stripAnsi(result.icon)).toBe('📋');
+      expect(result.description).toContain('Persistent Task Name');
+      expect(result.description).toContain('✓');
+    });
+
+    it('formats SigmaTaskUpdate with missing content and no state with fallback', () => {
+      const tool: ToolUse = {
+        name: 'SigmaTaskUpdate',
+        input: {
+          todos: [
+            {
+              id: '42',
+              status: 'in_progress',
+            },
+          ],
+        },
+      };
+
+      const result = formatToolUse(tool);
+
+      expect(stripAnsi(result.icon)).toBe('📋');
+      expect(result.description).toContain('Task 42');
+      expect(result.description).toContain('→');
+    });
   });
 
   describe('formatToolResult()', () => {

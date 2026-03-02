@@ -99,6 +99,7 @@ import {
 } from '../../utils/ansi-utils.js';
 import { cleanAnsi, stripSigmaMarkers } from '../../../utils/string-utils.js';
 import { TUITheme } from '../../theme.js';
+import type { SigmaTask, SigmaTasks } from '../useAgent/types.js';
 
 /**
  * Constants for tool output formatting and safety limits.
@@ -215,7 +216,11 @@ function relativizePath(p: string, basePath: string = process.cwd()): string {
  * });
  * // Returns: { icon: '>', name: 'Edit', description: 'app.ts\n...(diff)...' }
  */
-export function formatToolUse(tool: ToolUse, cwd?: string): FormattedTool {
+export function formatToolUse(
+  tool: ToolUse,
+  cwd?: string,
+  sigmaTasks?: SigmaTasks
+): FormattedTool {
   let inputDesc = '';
   let toolIcon = '>';
   const effectiveCwd = cwd || process.cwd();
@@ -376,7 +381,12 @@ export function formatToolUse(tool: ToolUse, cwd?: string): FormattedTool {
       const grounding = taskInput.grounding;
       const groundingEvidence = taskInput.grounding_evidence;
 
-      inputDesc = formatSigmaTaskUpdate(todos, grounding, groundingEvidence);
+      inputDesc = formatSigmaTaskUpdate(
+        todos,
+        grounding,
+        groundingEvidence,
+        sigmaTasks
+      );
     }
   } else if (normName === 'webfetch' && input.url) {
     toolIcon = '🌐';
@@ -645,9 +655,9 @@ interface SigmaTaskUpdateInput {
 
 interface SigmaTodo {
   id: string;
-  content: string;
+  content?: string;
   status: string;
-  activeForm: string;
+  activeForm?: string;
   delegated_to?: string;
 }
 
@@ -664,7 +674,8 @@ interface SigmaGroundingEvidence {
 function formatSigmaTaskUpdate(
   todos: SigmaTodo[],
   grounding?: SigmaGrounding[],
-  groundingEvidence?: SigmaGroundingEvidence[]
+  groundingEvidence?: SigmaGroundingEvidence[],
+  sigmaTasks?: SigmaTasks
 ): string {
   const todoLines: string[] = [];
 
@@ -714,8 +725,20 @@ function formatSigmaTaskUpdate(
       textColor = gray;
     }
 
+    let existingTodo: SigmaTask | undefined;
+    if (sigmaTasks && sigmaTasks.todos) {
+      existingTodo = sigmaTasks.todos.find((t) => t.id === todo.id);
+    }
+
     let contentText =
-      todo.status === 'in_progress' ? todo.activeForm : todo.content;
+      todo.status === 'in_progress'
+        ? todo.activeForm || existingTodo?.activeForm || existingTodo?.content
+        : todo.content || existingTodo?.content || existingTodo?.activeForm;
+
+    // Fallback if still undefined
+    if (!contentText) {
+      contentText = `Task ${todo.id}`;
+    }
 
     if (todo.status === 'delegated' && todo.delegated_to) {
       contentText += ` (to: ${todo.delegated_to})`;
@@ -775,8 +798,12 @@ function formatSigmaTaskUpdate(
  * });
  * // Returns: "> **Read**:  file: /src/config.ts" (with ANSI bold)
  */
-export function formatToolUseMessage(tool: ToolUse, cwd?: string): string {
-  const formatted = formatToolUse(tool, cwd);
+export function formatToolUseMessage(
+  tool: ToolUse,
+  cwd?: string,
+  sigmaTasks?: SigmaTasks
+): string {
+  const formatted = formatToolUse(tool, cwd, sigmaTasks);
   return `${formatted.icon} ${formatted.name}: ${formatted.description}`;
 }
 

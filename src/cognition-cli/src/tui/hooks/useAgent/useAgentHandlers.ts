@@ -228,6 +228,7 @@ export function useAgentHandlers() {
     lastCompressionTimestamp,
     setPendingMessageNotification,
     setShouldAutoRespond,
+    sigmaTasks,
     setSigmaTasks,
     userMessageEmbeddingCache,
     currentAdapterRef,
@@ -412,7 +413,8 @@ export function useAgentHandlers() {
                       name: tool.name,
                       input: tool.input as Record<string, unknown>,
                     },
-                    cwd
+                    cwd,
+                    sigmaTasks
                   );
                   const toolName = tool.name
                     ?.toLowerCase()
@@ -518,7 +520,8 @@ export function useAgentHandlers() {
                 name: agentMessage.toolName,
                 input: agentMessage.toolInput as Record<string, unknown>,
               },
-              cwd
+              cwd,
+              sigmaTasks
             );
             const baseToolName = agentMessage.toolName
               ?.toLowerCase()
@@ -574,7 +577,8 @@ export function useAgentHandlers() {
                     name: tool.name,
                     input: tool.input as Record<string, unknown>,
                   },
-                  cwd
+                  cwd,
+                  sigmaTasks
                 );
                 const toolName = tool.name
                   ?.toLowerCase()
