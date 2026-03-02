@@ -414,7 +414,29 @@ export function useAgentHandlers() {
                     },
                     cwd
                   );
-                  activeToolContentRef.current = content;
+                  const toolName = tool.name
+                    ?.toLowerCase()
+                    .replace(/^mcp__.*?__/, '');
+                  const isOutputProducing = [
+                    'bash',
+                    'shell',
+                    'executebash',
+                    'read',
+                    'readfile',
+                    'grep',
+                    'glob',
+                    'fetchurl',
+                    'webfetch',
+                    'websearch',
+                    'search',
+                    'query',
+                    'list',
+                    'ls',
+                  ].includes(toolName);
+
+                  if (isOutputProducing) {
+                    activeToolContentRef.current = content;
+                  }
 
                   setMessages((prev) => [
                     ...prev,
@@ -498,7 +520,29 @@ export function useAgentHandlers() {
               },
               cwd
             );
-            activeToolContentRef.current = content;
+            const baseToolName = agentMessage.toolName
+              ?.toLowerCase()
+              .replace(/^mcp__.*?__/, '');
+            const isOutputProducing = [
+              'bash',
+              'shell',
+              'executebash',
+              'read',
+              'readfile',
+              'grep',
+              'glob',
+              'fetchurl',
+              'webfetch',
+              'websearch',
+              'search',
+              'query',
+              'list',
+              'ls',
+            ].includes(baseToolName || '');
+
+            if (isOutputProducing) {
+              activeToolContentRef.current = content;
+            }
 
             setMessages((prev) => [
               ...prev,
@@ -510,7 +554,9 @@ export function useAgentHandlers() {
             ]);
           } else if (typeof content === 'string') {
             const contentStr = `> ${content}`;
-            activeToolContentRef.current = contentStr;
+            // If we don't have a tool name, we can't reliably know if it's output-producing,
+            // but usually string-based tool uses are simple and non-streaming.
+            // We'll skip updating activeToolContentRef for these to be safe.
 
             setMessages((prev) => [
               ...prev,
@@ -530,7 +576,29 @@ export function useAgentHandlers() {
                   },
                   cwd
                 );
-                activeToolContentRef.current = contentStr;
+                const toolName = tool.name
+                  ?.toLowerCase()
+                  .replace(/^mcp__.*?__/, '');
+                const isOutputProducing = [
+                  'bash',
+                  'shell',
+                  'executebash',
+                  'read',
+                  'readfile',
+                  'grep',
+                  'glob',
+                  'fetchurl',
+                  'webfetch',
+                  'websearch',
+                  'search',
+                  'query',
+                  'list',
+                  'ls',
+                ].includes(toolName || '');
+
+                if (isOutputProducing) {
+                  activeToolContentRef.current = contentStr;
+                }
 
                 setMessages((prev) => [
                   ...prev,
@@ -799,8 +867,16 @@ export function useAgentHandlers() {
                   },
                 ];
               });
-              // Reset the ref
-              activeToolContentRef.current = null;
+
+              // Only clear activeToolContentRef if this tool matches the one that set it.
+              // We check if the current activeHeader starts with the icon and name of the tool that just finished.
+              const activeHeader = activeToolContentRef.current;
+              if (
+                activeHeader &&
+                activeHeader.startsWith(`${toolInfo.icon} ${toolInfo.name}`)
+              ) {
+                activeToolContentRef.current = null;
+              }
               isStreamingToolOutputRef.current = false;
             } else if (process.env.DEBUG_INPUT) {
               systemLog(
@@ -985,10 +1061,22 @@ This will trigger a semantic compression event, flushing implementation noise wh
               // This ensures that intermediate assistant messages (e.g. from Gemini thought signatures)
               // don't break streaming output updates.
               let targetIdx = -1;
+              const activeHeader = activeToolContentRef.current;
               for (let i = prev.length - 1; i >= 0; i--) {
-                if (prev[i].type === 'tool_progress') {
-                  targetIdx = i;
-                  break;
+                const msg = prev[i];
+                if (msg.type === 'tool_progress') {
+                  // If we have an active tool header, we prefer a message that starts with it.
+                  // This prevents interleaved output (e.g. bash output appearing in SigmaTaskUpdate).
+                  if (activeHeader) {
+                    if (msg.content.startsWith(activeHeader)) {
+                      targetIdx = i;
+                      break;
+                    }
+                  } else {
+                    // Fallback to the last tool_progress message if no header is active
+                    targetIdx = i;
+                    break;
+                  }
                 }
               }
 
