@@ -975,15 +975,9 @@ function formatLastTurns(
   if ((todos?.length || 0) > 0) {
     const allTodos = todos || [];
     const activeTask = allTodos.find((t) => t.status === 'in_progress');
-    const completedTasks = allTodos
-      .filter((t) => t.status === 'completed')
-      .slice(-SYSTEM_PROMPT_MAX_COMPLETED_TASKS);
-    const pendingTasks = allTodos
-      .filter((t) => t.status === 'pending')
-      .slice(0, SYSTEM_PROMPT_MAX_PENDING_TASKS);
     const delegatedTasks = allTodos.filter((t) => t.status === 'delegated');
 
-    const formatTask = (t: SigmaTask) => {
+    const formatTask = (t: SigmaTask, includeSummary = false) => {
       const icon =
         t.status === 'completed'
           ? '✓'
@@ -993,7 +987,16 @@ function formatLastTurns(
               ? '↷'
               : '○';
       const text = t.status === 'in_progress' ? t.activeForm : t.content;
-      return `- [${icon}] ${text}`;
+      let output = `- [${icon}] ${text} (ID: ${t.id})`;
+      if (includeSummary && t.result_summary) {
+        // Clean up summary: remove validation annotations and limit length
+        const cleanSummary = t.result_summary
+          .split('\n\n⚠️ [Sigma Validation]')[0]
+          .split('\n\n✅ [Sigma Validation]')[0]
+          .trim();
+        output += `\n  Summary: ${cleanSummary}`;
+      }
+      return output;
     };
 
     let taskSection = '## 📋 Task List Summary\n\n';
@@ -1002,28 +1005,42 @@ function formatLastTurns(
       taskSection += `**Active**: ${formatTask(activeTask).slice(2)}\n`;
     }
 
-    if (pendingTasks.length > 0) {
-      taskSection += `**Pending** (next ${pendingTasks.length}):\n${pendingTasks.map(formatTask).join('\n')}\n`;
-      if (
-        allTodos.filter((t) => t.status === 'pending').length >
-        pendingTasks.length
-      ) {
-        taskSection += `  ... (${allTodos.filter((t) => t.status === 'pending').length - pendingTasks.length} more hidden)\n`;
+    const allPending = allTodos.filter((t) => t.status === 'pending');
+    if (allPending.length > 0) {
+      const visiblePending = allPending.slice(
+        0,
+        SYSTEM_PROMPT_MAX_PENDING_TASKS
+      );
+      taskSection += `**Pending** (next ${visiblePending.length}):\n${visiblePending.map((t) => formatTask(t)).join('\n')}\n`;
+      if (allPending.length > visiblePending.length) {
+        const hiddenPending = allPending.slice(SYSTEM_PROMPT_MAX_PENDING_TASKS);
+        taskSection += `**Future Tasks (Roadmap)**:\n${hiddenPending.map((t) => `- [○] ${t.content} (ID: ${t.id})`).join('\n')}\n`;
       }
     }
 
     if (delegatedTasks.length > 0) {
-      taskSection += `**Delegated**:\n${delegatedTasks.map(formatTask).join('\n')}\n`;
+      taskSection += `**Delegated**:\n${delegatedTasks.map((t) => formatTask(t)).join('\n')}\n`;
     }
 
-    if (completedTasks.length > 0) {
-      taskSection += `**Recent Achievements**:\n${completedTasks.map(formatTask).join('\n')}\n`;
-      if (
-        allTodos.filter((t) => t.status === 'completed').length >
-        completedTasks.length
-      ) {
-        taskSection += `  ... (${allTodos.filter((t) => t.status === 'completed').length - completedTasks.length} older hidden)\n`;
+    const allCompleted = allTodos.filter((t) => t.status === 'completed');
+    if (allCompleted.length > 0) {
+      const recentCompleted = allCompleted.slice(
+        -SYSTEM_PROMPT_MAX_COMPLETED_TASKS
+      );
+      const olderCompleted = allCompleted.slice(
+        0,
+        -SYSTEM_PROMPT_MAX_COMPLETED_TASKS
+      );
+
+      if (olderCompleted.length > 0) {
+        taskSection += `**Older Achievements** (titles only):\n${olderCompleted
+          .map((t) => `- [✓] ${t.content} (ID: ${t.id})`)
+          .join('\n')}\n`;
       }
+
+      taskSection += `**Recent Achievements** (with summaries):\n${recentCompleted
+        .map((t) => formatTask(t, true))
+        .join('\n')}\n`;
     }
 
     const incompleteTasks =
