@@ -6,6 +6,19 @@ import {
   StructuralPatternMetadataSchema,
 } from '../../types/structural.js';
 
+// Mock LanceVectorStore to prevent native library errors in tests
+const { mockLanceVectorStore } = vi.hoisted(() => ({
+  mockLanceVectorStore: {
+    initialize: vi.fn().mockResolvedValue(undefined),
+    getAllVectors: vi.fn().mockResolvedValue([]),
+    delete: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
+vi.mock('../../overlays/vector-db/lance-store.js', () => ({
+  LanceVectorStore: vi.fn().mockImplementation(() => mockLanceVectorStore),
+}));
+
 // Mock workerpool to prevent Vite worker parsing errors
 vi.mock('workerpool', () => ({
   default: {

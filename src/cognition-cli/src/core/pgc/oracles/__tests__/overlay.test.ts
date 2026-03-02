@@ -3,6 +3,19 @@ import { vol } from 'memfs';
 import { OverlayOracle } from '../overlay.js';
 import type { PGCManager } from '../manager.js';
 
+// Mock LanceVectorStore to prevent native library errors in tests
+const { mockLanceVectorStore } = vi.hoisted(() => ({
+  mockLanceVectorStore: {
+    initialize: vi.fn().mockResolvedValue(undefined),
+    getAllVectors: vi.fn().mockResolvedValue([]),
+    close: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
+vi.mock('../../../overlays/vector-db/lance-store.js', () => ({
+  LanceVectorStore: vi.fn().mockImplementation(() => mockLanceVectorStore),
+}));
+
 // Mock fs-extra to use memfs
 vi.mock('fs-extra', async () => {
   const actualMemfs = await vi.importActual<typeof import('memfs')>('memfs');

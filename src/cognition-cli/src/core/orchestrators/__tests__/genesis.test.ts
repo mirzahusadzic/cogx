@@ -3,6 +3,19 @@ import fs from 'fs-extra';
 import path from 'path';
 import { vol } from 'memfs'; // Keep this import for vol.reset() in beforeEach/afterEach
 
+// Mock LanceVectorStore to prevent native library errors in tests
+const { mockLanceVectorStore } = vi.hoisted(() => ({
+  mockLanceVectorStore: {
+    initialize: vi.fn().mockResolvedValue(undefined),
+    getAllVectors: vi.fn().mockResolvedValue([]),
+    delete: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
+vi.mock('../../overlays/vector-db/lance-store.js', () => ({
+  LanceVectorStore: vi.fn().mockImplementation(() => mockLanceVectorStore),
+}));
+
 // Mock proper-lockfile
 vi.mock('proper-lockfile', () => ({
   default: {

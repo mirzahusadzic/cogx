@@ -6,6 +6,19 @@ import { ObjectStore } from '../object-store.ts';
 import { MaintenanceStep } from '../../orchestrators/steps/maintenance.ts';
 import { PipelineContext } from '../../orchestrators/types.ts';
 
+// Mock LanceVectorStore to prevent native library errors in tests
+const { mockLanceVectorStore } = vi.hoisted(() => ({
+  mockLanceVectorStore: {
+    initialize: vi.fn().mockResolvedValue(undefined),
+    getAllVectors: vi.fn().mockResolvedValue([]),
+    delete: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
+vi.mock('../../overlays/vector-db/lance-store.js', () => ({
+  LanceVectorStore: vi.fn().mockImplementation(() => mockLanceVectorStore),
+}));
+
 // Mock workerpool to prevent real worker creation in tests
 vi.mock('workerpool', () => ({
   pool: vi.fn(() => ({
