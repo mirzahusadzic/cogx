@@ -760,7 +760,7 @@ export async function executeSigmaTaskUpdate(
         .join("', '");
       throw new Error(
         `Only ONE task can be in_progress at a time. You attempted to set ${inProgressCount} tasks to in_progress ('${inProgressIds}').\n\n` +
-          `RECOVERY: Mark exactly one task as 'in_progress'. If you are switching, mark the current one as 'completed' (with a result_summary) in the same call.`
+          `RECOVERY: Mark exactly one task as 'in_progress' (and provide an 'activeForm'). If you are switching, mark the current one as 'completed' (with a result_summary) in the same call.`
       );
     }
 
@@ -831,13 +831,16 @@ export async function executeSigmaTaskUpdate(
           (t) => t.id !== currentInProgress.id && t.status === 'in_progress'
         );
         if (startingNew && !isCompletingCurrent) {
+          const activeForm =
+            startingNew.activeForm ||
+            (startingNew.content ? `Doing ${startingNew.content}` : '...ing');
           throw new Error(
             `Strict Sequential Workflow: You must complete task '${currentInProgress.id}' (set status to 'completed') before starting '${startingNew.id}'.\n\n` +
               `RECOVERY: To switch tasks, include both in your update:\n` +
               `{\n` +
               `  "todos": [\n` +
               `    { "id": "${currentInProgress.id}", "status": "completed", "result_summary": "Summary of work done..." },\n` +
-              `    { "id": "${startingNew.id}", "status": "in_progress" }\n` +
+              `    { "id": "${startingNew.id}", "status": "in_progress", "activeForm": "${activeForm}" }\n` +
               `  ]\n` +
               `}`
           );
@@ -856,7 +859,7 @@ export async function executeSigmaTaskUpdate(
               `{\n` +
               `  "todos": [\n` +
               `    { "id": "${currentInProgress.id}", "status": "completed", "result_summary": "Summary..." },\n` +
-              `    { "id": "new-task-id", "content": "Task description" }\n` +
+              `    { "id": "new-task-id", "content": "Task description", "activeForm": "Doing task description" }\n` +
               `  ]\n` +
               `}`
           );
