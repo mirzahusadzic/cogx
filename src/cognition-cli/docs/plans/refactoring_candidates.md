@@ -133,7 +133,7 @@ Analyzing structural patterns for additional refactoring opportunities using `co
 
    💡 Refactoring Suggestion:
    - **Enhance Abstract Base Class**: Pull more common logic (search, deletion, schema migration) into `AbstractLanceStore`.
-   - **Generic LanceStore<T>**: Implement a fully generic store that handles the boilerplate of LanceDB interaction for any serializable type.
+   - **Generic `LanceStore<T>`**: Implement a fully generic store that handles the boilerplate of LanceDB interaction for any serializable type.
    - Potential code reduction: ~300 lines (~30%)
    - Effort: Medium (4-5 hours)
 
