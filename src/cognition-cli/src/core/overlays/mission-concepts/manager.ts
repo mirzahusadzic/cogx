@@ -3,42 +3,12 @@ import fs from 'fs-extra';
 import path from 'path';
 import YAML from 'yaml';
 import { EmbedLogger } from '../shared/embed-logger.js';
-import { OverlayItem, OverlayMetadata } from '../../algebra/overlay-algebra.js';
+import { OverlayItem } from '../../algebra/overlay-algebra.js';
 import { BasePatternManager } from '../base/manager.js';
-
-/**
- * Mission Concepts Overlay (O₄) - STRATEGIC VISION
- *
- * Stores extracted mission-critical concepts for strategic coherence analysis.
- * This overlay captures the "WHY" and "WHAT" of the project from strategic
- * documents (VISION.md, ROADMAP.md, etc.).
- *
- * LATTICE POSITION: O₄ (Strategic)
- * - Above security (O₂) - mission must respect security constraints
- * - Composes with operational (O₅) - vision guides how work is done
- * - Drives coherence (O₇) - code alignment measured against mission
- */
-export interface MissionConceptsOverlay {
-  document_hash: string; // Content hash of source document
-  document_path: string; // Path to source markdown file
-  extracted_concepts: MissionConcept[]; // Ranked concepts with 768d embeddings
-  generated_at: string; // ISO timestamp
-  transform_id: string; // Transform that generated this overlay
-  format_version?: number; // 2 = embeddings in LanceDB, 1 or undefined = embeddings in YAML
-}
-
-/**
- * Metadata for mission concept overlay items
- */
-export interface MissionConceptMetadata extends OverlayMetadata {
-  text: string; // Concept text
-  type: 'vision' | 'concept' | 'principle' | 'goal'; // Concept type
-  weight: number; // Importance score (0-1)
-  occurrences: number; // Frequency in document
-  section: string; // Source section
-  sectionHash: string; // Section hash for provenance
-  documentHash: string; // Document hash for provenance
-}
+import {
+  MissionConceptMetadata,
+  MissionConceptsOverlay,
+} from './metadata.js';
 
 /**
  * MissionConceptsManager
@@ -46,6 +16,8 @@ export interface MissionConceptMetadata extends OverlayMetadata {
  * Manages mission concepts overlays in the PGC.
  * Stores extracted concepts from strategic documents (VISION.md, etc.)
  * for use in strategic coherence scoring.
+ *
+ * LATTICE POSITION: O₄ (Strategic)
  */
 export class MissionConceptsManager extends BasePatternManager<MissionConceptMetadata> {
   private overlayPath: string;
@@ -65,6 +37,10 @@ export class MissionConceptsManager extends BasePatternManager<MissionConceptMet
 
   getOverlayName(): string {
     return 'Mission Concepts';
+  }
+
+  getSymbol(item: OverlayItem<MissionConceptMetadata>): string {
+    return item.metadata.text;
   }
 
   getSupportedTypes(): string[] {
@@ -110,7 +86,7 @@ export class MissionConceptsManager extends BasePatternManager<MissionConceptMet
   }
 
   // ========================================
-  // DOMAIN-SPECIFIC LOGIC
+  // INGESTION & STORAGE (Domain-Specific)
   // ========================================
 
   /**
@@ -385,17 +361,14 @@ export class MissionConceptsManager extends BasePatternManager<MissionConceptMet
   }
 
   async getAllConcepts(): Promise<MissionConcept[]> {
-    const hashes = await this.list();
-    const allConcepts: MissionConcept[] = [];
-
-    for (const hash of hashes) {
-      const overlay = await this.retrieve(hash);
-      if (overlay) {
-        allConcepts.push(...overlay.extracted_concepts);
-      }
-    }
-
-    return allConcepts;
+    const items = await this.getAllItems();
+    return items.map((item) => ({
+      text: item.metadata.text,
+      section: item.metadata.section,
+      weight: item.metadata.weight,
+      occurrences: item.metadata.occurrences,
+      sectionHash: item.metadata.sectionHash,
+    }));
   }
 
   async getTopConcepts(topN: number = 50): Promise<MissionConcept[]> {
