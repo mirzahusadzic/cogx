@@ -66,7 +66,7 @@
 import chalk from 'chalk';
 import type { OverlayItem } from '../core/algebra/overlay-algebra.js';
 import type { StructuralMetadata } from '../core/overlays/structural-patterns/manager.js';
-import type { SecurityMetadata } from '../core/overlays/security-guidelines/manager.js';
+import type { SecurityMetadata } from '../core/overlays/security-guidelines/metadata.js';
 import type { GraphNode } from '../core/graph/types.js';
 
 /**

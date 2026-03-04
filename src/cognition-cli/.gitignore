@@ -34,3 +34,8 @@ output.txt
 
 :memory:/
 test-recap-with-real-turns.mjs
+
+# Test Results and Snapshots
+test-results/
+*.clean
+workflow_*.json

@@ -71,7 +71,7 @@ function createConditionalChalk() {
   // No-op functions when colors disabled
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const noop: any = new Proxy(
-    {},
+    () => {},
     {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       get: () => noop,

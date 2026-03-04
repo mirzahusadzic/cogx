@@ -58,4 +58,5 @@ run_and_clean "node dist/cli.js lattice \"O4 | O5\"" "$OUTPUT_DIR/lattice_O4_uni
 run_and_clean "node dist/cli.js lattice \"O2 & O4\"" "$OUTPUT_DIR/lattice_O2_intersect_O4.txt"
 # run_and_clean "node dist/cli.js lattice \"O1 ~ O3\"" "$OUTPUT_DIR/lattice_O1_tilde_O3.txt"
 
+run_and_clean "node dist/cli.js lattice \"O3\" --limit 10 --json" "$OUTPUT_DIR/lattice_O3.json"
 echo "Golden Master snapshots updated in: $OUTPUT_DIR"
