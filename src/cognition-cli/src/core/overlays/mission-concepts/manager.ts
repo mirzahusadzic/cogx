@@ -2,14 +2,9 @@ import { MissionConcept } from '../../analyzers/concept-extractor.js';
 import fs from 'fs-extra';
 import path from 'path';
 import YAML from 'yaml';
-import { WorkbenchClient } from '../../executors/workbench-client.js';
 import { EmbedLogger } from '../shared/embed-logger.js';
-import {
-  OverlayAlgebra,
-  OverlayItem,
-  OverlayMetadata,
-  SelectOptions,
-} from '../../algebra/overlay-algebra.js';
+import { OverlayItem, OverlayMetadata } from '../../algebra/overlay-algebra.js';
+import { BasePatternManager } from '../base/manager.js';
 
 /**
  * Mission Concepts Overlay (O₄) - STRATEGIC VISION
@@ -22,47 +17,6 @@ import {
  * - Above security (O₂) - mission must respect security constraints
  * - Composes with operational (O₅) - vision guides how work is done
  * - Drives coherence (O₇) - code alignment measured against mission
- *
- * CONCEPT TYPES:
- * - vision: High-level purpose and opportunity (the "why")
- * - principle: Core values and philosophies
- * - concept: Key ideas and themes
- * - goal: Strategic objectives and path forward
- *
- * USE CASES:
- * - Strategic coherence: "Does this code align with our mission?"
- * - Drift detection: "Which code has diverged from strategic intent?"
- * - Impact analysis: "Which code implements our core principles?"
- * - Q&A: "What does our vision say about verifiable AI?"
- *
- * EMBEDDINGS:
- * - Each concept has a 768-dimensional vector from eGemma
- * - Used for semantic alignment scoring in strategic coherence (O₇)
- * - Enables queries like: "What mission concepts relate to security?"
- *
- * DESIGN RATIONALE:
- * - Strategic alignment: Ensures code serves the mission
- * - Semantic search: Natural language queries over mission
- * - Provenance: Tracks which documents defined each concept
- * - Evolution: Track how mission concepts change over time
- *
- * STORAGE:
- * - YAML: .open_cognition/overlays/mission_concepts/<doc_hash>.yaml
- * - LanceDB: .open_cognition/lance/documents.lancedb (overlay_type='O4')
- *
- * @example
- * // Query mission concepts semantically
- * const manager = new MissionConceptsManager(pgcRoot);
- * const results = await manager.query('verifiable AI systems', 5);
- *
- * @example
- * // Get top mission concepts by weight
- * const top = await manager.getTopConcepts(10);
- * console.log('Top mission concepts:', top.map(c => c.text));
- *
- * @example
- * // Filter by concept type
- * const principles = await manager.getItemsByType('principle');
  */
 export interface MissionConceptsOverlay {
   document_hash: string; // Content hash of source document
@@ -92,36 +46,17 @@ export interface MissionConceptMetadata extends OverlayMetadata {
  * Manages mission concepts overlays in the PGC.
  * Stores extracted concepts from strategic documents (VISION.md, etc.)
  * for use in strategic coherence scoring.
- *
- * OVERLAY STRUCTURE:
- * .open_cognition/overlays/mission_concepts/<doc-hash>.yaml
- *
- * EMBEDDINGS (O₃ = O₁ Pattern):
- * - Generates 768-dimensional embeddings via eGemma (Workbench)
- * - Follows Monument O₁ pattern: Extract → Embed → Store
- * - Embeddings enable semantic alignment scoring
- *
- * PROVENANCE:
- * - Each concept tracks source section via sectionHash
- * - Overlay tracks source document via document_hash
- * - Full transform chain via transform_id
  */
-export class MissionConceptsManager implements OverlayAlgebra<MissionConceptMetadata> {
+export class MissionConceptsManager extends BasePatternManager<MissionConceptMetadata> {
   private overlayPath: string;
-  private workbench: WorkbenchClient;
 
-  constructor(
-    private pgcRoot: string,
-    workbenchUrl?: string
-  ) {
+  constructor(pgcRoot: string, workbenchUrl?: string) {
+    super(pgcRoot, workbenchUrl);
     this.overlayPath = path.join(pgcRoot, 'overlays', 'mission_concepts');
-    this.workbench = new WorkbenchClient(
-      workbenchUrl || process.env.WORKBENCH_URL || 'http://localhost:8000'
-    );
   }
 
   // ========================================
-  // OVERLAY ALGEBRA INTERFACE
+  // BASE PATTERN MANAGER IMPLEMENTATION
   // ========================================
 
   getOverlayId(): string {
@@ -134,47 +69,6 @@ export class MissionConceptsManager implements OverlayAlgebra<MissionConceptMeta
 
   getSupportedTypes(): string[] {
     return ['vision', 'concept', 'principle', 'goal'];
-  }
-
-  getPgcRoot(): string {
-    return this.pgcRoot;
-  }
-
-  /**
-   * Classify concept type based on section name
-   */
-  private classifyConceptType(
-    sectionName: string
-  ): 'vision' | 'concept' | 'principle' | 'goal' {
-    const normalized = sectionName.toLowerCase();
-
-    if (
-      normalized.includes('vision') ||
-      normalized.includes('why') ||
-      normalized.includes('purpose') ||
-      normalized.includes('opportunity')
-    ) {
-      return 'vision';
-    }
-
-    if (
-      normalized.includes('principle') ||
-      normalized.includes('value') ||
-      normalized.includes('philosophy')
-    ) {
-      return 'principle';
-    }
-
-    if (
-      normalized.includes('goal') ||
-      normalized.includes('strategic intent') ||
-      normalized.includes('path forward')
-    ) {
-      return 'goal';
-    }
-
-    // Default: concept (for Mission, Solution, Architecture, etc.)
-    return 'concept';
   }
 
   async getAllItems(): Promise<OverlayItem<MissionConceptMetadata>[]> {
@@ -215,131 +109,46 @@ export class MissionConceptsManager implements OverlayAlgebra<MissionConceptMeta
     return items;
   }
 
-  async getItemsByType(
-    type: string
-  ): Promise<OverlayItem<MissionConceptMetadata>[]> {
-    const allItems = await this.getAllItems();
-    return allItems.filter((item) => item.metadata.type === type);
-  }
-
-  async filter(
-    predicate: (metadata: MissionConceptMetadata) => boolean
-  ): Promise<OverlayItem<MissionConceptMetadata>[]> {
-    const allItems = await this.getAllItems();
-    return allItems.filter((item) => predicate(item.metadata));
-  }
-
-  async query(
-    query: string,
-    topK: number = 10,
-    precomputedEmbedding?: number[]
-  ): Promise<
-    Array<{ item: OverlayItem<MissionConceptMetadata>; similarity: number }>
-  > {
-    let queryEmbedding: number[];
-
-    // Use pre-computed embedding if provided (optimization)
-    if (precomputedEmbedding && precomputedEmbedding.length === 768) {
-      queryEmbedding = precomputedEmbedding;
-    } else {
-      // Generate embedding for query
-      const embedResponse = await this.workbench.embed({
-        signature: query,
-        dimensions: 768,
-      });
-
-      queryEmbedding = embedResponse['embedding_768d'] as number[];
-      if (!queryEmbedding || queryEmbedding.length !== 768) {
-        throw new Error('Failed to generate query embedding');
-      }
-    }
-
-    // Get all items and compute similarity
-    const allItems = await this.getAllItems();
-    const results = allItems.map((item) => ({
-      item,
-      similarity: this.cosineSimilarity(queryEmbedding, item.embedding),
-    }));
-
-    // Sort by similarity and return top K
-    results.sort((a, b) => b.similarity - a.similarity);
-    return results.slice(0, topK);
-  }
-
-  async select(
-    options: SelectOptions
-  ): Promise<OverlayItem<MissionConceptMetadata>[]> {
-    const allItems = await this.getAllItems();
-
-    if (options.symbols) {
-      return allItems.filter((item) =>
-        options.symbols!.has(item.metadata.text)
-      );
-    }
-
-    if (options.ids) {
-      return allItems.filter((item) => options.ids!.has(item.id));
-    }
-
-    return allItems;
-  }
-
-  async exclude(
-    options: SelectOptions
-  ): Promise<OverlayItem<MissionConceptMetadata>[]> {
-    const allItems = await this.getAllItems();
-
-    if (options.symbols) {
-      return allItems.filter(
-        (item) => !options.symbols!.has(item.metadata.text)
-      );
-    }
-
-    if (options.ids) {
-      return allItems.filter((item) => !options.ids!.has(item.id));
-    }
-
-    return allItems;
-  }
-
-  async getSymbolSet(): Promise<Set<string>> {
-    const allItems = await this.getAllItems();
-    return new Set(allItems.map((item) => item.metadata.text));
-  }
-
-  async getIdSet(): Promise<Set<string>> {
-    const allItems = await this.getAllItems();
-    return new Set(allItems.map((item) => item.id));
-  }
-
-  private cosineSimilarity(a: number[], b: number[]): number {
-    if (a.length !== b.length) {
-      throw new Error('Vector dimensions must match');
-    }
-
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-
-    for (let i = 0; i < a.length; i++) {
-      dotProduct += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
-    }
-
-    normA = Math.sqrt(normA);
-    normB = Math.sqrt(normB);
-
-    if (normA === 0 || normB === 0) {
-      return 0;
-    }
-
-    return dotProduct / (normA * normB);
-  }
-
   // ========================================
-  // LEGACY METHODS (keep for compatibility)
+  // DOMAIN-SPECIFIC LOGIC
   // ========================================
+
+  /**
+   * Classify concept type based on section name
+   */
+  private classifyConceptType(
+    sectionName: string
+  ): 'vision' | 'concept' | 'principle' | 'goal' {
+    const normalized = sectionName.toLowerCase();
+
+    if (
+      normalized.includes('vision') ||
+      normalized.includes('why') ||
+      normalized.includes('purpose') ||
+      normalized.includes('opportunity')
+    ) {
+      return 'vision';
+    }
+
+    if (
+      normalized.includes('principle') ||
+      normalized.includes('value') ||
+      normalized.includes('philosophy')
+    ) {
+      return 'principle';
+    }
+
+    if (
+      normalized.includes('goal') ||
+      normalized.includes('strategic intent') ||
+      normalized.includes('path forward')
+    ) {
+      return 'goal';
+    }
+
+    // Default: concept (for Mission, Solution, Architecture, etc.)
+    return 'concept';
+  }
 
   /**
    * Sanitize text for embedding (remove chars that trigger binary detection)
@@ -414,7 +223,6 @@ export class MissionConceptsManager implements OverlayAlgebra<MissionConceptMeta
 
   /**
    * Store embeddings in LanceDB (NOT in YAML!)
-   * Embeddings are stored in binary format in patterns.lancedb/mission_concepts
    */
   private async storeEmbeddingsInLance(
     concepts: MissionConcept[],
@@ -431,7 +239,7 @@ export class MissionConceptsManager implements OverlayAlgebra<MissionConceptMeta
         id: `${documentHash}_${index}`,
         symbol: item.text.substring(0, 100),
         embedding: item.embedding!,
-        document_hash: documentHash, // KEY: Track document hash for --force cleanup
+        document_hash: documentHash,
         structural_signature: `mission:${this.classifyConceptType(item.section || 'unknown')}`,
         semantic_signature: item.text,
         type: 'semantic',
@@ -472,10 +280,8 @@ export class MissionConceptsManager implements OverlayAlgebra<MissionConceptMeta
   async store(overlay: MissionConceptsOverlay): Promise<void> {
     await fs.ensureDir(this.overlayPath);
 
-    // Extract document name from path for progress logging
     const documentName = path.basename(overlay.document_path);
 
-    // Check if concepts already have embeddings (from security validation)
     const alreadyEmbedded = overlay.extracted_concepts.every(
       (c) => c.embedding && c.embedding.length === 768
     );
@@ -483,24 +289,20 @@ export class MissionConceptsManager implements OverlayAlgebra<MissionConceptMeta
     let conceptsWithEmbeddings: MissionConcept[];
 
     if (alreadyEmbedded) {
-      // Reuse existing embeddings (no re-embedding needed)
       conceptsWithEmbeddings = overlay.extracted_concepts;
     } else {
-      // Generate embeddings for concepts that don't have them
       conceptsWithEmbeddings = await this.generateEmbeddings(
         overlay.extracted_concepts,
         documentName
       );
     }
 
-    // Store embeddings in LanceDB (NOT in YAML!)
     await this.storeEmbeddingsInLance(
       conceptsWithEmbeddings,
       overlay.document_hash,
       overlay.document_path
     );
 
-    // Strip embeddings before writing to YAML (metadata only)
     const conceptsWithoutEmbeddings = conceptsWithEmbeddings.map((item) => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { embedding, ...rest } = item;
@@ -509,8 +311,8 @@ export class MissionConceptsManager implements OverlayAlgebra<MissionConceptMeta
 
     const enrichedOverlay: MissionConceptsOverlay = {
       ...overlay,
-      extracted_concepts: conceptsWithoutEmbeddings, // No embeddings!
-      format_version: 2, // Mark as v2 format (embeddings in LanceDB pattern tables)
+      extracted_concepts: conceptsWithoutEmbeddings,
+      format_version: 2,
     };
 
     const filePath = path.join(
@@ -521,13 +323,9 @@ export class MissionConceptsManager implements OverlayAlgebra<MissionConceptMeta
     const yamlContent = YAML.stringify(enrichedOverlay);
     await fs.writeFile(filePath, yamlContent, 'utf-8');
 
-    // Update manifest for incremental tracking
     await this.updateManifest(overlay);
   }
 
-  /**
-   * Update manifest with document metadata for incremental updates
-   */
   private async updateManifest(overlay: MissionConceptsOverlay): Promise<void> {
     const manifestPath = path.join(this.overlayPath, 'manifest.json');
 
@@ -556,9 +354,6 @@ export class MissionConceptsManager implements OverlayAlgebra<MissionConceptMeta
     await fs.writeJSON(manifestPath, manifest, { spaces: 2 });
   }
 
-  /**
-   * Retrieve mission concepts for a document
-   */
   async retrieve(documentHash: string): Promise<MissionConceptsOverlay | null> {
     const filePath = path.join(this.overlayPath, `${documentHash}.yaml`);
 
@@ -570,9 +365,6 @@ export class MissionConceptsManager implements OverlayAlgebra<MissionConceptMeta
     return YAML.parse(yamlContent) as MissionConceptsOverlay;
   }
 
-  /**
-   * List all mission concept overlays
-   */
   async list(): Promise<string[]> {
     if (!(await fs.pathExists(this.overlayPath))) {
       return [];
@@ -584,9 +376,6 @@ export class MissionConceptsManager implements OverlayAlgebra<MissionConceptMeta
       .map((f) => f.replace('.yaml', ''));
   }
 
-  /**
-   * Delete mission concepts overlay
-   */
   async delete(documentHash: string): Promise<void> {
     const filePath = path.join(this.overlayPath, `${documentHash}.yaml`);
 
@@ -595,10 +384,6 @@ export class MissionConceptsManager implements OverlayAlgebra<MissionConceptMeta
     }
   }
 
-  /**
-   * Get all concepts across all overlays (no merging, preserves embeddings)
-   * Used for semantic similarity search in Q&A
-   */
   async getAllConcepts(): Promise<MissionConcept[]> {
     const hashes = await this.list();
     const allConcepts: MissionConcept[] = [];
@@ -613,31 +398,27 @@ export class MissionConceptsManager implements OverlayAlgebra<MissionConceptMeta
     return allConcepts;
   }
 
-  /**
-   * Get top N concepts across all overlays (global mission concepts)
-   */
   async getTopConcepts(topN: number = 50): Promise<MissionConcept[]> {
-    const hashes = await this.list();
-    const allConcepts: MissionConcept[] = [];
-
-    for (const hash of hashes) {
-      const overlay = await this.retrieve(hash);
-      if (overlay) {
-        allConcepts.push(...overlay.extracted_concepts);
-      }
-    }
+    const allItems = await this.getAllItems();
 
     // Merge duplicates and sort by weight
     const conceptMap = new Map<string, MissionConcept>();
 
-    for (const concept of allConcepts) {
-      const key = concept.text.toLowerCase();
+    for (const item of allItems) {
+      const key = item.metadata.text.toLowerCase();
       if (conceptMap.has(key)) {
         const existing = conceptMap.get(key)!;
-        existing.occurrences += concept.occurrences;
-        existing.weight = Math.max(existing.weight, concept.weight);
+        existing.occurrences =
+          (existing.occurrences || 0) + (item.metadata.occurrences || 1);
+        existing.weight = Math.max(existing.weight, item.metadata.weight);
       } else {
-        conceptMap.set(key, { ...concept });
+        conceptMap.set(key, {
+          text: item.metadata.text,
+          section: item.metadata.section,
+          weight: item.metadata.weight,
+          occurrences: item.metadata.occurrences,
+          sectionHash: item.metadata.sectionHash,
+        });
       }
     }
 
