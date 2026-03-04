@@ -115,11 +115,30 @@ Analyzing structural patterns for additional refactoring opportunities using `co
    Shared Patterns:
    - Parallel structure to the Conversation Managers but for the project-level knowledge store.
    - Common patterns for querying the lattice and mapping results to domain-specific types.
+   - 90% overlapping logic for LanceDB connectivity and semantic search.
 
-   💡 Refactoring Suggestion:
-   - **Strategy Pattern**: Implement a generic `LatticePatternManager` and use strategy objects to handle domain-specific extraction and scoring.
+   ⚠️ **Risk Level: HIGH** (Previous attempts failed due to subtle metadata differences and CLI regressions).
+
+   💡 **Refactoring Strategy: Interface-Preserving Adapter**
+   Instead of a "Big Bang" refactoring, use a phased inheritance-based approach to consolidate logic while preserving identical public interfaces and CLI output.
+
+   🛡️ **Safe Refactoring Plan:**
+   - **Phase 1: Golden Master Verification**:
+     - Use `scripts/test_cli_golden_master.sh` to capture snapshots of ALL CLI command variations (sugar commands + all arguments, lattice queries).
+     - Ensure 100% parity for JSON output before and after any change.
+   - **Phase 2: Base Pattern Manager**:
+     - Extract `BasePatternManager<T>` to handle common LanceDB operations and semantic search.
+     - Keep domain-specific metadata mapping in the base class via generics.
+   - **Phase 3: Incremental Migration (One-by-One)**:
+     - Migrate `MissionConceptsManager` (O4) first as it is the simplest.
+     - Follow with `StructuralPatternsManager` (O1), ensuring AST metadata remains intact.
+     - Handle `LineagePatternsManager` (O3) last due to its custom dependency tracking logic.
+   - **Phase 4: Registry Stability**:
+     - Maintain the existing `OverlayRegistry` mapping (O1-O7) to ensure the Lattice Engine remains unaffected.
+
    - Potential code reduction: ~600 lines (~50%)
-   - Effort: Medium (3-4 hours)
+   - Effort: Medium-High (4-6 hours)
+   - Status: IN PROGRESS (Verification Suite Created)
 
 3. **Lance DB Stores** (0.81 - 0.85 similarity):
    - `DocumentLanceStore` (src/core/pgc/document/lance/store.ts)
