@@ -2,107 +2,11 @@ import { SecurityKnowledge } from '../../analyzers/document-extractor.js';
 import fs from 'fs-extra';
 import path from 'path';
 import YAML from 'yaml';
-import { WorkbenchClient } from '../../executors/workbench-client.js';
 import { EmbedLogger } from '../shared/embed-logger.js';
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../../config.js';
-import {
-  OverlayAlgebra,
-  OverlayItem,
-  OverlayMetadata,
-  SelectOptions,
-} from '../../algebra/overlay-algebra.js';
-import type { OverlayData } from '../../pgc/embedding-loader.js';
-
-/**
- * Security Guidelines Overlay (O₂) - FOUNDATIONAL LAYER
- *
- * Stores extracted security knowledge for safe development guidance.
- * This is the foundational security layer in the lattice - checked BEFORE
- * mission alignment to ensure safety constraints are never violated.
- *
- * LATTICE POSITION: O₂ (Foundational)
- * - Below mission (O₄) - security constraints cannot be overridden by mission
- * - Composes with operational (O₅) - guides secure workflows
- * - Informs coherence (O₇) - ensures aligned code is also secure
- *
- * KNOWLEDGE TYPES:
- * - threat_model: Attack scenarios and threat actors
- * - attack_vector: Specific exploit methods (SQL injection, XSS, etc.)
- * - mitigation: Countermeasures and defenses
- * - boundary: Security boundaries and trust zones
- * - constraint: Security requirements and policies
- * - vulnerability: Known issues, CVEs from dependencies
- *
- * PORTABILITY (.cogx):
- * O₂ overlays can be exported/imported for security knowledge reuse:
- * ```
- * express.cogx → O₂ (CVEs, safe patterns)
- *   ↓ import
- * Your Project → Inherits express security knowledge
- *   ↓ query
- * "Safe input handling?" → Combines your O₂ + express O₂
- * ```
- *
- * DESIGN RATIONALE:
- * - Foundational: Security is never negotiable
- * - Portable: Reuse security knowledge across projects
- * - Queryable: "What mitigations exist for X attack?"
- * - Composable: Combine project + dependency security layers
- *
- * STORAGE:
- * - YAML: .open_cognition/overlays/security_guidelines/<doc_hash>.yaml
- * - LanceDB: .open_cognition/lance/documents.lancedb (overlay_type='O2')
- *
- * @example
- * // Query security guidelines semantically
- * const manager = new SecurityGuidelinesManager(pgcRoot);
- * const results = await manager.query('SQL injection prevention', 5);
- *
- * @example
- * // Get all CVEs
- * const cves = await manager.getCVEs();
- * console.log(`Found ${cves.length} known vulnerabilities`);
- *
- * @example
- * // Export for .cogx packaging
- * const overlay = await manager.exportForCogx(documentHash);
- * // Import into another project
- * await otherManager.importFromCogx(overlay, 'express', 'abc123');
- */
-export interface SecurityGuidelinesOverlay {
-  document_hash: string; // Content hash of source document
-  document_path: string; // Path to source markdown file
-  extracted_knowledge: SecurityKnowledge[]; // Security patterns with embeddings
-  generated_at: string; // ISO timestamp
-  transform_id: string; // Transform that generated this overlay
-  source_project?: string; // For imported .cogx files
-  source_commit?: string; // Git commit hash (provenance)
-  format_version?: number; // 2 = embeddings in LanceDB, 1 or undefined = embeddings in YAML
-}
-
-/**
- * Metadata for security overlay items
- */
-export interface SecurityMetadata extends OverlayMetadata {
-  text: string;
-  securityType:
-    | 'threat_model'
-    | 'attack_vector'
-    | 'mitigation'
-    | 'boundary'
-    | 'constraint'
-    | 'vulnerability';
-  severity: 'critical' | 'high' | 'medium' | 'low';
-  weight: number;
-  occurrences: number;
-  section: string;
-  sectionHash: string;
-  documentHash: string;
-  cveId?: string;
-  affectedVersions?: string;
-  mitigation?: string;
-  references?: string[];
-}
+import { OverlayItem } from '../../algebra/overlay-algebra.js';
+import { BasePatternManager } from '../base/manager.js';
+import { SecurityMetadata, SecurityGuidelinesOverlay } from './metadata.js';
 
 /**
  * SecurityGuidelinesManager
@@ -110,43 +14,18 @@ export interface SecurityMetadata extends OverlayMetadata {
  * Manages security guideline overlays in the PGC (O₂ layer - foundational).
  * Stores extracted security knowledge from security documents (SECURITY.md, THREAT_MODEL.md).
  *
- * OVERLAY STRUCTURE:
- * .open_cognition/overlays/security_guidelines/<doc-hash>.yaml
- *
- * KNOWLEDGE TYPES:
- * - threat_model: Attack scenarios and threat actors
- * - attack_vector: Specific exploit methods
- * - mitigation: Countermeasures and defenses
- * - boundary: Security boundaries and trust zones
- * - constraint: Security requirements and policies
- * - vulnerability: Known issues, CVEs
- *
- * EMBEDDINGS:
- * - Each piece of knowledge has a 768-dimensional vector from eGemma
- * - Enables semantic search: "What mitigations exist for injection attacks?"
- * - Supports composition: Combine project O₂ + dependency O₂ layers
- *
- * PORTABILITY (.cogx):
- * - Can be exported with git commit hash for provenance
- * - Can be imported from dependencies
- * - Enables security knowledge inheritance across projects
+ * LATTICE POSITION: O₂ (Foundational)
  */
-export class SecurityGuidelinesManager implements OverlayAlgebra<SecurityMetadata> {
+export class SecurityGuidelinesManager extends BasePatternManager<SecurityMetadata> {
   private overlayPath: string;
-  private workbench: WorkbenchClient;
 
-  constructor(
-    private pgcRoot: string,
-    workbenchUrl?: string
-  ) {
+  constructor(pgcRoot: string, workbenchUrl?: string) {
+    super(pgcRoot, workbenchUrl);
     this.overlayPath = path.join(pgcRoot, 'overlays', 'security_guidelines');
-    this.workbench = new WorkbenchClient(
-      workbenchUrl || process.env.WORKBENCH_URL || 'http://localhost:8000'
-    );
   }
 
   // ========================================
-  // OVERLAY ALGEBRA INTERFACE
+  // BASE PATTERN MANAGER IMPLEMENTATION
   // ========================================
 
   getOverlayId(): string {
@@ -166,10 +45,6 @@ export class SecurityGuidelinesManager implements OverlayAlgebra<SecurityMetadat
       'constraint',
       'vulnerability',
     ];
-  }
-
-  getPgcRoot(): string {
-    return this.pgcRoot;
   }
 
   async getAllItems(): Promise<OverlayItem<SecurityMetadata>[]> {
@@ -197,7 +72,7 @@ export class SecurityGuidelinesManager implements OverlayAlgebra<SecurityMetadat
 
       // Load concepts with embeddings (v1 from YAML or v2 from LanceDB)
       const conceptsWithEmbeddings = await loader.loadConceptsWithEmbeddings(
-        overlay as unknown as OverlayData,
+        overlay as any,
         this.pgcRoot
       );
 
@@ -206,10 +81,7 @@ export class SecurityGuidelinesManager implements OverlayAlgebra<SecurityMetadat
         overlay.extracted_knowledge?.map((k) => [k.text, k]) || []
       );
 
-      // For v1 format, map from original extracted_knowledge with all fields
-      // For v2 format, we get basic concepts from LanceDB (some fields may be missing)
       for (const concept of conceptsWithEmbeddings) {
-        // O(1) lookup for original knowledge item
         const originalKnowledge = knowledgeMap.get(concept.text);
 
         items.push({
@@ -217,6 +89,7 @@ export class SecurityGuidelinesManager implements OverlayAlgebra<SecurityMetadat
           embedding: concept.embedding!,
           metadata: {
             text: concept.text,
+            type: originalKnowledge?.securityType || 'vulnerability',
             securityType: originalKnowledge?.securityType || 'vulnerability',
             severity: originalKnowledge?.severity || 'low',
             weight: concept.weight,
@@ -242,128 +115,8 @@ export class SecurityGuidelinesManager implements OverlayAlgebra<SecurityMetadat
     return items;
   }
 
-  async getItemsByType(type: string): Promise<OverlayItem<SecurityMetadata>[]> {
-    const allItems = await this.getAllItems();
-    return allItems.filter((item) => item.metadata.securityType === type);
-  }
-
-  async filter(
-    predicate: (metadata: SecurityMetadata) => boolean
-  ): Promise<OverlayItem<SecurityMetadata>[]> {
-    const allItems = await this.getAllItems();
-    return allItems.filter((item) => predicate(item.metadata));
-  }
-
-  async query(
-    query: string,
-    topK: number = 10,
-    precomputedEmbedding?: number[]
-  ): Promise<
-    Array<{ item: OverlayItem<SecurityMetadata>; similarity: number }>
-  > {
-    let queryEmbedding: number[];
-
-    // Use pre-computed embedding if provided (optimization)
-    if (precomputedEmbedding && precomputedEmbedding.length === 768) {
-      queryEmbedding = precomputedEmbedding;
-    } else {
-      // Generate embedding for query
-      const embedResponse = await this.workbench.embed({
-        signature: query,
-        dimensions: 768,
-      });
-
-      queryEmbedding = embedResponse['embedding_768d'] as number[];
-      if (!queryEmbedding || queryEmbedding.length !== 768) {
-        throw new Error('Failed to generate query embedding');
-      }
-    }
-
-    // Get all items and compute similarity
-    const allItems = await this.getAllItems();
-    const results = allItems.map((item) => ({
-      item,
-      similarity: this.cosineSimilarity(queryEmbedding, item.embedding),
-    }));
-
-    // Sort by similarity and return top K
-    results.sort((a, b) => b.similarity - a.similarity);
-    return results.slice(0, topK);
-  }
-
-  async select(
-    options: SelectOptions
-  ): Promise<OverlayItem<SecurityMetadata>[]> {
-    const allItems = await this.getAllItems();
-
-    if (options.symbols) {
-      return allItems.filter((item) =>
-        options.symbols!.has(item.metadata.text)
-      );
-    }
-
-    if (options.ids) {
-      return allItems.filter((item) => options.ids!.has(item.id));
-    }
-
-    return allItems;
-  }
-
-  async exclude(
-    options: SelectOptions
-  ): Promise<OverlayItem<SecurityMetadata>[]> {
-    const allItems = await this.getAllItems();
-
-    if (options.symbols) {
-      return allItems.filter(
-        (item) => !options.symbols!.has(item.metadata.text)
-      );
-    }
-
-    if (options.ids) {
-      return allItems.filter((item) => !options.ids!.has(item.id));
-    }
-
-    return allItems;
-  }
-
-  async getSymbolSet(): Promise<Set<string>> {
-    const allItems = await this.getAllItems();
-    return new Set(allItems.map((item) => item.metadata.text));
-  }
-
-  async getIdSet(): Promise<Set<string>> {
-    const allItems = await this.getAllItems();
-    return new Set(allItems.map((item) => item.id));
-  }
-
-  private cosineSimilarity(a: number[], b: number[]): number {
-    if (a.length !== b.length) {
-      throw new Error('Vector dimensions must match');
-    }
-
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-
-    for (let i = 0; i < a.length; i++) {
-      dotProduct += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
-    }
-
-    normA = Math.sqrt(normA);
-    normB = Math.sqrt(normB);
-
-    if (normA === 0 || normB === 0) {
-      return 0;
-    }
-
-    return dotProduct / (normA * normB);
-  }
-
   // ========================================
-  // LEGACY METHODS (keep for compatibility)
+  // LEGACY METHODS (preserved for compatibility)
   // ========================================
 
   /**
@@ -380,8 +133,7 @@ export class SecurityGuidelinesManager implements OverlayAlgebra<SecurityMetadat
   }
 
   /**
-   * Store embeddings in LanceDB with document_hash
-   * @private
+   * Store embeddings in LanceDB
    */
   private async storeEmbeddingsInLance(
     knowledge: SecurityKnowledge[],
@@ -396,7 +148,7 @@ export class SecurityGuidelinesManager implements OverlayAlgebra<SecurityMetadat
       .filter((item) => item.embedding && item.embedding.length > 0)
       .map((item, index) => ({
         id: `${documentHash}_${index}`,
-        symbol: item.text.substring(0, 100), // Truncate for symbol
+        symbol: item.text.substring(0, 100),
         embedding: item.embedding!,
         document_hash: documentHash,
         structural_signature: `security:${item.securityType}`,
@@ -463,21 +215,15 @@ export class SecurityGuidelinesManager implements OverlayAlgebra<SecurityMetadat
           !Array.isArray(embedding) ||
           embedding.length !== DEFAULT_EMBEDDING_DIMENSIONS
         ) {
-          const actualLength = Array.isArray(embedding) ? embedding.length : 0;
-          console.warn(
-            `Warning: Invalid embedding for security item "${item.text.substring(0, 50)}..." (got ${actualLength} dimensions, expected ${DEFAULT_EMBEDDING_DIMENSIONS})`
-          );
           continue;
         }
 
         knowledgeWithEmbeddings.push({
           ...item,
-          embedding,
+          embedding: embedding as number[],
         });
       } catch (error) {
-        console.warn(
-          `Warning: Failed to generate embedding: ${(error as Error).message}`
-        );
+        console.warn(`Failed to generate embedding: ${(error as Error).message}`);
       }
     }
 
@@ -503,14 +249,12 @@ export class SecurityGuidelinesManager implements OverlayAlgebra<SecurityMetadat
       documentName
     );
 
-    // Store embeddings in LanceDB (NOT in YAML!)
     await this.storeEmbeddingsInLance(
       knowledgeWithEmbeddings,
       documentHash,
       documentPath
     );
 
-    // Strip embeddings before writing to YAML (metadata only)
     const knowledgeWithoutEmbeddings = knowledgeWithEmbeddings.map((item) => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { embedding, ...rest } = item;
@@ -525,7 +269,7 @@ export class SecurityGuidelinesManager implements OverlayAlgebra<SecurityMetadat
       transform_id: transformId,
       source_project: sourceProject,
       source_commit: sourceCommit,
-      format_version: 2, // Mark as v2 format (embeddings in LanceDB pattern tables)
+      format_version: 2,
     };
 
     const overlayFile = path.join(this.overlayPath, `${documentHash}.yaml`);
@@ -549,75 +293,57 @@ export class SecurityGuidelinesManager implements OverlayAlgebra<SecurityMetadat
   }
 
   /**
-   * Get all security knowledge across all documents (including imported)
+   * Get all security knowledge across all documents
    */
   async getAllKnowledge(): Promise<SecurityKnowledge[]> {
-    const overlayFiles = await fs.readdir(this.overlayPath);
-    const allKnowledge: SecurityKnowledge[] = [];
-
-    for (const file of overlayFiles) {
-      if (!file.endsWith('.yaml')) continue;
-
-      const content = await fs.readFile(
-        path.join(this.overlayPath, file),
-        'utf-8'
-      );
-      const overlay = YAML.parse(content) as SecurityGuidelinesOverlay;
-
-      allKnowledge.push(...overlay.extracted_knowledge);
-    }
-
-    return allKnowledge;
+    const items = await this.getAllItems();
+    return items.map((item) => ({
+      text: item.metadata.text,
+      securityType: item.metadata.securityType,
+      severity: item.metadata.severity,
+      weight: item.metadata.weight,
+      occurrences: item.metadata.occurrences,
+      section: item.metadata.section,
+      sectionHash: item.metadata.sectionHash,
+      metadata: {
+        cveId: item.metadata.cveId,
+        affectedVersions: item.metadata.affectedVersions,
+        mitigation: item.metadata.mitigation,
+        references: item.metadata.references,
+      },
+    }));
   }
 
-  /**
-   * Query knowledge by security type
-   */
-  async getKnowledgeByType(
-    securityType:
-      | 'threat_model'
-      | 'attack_vector'
-      | 'mitigation'
-      | 'boundary'
-      | 'constraint'
-      | 'vulnerability'
-  ): Promise<SecurityKnowledge[]> {
-    const allKnowledge = await this.getAllKnowledge();
-    return allKnowledge.filter((k) => k.securityType === securityType);
+  async getKnowledgeByType(type: string): Promise<SecurityKnowledge[]> {
+    const all = await this.getAllKnowledge();
+    return all.filter((k) => k.securityType === type);
   }
 
-  /**
-   * Query knowledge by severity
-   */
-  async getKnowledgeBySeverity(
-    severity: 'critical' | 'high' | 'medium' | 'low'
-  ): Promise<SecurityKnowledge[]> {
-    const allKnowledge = await this.getAllKnowledge();
-    return allKnowledge.filter((k) => k.severity === severity);
+  async getKnowledgeBySeverity(severity: string): Promise<SecurityKnowledge[]> {
+    const all = await this.getAllKnowledge();
+    return all.filter((k) => k.severity === severity);
   }
 
-  /**
-   * Get all CVEs
-   */
   async getCVEs(): Promise<SecurityKnowledge[]> {
-    const allKnowledge = await this.getAllKnowledge();
-    return allKnowledge.filter(
+    const all = await this.getAllKnowledge();
+    return all.filter(
       (k) => k.securityType === 'vulnerability' && k.metadata?.cveId
     );
   }
 
-  /**
-   * Query security knowledge by text search
-   */
   async queryKnowledge(query: string): Promise<SecurityKnowledge[]> {
-    const allKnowledge = await this.getAllKnowledge();
+    const all = await this.getAllKnowledge();
     const lowerQuery = query.toLowerCase();
 
-    return allKnowledge
+    return all
       .filter((k) => k.text.toLowerCase().includes(lowerQuery))
       .sort((a, b) => {
-        // Sort by severity first (critical > high > medium > low)
-        const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+        const severityOrder: Record<string, number> = {
+          critical: 0,
+          high: 1,
+          medium: 2,
+          low: 3,
+        };
         const aSeverity = severityOrder[a.severity || 'low'];
         const bSeverity = severityOrder[b.severity || 'low'];
 
@@ -625,25 +351,14 @@ export class SecurityGuidelinesManager implements OverlayAlgebra<SecurityMetadat
           return aSeverity - bSeverity;
         }
 
-        // Then by weight
-        return b.weight - a.weight;
+        return (b.weight || 0) - (a.weight || 0);
       });
   }
 
-  /**
-   * Export overlay for .cogx packaging
-   * Returns overlay data with provenance for portability
-   */
-  async exportForCogx(
-    documentHash: string
-  ): Promise<SecurityGuidelinesOverlay | null> {
+  async exportForCogx(documentHash: string): Promise<SecurityGuidelinesOverlay | null> {
     return this.loadOverlay(documentHash);
   }
 
-  /**
-   * Import overlay from .cogx file
-   * Marks it with source project and commit for provenance
-   */
   async importFromCogx(
     overlay: SecurityGuidelinesOverlay,
     sourceProject: string,
@@ -651,7 +366,6 @@ export class SecurityGuidelinesManager implements OverlayAlgebra<SecurityMetadat
   ): Promise<void> {
     await fs.ensureDir(this.overlayPath);
 
-    // Add import provenance
     const importedOverlay: SecurityGuidelinesOverlay = {
       ...overlay,
       source_project: sourceProject,

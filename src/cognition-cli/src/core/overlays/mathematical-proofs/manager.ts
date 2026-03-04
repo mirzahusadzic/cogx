@@ -2,113 +2,11 @@ import { MathematicalKnowledge } from '../../analyzers/document-extractor.js';
 import fs from 'fs-extra';
 import path from 'path';
 import YAML from 'yaml';
-import { WorkbenchClient } from '../../executors/workbench-client.js';
 import { EmbedLogger } from '../shared/embed-logger.js';
 import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../../config.js';
-import {
-  OverlayAlgebra,
-  OverlayItem,
-  OverlayMetadata,
-  SelectOptions,
-} from '../../algebra/overlay-algebra.js';
-import type { OverlayData } from '../../pgc/embedding-loader.js';
-
-/**
- * Mathematical Proofs Overlay (O₆) - FORMAL REASONING
- *
- * Stores extracted mathematical statements and proofs.
- * This overlay captures formal properties, theorems, and proofs
- * from mathematical/formal documents (THEORY.md, proofs, etc.).
- *
- * LATTICE POSITION: O₆ (Formal/Mathematical)
- * - Echo's domain: Formal properties and reasoning
- * - Complements mission (O₄): Formal foundations for vision
- * - Supports coherence (O₇): Proves correctness properties
- *
- * STATEMENT TYPES:
- * - theorem: Formal statements with proofs
- * - lemma: Supporting propositions
- * - axiom: Foundational truths
- * - corollary: Derived results
- * - proof: Step-by-step derivations
- * - identity: Mathematical equalities/invariants
- *
- * USE CASES:
- * - Invariant reasoning: "What theorems relate to lattice coherence?"
- * - Property verification: "Does this code satisfy the theorem?"
- * - Formal queries: "What are the axioms of our system?"
- * - Proof discovery: "What lemmas support this property?"
- *
- * EMBEDDINGS:
- * - Each statement has a 768-dimensional vector from eGemma
- * - Enables semantic search over formal knowledge
- * - Supports queries like: "What proofs relate to monotonicity?"
- *
- * DESIGN RATIONALE:
- * - Formal foundations: Mathematical basis for system
- * - Queryable: Natural language queries over formal knowledge
- * - Provenance: Track which documents define each theorem
- * - Evolution: Track how formal properties evolve
- *
- * FUTURE VISION:
- * - Formal verification of code properties
- * - Automatic theorem application to code
- * - Proof-guided optimization and refactoring
- * - Integration with proof assistants (Coq, Lean, etc.)
- *
- * STORAGE:
- * - YAML: .open_cognition/overlays/mathematical_proofs/<doc_hash>.yaml
- * - LanceDB: .open_cognition/lance/documents.lancedb (overlay_type='O6')
- *
- * @example
- * // Query mathematical statements semantically
- * const manager = new MathematicalProofsManager(pgcRoot);
- * const results = await manager.query('lattice monotonicity', 5);
- *
- * @example
- * // Get all axioms (foundational truths)
- * const axioms = await manager.getAxioms();
- *
- * @example
- * // Find theorems by type
- * const theorems = await manager.getStatementsByType('theorem');
- */
-export interface MathematicalProofsOverlay {
-  document_hash: string; // Content hash of source document
-  document_path: string; // Path to source markdown file
-  extracted_statements: MathematicalKnowledge[]; // Theorems, proofs, etc.
-  generated_at: string; // ISO timestamp
-  transform_id: string; // Transform that generated this overlay
-  format_version?: number; // 2 = embeddings in LanceDB, 1 or undefined = embeddings in YAML
-}
-
-/**
- * Metadata for mathematical overlay items
- */
-export interface MathematicalMetadata extends OverlayMetadata {
-  text: string;
-  statementType:
-    | 'theorem'
-    | 'lemma'
-    | 'axiom'
-    | 'corollary'
-    | 'proof'
-    | 'identity'
-    | 'invariant'
-    | 'complexity';
-  weight: number;
-  occurrences: number;
-  section: string;
-  sectionHash: string;
-  documentHash: string;
-  proofSteps?: string[];
-  dependencies?: string[];
-  formalNotation?: string;
-  timeComplexity?: string;
-  spaceComplexity?: string;
-  enforcement?: string;
-  violations?: string[];
-}
+import { OverlayItem } from '../../algebra/overlay-algebra.js';
+import { BasePatternManager } from '../base/manager.js';
+import { MathematicalMetadata, MathematicalProofsOverlay } from './metadata.js';
 
 /**
  * MathematicalProofsManager
@@ -116,43 +14,18 @@ export interface MathematicalMetadata extends OverlayMetadata {
  * Manages mathematical proof overlays in the PGC (O₆ layer - Echo's domain).
  * Stores extracted mathematical statements from formal documents.
  *
- * OVERLAY STRUCTURE:
- * .open_cognition/overlays/mathematical_proofs/<doc-hash>.yaml
- *
- * STATEMENT TYPES:
- * - theorem: Formal statements with proofs
- * - lemma: Supporting propositions
- * - axiom: Foundational truths
- * - corollary: Derived results
- * - proof: Step-by-step derivations
- * - identity: Mathematical equalities/invariants
- *
- * EMBEDDINGS:
- * - Each statement has a 768-dimensional vector from eGemma
- * - Enables semantic search: "What theorems relate to lattice coherence?"
- * - Supports formal reasoning queries
- *
- * FUTURE:
- * - Integrate with formal verification tools
- * - Support proof checking
- * - Enable theorem application to code
+ * LATTICE POSITION: O₆ (Formal/Mathematical)
  */
-export class MathematicalProofsManager implements OverlayAlgebra<MathematicalMetadata> {
+export class MathematicalProofsManager extends BasePatternManager<MathematicalMetadata> {
   private overlayPath: string;
-  private workbench: WorkbenchClient;
 
-  constructor(
-    private pgcRoot: string,
-    workbenchUrl?: string
-  ) {
+  constructor(pgcRoot: string, workbenchUrl?: string) {
+    super(pgcRoot, workbenchUrl);
     this.overlayPath = path.join(pgcRoot, 'overlays', 'mathematical_proofs');
-    this.workbench = new WorkbenchClient(
-      workbenchUrl || process.env.WORKBENCH_URL || 'http://localhost:8000'
-    );
   }
 
   // ========================================
-  // OVERLAY ALGEBRA INTERFACE
+  // BASE PATTERN MANAGER IMPLEMENTATION
   // ========================================
 
   getOverlayId(): string {
@@ -174,10 +47,6 @@ export class MathematicalProofsManager implements OverlayAlgebra<MathematicalMet
       'invariant',
       'complexity',
     ];
-  }
-
-  getPgcRoot(): string {
-    return this.pgcRoot;
   }
 
   async getAllItems(): Promise<OverlayItem<MathematicalMetadata>[]> {
@@ -203,7 +72,7 @@ export class MathematicalProofsManager implements OverlayAlgebra<MathematicalMet
       const { EmbeddingLoader } = await import('../../pgc/embedding-loader.js');
       const loader = new EmbeddingLoader();
       const statementsWithEmbeddings = await loader.loadConceptsWithEmbeddings(
-        overlay as unknown as OverlayData,
+        overlay as any,
         this.pgcRoot
       );
 
@@ -213,7 +82,6 @@ export class MathematicalProofsManager implements OverlayAlgebra<MathematicalMet
       );
 
       for (const concept of statementsWithEmbeddings) {
-        // O(1) lookup for original statement
         const originalStatement = statementMap.get(concept.text);
 
         items.push({
@@ -221,6 +89,7 @@ export class MathematicalProofsManager implements OverlayAlgebra<MathematicalMet
           embedding: concept.embedding!,
           metadata: {
             text: concept.text,
+            type: originalStatement?.statementType || 'theorem',
             statementType: originalStatement?.statementType || 'theorem',
             weight: concept.weight,
             occurrences: concept.occurrences,
@@ -244,127 +113,8 @@ export class MathematicalProofsManager implements OverlayAlgebra<MathematicalMet
     return items;
   }
 
-  async getItemsByType(
-    type: string
-  ): Promise<OverlayItem<MathematicalMetadata>[]> {
-    const allItems = await this.getAllItems();
-    return allItems.filter((item) => item.metadata.statementType === type);
-  }
-
-  async filter(
-    predicate: (metadata: MathematicalMetadata) => boolean
-  ): Promise<OverlayItem<MathematicalMetadata>[]> {
-    const allItems = await this.getAllItems();
-    return allItems.filter((item) => predicate(item.metadata));
-  }
-
-  async query(
-    query: string,
-    topK: number = 10,
-    precomputedEmbedding?: number[]
-  ): Promise<
-    Array<{ item: OverlayItem<MathematicalMetadata>; similarity: number }>
-  > {
-    let queryEmbedding: number[];
-
-    // Use pre-computed embedding if provided (optimization)
-    if (precomputedEmbedding && precomputedEmbedding.length === 768) {
-      queryEmbedding = precomputedEmbedding;
-    } else {
-      const embedResponse = await this.workbench.embed({
-        signature: query,
-        dimensions: 768,
-      });
-
-      queryEmbedding = embedResponse['embedding_768d'] as number[];
-      if (!queryEmbedding || queryEmbedding.length !== 768) {
-        throw new Error('Failed to generate query embedding');
-      }
-    }
-
-    const allItems = await this.getAllItems();
-    const results = allItems.map((item) => ({
-      item,
-      similarity: this.cosineSimilarity(queryEmbedding, item.embedding),
-    }));
-
-    results.sort((a, b) => b.similarity - a.similarity);
-    return results.slice(0, topK);
-  }
-
-  async select(
-    options: SelectOptions
-  ): Promise<OverlayItem<MathematicalMetadata>[]> {
-    const allItems = await this.getAllItems();
-
-    if (options.symbols) {
-      return allItems.filter((item) =>
-        options.symbols!.has(item.metadata.text)
-      );
-    }
-
-    if (options.ids) {
-      return allItems.filter((item) => options.ids!.has(item.id));
-    }
-
-    return allItems;
-  }
-
-  async exclude(
-    options: SelectOptions
-  ): Promise<OverlayItem<MathematicalMetadata>[]> {
-    const allItems = await this.getAllItems();
-
-    if (options.symbols) {
-      return allItems.filter(
-        (item) => !options.symbols!.has(item.metadata.text)
-      );
-    }
-
-    if (options.ids) {
-      return allItems.filter((item) => !options.ids!.has(item.id));
-    }
-
-    return allItems;
-  }
-
-  async getSymbolSet(): Promise<Set<string>> {
-    const allItems = await this.getAllItems();
-    return new Set(allItems.map((item) => item.metadata.text));
-  }
-
-  async getIdSet(): Promise<Set<string>> {
-    const allItems = await this.getAllItems();
-    return new Set(allItems.map((item) => item.id));
-  }
-
-  private cosineSimilarity(a: number[], b: number[]): number {
-    if (a.length !== b.length) {
-      throw new Error('Vector dimensions must match');
-    }
-
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-
-    for (let i = 0; i < a.length; i++) {
-      dotProduct += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
-    }
-
-    normA = Math.sqrt(normA);
-    normB = Math.sqrt(normB);
-
-    if (normA === 0 || normB === 0) {
-      return 0;
-    }
-
-    return dotProduct / (normA * normB);
-  }
-
   // ========================================
-  // LEGACY METHODS (keep for compatibility)
+  // LEGACY METHODS (preserved for compatibility)
   // ========================================
 
   /**
@@ -410,21 +160,15 @@ export class MathematicalProofsManager implements OverlayAlgebra<MathematicalMet
           !Array.isArray(embedding) ||
           embedding.length !== DEFAULT_EMBEDDING_DIMENSIONS
         ) {
-          const actualLength = Array.isArray(embedding) ? embedding.length : 0;
-          console.warn(
-            `Warning: Invalid embedding for statement "${statement.text.substring(0, 50)}..." (got ${actualLength} dimensions, expected ${DEFAULT_EMBEDDING_DIMENSIONS})`
-          );
           continue;
         }
 
         statementsWithEmbeddings.push({
           ...statement,
-          embedding,
+          embedding: embedding as number[],
         });
       } catch (error) {
-        console.warn(
-          `Warning: Failed to generate embedding: ${(error as Error).message}`
-        );
+        console.warn(`Failed to generate embedding: ${(error as Error).message}`);
       }
     }
 
@@ -432,8 +176,7 @@ export class MathematicalProofsManager implements OverlayAlgebra<MathematicalMet
   }
 
   /**
-   * Store embeddings in LanceDB (NOT in YAML!)
-   * Embeddings are stored in binary format in patterns.lancedb/mathematical_proofs
+   * Store embeddings in LanceDB
    */
   private async storeEmbeddingsInLance(
     statements: MathematicalKnowledge[],
@@ -450,7 +193,7 @@ export class MathematicalProofsManager implements OverlayAlgebra<MathematicalMet
         id: `${documentHash}_${index}`,
         symbol: item.text.substring(0, 100),
         embedding: item.embedding!,
-        document_hash: documentHash, // KEY: Track document hash for --force cleanup
+        document_hash: documentHash,
         structural_signature: `mathematical:${item.statementType}`,
         semantic_signature: item.text,
         type: 'semantic',
@@ -502,14 +245,12 @@ export class MathematicalProofsManager implements OverlayAlgebra<MathematicalMet
       documentName
     );
 
-    // Store embeddings in LanceDB (NOT in YAML!)
     await this.storeEmbeddingsInLance(
       statementsWithEmbeddings,
       documentHash,
       documentPath
     );
 
-    // Strip embeddings before writing to YAML (metadata only)
     const statementsWithoutEmbeddings = statementsWithEmbeddings.map((item) => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { embedding, ...rest } = item;
@@ -519,10 +260,10 @@ export class MathematicalProofsManager implements OverlayAlgebra<MathematicalMet
     const overlay: MathematicalProofsOverlay = {
       document_hash: documentHash,
       document_path: documentPath,
-      extracted_statements: statementsWithoutEmbeddings, // No embeddings!
+      extracted_statements: statementsWithoutEmbeddings,
       generated_at: new Date().toISOString(),
       transform_id: transformId,
-      format_version: 2, // Mark as v2 format (embeddings in LanceDB pattern tables)
+      format_version: 2,
     };
 
     const overlayFile = path.join(this.overlayPath, `${documentHash}.yaml`);
@@ -549,69 +290,44 @@ export class MathematicalProofsManager implements OverlayAlgebra<MathematicalMet
    * Get all mathematical statements across all documents
    */
   async getAllStatements(): Promise<MathematicalKnowledge[]> {
-    const overlayFiles = await fs.readdir(this.overlayPath);
-    const allStatements: MathematicalKnowledge[] = [];
-
-    for (const file of overlayFiles) {
-      if (!file.endsWith('.yaml')) continue;
-
-      const content = await fs.readFile(
-        path.join(this.overlayPath, file),
-        'utf-8'
-      );
-      const overlay = YAML.parse(content) as MathematicalProofsOverlay;
-
-      allStatements.push(...overlay.extracted_statements);
-    }
-
-    return allStatements;
+    const items = await this.getAllItems();
+    return items.map((item) => ({
+      text: item.metadata.text,
+      statementType: item.metadata.statementType as any,
+      weight: item.metadata.weight,
+      occurrences: item.metadata.occurrences,
+      section: item.metadata.section,
+      sectionHash: item.metadata.sectionHash,
+      metadata: {
+        proofSteps: item.metadata.proofSteps,
+        dependencies: item.metadata.dependencies,
+        formalNotation: item.metadata.formalNotation,
+      },
+    }));
   }
 
-  /**
-   * Query statements by type
-   */
-  async getStatementsByType(
-    statementType:
-      | 'theorem'
-      | 'lemma'
-      | 'axiom'
-      | 'corollary'
-      | 'proof'
-      | 'identity'
-  ): Promise<MathematicalKnowledge[]> {
-    const allStatements = await this.getAllStatements();
-    return allStatements.filter((s) => s.statementType === statementType);
+  async getStatementsByType(type: string): Promise<MathematicalKnowledge[]> {
+    const all = await this.getAllStatements();
+    return all.filter((s) => s.statementType === type);
   }
 
-  /**
-   * Query statements by text search
-   */
   async queryStatements(query: string): Promise<MathematicalKnowledge[]> {
-    const allStatements = await this.getAllStatements();
+    const all = await this.getAllStatements();
     const lowerQuery = query.toLowerCase();
 
-    return allStatements
+    return all
       .filter((s) => s.text.toLowerCase().includes(lowerQuery))
-      .sort((a, b) => b.weight - a.weight);
+      .sort((a, b) => (b.weight || 0) - (a.weight || 0));
   }
 
-  /**
-   * Get all theorems
-   */
   async getTheorems(): Promise<MathematicalKnowledge[]> {
     return this.getStatementsByType('theorem');
   }
 
-  /**
-   * Get all axioms (foundational truths)
-   */
   async getAxioms(): Promise<MathematicalKnowledge[]> {
     return this.getStatementsByType('axiom');
   }
 
-  /**
-   * Get all proofs
-   */
   async getProofs(): Promise<MathematicalKnowledge[]> {
     return this.getStatementsByType('proof');
   }
