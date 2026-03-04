@@ -7,6 +7,7 @@ import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../../config.js';
 import { OverlayItem } from '../../algebra/overlay-algebra.js';
 import { BasePatternManager } from '../base/manager.js';
 import { MathematicalMetadata, MathematicalProofsOverlay } from './metadata.js';
+import type { OverlayData } from '../../pgc/embedding-loader.js';
 
 /**
  * MathematicalProofsManager
@@ -72,7 +73,7 @@ export class MathematicalProofsManager extends BasePatternManager<MathematicalMe
       const { EmbeddingLoader } = await import('../../pgc/embedding-loader.js');
       const loader = new EmbeddingLoader();
       const statementsWithEmbeddings = await loader.loadConceptsWithEmbeddings(
-        overlay as any,
+        overlay as unknown as OverlayData,
         this.pgcRoot
       );
 
@@ -168,7 +169,9 @@ export class MathematicalProofsManager extends BasePatternManager<MathematicalMe
           embedding: embedding as number[],
         });
       } catch (error) {
-        console.warn(`Failed to generate embedding: ${(error as Error).message}`);
+        console.warn(
+          `Failed to generate embedding: ${(error as Error).message}`
+        );
       }
     }
 
@@ -293,7 +296,8 @@ export class MathematicalProofsManager extends BasePatternManager<MathematicalMe
     const items = await this.getAllItems();
     return items.map((item) => ({
       text: item.metadata.text,
-      statementType: item.metadata.statementType as any,
+      statementType: item.metadata
+        .statementType as MathematicalMetadata['statementType'],
       weight: item.metadata.weight,
       occurrences: item.metadata.occurrences,
       section: item.metadata.section,

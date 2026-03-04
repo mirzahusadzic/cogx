@@ -5,10 +5,7 @@ import YAML from 'yaml';
 import { EmbedLogger } from '../shared/embed-logger.js';
 import { OverlayItem } from '../../algebra/overlay-algebra.js';
 import { BasePatternManager } from '../base/manager.js';
-import {
-  MissionConceptMetadata,
-  MissionConceptsOverlay,
-} from './metadata.js';
+import { MissionConceptMetadata, MissionConceptsOverlay } from './metadata.js';
 
 /**
  * MissionConceptsManager

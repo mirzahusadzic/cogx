@@ -7,6 +7,7 @@ import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../../config.js';
 import { OverlayItem } from '../../algebra/overlay-algebra.js';
 import { BasePatternManager } from '../base/manager.js';
 import { SecurityMetadata, SecurityGuidelinesOverlay } from './metadata.js';
+import type { OverlayData } from '../../pgc/embedding-loader.js';
 
 /**
  * SecurityGuidelinesManager
@@ -72,7 +73,7 @@ export class SecurityGuidelinesManager extends BasePatternManager<SecurityMetada
 
       // Load concepts with embeddings (v1 from YAML or v2 from LanceDB)
       const conceptsWithEmbeddings = await loader.loadConceptsWithEmbeddings(
-        overlay as any,
+        overlay as unknown as OverlayData,
         this.pgcRoot
       );
 
@@ -223,7 +224,9 @@ export class SecurityGuidelinesManager extends BasePatternManager<SecurityMetada
           embedding: embedding as number[],
         });
       } catch (error) {
-        console.warn(`Failed to generate embedding: ${(error as Error).message}`);
+        console.warn(
+          `Failed to generate embedding: ${(error as Error).message}`
+        );
       }
     }
 
@@ -355,7 +358,9 @@ export class SecurityGuidelinesManager extends BasePatternManager<SecurityMetada
       });
   }
 
-  async exportForCogx(documentHash: string): Promise<SecurityGuidelinesOverlay | null> {
+  async exportForCogx(
+    documentHash: string
+  ): Promise<SecurityGuidelinesOverlay | null> {
     return this.loadOverlay(documentHash);
   }
 

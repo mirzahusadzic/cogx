@@ -7,10 +7,7 @@ import { DEFAULT_EMBEDDING_DIMENSIONS } from '../../../config.js';
 import { OverlayItem } from '../../algebra/overlay-algebra.js';
 import type { OverlayData } from '../../pgc/embedding-loader.js';
 import { BasePatternManager } from '../base/manager.js';
-import {
-  OperationalMetadata,
-  OperationalPatternsOverlay,
-} from './metadata.js';
+import { OperationalMetadata, OperationalPatternsOverlay } from './metadata.js';
 
 /**
  * OperationalPatternsManager
@@ -93,7 +90,9 @@ export class OperationalPatternsManager extends BasePatternManager<OperationalMe
           embedding: concept.embedding!,
           metadata: {
             text: concept.text,
-            type: (originalPattern?.patternType as any) || 'explanation',
+            type:
+              (originalPattern?.patternType as OperationalMetadata['type']) ||
+              'explanation',
             patternType: originalPattern?.patternType || 'explanation',
             weight: concept.weight,
             occurrences: concept.occurrences,
@@ -301,7 +300,8 @@ export class OperationalPatternsManager extends BasePatternManager<OperationalMe
     const items = await this.getAllItems();
     return items.map((item) => ({
       text: item.metadata.text,
-      patternType: item.metadata.patternType as any,
+      patternType: item.metadata
+        .patternType as OperationalKnowledge['patternType'],
       weight: item.metadata.weight,
       occurrences: item.metadata.occurrences,
       section: item.metadata.section,
@@ -318,7 +318,8 @@ export class OperationalPatternsManager extends BasePatternManager<OperationalMe
     const items = await this.getItemsByType(type);
     return items.map((item) => ({
       text: item.metadata.text,
-      patternType: item.metadata.patternType as any,
+      patternType: item.metadata
+        .patternType as OperationalKnowledge['patternType'],
       weight: item.metadata.weight,
       occurrences: item.metadata.occurrences,
       section: item.metadata.section,
@@ -335,7 +336,8 @@ export class OperationalPatternsManager extends BasePatternManager<OperationalMe
     const results = await this.query(query);
     return results.map((r) => ({
       text: r.item.metadata.text,
-      patternType: r.item.metadata.patternType as any,
+      patternType: r.item.metadata
+        .patternType as OperationalKnowledge['patternType'],
       weight: r.item.metadata.weight,
       occurrences: r.item.metadata.occurrences,
       section: r.item.metadata.section,

@@ -1,5 +1,5 @@
 #!/bin/bash
-BASELINE_DIR="test-results/baseline"
+BASELINE_DIR="tests/golden-master/baseline"
 CURRENT_DIR="test-results/golden-master"
 
 echo "Comparing current snapshots against baseline (ignoring progress dots)..."
@@ -17,23 +17,20 @@ for file in "$CURRENT_DIR"/*; do
     continue
   fi
 
-  # Clean both files for comparison:
-  # 1. Remove Clack spinner frames [◒◐◓◑]
-  # 2. Remove "Executing query" and progress dots (.)
-  # 3. Remove ANSI color codes
-  # 4. Remove trailing whitespace
-  
   clean_file() {
-    # Replace the progress line with a placeholder or just remove the patterns
-    # Clack spinners: [◒◐◓◑]
-    # Progress dots: any sequence of "  . " or "Executing query"
+    # Normalize output by removing:
+    # 1. ANSI color codes
+    # 2. Clack spinners [◒◐◓◑]
+    # 3. Everything up to "Query executed" if present
+    # 4. Collapse all whitespace sequences (including tabs/newlines) to single space
+    # 5. Trim trailing whitespace
+    # 6. Skip empty lines
     cat "$1" | \
-      sed 's/\x1b\[[0-9;]*[mK]//g' | \
-      sed 's/[◒◐◓◑]//g' | \
-      sed 's/Executing query//g' | \
-      sed 's/ \.* / /g' | \
-      sed 's/^\.*$//g' | \
-      sed 's/[[:space:]]*$//' | \
+      LC_ALL=C sed 's/\x1b\[[0-9;]*[mK]//g' | \
+      LC_ALL=C sed 's/[◒◐◓◑]//g' | \
+      LC_ALL=C sed 's/.*Query executed//' | \
+      LC_ALL=C sed 's/[[:space:]][[:space:]]*/ /g' | \
+      LC_ALL=C sed 's/[[:space:]]*$//' | \
       grep -v '^$'
   }
 
@@ -42,8 +39,15 @@ for file in "$CURRENT_DIR"/*; do
   
   if ! diff <(echo "$clean_baseline") <(echo "$clean_current") > /dev/null; then
     echo "❌ FAILURE: Regressions detected in $base!"
-    # Show the diff without progress clutter
-    diff -u <(echo "$clean_baseline") <(echo "$clean_current")
+    
+    # Calculate summary stats (subtracting 1 for the diff headers +++ and ---)
+    added=$(diff -u <(echo "$clean_baseline") <(echo "$clean_current") | grep "^+" | grep -v "^+++" | wc -l | tr -d ' ')
+    removed=$(diff -u <(echo "$clean_baseline") <(echo "$clean_current") | grep "^-" | grep -v "^---" | wc -l | tr -d ' ')
+    
+    echo "Summary: $added lines added, $removed lines removed."
+    echo "First 10 changes (truncated to 200 chars per line):"
+    diff -u <(echo "$clean_baseline") <(echo "$clean_current") | grep -v "^ " | grep -vE "^(\+\+\+|\-\-\-)" | LC_ALL=C cut -c 1-200 | head -n 10
+    echo "... (use 'diff -u' manually for full details)"
     exit 1
   fi
 done

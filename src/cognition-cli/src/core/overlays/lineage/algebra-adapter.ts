@@ -5,6 +5,7 @@ import { OverlayItem } from '../../algebra/overlay-algebra.js';
 import {
   LineagePatternMetadata,
   LineagePatternMetadataSchema,
+  StructuralSymbolType,
 } from './types.js';
 import { BasePatternManager } from '../base/manager.js';
 import { LineageMetadata } from './metadata.js';
@@ -105,11 +106,14 @@ export class LineageAlgebraAdapter extends BasePatternManager<LineageMetadata> {
               patternMetadata?.lineageSignature ||
               (vec.structural_signature as string) ||
               vec.symbol,
-            type: patternMetadata?.symbolType || (vec.symbolType as string) || 'function',
+            type:
+              patternMetadata?.symbolType ||
+              (vec.symbolType as string) ||
+              'function',
             symbol: vec.symbol,
             symbolType:
-              (patternMetadata?.symbolType as any) ||
-              (vec.symbolType as any) ||
+              (patternMetadata?.symbolType as StructuralSymbolType) ||
+              (vec.symbolType as StructuralSymbolType) ||
               'function',
             anchor: patternMetadata?.anchor || (vec.filePath as string) || '',
             lineageHash:
