@@ -316,16 +316,25 @@ export class SecurityGuidelinesManager extends BasePatternManager<SecurityMetada
       },
     }));
   }
+  /**
+   * Query knowledge by security type
+   */
 
   async getKnowledgeByType(type: string): Promise<SecurityKnowledge[]> {
     const all = await this.getAllKnowledge();
     return all.filter((k) => k.securityType === type);
   }
+  /**
+   * Query knowledge by severity
+   */
 
   async getKnowledgeBySeverity(severity: string): Promise<SecurityKnowledge[]> {
     const all = await this.getAllKnowledge();
     return all.filter((k) => k.severity === severity);
   }
+  /**
+   * Get all CVEs
+   */
 
   async getCVEs(): Promise<SecurityKnowledge[]> {
     const all = await this.getAllKnowledge();
@@ -333,6 +342,9 @@ export class SecurityGuidelinesManager extends BasePatternManager<SecurityMetada
       (k) => k.securityType === 'vulnerability' && k.metadata?.cveId
     );
   }
+  /**
+   * Query security knowledge by text search
+   */
 
   async queryKnowledge(query: string): Promise<SecurityKnowledge[]> {
     const all = await this.getAllKnowledge();
@@ -357,12 +369,20 @@ export class SecurityGuidelinesManager extends BasePatternManager<SecurityMetada
         return (b.weight || 0) - (a.weight || 0);
       });
   }
+  /**
+   * Export overlay for .cogx packaging
+   * Returns overlay data with provenance for portability
+   */
 
   async exportForCogx(
     documentHash: string
   ): Promise<SecurityGuidelinesOverlay | null> {
     return this.loadOverlay(documentHash);
   }
+  /**
+   * Import overlay from .cogx file
+   * Marks it with source project and commit for provenance
+   */
 
   async importFromCogx(
     overlay: SecurityGuidelinesOverlay,

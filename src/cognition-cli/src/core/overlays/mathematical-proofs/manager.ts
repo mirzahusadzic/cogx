@@ -309,11 +309,17 @@ export class MathematicalProofsManager extends BasePatternManager<MathematicalMe
       },
     }));
   }
+  /**
+   * Query statements by type
+   */
 
   async getStatementsByType(type: string): Promise<MathematicalKnowledge[]> {
     const all = await this.getAllStatements();
     return all.filter((s) => s.statementType === type);
   }
+  /**
+   * Query statements by text search
+   */
 
   async queryStatements(query: string): Promise<MathematicalKnowledge[]> {
     const all = await this.getAllStatements();
@@ -323,14 +329,23 @@ export class MathematicalProofsManager extends BasePatternManager<MathematicalMe
       .filter((s) => s.text.toLowerCase().includes(lowerQuery))
       .sort((a, b) => (b.weight || 0) - (a.weight || 0));
   }
+  /**
+   * Get all theorems
+   */
 
   async getTheorems(): Promise<MathematicalKnowledge[]> {
     return this.getStatementsByType('theorem');
   }
+  /**
+   * Get all axioms (foundational truths)
+   */
 
   async getAxioms(): Promise<MathematicalKnowledge[]> {
     return this.getStatementsByType('axiom');
   }
+  /**
+   * Get all proofs
+   */
 
   async getProofs(): Promise<MathematicalKnowledge[]> {
     return this.getStatementsByType('proof');

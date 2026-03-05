@@ -298,6 +298,9 @@ export class MissionConceptsManager extends BasePatternManager<MissionConceptMet
 
     await this.updateManifest(overlay);
   }
+  /**
+   * Update manifest with document metadata for incremental updates
+   */
 
   private async updateManifest(overlay: MissionConceptsOverlay): Promise<void> {
     const manifestPath = path.join(this.overlayPath, 'manifest.json');
@@ -326,6 +329,9 @@ export class MissionConceptsManager extends BasePatternManager<MissionConceptMet
 
     await fs.writeJSON(manifestPath, manifest, { spaces: 2 });
   }
+  /**
+   * Retrieve mission concepts for a document
+   */
 
   async retrieve(documentHash: string): Promise<MissionConceptsOverlay | null> {
     const filePath = path.join(this.overlayPath, `${documentHash}.yaml`);
@@ -337,6 +343,9 @@ export class MissionConceptsManager extends BasePatternManager<MissionConceptMet
     const yamlContent = await fs.readFile(filePath, 'utf-8');
     return YAML.parse(yamlContent) as MissionConceptsOverlay;
   }
+  /**
+   * List all mission concept overlays
+   */
 
   async list(): Promise<string[]> {
     if (!(await fs.pathExists(this.overlayPath))) {
@@ -348,6 +357,9 @@ export class MissionConceptsManager extends BasePatternManager<MissionConceptMet
       .filter((f) => f.endsWith('.yaml'))
       .map((f) => f.replace('.yaml', ''));
   }
+  /**
+   * Delete mission concepts overlay
+   */
 
   async delete(documentHash: string): Promise<void> {
     const filePath = path.join(this.overlayPath, `${documentHash}.yaml`);
@@ -356,6 +368,10 @@ export class MissionConceptsManager extends BasePatternManager<MissionConceptMet
       await fs.remove(filePath);
     }
   }
+  /**
+   * Get all concepts across all overlays (no merging, preserves embeddings)
+   * Used for semantic similarity search in Q&A
+   */
 
   async getAllConcepts(): Promise<MissionConcept[]> {
     const items = await this.getAllItems();
@@ -367,6 +383,9 @@ export class MissionConceptsManager extends BasePatternManager<MissionConceptMet
       sectionHash: item.metadata.sectionHash,
     }));
   }
+  /**
+   * Get top N concepts across all overlays (global mission concepts)
+   */
 
   async getTopConcepts(topN: number = 50): Promise<MissionConcept[]> {
     const allItems = await this.getAllItems();

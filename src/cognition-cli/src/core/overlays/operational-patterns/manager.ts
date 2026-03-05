@@ -295,6 +295,9 @@ export class OperationalPatternsManager extends BasePatternManager<OperationalMe
   // ========================================
   // COMPATIBILITY METHODS (Redirect to Algebra)
   // ========================================
+  /**
+   * Get all operational patterns across all documents
+   */
 
   async getAllPatterns(): Promise<OperationalKnowledge[]> {
     const items = await this.getAllItems();
@@ -313,6 +316,9 @@ export class OperationalPatternsManager extends BasePatternManager<OperationalMe
       },
     }));
   }
+  /**
+   * Query patterns by type
+   */
 
   async getPatternsByType(type: string): Promise<OperationalKnowledge[]> {
     const items = await this.getItemsByType(type);
@@ -331,6 +337,10 @@ export class OperationalPatternsManager extends BasePatternManager<OperationalMe
       },
     }));
   }
+  /**
+   * Query patterns by semantic search
+   * (Future: Use vector similarity search)
+   */
 
   async queryPatterns(query: string): Promise<OperationalKnowledge[]> {
     const results = await this.query(query);
