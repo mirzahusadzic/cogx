@@ -11,24 +11,26 @@ import {
   DEFAULT_SUMMARIZER_MODEL_NAME,
   DEFAULT_SUMMARIZER_MAX_TOKENS,
 } from '../../../config.js';
+import { TOOL_CONFIG } from './tool-config.js';
 
 /**
  * Maximum characters for tool output before truncation.
  * Default is 50k, but we use tighter limits for specific tools to save tokens.
  */
-export const MAX_TOOL_OUTPUT_CHARS = 50000;
-export const MAX_READ_FILE_CHARS = 20000; // ~5k tokens
-export const MAX_BASH_CHARS = 30000; // ~7.5k tokens
+export const MAX_TOOL_OUTPUT_CHARS = TOOL_CONFIG.GLOBAL.MAX_TOOL_OUTPUT_CHARS;
+export const MAX_READ_FILE_CHARS = TOOL_CONFIG.GLOBAL.MAX_READ_FILE_CHARS; // ~5k tokens
+export const MAX_BASH_CHARS = TOOL_CONFIG.GLOBAL.MAX_BASH_CHARS; // ~7.5k tokens
 
 /**
  * Threshold for eGemma summarization (chars).
  */
-export const EGEMMA_SUMMARIZE_THRESHOLD = 50000;
+export const EGEMMA_SUMMARIZE_THRESHOLD =
+  TOOL_CONFIG.GLOBAL.EGEMMA_SUMMARIZE_THRESHOLD;
 
 /**
  * Absolute max size for tool output before it's truncated without summarization.
  */
-export const PRE_TRUNCATE_THRESHOLD = 250000;
+export const PRE_TRUNCATE_THRESHOLD = TOOL_CONFIG.GLOBAL.PRE_TRUNCATE_THRESHOLD;
 
 /**
  * Workbench client for eGemma summarization (lazy initialized)
@@ -122,12 +124,13 @@ export async function smartCompressOutput(
     return output;
   }
 
-  // Tier 2: Read file is capped at 1MB to prevent TUI crashes, but generally
-  // returned untruncated below that to support refactoring large files.
-  // The agent is responsible for using offset/limit if they want to optimize.
+  // Tier 2: Read file is capped by its specific limit (usually 20k chars)
+  // but we allow up to 500k characters for massive refactors ONLY IF the agent
+  // is under low context pressure.
   if (toolType === 'read_file') {
-    if (output.length > 1024 * 1024) {
-      return truncateOutput(output, 1024 * 1024);
+    const readFileHardCap = TOOL_CONFIG.READ_FILE.HARD_CAP_CHARS;
+    if (output.length > Math.max(limit, readFileHardCap)) {
+      return truncateOutput(output, Math.max(limit, readFileHardCap));
     }
     return output;
   }
@@ -345,7 +348,9 @@ export function processSigmaTaskUpdateInput(
     // Validation for completed tasks
     if (
       cleanTodo.status === 'completed' &&
-      (!cleanTodo.result_summary || cleanTodo.result_summary.length < 15)
+      (!cleanTodo.result_summary ||
+        cleanTodo.result_summary.length <
+          TOOL_CONFIG.SIGMA_TASK_UPDATE.MIN_RESULT_SUMMARY_LENGTH)
     ) {
       throw new Error(
         "Validation Error: You cannot mark a task as 'completed' without providing a detailed 'result_summary' (min 15 chars). " +

@@ -12,6 +12,7 @@ import { SessionState } from '../../../sigma/session-state.js';
 import { spawn, exec } from 'child_process';
 import { glob as globLib } from 'glob';
 import { smartCompressOutput } from './tool-helpers.js';
+import { TOOL_CONFIG } from './tool-config.js';
 import { systemLog } from '../../../utils/debug-logger.js';
 import { promisify } from 'util';
 
@@ -206,13 +207,13 @@ export async function executeReadFile(
       : path.resolve(cwd, file_path);
     const stats = await fs.stat(absolutePath);
     // 1MB safety cap for total file read without limits
-    if (stats.size > 1024 * 1024 && !limit) {
+    if (stats.size > TOOL_CONFIG.READ_FILE.SAFETY_CAP_SIZE && !limit) {
       return `Error: File is too large (${(stats.size / 1024 / 1024).toFixed(2)} MB). Please use 'limit' and 'offset' to read specific parts of the file.`;
     }
 
     // Absolute hard limit to prevent OOM
-    if (stats.size > 50 * 1024 * 1024) {
-      return `Error: File is too large (${(stats.size / 1024 / 1024).toFixed(2)} MB). Maximum supported file size is 50MB.`;
+    if (stats.size > TOOL_CONFIG.READ_FILE.ABSOLUTE_MAX_SIZE) {
+      return `Error: File is too large (${(stats.size / 1024 / 1024).toFixed(2)} MB). Maximum supported file size is ${TOOL_CONFIG.READ_FILE.ABSOLUTE_MAX_SIZE / (1024 * 1024)}MB.`;
     }
 
     const content = await fs.readFile(absolutePath, 'utf-8');
@@ -226,8 +227,8 @@ export async function executeReadFile(
       .map((line, i) => {
         // Cap extremely long lines to prevent TUI crashes
         const displayLine =
-          line.length > 2000
-            ? line.substring(0, 2000) +
+          line.length > TOOL_CONFIG.READ_FILE.MAX_LINE_LENGTH
+            ? line.substring(0, TOOL_CONFIG.READ_FILE.MAX_LINE_LENGTH) +
               ' ... (long line truncated for TUI safety)'
             : line;
         return `${String(start + i + 1).padStart(6)}│${displayLine}`;
@@ -237,7 +238,7 @@ export async function executeReadFile(
     const compressed = await smartCompressOutput(
       result,
       'read_file',
-      1024 * 1024, // 1MB cap for tool output
+      TOOL_CONFIG.READ_FILE.COMPRESS_THRESHOLD, // 1MB cap for tool output
       workbenchUrl,
       currentPromptTokens
     );
@@ -286,7 +287,9 @@ export async function executeGlob(
       absolute: false,
       ignore: exclude,
     });
-    const result = files.slice(0, 100).join('\n') || 'No matches found';
+    const result =
+      files.slice(0, TOOL_CONFIG.GLOB.MAX_FILES).join('\n') ||
+      'No matches found';
     return tagOutputWithActiveTask(result, getActiveTaskId);
   } catch (error) {
     return `Error: ${error instanceof Error ? error.message : String(error)}`;
@@ -333,17 +336,17 @@ export async function executeGrep(
     // (rg is usually fast, but better safe than sorry)
     const timeoutId = setTimeout(() => {
       proc.kill('SIGTERM');
-    }, 30000);
+    }, TOOL_CONFIG.GREP.TIMEOUT_MS);
 
     let output = '';
-    const MAX_OUTPUT_SIZE = 1024 * 1024; // 1MB safety cap
+    const MAX_OUTPUT_SIZE = TOOL_CONFIG.GREP.MAX_OUTPUT_SIZE; // 1MB safety cap
 
     proc.stdout.on('data', (data) => {
       const chunk = data.toString();
       if (output.length + chunk.length > MAX_OUTPUT_SIZE) {
         if (output.length < MAX_OUTPUT_SIZE) {
           output += chunk.substring(0, MAX_OUTPUT_SIZE - output.length);
-          output += '\n... (output truncated at 1MB)';
+          output += `\n... (output truncated at ${MAX_OUTPUT_SIZE / (1024 * 1024)}MB)`;
         }
         proc.kill('SIGTERM');
       } else {
@@ -364,9 +367,9 @@ export async function executeGrep(
       // Final safety check: cap extremely long lines which can crash TUIs
       const lines = output.split(/\r?\n/);
       const cappedLines = lines.map((line) => {
-        if (line.length > 2000) {
+        if (line.length > TOOL_CONFIG.GREP.MAX_LINE_LENGTH) {
           return (
-            line.substring(0, 2000) +
+            line.substring(0, TOOL_CONFIG.GREP.MAX_LINE_LENGTH) +
             ' ... (long line truncated for TUI safety)'
           );
         }
@@ -377,7 +380,7 @@ export async function executeGrep(
       const compressed = await smartCompressOutput(
         finalOutput,
         'grep',
-        15000,
+        TOOL_CONFIG.GREP.COMPRESS_THRESHOLD,
         workbenchUrl,
         currentPromptTokens
       );
@@ -414,7 +417,7 @@ export async function executeBash(
   currentPromptTokens?: number,
   getActiveTaskId?: () => string | null
 ): Promise<ToolResult> {
-  const effectiveTimeout = timeout || 120000;
+  const effectiveTimeout = timeout || TOOL_CONFIG.BASH.DEFAULT_TIMEOUT_MS;
   const effectiveCwd = bashCwd
     ? path.isAbsolute(bashCwd)
       ? bashCwd
@@ -422,7 +425,7 @@ export async function executeBash(
     : cwd;
 
   return new Promise<ToolResult>((resolve) => {
-    const MAX_BUFFER_SIZE = 1024 * 1024; // 1MB
+    const MAX_BUFFER_SIZE = TOOL_CONFIG.BASH.MAX_BUFFER_SIZE; // 1MB
     const proc = spawn('bash', ['-c', command], {
       cwd: effectiveCwd,
       env: { ...process.env, NO_COLOR: undefined },
@@ -490,7 +493,9 @@ export async function executeBash(
       // Determine max output size based on command importance
       // git diffs are critical for context and should be preserved
       const isGitDiff = command.includes('git diff');
-      const maxChars = isGitDiff ? 1000000 : 30000;
+      const maxChars = isGitDiff
+        ? TOOL_CONFIG.BASH.GIT_DIFF_MAX_CHARS
+        : TOOL_CONFIG.BASH.STANDARD_MAX_CHARS;
 
       const compressed = await smartCompressOutput(
         output,
@@ -608,7 +613,7 @@ export async function executeFetchUrl(
         Accept: 'text/html,application/json,text/plain,*/*',
       },
       redirect: 'follow',
-      signal: AbortSignal.timeout(10000), // 10s timeout
+      signal: AbortSignal.timeout(TOOL_CONFIG.FETCH_URL.TIMEOUT_MS), // 10s timeout
     });
 
     if (!response.ok) {
@@ -687,7 +692,7 @@ export async function executeFetchUrl(
     }
 
     // Truncate if too large (200K chars for context)
-    const MAX_LENGTH = 200000;
+    const MAX_LENGTH = TOOL_CONFIG.FETCH_URL.MAX_CONTENT_LENGTH;
     if (text.length > MAX_LENGTH) {
       text =
         text.substring(0, MAX_LENGTH) +
@@ -968,8 +973,11 @@ export async function executeWebSearch(
         'Content-Type': 'application/json',
         Authorization: `Bearer ${process.env.OPENAI_API_KEY || 'dummy'}`,
       },
-      body: JSON.stringify({ query, max_results: max_results || 10 }),
-      signal: AbortSignal.timeout(15000), // 15s timeout
+      body: JSON.stringify({
+        query,
+        max_results: max_results || TOOL_CONFIG.WEB_SEARCH.DEFAULT_MAX_RESULTS,
+      }),
+      signal: AbortSignal.timeout(TOOL_CONFIG.WEB_SEARCH.TIMEOUT_MS), // 15s timeout
     });
 
     if (!response.ok) {
