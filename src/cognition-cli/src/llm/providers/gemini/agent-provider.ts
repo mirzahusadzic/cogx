@@ -116,8 +116,21 @@ export class GeminiAgentProvider extends BaseAgentProvider {
    * @param apiKey - Google API key (optional, defaults to GEMINI_API_KEY env var)
    * @throws Error if no API key provided
    */
-  constructor(apiKey?: string) {
+  constructor(
+    apiKeyOrOptions?: string | { apiKey?: string; sessionService?: unknown }
+  ) {
     super();
+    let apiKey: string | undefined;
+    if (apiKeyOrOptions && typeof apiKeyOrOptions === 'object') {
+      apiKey = apiKeyOrOptions.apiKey;
+      if (apiKeyOrOptions.sessionService) {
+        this.sessionService =
+          apiKeyOrOptions.sessionService as InMemorySessionService;
+      }
+    } else {
+      apiKey = apiKeyOrOptions as string;
+    }
+
     const key = apiKey || process.env.GEMINI_API_KEY;
     const isVertex = process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true';
 
@@ -156,17 +169,29 @@ export class GeminiAgentProvider extends BaseAgentProvider {
       event: Event;
     }) => {
       const sessionId = (args.session as AdkSession).sessionId;
-      const lastSignature = this.sessionSignatures.get(sessionId);
 
       if (
         args.event.author === 'cognition_agent' &&
-        args.event.content?.parts &&
-        lastSignature
+        args.event.content?.parts
       ) {
+        // Step 1: Scan for a new signature in the incoming event
+        let signatureToApply = this.sessionSignatures.get(sessionId);
         for (const part of args.event.content.parts) {
           const p = part as { thoughtSignature?: string };
-          if (!p.thoughtSignature) {
-            p.thoughtSignature = lastSignature;
+          if (p.thoughtSignature) {
+            signatureToApply = p.thoughtSignature;
+            this.sessionSignatures.set(sessionId, signatureToApply);
+            break;
+          }
+        }
+
+        // Step 2: Apply the signature to all parts if we have one
+        if (signatureToApply) {
+          for (const part of args.event.content.parts) {
+            const p = part as { thoughtSignature?: string };
+            if (!p.thoughtSignature) {
+              p.thoughtSignature = signatureToApply;
+            }
           }
         }
       }
@@ -252,7 +277,11 @@ export class GeminiAgentProvider extends BaseAgentProvider {
             };
           }
           if (p.text?.includes(tag)) {
-            return { text: toolTombstone };
+            return {
+              text: toolTombstone,
+              thoughtSignature: (p as { thoughtSignature?: string })
+                .thoughtSignature,
+            };
           }
           return p;
         });
@@ -457,7 +486,11 @@ export class GeminiAgentProvider extends BaseAgentProvider {
 
               // Surgical Tag Eviction for non-assistant turns or non-range turns
               if (hasTag && p.text?.includes(tag)) {
-                return { text: toolTombstone };
+                return {
+                  text: toolTombstone,
+                  thoughtSignature: (p as { thoughtSignature?: string })
+                    .thoughtSignature,
+                };
               }
 
               return p; // Keep tool calls and other parts

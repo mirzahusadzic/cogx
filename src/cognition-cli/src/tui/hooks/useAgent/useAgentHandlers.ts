@@ -37,6 +37,7 @@ interface MessageBlock {
   name?: string;
   input?: unknown;
   content?: unknown; // Added for tool_result support
+  thoughtSignature?: string;
 }
 
 interface AgentMessage {
@@ -44,6 +45,7 @@ interface AgentMessage {
   content?: string | MessageBlock[];
   toolName?: string;
   toolInput?: unknown;
+  thoughtSignature?: string;
 }
 
 export function updateSigmaTasksWithTokens(
@@ -275,7 +277,13 @@ export function useAgentHandlers() {
       currentTokens?: number,
       cachedTokens?: number
     ) => {
-      const { type, content } = agentMessage;
+      const { type, content, thoughtSignature: msgSignature } = agentMessage;
+      const thoughtSignature =
+        msgSignature ||
+        (Array.isArray(content)
+          ? content.find((c) => c.thoughtSignature)?.thoughtSignature
+          : undefined);
+
       // Use explicitly passed tokens if available, otherwise fall back to state
       // This ensures we use the most up-to-date count from the streaming response
       // rather than waiting for the React state update cycle
@@ -292,7 +300,11 @@ export function useAgentHandlers() {
               if (last && last.type === 'assistant') {
                 return [
                   ...prev.slice(0, -1),
-                  { ...last, content: last.content + colorReplacedText },
+                  {
+                    ...last,
+                    content: last.content + colorReplacedText,
+                    thoughtSignature: thoughtSignature ?? last.thoughtSignature,
+                  },
                 ];
               } else {
                 return [
@@ -301,6 +313,7 @@ export function useAgentHandlers() {
                     type: 'assistant',
                     content: colorReplacedText,
                     timestamp: new Date(),
+                    thoughtSignature,
                   },
                 ];
               }
@@ -319,7 +332,12 @@ export function useAgentHandlers() {
                 if (last && last.type === 'thinking') {
                   return [
                     ...prev.slice(0, -1),
-                    { ...last, content: last.content + thinking },
+                    {
+                      ...last,
+                      content: last.content + thinking,
+                      thoughtSignature:
+                        thoughtSignature ?? last.thoughtSignature,
+                    },
                   ];
                 } else {
                   return [
@@ -328,6 +346,7 @@ export function useAgentHandlers() {
                       type: 'thinking',
                       content: thinking,
                       timestamp: new Date(),
+                      thoughtSignature,
                     },
                   ];
                 }
@@ -344,7 +363,12 @@ export function useAgentHandlers() {
                 if (last && last.type === 'assistant') {
                   return [
                     ...prev.slice(0, -1),
-                    { ...last, content: last.content + colorReplacedText },
+                    {
+                      ...last,
+                      content: last.content + colorReplacedText,
+                      thoughtSignature:
+                        thoughtSignature ?? last.thoughtSignature,
+                    },
                   ];
                 } else {
                   return [
@@ -353,6 +377,7 @@ export function useAgentHandlers() {
                       type: 'assistant',
                       content: colorReplacedText,
                       timestamp: new Date(),
+                      thoughtSignature,
                     },
                   ];
                 }

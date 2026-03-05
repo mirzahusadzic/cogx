@@ -118,6 +118,9 @@ export interface TUIMessage {
 
   /** When message was created */
   timestamp: Date;
+
+  /** Gemini reasoning state signature */
+  thoughtSignature?: string;
 }
 
 /**
