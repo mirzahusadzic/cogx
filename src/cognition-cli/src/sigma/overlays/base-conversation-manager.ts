@@ -84,7 +84,8 @@ export abstract class BaseConversationManager<
     protected sigmaRoot: string,
     protected overlayName: string,
     workbenchUrl?: string,
-    debug?: boolean
+    debug?: boolean,
+    lanceStore?: ConversationLanceStore
   ) {
     this.debug = debug || false;
     this.overlayPath = path.join(sigmaRoot, 'overlays', overlayName);
@@ -93,7 +94,8 @@ export abstract class BaseConversationManager<
       this.debug
     );
     // Initialize LanceDB store for fast semantic search
-    this.lanceStore = new ConversationLanceStore(sigmaRoot);
+    // Use shared store if provided, otherwise create new one (legacy)
+    this.lanceStore = lanceStore || new ConversationLanceStore(sigmaRoot);
   }
 
   /**

@@ -24,6 +24,7 @@
  */
 
 import { OverlayAlgebra } from '../core/algebra/overlay-algebra.js';
+import { ConversationLanceStore } from './conversation-lance-store.js';
 import { ConversationOverlayManager } from './overlays/conversation-overlay-manager.js';
 import { CONVERSATION_OVERLAY_CONFIGS } from './overlays/types.js';
 import { AsyncMutex } from './utils/AsyncMutex.js';
@@ -62,6 +63,7 @@ export class ConversationOverlayRegistry {
   private debug: boolean;
   private writeMutex = new AsyncMutex(); // Serialize LanceDB writes
   private currentSessionId: string | null = null; // CRITICAL FIX: Store session ID for lazy-loaded managers
+  private lanceStore: ConversationLanceStore;
 
   constructor(
     private sigmaRoot: string,
@@ -70,6 +72,7 @@ export class ConversationOverlayRegistry {
   ) {
     this.workbenchUrl = workbenchUrl;
     this.debug = debug || false;
+    this.lanceStore = new ConversationLanceStore(sigmaRoot);
   }
 
   /**
@@ -183,7 +186,8 @@ export class ConversationOverlayRegistry {
       this.sigmaRoot,
       config,
       this.workbenchUrl,
-      this.debug
+      this.debug,
+      this.lanceStore
     );
   }
 

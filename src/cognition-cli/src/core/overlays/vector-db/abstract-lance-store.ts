@@ -54,11 +54,21 @@ export abstract class AbstractLanceStore<T extends Record<string, unknown>> {
    */
   protected async doInitialize(tableName: string): Promise<void> {
     try {
-      if (!fs.existsSync(this.dbPath)) {
-        await fs.ensureDir(this.dbPath);
+      let connectionPath = this.dbPath;
+
+      // Use in-memory database for tests with non-writable paths
+      if (
+        process.env.NODE_ENV === 'test' &&
+        connectionPath.startsWith('/test')
+      ) {
+        connectionPath = 'memory://';
       }
 
-      this.db = await connect(this.dbPath);
+      if (connectionPath !== 'memory://' && !fs.existsSync(connectionPath)) {
+        await fs.ensureDir(connectionPath);
+      }
+
+      this.db = await connect(connectionPath);
       const tableNames = await this.db.tableNames();
 
       if (!tableNames.includes(tableName)) {
@@ -79,11 +89,17 @@ export abstract class AbstractLanceStore<T extends Record<string, unknown>> {
       this.isInitialized = true;
     } catch (error) {
       this.initializationPromise = null;
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : '';
+
       throw new DatabaseError(
         `initialize ${this.constructor.name}`,
         {
           dbPath: this.dbPath,
           tableName,
+          originalError: errorMessage,
+          stack: errorStack,
         },
         error instanceof Error ? error : new Error(String(error))
       );

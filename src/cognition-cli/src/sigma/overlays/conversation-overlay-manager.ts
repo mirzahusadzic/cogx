@@ -1,3 +1,4 @@
+import { ConversationLanceStore } from '../conversation-lance-store.js';
 import {
   BaseConversationManager,
   ConversationTurnMetadata,
@@ -20,15 +21,16 @@ import { AlignmentScores, ConversationOverlayConfig } from './types.js';
  * const config = CONVERSATION_OVERLAY_CONFIGS['O1'];
  * const manager = new ConversationOverlayManager(sigmaRoot, config);
  * await manager.initializeLanceStore();
- */
+ * */
 export class ConversationOverlayManager extends BaseConversationManager<ConversationTurnMetadata> {
   constructor(
     sigmaRoot: string,
     private config: ConversationOverlayConfig,
     workbenchUrl?: string,
-    debug?: boolean
+    debug?: boolean,
+    lanceStore?: ConversationLanceStore
   ) {
-    super(sigmaRoot, config.slug, workbenchUrl, debug);
+    super(sigmaRoot, config.slug, workbenchUrl, debug, lanceStore);
   }
 
   getOverlayId(): string {

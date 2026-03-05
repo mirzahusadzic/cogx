@@ -23,6 +23,8 @@ vi.mock('../../../../../sigma/conversation-registry.js', () => ({
   ConversationOverlayRegistry: vi.fn().mockImplementation(() => ({
     setCurrentSession: vi.fn(),
     flushAll: vi.fn().mockResolvedValue(undefined),
+    getAll: vi.fn().mockResolvedValue(new Map()),
+    get: vi.fn().mockResolvedValue({}),
   })),
 }));
 
