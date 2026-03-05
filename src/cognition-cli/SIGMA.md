@@ -32,6 +32,8 @@ Agents are expected to verify their own work autonomously. Before concluding a t
 - **Verification**: Never assume a fix works; always run the relevant build/test command before marking a task as completed.
 - **No Interactive Tools**: NEVER use `npx vitest` as it enters an interactive mode that blocks the workflow. ALWAYS use `npm test <file>` which is configured to run in CI mode (non-interactive).
 
+- **JSDoc Preservation**: CRITICAL: Do not remove, alter, or orphan any `/** ... */` JSDoc blocks during refactoring or migrations. Extract them alongside the code they document.
+
 ## Commit Message Instructions
 
 Generate commit messages by strictly following the template below. Omit categories for small diffs.

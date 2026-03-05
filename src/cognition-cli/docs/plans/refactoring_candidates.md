@@ -151,6 +151,7 @@ Analyzing structural patterns for additional refactoring opportunities using `co
      - **Consistency:** Enforced uniform PGC algebra and strong typing across all overlays via generics (`BasePatternManager<T extends OverlayMetadata>`).
      - **Maintainability:** Fixes to DB interaction or semantic search only need to be applied once in the base class.
      - **Separation of Concerns:** Clear boundary between metadata shapes and operational logic.
+     - **LESSON LEARNED (Flash Delegation Risk):** When delegating massive structural refactors to smaller/faster models (like Flash), be highly vigilant regarding _documentation loss_. Flash tends to aggressively prune JSDocs, interface comments, and inline domain documentation when optimizing for DRY compliance or moving code between files. Future refactoring prompts MUST explicitly mandate the preservation of all `/** ... */` comment blocks.
 
 3. **Lance DB Stores** (0.81 - 0.85 similarity):
    - `DocumentLanceStore` (src/core/pgc/document/lance/store.ts)
