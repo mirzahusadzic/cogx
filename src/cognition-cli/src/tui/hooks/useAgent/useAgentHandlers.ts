@@ -70,8 +70,8 @@ export function updateSigmaTasksWithTokens(
         (t, idx) =>
           !usedIndices.has(idx) &&
           (t.status === 'pending' || t.status === 'in_progress') &&
-          t.content.trim().toLowerCase() ===
-            newTodo.content.trim().toLowerCase()
+          (t.content ?? '').trim().toLowerCase() ===
+            (newTodo.content ?? '').trim().toLowerCase()
       );
     }
 

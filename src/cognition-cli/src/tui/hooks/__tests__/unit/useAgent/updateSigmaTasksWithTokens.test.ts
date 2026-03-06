@@ -380,4 +380,32 @@ describe('updateSigmaTasksWithTokens', () => {
     expect(result.todos[0].activeForm).toBe('Working on 1');
     expect(result.todos[0].status).toBe('completed');
   });
+
+  it('should not crash if task content is missing during deduplication', () => {
+    const prev: SigmaTasks = {
+      todos: [
+        {
+          id: '1',
+          content: 'Some Content',
+          status: 'pending',
+          activeForm: 'A1',
+        },
+      ],
+    };
+
+    const next: SigmaTasks = {
+      todos: [
+        {
+          id: '2',
+          content: undefined as unknown as string,
+          status: 'in_progress',
+          activeForm: 'A2',
+        },
+      ],
+    };
+
+    // This would have crashed before fix: (t.content ?? '').trim()
+    const result = updateSigmaTasksWithTokens(prev, next, 1000);
+    expect(result.todos).toHaveLength(2);
+  });
 });
