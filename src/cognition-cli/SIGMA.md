@@ -31,6 +31,7 @@ Agents are expected to verify their own work autonomously. Before concluding a t
 - **Surgical Actions**: Use `grep` and targeted `read_file` (with offset/limit) to minimize token usage. Do not read entire large files if avoidable.
 - **Verification**: Never assume a fix works; always run the relevant build/test command before marking a task as completed.
 - **No Interactive Tools**: NEVER use `npx vitest` as it enters an interactive mode that blocks the workflow. ALWAYS use `npm test <file>` which is configured to run in CI mode (non-interactive).
+- **Monorepo Git Paths**: When using `git show <revision>:<path>`, always prefix the path with `./` (e.g., `git show HEAD:./src/file.ts`) to ensure Git resolves the path relative to the current working directory in this monorepo environment.
 
 - **JSDoc Preservation**: CRITICAL: Do not remove, alter, or orphan any `/** ... */` JSDoc blocks during refactoring or migrations. Extract them alongside the code they document.
 
