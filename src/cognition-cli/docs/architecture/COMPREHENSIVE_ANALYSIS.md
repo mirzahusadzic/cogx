@@ -6,9 +6,9 @@
 
 **At a Glance:**
 
-- **Current Version:** 2.7.1 (March 1, 2026)
-- **Production Lines:** ~104,188 TypeScript (excl. tests), ~152,708 total
-- **Test Coverage:** ~92% across 171 test files
+- **Current Version:** 2.7.2 (March 6, 2026)
+- **Production Lines:** ~100,204 TypeScript (excl. tests), ~150,036 total
+- **Test Coverage:** ~92% across 177 test files
 - **Architecture:** 7 cognitive overlays (O₁-O₇), dual-lattice Σ system, ZeroMQ agent messaging
 - **License:** AGPL-3.0-or-later
 
@@ -891,32 +891,32 @@ The same architecture that understands code can preserve human identity through 
 
 | Metric                     | Value                      |
 | -------------------------- | -------------------------- |
-| **Total TypeScript Lines** | **~152,168** (incl. tests) |
-| Production Code Lines      | ~102,350 (excl. tests)     |
-| Test Code Lines            | ~49,818 (175 test files)   |
-| Total Source Files         | 448 (273 prod + 175 test)  |
+| **Total TypeScript Lines** | **~150,036** (incl. tests) |
+| Production Code Lines      | ~100,204 (excl. tests)     |
+| Test Code Lines            | ~49,832 (177 test files)   |
+| Total Source Files         | 456 (279 prod + 177 test)  |
 
 ### Lines of Code by Module
 
 | Module        | LOC         | Files   | % of Prod | Description                   |
 | ------------- | ----------- | ------- | --------- | ----------------------------- |
-| **core/**     | 34,949      | 87      | 34.1%     | PGC, overlays, orchestrators  |
-| **tui/**      | 21,561      | 70      | 21.1%     | React Ink terminal interface  |
-| **commands/** | 15,287      | 32      | 14.9%     | CLI command implementations   |
-| **sigma/**    | 10,625      | 32      | 10.4%     | Infinite context dual-lattice |
-| **llm/**      | 10,148      | 22      | 9.9%      | LLM provider abstraction      |
-| **ipc/**      | 4,369       | 13      | 4.3%      | ZeroMQ agent messaging        |
-| **utils/**    | 3,715       | 15      | 3.6%      | Errors, formatting, helpers   |
-| **root**      | 1,696       | 2       | 1.7%      | cli.ts, config.ts             |
-| **Total**     | **102,350** | **273** | **100%**  |                               |
+| **core/**     | 34,003      | 101     | 33.9%     | PGC, overlays, orchestrators  |
+| **tui/**      | 22,063      | 70      | 22.0%     | React Ink terminal interface  |
+| **commands/** | 15,287      | 31      | 15.3%     | CLI command implementations   |
+| **sigma/**    | 10,057      | 26      | 10.0%     | Infinite context dual-lattice |
+| **llm/**      | 8,976       | 23      | 9.0%      | LLM provider abstraction      |
+| **ipc/**      | 4,376       | 12      | 4.4%      | ZeroMQ agent messaging        |
+| **utils/**    | 3,740       | 14      | 3.7%      | Errors, formatting, helpers   |
+| **root**      | 1,702       | 2       | 1.7%      | cli.ts, config.ts             |
+| **Total**     | **100,204** | **279** | **100%**  |                               |
 
 ### Core Module Breakdown
 
 | Submodule      | LOC   | Description                         |
 | -------------- | ----- | ----------------------------------- |
-| overlays/      | 8,132 | 7 cognitive overlays (O₁-O₇)        |
-| orchestrators/ | 5,665 | Genesis, miners, workers            |
-| pgc/           | 4,808 | Object store, index, transforms     |
+| overlays/      | 7,312 | 7 cognitive overlays (O₁-O₇)        |
+| orchestrators/ | 5,381 | Genesis, miners, workers            |
+| pgc/           | 4,547 | Object store, index, transforms     |
 | analyzers/     | 3,651 | Concept, strategy, workflow         |
 | security/      | 3,299 | Mission validation, security config |
 | algebra/       | 1,948 | Lattice operations, query parser    |
@@ -935,13 +935,13 @@ The same architecture that understands code can preserve human identity through 
 
 | Submodule   | LOC    | Description                            |
 | ----------- | ------ | -------------------------------------- |
-| hooks/      | 11,608 | Modular React hooks (agent, task, etc) |
-| components/ | 3,592  | UI components (Ink/React)              |
+| hooks/      | 12,837 | Modular React hooks (agent, task, etc) |
+| components/ | 4,105  | UI components (Ink/React)              |
 | services/   | 805    | Background services and diagnostics    |
-| commands/   | 433    | TUI command loader                     |
-| tools/      | 1,091  | Custom TUI tools                       |
-| utils/      | 1,145  | TUI-specific utilities                 |
-| context/    | 183    | TUI React context providers            |
+| commands/   | 436    | TUI command loader                     |
+| tools/      | 1,121  | Custom TUI tools                       |
+| utils/      | 1,194  | TUI-specific utilities                 |
+| context/    | 218    | TUI React context providers            |
 
 ### Other Metrics
 
@@ -953,9 +953,9 @@ The same architecture that understands code can preserve human identity through 
 | Cognitive Overlays    | 7 (O₁-O₇)                          |
 | Supported Languages   | 3 (TS/JS/Python)                   |
 | Core Commands         | 40+ (with tab completion)          |
-| Test Files            | 165 (comprehensive coverage)       |
+| Test Files            | 177 (comprehensive coverage)       |
 | Test Coverage         | ~92% (security, compression, UX)   |
-| Current Version       | 2.7.1 (March 1, 2026)              |
+| Current Version       | 2.7.2 (March 6, 2026)              |
 | License               | AGPL-3.0-or-later                  |
 | Zenodo DOI            | 10.5281/zenodo.18012832            |
 | Innovations Published | 49 (defensive patent publication)  |
@@ -964,7 +964,15 @@ The same architecture that understands code can preserve human identity through 
 
 ## Version History & Changelog
 
-### Version 2.7.1 (Current - Architectural Consolidation & Tool Robustness)
+### Version 2.7.2 (Current - PGC Architecture Migration & Task Resilience)
+
+- **PGC Architecture Migration:** Unified PGC algebra and migrated overlays to `BasePatternManager`, enabling consistent, strongly-typed cross-domain knowledge storage and retrieval.
+- **Model Expansion:** Added registration for `gemini-3.1-flash-lite-preview`, providing a high-throughput, low-latency reasoning option for complex tasks.
+- **Task Visibility & Resilience:** Improved task list visibility and searchability in context, enhanced `SigmaTaskUpdate` error recovery with automated repair templates, and prevented Gemini reasoning state loss.
+- **Infrastructure Consolidation:** Major reorganization of `src/llm`, consolidation of agent providers into `BaseAgentProvider`, and implementation of a generic pipeline-based architecture for orchestrators.
+- **Tool Improvements:** Included exit codes and standard error in tool execution results, and centralized tool execution constants with tightened safety limits.
+
+### Version 2.7.1 (Architectural Consolidation & Tool Robustness)
 
 - **Task State Recovery Protocol:** Implemented a critical self-correction mechanism to prevent agents from hanging on state violations.
 - **SIGMA.md Grounding:** Introduced repository-level grounding for project-specific instructions (build/test loops, standards).
@@ -1214,7 +1222,7 @@ _For previous release history, see [CHANGELOG.md](https://github.com/mirzahusadz
 
 ## Conclusion
 
-Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.7.1** focuses on **architectural consolidation** of the agentic core and the **modernization of the TUI's state management**, while introducing a formal **Task State Recovery** protocol and repository-level grounding via **SIGMA.md**. This release marks a significant step towards a more unified and resilient cognitive architecture.
+Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.7.2** focuses on the **migration to a unified PGC architecture**, the **expansion of supported models** to include Gemini 3.1 Flash Lite, and the enhancement of **task resilience** through automated state recovery and improved visibility. This release marks a significant step towards a more unified and resilient cognitive architecture.
 
 It combines:
 

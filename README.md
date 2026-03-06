@@ -61,6 +61,13 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 ## 🎯 Latest Release
 
+**March 6, 2026** — [v2.7.2: PGC Architecture Migration & Task Resilience](https://github.com/mirzahusadzic/cogx/releases/tag/v2.7.2):
+
+- 🧬 **PGC Architecture Migration** — Unified PGC algebra and migrated overlays to `BasePatternManager` for consistent cross-domain knowledge storage.
+- ⚡ **Model Expansion** — Added support for `gemini-3.1-flash-lite-preview` for high-throughput, low-latency reasoning.
+- 📋 **Task Visibility & Resilience** — Enhanced task list visibility in context, improved `SigmaTaskUpdate` error recovery, and prevented state loss.
+- 🛠️ **Infrastructure Consolidation** — Reorganized `src/llm`, consolidated agent providers, and implemented pipeline-based orchestrators.
+
 **March 1, 2026** — [v2.7.1: Architectural Consolidation & Tool Robustness](https://github.com/mirzahusadzic/cogx/releases/tag/v2.7.1):
 
 - 🔄 **Task State Recovery Protocol** — Implemented a critical self-correction mechanism to prevent agents from hanging on state violations.
@@ -376,7 +383,7 @@ If you use this work in research, please cite:
   author = {Husadžić, Mirza},
   title = {CogX: A Blueprint for Verifiable, Agentic AI},
   year = {2026},
-  version = {2.7.1},
+  version = {2.7.2},
   doi = {10.5281/zenodo.18012832},
   url = {https://github.com/mirzahusadzic/cogx}
 }

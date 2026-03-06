@@ -5,6 +5,26 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.2] - 2026-03-06
+
+### Summary
+
+**PGC Architecture Migration & Task Resilience.** This release focuses on the migration to a unified PGC (Grounded Context Pool) architecture, the expansion of supported models to include Gemini 3.1 Flash Lite, and significant enhancements to task management resilience and visibility. It also includes a major reorganization of the LLM infrastructure and improved tool execution transparency.
+
+### 🚀 New Features
+
+- 🧬 **PGC Architecture Migration** — Unified PGC algebra and migrated all overlay managers to a common `BasePatternManager` architecture, enabling consistent, strongly-typed cross-domain knowledge storage and retrieval.
+- ⚡ **Model Expansion** — Added registration for `gemini-3.1-flash-lite-preview`, providing a high-throughput, low-latency reasoning option for complex tasks.
+- 📋 **Task Visibility & Resilience** — Enhanced task list visibility and searchability in context, improved `SigmaTaskUpdate` error recovery with automated repair templates, and implemented state preservation for Gemini reasoning during streaming.
+- 🏗️ **Infrastructure Consolidation** — Major reorganization of `src/llm`, consolidation of agent providers into `BaseAgentProvider`, and implementation of a generic pipeline-based architecture for orchestrators.
+
+### 🐛 Bug Fixes & Improvements
+
+- 🩹 **TUI & Task Management** — Prevented crashes in TUI during task deduplication, resolved missing task names, and fixed corruption in `SigmaTaskUpdate` rendering.
+- 🛠️ **Tool Execution Transparency** — Included exit codes and standard error in tool execution results, and centralized tool execution constants with tightened safety limits.
+- 🔄 **Conversation Management** — Deduplicated `ConversationLanceStore`, fixed test database access, and unified conversation overlay managers.
+- 🧪 **Test & Reliability** — Mocked `LanceVectorStore` for tests and increased timeouts for flaky agent-provider hooks.
+
 ## [2.7.1] - 2026-03-01
 
 ### Summary
