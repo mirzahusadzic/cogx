@@ -4,6 +4,7 @@ import { MessageQueue } from '../../ipc/MessageQueue.js';
 import { MessagePublisher } from '../../ipc/MessagePublisher.js';
 import { BusCoordinator } from '../../ipc/BusCoordinator.js';
 import { getSigmaDirectory } from '../../ipc/sigma-directory.js';
+import { getModelShortName } from './session/useSessionManager.js';
 import { systemLog } from '../../utils/debug-logger.js';
 
 interface UseMessageMonitorOptions {
@@ -66,7 +67,8 @@ export function useMessageMonitor({
         if (!mounted) return;
 
         const topics = ['agent.command', 'agent.notification', 'agent.message'];
-        const modelName = model || provider || 'agent';
+        const modelName =
+          getModelShortName(model) || model || provider || 'agent';
 
         const monitor = new MessageQueueMonitor(
           agentId,

@@ -351,7 +351,11 @@ export function useSlashCommands({
 
               if (!isActive) continue;
 
-              const isYou = info.agentId?.startsWith(anchorId + '-') || false;
+              const myAgentId = messageQueueRef.current?.getAgentId();
+              const isYou =
+                (myAgentId && info.agentId === myAgentId) ||
+                (!myAgentId && info.agentId?.startsWith(anchorId + '-')) ||
+                false;
 
               const agentInfo: AgentDisplayInfo = {
                 id: info.agentId || dir.name,

@@ -26,9 +26,29 @@ describe('getModelShortName', () => {
     expect(getModelShortName('claude-sonnet-4.5')).toBe('sonnet45');
   });
 
-  it('returns gemini3f for Gemini 3.0 Flash model', () => {
+  it('returns gemini31fl for Gemini 3.1 Flash Lite model', () => {
+    expect(getModelShortName('gemini-3.1-flash-lite')).toBe('gemini31fl');
+    expect(getModelShortName('models/gemini-3.1-flash-lite-preview')).toBe(
+      'gemini31fl'
+    );
+  });
+
+  it('returns gemini31f for Gemini 3.1 Flash model', () => {
+    expect(getModelShortName('gemini-3.1-flash')).toBe('gemini31f');
+    expect(getModelShortName('models/gemini-3.1-flash-preview')).toBe(
+      'gemini31f'
+    );
+  });
+
+  it('returns gemini30f for Gemini 3.0 Flash model', () => {
+    expect(getModelShortName('gemini-3.0-flash')).toBe('gemini30f');
+    expect(getModelShortName('models/gemini-3.0-flash-preview')).toBe(
+      'gemini30f'
+    );
+  });
+
+  it('returns gemini3f for Gemini 3 Flash model', () => {
     expect(getModelShortName('gemini-3-flash-preview')).toBe('gemini3f');
-    expect(getModelShortName('gemini-3.0-flash')).toBe('gemini3f');
   });
 
   it('returns gemini3p for Gemini 3.1 Pro model', () => {

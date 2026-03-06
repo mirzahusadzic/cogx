@@ -69,7 +69,9 @@ export function createAgentMessagingMcpServer(
     {},
     async () => {
       try {
-        const agents = getActiveAgents(projectRoot, currentAgentId);
+        const queue = getMessageQueue ? getMessageQueue() : null;
+        const myId = queue?.getAgentId() || currentAgentId;
+        const agents = getActiveAgents(projectRoot, myId);
         return {
           content: [{ type: 'text', text: formatListAgents(agents) }],
         };

@@ -73,6 +73,7 @@ describe('createAgentMessagingMcpServer', () => {
     getMessages: ReturnType<typeof vi.fn>;
     getMessage: ReturnType<typeof vi.fn>;
     updateStatus: ReturnType<typeof vi.fn>;
+    getAgentId: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
@@ -115,6 +116,7 @@ describe('createAgentMessagingMcpServer', () => {
       getMessages: vi.fn().mockResolvedValue([]),
       getMessage: vi.fn().mockResolvedValue(null),
       updateStatus: vi.fn().mockResolvedValue(undefined),
+      getAgentId: vi.fn().mockReturnValue(currentAgentId),
     };
 
     // Default formatter implementations

@@ -102,10 +102,11 @@ export function getModelShortName(model?: string): string | undefined {
     return 'opus45';
 
   // Gemini models - check specific versions before generic
+  if (lower.includes('gemini-3.1-flash-lite')) return 'gemini31fl';
+  if (lower.includes('gemini-3.1-flash')) return 'gemini31f';
+  if (lower.includes('gemini-3.0-flash')) return 'gemini30f';
   if (
     lower.includes('gemini-3-flash') ||
-    lower.includes('gemini-3.0-flash') ||
-    lower.includes('gemini-3.1-flash') ||
     (lower.includes('gemini-3') && lower.includes('flash'))
   )
     return 'gemini3f';

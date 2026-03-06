@@ -67,12 +67,9 @@ export function getActiveAgents(
         info.status === 'active' &&
         now - info.lastHeartbeat < ACTIVE_THRESHOLD_LIST;
 
-      // Exclude self (check both full ID and session ID prefix)
-      // If excludeAgentId is "default", match "default-gemini-pro-12345678"
+      // Exclude self (match exact ID)
       const isSelf =
-        info.agentId === excludeAgentId ||
-        entry.name === excludeAgentId ||
-        entry.name.startsWith(excludeAgentId + '-');
+        info.agentId === excludeAgentId || entry.name === excludeAgentId;
 
       if (isActive && !isSelf) {
         agents.push(info);
