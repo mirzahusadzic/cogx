@@ -146,6 +146,21 @@ describe('GeminiAgentProvider', () => {
   });
 
   describe('estimateCost()', () => {
+    it('should calculate cost for Gemini 3.1 Flash-Lite pricing', () => {
+      const provider = new GeminiAgentProvider('test-key');
+
+      // 1 million tokens
+      const cost = provider.estimateCost(
+        { prompt: 400000, completion: 600000, total: 1000000 },
+        'gemini-3.1-flash-lite-preview'
+      );
+
+      // 40% input = 0.4 MTok * $0.25 = $0.10
+      // 60% output = 0.6 MTok * $1.50 = $0.90
+      // Total = $1.00
+      expect(cost).toBeCloseTo(1.0, 1);
+    });
+
     it('should calculate cost for Gemini 3.0 Flash Preview pricing', () => {
       const provider = new GeminiAgentProvider('test-key');
 

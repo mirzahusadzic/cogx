@@ -105,6 +105,9 @@ export const GEMINI_MODELS = {
   /** Gemini 3.0 Flash Preview with advanced reasoning */
   flashPreview: 'gemini-3-flash-preview',
 
+  /** Gemini 3.1 Flash Lite - Fast and economical */
+  flashLite: 'gemini-3.1-flash-lite-preview',
+
   /** Most capable Pro model */
   powerful: 'gemini-3.1-pro-preview',
 

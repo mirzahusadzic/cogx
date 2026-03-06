@@ -57,10 +57,10 @@ export const DEFAULT_SLM_MODEL_NAME = 'gemini-3-flash-preview';
 
 /**
  * Model for tool output summarization (eGemma compression)
- * Uses Gemini 3 Flash for efficiency and unified quota
+ * Uses Gemini 3.1 Flash Lite for efficiency and unified quota
  * This offloads summarization from the main agent's quota
  */
-export const DEFAULT_SUMMARIZER_MODEL_NAME = 'gemini-3-flash-preview';
+export const DEFAULT_SUMMARIZER_MODEL_NAME = 'gemini-3.1-flash-lite-preview';
 
 /**
  * Max tokens for tool output summarization

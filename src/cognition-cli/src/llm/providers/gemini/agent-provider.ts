@@ -1044,6 +1044,15 @@ export class GeminiAgentProvider extends BaseAgentProvider {
       );
     }
 
+    // Gemini 3.1 Flash-Lite
+    if (model.includes('flash-lite')) {
+      return (
+        nonCachedInputMtokens * 0.25 +
+        cachedInputMtokens * 0.0625 + // 75% discount for cached
+        outputMtokens * 1.5
+      );
+    }
+
     // Gemini 3.0 Flash Preview (default)
     return (
       nonCachedInputMtokens * 0.5 +
