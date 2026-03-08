@@ -50,8 +50,9 @@ export const Siggy: React.FC<SiggyProps> = React.memo(
     useEffect(() => {
       if (!stdout || isTest) return;
 
-      const frames =
+      const animation =
         SIGGY_ANIMATIONS[state] || SIGGY_ANIMATIONS[ThinkingState.IDLE];
+      const frames = animation.frames;
 
       // Reset animation to first frame on state change
       frameRef.current = 0;
@@ -75,18 +76,7 @@ export const Siggy: React.FC<SiggyProps> = React.memo(
       }
 
       // Determine interval based on state
-      let intervalTime = 250;
-      if (state === ThinkingState.IDLE) {
-        intervalTime = 800;
-      } else if (state === ThinkingState.PROCESSING) {
-        intervalTime = 150;
-      } else if (state === ThinkingState.EXECUTING) {
-        intervalTime = 200;
-      } else if (isTyping) {
-        intervalTime = 200; // Snappier typing animation
-      } else if (state === ThinkingState.WAITING) {
-        intervalTime = 600;
-      }
+      const intervalTime = animation.interval;
 
       const render = (force = false) => {
         // Skip direct writes if we are in TYPING state (handled by Ink)
@@ -177,8 +167,9 @@ export const Siggy: React.FC<SiggyProps> = React.memo(
 
       if (line <= 0 || line > rows || !stdout) return;
 
-      const frames =
+      const animation =
         SIGGY_ANIMATIONS[state] || SIGGY_ANIMATIONS[ThinkingState.IDLE];
+      const frames = animation.frames;
       const displayFrame = frames[frameRef.current] || frames[0];
 
       // Determine color function
@@ -230,8 +221,9 @@ export const Siggy: React.FC<SiggyProps> = React.memo(
     // If typing, render the frame inside the box via Ink.
     if (isTyping || isTest) {
       const frames = isTyping
-        ? SIGGY_ANIMATIONS[ThinkingState.TYPING]
-        : SIGGY_ANIMATIONS[state] || SIGGY_ANIMATIONS[ThinkingState.IDLE];
+        ? SIGGY_ANIMATIONS[ThinkingState.TYPING].frames
+        : (SIGGY_ANIMATIONS[state] || SIGGY_ANIMATIONS[ThinkingState.IDLE])
+            .frames;
       const displayFrame =
         frames[isTyping ? typingFrame : frameRef.current] || frames[0];
       return (
