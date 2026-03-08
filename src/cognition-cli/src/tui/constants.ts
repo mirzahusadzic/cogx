@@ -108,3 +108,8 @@ export const SIGGY_ANIMATIONS = {
     interval: 1000,
   },
 };
+
+/**
+ * Timeout in milliseconds of inactivity before transitioning from TYPING to IDLE.
+ */
+export const TYPING_IDLE_TIMEOUT = 500;

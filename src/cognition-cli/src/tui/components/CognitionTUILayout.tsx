@@ -17,6 +17,7 @@ import type { WorkbenchHealthStatus } from './OverlaysBar.js';
 import type { SigmaStats, OverlayScores } from './SigmaInfoPanel.js';
 import type { TokenCount } from '../hooks/tokens/useTokenCount.js';
 import type { SessionTokenCount } from '../hooks/tokens/useSessionTokenCount.js';
+import { TYPING_IDLE_TIMEOUT } from '../constants.js';
 import { TUITheme } from '../theme.js';
 
 export interface CognitionTUILayoutProps {
@@ -202,11 +203,11 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
 
     // Always reset the idle timeout if we're in TYPING state or just transitioned to it
     if (setThinkingState && !isThinking) {
-      // Reset to IDLE after 1.5s of no typing
+      // Reset to IDLE after TYPING_IDLE_TIMEOUT of no typing
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = setTimeout(() => {
         setThinkingState(ThinkingState.IDLE);
-      }, 1500);
+      }, TYPING_IDLE_TIMEOUT);
     }
   }, [setThinkingState, isThinking, thinkingState]);
 
