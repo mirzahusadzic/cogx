@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
+import gradient from 'gradient-string';
 import type { TUIMessage, UseAgentOptions, SigmaTasks } from './types.js';
 import { EmbeddingService } from '../../../core/services/embedding.js';
 import { OverlayRegistry } from '../../../core/algebra/overlay-registry.js';
@@ -7,6 +8,8 @@ import { McpSdkServerConfigWithInstance } from '../sdk/types.js';
 import { BackgroundTaskManager } from '../../services/BackgroundTaskManager.js';
 import { Command } from '../../commands/loader.js';
 import { AgentProviderAdapter } from '../sdk/index.js';
+import { SIGMA_LOGO } from '../../constants.js';
+import { TUITheme } from '../../theme.js';
 
 export interface AgentState {
   messages: TUIMessage[];
@@ -81,16 +84,21 @@ export function useAgentState(
   initialLastCompressionTimestamp: number = 0
 ): AgentState {
   // State
-  const [messages, setMessages] = useState<TUIMessage[]>([
-    {
-      type: 'system',
-      content:
-        '     ⬢      ↔       👤     ↔     💎\n' +
-        '   Traversal      Projection    Resonance\n' +
-        ' ',
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<TUIMessage[]>(() => {
+    const sigmaGradient = gradient([
+      TUITheme.overlays.o7_strategic,
+      TUITheme.overlays.o1_structural,
+      TUITheme.overlays.o3_lineage,
+    ]);
+
+    return [
+      {
+        type: 'system',
+        content: sigmaGradient(SIGMA_LOGO) + '\n ',
+        timestamp: new Date(),
+      },
+    ];
+  });
   const [isThinking, setIsThinking] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [activeModel, setActiveModel] = useState<string | undefined>(
