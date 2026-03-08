@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { Box, Text, useStdout } from 'ink';
+import { Box, Text, useStdout, measureElement, DOMElement } from 'ink';
 import { OverlaysBar } from './OverlaysBar.js';
 import { ClaudePanelAgent } from './ClaudePanelAgent.js';
 import { InputBox } from './InputBox.js';
@@ -104,6 +104,39 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
     rows: stdout?.rows || 24,
     columns: stdout?.columns || 80,
   });
+  const [inputAreaHeight, setInputAreaHeight] = useState(5);
+  const inputAreaRef = React.useRef<DOMElement>(null);
+
+  // Measure the total height of the input area (InputBox + saveMessage + StatusBar)
+  // to help Siggy calculate its absolute terminal position accurately.
+  useEffect(() => {
+    const measure = () => {
+      if (inputAreaRef.current) {
+        try {
+          const dims = measureElement(inputAreaRef.current);
+          if (dims.height !== inputAreaHeight && dims.height > 0) {
+            setInputAreaHeight(dims.height);
+          }
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    // Initial measure
+    measure();
+
+    // Re-measure after a short delay to allow layout to settle
+    const timer = setTimeout(measure, 0); // Changed from 50ms to 0 to be more reactive
+    return () => clearTimeout(timer);
+  }, [
+    inputLineCount,
+    isDropdownVisible,
+    confirmationState,
+    wizardConfirmationState,
+    saveMessage,
+    dimensions,
+  ]);
 
   useEffect(() => {
     let resizeTimer: NodeJS.Timeout;
@@ -157,29 +190,32 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
 
   const typingTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
+  const handleActivity = useCallback(() => {
+    // Trigger typing state for Siggy
+    if (
+      setThinkingState &&
+      !isThinking &&
+      thinkingState !== ThinkingState.TYPING
+    ) {
+      setThinkingState(ThinkingState.TYPING);
+    }
+
+    // Always reset the idle timeout if we're in TYPING state or just transitioned to it
+    if (setThinkingState && !isThinking) {
+      // Reset to IDLE after 1.5s of no typing
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        setThinkingState(ThinkingState.IDLE);
+      }, 1500);
+    }
+  }, [setThinkingState, isThinking, thinkingState]);
+
   const handleInputChange = useCallback(
     (value: string) => {
       setInputLineCount(value.split('\n').length);
-
-      // Trigger typing state for Siggy
-      if (
-        setThinkingState &&
-        !isThinking &&
-        thinkingState !== ThinkingState.TYPING
-      ) {
-        setThinkingState(ThinkingState.TYPING);
-      }
-
-      // Always reset the idle timeout if we're in TYPING state or just transitioned to it
-      if (setThinkingState && !isThinking) {
-        // Reset to IDLE after 1.5s of no typing
-        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-        typingTimeoutRef.current = setTimeout(() => {
-          setThinkingState(ThinkingState.IDLE);
-        }, 1500);
-      }
+      handleActivity();
     },
-    [setInputLineCount, setThinkingState, isThinking, thinkingState]
+    [setInputLineCount, handleActivity]
   );
 
   return (
@@ -223,7 +259,9 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
             showInfoPanel={showInfoPanel}
             showTaskPanel={showTaskPanel}
             streamingPaste={streamingPaste}
-            layoutVersion={`${inputLineCount}-${isDropdownVisible}-${dimensions.rows}-${dimensions.columns}`}
+            layoutVersion={`${inputLineCount}-${isDropdownVisible}-${dimensions.rows}-${dimensions.columns}-${!!saveMessage}-${inputAreaHeight}`}
+            terminalRows={dimensions.rows}
+            terminalOffset={inputAreaHeight}
           />
         </ComponentErrorBoundary>
         {dimensions.columns > 120 && (showInfoPanel || showTaskPanel) && (
@@ -250,6 +288,7 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
 
       {/* Input area naturally takes only as much space as it needs */}
       <Box
+        ref={inputAreaRef}
         flexDirection="column"
         justifyContent="flex-end"
         flexShrink={0}
@@ -264,6 +303,7 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
             onDropdownVisibleChange={setIsDropdownVisible}
             onPasteContent={handlePasteContent}
             onInputChange={handleInputChange}
+            onActivity={handleActivity}
             providerName={provider}
             confirmationState={confirmationState}
             wizardConfirmationState={wizardConfirmationState}
@@ -271,11 +311,11 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
             solo={solo}
           />
         </ComponentErrorBoundary>
-        <Box height={1} flexShrink={0}>
-          {saveMessage && (
+        {saveMessage && (
+          <Box height={1} flexShrink={0}>
             <Text color={TUITheme.text.success}>{saveMessage}</Text>
-          )}
-        </Box>
+          </Box>
+        )}
         <ComponentErrorBoundary componentName="StatusBar">
           <StatusBar
             sessionId={currentSessionId}

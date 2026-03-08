@@ -40,6 +40,9 @@ export interface InputBoxProps {
   /** Callback when input value changes */
   onInputChange?: (value: string) => void;
 
+  /** Callback when any user activity occurs (typing, arrows, etc) */
+  onActivity?: () => void;
+
   /** Name of AI provider for prompt display */
   providerName?: string;
 
@@ -130,6 +133,7 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
   onDropdownVisibleChange,
   onPasteContent,
   onInputChange,
+  onActivity,
   providerName = 'AI',
   confirmationState = null,
   wizardConfirmationState = null,
@@ -390,6 +394,11 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
       // Only process input if focused, not disabled, and not confirming tool
       if (!focused || disabled || confirmationPending) {
         return;
+      }
+
+      // Trigger activity callback for Siggy hybrid rendering stability
+      if (onActivity) {
+        onActivity();
       }
 
       // Handle command dropdown navigation/selection FIRST
@@ -788,6 +797,7 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
       onSubmit,
       onInterrupt,
       onInputChange,
+      onActivity,
       sendScrollSignal,
       forceLayoutUpdate,
     ]

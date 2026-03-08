@@ -79,6 +79,12 @@ export interface ClaudePanelAgentProps {
    * This ensures the component re-measures its available height even if other props are stable.
    */
   layoutVersion?: string;
+
+  /** Total number of terminal rows for absolute positioning */
+  terminalRows?: number;
+
+  /** Terminal row offset from the bottom (height of input area) */
+  terminalOffset?: number;
 }
 
 /**
@@ -122,6 +128,8 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   streamingPaste = '',
   layoutVersion, // Used implicitly by React.memo to trigger re-renders on layout changes
   retryCount = 0,
+  terminalRows = 24,
+  terminalOffset = 5,
 }) => {
   const { stdout } = useStdout();
   const { state: tuiState, clearScrollSignal } = useTUI();
@@ -952,7 +960,17 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       <Box height={1} flexDirection="row" justifyContent="space-between">
         <Box>
           <Box marginRight={1}>
-            <Text
+            <Siggy
+              state={
+                isThinking
+                  ? thinkingState
+                  : thinkingState === ThinkingState.SUCCESS ||
+                      thinkingState === ThinkingState.ERROR ||
+                      thinkingState === ThinkingState.TYPING ||
+                      thinkingState === ThinkingState.WAITING
+                    ? thinkingState
+                    : ThinkingState.IDLE
+              }
               color={
                 thinkingState === ThinkingState.SUCCESS
                   ? '#81c784' // Light green for success
@@ -964,20 +982,9 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                         ? TUITheme.overlays.o1_structural
                         : '#9e9e9e' // Gray for idle
               }
-            >
-              <Siggy
-                state={
-                  isThinking
-                    ? thinkingState
-                    : thinkingState === ThinkingState.SUCCESS ||
-                        thinkingState === ThinkingState.ERROR ||
-                        thinkingState === ThinkingState.TYPING ||
-                        thinkingState === ThinkingState.WAITING
-                      ? thinkingState
-                      : ThinkingState.IDLE
-                }
-              />
-            </Text>
+              terminalRows={terminalRows}
+              terminalOffset={terminalOffset}
+            />
           </Box>
           <Box>
             <Text
