@@ -9,6 +9,7 @@ import { SigmaTaskPanel } from './SigmaTaskPanel.js';
 import { ComponentErrorBoundary } from './ErrorBoundaries/ComponentErrorBoundary.js';
 import { terminal } from '../services/TerminalService.js';
 import type { TUIMessage, SigmaTasks } from '../hooks/useAgent/types.js';
+import { ThinkingState } from '../hooks/useAgent/types.js';
 import type { BackgroundTask } from '../services/BackgroundTaskManager.js';
 import type { ToolConfirmationState } from '../hooks/useToolConfirmation.js';
 import type { WizardConfirmationState } from '../hooks/useOnboardingWizard.js';
@@ -31,6 +32,8 @@ export interface CognitionTUILayoutProps {
   } | null;
   messages: TUIMessage[];
   isThinking: boolean;
+  thinkingState?: ThinkingState;
+  setThinkingState?: (state: ThinkingState) => void;
   retryCount?: number;
   focused: boolean;
   streamingPaste: string;
@@ -67,6 +70,8 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
   workbenchHealth,
   messages,
   isThinking,
+  thinkingState = ThinkingState.IDLE,
+  setThinkingState,
   retryCount,
   focused,
   streamingPaste,
@@ -125,6 +130,14 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
     terminal.setCursorVisibility(false);
   }, [isThinking, focused, dimensions]);
 
+  // Clear typing timeout when thinking starts
+  useEffect(() => {
+    if (isThinking && typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+  }, [isThinking]);
+
   // Memoize filtered messages to prevent unnecessary re-renders of ClaudePanelAgent
   const filteredMessages = useMemo(() => {
     return displayThinking
@@ -142,11 +155,31 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
       }
     : undefined;
 
+  const typingTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
   const handleInputChange = useCallback(
     (value: string) => {
       setInputLineCount(value.split('\n').length);
+
+      // Trigger typing state for Siggy
+      if (
+        setThinkingState &&
+        !isThinking &&
+        thinkingState !== ThinkingState.TYPING
+      ) {
+        setThinkingState(ThinkingState.TYPING);
+      }
+
+      // Always reset the idle timeout if we're in TYPING state or just transitioned to it
+      if (setThinkingState && !isThinking) {
+        // Reset to IDLE after 1.5s of no typing
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => {
+          setThinkingState(ThinkingState.IDLE);
+        }, 1500);
+      }
     },
-    [setInputLineCount]
+    [setInputLineCount, setThinkingState, isThinking, thinkingState]
   );
 
   return (
@@ -184,6 +217,7 @@ const CognitionTUILayoutComponent: React.FC<CognitionTUILayoutProps> = ({
           <ClaudePanelAgent
             messages={filteredMessages}
             isThinking={isThinking}
+            thinkingState={thinkingState}
             retryCount={retryCount}
             focused={!focused}
             showInfoPanel={showInfoPanel}

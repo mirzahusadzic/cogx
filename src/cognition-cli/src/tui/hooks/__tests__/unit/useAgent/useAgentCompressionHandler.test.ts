@@ -50,6 +50,7 @@ describe('useAgentCompressionHandler', () => {
       messages: [],
       setMessages: vi.fn(),
       setIsThinking: vi.fn(),
+      setThinkingState: vi.fn(),
       setInjectedRecap: vi.fn(),
       setShouldAutoRespond: vi.fn(),
       compressionInProgressRef: { current: false },

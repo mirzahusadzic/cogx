@@ -22,6 +22,7 @@ import {
 import { terminal } from '../../services/TerminalService.js';
 import { stripCursorSequences, ANSI_RESET } from '../../utils/ansi-utils.js';
 import type { SigmaTasks, SigmaTask } from './types.js';
+import { ThinkingState } from './types.js';
 import { processSigmaTaskUpdateInput } from '../../../llm/core/utils/tool-helpers.js';
 import {
   AUTO_RESPONSE_TRIGGER,
@@ -223,6 +224,7 @@ export function useAgentHandlers() {
   const {
     setMessages,
     setIsThinking,
+    setThinkingState,
     setRetryCount,
     setActiveModel,
     setError,
@@ -233,6 +235,7 @@ export function useAgentHandlers() {
     sigmaTasks,
     setSigmaTasks,
     userMessageEmbeddingCache,
+    thinkingStateRef,
     currentAdapterRef,
     abortedRef,
     embedderRef,
@@ -270,6 +273,7 @@ export function useAgentHandlers() {
   // preventing duplication of output in the chat history.
   const isStreamingToolOutputRef = useRef<boolean>(false);
   const activeToolContentRef = useRef<string | null>(null);
+  const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const processAgentMessage = useCallback(
     async (
@@ -293,6 +297,7 @@ export function useAgentHandlers() {
 
       switch (type) {
         case 'assistant': {
+          setThinkingState(ThinkingState.PROCESSING);
           if (typeof content === 'string') {
             const colorReplacedText = stripAnsi(content);
             setMessages((prev) => {
@@ -481,6 +486,7 @@ export function useAgentHandlers() {
         }
 
         case 'thinking': {
+          setThinkingState(ThinkingState.PROCESSING);
           if (typeof content === 'string') {
             setMessages((prev) => {
               const last = prev[prev.length - 1];
@@ -505,6 +511,7 @@ export function useAgentHandlers() {
         }
 
         case 'tool_use': {
+          setThinkingState(ThinkingState.EXECUTING);
           if (agentMessage.toolName && agentMessage.toolInput) {
             if (
               agentMessage.toolName === 'SigmaTaskUpdate' ||
@@ -644,6 +651,7 @@ export function useAgentHandlers() {
         }
 
         case 'tool_result': {
+          setThinkingState(ThinkingState.PROCESSING);
           // Immediately hide cursor after tool completes, as its final output might have requested to show it
           terminal.setCursorVisibility(false);
           if (process.env.DEBUG_INPUT) {
@@ -933,8 +941,32 @@ export function useAgentHandlers() {
 
   const sendMessage = useCallback(
     async (prompt: string) => {
+      let waitingTimeout: NodeJS.Timeout | null = null;
+
+      const resetBoredomTimer = () => {
+        if (waitingTimeout) {
+          clearTimeout(waitingTimeout);
+          waitingTimeout = null;
+        }
+        waitingTimeout = setTimeout(() => {
+          if (thinkingStateRef.current === ThinkingState.PROCESSING) {
+            setThinkingState(ThinkingState.WAITING);
+          }
+        }, 2000);
+      };
+
       try {
+        if (statusTimeoutRef.current) {
+          clearTimeout(statusTimeoutRef.current);
+          statusTimeoutRef.current = null;
+        }
+
         setIsThinking(true);
+        setThinkingState(ThinkingState.PROCESSING);
+
+        // Start waiting timeout - if model doesn't respond in 2s, Siggy gets bored
+        resetBoredomTimer();
+
         setRetryCount(0);
         setError(null);
 
@@ -971,6 +1003,7 @@ export function useAgentHandlers() {
                 },
               ]);
               setIsThinking(false);
+              setThinkingState(ThinkingState.IDLE);
               return;
             }
           }
@@ -1085,6 +1118,8 @@ This triggers a semantic compression event, flushing implementation noise while 
           remainingTPM: 1000000 - tokenCounter.count.total,
           onStderr: (data: string) => stderrLines.push(data),
           onToolOutput: (chunk: string) => {
+            setThinkingState(ThinkingState.EXECUTING);
+            resetBoredomTimer();
             // Layer 10: Aggressively hide terminal cursor while streaming tool output
             terminal.setCursorVisibility(false);
 
@@ -1214,15 +1249,29 @@ This triggers a semantic compression event, flushing implementation noise while 
         let hasAssistantMessage = false;
         let lastResponse: {
           sessionId?: string;
-          tokens: { prompt: number; completion: number; total: number };
+          tokens: {
+            prompt: number;
+            completion: number;
+            total: number;
+            cached?: number;
+          };
           messages: unknown[];
           numTurns: number;
           toolResult?: { name: string };
+          finishReason?: string;
         } | null = null;
         let turnWasSemantic = false;
 
         const queryResult = adapter.query(finalPrompt);
         for await (const response of queryResult) {
+          // Process responses
+          resetBoredomTimer();
+
+          // Reset to PROCESSING if we were waiting (bored)
+          if (thinkingStateRef.current === ThinkingState.WAITING) {
+            setThinkingState(ThinkingState.PROCESSING);
+          }
+
           // Update retry count if provider is retrying (Gemini specific)
           if (response.retryCount !== undefined) {
             setRetryCount(response.retryCount);
@@ -1235,10 +1284,16 @@ This triggers a semantic compression event, flushing implementation noise while 
 
           lastResponse = response as unknown as {
             sessionId?: string;
-            tokens: { prompt: number; completion: number; total: number };
+            tokens: {
+              prompt: number;
+              completion: number;
+              total: number;
+              cached?: number;
+            };
             messages: unknown[];
             numTurns: number;
             toolResult?: { name: string };
+            finishReason?: string;
           };
           const newMessages = response.messages.slice(previousMessageCount);
           previousMessageCount = response.messages.length;
@@ -1395,9 +1450,27 @@ This triggers a semantic compression event, flushing implementation noise while 
               timestamp: new Date(),
             },
           ]);
+          setThinkingState(ThinkingState.ERROR);
         }
 
         setIsThinking(false);
+
+        if (lastResponse?.finishReason === 'stop' && !abortedRef.current) {
+          setThinkingState(ThinkingState.SUCCESS);
+          // Auto-revert to IDLE after 5 seconds to keep the TUI clean
+          statusTimeoutRef.current = setTimeout(() => {
+            setThinkingState(ThinkingState.IDLE);
+            statusTimeoutRef.current = null;
+          }, 5000);
+        } else if (thinkingStateRef.current === ThinkingState.ERROR) {
+          // If we already set ERROR state (e.g. streaming error), let it persist for 5 seconds too
+          statusTimeoutRef.current = setTimeout(() => {
+            setThinkingState(ThinkingState.IDLE);
+            statusTimeoutRef.current = null;
+          }, 5000);
+        } else {
+          setThinkingState(ThinkingState.IDLE);
+        }
       } catch (err) {
         const originalError = (err as Error).message;
         const errorMsg = isAuthenticationError([originalError])
@@ -1408,7 +1481,9 @@ This triggers a semantic compression event, flushing implementation noise while 
           { type: 'system', content: `❌ ${errorMsg}`, timestamp: new Date() },
         ]);
         setIsThinking(false);
+        setThinkingState(ThinkingState.IDLE);
       } finally {
+        if (waitingTimeout) clearTimeout(waitingTimeout);
         sessionTokenCounter.commit();
         currentAdapterRef.current = null;
       }
@@ -1417,6 +1492,7 @@ This triggers a semantic compression event, flushing implementation noise while 
       /* state */
       setMessages,
       setIsThinking,
+      setThinkingState,
       setRetryCount,
       setError,
       setInjectedRecap,
@@ -1427,6 +1503,8 @@ This triggers a semantic compression event, flushing implementation noise while 
       state.pendingMessageNotification,
       embedderRef,
       userMessageEmbeddingCache,
+      thinkingStateRef,
+      statusTimeoutRef,
       currentAdapterRef,
       abortedRef,
       conversationRegistryRef,

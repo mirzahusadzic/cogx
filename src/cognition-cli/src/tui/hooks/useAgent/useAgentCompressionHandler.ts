@@ -8,6 +8,7 @@ import type { UseTurnAnalysisReturn } from '../analysis/useTurnAnalysis.js';
 import type { useTokenCount } from '../tokens/useTokenCount.js';
 import type { AnalysisQueueStatus } from '../analysis/types.js';
 import { createPendingTurnNode } from '../../../sigma/utils/nodeUtils.js';
+import { ThinkingState } from './types.js';
 
 interface UseAgentCompressionHandlerOptions {
   state: AgentState;
@@ -59,6 +60,7 @@ export function useAgentCompressionHandler({
     messages,
     setMessages,
     setIsThinking,
+    setThinkingState,
     setInjectedRecap,
     setShouldAutoRespond,
     compressionInProgressRef,
@@ -229,6 +231,7 @@ export function useAgentCompressionHandler({
         ]);
 
         setIsThinking(true);
+        setThinkingState(ThinkingState.PROCESSING);
 
         try {
           // Dynamic imports

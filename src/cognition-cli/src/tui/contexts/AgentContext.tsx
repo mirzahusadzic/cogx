@@ -12,6 +12,7 @@ import type {
   SigmaTasks,
   SigmaTask,
 } from '../hooks/useAgent/types.js';
+import { ThinkingState } from '../hooks/useAgent/types.js';
 import type { AgentState } from '../hooks/useAgent/useAgentState.js';
 import { useAgentServices } from '../hooks/useAgent/useAgentServices.js';
 import { useAgentMessaging } from '../hooks/useAgent/useAgentMessaging.js';
@@ -49,6 +50,8 @@ export interface AgentContextType {
   addSystemMessage: (content: string) => void;
   isThinking: boolean;
   setIsThinking: React.Dispatch<React.SetStateAction<boolean>>;
+  thinkingState: ThinkingState;
+  setThinkingState: React.Dispatch<React.SetStateAction<ThinkingState>>;
   retryCount: number;
   activeModel: string | undefined;
   error: string | null;
@@ -127,6 +130,8 @@ const AgentOrchestrator: React.FC<{ children: ReactNode }> = ({ children }) => {
     messages,
     setIsThinking,
     isThinking,
+    thinkingState,
+    setThinkingState,
     overlayScores,
     shouldAutoRespond,
     setShouldAutoRespond,
@@ -216,6 +221,7 @@ const AgentOrchestrator: React.FC<{ children: ReactNode }> = ({ children }) => {
       currentAdapterRef.current.interrupt();
       abortedRef.current = true;
       setIsThinking(false);
+      setThinkingState(ThinkingState.IDLE);
     }
   }, [currentAdapterRef, abortedRef, setIsThinking]);
 
@@ -240,6 +246,8 @@ const AgentOrchestrator: React.FC<{ children: ReactNode }> = ({ children }) => {
       addSystemMessage,
       isThinking,
       setIsThinking,
+      thinkingState,
+      setThinkingState,
       retryCount: state.retryCount,
       activeModel: state.activeModel,
       error: state.error,
@@ -262,6 +270,8 @@ const AgentOrchestrator: React.FC<{ children: ReactNode }> = ({ children }) => {
       addSystemMessage,
       isThinking,
       setIsThinking,
+      thinkingState,
+      setThinkingState,
       state.retryCount,
       state.activeModel,
       state.error,

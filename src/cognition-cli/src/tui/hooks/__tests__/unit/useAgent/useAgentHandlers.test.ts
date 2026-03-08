@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useAgentHandlers } from '../../../useAgent/useAgentHandlers.js';
+import { ThinkingState } from '../../../useAgent/types.js';
 import { createAgentTestWrapper } from '../../helpers/TestWrapper.js';
 import type { AgentState } from '../../../useAgent/useAgentState.js';
 import type { UseAgentOptions } from '../../../useAgent/types.js';
@@ -62,6 +63,8 @@ describe('useAgentHandlers', () => {
       setMessages: vi.fn(),
       isThinking: false,
       setIsThinking: vi.fn(),
+      setThinkingState: vi.fn(),
+      thinkingStateRef: { current: ThinkingState.IDLE },
       retryCount: 0,
       setRetryCount: vi.fn(),
       activeModel: undefined,

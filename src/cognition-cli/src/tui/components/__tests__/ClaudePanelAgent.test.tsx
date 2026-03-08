@@ -2,7 +2,7 @@ import React from 'react';
 import { render } from 'ink-testing-library';
 import stripAnsi from 'strip-ansi';
 import { ClaudePanelAgent } from '../ClaudePanelAgent.js';
-import type { TUIMessage } from '../../hooks/useAgent.js';
+import { ThinkingState, type TUIMessage } from '../../hooks/useAgent.js';
 
 // Mock useTUI to provide a stable context for tests
 const mockTUIContext = {
@@ -54,11 +54,11 @@ describe('ClaudePanelAgent', () => {
       }).not.toThrow();
     });
 
-    it('shows spinner when thinking with no messages', () => {
+    it('shows Siggy mascot when thinking with no messages', () => {
       const { lastFrame } = render(
         <ClaudePanelAgent messages={[]} isThinking={true} focused={false} />
       );
-      expect(stripAnsi(lastFrame() ?? '')).toContain('Thinking');
+      expect(stripAnsi(lastFrame() ?? '')).toContain('( •_•)');
     });
   });
 
@@ -256,8 +256,8 @@ describe('ClaudePanelAgent', () => {
     });
   });
 
-  describe('thinking indicator', () => {
-    it('shows spinner when isThinking is true', () => {
+  describe('thinking indicator and Siggy mascot', () => {
+    it('shows Siggy mascot when isThinking is true', () => {
       const messages: TUIMessage[] = [createMessage('user', 'Hello')];
       const { lastFrame } = render(
         <ClaudePanelAgent
@@ -266,19 +266,48 @@ describe('ClaudePanelAgent', () => {
           focused={false}
         />
       );
-      expect(stripAnsi(lastFrame() ?? '')).toContain('Thinking');
+      // Default Siggy state is IDLE when no thinkingState is provided
+      expect(stripAnsi(lastFrame() ?? '')).toContain('( •_•)');
     });
 
-    it('hides spinner when isThinking is false', () => {
+    it('does not show "Working..." text when thinkingState is EXECUTING', () => {
+      const messages: TUIMessage[] = [createMessage('user', 'Hello')];
+      const { lastFrame } = render(
+        <ClaudePanelAgent
+          messages={messages}
+          isThinking={true}
+          thinkingState={ThinkingState.EXECUTING}
+          focused={false}
+        />
+      );
+      expect(stripAnsi(lastFrame() ?? '')).not.toContain('Working…');
+      expect(stripAnsi(lastFrame() ?? '')).toContain('( •_•)');
+    });
+
+    it('shows "Thinking (retry ...)" text when retryCount > 0', () => {
+      const messages: TUIMessage[] = [createMessage('user', 'Hello')];
+      const { lastFrame } = render(
+        <ClaudePanelAgent
+          messages={messages}
+          isThinking={true}
+          retryCount={1}
+          focused={false}
+        />
+      );
+      expect(stripAnsi(lastFrame() ?? '')).toContain('Thinking (retry 1)…');
+    });
+
+    it('shows "Error" text when thinkingState is ERROR', () => {
       const messages: TUIMessage[] = [createMessage('user', 'Hello')];
       const { lastFrame } = render(
         <ClaudePanelAgent
           messages={messages}
           isThinking={false}
+          thinkingState={ThinkingState.ERROR}
           focused={false}
         />
       );
-      expect(stripAnsi(lastFrame() ?? '')).not.toContain('Thinking');
+      expect(stripAnsi(lastFrame() ?? '')).toContain('Error');
     });
   });
 

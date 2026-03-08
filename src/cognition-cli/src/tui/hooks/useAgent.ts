@@ -1,5 +1,6 @@
 export { useAgent } from './useAgent/index.js';
 export type { TUIMessage, UseAgentOptions } from './useAgent/types.js';
+export { ThinkingState } from './useAgent/types.js';
 
 /**
  * Agent SDK Integration Hook

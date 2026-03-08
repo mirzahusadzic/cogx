@@ -130,6 +130,8 @@ export const CognitionTUIController: React.FC<{
     sendMessage: originalSendMessage,
     addSystemMessage,
     isThinking,
+    thinkingState,
+    setThinkingState,
     retryCount,
     activeModel,
     error,
@@ -418,6 +420,8 @@ export const CognitionTUIController: React.FC<{
       workbenchHealth={workbenchHealth}
       messages={messages}
       isThinking={isThinking}
+      thinkingState={thinkingState}
+      setThinkingState={setThinkingState}
       retryCount={retryCount}
       model={activeModel || model}
       focused={focused}

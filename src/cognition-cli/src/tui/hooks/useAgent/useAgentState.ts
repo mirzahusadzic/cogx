@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import gradient from 'gradient-string';
 import type { TUIMessage, UseAgentOptions, SigmaTasks } from './types.js';
+import { ThinkingState } from './types.js';
 import { EmbeddingService } from '../../../core/services/embedding.js';
 import { OverlayRegistry } from '../../../core/algebra/overlay-registry.js';
 import { ConversationOverlayRegistry } from '../../../sigma/conversation-registry.js';
@@ -16,6 +17,8 @@ export interface AgentState {
   setMessages: React.Dispatch<React.SetStateAction<TUIMessage[]>>;
   isThinking: boolean;
   setIsThinking: React.Dispatch<React.SetStateAction<boolean>>;
+  thinkingState: ThinkingState;
+  setThinkingState: React.Dispatch<React.SetStateAction<ThinkingState>>;
   retryCount: number;
   setRetryCount: React.Dispatch<React.SetStateAction<number>>;
   activeModel: string | undefined;
@@ -68,6 +71,7 @@ export interface AgentState {
   sigmaTaskUpdateMcpServerRef: React.RefObject<McpSdkServerConfigWithInstance | null>;
   backgroundTaskManagerRef: React.RefObject<BackgroundTaskManager | null>;
   messagesRef: React.RefObject<TUIMessage[]>;
+  thinkingStateRef: React.RefObject<ThinkingState>;
   userMessageEmbeddingCache: React.RefObject<Map<number, number[]>>;
   latticeLoadedRef: React.RefObject<Set<string>>;
   compressionInProgressRef: React.RefObject<boolean>;
@@ -100,6 +104,9 @@ export function useAgentState(
     ];
   });
   const [isThinking, setIsThinking] = useState(false);
+  const [thinkingState, setThinkingState] = useState<ThinkingState>(
+    ThinkingState.IDLE
+  );
   const [retryCount, setRetryCount] = useState(0);
   const [activeModel, setActiveModel] = useState<string | undefined>(
     _options.model
@@ -158,6 +165,7 @@ export function useAgentState(
     useRef<McpSdkServerConfigWithInstance | null>(null);
   const backgroundTaskManagerRef = useRef<BackgroundTaskManager | null>(null);
   const messagesRef = useRef<TUIMessage[]>(messages);
+  const thinkingStateRef = useRef<ThinkingState>(thinkingState);
   const userMessageEmbeddingCache = useRef<Map<number, number[]>>(new Map());
   const latticeLoadedRef = useRef<Set<string>>(new Set());
   const compressionInProgressRef = useRef(false);
@@ -170,6 +178,11 @@ export function useAgentState(
     messagesRef.current = messages;
   }, [messages]);
 
+  // Keep thinkingStateRef in sync
+  useEffect(() => {
+    thinkingStateRef.current = thinkingState;
+  }, [thinkingState]);
+
   // Keep currentSessionIdRef in sync
   useEffect(() => {
     currentSessionIdRef.current = currentSessionId;
@@ -181,6 +194,8 @@ export function useAgentState(
       setMessages,
       isThinking,
       setIsThinking,
+      thinkingState,
+      setThinkingState,
       retryCount,
       setRetryCount,
       activeModel,
@@ -214,6 +229,7 @@ export function useAgentState(
       sigmaTaskUpdateMcpServerRef,
       backgroundTaskManagerRef,
       messagesRef,
+      thinkingStateRef,
       userMessageEmbeddingCache,
       latticeLoadedRef,
       compressionInProgressRef,
@@ -226,6 +242,8 @@ export function useAgentState(
     [
       messages,
       isThinking,
+      thinkingState,
+      setThinkingState,
       retryCount,
       activeModel,
       error,

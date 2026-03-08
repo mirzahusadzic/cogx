@@ -7,7 +7,6 @@ import {
   measureElement,
   DOMElement,
 } from 'ink';
-import { Spinner } from '@inkjs/ui';
 import { cleanAnsi as stripAnsi } from '../../utils/string-utils.js';
 import { systemLog } from '../../utils/debug-logger.js';
 import { useTUI } from '../context/TUIContext.js';
@@ -21,6 +20,8 @@ import {
   type StyledLine,
 } from '../utils/markdown-renderer.js';
 import type { TUIMessage } from '../hooks/useAgent.js';
+import { ThinkingState } from '../hooks/useAgent.js';
+import { Siggy } from './Siggy.js';
 import { TUITheme } from '../theme.js';
 import {
   MAX_STREAM_STABILIZATION_LINES,
@@ -54,6 +55,9 @@ export interface ClaudePanelAgentProps {
 
   /** Whether the agent is currently thinking/streaming a response */
   isThinking: boolean;
+
+  /** Current thinking state for animation */
+  thinkingState?: ThinkingState;
 
   /** Number of retries attempted (for Gemini 429 errors) */
   retryCount?: number;
@@ -111,6 +115,7 @@ export interface ClaudePanelAgentProps {
 const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   messages,
   isThinking,
+  thinkingState = ThinkingState.IDLE,
   focused,
   showInfoPanel = false,
   showTaskPanel = true,
@@ -888,7 +893,11 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       borderTop
       borderBottom
       borderColor={
-        focused ? TUITheme.ui.border.focused : TUITheme.ui.border.default
+        isThinking
+          ? TUITheme.ui.border.focused
+          : focused
+            ? TUITheme.ui.border.focused
+            : TUITheme.ui.border.default
       }
       paddingX={1}
     >
@@ -942,27 +951,60 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
       {/* Footer line for status and scroll info - always takes 1 line to prevent jump */}
       <Box height={1} flexDirection="row" justifyContent="space-between">
         <Box>
-          {isThinking && (
-            <Box>
-              <Spinner />
-              <Box marginLeft={1}>
-                <Text
-                  color={
-                    retryCount > 0
-                      ? retryCount >= 3
-                        ? '#ff8a80'
-                        : '#ffd54f'
-                      : undefined
-                  }
-                  bold={retryCount >= 2}
-                >
-                  {retryCount > 0
-                    ? `Thinking (retry ${retryCount})…`
-                    : 'Thinking…'}
-                </Text>
-              </Box>
-            </Box>
-          )}
+          <Box marginRight={1}>
+            <Text
+              color={
+                thinkingState === ThinkingState.SUCCESS
+                  ? '#81c784' // Light green for success
+                  : thinkingState === ThinkingState.ERROR
+                    ? '#ff8a80' // Light red for error
+                    : thinkingState === ThinkingState.WAITING
+                      ? '#9e9e9e' // Gray for waiting/bored
+                      : isThinking
+                        ? TUITheme.overlays.o1_structural
+                        : '#9e9e9e' // Gray for idle
+              }
+            >
+              <Siggy
+                state={
+                  isThinking
+                    ? thinkingState
+                    : thinkingState === ThinkingState.SUCCESS ||
+                        thinkingState === ThinkingState.ERROR ||
+                        thinkingState === ThinkingState.TYPING ||
+                        thinkingState === ThinkingState.WAITING
+                      ? thinkingState
+                      : ThinkingState.IDLE
+                }
+              />
+            </Text>
+          </Box>
+          <Box>
+            <Text
+              color={
+                retryCount > 0
+                  ? retryCount >= 3
+                    ? '#ff8a80'
+                    : '#ffd54f'
+                  : thinkingState === ThinkingState.WAITING
+                    ? '#9e9e9e'
+                    : isThinking
+                      ? TUITheme.overlays.o1_structural
+                      : '#9e9e9e'
+              }
+              bold={retryCount >= 2}
+            >
+              {isThinking
+                ? retryCount > 0
+                  ? `Thinking (retry ${retryCount})…`
+                  : thinkingState === ThinkingState.EXECUTING
+                    ? ''
+                    : ''
+                : thinkingState === ThinkingState.ERROR
+                  ? 'Error'
+                  : ''}
+            </Text>
+          </Box>
         </Box>
         <Box>{scrollInfo && focused && <Text dimColor>{scrollInfo}</Text>}</Box>
       </Box>

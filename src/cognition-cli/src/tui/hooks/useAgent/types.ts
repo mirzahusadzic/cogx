@@ -107,6 +107,19 @@ export interface UseAgentOptions {
 }
 
 /**
+ * Agent thinking states for the TUI animation
+ */
+export enum ThinkingState {
+  IDLE = 'idle',
+  PROCESSING = 'processing',
+  EXECUTING = 'executing',
+  SUCCESS = 'success',
+  ERROR = 'error',
+  TYPING = 'typing',
+  WAITING = 'waiting',
+}
+
+/**
  * Message object displayed in conversation UI
  */
 export interface TUIMessage {
