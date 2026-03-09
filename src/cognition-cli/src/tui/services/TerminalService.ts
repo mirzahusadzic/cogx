@@ -21,8 +21,13 @@ export class TerminalService {
   private isBracketedPasteEnabled: boolean = false;
   private isCursorHidden: boolean = false;
   private isAlternateScreenEnabled: boolean = false;
+  private exiting: boolean = false;
 
   private constructor() {}
+
+  public isExiting(): boolean {
+    return this.exiting;
+  }
 
   public static getInstance(): TerminalService {
     if (!TerminalService.instance) {
@@ -221,6 +226,7 @@ export class TerminalService {
    * Perform full terminal cleanup
    */
   public cleanup(): void {
+    this.exiting = true;
     this.resetColors();
     this.setBracketedPaste(false);
     this.setMouseTracking(false);

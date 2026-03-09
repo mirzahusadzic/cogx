@@ -3,6 +3,7 @@ import { Box, useStdout, Text } from 'ink';
 import chalk from 'chalk';
 import { ThinkingState } from '../hooks/useAgent/types.js';
 import { SIGGY_ANIMATIONS } from '../constants.js';
+import { terminal } from '../services/index.js';
 
 /**
  * Determine color function from color string (hex or chalk color name)
@@ -88,7 +89,10 @@ export const Siggy: React.FC<SiggyProps> = React.memo(
 
       const render = (force = false) => {
         // Skip direct writes if we are in TYPING state (handled by Ink)
-        if (isTyping) return;
+        // or if the terminal is cleaning up/exiting.
+        // During exit, alternate screen buffer will be closed, which
+        // automatically clears all Siggy remnants.
+        if (isTyping || terminal.isExiting()) return;
 
         const { terminalOffset: offset, terminalRows: rows } =
           layoutRef.current;
@@ -153,12 +157,14 @@ export const Siggy: React.FC<SiggyProps> = React.memo(
       };
     }, [state, color, stdout, isTyping]);
 
-    // Handle position changes and re-renders immediately for non-typing states
     useEffect(() => {
       // Skip direct writes if we are in TYPING state (handled by Ink)
-      if (isTyping || isTest) {
-        // Clear any leftover direct write if we just switched to typing
-        if (stdout && lastPosRef.current) {
+      // or if the terminal is cleaning up/exiting
+      if (isTyping || isTest || terminal.isExiting()) {
+        // Clear any leftover direct write ONLY IF we just switched to typing.
+        // Don't clear on exit as alternate screen buffer will be restored,
+        // and writing spaces to primary buffer would be messy.
+        if (stdout && lastPosRef.current && !terminal.isExiting()) {
           const { line, col } = lastPosRef.current;
           stdout.write('\u001b[s');
           stdout.write(`\u001b[${line};${col}H`);
@@ -205,7 +211,9 @@ export const Siggy: React.FC<SiggyProps> = React.memo(
     // Final cleanup on unmount
     useEffect(() => {
       return () => {
-        if (stdout && lastPosRef.current) {
+        // Clear any leftover direct write IF we are not exiting.
+        // If we ARE exiting, the terminal handles clearing via alternate screen buffer.
+        if (stdout && lastPosRef.current && !terminal.isExiting()) {
           const { line, col } = lastPosRef.current;
           stdout.write('\u001b[s');
           stdout.write(`\u001b[${line};${col}H`);

@@ -378,17 +378,7 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
       let newCursorPosition = currentCursorPosition;
       // Global exit via Ctrl+C
       if (key.ctrl && input === 'c') {
-        try {
-          process.stdout.write('\x1b[0m');
-        } catch (e) {
-          systemLog(
-            'tui',
-            `Cleanup error: ${e instanceof Error ? e.message : String(e)}`,
-            {},
-            'error'
-          );
-        }
-        process.abort();
+        terminal.forceKill();
       }
 
       // Only process input if focused, not disabled, and not confirming tool
