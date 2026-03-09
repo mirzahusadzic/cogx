@@ -5,6 +5,19 @@ All notable changes to the CogX Cognition CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.3] - 2026-03-09
+
+### Summary
+
+**Siggy Mascot & TUI Polish.** This release introduces "Siggy," a friendly terminal mascot providing real-time visual feedback during agent operations. It also features significant TUI performance optimizations for zero-flicker output, hardened Sigma Task Protocol stability, and refined tool output density for improved terminal readability.
+
+### 🚀 New Features
+
+- 🐧 **Siggy Mascot & Animated Feedback** — Introduced an integrated mascot system with non-flickering animated thinking states and tool execution indicators.
+- 🎨 **TUI Visual Enhancements** — Added a new gradient ASCII logo, refined notification styles, and optimized vertical density for tool outputs.
+- 📋 **SigmaTaskUpdate Hardening** — Improved task state resilience with automated error recovery templates and prevention of TUI clobbering during rapid state transitions.
+- ⚡ **Performance & Resilience** — Optimized LLM retry logic, improved model display naming in the status bar, and streamlined tool result classification.
+
 ## [2.7.2] - 2026-03-06
 
 ### Summary

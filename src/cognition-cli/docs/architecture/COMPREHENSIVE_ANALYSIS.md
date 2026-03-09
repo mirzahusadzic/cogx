@@ -6,7 +6,7 @@
 
 **At a Glance:**
 
-- **Current Version:** 2.7.2 (March 6, 2026)
+- **Current Version:** 2.7.3 (March 9, 2026)
 - **Production Lines:** ~100,204 TypeScript (excl. tests), ~150,036 total
 - **Test Coverage:** ~92% across 177 test files
 - **Architecture:** 7 cognitive overlays (O₁-O₇), dual-lattice Σ system, ZeroMQ agent messaging
@@ -955,7 +955,7 @@ The same architecture that understands code can preserve human identity through 
 | Core Commands         | 40+ (with tab completion)          |
 | Test Files            | 177 (comprehensive coverage)       |
 | Test Coverage         | ~92% (security, compression, UX)   |
-| Current Version       | 2.7.2 (March 6, 2026)              |
+| Current Version       | 2.7.3 (March 9, 2026)              |
 | License               | AGPL-3.0-or-later                  |
 | Zenodo DOI            | 10.5281/zenodo.18012832            |
 | Innovations Published | 49 (defensive patent publication)  |
@@ -964,7 +964,15 @@ The same architecture that understands code can preserve human identity through 
 
 ## Version History & Changelog
 
-### Version 2.7.2 (Current - PGC Architecture Migration & Task Resilience)
+### Version 2.7.3 (Current - Siggy Mascot & TUI Polish)
+
+- **Siggy Mascot & Animated Thinking States**: Introduced "Siggy," a friendly terminal mascot that provides visual feedback during agent thinking and tool execution, optimized with direct terminal writes for zero-flicker performance.
+- **TUI Visual Enhancements**: Added a new gradient ASCII logo and refined terminal notification styles for improved readability.
+- **SigmaTaskUpdate Stability**: Hardened task state management with improved error recovery and prevention of TUI output clobbering during rapid updates.
+- **Tool Output Optimization**: Consolidated and expanded tool output classification, and optimized rendering for better vertical density in the terminal.
+- **Performance & UX**: Optimized LLM retry resilience and improved model display names in the status bar.
+
+### Version 2.7.2 (PGC Architecture Migration & Task Resilience)
 
 - **PGC Architecture Migration:** Unified PGC algebra and migrated overlays to `BasePatternManager`, enabling consistent, strongly-typed cross-domain knowledge storage and retrieval.
 - **Model Expansion:** Added registration for `gemini-3.1-flash-lite-preview`, providing a high-throughput, low-latency reasoning option for complex tasks.
@@ -1222,7 +1230,7 @@ _For previous release history, see [CHANGELOG.md](https://github.com/mirzahusadz
 
 ## Conclusion
 
-Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.7.2** focuses on the **migration to a unified PGC architecture**, the **expansion of supported models** to include Gemini 3.1 Flash Lite, and the enhancement of **task resilience** through automated state recovery and improved visibility. This release marks a significant step towards a more unified and resilient cognitive architecture.
+Cognition CLI is a sophisticated research platform and production tool that reimagines AI-assisted development through verifiable, content-addressed knowledge graphs. **Version 2.7.3** focuses on the **introduction of the Siggy mascot** for improved UX feedback, significant **TUI optimizations** for output density and flicker prevention, and the **hardening of the Sigma Task Protocol** for mission-critical reliability. This release marks a significant step towards a more transparent and resilient cognitive interface.
 
 It combines:
 

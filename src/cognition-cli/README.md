@@ -109,7 +109,7 @@ Licensed under **AGPL-v3**.
   author = {Husadžić, Mirza},
   title = {Cognition Σ CLI: Seven-Overlay Knowledge Graph with Infinite Context},
   year = {2026},
-  version = {2.7.2},
+  version = {2.7.3},
   doi = {10.5281/zenodo.18012832},
   url = {https://github.com/mirzahusadzic/cogx/tree/main/src/cognition-cli}
 }

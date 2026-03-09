@@ -61,6 +61,13 @@ This repository contains the architectural blueprint for **Open Cognition** (Cog
 
 ## 🎯 Latest Release
 
+**March 9, 2026** — [v2.7.3: Siggy Mascot & TUI Polish](https://github.com/mirzahusadzic/cogx/releases/tag/v2.7.3):
+
+- 🐧 **Siggy Mascot & Animated Feedback** — Introduced an integrated mascot system with non-flickering animated thinking states and tool execution indicators.
+- 🎨 **TUI Visual Enhancements** — Added a new gradient ASCII logo, refined notification styles, and optimized vertical density for tool outputs.
+- 📋 **SigmaTaskUpdate Hardening** — Improved task state resilience with automated error recovery templates and prevention of TUI clobbering during rapid state transitions.
+- ⚡ **Performance & Resilience** — Optimized LLM retry logic, improved model display naming in the status bar, and streamlined tool result classification.
+
 **March 6, 2026** — [v2.7.2: PGC Architecture Migration & Task Resilience](https://github.com/mirzahusadzic/cogx/releases/tag/v2.7.2):
 
 - 🧬 **PGC Architecture Migration** — Unified PGC algebra and migrated overlays to `BasePatternManager` for consistent cross-domain knowledge storage.
@@ -383,7 +390,7 @@ If you use this work in research, please cite:
   author = {Husadžić, Mirza},
   title = {CogX: A Blueprint for Verifiable, Agentic AI},
   year = {2026},
-  version = {2.7.2},
+  version = {2.7.3},
   doi = {10.5281/zenodo.18012832},
   url = {https://github.com/mirzahusadzic/cogx}
 }
