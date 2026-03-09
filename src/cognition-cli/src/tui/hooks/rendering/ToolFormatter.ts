@@ -95,6 +95,7 @@ import {
   stripCursorSequences,
   hexToAnsi,
   hexToAnsiBg,
+  ANSI_DIM,
   ANSI_RESET,
 } from '../../utils/ansi-utils.js';
 import { cleanAnsi, stripSigmaMarkers } from '../../../utils/string-utils.js';
@@ -967,6 +968,15 @@ export function formatToolResult(
 
       let formattedLine = displayLine;
 
+      // Detect and dim truncation markers
+      if (
+        displayLine.includes('... (truncated)') ||
+        displayLine.includes('[TRUNCATED:') ||
+        displayLine.toLowerCase().includes('... (long line truncated')
+      ) {
+        return `${gray}${ANSI_DIM}${displayLine}${ANSI_RESET}`;
+      }
+
       // Check for exit code first, regardless of the tool, to ensure consistent status reporting.
       // We use a robust regex that handles optional ANSI and potential trailing markers.
       const exitCodeMatch = displayLine.trim().match(
@@ -1051,7 +1061,7 @@ export function formatToolResult(
     } else if (lines.length > MAX_LINES) {
       // Legacy check (shouldn't be reached with new logic, but safe to keep)
       resultLines.push(
-        `${gray}... (truncated ${lines.length - MAX_LINES} more lines)${ANSI_RESET}`
+        `${gray}${ANSI_DIM}... (truncated ${lines.length - MAX_LINES} more lines)${ANSI_RESET}`
       );
     }
 
