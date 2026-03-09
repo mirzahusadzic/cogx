@@ -67,7 +67,7 @@ describe('ClaudePanelAgent', () => {
       const { lastFrame } = render(
         <ClaudePanelAgent messages={[]} isThinking={true} focused={false} />
       );
-      expect(stripAnsi(lastFrame() ?? '')).toContain('( •_•)');
+      expect(stripAnsi(lastFrame() ?? '')).toContain('( -_-)');
     });
   });
 
@@ -276,7 +276,7 @@ describe('ClaudePanelAgent', () => {
         />
       );
       // Default Siggy state is IDLE when no thinkingState is provided
-      expect(stripAnsi(lastFrame() ?? '')).toContain('( •_•)');
+      expect(stripAnsi(lastFrame() ?? '')).toContain('( -_-)');
     });
 
     it('does not show "Working..." text when thinkingState is EXECUTING', () => {
