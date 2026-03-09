@@ -117,6 +117,7 @@ export enum ThinkingState {
   ERROR = 'error',
   TYPING = 'typing',
   WAITING = 'waiting',
+  CONFIRMING = 'confirming',
 }
 
 /**

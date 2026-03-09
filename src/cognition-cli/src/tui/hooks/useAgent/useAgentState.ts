@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
+import { terminal, TerminalStatus } from '../../services/TerminalService.js';
 import gradient from 'gradient-string';
 import type { TUIMessage, UseAgentOptions, SigmaTasks } from './types.js';
 import { ThinkingState } from './types.js';
@@ -187,6 +188,30 @@ export function useAgentState(
   useEffect(() => {
     currentSessionIdRef.current = currentSessionId;
   }, [currentSessionId]);
+
+  // Keep terminal status in sync with thinkingState
+  useEffect(() => {
+    switch (thinkingState) {
+      case ThinkingState.IDLE:
+      case ThinkingState.SUCCESS:
+      case ThinkingState.TYPING:
+        terminal.setStatus(TerminalStatus.READY);
+        break;
+      case ThinkingState.PROCESSING:
+      case ThinkingState.WAITING:
+        terminal.setStatus(TerminalStatus.THINKING);
+        break;
+      case ThinkingState.EXECUTING:
+        terminal.setStatus(TerminalStatus.PROCESSING);
+        break;
+      case ThinkingState.CONFIRMING:
+        terminal.setStatus(TerminalStatus.CONFIRMING);
+        break;
+      case ThinkingState.ERROR:
+        terminal.setStatus(TerminalStatus.ERROR);
+        break;
+    }
+  }, [thinkingState]);
 
   return useMemo(
     () => ({

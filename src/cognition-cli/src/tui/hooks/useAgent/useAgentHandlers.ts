@@ -19,7 +19,7 @@ import {
   formatToolResult,
   formatToolUseMessage,
 } from '../rendering/ToolFormatter.js';
-import { terminal, TerminalStatus } from '../../services/TerminalService.js';
+import { terminal } from '../../services/TerminalService.js';
 import { stripCursorSequences, ANSI_RESET } from '../../utils/ansi-utils.js';
 import type { SigmaTasks, SigmaTask } from './types.js';
 import { ThinkingState } from './types.js';
@@ -963,7 +963,6 @@ export function useAgentHandlers() {
 
         setIsThinking(true);
         setThinkingState(ThinkingState.PROCESSING);
-        terminal.setStatus(TerminalStatus.THINKING);
 
         // Start waiting timeout - if model doesn't respond in 2s, Siggy gets bored
         resetBoredomTimer();
@@ -1226,7 +1225,9 @@ This triggers a semantic compression event, flushing implementation noise while 
               return { behavior: 'allow', updatedInput: input };
             }
             if (onRequestToolConfirmation) {
+              setThinkingState(ThinkingState.CONFIRMING);
               const decision = await onRequestToolConfirmation(toolName, input);
+              setThinkingState(ThinkingState.PROCESSING);
               return { behavior: decision, updatedInput: input };
             }
             return { behavior: 'allow', updatedInput: input };
@@ -1459,21 +1460,18 @@ This triggers a semantic compression event, flushing implementation noise while 
         if (lastResponse?.finishReason === 'stop' && !abortedRef.current) {
           setThinkingState(ThinkingState.SUCCESS);
           terminal.beep();
-          terminal.setStatus(TerminalStatus.READY);
           // Auto-revert to IDLE after 5 seconds to keep the TUI clean
           statusTimeoutRef.current = setTimeout(() => {
             setThinkingState(ThinkingState.IDLE);
             statusTimeoutRef.current = null;
           }, 5000);
         } else if (thinkingStateRef.current === ThinkingState.ERROR) {
-          terminal.setStatus(TerminalStatus.ERROR);
           // If we already set ERROR state (e.g. streaming error), let it persist for 5 seconds too
           statusTimeoutRef.current = setTimeout(() => {
             setThinkingState(ThinkingState.IDLE);
             statusTimeoutRef.current = null;
           }, 5000);
         } else {
-          terminal.setStatus(TerminalStatus.READY);
           setThinkingState(ThinkingState.IDLE);
         }
       } catch (err) {
@@ -1485,7 +1483,6 @@ This triggers a semantic compression event, flushing implementation noise while 
           ...prev,
           { type: 'system', content: `❌ ${errorMsg}`, timestamp: new Date() },
         ]);
-        terminal.setStatus(TerminalStatus.ERROR);
         setIsThinking(false);
         setThinkingState(ThinkingState.IDLE);
       } finally {

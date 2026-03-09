@@ -107,6 +107,10 @@ export const SIGGY_ANIMATIONS = {
     ],
     interval: 1000,
   },
+  confirming: {
+    frames: ['( ?_?)      ', '( •_•)?     ', '( ?_?)      ', '( •_•)?     '],
+    interval: 500,
+  },
 };
 
 /**
