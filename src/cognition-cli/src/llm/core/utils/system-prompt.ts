@@ -63,7 +63,8 @@ ${taskContext}
 ### 2. Action & Turn Sequencing (The "Hot Potato" Rule)
 - **Never Yield While Working**: Do not finish your turn (respond to the user) while a task is \`in_progress\` unless you are strictly blocked by a question.
 - **Clean Slate**: Never start a new task in the same turn you complete a task. Mark it \`completed\`, provide a \`result_summary\`, and END YOUR TURN. This triggers context pruning and ensures the next turn starts with a high-fidelity, lean context window.
-- **Required Sequence**: Start Task -> Run Tools (grep/read) -> Close Task (with Summary) -> Respond to User.
+- **Required Sequence**: Start Task (Turn 1) -> Run Tools (Turns 2+) -> Close Task (Final Turn) -> Respond to User.
+- **Atomic Tooling (CRITICAL)**: NEVER mix \`SigmaTaskUpdate\` with another tool (like \`bash\`, \`read_file\`, or \`edit_file\`) in the same turn. If you need to update a task and then run a command, do it in TWO separate turns. This prevents UI interleaving glitches and ensures state persistence.
 
 ### 3. Tool usage & File Operations
 - **Reasoning First**: Engage internal reasoning before heavy tool calls like \`SigmaTaskUpdate\` or \`edit_file\`. NEVER output JSON payloads in your conversational response.

@@ -472,6 +472,7 @@ export function useAgentHandlers() {
                     'query',
                     'list',
                     'ls',
+                    'sigmataskupdate',
                   ].includes(toolName);
 
                   if (isOutputProducing) {
@@ -888,7 +889,7 @@ export function useAgentHandlers() {
                 const cleanedPrev = [...prev];
                 let targetIdx = -1;
                 const activeHeader = activeToolContentRef.current;
-                
+
                 for (let i = cleanedPrev.length - 1; i >= 0; i--) {
                   const msg = cleanedPrev[i];
                   if (msg.type === 'tool_progress') {
@@ -917,12 +918,16 @@ export function useAgentHandlers() {
                   // If we were streaming, we update the existing message to avoid duplication.
                   // This prevents the "pushed down" look where the streaming output remains
                   // and the final result is appended below it.
-                  if (isStreamingToolOutputRef.current && activeHeader && cleanedPrev[targetIdx].content.startsWith(activeHeader)) {
-                     cleanedPrev[targetIdx] = {
-                       ...cleanedPrev[targetIdx],
-                       content: `${activeHeader}\n${formattedResult}`,
-                     };
-                     return cleanedPrev;
+                  if (
+                    isStreamingToolOutputRef.current &&
+                    activeHeader &&
+                    cleanedPrev[targetIdx].content.startsWith(activeHeader)
+                  ) {
+                    cleanedPrev[targetIdx] = {
+                      ...cleanedPrev[targetIdx],
+                      content: `${activeHeader}\n${formattedResult}`,
+                    };
+                    return cleanedPrev;
                   }
                 }
 
