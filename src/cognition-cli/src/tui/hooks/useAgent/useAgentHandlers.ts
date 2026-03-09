@@ -42,9 +42,11 @@ import {
  * Output-producing tools are those that are likely to have long-running or
  * multi-line output that should be preserved in the active tool content area.
  */
-export function isOutputProducingTool(name: string): boolean {
+export function isOutputProducingTool(name?: string): boolean {
+  if (!name) return false;
+
   const normalized = name
-    ?.toLowerCase()
+    .toLowerCase()
     .replace(/^mcp__.*?__/, '')
     .replace(/_/g, ''); // Fix naming inconsistency (read_file vs readfile)
 
@@ -67,6 +69,11 @@ export function isOutputProducingTool(name: string): boolean {
     'list',
     'ls',
     'sigmataskupdate',
+    'recallpastconversation',
+    'getbackgroundtasks',
+    'listagents',
+    'queryagent',
+    'listpendingmessages',
   ];
 
   return outputProducingTools.includes(normalized);
