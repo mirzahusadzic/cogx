@@ -54,22 +54,32 @@ const PROVIDER_STYLES: Record<string, { color: string; emoji: string }> = {
 // Model ID to display name mapping
 const MODEL_DISPLAY_NAMES: Record<string, string> = {
   // Claude models
-  'claude-opus-4-5-20251101': 'Opus 4.5',
-  'claude-sonnet-4-5-20250929': 'Sonnet 4.5',
-  'claude-sonnet-4-20250514': 'Sonnet 4',
+  'claude-opus-4-5-20251101': 'Claude Opus 4.5',
+  'claude-sonnet-4-5-20250929': 'Claude Sonnet 4.5',
+  'claude-sonnet-4-20250514': 'Claude Sonnet 4',
+  'claude-3-7-sonnet-latest': 'Claude 3.7 Sonnet',
+  'claude-3-5-sonnet-latest': 'Claude 3.5 Sonnet',
   // Gemini models
-  'gemini-3-flash-preview': 'Gemini 3f',
-  'gemini-3.1-flash-lite-preview': 'Gemini 3.1f Lite',
-  'gemini-3.1-pro-preview': 'Gemini 3.1p',
-  'gemini-3.1-pro-preview-customtools': 'Gemini 3.1p CustomTools',
-  'gemini-2.5-flash': 'Gemini 2.5f (EOL)',
-  'gemini-2.5-pro': 'Gemini 2.5p (EOL)',
+  'gemini-3-flash-preview': 'Gemini 3 Flash',
+  'gemini-3.1-flash-lite-preview': 'Gemini 3.1 Flash Lite',
+  'gemini-3.1-pro-preview': 'Gemini 3.1 Pro',
+  'gemini-3.1-pro-preview-customtools': 'Gemini 3.1 Pro CustomTools',
+  'gemini-2.5-flash': 'Gemini 2.5 Flash (EOL)',
+  'gemini-2.5-pro': 'Gemini 2.5 Pro (EOL)',
   // Minimax models
   'MiniMax-M2.5': 'Minimax M2.5',
-  'MiniMax-M2.5-highspeed': 'M2.5 Fast',
+  'MiniMax-M2.5-highspeed': 'Minimax M2.5 Fast',
   'MiniMax-M2.1': 'Minimax M2.1',
-  'MiniMax-M2.1-highspeed': 'M2.1 Fast',
+  'MiniMax-M2.1-highspeed': 'Minimax M2.1 Fast',
   'MiniMax-M2': 'Minimax M2',
+  // OpenAI models
+  'gpt-4o': 'GPT-4o',
+  'gpt-4o-mini': 'GPT-4o Mini',
+  o1: 'O1',
+  o3: 'O3',
+  // Local models (OpenAI-compatible)
+  'gpt-oss-20b': 'GPT-OSS 20B',
+  'gpt-oss-120b': 'GPT-OSS 120B',
 };
 
 /**

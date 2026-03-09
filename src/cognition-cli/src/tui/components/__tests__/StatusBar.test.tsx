@@ -69,40 +69,40 @@ describe('StatusBar', () => {
   });
 
   describe('model display names', () => {
-    it('displays Opus 4.5 for claude-opus-4-5-20251101', () => {
+    it('displays Claude Opus 4.5 for claude-opus-4-5-20251101', () => {
       const { lastFrame } = renderStatusBar({
         focused: false,
         providerName: 'claude',
         modelId: 'claude-opus-4-5-20251101',
       });
-      expect(lastFrame()).toContain('Opus 4.5');
+      expect(lastFrame()).toContain('Claude Opus 4.5');
     });
 
-    it('displays Sonnet 4.5 for claude-sonnet-4-5-20250929', () => {
+    it('displays Claude Sonnet 4.5 for claude-sonnet-4-5-20250929', () => {
       const { lastFrame } = renderStatusBar({
         focused: false,
         providerName: 'claude',
         modelId: 'claude-sonnet-4-5-20250929',
       });
-      expect(lastFrame()).toContain('Sonnet 4.5');
+      expect(lastFrame()).toContain('Claude Sonnet 4.5');
     });
 
-    it('displays Gemini 3f for gemini-3-flash-preview', () => {
+    it('displays Gemini 3 Flash for gemini-3-flash-preview', () => {
       const { lastFrame } = renderStatusBar({
         focused: false,
         providerName: 'gemini',
         modelId: 'gemini-3-flash-preview',
       });
-      expect(lastFrame()).toContain('Gemini 3f');
+      expect(lastFrame()).toContain('Gemini 3 Flash');
     });
 
-    it('displays Gemini 2.5f (EOL) for gemini-2.5-flash', () => {
+    it('displays Gemini 2.5 Flash (EOL) for gemini-2.5-flash', () => {
       const { lastFrame } = renderStatusBar({
         focused: false,
         providerName: 'gemini',
         modelId: 'gemini-2.5-flash',
       });
-      expect(lastFrame()).toContain('Gemini 2.5f (EOL)');
+      expect(lastFrame()).toContain('Gemini 2.5 Flash (EOL)');
     });
 
     it('displays raw model ID for unknown models', () => {
