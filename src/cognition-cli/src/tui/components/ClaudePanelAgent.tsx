@@ -975,13 +975,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
               color={
                 thinkingState === ThinkingState.SUCCESS
                   ? '#81c784' // Light green for success
-                  : thinkingState === ThinkingState.ERROR
-                    ? '#ff8a80' // Light red for error
-                    : thinkingState === ThinkingState.WAITING
-                      ? '#9e9e9e' // Gray for waiting/bored
-                      : isThinking
-                        ? TUITheme.overlays.o1_structural
-                        : '#9e9e9e' // Gray for idle
+                  : '#9e9e9e' // Muted gray for all other states (consistent with waiting)
               }
               terminalRows={terminalRows}
               terminalOffset={terminalOffset}
@@ -994,11 +988,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                   ? retryCount >= 3
                     ? '#ff8a80'
                     : '#ffd54f'
-                  : thinkingState === ThinkingState.WAITING
-                    ? '#9e9e9e'
-                    : isThinking
-                      ? TUITheme.overlays.o1_structural
-                      : '#9e9e9e'
+                  : '#9e9e9e' // Muted gray for all other states (consistent with waiting)
               }
               bold={retryCount >= 2}
             >
