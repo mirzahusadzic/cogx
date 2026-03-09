@@ -37,6 +37,41 @@ import {
   MAX_STREAM_STABILIZATION_LINES,
 } from './constants.js';
 
+/**
+ * Check if a tool is "output-producing" for TUI rendering purposes.
+ * Output-producing tools are those that are likely to have long-running or
+ * multi-line output that should be preserved in the active tool content area.
+ */
+export function isOutputProducingTool(name: string): boolean {
+  const normalized = name
+    ?.toLowerCase()
+    .replace(/^mcp__.*?__/, '')
+    .replace(/_/g, ''); // Fix naming inconsistency (read_file vs readfile)
+
+  const outputProducingTools = [
+    'bash',
+    'shell',
+    'executebash',
+    'bashoutput',
+    'checkoutput',
+    'getbashoutput',
+    'read',
+    'readfile',
+    'grep',
+    'glob',
+    'fetchurl',
+    'webfetch',
+    'websearch',
+    'search',
+    'query',
+    'list',
+    'ls',
+    'sigmataskupdate',
+  ];
+
+  return outputProducingTools.includes(normalized);
+}
+
 interface MessageBlock {
   type: string;
   text?: string;
@@ -454,26 +489,9 @@ export function useAgentHandlers() {
                     cwd,
                     sigmaTasks
                   );
-                  const toolName = tool.name
-                    ?.toLowerCase()
-                    .replace(/^mcp__.*?__/, '');
-                  const isOutputProducing = [
-                    'bash',
-                    'shell',
-                    'executebash',
-                    'read',
-                    'readfile',
-                    'grep',
-                    'glob',
-                    'fetchurl',
-                    'webfetch',
-                    'websearch',
-                    'search',
-                    'query',
-                    'list',
-                    'ls',
-                    'sigmataskupdate',
-                  ].includes(toolName);
+                  const isOutputProducing = isOutputProducingTool(
+                    tool.name || ''
+                  );
 
                   if (isOutputProducing) {
                     activeToolContentRef.current = content;
@@ -564,25 +582,9 @@ export function useAgentHandlers() {
               cwd,
               sigmaTasks
             );
-            const baseToolName = agentMessage.toolName
-              ?.toLowerCase()
-              .replace(/^mcp__.*?__/, '');
-            const isOutputProducing = [
-              'bash',
-              'shell',
-              'executebash',
-              'read',
-              'readfile',
-              'grep',
-              'glob',
-              'fetchurl',
-              'webfetch',
-              'websearch',
-              'search',
-              'query',
-              'list',
-              'ls',
-            ].includes(baseToolName || '');
+            const isOutputProducing = isOutputProducingTool(
+              agentMessage.toolName || ''
+            );
 
             if (isOutputProducing) {
               activeToolContentRef.current = content;
@@ -621,25 +623,9 @@ export function useAgentHandlers() {
                   cwd,
                   sigmaTasks
                 );
-                const toolName = tool.name
-                  ?.toLowerCase()
-                  .replace(/^mcp__.*?__/, '');
-                const isOutputProducing = [
-                  'bash',
-                  'shell',
-                  'executebash',
-                  'read',
-                  'readfile',
-                  'grep',
-                  'glob',
-                  'fetchurl',
-                  'webfetch',
-                  'websearch',
-                  'search',
-                  'query',
-                  'list',
-                  'ls',
-                ].includes(toolName || '');
+                const isOutputProducing = isOutputProducingTool(
+                  tool.name || ''
+                );
 
                 if (isOutputProducing) {
                   activeToolContentRef.current = contentStr;
@@ -853,27 +839,8 @@ export function useAgentHandlers() {
               );
 
               const resultIcon = '↪';
-              const isOutput = [
-                'bash',
-                'shell',
-                'executebash',
-                'bashoutput',
-                'check_output',
-                'get_bash_output',
-                'read',
-                'read_file',
-                'grep',
-                'glob',
-                'fetch_url',
-                'webfetch',
-                'fetchurl',
-                'websearch',
-                'search',
-                'query',
-                'list',
-                'ls',
-              ].includes(
-                agentMessage.toolName.toLowerCase().replace(/^mcp__.*?__/, '')
+              const isOutput = isOutputProducingTool(
+                agentMessage.toolName || ''
               );
               const suffix = isOutput ? ' Output' : ' Result';
 
