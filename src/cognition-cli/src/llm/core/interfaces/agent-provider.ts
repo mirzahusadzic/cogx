@@ -167,8 +167,14 @@ export interface AgentContent {
  */
 export interface AgentMessage {
   id: string;
-  type: 'user' | 'assistant' | 'tool_use' | 'tool_result' | 'thinking';
-  role?: 'user' | 'assistant';
+  type:
+    | 'user'
+    | 'assistant'
+    | 'system'
+    | 'tool_use'
+    | 'tool_result'
+    | 'thinking';
+  role?: 'user' | 'assistant' | 'system';
   content: string | AgentContent[];
   timestamp: Date;
   thinking?: string; // Extended thinking content

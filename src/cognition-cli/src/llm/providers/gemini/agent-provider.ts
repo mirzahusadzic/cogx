@@ -613,7 +613,7 @@ export class GeminiAgentProvider extends BaseAgentProvider {
 
     let activeModel = request.model || 'gemini-3-flash-preview';
     let attempt = 0;
-    const maxRetries = 5;
+    const maxRetries = 7;
     let retryDelay = 1000;
 
     const accumulatedThinkingBlocks = new Map<string, string>();

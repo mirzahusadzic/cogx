@@ -1398,8 +1398,8 @@ describe('GeminiAgentProvider', () => {
         return responses;
       })();
 
-      // Advance lots of time in chunks
-      for (let i = 0; i < 100; i++) {
+      // Advance lots of time in chunks to cover the extended backoff (up to 2-3 mins)
+      for (let i = 0; i < 500; i++) {
         await vi.advanceTimersByTimeAsync(1000);
       }
 

@@ -1388,7 +1388,11 @@ This triggers a semantic compression event, flushing implementation noise while 
           }
         }
 
-        if (lastResponse && hasAssistantMessage) {
+        if (
+          lastResponse &&
+          hasAssistantMessage &&
+          lastResponse.finishReason !== 'error'
+        ) {
           setMessages((prev) => [
             ...prev,
             {
@@ -1436,11 +1440,7 @@ This triggers a semantic compression event, flushing implementation noise while 
           }
         }
 
-        if (
-          !hasAssistantMessage &&
-          previousMessageCount <= 1 &&
-          !abortedRef.current
-        ) {
+        if (!hasAssistantMessage && !abortedRef.current) {
           const errorMsg = isAuthenticationError(stderrLines)
             ? formatAuthError()
             : formatSDKError(stderrLines, hasAssistantMessage);
@@ -1457,7 +1457,11 @@ This triggers a semantic compression event, flushing implementation noise while 
 
         setIsThinking(false);
 
-        if (lastResponse?.finishReason === 'stop' && !abortedRef.current) {
+        if (
+          lastResponse?.finishReason === 'stop' &&
+          hasAssistantMessage &&
+          !abortedRef.current
+        ) {
           setThinkingState(ThinkingState.SUCCESS);
           terminal.beep();
           // Auto-revert to IDLE after 5 seconds to keep the TUI clean

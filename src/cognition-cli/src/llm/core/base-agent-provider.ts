@@ -267,11 +267,11 @@ export abstract class BaseAgentProvider implements AgentProvider {
           'error'
         );
 
-        // Add error message to history
+        // Add error message to history as system type to avoid triggering success logic
         this.messages.push({
           id: `msg-${Date.now()}-error`,
-          type: 'assistant',
-          role: 'assistant',
+          type: 'system',
+          role: 'system',
           content: `Error: ${errorMessage}`,
           timestamp: new Date(),
         });
