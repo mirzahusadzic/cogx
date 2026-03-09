@@ -879,18 +879,28 @@ export function useAgentHandlers() {
               // Layer 13: Tool Result Header Injection.
               // Use a newline after the header to ensure the content starts on its own line.
               // Normalize formattedResult to prevent double newlines when prepending header
-              const cleanResult = formattedResult.trimStart();
-              formattedResult = `${resultIcon} ${toolInfo.name}${suffix}:\n${cleanResult}`;
+              const cleanResult = formattedResult.trim();
+              formattedResult = `${resultIcon} ${toolInfo.name}${suffix}:${cleanResult.length > 0 ? `\n${cleanResult}` : ''}`;
 
               setMessages((prev) => {
                 // Clean up any remaining streaming markers from the active tool_progress message.
                 // We search backwards to find it robustly.
                 const cleanedPrev = [...prev];
                 let targetIdx = -1;
+                const activeHeader = activeToolContentRef.current;
+                
                 for (let i = cleanedPrev.length - 1; i >= 0; i--) {
-                  if (cleanedPrev[i].type === 'tool_progress') {
-                    targetIdx = i;
-                    break;
+                  const msg = cleanedPrev[i];
+                  if (msg.type === 'tool_progress') {
+                    // If we were streaming, we prefer the message that we were streaming into.
+                    if (activeHeader && msg.content.startsWith(activeHeader)) {
+                      targetIdx = i;
+                      break;
+                    }
+                    // Fallback to the last tool_progress message if no header match
+                    if (targetIdx === -1) {
+                      targetIdx = i;
+                    }
                   }
                 }
 
@@ -899,10 +909,21 @@ export function useAgentHandlers() {
                     ...cleanedPrev[targetIdx],
                     content: cleanedPrev[targetIdx].content.replace(
                       // eslint-disable-next-line no-control-regex
-                      /\n\x1b\[90m\(streaming\)\x1b\[0m$/,
+                      /(?:\r?\n)*(?:\x1b\[[0-9;]*m)*\(streaming\)(?:\x1b\[[0-9;]*m)*$/,
                       ''
                     ),
                   };
+
+                  // If we were streaming, we update the existing message to avoid duplication.
+                  // This prevents the "pushed down" look where the streaming output remains
+                  // and the final result is appended below it.
+                  if (isStreamingToolOutputRef.current && activeHeader && cleanedPrev[targetIdx].content.startsWith(activeHeader)) {
+                     cleanedPrev[targetIdx] = {
+                       ...cleanedPrev[targetIdx],
+                       content: `${activeHeader}\n${formattedResult}`,
+                     };
+                     return cleanedPrev;
+                  }
                 }
 
                 return [
