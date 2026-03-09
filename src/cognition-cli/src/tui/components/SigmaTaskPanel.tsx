@@ -160,9 +160,9 @@ export const SigmaTaskPanel: React.FC<SigmaTaskPanelProps> = ({
                     >
                       [{getStatusIcon(task.status)}]{' '}
                       {stripAnsi(
-                        task.status === 'in_progress'
+                        (task.status === 'in_progress'
                           ? task.activeForm
-                          : task.content
+                          : task.content) || `Task ${task.id}`
                       )}
                     </Text>
                     {(task.status === 'completed' ||

@@ -356,4 +356,33 @@ describe('SigmaTaskPanel', () => {
     expect(output).toContain('Completed 3');
     expect(output).not.toContain('Summary 3');
   });
+
+  it('renders a fallback when content or activeForm is missing', () => {
+    const sparseTasks: SigmaTasks = {
+      todos: [
+        {
+          id: 'sparse-1',
+          status: 'pending',
+          tokensAtStart: 0,
+        } as SigmaTask,
+        {
+          id: 'sparse-2',
+          status: 'in_progress',
+          tokensAtStart: 0,
+        } as SigmaTask,
+      ],
+    };
+
+    const { lastFrame } = render(
+      <SigmaTaskPanel
+        sigmaTasks={sparseTasks}
+        tokenCount={mockTokenCount}
+        sessionTokenCount={mockTokenCount}
+      />
+    );
+
+    const output = stripAnsi(lastFrame()!);
+    expect(output).toContain('Task sparse-1');
+    expect(output).toContain('Task sparse-2');
+  });
 });
