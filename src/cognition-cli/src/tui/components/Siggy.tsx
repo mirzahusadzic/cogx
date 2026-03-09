@@ -1,8 +1,30 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Box, useStdout, Text } from 'ink';
 import chalk from 'chalk';
 import { ThinkingState } from '../hooks/useAgent/types.js';
 import { SIGGY_ANIMATIONS } from '../constants.js';
+
+/**
+ * Determine color function from color string (hex or chalk color name)
+ */
+const getColorFn = (colorStr: string) => {
+  let colorFn = chalk.cyan;
+  try {
+    if (colorStr.startsWith('#')) {
+      colorFn = chalk.hex(colorStr);
+    } else if (colorStr in chalk) {
+      const potentialColorFn = (chalk as unknown as Record<string, unknown>)[
+        colorStr
+      ];
+      if (typeof potentialColorFn === 'function') {
+        colorFn = potentialColorFn as typeof chalk.cyan;
+      }
+    }
+  } catch {
+    // fallback to cyan
+  }
+  return colorFn;
+};
 
 /**
  * Props for Siggy mascot component
@@ -40,6 +62,9 @@ export const Siggy: React.FC<SiggyProps> = React.memo(
     const isTyping = state === ThinkingState.TYPING;
     const isTest = process.env.NODE_ENV === 'test';
 
+    // Determine color function once when color prop changes
+    const colorFn = useMemo(() => getColorFn(color), [color]);
+
     // Use refs for layout-related props to allow the animation loop to use
     // the latest values without restarting the effect.
     const layoutRef = useRef({ terminalOffset, terminalRows });
@@ -57,23 +82,6 @@ export const Siggy: React.FC<SiggyProps> = React.memo(
       // Reset animation to first frame on state change
       frameRef.current = 0;
       if (isTyping) setTypingFrame(0);
-
-      // Determine color function
-      let colorFn = chalk.cyan;
-      try {
-        if (color.startsWith('#')) {
-          colorFn = chalk.hex(color);
-        } else if (color in chalk) {
-          const potentialColorFn = (
-            chalk as unknown as Record<string, unknown>
-          )[color];
-          if (typeof potentialColorFn === 'function') {
-            colorFn = potentialColorFn as typeof chalk.cyan;
-          }
-        }
-      } catch {
-        // fallback to cyan
-      }
 
       // Determine interval based on state
       const intervalTime = animation.interval;
@@ -171,16 +179,6 @@ export const Siggy: React.FC<SiggyProps> = React.memo(
         SIGGY_ANIMATIONS[state] || SIGGY_ANIMATIONS[ThinkingState.IDLE];
       const frames = animation.frames;
       const displayFrame = frames[frameRef.current] || frames[0];
-
-      // Determine color function
-      let colorFn = chalk.cyan;
-      if (color && color in chalk) {
-        const potentialColorFn = (chalk as unknown as Record<string, unknown>)[
-          color
-        ];
-        if (typeof potentialColorFn === 'function')
-          colorFn = potentialColorFn as typeof chalk.cyan;
-      }
 
       // If position changed, we MUST clear the old one first
       if (
