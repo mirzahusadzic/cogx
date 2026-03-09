@@ -14,4 +14,8 @@ export {
   type TaskCompleteCallback,
 } from './BackgroundTaskManager.js';
 
-export { terminal, TerminalService } from './TerminalService.js';
+export {
+  terminal,
+  TerminalService,
+  TerminalStatus,
+} from './TerminalService.js';

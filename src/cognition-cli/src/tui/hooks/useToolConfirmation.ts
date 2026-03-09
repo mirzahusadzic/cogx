@@ -13,6 +13,7 @@ import {
   ToolRiskLevel,
 } from '../utils/tool-safety.js';
 import { systemLog } from '../../utils/debug-logger.js';
+import { terminal, TerminalStatus } from '../services/index.js';
 
 export interface ToolConfirmationState {
   pending: boolean;
@@ -107,6 +108,8 @@ export function useToolConfirmation() {
       return new Promise((resolve) => {
         confirmationResolver.current = resolve;
 
+        terminal.beep();
+        terminal.setStatus(TerminalStatus.CONFIRMING);
         setConfirmationState({
           pending: true,
           toolName,
@@ -127,6 +130,7 @@ export function useToolConfirmation() {
       confirmationResolver.current('allow');
       confirmationResolver.current = null;
     }
+    terminal.setStatus(TerminalStatus.PROCESSING);
     setConfirmationState(null);
   }, []);
 
@@ -138,6 +142,7 @@ export function useToolConfirmation() {
       confirmationResolver.current('deny');
       confirmationResolver.current = null;
     }
+    terminal.setStatus(TerminalStatus.PROCESSING);
     setConfirmationState(null);
   }, []);
 
@@ -171,12 +176,8 @@ export function useToolConfirmation() {
       }
     }
 
-    if (confirmationResolver.current) {
-      confirmationResolver.current('allow');
-      confirmationResolver.current = null;
-    }
-    setConfirmationState(null);
-  }, [confirmationState]);
+    allow();
+  }, [confirmationState, allow]);
 
   /**
    * Clear session allow list

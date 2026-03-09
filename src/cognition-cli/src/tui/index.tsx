@@ -18,7 +18,7 @@ import { useSlashCommands } from './hooks/useSlashCommands.js';
 import { useMessageMonitor } from './hooks/useMessageMonitor.js';
 import { TUIProvider, useTUI } from './context/TUIContext.js';
 import { AgentProvider, useAgentContext } from './contexts/AgentContext.js';
-import { terminal } from './services/index.js';
+import { terminal, TerminalStatus } from './services/index.js';
 import { isAuthenticationError } from './hooks/sdk/index.js';
 import type { TUIMessage } from './hooks/useAgent.js';
 import { MessageQueueMonitor } from '../ipc/MessageQueueMonitor.js';
@@ -632,6 +632,7 @@ export function startTUI(options: CognitionTUIProps) {
 
   terminal.enterAlternateScreen();
   terminal.setTerminalBackgroundColor(TUITheme.background.primary);
+  terminal.setStatus(TerminalStatus.READY);
   terminal.setCursorVisibility(false);
 
   const { unmount, waitUntilExit } = render(

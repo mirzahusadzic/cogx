@@ -7,6 +7,14 @@
 
 import { systemLog } from '../../utils/debug-logger.js';
 
+export enum TerminalStatus {
+  READY = 'Ready',
+  THINKING = 'Thinking...',
+  PROCESSING = 'Processing...',
+  CONFIRMING = 'Confirmation Required',
+  ERROR = 'Error',
+}
+
 export class TerminalService {
   private static instance: TerminalService;
   private isMouseTrackingEnabled: boolean = false;
@@ -21,6 +29,13 @@ export class TerminalService {
       TerminalService.instance = new TerminalService();
     }
     return TerminalService.instance;
+  }
+
+  /**
+   * Set a concise status in the terminal tab/window title
+   */
+  public setStatus(status: TerminalStatus): void {
+    this.setTabTitle(`Cognition Σ: ${status}`);
   }
 
   /**
@@ -161,6 +176,48 @@ export class TerminalService {
   }
 
   /**
+   * Trigger a terminal bell and attention request (visual/audio)
+   * Uses multiple escape sequences to support various terminal emulators.
+   */
+  public beep(): void {
+    if (!process.stdout.isTTY || process.env.NODE_ENV === 'test') return;
+    try {
+      // 1. Standard ASCII Bell (works in almost all terminals for sound/flash/badge)
+      process.stdout.write('\x07');
+
+      // 2. iTerm2 / Ghostty / WezTerm notification (triggers desktop notification or tab bell icon)
+      // OSC 9 ; <message> \x07
+      process.stdout.write('\x1b]9;Cognition Σ (Task Complete)\x07');
+
+      // 3. iTerm2 explicit "Request Attention" (bounces dock, flashes tab)
+      // OSC 1337 ; Attention=yes \x07
+      process.stdout.write('\x1b]1337;RequestAttention=yes\x07');
+
+      // 4. Linux / urxvt style (OSC 777 ; notify ; title ; message \x07)
+      process.stdout.write('\x1b]777;notify;Cognition Σ;Task Complete\x07');
+    } catch (e) {
+      systemLog('tui', `Failed to trigger terminal bell: ${e}`);
+    }
+  }
+
+  /**
+   * Set terminal tab/window title
+   */
+  public setTabTitle(title: string): void {
+    if (!process.stdout.isTTY || process.env.NODE_ENV === 'test') return;
+    try {
+      // OSC 0 sets both window title and icon (tab) name
+      process.stdout.write(`\x1b]0;${title}\x07`);
+      // OSC 1 sets icon (tab) name specifically - some terminals prefer this for tabs
+      process.stdout.write(`\x1b]1;${title}\x07`);
+      // OSC 2 sets window title specifically
+      process.stdout.write(`\x1b]2;${title}\x07`);
+    } catch (e) {
+      systemLog('tui', `Failed to set terminal title: ${e}`);
+    }
+  }
+
+  /**
    * Perform full terminal cleanup
    */
   public cleanup(): void {
@@ -168,6 +225,7 @@ export class TerminalService {
     this.setBracketedPaste(false);
     this.setMouseTracking(false);
     this.setCursorVisibility(true);
+    this.setTabTitle('Cognition Σ');
     this.exitAlternateScreen();
   }
 
