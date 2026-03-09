@@ -397,7 +397,12 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
       }
 
       // Trigger activity callback for Siggy hybrid rendering stability
-      if (onActivity) {
+      // Skip for scrolling actions to avoid Siggy thinking we are typing
+      const isScrollAction =
+        isPageUpAction ||
+        isPageDownAction ||
+        (key.shift && (key.upArrow || key.downArrow));
+      if (onActivity && !isScrollAction) {
         onActivity();
       }
 

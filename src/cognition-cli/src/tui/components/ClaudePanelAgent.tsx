@@ -786,8 +786,9 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
   useEffect(() => {
     if (!focused) {
       setScrollOffset(0); // Input focused - scroll to bottom
+      setUserScrolledUp(false); // Reset scrolled up state
     }
-  }, [focused, userScrolledUp]);
+  }, [focused]);
 
   // Handle keyboard scrolling when panel is focused
   useInput(
