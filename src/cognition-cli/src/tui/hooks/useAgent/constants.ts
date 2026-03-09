@@ -17,7 +17,7 @@ export const CONTEXT_SENSITIVE_PROVIDERS = ['gemini', 'openai', 'minimax'];
  * The maximum number of lines to show in the streaming tool output block.
  * This is used to maintain visual stability in the TUI while content is streaming.
  */
-export const MAX_STREAM_STABILIZATION_LINES = 20;
+export const MAX_STREAM_STABILIZATION_LINES = 12;
 
 /**
  * Total height reserved for fixed UI elements (header, footer, thinking indicator, input prompt, etc.)

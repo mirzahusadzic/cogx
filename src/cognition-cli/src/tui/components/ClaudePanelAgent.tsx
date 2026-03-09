@@ -206,6 +206,10 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
         processedContent.includes('(streaming)') ||
         processedContent.includes('(tail of stream)');
 
+      const isTruncated =
+        processedContent.includes('(truncated)') ||
+        processedContent.includes('[TRUNCATED:');
+
       if (isStreaming) {
         // Handle streaming carriage returns that overwrite the current line
         processedContent = processedContent.replace(/[^\n]*\r/g, '');
@@ -326,7 +330,9 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
                 isRead ||
                 isGrep ||
                 isBash ||
-                lang === 'diff'
+                lang === 'diff' ||
+                isStreaming ||
+                isTruncated
               )
             ) {
               finalDetails = cleanDetails;
@@ -393,7 +399,7 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
             // Layer 12: Floating Window Stabilization.
             // If we are streaming tool output (e.g. bash), we want to prevent the header
             // from jumping up and down as lines wrap or as the tail-truncation kicks in.
-            // We do this by ensuring the output block has a stable height (e.g. 25 lines)
+            // We do this by ensuring the output block has a stable height (e.g. 20 lines)
             // during the streaming process.
             // Ensure the stabilized height doesn't exceed the available vertical space
             // to prevent pushing out the OverlaysBar or other UI elements.
@@ -402,9 +408,8 @@ const ClaudePanelAgentComponent: React.FC<ClaudePanelAgentProps> = ({
               availableHeight - 2 // Leave a small safety buffer for tool header
             );
 
-            // For streaming output or file-related output, force a leading newline.
-            // This ensures the "ToolName:" header is always on its own line,
-            // separating it from the scrolling content and allowing full-width rendering.
+            // For non-wrapped output, force a leading newline to separate from header.
+            // For wrapped output (code blocks), the MarkdownRenderer handles the spacing.
             let effectiveDetails = trimmedDetails
               .trimEnd()
               .replace(/\t/g, '  '); // Use 2 spaces for tabs to save width

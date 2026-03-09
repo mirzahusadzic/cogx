@@ -303,7 +303,8 @@ export async function executeBash(
     proc.stdout.on('data', (data) => {
       const chunk = data.toString();
       if (stdout.length + chunk.length > MAX_BUFFER_SIZE) {
-        stdout = stdout.substring(0, MAX_BUFFER_SIZE - 50) + '... (truncated)';
+        stdout =
+          stdout.substring(0, MAX_BUFFER_SIZE - 50) + '... (truncated) ...';
         proc.stdout.removeAllListeners('data'); // Stop accumulating
       } else {
         stdout += chunk;
@@ -313,7 +314,8 @@ export async function executeBash(
     proc.stderr.on('data', (data) => {
       const chunk = data.toString();
       if (stderr.length + chunk.length > MAX_BUFFER_SIZE) {
-        stderr = stderr.substring(0, MAX_BUFFER_SIZE - 50) + '... (truncated)';
+        stderr =
+          stderr.substring(0, MAX_BUFFER_SIZE - 50) + '... (truncated) ...';
         proc.stderr.removeAllListeners('data'); // Stop accumulating
       } else {
         stderr += chunk;

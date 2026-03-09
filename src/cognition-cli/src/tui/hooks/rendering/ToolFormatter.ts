@@ -972,7 +972,9 @@ export function formatToolResult(
       if (
         displayLine.includes('... (truncated)') ||
         displayLine.includes('[TRUNCATED:') ||
-        displayLine.toLowerCase().includes('... (long line truncated')
+        displayLine.toLowerCase().includes('... (long line truncated') ||
+        displayLine.includes('(streaming)') ||
+        displayLine.includes('(tail of stream)')
       ) {
         return `${gray}${ANSI_DIM}${displayLine}${ANSI_RESET}`;
       }

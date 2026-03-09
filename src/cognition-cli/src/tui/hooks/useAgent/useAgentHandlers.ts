@@ -20,7 +20,13 @@ import {
   formatToolUseMessage,
 } from '../rendering/ToolFormatter.js';
 import { terminal } from '../../services/TerminalService.js';
-import { stripCursorSequences, ANSI_RESET } from '../../utils/ansi-utils.js';
+import {
+  stripCursorSequences,
+  ANSI_RESET,
+  ANSI_DIM,
+  hexToAnsi,
+} from '../../utils/ansi-utils.js';
+import { TUITheme } from '../../theme.js';
 import type { SigmaTasks, SigmaTask } from './types.js';
 import { ThinkingState } from './types.js';
 import { processSigmaTaskUpdateInput } from '../../../llm/core/utils/tool-helpers.js';
@@ -274,6 +280,8 @@ export function useAgentHandlers() {
   const isStreamingToolOutputRef = useRef<boolean>(false);
   const activeToolContentRef = useRef<string | null>(null);
   const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const grayColor = `${hexToAnsi(TUITheme.text.secondary)}${ANSI_DIM}`;
 
   const processAgentMessage = useCallback(
     async (
@@ -870,7 +878,9 @@ export function useAgentHandlers() {
 
               // Layer 13: Tool Result Header Injection.
               // Use a newline after the header to ensure the content starts on its own line.
-              formattedResult = `${resultIcon} ${toolInfo.name}${suffix}:\n${formattedResult}`;
+              // Normalize formattedResult to prevent double newlines when prepending header
+              const cleanResult = formattedResult.trimStart();
+              formattedResult = `${resultIcon} ${toolInfo.name}${suffix}:\n${cleanResult}`;
 
               setMessages((prev) => {
                 // Clean up any remaining streaming markers from the active tool_progress message.
@@ -1158,10 +1168,11 @@ This triggers a semantic compression event, flushing implementation noise while 
                 // Strip existing streaming marker if present from previous chunk
                 // Use a non-capturing group for the optional newline to avoid issues
                 // Robustly strip the streaming marker AND any trailing newlines from content
-                // to prepare for clean appending.
+                // to prepare for clean appending. We use a regex that matches the marker
+                // with any ANSI color sequences (including multi-sequence themes).
                 let content = target.content.replace(
                   // eslint-disable-next-line no-control-regex
-                  /(?:\r?\n)*\x1b\[90m\(streaming\)\x1b\[0m$/,
+                  /(?:\r?\n)*(?:\x1b\[[0-9;]*m)*\(streaming\)(?:\x1b\[[0-9;]*m)*$/,
                   ''
                 );
 
@@ -1195,7 +1206,7 @@ This triggers a semantic compression event, flushing implementation noise while 
                     const keptLines = lines.slice(-MAX_STREAM_LINES);
                     content =
                       header +
-                      '\n\x1b[90m... (tail of stream)\x1b[0m\n' +
+                      `\n${grayColor}... (tail of stream)${ANSI_RESET}\n` +
                       keptLines.join('\n');
                   }
                 }
@@ -1205,7 +1216,7 @@ This triggers a semantic compression event, flushing implementation noise while 
                 if (!content.endsWith('\n')) {
                   content += '\n';
                 }
-                content += '\x1b[90m(streaming)\x1b[0m';
+                content += `${grayColor}(streaming)${ANSI_RESET}`;
 
                 const newMessages = [...prev];
                 newMessages[targetIdx] = { ...target, content };

@@ -461,6 +461,12 @@ export class MarkdownRenderer {
         this.ensureGap(state);
 
         const codeLines = c.value.split('\n');
+
+        // marked preserves a trailing newline in code blocks, which results in an extra empty line.
+        // We pop the last element if it's empty to keep the TUI compact.
+        if (codeLines.length > 0 && codeLines[codeLines.length - 1] === '') {
+          codeLines.pop();
+        }
         // Determine if this block should use diff highlighting
         // Always for diff/patch, or if text/untagged blocks look like diffs
         const isDiffBlock =
