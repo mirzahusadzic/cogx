@@ -24,9 +24,12 @@
  * const icon = useEmoji() ? '✓' : '[OK]';
  */
 
+import { environmentService } from '../core/services/environment/EnvironmentService.js';
+
 /**
  * Check if color output is enabled
  *
+ * @deprecated Use environmentService and specialized formatting services.
  * Respects multiple sources (in priority order):
  * 1. COGNITION_NO_COLOR env var (CLI flag)
  * 2. NO_COLOR env var (standard)
@@ -37,16 +40,16 @@
  */
 export function useColor(): boolean {
   // Respect CLI flag (set by --no-color)
-  if (process.env.COGNITION_NO_COLOR === '1') return false;
+  if (environmentService.getEnv('COGNITION_NO_COLOR') === '1') return false;
 
   // Respect NO_COLOR standard (https://no-color.org/)
-  if (process.env.NO_COLOR) return false;
+  if (environmentService.getEnv('NO_COLOR')) return false;
 
   // Disable in non-TTY (pipes, redirects)
   if (!process.stdout.isTTY) return false;
 
   // Disable in CI environments
-  if (process.env.CI === 'true') return false;
+  if (environmentService.getEnv('CI') === 'true') return false;
 
   return true;
 }
@@ -54,6 +57,7 @@ export function useColor(): boolean {
 /**
  * Check if emoji output is enabled
  *
+ * @deprecated Use environmentService and specialized formatting services.
  * Respects:
  * 1. COGNITION_NO_EMOJI env var (CLI flag)
  * 2. Terminal Unicode support detection
@@ -63,15 +67,14 @@ export function useColor(): boolean {
  */
 export function useEmoji(): boolean {
   // Respect CLI flag (set by --no-emoji)
-  if (process.env.COGNITION_NO_EMOJI === '1') return false;
+  if (environmentService.getEnv('COGNITION_NO_EMOJI') === '1') return false;
 
   // Disable in plain format mode
-  if (process.env.COGNITION_FORMAT === 'plain') return false;
+  if (environmentService.getEnv('COGNITION_FORMAT') === 'plain') return false;
 
   // Check if terminal supports Unicode
-  const lang = process.env.LANG || '';
-  const supportsUnicode =
-    lang.includes('UTF-8') || process.platform === 'darwin';
+  const lang = environmentService.getEnv('LANG') || '';
+  const supportsUnicode = lang.includes('UTF-8') || environmentService.isMac();
 
   return supportsUnicode;
 }
@@ -79,13 +82,10 @@ export function useEmoji(): boolean {
 /**
  * Helper function that returns emoji or fallback based on terminal support
  *
+ * @deprecated Use environmentService and specialized formatting services.
  * @param emoji - Emoji character to use
  * @param fallback - ASCII fallback when emojis not supported
  * @returns Emoji or fallback string
- *
- * @example
- * emoji('✓', '[OK]')  // → "✓" or "[OK]" depending on terminal
- * emoji('🔥', '!')    // → "🔥" or "!" depending on terminal
  */
 export function emoji(emojiChar: string, fallback: string): string {
   return useEmoji() ? emojiChar : fallback;
@@ -94,23 +94,25 @@ export function emoji(emojiChar: string, fallback: string): string {
 /**
  * Check if box-drawing characters are supported
  *
+ * @deprecated Use environmentService and specialized formatting services.
  * @returns true if Unicode box-drawing chars should be used
  */
 export function useBoxDrawing(): boolean {
   // Disable in dumb terminals
-  if (process.env.TERM === 'dumb') return false;
+  if (environmentService.getEnv('TERM') === 'dumb') return false;
 
   // Disable in plain format mode
-  if (process.env.COGNITION_FORMAT === 'plain') return false;
+  if (environmentService.getEnv('COGNITION_FORMAT') === 'plain') return false;
 
   // Check Unicode support
-  const lang = process.env.LANG || '';
-  return lang.includes('UTF-8') || process.platform === 'darwin';
+  const lang = environmentService.getEnv('LANG') || '';
+  return lang.includes('UTF-8') || environmentService.isMac();
 }
 
 /**
  * Get terminal width for text wrapping
  *
+ * @deprecated Use environmentService.getTerminalWidth() (planned)
  * @returns Terminal column width (default: 80)
  */
 export function getTerminalWidth(): number {
@@ -120,6 +122,7 @@ export function getTerminalWidth(): number {
 /**
  * Get box-drawing characters based on terminal support
  *
+ * @deprecated Use environmentService and specialized formatting services.
  * Returns Unicode box chars if supported, ASCII fallback otherwise.
  *
  * @returns Object with box-drawing characters
@@ -159,48 +162,38 @@ export function getBoxChars() {
 /**
  * Check if output should be in plain mode
  *
- * Plain mode disables:
- * - Colors
- * - Emojis
- * - Box-drawing characters
- * - Fancy formatting
- *
+ * @deprecated Use environmentService.getEnv('COGNITION_FORMAT') === 'plain'
  * @returns true if plain mode is active
  */
 export function isPlainMode(): boolean {
-  return process.env.COGNITION_FORMAT === 'plain';
+  return environmentService.getEnv('COGNITION_FORMAT') === 'plain';
 }
 
 /**
  * Check if output should be in JSON mode
  *
- * JSON mode disables all visual formatting and outputs structured data.
- *
+ * @deprecated Use environmentService.getEnv('COGNITION_FORMAT') === 'json'
  * @returns true if JSON mode is active
  */
 export function isJsonMode(): boolean {
-  return process.env.COGNITION_FORMAT === 'json';
+  return environmentService.getEnv('COGNITION_FORMAT') === 'json';
 }
 
 /**
  * Check if interactive prompts are allowed
  *
- * Returns false when:
- * 1. --no-input flag is set (COGNITION_NO_INPUT=1)
- * 2. stdin is not a TTY (piped input)
- * 3. Running in CI environment
- *
+ * @deprecated Use environmentService.isInteractive() (planned)
  * @returns true if interactive prompts are allowed
  */
 export function isInteractive(): boolean {
   // Respect --no-input flag
-  if (process.env.COGNITION_NO_INPUT === '1') return false;
+  if (environmentService.getEnv('COGNITION_NO_INPUT') === '1') return false;
 
   // Not interactive if stdin is not a TTY
   if (!process.stdin.isTTY) return false;
 
   // Disable in CI environments
-  if (process.env.CI === 'true') return false;
+  if (environmentService.getEnv('CI') === 'true') return false;
 
   return true;
 }
@@ -208,8 +201,7 @@ export function isInteractive(): boolean {
 /**
  * Detect all terminal capabilities at once
  *
- * Useful for logging or debugging terminal support.
- *
+ * @deprecated Use environmentService for individual detections.
  * @returns Object with all detected capabilities
  */
 export function detectTerminalCapabilities() {
@@ -222,9 +214,9 @@ export function detectTerminalCapabilities() {
     isJson: isJsonMode(),
     isInteractive: isInteractive(),
     platform: process.platform,
-    term: process.env.TERM,
-    lang: process.env.LANG,
+    term: environmentService.getEnv('TERM'),
+    lang: environmentService.getEnv('LANG'),
     isTTY: process.stdout.isTTY,
-    isCI: process.env.CI === 'true',
+    isCI: environmentService.getEnv('CI') === 'true',
   };
 }

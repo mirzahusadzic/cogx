@@ -6,6 +6,8 @@ import { dirname, join } from 'path';
 import type { BackgroundTask } from '../services/BackgroundTaskManager.js';
 import { TUITheme } from '../theme.js';
 
+import { environmentService } from '../../core/services/environment/EnvironmentService.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const packageJson = JSON.parse(
@@ -14,7 +16,7 @@ const packageJson = JSON.parse(
 const VERSION = packageJson.version;
 
 // Platform-specific brand emoji (phoenix ZWJ breaks on macOS terminals)
-const BRAND_EMOJI = process.platform === 'darwin' ? '🐉' : '🐦‍🔥';
+const BRAND_EMOJI = environmentService.isMac() ? '🐉' : '🐦‍🔥';
 
 /**
  * Sigma conversation lattice statistics

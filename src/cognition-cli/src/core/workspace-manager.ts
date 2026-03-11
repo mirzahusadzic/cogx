@@ -36,47 +36,17 @@
  * // → null (no .open_cognition found)
  */
 
-import fs from 'fs-extra';
-import path from 'path';
+import { environmentService } from './services/environment/EnvironmentService.js';
 
 export class WorkspaceManager {
   /**
    * Find PGC root by walking up directory tree
    *
-   * Searches for .open_cognition directory starting from startDir
-   * and moving upward until found or filesystem root reached.
-   *
+   * @deprecated Use environmentService.findProjectRoot()
    * @param startDir - Directory to start search from (default: process.cwd())
    * @returns Path to project root (containing .open_cognition) or null if not found
-   *
-   * @example
-   * const manager = new WorkspaceManager();
-   * const root = manager.resolvePgcRoot();
-   * if (root) {
-   *   console.log(`PGC workspace found at: ${root}`);
-   *   const pgcPath = path.join(root, '.open_cognition');
-   * } else {
-   *   console.error('No PGC workspace found. Run: cognition-cli init');
-   * }
    */
   resolvePgcRoot(startDir: string = process.cwd()): string | null {
-    let currentDir = path.resolve(startDir);
-    const root = path.parse(currentDir).root;
-
-    while (currentDir !== root) {
-      const pgcPath = path.join(currentDir, '.open_cognition');
-      if (fs.existsSync(pgcPath)) {
-        return currentDir;
-      }
-      currentDir = path.dirname(currentDir);
-    }
-
-    // Check root directory too
-    const pgcPath = path.join(root, '.open_cognition');
-    if (fs.existsSync(pgcPath)) {
-      return root;
-    }
-
-    return null;
+    return environmentService.findProjectRoot(startDir);
   }
 }

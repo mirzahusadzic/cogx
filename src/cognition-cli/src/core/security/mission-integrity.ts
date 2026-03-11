@@ -55,6 +55,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import { MissionConcept } from '../analyzers/concept-extractor.js';
 import { execSync } from 'child_process';
+import { environmentService } from '../services/environment/EnvironmentService.js';
 
 /**
  * Represents a single version of a mission document
@@ -494,11 +495,7 @@ export class MissionIntegrityMonitor {
   private async getGitInfo(filePath: string): Promise<GitInfo> {
     try {
       // Check if file is in a git repo
-      const repoRoot = execSync('git rev-parse --show-toplevel', {
-        cwd: path.dirname(filePath),
-        encoding: 'utf-8',
-        stdio: ['pipe', 'pipe', 'ignore'],
-      }).trim();
+      const repoRoot = environmentService.getRepoRoot(path.dirname(filePath));
 
       // Get last commit for this file
       const commit = execSync(`git log -1 --format=%H -- "${filePath}"`, {

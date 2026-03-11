@@ -4,9 +4,10 @@ import { terminal } from '../services/TerminalService.js';
 import { TUITheme } from '../theme.js';
 import { formatCompactNumber } from '../../utils/string-utils.js';
 import type { SessionTokenCount } from '../hooks/tokens/useSessionTokenCount.js';
+import { environmentService } from '../../core/services/environment/EnvironmentService.js';
 
 // Extra space needed after certain emojis on macOS/WSL2 (terminal width calculation differs)
-const EMOJI_SPACER = process.platform === 'darwin' ? ' ' : '';
+const EMOJI_SPACER = environmentService.isMac() ? ' ' : '';
 
 /**
  * Props for StatusBar component
