@@ -29,6 +29,8 @@ try {
 
 // Export types and classes
 export * from './AgentMessage.js';
+export * from './Topics.js';
+export * from './Payloads.js';
 export * from './ZeroMQBus.js';
 export * from './BusCoordinator.js';
 export * from './AgentRegistry.js';

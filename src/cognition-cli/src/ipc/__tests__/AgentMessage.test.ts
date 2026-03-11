@@ -18,7 +18,7 @@ import {
   type AgentRegisteredPayload,
   type TaskStartedPayload,
   type TaskCompletedPayload,
-} from '../AgentMessage.js';
+} from '../index.js';
 
 describe('AgentMessage', () => {
   describe('Topics Constants', () => {

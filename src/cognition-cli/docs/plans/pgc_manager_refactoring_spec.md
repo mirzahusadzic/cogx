@@ -48,9 +48,9 @@ This document provides a detailed technical blueprint for refactoring `src/core/
 
 ## 3. JSDoc Preservation Checklist
 
-- [ ] **Class-Level Header**: The main `PGCManager` JSDoc (50+ lines) must remain in `manager.ts` but a version focused on "Architecture Overview" should be copied to the new services.
-- [ ] **Examples**: Ensure the `@example` blocks in the class-level JSDoc are updated to reflect the most common usage patterns (which should still work via the Facade).
-- [ ] **Method Docs**: When moving `index(...)` to `PGCIndexerService`, the entire `/** ... */` block must be moved with it. A simplified delegation JSDoc should be left in the Facade.
+- [x] **Class-Level Header**: The main `PGCManager` JSDoc (50+ lines) must remain in `manager.ts` but a version focused on "Architecture Overview" should be copied to the new services.
+- [x] **Examples**: Ensure the `@example` blocks in the class-level JSDoc are updated to reflect the most common usage patterns (which should still work via the Facade).
+- [x] **Method Docs**: When moving `index(...)` to `PGCIndexerService`, the entire `/** ... */` block must be moved with it. A simplified delegation JSDoc should be left in the Facade.
 
 ## 4. Migration Verification Sequence
 

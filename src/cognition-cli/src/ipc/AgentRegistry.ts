@@ -8,12 +8,12 @@
 import { ZeroMQBus } from './ZeroMQBus.js';
 import {
   AgentMessage,
+  MessageFactory,
+  Topics,
   AgentRegisteredPayload,
   AgentUnregisteredPayload,
   AgentStatusChangedPayload,
-  Topics,
-  MessageFactory,
-} from './AgentMessage.js';
+} from './index.js';
 import { systemLog } from '../utils/debug-logger.js';
 
 /**

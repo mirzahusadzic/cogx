@@ -15,6 +15,7 @@
 
 import * as zmq from 'zeromq';
 import { AgentMessage } from './AgentMessage.js';
+import { MessageMapper } from './mappers/message-mapper.js';
 import { systemLog } from '../utils/debug-logger.js';
 
 /**
@@ -244,7 +245,8 @@ export class ZeroMQBus {
       throw new Error('ZeroMQ Bus not started');
     }
 
-    const payload = JSON.stringify(message);
+    const dto = MessageMapper.toDTO(message);
+    const payload = JSON.stringify(dto);
 
     // ZeroMQ pub/sub uses multipart messages: [topic, payload]
     this.pubSocket.send([topic, payload]).catch((err) => {
@@ -399,7 +401,8 @@ export class ZeroMQBus {
           const payload = payloadBuffer.toString();
 
           try {
-            const message: AgentMessage = JSON.parse(payload);
+            const dto = JSON.parse(payload);
+            const message = MessageMapper.toDomain(dto);
             this.dispatchMessage(topic, message);
           } catch (err) {
             systemLog(

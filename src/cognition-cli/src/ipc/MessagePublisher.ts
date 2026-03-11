@@ -1,6 +1,5 @@
 import { ZeroMQBus } from './ZeroMQBus.js';
-import { AgentMessage } from './AgentMessage.js';
-import * as crypto from 'crypto';
+import { MessageFactory } from './AgentMessage.js';
 
 /**
  * Simplifies publishing messages to the ZeroMQ bus for an agent.
@@ -53,14 +52,12 @@ export class MessagePublisher {
     topic: string,
     payload: unknown
   ): Promise<void> {
-    const message: AgentMessage = {
-      id: crypto.randomUUID(),
-      from: this.fromAgentId,
-      to: toAgentId,
+    const message = MessageFactory.create(
+      this.fromAgentId,
+      toAgentId,
       topic,
-      payload,
-      timestamp: Date.now(),
-    };
+      payload
+    );
 
     await this.bus.publish(topic, message);
   }
@@ -75,14 +72,12 @@ export class MessagePublisher {
    * @throws {Error} If the bus is not started.
    */
   async broadcast(topic: string, payload: unknown): Promise<void> {
-    const message: AgentMessage = {
-      id: crypto.randomUUID(),
-      from: this.fromAgentId,
-      to: '*', // Broadcast to all
+    const message = MessageFactory.create(
+      this.fromAgentId,
+      '*',
       topic,
-      payload,
-      timestamp: Date.now(),
-    };
+      payload
+    );
 
     await this.bus.publish(topic, message);
   }
